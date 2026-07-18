@@ -1,0 +1,77 @@
+"""Tests for the topology model."""
+
+import runpy
+import unittest
+from pathlib import Path
+
+from topology import (
+    Edge,
+    EdgeType,
+    IdentifierRef,
+    Neo4jIndex,
+    Node,
+    NodeType,
+    Ontology,
+    PropertyRef,
+    Topology,
+    TopologyValidationError,
+    topology,
+)
+
+
+class TopologyTests(unittest.TestCase):
+    def test_round_trip_json(self) -> None:
+        topology = Topology(
+            name="Example",
+            nodes=(NodeType(name="Thing"),),
+            edges=(),
+        )
+
+        self.assertEqual(Topology.from_json(topology.to_json()), topology)
+
+    def test_edge_requires_declared_endpoints(self) -> None:
+        with self.assertRaises(TopologyValidationError):
+            Topology(
+                name="Example",
+                nodes=(NodeType(name="Thing"),),
+                edges=(EdgeType(name="RelatesTo", source="Thing", target="Missing"),),
+            )
+
+    def test_declarations_expose_typed_property_references(self) -> None:
+        class Target(Node):
+            id: IdentifierRef[str] = IdentifierRef[str]()
+            symbol: PropertyRef[str] = PropertyRef[str](
+                nullable=False,
+                annotations=[Neo4jIndex()],
+            )
+
+        class Disease(Node):
+            id: IdentifierRef[str] = IdentifierRef[str]()
+            name: PropertyRef[str] = PropertyRef[str](nullable=False)
+
+        class AssociatedWith(Edge[Target, Disease]):
+            score: PropertyRef[float] = PropertyRef[float](nullable=False)
+
+        graph = topology("Example", nodes=(Target, Disease), edges=(AssociatedWith,))
+
+        self.assertIsInstance(Target.symbol, PropertyRef)
+        self.assertEqual(Target.symbol.python_type, str)
+        self.assertEqual(Target.symbol.annotations[0], Neo4jIndex())
+        self.assertEqual(AssociatedWith.score.python_type, float)
+        self.assertEqual(graph.nodes[0].properties[0].name, "symbol")
+
+    def test_python_demo_serializes_and_round_trips(self) -> None:
+        demo_path = Path("demo-pipeline/topology/sample.py")
+        declared_topology = runpy.run_path(demo_path)["TOPOLOGY"]
+        serialized_topology = declared_topology.to_json()
+        deserialized_topology = Topology.from_json(serialized_topology)
+
+        self.assertEqual(declared_topology, deserialized_topology)
+
+    def test_ontology_is_a_reusable_partial_annotation(self) -> None:
+        so = Ontology("http://purl.obolibrary.org/obo/so.owl", id="so")
+
+        annotation = so("0000704")
+
+        self.assertEqual(annotation.term, "0000704")
+        self.assertEqual(annotation.ontology, so)
