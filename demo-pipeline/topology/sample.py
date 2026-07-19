@@ -28,8 +28,14 @@ MONDO = Ontology("https://purl.obolibrary.org/ontology/MONDO", id="mondo")
 RO = Ontology("http://purl.obolibrary.org/obo/ro.owl", id="ro")
 
 
+class NamedEntity(Node):
+    """Reusable node template with a shared human-readable name property."""
+
+    name: PropertyRef[str] = PropertyRef[str](description="Preferred entity name.")
+
+
 class Target(
-    Node,
+    NamedEntity,
     description="A biological target.",
 ):
     id: IdentifierRef[str] = IdentifierRef[str](
@@ -41,11 +47,10 @@ class Target(
         description="Approved gene symbol.",
         annotations=[Neo4jIndex()],
     )
-    name: PropertyRef[str] = PropertyRef[str](description="Approved target name.")
 
 
 class Disease(
-    Node,
+    NamedEntity,
     description="A disease or disease phenotype.",
 ):
     id: IdentifierRef[str] = IdentifierRef[str](
@@ -59,7 +64,14 @@ class Disease(
     )
 
 
+class ScoredAssociation(Edge[Target, Disease]):
+    """Reusable edge template for scored target–disease relationships."""
+
+    score: PropertyRef[float] = PropertyRef[float](nullable=False, description="Association evidence score.")
+
+
 class AssociatedWith(
+    ScoredAssociation,
     Edge[Target, Disease],
     description="Evidence-backed target–disease association.",
     annotations=[
@@ -67,7 +79,7 @@ class AssociatedWith(
         Neo4jRelationshipType("ASSOCIATED_WITH"),
     ],
 ):
-    score: PropertyRef[float] = PropertyRef[float](nullable=False, description="Association evidence score.")
+    pass
 
 
 TOPOLOGY = topology(

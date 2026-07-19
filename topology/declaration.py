@@ -128,17 +128,25 @@ class Node:
     ) -> None:
         super().__init_subclass__(**kwargs)
         cls._topology_name = name or cls.__name__
-        cls._topology_description = description
-        cls._topology_annotations = tuple(annotations)
+        parent = _nearest_declaration_base(cls, Node)
+        cls._topology_description = description if description is not None else getattr(
+            parent,
+            "_topology_description",
+            None,
+        )
+        cls._topology_annotations = _merge_annotations(
+            getattr(parent, "_topology_annotations", ()),
+            annotations,
+        )
 
     @classmethod
     def to_definition(cls) -> NodeType:
         """Compile this declaration into the topology IR."""
-        identifiers = [value for value in cls.__dict__.values() if isinstance(value, IdentifierRef)]
+        identifiers = _inherited_declaration_members(cls, Node, IdentifierRef)
         if len(identifiers) != 1:
-            message = f"Node {cls.__name__} must declare exactly one identifier()."
+            message = f"Node {cls.__name__} must define or inherit exactly one IdentifierRef."
             raise TopologyValidationError(message)
-        properties = tuple(value.to_definition() for value in cls.__dict__.values() if isinstance(value, PropertyRef))
+        properties = tuple(value.to_definition() for value in _inherited_declaration_members(cls, Node, PropertyRef))
         return NodeType(
             name=cls._topology_name,
             identifier=identifiers[0].to_definition(),
@@ -165,14 +173,22 @@ class Edge(Generic[TSource, TTarget]):
     ) -> None:
         super().__init_subclass__(**kwargs)
         cls._topology_name = name or cls.__name__
-        cls._topology_description = description
-        cls._topology_annotations = tuple(annotations)
+        parent = _nearest_declaration_base(cls, Edge)
+        cls._topology_description = description if description is not None else getattr(
+            parent,
+            "_topology_description",
+            None,
+        )
+        cls._topology_annotations = _merge_annotations(
+            getattr(parent, "_topology_annotations", ()),
+            annotations,
+        )
 
     @classmethod
     def to_definition(cls) -> EdgeType:
         """Compile this declaration into the topology IR."""
         source, target = _edge_endpoints(cls)
-        properties = tuple(value.to_definition() for value in cls.__dict__.values() if isinstance(value, PropertyRef))
+        properties = tuple(value.to_definition() for value in _inherited_declaration_members(cls, Edge, PropertyRef))
         return EdgeType(
             name=cls._topology_name,
             source=source._topology_name,
@@ -202,10 +218,46 @@ def topology(
 
 
 def _edge_endpoints(edge: type[Edge[Any, Any]]) -> tuple[type[Node], type[Node]]:
-    for base in getattr(edge, "__orig_bases__", ()):
-        if get_origin(base) is Edge:
-            source, target = get_args(base)
-            if isinstance(source, type) and isinstance(target, type) and issubclass(source, Node) and issubclass(target, Node):
-                return source, target
+    for candidate in edge.__mro__:
+        for base in getattr(candidate, "__orig_bases__", ()):
+            if get_origin(base) is Edge:
+                source, target = get_args(base)
+                if (
+                    isinstance(source, type)
+                    and isinstance(target, type)
+                    and issubclass(source, Node)
+                    and issubclass(target, Node)
+                ):
+                    return source, target
     message = f"Edge {edge.__name__} must inherit from Edge[SourceNode, TargetNode]."
     raise TopologyValidationError(message)
+
+
+def _nearest_declaration_base(cls: type[Any], root: type[Any]) -> type[Any] | None:
+    """Return the nearest non-root declaration base class, if one exists."""
+    return next((base for base in cls.__mro__[1:] if base is not root and issubclass(base, root)), None)
+
+
+def _inherited_declaration_members(
+    cls: type[Any],
+    root: type[Any],
+    member_type: type[Any],
+) -> Sequence[Any]:
+    """Collect declaration members through inheritance, allowing name overrides."""
+    members: dict[str, Any] = {}
+    for base in reversed(cls.__mro__):
+        if base is root or not issubclass(base, root):
+            continue
+        for name, value in base.__dict__.items():
+            if isinstance(value, member_type):
+                members[name] = value
+    return tuple(members.values())
+
+
+def _merge_annotations(*annotation_lists: Sequence[Annotation]) -> Sequence[Annotation]:
+    """Merge inherited annotations; a subclass replaces an annotation with the same key."""
+    annotations_by_key: dict[str, Annotation] = {}
+    for annotations in annotation_lists:
+        for annotation in annotations:
+            annotations_by_key[annotation.key] = annotation
+    return tuple(annotations_by_key.values())

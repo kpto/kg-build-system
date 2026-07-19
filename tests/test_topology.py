@@ -38,19 +38,24 @@ class TopologyTests(unittest.TestCase):
             )
 
     def test_declarations_expose_typed_property_references(self) -> None:
-        class Target(Node):
+        class NamedEntity(Node):
+            name: PropertyRef[str] = PropertyRef[str](nullable=False)
+
+        class Target(NamedEntity):
             id: IdentifierRef[str] = IdentifierRef[str]()
             symbol: PropertyRef[str] = PropertyRef[str](
                 nullable=False,
                 annotations=[Neo4jIndex()],
             )
 
-        class Disease(Node):
+        class Disease(NamedEntity):
             id: IdentifierRef[str] = IdentifierRef[str]()
-            name: PropertyRef[str] = PropertyRef[str](nullable=False)
 
-        class AssociatedWith(Edge[Target, Disease]):
+        class ScoredRelationship(Edge[Target, Disease]):
             score: PropertyRef[float] = PropertyRef[float](nullable=False)
+
+        class AssociatedWith(ScoredRelationship):
+            pass
 
         graph = topology("Example", nodes=(Target, Disease), edges=(AssociatedWith,))
 
@@ -58,7 +63,8 @@ class TopologyTests(unittest.TestCase):
         self.assertEqual(Target.symbol.python_type, str)
         self.assertEqual(Target.symbol.annotations[0], Neo4jIndex())
         self.assertEqual(AssociatedWith.score.python_type, float)
-        self.assertEqual(graph.nodes[0].properties[0].name, "symbol")
+        self.assertEqual([property_.name for property_ in graph.nodes[0].properties], ["name", "symbol"])
+        self.assertEqual(graph.edges[0].properties[0].name, "score")
 
     def test_python_demo_serializes_and_round_trips(self) -> None:
         demo_path = Path("demo-pipeline/topology/sample.py")

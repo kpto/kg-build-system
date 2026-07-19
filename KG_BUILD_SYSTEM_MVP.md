@@ -70,6 +70,10 @@ representation is produced from those classes; the list-based IR is an internal
 compiled form rather than the Python authoring API. JSON/YAML import and
 bidirectional synchronisation are future capabilities.
 
+Any declared node or edge can serve as a template. A subclass inherits its
+properties, identifier, description, and annotations; it may add properties or
+override an inherited property or identifier with the same attribute name.
+
 ## 4. Layer 2: abstract declarative binding
 
 Defines a declarative acquisition and transformation expression that produces
