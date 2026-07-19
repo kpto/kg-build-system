@@ -7,28 +7,26 @@ does not implement data access or execute a query.
 
 from __future__ import annotations
 
-import json
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
-from enum import StrEnum
 from typing import Any, ClassVar, Generic, TypeVar, get_args, get_origin
 
 from kg_build_system.topology import Edge, IdentifierRef, Node, PropertyRef
+from kg_build_system.binding.model import (
+    BindingSet,
+    EdgeBindingDefinition,
+    FieldMapping,
+    NodeBindingDefinition,
+)
+from kg_build_system.binding.schema import (
+    BindingValidationError,
+    Column,
+    InputFormat,
+    Table,
+)
 
 TValue = TypeVar("TValue")
 TNode = TypeVar("TNode", bound=Node)
 TEdge = TypeVar("TEdge", bound=Edge[Any, Any])
-
-
-class BindingValidationError(ValueError):
-    """Raised when a binding declaration is structurally invalid."""
-
-
-class InputFormat(StrEnum):
-    """Physical input formats supported by the initial binding model."""
-
-    CSV = "csv"
-    PARQUET = "parquet"
 
 
 def _generic_python_type(reference: object) -> type[Any]:
@@ -88,24 +86,20 @@ class Relation:
         cls._binding_options = dict(options or {})
 
     @classmethod
-    def to_definition(cls) -> dict[str, Any]:
+    def to_definition(cls) -> Table:
         """Compile this input declaration into a serialisable relation definition."""
-        columns = [
-            {
-                "name": name,
-                "python_type": value.python_type.__name__,
-                "nullable": value.nullable,
-            }
+        columns = tuple(
+            Column(name=name, python_type=value.python_type.__name__, nullable=value.nullable)
             for name, value in cls.__dict__.items()
             if isinstance(value, ColumnRef)
-        ]
-        return {
-            "name": cls._binding_name,
-            "location": cls._binding_location,
-            "format": cls._binding_format.value,
-            "options": dict(cls._binding_options),
-            "columns": columns,
-        }
+        )
+        return Table(
+            name=cls._binding_name,
+            location=cls._binding_location,
+            format=cls._binding_format,
+            options=cls._binding_options,
+            columns=columns,
+        )
 
 
 class FieldBinding(Generic[TValue]):
@@ -124,7 +118,7 @@ class FieldBinding(Generic[TValue]):
         self.target = target
         self.source = source
 
-    def to_definition(self) -> dict[str, str]:
+    def to_definition(self) -> FieldMapping:
         """Return the portable form of this typed field mapping."""
         if self.source.name is None:
             raise BindingValidationError("A bound source column has no name.")
@@ -134,7 +128,7 @@ class FieldBinding(Generic[TValue]):
             target = f"property:{self.target.name}"
         else:
             raise BindingValidationError("A bound topology property has no name.")
-        return {"target": target, "source": self.source.name}
+        return FieldMapping(target=target, source=self.source.name)
 
 
 class NodeBinding(Generic[TNode]):
@@ -147,17 +141,16 @@ class NodeBinding(Generic[TNode]):
         cls._bound_relation = relation
 
     @classmethod
-    def to_definition(cls) -> dict[str, Any]:
+    def to_definition(cls) -> NodeBindingDefinition:
         """Compile this node binding into a portable binding definition."""
         node = _generic_binding_target(cls, NodeBinding)
         mappings = _binding_members(cls)
         _validate_node_mappings(node, mappings, cls._bound_relation)
-        return {
-            "kind": "node",
-            "target": node._topology_name,
-            "relation": cls._bound_relation.to_definition(),
-            "mappings": [mapping.to_definition() for mapping in mappings],
-        }
+        return NodeBindingDefinition(
+            target=node._topology_name,
+            table=cls._bound_relation.to_definition(),
+            mappings=tuple(mapping.to_definition() for mapping in mappings),
+        )
 
 
 class EdgeBinding(Generic[TEdge]):
@@ -170,7 +163,7 @@ class EdgeBinding(Generic[TEdge]):
         cls._bound_relation = relation
 
     @classmethod
-    def to_definition(cls) -> dict[str, Any]:
+    def to_definition(cls) -> EdgeBindingDefinition:
         """Compile this edge binding into a portable binding definition."""
         edge = _generic_binding_target(cls, EdgeBinding)
         source = getattr(cls, "source", None)
@@ -183,34 +176,13 @@ class EdgeBinding(Generic[TEdge]):
         _validate_edge_mappings(edge, mappings, cls._bound_relation)
         if source.name is None or target.name is None:
             raise BindingValidationError("Edge endpoint columns must be declared on a Relation.")
-        return {
-            "kind": "edge",
-            "target": edge._topology_name,
-            "relation": cls._bound_relation.to_definition(),
-            "source": source.name,
-            "target_endpoint": target.name,
-            "mappings": [mapping.to_definition() for mapping in mappings],
-        }
-
-
-@dataclass(frozen=True, slots=True)
-class BindingSet:
-    """The serialisable collection of bindings used by a topology build."""
-
-    name: str
-    node_bindings: Sequence[type[NodeBinding[Any]]]
-    edge_bindings: Sequence[type[EdgeBinding[Any]]]
-
-    def to_dict(self) -> dict[str, Any]:
-        return {
-            "name": self.name,
-            "node_bindings": [binding.to_definition() for binding in self.node_bindings],
-            "edge_bindings": [binding.to_definition() for binding in self.edge_bindings],
-        }
-
-    def to_json(self, *, indent: int = 2) -> str:
-        """Return the portable JSON representation of these bindings."""
-        return json.dumps(self.to_dict(), indent=indent, sort_keys=True) + "\n"
+        return EdgeBindingDefinition(
+            target=edge._topology_name,
+            table=cls._bound_relation.to_definition(),
+            source=source.name,
+            target_endpoint=target.name,
+            mappings=tuple(mapping.to_definition() for mapping in mappings),
+        )
 
 
 def binding_set(
@@ -220,7 +192,11 @@ def binding_set(
     edge_bindings: Sequence[type[EdgeBinding[Any]]],
 ) -> BindingSet:
     """Create a serialisable set of class-based binding declarations."""
-    return BindingSet(name=name, node_bindings=tuple(node_bindings), edge_bindings=tuple(edge_bindings))
+    return BindingSet(
+        name=name,
+        node_bindings=tuple(binding.to_definition() for binding in node_bindings),
+        edge_bindings=tuple(binding.to_definition() for binding in edge_bindings),
+    )
 
 
 def _generic_binding_target(cls: type[Any], root: type[Any]) -> type[Any]:
