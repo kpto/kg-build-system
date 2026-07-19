@@ -1,6 +1,6 @@
 """Declarative, source-independent knowledge graph topology models."""
 
-from topology.model import (
+from kg_build_system.topology.model import (
     Annotation,
     AnnotationTemplate,
     EdgeType,
@@ -16,7 +16,7 @@ from topology.model import (
     TopologyValidationError,
     ValueType,
 )
-from topology.declaration import Edge, IdentifierRef, Node, PropertyRef, topology
+from kg_build_system.topology.declaration import Edge, IdentifierRef, Node, PropertyRef, topology
 
 __all__ = [
     "EdgeType",

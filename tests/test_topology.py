@@ -1,10 +1,9 @@
 """Tests for the topology model."""
 
-import runpy
 import unittest
-from pathlib import Path
 
-from topology import (
+from demo.topology import TOPOLOGY
+from kg_build_system.topology import (
     Edge,
     EdgeType,
     IdentifierRef,
@@ -67,12 +66,10 @@ class TopologyTests(unittest.TestCase):
         self.assertEqual(graph.edges[0].properties[0].name, "score")
 
     def test_python_demo_serializes_and_round_trips(self) -> None:
-        demo_path = Path("demo-pipeline/topology/sample.py")
-        declared_topology = runpy.run_path(demo_path)["TOPOLOGY"]
-        serialized_topology = declared_topology.to_json()
+        serialized_topology = TOPOLOGY.to_json()
         deserialized_topology = Topology.from_json(serialized_topology)
 
-        self.assertEqual(declared_topology, deserialized_topology)
+        self.assertEqual(TOPOLOGY, deserialized_topology)
 
     def test_ontology_is_a_reusable_partial_annotation(self) -> None:
         so = Ontology("http://purl.obolibrary.org/obo/so.owl", id="so")

@@ -134,6 +134,15 @@ The portable expression subset must compile deterministically to DuckDB SQL.
 Python user-defined transformations are a later extension and are explicitly
 outside the portable MVP subset.
 
+### Initial implementation
+
+The first MVP binding slice uses class-based declarations. `Relation` classes
+declare a physical location, format, and typed `ColumnRef[T]` attributes.
+`NodeBinding` and `EdgeBinding` classes use `FieldBinding[T]` instances to map
+topology references such as `Target.symbol` to source references such as
+`TargetRows.target_symbol`. The shared type parameter makes an incompatible
+mapping visible to a static type checker before execution.
+
 ## 5. Future design: model synchronization and code generation
 
 Code generation is not part of the MVP. The model and IR boundaries should,
@@ -189,16 +198,13 @@ layer should expose generated SQL and query plans for inspection.
 ## 7. Proposed monorepo layout
 
 ```text
-packages/
+kg_build_system/
   topology/          # graph types, annotations, IR and validation
   binding/           # acquisition and transformation expressions and type rules
   compute/           # physical data access, DuckDB execution and target writers
-demo-pipeline/
-  topology/          # demonstration graph definition
-  bindings/          # source-to-graph bindings
+demo/
+  build.py           # topology, bindings, and end-to-end graph build
   data/               # small reproducible input datasets
-  config/            # runtime credentials, compute and target configuration
-  output/            # produced graph artifacts and build report
 tests/
 ```
 
@@ -223,7 +229,7 @@ The MVP proves one end-to-end workflow with:
 - DuckDB SQL compilation and execution;
 - file output and a minimal Neo4j target;
 - model validation, SQL inspection, and reproducible build reports;
-- a self-contained demonstration pipeline that defines, binds, and produces a
+- a self-contained, importable demonstration project that defines, binds, and produces a
   small graph demonstrating ontology and target annotations.
 
 ## 9. Deferred concerns

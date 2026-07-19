@@ -1,0 +1,2 @@
+target_id,target_symbol,target_name,disease_id,disease_name,score
+ENSG00000141510,TP53,tumor protein p53,MONDO:0007254,breast cancer,0.92

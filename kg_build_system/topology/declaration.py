@@ -11,7 +11,16 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any, ClassVar, Generic, TypeVar, get_args, get_origin
 
-from topology.model import Annotation, EdgeType, Identifier, NodeType, Property, Topology, TopologyValidationError, ValueType
+from kg_build_system.topology.model import (
+    Annotation,
+    EdgeType,
+    Identifier,
+    NodeType,
+    Property,
+    Topology,
+    TopologyValidationError,
+    ValueType,
+)
 
 TValue = TypeVar("TValue")
 TSource = TypeVar("TSource", bound="Node")

@@ -1,17 +1,6 @@
-"""Statically typed Python definition of the demonstration graph.
+"""Topology declaration for the demonstration graph."""
 
-Downstream bindings will be able to reference ``Target.symbol``,
-``Disease.name``, and ``AssociatedWith.score`` directly.
-"""
-
-import sys
-from pathlib import Path
-
-REPOSITORY_ROOT = Path(__file__).resolve().parents[2]
-if str(REPOSITORY_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPOSITORY_ROOT))
-
-from topology import (
+from kg_build_system.topology import (
     Edge,
     IdentifierRef,
     Neo4jIndex,
@@ -29,15 +18,10 @@ RO = Ontology("http://purl.obolibrary.org/obo/ro.owl", id="ro")
 
 
 class NamedEntity(Node):
-    """Reusable node template with a shared human-readable name property."""
-
     name: PropertyRef[str] = PropertyRef[str](description="Preferred entity name.")
 
 
-class Target(
-    NamedEntity,
-    description="A biological target.",
-):
+class Target(NamedEntity, description="A biological target."):
     id: IdentifierRef[str] = IdentifierRef[str](
         description="Ensembl gene identifier.",
         annotations=[SO("0000704")],
@@ -49,10 +33,7 @@ class Target(
     )
 
 
-class Disease(
-    NamedEntity,
-    description="A disease or disease phenotype.",
-):
+class Disease(NamedEntity, description="A disease or disease phenotype."):
     id: IdentifierRef[str] = IdentifierRef[str](
         description="Disease ontology identifier.",
         annotations=[MONDO("0000001")],
@@ -65,19 +46,13 @@ class Disease(
 
 
 class ScoredAssociation(Edge[Target, Disease]):
-    """Reusable edge template for scored target–disease relationships."""
-
     score: PropertyRef[float] = PropertyRef[float](nullable=False, description="Association evidence score.")
 
 
 class AssociatedWith(
     ScoredAssociation,
-    Edge[Target, Disease],
-    description="Evidence-backed target–disease association.",
-    annotations=[
-        RO("0003302"),
-        Neo4jRelationshipType("ASSOCIATED_WITH"),
-    ],
+    description="Evidence-backed target-disease association.",
+    annotations=[RO("0003302"), Neo4jRelationshipType("ASSOCIATED_WITH")],
 ):
     pass
 
@@ -86,6 +61,6 @@ TOPOLOGY = topology(
     "target_disease_demo",
     nodes=(Target, Disease),
     edges=(AssociatedWith,),
-    description="A minimal target–disease knowledge graph for the MVP demonstration pipeline.",
+    description="A minimal target-disease knowledge graph.",
     annotations=[OntologyScope("biomedical")],
 )
