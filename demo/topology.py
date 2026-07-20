@@ -9,6 +9,8 @@ from kg_build_system.topology import (
     Ontology,
     OntologyScope,
     PropertyRef,
+    edge,
+    node,
     topology,
 )
 
@@ -21,7 +23,8 @@ class NamedEntity(Node):
     name: PropertyRef[str] = PropertyRef[str](description="Preferred entity name.")
 
 
-class Target(NamedEntity, description="A biological target."):
+@node(description="A biological target.")
+class Target(NamedEntity):
     id: IdentifierRef[str] = IdentifierRef[str](
         description="Ensembl gene identifier.",
         annotations=[SO("0000704")],
@@ -33,7 +36,8 @@ class Target(NamedEntity, description="A biological target."):
     )
 
 
-class Disease(NamedEntity, description="A disease or disease phenotype."):
+@node(description="A disease or disease phenotype.")
+class Disease(NamedEntity):
     id: IdentifierRef[str] = IdentifierRef[str](
         description="Disease ontology identifier.",
         annotations=[MONDO("0000001")],
@@ -49,11 +53,11 @@ class ScoredAssociation(Edge[Target, Disease]):
     score: PropertyRef[float] = PropertyRef[float](nullable=False, description="Association evidence score.")
 
 
-class AssociatedWith(
-    ScoredAssociation,
+@edge(
     description="Evidence-backed target-disease association.",
     annotations=[RO("0003302"), Neo4jRelationshipType("ASSOCIATED_WITH")],
-):
+)
+class AssociatedWith(ScoredAssociation):
     pass
 
 

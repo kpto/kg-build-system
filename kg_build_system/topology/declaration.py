@@ -9,7 +9,7 @@ can accept directly and type-check.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, ClassVar, Generic, TypeVar, get_args, get_origin
+from typing import Any, Callable, ClassVar, Generic, TypeVar, get_args, get_origin
 
 from kg_build_system.topology.model import (
     Annotation,
@@ -25,6 +25,8 @@ from kg_build_system.topology.model import (
 TValue = TypeVar("TValue")
 TSource = TypeVar("TSource", bound="Node")
 TTarget = TypeVar("TTarget", bound="Node")
+TNodeDeclaration = TypeVar("TNodeDeclaration", bound="Node")
+TEdgeDeclaration = TypeVar("TEdgeDeclaration", bound="Edge[Any, Any]")
 
 
 def _value_type_from_python_type(python_type: type[Any]) -> ValueType:
@@ -208,6 +210,26 @@ class Edge(Generic[TSource, TTarget]):
         )
 
 
+def node(
+    *,
+    name: str | None = None,
+    description: str | None = None,
+    annotations: Sequence[Annotation] = (),
+) -> Callable[[type[TNodeDeclaration]], type[TNodeDeclaration]]:
+    """Supply metadata for a declared node class."""
+    return _metadata_decorator(Node, name=name, description=description, annotations=annotations)
+
+
+def edge(
+    *,
+    name: str | None = None,
+    description: str | None = None,
+    annotations: Sequence[Annotation] = (),
+) -> Callable[[type[TEdgeDeclaration]], type[TEdgeDeclaration]]:
+    """Supply metadata for a declared edge class."""
+    return _metadata_decorator(Edge, name=name, description=description, annotations=annotations)
+
+
 def topology(
     name: str,
     *,
@@ -245,6 +267,33 @@ def _edge_endpoints(edge: type[Edge[Any, Any]]) -> tuple[type[Node], type[Node]]
 def _nearest_declaration_base(cls: type[Any], root: type[Any]) -> type[Any] | None:
     """Return the nearest non-root declaration base class, if one exists."""
     return next((base for base in cls.__mro__[1:] if base is not root and issubclass(base, root)), None)
+
+
+def _metadata_decorator(
+    root: type[Any],
+    *,
+    name: str | None,
+    description: str | None,
+    annotations: Sequence[Annotation],
+) -> Callable[[type[Any]], type[Any]]:
+    """Create a decorator that assigns metadata to one declaration class."""
+    def decorate(cls: type[Any]) -> type[Any]:
+        if not issubclass(cls, root):
+            raise TopologyValidationError(f"{root.__name__} metadata requires a {root.__name__} subclass.")
+        parent = _nearest_declaration_base(cls, root)
+        cls._topology_name = name or cls.__name__
+        cls._topology_description = description if description is not None else getattr(
+            parent,
+            "_topology_description",
+            None,
+        )
+        cls._topology_annotations = _merge_annotations(
+            getattr(parent, "_topology_annotations", ()),
+            annotations,
+        )
+        return cls
+
+    return decorate
 
 
 def _inherited_declaration_members(

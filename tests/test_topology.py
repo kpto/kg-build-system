@@ -14,6 +14,8 @@ from kg_build_system.topology import (
     PropertyRef,
     Topology,
     TopologyValidationError,
+    edge,
+    node,
     topology,
 )
 
@@ -40,6 +42,7 @@ class TopologyTests(unittest.TestCase):
         class NamedEntity(Node):
             name: PropertyRef[str] = PropertyRef[str](nullable=False)
 
+        @node(description="Target node")
         class Target(NamedEntity):
             id: IdentifierRef[str] = IdentifierRef[str]()
             symbol: PropertyRef[str] = PropertyRef[str](
@@ -53,6 +56,7 @@ class TopologyTests(unittest.TestCase):
         class ScoredRelationship(Edge[Target, Disease]):
             score: PropertyRef[float] = PropertyRef[float](nullable=False)
 
+        @edge(description="Associated edge")
         class AssociatedWith(ScoredRelationship):
             pass
 
@@ -62,6 +66,8 @@ class TopologyTests(unittest.TestCase):
         self.assertEqual(Target.symbol.python_type, str)
         self.assertEqual(Target.symbol.annotations[0], Neo4jIndex())
         self.assertEqual(AssociatedWith.score.python_type, float)
+        self.assertEqual(graph.nodes[0].description, "Target node")
+        self.assertEqual(graph.edges[0].description, "Associated edge")
         self.assertEqual([property_.name for property_ in graph.nodes[0].properties], ["name", "symbol"])
         self.assertEqual(graph.edges[0].properties[0].name, "score")
 

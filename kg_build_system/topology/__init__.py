@@ -16,11 +16,12 @@ from kg_build_system.topology.model import (
     TopologyValidationError,
     ValueType,
 )
-from kg_build_system.topology.declaration import Edge, IdentifierRef, Node, PropertyRef, topology
+from kg_build_system.topology.declaration import Edge, IdentifierRef, Node, PropertyRef, edge, node, topology
 
 __all__ = [
     "EdgeType",
     "Edge",
+    "edge",
     "Annotation",
     "AnnotationTemplate",
     "Identifier",
@@ -28,6 +29,7 @@ __all__ = [
     "Neo4jIndex",
     "Neo4jRelationshipType",
     "Node",
+    "node",
     "NodeType",
     "Ontology",
     "OntologyScope",
