@@ -14,17 +14,18 @@ with DuckDB as its compute engine.
 
 ## 2. Design principles
 
-- **Separate meaning, declaration, and execution.** Topology is abstract and
-  independent of acquisition. Binding is an abstract declarative expression:
-  it may name concrete data locations and connection parameters, but contains
-  no adapters, execution code, or target behaviour.
+- **Separate meaning, data contracts, bindings, and execution.** Topology is
+  abstract and independent of acquisition. Logical data tables describe stable
+  input contracts; bound tables supply their physical locations and runtime
+  configuration. Bindings express graph mappings over those declared values,
+  but contain no adapters, execution code, or target behaviour.
 - **Declarative where possible.** Models and bindings have portable structured
   representations, initially YAML and JSON.
 - **One canonical intermediate representation (IR).** Python declarations and
   structured files must produce the same validated models.
-- **Typed by default, dynamic when useful.** Python table-schema classes enable
-  static checking, while string-based dynamic bindings remain available as an
-  explicit escape hatch.
+- **Typed by default, dynamic when useful.** Python logical-table and field
+  declarations enable static checking, while dynamic fields remain available as
+  an explicit escape hatch.
 - **SQL-first execution.** Bindings compile to DuckDB SQL rather than executing
   row-by-row Python transformations.
 - **Target capabilities are explicit.** Target-specific features are namespaced
@@ -79,69 +80,100 @@ override an inherited property or identifier with the same attribute name.
 Defines a declarative acquisition and transformation expression that produces
 the nodes, edges, identifiers, and properties declared by the topology model.
 
-### Binding primitives
+### Data contracts and bound inputs
 
-Bindings operate on a small logical data model:
+Bindings operate over a small logical data model:
 
-- input relation, including file paths, URLs, connection details, and format
-  options;
-- dataset or table within an input;
-- column, including nested structs and collections;
-- logical data type and nullability;
-- relational operations such as filtering, projection, joining, grouping, and
-  collection expansion.
+```text
+Table → Field → DataType
+```
 
-Input relations are leaf expressions in the binding rather than a separate
-source model. A binding may therefore be self-contained, including the physical
-locations and connection parameters needed to acquire its data. Secrets should
-be referenced indirectly through runtime configuration or environment-backed
-credentials rather than embedded in a portable binding.
+A reusable table shape is an ordinary Python class with explicitly named
+`Field` declarations, which may be scalar, optional, nested `Struct` values,
+or collections. A Python attribute is a typed authoring handle for the
+contract field name, allowing a source field such as `studyId` to be represented
+as `study_id: Field[str] = field(name="studyId")`.
+`@table_template(name=..., description=...)` optionally attaches stable
+template metadata without changing the reusable class. `@table(name=...)`
+consumes one such class and returns a final generated table class typed as
+`type[TableDeclaration[T]]`, a distinct named concrete table whose schema is
+`T`.
 
-Bindings contain no data-access implementation or target behavior. The compute
-layer interprets their input and transformation expressions.
+Only generated `type[TableDeclaration[T]]` table classes are accepted by table
+groups and source bindings. This makes binding a reusable shape, or inheriting
+a concrete table, a static type error. Generated table metadata is exposed
+through typed class methods, including `schema_type()`, `table_name()`,
+`template_name()`, and `template_description()`.
 
-### Typed schemas
+`TableGroup` provides a named hierarchy of concrete table declarations and
+nested groups.
+Table and group names form a catalog path and can be referenced by source
+bindings. Physical acquisition is separate: `bind_source` accepts either a
+concrete table declaration, producing `BoundTable[T]`, or a group, producing
+`BoundGroup[TableGroup]`. A group binding applies one `DataSourceConfig` to its
+descendant tables, including location, format, partition layout, credential
+reference, version, and provenance. Compilation expands `BoundGroup` into the
+same canonical `BoundTable` definitions produced by direct table bindings.
+Secrets are always referenced indirectly through runtime configuration or
+environment-backed credentials.
 
-Python classes represent the logical tables and columns used by a binding. In
-the MVP they are authored manually. Bindings that reference them receive IDE
-completion and static validation of:
+Typed table shapes, optional template metadata, and generated concrete table
+classes are authored manually in the MVP. Their field paths receive IDE
+completion and static validation of field existence, expression input/output
+types, node and edge property compatibility, and identifier and endpoint types.
+A `DynamicTable` is the explicit alternative for ad hoc or evolving inputs:
+`bound.field("studyId")` returns a
+`DynamicField[Unknown]`, while an asserted type such as
+`bound.field("score", as_type=float)` returns `DynamicField[float]`. `Unknown`
+cannot silently satisfy an incompatible graph-property mapping; it is checked
+during inspection or build.
 
-- dataset and column existence;
-- expression input/output types;
-- node and edge property compatibility;
-- identifier and endpoint types.
+Typed and dynamic declarations compile to the same table and field-reference
+IR. Generating typed table declarations from external metadata is future work.
 
-The same binding model also permits dynamic references such as
-`column("targets.id")`. This mode requires no generated schema or structured
-binding file and is validated at build or inspection time instead of by a
-static type checker.
+### Projections and value expressions
 
-Generating source-schema classes from external metadata is part of the future
-code generation design, not the MVP. Topology declarations themselves are
-already statically referenceable in the MVP.
+A projection is a logical data product whose output fields are inferred from
+typed expressions. It may combine values from several bound tables. Authors
+express the desired values and their cardinality, not joins, aliases, or a
+physical query plan; the system resolves the required relational work.
 
-### Binding declaration
+`provide` is the portable, discoverable expression namespace:
 
-A binding selects a topology element and declares:
+- `provide.value` creates or transforms one value, including literals,
+  concatenation, coalescing, casts, generated UUIDs, and conditional values;
+- `provide.collection` explicitly expands or collects collection-valued fields;
+- `provide.lookup.one` enriches a value with one matching record from another
+  declared input.
 
-- input relations and connection options;
-- joins, filters, projections, and collection expansion;
-- expressions for IDs, endpoints, labels, and properties;
-- deduplication and null-handling policies;
-- provenance information.
+Collection traversal never silently selects an item or duplicates rows.
+`provide.collection.expand(...)` creates one output-row context per item;
+multiple expansions require an explicit correlation or cartesian-product
+policy. `provide.lookup.one(...)` requires a compatible key that identifies at
+most one record; duplicates are diagnostics and `on_missing` declares absence
+handling. The expression IR records field traversal, cardinality, lookup
+semantics, and explicit ambiguity-resolution policies without exposing a query
+language.
+
+### Graph binding declaration
+
+A graph binding is an immutable assignment from a projected table to one node
+or edge type. It declares identifiers, endpoints, properties, mapping policies,
+and provenance. Bindings use the same typed field paths, dynamic fields, and
+`provide.*` expressions as projections:
+
+```python
+node_binding(
+    target=Target,
+    from_=AssociationRows,
+    identifier=AssociationRows.target_id,
+    properties={Target.symbol: AssociationRows.target_symbol},
+)
+```
 
 The portable expression subset must compile deterministically to DuckDB SQL.
 Python user-defined transformations are a later extension and are explicitly
 outside the portable MVP subset.
-
-### Initial implementation
-
-The first MVP binding slice uses class-based declarations. `Relation` classes
-declare a physical location, format, and typed `ColumnRef[T]` attributes.
-`NodeBinding` and `EdgeBinding` classes use `FieldBinding[T]` instances to map
-topology references such as `Target.symbol` to source references such as
-`TargetRows.target_symbol`. The shared type parameter makes an incompatible
-mapping visible to a static type checker before execution.
 
 ## 5. Future design: model synchronization and code generation
 
@@ -149,7 +181,8 @@ Code generation is not part of the MVP. The model and IR boundaries should,
 however, be designed so that it can be added later without changing their
 meaning or public contracts.
 
-Topology, logical table schemas, and bindings share versioned IR schemas.
+Topology, table shapes and declarations, groups, and bindings share versioned
+IR schemas.
 Tooling should eventually support both directions:
 
 - Python model → YAML/JSON;
@@ -165,31 +198,44 @@ Future code generation will not attempt arbitrary Python round-tripping. Only
 declarations made through the supported model API are serializable;
 handwritten runtime logic remains Python-only.
 
-## 6. Layer 3: compute and target execution
+## 6. Layer 3: compilation and build execution
 
-The compute layer consumes validated topology and binding IRs plus build-target
-and runtime configuration. It owns integration with concrete storage systems,
-DuckDB, and output technologies.
+Compilation is the boundary between authoring and execution. The `compile`
+layer consumes validated topology, data, binding, and target declarations and
+produces one immutable, target-specific `CompiledBuildDefinition`. It validates
+topology-to-binding coverage and type compatibility; resolves expression,
+cardinality, and lookup semantics; detects target capabilities; and records the
+supported target annotations and actions. It retains physical locations and
+credential references, but never credential values.
+
+The `build` layer consumes only `CompiledBuildDefinition` plus `BuildRuntime`.
+`BuildRuntime` supplies resolved credentials and operational settings such as
+temporary storage, resource limits, logging, and optional approved environment
+overrides. Build code does not import or interpret authoring declarations such
+as `Node`, `Field`, `NodeBinding`, or `provide` expressions.
 
 ### Pipeline
 
-1. Load and validate models.
-2. Resolve binding input expressions and detect target capabilities.
-3. Check topology-to-binding coverage and type compatibility.
-4. Compile each binding into a DuckDB SQL plan.
-5. Execute plans with projection and filter pushdown.
-6. Stream normalized node and edge records to the target writer.
-7. Apply supported target annotations such as indexes and constraints.
-8. Emit a build report containing counts, diagnostics, provenance, and plan
+1. Compile topology, data contracts, bound inputs, graph bindings, and a target
+   declaration into `CompiledBuildDefinition`.
+2. Validate target capabilities and produce clear diagnostics according to the
+   configured annotation strictness policy.
+3. Resolve runtime credentials and execution settings.
+4. Lower compiled plans to DuckDB SQL and execute them with projection and
+   filter pushdown.
+5. Stream normalized node and edge records to the compiled target writer.
+6. Apply compiled target actions such as indexes and constraints.
+7. Emit a build report containing counts, diagnostics, provenance, and plan
    fingerprints.
 
 ### Target interface
 
 Targets consume a stable graph record protocol and declare their capabilities.
-The initial MVP target should be a file-based interchange output. Neo4j is the
-first database target and demonstrates target annotations. Unsupported target
-annotations produce clear diagnostics according to a configurable strictness
-policy.
+A target declaration, including its serialisable configuration and credential
+references, is compiled into `CompiledBuildDefinition`; secret values are
+provided only through `BuildRuntime`. The initial MVP target should be a
+file-based interchange output. Neo4j is the first database target and
+demonstrates target annotations.
 
 DuckDB owns relational work including scans, joins, filters, unnests,
 aggregations, casts, and deterministic expression evaluation. The execution
@@ -199,23 +245,33 @@ layer should expose generated SQL and query plans for inspection.
 
 ```text
 kg_build_system/
-  topology/          # graph types, annotations, IR and validation
-  binding/           # acquisition and transformation expressions and type rules
-  compute/           # physical data access, DuckDB execution and target writers
+  topology/          # graph types, annotations, topology IR and validation
+  data/              # table shapes/declarations, groups, fields, bindings, projections and expressions
+  binding/           # graph bindings and topology-to-data type rules
+  compile/           # compilation, validation and CompiledBuildDefinition
+  build/             # physical readers, DuckDB execution, targets and reports
 demo/
-  build.py           # topology, bindings, and end-to-end graph build
-  data/               # small reproducible input datasets
+  topology/          # demonstration graph declarations
+  data/              # table contracts, bound inputs, projections and fixtures
+  bindings/          # node and edge graph bindings
+  build.py           # complete end-to-end graph build declaration
 tests/
+  topology/          # topology declarations and IR
+  data/              # contracts, dynamic fields and projections
+  binding/           # graph bindings and type validation
+  build/             # SQL lowering, execution and targets
 ```
 
 Packages may begin as modules in one distribution if that reduces MVP overhead;
 the boundaries above are architectural contracts, not a requirement for early
 independent publishing. The MVP interface is a Python API. Data-access
-implementations and build-target integrations belong to `compute`; neither
+implementations and build-target integrations belong to `build`; neither
 requires a separate top-level package.
 
-The dependency direction is `compute` → `binding` → `topology`. Neither
-declarative layer depends on `compute`.
+The dependency direction is `compile` → (`topology`, `data`, `binding`) and
+`build` → `compile.model`. Topology and data declarations are independent;
+graph bindings are the first layer that references both. Build execution depends
+only on the compiled-definition protocol and never on authoring declarations.
 
 ## 8. MVP scope
 
@@ -223,10 +279,18 @@ The MVP proves one end-to-end workflow with:
 
 - class-based Python authoring for topology, with JSON export from the compiled
   topology IR;
-- Parquet and CSV physical inputs;
-- manually authored typed column references and dynamic references;
-- row selection, projection, joins, filters, expressions, and list expansion;
-- DuckDB SQL compilation and execution;
+- manually authored table shapes, optional named/described templates, final
+  generated `TableDeclaration` classes, table groups, structs, explicitly named
+  typed fields, and direct/group physical bindings for Parquet and CSV;
+- dynamic tables and asserted dynamic fields, with `Unknown` guarded at build
+  and inspection time;
+- projections over one or more bound tables, including nested field paths,
+  `provide.value` expressions, `provide.collection.expand(...)`, and singular
+  `provide.lookup.one(...)` enrichment;
+- immutable node and edge bindings that map projected values to typed topology
+  references;
+- target-specific compilation to `CompiledBuildDefinition`, then DuckDB SQL
+  lowering and execution from that definition plus `BuildRuntime`;
 - file output and a minimal Neo4j target;
 - model validation, SQL inspection, and reproducible build reports;
 - a self-contained, importable demonstration project that defines, binds, and produces a
@@ -245,8 +309,8 @@ The MVP proves one end-to-end workflow with:
 
 ## 10. Success criteria
 
-The PoC succeeds when the demonstration graph and its bindings validate,
-invalid typed column references are caught before execution, bindings compile
-to inspectable DuckDB SQL, and the demonstration pipeline produces equivalent
-file and Neo4j graph outputs with the declared annotations applied where
-supported.
+The PoC succeeds when the demonstration graph, logical data contracts, bound
+inputs, projections, and graph bindings validate; invalid typed or asserted
+dynamic field references are caught before execution; expressions compile to
+inspectable DuckDB SQL; and the demonstration pipeline produces equivalent file
+and Neo4j graph outputs with the declared annotations applied where supported.
