@@ -19,10 +19,12 @@ with DuckDB as its compute engine.
   input contracts; bound tables supply their physical locations and runtime
   configuration. Bindings express graph mappings over those declared values,
   but contain no adapters, execution code, or target behaviour.
-- **Declarative where possible.** Models and bindings have portable structured
-  representations, initially YAML and JSON.
-- **One canonical intermediate representation (IR).** Python declarations and
-  structured files must produce the same portable models.
+- **Python-first authoring.** Python class declarations are the MVP source of
+  truth. YAML/JSON will become source representations in a later phase, with
+  typed Python generated from those representations.
+- **Canonical intermediate representations (IRs).** Python declarations first
+  compile to a reusable abstract graph definition, then a concrete build
+  definition. Future structured sources must compile to those same IRs.
 - **Typed by default, dynamic when useful.** Python logical-table and field
   declarations enable static checking, while dynamic fields remain available as
   an explicit escape hatch.
@@ -71,7 +73,7 @@ Defines what the resulting graph means, independently of its source data.
 
 ### Core concepts
 
-- Node type: stable name, identifier policy, properties, and constraints.
+- Node type: stable name, properties, and constraints.
 - Edge type: stable name, source and target node types, properties, direction,
   and cardinality where known.
 - Property: name, scalar or collection type, nullability, and documentation.
@@ -109,15 +111,15 @@ compiled form rather than the Python authoring API. JSON/YAML import and
 bidirectional synchronisation are future capabilities.
 
 Any declared node or edge can serve as a template. A subclass inherits its
-properties, identifier, description, and annotations; it may add properties or
-override an inherited property or identifier with the same attribute name.
+properties, description, and annotations; it may add properties or override an
+inherited property with the same attribute name.
 
 ## 5. Layer 2: abstract declarative binding
 
-Defines a declarative acquisition and transformation expression that produces
-the nodes, edges, and properties declared by the topology model.
+Defines declarative transformations and mappings that produce the nodes, edges,
+and properties declared by the topology model. It does not acquire data.
 
-### Data contracts and bound inputs
+### Data contracts and source bindings
 
 Bindings operate over a small logical data model:
 
@@ -149,7 +151,8 @@ through typed class methods, including `schema_type()`, `table_name()`,
 `TableGroup` provides a named hierarchy of concrete table declarations and
 nested groups.
 Table and group names form a catalog path and can be referenced by source
-bindings. Physical acquisition is separate: `bind_source` accepts either a
+bindings. A source binding is distinct from a graph binding: it couples a
+logical table contract to physical data. `bind_source` accepts either a
 concrete table declaration, producing `BoundTable[T]`, or a group, producing
 `BoundGroup[TableGroup]`. A group binding applies one `DataSourceConfig` to its
 descendant tables, including location, format, partition layout, credential
@@ -162,7 +165,9 @@ Typed table shapes, optional template metadata, and generated concrete table
 classes are authored manually in the MVP. Their field paths receive IDE
 completion and static validation of field existence, expression input/output
 types, node and edge property compatibility, and build-key types.
-A `DynamicTable` is the explicit alternative for ad hoc or evolving inputs:
+A `DynamicTable` is an explicit alternative for ad hoc or evolving inputs. It
+is not the default authoring mode in this MVP, which proves the typed-declaration
+path, but is expected to become the usual choice for many real-world sources:
 `bound.field("studyId")` returns a
 `DynamicField[Unknown]`, while an asserted type such as
 `bound.field("score", as_type=float)` returns `DynamicField[float]`. `Unknown`
@@ -170,12 +175,16 @@ cannot silently satisfy an incompatible graph-property mapping; it is checked
 during inspection or build.
 
 Typed and dynamic declarations compile to the same table and field-reference
-IR. Generating typed table declarations from external metadata is future work.
+IR. Source bindings are not part of the reusable graph definition; they are
+supplied when it is composed into a concrete build definition. Generating typed
+table declarations from external metadata is future work.
 
 ### Projections and value expressions
 
 A projection is a logical data product whose output fields are inferred from
-typed expressions. It may combine values from several bound tables. Authors
+typed expressions. It may combine values from several declared logical tables.
+Its input references are abstract table requirements, resolved to bound tables
+only when composing a concrete build definition. Authors
 express the desired values and their cardinality, not joins, aliases, or a
 physical query plan; the system resolves the required relational work.
 
@@ -200,12 +209,14 @@ language.
 
 ### Graph binding declaration
 
-A graph binding is an immutable assignment from the tables referenced by its
-expressions to one node or edge type. It declares build keys, properties,
-mapping policies, and provenance. A binding may instantiate a
+A graph binding is an immutable assignment from the logical tables referenced
+by its expressions to one node or edge type. It declares build keys,
+properties, and mapping policies; it does not acquire data, select a target,
+or declare provenance. A binding may instantiate a
 specification contract by assigning a `provide`-created `Expression[T]` to a
-`Declaration[T]` member. The compiler derives the binding's input tables from
-those expressions, so bindings do not declare a separate `from_` argument.
+`Declaration[T]` member. The compiler derives the binding's logical input
+requirements from those expressions, so bindings do not declare a separate
+`from_` argument.
 Typed field paths and dynamic fields are operands of `provide.*` expressions,
 not direct binding-member assignments. The callable form, for example
 `provide(AssociationTable.target_symbol)`, is the concise expression form for
@@ -259,13 +270,22 @@ handwritten runtime logic remains Python-only.
 
 ## 7. Layer 3: compilation and build execution
 
-Compilation is the boundary between authoring and execution. The `compile`
-layer consumes topology, data, binding, and target declarations and produces
-one immutable, target-specific `CompiledBuildDefinition`. It resolves
-expression, cardinality, and lookup semantics; detects target capabilities; and
-records supported target annotations and actions. It retains physical locations
-and credential references, but never credential values. Rich cross-layer
-correctness diagnostics are deferred while the MVP proves the feature set.
+Compilation has two explicit stages. `compile_graph` consumes topology, logical
+data contracts and projections, and graph bindings to produce an immutable,
+reusable `CompiledGraphDefinition`. It resolves expression, cardinality, and
+lookup semantics, and records the logical table requirements needed to execute
+the graph mapping. It contains no physical source, target, build configuration,
+or provenance tied to a concrete build.
+
+`compile_build` composes a `CompiledGraphDefinition` with source bindings, a
+target declaration, and serialisable build configuration to produce one
+immutable, target-specific `CompiledBuildDefinition`. It resolves every logical
+table requirement to a physical source, detects target capabilities, and records
+supported target annotations, actions, source provenance, and build
+configuration. It retains physical locations and credential references, but
+never credential values. This final definition is the reproducible execution
+artifact. Rich cross-layer correctness diagnostics are deferred while the MVP
+proves the feature set.
 
 The `build` layer consumes only `CompiledBuildDefinition` plus `BuildRuntime`.
 `BuildRuntime` supplies resolved credentials and operational settings such as
@@ -275,16 +295,18 @@ as `Node`, `Field`, `NodeBinding`, or `provide` expressions.
 
 ### Pipeline
 
-1. Compile topology, data contracts, bound inputs, graph bindings, and a target
-   declaration into `CompiledBuildDefinition`.
-2. Validate target capabilities and produce clear diagnostics according to the
-   configured annotation strictness policy.
-3. Resolve runtime credentials and execution settings.
-4. Lower compiled plans to DuckDB SQL and execute them with projection and
+1. Compile topology, logical data contracts and projections, and graph bindings
+   into a reusable `CompiledGraphDefinition`.
+2. Compose that graph definition with source bindings, a target declaration,
+   and serialisable build configuration into `CompiledBuildDefinition`.
+3. Validate source completeness and target capabilities, producing clear
+   diagnostics according to the configured annotation strictness policy.
+4. Resolve runtime credentials and execution settings.
+5. Lower compiled plans to DuckDB SQL and execute them with projection and
    filter pushdown.
-5. Stream normalized node and edge records to the compiled target writer.
-6. Apply compiled target actions such as indexes and constraints.
-7. Emit a build report containing counts, diagnostics, provenance, and plan
+6. Stream normalized node and edge records to the compiled target writer.
+7. Apply compiled target actions such as indexes and constraints.
+8. Emit a build report containing counts, diagnostics, provenance, and plan
    fingerprints.
 
 ### Target interface
@@ -308,7 +330,7 @@ kg_build_system/
   topology/          # graph declarations, topology definitions, local logic and codecs
   data/              # table declarations, projections, local logic and codecs
   binding/           # graph bindings, provide expressions, local logic and codecs
-  compile/           # the cross-layer composition system and CompiledBuildDefinition
+  compile/           # CompiledGraphDefinition and CompiledBuildDefinition composition
   build/             # generic readers, DuckDB execution, and reports
   targets/           # independent target systems
     file/             # interchange-file annotations, lowering, and writer
@@ -356,13 +378,15 @@ The MVP proves one end-to-end workflow with:
   typed fields, and direct/group physical bindings for Parquet and CSV;
 - dynamic tables and asserted dynamic fields, with `Unknown` guarded at build
   and inspection time;
-- projections over one or more bound tables, including nested field paths,
+- projections over one or more logical table declarations, including nested field paths,
   `provide.value` expressions, `provide.collection.expand(...)`, and singular
   `provide.lookup.one(...)` enrichment;
 - immutable node and edge bindings that map projected values to typed topology
   references;
-- target-specific compilation to `CompiledBuildDefinition`, then DuckDB SQL
-  lowering and execution from that definition plus `BuildRuntime`;
+- reusable compilation to `CompiledGraphDefinition`, then composition with
+  source bindings, target, and build configuration into `CompiledBuildDefinition`;
+- DuckDB SQL lowering and execution only from `CompiledBuildDefinition` plus
+  `BuildRuntime`;
 - file output and a minimal Neo4j target;
 - basic feature-oriented checks, SQL inspection, and reproducible build reports;
 - a self-contained, importable demonstration project that defines, binds, and produces a

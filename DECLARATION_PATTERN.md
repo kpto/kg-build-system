@@ -262,10 +262,12 @@ its physical path and any asserted type during inspection or build. Typed and
 dynamic tables compile to the same internal table and field-reference IR.
 
 A projected table is a logical data product. Its output fields are inferred
-from the typed values assigned in its class body.
+from the typed values assigned in its class body. It references logical table
+declarations, not physical source bindings, so it can be reused with different
+source configurations.
 
 ```python
-@projection(inputs=(pharmacogenomics_release, study_registry_release))
+@projection(inputs=(OpenTargetsPharmacogenomicsAnnotation, OpenTargetsStudyRegistry))
 class AssociationTable:
     target_id = field(PharmacogenomicsAnnotation.target.id)
     target_symbol = field(PharmacogenomicsAnnotation.target.symbol)
@@ -276,7 +278,7 @@ class AssociationTable:
     study_title = field(
         provide.lookup.one(
             PharmacogenomicsAnnotation.study_id,
-            in_=study_registry_release,
+            in_=OpenTargetsStudyRegistry,
             key=StudyRegistry.study_id,
             on_missing="null",
         ).title,
@@ -340,9 +342,11 @@ uses the same expressions to provide build keys, properties, and other mapping
 values. In both contexts, an expression states what a value
 means, not a physical query plan.
 
-A projection names the bound tables from which its expressions may draw
+A projection names the logical tables from which its expressions may draw
 values, making their declared references available for typed navigation. A
-graph binding consumes the resulting projected values. The author does not
+graph binding consumes the resulting projected values. Physical source bindings
+are supplied only when the reusable graph definition is composed into a build.
+The author does not
 select joins, aliases, or any other execution mechanism; the compiler resolves
 the physical relational operations needed to obtain a declared value.
 
@@ -395,10 +399,11 @@ These expressions are intention-oriented and portable. They state which values
 are required and how their cardinality is handled; they do not expose a query
 language or execution plan.
 
-A graph binding is an immutable assignment from the tables referenced by its
-expressions to one graph component. It describes graph mapping, not acquisition
-or a physical query plan. The compiler derives its input tables from those
-expressions, so bindings do not declare a separate `from_` argument.
+A graph binding is an immutable assignment from the logical tables referenced
+by its expressions to one graph component. It describes graph mapping, not
+acquisition, provenance, target configuration, or a physical query plan. The
+compiler derives its logical input requirements from those expressions, so
+bindings do not declare a separate `from_` argument.
 
 Binding declarations mirror the node-first topology layout, so graph
 components and their data mappings are easy to find together:
@@ -444,22 +449,31 @@ use a dictionary keyed by `Property` objects. Binding modules mirror the topolog
 layout: node bindings live with their node, and edge bindings live beneath their
 source node's `edges/` directory.
 
-## Future: compiled build definition
+## 5. Compiled definitions and build execution
 
 The intended connection between layers is:
 
 ```text
 topology declarations ─┐
-                       ├─→ binding declarations ─┐
-data declarations ─────┘                         ├─→ compile ─→ CompiledBuildDefinition ─→ build
-target declaration ──────────────────────────────┘
+                       ├─→ compile_graph ─→ CompiledGraphDefinition ─┐
+data declarations ─────┘                                               ├─→ compile_build ─→ CompiledBuildDefinition ─→ build
+graph bindings ─────────┘                                               │
+source bindings, target, and build configuration ───────────────────────┘
 ```
 
-Topology and data declarations are independent. Bindings are the first layer
-that references both. A build declaration collects them with a target
-declaration, including serialisable target configuration and credential
-references. `compile` validates the complete declaration and produces one
-immutable, target-specific `CompiledBuildDefinition`.
+Topology and data declarations are independent. Graph bindings are the first
+layer that references both, but remain abstract: they neither acquire data nor
+declare provenance. `compile_graph` validates those declarations and produces
+an immutable `CompiledGraphDefinition` containing the graph mapping and its
+logical table requirements. It can be reused with different physical sources,
+targets, and build configurations.
+
+A source binding is the separate concrete binding between a logical table
+contract and physical data. `compile_build` composes a `CompiledGraphDefinition`
+with source bindings, a target declaration, and serialisable build configuration
+into an immutable, target-specific `CompiledBuildDefinition`. It records source
+provenance, physical locations, and credential references, but never credential
+values. This is the reproducible artifact accepted by the build system.
 
 `build` consumes only `CompiledBuildDefinition` plus `BuildRuntime`. The latter
 supplies resolved credentials and operational settings such as logging,
@@ -478,7 +492,7 @@ kg_build_system/
   topology/          # topology authoring, definitions, codecs, and local logic
   data/              # data authoring, definitions, codecs, and local logic
   binding/           # bindings, provide expressions, codecs, and local logic
-  compile/           # cross-layer composition into CompiledBuildDefinition
+  compile/           # CompiledGraphDefinition and CompiledBuildDefinition composition
   build/             # generic execution, DuckDB, sources, and reports
   targets/
     file/            # file-target annotations, lowering, and writer
