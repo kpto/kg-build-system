@@ -51,14 +51,15 @@ class GraphComponent(Specification):
 
 @node(description="A biological target.")
 class Target(GraphComponent):
-    id: Declaration[str] = property(name="id")
     symbol: Declaration[str] = property(name="symbol", nullable=False)
     name: Declaration[str] = property(name="name")
 
 
 @node(description="A disease or phenotype.")
 class Disease(GraphComponent):
-    id: Declaration[str] = property(name="id")
+    name: Declaration[str] = property(name="name", nullable=False)
+    description: Declaration[str | None] = property(name="description")
+    ontology_ids: Declaration[list[str]] = property(name="ontologyIds")
 
 
 @edge(source=Target, target=Disease, description="Evidence-backed association.")
@@ -274,7 +275,7 @@ Projections can still be reused with different source configurations.
 
 ```python
 @projection
-class AssociationTable:
+class AssociationTable(Specification):
     target_id = projected_field(OpenTargetsPharmacogenomicsAnnotation.target.id)
     target_symbol = projected_field(OpenTargetsPharmacogenomicsAnnotation.target.symbol)
     target_name = projected_field(OpenTargetsPharmacogenomicsAnnotation.target.name)
