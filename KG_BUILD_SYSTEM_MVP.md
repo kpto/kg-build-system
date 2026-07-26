@@ -165,9 +165,8 @@ Typed table shapes, optional template metadata, and generated concrete table
 classes are authored manually in the MVP. Their field paths receive IDE
 completion and static validation of field existence, expression input/output
 types, node and edge property compatibility, and build-key types.
-A `DynamicTable` is an explicit alternative for ad hoc or evolving inputs. It
-is not the default authoring mode in this MVP, which proves the typed-declaration
-path, but is expected to become the usual choice for many real-world sources:
+A `DynamicTable` is an optional feature for ad hoc or evolving inputs. This MVP
+demonstrates the typed-declaration path:
 `bound.field("studyId")` returns a
 `DynamicField[Unknown]`, while an asserted type such as
 `bound.field("score", as_type=float)` returns `DynamicField[float]`. `Unknown`

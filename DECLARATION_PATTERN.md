@@ -239,9 +239,10 @@ with portable value expressions such as `provide.collection.expand(...)` or
 
 ### Dynamic tables and fields
 
-Typed table declarations are optional. Dynamic mode uses the same binding
+Typed table declarations are the path demonstrated by the MVP. Dynamic mode is
+an optional feature for ad hoc or evolving sources; it uses the same binding
 pattern, but supplies a `DynamicTable` and resolves only the fields needed by
-the build. This is the convenient default for ad hoc or evolving sources.
+the build.
 
 ```python
 annotations = bind_source(
@@ -320,7 +321,7 @@ bindings receive the resulting `Expression[T]`:
 ```python
 target_id = field(PharmacogenomicsAnnotation.target.id)
 source_build_key = provide.value.concat("annotation::", AssociationTable.study_id)
-target_build_key = AssociationTable.disease_id
+target_build_key = provide(AssociationTable.disease_id)
 ```
 
 ```text
