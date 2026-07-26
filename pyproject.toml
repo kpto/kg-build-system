@@ -10,8 +10,9 @@ dependencies = ["duckdb>=1.1"]
 dev = ["pyright>=1.1.400"]
 
 [tool.pyright]
-include = ["demo"]
-typeCheckingMode = "strict"
+include = ["kg_build_system", "demo"]
+typeCheckingMode = "basic"
+strict = ["demo"]
 reportMissingTypeStubs = false
 
 [tool.hatch.build.targets.wheel]

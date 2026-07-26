@@ -1,4 +1,3 @@
-from dataclasses import dataclass
-@dataclass(frozen=True)
-class FileTarget:
-    location: str
+from .models import FileTarget
+
+__all__ = ["FileTarget"]
