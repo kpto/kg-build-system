@@ -4,7 +4,15 @@ version = "0.1.0"
 description = "Declarative knowledge graph build system"
 readme = "README.md"
 requires-python = ">=3.12"
-dependencies = []
+dependencies = ["duckdb>=1.1"]
+
+[dependency-groups]
+dev = ["pyright>=1.1.400"]
+
+[tool.pyright]
+include = ["demo"]
+typeCheckingMode = "strict"
+reportMissingTypeStubs = false
 
 [tool.hatch.build.targets.wheel]
 packages = ["kg_build_system"]
