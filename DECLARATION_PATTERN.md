@@ -469,3 +469,25 @@ DuckDB and invoke target writers without importing authoring classes or
 interpreting `provide` expressions. Derived navigation and coverage/provenance
 diagnostics are future inspection features, not artifacts that authors
 maintain.
+
+For the MVP, package organisation follows the same layer boundaries:
+
+```text
+kg_build_system/
+  specification/     # shared Specification, Declaration, and Expression foundations
+  topology/          # topology authoring, definitions, codecs, and local logic
+  data/              # data authoring, definitions, codecs, and local logic
+  binding/           # bindings, provide expressions, codecs, and local logic
+  compile/           # cross-layer composition into CompiledBuildDefinition
+  build/             # generic execution, DuckDB, sources, and reports
+  targets/
+    file/            # file-target annotations, lowering, and writer
+    neo4j/           # Neo4j annotations, lowering, and writer
+```
+
+Each declaration layer is an independent system. It owns its authoring API,
+small immutable definitions, serialization, and logic required directly by its
+features; no horizontal model, validation, or serialization package is needed
+for the MVP. `compile` is the first deliberately cross-layer system, while each
+target package owns its target-specific annotations and implementation. The MVP
+prioritises feature delivery over comprehensive correctness infrastructure.

@@ -22,7 +22,7 @@ with DuckDB as its compute engine.
 - **Declarative where possible.** Models and bindings have portable structured
   representations, initially YAML and JSON.
 - **One canonical intermediate representation (IR).** Python declarations and
-  structured files must produce the same validated models.
+  structured files must produce the same portable models.
 - **Typed by default, dynamic when useful.** Python logical-table and field
   declarations enable static checking, while dynamic fields remain available as
   an explicit escape hatch.
@@ -260,12 +260,12 @@ handwritten runtime logic remains Python-only.
 ## 7. Layer 3: compilation and build execution
 
 Compilation is the boundary between authoring and execution. The `compile`
-layer consumes validated topology, data, binding, and target declarations and
-produces one immutable, target-specific `CompiledBuildDefinition`. It validates
-topology-to-binding coverage and type compatibility; resolves expression,
-cardinality, and lookup semantics; detects target capabilities; and records the
-supported target annotations and actions. It retains physical locations and
-credential references, but never credential values.
+layer consumes topology, data, binding, and target declarations and produces
+one immutable, target-specific `CompiledBuildDefinition`. It resolves
+expression, cardinality, and lookup semantics; detects target capabilities; and
+records supported target annotations and actions. It retains physical locations
+and credential references, but never credential values. Rich cross-layer
+correctness diagnostics are deferred while the MVP proves the feature set.
 
 The `build` layer consumes only `CompiledBuildDefinition` plus `BuildRuntime`.
 `BuildRuntime` supplies resolved credentials and operational settings such as
@@ -304,11 +304,15 @@ layer should expose generated SQL and query plans for inspection.
 
 ```text
 kg_build_system/
-  topology/          # graph types, annotations, topology IR and validation
-  data/              # table shapes/declarations, groups, fields, bindings, projections and expressions
-  binding/           # graph bindings and topology-to-data type rules
-  compile/           # compilation, validation and CompiledBuildDefinition
-  build/             # physical readers, DuckDB execution, targets and reports
+  specification/     # shared Specification, Declaration, and Expression foundations
+  topology/          # graph declarations, topology definitions, local logic and codecs
+  data/              # table declarations, projections, local logic and codecs
+  binding/           # graph bindings, provide expressions, local logic and codecs
+  compile/           # the cross-layer composition system and CompiledBuildDefinition
+  build/             # generic readers, DuckDB execution, and reports
+  targets/           # independent target systems
+    file/             # interchange-file annotations, lowering, and writer
+    neo4j/            # Neo4j annotations, lowering, and writer
 demo/
   topology/          # demonstration graph declarations
   data/              # table contracts, bound inputs, projections and fixtures
@@ -321,16 +325,22 @@ tests/
   build/             # SQL lowering, execution and targets
 ```
 
-Packages may begin as modules in one distribution if that reduces MVP overhead;
-the boundaries above are architectural contracts, not a requirement for early
-independent publishing. The MVP interface is a Python API. Data-access
-implementations and build-target integrations belong to `build`; neither
-requires a separate top-level package.
+Each layer is an independent, vertically organised system: its Python authoring
+surface, small immutable definitions, serialization, and feature-specific local
+logic live together. Packages may begin as modules in one distribution if that
+reduces MVP overhead; these are architectural boundaries, not a requirement for
+early independent publishing. The MVP interface is a Python API.
 
-The dependency direction is `compile` → (`topology`, `data`, `binding`) and
-`build` → `compile.model`. Topology and data declarations are independent;
-graph bindings are the first layer that references both. Build execution depends
-only on the compiled-definition protocol and never on authoring declarations.
+The dependency direction is `specification` → (`topology`, `data`), then
+(`topology`, `data`) → `binding`, then (`topology`, `data`, `binding`) →
+`compile` → `build`. Target packages depend on the compiled/build protocols and
+implement their annotations, lowering, and writers together. No layer imports a
+specific target implementation.
+
+The MVP prioritises demonstrating features over comprehensive correctness
+infrastructure. Keep local checks that directly enable a layer's feature, but
+do not introduce a horizontal validation or serialization framework until it is
+needed by more than one layer.
 
 ## 9. MVP scope
 
@@ -354,7 +364,7 @@ The MVP proves one end-to-end workflow with:
 - target-specific compilation to `CompiledBuildDefinition`, then DuckDB SQL
   lowering and execution from that definition plus `BuildRuntime`;
 - file output and a minimal Neo4j target;
-- model validation, SQL inspection, and reproducible build reports;
+- basic feature-oriented checks, SQL inspection, and reproducible build reports;
 - a self-contained, importable demonstration project that defines, binds, and produces a
   small graph demonstrating ontology and target annotations.
 
@@ -372,7 +382,6 @@ The MVP proves one end-to-end workflow with:
 ## 11. Success criteria
 
 The PoC succeeds when the demonstration graph, logical data contracts, bound
-inputs, projections, and graph bindings validate; invalid typed or asserted
-dynamic field references are caught before execution; expressions compile to
+inputs, projections, and graph bindings can be declared; expressions compile to
 inspectable DuckDB SQL; and the demonstration pipeline produces equivalent file
 and Neo4j graph outputs with the declared annotations applied where supported.
