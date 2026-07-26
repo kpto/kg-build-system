@@ -47,26 +47,22 @@ class Specification(ABC):
     """A reusable declarative structural contract."""
 
 
-class Specifier[T](ABC):
-    """A typed declarative way to specify a value of type T."""
-
-
-type SpecInput[T] = Specifier[T] | T
+class Declaration[T](ABC):
+    """A typed declaration for a member whose resolved type is T."""
 ```
 
-`SpecInput[T]` is the annotation of a declared contract member. It accepts a
-typed, layer-specific `Specifier[T]` or a literal `T`. For example,
-`PropertyRef[str]` and a binding `Expression[str]` are both
-`Specifier[str]`, while a direct string is the literal case. A `Specifier` is
-not itself a structural contract; it specifies one member of such a contract.
+`Declaration[T]` is the annotation of a declared contract member. Its type
+argument is the member's resolved type. `Property[T]`, table `Field[T]`, and a
+binding `Expression[T]` are concrete declarations. A declaration is not itself
+a structural contract; it specifies one member of such a contract.
 
 `Specification` need not itself be a dataclass. Each declaration layer owns
 its own `dataclass_transform` configuration and field specifiers, allowing the
 type checker to synthesize that layer's constructor without coupling the shared
-layer to `PropertyRef`, `Field`, or any other descriptor. Framework metadata is
+layer to `Property`, `Field`, or any other descriptor. Framework metadata is
 declared as `ClassVar` or left unannotated so that it is not a constructor
 parameter. Standard `dataclass_transform` cannot filter generated constructor
-parameters solely by the `SpecInput[...]` annotation; the layer's registered
+parameters solely by the `Declaration[...]` annotation; the layer's registered
 field-specifier convention provides the intentionally loose authoring rule.
 
 ## 4. Layer 1: abstract KG topology
@@ -104,10 +100,10 @@ by the core model.
 
 The MVP source of truth is Python class declarations. The topology layer
 provides a `GraphComponent(Specification)` base configured with
-`@dataclass_transform(field_specifiers=(PropertyRef, IdentifierRef))`.
-Node and edge members are typed `SpecInput[T]` and use `PropertyRef[T]` or
-`IdentifierRef[T]` in their class bodies, so a downstream binding can reference
-`Target.symbol` directly as a typed property reference. The serialised JSON
+`@dataclass_transform(field_specifiers=(property,))`.
+Node and edge members are typed `Declaration[T]` and use `Property[T]` in
+their class bodies, so a downstream binding can reference `Target.symbol`
+directly as a typed property reference. The serialised JSON
 representation is produced from those classes; the list-based IR is an internal
 compiled form rather than the Python authoring API. JSON/YAML import and
 bidirectional synchronisation are future capabilities.
@@ -119,7 +115,7 @@ override an inherited property or identifier with the same attribute name.
 ## 5. Layer 2: abstract declarative binding
 
 Defines a declarative acquisition and transformation expression that produces
-the nodes, edges, identifiers, and properties declared by the topology model.
+the nodes, edges, and properties declared by the topology model.
 
 ### Data contracts and bound inputs
 
@@ -133,11 +129,11 @@ A reusable table shape is a `TableContract(Specification)` with explicitly
 named member declarations. The data layer owns its `field` specifier and
 configures `TableContract` with its own
 `@dataclass_transform(field_specifiers=(field,))`; the shared specification
-layer does not import either construct. Members are typed `SpecInput[T]` and
+layer does not import either construct. Members are typed `Declaration[T]` and
 may be scalar, optional, nested `Struct` values, or collections. A Python
 attribute is a typed authoring handle for the
 contract field name, allowing a source field such as `studyId` to be represented
-as `study_id: SpecInput[str] = field(name="studyId")`.
+as `study_id: Declaration[str] = field(name="studyId")`.
 `@table_template(name=..., description=...)` optionally attaches stable
 template metadata without changing the reusable class. `@table(name=...)`
 consumes one such class and returns a final generated table class typed as
@@ -165,7 +161,7 @@ environment-backed credentials.
 Typed table shapes, optional template metadata, and generated concrete table
 classes are authored manually in the MVP. Their field paths receive IDE
 completion and static validation of field existence, expression input/output
-types, node and edge property compatibility, and identifier and endpoint types.
+types, node and edge property compatibility, and build-key types.
 A `DynamicTable` is the explicit alternative for ad hoc or evolving inputs:
 `bound.field("studyId")` returns a
 `DynamicField[Unknown]`, while an asserted type such as
@@ -185,6 +181,8 @@ physical query plan; the system resolves the required relational work.
 
 `provide` is the portable, discoverable expression namespace:
 
+- calling `provide(value)` normalises a compatible literal, typed field path,
+  dynamic field, or existing expression into an `Expression[T]`;
 - `provide.value` creates or transforms one value, including literals,
   concatenation, coalescing, casts, generated UUIDs, and conditional values;
 - `provide.collection` explicitly expands or collects collection-valued fields;
@@ -202,21 +200,35 @@ language.
 
 ### Graph binding declaration
 
-A graph binding is an immutable assignment from a projected table to one node
-or edge type. It declares identifiers, endpoints, properties, mapping policies,
-and provenance. A binding may instantiate a specification contract by assigning
-an `Expression[T]` or literal `T` directly to a `SpecInput[T]` member. Bindings
-use the same typed field paths, dynamic fields, and `provide.*` expressions as
-projections:
+A graph binding is an immutable assignment from the tables referenced by its
+expressions to one node or edge type. It declares build keys, properties,
+mapping policies, and provenance. A binding may instantiate a
+specification contract by assigning a `provide`-created `Expression[T]` to a
+`Declaration[T]` member. The compiler derives the binding's input tables from
+those expressions, so bindings do not declare a separate `from_` argument.
+Typed field paths and dynamic fields are operands of `provide.*` expressions,
+not direct binding-member assignments. The callable form, for example
+`provide(AssociationTable.target_symbol)`, is the concise expression form for
+one such field:
 
 ```python
 node_binding(
     target=Target,
-    from_=AssociationRows,
-    identifier=AssociationRows.target_id,
-    properties={Target.symbol: AssociationRows.target_symbol},
+    build_key=provide(AssociationTable.target_id),
+    properties=Target(
+        symbol=provide(AssociationTable.target_symbol),
+    ),
 )
 ```
+
+The `properties` argument accepts an instantiated graph-component contract;
+the contract initializer is the property-mapping surface rather than a
+dictionary keyed by `Property` objects. Edge bindings likewise instantiate
+their edge contract for property assignments, while retaining explicit target,
+build-key, and endpoint-discovery policies. Their endpoint build keys are
+consistently named `source_build_key` and `target_build_key`. Build keys are
+not topology identifiers or persisted graph properties: targets may use them to
+discover or connect records during a build and then discard them.
 
 The portable expression subset must compile deterministically to DuckDB SQL.
 Python user-defined transformations are a later extension and are explicitly

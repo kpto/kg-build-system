@@ -19,54 +19,51 @@ class Specification(ABC):
     """A reusable declarative structural contract."""
 
 
-class Specifier[T](ABC):
-    """A typed declarative way to specify a value of type T."""
-
-
-type SpecInput[T] = Specifier[T] | T
+class Declaration[T](ABC):
+    """A typed declaration for a member whose resolved type is T."""
 ```
 
-`SpecInput[T]` is the type used for declared members. It permits either a
-layer-specific `Specifier[T]`, such as a topology `PropertyRef[T]` or a binding
-`Expression[T]`, or a literal `T`. `Specifier` is not a structural contract;
-it is the typed object that may be assigned to one member of a contract.
+`Declaration[T]` is the type used for declared members. Its type argument is
+the member's resolved type. A topology `Property[T]`, table `Field[T]`, and
+binding `Expression[T]` are concrete declarations. A declaration is not a
+structural contract; it specifies one member of a contract.
 
 `Specification` need not itself be a dataclass. Each layer owns its static
 authoring convention and can use `dataclass_transform` to expose an
 initializer that understands its registered field specifiers. Framework
 metadata is `ClassVar` or unannotated, and therefore is not a constructor
 parameter. Standard `dataclass_transform` does not filter members solely by a
-`SpecInput[...]` annotation; that convention is intentionally enforced loosely
+`Declaration[...]` annotation; that convention is intentionally enforced loosely
 by each layer.
 
 ## 2. Topology
 
 Topology declarations describe graph meaning only. Nodes and edges are
 first-class `Specification` contracts; an edge has a source, target,
-properties, and annotations. The topology layer owns `PropertyRef` and
-`IdentifierRef` as its field specifiers:
+properties, and annotations. The topology layer owns `property` as its field
+specifier:
 
 ```python
-@dataclass_transform(field_specifiers=(PropertyRef, IdentifierRef))
+@dataclass_transform(field_specifiers=(property,))
 class GraphComponent(Specification):
     pass
 
 
 @node(description="A biological target.")
 class Target(GraphComponent):
-    id: SpecInput[str] = IdentifierRef[str]()
-    symbol: SpecInput[str] = PropertyRef[str](nullable=False)
-    name: SpecInput[str] = PropertyRef[str]()
+    id: Declaration[str] = property(name="id")
+    symbol: Declaration[str] = property(name="symbol", nullable=False)
+    name: Declaration[str] = property(name="name")
 
 
 @node(description="A disease or phenotype.")
 class Disease(GraphComponent):
-    id: SpecInput[str] = IdentifierRef[str]()
+    id: Declaration[str] = property(name="id")
 
 
 @edge(source=Target, target=Disease, description="Evidence-backed association.")
 class AssociatedWith(GraphComponent):
-    score: SpecInput[float] = PropertyRef[float](nullable=False)
+    score: Declaration[float] = property(name="score", nullable=False)
 ```
 
 Topology files may be organised by source node, while the compiled IR retains
@@ -97,8 +94,8 @@ shape; it is not independently bound to a physical source. An ordinary Python
 class inheriting the data layer's `TableContract` is a reusable table shape.
 `TableContract` inherits `Specification` and registers `field` as its own
 field specifier; the shared specification layer does not import or define it.
-Its members are typed as `SpecInput[T]`, and `field(...)` is the table-layer
-`Specifier[T]` assigned in the class body. The `@table`
+Its members are typed as `Declaration[T]`, and `field(...)` is the table-layer
+declaration assigned in the class body. The `@table`
 decorator consumes such a class and returns a final generated table class typed
 as `type[TableDeclaration[T]]`: a distinct, named concrete table contract whose
 schema is `T`.
@@ -116,26 +113,26 @@ when the contract name does not.
 ```python
 @struct
 class TargetDetails(TableContract):
-    id: SpecInput[str] = field(name="id")
-    symbol: SpecInput[str] = field(name="symbol")
-    name: SpecInput[str | None] = field(name="name")
+    id: Declaration[str] = field(name="id")
+    symbol: Declaration[str] = field(name="symbol")
+    name: Declaration[str | None] = field(name="name")
 
 
 @struct
 class Evidence(TableContract):
-    study_id: SpecInput[str] = field(name="studyId")
-    score: SpecInput[float] = field(name="score")
+    study_id: Declaration[str] = field(name="studyId")
+    score: Declaration[float] = field(name="score")
 
 @table_template(
     name="pharmacogenomics_annotation_shape",
     description="A reusable pharmacogenomics annotation row shape.",
 )
 class PharmacogenomicsAnnotation(TableContract):
-    target: SpecInput[TargetDetails] = field(name="target")
-    disease_ids: SpecInput[list[str]] = field(name="diseaseIds")
-    study_id: SpecInput[str] = field(name="studyId")
-    score: SpecInput[float] = field(name="score")
-    evidence: SpecInput[list[Evidence]] = field(name="evidence")
+    target: Declaration[TargetDetails] = field(name="target")
+    disease_ids: Declaration[list[str]] = field(name="diseaseIds")
+    study_id: Declaration[str] = field(name="studyId")
+    score: Declaration[float] = field(name="score")
+    evidence: Declaration[list[Evidence]] = field(name="evidence")
 
 
 @table(name="pharmacogenomics_annotation")
@@ -147,9 +144,9 @@ class OpenTargetsPharmacogenomicsAnnotation(PharmacogenomicsAnnotation):
     description="A reusable study-registry row shape.",
 )
 class StudyRegistry(TableContract):
-    study_id: SpecInput[str] = field(name="studyId")
-    title: SpecInput[str] = field(name="title")
-    sponsor: SpecInput[str | None] = field(name="sponsor")
+    study_id: Declaration[str] = field(name="studyId")
+    title: Declaration[str] = field(name="title")
+    sponsor: Declaration[str | None] = field(name="sponsor")
 
 
 @table(name="study_registry")
@@ -269,7 +266,7 @@ from the typed values assigned in its class body.
 
 ```python
 @projection(inputs=(pharmacogenomics_release, study_registry_release))
-class AssociationRows:
+class AssociationTable:
     target_id = field(PharmacogenomicsAnnotation.target.id)
     target_symbol = field(PharmacogenomicsAnnotation.target.symbol)
     target_name = field(PharmacogenomicsAnnotation.target.name)
@@ -286,7 +283,7 @@ class AssociationRows:
     )
 ```
 
-For example, `AssociationRows.score` is inferred as `Field[float]` and is a
+For example, `AssociationTable.score` is inferred as `Field[float]` and is a
 typed, referenceable field. Use named projected tables when they are reused,
 documented, tested, or materialised independently; a one-use local relation
 expression is also valid.
@@ -299,38 +296,48 @@ generated values. It has three subnamespaces: `value` for scalar expressions,
 enrichment. Each operation creates a typed, immutable value declaration. IDE
 completion on `provide.` exposes these three categories.
 
+`provide` is also callable. Calling `provide(value)` normalises a compatible
+literal, typed field path, or dynamic field into an `Expression[T]`; supplying
+an `Expression[T]` returns that expression unchanged. This gives bindings one
+explicit, concise way to supply a simple expression without making literals or
+table fields direct binding-member assignments.
+
 ```python
+provide(AssociationTable.target_symbol)                 # Expression[str]
+provide("unknown")                                      # Expression[str]
 provide.value.literal("pharmacogenomics_annotation::")
-provide.value.concat("annotation::", AssociationRows.study_id)
-provide.value.coalesce(AssociationRows.target_name, "unknown")
+provide.value.concat("annotation::", AssociationTable.study_id)
+provide.value.coalesce(AssociationTable.target_name, "unknown")
 provide.value.uuid()
 ```
 
-Typed field paths and dynamic fields are already valid `ValueInput`s. They
-are accepted directly in projections, graph mappings, and `provide.*` calls:
+Typed field paths and dynamic fields are valid `ProvideInput`s. They are
+accepted directly in projections and as operands to `provide.*` calls; graph
+bindings receive the resulting `Expression[T]`:
 
 ```python
 target_id = field(PharmacogenomicsAnnotation.target.id)
-source = provide.value.concat("annotation::", AssociationRows.study_id)
-target_endpoint = AssociationRows.disease_id
+source_build_key = provide.value.concat("annotation::", AssociationTable.study_id)
+target_build_key = AssociationTable.disease_id
 ```
 
 ```text
-ValueInput[T] = FieldPath[T] | DynamicField[T] | Value[T] | compatible literal T
+ProvideInput[T] = FieldPath[T] | DynamicField[T] | Expression[T] | compatible literal T
 ```
 
-When a specification contract is instantiated as a binding shape, its
-`SpecInput[T]` members accept a binding `Expression[T]` or literal `T` directly.
-The original topology or table field specifiers remain class-body declarations;
-the binding layer interprets the supplied expressions against that structural
-contract.
+Typed field paths and dynamic fields are operands for `provide.*` calls, not
+direct binding-member assignments. When a specification contract is
+instantiated as binding `properties`, its `Declaration[T]` members accept only
+an `Expression[T]` created through `provide`. The original topology or table
+field specifiers remain class-body declarations; the binding layer interprets
+the supplied expressions against that structural contract.
 
 ### Intention-oriented expressions, navigation, and cardinality
 
 The value-expression system is shared by projections and graph bindings. A
 projection uses expressions to define a logical data product; a graph binding
-uses the same expressions to provide identifiers, endpoints, properties, and
-other mapping values. In both contexts, an expression states what a value
+uses the same expressions to provide build keys, properties, and other mapping
+values. In both contexts, an expression states what a value
 means, not a physical query plan.
 
 A projection names the bound tables from which its expressions may draw
@@ -343,7 +350,7 @@ the physical relational operations needed to obtain a declared value.
 declared input using a compatible key. It expresses an enrichment relationship,
 not an execution plan. The target key must identify at most one record;
 duplicate matches are diagnostics. `on_missing` declares the intended absence
-policy, so the `AssociationRows.study_title` example above is inferred as
+policy, so the `AssociationTable.study_title` example above is inferred as
 `Field[str | None]`.
 
 A reference has declared cardinality. Navigating a singular reference produces
@@ -355,8 +362,8 @@ the author must resolve its cardinality deliberately.
 # One projected output row for every disease ID on an annotation.
 disease_id = field(provide.collection.expand(PharmacogenomicsAnnotation.disease_ids))
 
-# A graph binding may use the same expression language for a generated ID.
-identifier = provide.value.concat("annotation::", AssociationRows.study_id)
+# A graph binding may use the same expression language for a generated build key.
+build_key = provide.value.concat("annotation::", AssociationTable.study_id)
 
 # One collection-valued output for values gathered from several input rows.
 evidence_ids = field(provide.collection.collect(AssociationEvidence.id))
@@ -388,9 +395,10 @@ These expressions are intention-oriented and portable. They state which values
 are required and how their cardinality is handled; they do not expose a query
 language or execution plan.
 
-A graph binding is an immutable assignment from a projected table to one graph
-component. It describes graph mapping, not acquisition or a physical query
-plan.
+A graph binding is an immutable assignment from the tables referenced by its
+expressions to one graph component. It describes graph mapping, not acquisition
+or a physical query plan. The compiler derives its input tables from those
+expressions, so bindings do not declare a separate `from_` argument.
 
 Binding declarations mirror the node-first topology layout, so graph
 components and their data mappings are easy to find together:
@@ -407,31 +415,34 @@ bindings/
 ```python
 target_from_pharmacogenomics: Final[NodeBinding[Target]] = node_binding(
     target=Target,
-    from_=AssociationRows,
-    identifier=AssociationRows.target_id,
-    properties={
-        Target.symbol: AssociationRows.target_symbol,
-        Target.name: AssociationRows.target_name,
-    },
+    build_key=provide(AssociationTable.target_id),
+    properties=Target(
+        symbol=provide(AssociationTable.target_symbol),
+        name=provide(AssociationTable.target_name),
+    ),
 )
 
 
 annotation_associated_with_disease: Final[EdgeBinding[AssociatedWith]] = edge_binding(
     target=AssociatedWith,
-    from_=AssociationRows,
-    identifier=provide.value.uuid(),
-    source=provide.value.concat("pharmacogenomics_annotation::", AssociationRows.study_id),
-    target_endpoint=AssociationRows.disease_id,
-    properties={
-        AssociatedWith.score: AssociationRows.score,
-    },
+    build_key=provide.value.uuid(),
+    source_build_key=provide.value.concat("pharmacogenomics_annotation::", AssociationTable.study_id),
+    target_build_key=provide(AssociationTable.disease_id),
+    properties=AssociatedWith(
+        score=provide(AssociationTable.score),
+    ),
 )
 ```
 
 Topology supplies edge type, endpoint types, property types, and annotations.
-Bindings supply source values, identifiers, endpoints, and mapping policies.
-Binding modules mirror the topology layout: node bindings live with their node,
-and edge bindings live beneath their source node's `edges/` directory.
+Bindings supply source values, build keys, and mapping policies. Build keys are
+not topology identifiers or persisted graph properties: a target may use them
+to discover or connect records during a build and then discard them.
+The `properties` argument instantiates the target graph-component contract with
+expressions created through `provide` for its declared properties; it does not
+use a dictionary keyed by `Property` objects. Binding modules mirror the topology
+layout: node bindings live with their node, and edge bindings live beneath their
+source node's `edges/` directory.
 
 ## Future: compiled build definition
 
