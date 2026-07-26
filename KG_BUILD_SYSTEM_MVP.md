@@ -31,7 +31,45 @@ with DuckDB as its compute engine.
 - **Target capabilities are explicit.** Target-specific features are namespaced
   annotations; they do not alter core graph semantics.
 
-## 3. Layer 1: abstract KG topology
+## 3. Layer 0: specification contracts
+
+`Specification` is the shared, lowest-level class-based declaration concept.
+It is a reusable declarative structural contract: a subclass states the shape
+and meaning of something without acquiring data or executing a build. Topology
+components, table shapes, projections, and other class-based declaration layers
+may inherit it and reuse a contract through inheritance when re-specifying it.
+
+The shared layer deliberately has no knowledge of topology properties, table
+fields, binding expressions, or other layer-specific authoring constructs:
+
+```python
+class Specification(ABC):
+    """A reusable declarative structural contract."""
+
+
+class Specifier[T](ABC):
+    """A typed declarative way to specify a value of type T."""
+
+
+type SpecInput[T] = Specifier[T] | T
+```
+
+`SpecInput[T]` is the annotation of a declared contract member. It accepts a
+typed, layer-specific `Specifier[T]` or a literal `T`. For example,
+`PropertyRef[str]` and a binding `Expression[str]` are both
+`Specifier[str]`, while a direct string is the literal case. A `Specifier` is
+not itself a structural contract; it specifies one member of such a contract.
+
+`Specification` need not itself be a dataclass. Each declaration layer owns
+its own `dataclass_transform` configuration and field specifiers, allowing the
+type checker to synthesize that layer's constructor without coupling the shared
+layer to `PropertyRef`, `Field`, or any other descriptor. Framework metadata is
+declared as `ClassVar` or left unannotated so that it is not a constructor
+parameter. Standard `dataclass_transform` cannot filter generated constructor
+parameters solely by the `SpecInput[...]` annotation; the layer's registered
+field-specifier convention provides the intentionally loose authoring rule.
+
+## 4. Layer 1: abstract KG topology
 
 Defines what the resulting graph means, independently of its source data.
 
@@ -64,9 +102,12 @@ by the core model.
 
 ### Representation
 
-The MVP source of truth is Python class declarations. Node and edge properties
-are typed `PropertyRef[T]` class attributes, so a downstream binding can
-reference `Target.symbol` directly as a typed property reference. The serialised JSON
+The MVP source of truth is Python class declarations. The topology layer
+provides a `GraphComponent(Specification)` base configured with
+`@dataclass_transform(field_specifiers=(PropertyRef, IdentifierRef))`.
+Node and edge members are typed `SpecInput[T]` and use `PropertyRef[T]` or
+`IdentifierRef[T]` in their class bodies, so a downstream binding can reference
+`Target.symbol` directly as a typed property reference. The serialised JSON
 representation is produced from those classes; the list-based IR is an internal
 compiled form rather than the Python authoring API. JSON/YAML import and
 bidirectional synchronisation are future capabilities.
@@ -75,7 +116,7 @@ Any declared node or edge can serve as a template. A subclass inherits its
 properties, identifier, description, and annotations; it may add properties or
 override an inherited property or identifier with the same attribute name.
 
-## 4. Layer 2: abstract declarative binding
+## 5. Layer 2: abstract declarative binding
 
 Defines a declarative acquisition and transformation expression that produces
 the nodes, edges, identifiers, and properties declared by the topology model.
@@ -88,11 +129,15 @@ Bindings operate over a small logical data model:
 Table → Field → DataType
 ```
 
-A reusable table shape is an ordinary Python class with explicitly named
-`Field` declarations, which may be scalar, optional, nested `Struct` values,
-or collections. A Python attribute is a typed authoring handle for the
+A reusable table shape is a `TableContract(Specification)` with explicitly
+named member declarations. The data layer owns its `field` specifier and
+configures `TableContract` with its own
+`@dataclass_transform(field_specifiers=(field,))`; the shared specification
+layer does not import either construct. Members are typed `SpecInput[T]` and
+may be scalar, optional, nested `Struct` values, or collections. A Python
+attribute is a typed authoring handle for the
 contract field name, allowing a source field such as `studyId` to be represented
-as `study_id: Field[str] = field(name="studyId")`.
+as `study_id: SpecInput[str] = field(name="studyId")`.
 `@table_template(name=..., description=...)` optionally attaches stable
 template metadata without changing the reusable class. `@table(name=...)`
 consumes one such class and returns a final generated table class typed as
@@ -159,8 +204,10 @@ language.
 
 A graph binding is an immutable assignment from a projected table to one node
 or edge type. It declares identifiers, endpoints, properties, mapping policies,
-and provenance. Bindings use the same typed field paths, dynamic fields, and
-`provide.*` expressions as projections:
+and provenance. A binding may instantiate a specification contract by assigning
+an `Expression[T]` or literal `T` directly to a `SpecInput[T]` member. Bindings
+use the same typed field paths, dynamic fields, and `provide.*` expressions as
+projections:
 
 ```python
 node_binding(
@@ -175,7 +222,7 @@ The portable expression subset must compile deterministically to DuckDB SQL.
 Python user-defined transformations are a later extension and are explicitly
 outside the portable MVP subset.
 
-## 5. Future design: model synchronization and code generation
+## 6. Future design: model synchronization and code generation
 
 Code generation is not part of the MVP. The model and IR boundaries should,
 however, be designed so that it can be added later without changing their
@@ -198,7 +245,7 @@ Future code generation will not attempt arbitrary Python round-tripping. Only
 declarations made through the supported model API are serializable;
 handwritten runtime logic remains Python-only.
 
-## 6. Layer 3: compilation and build execution
+## 7. Layer 3: compilation and build execution
 
 Compilation is the boundary between authoring and execution. The `compile`
 layer consumes validated topology, data, binding, and target declarations and
@@ -241,7 +288,7 @@ DuckDB owns relational work including scans, joins, filters, unnests,
 aggregations, casts, and deterministic expression evaluation. The execution
 layer should expose generated SQL and query plans for inspection.
 
-## 7. Proposed monorepo layout
+## 8. Proposed monorepo layout
 
 ```text
 kg_build_system/
@@ -273,10 +320,13 @@ The dependency direction is `compile` → (`topology`, `data`, `binding`) and
 graph bindings are the first layer that references both. Build execution depends
 only on the compiled-definition protocol and never on authoring declarations.
 
-## 8. MVP scope
+## 9. MVP scope
 
 The MVP proves one end-to-end workflow with:
 
+- a shared `Specification` abstraction for reusable class-based structural
+  contracts, with each declaration layer owning its field specifiers and static
+  authoring convention;
 - class-based Python authoring for topology, with JSON export from the compiled
   topology IR;
 - manually authored table shapes, optional named/described templates, final
@@ -296,7 +346,7 @@ The MVP proves one end-to-end workflow with:
 - a self-contained, importable demonstration project that defines, binds, and produces a
   small graph demonstrating ontology and target annotations.
 
-## 9. Deferred concerns
+## 10. Deferred concerns
 
 - distributed execution and scheduling;
 - incremental and change-data-capture builds;
@@ -307,7 +357,7 @@ The MVP proves one end-to-end workflow with:
 - support for every graph database or remote source;
 - model synchronization, table-schema generation, and Python/YAML round trips.
 
-## 10. Success criteria
+## 11. Success criteria
 
 The PoC succeeds when the demonstration graph, logical data contracts, bound
 inputs, projections, and graph bindings validate; invalid typed or asserted
