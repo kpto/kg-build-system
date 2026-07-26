@@ -1,6 +1,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any, Callable, Generic, Protocol, TypeVar, cast, dataclass_transform
+from typing import Any, Callable, Generic, Protocol, TypeVar, cast, dataclass_transform, get_args, get_type_hints
 from ..expressions import FieldPath
 from ..specification import Declaration, Specification
 
@@ -43,7 +43,11 @@ def _properties(cls: type) -> dict[str, Property]:
 
 def _component(kind: str, **meta: Any) -> _ComponentDecorator:
     def decorate(cls: type[C]) -> type[C]:
-        cls._kind, cls._properties, cls._metadata = kind, _properties(cls), dict(meta)
+        properties = _properties(cls); hints = get_type_hints(cls)
+        for attribute, declared in properties.items():
+            args = get_args(hints.get(attribute, Any))
+            object.__setattr__(declared, "type_hint", args[0] if args else Any)
+        cls._kind, cls._properties, cls._metadata = kind, properties, dict(meta)
         return cls
     return cast(_ComponentDecorator, decorate)
 
