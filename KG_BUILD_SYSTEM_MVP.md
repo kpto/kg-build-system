@@ -89,7 +89,6 @@ serialised once, and `SO("0000704")` creates an annotation that references the
 Annotations cover both semantic mappings and target hints, for example:
 
 - ontology term or CURIE mapping;
-- provenance and licence metadata;
 - Neo4j indexes, uniqueness constraints, or full-text indexes on individual
   properties;
 - target-specific label or naming overrides.
@@ -181,8 +180,12 @@ table declarations from external metadata is future work.
 ### Projections and value expressions
 
 A projection is a logical data product whose output fields are inferred from
-typed expressions. It may combine values from several declared logical tables.
-Its input references are abstract table requirements, resolved to bound tables
+typed expressions assigned through the projection-layer
+`projected_field(...)` declaration helper, rather than the data-layer
+`field(...)` helper used by table contracts. It may combine values from several
+final concrete table declarations, but never reusable templates or structs.
+Its referenced tables determine the abstract table requirements; it has no
+separate `inputs` declaration. Those requirements are resolved to bound tables
 only when composing a concrete build definition. Authors
 express the desired values and their cardinality, not joins, aliases, or a
 physical query plan; the system resolves the required relational work.
@@ -377,7 +380,8 @@ The MVP proves one end-to-end workflow with:
   typed fields, and direct/group physical bindings for Parquet and CSV;
 - dynamic tables and asserted dynamic fields, with `Unknown` guarded at build
   and inspection time;
-- projections over one or more logical table declarations, including nested field paths,
+- projections over one or more final logical table declarations, using
+  `projected_field(...)` for outputs and including nested field paths,
   `provide.value` expressions, `provide.collection.expand(...)`, and singular
   `provide.lookup.one(...)` enrichment;
 - immutable node and edge bindings that map projected values to typed topology

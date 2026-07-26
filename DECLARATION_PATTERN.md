@@ -263,24 +263,31 @@ its physical path and any asserted type during inspection or build. Typed and
 dynamic tables compile to the same internal table and field-reference IR.
 
 A projected table is a logical data product. Its output fields are inferred
-from the typed values assigned in its class body. It references logical table
-declarations, not physical source bindings, so it can be reused with different
-source configurations.
+from the typed values assigned through the projection layer's
+`projected_field(...)` declaration helper. This is deliberately distinct from
+the data-layer `field(...)` helper used to declare fields on table contracts.
+Projections reference only final concrete table declarations, never reusable
+templates or structs. The compiler derives their logical table requirements
+from those references, so the projection decorator has no separate `inputs`
+argument. The requirements can then be resolved to physical source bindings.
+Projections can still be reused with different source configurations.
 
 ```python
-@projection(inputs=(OpenTargetsPharmacogenomicsAnnotation, OpenTargetsStudyRegistry))
+@projection
 class AssociationTable:
-    target_id = field(PharmacogenomicsAnnotation.target.id)
-    target_symbol = field(PharmacogenomicsAnnotation.target.symbol)
-    target_name = field(PharmacogenomicsAnnotation.target.name)
-    disease_id = field(provide.collection.expand(PharmacogenomicsAnnotation.disease_ids))
-    study_id = field(PharmacogenomicsAnnotation.study_id)
-    score = field(PharmacogenomicsAnnotation.score)
-    study_title = field(
+    target_id = projected_field(OpenTargetsPharmacogenomicsAnnotation.target.id)
+    target_symbol = projected_field(OpenTargetsPharmacogenomicsAnnotation.target.symbol)
+    target_name = projected_field(OpenTargetsPharmacogenomicsAnnotation.target.name)
+    disease_id = projected_field(
+        provide.collection.expand(OpenTargetsPharmacogenomicsAnnotation.disease_ids)
+    )
+    study_id = projected_field(OpenTargetsPharmacogenomicsAnnotation.study_id)
+    score = projected_field(OpenTargetsPharmacogenomicsAnnotation.score)
+    study_title = projected_field(
         provide.lookup.one(
-            PharmacogenomicsAnnotation.study_id,
+            OpenTargetsPharmacogenomicsAnnotation.study_id,
             in_=OpenTargetsStudyRegistry,
-            key=StudyRegistry.study_id,
+            key=OpenTargetsStudyRegistry.study_id,
             on_missing="null",
         ).title,
     )
@@ -319,7 +326,7 @@ accepted directly in projections and as operands to `provide.*` calls; graph
 bindings receive the resulting `Expression[T]`:
 
 ```python
-target_id = field(PharmacogenomicsAnnotation.target.id)
+target_id = projected_field(OpenTargetsPharmacogenomicsAnnotation.target.id)
 source_build_key = provide.value.concat("annotation::", AssociationTable.study_id)
 target_build_key = provide(AssociationTable.disease_id)
 ```
@@ -343,11 +350,11 @@ uses the same expressions to provide build keys, properties, and other mapping
 values. In both contexts, an expression states what a value
 means, not a physical query plan.
 
-A projection names the logical tables from which its expressions may draw
-values, making their declared references available for typed navigation. A
-graph binding consumes the resulting projected values. Physical source bindings
-are supplied only when the reusable graph definition is composed into a build.
-The author does not
+A projection's referenced final table declarations determine the logical tables
+from which its expressions may draw values, making their declared references
+available for typed navigation. A graph binding consumes the resulting
+projected values. Physical source bindings are supplied only when the reusable
+graph definition is composed into a build. The author does not
 select joins, aliases, or any other execution mechanism; the compiler resolves
 the physical relational operations needed to obtain a declared value.
 
@@ -365,13 +372,17 @@ the author must resolve its cardinality deliberately.
 
 ```python
 # One projected output row for every disease ID on an annotation.
-disease_id = field(provide.collection.expand(PharmacogenomicsAnnotation.disease_ids))
+disease_id = projected_field(
+    provide.collection.expand(OpenTargetsPharmacogenomicsAnnotation.disease_ids)
+)
 
 # A graph binding may use the same expression language for a generated build key.
 build_key = provide.value.concat("annotation::", AssociationTable.study_id)
 
 # One collection-valued output for values gathered from several input rows.
-evidence_ids = field(provide.collection.collect(AssociationEvidence.id))
+study_ids = projected_field(
+    provide.collection.collect(OpenTargetsPharmacogenomicsAnnotation.study_id)
+)
 ```
 
 `provide.collection.expand(...)` repeats the sibling scalar values for each
