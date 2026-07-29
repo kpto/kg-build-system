@@ -62,5 +62,7 @@ graph = compile_graph(bindings=[
 ], projections=[AssociationTable])
 definition = compile_build(graph=graph, sources=[source, study_source], target=FileTarget(str(root / "graph.jsonl")))
 if __name__ == "__main__":
+    (root / "compiled_graph.json").write_text(graph.model_dump_json(indent=2), encoding="utf-8")
+    (root / "compiled_build.json").write_text(definition.model_dump_json(indent=2), encoding="utf-8")
     print(definition.sql)
     print(execute_build(definition))
