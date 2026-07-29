@@ -14,6 +14,7 @@ from ..expressions import Expression, FieldPath
 from ..targets.file import FileTarget
 
 def _value_type(annotation: Any, cardinality: str = "scalar") -> ValueType:
+    if cardinality == "expanded": return ValueType(kind="scalar", name="unknown" if annotation is Any else getattr(annotation, "__name__", str(annotation)))
     if annotation is Any or annotation is None: return ValueType(kind="unknown", name="unknown")
     origin, arguments = get_origin(annotation), get_args(annotation)
     if origin is list:
@@ -24,9 +25,10 @@ def _value_type(annotation: Any, cardinality: str = "scalar") -> ValueType:
 def _to_ir(value: Expression[Any] | FieldPath[Any] | Any) -> Value:
     if isinstance(value, FieldPath): return FieldReference(table=value.table.__name__, path=value.path, value_type=_value_type(value.type_hint, value.cardinality))
     if isinstance(value, Expression):
-        operation = cast(Literal["concat", "coalesce", "cast", "deterministic_uuid", "expand"], {"uuid": "deterministic_uuid"}.get(value.op, value.op))
-        args = tuple(_to_ir(arg) for arg in value.args if not (value.op == "cast" and isinstance(arg, str)))
-        return Operation(op=operation, args=args, value_type=_value_type(value.type_hint, value.cardinality), sql_type=value.args[1] if value.op == "cast" else None)
+        operation = cast(Literal["concat", "coalesce", "cast", "deterministic_uuid", "expand", "struct_field", "lookup_one"], {"uuid": "deterministic_uuid"}.get(value.op, value.op))
+        skip_string = (value.op == "cast" or value.op == "struct_field")
+        args = tuple(_to_ir(arg) for arg in value.args if not (skip_string and isinstance(arg, str)))
+        return Operation(op=operation, args=args, value_type=_value_type(value.type_hint, value.cardinality), sql_type=value.args[1] if value.op == "cast" else None, field_name=value.args[1] if value.op == "struct_field" else None)
     return LiteralValue(value=value, value_type=_value_type(type(value)))
 
 def _component(component: type) -> ComponentDefinition:
@@ -65,20 +67,26 @@ def _tables(value: Value, projections: dict[str, ProjectionDefinition]) -> set[s
     if isinstance(value, Operation): return set().union(*(_tables(arg, projections) for arg in value.args))
     return set()
 
-def _render(value: Value, aliases: dict[str, str], projections: dict[str, ProjectionDefinition]) -> str:
+def _render(value: Value, aliases: dict[str, str], projections: dict[str, ProjectionDefinition], expand_aliases: dict[str, str] | None = None) -> str:
     value = _projection_value(value, projections)
     if isinstance(value, FieldReference): return aliases[value.table] + "." + ".".join(f'"{part}"' for part in value.path)
     if isinstance(value, LiteralValue):
         if value.value is None: return "NULL"
         if isinstance(value.value, str): return "'" + value.value.replace("'", "''") + "'"
         return str(value.value).upper() if isinstance(value.value, bool) else str(value.value)
-    args = [_render(arg, aliases, projections) for arg in value.args]
+    args = [_render(arg, aliases, projections, expand_aliases) for arg in value.args]
     if value.op == "concat": return "concat(" + ", ".join(args) + ")"
     if value.op == "coalesce": return "coalesce(" + ", ".join(args) + ")"
     if value.op == "cast": return f"CAST({args[0]} AS {value.sql_type})"
     if value.op == "deterministic_uuid": return f"md5({args[0]})"
-    if value.op == "expand": return "item"
+    if value.op == "expand": return (expand_aliases or {})[value.model_dump_json()]
+    if value.op == "struct_field": return args[0] + f'."{value.field_name}"'
+    if value.op == "lookup_one": return args[2]
     raise ValueError(f"unsupported IR operation {value.op}")
+
+def _operations(value: Value, operation: str) -> list[Operation]:
+    if not isinstance(value, Operation): return []
+    return [item for argument in value.args for item in _operations(argument, operation)] + ([value] if value.op == operation else [])
 
 def compile_build(*, graph: CompiledGraphDefinition, sources: Sequence[BoundTable], target: object, policy: BuildPolicy | None = None) -> CompiledBuildDefinition:
     if not isinstance(target, FileTarget): raise TypeError("the MVP supports FileTarget only")
@@ -89,11 +97,23 @@ def compile_build(*, graph: CompiledGraphDefinition, sources: Sequence[BoundTabl
     required = set().union(*(_tables(value, projections) for value in values)); available = {source.table: source for source in source_ir}; missing = required - set(available)
     if missing: raise ValueError("no source bound for: " + ", ".join(sorted(missing)))
     aliases = {table: f"t{index}" for index, table in enumerate(sorted(required))}
-    scans = [f"{'read_csv_auto' if available[table].format == 'csv' else 'read_parquet'}('{available[table].location.replace(chr(39), chr(39)*2)}') AS {aliases[table]}" for table in sorted(required)]
-    from_clause = " CROSS JOIN ".join(scans)
-    expands = [value for value in values if isinstance(value, Operation) and value.op == "expand"]
-    if len(expands) > 1: raise ValueError("multiple expansions require a correlation policy")
-    if expands: from_clause += " CROSS JOIN UNNEST(" + _render(expands[0].args[0], aliases, projections) + ") AS expanded(item)"
-    ctes = [f'{projection.name.lower()} AS (SELECT ' + ", ".join(f'{_render(value, aliases, projections)} AS "{name}"' for name, value in projection.fields.items()) + f" FROM {from_clause})" for projection in graph.projections]
+    def scan(table: str) -> str:
+        source = available[table]; function = "read_csv_auto" if source.format == "csv" else "read_parquet"
+        return f"{function}('{source.location.replace(chr(39), chr(39)*2)}') AS {aliases[table]}"
+    lookups = [lookup for value in values for lookup in _operations(value, "lookup_one")]
+    lookup_tables = {lookup.args[1].table for lookup in lookups if isinstance(lookup.args[1], FieldReference)}
+    base_tables = sorted(required - lookup_tables)
+    if not base_tables: raise ValueError("a lookup requires a non-lookup source table")
+    from_clause = " CROSS JOIN ".join(scan(table) for table in base_tables)
+    for lookup in lookups:
+        match = lookup.args[1]
+        if not isinstance(match, FieldReference): raise ValueError("lookup match must be a field reference")
+        from_clause += f" LEFT JOIN {scan(match.table)} ON {_render(match, aliases, projections)} = {_render(lookup.args[0], aliases, projections)}"
+    expands = [expand for value in values for expand in _operations(value, "expand")]
+    unique_expands = list({expand.model_dump_json(): expand for expand in expands}.values())
+    expand_aliases = {expand.model_dump_json(): f"expanded{index}.item" for index, expand in enumerate(unique_expands)}
+    for index, expand in enumerate(unique_expands):
+        from_clause += f" CROSS JOIN UNNEST({_render(expand.args[0], aliases, projections, expand_aliases)}) AS expanded{index}(item)"
+    ctes = [f'{projection.name.lower()} AS (SELECT ' + ", ".join(f'{_render(value, aliases, projections, expand_aliases)} AS "{name}"' for name, value in projection.fields.items()) + f" FROM {from_clause})" for projection in graph.projections]
     final_from = graph.projections[-1].name.lower() + " AS p0" if graph.projections else from_clause
     return CompiledBuildDefinition(graph=graph, sources=source_ir, target=FileTargetDefinition(location=target.location), policy=policy or BuildPolicy(), sql=("WITH " + ", ".join(ctes) + " " if ctes else "") + "SELECT * FROM " + final_from)

@@ -37,15 +37,19 @@ class LiteralValue(IRModel):
 
 class Operation(IRModel):
     kind: Literal["operation"] = "operation"
-    op: Literal["concat", "coalesce", "cast", "deterministic_uuid", "expand"]
+    op: Literal["concat", "coalesce", "cast", "deterministic_uuid", "expand", "struct_field", "lookup_one"]
     args: tuple["Value", ...] = Field(min_length=1)
     value_type: ValueType
     sql_type: str | None = None
+    field_name: str | None = None
 
     @model_validator(mode="after")
     def validate_operation(self) -> Self:
         if self.op == "cast" and not self.sql_type: raise ValueError("cast requires sql_type")
         if self.op != "cast" and self.sql_type is not None: raise ValueError("sql_type is only valid for cast")
+        if self.op == "struct_field" and not self.field_name: raise ValueError("struct_field requires field_name")
+        if self.op != "struct_field" and self.field_name is not None: raise ValueError("field_name is only valid for struct_field")
+        if self.op == "lookup_one" and len(self.args) != 3: raise ValueError("lookup_one requires key, match, and value")
         if self.op == "expand" and self.value_type.kind != "scalar": raise ValueError("expand resolves to a scalar item")
         return self
 

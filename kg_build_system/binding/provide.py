@@ -18,9 +18,15 @@ class ValueExpressions:
     @overload
     def cast(self, value: Any, sql_type: str) -> Expression[Any]: ...
     def cast(self, value: Any, sql_type: str) -> Expression[Any]:
-        is_text_array = sql_type.upper() in {"VARCHAR[]", "TEXT[]"}
-        return Expression("cast", (normalise(value), sql_type), list[str] if is_text_array else Any, "collection" if is_text_array else "scalar")
+        is_array = sql_type.upper().endswith("[]")
+        return Expression("cast", (normalise(value), sql_type), list[str] if sql_type.upper() in {"VARCHAR[]", "TEXT[]"} else (list[Any] if is_array else Any), "collection" if is_array else "scalar")
     def deterministic_uuid(self, value: Any) -> Expression[str]: return Expression("uuid", (normalise(value),), str)
+    def struct_field[T](self, value: Any, name: str, *, as_type: type[T]) -> Expression[T]:
+        return Expression("struct_field", (normalise(value), name), as_type, "collection" if item_type(as_type) is not None else "scalar")
+
+class LookupExpressions:
+    def one[T](self, *, key: Any, match: Any, value: Any, as_type: type[T]) -> Expression[T]:
+        return Expression("lookup_one", (normalise(key), normalise(match), normalise(value)), as_type)
 
 class CollectionExpressions:
     def expand[T](self, value: Declaration[list[T]] | Expression[list[T]] | FieldPath[list[T]]) -> Expression[T]:
@@ -31,6 +37,7 @@ class CollectionExpressions:
 class Provide:
     value = ValueExpressions()
     collection = CollectionExpressions()
+    lookup = LookupExpressions()
     def __call__(self, value: Any) -> Expression[Any] | FieldPath[Any]: return normalise(value)
 
 provide = Provide()

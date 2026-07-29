@@ -1,3 +1,3 @@
-target_id,target_symbol,disease_ids,score
-ENSG0001,GENE1,"[\"MONDO:0001\",\"MONDO:0003\"]",0.91
-ENSG0002,GENE2,"[\"MONDO:0002\"]",0.76
+target_id,target_symbol,study_id,evidence,score
+ENSG0001,GENE1,STUDY-1,"[{\"disease_id\":\"MONDO:0001\",\"labels\":[\"genetic\",\"curated\"]},{\"disease_id\":\"MONDO:0003\",\"labels\":[\"genetic\"]}]",0.91
+ENSG0002,GENE2,STUDY-2,"[{\"disease_id\":\"MONDO:0002\",\"labels\":[\"literature\"]}]",0.76
