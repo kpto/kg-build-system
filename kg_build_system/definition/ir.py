@@ -29,6 +29,7 @@ class FieldReference(IRModel):
     table: str = Field(min_length=1)
     path: tuple[str, ...] = Field(min_length=1)
     value_type: ValueType
+    collection_paths: tuple[tuple[str, ...], ...] = ()
 
 class LiteralValue(IRModel):
     kind: Literal["literal"] = "literal"
@@ -114,7 +115,7 @@ class CompiledGraphDefinition(IRModel):
 class SourceDefinition(IRModel):
     table: str = Field(min_length=1)
     location: str = Field(min_length=1)
-    format: Literal["csv", "parquet"]
+    format: Literal["csv", "json", "parquet"]
     credential_reference: str | None = None
     version: str | None = None
 

@@ -176,6 +176,16 @@ Field[list[str | None]]
 Navigating a collection preserves its cardinality: it cannot select an item or
 duplicate a row implicitly.
 
+Nested navigation may continue through a collection. The resulting field path
+retains every collection segment rather than requiring an author to introduce
+a temporary item variable. `expand` requests row-context expansion for that
+path; compilation derives and shares the required parent-first unnests:
+
+```python
+Association.evidence.element.disease_id  # collection-valued FieldPath[str]
+Association.evidence.element.labels      # collection-valued FieldPath[list[str]]
+```
+
 ## 6. Table groups and physical sources
 
 `TableGroup` provides named nested groups of concrete tables. Group and table
@@ -265,6 +275,21 @@ declared `correlated` or `cartesian` policy. `collect` must require an explicit
 grouping context rather than infer one. `lookup.one` requires a key that
 identifies at most one record; duplicates are diagnostics and `on_missing`
 declares absence semantics.
+
+Authors reference nested fields directly; they do not manage intermediate
+unnest items. For example, the compiler recognises the shared `evidence`
+prefix and lowers the two requested expansions into a parent-first plan:
+
+```python
+@projection
+class EvidenceTable(Specification):
+    disease_id = projected_field(provide.collection.expand(Association.evidence.element.disease_id))
+    evidence_label = projected_field(provide.collection.expand(Association.evidence.element.labels))
+```
+
+This expresses one expansion over `evidence` followed by one over each
+evidence record's `labels`; the authoring declaration contains no temporary
+row-context variable or target-specific unnest plan.
 
 The expression IR records table roles, traversal, cardinality, lookup meaning,
 and ambiguity resolution without exposing a SQL query plan.

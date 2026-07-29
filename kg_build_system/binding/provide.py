@@ -29,9 +29,15 @@ class LookupExpressions:
         return Expression("lookup_one", (normalise(key), normalise(match), normalise(value)), as_type)
 
 class CollectionExpressions:
-    def expand[T](self, value: Declaration[list[T]] | Expression[list[T]] | FieldPath[list[T]]) -> Expression[T]:
+    @overload
+    def expand[E](self, value: Declaration[list[E]] | Expression[list[E]] | FieldPath[list[E]]) -> Expression[E]: ...
+    @overload
+    def expand[T](self, value: Declaration[T] | Expression[T] | FieldPath[T]) -> Expression[T]:
+        ...
+    def expand(self, value: Any) -> Expression[Any]:
         expression = normalise(value); element = item_type(expression.type_hint)
-        if element is None: raise TypeError("expand requires a declared list[T] value")
+        if element is None and expression.cardinality != "collection": raise TypeError("expand requires a declared list[T] value")
+        element = element or expression.type_hint
         return Expression("expand", (expression,), element, "expanded")
 
 class Provide:

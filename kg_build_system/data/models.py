@@ -17,7 +17,9 @@ class Field(Declaration[T], Generic[T]):
     attr: str = ""
     def __set_name__(self, owner: type, attr: str) -> None: object.__setattr__(self, "attr", attr)
     def __get__(self, instance: Any, owner: type) -> FieldPath[T] | T | None:
-        return FieldPath[T](owner, (self.name,), self.type_hint, "collection" if item_type(self.type_hint) is not None else "scalar") if instance is None else instance
+        path = (self.name,)
+        collection_paths = (path,) if item_type(self.type_hint) is not None else ()
+        return FieldPath[T](owner, path, self.type_hint, "collection" if collection_paths else "scalar", collection_paths) if instance is None else instance
 
 @dataclass(frozen=True)
 class ProjectedField(Declaration[T], Generic[T]):
@@ -32,6 +34,7 @@ class ProjectedField(Declaration[T], Generic[T]):
 
 class InputFormat(StrEnum):
     CSV = "csv"
+    JSON = "json"
     PARQUET = "parquet"
 
 @dataclass(frozen=True)
