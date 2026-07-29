@@ -1,18 +1,4 @@
-"""Immutable compiled-definition models."""
-from dataclasses import dataclass
-from ..binding import EdgeBinding, NodeBinding
-from ..data import BoundTable
+"""Compatibility exports for canonical compiled IR models."""
+from ..definition.ir import BuildPolicy, CompiledBuildDefinition, CompiledGraphDefinition
 
-Binding = NodeBinding | EdgeBinding
-
-@dataclass(frozen=True)
-class CompiledGraphDefinition:
-    bindings: tuple[Binding, ...]
-    projections: tuple[type, ...] = ()
-
-@dataclass(frozen=True)
-class CompiledBuildDefinition:
-    graph: CompiledGraphDefinition
-    sources: tuple[BoundTable, ...]
-    sql: str
-    target: object
+__all__ = ["BuildPolicy", "CompiledBuildDefinition", "CompiledGraphDefinition"]

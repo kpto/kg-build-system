@@ -1,66 +1,99 @@
-"""Compilation and validation services."""
+"""Lower authoring declarations into canonical Pydantic IR."""
 from __future__ import annotations
 from collections.abc import Iterable, Sequence
-from types import UnionType
-from typing import Any, get_args, get_origin
-from ..binding import EdgeBinding
-from ..data import BoundTable, InputFormat
+from typing import Any, Literal, cast, get_args, get_origin
+from ..binding import EdgeBinding, NodeBinding
+from ..data import BoundTable
+from ..definition.ir import (
+    BindingDefinition, BuildPolicy, CompiledBuildDefinition, CompiledGraphDefinition,
+    ComponentDefinition, EdgeBindingDefinition, FieldReference, FileTargetDefinition,
+    LiteralValue, NodeBindingDefinition, Operation, ProjectionDefinition,
+    PropertyDefinition, SourceDefinition, Value, ValueType,
+)
 from ..expressions import Expression, FieldPath
-from ..expression_sql import render_sql
-from .models import Binding, CompiledBuildDefinition, CompiledGraphDefinition
+from ..targets.file import FileTarget
 
-def _values(binding: Binding) -> list[Expression[Any] | FieldPath[Any]]:
-    return [binding.build_key, *binding.properties._values.values(), *([binding.source_build_key, binding.target_build_key] if isinstance(binding, EdgeBinding) else [])]
+def _value_type(annotation: Any, cardinality: str = "scalar") -> ValueType:
+    if annotation is Any or annotation is None: return ValueType(kind="unknown", name="unknown")
+    origin, arguments = get_origin(annotation), get_args(annotation)
+    if origin is list:
+        item = arguments[0] if arguments else Any
+        return ValueType(kind="collection", name="list", item=getattr(item, "__name__", str(item)))
+    return ValueType(kind="collection", name="list", item="unknown") if cardinality == "collection" else ValueType(kind="scalar", name=getattr(annotation, "__name__", str(annotation)))
 
-def _compatible(expected: Any, actual: Any) -> bool:
-    if expected is Any or actual is Any or actual is None or expected == actual: return True
-    return any(_compatible(option, actual) for option in get_args(expected)) if get_origin(expected) is UnionType else False
+def _to_ir(value: Expression[Any] | FieldPath[Any] | Any) -> Value:
+    if isinstance(value, FieldPath): return FieldReference(table=value.table.__name__, path=value.path, value_type=_value_type(value.type_hint, value.cardinality))
+    if isinstance(value, Expression):
+        operation = cast(Literal["concat", "coalesce", "cast", "deterministic_uuid", "expand"], {"uuid": "deterministic_uuid"}.get(value.op, value.op))
+        args = tuple(_to_ir(arg) for arg in value.args if not (value.op == "cast" and isinstance(arg, str)))
+        return Operation(op=operation, args=args, value_type=_value_type(value.type_hint, value.cardinality), sql_type=value.args[1] if value.op == "cast" else None)
+    return LiteralValue(value=value, value_type=_value_type(type(value)))
 
-def _validate(value: Expression[Any] | FieldPath[Any], expected: Any, context: str) -> None:
-    if value.cardinality == "collection": raise TypeError(f"{context} maps a collection; use provide.collection.expand(...) explicitly")
-    if not _compatible(expected, value.type_hint): raise TypeError(f"{context} expects {expected!r}, but expression resolves to {value.type_hint!r}")
+def _component(component: type) -> ComponentDefinition:
+    metadata = component._metadata; properties = tuple(PropertyDefinition(name=prop.name or attr, value_type=_value_type(prop.type_hint), nullable=prop.nullable) for attr, prop in component._properties.items())
+    return ComponentDefinition(name=component.__name__, kind=component._kind, properties=properties, source=getattr(metadata.get("source"), "__name__", None), target=getattr(metadata.get("target"), "__name__", None))
 
-def compile_graph(*, bindings: Iterable[Binding], projections: Sequence[type[object]] = ()) -> CompiledGraphDefinition:
-    compiled = tuple(bindings)
-    if not compiled: raise ValueError("A graph requires at least one binding")
-    for binding in compiled:
-        if binding.target._kind not in {"node", "edge"}: raise TypeError("Bindings require a decorated node or edge")
-        for name, value in binding.properties._values.items():
-            if name not in binding.target._properties: raise TypeError(f"{binding.target.__name__} has no property {name!r}")
-            _validate(value, binding.target._properties[name].type_hint, f"{binding.target.__name__}.{name}")
-        _validate(binding.build_key, str, f"{binding.target.__name__} build key")
-    return CompiledGraphDefinition(compiled, tuple(projections))
+def _binding(binding: NodeBinding | EdgeBinding) -> BindingDefinition:
+    properties = {name: _to_ir(value) for name, value in binding.properties._values.items()}
+    if isinstance(binding, EdgeBinding):
+        return EdgeBindingDefinition(component=binding.target.__name__, build_key=_to_ir(binding.build_key), source_build_key=_to_ir(binding.source_build_key), target_build_key=_to_ir(binding.target_build_key), properties=properties)
+    return NodeBindingDefinition(component=binding.target.__name__, build_key=_to_ir(binding.build_key), properties=properties)
 
-def _projection(value: FieldPath[Any]) -> Expression[Any] | FieldPath[Any]:
-    fields = getattr(value.table, "_projection_fields", {})
-    if not fields or value.path[0] not in fields: return value
-    return fields[value.path[0]].expression
+def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
+    """Checks requiring declaration metadata, before it is discarded into IR."""
+    for name, value in binding.properties._values.items():
+        if getattr(value, "cardinality", "scalar") == "collection":
+            raise TypeError(f"{binding.target.__name__}.{name} maps a collection; use provide.collection.expand(...) explicitly")
+    if getattr(binding.build_key, "cardinality", "scalar") == "collection":
+        raise TypeError(f"{binding.target.__name__} build key maps a collection; use provide.collection.expand(...) explicitly")
 
-def _tables(value: Any) -> set[type]:
-    if isinstance(value, FieldPath):
-        projected = _projection(value); return {value.table} if projected is value else _tables(projected)
-    if isinstance(value, Expression): return set().union(*(_tables(part) for part in value.args)) if value.args else set()
+def compile_graph(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = ()) -> CompiledGraphDefinition:
+    authoring_bindings = tuple(bindings)
+    if not authoring_bindings: raise ValueError("a graph requires at least one binding")
+    for binding in authoring_bindings: _validate_authoring_binding(binding)
+    components = {_binding.target for _binding in authoring_bindings}
+    projection_ir = tuple(ProjectionDefinition(name=projection.__name__, fields={name: _to_ir(field.expression) for name, field in projection._projection_fields.items()}) for projection in projections)
+    return CompiledGraphDefinition(components=tuple(_component(component) for component in sorted(components, key=lambda item: item.__name__)), projections=projection_ir, bindings=tuple(_binding(binding) for binding in authoring_bindings))
+
+def _projection_value(value: Value, projections: dict[str, ProjectionDefinition]) -> Value:
+    if isinstance(value, FieldReference) and value.table in projections and len(value.path) == 1: return projections[value.table].fields[value.path[0]]
+    return value
+
+def _tables(value: Value, projections: dict[str, ProjectionDefinition]) -> set[str]:
+    value = _projection_value(value, projections)
+    if isinstance(value, FieldReference): return {value.table}
+    if isinstance(value, Operation): return set().union(*(_tables(arg, projections) for arg in value.args))
     return set()
 
-def _render(value: Expression[Any] | FieldPath[Any], aliases: dict[type, str]) -> str:
-    if isinstance(value, FieldPath):
-        projected = _projection(value)
-        if projected is not value: return _render(projected, aliases)
-    return render_sql(value, aliases)
+def _render(value: Value, aliases: dict[str, str], projections: dict[str, ProjectionDefinition]) -> str:
+    value = _projection_value(value, projections)
+    if isinstance(value, FieldReference): return aliases[value.table] + "." + ".".join(f'"{part}"' for part in value.path)
+    if isinstance(value, LiteralValue):
+        if value.value is None: return "NULL"
+        if isinstance(value.value, str): return "'" + value.value.replace("'", "''") + "'"
+        return str(value.value).upper() if isinstance(value.value, bool) else str(value.value)
+    args = [_render(arg, aliases, projections) for arg in value.args]
+    if value.op == "concat": return "concat(" + ", ".join(args) + ")"
+    if value.op == "coalesce": return "coalesce(" + ", ".join(args) + ")"
+    if value.op == "cast": return f"CAST({args[0]} AS {value.sql_type})"
+    if value.op == "deterministic_uuid": return f"md5({args[0]})"
+    if value.op == "expand": return "item"
+    raise ValueError(f"unsupported IR operation {value.op}")
 
-def _expands(value: Any) -> list[Expression[Any]]:
-    return (([value] if value.op == "expand" else []) + [result for part in value.args for result in _expands(part)]) if isinstance(value, Expression) else []
-
-def compile_build(*, graph: CompiledGraphDefinition, sources: Sequence[BoundTable], target: object) -> CompiledBuildDefinition:
-    source_map = {source.table: source for source in sources}; values = [value for binding in graph.bindings for value in _values(binding)]
-    for projection in graph.projections: values.extend(field.expression for field in projection._projection_fields.values())
-    required = set().union(*(_tables(value) for value in values)); missing = required - set(source_map)
-    if missing: raise ValueError("No source bound for: " + ", ".join(table.__name__ for table in missing))
-    aliases = {table: f"t{index}" for index, table in enumerate(sorted(required, key=lambda table: table.__name__))}
-    scans = [f"{'read_csv_auto' if source_map[table].config.format == InputFormat.CSV else 'read_parquet'}('{source_map[table].config.location.replace(chr(39), chr(39)*2)}') AS {aliases[table]}" for table in sorted(required, key=lambda table: table.__name__)]
-    from_clause = " CROSS JOIN ".join(scans); expands = list(dict.fromkeys(expand for value in values for expand in _expands(value)))
-    if len(expands) > 1: raise ValueError("Multiple expansions require a correlation policy")
-    if expands: from_clause += " CROSS JOIN UNNEST(" + _render(expands[0].args[0], aliases) + ") AS expanded(item)"
-    ctes = [f'{projection.__name__.lower()} AS (SELECT ' + ", ".join(f'{_render(field.expression, aliases)} AS "{field.name}"' for field in projection._projection_fields.values()) + f" FROM {from_clause})" for projection in graph.projections]
-    final_from = graph.projections[-1].__name__.lower() + " AS p0" if graph.projections else from_clause
-    return CompiledBuildDefinition(graph, tuple(sources), ("WITH " + ", ".join(ctes) + " " if ctes else "") + "SELECT * FROM " + final_from, target)
+def compile_build(*, graph: CompiledGraphDefinition, sources: Sequence[BoundTable], target: object, policy: BuildPolicy | None = None) -> CompiledBuildDefinition:
+    if not isinstance(target, FileTarget): raise TypeError("the MVP supports FileTarget only")
+    source_ir = tuple(SourceDefinition(table=source.table.__name__, location=source.config.location, format=source.config.format.value, credential_reference=source.config.credentials, version=source.config.version) for source in sources)
+    projections = {projection.name: projection for projection in graph.projections}; values = [binding.build_key for binding in graph.bindings]
+    values.extend(value for binding in graph.bindings for value in binding.properties.values())
+    values.extend(value for projection in graph.projections for value in projection.fields.values())
+    required = set().union(*(_tables(value, projections) for value in values)); available = {source.table: source for source in source_ir}; missing = required - set(available)
+    if missing: raise ValueError("no source bound for: " + ", ".join(sorted(missing)))
+    aliases = {table: f"t{index}" for index, table in enumerate(sorted(required))}
+    scans = [f"{'read_csv_auto' if available[table].format == 'csv' else 'read_parquet'}('{available[table].location.replace(chr(39), chr(39)*2)}') AS {aliases[table]}" for table in sorted(required)]
+    from_clause = " CROSS JOIN ".join(scans)
+    expands = [value for value in values if isinstance(value, Operation) and value.op == "expand"]
+    if len(expands) > 1: raise ValueError("multiple expansions require a correlation policy")
+    if expands: from_clause += " CROSS JOIN UNNEST(" + _render(expands[0].args[0], aliases, projections) + ") AS expanded(item)"
+    ctes = [f'{projection.name.lower()} AS (SELECT ' + ", ".join(f'{_render(value, aliases, projections)} AS "{name}"' for name, value in projection.fields.items()) + f" FROM {from_clause})" for projection in graph.projections]
+    final_from = graph.projections[-1].name.lower() + " AS p0" if graph.projections else from_clause
+    return CompiledBuildDefinition(graph=graph, sources=source_ir, target=FileTargetDefinition(location=target.location), policy=policy or BuildPolicy(), sql=("WITH " + ", ".join(ctes) + " " if ctes else "") + "SELECT * FROM " + final_from)

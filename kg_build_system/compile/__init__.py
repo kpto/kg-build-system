@@ -1,5 +1,5 @@
 """Public compiled-definition types and compiler entry points."""
 from .compiler import compile_build, compile_graph
-from .models import CompiledBuildDefinition, CompiledGraphDefinition
+from .models import BuildPolicy, CompiledBuildDefinition, CompiledGraphDefinition
 
-__all__ = ["CompiledBuildDefinition", "CompiledGraphDefinition", "compile_build", "compile_graph"]
+__all__ = ["BuildPolicy", "CompiledBuildDefinition", "CompiledGraphDefinition", "compile_build", "compile_graph"]
