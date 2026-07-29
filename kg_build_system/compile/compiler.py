@@ -88,6 +88,11 @@ def _operations(value: Value, operation: str) -> list[Operation]:
     if not isinstance(value, Operation): return []
     return [item for argument in value.args for item in _operations(argument, operation)] + ([value] if value.op == operation else [])
 
+def _field_references(value: Value) -> list[FieldReference]:
+    if isinstance(value, FieldReference): return [value]
+    if isinstance(value, Operation): return [reference for argument in value.args for reference in _field_references(argument)]
+    return []
+
 def _direct_expand_plan(expands: list[Operation], aliases: dict[str, str]) -> tuple[list[tuple[str, str]], dict[str, str]]:
     """Build shared parent-first UNNEST steps from collection-aware field paths."""
     fields = [expand.args[0] for expand in expands]
@@ -148,6 +153,20 @@ def compile_build(*, graph: CompiledGraphDefinition, sources: Sequence[BoundTabl
     for index, expand in enumerate(remaining, start=offset):
         expand_aliases[expand.model_dump_json()] = f"expanded{index}.item"
         from_clause += f" CROSS JOIN UNNEST({_render(expand.args[0], aliases, projections, expand_aliases)}) AS expanded{index}(item)"
-    ctes = [f'{projection.name.lower()} AS (SELECT ' + ", ".join(f'{_render(value, aliases, projections, expand_aliases)} AS "{name}"' for name, value in projection.fields.items()) + f" FROM {from_clause})" for projection in graph.projections]
+    direct_fields = {
+        (field.table, field.path): field
+        for binding in graph.bindings
+        for value in [binding.build_key, *binding.properties.values(), *([binding.source_build_key, binding.target_build_key] if isinstance(binding, EdgeBindingDefinition) else [])]
+        for field in _field_references(value)
+        if field.table not in projections
+    }
+    ctes = []
+    for projection in graph.projections:
+        select_parts = [f'{_render(value, aliases, projections, expand_aliases)} AS "{name}"' for name, value in projection.fields.items()]
+        projection_names = set(projection.fields)
+        for field in direct_fields.values():
+            name = field.path[-1]
+            if name not in projection_names: select_parts.append(f'{_render(field, aliases, projections, expand_aliases)} AS "{name}"')
+        ctes.append(f'{projection.name.lower()} AS (SELECT ' + ", ".join(select_parts) + f" FROM {from_clause})")
     final_from = graph.projections[-1].name.lower() + " AS p0" if graph.projections else from_clause
     return CompiledBuildDefinition(graph=graph, sources=source_ir, target=FileTargetDefinition(location=target.location), policy=policy or BuildPolicy(), sql=("WITH " + ", ".join(ctes) + " " if ctes else "") + "SELECT * FROM " + final_from)
