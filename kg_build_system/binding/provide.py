@@ -5,8 +5,11 @@ from typing import Any, Literal, overload
 from ..expressions import Expression, FieldPath, item_type
 from ..specification import Declaration
 
-def normalise(value: Any) -> Expression[Any] | FieldPath[Any]:
-    return value if isinstance(value, (Expression, FieldPath)) else Expression("literal", (value,), type(value))
+def normalise(value: Any) -> Expression[Any]:
+    """Convert every supported authoring input into an explicit expression."""
+    if isinstance(value, Expression): return value
+    if isinstance(value, FieldPath): return Expression("field", (value,), value.type_hint, value.cardinality)
+    return Expression("literal", (value,), type(value))
 
 class ValueExpressions:
     def concat(self, *values: Any) -> Expression[str]: return Expression("concat", tuple(normalise(value) for value in values), str)
@@ -44,6 +47,6 @@ class Provide:
     value = ValueExpressions()
     collection = CollectionExpressions()
     lookup = LookupExpressions()
-    def __call__(self, value: Any) -> Expression[Any] | FieldPath[Any]: return normalise(value)
+    def __call__(self, value: Any) -> Expression[Any]: return normalise(value)
 
 provide = Provide()

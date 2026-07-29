@@ -1,7 +1,7 @@
 """Data contract and projection authoring functions."""
 from __future__ import annotations
 
-from typing import Any, ClassVar, Protocol, TypeVar, cast, get_args, get_type_hints
+from typing import Any, ClassVar, Protocol, TypeVar, cast, dataclass_transform, get_args, get_type_hints
 
 from ..expressions import Expression, FieldPath
 from ..specification import Declaration, Specification
@@ -14,6 +14,7 @@ P = TypeVar("P", bound=Specification)
 class TableDecorator(Protocol):
     def __call__(self, cls: type[C]) -> type[C]: ...
 
+@dataclass_transform(field_specifiers=(Field,))
 class TableContract(Specification):
     """A reusable typed table or nested record shape."""
     _fields: ClassVar[dict[str, Field[Any]]] = {}

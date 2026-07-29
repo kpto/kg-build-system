@@ -1,7 +1,7 @@
 """Lower authoring declarations into canonical Pydantic IR."""
 from __future__ import annotations
 from collections.abc import Iterable, Sequence
-from typing import Any, Literal, cast, get_args, get_origin
+from typing import Any, Literal, cast
 from ..binding import EdgeBinding, NodeBinding
 from ..data import BoundTable
 from ..definition.ir import (
@@ -11,20 +11,19 @@ from ..definition.ir import (
     PropertyDefinition, SourceDefinition, Value, ValueType,
 )
 from ..expressions import Expression, FieldPath
+from ..specification.type_shapes import type_name, type_shape
 from ..targets.file import FileTarget
 
 def _value_type(annotation: Any, cardinality: str = "scalar") -> ValueType:
-    if cardinality == "expanded": return ValueType(kind="scalar", name="unknown" if annotation is Any else getattr(annotation, "__name__", str(annotation)))
-    if annotation is Any or annotation is None: return ValueType(kind="unknown", name="unknown")
-    origin, arguments = get_origin(annotation), get_args(annotation)
-    if origin is list:
-        item = arguments[0] if arguments else Any
-        return ValueType(kind="collection", name="list", item=getattr(item, "__name__", str(item)))
-    return ValueType(kind="collection", name="list", item="unknown") if cardinality == "collection" else ValueType(kind="scalar", name=getattr(annotation, "__name__", str(annotation)))
+    shape = type_shape(annotation, cardinality)
+    if annotation is Any or annotation is None: return ValueType(kind="unknown", name="unknown", nullable=shape.nullable)
+    if shape.cardinality == "collection": return ValueType(kind="collection", name="list", item=type_name(shape.item_annotation), nullable=shape.nullable, item_nullable=shape.item_nullable)
+    return ValueType(kind="scalar", name=type_name(shape.annotation), nullable=shape.nullable)
 
 def _to_ir(value: Expression[Any] | FieldPath[Any] | Any) -> Value:
     if isinstance(value, FieldPath): return FieldReference(table=value.table.__name__, path=value.path, value_type=_value_type(value.type_hint, value.cardinality), collection_paths=value.collection_paths)
     if isinstance(value, Expression):
+        if value.op == "field": return _to_ir(value.args[0])
         operation = cast(Literal["concat", "coalesce", "cast", "deterministic_uuid", "expand", "struct_field", "lookup_one"], {"uuid": "deterministic_uuid"}.get(value.op, value.op))
         skip_string = (value.op == "cast" or value.op == "struct_field")
         args = tuple(_to_ir(arg) for arg in value.args if not (skip_string and isinstance(arg, str)))
@@ -46,8 +45,18 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
     for name, value in binding.properties._values.items():
         if getattr(value, "cardinality", "scalar") == "collection":
             raise TypeError(f"{binding.target.__name__}.{name} maps a collection; use provide.collection.expand(...) explicitly")
+        property_declaration = binding.target._properties[name]
+        expected = _value_type(property_declaration.type_hint)
+        actual = _value_type(getattr(value, "type_hint", Any), getattr(value, "cardinality", "scalar"))
+        if expected.kind == "scalar" and actual.kind == "scalar" and expected.name != "unknown" and actual.name != "unknown" and expected.name != actual.name:
+            raise TypeError(f"{binding.target.__name__}.{name} expects {expected.name}, but expression resolves to {actual.name}")
+        if not property_declaration.nullable and actual.nullable:
+            raise TypeError(f"{binding.target.__name__}.{name} is required but expression may be null")
     if getattr(binding.build_key, "cardinality", "scalar") == "collection":
         raise TypeError(f"{binding.target.__name__} build key maps a collection; use provide.collection.expand(...) explicitly")
+    key_type = _value_type(getattr(binding.build_key, "type_hint", Any), getattr(binding.build_key, "cardinality", "scalar"))
+    if key_type.name not in {"str", "unknown"}: raise TypeError(f"{binding.target.__name__} build key must resolve to str, not {key_type.name}")
+    if key_type.nullable: raise TypeError(f"{binding.target.__name__} build key may not be nullable")
 
 def compile_graph(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = ()) -> CompiledGraphDefinition:
     authoring_bindings = tuple(bindings)

@@ -30,7 +30,7 @@ class GraphComponent(Specification):
     _properties: ClassVar[dict[str, Property[Any]]] = {}
     _metadata: ClassVar[dict[str, Any]] = {}
 
-    def __init__(self, **values: Any) -> None:
+    def __init__(self, **values: Declaration[Any]) -> None:
         unknown = set(values) - set(self.__class__._properties)
         if unknown: raise TypeError(f"Unknown properties for {type(self).__name__}: {sorted(unknown)}")
         self._values = values

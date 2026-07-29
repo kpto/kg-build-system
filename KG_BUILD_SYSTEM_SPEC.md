@@ -62,8 +62,26 @@ class Declaration[T](ABC):
 ```
 
 `Property[T]`, `Field[T]`, and `Expression[T]` are layer-specific declaration
-implementations, not structural contracts. Each layer owns its field specifier
-and `dataclass_transform` convention:
+implementations of `Declaration[T]`; they are not `Specification` structural
+contracts. Their inheritance is explicit:
+
+```python
+class Property[T](Declaration[T]):
+    """A topology property declaration."""
+
+
+class Field[T](Declaration[T]):
+    """A logical-table field declaration."""
+
+
+class Expression[T](Declaration[T]):
+    """A portable binding/value-expression declaration."""
+```
+
+`Specification` is reserved for reusable class-level contracts such as graph
+components, tables, structs, and projections. `Declaration[T]` is reserved for
+a typed named member of one of those contracts. Each layer owns its field
+specifier and `dataclass_transform` convention:
 
 ```python
 @dataclass_transform(field_specifiers=(property,))
@@ -262,8 +280,23 @@ provide.value.coalesce(AssociationTable.target_name, "unknown")
 ProvideInput[T] = FieldPath[T] | DynamicField[T] | Expression[T] | compatible literal T
 ```
 
+`FieldPath[T]` and `Expression[T]` are deliberately different types.
+Navigation of a table or struct member produces a `FieldPath[T]`, which is a
+typed logical reference and does **not** inherit from `Expression[T]`. An
+`Expression[T]` is a `Declaration[T]` implementation representing a portable
+value computation. A field path never becomes a declaration through
+inheritance or casting.
+
+`provide(...)` is the normalization boundary: it accepts a `ProvideInput[T]`
+and returns an `Expression[T]`. The `provide` API includes ergonomic shortcuts:
+its value, collection, and lookup helpers accept `ProvideInput[T]` directly and
+normalize their inputs internally. An authoring API may likewise document that
+it accepts `ProvideInput[T]` as a shortcut, provided it immediately normalizes
+the value through `provide`; canonical bindings and compiled IR retain an
+`Expression[T]`, never a disguised field path.
+
 - `provide(value)` normalises literals, field paths, dynamic fields, and
-  expressions.
+  expressions into `Expression[T]`.
 - `provide.value` provides `literal`, `concat`, `coalesce`, `cast`, `present`,
   and `when`.
 - `provide.collection` resolves cardinality through `expand` and `collect`.
