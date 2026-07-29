@@ -18,6 +18,7 @@ class Disease(GraphComponent):
 class AssociatedWith(GraphComponent):
     score: Declaration[float] = property(name="score", nullable=False)
     study_name: Declaration[str] = property(name="study_name", nullable=False)
+    evidence_disease_id: Declaration[str] = property(name="evidence_disease_id", nullable=False)
     evidence_label: Declaration[str] = property(name="evidence_label", nullable=False)
 
 @struct
@@ -42,7 +43,9 @@ class Study(TableContract):
 class AssociationTable(Specification):
     target_id: Declaration[str] = projected_field(Association.target_id)
     target_symbol: Declaration[str] = projected_field(Association.target_symbol)
+    # One unnest level: Association.evidence → evidence.element.disease_id.
     disease_id: Declaration[str] = projected_field(provide.collection.expand(Association.evidence.element.disease_id))
+    # Two unnest levels: Association.evidence → evidence.element.labels → label element.
     evidence_label: Declaration[str] = projected_field(provide.collection.expand(Association.evidence.element.labels))
     study_name: Declaration[str] = projected_field(
         provide.lookup.one(key=Association.study_id, match=Study.id, value=Study.name, as_type=str)
@@ -55,7 +58,7 @@ study_source = bind_source(target=Study, config=DataSourceConfig(str(root / "stu
 graph = compile_graph(bindings=[
     node_binding(target=Target, build_key=AssociationTable.target_id, properties=Target(symbol=AssociationTable.target_symbol)),
     node_binding(target=Disease, build_key=AssociationTable.disease_id, properties=Disease(name=AssociationTable.disease_id)),
-    edge_binding(target=AssociatedWith, build_key=provide.value.deterministic_uuid(provide.value.concat(AssociationTable.target_id, AssociationTable.disease_id, AssociationTable.evidence_label)), source_build_key=AssociationTable.target_id, target_build_key=AssociationTable.disease_id, properties=AssociatedWith(score=AssociationTable.score, study_name=AssociationTable.study_name, evidence_label=AssociationTable.evidence_label)),
+    edge_binding(target=AssociatedWith, build_key=provide.value.deterministic_uuid(provide.value.concat(AssociationTable.target_id, AssociationTable.disease_id, AssociationTable.evidence_label)), source_build_key=AssociationTable.target_id, target_build_key=AssociationTable.disease_id, properties=AssociatedWith(score=AssociationTable.score, study_name=AssociationTable.study_name, evidence_disease_id=AssociationTable.disease_id, evidence_label=AssociationTable.evidence_label)),
 ], projections=[AssociationTable])
 definition = compile_build(graph=graph, sources=[source, study_source], target=FileTarget(str(root / "graph.jsonl")))
 if __name__ == "__main__":
