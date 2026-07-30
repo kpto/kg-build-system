@@ -2,6 +2,7 @@
 from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import Any, Literal, cast
+from sqlglot import exp
 from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
 from ..data import BoundTable
 from ..definition.ir import (
@@ -85,20 +86,29 @@ def _tables(value: Value, projections: dict[str, ProjectionDefinition]) -> set[s
     if isinstance(value, Operation): return set().union(*(_tables(arg, projections) for arg in value.args))
     return set()
 
-def _render(value: Value, aliases: dict[str, str], projections: dict[str, ProjectionDefinition], expand_aliases: dict[str, str] | None = None) -> str:
+def _identifier(name: str, *, quoted: bool = True) -> exp.Identifier:
+    return exp.Identifier(this=name, quoted=quoted)
+
+def _path_expression(table: str, path: tuple[str, ...]) -> exp.Expression:
+    result: exp.Expression = exp.Column(this=_identifier(path[0]), table=_identifier(table))
+    for part in path[1:]: result = exp.Dot(this=result, expression=_identifier(part))
+    return result
+
+def _render(value: Value, aliases: dict[str, str], projections: dict[str, ProjectionDefinition], expand_aliases: dict[str, exp.Expression] | None = None) -> exp.Expression:
     value = _projection_value(value, projections)
-    if isinstance(value, FieldReference): return aliases[value.table] + "." + ".".join(f'"{part}"' for part in value.path)
+    if isinstance(value, FieldReference): return _path_expression(aliases[value.table], value.path)
     if isinstance(value, LiteralValue):
-        if value.value is None: return "NULL"
-        if isinstance(value.value, str): return "'" + value.value.replace("'", "''") + "'"
-        return str(value.value).upper() if isinstance(value.value, bool) else str(value.value)
+        if value.value is None: return exp.Null()
+        if isinstance(value.value, str): return exp.Literal.string(value.value)
+        if isinstance(value.value, bool): return exp.Boolean(this=value.value)
+        return exp.Literal.number(value.value)
     args = [_render(arg, aliases, projections, expand_aliases) for arg in value.args]
-    if value.op == "concat": return "concat(" + ", ".join(args) + ")"
-    if value.op == "coalesce": return "coalesce(" + ", ".join(args) + ")"
-    if value.op == "cast": return f"CAST({args[0]} AS {value.sql_type})"
-    if value.op == "deterministic_uuid": return f"md5({args[0]})"
+    if value.op == "concat": return exp.Anonymous(this="concat", expressions=args)
+    if value.op == "coalesce": return exp.Coalesce(expressions=args)
+    if value.op == "cast": return exp.Cast(this=args[0], to=exp.DataType.build(value.sql_type or "TEXT", dialect="duckdb"))
+    if value.op == "deterministic_uuid": return exp.Anonymous(this="md5", expressions=args)
     if value.op == "expand": return (expand_aliases or {})[value.model_dump_json()]
-    if value.op == "struct_field": return args[0] + f'."{value.field_name}"'
+    if value.op == "struct_field": return exp.Dot(this=args[0], expression=_identifier(value.field_name or ""))
     if value.op == "lookup_one": return args[2]
     raise ValueError(f"unsupported IR operation {value.op}")
 
@@ -111,7 +121,7 @@ def _field_references(value: Value) -> list[FieldReference]:
     if isinstance(value, Operation): return [reference for argument in value.args for reference in _field_references(argument)]
     return []
 
-def _direct_expand_plan(expands: list[Operation], aliases: dict[str, str]) -> tuple[list[tuple[str, str]], dict[str, str]]:
+def _direct_expand_plan(expands: list[Operation], aliases: dict[str, str]) -> tuple[list[tuple[str, exp.Expression]], dict[str, exp.Expression]]:
     """Build shared parent-first UNNEST steps from collection-aware field paths."""
     fields = [expand.args[0] for expand in expands]
     if not all(isinstance(field, FieldReference) and field.collection_paths for field in fields): return [], {}
@@ -123,20 +133,22 @@ def _direct_expand_plan(expands: list[Operation], aliases: dict[str, str]) -> tu
             if item not in ordered: ordered.append(item)
     ordered.sort(key=lambda item: len(item[1]))
     aliases_by_path: dict[tuple[str, tuple[str, ...]], str] = {}
-    steps: list[tuple[str, str]] = []
+    steps: list[tuple[str, exp.Expression]] = []
     for index, (table, path) in enumerate(ordered):
         parent = next((candidate for candidate in reversed(ordered[:index]) if candidate[0] == table and path[:len(candidate[1])] == candidate[1]), None)
-        expression = aliases[table] + "." + ".".join(f'"{part}"' for part in path) if parent is None else aliases_by_path[parent] + ".item" + "." + ".".join(f'"{part}"' for part in path[len(parent[1]):])
+        expression: exp.Expression = _path_expression(aliases[table], path) if parent is None else exp.Dot(this=_identifier(aliases_by_path[parent], quoted=False), expression=_identifier("item"))
+        if parent is not None:
+            for part in path[len(parent[1]):]: expression = exp.Dot(this=expression, expression=_identifier(part))
         alias = f"expanded{index}"
         aliases_by_path[(table, path)] = alias
         steps.append((alias, expression))
-    outputs: dict[str, str] = {}
+    outputs: dict[str, exp.Expression] = {}
     for expand, field in zip(expands, fields):
         assert isinstance(field, FieldReference)
         collection_path = field.collection_paths[-1]
-        output = aliases_by_path[(field.table, collection_path)] + ".item"
+        output: exp.Expression = exp.Dot(this=_identifier(aliases_by_path[(field.table, collection_path)], quoted=False), expression=_identifier("item"))
         remainder = field.path[len(collection_path):]
-        if remainder: output += "." + ".".join(f'"{part}"' for part in remainder)
+        for part in remainder: output = exp.Dot(this=output, expression=_identifier(part))
         outputs[expand.model_dump_json()] = output
     return steps, outputs
 
@@ -165,44 +177,52 @@ def _compile_binding_sql(*, graph: CompiledGraphDefinition, sources: tuple[Sourc
     missing = required - set(available)
     if missing: raise ValueError("no source bound for: " + ", ".join(sorted(missing)))
     aliases = {table: f"t{index}" for index, table in enumerate(sorted(required))}
-    def scan(table: str) -> str:
+    def scan(table: str) -> exp.Table:
         source = available[table]
         function = {"csv": "read_csv_auto", "json": "read_json_auto", "parquet": "read_parquet"}[source.format]
-        return f"{function}('{source.location.replace(chr(39), chr(39)*2)}') AS {aliases[table]}"
+        return exp.Table(
+            this=exp.Anonymous(this=function, expressions=[exp.Literal.string(source.location)]),
+            alias=exp.TableAlias(this=_identifier(aliases[table], quoted=False)),
+        )
     lookups = [lookup for value in values for lookup in _operations(value, "lookup_one")]
     lookup_tables = {lookup.args[1].table for lookup in lookups if isinstance(lookup.args[1], FieldReference)}
     base_tables = sorted(required - lookup_tables)
     if not base_tables: raise ValueError("a lookup requires a non-lookup source table")
-    from_clause = " CROSS JOIN ".join(scan(table) for table in base_tables)
+    query = exp.select("*").from_(scan(base_tables[0]))
+    for table in base_tables[1:]: query = query.join(scan(table), join_type="CROSS")
     for lookup in lookups:
         match = lookup.args[1]
         if not isinstance(match, FieldReference): raise ValueError("lookup match must be a field reference")
-        from_clause += f" LEFT JOIN {scan(match.table)} ON {_render(match, aliases, projections)} = {_render(lookup.args[0], aliases, projections)}"
+        query = query.join(scan(match.table), on=exp.EQ(this=_render(match, aliases, projections), expression=_render(lookup.args[0], aliases, projections)), join_type="LEFT")
     expands = list({expand.model_dump_json(): expand for value in values for expand in _operations(value, "expand")}.values())
     direct = [expand for expand in expands if isinstance(expand.args[0], FieldReference) and expand.args[0].collection_paths]
     steps, expand_aliases = _direct_expand_plan(direct, aliases)
-    for alias, expression in steps: from_clause += f" CROSS JOIN UNNEST({expression}) AS {alias}(item)"
+    for alias, expression in steps:
+        unnest = exp.Unnest(expressions=[expression], alias=exp.TableAlias(this=_identifier(alias, quoted=False), columns=[_identifier("item", quoted=False)]))
+        query = query.join(unnest, join_type="CROSS")
     remaining = [expand for expand in expands if expand not in direct]
     offset = len(steps)
     for index, expand in enumerate(remaining, start=offset):
-        expand_aliases[expand.model_dump_json()] = f"expanded{index}.item"
-        from_clause += f" CROSS JOIN UNNEST({_render(expand.args[0], aliases, projections, expand_aliases)}) AS expanded{index}(item)"
+        alias = f"expanded{index}"
+        expand_aliases[expand.model_dump_json()] = exp.Dot(this=_identifier(alias, quoted=False), expression=_identifier("item"))
+        unnest = exp.Unnest(expressions=[_render(expand.args[0], aliases, projections, expand_aliases)], alias=exp.TableAlias(this=_identifier(alias, quoted=False), columns=[_identifier("item", quoted=False)]))
+        query = query.join(unnest, join_type="CROSS")
     direct_fields = {
         (field.table, field.path): field
         for value in binding_values
         for field in _field_references(value)
         if field.table not in projections
     }
-    ctes = []
+    final_query: exp.Expression = query
     for projection in used_projections:
-        select_parts = [f'{_render(value, aliases, projections, expand_aliases)} AS "{name}"' for name, value in projection.fields.items()]
+        select_parts = [exp.alias_(_render(value, aliases, projections, expand_aliases), name, quoted=True) for name, value in projection.fields.items()]
         projection_names = set(projection.fields)
         for field in direct_fields.values():
             name = field.path[-1]
-            if name not in projection_names: select_parts.append(f'{_render(field, aliases, projections, expand_aliases)} AS "{name}"')
-        ctes.append(f'{projection.name.lower()} AS (SELECT ' + ", ".join(select_parts) + f" FROM {from_clause})")
-    final_from = used_projections[0].name.lower() + " AS p0" if used_projections else from_clause
-    return ("WITH " + ", ".join(ctes) + " " if ctes else "") + "SELECT * FROM " + final_from
+            if name not in projection_names: select_parts.append(exp.alias_(_render(field, aliases, projections, expand_aliases), name, quoted=True))
+        projection_query = query.copy().select(*select_parts, append=False)
+        final_query = exp.select("*").from_(exp.Table(this=_identifier(projection.name.lower(), quoted=False), alias=exp.TableAlias(this=_identifier("p0", quoted=False)))).with_(projection.name.lower(), as_=projection_query)
+    return final_query.sql(dialect="duckdb")
 
 def compile_build(*, graph: CompiledGraphDefinition, sources: Sequence[BoundTable], target: object, policy: BuildPolicy | None = None) -> CompiledBuildDefinition:
     if not isinstance(target, FileTarget): raise TypeError("the MVP supports FileTarget only")
