@@ -6,7 +6,7 @@ from kg_build_system import (
     DataSourceConfig, ExpressionBinding, Field, GraphComponent, InputFormat,
     ProjectedField, PropertySlot, bind, bind_source, build, compile_build,
     compile_graph, edge, edge_binding, field, node, node_binding, projection,
-    projected_field, property, provide, struct, table,
+    projected_field, property, struct, table, value, collection,
 )
 from kg_build_system.expressions import Expression, FieldPath
 from kg_build_system.targets import FileTarget
@@ -35,7 +35,7 @@ class Input:
 class ExpandedInput:
     identifier: ProjectedField[str] = projected_field(Input.identifier)
     label: ProjectedField[str] = projected_field(Input.label)
-    related: ProjectedField[str] = projected_field(provide.collection.expand(Input.evidence.element.disease_id))
+    related: ProjectedField[str] = projected_field(collection.expand(Input.evidence.element.disease_id))
     weight: ProjectedField[float] = projected_field(Input.weight)
 
 class VerticalSliceTests(unittest.TestCase):
@@ -50,7 +50,7 @@ class VerticalSliceTests(unittest.TestCase):
         root = Path(__file__).parents[1]
         graph = compile_graph(bindings=[
             node_binding(target=Thing, build_key=ExpandedInput.identifier, properties=Thing(label=bind(ExpandedInput.label))),
-            edge_binding(target=Related, build_key=provide.value.deterministic_uuid(provide.value.concat(ExpandedInput.identifier, ExpandedInput.related)), source_build_key=ExpandedInput.identifier, target_build_key=ExpandedInput.related, properties=Related(weight=bind(ExpandedInput.weight))),
+            edge_binding(target=Related, build_key=value.deterministic_uuid(value.concat(ExpandedInput.identifier, ExpandedInput.related)), source_build_key=ExpandedInput.identifier, target_build_key=ExpandedInput.related, properties=Related(weight=bind(ExpandedInput.weight))),
         ], projections=[ExpandedInput])
         with TemporaryDirectory() as directory:
             definition = compile_build(graph=graph, sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], target=FileTarget(str(Path(directory) / "graph.jsonl")))

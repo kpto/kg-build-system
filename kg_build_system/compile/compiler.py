@@ -53,7 +53,7 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
     """Checks requiring declaration metadata, before it is discarded into IR."""
     for name, value in _property_expressions(binding).items():
         if getattr(value, "cardinality", "scalar") == "collection":
-            raise TypeError(f"{binding.target.__name__}.{name} maps a collection; use provide.collection.expand(...) explicitly")
+            raise TypeError(f"{binding.target.__name__}.{name} maps a collection; use collection.expand(...) explicitly")
         property_declaration = binding.target._properties[name]
         expected = _value_type(property_declaration.type_hint)
         actual = _value_type(getattr(value, "type_hint", Any), getattr(value, "cardinality", "scalar"))
@@ -62,7 +62,7 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
         if not property_declaration.nullable and actual.nullable:
             raise TypeError(f"{binding.target.__name__}.{name} is required but expression may be null")
     if getattr(binding.build_key, "cardinality", "scalar") == "collection":
-        raise TypeError(f"{binding.target.__name__} build key maps a collection; use provide.collection.expand(...) explicitly")
+        raise TypeError(f"{binding.target.__name__} build key maps a collection; use collection.expand(...) explicitly")
     key_type = _value_type(getattr(binding.build_key, "type_hint", Any), getattr(binding.build_key, "cardinality", "scalar"))
     if key_type.name not in {"str", "unknown"}: raise TypeError(f"{binding.target.__name__} build key must resolve to str, not {key_type.name}")
     if key_type.nullable: raise TypeError(f"{binding.target.__name__} build key may not be nullable")

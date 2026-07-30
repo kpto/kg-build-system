@@ -264,22 +264,22 @@ class AssociationTable:
     target_id = projected_field(OpenTargetsPharmacogenomicsAnnotation.target.id)
     target_symbol = projected_field(OpenTargetsPharmacogenomicsAnnotation.target.symbol)
     disease_id = projected_field(
-        provide.collection.expand(OpenTargetsPharmacogenomicsAnnotation.disease_ids)
+        collection.expand(OpenTargetsPharmacogenomicsAnnotation.disease_ids)
     )
     study_id = projected_field(OpenTargetsPharmacogenomicsAnnotation.study_id)
 ```
 
-`provide` is the portable expression namespace:
+Portable expression namespaces are direct authoring APIs:
 
 ```python
-provide(AssociationTable.target_symbol)                  # Expression[str]
-provide("unknown")                                      # Expression[str]
-provide.value.concat("annotation::", AssociationTable.study_id)
-provide.value.coalesce(AssociationTable.target_name, "unknown")
+value.literal(AssociationTable.target_symbol)            # Expression[str]
+value.literal("unknown")                                 # Expression[str]
+value.concat("annotation::", AssociationTable.study_id)
+value.coalesce(AssociationTable.target_name, "unknown")
 ```
 
 ```text
-ProvideInput[T] = FieldPath[T] | DynamicField[T] | Expression[T] | compatible literal T
+ExpressionInput[T] = T | FieldPath[T] | DynamicField[T] | Expression[T]
 ```
 
 `FieldPath[T]` and `Expression[T]` are deliberately different types.
@@ -288,22 +288,16 @@ typed logical reference and does **not** inherit from `Expression[T]`. An
 `Expression[T]` represents a portable value computation. A field path never
 becomes an expression or graph-property slot through inheritance or casting.
 
-`provide(...)` is the normalization boundary: it accepts a `ProvideInput[T]`
-and returns an `Expression[T]`. The `provide` API includes ergonomic shortcuts:
-its value, collection, and lookup helpers accept `ProvideInput[T]` directly and
-normalize their inputs internally. An authoring API may likewise document that
-it accepts `ProvideInput[T]` as a shortcut, provided it immediately normalizes
-the value through `provide`. `bind(...)` is the separate graph-property-slot
-boundary: it accepts a `ProvideInput[T]` and returns an
+The expression namespaces accept `ExpressionInput[T]` directly and normalize
+their inputs internally. `bind(...)` is the separate graph-property-slot
+boundary: it accepts an `ExpressionInput[T]` and returns an
 `ExpressionBinding[T]`. Canonical bindings and compiled IR retain expressions,
 never disguised field paths.
 
-- `provide(value)` normalises literals, field paths, dynamic fields, and
-  expressions into `Expression[T]`.
-- `provide.value` provides `literal`, `concat`, `coalesce`, `cast`, `present`,
+- `value` provides `literal`, `concat`, `coalesce`, `cast`, `present`,
   and `when`.
-- `provide.collection` resolves cardinality through `expand` and `collect`.
-- `provide.lookup.one` declares singular key-based enrichment.
+- `collection` resolves cardinality through `expand` and `collect`.
+- `lookup.one` declares singular key-based enrichment.
 
 `expand` makes one output-row context per item and repeats sibling scalar
 values. Its null/empty policy must be explicit. Multiple expansions require a
@@ -319,8 +313,8 @@ prefix and lowers the two requested expansions into a parent-first plan:
 ```python
 @projection
 class EvidenceTable:
-    disease_id = projected_field(provide.collection.expand(Association.evidence.element.disease_id))
-    evidence_label = projected_field(provide.collection.expand(Association.evidence.element.labels))
+    disease_id = projected_field(collection.expand(Association.evidence.element.disease_id))
+    evidence_label = projected_field(collection.expand(Association.evidence.element.labels))
 ```
 
 This expresses one expansion over `evidence` followed by one over each
@@ -339,15 +333,15 @@ expressions it uses.
 ```python
 target_from_pharmacogenomics = node_binding(
     target=Target,
-    build_key=provide(AssociationTable.target_id),
+    build_key=value.literal(AssociationTable.target_id),
     properties=Target(symbol=bind(AssociationTable.target_symbol)),
 )
 
 annotation_associated_with_disease = edge_binding(
     target=AssociatedWith,
-    build_key=provide.value.deterministic_uuid(AssociationTable.study_id),
-    source_build_key=provide.value.concat("annotation::", AssociationTable.study_id),
-    target_build_key=provide(AssociationTable.disease_id),
+    build_key=value.deterministic_uuid(AssociationTable.study_id),
+    source_build_key=value.concat("annotation::", AssociationTable.study_id),
+    target_build_key=value.literal(AssociationTable.disease_id),
     properties=AssociatedWith(score=bind(AssociationTable.score)),
 )
 ```
@@ -378,7 +372,7 @@ and target capabilities, and creates an immutable target-specific
 `build` consumes only `CompiledBuildDefinition` and `BuildRuntime`.
 `BuildRuntime` supplies resolved credentials plus operational settings such as
 temporary storage, resource limits, and logging. The build layer does not
-interpret authoring classes or `provide` expressions.
+interpret authoring classes or expression values.
 
 Execution:
 
@@ -407,7 +401,7 @@ kg_build_system/
   specification/     # shared foundations
   topology/          # graph declarations and codecs
   data/              # contracts, sources, projections
-  binding/           # graph bindings and provide expressions
+  binding/           # graph bindings and expression constructors
   compile/           # abstract and concrete definitions
   build/             # DuckDB execution and reports
   targets/file/      # interchange output
