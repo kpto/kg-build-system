@@ -68,5 +68,6 @@ definition = compile_build(graph=graph, sources=[source, study_source], target=F
 if __name__ == "__main__":
     (root / "compiled_graph.json").write_text(graph.model_dump_json(indent=2), encoding="utf-8")
     (root / "compiled_build.json").write_text(definition.model_dump_json(indent=2), encoding="utf-8")
-    print(definition.sql)
+    for plan in definition.plans:
+        print(f"-- binding {plan.binding_index}\n{plan.sql}")
     print(execute_build(definition))

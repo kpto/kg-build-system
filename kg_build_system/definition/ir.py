@@ -130,15 +130,27 @@ class BuildPolicy(IRModel):
     edge_deduplication: Literal["error", "skip"] = "skip"
     generated_identity_namespace: str = Field(default="kg-build-system", min_length=1)
 
+class BindingExecutionPlan(IRModel):
+    """The target-specific relational plan for one graph binding.
+
+    Keeping plans separate prevents unrelated bindings from changing each
+    other's row context (for example, by adding an expansion or lookup).
+    """
+    binding_index: int = Field(ge=0)
+    sql: str = Field(min_length=1)
+
 class CompiledBuildDefinition(IRModel):
     graph: CompiledGraphDefinition
     sources: tuple[SourceDefinition, ...] = Field(min_length=1)
     target: FileTargetDefinition
     policy: BuildPolicy = Field(default_factory=BuildPolicy)
-    sql: str = Field(min_length=1)
+    plans: tuple[BindingExecutionPlan, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_sources(self) -> Self:
         tables = [source.table for source in self.sources]
         if len(set(tables)) != len(tables): raise ValueError("a build may bind each logical table only once")
+        indexes = [plan.binding_index for plan in self.plans]
+        if indexes != list(range(len(self.graph.bindings))):
+            raise ValueError("build plans must cover every graph binding in declaration order")
         return self

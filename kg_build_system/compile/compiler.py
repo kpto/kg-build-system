@@ -5,7 +5,7 @@ from typing import Any, Literal, cast
 from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
 from ..data import BoundTable
 from ..definition.ir import (
-    BindingDefinition, BuildPolicy, CompiledBuildDefinition, CompiledGraphDefinition,
+    BindingDefinition, BindingExecutionPlan, BuildPolicy, CompiledBuildDefinition, CompiledGraphDefinition,
     ComponentDefinition, EdgeBindingDefinition, FieldReference, FileTargetDefinition,
     LiteralValue, NodeBindingDefinition, Operation, ProjectionDefinition,
     PropertyDefinition, SourceDefinition, Value, ValueType,
@@ -140,13 +140,29 @@ def _direct_expand_plan(expands: list[Operation], aliases: dict[str, str]) -> tu
         outputs[expand.model_dump_json()] = output
     return steps, outputs
 
-def compile_build(*, graph: CompiledGraphDefinition, sources: Sequence[BoundTable], target: object, policy: BuildPolicy | None = None) -> CompiledBuildDefinition:
-    if not isinstance(target, FileTarget): raise TypeError("the MVP supports FileTarget only")
-    source_ir = tuple(SourceDefinition(table=source.table.__name__, location=source.config.location, format=source.config.format.value, credential_reference=source.config.credentials, version=source.config.version) for source in sources)
-    projections = {projection.name: projection for projection in graph.projections}; values = [binding.build_key for binding in graph.bindings]
-    values.extend(value for binding in graph.bindings for value in binding.properties.values())
-    values.extend(value for projection in graph.projections for value in projection.fields.values())
-    required = set().union(*(_tables(value, projections) for value in values)); available = {source.table: source for source in source_ir}; missing = required - set(available)
+def _binding_values(binding: BindingDefinition) -> list[Value]:
+    """Return every expression that defines a binding's row context."""
+    values = [binding.build_key, *binding.properties.values()]
+    if isinstance(binding, EdgeBindingDefinition):
+        values.extend((binding.source_build_key, binding.target_build_key))
+    return values
+
+def _compile_binding_sql(*, graph: CompiledGraphDefinition, sources: tuple[SourceDefinition, ...], binding: BindingDefinition) -> str:
+    """Lower exactly one binding, without leaking other bindings' semantics."""
+    projections = {projection.name: projection for projection in graph.projections}
+    binding_values = _binding_values(binding)
+    used_projections = [
+        projection for projection in graph.projections
+        if any(reference.table == projection.name for value in binding_values for reference in _field_references(value))
+    ]
+    if len(used_projections) > 1:
+        raise ValueError("a binding may reference fields from only one projection")
+    # A projection's expressions establish the row context used by every one
+    # of its fields, including expansions not present in the consuming binding.
+    values = binding_values + [value for projection in used_projections for value in projection.fields.values()]
+    required = set().union(*(_tables(value, projections) for value in values))
+    available = {source.table: source for source in sources}
+    missing = required - set(available)
     if missing: raise ValueError("no source bound for: " + ", ".join(sorted(missing)))
     aliases = {table: f"t{index}" for index, table in enumerate(sorted(required))}
     def scan(table: str) -> str:
@@ -173,18 +189,32 @@ def compile_build(*, graph: CompiledGraphDefinition, sources: Sequence[BoundTabl
         from_clause += f" CROSS JOIN UNNEST({_render(expand.args[0], aliases, projections, expand_aliases)}) AS expanded{index}(item)"
     direct_fields = {
         (field.table, field.path): field
-        for binding in graph.bindings
-        for value in [binding.build_key, *binding.properties.values(), *([binding.source_build_key, binding.target_build_key] if isinstance(binding, EdgeBindingDefinition) else [])]
+        for value in binding_values
         for field in _field_references(value)
         if field.table not in projections
     }
     ctes = []
-    for projection in graph.projections:
+    for projection in used_projections:
         select_parts = [f'{_render(value, aliases, projections, expand_aliases)} AS "{name}"' for name, value in projection.fields.items()]
         projection_names = set(projection.fields)
         for field in direct_fields.values():
             name = field.path[-1]
             if name not in projection_names: select_parts.append(f'{_render(field, aliases, projections, expand_aliases)} AS "{name}"')
         ctes.append(f'{projection.name.lower()} AS (SELECT ' + ", ".join(select_parts) + f" FROM {from_clause})")
-    final_from = graph.projections[-1].name.lower() + " AS p0" if graph.projections else from_clause
-    return CompiledBuildDefinition(graph=graph, sources=source_ir, target=FileTargetDefinition(location=target.location), policy=policy or BuildPolicy(), sql=("WITH " + ", ".join(ctes) + " " if ctes else "") + "SELECT * FROM " + final_from)
+    final_from = used_projections[0].name.lower() + " AS p0" if used_projections else from_clause
+    return ("WITH " + ", ".join(ctes) + " " if ctes else "") + "SELECT * FROM " + final_from
+
+def compile_build(*, graph: CompiledGraphDefinition, sources: Sequence[BoundTable], target: object, policy: BuildPolicy | None = None) -> CompiledBuildDefinition:
+    if not isinstance(target, FileTarget): raise TypeError("the MVP supports FileTarget only")
+    source_ir = tuple(SourceDefinition(table=source.table.__name__, location=source.config.location, format=source.config.format.value, credential_reference=source.config.credentials, version=source.config.version) for source in sources)
+    plans = tuple(
+        BindingExecutionPlan(binding_index=index, sql=_compile_binding_sql(graph=graph, sources=source_ir, binding=binding))
+        for index, binding in enumerate(graph.bindings)
+    )
+    return CompiledBuildDefinition(
+        graph=graph,
+        sources=source_ir,
+        target=FileTargetDefinition(location=target.location),
+        policy=policy or BuildPolicy(),
+        plans=plans,
+    )
