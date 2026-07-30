@@ -369,19 +369,29 @@ and serialisable build configuration. It resolves sources, validates identity
 and target capabilities, and creates an immutable target-specific
 `CompiledBuildDefinition`. It retains credential references, never values.
 
+A compiled build contains one ordered `BindingExecutionPlan` per graph binding.
+Each plan is self-contained: it identifies the graph component and record kind,
+and contains inspectable target SQL that yields normalised record columns:
+`build_key`, edge endpoint keys where applicable, and the bound property
+values. The compiler is the sole owner of expression lowering; it may compose
+the target query with a SQL AST or equivalent target-native query builder, then
+stores the rendered SQL as the serialisable inspection artifact.
+
 `build` consumes only `CompiledBuildDefinition` and `BuildRuntime`.
 `BuildRuntime` supplies resolved credentials plus operational settings such as
 temporary storage, resource limits, and logging. The build layer does not
-interpret authoring classes or expression values.
+interpret authoring classes, graph bindings, or expression values. It executes
+each binding plan, applies operational identity/conflict policies to its
+normalised rows, and streams those rows to the target writer.
 
 Execution:
 
 1. Compile the reusable graph definition.
 2. Compose and validate the concrete build definition.
 3. Resolve runtime credentials and operational settings.
-4. Lower the expression plan to inspectable DuckDB SQL.
+4. Lower each binding to a self-contained, inspectable DuckDB record plan.
 5. Execute relational work with scan, filter, and projection pushdown.
-6. Stream normalised node and edge records to a target writer.
+6. Stream the resulting normalised node and edge records to a target writer.
 7. Apply supported target actions and emit counts, diagnostics, provenance, and
    plan fingerprints.
 
