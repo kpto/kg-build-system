@@ -8,7 +8,7 @@ from typing import Any, Literal, cast
 from sqlglot import exp
 from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
 from ..data import BoundTable
-from ..definition.ir import (
+from .models import (
     BindingDefinition, BindingExecutionPlan, BuildBlueprint, BuildContract, BuildSettings,
     BuildOverrides, ComponentPostProcessPlan, ContractOutput, DiagnosticPlan, ExecutionStep, FileWriteStep, RelationalStep, ValidationStep,
     ComponentDefinition, EdgeBindingDefinition, FieldReference, FileTargetDefinition,
@@ -16,7 +16,7 @@ from ..definition.ir import (
     PropertyDefinition, SourceDefinition, SourceOverride, TargetOverride, Value, ValueType,
 )
 from ..expressions import Expression, FieldPath
-from ..specification.type_shapes import type_name, type_shape
+from .._types import type_name, type_shape
 from ..targets.file import FileTarget
 
 def _property_expressions(binding: NodeBinding | EdgeBinding) -> dict[str, Expression[Any]]:

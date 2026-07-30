@@ -2,7 +2,6 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, ClassVar, Generic, TypeVar, dataclass_transform
-from ..specification import GraphComponentBase
 
 T = TypeVar("T")
 
@@ -21,7 +20,7 @@ def property[T](*, name: str | None = None, description: str | None = None, null
     return PropertySlot(name=name, description=description, nullable=nullable)
 
 @dataclass_transform(field_specifiers=(property,), kw_only_default=True)
-class GraphComponent(GraphComponentBase):
+class GraphComponent:
     _kind: ClassVar[str] = "component"
     _properties: ClassVar[dict[str, PropertySlot[Any]]] = {}
     _metadata: ClassVar[dict[str, Any]] = {}

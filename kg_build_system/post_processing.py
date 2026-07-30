@@ -1,7 +1,7 @@
 """Declarative graph-normalisation operations for build blueprints."""
 from typing import Literal, cast
 
-from .definition.ir import PostProcessingDefinition
+from .compile.models import PostProcessingDefinition
 
 type NormalisationOperation = Literal["collapse_exact_duplicates", "merge_compatible_facts"]
 type ValidationOperation = Literal["reject_null_build_keys", "reject_null_edge_endpoints", "reject_conflicting_non_null_values", "require_edge_endpoints"]

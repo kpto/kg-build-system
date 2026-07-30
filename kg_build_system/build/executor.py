@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ..definition.ir import BuildContract, ExecutionStep, FileWriteStep, RelationalStep, ValidationStep
+from ..compile.models import BuildContract, ExecutionStep, FileWriteStep, RelationalStep, ValidationStep
 
 
 @dataclass(frozen=True)
