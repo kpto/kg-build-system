@@ -1,6 +1,7 @@
 """Declarative, reproducible knowledge-graph builds."""
 
-from .binding import ExpressionBinding, ExpressionInput, bind, collection, edge_binding, lookup, node_binding, value
+from .binding import ExpressionBinding, bind, edge_binding, node_binding
+from .expressions import ExpressionInput, collection, lookup, value
 from .build import BuildRuntime, build
 from .compile import BuildBlueprint, BuildContract, BuildSettings, compile_blueprint, create_blueprint
 from .post_processing import collapse_exact_duplicates, merge_compatible_facts, normalise_graph, reject_conflicting_non_null_values, reject_null_build_keys, reject_null_edge_endpoints, require_edge_endpoints, validate
