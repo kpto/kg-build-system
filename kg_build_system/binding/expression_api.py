@@ -17,6 +17,8 @@ def bind[T](value: ExpressionInput[T]) -> ExpressionBinding[T]:
     return ExpressionBinding(expression=_to_expression(value))
 
 class ValueExpressions:
+    def literal[T](self, value: T) -> Expression[T]:
+        return _to_expression(value)
     def concat(self, *values: Any) -> Expression[str]: return Expression("concat", tuple(_to_expression(value) for value in values), str)
     def coalesce(self, *values: Any) -> Expression[Any]:
         expressions = tuple(_to_expression(value) for value in values)

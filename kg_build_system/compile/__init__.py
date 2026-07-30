@@ -1,5 +1,5 @@
-"""Public compiled-definition types and compiler entry points."""
-from .compiler import compile_build, compile_graph
-from .models import BuildPolicy, CompiledBuildDefinition, CompiledGraphDefinition
+"""Public blueprint and target-contract compiler entry points."""
+from .compiler import compile_blueprint, create_blueprint
+from .models import BuildBlueprint, BuildContract, BuildSettings
 
-__all__ = ["BuildPolicy", "CompiledBuildDefinition", "CompiledGraphDefinition", "compile_build", "compile_graph"]
+__all__ = ["BuildBlueprint", "BuildContract", "BuildSettings", "compile_blueprint", "create_blueprint"]

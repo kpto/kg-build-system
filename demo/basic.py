@@ -2,9 +2,10 @@
 from pathlib import Path
 from kg_build_system import (
     DataSourceConfig, Field, GraphComponent, InputFormat, ProjectedField, PropertySlot, bind,
-    bind_source, build as execute_build, compile_build, compile_graph, edge,
+    bind_source, build as execute_build, compile_blueprint, create_blueprint, edge,
     edge_binding, field, node, node_binding, projection, projected_field,
-    property, struct, table, value, collection, lookup,
+    property, struct, table, value, collection, lookup, normalise_graph,
+    collapse_exact_duplicates, merge_compatible_facts, reject_conflicting_non_null_values, validate_edge_endpoints,
 )
 from kg_build_system.targets import FileTarget
 
@@ -61,17 +62,22 @@ class AssociationTable:
 root = Path(__file__).parent
 source = bind_source(target=Association, config=DataSourceConfig(str(root / "association.json"), format=InputFormat.JSON))
 study_source = bind_source(target=Study, config=DataSourceConfig(str(root / "studies.json"), format=InputFormat.JSON))
-graph = compile_graph(bindings=[
-    node_binding(target=Target, build_key=Association.target_id, properties=Target(symbol=bind(Association.target_symbol))),
-    node_binding(target=StudyNode, build_key=Study.id, properties=StudyNode(name=bind(Study.details.name))),
-    node_binding(target=Disease, build_key=AssociationTable.disease_id, properties=Disease(name=bind(AssociationTable.disease_id))),
-    edge_binding(target=AssociatedWith, build_key=value.deterministic_uuid(value.concat(AssociationTable.target_id, AssociationTable.disease_id, AssociationTable.evidence_label)), source_build_key=AssociationTable.target_id, target_build_key=AssociationTable.disease_id, properties=AssociatedWith(score=bind(AssociationTable.score), study_name=bind(lookup.one(key=AssociationTable.study_id, match=Study.id, value=Study.details.name, as_type=str)), evidence_disease_id=bind(AssociationTable.disease_id), evidence_label=bind(AssociationTable.evidence_label))),
-], projections=[AssociationTable])
-definition = compile_build(graph=graph, sources=[source, study_source], target=FileTarget(str(root / "graph.jsonl")))
+blueprint = create_blueprint(bindings=[
+    node_binding(debug_name="target_from_association", target=Target, build_key=Association.target_id, properties=Target(symbol=bind(Association.target_symbol))),
+    node_binding(debug_name="study_from_study", target=StudyNode, build_key=Study.id, properties=StudyNode(name=bind(Study.details.name))),
+    node_binding(debug_name="disease_from_association", target=Disease, build_key=AssociationTable.disease_id, properties=Disease(name=bind(AssociationTable.disease_id))),
+    edge_binding(debug_name="association_to_disease", target=AssociatedWith, build_key=value.deterministic_uuid(value.concat(AssociationTable.target_id, AssociationTable.disease_id, AssociationTable.evidence_label)), source_build_key=AssociationTable.target_id, target_build_key=AssociationTable.disease_id, properties=AssociatedWith(score=bind(AssociationTable.score), study_name=bind(lookup.one(key=AssociationTable.study_id, match=Study.id, value=Study.details.name, as_type=str)), evidence_disease_id=bind(AssociationTable.disease_id), evidence_label=bind(AssociationTable.evidence_label))),
+], projections=[AssociationTable], sources=[source, study_source], post_processing=normalise_graph(
+    collapse_exact_duplicates(),
+    merge_compatible_facts(),
+    reject_conflicting_non_null_values(),
+    validate_edge_endpoints(),
+))
+contract = compile_blueprint(blueprint=blueprint, target=FileTarget(str(root / "graph.jsonl")))
 
 if __name__ == "__main__":
-    (root / "compiled_graph.json").write_text(graph.model_dump_json(indent=2), encoding="utf-8")
-    (root / "compiled_build.json").write_text(definition.model_dump_json(indent=2), encoding="utf-8")
-    for plan in definition.plans:
+    (root / "build_blueprint.json").write_text(blueprint.model_dump_json(indent=2), encoding="utf-8")
+    (root / "build_contract.json").write_text(contract.model_dump_json(indent=2), encoding="utf-8")
+    for plan in contract.plans:
         print(f"-- binding {plan.binding_index}\n{plan.sql}")
-    print(execute_build(definition))
+    print(execute_build(contract))

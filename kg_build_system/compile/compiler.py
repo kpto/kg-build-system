@@ -1,14 +1,18 @@
 """Lower authoring declarations into canonical Pydantic IR."""
+# pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 from collections.abc import Iterable, Sequence
+from hashlib import sha256
+import json
 from typing import Any, Literal, cast
 from sqlglot import exp
 from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
 from ..data import BoundTable
 from ..definition.ir import (
-    BindingDefinition, BindingExecutionPlan, BuildPolicy, CompiledBuildDefinition, CompiledGraphDefinition,
+    BindingDefinition, BindingExecutionPlan, BlueprintSymbol, BuildBlueprint, BuildContract, BuildSettings,
+    ComponentPostProcessPlan, DebugSymbolReference, DiagnosticPlan,
     ComponentDefinition, EdgeBindingDefinition, FieldReference, FileTargetDefinition,
-    LiteralValue, NodeBindingDefinition, Operation, ProjectionDefinition,
+    LiteralValue, NodeBindingDefinition, Operation, PostProcessingDefinition, ProjectionDefinition,
     PropertyDefinition, SourceDefinition, Value, ValueType,
 )
 from ..expressions import Expression, FieldPath
@@ -34,6 +38,7 @@ def _to_ir(value: Expression[Any] | FieldPath[Any] | Any) -> Value:
     if isinstance(value, FieldPath): return FieldReference(table=value.table.__name__, path=value.path, value_type=_value_type(value.type_hint, value.cardinality), collection_paths=value.collection_paths)
     if isinstance(value, Expression):
         if value.op == "field": return _to_ir(value.args[0])
+        if value.op == "literal": return _to_ir(value.args[0])
         operation = cast(Literal["concat", "coalesce", "cast", "deterministic_uuid", "expand", "struct_field", "lookup_one"], {"uuid": "deterministic_uuid"}.get(value.op, value.op))
         skip_string = (value.op == "cast" or value.op == "struct_field")
         args = tuple(_to_ir(arg) for arg in value.args if not (skip_string and isinstance(arg, str)))
@@ -44,11 +49,11 @@ def _component(component: type) -> ComponentDefinition:
     metadata = component._metadata; properties = tuple(PropertyDefinition(name=prop.name or attr, value_type=_value_type(prop.type_hint), nullable=prop.nullable) for attr, prop in component._properties.items())
     return ComponentDefinition(name=component.__name__, kind=component._kind, properties=properties, source=getattr(metadata.get("source"), "__name__", None), target=getattr(metadata.get("target"), "__name__", None))
 
-def _binding(binding: NodeBinding | EdgeBinding) -> BindingDefinition:
+def _binding(binding: NodeBinding | EdgeBinding, *, symbol_id: str) -> BindingDefinition:
     properties = {name: _to_ir(value) for name, value in _property_expressions(binding).items()}
     if isinstance(binding, EdgeBinding):
-        return EdgeBindingDefinition(component=binding.target.__name__, build_key=_to_ir(binding.build_key), source_build_key=_to_ir(binding.source_build_key), target_build_key=_to_ir(binding.target_build_key), properties=properties)
-    return NodeBindingDefinition(component=binding.target.__name__, build_key=_to_ir(binding.build_key), properties=properties)
+        return EdgeBindingDefinition(symbol_id=symbol_id, debug_name=binding.debug_name, component=binding.target.__name__, build_key=_to_ir(binding.build_key), source_build_key=_to_ir(binding.source_build_key), target_build_key=_to_ir(binding.target_build_key), properties=properties)
+    return NodeBindingDefinition(symbol_id=symbol_id, debug_name=binding.debug_name, component=binding.target.__name__, build_key=_to_ir(binding.build_key), properties=properties)
 
 def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
     """Checks requiring declaration metadata, before it is discarded into IR."""
@@ -68,13 +73,37 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
     if key_type.name not in {"str", "unknown"}: raise TypeError(f"{binding.target.__name__} build key must resolve to str, not {key_type.name}")
     if key_type.nullable: raise TypeError(f"{binding.target.__name__} build key may not be nullable")
 
-def compile_graph(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = ()) -> CompiledGraphDefinition:
+def _source_definition(source: BoundTable) -> SourceDefinition:
+    return SourceDefinition(table=source.table.__name__, location=source.config.location, format=source.config.format.value, credential_reference=source.config.credentials, version=source.config.version)
+
+def _blueprint_symbols(*, components: Sequence[type], bindings: Sequence[BindingDefinition], projections: Sequence[type[Any]], sources: Sequence[BoundTable]) -> tuple[BlueprintSymbol, ...]:
+    symbols: list[BlueprintSymbol] = []
+    for component in components:
+        symbols.append(BlueprintSymbol(id=f"component:{component.__name__}", kind="component", path=component.__name__))
+        symbols.extend(BlueprintSymbol(id=f"property:{component.__name__}.{name}", kind="property", path=f"{component.__name__}.{name}") for name in component._properties)
+    for projection in projections:
+        symbols.append(BlueprintSymbol(id=f"projection:{projection.__name__}", kind="projection", path=projection.__name__))
+        symbols.extend(BlueprintSymbol(id=f"projection_field:{projection.__name__}.{name}", kind="projection_field", path=f"{projection.__name__}.{name}") for name in projection._projection_fields)
+    symbols.extend(BlueprintSymbol(id=binding.symbol_id, kind="binding", path=binding.debug_name or binding.symbol_id) for binding in bindings)
+    symbols.extend(BlueprintSymbol(id=f"source:{source.table.__name__}", kind="source", path=source.table.__name__) for source in sources)
+    symbols.extend(BlueprintSymbol(id=f"post_processing:{component.__name__}", kind="post_processing", path=component.__name__) for component in components)
+    return tuple(symbols)
+
+def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = (), sources: Sequence[BoundTable] = (), post_processing: PostProcessingDefinition) -> BuildBlueprint:
     authoring_bindings = tuple(bindings)
     if not authoring_bindings: raise ValueError("a graph requires at least one binding")
     for binding in authoring_bindings: _validate_authoring_binding(binding)
-    components = {_binding.target for _binding in authoring_bindings}
+    components = tuple(sorted({_binding.target for _binding in authoring_bindings}, key=lambda item: item.__name__))
     projection_ir = tuple(ProjectionDefinition(name=projection.__name__, fields={name: _to_ir(field.expression) for name, field in projection._projection_fields.items()}) for projection in projections)
-    return CompiledGraphDefinition(components=tuple(_component(component) for component in sorted(components, key=lambda item: item.__name__)), projections=projection_ir, bindings=tuple(_binding(binding) for binding in authoring_bindings))
+    binding_definitions: list[BindingDefinition] = []
+    occurrences: dict[str, int] = {}
+    for binding in authoring_bindings:
+        provisional = _binding(binding, symbol_id="binding")
+        digest = sha256(provisional.model_dump_json(exclude={"symbol_id", "debug_name"}).encode()).hexdigest()[:16]
+        occurrences[digest] = occurrences.get(digest, 0) + 1
+        suffix = "" if occurrences[digest] == 1 else f":{occurrences[digest]}"
+        binding_definitions.append(_binding(binding, symbol_id=f"binding:{digest}{suffix}"))
+    return BuildBlueprint(components=tuple(_component(component) for component in components), projections=projection_ir, bindings=tuple(binding_definitions), default_sources=tuple(_source_definition(source) for source in sources), post_processing=post_processing, symbols=_blueprint_symbols(components=components, bindings=binding_definitions, projections=projections, sources=sources))
 
 def _projection_value(value: Value, projections: dict[str, ProjectionDefinition]) -> Value:
     if isinstance(value, FieldReference) and value.table in projections and len(value.path) == 1: return projections[value.table].fields[value.path[0]]
@@ -177,7 +206,7 @@ def _binding_values(binding: BindingDefinition) -> list[Value]:
         values.extend((binding.source_build_key, binding.target_build_key))
     return values
 
-def _compile_binding_sql(*, graph: CompiledGraphDefinition, sources: tuple[SourceDefinition, ...], binding: BindingDefinition) -> str:
+def _compile_binding_sql(*, graph: BuildBlueprint, sources: tuple[SourceDefinition, ...], binding: BindingDefinition) -> str:
     """Lower exactly one binding, without leaking other bindings' semantics."""
     projections = {projection.name: projection for projection in graph.projections}
     binding_values = _binding_values(binding)
@@ -253,17 +282,148 @@ def _compile_binding_sql(*, graph: CompiledGraphDefinition, sources: tuple[Sourc
     output_columns.extend(exp.alias_(_render_plan_value(value), name, quoted=True) for name, value in binding.properties.items())
     return exp.select(*output_columns).from_(exp.Subquery(this=final_query, alias=exp.TableAlias(this=_identifier("plan", quoted=False)))).sql(dialect="duckdb")
 
-def compile_build(*, graph: CompiledGraphDefinition, sources: Sequence[BoundTable], target: object, policy: BuildPolicy | None = None) -> CompiledBuildDefinition:
-    if not isinstance(target, FileTarget): raise TypeError("the MVP supports FileTarget only")
-    source_ir = tuple(SourceDefinition(table=source.table.__name__, location=source.config.location, format=source.config.format.value, credential_reference=source.config.credentials, version=source.config.version) for source in sources)
-    plans = tuple(
-        BindingExecutionPlan(binding_index=index, component=binding.component, kind=binding.kind, sql=_compile_binding_sql(graph=graph, sources=source_ir, binding=binding))
-        for index, binding in enumerate(graph.bindings)
+def _quote(name: str) -> str:
+    return '"' + name.replace('"', '""') + '"'
+
+def _view_name(prefix: str, component: str) -> str:
+    return f"kg_{prefix}_{component.lower()}"
+
+def _raw_sql(plans: Sequence[BindingExecutionPlan]) -> str:
+    return " UNION ALL ".join(
+        f"SELECT * FROM ({plan.sql}) AS {_quote(f'raw_{plan.binding_index}')}"
+        for plan in plans
     )
-    return CompiledBuildDefinition(
-        graph=graph,
+
+def _normalised_sql(*, raw_view: str, kind: str, properties: Sequence[str]) -> str:
+    fields = ["build_key", *properties]
+    if kind == "edge": fields[1:1] = ["source_build_key", "target_build_key"]
+    select = [_quote("build_key")]
+    select.extend(f"min({_quote(field)}) AS {_quote(field)}" for field in fields[1:])
+    return f"SELECT {', '.join(select)} FROM {_quote(raw_view)} GROUP BY {_quote('build_key')}"
+
+def _diagnostics(*, graph: BuildBlueprint, post_process: Sequence[ComponentPostProcessPlan]) -> tuple[DiagnosticPlan, ...]:
+    components = {component.name: component for component in graph.components}
+    plans = {plan.component: plan for plan in post_process}
+    diagnostics: list[DiagnosticPlan] = []
+    for plan in post_process:
+        component = components[plan.component]
+        raw = _quote(plan.raw_view)
+        diagnostics.append(DiagnosticPlan(
+            code="null_build_key",
+            sql=f"SELECT '{plan.component}' AS component, count(*) AS occurrences FROM {raw} WHERE {_quote('build_key')} IS NULL",
+        ))
+        fields = [property.name for property in component.properties]
+        if plan.kind == "edge":
+            diagnostics.append(DiagnosticPlan(
+                code="null_edge_endpoint",
+                sql=(f"SELECT '{plan.component}' AS component, count(*) AS occurrences FROM {raw} "
+                     f"WHERE {_quote('source_build_key')} IS NULL OR {_quote('target_build_key')} IS NULL"),
+            ))
+            fields[0:0] = ["source_build_key", "target_build_key"]
+        for field in fields:
+            diagnostics.append(DiagnosticPlan(
+                code="conflicting_value",
+                sql=(f"SELECT '{plan.component}' AS component, {_quote('build_key')} AS build_key, '{field}' AS field, "
+                     f"count(DISTINCT {_quote(field)}) AS distinct_values FROM {raw} "
+                     f"WHERE {_quote('build_key')} IS NOT NULL GROUP BY {_quote('build_key')} "
+                     f"HAVING count(DISTINCT {_quote(field)}) FILTER (WHERE {_quote(field)} IS NOT NULL) > 1"),
+            ))
+    for plan in post_process:
+        if plan.kind != "edge":
+            continue
+        edge = components[plan.component]
+        assert edge.source is not None and edge.target is not None
+        for endpoint, node_component in (("source_build_key", edge.source), ("target_build_key", edge.target)):
+            node = plans.get(node_component)
+            if node is None:
+                diagnostics.append(DiagnosticPlan(
+                    code="missing_edge_endpoint",
+                    sql=f"SELECT '{plan.component}' AS component, count(*) AS occurrences FROM {_quote(plan.normalised_view)}",
+                ))
+                continue
+            diagnostics.append(DiagnosticPlan(
+                code="missing_edge_endpoint",
+                sql=(f"SELECT '{plan.component}' AS component, count(*) AS occurrences "
+                     f"FROM {_quote(plan.normalised_view)} AS edge_record "
+                     f"LEFT JOIN {_quote(node.normalised_view)} AS node_record "
+                     f"ON edge_record.{_quote(endpoint)} = node_record.{_quote('build_key')} "
+                     f"WHERE node_record.{_quote('build_key')} IS NULL"),
+            ))
+    return tuple(diagnostics)
+
+def _fingerprint(value: object) -> str:
+    def normalise(item: object) -> object:
+        if hasattr(item, "model_dump"):
+            return normalise(item.model_dump(mode="json"))  # type: ignore[union-attr]
+        if isinstance(item, dict):
+            return {str(key): normalise(entry) for key, entry in item.items()}
+        if isinstance(item, tuple | list):
+            return [normalise(entry) for entry in item]
+        return item
+    return sha256(json.dumps(normalise(value), sort_keys=True, separators=(",", ":")).encode()).hexdigest()
+
+def _blueprint_fingerprint(blueprint: BuildBlueprint) -> str:
+    """Fingerprint graph semantics, deliberately excluding debug-only metadata."""
+    payload = blueprint.model_dump(mode="json")
+    payload.pop("symbols")
+    for binding in payload["bindings"]:
+        binding.pop("debug_name", None)
+    return _fingerprint(payload)
+
+def _effective_sources(*, blueprint: BuildBlueprint, settings: BuildSettings) -> tuple[SourceDefinition, ...]:
+    sources = {source.table: source for source in blueprint.default_sources}
+    for source in settings.source_overrides:
+        sources[source.table] = source
+    return tuple(sources[name] for name in sorted(sources))
+
+def _debug_symbols(*, blueprint: BuildBlueprint, plans: Sequence[BindingExecutionPlan], post_process: Sequence[ComponentPostProcessPlan], diagnostics: Sequence[DiagnosticPlan]) -> tuple[DebugSymbolReference, ...]:
+    references: list[DebugSymbolReference] = []
+    for plan in plans:
+        references.append(DebugSymbolReference(artifact=f"binding_plan:{plan.binding_symbol}", symbols=(plan.binding_symbol,)))
+    for plan in post_process:
+        references.append(DebugSymbolReference(artifact=f"relation:{plan.raw_view}", symbols=(f"component:{plan.component}", f"post_processing:{plan.component}")))
+        references.append(DebugSymbolReference(artifact=f"relation:{plan.normalised_view}", symbols=(f"component:{plan.component}", f"post_processing:{plan.component}")))
+    for index, diagnostic in enumerate(diagnostics):
+        references.append(DebugSymbolReference(artifact=f"diagnostic:{index}:{diagnostic.code}", symbols=(f"post_processing:{diagnostic.sql.split(chr(39))[1]}",)))
+    return tuple(references)
+
+def compile_blueprint(*, blueprint: BuildBlueprint, target: object, settings: BuildSettings | None = None) -> BuildContract:
+    if not isinstance(target, FileTarget): raise TypeError("the MVP supports FileTarget only")
+    requested_settings = settings or BuildSettings()
+    source_ir = _effective_sources(blueprint=blueprint, settings=requested_settings)
+    plans = tuple(
+        BindingExecutionPlan(binding_index=index, binding_symbol=binding.symbol_id, component=binding.component, kind=binding.kind, sql=_compile_binding_sql(graph=blueprint, sources=source_ir, binding=binding))
+        for index, binding in enumerate(blueprint.bindings)
+    )
+    post_process = tuple(
+        ComponentPostProcessPlan(
+            component=component.name,
+            kind=component.kind,
+            raw_view=_view_name("raw", component.name),
+            normalised_view=_view_name("normalised", component.name),
+            raw_sql=_raw_sql([plan for plan in plans if plan.component == component.name]),
+            normalised_sql=_normalised_sql(
+                raw_view=_view_name("raw", component.name),
+                kind=component.kind,
+                properties=[property.name for property in component.properties],
+            ),
+        )
+        for component in blueprint.components
+        if any(plan.component == component.name for plan in plans)
+    )
+    diagnostics = _diagnostics(graph=blueprint, post_process=post_process)
+    effective_settings = BuildSettings(source_overrides=source_ir, duckdb_threads=requested_settings.duckdb_threads)
+    execution_fingerprint = _fingerprint({"plans": plans, "post_process": post_process, "diagnostics": diagnostics, "target": target.location})
+    return BuildContract(
+        blueprint=blueprint,
+        blueprint_fingerprint=_blueprint_fingerprint(blueprint),
         sources=source_ir,
         target=FileTargetDefinition(location=target.location),
-        policy=policy or BuildPolicy(),
+        requested_settings=requested_settings,
+        effective_settings=effective_settings,
+        execution_plan_fingerprint=execution_fingerprint,
         plans=plans,
+        post_process=post_process,
+        diagnostics=diagnostics,
+        debug_symbols=_debug_symbols(blueprint=blueprint, plans=plans, post_process=post_process, diagnostics=diagnostics),
     )

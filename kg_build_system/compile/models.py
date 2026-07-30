@@ -1,4 +1,4 @@
-"""Compatibility exports for canonical compiled IR models."""
-from ..definition.ir import BuildPolicy, CompiledBuildDefinition, CompiledGraphDefinition
+"""Public immutable blueprint and build-contract models."""
+from ..definition.ir import BuildBlueprint, BuildContract, BuildSettings
 
-__all__ = ["BuildPolicy", "CompiledBuildDefinition", "CompiledGraphDefinition"]
+__all__ = ["BuildBlueprint", "BuildContract", "BuildSettings"]

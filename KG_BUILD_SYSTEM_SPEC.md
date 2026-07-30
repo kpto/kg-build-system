@@ -27,9 +27,9 @@ build ─────────── compiled target-specific execution
 
 ```text
 topology declarations ─┐
-data declarations ─────┼─> compile_graph ─> CompiledGraphDefinition ─┐
-graph bindings ────────┘                                               ├─> compile_build ─> CompiledBuildDefinition ─> build
-source bindings, target, build configuration ──────────────────────────┘
+data declarations ─────┼─> create_blueprint ─> BuildBlueprint ─┐
+graph bindings ────────┘                                        ├─> compile_blueprint ─> BuildContract ─> build
+default sources, target, compilation settings ──────────────────┘
 ```
 
 Topology, data contracts, and bindings are reusable declarations. Sources,
@@ -358,36 +358,38 @@ namespace. Random UUIDs are excluded from reproducible builds.
 
 ## 9. Compilation and execution
 
-`compile_graph` consumes topology, data declarations/projections, and graph
-bindings. It produces an immutable `CompiledGraphDefinition`, validates
-compatibility, resolves expression/cardinality semantics, and records logical
-table requirements. It contains no physical source, target, or build
-provenance.
+`create_blueprint` consumes a complete set of topology, data declarations,
+projections, graph bindings, default source bindings, and post-processing
+declarations. It produces an immutable `BuildBlueprint`, validates
+compatibility, resolves expression/cardinality semantics, and records stable
+debug symbols. Incomplete work remains Python source rather than becoming a
+partially-specified document IR.
 
-`compile_build` combines the graph definition with source bindings, a target,
-and serialisable build configuration. It resolves sources, validates identity
-and target capabilities, and creates an immutable target-specific
-`CompiledBuildDefinition`. It retains credential references, never values.
+`compile_blueprint` combines a blueprint with a target and serialisable
+compilation settings. It resolves permitted source, target, and lowering
+overrides without mutating graph semantics and creates an immutable
+target-specific `BuildContract`. The contract contains effective source
+versions and credential references, DuckDB SQL, target-writing instructions,
+debug-symbol references, and blueprint/execution-plan fingerprints. It never
+contains resolved credentials.
 
-A compiled build contains one ordered `BindingExecutionPlan` per graph binding.
-Each plan is self-contained: it identifies the graph component and record kind,
-and contains inspectable target SQL that yields normalised record columns:
-`build_key`, edge endpoint keys where applicable, and the bound property
-values. The compiler is the sole owner of expression lowering; it may compose
-the target query with a SQL AST or equivalent target-native query builder, then
-stores the rendered SQL as the serialisable inspection artifact.
+A contract contains one ordered `BindingExecutionPlan` per graph binding,
+followed by compiler-internal component relations that DuckDB uses to
+normalise records and emit diagnostics. Each binding plan owns its complete
+relational row context, so a projection expansion used by one binding cannot
+change another binding's semantics.
 
-`build` consumes only `CompiledBuildDefinition` and `BuildRuntime`.
+`build` consumes only `BuildContract` and `BuildRuntime`.
 `BuildRuntime` supplies resolved credentials plus operational settings such as
 temporary storage, resource limits, and logging. The build layer does not
 interpret authoring classes, graph bindings, or expression values. It executes
-each binding plan, applies operational identity/conflict policies to its
-normalised rows, and streams those rows to the target writer.
+the contract's DuckDB normalisation and diagnostic relations, then streams
+only final graph records to the target writer.
 
 Execution:
 
-1. Compile the reusable graph definition.
-2. Compose and validate the concrete build definition.
+1. Create the reusable build blueprint.
+2. Compile and validate the concrete build contract.
 3. Resolve runtime credentials and operational settings.
 4. Lower each binding to a self-contained, inspectable DuckDB record plan.
 5. Execute relational work with scan, filter, and projection pushdown.

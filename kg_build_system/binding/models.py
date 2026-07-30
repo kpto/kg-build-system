@@ -13,12 +13,14 @@ class ExpressionBinding(PropertySlot[T], Generic[T]):
 
 @dataclass(frozen=True)
 class NodeBinding:
+    debug_name: str | None
     target: type
     build_key: Expression[Any]
     properties: Any
 
 @dataclass(frozen=True)
 class EdgeBinding:
+    debug_name: str | None
     target: type
     build_key: Expression[Any]
     source_build_key: Expression[Any]

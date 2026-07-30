@@ -1,4 +1,4 @@
-"""Canonical, serialisable build-definition intermediate representation."""
-from .ir import BuildPolicy, CompiledBuildDefinition, CompiledGraphDefinition
+"""Canonical, serialisable blueprint and build-contract models."""
+from .ir import BuildBlueprint, BuildContract, BuildSettings
 
-__all__ = ["BuildPolicy", "CompiledBuildDefinition", "CompiledGraphDefinition"]
+__all__ = ["BuildBlueprint", "BuildContract", "BuildSettings"]

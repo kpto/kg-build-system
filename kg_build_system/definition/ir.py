@@ -81,12 +81,16 @@ class ProjectionDefinition(IRModel):
 
 class NodeBindingDefinition(IRModel):
     kind: Literal["node"] = "node"
+    symbol_id: str = Field(min_length=1)
+    debug_name: str | None = None
     component: str
     build_key: Value
     properties: dict[str, Value] = Field(default_factory=dict)
 
 class EdgeBindingDefinition(IRModel):
     kind: Literal["edge"] = "edge"
+    symbol_id: str = Field(min_length=1)
+    debug_name: str | None = None
     component: str
     build_key: Value
     source_build_key: Value
@@ -95,10 +99,35 @@ class EdgeBindingDefinition(IRModel):
 
 BindingDefinition = Annotated[NodeBindingDefinition | EdgeBindingDefinition, Field(discriminator="kind")]
 
-class CompiledGraphDefinition(IRModel):
+class PostProcessingDefinition(IRModel):
+    """Portable graph normalisation semantics, declared on a blueprint."""
+    operations: tuple[Literal["collapse_exact_duplicates", "merge_compatible_facts", "reject_conflicting_non_null_values", "validate_edge_endpoints"], ...] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def validate_operations(self) -> Self:
+        required = {
+            "collapse_exact_duplicates", "merge_compatible_facts",
+            "reject_conflicting_non_null_values", "validate_edge_endpoints",
+        }
+        if set(self.operations) != required or len(self.operations) != len(required):
+            raise ValueError("the MVP normalisation pipeline must declare each supported operation exactly once")
+        return self
+
+class BlueprintSymbol(IRModel):
+    id: str = Field(min_length=1)
+    kind: Literal["component", "property", "table", "projection", "projection_field", "binding", "source", "post_processing"]
+    path: str = Field(min_length=1)
+    source_file: str | None = None
+    source_line: int | None = Field(default=None, ge=1)
+
+class BuildBlueprint(IRModel):
+    """Complete, reusable graph definition independent of a concrete target."""
     components: tuple[ComponentDefinition, ...] = Field(min_length=1)
     projections: tuple[ProjectionDefinition, ...] = ()
     bindings: tuple[BindingDefinition, ...] = Field(min_length=1)
+    default_sources: tuple[SourceDefinition, ...] = ()
+    post_processing: PostProcessingDefinition
+    symbols: tuple[BlueprintSymbol, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_references(self) -> Self:
@@ -110,6 +139,12 @@ class CompiledGraphDefinition(IRModel):
             if component.kind != binding.kind: raise ValueError(f"binding kind does not match component {binding.component!r}")
             unknown = set(binding.properties) - {prop.name for prop in component.properties}
             if unknown: raise ValueError(f"binding has unknown properties: {sorted(unknown)}")
+        binding_symbols = [binding.symbol_id for binding in self.bindings]
+        if len(binding_symbols) != len(set(binding_symbols)): raise ValueError("binding symbol IDs must be unique")
+        source_tables = [source.table for source in self.default_sources]
+        if len(source_tables) != len(set(source_tables)): raise ValueError("a blueprint may bind each logical table only once")
+        symbol_ids = [symbol.id for symbol in self.symbols]
+        if len(symbol_ids) != len(set(symbol_ids)): raise ValueError("blueprint symbol IDs must be unique")
         return self
 
 class SourceDefinition(IRModel):
@@ -123,35 +158,63 @@ class FileTargetDefinition(IRModel):
     kind: Literal["file"] = "file"
     location: str = Field(min_length=1)
 
-class BuildPolicy(IRModel):
-    null_key: Literal["error", "skip"] = "skip"
-    duplicate_key: Literal["error", "skip"] = "skip"
-    node_property_conflict: Literal["error", "first_wins", "last_wins"] = "error"
-    edge_deduplication: Literal["error", "skip"] = "skip"
-    generated_identity_namespace: str = Field(default="kg-build-system", min_length=1)
-
 class BindingExecutionPlan(IRModel):
     """A self-contained, target-specific record stream for one binding."""
     binding_index: int = Field(ge=0)
+    binding_symbol: str = Field(min_length=1)
     component: str = Field(min_length=1)
     kind: Literal["node", "edge"]
     sql: str = Field(min_length=1)
 
-class CompiledBuildDefinition(IRModel):
-    graph: CompiledGraphDefinition
+class ComponentPostProcessPlan(IRModel):
+    """DuckDB relations that normalise every record for one graph component."""
+    component: str = Field(min_length=1)
+    kind: Literal["node", "edge"]
+    raw_view: str = Field(min_length=1)
+    normalised_view: str = Field(min_length=1)
+    raw_sql: str = Field(min_length=1)
+    normalised_sql: str = Field(min_length=1)
+
+class DiagnosticPlan(IRModel):
+    """A query that yields structural graph-build failures."""
+    code: Literal["null_build_key", "null_edge_endpoint", "conflicting_value", "missing_edge_endpoint"]
+    sql: str = Field(min_length=1)
+
+class BuildSettings(IRModel):
+    """Permitted concrete composition overrides for one compilation."""
+    source_overrides: tuple[SourceDefinition, ...] = ()
+    duckdb_threads: int | None = Field(default=None, ge=1)
+
+class DebugSymbolReference(IRModel):
+    artifact: str = Field(min_length=1)
+    symbols: tuple[str, ...] = Field(min_length=1)
+
+class BuildContract(IRModel):
+    """Target-specific, reproducible DuckDB execution artifact."""
+    blueprint: BuildBlueprint
+    blueprint_fingerprint: str = Field(min_length=1)
     sources: tuple[SourceDefinition, ...] = Field(min_length=1)
     target: FileTargetDefinition
-    policy: BuildPolicy = Field(default_factory=BuildPolicy)
+    requested_settings: BuildSettings = Field(default_factory=BuildSettings)
+    effective_settings: BuildSettings = Field(default_factory=BuildSettings)
+    execution_plan_fingerprint: str = Field(min_length=1)
     plans: tuple[BindingExecutionPlan, ...] = Field(min_length=1)
+    post_process: tuple[ComponentPostProcessPlan, ...] = Field(min_length=1)
+    diagnostics: tuple[DiagnosticPlan, ...] = ()
+    debug_symbols: tuple[DebugSymbolReference, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_sources(self) -> Self:
         tables = [source.table for source in self.sources]
         if len(set(tables)) != len(tables): raise ValueError("a build may bind each logical table only once")
         indexes = [plan.binding_index for plan in self.plans]
-        if indexes != list(range(len(self.graph.bindings))):
+        if indexes != list(range(len(self.blueprint.bindings))):
             raise ValueError("build plans must cover every graph binding in declaration order")
-        for plan, binding in zip(self.plans, self.graph.bindings, strict=True):
-            if plan.component != binding.component or plan.kind != binding.kind:
+        for plan, binding in zip(self.plans, self.blueprint.bindings, strict=True):
+            if plan.component != binding.component or plan.kind != binding.kind or plan.binding_symbol != binding.symbol_id:
                 raise ValueError("build plan metadata must match its graph binding")
+        components = {(plan.component, plan.kind) for plan in self.post_process}
+        expected = {(binding.component, binding.kind) for binding in self.blueprint.bindings}
+        if components != expected:
+            raise ValueError("post-processing plans must cover every bound component")
         return self
