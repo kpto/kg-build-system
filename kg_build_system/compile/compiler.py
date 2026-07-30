@@ -2,7 +2,7 @@
 from __future__ import annotations
 from collections.abc import Iterable, Sequence
 from typing import Any, Literal, cast
-from ..binding import EdgeBinding, NodeBinding
+from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
 from ..data import BoundTable
 from ..definition.ir import (
     BindingDefinition, BuildPolicy, CompiledBuildDefinition, CompiledGraphDefinition,
@@ -13,6 +13,15 @@ from ..definition.ir import (
 from ..expressions import Expression, FieldPath
 from ..specification.type_shapes import type_name, type_shape
 from ..targets.file import FileTarget
+
+def _property_expressions(binding: NodeBinding | EdgeBinding) -> dict[str, Expression[Any]]:
+    values: dict[str, Expression[Any]] = {}
+    for name in binding.target._properties:
+        slot = getattr(binding.properties, name)
+        if not isinstance(slot, ExpressionBinding) or slot.expression is None:
+            raise TypeError(f"{binding.target.__name__}.{name} must be assigned with bind(...)")
+        values[name] = slot.expression
+    return values
 
 def _value_type(annotation: Any, cardinality: str = "scalar") -> ValueType:
     shape = type_shape(annotation, cardinality)
@@ -35,14 +44,14 @@ def _component(component: type) -> ComponentDefinition:
     return ComponentDefinition(name=component.__name__, kind=component._kind, properties=properties, source=getattr(metadata.get("source"), "__name__", None), target=getattr(metadata.get("target"), "__name__", None))
 
 def _binding(binding: NodeBinding | EdgeBinding) -> BindingDefinition:
-    properties = {name: _to_ir(value) for name, value in binding.properties._values.items()}
+    properties = {name: _to_ir(value) for name, value in _property_expressions(binding).items()}
     if isinstance(binding, EdgeBinding):
         return EdgeBindingDefinition(component=binding.target.__name__, build_key=_to_ir(binding.build_key), source_build_key=_to_ir(binding.source_build_key), target_build_key=_to_ir(binding.target_build_key), properties=properties)
     return NodeBindingDefinition(component=binding.target.__name__, build_key=_to_ir(binding.build_key), properties=properties)
 
 def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
     """Checks requiring declaration metadata, before it is discarded into IR."""
-    for name, value in binding.properties._values.items():
+    for name, value in _property_expressions(binding).items():
         if getattr(value, "cardinality", "scalar") == "collection":
             raise TypeError(f"{binding.target.__name__}.{name} maps a collection; use provide.collection.expand(...) explicitly")
         property_declaration = binding.target._properties[name]

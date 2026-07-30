@@ -1,24 +1,22 @@
-"""Portable expression IR, including type and cardinality metadata."""
+"""Portable value expressions and typed table-field paths."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
+
 from .specification.type_shapes import type_shape
-from .specification import Declaration
 
 T = TypeVar("T")
 
-def item_type(type_hint: Any) -> Any:
-    """Return the element type for list[T], otherwise None."""
-    return type_shape(type_hint).item_annotation
-
 @dataclass(frozen=True)
-class Expression(Declaration[T], Generic[T]):
+class Expression(Generic[T]):
     op: str
     args: tuple[Any, ...]
     type_hint: Any = None
     cardinality: str = "scalar"
 
+def item_type(type_hint: Any) -> Any:
+    return type_shape(type_hint).item_annotation
 
 @dataclass(frozen=True)
 class FieldPath(Generic[T]):
@@ -35,12 +33,8 @@ class FieldPath(Generic[T]):
             if item is None: raise AttributeError("element is only available on a collection field path")
             return FieldPath[Any](self.table, self.path, item, "collection", self.collection_paths)
         fields = getattr(item or type_shape(self.type_hint).annotation, "_fields", {})
-        if part not in fields:
-            raise AttributeError(f"{self.type_hint!r} has no declared field {part!r}")
-        field = fields[part]
-        path = self.path + (field.name,)
+        if part not in fields: raise AttributeError(f"{self.type_hint!r} has no declared field {part!r}")
+        field = fields[part]; path = self.path + (field.name,)
         field_type = field.type_hint | None if type_shape(self.type_hint).nullable and field.type_hint is not Any else field.type_hint
-        collection_paths = self.collection_paths
-        if item_type(field_type) is not None:
-            collection_paths += (path,)
+        collection_paths = self.collection_paths + ((path,) if item_type(field_type) is not None else ())
         return FieldPath[Any](self.table, path, field_type, "collection" if collection_paths else "scalar", collection_paths)

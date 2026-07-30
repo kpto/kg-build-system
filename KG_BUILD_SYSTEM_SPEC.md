@@ -48,51 +48,53 @@ targets, and build configuration are concrete composition choices.
 
 ## 3. Foundation: specifications and declarations
 
-`Specification` is a reusable class-based structural contract. It has no
-acquisition or execution behaviour. `Declaration[T]` is a named member of a
-contract, whose resolved value is `T`.
+The authoring surface has no shared `Specification` or `Declaration` base.
+It separates source-field references, portable computations, and graph-slot
+bindings so that static typing reflects their distinct roles:
 
 ```python
-class Specification(ABC):
-    """A reusable declarative structural contract."""
+class FieldPath[T]:
+    """A typed logical reference produced by table or struct navigation."""
 
 
-class Declaration[T](ABC):
-    """A typed declaration for a member whose resolved type is T."""
+class Field[T]:
+    @overload
+    def __get__(self, instance: None, owner: type | None = None) -> FieldPath[T]: ...
+    @overload
+    def __get__(self, instance: object, owner: type | None = None) -> Self: ...
+
+
+class PropertySlot[T]:
+    """A graph-component constructor slot."""
+
+
+class ExpressionBinding[T](PropertySlot[T]):
+    expression: Expression[T]
+
+
+class Expression[T]:
+    """A portable value computation."""
 ```
 
-`Property[T]`, `Field[T]`, and `Expression[T]` are layer-specific declaration
-implementations of `Declaration[T]`; they are not `Specification` structural
-contracts. Their inheritance is explicit:
+`FieldPath[T]` never inherits from, or is cast into, `Expression[T]` or
+`PropertySlot[T]`. `bind(...)` is the explicit graph-slot boundary:
 
 ```python
-class Property[T](Declaration[T]):
-    """A topology property declaration."""
-
-
-class Field[T](Declaration[T]):
-    """A logical-table field declaration."""
-
-
-class Expression[T](Declaration[T]):
-    """A portable binding/value-expression declaration."""
+def bind[T](value: T | FieldPath[T] | Expression[T]) -> ExpressionBinding[T]: ...
 ```
 
-`Specification` is reserved for reusable class-level contracts such as graph
-components, tables, structs, and projections. `Declaration[T]` is reserved for
-a typed named member of one of those contracts. Each layer owns its field
-specifier and `dataclass_transform` convention:
+The graph layer owns the only constructor transform. It is keyword-only and
+accepts `ExpressionBinding[T]` values through the `PropertySlot[T]` subtype:
 
 ```python
-@dataclass_transform(field_specifiers=(property,))
-class GraphComponent(Specification):
-    pass
-
-
-@dataclass_transform(field_specifiers=(field,))
-class TableContract(Specification):
+@dataclass_transform(field_specifiers=(property,), kw_only_default=True)
+class GraphComponent(ABC):
     pass
 ```
+
+Tables, structs, and projections are ordinary decorated Python classes. Their
+members are explicitly annotated `Field[T]` or `ProjectedField[T]`; no shared
+contract base class is required.
 
 Framework metadata is `ClassVar` or unannotated, so it is not an author-facing
 constructor parameter.
@@ -106,19 +108,19 @@ properties, direction, cardinality where known, and annotations.
 ```python
 @node(description="A biological target.")
 class Target(GraphComponent):
-    symbol: Declaration[str] = property(name="symbol", nullable=False)
-    name: Declaration[str | None] = property(name="name")
+    symbol: PropertySlot[str] = property(name="symbol", nullable=False)
+    name: PropertySlot[str | None] = property(name="name")
 
 
 @node(description="A disease or phenotype.")
 class Disease(GraphComponent):
-    name: Declaration[str] = property(name="name", nullable=False)
-    description: Declaration[str | None] = property(name="description")
+    name: PropertySlot[str] = property(name="name", nullable=False)
+    description: PropertySlot[str | None] = property(name="description")
 
 
 @edge(source=Target, target=Disease, description="Evidence-backed association.")
 class AssociatedWith(GraphComponent):
-    score: Declaration[float] = property(name="score", nullable=False)
+    score: PropertySlot[float] = property(name="score", nullable=False)
 ```
 
 Annotations express semantics or target hints: ontology terms, indexes,
@@ -147,22 +149,22 @@ Table → Field → DataType
 
 `Field` may be scalar, optional, nested, or collection-valued. A `Struct` is a
 reusable nested record shape; it cannot be bound independently. A
-`TableContract` is a reusable table shape. Every field has an explicit external
-name; the Python attribute remains a typed authoring handle.
+Every table or struct is an ordinary decorated class. Every field has an
+explicit external name; the Python attribute remains a typed authoring handle.
 
 ```python
 @struct
-class TargetDetails(TableContract):
-    id: Declaration[str] = field(name="id")
-    symbol: Declaration[str] = field(name="symbol")
+class TargetDetails:
+    id: Field[str] = field(name="id")
+    symbol: Field[str] = field(name="symbol")
 
 
 @table_template(name="pharmacogenomics_annotation_shape")
-class PharmacogenomicsAnnotation(TableContract):
-    target: Declaration[TargetDetails] = field(name="target")
-    disease_ids: Declaration[list[str]] = field(name="diseaseIds")
-    study_id: Declaration[str] = field(name="studyId")
-    score: Declaration[float] = field(name="score")
+class PharmacogenomicsAnnotation:
+    target: Field[TargetDetails] = field(name="target")
+    disease_ids: Field[list[str]] = field(name="diseaseIds")
+    study_id: Field[str] = field(name="studyId")
+    score: Field[float] = field(name="score")
 
 
 @table(name="pharmacogenomics_annotation")
@@ -171,7 +173,7 @@ class OpenTargetsPharmacogenomicsAnnotation(PharmacogenomicsAnnotation):
 ```
 
 `@table_template` preserves a reusable Python class and adds stable metadata.
-`@table` creates a distinct final `type[TableDeclaration[T]]`. Only final
+`@table` creates a distinct final table class. Only final
 concrete tables may be grouped, used in projections, or source-bound. This
 prevents binding a reusable shape or inheriting a concrete table accidentally.
 
@@ -258,7 +260,7 @@ expressions; it has no separate `inputs` argument.
 
 ```python
 @projection
-class AssociationTable(Specification):
+class AssociationTable:
     target_id = projected_field(OpenTargetsPharmacogenomicsAnnotation.target.id)
     target_symbol = projected_field(OpenTargetsPharmacogenomicsAnnotation.target.symbol)
     disease_id = projected_field(
@@ -283,17 +285,18 @@ ProvideInput[T] = FieldPath[T] | DynamicField[T] | Expression[T] | compatible li
 `FieldPath[T]` and `Expression[T]` are deliberately different types.
 Navigation of a table or struct member produces a `FieldPath[T]`, which is a
 typed logical reference and does **not** inherit from `Expression[T]`. An
-`Expression[T]` is a `Declaration[T]` implementation representing a portable
-value computation. A field path never becomes a declaration through
-inheritance or casting.
+`Expression[T]` represents a portable value computation. A field path never
+becomes an expression or graph-property slot through inheritance or casting.
 
 `provide(...)` is the normalization boundary: it accepts a `ProvideInput[T]`
 and returns an `Expression[T]`. The `provide` API includes ergonomic shortcuts:
 its value, collection, and lookup helpers accept `ProvideInput[T]` directly and
 normalize their inputs internally. An authoring API may likewise document that
 it accepts `ProvideInput[T]` as a shortcut, provided it immediately normalizes
-the value through `provide`; canonical bindings and compiled IR retain an
-`Expression[T]`, never a disguised field path.
+the value through `provide`. `bind(...)` is the separate graph-property-slot
+boundary: it accepts a `ProvideInput[T]` and returns an
+`ExpressionBinding[T]`. Canonical bindings and compiled IR retain expressions,
+never disguised field paths.
 
 - `provide(value)` normalises literals, field paths, dynamic fields, and
   expressions into `Expression[T]`.
@@ -315,7 +318,7 @@ prefix and lowers the two requested expansions into a parent-first plan:
 
 ```python
 @projection
-class EvidenceTable(Specification):
+class EvidenceTable:
     disease_id = projected_field(provide.collection.expand(Association.evidence.element.disease_id))
     evidence_label = projected_field(provide.collection.expand(Association.evidence.element.labels))
 ```
@@ -337,7 +340,7 @@ expressions it uses.
 target_from_pharmacogenomics = node_binding(
     target=Target,
     build_key=provide(AssociationTable.target_id),
-    properties=Target(symbol=provide(AssociationTable.target_symbol)),
+    properties=Target(symbol=bind(AssociationTable.target_symbol)),
 )
 
 annotation_associated_with_disease = edge_binding(
@@ -345,13 +348,14 @@ annotation_associated_with_disease = edge_binding(
     build_key=provide.value.deterministic_uuid(AssociationTable.study_id),
     source_build_key=provide.value.concat("annotation::", AssociationTable.study_id),
     target_build_key=provide(AssociationTable.disease_id),
-    properties=AssociatedWith(score=provide(AssociationTable.score)),
+    properties=AssociatedWith(score=bind(AssociationTable.score)),
 )
 ```
 
-`properties` instantiates the graph contract with `Expression[T]` values; it
-is not a dictionary keyed by property objects. Build keys are build-time
-identity handles, not topology identifiers or persisted graph properties.
+`properties` instantiates the graph contract with `ExpressionBinding[T]`
+values created by `bind(...)`; it is not a dictionary keyed by property
+objects. Build keys are build-time identity handles, not topology identifiers
+or persisted graph properties.
 
 An executable build must declare or inherit policies for null keys, duplicate
 keys, node property conflicts, edge deduplication, and generated identities.

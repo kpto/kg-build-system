@@ -3,7 +3,7 @@ from __future__ import annotations
 from typing import Any, Literal, overload
 
 from ..expressions import Expression, FieldPath, item_type
-from ..specification import Declaration
+from .models import ExpressionBinding
 
 def normalise(value: Any) -> Expression[Any]:
     """Convert every supported authoring input into an explicit expression."""
@@ -11,13 +11,17 @@ def normalise(value: Any) -> Expression[Any]:
     if isinstance(value, FieldPath): return Expression("field", (value,), value.type_hint, value.cardinality)
     return Expression("literal", (value,), type(value))
 
+def bind[T](value: T | FieldPath[T] | Expression[T]) -> ExpressionBinding[T]:
+    """Bind an authoring value to a graph-property slot."""
+    return ExpressionBinding(expression=normalise(value))
+
 class ValueExpressions:
     def concat(self, *values: Any) -> Expression[str]: return Expression("concat", tuple(normalise(value) for value in values), str)
     def coalesce(self, *values: Any) -> Expression[Any]:
         expressions = tuple(normalise(value) for value in values)
         return Expression("coalesce", expressions, expressions[0].type_hint if expressions else Any)
     @overload
-    def cast(self, value: Declaration[list[str]] | Expression[list[str]] | FieldPath[list[str]], sql_type: Literal["VARCHAR[]", "TEXT[]"]) -> Expression[list[str]]: ...
+    def cast(self, value: FieldPath[list[str]] | Expression[list[str]], sql_type: Literal["VARCHAR[]", "TEXT[]"]) -> Expression[list[str]]: ...
     @overload
     def cast(self, value: Any, sql_type: str) -> Expression[Any]: ...
     def cast(self, value: Any, sql_type: str) -> Expression[Any]:
@@ -33,9 +37,9 @@ class LookupExpressions:
 
 class CollectionExpressions:
     @overload
-    def expand[E](self, value: Declaration[list[E]] | Expression[list[E]] | FieldPath[list[E]]) -> Expression[E]: ...
+    def expand[E](self, value: FieldPath[list[E]] | Expression[list[E]]) -> Expression[E]: ...
     @overload
-    def expand[T](self, value: Declaration[T] | Expression[T] | FieldPath[T]) -> Expression[T]:
+    def expand[T](self, value: Expression[T] | FieldPath[T]) -> Expression[T]:
         ...
     def expand(self, value: Any) -> Expression[Any]:
         expression = normalise(value); element = item_type(expression.type_hint)

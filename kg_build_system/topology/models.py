@@ -1,36 +1,27 @@
-"""Topology declaration data models."""
+"""Graph component property-slot models."""
 from __future__ import annotations
-
 from dataclasses import dataclass
-from typing import Any, ClassVar, Generic, TypeVar
-
-from ..expressions import FieldPath
-from ..specification import Declaration, Specification
+from typing import Any, ClassVar, Generic, TypeVar, dataclass_transform
+from ..specification import GraphComponentBase
 
 T = TypeVar("T")
 
 @dataclass(frozen=True)
-class Property(Declaration[T], Generic[T]):
+class PropertySlot(Generic[T]):
     name: str | None = None
-    nullable: bool = True
     description: str | None = None
+    nullable: bool = True
     type_hint: Any = None
     attr: str = ""
-
     def __set_name__(self, owner: type, attr: str) -> None:
         object.__setattr__(self, "attr", attr)
+        if self.name is None: object.__setattr__(self, "name", attr)
 
-    def __get__(self, instance: Any, owner: type) -> FieldPath[T] | T | None:
-        if instance is None:
-            return FieldPath[T](owner, (self.name or self.attr,), self.type_hint)
-        return instance._values.get(self.attr)
+def property[T](*, name: str | None = None, description: str | None = None, nullable: bool = True) -> PropertySlot[T]:  # pyright: ignore[reportInvalidTypeVarUse]
+    return PropertySlot(name=name, description=description, nullable=nullable)
 
-class GraphComponent(Specification):
-    _kind: str = "component"
-    _properties: ClassVar[dict[str, Property[Any]]] = {}
+@dataclass_transform(field_specifiers=(property,), kw_only_default=True)
+class GraphComponent(GraphComponentBase):
+    _kind: ClassVar[str] = "component"
+    _properties: ClassVar[dict[str, PropertySlot[Any]]] = {}
     _metadata: ClassVar[dict[str, Any]] = {}
-
-    def __init__(self, **values: Declaration[Any]) -> None:
-        unknown = set(values) - set(self.__class__._properties)
-        if unknown: raise TypeError(f"Unknown properties for {type(self).__name__}: {sorted(unknown)}")
-        self._values = values

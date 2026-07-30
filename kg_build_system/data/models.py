@@ -1,50 +1,43 @@
-"""Source-independent data declaration models."""
+"""Data-contract descriptors and source models."""
 from __future__ import annotations
-
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, Generic, TypeVar
-
+from typing import Any, Generic, Self, TypeVar, overload
 from ..expressions import Expression, FieldPath, item_type
-from ..specification import Declaration
 
 T = TypeVar("T")
 
 @dataclass(frozen=True)
-class Field(Declaration[T], Generic[T]):
-    name: str
+class Field(Generic[T]):
+    name: str | None = None
+    description: str | None = None
     type_hint: Any = None
     attr: str = ""
-    def __set_name__(self, owner: type, attr: str) -> None: object.__setattr__(self, "attr", attr)
-    def __get__(self, instance: Any, owner: type) -> FieldPath[T] | T | None:
-        path = (self.name,)
-        collection_paths = (path,) if item_type(self.type_hint) is not None else ()
-        return FieldPath[T](owner, path, self.type_hint, "collection" if collection_paths else "scalar", collection_paths) if instance is None else instance
+    def __set_name__(self, owner: type, attr: str) -> None:
+        object.__setattr__(self, "attr", attr)
+        if self.name is None: object.__setattr__(self, "name", attr)
+    @overload
+    def __get__(self, instance: None, owner: type | None = None) -> FieldPath[T]: ...
+    @overload
+    def __get__(self, instance: object, owner: type | None = None) -> Self: ...
+    def __get__(self, instance: object | None, owner: type | None = None) -> FieldPath[T] | Self:
+        if instance is not None: return self
+        path = (self.name or self.attr,); collections = (path,) if item_type(self.type_hint) is not None else ()
+        return FieldPath[T](owner or object, path, self.type_hint, "collection" if collections else "scalar", collections)
 
 @dataclass(frozen=True)
-class ProjectedField(Declaration[T], Generic[T]):
+class ProjectedField(Generic[T]):
     expression: Expression[T] | FieldPath[T]
     name: str | None = None
     attr: str = ""
     def __set_name__(self, owner: type, attr: str) -> None:
         object.__setattr__(self, "attr", attr)
         if self.name is None: object.__setattr__(self, "name", attr)
-    def __get__(self, instance: Any, owner: type) -> Expression[T] | FieldPath[T]:
-        return FieldPath[T](owner, (self.name or self.attr,), self.expression.type_hint, self.expression.cardinality) if instance is None else self.expression
+    def __get__(self, instance: object | None, owner: type | None = None) -> Expression[T] | FieldPath[T]:
+        return self.expression if instance is not None else FieldPath[T](owner or object, (self.name or self.attr,), self.expression.type_hint, self.expression.cardinality)
 
-class InputFormat(StrEnum):
-    CSV = "csv"
-    JSON = "json"
-    PARQUET = "parquet"
-
+class InputFormat(StrEnum): CSV = "csv"; JSON = "json"; PARQUET = "parquet"
 @dataclass(frozen=True)
-class DataSourceConfig:
-    location: str
-    format: InputFormat = InputFormat.CSV
-    credentials: str | None = None
-    version: str | None = None
-
+class DataSourceConfig: location: str; format: InputFormat = InputFormat.CSV; credentials: str | None = None; version: str | None = None
 @dataclass(frozen=True)
-class BoundTable:
-    table: type
-    config: DataSourceConfig
+class BoundTable: table: type; config: DataSourceConfig

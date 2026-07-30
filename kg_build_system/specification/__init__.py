@@ -1,3 +1,3 @@
-from .models import Declaration, Specification
+from .models import GraphComponentBase
 
-__all__ = ["Declaration", "Specification"]
+__all__ = ["GraphComponentBase"]
