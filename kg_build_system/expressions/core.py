@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
-from .._types import type_shape
+from .._support.annotations import type_shape
 
 T = TypeVar("T")
 
