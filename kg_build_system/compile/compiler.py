@@ -112,6 +112,24 @@ def _render(value: Value, aliases: dict[str, str], projections: dict[str, Projec
     if value.op == "lookup_one": return args[2]
     raise ValueError(f"unsupported IR operation {value.op}")
 
+def _render_plan_value(value: Value) -> exp.Expression:
+    """Render a binding output expression against its compiled row context."""
+    if isinstance(value, FieldReference): return _path_expression("plan", value.path)
+    if isinstance(value, LiteralValue):
+        if value.value is None: return exp.Null()
+        if isinstance(value.value, str): return exp.Literal.string(value.value)
+        if isinstance(value.value, bool): return exp.Boolean(this=value.value)
+        return exp.Literal.number(value.value)
+    args = [_render_plan_value(arg) for arg in value.args]
+    if value.op == "concat": return exp.Anonymous(this="concat", expressions=args)
+    if value.op == "coalesce": return exp.Coalesce(expressions=args)
+    if value.op == "cast": return exp.Cast(this=args[0], to=exp.DataType.build(value.sql_type or "TEXT", dialect="duckdb"))
+    if value.op == "deterministic_uuid": return exp.Anonymous(this="md5", expressions=args)
+    if value.op == "expand": return _path_expression("plan", ("item",))
+    if value.op == "struct_field": return exp.Dot(this=args[0], expression=_identifier(value.field_name or ""))
+    if value.op == "lookup_one": return args[2]
+    raise ValueError(f"unsupported IR operation {value.op}")
+
 def _operations(value: Value, operation: str) -> list[Operation]:
     if not isinstance(value, Operation): return []
     return [item for argument in value.args for item in _operations(argument, operation)] + ([value] if value.op == operation else [])
@@ -226,13 +244,20 @@ def _compile_binding_sql(*, graph: CompiledGraphDefinition, sources: tuple[Sourc
             if name not in projection_names: select_parts.append(exp.alias_(_render(field, aliases, projections, expand_aliases), name, quoted=True))
         projection_query = query.copy().select(*select_parts, append=False)
         final_query = exp.select("*").from_(exp.Table(this=_identifier(projection.name.lower(), quoted=False), alias=exp.TableAlias(this=_identifier("p0", quoted=False)))).with_(projection.name.lower(), as_=projection_query)
-    return final_query.sql(dialect="duckdb")
+    output_columns = [exp.alias_(_render_plan_value(binding.build_key), "build_key", quoted=True)]
+    if isinstance(binding, EdgeBindingDefinition):
+        output_columns.extend((
+            exp.alias_(_render_plan_value(binding.source_build_key), "source_build_key", quoted=True),
+            exp.alias_(_render_plan_value(binding.target_build_key), "target_build_key", quoted=True),
+        ))
+    output_columns.extend(exp.alias_(_render_plan_value(value), name, quoted=True) for name, value in binding.properties.items())
+    return exp.select(*output_columns).from_(exp.Subquery(this=final_query, alias=exp.TableAlias(this=_identifier("plan", quoted=False)))).sql(dialect="duckdb")
 
 def compile_build(*, graph: CompiledGraphDefinition, sources: Sequence[BoundTable], target: object, policy: BuildPolicy | None = None) -> CompiledBuildDefinition:
     if not isinstance(target, FileTarget): raise TypeError("the MVP supports FileTarget only")
     source_ir = tuple(SourceDefinition(table=source.table.__name__, location=source.config.location, format=source.config.format.value, credential_reference=source.config.credentials, version=source.config.version) for source in sources)
     plans = tuple(
-        BindingExecutionPlan(binding_index=index, sql=_compile_binding_sql(graph=graph, sources=source_ir, binding=binding))
+        BindingExecutionPlan(binding_index=index, component=binding.component, kind=binding.kind, sql=_compile_binding_sql(graph=graph, sources=source_ir, binding=binding))
         for index, binding in enumerate(graph.bindings)
     )
     return CompiledBuildDefinition(

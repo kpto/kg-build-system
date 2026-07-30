@@ -131,12 +131,10 @@ class BuildPolicy(IRModel):
     generated_identity_namespace: str = Field(default="kg-build-system", min_length=1)
 
 class BindingExecutionPlan(IRModel):
-    """The target-specific relational plan for one graph binding.
-
-    Keeping plans separate prevents unrelated bindings from changing each
-    other's row context (for example, by adding an expansion or lookup).
-    """
+    """A self-contained, target-specific record stream for one binding."""
     binding_index: int = Field(ge=0)
+    component: str = Field(min_length=1)
+    kind: Literal["node", "edge"]
     sql: str = Field(min_length=1)
 
 class CompiledBuildDefinition(IRModel):
@@ -153,4 +151,7 @@ class CompiledBuildDefinition(IRModel):
         indexes = [plan.binding_index for plan in self.plans]
         if indexes != list(range(len(self.graph.bindings))):
             raise ValueError("build plans must cover every graph binding in declaration order")
+        for plan, binding in zip(self.plans, self.graph.bindings, strict=True):
+            if plan.component != binding.component or plan.kind != binding.kind:
+                raise ValueError("build plan metadata must match its graph binding")
         return self
