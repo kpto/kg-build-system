@@ -101,16 +101,15 @@ BindingDefinition = Annotated[NodeBindingDefinition | EdgeBindingDefinition, Fie
 
 class PostProcessingDefinition(IRModel):
     """Portable graph normalisation semantics, declared on a blueprint."""
-    operations: tuple[Literal["collapse_exact_duplicates", "merge_compatible_facts", "reject_conflicting_non_null_values", "validate_edge_endpoints"], ...] = Field(min_length=1)
+    operations: tuple[Literal["collapse_exact_duplicates", "merge_compatible_facts"], ...] = Field(min_length=1)
+    validations: tuple[Literal["reject_null_build_keys", "reject_null_edge_endpoints", "reject_conflicting_non_null_values", "require_edge_endpoints"], ...] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_operations(self) -> Self:
-        required = {
-            "collapse_exact_duplicates", "merge_compatible_facts",
-            "reject_conflicting_non_null_values", "validate_edge_endpoints",
-        }
+        required = {"collapse_exact_duplicates", "merge_compatible_facts"}
         if set(self.operations) != required or len(self.operations) != len(required):
-            raise ValueError("the MVP normalisation pipeline must declare each supported operation exactly once")
+            raise ValueError("the MVP normalisation pipeline must declare each normalisation operation exactly once")
+        if len(set(self.validations)) != len(self.validations): raise ValueError("validation checks must be unique")
         return self
 
 class BuildBlueprint(IRModel):
@@ -118,7 +117,8 @@ class BuildBlueprint(IRModel):
     components: tuple[ComponentDefinition, ...] = Field(min_length=1)
     projections: tuple[ProjectionDefinition, ...] = ()
     bindings: tuple[BindingDefinition, ...] = Field(min_length=1)
-    default_sources: tuple[SourceDefinition, ...] = ()
+    sources: tuple[SourceDefinition, ...] = ()
+    target: FileTargetDefinition
     post_processing: PostProcessingDefinition
 
     @model_validator(mode="after")
@@ -133,7 +133,7 @@ class BuildBlueprint(IRModel):
             if unknown: raise ValueError(f"binding has unknown properties: {sorted(unknown)}")
         binding_symbols = [binding.symbol_id for binding in self.bindings]
         if len(binding_symbols) != len(set(binding_symbols)): raise ValueError("binding symbol IDs must be unique")
-        source_tables = [source.table for source in self.default_sources]
+        source_tables = [source.table for source in self.sources]
         if len(source_tables) != len(set(source_tables)): raise ValueError("a blueprint may bind each logical table only once")
         return self
 
@@ -170,50 +170,66 @@ class DiagnosticPlan(IRModel):
     code: Literal["null_build_key", "null_edge_endpoint", "conflicting_value", "missing_edge_endpoint"]
     sql: str = Field(min_length=1)
 
-class DuckDBExecutionStep(IRModel):
-    """One inspectable, composable DuckDB execution step in a build contract."""
-    id: str = Field(min_length=1)
-    kind: Literal["relation", "diagnostic"]
-    stage: Literal["binding", "binding_aggregation", "post_processing", "validation"]
-    inputs: tuple[str, ...] = ()
-    depends_on: tuple[str, ...] = ()
-    sql: str = Field(min_length=1)
-    relation: str | None = None
-    component: str | None = None
-    materialization: Literal["temporary_table", "view", "none"] = "none"
-    binding_symbol: str | None = None
-    debug_name: str | None = None
-    diagnostic_code: Literal["null_build_key", "null_edge_endpoint", "conflicting_value", "missing_edge_endpoint"] | None = None
-
-    @model_validator(mode="after")
-    def validate_step(self) -> Self:
-        if self.kind == "relation" and not self.relation: raise ValueError("relation steps require a relation name")
-        if self.kind == "diagnostic" and self.relation is not None: raise ValueError("diagnostic steps cannot define a relation")
-        if self.kind == "relation" and self.materialization == "none": raise ValueError("relation steps require materialization")
-        if self.kind == "diagnostic" and (self.materialization != "none" or self.diagnostic_code is None): raise ValueError("diagnostic steps require a code and no materialization")
-        return self
-
 class ContractOutput(IRModel):
     relation: str = Field(min_length=1)
     component: str = Field(min_length=1)
     kind: Literal["node", "edge"]
 
+class ExecutionStepBase(IRModel):
+    id: str = Field(min_length=1)
+    inputs: tuple[str, ...] = ()
+    depends_on: tuple[str, ...] = ()
+    component: str | None = None
+    binding_symbol: str | None = None
+    debug_name: str | None = None
+
+class RelationalStep(ExecutionStepBase):
+    kind: Literal["relation"] = "relation"
+    stage: Literal["binding", "binding_aggregation", "post_processing"]
+    sql: str = Field(min_length=1)
+    relation: str = Field(min_length=1)
+    materialization: Literal["temporary_table", "view"]
+
+class ValidationStep(ExecutionStepBase):
+    kind: Literal["diagnostic"] = "diagnostic"
+    stage: Literal["validation"] = "validation"
+    sql: str = Field(min_length=1)
+    diagnostic_code: Literal["null_build_key", "null_edge_endpoint", "conflicting_value", "missing_edge_endpoint"]
+
+class FileWriteStep(ExecutionStepBase):
+    kind: Literal["target_write"] = "target_write"
+    stage: Literal["target_write"] = "target_write"
+    target: FileTargetDefinition
+    write_outputs: tuple[ContractOutput, ...] = Field(min_length=1)
+
+ExecutionStep = Annotated[RelationalStep | ValidationStep | FileWriteStep, Field(discriminator="kind")]
+
 class BuildSettings(IRModel):
-    """Permitted concrete composition overrides for one compilation."""
-    source_overrides: tuple[SourceDefinition, ...] = ()
+    """Effective operational and lowering settings for one compilation."""
     duckdb_threads: int | None = Field(default=None, ge=1)
+
+class TargetOverride(IRModel):
+    original: FileTargetDefinition
+    override: FileTargetDefinition
+
+class SourceOverride(IRModel):
+    table: str = Field(min_length=1)
+    original: SourceDefinition | None = None
+    override: SourceDefinition
+
+class BuildOverrides(IRModel):
+    target: TargetOverride | None = None
+    sources: tuple[SourceOverride, ...] = ()
 
 class BuildContract(IRModel):
     """Target-specific, reproducible DuckDB execution artifact."""
     blueprint: BuildBlueprint
     blueprint_fingerprint: str = Field(min_length=1)
     sources: tuple[SourceDefinition, ...] = Field(min_length=1)
-    target: FileTargetDefinition
-    requested_settings: BuildSettings = Field(default_factory=BuildSettings)
-    effective_settings: BuildSettings = Field(default_factory=BuildSettings)
+    settings: BuildSettings = Field(default_factory=BuildSettings)
+    overrides: BuildOverrides = Field(default_factory=BuildOverrides)
     execution_plan_fingerprint: str = Field(min_length=1)
-    execution_plan: tuple[DuckDBExecutionStep, ...] = Field(min_length=1)
-    outputs: tuple[ContractOutput, ...] = Field(min_length=1)
+    execution_plan: tuple[ExecutionStep, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_sources(self) -> Self:
@@ -221,14 +237,16 @@ class BuildContract(IRModel):
         if len(set(tables)) != len(tables): raise ValueError("a build may bind each logical table only once")
         steps = {step.id: step for step in self.execution_plan}
         if len(steps) != len(self.execution_plan): raise ValueError("execution-step IDs must be unique")
-        relations = {step.relation for step in self.execution_plan if step.relation}
+        relations = {step.relation for step in self.execution_plan if isinstance(step, RelationalStep)}
         for step in self.execution_plan:
             if any(dependency not in steps for dependency in step.depends_on): raise ValueError("execution step references an unknown dependency")
             if any(relation not in relations for relation in step.inputs): raise ValueError("execution step references an unknown relation")
         binding_symbols = {binding.symbol_id for binding in self.blueprint.bindings}
-        planned_symbols = {step.binding_symbol for step in self.execution_plan if step.stage == "binding"}
+        planned_symbols = {step.binding_symbol for step in self.execution_plan if isinstance(step, RelationalStep) and step.stage == "binding"}
         if binding_symbols != planned_symbols: raise ValueError("execution steps must cover every blueprint binding")
-        components = {(output.component, output.kind) for output in self.outputs}
+        write_steps = [step for step in self.execution_plan if isinstance(step, FileWriteStep)]
+        if not write_steps: raise ValueError("execution plan requires a target-write step")
+        components = {(output.component, output.kind) for step in write_steps for output in step.write_outputs}
         expected = {(binding.component, binding.kind) for binding in self.blueprint.bindings}
         if components != expected:
             raise ValueError("post-processing plans must cover every bound component")

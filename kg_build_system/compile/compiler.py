@@ -10,10 +10,10 @@ from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
 from ..data import BoundTable
 from ..definition.ir import (
     BindingDefinition, BindingExecutionPlan, BuildBlueprint, BuildContract, BuildSettings,
-    ComponentPostProcessPlan, ContractOutput, DiagnosticPlan, DuckDBExecutionStep,
+    BuildOverrides, ComponentPostProcessPlan, ContractOutput, DiagnosticPlan, ExecutionStep, FileWriteStep, RelationalStep, ValidationStep,
     ComponentDefinition, EdgeBindingDefinition, FieldReference, FileTargetDefinition,
     LiteralValue, NodeBindingDefinition, Operation, PostProcessingDefinition, ProjectionDefinition,
-    PropertyDefinition, SourceDefinition, Value, ValueType,
+    PropertyDefinition, SourceDefinition, SourceOverride, TargetOverride, Value, ValueType,
 )
 from ..expressions import Expression, FieldPath
 from ..specification.type_shapes import type_name, type_shape
@@ -76,7 +76,7 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
 def _source_definition(source: BoundTable) -> SourceDefinition:
     return SourceDefinition(table=source.table.__name__, location=source.config.location, format=source.config.format.value, credential_reference=source.config.credentials, version=source.config.version)
 
-def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = (), sources: Sequence[BoundTable] = (), post_processing: PostProcessingDefinition) -> BuildBlueprint:
+def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = (), sources: Sequence[BoundTable] = (), target: FileTarget, post_processing: PostProcessingDefinition) -> BuildBlueprint:
     authoring_bindings = tuple(bindings)
     if not authoring_bindings: raise ValueError("a graph requires at least one binding")
     for binding in authoring_bindings: _validate_authoring_binding(binding)
@@ -90,7 +90,7 @@ def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projectio
         occurrences[digest] = occurrences.get(digest, 0) + 1
         suffix = "" if occurrences[digest] == 1 else f":{occurrences[digest]}"
         binding_definitions.append(_binding(binding, symbol_id=f"binding:{digest}{suffix}"))
-    return BuildBlueprint(components=tuple(_component(component) for component in components), projections=projection_ir, bindings=tuple(binding_definitions), default_sources=tuple(_source_definition(source) for source in sources), post_processing=post_processing)
+    return BuildBlueprint(components=tuple(_component(component) for component in components), projections=projection_ir, bindings=tuple(binding_definitions), sources=tuple(_source_definition(source) for source in sources), target=FileTargetDefinition(location=target.location), post_processing=post_processing)
 
 def _projection_value(value: Value, projections: dict[str, ProjectionDefinition]) -> Value:
     if isinstance(value, FieldReference) and value.table in projections and len(value.path) == 1: return projections[value.table].fields[value.path[0]]
@@ -294,22 +294,27 @@ def _normalised_sql(*, raw_view: str, kind: str, properties: Sequence[str]) -> s
 def _diagnostics(*, graph: BuildBlueprint, post_process: Sequence[ComponentPostProcessPlan]) -> tuple[DiagnosticPlan, ...]:
     components = {component.name: component for component in graph.components}
     plans = {plan.component: plan for plan in post_process}
+    checks = set(graph.post_processing.validations)
     diagnostics: list[DiagnosticPlan] = []
     for plan in post_process:
         component = components[plan.component]
         raw = _quote(plan.raw_view)
-        diagnostics.append(DiagnosticPlan(
-            code="null_build_key",
-            sql=f"SELECT '{plan.component}' AS component, count(*) AS occurrences FROM {raw} WHERE {_quote('build_key')} IS NULL",
-        ))
+        if "reject_null_build_keys" in checks:
+            diagnostics.append(DiagnosticPlan(
+                code="null_build_key",
+                sql=f"SELECT '{plan.component}' AS component, count(*) AS occurrences FROM {raw} WHERE {_quote('build_key')} IS NULL",
+            ))
         fields = [property.name for property in component.properties]
         if plan.kind == "edge":
-            diagnostics.append(DiagnosticPlan(
-                code="null_edge_endpoint",
-                sql=(f"SELECT '{plan.component}' AS component, count(*) AS occurrences FROM {raw} "
-                     f"WHERE {_quote('source_build_key')} IS NULL OR {_quote('target_build_key')} IS NULL"),
-            ))
+            if "reject_null_edge_endpoints" in checks:
+                diagnostics.append(DiagnosticPlan(
+                    code="null_edge_endpoint",
+                    sql=(f"SELECT '{plan.component}' AS component, count(*) AS occurrences FROM {raw} "
+                         f"WHERE {_quote('source_build_key')} IS NULL OR {_quote('target_build_key')} IS NULL"),
+                ))
             fields[0:0] = ["source_build_key", "target_build_key"]
+        if "reject_conflicting_non_null_values" not in checks:
+            continue
         for field in fields:
             diagnostics.append(DiagnosticPlan(
                 code="conflicting_value",
@@ -318,6 +323,8 @@ def _diagnostics(*, graph: BuildBlueprint, post_process: Sequence[ComponentPostP
                      f"WHERE {_quote('build_key')} IS NOT NULL GROUP BY {_quote('build_key')} "
                      f"HAVING count(DISTINCT {_quote(field)}) FILTER (WHERE {_quote(field)} IS NOT NULL) > 1"),
             ))
+    if "require_edge_endpoints" not in checks:
+        return tuple(diagnostics)
     for plan in post_process:
         if plan.kind != "edge":
             continue
@@ -359,16 +366,19 @@ def _blueprint_fingerprint(blueprint: BuildBlueprint) -> str:
         binding.pop("debug_name", None)
     return _fingerprint(payload)
 
-def _effective_sources(*, blueprint: BuildBlueprint, settings: BuildSettings) -> tuple[SourceDefinition, ...]:
-    sources = {source.table: source for source in blueprint.default_sources}
-    for source in settings.source_overrides:
+def _effective_sources(*, blueprint: BuildBlueprint, overrides: Sequence[BoundTable]) -> tuple[SourceDefinition, ...]:
+    sources = {source.table: source for source in blueprint.sources}
+    for bound_source in overrides:
+        source = _source_definition(bound_source)
         sources[source.table] = source
     return tuple(sources[name] for name in sorted(sources))
 
-def compile_blueprint(*, blueprint: BuildBlueprint, target: object, settings: BuildSettings | None = None) -> BuildContract:
-    if not isinstance(target, FileTarget): raise TypeError("the MVP supports FileTarget only")
-    requested_settings = settings or BuildSettings()
-    source_ir = _effective_sources(blueprint=blueprint, settings=requested_settings)
+def compile_blueprint(*, blueprint: BuildBlueprint, target: FileTarget | None = None, sources: Sequence[BoundTable] = (), settings: BuildSettings | None = None) -> BuildContract:
+    effective_target = FileTargetDefinition(location=target.location) if target is not None else blueprint.target
+    effective_settings = settings or BuildSettings()
+    source_ir = _effective_sources(blueprint=blueprint, overrides=sources)
+    source_overrides = tuple(SourceOverride(table=source.table, original=next((item for item in blueprint.sources if item.table == source.table), None), override=source) for source in (_source_definition(bound_source) for bound_source in sources))
+    overrides = BuildOverrides(target=TargetOverride(original=blueprint.target, override=effective_target) if effective_target != blueprint.target else None, sources=source_overrides)
     plans = tuple(
         BindingExecutionPlan(binding_index=index, binding_symbol=binding.symbol_id, component=binding.component, kind=binding.kind, sql=_compile_binding_sql(graph=blueprint, sources=source_ir, binding=binding))
         for index, binding in enumerate(blueprint.bindings)
@@ -390,31 +400,30 @@ def compile_blueprint(*, blueprint: BuildBlueprint, target: object, settings: Bu
         if any(plan.component == component.name for plan in plans)
     )
     diagnostics = _diagnostics(graph=blueprint, post_process=post_process)
-    steps: list[DuckDBExecutionStep] = [
-        DuckDBExecutionStep(id=f"binding:{plan.binding_index}", kind="relation", stage="binding", relation=f"kg_binding_{plan.binding_index}", component=plan.component, materialization="temporary_table", sql=plan.sql, binding_symbol=plan.binding_symbol, debug_name=blueprint.bindings[plan.binding_index].debug_name)
+    steps: list[ExecutionStep] = [
+        RelationalStep(id=f"binding:{plan.binding_index}", stage="binding", relation=f"kg_binding_{plan.binding_index}", component=plan.component, materialization="temporary_table", sql=plan.sql, binding_symbol=plan.binding_symbol, debug_name=blueprint.bindings[plan.binding_index].debug_name)
         for plan in plans
     ]
     for plan in post_process:
         component_bindings = [item for item in plans if item.component == plan.component]
         dependency_ids = tuple(f"binding:{item.binding_index}" for item in component_bindings)
-        steps.append(DuckDBExecutionStep(id=f"aggregate:{plan.component}", kind="relation", stage="binding_aggregation", inputs=tuple(f"kg_binding_{item.binding_index}" for item in component_bindings), depends_on=dependency_ids, relation=plan.raw_view, component=plan.component, materialization="temporary_table", sql=plan.raw_sql))
-        steps.append(DuckDBExecutionStep(id=f"normalise:{plan.component}", kind="relation", stage="post_processing", inputs=(plan.raw_view,), depends_on=(f"aggregate:{plan.component}",), relation=plan.normalised_view, component=plan.component, materialization="temporary_table", sql=plan.normalised_sql))
+        steps.append(RelationalStep(id=f"aggregate:{plan.component}", stage="binding_aggregation", inputs=tuple(f"kg_binding_{item.binding_index}" for item in component_bindings), depends_on=dependency_ids, relation=plan.raw_view, component=plan.component, materialization="temporary_table", sql=plan.raw_sql))
+        steps.append(RelationalStep(id=f"normalise:{plan.component}", stage="post_processing", inputs=(plan.raw_view,), depends_on=(f"aggregate:{plan.component}",), relation=plan.normalised_view, component=plan.component, materialization="temporary_table", sql=plan.normalised_sql))
     normalisation_dependencies = tuple(step.id for step in steps if step.stage == "post_processing")
     normalisation_relations = tuple(step.relation for step in steps if step.stage == "post_processing" and step.relation)
     for index, diagnostic in enumerate(diagnostics):
         component = diagnostic.sql.split(chr(39))[1]
-        steps.append(DuckDBExecutionStep(id=f"diagnostic:{index}:{diagnostic.code}", kind="diagnostic", stage="validation", inputs=normalisation_relations, depends_on=normalisation_dependencies, materialization="none", sql=diagnostic.sql, component=component, diagnostic_code=diagnostic.code))
+        steps.append(ValidationStep(id=f"diagnostic:{index}:{diagnostic.code}", inputs=normalisation_relations, depends_on=normalisation_dependencies, sql=diagnostic.sql, component=component, diagnostic_code=diagnostic.code))
     outputs = tuple(ContractOutput(relation=plan.normalised_view, component=plan.component, kind=plan.kind) for plan in post_process)
-    effective_settings = BuildSettings(source_overrides=source_ir, duckdb_threads=requested_settings.duckdb_threads)
-    execution_fingerprint = _fingerprint({"steps": steps, "outputs": outputs, "target": target.location})
+    diagnostic_dependencies = tuple(step.id for step in steps if step.kind == "diagnostic")
+    steps.append(FileWriteStep(id="write:file", inputs=tuple(output.relation for output in outputs), depends_on=diagnostic_dependencies, target=effective_target, write_outputs=outputs))
+    execution_fingerprint = _fingerprint({"steps": steps})
     return BuildContract(
         blueprint=blueprint,
         blueprint_fingerprint=_blueprint_fingerprint(blueprint),
         sources=source_ir,
-        target=FileTargetDefinition(location=target.location),
-        requested_settings=requested_settings,
-        effective_settings=effective_settings,
+        settings=effective_settings,
+        overrides=overrides,
         execution_plan_fingerprint=execution_fingerprint,
         execution_plan=tuple(steps),
-        outputs=outputs,
     )

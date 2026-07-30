@@ -364,26 +364,27 @@ declarations. It produces an immutable `BuildBlueprint`, validates
 compatibility and resolves expression/cardinality semantics. Incomplete work remains Python source rather than becoming a
 partially-specified document IR.
 
-`compile_blueprint` combines a blueprint with a target and serialisable
-compilation settings. It resolves permitted source, target, and lowering
+`compile_blueprint` combines a blueprint with optional source/target selections
+and serialisable compilation settings. It resolves permitted source, target, and lowering
 overrides without mutating graph semantics and creates an immutable
 target-specific `BuildContract`. The contract contains effective source
 versions and credential references, DuckDB SQL, target-writing instructions,
 binding origins, and blueprint/execution-plan fingerprints. It never
 contains resolved credentials.
 
-A contract contains one ordered `BindingExecutionPlan` per graph binding,
-followed by compiler-internal component relations that DuckDB uses to
-normalise records and emit diagnostics. Each binding plan owns its complete
-relational row context, so a projection expansion used by one binding cannot
-change another binding's semantics.
+A contract contains one dependency-aware execution plan. Its relational steps
+produce binding, aggregation, and normalised component relations; validation
+steps emit diagnostics; terminal target-write steps consume final graph
+relations. Each binding step owns its complete relational row context, so a
+projection expansion used by one binding cannot change another binding's
+semantics.
 
 `build` consumes only `BuildContract` and `BuildRuntime`.
 `BuildRuntime` supplies resolved credentials plus operational settings such as
 temporary storage, resource limits, and logging. The build layer does not
 interpret authoring classes, graph bindings, or expression values. It executes
-the contract's DuckDB normalisation and diagnostic relations, then streams
-only final graph records to the target writer.
+the contract's relational and diagnostic steps, then performs only its terminal
+target-write steps.
 
 Execution:
 
