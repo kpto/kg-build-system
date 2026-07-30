@@ -9,8 +9,8 @@ from sqlglot import exp
 from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
 from ..data import BoundTable
 from ..definition.ir import (
-    BindingDefinition, BindingExecutionPlan, BlueprintSymbol, BuildBlueprint, BuildContract, BuildSettings,
-    ComponentPostProcessPlan, ContractOutput, DebugSymbolReference, DiagnosticPlan, DuckDBExecutionStep,
+    BindingDefinition, BindingExecutionPlan, BuildBlueprint, BuildContract, BuildSettings,
+    ComponentPostProcessPlan, ContractOutput, DiagnosticPlan, DuckDBExecutionStep,
     ComponentDefinition, EdgeBindingDefinition, FieldReference, FileTargetDefinition,
     LiteralValue, NodeBindingDefinition, Operation, PostProcessingDefinition, ProjectionDefinition,
     PropertyDefinition, SourceDefinition, Value, ValueType,
@@ -76,19 +76,6 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
 def _source_definition(source: BoundTable) -> SourceDefinition:
     return SourceDefinition(table=source.table.__name__, location=source.config.location, format=source.config.format.value, credential_reference=source.config.credentials, version=source.config.version)
 
-def _blueprint_symbols(*, components: Sequence[type], bindings: Sequence[BindingDefinition], projections: Sequence[type[Any]], sources: Sequence[BoundTable]) -> tuple[BlueprintSymbol, ...]:
-    symbols: list[BlueprintSymbol] = []
-    for component in components:
-        symbols.append(BlueprintSymbol(id=f"component:{component.__name__}", kind="component", path=component.__name__))
-        symbols.extend(BlueprintSymbol(id=f"property:{component.__name__}.{name}", kind="property", path=f"{component.__name__}.{name}") for name in component._properties)
-    for projection in projections:
-        symbols.append(BlueprintSymbol(id=f"projection:{projection.__name__}", kind="projection", path=projection.__name__))
-        symbols.extend(BlueprintSymbol(id=f"projection_field:{projection.__name__}.{name}", kind="projection_field", path=f"{projection.__name__}.{name}") for name in projection._projection_fields)
-    symbols.extend(BlueprintSymbol(id=binding.symbol_id, kind="binding", path=binding.debug_name or binding.symbol_id) for binding in bindings)
-    symbols.extend(BlueprintSymbol(id=f"source:{source.table.__name__}", kind="source", path=source.table.__name__) for source in sources)
-    symbols.extend(BlueprintSymbol(id=f"post_processing:{component.__name__}", kind="post_processing", path=component.__name__) for component in components)
-    return tuple(symbols)
-
 def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = (), sources: Sequence[BoundTable] = (), post_processing: PostProcessingDefinition) -> BuildBlueprint:
     authoring_bindings = tuple(bindings)
     if not authoring_bindings: raise ValueError("a graph requires at least one binding")
@@ -103,7 +90,7 @@ def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projectio
         occurrences[digest] = occurrences.get(digest, 0) + 1
         suffix = "" if occurrences[digest] == 1 else f":{occurrences[digest]}"
         binding_definitions.append(_binding(binding, symbol_id=f"binding:{digest}{suffix}"))
-    return BuildBlueprint(components=tuple(_component(component) for component in components), projections=projection_ir, bindings=tuple(binding_definitions), default_sources=tuple(_source_definition(source) for source in sources), post_processing=post_processing, symbols=_blueprint_symbols(components=components, bindings=binding_definitions, projections=projections, sources=sources))
+    return BuildBlueprint(components=tuple(_component(component) for component in components), projections=projection_ir, bindings=tuple(binding_definitions), default_sources=tuple(_source_definition(source) for source in sources), post_processing=post_processing)
 
 def _projection_value(value: Value, projections: dict[str, ProjectionDefinition]) -> Value:
     if isinstance(value, FieldReference) and value.table in projections and len(value.path) == 1: return projections[value.table].fields[value.path[0]]
@@ -368,7 +355,6 @@ def _fingerprint(value: object) -> str:
 def _blueprint_fingerprint(blueprint: BuildBlueprint) -> str:
     """Fingerprint graph semantics, deliberately excluding debug-only metadata."""
     payload = blueprint.model_dump(mode="json")
-    payload.pop("symbols")
     for binding in payload["bindings"]:
         binding.pop("debug_name", None)
     return _fingerprint(payload)
@@ -378,9 +364,6 @@ def _effective_sources(*, blueprint: BuildBlueprint, settings: BuildSettings) ->
     for source in settings.source_overrides:
         sources[source.table] = source
     return tuple(sources[name] for name in sorted(sources))
-
-def _debug_symbols(*, steps: Sequence[DuckDBExecutionStep]) -> tuple[DebugSymbolReference, ...]:
-    return tuple(DebugSymbolReference(artifact=step.id, symbols=step.symbols) for step in steps)
 
 def compile_blueprint(*, blueprint: BuildBlueprint, target: object, settings: BuildSettings | None = None) -> BuildContract:
     if not isinstance(target, FileTarget): raise TypeError("the MVP supports FileTarget only")
@@ -408,20 +391,19 @@ def compile_blueprint(*, blueprint: BuildBlueprint, target: object, settings: Bu
     )
     diagnostics = _diagnostics(graph=blueprint, post_process=post_process)
     steps: list[DuckDBExecutionStep] = [
-        DuckDBExecutionStep(id=f"binding:{plan.binding_index}", kind="relation", stage="binding", relation=f"kg_binding_{plan.binding_index}", materialization="temporary_table", sql=plan.sql, symbols=(plan.binding_symbol,))
+        DuckDBExecutionStep(id=f"binding:{plan.binding_index}", kind="relation", stage="binding", relation=f"kg_binding_{plan.binding_index}", component=plan.component, materialization="temporary_table", sql=plan.sql, binding_symbol=plan.binding_symbol, debug_name=blueprint.bindings[plan.binding_index].debug_name)
         for plan in plans
     ]
     for plan in post_process:
         component_bindings = [item for item in plans if item.component == plan.component]
         dependency_ids = tuple(f"binding:{item.binding_index}" for item in component_bindings)
-        symbols = (f"component:{plan.component}", f"post_processing:{plan.component}")
-        steps.append(DuckDBExecutionStep(id=f"aggregate:{plan.component}", kind="relation", stage="binding_aggregation", inputs=tuple(f"kg_binding_{item.binding_index}" for item in component_bindings), depends_on=dependency_ids, relation=plan.raw_view, component=plan.component, materialization="temporary_table", sql=plan.raw_sql, symbols=symbols))
-        steps.append(DuckDBExecutionStep(id=f"normalise:{plan.component}", kind="relation", stage="post_processing", inputs=(plan.raw_view,), depends_on=(f"aggregate:{plan.component}",), relation=plan.normalised_view, component=plan.component, materialization="temporary_table", sql=plan.normalised_sql, symbols=symbols))
+        steps.append(DuckDBExecutionStep(id=f"aggregate:{plan.component}", kind="relation", stage="binding_aggregation", inputs=tuple(f"kg_binding_{item.binding_index}" for item in component_bindings), depends_on=dependency_ids, relation=plan.raw_view, component=plan.component, materialization="temporary_table", sql=plan.raw_sql))
+        steps.append(DuckDBExecutionStep(id=f"normalise:{plan.component}", kind="relation", stage="post_processing", inputs=(plan.raw_view,), depends_on=(f"aggregate:{plan.component}",), relation=plan.normalised_view, component=plan.component, materialization="temporary_table", sql=plan.normalised_sql))
     normalisation_dependencies = tuple(step.id for step in steps if step.stage == "post_processing")
     normalisation_relations = tuple(step.relation for step in steps if step.stage == "post_processing" and step.relation)
     for index, diagnostic in enumerate(diagnostics):
         component = diagnostic.sql.split(chr(39))[1]
-        steps.append(DuckDBExecutionStep(id=f"diagnostic:{index}:{diagnostic.code}", kind="diagnostic", stage="validation", inputs=normalisation_relations, depends_on=normalisation_dependencies, materialization="none", sql=diagnostic.sql, symbols=(f"post_processing:{component}",), diagnostic_code=diagnostic.code))
+        steps.append(DuckDBExecutionStep(id=f"diagnostic:{index}:{diagnostic.code}", kind="diagnostic", stage="validation", inputs=normalisation_relations, depends_on=normalisation_dependencies, materialization="none", sql=diagnostic.sql, component=component, diagnostic_code=diagnostic.code))
     outputs = tuple(ContractOutput(relation=plan.normalised_view, component=plan.component, kind=plan.kind) for plan in post_process)
     effective_settings = BuildSettings(source_overrides=source_ir, duckdb_threads=requested_settings.duckdb_threads)
     execution_fingerprint = _fingerprint({"steps": steps, "outputs": outputs, "target": target.location})
@@ -435,5 +417,4 @@ def compile_blueprint(*, blueprint: BuildBlueprint, target: object, settings: Bu
         execution_plan_fingerprint=execution_fingerprint,
         execution_plan=tuple(steps),
         outputs=outputs,
-        debug_symbols=_debug_symbols(steps=steps),
     )

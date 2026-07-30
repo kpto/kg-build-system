@@ -361,8 +361,7 @@ namespace. Random UUIDs are excluded from reproducible builds.
 `create_blueprint` consumes a complete set of topology, data declarations,
 projections, graph bindings, default source bindings, and post-processing
 declarations. It produces an immutable `BuildBlueprint`, validates
-compatibility, resolves expression/cardinality semantics, and records stable
-debug symbols. Incomplete work remains Python source rather than becoming a
+compatibility and resolves expression/cardinality semantics. Incomplete work remains Python source rather than becoming a
 partially-specified document IR.
 
 `compile_blueprint` combines a blueprint with a target and serialisable
@@ -370,7 +369,7 @@ compilation settings. It resolves permitted source, target, and lowering
 overrides without mutating graph semantics and creates an immutable
 target-specific `BuildContract`. The contract contains effective source
 versions and credential references, DuckDB SQL, target-writing instructions,
-debug-symbol references, and blueprint/execution-plan fingerprints. It never
+binding origins, and blueprint/execution-plan fingerprints. It never
 contains resolved credentials.
 
 A contract contains one ordered `BindingExecutionPlan` per graph binding,

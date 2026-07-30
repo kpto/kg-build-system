@@ -113,13 +113,6 @@ class PostProcessingDefinition(IRModel):
             raise ValueError("the MVP normalisation pipeline must declare each supported operation exactly once")
         return self
 
-class BlueprintSymbol(IRModel):
-    id: str = Field(min_length=1)
-    kind: Literal["component", "property", "table", "projection", "projection_field", "binding", "source", "post_processing"]
-    path: str = Field(min_length=1)
-    source_file: str | None = None
-    source_line: int | None = Field(default=None, ge=1)
-
 class BuildBlueprint(IRModel):
     """Complete, reusable graph definition independent of a concrete target."""
     components: tuple[ComponentDefinition, ...] = Field(min_length=1)
@@ -127,7 +120,6 @@ class BuildBlueprint(IRModel):
     bindings: tuple[BindingDefinition, ...] = Field(min_length=1)
     default_sources: tuple[SourceDefinition, ...] = ()
     post_processing: PostProcessingDefinition
-    symbols: tuple[BlueprintSymbol, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_references(self) -> Self:
@@ -143,8 +135,6 @@ class BuildBlueprint(IRModel):
         if len(binding_symbols) != len(set(binding_symbols)): raise ValueError("binding symbol IDs must be unique")
         source_tables = [source.table for source in self.default_sources]
         if len(source_tables) != len(set(source_tables)): raise ValueError("a blueprint may bind each logical table only once")
-        symbol_ids = [symbol.id for symbol in self.symbols]
-        if len(symbol_ids) != len(set(symbol_ids)): raise ValueError("blueprint symbol IDs must be unique")
         return self
 
 class SourceDefinition(IRModel):
@@ -191,7 +181,8 @@ class DuckDBExecutionStep(IRModel):
     relation: str | None = None
     component: str | None = None
     materialization: Literal["temporary_table", "view", "none"] = "none"
-    symbols: tuple[str, ...] = Field(min_length=1)
+    binding_symbol: str | None = None
+    debug_name: str | None = None
     diagnostic_code: Literal["null_build_key", "null_edge_endpoint", "conflicting_value", "missing_edge_endpoint"] | None = None
 
     @model_validator(mode="after")
@@ -212,10 +203,6 @@ class BuildSettings(IRModel):
     source_overrides: tuple[SourceDefinition, ...] = ()
     duckdb_threads: int | None = Field(default=None, ge=1)
 
-class DebugSymbolReference(IRModel):
-    artifact: str = Field(min_length=1)
-    symbols: tuple[str, ...] = Field(min_length=1)
-
 class BuildContract(IRModel):
     """Target-specific, reproducible DuckDB execution artifact."""
     blueprint: BuildBlueprint
@@ -227,7 +214,6 @@ class BuildContract(IRModel):
     execution_plan_fingerprint: str = Field(min_length=1)
     execution_plan: tuple[DuckDBExecutionStep, ...] = Field(min_length=1)
     outputs: tuple[ContractOutput, ...] = Field(min_length=1)
-    debug_symbols: tuple[DebugSymbolReference, ...] = Field(min_length=1)
 
     @model_validator(mode="after")
     def validate_sources(self) -> Self:
@@ -240,7 +226,7 @@ class BuildContract(IRModel):
             if any(dependency not in steps for dependency in step.depends_on): raise ValueError("execution step references an unknown dependency")
             if any(relation not in relations for relation in step.inputs): raise ValueError("execution step references an unknown relation")
         binding_symbols = {binding.symbol_id for binding in self.blueprint.bindings}
-        planned_symbols = {symbol for step in self.execution_plan if step.stage == "binding" for symbol in step.symbols}
+        planned_symbols = {step.binding_symbol for step in self.execution_plan if step.stage == "binding"}
         if binding_symbols != planned_symbols: raise ValueError("execution steps must cover every blueprint binding")
         components = {(output.component, output.kind) for output in self.outputs}
         expected = {(binding.component, binding.kind) for binding in self.blueprint.bindings}

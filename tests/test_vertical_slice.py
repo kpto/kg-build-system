@@ -68,7 +68,7 @@ class VerticalSliceTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             contract = compile_blueprint(blueprint=blueprint, target=FileTarget(str(Path(directory) / "graph.jsonl")))
             self.assertTrue(any("UNNEST" in step.sql for step in contract.execution_plan))
-            self.assertTrue(contract.debug_symbols)
+            self.assertTrue(any(step.binding_symbol for step in contract.execution_plan))
             report = build(contract)
             self.assertEqual((report.nodes, report.edges), (5, 3))
 
