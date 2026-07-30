@@ -78,6 +78,6 @@ contract = compile_blueprint(blueprint=blueprint, target=FileTarget(str(root / "
 if __name__ == "__main__":
     (root / "build_blueprint.json").write_text(blueprint.model_dump_json(indent=2), encoding="utf-8")
     (root / "build_contract.json").write_text(contract.model_dump_json(indent=2), encoding="utf-8")
-    for plan in contract.plans:
-        print(f"-- binding {plan.binding_index}\n{plan.sql}")
+    for step in contract.execution_plan:
+        print(f"-- {step.id}\n{step.sql}")
     print(execute_build(contract))

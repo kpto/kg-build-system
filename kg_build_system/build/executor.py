@@ -6,7 +6,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-from ..definition.ir import BuildContract
+from ..definition.ir import BuildContract, DuckDBExecutionStep
 
 
 @dataclass(frozen=True)
@@ -26,30 +26,45 @@ def _quote(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
 
 
-def _create_views(connection: Any, definition: BuildContract) -> None:
-    for plan in definition.post_process:
-        connection.execute(f"CREATE TEMP VIEW {_quote(plan.raw_view)} AS {plan.raw_sql}")
-    for plan in definition.post_process:
-        connection.execute(f"CREATE TEMP VIEW {_quote(plan.normalised_view)} AS {plan.normalised_sql}")
+def _execute_relations(connection: Any, contract: BuildContract) -> tuple[DuckDBExecutionStep, ...]:
+    """Materialise relation steps once their declared dependencies are ready."""
+    pending = list(contract.execution_plan)
+    completed: set[str] = set()
+    diagnostics: list[DuckDBExecutionStep] = []
+    while pending:
+        ready = [step for step in pending if set(step.depends_on) <= completed]
+        if not ready:
+            raise RuntimeError("DuckDB execution plan has a dependency cycle")
+        for step in ready:
+            if step.kind == "relation":
+                assert step.relation is not None
+                statement = "CREATE TEMP TABLE" if step.materialization == "temporary_table" else "CREATE TEMP VIEW"
+                connection.execute(f"{statement} {_quote(step.relation)} AS {step.sql}")
+            else:
+                diagnostics.append(step)
+            completed.add(step.id)
+            pending.remove(step)
+    return tuple(diagnostics)
 
 
-def _structural_diagnostics(connection: Any, definition: BuildContract) -> tuple[str, ...]:
+def _structural_diagnostics(connection: Any, diagnostic_steps: tuple[DuckDBExecutionStep, ...]) -> tuple[str, ...]:
     failures: list[str] = []
-    for diagnostic in definition.diagnostics:
+    for diagnostic in diagnostic_steps:
+        assert diagnostic.diagnostic_code is not None
         rows = connection.execute(diagnostic.sql).fetchall()
         for row in rows:
             # Aggregate diagnostic plans always contain a count; zero means the
             # invariant held and should not appear in a build report.
             if not row or not isinstance(row[-1], int) or row[-1] == 0:
                 continue
-            if diagnostic.code == "conflicting_value":
+            if diagnostic.diagnostic_code == "conflicting_value":
                 component, build_key, field, distinct_values = row
                 failures.append(
                     f"{component}({build_key!s}) has {distinct_values} non-null values for {field}"
                 )
             else:
                 component, occurrences = row
-                failures.append(f"{diagnostic.code} for {component}: {occurrences} record(s)")
+                failures.append(f"{diagnostic.diagnostic_code} for {component}: {occurrences} record(s)")
     return tuple(failures)
 
 
@@ -63,8 +78,8 @@ def build(contract: BuildContract, runtime: BuildRuntime = BuildRuntime()) -> Bu
     connection = duckdb.connect()
     if contract.effective_settings.duckdb_threads is not None:
         connection.execute(f"SET threads = {contract.effective_settings.duckdb_threads}")
-    _create_views(connection, contract)
-    diagnostics = _structural_diagnostics(connection, contract)
+    diagnostic_steps = _execute_relations(connection, contract)
+    diagnostics = _structural_diagnostics(connection, diagnostic_steps)
     if diagnostics:
         raise ValueError("graph normalisation failed: " + "; ".join(diagnostics))
 
@@ -72,13 +87,13 @@ def build(contract: BuildContract, runtime: BuildRuntime = BuildRuntime()) -> Bu
     output.parent.mkdir(parents=True, exist_ok=True)
     nodes = edges = 0
     with output.open("w", encoding="utf-8") as stream:
-        for plan in contract.post_process:
-            result = connection.execute(f"SELECT * FROM {_quote(plan.normalised_view)}")
+        for output_relation in contract.outputs:
+            result = connection.execute(f"SELECT * FROM {_quote(output_relation.relation)}")
             columns = tuple(column[0] for column in result.description)
             for row in result.fetchall():
                 record = dict(zip(columns, row, strict=True))
-                record.update(build_key=str(record["build_key"]), type=plan.component, kind=plan.kind)
-                if plan.kind == "node":
+                record.update(build_key=str(record["build_key"]), type=output_relation.component, kind=output_relation.kind)
+                if output_relation.kind == "node":
                     nodes += 1
                 else:
                     edges += 1
@@ -90,8 +105,8 @@ def build(contract: BuildContract, runtime: BuildRuntime = BuildRuntime()) -> Bu
         provenance={
             "blueprint_fingerprint": contract.blueprint_fingerprint,
             "execution_plan_fingerprint": contract.execution_plan_fingerprint,
-            "plans": [plan.model_dump(mode="json") for plan in contract.plans],
-            "post_process": [plan.model_dump(mode="json") for plan in contract.post_process],
+            "execution_plan": [step.model_dump(mode="json") for step in contract.execution_plan],
+            "outputs": [output.model_dump(mode="json") for output in contract.outputs],
             "sources": [source.model_dump(mode="json") for source in contract.sources],
         },
     )

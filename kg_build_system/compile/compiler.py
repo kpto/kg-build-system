@@ -10,7 +10,7 @@ from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
 from ..data import BoundTable
 from ..definition.ir import (
     BindingDefinition, BindingExecutionPlan, BlueprintSymbol, BuildBlueprint, BuildContract, BuildSettings,
-    ComponentPostProcessPlan, DebugSymbolReference, DiagnosticPlan,
+    ComponentPostProcessPlan, ContractOutput, DebugSymbolReference, DiagnosticPlan, DuckDBExecutionStep,
     ComponentDefinition, EdgeBindingDefinition, FieldReference, FileTargetDefinition,
     LiteralValue, NodeBindingDefinition, Operation, PostProcessingDefinition, ProjectionDefinition,
     PropertyDefinition, SourceDefinition, Value, ValueType,
@@ -294,6 +294,9 @@ def _raw_sql(plans: Sequence[BindingExecutionPlan]) -> str:
         for plan in plans
     )
 
+def _raw_relation_sql(relations: Sequence[str]) -> str:
+    return " UNION ALL ".join(f"SELECT * FROM {_quote(relation)}" for relation in relations)
+
 def _normalised_sql(*, raw_view: str, kind: str, properties: Sequence[str]) -> str:
     fields = ["build_key", *properties]
     if kind == "edge": fields[1:1] = ["source_build_key", "target_build_key"]
@@ -376,16 +379,8 @@ def _effective_sources(*, blueprint: BuildBlueprint, settings: BuildSettings) ->
         sources[source.table] = source
     return tuple(sources[name] for name in sorted(sources))
 
-def _debug_symbols(*, blueprint: BuildBlueprint, plans: Sequence[BindingExecutionPlan], post_process: Sequence[ComponentPostProcessPlan], diagnostics: Sequence[DiagnosticPlan]) -> tuple[DebugSymbolReference, ...]:
-    references: list[DebugSymbolReference] = []
-    for plan in plans:
-        references.append(DebugSymbolReference(artifact=f"binding_plan:{plan.binding_symbol}", symbols=(plan.binding_symbol,)))
-    for plan in post_process:
-        references.append(DebugSymbolReference(artifact=f"relation:{plan.raw_view}", symbols=(f"component:{plan.component}", f"post_processing:{plan.component}")))
-        references.append(DebugSymbolReference(artifact=f"relation:{plan.normalised_view}", symbols=(f"component:{plan.component}", f"post_processing:{plan.component}")))
-    for index, diagnostic in enumerate(diagnostics):
-        references.append(DebugSymbolReference(artifact=f"diagnostic:{index}:{diagnostic.code}", symbols=(f"post_processing:{diagnostic.sql.split(chr(39))[1]}",)))
-    return tuple(references)
+def _debug_symbols(*, steps: Sequence[DuckDBExecutionStep]) -> tuple[DebugSymbolReference, ...]:
+    return tuple(DebugSymbolReference(artifact=step.id, symbols=step.symbols) for step in steps)
 
 def compile_blueprint(*, blueprint: BuildBlueprint, target: object, settings: BuildSettings | None = None) -> BuildContract:
     if not isinstance(target, FileTarget): raise TypeError("the MVP supports FileTarget only")
@@ -401,7 +396,7 @@ def compile_blueprint(*, blueprint: BuildBlueprint, target: object, settings: Bu
             kind=component.kind,
             raw_view=_view_name("raw", component.name),
             normalised_view=_view_name("normalised", component.name),
-            raw_sql=_raw_sql([plan for plan in plans if plan.component == component.name]),
+            raw_sql=_raw_relation_sql([f"kg_binding_{plan.binding_index}" for plan in plans if plan.component == component.name]),
             normalised_sql=_normalised_sql(
                 raw_view=_view_name("raw", component.name),
                 kind=component.kind,
@@ -412,8 +407,24 @@ def compile_blueprint(*, blueprint: BuildBlueprint, target: object, settings: Bu
         if any(plan.component == component.name for plan in plans)
     )
     diagnostics = _diagnostics(graph=blueprint, post_process=post_process)
+    steps: list[DuckDBExecutionStep] = [
+        DuckDBExecutionStep(id=f"binding:{plan.binding_index}", kind="relation", stage="binding", relation=f"kg_binding_{plan.binding_index}", materialization="temporary_table", sql=plan.sql, symbols=(plan.binding_symbol,))
+        for plan in plans
+    ]
+    for plan in post_process:
+        component_bindings = [item for item in plans if item.component == plan.component]
+        dependency_ids = tuple(f"binding:{item.binding_index}" for item in component_bindings)
+        symbols = (f"component:{plan.component}", f"post_processing:{plan.component}")
+        steps.append(DuckDBExecutionStep(id=f"aggregate:{plan.component}", kind="relation", stage="binding_aggregation", inputs=tuple(f"kg_binding_{item.binding_index}" for item in component_bindings), depends_on=dependency_ids, relation=plan.raw_view, component=plan.component, materialization="temporary_table", sql=plan.raw_sql, symbols=symbols))
+        steps.append(DuckDBExecutionStep(id=f"normalise:{plan.component}", kind="relation", stage="post_processing", inputs=(plan.raw_view,), depends_on=(f"aggregate:{plan.component}",), relation=plan.normalised_view, component=plan.component, materialization="temporary_table", sql=plan.normalised_sql, symbols=symbols))
+    normalisation_dependencies = tuple(step.id for step in steps if step.stage == "post_processing")
+    normalisation_relations = tuple(step.relation for step in steps if step.stage == "post_processing" and step.relation)
+    for index, diagnostic in enumerate(diagnostics):
+        component = diagnostic.sql.split(chr(39))[1]
+        steps.append(DuckDBExecutionStep(id=f"diagnostic:{index}:{diagnostic.code}", kind="diagnostic", stage="validation", inputs=normalisation_relations, depends_on=normalisation_dependencies, materialization="none", sql=diagnostic.sql, symbols=(f"post_processing:{component}",), diagnostic_code=diagnostic.code))
+    outputs = tuple(ContractOutput(relation=plan.normalised_view, component=plan.component, kind=plan.kind) for plan in post_process)
     effective_settings = BuildSettings(source_overrides=source_ir, duckdb_threads=requested_settings.duckdb_threads)
-    execution_fingerprint = _fingerprint({"plans": plans, "post_process": post_process, "diagnostics": diagnostics, "target": target.location})
+    execution_fingerprint = _fingerprint({"steps": steps, "outputs": outputs, "target": target.location})
     return BuildContract(
         blueprint=blueprint,
         blueprint_fingerprint=_blueprint_fingerprint(blueprint),
@@ -422,8 +433,7 @@ def compile_blueprint(*, blueprint: BuildBlueprint, target: object, settings: Bu
         requested_settings=requested_settings,
         effective_settings=effective_settings,
         execution_plan_fingerprint=execution_fingerprint,
-        plans=plans,
-        post_process=post_process,
-        diagnostics=diagnostics,
-        debug_symbols=_debug_symbols(blueprint=blueprint, plans=plans, post_process=post_process, diagnostics=diagnostics),
+        execution_plan=tuple(steps),
+        outputs=outputs,
+        debug_symbols=_debug_symbols(steps=steps),
     )

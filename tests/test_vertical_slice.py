@@ -67,7 +67,7 @@ class VerticalSliceTests(unittest.TestCase):
         ], projections=[ExpandedInput], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], post_processing=POST_PROCESSING)
         with TemporaryDirectory() as directory:
             contract = compile_blueprint(blueprint=blueprint, target=FileTarget(str(Path(directory) / "graph.jsonl")))
-            self.assertTrue(any("UNNEST" in plan.sql for plan in contract.plans))
+            self.assertTrue(any("UNNEST" in step.sql for step in contract.execution_plan))
             self.assertTrue(contract.debug_symbols)
             report = build(contract)
             self.assertEqual((report.nodes, report.edges), (5, 3))
@@ -85,9 +85,10 @@ class VerticalSliceTests(unittest.TestCase):
         ], projections=[ExpandedInput], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], post_processing=POST_PROCESSING)
         with TemporaryDirectory() as directory:
             contract = compile_blueprint(blueprint=blueprint, target=FileTarget(str(Path(directory) / "graph.jsonl")))
-            self.assertEqual(len(contract.plans), 3)
-            self.assertNotIn("UNNEST", contract.plans[0].sql)
-            self.assertIn("UNNEST", contract.plans[1].sql)
+            binding_steps = [step for step in contract.execution_plan if step.stage == "binding"]
+            self.assertEqual(len(binding_steps), 3)
+            self.assertNotIn("UNNEST", binding_steps[0].sql)
+            self.assertIn("UNNEST", binding_steps[1].sql)
             report = build(contract)
             self.assertEqual((report.nodes, report.edges, report.diagnostics), (5, 3, ()))
 
