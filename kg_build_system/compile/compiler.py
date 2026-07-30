@@ -9,8 +9,8 @@ from sqlglot import exp
 from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
 from ..data import BoundTable
 from .models import (
-    BindingDefinition, BindingExecutionPlan, BuildBlueprint, BuildContract, BuildSettings,
-    BuildOverrides, ComponentPostProcessPlan, ContractOutput, DiagnosticPlan, ExecutionStep, FileWriteStep, RelationalStep, ValidationStep,
+    BindingDefinition, BuildBlueprint, BuildContract, BuildSettings,
+    BuildOverrides, ContractOutput, ExecutionStep, FileWriteStep, RelationalStep, ValidationStep,
     ComponentDefinition, EdgeBindingDefinition, FieldReference, FileTargetDefinition,
     LiteralValue, NodeBindingDefinition, Operation, PostProcessingDefinition, ProjectionDefinition,
     PropertyDefinition, SourceDefinition, SourceOverride, TargetOverride, Value, ValueType,
@@ -275,12 +275,6 @@ def _quote(name: str) -> str:
 def _view_name(prefix: str, component: str) -> str:
     return f"kg_{prefix}_{component.lower()}"
 
-def _raw_sql(plans: Sequence[BindingExecutionPlan]) -> str:
-    return " UNION ALL ".join(
-        f"SELECT * FROM ({plan.sql}) AS {_quote(f'raw_{plan.binding_index}')}"
-        for plan in plans
-    )
-
 def _raw_relation_sql(relations: Sequence[str]) -> str:
     return " UNION ALL ".join(f"SELECT * FROM {_quote(relation)}" for relation in relations)
 
@@ -291,62 +285,93 @@ def _normalised_sql(*, raw_view: str, kind: str, properties: Sequence[str]) -> s
     select.extend(f"min({_quote(field)}) AS {_quote(field)}" for field in fields[1:])
     return f"SELECT {', '.join(select)} FROM {_quote(raw_view)} GROUP BY {_quote('build_key')}"
 
-def _diagnostics(*, graph: BuildBlueprint, post_process: Sequence[ComponentPostProcessPlan]) -> tuple[DiagnosticPlan, ...]:
+def _validation_steps(
+    *,
+    graph: BuildBlueprint,
+    component_relations: dict[str, tuple[str, str]],
+    normalisation_dependencies: tuple[str, ...],
+    normalisation_relations: tuple[str, ...],
+) -> tuple[ValidationStep, ...]:
     components = {component.name: component for component in graph.components}
-    plans = {plan.component: plan for plan in post_process}
     checks = set(graph.post_processing.validations)
-    diagnostics: list[DiagnosticPlan] = []
-    for plan in post_process:
-        component = components[plan.component]
-        raw = _quote(plan.raw_view)
+    steps: list[ValidationStep] = []
+
+    def add(
+        *,
+        component: str,
+        code: Literal["null_build_key", "null_edge_endpoint", "conflicting_value", "missing_edge_endpoint"],
+        sql: str,
+    ) -> None:
+        steps.append(ValidationStep(
+            id=f"diagnostic:{len(steps)}:{code}",
+            inputs=normalisation_relations,
+            depends_on=normalisation_dependencies,
+            component=component,
+            diagnostic_code=code,
+            sql=sql,
+        ))
+
+    for component_name, component in components.items():
+        relations = component_relations.get(component_name)
+        if relations is None:
+            continue
+        raw_relation, _ = relations
+        raw = _quote(raw_relation)
         if "reject_null_build_keys" in checks:
-            diagnostics.append(DiagnosticPlan(
+            add(
+                component=component_name,
                 code="null_build_key",
-                sql=f"SELECT '{plan.component}' AS component, count(*) AS occurrences FROM {raw} WHERE {_quote('build_key')} IS NULL",
-            ))
+                sql=f"SELECT '{component_name}' AS component, count(*) AS occurrences FROM {raw} WHERE {_quote('build_key')} IS NULL",
+            )
         fields = [property.name for property in component.properties]
-        if plan.kind == "edge":
+        if component.kind == "edge":
             if "reject_null_edge_endpoints" in checks:
-                diagnostics.append(DiagnosticPlan(
+                add(
+                    component=component_name,
                     code="null_edge_endpoint",
-                    sql=(f"SELECT '{plan.component}' AS component, count(*) AS occurrences FROM {raw} "
+                    sql=(f"SELECT '{component_name}' AS component, count(*) AS occurrences FROM {raw} "
                          f"WHERE {_quote('source_build_key')} IS NULL OR {_quote('target_build_key')} IS NULL"),
-                ))
+                )
             fields[0:0] = ["source_build_key", "target_build_key"]
         if "reject_conflicting_non_null_values" not in checks:
             continue
         for field in fields:
-            diagnostics.append(DiagnosticPlan(
+            add(
+                component=component_name,
                 code="conflicting_value",
-                sql=(f"SELECT '{plan.component}' AS component, {_quote('build_key')} AS build_key, '{field}' AS field, "
+                sql=(f"SELECT '{component_name}' AS component, {_quote('build_key')} AS build_key, '{field}' AS field, "
                      f"count(DISTINCT {_quote(field)}) AS distinct_values FROM {raw} "
                      f"WHERE {_quote('build_key')} IS NOT NULL GROUP BY {_quote('build_key')} "
                      f"HAVING count(DISTINCT {_quote(field)}) FILTER (WHERE {_quote(field)} IS NOT NULL) > 1"),
-            ))
+            )
     if "require_edge_endpoints" not in checks:
-        return tuple(diagnostics)
-    for plan in post_process:
-        if plan.kind != "edge":
+        return tuple(steps)
+    for component_name, edge in components.items():
+        relations = component_relations.get(component_name)
+        if relations is None or edge.kind != "edge":
             continue
-        edge = components[plan.component]
         assert edge.source is not None and edge.target is not None
+        _, normalised_relation = relations
         for endpoint, node_component in (("source_build_key", edge.source), ("target_build_key", edge.target)):
-            node = plans.get(node_component)
-            if node is None:
-                diagnostics.append(DiagnosticPlan(
+            node_relations = component_relations.get(node_component)
+            if node_relations is None:
+                add(
+                    component=component_name,
                     code="missing_edge_endpoint",
-                    sql=f"SELECT '{plan.component}' AS component, count(*) AS occurrences FROM {_quote(plan.normalised_view)}",
-                ))
+                    sql=f"SELECT '{component_name}' AS component, count(*) AS occurrences FROM {_quote(normalised_relation)}",
+                )
                 continue
-            diagnostics.append(DiagnosticPlan(
+            _, node_normalised_relation = node_relations
+            add(
+                component=component_name,
                 code="missing_edge_endpoint",
-                sql=(f"SELECT '{plan.component}' AS component, count(*) AS occurrences "
-                     f"FROM {_quote(plan.normalised_view)} AS edge_record "
-                     f"LEFT JOIN {_quote(node.normalised_view)} AS node_record "
+                sql=(f"SELECT '{component_name}' AS component, count(*) AS occurrences "
+                     f"FROM {_quote(normalised_relation)} AS edge_record "
+                     f"LEFT JOIN {_quote(node_normalised_relation)} AS node_record "
                      f"ON edge_record.{_quote(endpoint)} = node_record.{_quote('build_key')} "
                      f"WHERE node_record.{_quote('build_key')} IS NULL"),
-            ))
-    return tuple(diagnostics)
+            )
+    return tuple(steps)
 
 def _fingerprint(value: object) -> str:
     def normalise(item: object) -> object:
@@ -379,42 +404,61 @@ def compile_blueprint(*, blueprint: BuildBlueprint, target: FileTarget | None = 
     source_ir = _effective_sources(blueprint=blueprint, overrides=sources)
     source_overrides = tuple(SourceOverride(table=source.table, original=next((item for item in blueprint.sources if item.table == source.table), None), override=source) for source in (_source_definition(bound_source) for bound_source in sources))
     overrides = BuildOverrides(target=TargetOverride(original=blueprint.target, override=effective_target) if effective_target != blueprint.target else None, sources=source_overrides)
-    plans = tuple(
-        BindingExecutionPlan(binding_index=index, binding_symbol=binding.symbol_id, component=binding.component, kind=binding.kind, sql=_compile_binding_sql(graph=blueprint, sources=source_ir, binding=binding))
-        for index, binding in enumerate(blueprint.bindings)
-    )
-    post_process = tuple(
-        ComponentPostProcessPlan(
-            component=component.name,
-            kind=component.kind,
-            raw_view=_view_name("raw", component.name),
-            normalised_view=_view_name("normalised", component.name),
-            raw_sql=_raw_relation_sql([f"kg_binding_{plan.binding_index}" for plan in plans if plan.component == component.name]),
-            normalised_sql=_normalised_sql(
-                raw_view=_view_name("raw", component.name),
-                kind=component.kind,
-                properties=[property.name for property in component.properties],
-            ),
+    binding_steps = [
+        RelationalStep(
+            id=f"binding:{index}",
+            stage="binding",
+            relation=f"kg_binding_{index}",
+            component=binding.component,
+            materialization="temporary_table",
+            sql=_compile_binding_sql(graph=blueprint, sources=source_ir, binding=binding),
+            binding_symbol=binding.symbol_id,
+            debug_name=binding.debug_name,
         )
-        for component in blueprint.components
-        if any(plan.component == component.name for plan in plans)
-    )
-    diagnostics = _diagnostics(graph=blueprint, post_process=post_process)
-    steps: list[ExecutionStep] = [
-        RelationalStep(id=f"binding:{plan.binding_index}", stage="binding", relation=f"kg_binding_{plan.binding_index}", component=plan.component, materialization="temporary_table", sql=plan.sql, binding_symbol=plan.binding_symbol, debug_name=blueprint.bindings[plan.binding_index].debug_name)
-        for plan in plans
+        for index, binding in enumerate(blueprint.bindings)
     ]
-    for plan in post_process:
-        component_bindings = [item for item in plans if item.component == plan.component]
-        dependency_ids = tuple(f"binding:{item.binding_index}" for item in component_bindings)
-        steps.append(RelationalStep(id=f"aggregate:{plan.component}", stage="binding_aggregation", inputs=tuple(f"kg_binding_{item.binding_index}" for item in component_bindings), depends_on=dependency_ids, relation=plan.raw_view, component=plan.component, materialization="temporary_table", sql=plan.raw_sql))
-        steps.append(RelationalStep(id=f"normalise:{plan.component}", stage="post_processing", inputs=(plan.raw_view,), depends_on=(f"aggregate:{plan.component}",), relation=plan.normalised_view, component=plan.component, materialization="temporary_table", sql=plan.normalised_sql))
+    steps: list[ExecutionStep] = [*binding_steps]
+    component_relations: dict[str, tuple[str, str]] = {}
+    for component in blueprint.components:
+        component_bindings = [step for step in binding_steps if step.component == component.name]
+        if not component_bindings:
+            continue
+        raw_relation = _view_name("raw", component.name)
+        normalised_relation = _view_name("normalised", component.name)
+        component_relations[component.name] = (raw_relation, normalised_relation)
+        steps.append(RelationalStep(
+            id=f"aggregate:{component.name}",
+            stage="binding_aggregation",
+            inputs=tuple(step.relation for step in component_bindings),
+            depends_on=tuple(step.id for step in component_bindings),
+            relation=raw_relation,
+            component=component.name,
+            materialization="temporary_table",
+            sql=_raw_relation_sql([step.relation for step in component_bindings]),
+        ))
+        steps.append(RelationalStep(
+            id=f"normalise:{component.name}",
+            stage="post_processing",
+            inputs=(raw_relation,),
+            depends_on=(f"aggregate:{component.name}",),
+            relation=normalised_relation,
+            component=component.name,
+            materialization="temporary_table",
+            sql=_normalised_sql(raw_view=raw_relation, kind=component.kind, properties=[property.name for property in component.properties]),
+        ))
     normalisation_dependencies = tuple(step.id for step in steps if step.stage == "post_processing")
     normalisation_relations = tuple(step.relation for step in steps if step.stage == "post_processing" and step.relation)
-    for index, diagnostic in enumerate(diagnostics):
-        component = diagnostic.sql.split(chr(39))[1]
-        steps.append(ValidationStep(id=f"diagnostic:{index}:{diagnostic.code}", inputs=normalisation_relations, depends_on=normalisation_dependencies, sql=diagnostic.sql, component=component, diagnostic_code=diagnostic.code))
-    outputs = tuple(ContractOutput(relation=plan.normalised_view, component=plan.component, kind=plan.kind) for plan in post_process)
+    steps.extend(_validation_steps(
+        graph=blueprint,
+        component_relations=component_relations,
+        normalisation_dependencies=normalisation_dependencies,
+        normalisation_relations=normalisation_relations,
+    ))
+    outputs = tuple(
+        ContractOutput(relation=component_relations[component.name][1], component=component.name, kind=component.kind)
+        for component in blueprint.components
+        if component.name in component_relations
+    )
     diagnostic_dependencies = tuple(step.id for step in steps if step.kind == "diagnostic")
     steps.append(FileWriteStep(id="write:file", inputs=tuple(output.relation for output in outputs), depends_on=diagnostic_dependencies, target=effective_target, write_outputs=outputs))
     execution_fingerprint = _fingerprint({"steps": steps})

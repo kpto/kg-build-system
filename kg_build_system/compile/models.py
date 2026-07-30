@@ -148,28 +148,6 @@ class FileTargetDefinition(IRModel):
     kind: Literal["file"] = "file"
     location: str = Field(min_length=1)
 
-class BindingExecutionPlan(IRModel):
-    """A self-contained, target-specific record stream for one binding."""
-    binding_index: int = Field(ge=0)
-    binding_symbol: str = Field(min_length=1)
-    component: str = Field(min_length=1)
-    kind: Literal["node", "edge"]
-    sql: str = Field(min_length=1)
-
-class ComponentPostProcessPlan(IRModel):
-    """DuckDB relations that normalise every record for one graph component."""
-    component: str = Field(min_length=1)
-    kind: Literal["node", "edge"]
-    raw_view: str = Field(min_length=1)
-    normalised_view: str = Field(min_length=1)
-    raw_sql: str = Field(min_length=1)
-    normalised_sql: str = Field(min_length=1)
-
-class DiagnosticPlan(IRModel):
-    """A query that yields structural graph-build failures."""
-    code: Literal["null_build_key", "null_edge_endpoint", "conflicting_value", "missing_edge_endpoint"]
-    sql: str = Field(min_length=1)
-
 class ContractOutput(IRModel):
     relation: str = Field(min_length=1)
     component: str = Field(min_length=1)
