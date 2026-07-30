@@ -32,6 +32,10 @@ class Evidence:
     disease_id: Field[str] = field(name="disease_id")
     labels: Field[list[str]] = field(name="labels")
 
+@struct
+class StudyDetails:
+    name: Field[str] = field(name="name")
+
 @table(name="association")
 class Association:
     target_id: Field[str] = field(name="target_id")
@@ -43,7 +47,7 @@ class Association:
 @table(name="study")
 class Study:
     id: Field[str] = field(name="id")
-    name: Field[str] = field(name="name")
+    details: Field[StudyDetails] = field(name="details")
 
 @projection
 class AssociationTable:
@@ -59,9 +63,9 @@ source = bind_source(target=Association, config=DataSourceConfig(str(root / "ass
 study_source = bind_source(target=Study, config=DataSourceConfig(str(root / "studies.json"), format=InputFormat.JSON))
 graph = compile_graph(bindings=[
     node_binding(target=Target, build_key=Association.target_id, properties=Target(symbol=bind(Association.target_symbol))),
-    node_binding(target=StudyNode, build_key=Study.id, properties=StudyNode(name=bind(Study.name))),
+    node_binding(target=StudyNode, build_key=Study.id, properties=StudyNode(name=bind(Study.details.name))),
     node_binding(target=Disease, build_key=AssociationTable.disease_id, properties=Disease(name=bind(AssociationTable.disease_id))),
-    edge_binding(target=AssociatedWith, build_key=value.deterministic_uuid(value.concat(AssociationTable.target_id, AssociationTable.disease_id, AssociationTable.evidence_label)), source_build_key=AssociationTable.target_id, target_build_key=AssociationTable.disease_id, properties=AssociatedWith(score=bind(AssociationTable.score), study_name=bind(lookup.one(key=AssociationTable.study_id, match=Study.id, value=Study.name, as_type=str)), evidence_disease_id=bind(AssociationTable.disease_id), evidence_label=bind(AssociationTable.evidence_label))),
+    edge_binding(target=AssociatedWith, build_key=value.deterministic_uuid(value.concat(AssociationTable.target_id, AssociationTable.disease_id, AssociationTable.evidence_label)), source_build_key=AssociationTable.target_id, target_build_key=AssociationTable.disease_id, properties=AssociatedWith(score=bind(AssociationTable.score), study_name=bind(lookup.one(key=AssociationTable.study_id, match=Study.id, value=Study.details.name, as_type=str)), evidence_disease_id=bind(AssociationTable.disease_id), evidence_label=bind(AssociationTable.evidence_label))),
 ], projections=[AssociationTable])
 definition = compile_build(graph=graph, sources=[source, study_source], target=FileTarget(str(root / "graph.jsonl")))
 

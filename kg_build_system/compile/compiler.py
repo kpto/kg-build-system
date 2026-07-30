@@ -208,7 +208,11 @@ def _compile_binding_sql(*, graph: CompiledGraphDefinition, sources: tuple[Sourc
         unnest = exp.Unnest(expressions=[_render(expand.args[0], aliases, projections, expand_aliases)], alias=exp.TableAlias(this=_identifier(alias, quoted=False), columns=[_identifier("item", quoted=False)]))
         query = query.join(unnest, join_type="CROSS")
     direct_fields = {
-        (field.table, field.path): field
+        # Retain a direct nested field's top-level struct in a projection CTE.
+        # The executor evaluates the binding's original FieldReference path
+        # against that CTE, so flattening it to only its leaf would make paths
+        # such as Study.details.name invalid at execution time.
+        (field.table, (field.path[0],)): field.model_copy(update={"path": (field.path[0],)})
         for value in binding_values
         for field in _field_references(value)
         if field.table not in projections
