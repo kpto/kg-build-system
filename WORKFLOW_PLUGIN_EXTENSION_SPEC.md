@@ -18,38 +18,57 @@ all workflow steps; no role receives special scheduling treatment.
   authoring Python classes.
 - Contracts retain credential references only; resolved credentials are
   runtime-only.
-- Targets may consume core artifacts and publish target-owned artifacts, but
-  may not change core graph semantics or make core work depend on target work.
+- Modules may consume core artifacts and publish module-owned artifacts, but
+  may not change core graph semantics or make core work depend on module work.
 
-## Workflow modules and target configuration
+## Workflow modules and runtime configuration
 
-Workflow modules are resolved through a registry using a serialised kind.
-Python module objects are never stored in a blueprint or build contract.
+Each workflow-module class has a stable, static module ID. The ID is semantic:
+it is used as the module namespace for steps, slots, artifact roles,
+diagnostics, runtime configuration, and annotations the module owns. A
+compiled workflow may contain at most one configured instance of a module ID.
+
+The compiled definition also records an operational Python import location for
+the module class. At compilation, the compiler derives that location from the
+author-supplied module class, verifies that the class's static ID matches the
+declared module ID, and rejects classes that cannot be reliably re-imported.
+At runtime, the executor imports that class and delegates step execution to
+it. Python class or module objects are never stored in a blueprint or build
+contract.
 
 Modules are supplied in a uniquely ordered list. This order is module
 priority: it resolves competing workflow-assembly preferences and provides
 deterministic tie-breaking; it is not execution order.
 
-A target configuration has a stable target ID and a target kind. The kind
-selects the workflow-module implementation; the ID identifies this configured target
-instance. Target-owned step, slot, artifact, diagnostic, and result identifiers
-are namespaced by that target ID.
+There is no target configuration or target-specific policy in the workflow
+model. A file writer, database writer, source reader, validator, or cleanup
+provider is a workflow module. Modules may inspect canonical topology
+annotations, but no central annotation policy interprets them on their behalf.
 
 ## Workflow data model
 
 The workflow contract contains only immutable, serialisable definitions. The
-registry resolves each `module_kind` to its Python implementation at compile
-and runtime; the implementation object itself is never serialised.
+executor resolves each compiled module reference to its Python implementation
+at runtime; the implementation object itself is never serialised.
 
 ```text
-WorkflowModuleReference
-  module_kind
+ModuleReference
+  module_id
+  import_module
+  class_qualname
+  implementation_version
+  priority
 
-TargetDefinition
-  target_id
-  module_kind
-  configuration
-  unsupported_annotation_policy
+CompiledModule
+  reference
+  runtime_fields
+
+RuntimeFieldDefinition
+  key
+  description
+  required
+  value_type
+  secret
 
 ArtifactRole
   namespace
@@ -61,31 +80,42 @@ OutputSlot
 
 SingleInputSlot
   slot_id
-  artifact_matcher
 
 CollectionInputSlot
   slot_id
-  artifact_matcher
 
 WorkflowStep
   step_id
-  module_kind
+  module_id
   assembly_preference: eager | deferred
   inputs
   outputs
-  auxiliary: bool
-  configuration
+  payload
 
 Connection
   input_slot_id
   output_slot_id
 
 WorkflowDefinition
+  modules
   steps
   connections
-  beginning_step_id
-  termination_step_id
 ```
+
+`module_id` identifies one configured module in a workflow. Supporting two
+independently configured instances of the same implementation requires either
+a module designed to accept multiple declared outputs or a future explicit
+module-instance-ID model; it is not implicit in the initial design.
+
+`import_module` and `class_qualname` are operational import coordinates, not
+semantic namespaces. `implementation_version` is a package version or other
+stable implementation fingerprint used to reject an incompatible runtime
+implementation.
+
+Runtime configuration field values are not stored in the contract. The
+contract records their definitions, and runtime supplies values as a mapping
+by module ID and field key. `secret` fields must never enter workflow payloads,
+diagnostics, manifests, or fingerprints.
 
 `ArtifactRole` is semantic and has no physical-location, relation-name, or
 producer identity. `OutputSlot.slot_id` identifies the producer-specific
@@ -96,18 +126,82 @@ selected compatible output slot. A `CollectionInputSlot` resolves to every
 selected compatible output slot and therefore has one connection per selected
 output. There is no workflow-slot `cardinality` field: cardinality already
 describes values within data expressions and must not be conflated with the
-number of artifact connections.
+number of artifact connections. An output slot may connect to any number of
+inputs.
 
-The matcher determines the candidate output slots. Assembly preference and
-module priority determine which candidate a single input selects; collection
-inputs retain every selected candidate. An output slot may connect to any
-number of inputs.
+Each workflow module supplies candidate predicates for its own input slots as
+part of its compile-only step drafts. A predicate receives only compiled
+definitions and the complete declared slot table, and determines whether a
+declared output slot is a candidate for a declared input slot. It is
+deterministic, pure, and synchronous: it cannot inspect runtime configuration,
+resolved credentials, physical artifacts, or execution state. The contract
+retains resolved connections, not Python predicate objects.
+
+Assembly preference and module priority determine which candidate a single
+input selects; collection inputs retain every candidate selected by their
+module's predicate.
+
+## Workflow-module interface
+
+A module class participates in runtime execution. The module class is located
+from the compiled import coordinates; the class object is not stored in the
+workflow contract:
+
+```python
+class WorkflowModule(Protocol):
+    ID: ClassVar[str]
+
+    @classmethod
+    async def create_runtime(
+        cls,
+        configuration: Mapping[str, JsonValue],
+    ) -> StepExecutor: ...
+```
+
+```python
+class StepExecutor(Protocol):
+    async def execute_step(
+        self,
+        context: ModuleExecutionContext,
+        step: WorkflowStep,
+    ) -> StepOutcome: ...
+```
+
+An author supplies a compile-time contributor object to `compile_blueprint`.
+It may be an instance of the module class, but that is a convention rather
+than a requirement:
+
+```python
+class ModuleContributor(Protocol):
+    @property
+    def module_class(self) -> type[WorkflowModule]: ...
+
+    async def declare(
+        self,
+        context: ModuleCompilationContext,
+    ) -> ModuleDeclarationDraft: ...
+```
+
+`declare` receives immutable compiled definitions and effective compilation
+configuration. It returns a compile-only `ModuleDeclarationDraft`: serialisable
+module and step definitions plus candidate predicates for its input slots. The
+compiler calls every contributor's `declare` before candidate discovery,
+retains only the serialisable definitions and resolved connections in the
+contract, and owns selection, connection creation, and graph validation.
+
+At runtime, the executor validates and supplies the module's declared runtime
+configuration values to `create_runtime`. The returned `StepExecutor` runs
+only after the contract is frozen and receives the resolved artifact inputs
+for each step. Modules may validate their own runtime configuration inside
+`create_runtime`.
 
 ## Steps, slots, and artifacts
 
-Every module declares all of its steps before workflow assembly begins. A step
-may depend directly on other steps, discover compatible artifact slots, have
-no dependencies, expose output slots, or consume input slots.
+Every module declares all of its steps before workflow assembly begins. A
+compile-only step draft may declare candidate predicates for its input slots.
+A serialised workflow step has no direct dependency list: connections are its
+only dependencies. It may have no inputs, expose output slots, consume input
+slots, or both consume and produce slots.
 
 An output slot describes one logical artifact. Artifacts may be relations,
 CTEs, streams, diagnostics, external-resource handles, manifests, reports, or
@@ -150,9 +244,12 @@ module created the current continuation.
 
 ## Workflow assembly
 
-Assembly is global and non-greedy. The compiler puts every declared step and
-slot on one table before resolving any connection. An output is a candidate
-even when its producing step has not yet had its own inputs connected.
+Assembly is global and non-greedy. The compiler first asks every resolved
+module to declare its serialisable steps and slots from compiled definitions.
+It then puts every declared step and slot on one table before evaluating
+module candidate predicates or resolving any connection. An output is a
+candidate even when its producing step has not yet had its own inputs
+connected.
 
 Each step declares one assembly preference:
 
@@ -164,8 +261,8 @@ Connection claims are resolved in this deterministic order:
 1. `eager` steps from higher-priority modules to lower-priority modules;
 2. `deferred` steps from lower-priority modules to higher-priority modules.
 
-For a compatible input, assembly prefers an open output slot. If it must use
-an already-used output, it prefers the latest compatible output according to
+For a candidate input/output pair, assembly prefers an open output slot. If it
+must use an already-used output, it prefers the latest compatible output according to
 the deterministic assembly ordering. This produces a preferred continuation
 without preventing useful fan-out. Missing or unresolved equally preferred
 connections are compilation diagnostics.
@@ -174,28 +271,34 @@ Once every connection is resolved, it becomes a dependency edge. The resulting
 dependency graph, rather than module priority or assembly preference, defines
 runtime execution order.
 
-## Boundaries, execution, and failures
+## Execution and failures
 
-Every workflow has exactly one explicit beginning step and one explicit
-termination step, using reserved boundary slots. The termination step produces
-the single build result. A slotless side-effect step does not satisfy the build
-completion contract merely because it executed successfully.
+There are no reserved boundary steps or slots. A beginning step is an ordinary
+step with no input slots. A termination step is an ordinary step with no
+output slots. A workflow may have multiple beginnings and multiple
+terminations.
 
-Compilation rejects missing or duplicate boundaries, missing connections,
-ambiguous connections, cycles, unreachable steps, and steps that cannot
-contribute to termination unless explicitly declared auxiliary.
+The executor completes a build when every declared step has reached an
+outcome. The build result aggregates sink-step outcomes, produced artifacts,
+diagnostics, recovered failures, and unresolved failures. A no-output
+side-effect step is therefore a sink, not an implicit single build result.
+
+Compilation rejects missing connections, ambiguous connections, and cycles.
+Cleanup is also an ordinary step: it must have explicit input connections to
+the work or failure-aware artifacts it needs, and it has no hidden scheduling
+priority.
 
 Each step handler has normal and errored paths. A failed step is still
 completed and passes its failure to downstream steps. A downstream step
 normally propagates that failure through its errored handler, but may recover
 it or produce failure-aware artifacts. Runtime never adds steps.
 
-Cleanup is a terminal step with both normal and errored handlers. It releases
-ordinary resources on success and can inspect propagated failures to clean up
-partial work. The final result reports unresolved failures, recovered failures,
-diagnostics, produced artifacts, and step outcomes.
+The final result reports unresolved failures, recovered failures, diagnostics,
+produced artifacts, and step outcomes. Runtime artifacts and step outcomes are
+runtime-only models; slots and artifact roles remain serialised workflow
+semantics and do not dictate physical materialisation.
 
-## Topology annotations and target capabilities
+## Topology annotations and module interpretation
 
 Topology annotations are canonical graph metadata, not target configuration.
 They are immutable, serialisable, namespaced entries on component and property
@@ -203,23 +306,27 @@ definitions. The core preserves them and includes them in the blueprint
 fingerprint. Modules receive the compiled topology and may interpret supported
 annotations.
 
-Target configuration declares its unsupported-annotation policy: `error`,
-`warning`, or `preserve`. A target may translate supported annotations into its
-own workflow steps and artifacts.
+Modules may translate annotations they understand into their own workflow
+steps and artifacts. Unknown annotations remain canonical metadata; the core
+does not apply a central unsupported-annotation policy.
 
 ## Runtime context and initial implementation
 
-A workflow-module execution context supplies the immutable contract, resolved runtime
-configuration, declared artifact inputs, and a result collector. It does not
-expose authoring classes or unrestricted compiler state.
+A workflow-module execution context supplies the immutable contract, resolved
+runtime configuration, declared artifact inputs, and a result collector. It
+does not expose authoring classes or unrestricted compiler state. Runtime
+configuration is structured as `module_id -> field key -> value`. Candidate
+predicates are never invoked at runtime: execution uses only the connections
+frozen in the contract.
 
 The first implementation slice is:
 
-1. Add serialisable workflow steps, slots, artifact roles, connections,
-   target definitions, and result models.
+1. Add serialisable module references, runtime-field definitions, workflow
+   steps, slots, artifact roles, connections, and result models.
 2. Implement global workflow assembly, validation, and deterministic
    scheduling.
-3. Add the workflow-module registry and runtime dispatch, including failure propagation.
+3. Add contributor-based compilation, module import resolution, and runtime
+   dispatch, including failure propagation.
 4. Convert the file target into a workflow module without changing its authoring
    syntax; move JSONL writing from the generic executor into that module.
 5. Have the file module select core graph-record artifact roles and emit graph
