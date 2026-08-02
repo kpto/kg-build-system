@@ -3,6 +3,7 @@
 from __future__ import annotations
 from collections.abc import Iterable, Sequence
 import asyncio
+import importlib
 from hashlib import sha256
 import json
 from typing import Any, Literal, cast
@@ -10,16 +11,16 @@ from sqlglot import exp
 from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
 from ..data import BoundTable
 from .models import (
-    ArtifactRole, BindingDefinition, BuildBlueprint, BuildContract, BuildSettings,
+    ArtifactRole, BindingDefinition, BlueprintModule, BuildBlueprint, BuildContract, BuildSettings,
     BuildOverrides, CollectionInputSlot, CompiledModule, ComponentDefinition,
     Connection, EdgeBindingDefinition, FieldReference, LiteralValue, ModuleReference,
-    NodeBindingDefinition, Operation, OutputSlot, PostProcessingDefinition,
+    NodeBindingDefinition, Operation, OutputSlot,
     ProjectionDefinition, PropertyDefinition, SingleInputSlot, SourceDefinition,
     SourceOverride, Value, ValueType, WorkflowDefinition, WorkflowStep,
 )
 from ..expressions import Expression, FieldPath
 from .._support.annotations import type_name, type_shape
-from ..modules.workflow import ModuleContributor, WorkflowStepDraft, role_is
+from ..modules.workflow import ModuleContributor, WorkflowStepDraft
 
 def _property_expressions(binding: NodeBinding | EdgeBinding) -> dict[str, Expression[Any]]:
     values: dict[str, Expression[Any]] = {}
@@ -78,7 +79,24 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
 def _source_definition(source: BoundTable) -> SourceDefinition:
     return SourceDefinition(table=source.table.__name__, location=source.config.location, format=source.config.format.value, credential_reference=source.config.credentials, version=source.config.version)
 
-def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = (), sources: Sequence[BoundTable] = (), modules: Sequence[Any]) -> BuildBlueprint:
+def _blueprint_module(contributor: ModuleContributor) -> BlueprintModule:
+    contributor_class = type(contributor)
+    module_class = contributor.module_class
+    module_id = getattr(module_class, "ID", None)
+    if not isinstance(module_id, str):
+        raise TypeError("workflow module classes must declare a string ID")
+    if "<locals>" in contributor_class.__qualname__:
+        raise ValueError("workflow contributors must be importable top-level classes")
+    configuration = getattr(contributor, "blueprint_configuration", None)
+    return BlueprintModule(
+        module_id=module_id,
+        contributor_module=contributor_class.__module__,
+        contributor_qualname=contributor_class.__qualname__,
+        configuration=configuration,
+    )
+
+
+def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = (), sources: Sequence[BoundTable] = (), modules: Sequence[ModuleContributor]) -> BuildBlueprint:
     authoring_bindings = tuple(bindings)
     if not authoring_bindings: raise ValueError("a graph requires at least one binding")
     for binding in authoring_bindings: _validate_authoring_binding(binding)
@@ -92,12 +110,10 @@ def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projectio
         occurrences[digest] = occurrences.get(digest, 0) + 1
         suffix = "" if occurrences[digest] == 1 else f":{occurrences[digest]}"
         binding_definitions.append(_binding(binding, symbol_id=f"binding:{digest}{suffix}"))
-    normalisation_modules = [module for module in modules if isinstance(getattr(module, "definition", None), PostProcessingDefinition)]
-    if len(normalisation_modules) != 1:
-        raise ValueError("create_blueprint requires exactly one graph-normalisation module")
-    blueprint = BuildBlueprint(components=tuple(_component(component) for component in components), projections=projection_ir, bindings=tuple(binding_definitions), sources=tuple(_source_definition(source) for source in sources), post_processing=normalisation_modules[0].definition)
-    object.__setattr__(blueprint, "_contributors", tuple(module for module in modules if module not in normalisation_modules))
-    return blueprint
+    module_definitions = tuple(_blueprint_module(module) for module in modules)
+    if len({module.module_id for module in module_definitions}) != len(module_definitions):
+        raise ValueError("blueprint module IDs must be unique")
+    return BuildBlueprint(components=tuple(_component(component) for component in components), projections=projection_ir, bindings=tuple(binding_definitions), sources=tuple(_source_definition(source) for source in sources), modules=module_definitions)
 
 def _projection_value(value: Value, projections: dict[str, ProjectionDefinition]) -> Value:
     if isinstance(value, FieldReference) and value.table in projections and len(value.path) == 1: return projections[value.table].fields[value.path[0]]
@@ -279,107 +295,6 @@ def _compile_binding_sql(*, graph: BuildBlueprint, sources: tuple[SourceDefiniti
 def _quote(name: str) -> str:
     return '"' + name.replace('"', '""') + '"'
 
-def _view_name(prefix: str, component: str) -> str:
-    return f"kg_{prefix}_{component.lower()}"
-
-def _raw_relation_sql(relations: Sequence[str]) -> str:
-    return " UNION ALL ".join(f"SELECT * FROM {_quote(relation)}" for relation in relations)
-
-def _normalised_sql(*, raw_view: str, kind: str, properties: Sequence[str]) -> str:
-    fields = ["build_key", *properties]
-    if kind == "edge": fields[1:1] = ["source_build_key", "target_build_key"]
-    select = [_quote("build_key")]
-    select.extend(f"min({_quote(field)}) AS {_quote(field)}" for field in fields[1:])
-    return f"SELECT {', '.join(select)} FROM {_quote(raw_view)} GROUP BY {_quote('build_key')}"
-
-def _validation_steps(
-    *,
-    graph: BuildBlueprint,
-    component_relations: dict[str, tuple[str, str]],
-    normalisation_dependencies: tuple[str, ...],
-    normalisation_relations: tuple[str, ...],
-) -> tuple[ValidationStep, ...]:
-    components = {component.name: component for component in graph.components}
-    checks = set(graph.post_processing.validations)
-    steps: list[ValidationStep] = []
-
-    def add(
-        *,
-        component: str,
-        code: Literal["null_build_key", "null_edge_endpoint", "conflicting_value", "missing_edge_endpoint"],
-        sql: str,
-    ) -> None:
-        steps.append(ValidationStep(
-            id=f"diagnostic:{len(steps)}:{code}",
-            inputs=normalisation_relations,
-            depends_on=normalisation_dependencies,
-            component=component,
-            diagnostic_code=code,
-            sql=sql,
-        ))
-
-    for component_name, component in components.items():
-        relations = component_relations.get(component_name)
-        if relations is None:
-            continue
-        raw_relation, _ = relations
-        raw = _quote(raw_relation)
-        if "reject_null_build_keys" in checks:
-            add(
-                component=component_name,
-                code="null_build_key",
-                sql=f"SELECT '{component_name}' AS component, count(*) AS occurrences FROM {raw} WHERE {_quote('build_key')} IS NULL",
-            )
-        fields = [property.name for property in component.properties]
-        if component.kind == "edge":
-            if "reject_null_edge_endpoints" in checks:
-                add(
-                    component=component_name,
-                    code="null_edge_endpoint",
-                    sql=(f"SELECT '{component_name}' AS component, count(*) AS occurrences FROM {raw} "
-                         f"WHERE {_quote('source_build_key')} IS NULL OR {_quote('target_build_key')} IS NULL"),
-                )
-            fields[0:0] = ["source_build_key", "target_build_key"]
-        if "reject_conflicting_non_null_values" not in checks:
-            continue
-        for field in fields:
-            add(
-                component=component_name,
-                code="conflicting_value",
-                sql=(f"SELECT '{component_name}' AS component, {_quote('build_key')} AS build_key, '{field}' AS field, "
-                     f"count(DISTINCT {_quote(field)}) AS distinct_values FROM {raw} "
-                     f"WHERE {_quote('build_key')} IS NOT NULL GROUP BY {_quote('build_key')} "
-                     f"HAVING count(DISTINCT {_quote(field)}) FILTER (WHERE {_quote(field)} IS NOT NULL) > 1"),
-            )
-    if "require_edge_endpoints" not in checks:
-        return tuple(steps)
-    for component_name, edge in components.items():
-        relations = component_relations.get(component_name)
-        if relations is None or edge.kind != "edge":
-            continue
-        assert edge.source is not None and edge.target is not None
-        _, normalised_relation = relations
-        for endpoint, node_component in (("source_build_key", edge.source), ("target_build_key", edge.target)):
-            node_relations = component_relations.get(node_component)
-            if node_relations is None:
-                add(
-                    component=component_name,
-                    code="missing_edge_endpoint",
-                    sql=f"SELECT '{component_name}' AS component, count(*) AS occurrences FROM {_quote(normalised_relation)}",
-                )
-                continue
-            _, node_normalised_relation = node_relations
-            add(
-                component=component_name,
-                code="missing_edge_endpoint",
-                sql=(f"SELECT '{component_name}' AS component, count(*) AS occurrences "
-                     f"FROM {_quote(normalised_relation)} AS edge_record "
-                     f"LEFT JOIN {_quote(node_normalised_relation)} AS node_record "
-                     f"ON edge_record.{_quote(endpoint)} = node_record.{_quote('build_key')} "
-                     f"WHERE node_record.{_quote('build_key')} IS NULL"),
-            )
-    return tuple(steps)
-
 def _fingerprint(value: object) -> str:
     def normalise(item: object) -> object:
         if hasattr(item, "model_dump"):
@@ -405,48 +320,38 @@ def _effective_sources(*, blueprint: BuildBlueprint, overrides: Sequence[BoundTa
         sources[source.table] = source
     return tuple(sources[name] for name in sorted(sources))
 
-async def _compile_blueprint(*, blueprint: BuildBlueprint, modules: Sequence[ModuleContributor], sources: Sequence[BoundTable] = (), settings: BuildSettings | None = None) -> BuildContract:
+def _load_contributor(definition: BlueprintModule) -> ModuleContributor:
+    contributor_class: Any = importlib.import_module(definition.contributor_module)
+    for part in definition.contributor_qualname.split("."):
+        contributor_class = getattr(contributor_class, part)
+    factory = getattr(contributor_class, "from_blueprint_configuration", None)
+    if factory is not None:
+        contributor = factory(definition.configuration)
+    elif definition.configuration is None:
+        contributor = contributor_class()
+    else:
+        raise TypeError(f"workflow contributor {definition.module_id!r} does not accept blueprint configuration")
+    module_id = getattr(contributor.module_class, "ID", None)
+    if module_id != definition.module_id:
+        raise RuntimeError(f"blueprint module {definition.module_id!r} resolved to {module_id!r}")
+    return contributor
+
+
+async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[BoundTable] = (), settings: BuildSettings | None = None) -> BuildContract:
     """Compile core DuckDB work and contributor declarations into one workflow."""
     source_ir = _effective_sources(blueprint=blueprint, overrides=sources)
     overrides = BuildOverrides(sources=tuple(SourceOverride(table=item.table, original=next((old for old in blueprint.sources if old.table == item.table), None), override=item) for item in (_source_definition(source) for source in sources)))
     core = CompiledModule(reference=ModuleReference(module_id="core", import_module="kg_build_system.modules.core", class_qualname="CoreModule", implementation_version="1", priority=0))
     drafts: list[WorkflowStepDraft] = []
-    roles: dict[str, ArtifactRole] = {}
     def output(step_id: str, role: ArtifactRole, payload: dict[str, Any], inputs: tuple[Any, ...] = ()) -> WorkflowStep:
-        slot = f"core::{step_id}.output"; roles[slot] = role
+        slot = f"core::{step_id}.output"
         return WorkflowStep(step_id=f"core::{step_id}", module_id="core", inputs=inputs, outputs=(OutputSlot(slot_id=slot, artifact_role=role),), payload=payload)
-    binding_slots: dict[str, str] = {}
     for index, binding in enumerate(blueprint.bindings):
-        step_id = f"binding.{index}"; slot = f"core::{step_id}.output"; binding_slots[binding.symbol_id] = slot
+        step_id = f"binding.{index}"
         step = output(step_id, ArtifactRole(namespace="core", name=f"relation.binding.{index}"), {"action":"relation", "relation":f"kg_binding_{index}", "sql":_compile_binding_sql(graph=blueprint, sources=source_ir, binding=binding), "materialization":"temporary_table"})
         drafts.append(WorkflowStepDraft(step, {}))
-    normalised_slots: list[str] = []
-    for component in blueprint.components:
-        members = [(index, binding) for index, binding in enumerate(blueprint.bindings) if binding.component == component.name]
-        if not members: continue
-        raw = _view_name("raw", component.name); norm = _view_name("normalised", component.name)
-        aggregate_inputs = tuple(SingleInputSlot(slot_id=f"core::aggregate.{component.name}.input.{index}") for index, _ in members)
-        aggregate = output(f"aggregate.{component.name}", ArtifactRole(namespace="core", name=f"relation.raw.{component.name}"), {"action":"relation", "relation":raw, "sql":_raw_relation_sql([f"kg_binding_{index}" for index, _ in members]), "materialization":"temporary_table"}, aggregate_inputs)
-        aggregate_candidates = {input.slot_id: role_is(ArtifactRole(namespace="core", name=f"relation.binding.{index}")) for input, (index, _) in zip(aggregate_inputs, members, strict=True)}
-        drafts.append(WorkflowStepDraft(aggregate, aggregate_candidates))
-        normalise_input = SingleInputSlot(slot_id=f"core::normalise.{component.name}.input")
-        record_role = ArtifactRole(namespace="core", name=f"graph.records.{component.kind}.{component.name}")
-        normalise = output(f"normalise.{component.name}", record_role, {"action":"relation", "relation":norm, "sql":_normalised_sql(raw_view=raw, kind=component.kind, properties=[property.name for property in component.properties]), "materialization":"temporary_table", "component":component.name, "component_kind":component.kind}, (normalise_input,))
-        drafts.append(WorkflowStepDraft(normalise, {normalise_input.slot_id: role_is(ArtifactRole(namespace="core", name=f"relation.raw.{component.name}"))}))
-        normalised_slots.append(normalise.outputs[0].slot_id)
-        if "reject_conflicting_non_null_values" in blueprint.post_processing.validations:
-            for property_definition in component.properties:
-                diagnostic_input = CollectionInputSlot(slot_id=f"core::diagnostic.{component.name}.{property_definition.name}.input")
-                diagnostic = output(
-                    f"diagnostic.{component.name}.{property_definition.name}",
-                    ArtifactRole(namespace="core", name=f"diagnostic.conflicting_value.{component.name}.{property_definition.name}"),
-                    {"action":"diagnostic", "component":component.name, "field":property_definition.name,
-                     "sql":f"SELECT build_key, count(DISTINCT \"{property_definition.name}\") AS values FROM \"{raw}\" WHERE build_key IS NOT NULL GROUP BY build_key HAVING count(DISTINCT \"{property_definition.name}\") FILTER (WHERE \"{property_definition.name}\" IS NOT NULL) > 1"},
-                    (diagnostic_input,),
-                )
-                drafts.append(WorkflowStepDraft(diagnostic, {diagnostic_input.slot_id: lambda _input, slot: slot.artifact_role.namespace == "core" and slot.artifact_role.name.startswith("graph.records.")}))
     declarations = []
-    for contributor in modules:
+    for contributor in (_load_contributor(module) for module in blueprint.modules):
         declaration = await contributor.declare(blueprint)
         module_class = contributor.module_class
         module_id = getattr(module_class, "ID", None)
@@ -489,5 +394,5 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, modules: Sequence[Mod
 
 
 def compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[BoundTable] = (), settings: BuildSettings | None = None) -> BuildContract:
-    """Compile the in-memory module contributors selected with the blueprint."""
-    return asyncio.run(_compile_blueprint(blueprint=blueprint, modules=blueprint._contributors, sources=sources, settings=settings))
+    """Compile a complete semantic blueprint into its frozen workflow contract."""
+    return asyncio.run(_compile_blueprint(blueprint=blueprint, sources=sources, settings=settings))

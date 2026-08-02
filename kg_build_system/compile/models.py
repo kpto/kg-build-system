@@ -1,9 +1,9 @@
 """Canonical immutable declaration, compilation, and workflow IR."""
 from __future__ import annotations
 
-from typing import Annotated, Any, Literal, Self
+from typing import Annotated, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, PrivateAttr, model_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
 
 
 class IRModel(BaseModel):
@@ -87,11 +87,6 @@ class EdgeBindingDefinition(IRModel):
 BindingDefinition = Annotated[NodeBindingDefinition | EdgeBindingDefinition, Field(discriminator="kind")]
 
 
-class PostProcessingDefinition(IRModel):
-    operations: tuple[Literal["collapse_exact_duplicates", "merge_compatible_facts"], ...] = Field(min_length=1)
-    validations: tuple[Literal["reject_null_build_keys", "reject_null_edge_endpoints", "reject_conflicting_non_null_values", "require_edge_endpoints"], ...] = Field(min_length=1)
-
-
 class SourceDefinition(IRModel):
     table: str = Field(min_length=1)
     location: str = Field(min_length=1)
@@ -100,13 +95,20 @@ class SourceDefinition(IRModel):
     version: str | None = None
 
 
+class BlueprintModule(IRModel):
+    """A serialisable workflow-module selection in a build blueprint."""
+    module_id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
+    contributor_module: str = Field(min_length=1)
+    contributor_qualname: str = Field(min_length=1)
+    configuration: JsonValue | None = None
+
+
 class BuildBlueprint(IRModel):
     components: tuple[ComponentDefinition, ...] = Field(min_length=1)
     projections: tuple[ProjectionDefinition, ...] = ()
     bindings: tuple[BindingDefinition, ...] = Field(min_length=1)
     sources: tuple[SourceDefinition, ...] = ()
-    post_processing: PostProcessingDefinition
-    _contributors: tuple[Any, ...] = PrivateAttr(default=())
+    modules: tuple[BlueprintModule, ...] = ()
 
 
 class ModuleReference(IRModel):

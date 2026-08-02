@@ -5,9 +5,10 @@ from collections.abc import Mapping
 from typing import Any, ClassVar
 
 from ..compile.models import WorkflowStep
+from .workflow import StepExecutor, WorkflowModule
 
 
-class CoreModule:
+class CoreModule(WorkflowModule, StepExecutor):
     ID: ClassVar[str] = "core"
     VERSION: ClassVar[str] = "1"
 

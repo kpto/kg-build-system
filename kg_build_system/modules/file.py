@@ -8,19 +8,29 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 from ..compile.models import ArtifactRole, CollectionInputSlot, CompiledModule, ModuleReference, OutputSlot, RuntimeFieldDefinition, WorkflowStep
-from .workflow import ModuleDeclarationDraft, WorkflowStepDraft, role_is
+from .workflow import ModuleContributor, ModuleDeclarationDraft, StepExecutor, WorkflowModule, WorkflowStepDraft, role_is
 
 
 @dataclass(frozen=True)
-class FileModule:
+class FileModule(ModuleContributor):
     """Author-facing file-output workflow module declaration."""
     location: str
+
+    @property
+    def blueprint_configuration(self) -> dict[str, str]:
+        return {"location": self.location}
+
+    @classmethod
+    def from_blueprint_configuration(cls, configuration: Any) -> FileModule:
+        if not isinstance(configuration, dict) or not isinstance(configuration.get("location"), str):
+            raise TypeError("file module blueprint configuration requires a string location")
+        return cls(location=configuration["location"])
 
     @property
     def module_class(self) -> type[FileRuntime]:
         return FileRuntime
 
-    async def declare(self, _context: Any) -> ModuleDeclarationDraft:
+    async def declare(self, context: Any) -> ModuleDeclarationDraft:
         record_input = CollectionInputSlot(slot_id="file::write.records")
         diagnostic_input = CollectionInputSlot(slot_id="file::write.diagnostics")
         step = WorkflowStep(
@@ -43,7 +53,7 @@ class FileModule:
         )
 
 
-class FileRuntime:
+class FileRuntime(WorkflowModule, StepExecutor):
     ID: ClassVar[str] = "file"
 
     def __init__(self, configuration: Mapping[str, Any]) -> None:
