@@ -1,17 +1,33 @@
-"""Execute compiled DuckDB plans and write only normalised graph records."""
+"""Execute frozen workflow contracts through importable workflow modules."""
 from __future__ import annotations
 
-import json
+import asyncio
+import importlib
+from collections import defaultdict
+from collections.abc import Mapping
 from dataclasses import dataclass, field
-from pathlib import Path
 from typing import Any
 
-from ..compile.models import BuildContract, ExecutionStep, FileWriteStep, RelationalStep, ValidationStep
+from ..compile.models import ArtifactRole, BuildContract, WorkflowStep
 
 
 @dataclass(frozen=True)
 class BuildRuntime:
     credentials: dict[str, str] = field(default_factory=dict)
+    module_configuration: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
+class Artifact:
+    role: ArtifactRole
+    value: Any
+
+
+@dataclass(frozen=True)
+class ModuleExecutionContext:
+    contract: BuildContract
+    inputs: Mapping[str, tuple[Artifact, ...]]
+    services: Mapping[str, Any]
 
 
 @dataclass(frozen=True)
@@ -22,91 +38,77 @@ class BuildReport:
     provenance: dict[str, Any]
 
 
-def _quote(name: str) -> str:
-    return '"' + name.replace('"', '""') + '"'
+class CoreModule:
+    ID = "core"
+
+    @classmethod
+    async def create_runtime(cls, _configuration: Mapping[str, Any]) -> CoreModule:
+        return cls()
+
+    async def execute_step(self, context: ModuleExecutionContext, step: WorkflowStep) -> Any:
+        payload = step.payload or {}
+        connection = context.services["duckdb"]
+        if payload.get("action") == "diagnostic":
+            return [f"{payload['component']}({key}) has {count} non-null values for {payload['field']}" for key, count in connection.execute(payload["sql"]).fetchall()]
+        if payload.get("action") != "relation":
+            raise ValueError(f"unsupported core action {payload.get('action')!r}")
+        materialization = "TABLE" if payload.get("materialization") == "temporary_table" else "VIEW"
+        relation = payload["relation"].replace('"', '""')
+        connection.execute(f'CREATE TEMP {materialization} "{relation}" AS {payload["sql"]}')
+        return relation
 
 
-def _execute_relations(connection: Any, contract: BuildContract) -> tuple[tuple[ValidationStep, ...], tuple[FileWriteStep, ...]]:
-    """Materialise relation steps once their declared dependencies are ready."""
-    pending = list(contract.execution_plan)
-    completed: set[str] = set()
-    diagnostics: list[ValidationStep] = []
-    writes: list[FileWriteStep] = []
-    while pending:
-        ready = [step for step in pending if set(step.depends_on) <= completed]
-        if not ready:
-            raise RuntimeError("DuckDB execution plan has a dependency cycle")
-        for step in ready:
-            if isinstance(step, RelationalStep):
-                statement = "CREATE TEMP TABLE" if step.materialization == "temporary_table" else "CREATE TEMP VIEW"
-                connection.execute(f"{statement} {_quote(step.relation)} AS {step.sql}")
-            elif isinstance(step, ValidationStep):
-                diagnostics.append(step)
-            else:
-                writes.append(step)
-            completed.add(step.id)
-            pending.remove(step)
-    return tuple(diagnostics), tuple(writes)
+def _load_class(import_module: str, qualname: str) -> type[Any]:
+    value: Any = importlib.import_module(import_module)
+    for part in qualname.split("."):
+        value = getattr(value, part)
+    return value
 
 
-def _structural_diagnostics(connection: Any, diagnostic_steps: tuple[ValidationStep, ...]) -> tuple[str, ...]:
-    failures: list[str] = []
-    for diagnostic in diagnostic_steps:
-        rows = connection.execute(diagnostic.sql).fetchall()
-        for row in rows:
-            # Aggregate diagnostic plans always contain a count; zero means the
-            # invariant held and should not appear in a build report.
-            if not row or not isinstance(row[-1], int) or row[-1] == 0:
-                continue
-            if diagnostic.diagnostic_code == "conflicting_value":
-                component, build_key, field, distinct_values = row
-                failures.append(
-                    f"{component}({build_key!s}) has {distinct_values} non-null values for {field}"
-                )
-            else:
-                component, occurrences = row
-                failures.append(f"{diagnostic.diagnostic_code} for {component}: {occurrences} record(s)")
-    return tuple(failures)
-
-
-def build(contract: BuildContract, runtime: BuildRuntime = BuildRuntime()) -> BuildReport:
-    """Run the compiled relational plans; Python performs only target I/O."""
+async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -> BuildReport:
+    runtime = runtime or BuildRuntime()
     try:
         import duckdb
     except ImportError as error:
         raise RuntimeError("DuckDB is required to execute builds") from error
-
     connection = duckdb.connect()
     if contract.settings.duckdb_threads is not None:
         connection.execute(f"SET threads = {contract.settings.duckdb_threads}")
-    diagnostic_steps, write_steps = _execute_relations(connection, contract)
-    diagnostics = _structural_diagnostics(connection, diagnostic_steps)
-    if diagnostics:
-        raise ValueError("graph normalisation failed: " + "; ".join(diagnostics))
+    executors: dict[str, Any] = {}
+    for module in contract.workflow.modules:
+        reference = module.reference
+        cls = _load_class(reference.import_module, reference.class_qualname)
+        if getattr(cls, "ID", None) != reference.module_id:
+            raise RuntimeError(f"module import does not provide {reference.module_id!r}")
+        configuration = runtime.module_configuration.get(reference.module_id, {})
+        missing = [field.key for field in module.runtime_fields if field.required and field.key not in configuration]
+        if missing:
+            raise ValueError(f"missing runtime configuration for {reference.module_id}: {', '.join(missing)}")
+        executors[reference.module_id] = await cls.create_runtime(configuration)
+    output_owner = {slot.slot_id: (step, slot) for step in contract.workflow.steps for slot in step.outputs}
+    incoming: dict[str, list[str]] = defaultdict(list)
+    for connection_def in contract.workflow.connections:
+        incoming[connection_def.input_slot_id].append(connection_def.output_slot_id)
+    completed: set[str] = set(); artifacts: dict[str, Artifact] = {}; results: list[Any] = []
+    pending = list(contract.workflow.steps)
+    while pending:
+        ready = [step for step in pending if all(output_owner[output_slot_id][0].step_id in completed for output_slot_id in (slot for input_slot in step.inputs for slot in incoming[input_slot.slot_id]))]
+        if not ready:
+            raise RuntimeError("workflow has a dependency cycle")
+        for step in ready:
+            inputs = {input_slot.slot_id: tuple(artifacts[slot] for slot in incoming[input_slot.slot_id]) for input_slot in step.inputs}
+            value = await executors[step.module_id].execute_step(ModuleExecutionContext(contract, inputs, {"duckdb": connection}), step)
+            if len(step.outputs) == 1:
+                artifacts[step.outputs[0].slot_id] = Artifact(step.outputs[0].artifact_role, value)
+            elif step.outputs:
+                if not isinstance(value, Mapping): raise RuntimeError(f"step {step.step_id} must return output-slot values")
+                for slot in step.outputs: artifacts[slot.slot_id] = Artifact(slot.artifact_role, value[slot.slot_id])
+            results.append(value); completed.add(step.step_id); pending.remove(step)
+    file_results = [result for result in results if isinstance(result, dict) and "nodes" in result and "edges" in result]
+    nodes = sum(result["nodes"] for result in file_results); edges = sum(result["edges"] for result in file_results)
+    return BuildReport(nodes=nodes, edges=edges, diagnostics=(), provenance={"blueprint_fingerprint": contract.blueprint_fingerprint, "workflow_fingerprint": contract.workflow_fingerprint, "workflow": contract.workflow.model_dump(mode="json")})
 
-    nodes = edges = 0
-    for write_step in write_steps:
-        assert write_step.target is not None
-        output = Path(write_step.target.location)
-        output.parent.mkdir(parents=True, exist_ok=True)
-        with output.open("w", encoding="utf-8") as stream:
-            for output_relation in write_step.write_outputs:
-                result = connection.execute(f"SELECT * FROM {_quote(output_relation.relation)}")
-                columns = tuple(column[0] for column in result.description)
-                for row in result.fetchall():
-                    record = dict(zip(columns, row, strict=True))
-                    record.update(build_key=str(record["build_key"]), type=output_relation.component, kind=output_relation.kind)
-                    if output_relation.kind == "node": nodes += 1
-                    else: edges += 1
-                    stream.write(json.dumps(record, sort_keys=True, default=str) + "\n")
-    return BuildReport(
-        nodes=nodes,
-        edges=edges,
-        diagnostics=(),
-        provenance={
-            "blueprint_fingerprint": contract.blueprint_fingerprint,
-            "execution_plan_fingerprint": contract.execution_plan_fingerprint,
-            "execution_plan": [step.model_dump(mode="json") for step in contract.execution_plan],
-            "sources": [source.model_dump(mode="json") for source in contract.sources],
-        },
-    )
+
+def build(contract: BuildContract, runtime: BuildRuntime | None = None) -> BuildReport:
+    """Run a frozen workflow while keeping the public MVP entry point synchronous."""
+    return asyncio.run(_build(contract, runtime))

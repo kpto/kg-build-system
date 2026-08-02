@@ -71,8 +71,8 @@ class VerticalSliceTests(unittest.TestCase):
         ], projections=[ExpandedInput], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], target=FileTarget(str(root / "unused.jsonl")), post_processing=POST_PROCESSING)
         with TemporaryDirectory() as directory:
             contract = compile_blueprint(blueprint=blueprint, target=FileTarget(str(Path(directory) / "graph.jsonl")))
-            self.assertTrue(any("UNNEST" in step.sql for step in contract.execution_plan))
-            self.assertTrue(any(step.binding_symbol for step in contract.execution_plan))
+            self.assertTrue(any("UNNEST" in str(step.payload) for step in contract.workflow.steps))
+            self.assertTrue(any(step.step_id.startswith("core::binding.") for step in contract.workflow.steps))
             report = build(contract)
             self.assertEqual((report.nodes, report.edges), (5, 3))
 
@@ -89,10 +89,10 @@ class VerticalSliceTests(unittest.TestCase):
         ], projections=[ExpandedInput], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], target=FileTarget(str(root / "unused.jsonl")), post_processing=POST_PROCESSING)
         with TemporaryDirectory() as directory:
             contract = compile_blueprint(blueprint=blueprint, target=FileTarget(str(Path(directory) / "graph.jsonl")))
-            binding_steps = [step for step in contract.execution_plan if step.stage == "binding"]
+            binding_steps = [step for step in contract.workflow.steps if step.step_id.startswith("core::binding.")]
             self.assertEqual(len(binding_steps), 3)
-            self.assertNotIn("UNNEST", binding_steps[0].sql)
-            self.assertIn("UNNEST", binding_steps[1].sql)
+            self.assertNotIn("UNNEST", str(binding_steps[0].payload))
+            self.assertIn("UNNEST", str(binding_steps[1].payload))
             report = build(contract)
             self.assertEqual((report.nodes, report.edges, report.diagnostics), (5, 3, ()))
 
@@ -115,7 +115,7 @@ class VerticalSliceTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "non-null values for label"):
                 build(contract)
 
-    def test_contract_records_target_override(self) -> None:
+    def test_contract_records_file_module(self) -> None:
         root = Path(__file__).parents[1]
         blueprint = create_blueprint(
             bindings=[node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label)))],
@@ -124,9 +124,9 @@ class VerticalSliceTests(unittest.TestCase):
             post_processing=POST_PROCESSING,
         )
         contract = compile_blueprint(blueprint=blueprint, target=FileTarget("compiled-override.jsonl"))
-        self.assertIsNotNone(contract.overrides.target)
-        assert contract.overrides.target is not None
-        self.assertEqual(contract.overrides.target.original.location, "blueprint-default.jsonl")
-        self.assertEqual(contract.overrides.target.override.location, "compiled-override.jsonl")
+        file_module = next(module for module in contract.workflow.modules if module.reference.module_id == "file")
+        self.assertEqual(file_module.reference.class_qualname, "FileModule")
+        file_step = next(step for step in contract.workflow.steps if step.module_id == "file")
+        self.assertEqual(file_step.payload["location"], "compiled-override.jsonl")
 
 if __name__ == "__main__": unittest.main()

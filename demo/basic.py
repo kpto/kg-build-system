@@ -77,11 +77,11 @@ blueprint = create_blueprint(bindings=[
         require_edge_endpoints(),
     ),
 ))
-contract = compile_blueprint(blueprint=blueprint)
+contract = compile_blueprint(blueprint=blueprint, target=FileTarget(str(root / "graph.jsonl")))
 
 if __name__ == "__main__":
     (root / "build_blueprint.json").write_text(blueprint.model_dump_json(indent=2), encoding="utf-8")
     (root / "build_contract.json").write_text(contract.model_dump_json(indent=2), encoding="utf-8")
-    for step in contract.execution_plan:
-        print(f"-- {step.id}\n{step.model_dump_json(indent=2)}")
+    for step in contract.workflow.steps:
+        print(f"-- {step.step_id}\n{step.model_dump_json(indent=2)}")
     print(execute_build(contract))
