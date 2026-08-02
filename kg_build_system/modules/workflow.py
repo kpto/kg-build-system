@@ -5,7 +5,7 @@ from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, ClassVar, Protocol
 
-from .compile.models import ArtifactRole, CompiledModule, InputSlot, OutputSlot, WorkflowStep
+from ..compile.models import ArtifactRole, CompiledModule, InputSlot, OutputSlot, WorkflowStep
 
 
 class StepExecutor(Protocol):

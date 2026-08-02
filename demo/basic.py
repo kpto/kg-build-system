@@ -7,7 +7,7 @@ from kg_build_system import (
     property, struct, table, value, collection, lookup, normalise_graph,
     collapse_exact_duplicates, merge_compatible_facts, reject_conflicting_non_null_values, reject_null_build_keys, reject_null_edge_endpoints, require_edge_endpoints, validate,
 )
-from kg_build_system.targets import FileTarget
+from kg_build_system.modules import FileModule
 
 @node(description="A biological target")
 class Target(GraphComponent):
@@ -67,7 +67,7 @@ blueprint = create_blueprint(bindings=[
     node_binding(debug_name="study_from_study", target=StudyNode, build_key=Study.id, properties=StudyNode(name=bind(Study.details.name))),
     node_binding(debug_name="disease_from_association", target=Disease, build_key=AssociationTable.disease_id, properties=Disease(name=bind(AssociationTable.disease_id))),
     edge_binding(debug_name="association_to_disease", target=AssociatedWith, build_key=value.deterministic_uuid(value.concat(AssociationTable.target_id, AssociationTable.disease_id, AssociationTable.evidence_label)), source_build_key=AssociationTable.target_id, target_build_key=AssociationTable.disease_id, properties=AssociatedWith(score=bind(AssociationTable.score), study_name=bind(lookup.one(key=AssociationTable.study_id, match=Study.id, value=Study.details.name, as_type=str)), evidence_disease_id=bind(AssociationTable.disease_id), evidence_label=bind(AssociationTable.evidence_label))),
-], projections=[AssociationTable], sources=[source, study_source], target=FileTarget(str(root / "graph.jsonl")), post_processing=normalise_graph(
+], projections=[AssociationTable], sources=[source, study_source], modules=[normalise_graph(
     collapse_exact_duplicates(),
     merge_compatible_facts(),
     validate(
@@ -76,8 +76,8 @@ blueprint = create_blueprint(bindings=[
         reject_conflicting_non_null_values(),
         require_edge_endpoints(),
     ),
-))
-contract = compile_blueprint(blueprint=blueprint, target=FileTarget(str(root / "graph.jsonl")))
+), FileModule(str(root / "graph.jsonl"))])
+contract = compile_blueprint(blueprint=blueprint)
 
 if __name__ == "__main__":
     (root / "build_blueprint.json").write_text(blueprint.model_dump_json(indent=2), encoding="utf-8")

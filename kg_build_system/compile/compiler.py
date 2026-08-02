@@ -19,7 +19,7 @@ from .models import (
 )
 from ..expressions import Expression, FieldPath
 from .._support.annotations import type_name, type_shape
-from ..workflow import ModuleContributor, WorkflowStepDraft, role_is
+from ..modules.workflow import ModuleContributor, WorkflowStepDraft, role_is
 
 def _property_expressions(binding: NodeBinding | EdgeBinding) -> dict[str, Expression[Any]]:
     values: dict[str, Expression[Any]] = {}
@@ -78,7 +78,7 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
 def _source_definition(source: BoundTable) -> SourceDefinition:
     return SourceDefinition(table=source.table.__name__, location=source.config.location, format=source.config.format.value, credential_reference=source.config.credentials, version=source.config.version)
 
-def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = (), sources: Sequence[BoundTable] = (), post_processing: PostProcessingDefinition, target: Any | None = None) -> BuildBlueprint:
+def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = (), sources: Sequence[BoundTable] = (), modules: Sequence[Any]) -> BuildBlueprint:
     authoring_bindings = tuple(bindings)
     if not authoring_bindings: raise ValueError("a graph requires at least one binding")
     for binding in authoring_bindings: _validate_authoring_binding(binding)
@@ -92,7 +92,12 @@ def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projectio
         occurrences[digest] = occurrences.get(digest, 0) + 1
         suffix = "" if occurrences[digest] == 1 else f":{occurrences[digest]}"
         binding_definitions.append(_binding(binding, symbol_id=f"binding:{digest}{suffix}"))
-    return BuildBlueprint(components=tuple(_component(component) for component in components), projections=projection_ir, bindings=tuple(binding_definitions), sources=tuple(_source_definition(source) for source in sources), post_processing=post_processing)
+    normalisation_modules = [module for module in modules if isinstance(getattr(module, "definition", None), PostProcessingDefinition)]
+    if len(normalisation_modules) != 1:
+        raise ValueError("create_blueprint requires exactly one graph-normalisation module")
+    blueprint = BuildBlueprint(components=tuple(_component(component) for component in components), projections=projection_ir, bindings=tuple(binding_definitions), sources=tuple(_source_definition(source) for source in sources), post_processing=normalisation_modules[0].definition)
+    object.__setattr__(blueprint, "_contributors", tuple(module for module in modules if module not in normalisation_modules))
+    return blueprint
 
 def _projection_value(value: Value, projections: dict[str, ProjectionDefinition]) -> Value:
     if isinstance(value, FieldReference) and value.table in projections and len(value.path) == 1: return projections[value.table].fields[value.path[0]]
@@ -404,7 +409,7 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, modules: Sequence[Mod
     """Compile core DuckDB work and contributor declarations into one workflow."""
     source_ir = _effective_sources(blueprint=blueprint, overrides=sources)
     overrides = BuildOverrides(sources=tuple(SourceOverride(table=item.table, original=next((old for old in blueprint.sources if old.table == item.table), None), override=item) for item in (_source_definition(source) for source in sources)))
-    core = CompiledModule(reference=ModuleReference(module_id="core", import_module="kg_build_system.build.executor", class_qualname="CoreModule", implementation_version="1", priority=0))
+    core = CompiledModule(reference=ModuleReference(module_id="core", import_module="kg_build_system.modules.core", class_qualname="CoreModule", implementation_version="1", priority=0))
     drafts: list[WorkflowStepDraft] = []
     roles: dict[str, ArtifactRole] = {}
     def output(step_id: str, role: ArtifactRole, payload: dict[str, Any], inputs: tuple[Any, ...] = ()) -> WorkflowStep:
@@ -483,11 +488,6 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, modules: Sequence[Mod
     return BuildContract(blueprint=blueprint, blueprint_fingerprint=_blueprint_fingerprint(blueprint), sources=source_ir, settings=settings or BuildSettings(), overrides=overrides, workflow_fingerprint=_fingerprint(workflow), workflow=workflow)
 
 
-def compile_blueprint(*, blueprint: BuildBlueprint, modules: Sequence[ModuleContributor] = (), target: Any | None = None, sources: Sequence[BoundTable] = (), settings: BuildSettings | None = None) -> BuildContract:
-    """Synchronously compile contributors whose declaration phase is async.
-
-    ``target`` remains a compatibility spelling for supplying one file module;
-    it is not retained in the blueprint or contract as a target definition.
-    """
-    effective_modules = (*modules, *((target,) if target is not None else ()))
-    return asyncio.run(_compile_blueprint(blueprint=blueprint, modules=effective_modules, sources=sources, settings=settings))
+def compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[BoundTable] = (), settings: BuildSettings | None = None) -> BuildContract:
+    """Compile the in-memory module contributors selected with the blueprint."""
+    return asyncio.run(_compile_blueprint(blueprint=blueprint, modules=blueprint._contributors, sources=sources, settings=settings))

@@ -10,7 +10,7 @@ from kg_build_system import (
     collapse_exact_duplicates, merge_compatible_facts, reject_conflicting_non_null_values, reject_null_build_keys, reject_null_edge_endpoints, require_edge_endpoints, validate,
 )
 from kg_build_system.expressions import Expression, FieldPath
-from kg_build_system.targets import FileTarget
+from kg_build_system.modules import FileModule
 
 POST_PROCESSING = normalise_graph(
     collapse_exact_duplicates(),
@@ -68,9 +68,9 @@ class VerticalSliceTests(unittest.TestCase):
             node_binding(target=Thing, build_key=ExpandedInput.identifier, properties=Thing(label=bind(ExpandedInput.label))),
             node_binding(target=Thing, build_key=ExpandedInput.related, properties=Thing(label=bind(ExpandedInput.related))),
             edge_binding(target=Related, build_key=value.deterministic_uuid(value.concat(ExpandedInput.identifier, ExpandedInput.related)), source_build_key=ExpandedInput.identifier, target_build_key=ExpandedInput.related, properties=Related(weight=bind(ExpandedInput.weight))),
-        ], projections=[ExpandedInput], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], target=FileTarget(str(root / "unused.jsonl")), post_processing=POST_PROCESSING)
+        ], projections=[ExpandedInput], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], modules=[POST_PROCESSING, FileModule(str(root / "unused.jsonl"))])
         with TemporaryDirectory() as directory:
-            contract = compile_blueprint(blueprint=blueprint, target=FileTarget(str(Path(directory) / "graph.jsonl")))
+            contract = compile_blueprint(blueprint=blueprint)
             self.assertTrue(any("UNNEST" in str(step.payload) for step in contract.workflow.steps))
             self.assertTrue(any(step.step_id.startswith("core::binding.") for step in contract.workflow.steps))
             report = build(contract)
@@ -78,7 +78,7 @@ class VerticalSliceTests(unittest.TestCase):
 
     def test_unbound_graph_slot_is_rejected(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be assigned with bind"):
-            create_blueprint(bindings=[node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=Input.label))], target=FileTarget("unused.jsonl"), post_processing=POST_PROCESSING)
+            create_blueprint(bindings=[node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=Input.label))], modules=[POST_PROCESSING, FileModule("unused.jsonl")])
 
     def test_each_binding_has_an_isolated_execution_plan(self) -> None:
         root = Path(__file__).parents[1]
@@ -86,9 +86,9 @@ class VerticalSliceTests(unittest.TestCase):
             node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label))),
             node_binding(target=Thing, build_key=ExpandedInput.related, properties=Thing(label=bind(ExpandedInput.related))),
             edge_binding(target=Related, build_key=value.deterministic_uuid(ExpandedInput.related), source_build_key=ExpandedInput.identifier, target_build_key=ExpandedInput.related, properties=Related(weight=bind(ExpandedInput.weight))),
-        ], projections=[ExpandedInput], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], target=FileTarget(str(root / "unused.jsonl")), post_processing=POST_PROCESSING)
+        ], projections=[ExpandedInput], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], modules=[POST_PROCESSING, FileModule(str(root / "unused.jsonl"))])
         with TemporaryDirectory() as directory:
-            contract = compile_blueprint(blueprint=blueprint, target=FileTarget(str(Path(directory) / "graph.jsonl")))
+            contract = compile_blueprint(blueprint=blueprint)
             binding_steps = [step for step in contract.workflow.steps if step.step_id.startswith("core::binding.")]
             self.assertEqual(len(binding_steps), 3)
             self.assertNotIn("UNNEST", str(binding_steps[0].payload))
@@ -100,18 +100,18 @@ class VerticalSliceTests(unittest.TestCase):
         root = Path(__file__).parents[1]
         blueprint = create_blueprint(bindings=[
             edge_binding(target=Related, build_key=Input.identifier, source_build_key=Input.identifier, target_build_key=Endpoint.identifier, properties=Related(weight=bind(Input.weight))),
-        ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], target=FileTarget(str(root / "unused.jsonl")), post_processing=POST_PROCESSING)
+        ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], modules=[POST_PROCESSING, FileModule(str(root / "unused.jsonl"))])
         with self.assertRaisesRegex(ValueError, "Endpoint"):
-            compile_blueprint(blueprint=blueprint, target=FileTarget(str(root / "temporary.jsonl")))
+            compile_blueprint(blueprint=blueprint)
 
     def test_conflicting_non_null_facts_fail_in_duckdb_normalisation(self) -> None:
         root = Path(__file__).parents[1]
         blueprint = create_blueprint(bindings=[
             node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label))),
             node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(value.literal("conflict")))),
-        ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], target=FileTarget(str(root / "unused.jsonl")), post_processing=POST_PROCESSING)
+        ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], modules=[POST_PROCESSING, FileModule(str(root / "unused.jsonl"))])
         with TemporaryDirectory() as directory:
-            contract = compile_blueprint(blueprint=blueprint, target=FileTarget(str(Path(directory) / "graph.jsonl")))
+            contract = compile_blueprint(blueprint=blueprint)
             with self.assertRaisesRegex(ValueError, "non-null values for label"):
                 build(contract)
 
@@ -120,12 +120,11 @@ class VerticalSliceTests(unittest.TestCase):
         blueprint = create_blueprint(
             bindings=[node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label)))],
             sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))],
-            target=FileTarget("blueprint-default.jsonl"),
-            post_processing=POST_PROCESSING,
+            modules=[POST_PROCESSING, FileModule("compiled-override.jsonl")],
         )
-        contract = compile_blueprint(blueprint=blueprint, target=FileTarget("compiled-override.jsonl"))
+        contract = compile_blueprint(blueprint=blueprint)
         file_module = next(module for module in contract.workflow.modules if module.reference.module_id == "file")
-        self.assertEqual(file_module.reference.class_qualname, "FileModule")
+        self.assertEqual(file_module.reference.class_qualname, "FileRuntime")
         file_step = next(step for step in contract.workflow.steps if step.module_id == "file")
         self.assertEqual(file_step.payload["location"], "compiled-override.jsonl")
 

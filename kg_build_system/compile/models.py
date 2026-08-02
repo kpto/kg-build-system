@@ -1,9 +1,9 @@
 """Canonical immutable declaration, compilation, and workflow IR."""
 from __future__ import annotations
 
-from typing import Annotated, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, PrivateAttr, model_validator
 
 
 class IRModel(BaseModel):
@@ -106,6 +106,7 @@ class BuildBlueprint(IRModel):
     bindings: tuple[BindingDefinition, ...] = Field(min_length=1)
     sources: tuple[SourceDefinition, ...] = ()
     post_processing: PostProcessingDefinition
+    _contributors: tuple[Any, ...] = PrivateAttr(default=())
 
 
 class ModuleReference(IRModel):

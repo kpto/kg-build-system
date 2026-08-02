@@ -7,18 +7,18 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
 
-from ...compile.models import ArtifactRole, CollectionInputSlot, CompiledModule, ModuleReference, OutputSlot, RuntimeFieldDefinition, WorkflowStep
-from ...workflow import ModuleDeclarationDraft, WorkflowStepDraft, role_is
+from ..compile.models import ArtifactRole, CollectionInputSlot, CompiledModule, ModuleReference, OutputSlot, RuntimeFieldDefinition, WorkflowStep
+from .workflow import ModuleDeclarationDraft, WorkflowStepDraft, role_is
 
 
 @dataclass(frozen=True)
-class FileTarget:
-    """Author-facing file-output declaration; it is a workflow contributor."""
+class FileModule:
+    """Author-facing file-output workflow module declaration."""
     location: str
 
     @property
-    def module_class(self) -> type[FileModule]:
-        return FileModule
+    def module_class(self) -> type[FileRuntime]:
+        return FileRuntime
 
     async def declare(self, _context: Any) -> ModuleDeclarationDraft:
         record_input = CollectionInputSlot(slot_id="file::write.records")
@@ -33,7 +33,7 @@ class FileTarget:
         )
         return ModuleDeclarationDraft(
             module=CompiledModule(
-                reference=ModuleReference(module_id="file", import_module=__name__, class_qualname="FileModule", implementation_version="1", priority=100),
+                reference=ModuleReference(module_id="file", import_module=__name__, class_qualname="FileRuntime", implementation_version="1", priority=100),
                 runtime_fields=(RuntimeFieldDefinition(key="output_location", description="Optional runtime replacement for the output location.", required=False),),
             ),
             steps=(WorkflowStepDraft(step, {
@@ -43,14 +43,14 @@ class FileTarget:
         )
 
 
-class FileModule:
+class FileRuntime:
     ID: ClassVar[str] = "file"
 
     def __init__(self, configuration: Mapping[str, Any]) -> None:
         self._configuration = configuration
 
     @classmethod
-    async def create_runtime(cls, configuration: Mapping[str, Any]) -> FileModule:
+    async def create_runtime(cls, configuration: Mapping[str, Any]) -> FileRuntime:
         return cls(configuration)
 
     async def execute_step(self, context: Any, step: WorkflowStep) -> dict[str, Any]:
