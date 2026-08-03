@@ -42,6 +42,8 @@ class StepOutcome:
     step_id: str
     module_id: str
     status: StepStatus
+    # A step may omit a declared output when it has no meaningful runtime
+    # artifact to publish. Consumers then receive no artifact for that slot.
     artifacts: tuple[Artifact, ...] = ()
     failure: Failure | None = None
     metrics: Mapping[str, int] = field(default_factory=dict)
@@ -64,14 +66,26 @@ class ModuleExecutionContext:
 
 
 @dataclass(frozen=True)
-class BuildReport:
-    outcomes: tuple[StepOutcome, ...]
-    sink_outcomes: tuple[StepOutcome, ...]
-    artifacts: tuple[Artifact, ...]
+class PublishedArtifact:
+    """A semantic workflow result, without producer-specific slot metadata."""
+
+    role: ArtifactRole
+    value: Any
+
+
+@dataclass(frozen=True)
+class WorkflowReport:
+    """The user-facing result of a completed workflow."""
+
+    published_artifacts: tuple[PublishedArtifact, ...]
     recovered_failures: tuple[Failure, ...]
     unresolved_failures: tuple[Failure, ...]
     metrics: dict[str, int]
     provenance: dict[str, Any]
+
+    @property
+    def succeeded(self) -> bool:
+        return not self.unresolved_failures
 
     @property
     def nodes(self) -> int:

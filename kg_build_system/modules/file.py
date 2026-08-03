@@ -42,8 +42,7 @@ class FileExecutor:
                     result=connection.execute(f'SELECT * FROM "{artifact.value}"'); columns=tuple(column[0] for column in result.description); kind,component=identity.kind,identity.component
                     for row in result.fetchall():
                         record=dict(zip(columns,row,strict=True)); record.update(build_key=str(record["build_key"]),type=component,kind=kind); nodes+=kind=="node"; edges+=kind=="edge"; stream.write(json.dumps(record,sort_keys=True,default=str)+"\n")
-        manifest=output.with_suffix(output.suffix+".manifest.json"); manifest.write_text(json.dumps({"nodes":nodes,"edges":edges,"blueprint_fingerprint":context.contract.blueprint_fingerprint,"workflow_fingerprint":context.contract.workflow_fingerprint},sort_keys=True),encoding="utf-8")
-        result={"nodes":nodes,"edges":edges,"location":str(output),"manifest":str(manifest)}
+        result={"nodes":nodes,"edges":edges,"location":str(output)}
         artifact_output = step.outputs[0]
         return StepOutcome(
             step.step_id,

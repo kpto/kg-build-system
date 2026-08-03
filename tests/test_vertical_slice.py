@@ -76,8 +76,9 @@ class VerticalSliceTests(unittest.TestCase):
             self.assertTrue(any(step.step_id.startswith("core::binding.") for step in contract.workflow.steps))
             report = build(contract)
             self.assertEqual((report.nodes, report.edges), (5, 3))
-            self.assertEqual(len(report.outcomes), len(contract.workflow.steps))
-            self.assertTrue(report.sink_outcomes)
+            self.assertTrue(report.succeeded)
+            self.assertTrue(report.published_artifacts)
+            self.assertFalse(any(artifact.role == CoreArtifactRoles.published("reject_conflicting_non_null_values", "report") for artifact in report.published_artifacts))
             self.assertEqual(report.metrics["graph.nodes"], 5)
             self.assertEqual(report.metrics["graph.edges"], 3)
 
@@ -119,8 +120,9 @@ class VerticalSliceTests(unittest.TestCase):
             contract = compile_blueprint(blueprint=blueprint)
             report = build(contract)
             self.assertEqual(len(report.unresolved_failures), 1)
-            self.assertTrue(all(artifact.role.name.startswith("publication.") for artifact in report.artifacts))
-            validation_report = next(artifact for artifact in report.artifacts if artifact.role == CoreArtifactRoles.published("reject_conflicting_non_null_values", "report"))
+            self.assertFalse(report.succeeded)
+            self.assertTrue(all(artifact.role.name.startswith("publication.") for artifact in report.published_artifacts))
+            validation_report = next(artifact for artifact in report.published_artifacts if artifact.role == CoreArtifactRoles.published("reject_conflicting_non_null_values", "report"))
             self.assertGreaterEqual(len(validation_report.value.findings), 1)
             report_only_blueprint = create_blueprint(bindings=[
                 node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label))),
@@ -132,7 +134,7 @@ class VerticalSliceTests(unittest.TestCase):
             ])
             report_only = build(compile_blueprint(blueprint=report_only_blueprint))
             self.assertEqual(report_only.unresolved_failures, ())
-            self.assertTrue(any(artifact.role == CoreArtifactRoles.published("reject_conflicting_non_null_values", "report") for artifact in report_only.artifacts))
+            self.assertTrue(any(artifact.role == CoreArtifactRoles.published("reject_conflicting_non_null_values", "report") for artifact in report_only.published_artifacts))
 
     def test_contract_records_file_module(self) -> None:
         root = Path(__file__).parents[1]

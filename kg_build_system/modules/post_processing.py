@@ -52,6 +52,8 @@ class SqlExecutor:
                 for artifact in artifacts
                 for finding in artifact.value
             )
+            if not findings:
+                return StepOutcome(step.step_id, step.module_id, StepStatus.SUCCEEDED)
             report = ConflictingNonNullValuesReport(findings=findings)
             failed = bool(findings) and bool(payload.get("fail_on_error", False))
             failure = Failure(

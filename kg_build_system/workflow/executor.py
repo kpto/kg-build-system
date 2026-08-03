@@ -7,7 +7,7 @@ from collections import defaultdict
 from typing import Any
 
 from ..compile.models import BuildContract
-from .models import Artifact, BuildReport, BuildRuntime, Failure, ModuleExecutionContext, StepOutcome, StepStatus
+from .models import Artifact, BuildRuntime, Failure, ModuleExecutionContext, PublishedArtifact, StepOutcome, StepStatus, WorkflowReport
 
 
 def _load_class(import_module: str, qualname: str) -> type[Any]:
@@ -17,7 +17,7 @@ def _load_class(import_module: str, qualname: str) -> type[Any]:
     return value
 
 
-async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -> BuildReport:
+async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -> WorkflowReport:
     runtime = runtime or BuildRuntime()
     try:
         import duckdb
@@ -57,7 +57,10 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
         if not ready:
             raise RuntimeError("workflow has a dependency cycle")
         for step in ready:
-            inputs = {input_slot.slot_id: tuple(artifacts[slot_id] for slot_id in incoming[input_slot.slot_id]) for input_slot in step.inputs}
+            inputs = {
+                input_slot.slot_id: tuple(artifacts[slot_id] for slot_id in incoming[input_slot.slot_id] if slot_id in artifacts)
+                for input_slot in step.inputs
+            }
             context = ModuleExecutionContext(contract, definitions[step.module_id], runtime.module_configuration.get(step.module_id, {}), inputs, {"duckdb": connection})
             outcome = await executors[step.module_id].execute_step(context, step)
             if outcome.step_id != step.step_id or outcome.module_id != step.module_id:
@@ -66,8 +69,8 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
                 raise RuntimeError(f"failed step {step.step_id} did not provide a failure")
             declared = {slot.slot_id: slot.artifact_role for slot in step.outputs}
             returned = {artifact.slot_id: artifact for artifact in outcome.artifacts}
-            if set(returned) != set(declared):
-                raise RuntimeError(f"step {step.step_id} did not return exactly its declared output artifacts")
+            if not set(returned) <= set(declared):
+                raise RuntimeError(f"step {step.step_id} returned an artifact for an undeclared output slot")
             if any(artifact.role != declared[slot_id] for slot_id, artifact in returned.items()):
                 raise RuntimeError(f"step {step.step_id} returned an artifact role inconsistent with its output slot")
             artifacts.update(returned)
@@ -90,17 +93,15 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
     for outcome in outcomes:
         for name, value in outcome.metrics.items():
             metrics[name] = metrics.get(name, 0) + value
-    return BuildReport(
-        outcomes=tuple(outcomes),
-        sink_outcomes=sink_outcomes,
-        artifacts=published_artifacts,
+    return WorkflowReport(
+        published_artifacts=tuple(PublishedArtifact(role=artifact.role, value=artifact.value) for artifact in published_artifacts),
         recovered_failures=(),
         unresolved_failures=tuple(outcome.failure for outcome in outcomes if outcome.status == StepStatus.FAILED and outcome.failure is not None),
         metrics=metrics,
-        provenance={"blueprint_fingerprint": contract.blueprint_fingerprint, "workflow_fingerprint": contract.workflow_fingerprint, "workflow": contract.workflow.model_dump(mode="json")},
+        provenance={"blueprint_fingerprint": contract.blueprint_fingerprint, "workflow_fingerprint": contract.workflow_fingerprint},
     )
 
 
-def build(contract: BuildContract, runtime: BuildRuntime | None = None) -> BuildReport:
+def build(contract: BuildContract, runtime: BuildRuntime | None = None) -> WorkflowReport:
     """Run a frozen workflow while keeping the public MVP entry point synchronous."""
     return asyncio.run(_build(contract, runtime))
