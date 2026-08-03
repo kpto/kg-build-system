@@ -8,7 +8,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, ClassVar, Literal
 
-from ..compile.models import (
+from ...compile.models import (
     ArtifactRole,
     BindingDefinition,
     BuildBlueprint,
@@ -19,9 +19,9 @@ from ..compile.models import (
     SourceDefinition,
     WorkflowStep,
 )
-from ..workflow.interfaces import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, WorkflowStepDraft
-from ..workflow.models import Artifact, ModuleExecutionContext, StepOutcome, StepStatus
-from .core_lowering import lower_binding_sql
+from ...workflow.interfaces import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, WorkflowStepDraft
+from ...workflow.models import Artifact, ModuleExecutionContext, StepOutcome, StepStatus
+from .lowering import lower_binding_sql
 
 
 @dataclass(frozen=True)

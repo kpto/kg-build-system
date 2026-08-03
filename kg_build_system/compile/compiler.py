@@ -20,7 +20,7 @@ from .models import (
 from ..expressions import Expression, FieldPath
 from .._support.annotations import type_name, type_shape
 from ..workflow.interfaces import ModuleRegistration, WorkflowStepDraft
-from ..modules.core import CoreCompilationContext, CoreModule
+from ..modules.core.core import CoreCompilationContext, CoreModule
 
 def _property_expressions(binding: NodeBinding | EdgeBinding) -> dict[str, Expression[Any]]:
     values: dict[str, Expression[Any]] = {}

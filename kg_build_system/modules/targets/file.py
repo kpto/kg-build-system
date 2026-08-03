@@ -4,10 +4,10 @@ import json
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
-from ..compile.models import ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot, RuntimeFieldDefinition, WorkflowStep
-from ..workflow.interfaces import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft
-from ..workflow.models import Artifact, ModuleExecutionContext, StepOutcome, StepStatus
-from .core import CoreArtifactRoles
+from ...compile.models import ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot, RuntimeFieldDefinition, WorkflowStep
+from ...workflow.interfaces import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft
+from ...workflow.models import Artifact, ModuleExecutionContext, StepOutcome, StepStatus
+from ..core import CoreArtifactRoles
 
 @dataclass(frozen=True)
 class FileModuleConfiguration(ModuleRegistrationConfiguration):
