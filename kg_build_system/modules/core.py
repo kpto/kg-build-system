@@ -8,9 +8,20 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, ClassVar, Literal
 
-from ..compile.models import ArtifactRole, WorkflowStep
-from ..workflow.interfaces import Module, ModuleCompiler, ModuleExecutor
+from ..compile.models import (
+    ArtifactRole,
+    BindingDefinition,
+    BuildBlueprint,
+    CollectionInputSlot,
+    ModuleDefinition,
+    ModuleReference,
+    OutputSlot,
+    SourceDefinition,
+    WorkflowStep,
+)
+from ..workflow.interfaces import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, WorkflowStepDraft
 from ..workflow.models import Artifact, ModuleExecutionContext, StepOutcome, StepStatus
+from .core_lowering import lower_binding_sql
 
 
 @dataclass(frozen=True)
@@ -71,13 +82,69 @@ class CoreArtifactRoles:
         return role.namespace == cls.NAMESPACE and role.name.startswith("publication.")
 
 
+@dataclass(frozen=True)
+class CoreCompilationContext:
+    """Compiled semantic inputs required by the built-in core module.
+
+    Core owns lowering graph bindings into its relation-producing workflow
+    steps.  The generic workflow compiler supplies the narrow SQL-lowering
+    capability; it no longer creates core workflow steps itself.
+    """
+
+    blueprint: BuildBlueprint
+    sources: tuple[SourceDefinition, ...]
+
+
+class CoreCompiler:
+    async def compile(self, context: CoreCompilationContext) -> ModuleCompilationResult:
+        definition = ModuleDefinition(
+            reference=ModuleReference(
+                module_id=CoreModule.ID,
+                import_module=CoreModule.__module__,
+                class_qualname=CoreModule.__qualname__,
+                implementation_version=CoreModule.VERSION,
+                priority=0,
+            ),
+        )
+        drafts: list[WorkflowStepDraft] = []
+        for index, binding in enumerate(context.blueprint.bindings):
+            output = OutputSlot(
+                slot_id=f"core::binding.{index}.output",
+                artifact_role=CoreArtifactRoles.binding_relation(index),
+            )
+            step = WorkflowStep(
+                step_id=f"core::binding.{index}",
+                module_id=CoreModule.ID,
+                outputs=(output,),
+                payload={
+                    "action": "relation",
+                    "relation": f"kg_binding_{index}",
+                    "sql": lower_binding_sql(context.blueprint, context.sources, binding),
+                    "materialization": "temporary_table",
+                },
+            )
+            drafts.append(WorkflowStepDraft(step, {}))
+        publication_input = CollectionInputSlot(slot_id="core::publish.result.publications")
+        drafts.append(WorkflowStepDraft(
+            WorkflowStep(
+                step_id="core::publish.result",
+                module_id=CoreModule.ID,
+                assembly_preference="deferred",
+                inputs=(publication_input,),
+                payload={"action": "publish"},
+            ),
+            {publication_input.slot_id: lambda _input, output: CoreArtifactRoles.is_publication(output.artifact_role)},
+        ))
+        return ModuleCompilationResult(definition, tuple(drafts))
+
+
 class CoreModule(Module):
     ID: ClassVar[str] = "core"
     VERSION: ClassVar[str] = "1"
 
     @classmethod
     async def create_compiler(cls, context: Any) -> ModuleCompiler:
-        raise RuntimeError("the core module is compiled by the graph compiler")
+        return CoreCompiler()
 
     @classmethod
     async def create_executor(cls, context: Any) -> ModuleExecutor:

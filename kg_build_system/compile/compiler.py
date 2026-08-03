@@ -12,17 +12,16 @@ from sqlglot import exp
 from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
 from ..data import BoundTable
 from .models import (
-    ArtifactRole, BindingDefinition, BlueprintModule, BuildBlueprint, BuildContract, BuildSettings,
-    BuildOverrides, CollectionInputSlot, ModuleDefinition, ComponentDefinition,
-    Connection, EdgeBindingDefinition, FieldReference, LiteralValue, ModuleReference,
-    NodeBindingDefinition, Operation, OutputSlot,
+    BindingDefinition, BlueprintModule, BuildBlueprint, BuildContract, BuildSettings,
+    BuildOverrides, ComponentDefinition, Connection, EdgeBindingDefinition, FieldReference, LiteralValue,
+    NodeBindingDefinition, Operation,
     ProjectionDefinition, PropertyDefinition, SingleInputSlot, SourceDefinition,
-    SourceOverride, Value, ValueType, WorkflowDefinition, WorkflowStep,
+    SourceOverride, Value, ValueType, WorkflowDefinition,
 )
 from ..expressions import Expression, FieldPath
 from .._support.annotations import type_name, type_shape
 from ..workflow.interfaces import ModuleRegistration, WorkflowStepDraft
-from ..modules.core import CoreArtifactRoles
+from ..modules.core import CoreCompilationContext, CoreModule
 
 def _property_expressions(binding: NodeBinding | EdgeBinding) -> dict[str, Expression[Any]]:
     values: dict[str, Expression[Any]] = {}
@@ -338,16 +337,13 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[Bou
     """Compile core DuckDB work and contributor declarations into one workflow."""
     source_ir = _effective_sources(blueprint=blueprint, overrides=sources)
     overrides = BuildOverrides(sources=tuple(SourceOverride(table=item.table, original=next((old for old in blueprint.sources if old.table == item.table), None), override=item) for item in (_source_definition(source) for source in sources)))
-    core = ModuleDefinition(reference=ModuleReference(module_id="core", import_module="kg_build_system.modules.core", class_qualname="CoreModule", implementation_version="1", priority=0))
+    core_compiler = await CoreModule.create_compiler(None)
+    core_declaration = await core_compiler.compile(CoreCompilationContext(
+        blueprint=blueprint,
+        sources=source_ir,
+    ))
+    declarations = [core_declaration]
     drafts: list[WorkflowStepDraft] = []
-    def output(step_id: str, role: ArtifactRole, payload: dict[str, Any], inputs: tuple[Any, ...] = ()) -> WorkflowStep:
-        slot = f"core::{step_id}.output"
-        return WorkflowStep(step_id=f"core::{step_id}", module_id="core", inputs=inputs, outputs=(OutputSlot(slot_id=slot, artifact_role=role),), payload=payload)
-    for index, binding in enumerate(blueprint.bindings):
-        step_id = f"binding.{index}"
-        step = output(step_id, CoreArtifactRoles.binding_relation(index), {"action":"relation", "relation":f"kg_binding_{index}", "sql":_compile_binding_sql(graph=blueprint, sources=source_ir, binding=binding), "materialization":"temporary_table"})
-        drafts.append(WorkflowStepDraft(step, {}))
-    declarations = []
     for priority, registration in enumerate((_load_registration(module) for module in blueprint.modules), start=1):
         compiler = await registration.module_class.create_compiler(type("CompilationContext", (), {"registration": registration})())
         declaration = await compiler.compile(blueprint)
@@ -366,20 +362,7 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[Bou
         declarations.append(declaration.__class__(module=declaration.module.model_copy(update={"reference": reference}), steps=declaration.steps))
     for declaration in declarations:
         drafts.extend(declaration.steps)
-    publication_input = CollectionInputSlot(slot_id="core::publish.result.publications")
-    drafts.append(WorkflowStepDraft(
-        WorkflowStep(
-            step_id="core::publish.result",
-            module_id="core",
-            assembly_preference="deferred",
-            inputs=(publication_input,),
-            payload={"action": "publish"},
-        ),
-        {publication_input.slot_id: lambda _input, output: CoreArtifactRoles.is_publication(output.artifact_role)},
-    ))
-    compiled_modules = [core]
-    for declaration in declarations:
-        compiled_modules.append(declaration.module)
+    compiled_modules = [declaration.module for declaration in declarations]
     if len({module.reference.module_id for module in compiled_modules}) != len(compiled_modules): raise ValueError("workflow module IDs must be unique")
     outputs = [slot for draft in drafts for slot in draft.definition.outputs]
     output_order = {slot.slot_id: index for index, slot in enumerate(outputs)}
