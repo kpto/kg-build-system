@@ -3,8 +3,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 from ..compile.models import ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot, SingleInputSlot, WorkflowStep
-from .runtime import Artifact, Diagnostic, ModuleExecutionContext, StepOutcome, StepStatus
-from .workflow import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft, role_is
+from ..workflow.interfaces import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft, role_is
+from ..workflow.models import Artifact, Diagnostic, ModuleExecutionContext, StepOutcome, StepStatus
 
 @dataclass(frozen=True)
 class EmptyConfiguration(ModuleRegistrationConfiguration): pass

@@ -21,7 +21,7 @@ from .models import (
 )
 from ..expressions import Expression, FieldPath
 from .._support.annotations import type_name, type_shape
-from ..modules.workflow import ModuleRegistration, WorkflowStepDraft
+from ..workflow.interfaces import ModuleRegistration, WorkflowStepDraft
 
 def _property_expressions(binding: NodeBinding | EdgeBinding) -> dict[str, Expression[Any]]:
     values: dict[str, Expression[Any]] = {}

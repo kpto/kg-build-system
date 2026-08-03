@@ -2,7 +2,7 @@
 
 from .binding import ExpressionBinding, bind, edge_binding, node_binding
 from .expressions import ExpressionInput, collection, lookup, value
-from .build import BuildRuntime, Diagnostic, build
+from .workflow import BuildRuntime, Diagnostic, build
 from .compile import BuildBlueprint, BuildContract, BuildSettings, compile_blueprint, create_blueprint
 from .data import DataSourceConfig, Field, InputFormat, ProjectedField, bind_source, field, projection, projected_field, struct, table
 from .topology import GraphComponent, PropertySlot, edge, node, property

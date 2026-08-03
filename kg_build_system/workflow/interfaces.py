@@ -1,4 +1,4 @@
-"""Workflow module registration, compilation, and execution contracts."""
+"""Workflow-module registration, compilation, and execution interfaces."""
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, ClassVar, Protocol
 
 from ..compile.models import ArtifactRole, InputSlot, ModuleDefinition, OutputSlot, WorkflowStep
-from .runtime import ModuleExecutionContext, StepOutcome
+from .models import ModuleExecutionContext, StepOutcome
 
 
 @dataclass(frozen=True)

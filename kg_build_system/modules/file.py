@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
 from ..compile.models import ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot, RuntimeFieldDefinition, WorkflowStep
-from .runtime import Artifact, ModuleExecutionContext, StepOutcome, StepStatus
-from .workflow import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft
+from ..workflow.interfaces import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft
+from ..workflow.models import Artifact, ModuleExecutionContext, StepOutcome, StepStatus
 
 @dataclass(frozen=True)
 class FileModuleConfiguration(ModuleRegistrationConfiguration):

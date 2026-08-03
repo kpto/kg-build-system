@@ -4,8 +4,8 @@ from __future__ import annotations
 from typing import Any, ClassVar
 
 from ..compile.models import WorkflowStep
-from .runtime import Artifact, ModuleExecutionContext, StepOutcome, StepStatus
-from .workflow import Module, ModuleCompiler, ModuleExecutor
+from ..workflow.interfaces import Module, ModuleCompiler, ModuleExecutor
+from ..workflow.models import Artifact, ModuleExecutionContext, StepOutcome, StepStatus
 
 
 class CoreModule(Module):

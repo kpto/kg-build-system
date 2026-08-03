@@ -1,4 +1,4 @@
-"""Runtime-only workflow results shared by module executors and the build runner."""
+"""Runtime-only workflow models shared by the executor and workflow modules."""
 from __future__ import annotations
 
 from collections.abc import Mapping
@@ -62,9 +62,37 @@ class StepOutcome:
 
 
 @dataclass(frozen=True)
+class BuildRuntime:
+    credentials: dict[str, str] = field(default_factory=dict)
+    module_configuration: dict[str, dict[str, Any]] = field(default_factory=dict)
+
+
+@dataclass(frozen=True)
 class ModuleExecutionContext:
     contract: BuildContract
     module: ModuleDefinition
     runtime_configuration: Mapping[str, Any]
     inputs: Mapping[str, tuple[Artifact, ...]]
     services: Mapping[str, Any]
+
+
+@dataclass(frozen=True)
+class BuildReport:
+    outcomes: tuple[StepOutcome, ...]
+    sink_outcomes: tuple[StepOutcome, ...]
+    artifacts: tuple[Artifact, ...]
+    diagnostics: tuple[Diagnostic, ...]
+    recovered_failures: tuple[Failure, ...]
+    unresolved_failures: tuple[Failure, ...]
+    metrics: dict[str, int]
+    provenance: dict[str, Any]
+
+    @property
+    def nodes(self) -> int:
+        """Compatibility convenience for the portable graph-record metric."""
+        return self.metrics.get("graph.nodes", 0)
+
+    @property
+    def edges(self) -> int:
+        """Compatibility convenience for the portable graph-record metric."""
+        return self.metrics.get("graph.edges", 0)

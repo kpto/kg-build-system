@@ -4,39 +4,10 @@ from __future__ import annotations
 import asyncio
 import importlib
 from collections import defaultdict
-from dataclasses import dataclass, field
 from typing import Any
 
 from ..compile.models import BuildContract
-from ..modules.runtime import Artifact, Diagnostic, Failure, ModuleExecutionContext, StepOutcome, StepStatus
-
-
-@dataclass(frozen=True)
-class BuildRuntime:
-    credentials: dict[str, str] = field(default_factory=dict)
-    module_configuration: dict[str, dict[str, Any]] = field(default_factory=dict)
-
-
-@dataclass(frozen=True)
-class BuildReport:
-    outcomes: tuple[StepOutcome, ...]
-    sink_outcomes: tuple[StepOutcome, ...]
-    artifacts: tuple[Artifact, ...]
-    diagnostics: tuple[Diagnostic, ...]
-    recovered_failures: tuple[Failure, ...]
-    unresolved_failures: tuple[Failure, ...]
-    metrics: dict[str, int]
-    provenance: dict[str, Any]
-
-    @property
-    def nodes(self) -> int:
-        """Compatibility convenience for the portable graph-record metric."""
-        return self.metrics.get("graph.nodes", 0)
-
-    @property
-    def edges(self) -> int:
-        """Compatibility convenience for the portable graph-record metric."""
-        return self.metrics.get("graph.edges", 0)
+from .models import Artifact, BuildReport, BuildRuntime, Diagnostic, Failure, ModuleExecutionContext, StepOutcome, StepStatus
 
 
 def _load_class(import_module: str, qualname: str) -> type[Any]:
