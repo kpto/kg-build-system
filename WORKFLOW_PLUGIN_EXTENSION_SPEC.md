@@ -7,8 +7,9 @@ discussion. It is not yet part of the canonical specification.
 
 The initial workflow-contract and runtime-result slice is implemented. The
 current implementation has serialisable module references, frozen workflow
-steps/slots/connections, runtime-only step outcomes and diagnostics, and a
-file-output module. Failure propagation and recovery remain future work.
+steps/slots/connections, runtime-only step outcomes, explicit publication, a
+user-facing workflow report, and a file-output module. Failure propagation and
+recovery remain future work.
 
 ## Purpose and invariants
 
@@ -29,8 +30,8 @@ all workflow steps; no role receives special scheduling treatment.
 ## Workflow modules and runtime configuration
 
 Each workflow-module class has a stable, static module ID. The ID is semantic:
-it is used as the module namespace for steps, slots, artifact roles,
-diagnostics, runtime configuration, and annotations the module owns. A
+it is used as the module namespace for steps, slots, artifact roles, runtime
+configuration, and annotations the module owns. A
 compiled workflow may contain at most one configured instance of a module ID.
 
 An author supplies module registrations to `create_blueprint`; they are part
@@ -145,7 +146,7 @@ implementation.
 Runtime configuration field values are not stored in the contract. The
 contract records their definitions, and runtime supplies values as a mapping
 by module ID and field key. `secret` fields must never enter workflow payloads,
-diagnostics, manifests, or fingerprints.
+published artifacts, manifests, or fingerprints.
 
 `ArtifactRole` is semantic and has no physical-location, relation-name, or
 producer identity. `OutputSlot.slot_id` identifies the producer-specific
@@ -230,9 +231,14 @@ only dependencies. It may have no inputs, expose output slots, consume input
 slots, or both consume and produce slots.
 
 An output slot describes one logical artifact. Artifacts may be relations,
-CTEs, streams, diagnostics, external-resource handles, manifests, reports, or
-other serialisable products. Logical artifacts and their physical
+CTEs, streams, module-owned findings, external-resource handles, manifests,
+reports, or other serialisable products. Logical artifacts and their physical
 materialisation are distinct.
+
+A declared output slot may produce no runtime artifact when the step has
+nothing meaningful to publish. The slot remains part of the frozen workflow;
+its connected consumers receive no artifact for that connection. Modules must
+therefore treat an empty runtime input as a valid possibility.
 
 Each output slot has a producer-specific slot ID and one artifact role. The
 slot ID says which step produced it; the role says what it represents:
@@ -291,7 +297,7 @@ For a candidate input/output pair, assembly prefers an open output slot. If it
 must use an already-used output, it prefers the latest compatible output according to
 the deterministic assembly ordering. This produces a preferred continuation
 without preventing useful fan-out. Missing or unresolved equally preferred
-connections are compilation diagnostics.
+connections are compilation errors.
 
 Once every connection is resolved, it becomes a dependency edge. The resulting
 dependency graph, rather than module priority or assembly preference, defines
@@ -299,15 +305,28 @@ runtime execution order.
 
 ## Execution and failures
 
-There are no reserved boundary steps or slots. A beginning step is an ordinary
-step with no input slots. A termination step is an ordinary step with no
-output slots. A workflow may have multiple beginnings and multiple
-terminations.
+There are no privileged scheduling roles. A beginning step is an ordinary step
+with no input slots. A termination step is an ordinary step with no output
+slots. A workflow may have multiple beginnings and multiple terminations.
+
+The core module provides the standard result-publication convention. A module
+marks an output for inclusion in the user-facing workflow result with a core
+publication role:
+
+```text
+core::publication.<module_id>.<name>
+```
+
+The core `publish.result` termination step has a collection input that selects
+every publication role. It returns those artifacts as the workflow result
+without inspecting their values. Publication is generic: the workflow has no
+special diagnostic, validation, target, or report payload type.
 
 The executor completes a build when every declared step has reached an
-outcome. The build result aggregates sink-step outcomes, produced artifacts,
-diagnostics, recovered failures, and unresolved failures. A no-output
-side-effect step is therefore a sink, not an implicit single build result.
+outcome. The user-facing result contains explicitly published artifacts,
+recovered failures, unresolved failures, semantic metrics, and compact
+provenance. A no-output side-effect step is therefore a sink, not an implicit
+single build result.
 
 Compilation rejects missing connections, ambiguous connections, and cycles.
 Cleanup is also an ordinary step: it must have explicit input connections to
@@ -319,30 +338,22 @@ completed and passes its failure to downstream steps. A downstream step
 normally propagates that failure through its errored handler, but may recover
 it or produce failure-aware artifacts. Runtime never adds steps.
 
-The final result reports unresolved failures, recovered failures, diagnostics,
-produced artifacts, and step outcomes. Runtime artifacts and step outcomes are
-runtime-only models; slots and artifact roles remain serialised workflow
-semantics and do not dictate physical materialisation.
+Runtime artifacts and step outcomes are runtime-only models. Slots and
+artifact roles remain serialised workflow semantics and do not dictate physical
+materialisation. Internal execution detail is not part of the user-facing
+workflow result.
 
-### Runtime outcomes and diagnostics
+### Runtime outcomes and published results
 
 The runtime model records every completed step as a `StepOutcome`. An outcome
-has a status, declared output artifacts, structured diagnostics, optional
-failure information, portable metrics, and optional module-owned result data.
-Modules return outcomes rather than untyped values; the executor validates
-that every produced artifact belongs to one of that step's declared output
-slots and has the declared artifact role.
+has a status, zero or more declared output artifacts, optional failure
+information, portable metrics, and optional module-owned result data. Modules
+return outcomes rather than untyped values; the executor validates that every
+produced artifact belongs to one of that step's declared output slots and has
+the declared artifact role.
 
 ```text
 StepStatus = succeeded | failed | recovered | skipped
-
-Diagnostic
-  code
-  severity: info | warning | error
-  message
-  module_id
-  step_id
-  details
 
 Failure
   message
@@ -360,39 +371,40 @@ StepOutcome
   module_id
   status
   artifacts
-  diagnostics
   failure
   metrics
   result
 
-BuildReport
-  outcomes
-  sink_outcomes
-  artifacts
-  diagnostics
+PublishedArtifact
+  role
+  value
+
+WorkflowReport
+  published_artifacts
   recovered_failures
   unresolved_failures
   metrics
   provenance
 ```
 
-`Diagnostic` is a structured finding emitted by a completed step. It is not
-itself a runtime failure: a diagnostic may be informational, a warning, or an
-error according to its module's policy. `Failure` describes a step that could
-not complete its work. The initial implementation records the models but does
-not yet provide errored handlers or failure propagation; an unhandled module
-exception still stops the build.
+There is no workflow-level diagnostic model. A validation module may expose
+its findings as a private output slot, aggregate them into a module-owned
+report, and publish that report if it has useful content. Whether findings
+become a gate failure is the validator's configuration and lifecycle decision.
+`Failure` describes a step that could not complete its work. The initial
+implementation records failed outcomes but does not yet provide errored
+handlers or failure propagation.
 
 Metrics use semantic names. The file module emits `graph.nodes` and
 `graph.edges`; the generic executor aggregates metrics without knowing about
-file output or any other target. `BuildReport.nodes` and `.edges` are
+file output or any other target. `WorkflowReport.nodes` and `.edges` are
 compatibility conveniences derived from those metrics, not target-specific
 execution behaviour.
 
 The runtime execution context supplies the immutable contract, compiled module
 definition/reference, resolved runtime configuration, declared artifact inputs,
-and execution services. Runtime values, diagnostics, artifacts, outcomes, and
-module result data never enter the serialised workflow contract.
+and execution services. Runtime values, artifacts, outcomes, and module result
+data never enter the serialised workflow contract.
 
 ## Topology annotations and module interpretation
 
@@ -423,19 +435,22 @@ The first implementation slice is:
 2. Implement global workflow assembly, validation, and deterministic
    scheduling.
 3. Add registration-based compilation, module import resolution, and runtime
-   dispatch, including failure propagation.
+   dispatch; add failure propagation in a later extension.
 4. Convert the file target into a workflow module without changing its authoring
    syntax; move JSONL writing from the generic executor into that module.
-5. Have the file module select core graph-record artifact roles and emit graph
-   output plus a provenance manifest.
+5. Have the file module select core graph-record artifact roles and publish its
+   graph-output result.
 6. Add topology annotation IR and expose it to workflow-module compilation.
 
 Implemented additions to this slice:
 
-- JSONL writing and provenance-manifest creation are owned by `FileModule`.
+- JSONL writing is owned by `FileModule`, which publishes its output result.
 - Runtime workflow models are owned by `workflow.models`; module lifecycle
   interfaces are owned by `workflow.interfaces`; `modules` contains concrete
   module implementations only.
-- The executor aggregates explicit outcomes, sink outcomes, artifacts,
-  diagnostics, and semantic metrics. It does not interpret a file module's
-  result structure to calculate graph counts.
+- The core result-termination step collects explicit publication artifacts;
+  `WorkflowReport` exposes those values, failures, semantic metrics, and
+  compact provenance. It does not expose execution internals or interpret
+  module-specific artifact payloads.
+- Validators may use private finding slots and a module-owned aggregation step
+  to publish one optional validation report and apply configured gate policy.
