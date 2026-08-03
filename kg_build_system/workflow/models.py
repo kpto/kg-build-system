@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Any, Literal
+from typing import Any
 
 from ..compile.models import ArtifactRole, BuildContract, ModuleDefinition
 
@@ -14,18 +14,6 @@ class StepStatus(StrEnum):
     FAILED = "failed"
     RECOVERED = "recovered"
     SKIPPED = "skipped"
-
-
-@dataclass(frozen=True)
-class Diagnostic:
-    """A structured finding emitted by a completed workflow step."""
-
-    code: str
-    severity: Literal["info", "warning", "error"]
-    message: str
-    module_id: str
-    step_id: str
-    details: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -55,7 +43,6 @@ class StepOutcome:
     module_id: str
     status: StepStatus
     artifacts: tuple[Artifact, ...] = ()
-    diagnostics: tuple[Diagnostic, ...] = ()
     failure: Failure | None = None
     metrics: Mapping[str, int] = field(default_factory=dict)
     result: Mapping[str, Any] = field(default_factory=dict)
@@ -81,7 +68,6 @@ class BuildReport:
     outcomes: tuple[StepOutcome, ...]
     sink_outcomes: tuple[StepOutcome, ...]
     artifacts: tuple[Artifact, ...]
-    diagnostics: tuple[Diagnostic, ...]
     recovered_failures: tuple[Failure, ...]
     unresolved_failures: tuple[Failure, ...]
     metrics: dict[str, int]

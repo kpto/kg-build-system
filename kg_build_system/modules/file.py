@@ -23,7 +23,7 @@ class FileModule(Module, ModuleRegistration[FileModuleConfiguration]):
     async def create_executor(cls, context: Any) -> ModuleExecutor: return FileExecutor(context.runtime_configuration)
     async def compile(self, context: Any) -> ModuleCompilationResult:
         records=CollectionInputSlot(slot_id="file::write.records")
-        step=WorkflowStep(step_id="file::write",module_id=self.ID,assembly_preference="deferred",inputs=(records,),outputs=(OutputSlot(slot_id="file::write.result",artifact_role=CoreArtifactRoles.published_result(self.ID, "write")),),payload={})
+        step=WorkflowStep(step_id="file::write",module_id=self.ID,assembly_preference="deferred",inputs=(records,),outputs=(OutputSlot(slot_id="file::write.result",artifact_role=CoreArtifactRoles.published(self.ID, "write_result")),),payload={})
         definition=ModuleDefinition(reference=ModuleReference(module_id=self.ID,import_module=type(self).__module__,class_qualname=type(self).__qualname__,implementation_version=self.VERSION,priority=0,configuration={"location":self.configuration.location}),runtime_fields=(RuntimeFieldDefinition(key="output_location",description="Optional runtime replacement for the output location.",required=False),))
         return ModuleCompilationResult(definition,(WorkflowStepDraft(step,{records.slot_id:lambda _input,output:CoreArtifactRoles.is_graph_records(output.artifact_role)} ),))
 

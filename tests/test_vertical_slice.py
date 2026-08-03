@@ -54,7 +54,7 @@ class VerticalSliceTests(unittest.TestCase):
         self.assertIsNotNone(identity)
         assert identity is not None
         self.assertEqual((identity.kind, identity.component), ("node", "Thing"))
-        self.assertTrue(CoreArtifactRoles.is_diagnostic(CoreArtifactRoles.diagnostic("conflicting_value", "Thing", "label")))
+        self.assertTrue(CoreArtifactRoles.is_publication(CoreArtifactRoles.published("example", "result")))
 
     def test_field_descriptor_and_bind_boundary(self) -> None:
         path = Input.label
@@ -99,7 +99,7 @@ class VerticalSliceTests(unittest.TestCase):
             self.assertNotIn("UNNEST", str(binding_steps[0].payload))
             self.assertIn("UNNEST", str(binding_steps[1].payload))
             report = build(contract)
-            self.assertEqual((report.nodes, report.edges, report.diagnostics), (5, 3, ()))
+            self.assertEqual((report.nodes, report.edges), (5, 3))
 
     def test_edge_endpoint_keys_contribute_source_requirements(self) -> None:
         root = Path(__file__).parents[1]
@@ -119,8 +119,9 @@ class VerticalSliceTests(unittest.TestCase):
             contract = compile_blueprint(blueprint=blueprint)
             report = build(contract)
             self.assertEqual(len(report.unresolved_failures), 1)
-            self.assertGreaterEqual(len(report.diagnostics), 1)
             self.assertTrue(all(artifact.role.name.startswith("publication.") for artifact in report.artifacts))
+            validation_report = next(artifact for artifact in report.artifacts if artifact.role == CoreArtifactRoles.published("reject_conflicting_non_null_values", "report"))
+            self.assertGreaterEqual(len(validation_report.value.findings), 1)
             report_only_blueprint = create_blueprint(bindings=[
                 node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label))),
                 node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(value.literal("conflict")))),
@@ -131,7 +132,7 @@ class VerticalSliceTests(unittest.TestCase):
             ])
             report_only = build(compile_blueprint(blueprint=report_only_blueprint))
             self.assertEqual(report_only.unresolved_failures, ())
-            self.assertGreaterEqual(len(report_only.diagnostics), 1)
+            self.assertTrue(any(artifact.role == CoreArtifactRoles.published("reject_conflicting_non_null_values", "report") for artifact in report_only.artifacts))
 
     def test_contract_records_file_module(self) -> None:
         root = Path(__file__).parents[1]

@@ -1,4 +1,6 @@
 """Run with: python -m demo.basic."""
+from dataclasses import asdict
+import json
 from pathlib import Path
 from kg_build_system import (
     DataSourceConfig, Field, GraphComponent, InputFormat, ProjectedField, PropertySlot, bind,
@@ -80,4 +82,14 @@ if __name__ == "__main__":
     (root / "build_contract.json").write_text(contract.model_dump_json(indent=2), encoding="utf-8")
     for step in contract.workflow.steps:
         print(f"-- {step.step_id}\n{step.model_dump_json(indent=2)}")
-    print(execute_build(contract))
+    report = execute_build(contract)
+    (root / "build_report.json").write_text(
+        json.dumps(
+            asdict(report),
+            indent=2,
+            sort_keys=True,
+            default=lambda value: value.model_dump(mode="json") if hasattr(value, "model_dump") else str(value),
+        ),
+        encoding="utf-8",
+    )
+    print(report)

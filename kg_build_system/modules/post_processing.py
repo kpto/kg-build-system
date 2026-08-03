@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar
 from ..compile.models import ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot, SingleInputSlot, WorkflowStep
 from ..workflow.interfaces import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft, role_is
-from ..workflow.models import Artifact, Diagnostic, Failure, ModuleExecutionContext, StepOutcome, StepStatus
+from ..workflow.models import Artifact, Failure, ModuleExecutionContext, StepOutcome, StepStatus
 from .core import CoreArtifactRoles
 
 @dataclass(frozen=True)
@@ -16,6 +16,17 @@ class RejectConflictingNonNullValuesConfiguration(ModuleRegistrationConfiguratio
 
     fail_on_error: bool = True
 
+@dataclass(frozen=True)
+class ConflictingNonNullValueFinding:
+    component: str
+    build_key: str
+    property_name: str
+    distinct_values: int
+
+@dataclass(frozen=True)
+class ConflictingNonNullValuesReport:
+    findings: tuple[ConflictingNonNullValueFinding, ...]
+
 def _definition(module: type[Module]) -> ModuleDefinition:
     return ModuleDefinition(reference=ModuleReference(module_id=module.ID, import_module=module.__module__, class_qualname=module.__qualname__, implementation_version=str(getattr(module, "VERSION", "1")), priority=0, configuration={}))
 
@@ -25,21 +36,26 @@ class SqlExecutor:
     async def execute_step(self, context: ModuleExecutionContext, step: WorkflowStep) -> StepOutcome:
         payload = step.payload or {}; connection = context.services["duckdb"]
         output = step.outputs[0]
-        if payload["action"] == "diagnostic":
-            diagnostics = tuple(
-                Diagnostic(
-                    code="conflicting_non_null_value",
-                    severity="error",
-                    message=f"{payload['component']}({key}) has {count} non-null values for {payload['field']}",
-                    module_id=step.module_id,
-                    step_id=step.step_id,
-                    details={"component": payload["component"], "build_key": str(key), "property": payload["field"], "distinct_values": count},
+        if payload["action"] == "findings":
+            findings = tuple(
+                ConflictingNonNullValueFinding(
+                    component=payload["component"], build_key=str(key),
+                    property_name=payload["field"], distinct_values=count,
                 )
                 for key, count in connection.execute(payload["sql"]).fetchall()
             )
-            failed = bool(diagnostics) and bool(payload.get("fail_on_error", False))
+            return StepOutcome(step.step_id, step.module_id, StepStatus.SUCCEEDED, (Artifact(output.slot_id, output.artifact_role, findings),))
+        if payload["action"] == "aggregate_findings":
+            findings = tuple(
+                finding
+                for artifacts in context.inputs.values()
+                for artifact in artifacts
+                for finding in artifact.value
+            )
+            report = ConflictingNonNullValuesReport(findings=findings)
+            failed = bool(findings) and bool(payload.get("fail_on_error", False))
             failure = Failure(
-                message=f"validation found {len(diagnostics)} error diagnostic(s)",
+                message=f"validation found {len(findings)} conflicting non-null value(s)",
                 module_id=step.module_id,
                 step_id=step.step_id,
             ) if failed else None
@@ -47,8 +63,7 @@ class SqlExecutor:
                 step.step_id,
                 step.module_id,
                 StepStatus.FAILED if failed else StepStatus.SUCCEEDED,
-                (Artifact(output.slot_id, output.artifact_role, diagnostics),),
-                diagnostics=diagnostics,
+                (Artifact(output.slot_id, output.artifact_role, report),),
                 failure=failure,
             )
         materialization = "TABLE" if payload["materialization"] == "temporary_table" else "VIEW"
@@ -115,6 +130,18 @@ class RejectConflictingNonNullValuesModule(Module, ModuleRegistration[RejectConf
         for component in context.components:
             for prop in component.properties:
                 slot=CollectionInputSlot(slot_id=f"{self.ID}::{component.name}.{prop.name}.input"); raw=f"kg_raw_{component.name.lower()}"
-                step=WorkflowStep(step_id=f"{self.ID}::{component.name}.{prop.name}",module_id=self.ID,inputs=(slot,),outputs=(OutputSlot(slot_id=f"{self.ID}::{component.name}.{prop.name}.output",artifact_role=CoreArtifactRoles.published_diagnostic("conflicting_value", component.name, prop.name)),),payload={"action":"diagnostic","component":component.name,"field":prop.name,"fail_on_error":self.configuration.fail_on_error,"sql":f"SELECT build_key, count(DISTINCT {_quote(prop.name)}) AS values FROM {_quote(raw)} WHERE build_key IS NOT NULL GROUP BY build_key HAVING count(DISTINCT {_quote(prop.name)}) FILTER (WHERE {_quote(prop.name)} IS NOT NULL) > 1"})
+                step=WorkflowStep(step_id=f"{self.ID}::{component.name}.{prop.name}",module_id=self.ID,inputs=(slot,),outputs=(OutputSlot(slot_id=f"{self.ID}::{component.name}.{prop.name}.output",artifact_role=ArtifactRole(namespace=self.ID, name=f"findings.{component.name}.{prop.name}")),),payload={"action":"findings","component":component.name,"field":prop.name,"sql":f"SELECT build_key, count(DISTINCT {_quote(prop.name)}) AS values FROM {_quote(raw)} WHERE build_key IS NOT NULL GROUP BY build_key HAVING count(DISTINCT {_quote(prop.name)}) FILTER (WHERE {_quote(prop.name)} IS NOT NULL) > 1"})
                 steps.append(WorkflowStepDraft(step,{slot.slot_id:lambda _input,output:CoreArtifactRoles.is_graph_records(output.artifact_role)}))
+        findings_slot = CollectionInputSlot(slot_id=f"{self.ID}::report.findings")
+        report_step = WorkflowStep(
+            step_id=f"{self.ID}::report",
+            module_id=self.ID,
+            assembly_preference="deferred",
+            inputs=(findings_slot,),
+            outputs=(OutputSlot(slot_id=f"{self.ID}::report.output", artifact_role=CoreArtifactRoles.published(self.ID, "report")),),
+            payload={"action": "aggregate_findings", "fail_on_error": self.configuration.fail_on_error},
+        )
+        steps.append(WorkflowStepDraft(report_step, {
+            findings_slot.slot_id: lambda _input, output: output.artifact_role.namespace == self.ID and output.artifact_role.name.startswith("findings."),
+        }))
         return ModuleCompilationResult(_definition(type(self)),tuple(steps))

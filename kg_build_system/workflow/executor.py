@@ -7,7 +7,7 @@ from collections import defaultdict
 from typing import Any
 
 from ..compile.models import BuildContract
-from .models import Artifact, BuildReport, BuildRuntime, Diagnostic, Failure, ModuleExecutionContext, StepOutcome, StepStatus
+from .models import Artifact, BuildReport, BuildRuntime, Failure, ModuleExecutionContext, StepOutcome, StepStatus
 
 
 def _load_class(import_module: str, qualname: str) -> type[Any]:
@@ -86,7 +86,6 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
         for artifact in outcome.result.get("published_artifacts", ())
         if isinstance(artifact, Artifact)
     )
-    published_diagnostics = tuple(diagnostic for outcome in sink_outcomes for diagnostic in outcome.diagnostics)
     metrics: dict[str, int] = {}
     for outcome in outcomes:
         for name, value in outcome.metrics.items():
@@ -95,7 +94,6 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
         outcomes=tuple(outcomes),
         sink_outcomes=sink_outcomes,
         artifacts=published_artifacts,
-        diagnostics=published_diagnostics,
         recovered_failures=(),
         unresolved_failures=tuple(outcome.failure for outcome in outcomes if outcome.status == StepStatus.FAILED and outcome.failure is not None),
         metrics=metrics,

@@ -25,7 +25,7 @@ class CoreArtifactRoles:
     """Stable semantic roles produced by the core module.
 
     Relation roles are core-internal workflow links. ``graph_records`` and
-    ``diagnostic`` are the supported extension-facing roles.
+    ``published`` are the supported extension-facing roles.
     """
 
     NAMESPACE = "core"
@@ -49,18 +49,9 @@ class CoreArtifactRoles:
         return ArtifactRole(namespace=cls.NAMESPACE, name=f"graph.records.{kind}.{component}")
 
     @classmethod
-    def diagnostic(cls, code: str, component: str, property_name: str | None = None) -> ArtifactRole:
-        suffix = f".{property_name}" if property_name is not None else ""
-        return ArtifactRole(namespace=cls.NAMESPACE, name=f"diagnostic.{code}.{component}{suffix}")
-
-    @classmethod
-    def published_diagnostic(cls, code: str, component: str, property_name: str | None = None) -> ArtifactRole:
-        suffix = f".{property_name}" if property_name is not None else ""
-        return ArtifactRole(namespace=cls.NAMESPACE, name=f"publication.diagnostic.{code}.{component}{suffix}")
-
-    @classmethod
-    def published_result(cls, module_id: str, name: str) -> ArtifactRole:
-        return ArtifactRole(namespace=cls.NAMESPACE, name=f"publication.result.{module_id}.{name}")
+    def published(cls, module_id: str, name: str) -> ArtifactRole:
+        """Mark an otherwise module-owned artifact as a workflow result."""
+        return ArtifactRole(namespace=cls.NAMESPACE, name=f"publication.{module_id}.{name}")
 
     @classmethod
     def graph_record_identity(cls, role: ArtifactRole) -> GraphRecordArtifact | None:
@@ -76,16 +67,8 @@ class CoreArtifactRoles:
         return cls.graph_record_identity(role) is not None
 
     @classmethod
-    def is_diagnostic(cls, role: ArtifactRole) -> bool:
-        return role.namespace == cls.NAMESPACE and role.name.startswith("diagnostic.")
-
-    @classmethod
     def is_publication(cls, role: ArtifactRole) -> bool:
         return role.namespace == cls.NAMESPACE and role.name.startswith("publication.")
-
-    @classmethod
-    def is_published_diagnostic(cls, role: ArtifactRole) -> bool:
-        return role.namespace == cls.NAMESPACE and role.name.startswith("publication.diagnostic.")
 
 
 class CoreModule(Module):
@@ -106,17 +89,10 @@ class CoreExecutor:
         payload = step.payload or {}
         if payload.get("action") == "publish":
             published = tuple(artifact for artifacts in context.inputs.values() for artifact in artifacts)
-            diagnostics = tuple(
-                diagnostic
-                for artifact in published
-                if CoreArtifactRoles.is_published_diagnostic(artifact.role)
-                for diagnostic in artifact.value
-            )
             return StepOutcome(
                 step_id=step.step_id,
                 module_id=step.module_id,
                 status=StepStatus.SUCCEEDED,
-                diagnostics=diagnostics,
                 result={"published_artifacts": published},
             )
         connection = context.services["duckdb"]
