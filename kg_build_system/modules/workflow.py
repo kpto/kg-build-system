@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from typing import Any, ClassVar, Protocol
 
 from ..compile.models import ArtifactRole, InputSlot, ModuleDefinition, OutputSlot, WorkflowStep
+from .runtime import ModuleExecutionContext, StepOutcome
 
 
 @dataclass(frozen=True)
@@ -43,7 +44,7 @@ class ModuleCompiler(Protocol):
 
 
 class ModuleExecutor(Protocol):
-    async def execute_step(self, context: Any, step: WorkflowStep) -> Any: ...
+    async def execute_step(self, context: ModuleExecutionContext, step: WorkflowStep) -> StepOutcome: ...
 
 
 class Module(ABC):

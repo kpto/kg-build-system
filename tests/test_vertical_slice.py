@@ -65,6 +65,10 @@ class VerticalSliceTests(unittest.TestCase):
             self.assertTrue(any(step.step_id.startswith("core::binding.") for step in contract.workflow.steps))
             report = build(contract)
             self.assertEqual((report.nodes, report.edges), (5, 3))
+            self.assertEqual(len(report.outcomes), len(contract.workflow.steps))
+            self.assertTrue(report.sink_outcomes)
+            self.assertEqual(report.metrics["graph.nodes"], 5)
+            self.assertEqual(report.metrics["graph.edges"], 3)
 
     def test_unbound_graph_slot_is_rejected(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be assigned with bind"):

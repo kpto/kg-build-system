@@ -4,11 +4,11 @@ from __future__ import annotations
 import asyncio
 import importlib
 from collections import defaultdict
-from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..compile.models import ArtifactRole, BuildContract, ModuleDefinition, WorkflowStep
+from ..compile.models import BuildContract
+from ..modules.runtime import Artifact, Diagnostic, Failure, ModuleExecutionContext, StepOutcome, StepStatus
 
 
 @dataclass(frozen=True)
@@ -18,25 +18,25 @@ class BuildRuntime:
 
 
 @dataclass(frozen=True)
-class Artifact:
-    role: ArtifactRole
-    value: Any
-
-
-@dataclass(frozen=True)
-class ModuleExecutionContext:
-    contract: BuildContract
-    module: ModuleDefinition
-    inputs: Mapping[str, tuple[Artifact, ...]]
-    services: Mapping[str, Any]
-
-
-@dataclass(frozen=True)
 class BuildReport:
-    nodes: int
-    edges: int
-    diagnostics: tuple[str, ...]
+    outcomes: tuple[StepOutcome, ...]
+    sink_outcomes: tuple[StepOutcome, ...]
+    artifacts: tuple[Artifact, ...]
+    diagnostics: tuple[Diagnostic, ...]
+    recovered_failures: tuple[Failure, ...]
+    unresolved_failures: tuple[Failure, ...]
+    metrics: dict[str, int]
     provenance: dict[str, Any]
+
+    @property
+    def nodes(self) -> int:
+        """Compatibility convenience for the portable graph-record metric."""
+        return self.metrics.get("graph.nodes", 0)
+
+    @property
+    def edges(self) -> int:
+        """Compatibility convenience for the portable graph-record metric."""
+        return self.metrics.get("graph.edges", 0)
 
 
 def _load_class(import_module: str, qualname: str) -> type[Any]:
@@ -55,6 +55,7 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
     connection = duckdb.connect()
     if contract.settings.duckdb_threads is not None:
         connection.execute(f"SET threads = {contract.settings.duckdb_threads}")
+
     executors: dict[str, Any] = {}
     definitions = {module.reference.module_id: module for module in contract.workflow.modules}
     for module in contract.workflow.modules:
@@ -68,28 +69,61 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
             raise ValueError(f"missing runtime configuration for {reference.module_id}: {', '.join(missing)}")
         factory_context = type("ExecutorFactoryContext", (), {"module": module, "runtime_configuration": configuration})()
         executors[reference.module_id] = await cls.create_executor(factory_context)
-    output_owner = {slot.slot_id: (step, slot) for step in contract.workflow.steps for slot in step.outputs}
+
+    output_owner = {slot.slot_id: step.step_id for step in contract.workflow.steps for slot in step.outputs}
     incoming: dict[str, list[str]] = defaultdict(list)
-    for connection_def in contract.workflow.connections:
-        incoming[connection_def.input_slot_id].append(connection_def.output_slot_id)
-    completed: set[str] = set(); artifacts: dict[str, Artifact] = {}; results: list[Any] = []
+    consumed_outputs: set[str] = set()
+    for workflow_connection in contract.workflow.connections:
+        incoming[workflow_connection.input_slot_id].append(workflow_connection.output_slot_id)
+        consumed_outputs.add(workflow_connection.output_slot_id)
+
+    completed: set[str] = set()
+    artifacts: dict[str, Artifact] = {}
+    outcomes: list[StepOutcome] = []
     pending = list(contract.workflow.steps)
     while pending:
-        ready = [step for step in pending if all(output_owner[output_slot_id][0].step_id in completed for output_slot_id in (slot for input_slot in step.inputs for slot in incoming[input_slot.slot_id]))]
+        ready = [step for step in pending if all(output_owner[slot_id] in completed for input_slot in step.inputs for slot_id in incoming[input_slot.slot_id])]
         if not ready:
             raise RuntimeError("workflow has a dependency cycle")
         for step in ready:
-            inputs = {input_slot.slot_id: tuple(artifacts[slot] for slot in incoming[input_slot.slot_id]) for input_slot in step.inputs}
-            value = await executors[step.module_id].execute_step(ModuleExecutionContext(contract, definitions[step.module_id], inputs, {"duckdb": connection}), step)
-            if len(step.outputs) == 1:
-                artifacts[step.outputs[0].slot_id] = Artifact(step.outputs[0].artifact_role, value)
-            elif step.outputs:
-                if not isinstance(value, Mapping): raise RuntimeError(f"step {step.step_id} must return output-slot values")
-                for slot in step.outputs: artifacts[slot.slot_id] = Artifact(slot.artifact_role, value[slot.slot_id])
-            results.append(value); completed.add(step.step_id); pending.remove(step)
-    file_results = [result for result in results if isinstance(result, dict) and "nodes" in result and "edges" in result]
-    nodes = sum(result["nodes"] for result in file_results); edges = sum(result["edges"] for result in file_results)
-    return BuildReport(nodes=nodes, edges=edges, diagnostics=(), provenance={"blueprint_fingerprint": contract.blueprint_fingerprint, "workflow_fingerprint": contract.workflow_fingerprint, "workflow": contract.workflow.model_dump(mode="json")})
+            inputs = {input_slot.slot_id: tuple(artifacts[slot_id] for slot_id in incoming[input_slot.slot_id]) for input_slot in step.inputs}
+            context = ModuleExecutionContext(contract, definitions[step.module_id], runtime.module_configuration.get(step.module_id, {}), inputs, {"duckdb": connection})
+            outcome = await executors[step.module_id].execute_step(context, step)
+            if outcome.step_id != step.step_id or outcome.module_id != step.module_id:
+                raise RuntimeError(f"module returned an outcome for a different step: {step.step_id}")
+            if outcome.status != StepStatus.SUCCEEDED:
+                raise RuntimeError(f"failure propagation is not implemented; {step.step_id} returned {outcome.status}")
+            declared = {slot.slot_id: slot.artifact_role for slot in step.outputs}
+            returned = {artifact.slot_id: artifact for artifact in outcome.artifacts}
+            if set(returned) != set(declared):
+                raise RuntimeError(f"step {step.step_id} did not return exactly its declared output artifacts")
+            if any(artifact.role != declared[slot_id] for slot_id, artifact in returned.items()):
+                raise RuntimeError(f"step {step.step_id} returned an artifact role inconsistent with its output slot")
+            artifacts.update(returned)
+            outcomes.append(outcome)
+            completed.add(step.step_id)
+            pending.remove(step)
+
+    sink_step_ids = {
+        step.step_id for step in contract.workflow.steps
+        if not step.outputs or any(slot.slot_id not in consumed_outputs for slot in step.outputs)
+    }
+    all_artifacts = tuple(artifacts.values())
+    all_diagnostics = tuple(diagnostic for outcome in outcomes for diagnostic in outcome.diagnostics)
+    metrics: dict[str, int] = {}
+    for outcome in outcomes:
+        for name, value in outcome.metrics.items():
+            metrics[name] = metrics.get(name, 0) + value
+    return BuildReport(
+        outcomes=tuple(outcomes),
+        sink_outcomes=tuple(outcome for outcome in outcomes if outcome.step_id in sink_step_ids),
+        artifacts=all_artifacts,
+        diagnostics=all_diagnostics,
+        recovered_failures=(),
+        unresolved_failures=(),
+        metrics=metrics,
+        provenance={"blueprint_fingerprint": contract.blueprint_fingerprint, "workflow_fingerprint": contract.workflow_fingerprint, "workflow": contract.workflow.model_dump(mode="json")},
+    )
 
 
 def build(contract: BuildContract, runtime: BuildRuntime | None = None) -> BuildReport:

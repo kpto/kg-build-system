@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 from ..compile.models import ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot, SingleInputSlot, WorkflowStep
+from .runtime import Artifact, Diagnostic, ModuleExecutionContext, StepOutcome, StepStatus
 from .workflow import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft, role_is
 
 @dataclass(frozen=True)
@@ -14,12 +15,25 @@ def _definition(module: type[Module]) -> ModuleDefinition:
 def _quote(name: str) -> str: return '"' + name.replace('"', '""') + '"'
 
 class SqlExecutor:
-    async def execute_step(self, context: Any, step: WorkflowStep) -> Any:
+    async def execute_step(self, context: ModuleExecutionContext, step: WorkflowStep) -> StepOutcome:
         payload = step.payload or {}; connection = context.services["duckdb"]
-        if payload["action"] == "diagnostic": return [f"{payload['component']}({key}) has {count} non-null values for {payload['field']}" for key, count in connection.execute(payload["sql"]).fetchall()]
+        output = step.outputs[0]
+        if payload["action"] == "diagnostic":
+            diagnostics = tuple(
+                Diagnostic(
+                    code="conflicting_non_null_value",
+                    severity="error",
+                    message=f"{payload['component']}({key}) has {count} non-null values for {payload['field']}",
+                    module_id=step.module_id,
+                    step_id=step.step_id,
+                    details={"component": payload["component"], "build_key": str(key), "property": payload["field"], "distinct_values": count},
+                )
+                for key, count in connection.execute(payload["sql"]).fetchall()
+            )
+            return StepOutcome(step.step_id, step.module_id, StepStatus.SUCCEEDED, (Artifact(output.slot_id, output.artifact_role, diagnostics),), diagnostics=diagnostics)
         materialization = "TABLE" if payload["materialization"] == "temporary_table" else "VIEW"
         connection.execute(f'CREATE TEMP {materialization} {_quote(str(payload["relation"]))} AS {payload["sql"]}')
-        return payload["relation"]
+        return StepOutcome(step.step_id, step.module_id, StepStatus.SUCCEEDED, (Artifact(output.slot_id, output.artifact_role, payload["relation"]),))
 
 class _SqlModule(Module, ModuleRegistration[EmptyConfiguration]):
     configuration: EmptyConfiguration = field(default_factory=EmptyConfiguration)

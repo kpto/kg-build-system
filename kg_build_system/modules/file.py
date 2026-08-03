@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
 from ..compile.models import ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot, RuntimeFieldDefinition, WorkflowStep
+from .runtime import Artifact, ModuleExecutionContext, StepOutcome, StepStatus
 from .workflow import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft
 
 @dataclass(frozen=True)
@@ -27,11 +28,11 @@ class FileModule(Module, ModuleRegistration[FileModuleConfiguration]):
 
 class FileExecutor:
     def __init__(self, configuration: dict[str, Any]) -> None: self._configuration=configuration
-    async def execute_step(self, context: Any, step: WorkflowStep) -> dict[str, Any]:
+    async def execute_step(self, context: ModuleExecutionContext, step: WorkflowStep) -> StepOutcome:
         compiled=context.module.reference.configuration
         if not isinstance(compiled,dict) or not isinstance(compiled.get("location"),str): raise RuntimeError("file module requires a compiled output location")
         location=str(self._configuration.get("output_location") or compiled["location"])
-        failures=[message for values in context.inputs.values() for item in values if item.role.name.startswith("diagnostic.") for message in item.value]
+        failures=[diagnostic.message for values in context.inputs.values() for item in values if item.role.name.startswith("diagnostic.") for diagnostic in item.value if diagnostic.severity == "error"]
         if failures: raise ValueError("graph normalisation failed: "+"; ".join(failures))
         output=Path(location); output.parent.mkdir(parents=True,exist_ok=True); connection=context.services["duckdb"]; nodes=edges=0
         with output.open("w",encoding="utf-8") as stream:
@@ -42,4 +43,13 @@ class FileExecutor:
                     for row in result.fetchall():
                         record=dict(zip(columns,row,strict=True)); record.update(build_key=str(record["build_key"]),type=component,kind=kind); nodes+=kind=="node"; edges+=kind=="edge"; stream.write(json.dumps(record,sort_keys=True,default=str)+"\n")
         manifest=output.with_suffix(output.suffix+".manifest.json"); manifest.write_text(json.dumps({"nodes":nodes,"edges":edges,"blueprint_fingerprint":context.contract.blueprint_fingerprint,"workflow_fingerprint":context.contract.workflow_fingerprint},sort_keys=True),encoding="utf-8")
-        return {"nodes":nodes,"edges":edges,"location":str(output),"manifest":str(manifest)}
+        result={"nodes":nodes,"edges":edges,"location":str(output),"manifest":str(manifest)}
+        artifact_output = step.outputs[0]
+        return StepOutcome(
+            step.step_id,
+            step.module_id,
+            StepStatus.SUCCEEDED,
+            (Artifact(artifact_output.slot_id, artifact_output.artifact_role, result),),
+            metrics={"graph.nodes": nodes, "graph.edges": edges},
+            result=result,
+        )
