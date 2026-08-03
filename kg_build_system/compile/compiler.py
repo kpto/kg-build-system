@@ -8,7 +8,6 @@ from dataclasses import asdict
 from hashlib import sha256
 import json
 from typing import Any, Literal, cast, get_type_hints
-from sqlglot import exp
 from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
 from ..data import BoundTable
 from .models import (
@@ -113,107 +112,6 @@ def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projectio
     if len({module.module_id for module in module_definitions}) != len(module_definitions):
         raise ValueError("blueprint module IDs must be unique")
     return BuildBlueprint(components=tuple(_component(component) for component in components), projections=projection_ir, bindings=tuple(binding_definitions), sources=tuple(_source_definition(source) for source in sources), modules=module_definitions)
-
-def _projection_value(value: Value, projections: dict[str, ProjectionDefinition]) -> Value:
-    if isinstance(value, FieldReference) and value.table in projections and len(value.path) == 1: return projections[value.table].fields[value.path[0]]
-    return value
-
-def _tables(value: Value, projections: dict[str, ProjectionDefinition]) -> set[str]:
-    value = _projection_value(value, projections)
-    if isinstance(value, FieldReference): return {value.table}
-    if isinstance(value, Operation): return set().union(*(_tables(arg, projections) for arg in value.args))
-    return set()
-
-def _identifier(name: str, *, quoted: bool = True) -> exp.Identifier:
-    return exp.Identifier(this=name, quoted=quoted)
-
-def _path_expression(table: str, path: tuple[str, ...]) -> exp.Expression:
-    result: exp.Expression = exp.Column(this=_identifier(path[0]), table=_identifier(table))
-    for part in path[1:]: result = exp.Dot(this=result, expression=_identifier(part))
-    return result
-
-def _render(value: Value, aliases: dict[str, str], projections: dict[str, ProjectionDefinition], expand_aliases: dict[str, exp.Expression] | None = None) -> exp.Expression:
-    value = _projection_value(value, projections)
-    if isinstance(value, FieldReference): return _path_expression(aliases[value.table], value.path)
-    if isinstance(value, LiteralValue):
-        if value.value is None: return exp.Null()
-        if isinstance(value.value, str): return exp.Literal.string(value.value)
-        if isinstance(value.value, bool): return exp.Boolean(this=value.value)
-        return exp.Literal.number(value.value)
-    args = [_render(arg, aliases, projections, expand_aliases) for arg in value.args]
-    if value.op == "concat": return exp.Anonymous(this="concat", expressions=args)
-    if value.op == "coalesce": return exp.Coalesce(expressions=args)
-    if value.op == "cast": return exp.Cast(this=args[0], to=exp.DataType.build(value.sql_type or "TEXT", dialect="duckdb"))
-    if value.op == "deterministic_uuid": return exp.Anonymous(this="md5", expressions=args)
-    if value.op == "expand": return (expand_aliases or {})[value.model_dump_json()]
-    if value.op == "struct_field": return exp.Dot(this=args[0], expression=_identifier(value.field_name or ""))
-    if value.op == "lookup_one": return args[2]
-    raise ValueError(f"unsupported IR operation {value.op}")
-
-def _render_plan_value(value: Value) -> exp.Expression:
-    """Render a binding output expression against its compiled row context."""
-    if isinstance(value, FieldReference): return _path_expression("plan", value.path)
-    if isinstance(value, LiteralValue):
-        if value.value is None: return exp.Null()
-        if isinstance(value.value, str): return exp.Literal.string(value.value)
-        if isinstance(value.value, bool): return exp.Boolean(this=value.value)
-        return exp.Literal.number(value.value)
-    args = [_render_plan_value(arg) for arg in value.args]
-    if value.op == "concat": return exp.Anonymous(this="concat", expressions=args)
-    if value.op == "coalesce": return exp.Coalesce(expressions=args)
-    if value.op == "cast": return exp.Cast(this=args[0], to=exp.DataType.build(value.sql_type or "TEXT", dialect="duckdb"))
-    if value.op == "deterministic_uuid": return exp.Anonymous(this="md5", expressions=args)
-    if value.op == "expand": return _path_expression("plan", ("item",))
-    if value.op == "struct_field": return exp.Dot(this=args[0], expression=_identifier(value.field_name or ""))
-    if value.op == "lookup_one": return args[2]
-    raise ValueError(f"unsupported IR operation {value.op}")
-
-def _operations(value: Value, operation: str) -> list[Operation]:
-    if not isinstance(value, Operation): return []
-    return [item for argument in value.args for item in _operations(argument, operation)] + ([value] if value.op == operation else [])
-
-def _field_references(value: Value) -> list[FieldReference]:
-    if isinstance(value, FieldReference): return [value]
-    if isinstance(value, Operation): return [reference for argument in value.args for reference in _field_references(argument)]
-    return []
-
-def _direct_expand_plan(expands: list[Operation], aliases: dict[str, str]) -> tuple[list[tuple[str, exp.Expression]], dict[str, exp.Expression]]:
-    """Build shared parent-first UNNEST steps from collection-aware field paths."""
-    fields = [expand.args[0] for expand in expands]
-    if not all(isinstance(field, FieldReference) and field.collection_paths for field in fields): return [], {}
-    ordered: list[tuple[str, tuple[str, ...]]] = []
-    for field in fields:
-        assert isinstance(field, FieldReference)
-        for path in field.collection_paths:
-            item = (field.table, path)
-            if item not in ordered: ordered.append(item)
-    ordered.sort(key=lambda item: len(item[1]))
-    aliases_by_path: dict[tuple[str, tuple[str, ...]], str] = {}
-    steps: list[tuple[str, exp.Expression]] = []
-    for index, (table, path) in enumerate(ordered):
-        parent = next((candidate for candidate in reversed(ordered[:index]) if candidate[0] == table and path[:len(candidate[1])] == candidate[1]), None)
-        expression: exp.Expression = _path_expression(aliases[table], path) if parent is None else exp.Dot(this=_identifier(aliases_by_path[parent], quoted=False), expression=_identifier("item"))
-        if parent is not None:
-            for part in path[len(parent[1]):]: expression = exp.Dot(this=expression, expression=_identifier(part))
-        alias = f"expanded{index}"
-        aliases_by_path[(table, path)] = alias
-        steps.append((alias, expression))
-    outputs: dict[str, exp.Expression] = {}
-    for expand, field in zip(expands, fields):
-        assert isinstance(field, FieldReference)
-        collection_path = field.collection_paths[-1]
-        output: exp.Expression = exp.Dot(this=_identifier(aliases_by_path[(field.table, collection_path)], quoted=False), expression=_identifier("item"))
-        remainder = field.path[len(collection_path):]
-        for part in remainder: output = exp.Dot(this=output, expression=_identifier(part))
-        outputs[expand.model_dump_json()] = output
-    return steps, outputs
-
-def _binding_values(binding: BindingDefinition) -> list[Value]:
-    """Return every expression that defines a binding's row context."""
-    values = [binding.build_key, *binding.properties.values()]
-    if isinstance(binding, EdgeBindingDefinition):
-        values.extend((binding.source_build_key, binding.target_build_key))
-    return values
 
 def _compile_binding_sql(*, graph: BuildBlueprint, sources: tuple[SourceDefinition, ...], binding: BindingDefinition) -> str:
     """Lower exactly one binding, without leaking other bindings' semantics."""
