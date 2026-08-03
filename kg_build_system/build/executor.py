@@ -66,7 +66,8 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
         missing = [field.key for field in module.runtime_fields if field.required and field.key not in configuration]
         if missing:
             raise ValueError(f"missing runtime configuration for {reference.module_id}: {', '.join(missing)}")
-        executors[reference.module_id] = await cls.create_runtime(configuration)
+        factory_context = type("ExecutorFactoryContext", (), {"module": module, "runtime_configuration": configuration})()
+        executors[reference.module_id] = await cls.create_executor(factory_context)
     output_owner = {slot.slot_id: (step, slot) for step in contract.workflow.steps for slot in step.outputs}
     incoming: dict[str, list[str]] = defaultdict(list)
     for connection_def in contract.workflow.connections:

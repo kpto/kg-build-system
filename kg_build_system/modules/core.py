@@ -1,29 +1,32 @@
-"""Built-in runtime module for portable DuckDB workflow steps."""
+"""Built-in module for portable DuckDB workflow steps."""
 from __future__ import annotations
 
-from collections.abc import Mapping
 from typing import Any, ClassVar
 
 from ..compile.models import WorkflowStep
-from .workflow import StepExecutor, WorkflowModule
+from .workflow import Module, ModuleCompiler, ModuleExecutor
 
 
-class CoreModule(WorkflowModule, StepExecutor):
+class CoreModule(Module):
     ID: ClassVar[str] = "core"
     VERSION: ClassVar[str] = "1"
 
     @classmethod
-    async def create_runtime(cls, _configuration: Mapping[str, Any]) -> CoreModule:
-        return cls()
+    async def create_compiler(cls, context: Any) -> ModuleCompiler:
+        raise RuntimeError("the core module is compiled by the graph compiler")
 
+    @classmethod
+    async def create_executor(cls, context: Any) -> ModuleExecutor:
+        return CoreExecutor()
+
+
+class CoreExecutor:
     async def execute_step(self, context: Any, step: WorkflowStep) -> Any:
         payload = step.payload or {}
         connection = context.services["duckdb"]
-        if payload.get("action") == "diagnostic":
-            return [f"{payload['component']}({key}) has {count} non-null values for {payload['field']}" for key, count in connection.execute(payload["sql"]).fetchall()]
         if payload.get("action") != "relation":
             raise ValueError(f"unsupported core action {payload.get('action')!r}")
         materialization = "TABLE" if payload.get("materialization") == "temporary_table" else "VIEW"
-        relation = payload["relation"].replace('"', '""')
+        relation = str(payload["relation"]).replace('"', '""')
         connection.execute(f'CREATE TEMP {materialization} "{relation}" AS {payload["sql"]}')
         return relation

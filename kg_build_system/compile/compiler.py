@@ -4,9 +4,10 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 import asyncio
 import importlib
+from dataclasses import asdict
 from hashlib import sha256
 import json
-from typing import Any, Literal, cast
+from typing import Any, Literal, cast, get_type_hints
 from sqlglot import exp
 from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
 from ..data import BoundTable
@@ -20,7 +21,7 @@ from .models import (
 )
 from ..expressions import Expression, FieldPath
 from .._support.annotations import type_name, type_shape
-from ..modules.workflow import ModuleContributor, WorkflowStepDraft
+from ..modules.workflow import ModuleRegistration, WorkflowStepDraft
 
 def _property_expressions(binding: NodeBinding | EdgeBinding) -> dict[str, Expression[Any]]:
     values: dict[str, Expression[Any]] = {}
@@ -79,24 +80,22 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
 def _source_definition(source: BoundTable) -> SourceDefinition:
     return SourceDefinition(table=source.table.__name__, location=source.config.location, format=source.config.format.value, credential_reference=source.config.credentials, version=source.config.version)
 
-def _blueprint_module(contributor: ModuleContributor) -> BlueprintModule:
-    contributor_class = type(contributor)
-    module_class = contributor.module_class
+def _blueprint_module(registration: ModuleRegistration[Any]) -> BlueprintModule:
+    module_class = registration.module_class
     module_id = getattr(module_class, "ID", None)
     if not isinstance(module_id, str):
         raise TypeError("workflow module classes must declare a string ID")
-    if "<locals>" in contributor_class.__qualname__:
-        raise ValueError("workflow contributors must be importable top-level classes")
-    configuration = getattr(contributor, "blueprint_configuration", None)
+    if "<locals>" in module_class.__qualname__:
+        raise ValueError("workflow modules must be importable top-level classes")
     return BlueprintModule(
         module_id=module_id,
-        module_import=contributor_class.__module__,
-        module_qualname=contributor_class.__qualname__,
-        configuration=configuration,
+        module_import=module_class.__module__,
+        module_qualname=module_class.__qualname__,
+        configuration=asdict(registration.configuration),
     )
 
 
-def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = (), sources: Sequence[BoundTable] = (), modules: Sequence[ModuleContributor]) -> BuildBlueprint:
+def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = (), sources: Sequence[BoundTable] = (), modules: Sequence[ModuleRegistration[Any]]) -> BuildBlueprint:
     authoring_bindings = tuple(bindings)
     if not authoring_bindings: raise ValueError("a graph requires at least one binding")
     for binding in authoring_bindings: _validate_authoring_binding(binding)
@@ -320,21 +319,18 @@ def _effective_sources(*, blueprint: BuildBlueprint, overrides: Sequence[BoundTa
         sources[source.table] = source
     return tuple(sources[name] for name in sorted(sources))
 
-def _load_contributor(definition: BlueprintModule) -> ModuleContributor:
-    contributor_class: Any = importlib.import_module(definition.module_import)
+def _load_registration(definition: BlueprintModule) -> ModuleRegistration[Any]:
+    module_class: Any = importlib.import_module(definition.module_import)
     for part in definition.module_qualname.split("."):
-        contributor_class = getattr(contributor_class, part)
-    factory = getattr(contributor_class, "from_blueprint_configuration", None)
-    if factory is not None:
-        contributor = factory(definition.configuration)
-    elif definition.configuration is None:
-        contributor = contributor_class()
-    else:
-        raise TypeError(f"workflow contributor {definition.module_id!r} does not accept blueprint configuration")
-    module_id = getattr(contributor.module_class, "ID", None)
+        module_class = getattr(module_class, part)
+    configuration_type = get_type_hints(module_class).get("configuration")
+    if configuration_type is None or not isinstance(definition.configuration, dict):
+        raise TypeError(f"workflow module {definition.module_id!r} cannot reconstruct its registration configuration")
+    registration = module_class(configuration_type(**definition.configuration))
+    module_id = getattr(registration.module_class, "ID", None)
     if module_id != definition.module_id:
         raise RuntimeError(f"blueprint module {definition.module_id!r} resolved to {module_id!r}")
-    return contributor
+    return registration
 
 
 async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[BoundTable] = (), settings: BuildSettings | None = None) -> BuildContract:
@@ -351,18 +347,20 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[Bou
         step = output(step_id, ArtifactRole(namespace="core", name=f"relation.binding.{index}"), {"action":"relation", "relation":f"kg_binding_{index}", "sql":_compile_binding_sql(graph=blueprint, sources=source_ir, binding=binding), "materialization":"temporary_table"})
         drafts.append(WorkflowStepDraft(step, {}))
     declarations = []
-    for contributor in (_load_contributor(module) for module in blueprint.modules):
-        declaration = await contributor.declare(blueprint)
-        module_class = contributor.module_class
+    for priority, registration in enumerate((_load_registration(module) for module in blueprint.modules), start=1):
+        compiler = await registration.module_class.create_compiler(type("CompilationContext", (), {"registration": registration})())
+        declaration = await compiler.compile(blueprint)
+        module_class = registration.module_class
         module_id = getattr(module_class, "ID", None)
         if module_id != declaration.module.reference.module_id:
-            raise ValueError("contributor module class ID does not match its declaration")
+            raise ValueError("module class ID does not match its compilation result")
         if "<locals>" in module_class.__qualname__:
             raise ValueError("workflow module classes must be importable top-level classes")
         reference = declaration.module.reference.model_copy(update={
             "import_module": module_class.__module__,
             "class_qualname": module_class.__qualname__,
             "implementation_version": str(getattr(module_class, "VERSION", declaration.module.reference.implementation_version)),
+            "priority": priority,
         })
         declarations.append(declaration.__class__(module=declaration.module.model_copy(update={"reference": reference}), steps=declaration.steps))
     for declaration in declarations:

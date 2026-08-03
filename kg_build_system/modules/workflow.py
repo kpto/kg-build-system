@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable, Mapping
+from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, ClassVar, Protocol, Self
+from typing import Any, ClassVar, Protocol
 
 from ..compile.models import ArtifactRole, InputSlot, ModuleDefinition, OutputSlot, WorkflowStep
 
@@ -56,32 +56,6 @@ class Module(ABC):
     @classmethod
     @abstractmethod
     async def create_executor(cls, context: Any) -> ModuleExecutor: ...
-
-
-# Transitional compatibility for built-in modules still being moved to Module.
-class StepExecutor(ABC):
-    @abstractmethod
-    async def execute_step(self, context: Any, step: WorkflowStep) -> Any: ...
-
-
-class WorkflowModule(ABC):
-    ID: ClassVar[str]
-
-    @classmethod
-    @abstractmethod
-    async def create_runtime(cls, configuration: Mapping[str, Any]) -> StepExecutor: ...
-
-
-class ModuleContributor(ABC):
-    @property
-    @abstractmethod
-    def module_class(self) -> type[WorkflowModule]: ...
-
-    @abstractmethod
-    async def declare(self, context: Any) -> ModuleCompilationResult: ...
-
-
-ModuleDeclarationDraft = ModuleCompilationResult
 
 
 def role_is(role: ArtifactRole) -> CandidatePredicate:

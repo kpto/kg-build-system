@@ -6,7 +6,7 @@ from kg_build_system import (
     edge_binding, field, node, node_binding, projection, projected_field,
     property, struct, table, value, collection, lookup,
 )
-from kg_build_system.modules import BindingAggregationModule, CollapseExactDuplicatesModule, FileModule, MergeCompatibleFactsModule, RejectConflictingNonNullValuesModule
+from kg_build_system.modules import BindingAggregationModule, CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration, MergeCompatibleFactsModule, RejectConflictingNonNullValuesModule
 
 @node(description="A biological target")
 class Target(GraphComponent):
@@ -71,7 +71,7 @@ blueprint = create_blueprint(bindings=[
     CollapseExactDuplicatesModule(),
     MergeCompatibleFactsModule(),
     RejectConflictingNonNullValuesModule(),
-    FileModule(str(root / "graph.jsonl")),
+    FileModule(FileModuleConfiguration(str(root / "graph.jsonl"))),
 ])
 contract = compile_blueprint(blueprint=blueprint)
 
