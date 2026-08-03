@@ -9,7 +9,9 @@ from kg_build_system import (
     projected_field, property, struct, table, value, collection,
 )
 from kg_build_system.expressions import Expression, FieldPath
-from kg_build_system.modules import BindingAggregationModule, CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration, MergeCompatibleFactsModule, RejectConflictingNonNullValuesModule
+from kg_build_system.modules import BindingAggregationModule, CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration, MergeCompatibleFactsModule, RejectConflictingNonNullValuesConfiguration, RejectConflictingNonNullValuesModule
+from kg_build_system.modules.core import CoreArtifactRoles
+from kg_build_system.compile.models import ArtifactRole
 
 POST_PROCESSING = [BindingAggregationModule(), CollapseExactDuplicatesModule(), MergeCompatibleFactsModule(), RejectConflictingNonNullValuesModule()]
 
@@ -45,6 +47,15 @@ class ExpandedInput:
     weight: ProjectedField[float] = projected_field(Input.weight)
 
 class VerticalSliceTests(unittest.TestCase):
+    def test_core_artifact_roles_are_a_stable_extension_vocabulary(self) -> None:
+        role = CoreArtifactRoles.graph_records("node", "Thing")
+        self.assertEqual(role, ArtifactRole(namespace="core", name="graph.records.node.Thing"))
+        identity = CoreArtifactRoles.graph_record_identity(role)
+        self.assertIsNotNone(identity)
+        assert identity is not None
+        self.assertEqual((identity.kind, identity.component), ("node", "Thing"))
+        self.assertTrue(CoreArtifactRoles.is_diagnostic(CoreArtifactRoles.diagnostic("conflicting_value", "Thing", "label")))
+
     def test_field_descriptor_and_bind_boundary(self) -> None:
         path = Input.label
         self.assertIsInstance(path, FieldPath)
@@ -106,8 +117,21 @@ class VerticalSliceTests(unittest.TestCase):
         ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration(str(root / "unused.jsonl")))])
         with TemporaryDirectory() as directory:
             contract = compile_blueprint(blueprint=blueprint)
-            with self.assertRaisesRegex(ValueError, "non-null values for label"):
-                build(contract)
+            report = build(contract)
+            self.assertEqual(len(report.unresolved_failures), 1)
+            self.assertGreaterEqual(len(report.diagnostics), 1)
+            self.assertTrue(all(artifact.role.name.startswith("publication.") for artifact in report.artifacts))
+            report_only_blueprint = create_blueprint(bindings=[
+                node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label))),
+                node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(value.literal("conflict")))),
+            ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], modules=[
+                BindingAggregationModule(), CollapseExactDuplicatesModule(), MergeCompatibleFactsModule(),
+                RejectConflictingNonNullValuesModule(RejectConflictingNonNullValuesConfiguration(fail_on_error=False)),
+                FileModule(FileModuleConfiguration(str(root / "unused.jsonl"))),
+            ])
+            report_only = build(compile_blueprint(blueprint=report_only_blueprint))
+            self.assertEqual(report_only.unresolved_failures, ())
+            self.assertGreaterEqual(len(report_only.diagnostics), 1)
 
     def test_contract_records_file_module(self) -> None:
         root = Path(__file__).parents[1]
@@ -126,5 +150,8 @@ class VerticalSliceTests(unittest.TestCase):
         self.assertTrue({"binding_aggregation", "collapse_exact_duplicates", "merge_compatible_facts", "reject_conflicting_non_null_values"} <= {module.reference.module_id for module in contract.workflow.modules})
         file_step = next(step for step in contract.workflow.steps if step.module_id == "file")
         self.assertEqual(file_module.reference.configuration, {"location": "compiled-override.jsonl"})
+        termination = next(step for step in contract.workflow.steps if step.step_id == "core::publish.result")
+        self.assertEqual(termination.outputs, ())
+        self.assertTrue(any(connection.input_slot_id == "core::publish.result.publications" for connection in contract.workflow.connections))
 
 if __name__ == "__main__": unittest.main()

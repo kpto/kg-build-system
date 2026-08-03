@@ -22,6 +22,7 @@ from .models import (
 from ..expressions import Expression, FieldPath
 from .._support.annotations import type_name, type_shape
 from ..workflow.interfaces import ModuleRegistration, WorkflowStepDraft
+from ..modules.core import CoreArtifactRoles
 
 def _property_expressions(binding: NodeBinding | EdgeBinding) -> dict[str, Expression[Any]]:
     values: dict[str, Expression[Any]] = {}
@@ -344,7 +345,7 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[Bou
         return WorkflowStep(step_id=f"core::{step_id}", module_id="core", inputs=inputs, outputs=(OutputSlot(slot_id=slot, artifact_role=role),), payload=payload)
     for index, binding in enumerate(blueprint.bindings):
         step_id = f"binding.{index}"
-        step = output(step_id, ArtifactRole(namespace="core", name=f"relation.binding.{index}"), {"action":"relation", "relation":f"kg_binding_{index}", "sql":_compile_binding_sql(graph=blueprint, sources=source_ir, binding=binding), "materialization":"temporary_table"})
+        step = output(step_id, CoreArtifactRoles.binding_relation(index), {"action":"relation", "relation":f"kg_binding_{index}", "sql":_compile_binding_sql(graph=blueprint, sources=source_ir, binding=binding), "materialization":"temporary_table"})
         drafts.append(WorkflowStepDraft(step, {}))
     declarations = []
     for priority, registration in enumerate((_load_registration(module) for module in blueprint.modules), start=1):
@@ -365,6 +366,17 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[Bou
         declarations.append(declaration.__class__(module=declaration.module.model_copy(update={"reference": reference}), steps=declaration.steps))
     for declaration in declarations:
         drafts.extend(declaration.steps)
+    publication_input = CollectionInputSlot(slot_id="core::publish.result.publications")
+    drafts.append(WorkflowStepDraft(
+        WorkflowStep(
+            step_id="core::publish.result",
+            module_id="core",
+            assembly_preference="deferred",
+            inputs=(publication_input,),
+            payload={"action": "publish"},
+        ),
+        {publication_input.slot_id: lambda _input, output: CoreArtifactRoles.is_publication(output.artifact_role)},
+    ))
     compiled_modules = [core]
     for declaration in declarations:
         compiled_modules.append(declaration.module)

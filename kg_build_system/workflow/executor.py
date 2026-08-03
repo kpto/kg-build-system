@@ -62,8 +62,8 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
             outcome = await executors[step.module_id].execute_step(context, step)
             if outcome.step_id != step.step_id or outcome.module_id != step.module_id:
                 raise RuntimeError(f"module returned an outcome for a different step: {step.step_id}")
-            if outcome.status != StepStatus.SUCCEEDED:
-                raise RuntimeError(f"failure propagation is not implemented; {step.step_id} returned {outcome.status}")
+            if outcome.status == StepStatus.FAILED and outcome.failure is None:
+                raise RuntimeError(f"failed step {step.step_id} did not provide a failure")
             declared = {slot.slot_id: slot.artifact_role for slot in step.outputs}
             returned = {artifact.slot_id: artifact for artifact in outcome.artifacts}
             if set(returned) != set(declared):
@@ -79,19 +79,25 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
         step.step_id for step in contract.workflow.steps
         if not step.outputs or any(slot.slot_id not in consumed_outputs for slot in step.outputs)
     }
-    all_artifacts = tuple(artifacts.values())
-    all_diagnostics = tuple(diagnostic for outcome in outcomes for diagnostic in outcome.diagnostics)
+    sink_outcomes = tuple(outcome for outcome in outcomes if outcome.step_id in sink_step_ids)
+    published_artifacts = tuple(
+        artifact
+        for outcome in sink_outcomes
+        for artifact in outcome.result.get("published_artifacts", ())
+        if isinstance(artifact, Artifact)
+    )
+    published_diagnostics = tuple(diagnostic for outcome in sink_outcomes for diagnostic in outcome.diagnostics)
     metrics: dict[str, int] = {}
     for outcome in outcomes:
         for name, value in outcome.metrics.items():
             metrics[name] = metrics.get(name, 0) + value
     return BuildReport(
         outcomes=tuple(outcomes),
-        sink_outcomes=tuple(outcome for outcome in outcomes if outcome.step_id in sink_step_ids),
-        artifacts=all_artifacts,
-        diagnostics=all_diagnostics,
+        sink_outcomes=sink_outcomes,
+        artifacts=published_artifacts,
+        diagnostics=published_diagnostics,
         recovered_failures=(),
-        unresolved_failures=(),
+        unresolved_failures=tuple(outcome.failure for outcome in outcomes if outcome.status == StepStatus.FAILED and outcome.failure is not None),
         metrics=metrics,
         provenance={"blueprint_fingerprint": contract.blueprint_fingerprint, "workflow_fingerprint": contract.workflow_fingerprint, "workflow": contract.workflow.model_dump(mode="json")},
     )
