@@ -28,13 +28,19 @@ it is used as the module namespace for steps, slots, artifact roles,
 diagnostics, runtime configuration, and annotations the module owns. A
 compiled workflow may contain at most one configured instance of a module ID.
 
-The compiled definition also records an operational Python import location for
-the module class. At compilation, the compiler derives that location from the
-author-supplied module class, verifies that the class's static ID matches the
-declared module ID, and rejects classes that cannot be reliably re-imported.
-At runtime, the executor imports that class and delegates step execution to
-it. Python class or module objects are never stored in a blueprint or build
-contract.
+An author supplies module registrations to `create_blueprint`; they are part
+of the complete declared build intention. A registration contains a module
+class and serialisable, non-secret registration configuration. The blueprint
+records import coordinates for that class and the registration configuration,
+never a Python object. At compilation, the compiler re-imports and
+reconstructs each registration, verifies the class's static ID, and rejects
+classes that cannot be reliably re-imported.
+
+Compilation produces distinct module-reference configuration for execution.
+The module controls this transformation: execution configuration may equal its
+registration configuration, but need not. At runtime, the executor imports
+that class and delegates step execution to it. Python class or module objects
+are never stored in a blueprint or build contract.
 
 Modules are supplied in a uniquely ordered list. This order is module
 priority: it resolves competing workflow-assembly preferences and provides
@@ -52,14 +58,27 @@ executor resolves each compiled module reference to its Python implementation
 at runtime; the implementation object itself is never serialised.
 
 ```text
+ModuleRegistrationConfiguration
+
+ModuleRegistration
+  module_class
+  configuration
+
+BlueprintModule
+  module_id
+  module_import
+  module_qualname
+  configuration
+
 ModuleReference
   module_id
   import_module
   class_qualname
   implementation_version
   priority
+  configuration
 
-CompiledModule
+ModuleDefinition
   reference
   runtime_fields
 
@@ -102,6 +121,12 @@ WorkflowDefinition
   connections
 ```
 
+`ModuleRegistration.configuration` is compile-time input only. It must be
+serialisable and non-secret. `ModuleReference.configuration` is serialisable
+execution configuration produced by that module's compiler. It is not a copy
+of registration configuration by implication; the module owns the mapping.
+Runtime configuration remains separate and is supplied only at execution.
+
 `module_id` identifies one configured module in a workflow. Supporting two
 independently configured instances of the same implementation requires either
 a module designed to accept multiple declared outputs or a future explicit
@@ -143,57 +168,53 @@ module's predicate.
 
 ## Workflow-module interface
 
-A module class participates in runtime execution. The module class is located
-from the compiled import coordinates; the class object is not stored in the
-workflow contract:
+Modules use abstract base classes for registration and lifecycle ownership.
+Compiler and executor capabilities remain narrow protocols:
 
 ```python
-class WorkflowModule(Protocol):
+@dataclass
+class ModuleRegistrationConfiguration(ABC): ...
+
+
+@dataclass
+class ModuleRegistration[T](ABC):
+    module_class: type
+    configuration: T
+
+
+class ModuleCompiler(Protocol):
+    async def compile(
+        self, context: ModuleCompilationContext,
+    ) -> ModuleCompilationResult: ...
+
+
+class ModuleExecutor(Protocol):
+    async def execute_step(
+        self, context: ModuleExecutionContext, step: WorkflowStep,
+    ) -> StepOutcome: ...
+
+
+class Module(ABC):
     ID: ClassVar[str]
 
     @classmethod
-    async def create_runtime(
-        cls,
-        configuration: Mapping[str, JsonValue],
-    ) -> StepExecutor: ...
+    async def create_compiler(cls, context: Any) -> ModuleCompiler: ...
+
+    @classmethod
+    async def create_executor(cls, context: Any) -> ModuleExecutor: ...
 ```
 
-```python
-class StepExecutor(Protocol):
-    async def execute_step(
-        self,
-        context: ModuleExecutionContext,
-        step: WorkflowStep,
-    ) -> StepOutcome: ...
-```
-
-An author supplies a compile-time contributor object to `compile_blueprint`.
-It may be an instance of the module class, but that is a convention rather
-than a requirement:
-
-```python
-class ModuleContributor(Protocol):
-    @property
-    def module_class(self) -> type[WorkflowModule]: ...
-
-    async def declare(
-        self,
-        context: ModuleCompilationContext,
-    ) -> ModuleDeclarationDraft: ...
-```
-
-`declare` receives immutable compiled definitions and effective compilation
-configuration. It returns a compile-only `ModuleDeclarationDraft`: serialisable
-module and step definitions plus candidate predicates for its input slots. The
-compiler calls every contributor's `declare` before candidate discovery,
-retains only the serialisable definitions and resolved connections in the
+`create_blueprint` serialises registrations into blueprint module entries.
+`compile_blueprint` reconstructs them, calls `create_compiler`, then calls
+`ModuleCompiler.compile`. The resulting `ModuleCompilationResult` contains a
+serialisable module definition, step drafts, and candidate predicates. The
+compiler retains only serialisable definitions and resolved connections in the
 contract, and owns selection, connection creation, and graph validation.
 
-At runtime, the executor validates and supplies the module's declared runtime
-configuration values to `create_runtime`. The returned `StepExecutor` runs
-only after the contract is frozen and receives the resolved artifact inputs
-for each step. Modules may validate their own runtime configuration inside
-`create_runtime`.
+At runtime, the executor validates and supplies runtime configuration, combines
+it with the compiled `ModuleReference`, and calls `create_executor`. The
+returned `ModuleExecutor` receives resolved artifact inputs for each step. It
+receives compiled reference configuration, not registration configuration.
 
 ## Steps, slots, and artifacts
 
@@ -312,12 +333,13 @@ does not apply a central unsupported-annotation policy.
 
 ## Runtime context and initial implementation
 
-A workflow-module execution context supplies the immutable contract, resolved
-runtime configuration, declared artifact inputs, and a result collector. It
-does not expose authoring classes or unrestricted compiler state. Runtime
-configuration is structured as `module_id -> field key -> value`. Candidate
-predicates are never invoked at runtime: execution uses only the connections
-frozen in the contract.
+A workflow-module execution context supplies the immutable contract, the
+module's compiled definition and reference configuration, resolved runtime
+configuration, declared artifact inputs, and a result collector. It does not
+expose registration configuration, authoring classes, or unrestricted compiler
+state. Runtime configuration is structured as `module_id -> field key ->
+value`. Candidate predicates are never invoked at runtime: execution uses only
+the connections frozen in the contract.
 
 The first implementation slice is:
 
@@ -325,7 +347,7 @@ The first implementation slice is:
    steps, slots, artifact roles, connections, and result models.
 2. Implement global workflow assembly, validation, and deterministic
    scheduling.
-3. Add contributor-based compilation, module import resolution, and runtime
+3. Add registration-based compilation, module import resolution, and runtime
    dispatch, including failure propagation.
 4. Convert the file target into a workflow module without changing its authoring
    syntax; move JSONL writing from the generic executor into that module.

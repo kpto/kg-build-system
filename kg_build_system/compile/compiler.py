@@ -12,7 +12,7 @@ from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
 from ..data import BoundTable
 from .models import (
     ArtifactRole, BindingDefinition, BlueprintModule, BuildBlueprint, BuildContract, BuildSettings,
-    BuildOverrides, CollectionInputSlot, CompiledModule, ComponentDefinition,
+    BuildOverrides, CollectionInputSlot, ModuleDefinition, ComponentDefinition,
     Connection, EdgeBindingDefinition, FieldReference, LiteralValue, ModuleReference,
     NodeBindingDefinition, Operation, OutputSlot,
     ProjectionDefinition, PropertyDefinition, SingleInputSlot, SourceDefinition,
@@ -90,8 +90,8 @@ def _blueprint_module(contributor: ModuleContributor) -> BlueprintModule:
     configuration = getattr(contributor, "blueprint_configuration", None)
     return BlueprintModule(
         module_id=module_id,
-        contributor_module=contributor_class.__module__,
-        contributor_qualname=contributor_class.__qualname__,
+        module_import=contributor_class.__module__,
+        module_qualname=contributor_class.__qualname__,
         configuration=configuration,
     )
 
@@ -321,8 +321,8 @@ def _effective_sources(*, blueprint: BuildBlueprint, overrides: Sequence[BoundTa
     return tuple(sources[name] for name in sorted(sources))
 
 def _load_contributor(definition: BlueprintModule) -> ModuleContributor:
-    contributor_class: Any = importlib.import_module(definition.contributor_module)
-    for part in definition.contributor_qualname.split("."):
+    contributor_class: Any = importlib.import_module(definition.module_import)
+    for part in definition.module_qualname.split("."):
         contributor_class = getattr(contributor_class, part)
     factory = getattr(contributor_class, "from_blueprint_configuration", None)
     if factory is not None:
@@ -341,7 +341,7 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[Bou
     """Compile core DuckDB work and contributor declarations into one workflow."""
     source_ir = _effective_sources(blueprint=blueprint, overrides=sources)
     overrides = BuildOverrides(sources=tuple(SourceOverride(table=item.table, original=next((old for old in blueprint.sources if old.table == item.table), None), override=item) for item in (_source_definition(source) for source in sources)))
-    core = CompiledModule(reference=ModuleReference(module_id="core", import_module="kg_build_system.modules.core", class_qualname="CoreModule", implementation_version="1", priority=0))
+    core = ModuleDefinition(reference=ModuleReference(module_id="core", import_module="kg_build_system.modules.core", class_qualname="CoreModule", implementation_version="1", priority=0))
     drafts: list[WorkflowStepDraft] = []
     def output(step_id: str, role: ArtifactRole, payload: dict[str, Any], inputs: tuple[Any, ...] = ()) -> WorkflowStep:
         slot = f"core::{step_id}.output"

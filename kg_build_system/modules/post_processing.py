@@ -3,12 +3,12 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, ClassVar
-from ..compile.models import ArtifactRole, CollectionInputSlot, CompiledModule, ModuleReference, OutputSlot, SingleInputSlot, WorkflowStep
+from ..compile.models import ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot, SingleInputSlot, WorkflowStep
 from .workflow import ModuleContributor, ModuleDeclarationDraft, StepExecutor, WorkflowModule, WorkflowStepDraft, role_is
 
 def _quote(name: str) -> str: return '"' + name.replace('"', '""') + '"'
-def _module(module_id: str, runtime: type[Any], priority: int) -> CompiledModule:
-    return CompiledModule(reference=ModuleReference(module_id=module_id, import_module=runtime.__module__, class_qualname=runtime.__qualname__, implementation_version="1", priority=priority))
+def _module(module_id: str, runtime: type[Any], priority: int) -> ModuleDefinition:
+    return ModuleDefinition(reference=ModuleReference(module_id=module_id, import_module=runtime.__module__, class_qualname=runtime.__qualname__, implementation_version="1", priority=priority))
 
 class SqlStepRuntime(WorkflowModule, StepExecutor):
     ID: ClassVar[str]

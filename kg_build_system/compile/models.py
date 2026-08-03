@@ -98,8 +98,8 @@ class SourceDefinition(IRModel):
 class BlueprintModule(IRModel):
     """A serialisable workflow-module selection in a build blueprint."""
     module_id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
-    contributor_module: str = Field(min_length=1)
-    contributor_qualname: str = Field(min_length=1)
+    module_import: str = Field(min_length=1)
+    module_qualname: str = Field(min_length=1)
     configuration: JsonValue | None = None
 
 
@@ -117,6 +117,7 @@ class ModuleReference(IRModel):
     class_qualname: str = Field(min_length=1)
     implementation_version: str = Field(min_length=1)
     priority: int = Field(ge=0)
+    configuration: JsonValue | None = None
 
 
 class RuntimeFieldDefinition(IRModel):
@@ -127,7 +128,7 @@ class RuntimeFieldDefinition(IRModel):
     secret: bool = False
 
 
-class CompiledModule(IRModel):
+class ModuleDefinition(IRModel):
     reference: ModuleReference
     runtime_fields: tuple[RuntimeFieldDefinition, ...] = ()
 
@@ -170,7 +171,7 @@ class Connection(IRModel):
 
 
 class WorkflowDefinition(IRModel):
-    modules: tuple[CompiledModule, ...] = Field(min_length=1)
+    modules: tuple[ModuleDefinition, ...] = Field(min_length=1)
     steps: tuple[WorkflowStep, ...] = Field(min_length=1)
     connections: tuple[Connection, ...] = ()
 

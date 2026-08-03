@@ -121,6 +121,6 @@ class VerticalSliceTests(unittest.TestCase):
         self.assertEqual(file_module.reference.class_qualname, "FileRuntime")
         self.assertTrue({"binding_aggregation", "collapse_exact_duplicates", "merge_compatible_facts", "reject_conflicting_non_null_values"} <= {module.reference.module_id for module in contract.workflow.modules})
         file_step = next(step for step in contract.workflow.steps if step.module_id == "file")
-        self.assertEqual(file_step.payload["location"], "compiled-override.jsonl")
+        self.assertEqual(file_module.reference.configuration, {"location": "compiled-override.jsonl"})
 
 if __name__ == "__main__": unittest.main()

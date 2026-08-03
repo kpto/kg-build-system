@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
 
-from ..compile.models import ArtifactRole, CollectionInputSlot, CompiledModule, ModuleReference, OutputSlot, RuntimeFieldDefinition, WorkflowStep
+from ..compile.models import ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot, RuntimeFieldDefinition, WorkflowStep
 from .workflow import ModuleContributor, ModuleDeclarationDraft, StepExecutor, WorkflowModule, WorkflowStepDraft, role_is
 
 
@@ -39,11 +39,11 @@ class FileModule(ModuleContributor):
             assembly_preference="deferred",
             inputs=(record_input, diagnostic_input),
             outputs=(OutputSlot(slot_id="file::write.result", artifact_role=ArtifactRole(namespace="file", name="result")),),
-            payload={"location": self.location},
+            payload={},
         )
         return ModuleDeclarationDraft(
-            module=CompiledModule(
-                reference=ModuleReference(module_id="file", import_module=__name__, class_qualname="FileRuntime", implementation_version="1", priority=100),
+            module=ModuleDefinition(
+                reference=ModuleReference(module_id="file", import_module=__name__, class_qualname="FileRuntime", implementation_version="1", priority=100, configuration={"location": self.location}),
                 runtime_fields=(RuntimeFieldDefinition(key="output_location", description="Optional runtime replacement for the output location.", required=False),),
             ),
             steps=(WorkflowStepDraft(step, {
@@ -64,7 +64,10 @@ class FileRuntime(WorkflowModule, StepExecutor):
         return cls(configuration)
 
     async def execute_step(self, context: Any, step: WorkflowStep) -> dict[str, Any]:
-        location = str(self._configuration.get("output_location") or (step.payload or {})["location"])
+        compiled_configuration = context.module.reference.configuration
+        if not isinstance(compiled_configuration, dict) or not isinstance(compiled_configuration.get("location"), str):
+            raise RuntimeError("file module requires a compiled output location")
+        location = str(self._configuration.get("output_location") or compiled_configuration["location"])
         diagnostics = [item for values in context.inputs.values() for item in values if item.role.name.startswith("diagnostic.")]
         failures = [message for item in diagnostics for message in item.value]
         if failures:

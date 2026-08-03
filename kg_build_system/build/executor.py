@@ -8,7 +8,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
-from ..compile.models import ArtifactRole, BuildContract, WorkflowStep
+from ..compile.models import ArtifactRole, BuildContract, ModuleDefinition, WorkflowStep
 
 
 @dataclass(frozen=True)
@@ -26,6 +26,7 @@ class Artifact:
 @dataclass(frozen=True)
 class ModuleExecutionContext:
     contract: BuildContract
+    module: ModuleDefinition
     inputs: Mapping[str, tuple[Artifact, ...]]
     services: Mapping[str, Any]
 
@@ -55,6 +56,7 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
     if contract.settings.duckdb_threads is not None:
         connection.execute(f"SET threads = {contract.settings.duckdb_threads}")
     executors: dict[str, Any] = {}
+    definitions = {module.reference.module_id: module for module in contract.workflow.modules}
     for module in contract.workflow.modules:
         reference = module.reference
         cls = _load_class(reference.import_module, reference.class_qualname)
@@ -77,7 +79,7 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
             raise RuntimeError("workflow has a dependency cycle")
         for step in ready:
             inputs = {input_slot.slot_id: tuple(artifacts[slot] for slot in incoming[input_slot.slot_id]) for input_slot in step.inputs}
-            value = await executors[step.module_id].execute_step(ModuleExecutionContext(contract, inputs, {"duckdb": connection}), step)
+            value = await executors[step.module_id].execute_step(ModuleExecutionContext(contract, definitions[step.module_id], inputs, {"duckdb": connection}), step)
             if len(step.outputs) == 1:
                 artifacts[step.outputs[0].slot_id] = Artifact(step.outputs[0].artifact_role, value)
             elif step.outputs:
