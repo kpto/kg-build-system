@@ -5,6 +5,11 @@
 This temporary specification records the workflow-module design under
 discussion. It is not yet part of the canonical specification.
 
+The initial workflow-contract and runtime-result slice is implemented. The
+current implementation has serialisable module references, frozen workflow
+steps/slots/connections, runtime-only step outcomes and diagnostics, and a
+file-output module. Failure propagation and recovery remain future work.
+
 ## Purpose and invariants
 
 A build is an immutable, serialisable workflow assembled from ordered module
@@ -319,6 +324,76 @@ produced artifacts, and step outcomes. Runtime artifacts and step outcomes are
 runtime-only models; slots and artifact roles remain serialised workflow
 semantics and do not dictate physical materialisation.
 
+### Runtime outcomes and diagnostics
+
+The runtime model records every completed step as a `StepOutcome`. An outcome
+has a status, declared output artifacts, structured diagnostics, optional
+failure information, portable metrics, and optional module-owned result data.
+Modules return outcomes rather than untyped values; the executor validates
+that every produced artifact belongs to one of that step's declared output
+slots and has the declared artifact role.
+
+```text
+StepStatus = succeeded | failed | recovered | skipped
+
+Diagnostic
+  code
+  severity: info | warning | error
+  message
+  module_id
+  step_id
+  details
+
+Failure
+  message
+  module_id
+  step_id
+  exception_type
+
+Artifact
+  slot_id
+  role
+  value                         # runtime-only physical value
+
+StepOutcome
+  step_id
+  module_id
+  status
+  artifacts
+  diagnostics
+  failure
+  metrics
+  result
+
+BuildReport
+  outcomes
+  sink_outcomes
+  artifacts
+  diagnostics
+  recovered_failures
+  unresolved_failures
+  metrics
+  provenance
+```
+
+`Diagnostic` is a structured finding emitted by a completed step. It is not
+itself a runtime failure: a diagnostic may be informational, a warning, or an
+error according to its module's policy. `Failure` describes a step that could
+not complete its work. The initial implementation records the models but does
+not yet provide errored handlers or failure propagation; an unhandled module
+exception still stops the build.
+
+Metrics use semantic names. The file module emits `graph.nodes` and
+`graph.edges`; the generic executor aggregates metrics without knowing about
+file output or any other target. `BuildReport.nodes` and `.edges` are
+compatibility conveniences derived from those metrics, not target-specific
+execution behaviour.
+
+The runtime execution context supplies the immutable contract, compiled module
+definition/reference, resolved runtime configuration, declared artifact inputs,
+and execution services. Runtime values, diagnostics, artifacts, outcomes, and
+module result data never enter the serialised workflow contract.
+
 ## Topology annotations and module interpretation
 
 Topology annotations are canonical graph metadata, not target configuration.
@@ -354,3 +429,13 @@ The first implementation slice is:
 5. Have the file module select core graph-record artifact roles and emit graph
    output plus a provenance manifest.
 6. Add topology annotation IR and expose it to workflow-module compilation.
+
+Implemented additions to this slice:
+
+- JSONL writing and provenance-manifest creation are owned by `FileModule`.
+- Runtime workflow models are owned by `workflow.models`; module lifecycle
+  interfaces are owned by `workflow.interfaces`; `modules` contains concrete
+  module implementations only.
+- The executor aggregates explicit outcomes, sink outcomes, artifacts,
+  diagnostics, and semantic metrics. It does not interpret a file module's
+  result structure to calculate graph counts.
