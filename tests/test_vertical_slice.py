@@ -9,11 +9,11 @@ from kg_build_system import (
     projected_field, property, struct, table, value, collection,
 )
 from kg_build_system.expressions import Expression, FieldPath
-from kg_build_system.modules import BindingAggregationModule, CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration, MergeCompatibleFactsModule, RejectConflictingNonNullValuesConfiguration, RejectConflictingNonNullValuesModule
+from kg_build_system.modules import CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration, MergeCompatibleFactsModule, RejectConflictingNonNullValuesConfiguration, RejectConflictingNonNullValuesModule
 from kg_build_system.modules.core import CoreArtifactRoles
 from kg_build_system.compile.models import ArtifactRole
 
-POST_PROCESSING = [BindingAggregationModule(), CollapseExactDuplicatesModule(), RejectConflictingNonNullValuesModule(), MergeCompatibleFactsModule()]
+POST_PROCESSING = [CollapseExactDuplicatesModule(), RejectConflictingNonNullValuesModule(), MergeCompatibleFactsModule()]
 
 @node()
 class Thing(GraphComponent):
@@ -49,7 +49,7 @@ class ExpandedInput:
 class VerticalSliceTests(unittest.TestCase):
     def test_core_artifact_roles_are_a_stable_extension_vocabulary(self) -> None:
         role = CoreArtifactRoles.graph_records("node", "Thing")
-        self.assertEqual(role, ArtifactRole(namespace="core", name="graph.records.node.Thing"))
+        self.assertEqual(role, ArtifactRole(namespace="core", name="graph.node.Thing"))
         identity = CoreArtifactRoles.graph_record_identity(role)
         self.assertIsNotNone(identity)
         assert identity is not None
@@ -128,7 +128,7 @@ class VerticalSliceTests(unittest.TestCase):
                 node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label))),
                 node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(value.literal("conflict")))),
             ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], modules=[
-                BindingAggregationModule(), CollapseExactDuplicatesModule(),
+                CollapseExactDuplicatesModule(),
                 RejectConflictingNonNullValuesModule(RejectConflictingNonNullValuesConfiguration(fail_on_error=False)), MergeCompatibleFactsModule(),
                 FileModule(FileModuleConfiguration(str(root / "unused.jsonl"))),
             ])
@@ -144,13 +144,13 @@ class VerticalSliceTests(unittest.TestCase):
             modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration("compiled-override.jsonl"))],
         )
         self.assertEqual({module.module_id for module in blueprint.modules}, {
-            "binding_aggregation", "collapse_exact_duplicates", "merge_compatible_facts",
+            "collapse_exact_duplicates", "merge_compatible_facts",
             "reject_conflicting_non_null_values", "file",
         })
         contract = compile_blueprint(blueprint=BuildBlueprint.model_validate_json(blueprint.model_dump_json()))
         file_module = next(module for module in contract.workflow.modules if module.reference.module_id == "file")
         self.assertEqual(file_module.reference.class_qualname, "FileModule")
-        self.assertTrue({"binding_aggregation", "collapse_exact_duplicates", "merge_compatible_facts", "reject_conflicting_non_null_values"} <= {module.reference.module_id for module in contract.workflow.modules})
+        self.assertTrue({"collapse_exact_duplicates", "merge_compatible_facts", "reject_conflicting_non_null_values"} <= {module.reference.module_id for module in contract.workflow.modules})
         file_step = next(step for step in contract.workflow.steps if step.module_id == "file")
         self.assertEqual(file_module.reference.configuration, {"location": "compiled-override.jsonl"})
         termination = next(step for step in contract.workflow.steps if step.step_id == "core::publish.result")
@@ -168,11 +168,11 @@ class VerticalSliceTests(unittest.TestCase):
             return compile_blueprint(blueprint=blueprint)
 
         validation_then_merge = contract_for([
-            BindingAggregationModule(), CollapseExactDuplicatesModule(), RejectConflictingNonNullValuesModule(),
+            CollapseExactDuplicatesModule(), RejectConflictingNonNullValuesModule(),
             MergeCompatibleFactsModule(), FileModule(FileModuleConfiguration("unused.jsonl")),
         ])
         merge_then_validation = contract_for([
-            BindingAggregationModule(), CollapseExactDuplicatesModule(), MergeCompatibleFactsModule(),
+            CollapseExactDuplicatesModule(), MergeCompatibleFactsModule(),
             RejectConflictingNonNullValuesModule(), FileModule(FileModuleConfiguration("unused.jsonl")),
         ])
 

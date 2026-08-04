@@ -8,7 +8,7 @@ from kg_build_system import (
     edge_binding, field, node, node_binding, projection, projected_field,
     property, struct, table, value, collection, lookup,
 )
-from kg_build_system.modules import BindingAggregationModule, CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration, MergeCompatibleFactsModule, RejectConflictingNonNullValuesModule
+from kg_build_system.modules import CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration, MergeCompatibleFactsModule, RejectConflictingNonNullValuesModule
 
 @node(description="A biological target")
 class Target(GraphComponent):
@@ -69,7 +69,6 @@ blueprint = create_blueprint(bindings=[
     node_binding(debug_name="disease_from_association", target=Disease, build_key=AssociationTable.disease_id, properties=Disease(name=bind(AssociationTable.disease_id))),
     edge_binding(debug_name="association_to_disease", target=AssociatedWith, build_key=value.deterministic_uuid(value.concat(AssociationTable.target_id, AssociationTable.disease_id, AssociationTable.evidence_label)), source_build_key=AssociationTable.target_id, target_build_key=AssociationTable.disease_id, properties=AssociatedWith(score=bind(AssociationTable.score), study_name=bind(lookup.one(key=AssociationTable.study_id, match=Study.id, value=Study.details.name, as_type=str)), evidence_disease_id=bind(AssociationTable.disease_id), evidence_label=bind(AssociationTable.evidence_label))),
 ], projections=[AssociationTable], sources=[source, study_source], modules=[
-    BindingAggregationModule(),
     CollapseExactDuplicatesModule(),
     RejectConflictingNonNullValuesModule(),
     MergeCompatibleFactsModule(),

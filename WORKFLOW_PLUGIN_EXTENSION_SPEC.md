@@ -24,8 +24,10 @@ all workflow steps; no role receives special scheduling treatment.
   authoring Python classes.
 - Contracts retain credential references only; resolved credentials are
   runtime-only.
-- Modules may consume core artifacts and publish module-owned artifacts, but
-  may not change core graph semantics or make core work depend on module work.
+- Modules may consume core artifacts and publish module-owned artifacts.
+  Core is a module contributing ordinary workflow steps; connections may make
+  any step depend on any compatible producer.  Modules may not change the
+  canonical graph semantics represented by compiled definitions.
 
 ## Workflow modules and runtime configuration
 

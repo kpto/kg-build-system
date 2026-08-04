@@ -44,7 +44,11 @@ class CoreArtifactRoles:
 
     @classmethod
     def graph_records(cls, kind: Literal["node", "edge"], component: str) -> ArtifactRole:
-        return ArtifactRole(namespace=cls.NAMESPACE, name=f"graph.records.{kind}.{component}")
+        return ArtifactRole(namespace=cls.NAMESPACE, name=f"graph.{kind}.{component}")
+
+    @classmethod
+    def binding(cls, symbol_id: str) -> ArtifactRole:
+        return ArtifactRole(namespace=cls.NAMESPACE, name=f"binding.{symbol_id}")
 
     @classmethod
     def published(cls, module_id: str, name: str) -> ArtifactRole:
@@ -55,10 +59,10 @@ class CoreArtifactRoles:
     def graph_record_identity(cls, role: ArtifactRole) -> GraphRecordArtifact | None:
         if role.namespace != cls.NAMESPACE:
             return None
-        parts = role.name.split(".", 3)
-        if len(parts) != 4 or parts[:2] != ["graph", "records"] or parts[2] not in {"node", "edge"} or not parts[3]:
+        parts = role.name.split(".", 2)
+        if len(parts) != 3 or parts[0] != "graph" or parts[1] not in {"node", "edge"} or not parts[2]:
             return None
-        return GraphRecordArtifact(kind=parts[2], component=parts[3])
+        return GraphRecordArtifact(kind=parts[1], component=parts[2])
 
     @classmethod
     def is_graph_records(cls, role: ArtifactRole) -> bool:
@@ -97,7 +101,7 @@ class CoreCompiler:
         for index, binding in enumerate(context.blueprint.bindings):
             output = OutputSlot(
                 slot_id=f"core::binding.{index}.output",
-                artifact_role=CoreArtifactRoles.graph_records(binding.kind, binding.component),
+                artifact_role=CoreArtifactRoles.binding(binding.symbol_id),
             )
             step = WorkflowStep(
                 step_id=f"core::binding.{index}",
@@ -106,11 +110,19 @@ class CoreCompiler:
                 payload={
                     "action": "relation",
                     "relation": f"kg_binding_{index}",
-                    "sql": lower_binding_sql(context.blueprint, context.sources, binding),
+                    "sql": f"SELECT *, '{binding.symbol_id}' AS _kg_binding_symbol FROM ({lower_binding_sql(context.blueprint, context.sources, binding)})",
                     "materialization": "temporary_table",
                 },
             )
             drafts.append(WorkflowStepDraft(step, {}))
+        for component in context.blueprint.components:
+            binding_roles = {CoreArtifactRoles.binding(binding.symbol_id) for binding in context.blueprint.bindings if binding.component == component.name}
+            if not binding_roles:
+                continue
+            input_slot = CollectionInputSlot(slot_id=f"core::aggregate.{component.name}.bindings")
+            output = OutputSlot(slot_id=f"core::aggregate.{component.name}.output", artifact_role=CoreArtifactRoles.graph_records(component.kind, component.name))
+            step = WorkflowStep(step_id=f"core::aggregate.{component.name}", module_id=CoreModule.ID, assembly_preference="deferred", inputs=(input_slot,), outputs=(output,), payload={"action": "aggregate", "relation": f"kg_graph_{component.name.lower()}"})
+            drafts.append(WorkflowStepDraft(step, {input_slot.slot_id: lambda _input, candidate, roles=binding_roles: candidate.artifact_role in roles}))
         publication_input = CollectionInputSlot(slot_id="core::publish.result.publications")
         drafts.append(WorkflowStepDraft(
             WorkflowStep(
@@ -150,6 +162,13 @@ class CoreExecutor:
                 result={"published_artifacts": published},
             )
         connection = context.services["duckdb"]
+        if payload.get("action") == "aggregate":
+            relation = str(payload["relation"]).replace('"', '""')
+            values = tuple(artifact.value for artifacts in context.inputs.values() for artifact in artifacts)
+            sql = " UNION ALL ".join(f'SELECT * FROM "{str(value).replace(chr(34), chr(34)*2)}"' for value in values)
+            connection.execute(f'CREATE TEMP TABLE "{relation}" AS {sql}')
+            output = step.outputs[0]
+            return StepOutcome(step.step_id, step.module_id, StepStatus.SUCCEEDED, (Artifact(output.slot_id, output.artifact_role, relation),))
         if payload.get("action") != "relation":
             raise ValueError(f"unsupported core action {payload.get('action')!r}")
         materialization = "TABLE" if payload.get("materialization") == "temporary_table" else "VIEW"

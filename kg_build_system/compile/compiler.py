@@ -262,9 +262,9 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[Bou
         drafts.extend(declaration.steps)
     compiled_modules = [declaration.module for declaration in declarations]
     if len({module.reference.module_id for module in compiled_modules}) != len(compiled_modules): raise ValueError("workflow module IDs must be unique")
-    # Modules are a pipeline in blueprint order (Core is always first).  An
-    # eager module may consume only artifacts produced by an earlier module;
-    # this prevents a pass-through module from wiring its input to itself.
+    # Assembly sees the complete declared slot table, but a processing step
+    # can only claim outputs declared before it.  That permits global,
+    # deterministic selection without backward/self dependency edges.
     outputs = [slot for draft in drafts for slot in draft.definition.outputs]
     output_order = {slot.slot_id: index for index, slot in enumerate(outputs)}
     output_module = {slot.slot_id: draft.definition.module_id for draft in drafts for slot in draft.definition.outputs}
@@ -272,53 +272,38 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[Bou
     output_step = {slot.slot_id: draft.definition.step_id for draft in drafts for slot in draft.definition.outputs}
     priorities = {module.reference.module_id: module.reference.priority for module in compiled_modules}
     connections: list[Connection] = []
-    occupied_outputs: set[str] = set()
+    output_uses: dict[str, int] = {}
     def candidates_for(draft: WorkflowStepDraft, input_slot: Any, predicate: Any) -> list[Any]:
         compatible = [slot for slot in outputs if predicate is not None and predicate(input_slot, slot)]
         # The core publication collector is deliberately terminal: it gathers
         # publication artifacts emitted by every contributing module.
         if draft.definition.step_id == "core::publish.result":
             return compatible
-        consumer_priority = priorities[draft.definition.module_id]
-        compatible = [
-            slot for slot in compatible
-            if priorities[output_module[slot.slot_id]] < consumer_priority
-            or (
-                draft.definition.assembly_preference == "deferred"
-                and priorities[output_module[slot.slot_id]] == consumer_priority
-                and step_order[output_step[slot.slot_id]] < step_order[draft.definition.step_id]
-            )
-        ]
-        if not compatible:
-            return []
-        # A collection receives all outputs from the latest compatible
-        # upstream module for each semantic role.  This lets an aggregation
-        # module combine Core's many binding outputs, while later modules see
-        # only that module's replacement record stream.
+        compatible = [slot for slot in compatible if step_order[output_step[slot.slot_id]] < step_order[draft.definition.step_id]]
+        if not compatible: return []
         latest_by_role: dict[ArtifactRole, int] = {}
         for slot in compatible:
-            role = slot.artifact_role
-            latest_by_role[role] = max(latest_by_role.get(role, -1), priorities[output_module[slot.slot_id]])
+            latest_by_role[slot.artifact_role] = max(latest_by_role.get(slot.artifact_role, -1), priorities[output_module[slot.slot_id]])
         return [slot for slot in compatible if priorities[output_module[slot.slot_id]] == latest_by_role[slot.artifact_role]]
 
-    ordered_drafts = sorted(
-        drafts,
-        key=lambda item: (
-            item.definition.step_id == "core::publish.result",
-            priorities[item.definition.module_id],
-            step_order[item.definition.step_id],
-        ),
-    )
+    ordered_drafts = sorted(drafts, key=lambda item: (item.definition.step_id == "core::publish.result", priorities[item.definition.module_id], step_order[item.definition.step_id]))
     for draft in ordered_drafts:
         for input_slot in draft.definition.inputs:
             predicate = draft.candidates.get(input_slot.slot_id)
             candidates = candidates_for(draft, input_slot, predicate)
             if isinstance(input_slot, SingleInputSlot):
                 if not candidates: raise ValueError(f"input {input_slot.slot_id} has no compatible output")
-                available = [slot for slot in candidates if slot.slot_id not in occupied_outputs]
-                selected = max(available or candidates, key=lambda slot: (priorities[output_module[slot.slot_id]], output_order[slot.slot_id], slot.slot_id))
+                selected = min(
+                    candidates,
+                    key=lambda slot: (
+                        output_uses.get(slot.slot_id, 0),
+                        -priorities[output_module[slot.slot_id]],
+                        -output_order[slot.slot_id],
+                        slot.slot_id,
+                    ),
+                )
                 connections.append(Connection(input_slot_id=input_slot.slot_id, output_slot_id=selected.slot_id))
-                occupied_outputs.add(selected.slot_id)
+                output_uses[selected.slot_id] = output_uses.get(selected.slot_id, 0) + 1
             else:
                 connections.extend(Connection(input_slot_id=input_slot.slot_id, output_slot_id=slot.slot_id) for slot in candidates)
     workflow = WorkflowDefinition(modules=tuple(compiled_modules), steps=tuple(draft.definition for draft in ordered_drafts), connections=tuple(connections))
