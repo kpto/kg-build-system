@@ -4,9 +4,11 @@ from __future__ import annotations
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
+from pathlib import Path
 from typing import Any
 
-from ..compile.models import ArtifactRole, BuildContract, ModuleDefinition
+from ..compile.models import ArtifactRole, BuildContract, ModuleDefinition, WorkflowStep
+from .services import ExecutionServices
 
 
 class StepStatus(StrEnum):
@@ -54,15 +56,32 @@ class StepOutcome:
 class BuildRuntime:
     credentials: dict[str, str] = field(default_factory=dict)
     module_configuration: dict[str, dict[str, Any]] = field(default_factory=dict)
+    working_storage: Path = field(default_factory=lambda: Path.cwd())
+    temporary_storage: Path | None = None
 
 
 @dataclass(frozen=True)
-class ModuleExecutionContext:
+class ExecutionContext:
+    contract: BuildContract
+    module: ModuleDefinition
+    step: WorkflowStep
+    runtime_configuration: Mapping[str, Any]
+    inputs: Mapping[str, tuple[Artifact, ...]]
+    services: ExecutionServices
+
+
+# Compatibility alias while third-party modules migrate to ExecutionContext.
+ModuleExecutionContext = ExecutionContext
+
+
+@dataclass(frozen=True)
+class ExecutorFactoryContext:
+    """Generic context used once while constructing a module executor."""
+
     contract: BuildContract
     module: ModuleDefinition
     runtime_configuration: Mapping[str, Any]
-    inputs: Mapping[str, tuple[Artifact, ...]]
-    services: Mapping[str, Any]
+    services: ExecutionServices
 
 
 @dataclass(frozen=True)

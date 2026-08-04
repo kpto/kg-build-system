@@ -19,8 +19,8 @@ from ...compile.models import (
     SourceDefinition,
     WorkflowStep,
 )
-from ...workflow.interfaces import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, WorkflowStepDraft
-from ...workflow.models import Artifact, ModuleExecutionContext, StepOutcome, StepStatus
+from ...workflow.interfaces import CompilationContext, Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, WorkflowStepDraft
+from ...workflow.models import Artifact, ExecutionContext, StepOutcome, StepStatus
 from .lowering import binding_relation_names, lower_binding_sql, lower_projection_sql, projection_tables
 
 
@@ -83,21 +83,8 @@ class CoreArtifactRoles:
         return role.namespace == cls.NAMESPACE and role.name.startswith("publication.")
 
 
-@dataclass(frozen=True)
-class CoreCompilationContext:
-    """Compiled semantic inputs required by the built-in core module.
-
-    Core owns lowering graph bindings into its relation-producing workflow
-    steps.  The generic workflow compiler supplies the narrow SQL-lowering
-    capability; it no longer creates core workflow steps itself.
-    """
-
-    blueprint: BuildBlueprint
-    sources: tuple[SourceDefinition, ...]
-
-
 class CoreCompiler:
-    async def compile(self, context: CoreCompilationContext) -> ModuleCompilationResult:
+    async def compile(self, context: CompilationContext[Any]) -> ModuleCompilationResult:
         definition = ModuleDefinition(
             reference=ModuleReference(
                 module_id=CoreModule.ID,
@@ -108,10 +95,13 @@ class CoreCompiler:
             ),
         )
         drafts: list[WorkflowStepDraft] = []
-        table_relations = {source.table: f"kg_table_{index}" for index, source in enumerate(context.sources)}
+        source_map = {source.table: source for source in context.blueprint.sources}
+        source_map.update({override.table: override.override for override in context.overrides.sources})
+        sources = tuple(source_map[name] for name in sorted(source_map))
+        table_relations = {source.table: f"kg_table_{index}" for index, source in enumerate(sources)}
         projection_relations = {projection.name: f"kg_projection_{index}" for index, projection in enumerate(context.blueprint.projections)}
         relations = table_relations | projection_relations
-        for source in context.sources:
+        for source in sources:
             output = OutputSlot(
                 slot_id=f"core::table.{source.table}.output",
                 artifact_role=CoreArtifactRoles.table(source.table),
@@ -204,7 +194,8 @@ class CoreModule(Module):
 
 
 class CoreExecutor:
-    async def execute_step(self, context: ModuleExecutionContext, step: WorkflowStep) -> StepOutcome:
+    async def execute_step(self, context: ExecutionContext) -> StepOutcome:
+        step = context.step
         payload = step.payload or {}
         if payload.get("action") == "publish":
             published = tuple(artifact for artifacts in context.inputs.values() for artifact in artifacts)
@@ -214,7 +205,7 @@ class CoreExecutor:
                 status=StepStatus.SUCCEEDED,
                 result={"published_artifacts": published},
             )
-        connection = context.services["duckdb"]
+        connection = context.services.duckdb
         if payload.get("action") == "aggregate":
             relation = str(payload["relation"]).replace('"', '""')
             values = tuple(artifact.value for artifacts in context.inputs.values() for artifact in artifacts)

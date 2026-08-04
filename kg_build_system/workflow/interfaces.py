@@ -6,8 +6,8 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, ClassVar, Protocol
 
-from ..compile.models import ArtifactRole, InputSlot, ModuleDefinition, OutputSlot, WorkflowStep
-from .models import ModuleExecutionContext, StepOutcome
+from ..compile.models import ArtifactRole, BuildBlueprint, BuildOverrides, BuildSettings, InputSlot, ModuleDefinition, OutputSlot, WorkflowStep
+from .models import ExecutionContext, StepOutcome
 
 
 @dataclass(frozen=True)
@@ -22,6 +22,18 @@ class ModuleRegistration[T: ModuleRegistrationConfiguration](ABC):
     @property
     def module_class(self) -> type[Module]:
         return type(self)
+
+
+@dataclass(frozen=True)
+class CompilationContext[T: ModuleRegistrationConfiguration]:
+    """Generic compile-time context for one configured workflow module."""
+
+    blueprint: BuildBlueprint
+    settings: BuildSettings
+    overrides: BuildOverrides
+    module_id: str
+    priority: int
+    registration_configuration: T
 
 
 CandidatePredicate = Callable[[InputSlot, OutputSlot], bool]
@@ -40,11 +52,11 @@ class ModuleCompilationResult:
 
 
 class ModuleCompiler(Protocol):
-    async def compile(self, context: Any) -> ModuleCompilationResult: ...
+    async def compile(self, context: CompilationContext[Any]) -> ModuleCompilationResult: ...
 
 
 class ModuleExecutor(Protocol):
-    async def execute_step(self, context: ModuleExecutionContext, step: WorkflowStep) -> StepOutcome: ...
+    async def execute_step(self, context: ExecutionContext) -> StepOutcome: ...
 
 
 class Module(ABC):

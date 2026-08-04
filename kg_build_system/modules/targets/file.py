@@ -2,11 +2,11 @@
 from __future__ import annotations
 import json
 from dataclasses import dataclass
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar
 from ...compile.models import ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot, RuntimeFieldDefinition, WorkflowStep
 from ...workflow.interfaces import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft
-from ...workflow.models import Artifact, ModuleExecutionContext, StepOutcome, StepStatus
+from ...workflow.models import Artifact, ExecutionContext, StepOutcome, StepStatus
 from ..core import CoreArtifactRoles
 
 @dataclass(frozen=True)
@@ -18,7 +18,7 @@ class FileModule(Module, ModuleRegistration[FileModuleConfiguration]):
     configuration: FileModuleConfiguration
     ID: ClassVar[str] = "file"; VERSION: ClassVar[str] = "1"
     @classmethod
-    async def create_compiler(cls, context: Any) -> ModuleCompiler: return context.registration
+    async def create_compiler(cls, context: Any) -> ModuleCompiler: return cls(context.registration_configuration)
     @classmethod
     async def create_executor(cls, context: Any) -> ModuleExecutor: return FileExecutor(context.runtime_configuration)
     async def compile(self, context: Any) -> ModuleCompilationResult:
@@ -29,19 +29,23 @@ class FileModule(Module, ModuleRegistration[FileModuleConfiguration]):
 
 class FileExecutor:
     def __init__(self, configuration: dict[str, Any]) -> None: self._configuration=configuration
-    async def execute_step(self, context: ModuleExecutionContext, step: WorkflowStep) -> StepOutcome:
+    async def execute_step(self, context: ExecutionContext) -> StepOutcome:
+        step = context.step
         compiled=context.module.reference.configuration
         if not isinstance(compiled,dict) or not isinstance(compiled.get("location"),str): raise RuntimeError("file module requires a compiled output location")
         location=str(self._configuration.get("output_location") or compiled["location"])
-        output=Path(location); output.parent.mkdir(parents=True,exist_ok=True); connection=context.services["duckdb"]; nodes=edges=0
+        candidate = Path(location)
+        output = candidate if candidate.is_absolute() else context.services.working_storage.child(PurePosixPath(location))
+        output.parent.mkdir(parents=True,exist_ok=True); nodes=edges=0
         with output.open("w",encoding="utf-8") as stream:
             for values in context.inputs.values():
                 for artifact in values:
                     identity=CoreArtifactRoles.graph_record_identity(artifact.role)
                     if identity is None: continue
-                    result=connection.execute(f'SELECT * FROM "{artifact.value}"'); columns=tuple(column[0] for column in result.description); kind,component=identity.kind,identity.component
-                    for row in result.fetchall():
-                        record=dict(zip(columns,row,strict=True)); record.update(build_key=str(record["build_key"]),type=component,kind=kind); nodes+=kind=="node"; edges+=kind=="edge"; stream.write(json.dumps(record,sort_keys=True,default=str)+"\n")
+                    result=context.services.duckdb.execute(f'SELECT * FROM "{str(artifact.value).replace(chr(34),chr(34)*2)}"'); columns=tuple(column[0] for column in result.description); kind,component=identity.kind,identity.component
+                    while batch := result.fetchmany(1_000):
+                        for row in batch:
+                            record=dict(zip(columns,row,strict=True)); record.update(build_key=str(record["build_key"]),type=component,kind=kind); nodes+=kind=="node"; edges+=kind=="edge"; stream.write(json.dumps(record,sort_keys=True,default=str)+"\n")
         result={"nodes":nodes,"edges":edges,"location":str(output)}
         artifact_output = step.outputs[0]
         return StepOutcome(

@@ -19,8 +19,8 @@ from .models import (
 )
 from ..expressions import Expression, FieldPath
 from .._support.annotations import type_name, type_shape
-from ..workflow.interfaces import ModuleRegistration, WorkflowStepDraft
-from ..modules.core.core import CoreCompilationContext, CoreModule
+from ..workflow.interfaces import CompilationContext, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft
+from ..modules.core.core import CoreModule
 
 def _property_expressions(binding: NodeBinding | EdgeBinding) -> dict[str, Expression[Any]]:
     values: dict[str, Expression[Any]] = {}
@@ -235,16 +235,30 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[Bou
     """Compile core DuckDB work and contributor declarations into one workflow."""
     source_ir = _effective_sources(blueprint=blueprint, overrides=sources)
     overrides = BuildOverrides(sources=tuple(SourceOverride(table=item.table, original=next((old for old in blueprint.sources if old.table == item.table), None), override=item) for item in (_source_definition(source) for source in sources)))
-    core_compiler = await CoreModule.create_compiler(None)
-    core_declaration = await core_compiler.compile(CoreCompilationContext(
+    compilation_settings = settings or BuildSettings()
+    core_context = CompilationContext(
         blueprint=blueprint,
-        sources=source_ir,
-    ))
+        settings=compilation_settings,
+        overrides=overrides,
+        module_id=CoreModule.ID,
+        priority=0,
+        registration_configuration=ModuleRegistrationConfiguration(),
+    )
+    core_compiler = await CoreModule.create_compiler(core_context)
+    core_declaration = await core_compiler.compile(core_context)
     declarations = [core_declaration]
     drafts: list[WorkflowStepDraft] = []
     for priority, registration in enumerate((_load_registration(module) for module in blueprint.modules), start=1):
-        compiler = await registration.module_class.create_compiler(type("CompilationContext", (), {"registration": registration})())
-        declaration = await compiler.compile(blueprint)
+        context = CompilationContext(
+            blueprint=blueprint,
+            settings=compilation_settings,
+            overrides=overrides,
+            module_id=registration.module_class.ID,
+            priority=priority,
+            registration_configuration=registration.configuration,
+        )
+        compiler = await registration.module_class.create_compiler(context)
+        declaration = await compiler.compile(context)
         module_class = registration.module_class
         module_id = getattr(module_class, "ID", None)
         if module_id != declaration.module.reference.module_id:
@@ -307,7 +321,7 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[Bou
             else:
                 connections.extend(Connection(input_slot_id=input_slot.slot_id, output_slot_id=slot.slot_id) for slot in candidates)
     workflow = WorkflowDefinition(modules=tuple(compiled_modules), steps=tuple(draft.definition for draft in ordered_drafts), connections=tuple(connections))
-    return BuildContract(blueprint=blueprint, blueprint_fingerprint=_blueprint_fingerprint(blueprint), sources=source_ir, settings=settings or BuildSettings(), overrides=overrides, workflow_fingerprint=_fingerprint(workflow), workflow=workflow)
+    return BuildContract(blueprint=blueprint, blueprint_fingerprint=_blueprint_fingerprint(blueprint), sources=source_ir, settings=compilation_settings, overrides=overrides, workflow_fingerprint=_fingerprint(workflow), workflow=workflow)
 
 
 def compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[BoundTable] = (), settings: BuildSettings | None = None) -> BuildContract:
