@@ -9,7 +9,7 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 from ..compile.models import BuildContract
-from .models import Artifact, BuildRuntime, ExecutionContext, ExecutorFactoryContext, Failure, PublishedArtifact, StepOutcome, StepStatus, WorkflowReport
+from .models import Artifact, BuildRuntime, ContinuableInput, DisruptedExecutionContext, DisruptingInput, ExecutionContext, ExecutorFactoryContext, Failure, PublishedArtifact, StepOutcome, StepStatus, WorkflowReport
 from .services import ExecutionServices, LocalTemporaryStorage, LocalWorkingStorage, MappingCredentialResolver
 
 
@@ -60,6 +60,7 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
 
       completed: set[str] = set()
       artifacts: dict[str, Artifact] = {}
+      outcomes_by_step: dict[str, StepOutcome] = {}
       outcomes: list[StepOutcome] = []
       pending = list(contract.workflow.steps)
       while pending:
@@ -67,12 +68,35 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
         if not ready:
             raise RuntimeError("workflow has a dependency cycle")
         for step in ready:
-            inputs = {
-                input_slot.slot_id: tuple(artifacts[slot_id] for slot_id in incoming[input_slot.slot_id] if slot_id in artifacts)
-                for input_slot in step.inputs
-            }
-            context = ExecutionContext(contract, definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), inputs, services)
-            outcome = await executors[step.module_id].execute_step(context)
+            inputs = {}
+            disruptions: list[DisruptingInput] = []
+            for input_slot in step.inputs:
+                contributions: list[ContinuableInput | DisruptingInput] = []
+                for output_slot_id in incoming[input_slot.slot_id]:
+                    previous = outcomes_by_step[output_owner[output_slot_id]]
+                    artifact = artifacts.get(output_slot_id)
+                    if previous.status in {StepStatus.SUCCEEDED, StepStatus.WARNING}:
+                        contributions.append(ContinuableInput(output_slot_id, previous.status, artifact))
+                    else:
+                        disruption = DisruptingInput(output_slot_id, previous.status, artifact, previous.failure)
+                        contributions.append(disruption)
+                        disruptions.append(disruption)
+                inputs[input_slot.slot_id] = tuple(contributions)
+            try:
+                if disruptions:
+                    context = DisruptedExecutionContext(contract, definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), inputs, tuple(disruptions), services)
+                    outcome = await executors[step.module_id].handle_disrupted(context)
+                else:
+                    continuable_inputs = {slot_id: tuple(item for item in values if isinstance(item, ContinuableInput)) for slot_id, values in inputs.items()}
+                    context = ExecutionContext(contract, definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), continuable_inputs, services)
+                    outcome = await executors[step.module_id].handle(context)
+            except Exception as error:
+                outcome = StepOutcome(
+                    step_id=step.step_id,
+                    module_id=step.module_id,
+                    status=StepStatus.FAILED,
+                    failure=Failure(str(error), step.module_id, step.step_id, type(error).__name__),
+                )
             if outcome.step_id != step.step_id or outcome.module_id != step.module_id:
                 raise RuntimeError(f"module returned an outcome for a different step: {step.step_id}")
             if outcome.status == StepStatus.FAILED and outcome.failure is None:
@@ -84,6 +108,7 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
             if any(artifact.role != declared[slot_id] for slot_id, artifact in returned.items()):
                 raise RuntimeError(f"step {step.step_id} returned an artifact role inconsistent with its output slot")
             artifacts.update(returned)
+            outcomes_by_step[step.step_id] = outcome
             outcomes.append(outcome)
             completed.add(step.step_id)
             pending.remove(step)

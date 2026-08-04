@@ -20,7 +20,7 @@ from ...compile.models import (
     WorkflowStep,
 )
 from ...workflow.interfaces import CompilationContext, Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, WorkflowStepDraft
-from ...workflow.models import Artifact, ExecutionContext, StepOutcome, StepStatus
+from ...workflow.models import Artifact, DisruptedExecutionContext, ExecutionContext, StepOutcome, StepStatus
 from .lowering import binding_relation_names, lower_binding_sql, lower_projection_sql, projection_tables
 
 
@@ -193,22 +193,30 @@ class CoreModule(Module):
         return CoreExecutor()
 
 
-class CoreExecutor:
-    async def execute_step(self, context: ExecutionContext) -> StepOutcome:
+class CoreExecutor(ModuleExecutor):
+    async def _publish(self, context: ExecutionContext | DisruptedExecutionContext) -> StepOutcome:
+        published = tuple(
+            item.artifact
+            for inputs in context.inputs.values()
+            for item in inputs
+            if item.artifact is not None
+        )
+        return StepOutcome(
+            step_id=context.step.step_id,
+            module_id=context.step.module_id,
+            status=StepStatus.SUCCEEDED,
+            result={"published_artifacts": published},
+        )
+
+    async def handle(self, context: ExecutionContext) -> StepOutcome:
         step = context.step
         payload = step.payload or {}
         if payload.get("action") == "publish":
-            published = tuple(artifact for artifacts in context.inputs.values() for artifact in artifacts)
-            return StepOutcome(
-                step_id=step.step_id,
-                module_id=step.module_id,
-                status=StepStatus.SUCCEEDED,
-                result={"published_artifacts": published},
-            )
+            return await self._publish(context)
         connection = context.services.duckdb
         if payload.get("action") == "aggregate":
             relation = str(payload["relation"]).replace('"', '""')
-            values = tuple(artifact.value for artifacts in context.inputs.values() for artifact in artifacts)
+            values = tuple(item.artifact.value for inputs in context.inputs.values() for item in inputs if item.artifact is not None)
             sql = " UNION ALL ".join(f'SELECT * FROM "{str(value).replace(chr(34), chr(34)*2)}"' for value in values)
             connection.execute(f'CREATE TEMP TABLE "{relation}" AS {sql}')
             output = step.outputs[0]
@@ -225,3 +233,8 @@ class CoreExecutor:
             status=StepStatus.SUCCEEDED,
             artifacts=(Artifact(output.slot_id, output.artifact_role, relation),),
         )
+
+    async def handle_disrupted(self, context: DisruptedExecutionContext) -> StepOutcome:
+        if (context.step.payload or {}).get("action") == "publish":
+            return await self._publish(context)
+        return await super().handle_disrupted(context)

@@ -5,7 +5,7 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any
+from typing import Any, Literal
 
 from ..compile.models import ArtifactRole, BuildContract, ModuleDefinition, WorkflowStep
 from .services import ExecutionServices
@@ -13,8 +13,8 @@ from .services import ExecutionServices
 
 class StepStatus(StrEnum):
     SUCCEEDED = "succeeded"
+    WARNING = "warning"
     FAILED = "failed"
-    RECOVERED = "recovered"
     SKIPPED = "skipped"
 
 
@@ -53,6 +53,25 @@ class StepOutcome:
 
 
 @dataclass(frozen=True)
+class ContinuableInput:
+    """A connected output whose producer completed successfully or warned."""
+
+    output_slot_id: str
+    status: Literal[StepStatus.SUCCEEDED, StepStatus.WARNING]
+    artifact: Artifact | None
+
+
+@dataclass(frozen=True)
+class DisruptingInput:
+    """A connected output whose producer failed or was skipped."""
+
+    output_slot_id: str
+    status: Literal[StepStatus.FAILED, StepStatus.SKIPPED]
+    artifact: Artifact | None
+    failure: Failure | None
+
+
+@dataclass(frozen=True)
 class BuildRuntime:
     credentials: dict[str, str] = field(default_factory=dict)
     module_configuration: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -66,12 +85,21 @@ class ExecutionContext:
     module: ModuleDefinition
     step: WorkflowStep
     runtime_configuration: Mapping[str, Any]
-    inputs: Mapping[str, tuple[Artifact, ...]]
+    inputs: Mapping[str, tuple[ContinuableInput, ...]]
     services: ExecutionServices
 
 
-# Compatibility alias while third-party modules migrate to ExecutionContext.
-ModuleExecutionContext = ExecutionContext
+@dataclass(frozen=True)
+class DisruptedExecutionContext:
+    """Context for a step with at least one failed or skipped input."""
+
+    contract: BuildContract
+    module: ModuleDefinition
+    step: WorkflowStep
+    runtime_configuration: Mapping[str, Any]
+    inputs: Mapping[str, tuple[ContinuableInput | DisruptingInput, ...]]
+    disruptions: tuple[DisruptingInput, ...]
+    services: ExecutionServices
 
 
 @dataclass(frozen=True)

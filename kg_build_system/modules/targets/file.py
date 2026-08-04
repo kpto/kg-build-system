@@ -6,7 +6,7 @@ from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar
 from ...compile.models import ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot, RuntimeFieldDefinition, WorkflowStep
 from ...workflow.interfaces import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft
-from ...workflow.models import Artifact, ExecutionContext, StepOutcome, StepStatus
+from ...workflow.models import Artifact, DisruptedExecutionContext, ExecutionContext, StepOutcome, StepStatus
 from ..core import CoreArtifactRoles
 
 @dataclass(frozen=True)
@@ -27,9 +27,9 @@ class FileModule(Module, ModuleRegistration[FileModuleConfiguration]):
         definition=ModuleDefinition(reference=ModuleReference(module_id=self.ID,import_module=type(self).__module__,class_qualname=type(self).__qualname__,implementation_version=self.VERSION,priority=0,configuration={"location":self.configuration.location}),runtime_fields=(RuntimeFieldDefinition(key="output_location",description="Optional runtime replacement for the output location.",required=False),))
         return ModuleCompilationResult(definition,(WorkflowStepDraft(step,{records.slot_id:lambda _input,output:CoreArtifactRoles.is_graph_records(output.artifact_role)} ),))
 
-class FileExecutor:
+class FileExecutor(ModuleExecutor):
     def __init__(self, configuration: dict[str, Any]) -> None: self._configuration=configuration
-    async def execute_step(self, context: ExecutionContext) -> StepOutcome:
+    async def handle(self, context: ExecutionContext) -> StepOutcome:
         step = context.step
         compiled=context.module.reference.configuration
         if not isinstance(compiled,dict) or not isinstance(compiled.get("location"),str): raise RuntimeError("file module requires a compiled output location")
@@ -39,7 +39,10 @@ class FileExecutor:
         output.parent.mkdir(parents=True,exist_ok=True); nodes=edges=0
         with output.open("w",encoding="utf-8") as stream:
             for values in context.inputs.values():
-                for artifact in values:
+                for item in values:
+                    artifact = item.artifact
+                    if artifact is None:
+                        continue
                     identity=CoreArtifactRoles.graph_record_identity(artifact.role)
                     if identity is None: continue
                     result=context.services.duckdb.execute(f'SELECT * FROM "{str(artifact.value).replace(chr(34),chr(34)*2)}"'); columns=tuple(column[0] for column in result.description); kind,component=identity.kind,identity.component
@@ -56,3 +59,6 @@ class FileExecutor:
             metrics={"graph.nodes": nodes, "graph.edges": edges},
             result=result,
         )
+
+    async def handle_disrupted(self, context: DisruptedExecutionContext) -> StepOutcome:
+        return await super().handle_disrupted(context)

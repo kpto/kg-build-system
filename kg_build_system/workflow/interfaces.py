@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Any, ClassVar, Protocol
 
 from ..compile.models import ArtifactRole, BuildBlueprint, BuildOverrides, BuildSettings, InputSlot, ModuleDefinition, OutputSlot, WorkflowStep
-from .models import ExecutionContext, StepOutcome
+from .models import DisruptedExecutionContext, ExecutionContext, StepOutcome, StepStatus
 
 
 @dataclass(frozen=True)
@@ -55,8 +55,21 @@ class ModuleCompiler(Protocol):
     async def compile(self, context: CompilationContext[Any]) -> ModuleCompilationResult: ...
 
 
-class ModuleExecutor(Protocol):
-    async def execute_step(self, context: ExecutionContext) -> StepOutcome: ...
+class ModuleExecutor(ABC):
+    """Handles a step according to the state of its connected inputs."""
+
+    @abstractmethod
+    async def handle(self, context: ExecutionContext) -> StepOutcome:
+        """Handle a step whose every input producer succeeded or warned."""
+
+    @abstractmethod
+    async def handle_disrupted(self, context: DisruptedExecutionContext) -> StepOutcome:
+        """Default response to failed or skipped inputs: skip this step."""
+        return StepOutcome(
+            step_id=context.step.step_id,
+            module_id=context.step.module_id,
+            status=StepStatus.SKIPPED,
+        )
 
 
 class Module(ABC):

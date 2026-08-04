@@ -8,8 +8,8 @@ discussion. It is not yet part of the canonical specification.
 The initial workflow-contract and runtime-result slice is implemented. The
 current implementation has serialisable module references, frozen workflow
 steps/slots/connections, runtime-only step outcomes, explicit publication, a
-user-facing workflow report, and a file-output module. Failure propagation and
-recovery remain future work.
+user-facing workflow report, a file-output module, and state-aware error
+handling. Recovery policy is owned by downstream modules.
 
 ## Purpose and invariants
 
@@ -233,8 +233,12 @@ class ModuleCompiler(Protocol):
 
 
 class ModuleExecutor(Protocol):
-    async def execute_step(
+    async def handle(
         self, context: ExecutionContext,
+    ) -> StepOutcome: ...
+
+    async def handle_disrupted(
+        self, context: DisruptedExecutionContext,
     ) -> StepOutcome: ...
 
 
@@ -376,10 +380,18 @@ Cleanup is also an ordinary step: it must have explicit input connections to
 the work or failure-aware artifacts it needs, and it has no hidden scheduling
 priority.
 
-Each step handler has normal and errored paths. A failed step is still
-completed and passes its failure to downstream steps. A downstream step
-normally propagates that failure through its errored handler, but may recover
-it or produce failure-aware artifacts. Runtime never adds steps.
+Each executor has two abstract input-state handlers. `handle` receives an
+`ExecutionContext` only when every connected producer succeeded or warned.
+`handle_disrupted` receives a `DisruptedExecutionContext` when any connected
+producer failed or was skipped. Its abstract base implementation returns a
+skipped outcome, so a module must explicitly opt into that policy with
+`return await super().handle_disrupted(context)`. A module may instead recover
+by returning success or warning, emit failure-aware artifacts, publish a
+report, or fail intentionally.
+
+A failed or skipped step is still completed and passes its state to downstream
+steps. The executor catches unhandled exceptions from either handler and turns
+them into failed outcomes with `Failure` details. Runtime never adds steps.
 
 Runtime artifacts and step outcomes are runtime-only models. Slots and
 artifact roles remain serialised workflow semantics and do not dictate physical
@@ -396,7 +408,7 @@ produced artifact belongs to one of that step's declared output slots and has
 the declared artifact role.
 
 ```text
-StepStatus = succeeded | failed | recovered | skipped
+StepStatus = succeeded | warning | failed | skipped
 
 Failure
   message
@@ -434,9 +446,8 @@ There is no workflow-level diagnostic model. A validation module may expose
 its findings as a private output slot, aggregate them into a module-owned
 report, and publish that report if it has useful content. Whether findings
 become a gate failure is the validator's configuration and lifecycle decision.
-`Failure` describes a step that could not complete its work. The initial
-implementation records failed outcomes but does not yet provide errored
-handlers or failure propagation.
+`Failure` describes a step that could not complete its work. Recovery is not a
+fifth step state: a disrupted handler recovers by returning success or warning.
 
 Metrics use semantic names. The file module emits `graph.nodes` and
 `graph.edges`; the generic executor aggregates metrics without knowing about
@@ -470,6 +481,13 @@ runtime services. It does not expose registration configuration, authoring
 classes, or unrestricted compiler state. Runtime configuration is structured
 as `module_id -> field key -> value`. Candidate predicates are never invoked at
 runtime: execution uses only the connections frozen in the contract.
+
+Runtime inputs preserve a producer's state even if its declared output slot
+has no artifact. A continuable input has a `succeeded` or `warning` state; a
+disrupting input has a `failed` or `skipped` state and optional failure details.
+For collection slots the execution context contains one input contribution per
+connected output slot. The executor calls `handle` only if every contribution
+across every input slot is continuable; otherwise it calls `handle_disrupted`.
 
 Runtime services expose the DuckDB connection directly. DuckDB is the initial
 execution engine and modules are expected to push relational work into it;

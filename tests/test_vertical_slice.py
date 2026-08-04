@@ -152,6 +152,22 @@ class VerticalSliceTests(unittest.TestCase):
             self.assertEqual(report_only.unresolved_failures, ())
             self.assertTrue(any(artifact.role == CoreArtifactRoles.published("reject_conflicting_non_null_values", "report") for artifact in report_only.published_artifacts))
 
+    def test_unhandled_step_exception_becomes_a_failed_outcome(self) -> None:
+        root = Path(__file__).parents[1]
+        blueprint = create_blueprint(bindings=[
+            node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label))),
+        ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "missing.json"), format=InputFormat.JSON))], modules=[
+            *POST_PROCESSING,
+            FileModule(FileModuleConfiguration("unused.jsonl")),
+        ])
+        report = build(compile_blueprint(blueprint=blueprint))
+        self.assertFalse(report.succeeded)
+        self.assertEqual(len(report.unresolved_failures), 1)
+        failure = report.unresolved_failures[0]
+        self.assertEqual(failure.module_id, "core")
+        self.assertEqual(failure.step_id, "core::table.Input")
+        self.assertIsNotNone(failure.exception_type)
+
     def test_contract_records_file_module(self) -> None:
         root = Path(__file__).parents[1]
         blueprint = create_blueprint(
