@@ -35,25 +35,12 @@ class GraphRecordArtifact:
 class CoreArtifactRoles:
     """Stable semantic roles produced by the core module.
 
-    Relation roles are core-internal workflow links. ``graph_records`` and
-    ``published`` are the supported extension-facing roles.
+    ``graph_records`` and ``published`` are the supported extension-facing
+    roles.  Temporary DuckDB relation names are executor details, never
+    workflow vocabulary.
     """
 
     NAMESPACE = "core"
-
-    @classmethod
-    def binding_relation(cls, binding_index: int) -> ArtifactRole:
-        if binding_index < 0:
-            raise ValueError("binding indexes must be non-negative")
-        return ArtifactRole(namespace=cls.NAMESPACE, name=f"relation.binding.{binding_index}")
-
-    @classmethod
-    def raw_relation(cls, component: str) -> ArtifactRole:
-        return ArtifactRole(namespace=cls.NAMESPACE, name=f"relation.raw.{component}")
-
-    @classmethod
-    def distinct_relation(cls, component: str) -> ArtifactRole:
-        return ArtifactRole(namespace=cls.NAMESPACE, name=f"relation.distinct.{component}")
 
     @classmethod
     def graph_records(cls, kind: Literal["node", "edge"], component: str) -> ArtifactRole:
@@ -110,7 +97,7 @@ class CoreCompiler:
         for index, binding in enumerate(context.blueprint.bindings):
             output = OutputSlot(
                 slot_id=f"core::binding.{index}.output",
-                artifact_role=CoreArtifactRoles.binding_relation(index),
+                artifact_role=CoreArtifactRoles.graph_records(binding.kind, binding.component),
             )
             step = WorkflowStep(
                 step_id=f"core::binding.{index}",

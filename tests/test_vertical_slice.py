@@ -13,7 +13,7 @@ from kg_build_system.modules import BindingAggregationModule, CollapseExactDupli
 from kg_build_system.modules.core import CoreArtifactRoles
 from kg_build_system.compile.models import ArtifactRole
 
-POST_PROCESSING = [BindingAggregationModule(), CollapseExactDuplicatesModule(), MergeCompatibleFactsModule(), RejectConflictingNonNullValuesModule()]
+POST_PROCESSING = [BindingAggregationModule(), CollapseExactDuplicatesModule(), RejectConflictingNonNullValuesModule(), MergeCompatibleFactsModule()]
 
 @node()
 class Thing(GraphComponent):
@@ -128,8 +128,8 @@ class VerticalSliceTests(unittest.TestCase):
                 node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label))),
                 node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(value.literal("conflict")))),
             ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], modules=[
-                BindingAggregationModule(), CollapseExactDuplicatesModule(), MergeCompatibleFactsModule(),
-                RejectConflictingNonNullValuesModule(RejectConflictingNonNullValuesConfiguration(fail_on_error=False)),
+                BindingAggregationModule(), CollapseExactDuplicatesModule(),
+                RejectConflictingNonNullValuesModule(RejectConflictingNonNullValuesConfiguration(fail_on_error=False)), MergeCompatibleFactsModule(),
                 FileModule(FileModuleConfiguration(str(root / "unused.jsonl"))),
             ])
             report_only = build(compile_blueprint(blueprint=report_only_blueprint))
@@ -156,5 +156,38 @@ class VerticalSliceTests(unittest.TestCase):
         termination = next(step for step in contract.workflow.steps if step.step_id == "core::publish.result")
         self.assertEqual(termination.outputs, ())
         self.assertTrue(any(connection.input_slot_id == "core::publish.result.publications" for connection in contract.workflow.connections))
+
+    def test_module_priority_orders_steps_and_selects_the_latest_record_producer(self) -> None:
+        root = Path(__file__).parents[1]
+        def contract_for(modules: list[object]):
+            blueprint = create_blueprint(
+                bindings=[node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label)))],
+                sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))],
+                modules=modules,
+            )
+            return compile_blueprint(blueprint=blueprint)
+
+        validation_then_merge = contract_for([
+            BindingAggregationModule(), CollapseExactDuplicatesModule(), RejectConflictingNonNullValuesModule(),
+            MergeCompatibleFactsModule(), FileModule(FileModuleConfiguration("unused.jsonl")),
+        ])
+        merge_then_validation = contract_for([
+            BindingAggregationModule(), CollapseExactDuplicatesModule(), MergeCompatibleFactsModule(),
+            RejectConflictingNonNullValuesModule(), FileModule(FileModuleConfiguration("unused.jsonl")),
+        ])
+
+        def file_producer(contract: object) -> str:
+            workflow = contract.workflow  # type: ignore[attr-defined]
+            connection = next(item for item in workflow.connections if item.input_slot_id == "file::write.records")
+            return next(step.module_id for step in workflow.steps if any(output.slot_id == connection.output_slot_id for output in step.outputs))
+
+        self.assertEqual(file_producer(validation_then_merge), "merge_compatible_facts")
+        self.assertEqual(file_producer(merge_then_validation), "reject_conflicting_non_null_values")
+        step_modules = [step.module_id for step in validation_then_merge.workflow.steps if step.module_id != "core"]
+        self.assertLess(step_modules.index("reject_conflicting_non_null_values"), step_modules.index("merge_compatible_facts"))
+        self.assertEqual(
+            [module.reference.priority for module in validation_then_merge.workflow.modules],
+            list(range(len(validation_then_merge.workflow.modules))),
+        )
 
 if __name__ == "__main__": unittest.main()

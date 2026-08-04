@@ -71,8 +71,8 @@ blueprint = create_blueprint(bindings=[
 ], projections=[AssociationTable], sources=[source, study_source], modules=[
     BindingAggregationModule(),
     CollapseExactDuplicatesModule(),
-    MergeCompatibleFactsModule(),
     RejectConflictingNonNullValuesModule(),
+    MergeCompatibleFactsModule(),
     FileModule(FileModuleConfiguration(str(root / "graph.jsonl"))),
 ])
 contract = compile_blueprint(blueprint=blueprint)
