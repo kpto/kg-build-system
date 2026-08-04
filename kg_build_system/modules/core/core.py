@@ -21,7 +21,7 @@ from ...compile.models import (
 )
 from ...workflow.interfaces import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, WorkflowStepDraft
 from ...workflow.models import Artifact, ModuleExecutionContext, StepOutcome, StepStatus
-from .lowering import lower_binding_sql
+from .lowering import binding_relation_names, lower_binding_sql, lower_projection_sql, projection_tables
 
 
 @dataclass(frozen=True)
@@ -49,6 +49,16 @@ class CoreArtifactRoles:
     @classmethod
     def binding(cls, symbol_id: str) -> ArtifactRole:
         return ArtifactRole(namespace=cls.NAMESPACE, name=f"binding.{symbol_id}")
+
+    @classmethod
+    def table(cls, name: str) -> ArtifactRole:
+        """The relation materialised from one logical source table."""
+        return ArtifactRole(namespace=cls.NAMESPACE, name=f"data.table.{name}")
+
+    @classmethod
+    def projection(cls, name: str) -> ArtifactRole:
+        """The relation materialised for one logical projection."""
+        return ArtifactRole(namespace=cls.NAMESPACE, name=f"data.projection.{name}")
 
     @classmethod
     def published(cls, module_id: str, name: str) -> ArtifactRole:
@@ -98,7 +108,49 @@ class CoreCompiler:
             ),
         )
         drafts: list[WorkflowStepDraft] = []
+        table_relations = {source.table: f"kg_table_{index}" for index, source in enumerate(context.sources)}
+        projection_relations = {projection.name: f"kg_projection_{index}" for index, projection in enumerate(context.blueprint.projections)}
+        relations = table_relations | projection_relations
+        for source in context.sources:
+            output = OutputSlot(
+                slot_id=f"core::table.{source.table}.output",
+                artifact_role=CoreArtifactRoles.table(source.table),
+            )
+            function = {"csv": "read_csv_auto", "json": "read_json_auto", "parquet": "read_parquet"}[source.format]
+            relation = table_relations[source.table]
+            location = source.location.replace("'", "''")
+            sql = f"SELECT * FROM {function}('{location}')"
+            drafts.append(WorkflowStepDraft(WorkflowStep(
+                step_id=f"core::table.{source.table}", module_id=CoreModule.ID,
+                outputs=(output,), payload={"action": "relation", "relation": relation, "sql": sql, "materialization": "temporary_table"},
+            ), {}))
+        for index, projection in enumerate(context.blueprint.projections):
+            required = projection_tables(context.blueprint, projection)
+            input_slot = CollectionInputSlot(slot_id=f"core::projection.{projection.name}.tables")
+            output = OutputSlot(
+                slot_id=f"core::projection.{projection.name}.output",
+                artifact_role=CoreArtifactRoles.projection(projection.name),
+            )
+            drafts.append(WorkflowStepDraft(WorkflowStep(
+                step_id=f"core::projection.{projection.name}", module_id=CoreModule.ID,
+                inputs=(input_slot,), outputs=(output,), payload={
+                    "action": "relation", "relation": f"kg_projection_{index}",
+                    "sql": lower_projection_sql(context.blueprint, table_relations, projection),
+                    "materialization": "temporary_table",
+                },
+            ), {input_slot.slot_id: lambda _input, candidate, required=required: candidate.artifact_role in {CoreArtifactRoles.table(table) for table in required}}))
         for index, binding in enumerate(context.blueprint.bindings):
+            relation_names = binding_relation_names(binding)
+            required_roles = {
+                CoreArtifactRoles.projection(name) if name in projection_relations else CoreArtifactRoles.table(name)
+                for name in relation_names
+            }
+            inputs = ()
+            candidates = {}
+            if required_roles:
+                input_slot = CollectionInputSlot(slot_id=f"core::binding.{index}.inputs")
+                inputs = (input_slot,)
+                candidates = {input_slot.slot_id: lambda _input, candidate, roles=required_roles: candidate.artifact_role in roles}
             output = OutputSlot(
                 slot_id=f"core::binding.{index}.output",
                 artifact_role=CoreArtifactRoles.binding(binding.symbol_id),
@@ -106,15 +158,16 @@ class CoreCompiler:
             step = WorkflowStep(
                 step_id=f"core::binding.{index}",
                 module_id=CoreModule.ID,
+                inputs=inputs,
                 outputs=(output,),
                 payload={
                     "action": "relation",
                     "relation": f"kg_binding_{index}",
-                    "sql": f"SELECT *, '{binding.symbol_id}' AS _kg_binding_symbol FROM ({lower_binding_sql(context.blueprint, context.sources, binding)})",
+                    "sql": f"SELECT *, '{binding.symbol_id}' AS _kg_binding_symbol FROM ({lower_binding_sql(context.blueprint, relations, binding)})",
                     "materialization": "temporary_table",
                 },
             )
-            drafts.append(WorkflowStepDraft(step, {}))
+            drafts.append(WorkflowStepDraft(step, candidates))
         for component in context.blueprint.components:
             binding_roles = {CoreArtifactRoles.binding(binding.symbol_id) for binding in context.blueprint.bindings if binding.component == component.name}
             if not binding_roles:

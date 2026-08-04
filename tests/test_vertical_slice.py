@@ -55,6 +55,8 @@ class VerticalSliceTests(unittest.TestCase):
         assert identity is not None
         self.assertEqual((identity.kind, identity.component), ("node", "Thing"))
         self.assertTrue(CoreArtifactRoles.is_publication(CoreArtifactRoles.published("example", "result")))
+        self.assertEqual(CoreArtifactRoles.table("Input"), ArtifactRole(namespace="core", name="data.table.Input"))
+        self.assertEqual(CoreArtifactRoles.projection("ExpandedInput"), ArtifactRole(namespace="core", name="data.projection.ExpandedInput"))
 
     def test_field_descriptor_and_bind_boundary(self) -> None:
         path = Input.label
@@ -74,6 +76,18 @@ class VerticalSliceTests(unittest.TestCase):
             contract = compile_blueprint(blueprint=blueprint)
             self.assertTrue(any("UNNEST" in str(step.payload) for step in contract.workflow.steps))
             self.assertTrue(any(step.step_id.startswith("core::binding.") for step in contract.workflow.steps))
+            self.assertTrue(any(step.step_id == "core::table.Input" for step in contract.workflow.steps))
+            self.assertTrue(any(step.step_id == "core::projection.ExpandedInput" for step in contract.workflow.steps))
+            projection_step = next(step for step in contract.workflow.steps if step.step_id == "core::projection.ExpandedInput")
+            binding_step = next(step for step in contract.workflow.steps if step.step_id.startswith("core::binding."))
+            self.assertIn('"kg_table_0"', str(projection_step.payload))
+            self.assertIn('"kg_projection_0"', str(binding_step.payload))
+            self.assertNotIn("read_json_auto", str(binding_step.payload))
+            self.assertTrue(any(
+                connection.input_slot_id == binding_step.inputs[0].slot_id
+                and connection.output_slot_id == "core::projection.ExpandedInput.output"
+                for connection in contract.workflow.connections
+            ))
             report = build(contract)
             self.assertEqual((report.nodes, report.edges), (5, 3))
             self.assertTrue(report.succeeded)
@@ -98,7 +112,9 @@ class VerticalSliceTests(unittest.TestCase):
             binding_steps = [step for step in contract.workflow.steps if step.step_id.startswith("core::binding.")]
             self.assertEqual(len(binding_steps), 3)
             self.assertNotIn("UNNEST", str(binding_steps[0].payload))
-            self.assertIn("UNNEST", str(binding_steps[1].payload))
+            self.assertNotIn("UNNEST", str(binding_steps[1].payload))
+            projection_step = next(step for step in contract.workflow.steps if step.step_id == "core::projection.ExpandedInput")
+            self.assertIn("UNNEST", str(projection_step.payload))
             report = build(contract)
             self.assertEqual((report.nodes, report.edges), (5, 3))
 

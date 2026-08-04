@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass
 
 from sqlglot import exp
@@ -14,7 +15,6 @@ from ...compile.models import (
     LiteralValue,
     Operation,
     ProjectionDefinition,
-    SourceDefinition,
     Value,
 )
 
@@ -133,6 +133,21 @@ def _binding_values(binding: BindingDefinition) -> list[Value]:
     return values
 
 
+def _source_tables(values: list[Value], projections: dict[str, ProjectionDefinition]) -> set[str]:
+    """Return concrete logical tables required by a set of expressions."""
+    return set().union(*(_tables(value, projections) for value in values))
+
+
+def projection_tables(graph: BuildBlueprint, projection: ProjectionDefinition) -> set[str]:
+    """Return the source-table dependencies for a projection step."""
+    return _source_tables(list(projection.fields.values()), {item.name: item for item in graph.projections})
+
+
+def binding_relation_names(binding: BindingDefinition) -> set[str]:
+    """Return every materialised table/projection relation used by a binding."""
+    return {reference.table for value in _binding_values(binding) for reference in _references(value)}
+
+
 def _direct_expands(
     expands: list[Operation], aliases: dict[str, str]
 ) -> tuple[list[tuple[str, exp.Expression]], dict[str, exp.Expression]]:
@@ -192,44 +207,23 @@ def _direct_expands(
 
 def lower_binding_sql(
     graph: BuildBlueprint,
-    sources: tuple[SourceDefinition, ...],
+    relations: Mapping[str, str],
     binding: BindingDefinition,
 ) -> str:
-    projections = {projection.name: projection for projection in graph.projections}
+    """Lower one binding against its materialised workflow input relations."""
+    projections: dict[str, ProjectionDefinition] = {}
     binding_values = _binding_values(binding)
-    used = [
-        projection
-        for projection in graph.projections
-        if any(
-            reference.table == projection.name
-            for value in binding_values
-            for reference in _references(value)
-        )
-    ]
-    if len(used) > 1:
-        raise ValueError("a binding may reference fields from only one projection")
-    values = binding_values + [
-        value for projection in used for value in projection.fields.values()
-    ]
+    values = binding_values
     required = set().union(*(_tables(value, projections) for value in values))
-    available = {source.table: source for source in sources}
-    missing = required - set(available)
+    missing = required - set(relations)
     if missing:
-        raise ValueError("no source bound for: " + ", ".join(sorted(missing)))
+        raise ValueError("no materialised relation for: " + ", ".join(sorted(missing)))
     aliases = {table: f"t{index}" for index, table in enumerate(sorted(required))}
     source_context = _RenderContext(projections=projections, aliases=aliases)
 
     def scan(table: str) -> exp.Table:
-        source = available[table]
-        function = {
-            "csv": "read_csv_auto",
-            "json": "read_json_auto",
-            "parquet": "read_parquet",
-        }[source.format]
         return exp.Table(
-            this=exp.Anonymous(
-                this=function, expressions=[exp.Literal.string(source.location)]
-            ),
+            this=_identifier(relations[table]),
             alias=exp.TableAlias(this=_identifier(aliases[table], quoted=False)),
         )
 
@@ -303,40 +297,6 @@ def lower_binding_sql(
             ),
             join_type="CROSS",
         )
-    final: exp.Expression = query
-    for projection in used:
-        select = [
-            exp.alias_(_render(value, source_context), name, quoted=True)
-            for name, value in projection.fields.items()
-        ]
-        direct_fields = {
-            (field.table, (field.path[0],)): field.model_copy(
-                update={"path": (field.path[0],)}
-            )
-            for value in binding_values
-            for field in _references(value)
-            if field.table not in projections
-        }
-        names = set(projection.fields)
-        for field in direct_fields.values():
-            if field.path[-1] not in names:
-                select.append(
-                    exp.alias_(
-                        _render(field, source_context), field.path[-1], quoted=True
-                    )
-                )
-        final = (
-            exp.select("*")
-            .from_(
-                exp.Table(
-                    this=_identifier(projection.name.lower(), quoted=False),
-                    alias=exp.TableAlias(this=_identifier("p0", quoted=False)),
-                )
-            )
-            .with_(
-                projection.name.lower(), as_=query.copy().select(*select, append=False)
-            )
-        )
     plan_context = _RenderContext(
         projections=projections, row_alias="plan", resolve_projections=False
     )
@@ -366,8 +326,59 @@ def lower_binding_sql(
         exp.select(*columns)
         .from_(
             exp.Subquery(
-                this=final, alias=exp.TableAlias(this=_identifier("plan", quoted=False))
+                this=query, alias=exp.TableAlias(this=_identifier("plan", quoted=False))
             )
         )
         .sql(dialect="duckdb")
     )
+
+
+def lower_projection_sql(
+    graph: BuildBlueprint,
+    relations: Mapping[str, str],
+    projection: ProjectionDefinition,
+) -> str:
+    """Lower a projection into an inspectable DuckDB relation query.
+
+    Projection steps own their row context (including lookup and expansion
+    semantics) and read only already-materialised table relations.
+    """
+    projections = {item.name: item for item in graph.projections}
+    values = list(projection.fields.values())
+    required = _source_tables(values, projections)
+    missing = required - set(relations)
+    if missing:
+        raise ValueError("no materialised relation for: " + ", ".join(sorted(missing)))
+    aliases = {table: f"t{index}" for index, table in enumerate(sorted(required))}
+    source_context = _RenderContext(projections=projections, aliases=aliases)
+
+    def scan(table: str) -> exp.Table:
+        return exp.Table(
+            this=_identifier(relations[table]),
+            alias=exp.TableAlias(this=_identifier(aliases[table], quoted=False)),
+        )
+
+    lookups = [lookup for value in values for lookup in _operations(value, "lookup_one")]
+    lookup_tables = {lookup.args[1].table for lookup in lookups if isinstance(lookup.args[1], FieldReference)}
+    bases = sorted(required - lookup_tables)
+    if not bases:
+        raise ValueError("a lookup requires a non-lookup source table")
+    query = exp.select("*").from_(scan(bases[0]))
+    for table in bases[1:]:
+        query = query.join(scan(table), join_type="CROSS")
+    for lookup in lookups:
+        match = lookup.args[1]
+        if not isinstance(match, FieldReference):
+            raise ValueError("lookup match must be a field reference")
+        query = query.join(scan(match.table), on=exp.EQ(this=_render(match, source_context), expression=_render(lookup.args[0], source_context)), join_type="LEFT")
+    expands = list({item.model_dump_json(): item for value in values for item in _operations(value, "expand")}.values())
+    direct = [item for item in expands if isinstance(item.args[0], FieldReference) and item.args[0].collection_paths]
+    steps, expanded = _direct_expands(direct, aliases)
+    source_context = _RenderContext(projections=projections, aliases=aliases, expanded=expanded)
+    for alias, expression in steps:
+        query = query.join(exp.Unnest(expressions=[expression], alias=exp.TableAlias(this=_identifier(alias, quoted=False), columns=[_identifier("item", quoted=False)])), join_type="CROSS")
+    for index, operation in enumerate([item for item in expands if item not in direct], start=len(steps)):
+        alias = f"expanded{index}"
+        expanded[operation.model_dump_json()] = exp.Dot(this=_identifier(alias, quoted=False), expression=_identifier("item"))
+        query = query.join(exp.Unnest(expressions=[_render(operation.args[0], source_context)], alias=exp.TableAlias(this=_identifier(alias, quoted=False), columns=[_identifier("item", quoted=False)])), join_type="CROSS")
+    return query.select(*(exp.alias_(_render(value, source_context), name, quoted=True) for name, value in projection.fields.items()), append=False).sql(dialect="duckdb")
