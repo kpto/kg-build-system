@@ -90,6 +90,14 @@ ModuleDefinition
   reference
   runtime_fields
 
+CompilationContext
+  blueprint
+  settings
+  overrides
+  module_id
+  priority
+  registration_configuration
+
 RuntimeFieldDefinition
   key
   description
@@ -127,6 +135,26 @@ WorkflowDefinition
   modules
   steps
   connections
+
+ExecutionServices
+  duckdb
+  working_storage
+  temporary_storage
+  credentials
+
+ExecutorFactoryContext
+  contract
+  module
+  runtime_configuration
+  services
+
+ExecutionContext
+  contract
+  module
+  step
+  runtime_configuration
+  inputs
+  services
 ```
 
 `ModuleRegistration.configuration` is compile-time input only. It must be
@@ -134,6 +162,14 @@ serialisable and non-secret. `ModuleReference.configuration` is serialisable
 execution configuration produced by that module's compiler. It is not a copy
 of registration configuration by implication; the module owns the mapping.
 Runtime configuration remains separate and is supplied only at execution.
+
+`CompilationContext` is the single generic compile-time context used by every
+module, including the built-in core module. Source bindings are declarations
+on `BuildBlueprint`; they are not duplicated in the context. A module derives
+effective sources by applying serialisable source overrides to
+`blueprint.sources`. The context exposes the blueprint, compilation settings,
+overrides, module identity and priority, and that module's reconstructed,
+non-secret registration configuration. It never exposes authoring classes.
 
 `module_id` identifies one configured module in a workflow. Supporting two
 independently configured instances of the same implementation requires either
@@ -192,13 +228,13 @@ class ModuleRegistration[T](ABC):
 
 class ModuleCompiler(Protocol):
     async def compile(
-        self, context: ModuleCompilationContext,
+        self, context: CompilationContext,
     ) -> ModuleCompilationResult: ...
 
 
 class ModuleExecutor(Protocol):
     async def execute_step(
-        self, context: ModuleExecutionContext, step: WorkflowStep,
+        self, context: ExecutionContext,
     ) -> StepOutcome: ...
 
 
@@ -206,10 +242,14 @@ class Module(ABC):
     ID: ClassVar[str]
 
     @classmethod
-    async def create_compiler(cls, context: Any) -> ModuleCompiler: ...
+    async def create_compiler(
+        cls, context: CompilationContext,
+    ) -> ModuleCompiler: ...
 
     @classmethod
-    async def create_executor(cls, context: Any) -> ModuleExecutor: ...
+    async def create_executor(
+        cls, context: ExecutorFactoryContext,
+    ) -> ModuleExecutor: ...
 ```
 
 `create_blueprint` serialises registrations into blueprint module entries.
@@ -220,9 +260,10 @@ compiler retains only serialisable definitions and resolved connections in the
 contract, and owns selection, connection creation, and graph validation.
 
 At runtime, the executor validates and supplies runtime configuration, combines
-it with the compiled `ModuleReference`, and calls `create_executor`. The
-returned `ModuleExecutor` receives resolved artifact inputs for each step. It
-receives compiled reference configuration, not registration configuration.
+it with the compiled `ModuleReference`, and calls `create_executor` with a
+generic `ExecutorFactoryContext`. The returned `ModuleExecutor` receives an
+`ExecutionContext` for each step. It receives compiled reference configuration,
+not registration configuration.
 
 ## Steps, slots, and artifacts
 
@@ -423,12 +464,24 @@ does not apply a central unsupported-annotation policy.
 ## Runtime context and initial implementation
 
 A workflow-module execution context supplies the immutable contract, the
-module's compiled definition and reference configuration, resolved runtime
-configuration, declared artifact inputs, and a result collector. It does not
-expose registration configuration, authoring classes, or unrestricted compiler
-state. Runtime configuration is structured as `module_id -> field key ->
-value`. Candidate predicates are never invoked at runtime: execution uses only
-the connections frozen in the contract.
+module's compiled definition and reference configuration, the current declared
+step, resolved runtime configuration, declared artifact inputs, and generic
+runtime services. It does not expose registration configuration, authoring
+classes, or unrestricted compiler state. Runtime configuration is structured
+as `module_id -> field key -> value`. Candidate predicates are never invoked at
+runtime: execution uses only the connections frozen in the contract.
+
+Runtime services expose the DuckDB connection directly. DuckDB is the initial
+execution engine and modules are expected to push relational work into it;
+there is deliberately no premature relation-service abstraction. Relation
+artifacts may therefore carry executor-local DuckDB relation names. A target
+module may use DuckDB directly to write an output file or database product.
+
+`working_storage` is the durable build-output root supplied at runtime. It is
+where modules write resulting files and other durable artifacts.
+`temporary_storage` is distinct, disposable scratch space used only during
+execution. Credential resolution is also a runtime service; resolved secrets
+remain outside the serialised contract and workflow payloads.
 
 The first implementation slice is:
 
@@ -450,6 +503,11 @@ Implemented additions to this slice:
 - Runtime workflow models are owned by `workflow.models`; module lifecycle
   interfaces are owned by `workflow.interfaces`; `modules` contains concrete
   module implementations only.
+- `CompilationContext`, `ExecutorFactoryContext`, and `ExecutionContext` are
+  generic contexts shared by every module; core has no context or lifecycle
+  privilege.
+- Runtime execution services expose DuckDB directly alongside distinct durable
+  working storage and disposable temporary storage.
 - The core result-termination step collects explicit publication artifacts;
   `WorkflowReport` exposes those values, failures, semantic metrics, and
   compact provenance. It does not expose execution internals or interpret
