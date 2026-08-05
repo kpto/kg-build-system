@@ -61,11 +61,6 @@ class CoreArtifactRoles:
         return ArtifactRole(namespace=cls.NAMESPACE, name=f"data.projection.{name}")
 
     @classmethod
-    def published(cls, module_id: str, name: str) -> ArtifactRole:
-        """Mark an otherwise module-owned artifact as a workflow result."""
-        return ArtifactRole(namespace=cls.NAMESPACE, name=f"publication.{module_id}.{name}")
-
-    @classmethod
     def graph_record_identity(cls, role: ArtifactRole) -> GraphRecordArtifact | None:
         if role.namespace != cls.NAMESPACE:
             return None
@@ -77,10 +72,6 @@ class CoreArtifactRoles:
     @classmethod
     def is_graph_records(cls, role: ArtifactRole) -> bool:
         return cls.graph_record_identity(role) is not None
-
-    @classmethod
-    def is_publication(cls, role: ArtifactRole) -> bool:
-        return role.namespace == cls.NAMESPACE and role.name.startswith("publication.")
 
 
 class CoreCompiler:
@@ -166,17 +157,6 @@ class CoreCompiler:
             output = OutputSlot(slot_id=f"core::aggregate.{component.name}.output", artifact_role=CoreArtifactRoles.graph_records(component.kind, component.name))
             step = WorkflowStep(step_id=f"core::aggregate.{component.name}", module_id=CoreModule.ID, assembly_preference="deferred", inputs=(input_slot,), outputs=(output,), payload={"action": "aggregate", "relation": f"kg_graph_{component.name.lower()}"})
             drafts.append(WorkflowStepDraft(step, {input_slot.slot_id: lambda _input, candidate, roles=binding_roles: candidate.artifact_role in roles}))
-        publication_input = CollectionInputSlot(slot_id="core::publish.result.publications")
-        drafts.append(WorkflowStepDraft(
-            WorkflowStep(
-                step_id="core::publish.result",
-                module_id=CoreModule.ID,
-                assembly_preference="deferred",
-                inputs=(publication_input,),
-                payload={"action": "publish"},
-            ),
-            {publication_input.slot_id: lambda _input, output: CoreArtifactRoles.is_publication(output.artifact_role)},
-        ))
         return ModuleCompilationResult(definition, tuple(drafts))
 
 
@@ -194,25 +174,9 @@ class CoreModule(Module):
 
 
 class CoreExecutor(ModuleExecutor):
-    async def _publish(self, context: ExecutionContext | DisruptedExecutionContext) -> StepOutcome:
-        published = tuple(
-            item.artifact
-            for inputs in context.inputs.values()
-            for item in inputs
-            if item.artifact is not None
-        )
-        return StepOutcome(
-            step_id=context.step.step_id,
-            module_id=context.step.module_id,
-            status=StepStatus.SUCCEEDED,
-            result={"published_artifacts": published},
-        )
-
     async def handle(self, context: ExecutionContext) -> StepOutcome:
         step = context.step
         payload = step.payload or {}
-        if payload.get("action") == "publish":
-            return await self._publish(context)
         connection = context.services.duckdb
         if payload.get("action") == "aggregate":
             relation = str(payload["relation"]).replace('"', '""')
@@ -235,6 +199,4 @@ class CoreExecutor(ModuleExecutor):
         )
 
     async def handle_disrupted(self, context: DisruptedExecutionContext) -> StepOutcome:
-        if (context.step.payload or {}).get("action") == "publish":
-            return await self._publish(context)
         return await super().handle_disrupted(context)

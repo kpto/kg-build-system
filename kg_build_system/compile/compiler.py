@@ -289,10 +289,6 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[Bou
     output_uses: dict[str, int] = {}
     def candidates_for(draft: WorkflowStepDraft, input_slot: Any, predicate: Any) -> list[Any]:
         compatible = [slot for slot in outputs if predicate is not None and predicate(input_slot, slot)]
-        # The core publication collector is deliberately terminal: it gathers
-        # publication artifacts emitted by every contributing module.
-        if draft.definition.step_id == "core::publish.result":
-            return compatible
         compatible = [slot for slot in compatible if step_order[output_step[slot.slot_id]] < step_order[draft.definition.step_id]]
         if not compatible: return []
         latest_by_role: dict[ArtifactRole, int] = {}
@@ -300,7 +296,7 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[Bou
             latest_by_role[slot.artifact_role] = max(latest_by_role.get(slot.artifact_role, -1), priorities[output_module[slot.slot_id]])
         return [slot for slot in compatible if priorities[output_module[slot.slot_id]] == latest_by_role[slot.artifact_role]]
 
-    ordered_drafts = sorted(drafts, key=lambda item: (item.definition.step_id == "core::publish.result", priorities[item.definition.module_id], step_order[item.definition.step_id]))
+    ordered_drafts = sorted(drafts, key=lambda item: (priorities[item.definition.module_id], step_order[item.definition.step_id]))
     for draft in ordered_drafts:
         for input_slot in draft.definition.inputs:
             predicate = draft.candidates.get(input_slot.slot_id)

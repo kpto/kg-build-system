@@ -356,24 +356,24 @@ There are no privileged scheduling roles. A beginning step is an ordinary step
 with no input slots. A termination step is an ordinary step with no output
 slots. A workflow may have multiple beginnings and multiple terminations.
 
-The core module provides the standard result-publication convention. A module
-marks an output for inclusion in the user-facing workflow result with a core
-publication role:
+The workflow protocol provides the standard result-publication convention. A
+module marks an output for inclusion in the user-facing workflow result with a
+workflow publication role:
 
 ```text
-core::publication.<module_id>.<name>
+workflow::publication.<module_id>.<name>
 ```
 
-The core `publish.result` termination step has a collection input that selects
-every publication role. It returns those artifacts as the workflow result
-without inspecting their values. Publication is generic: the workflow has no
-special diagnostic, validation, target, or report payload type.
+`WorkflowArtifactRoles` owns the `published` constructor and `is_published`
+predicate. The executor collects every emitted artifact with this role directly
+into the workflow result without inspecting its value. Publication is generic:
+the workflow has no special diagnostic, validation, target, or report payload
+type, and no core publication step.
 
 The executor completes a build when every declared step has reached an
 outcome. The user-facing result contains explicitly published artifacts,
-recovered failures, unresolved failures, semantic metrics, and compact
-provenance. A no-output side-effect step is therefore a sink, not an implicit
-single build result.
+recovered failures, unresolved failures, and compact provenance. A no-output
+side-effect step is therefore a sink, not an implicit single build result.
 
 Compilation rejects missing connections, ambiguous connections, and cycles.
 Cleanup is also an ordinary step: it must have explicit input connections to
@@ -402,10 +402,9 @@ workflow result.
 
 The runtime model records every completed step as a `StepOutcome`. An outcome
 has a status, zero or more declared output artifacts, optional failure
-information, portable metrics, and optional module-owned result data. Modules
-return outcomes rather than untyped values; the executor validates that every
-produced artifact belongs to one of that step's declared output slots and has
-the declared artifact role.
+information. Modules return outcomes rather than untyped values; the executor
+validates that every produced artifact belongs to one of that step's declared
+output slots and has the declared artifact role.
 
 ```text
 StepStatus = succeeded | warning | failed | skipped
@@ -427,8 +426,6 @@ StepOutcome
   status
   artifacts
   failure
-  metrics
-  result
 
 PublishedArtifact
   role
@@ -438,7 +435,6 @@ WorkflowReport
   published_artifacts
   recovered_failures
   unresolved_failures
-  metrics
   provenance
 ```
 
@@ -449,16 +445,10 @@ become a gate failure is the validator's configuration and lifecycle decision.
 `Failure` describes a step that could not complete its work. Recovery is not a
 fifth step state: a disrupted handler recovers by returning success or warning.
 
-Metrics use semantic names. The file module emits `graph.nodes` and
-`graph.edges`; the generic executor aggregates metrics without knowing about
-file output or any other target. `WorkflowReport.nodes` and `.edges` are
-compatibility conveniences derived from those metrics, not target-specific
-execution behaviour.
-
 The runtime execution context supplies the immutable contract, compiled module
 definition/reference, resolved runtime configuration, declared artifact inputs,
-and execution services. Runtime values, artifacts, outcomes, and module result
-data never enter the serialised workflow contract.
+and execution services. Runtime values, artifacts, and outcomes never enter
+the serialised workflow contract.
 
 ## Topology annotations and module interpretation
 
@@ -526,9 +516,9 @@ Implemented additions to this slice:
   privilege.
 - Runtime execution services expose DuckDB directly alongside distinct durable
   working storage and disposable temporary storage.
-- The core result-termination step collects explicit publication artifacts;
-  `WorkflowReport` exposes those values, failures, semantic metrics, and
-  compact provenance. It does not expose execution internals or interpret
+- `WorkflowArtifactRoles` is the neutral publication vocabulary; the executor
+  directly collects matching declared artifacts into `WorkflowReport`, which
+  exposes those values, failures, and compact provenance without interpreting
   module-specific artifact payloads.
 - Validators may use private finding slots and a module-owned aggregation step
   to publish one optional validation report and apply configured gate policy.

@@ -3,7 +3,7 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar
 from ...compile.models import ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot, SingleInputSlot, WorkflowStep
 from ...workflow.interfaces import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft
-from ...workflow.models import Artifact, DisruptedExecutionContext, ExecutionContext, Failure, StepOutcome, StepStatus
+from ...workflow.models import Artifact, DisruptedExecutionContext, ExecutionContext, Failure, StepOutcome, StepStatus, WorkflowArtifactRoles
 from ..core.core import CoreArtifactRoles
 @dataclass(frozen=True)
 class RejectConflictingNonNullValuesConfiguration(ModuleRegistrationConfiguration): fail_on_error: bool=True
@@ -27,7 +27,7 @@ class RejectConflictingNonNullValuesModule(Module, ModuleRegistration[RejectConf
                 steps.append(WorkflowStepDraft(step,{slot.slot_id:lambda _input,output,component=component: output.artifact_role == CoreArtifactRoles.graph_records(component.kind,component.name)}))
         finding_slot=CollectionInputSlot(slot_id=f"{self.ID}::report.findings")
         record_slots=tuple(SingleInputSlot(slot_id=f"{self.ID}::report.{component.name}.records") for component in context.blueprint.components)
-        outputs=(OutputSlot(slot_id=f"{self.ID}::report.output",artifact_role=CoreArtifactRoles.published(self.ID,"report")),*tuple(OutputSlot(slot_id=f"{self.ID}::report.{component.name}.output",artifact_role=CoreArtifactRoles.graph_records(component.kind,component.name)) for component in context.blueprint.components))
+        outputs=(OutputSlot(slot_id=f"{self.ID}::report.output",artifact_role=WorkflowArtifactRoles.published(self.ID,"report")),*tuple(OutputSlot(slot_id=f"{self.ID}::report.{component.name}.output",artifact_role=CoreArtifactRoles.graph_records(component.kind,component.name)) for component in context.blueprint.components))
         report=WorkflowStep(step_id=f"{self.ID}::report",module_id=self.ID,assembly_preference="deferred",inputs=(finding_slot,*record_slots),outputs=outputs,payload={"action":"report","fail_on_error":self.configuration.fail_on_error})
         candidates={finding_slot.slot_id:lambda _input,output:output.artifact_role.namespace==self.ID and output.artifact_role.name.startswith("findings.")}
         candidates.update({slot.slot_id:lambda _input,output,component=component: output.artifact_role == CoreArtifactRoles.graph_records(component.kind,component.name) for slot,component in zip(record_slots,context.blueprint.components,strict=True)})

@@ -37,6 +37,20 @@ class Artifact:
     value: Any
 
 
+class WorkflowArtifactRoles:
+    """Workflow-owned artifact-role conventions for module implementers."""
+
+    NAMESPACE = "workflow"
+
+    @classmethod
+    def published(cls, module_id: str, name: str) -> ArtifactRole:
+        return ArtifactRole(namespace=cls.NAMESPACE, name=f"publication.{module_id}.{name}")
+
+    @classmethod
+    def is_published(cls, role: ArtifactRole) -> bool:
+        return role.namespace == cls.NAMESPACE and role.name.startswith("publication.")
+
+
 @dataclass(frozen=True)
 class StepOutcome:
     """The complete runtime result for one declared workflow step."""
@@ -48,8 +62,6 @@ class StepOutcome:
     # artifact to publish. Consumers then receive no artifact for that slot.
     artifacts: tuple[Artifact, ...] = ()
     failure: Failure | None = None
-    metrics: Mapping[str, int] = field(default_factory=dict)
-    result: Mapping[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -127,19 +139,8 @@ class WorkflowReport:
     published_artifacts: tuple[PublishedArtifact, ...]
     recovered_failures: tuple[Failure, ...]
     unresolved_failures: tuple[Failure, ...]
-    metrics: dict[str, int]
     provenance: dict[str, Any]
 
     @property
     def succeeded(self) -> bool:
         return not self.unresolved_failures
-
-    @property
-    def nodes(self) -> int:
-        """Compatibility convenience for the portable graph-record metric."""
-        return self.metrics.get("graph.nodes", 0)
-
-    @property
-    def edges(self) -> int:
-        """Compatibility convenience for the portable graph-record metric."""
-        return self.metrics.get("graph.edges", 0)

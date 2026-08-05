@@ -6,7 +6,7 @@ from kg_build_system import (
     BuildBlueprint, DataSourceConfig, ExpressionBinding, Field, GraphComponent, InputFormat,
     ProjectedField, PropertySlot, bind, bind_source, build, compile_blueprint,
     create_blueprint, edge, edge_binding, field, node, node_binding, projection,
-    projected_field, property, struct, table, value, collection,
+    projected_field, property, struct, table, value, collection, WorkflowArtifactRoles,
 )
 from kg_build_system.expressions import Expression, FieldPath
 from kg_build_system.modules import CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration, MergeCompatibleFactsModule, RejectConflictingNonNullValuesConfiguration, RejectConflictingNonNullValuesModule
@@ -54,7 +54,9 @@ class VerticalSliceTests(unittest.TestCase):
         self.assertIsNotNone(identity)
         assert identity is not None
         self.assertEqual((identity.kind, identity.component), ("node", "Thing"))
-        self.assertTrue(CoreArtifactRoles.is_publication(CoreArtifactRoles.published("example", "result")))
+        publication = WorkflowArtifactRoles.published("example", "result")
+        self.assertEqual(publication, ArtifactRole(namespace="workflow", name="publication.example.result"))
+        self.assertTrue(WorkflowArtifactRoles.is_published(publication))
         self.assertEqual(CoreArtifactRoles.table("Input"), ArtifactRole(namespace="core", name="data.table.Input"))
         self.assertEqual(CoreArtifactRoles.projection("ExpandedInput"), ArtifactRole(namespace="core", name="data.projection.ExpandedInput"))
 
@@ -64,6 +66,12 @@ class VerticalSliceTests(unittest.TestCase):
         self.assertIsInstance(bind(path), ExpressionBinding)
         self.assertIsInstance(bind(path).expression, Expression)
         self.assertNotIsInstance(path, Expression)
+
+    def _file_result(self, report: object) -> dict[str, object]:
+        published = report.published_artifacts  # type: ignore[attr-defined]
+        artifact = next(item for item in published if item.role == WorkflowArtifactRoles.published("file", "write_result"))
+        assert isinstance(artifact.value, dict)
+        return artifact.value
 
     def test_projection_expands_and_writes_records(self) -> None:
         root = Path(__file__).parents[1]
@@ -89,12 +97,10 @@ class VerticalSliceTests(unittest.TestCase):
                 for connection in contract.workflow.connections
             ))
             report = build(contract)
-            self.assertEqual((report.nodes, report.edges), (5, 3))
+            self.assertEqual((self._file_result(report)["nodes"], self._file_result(report)["edges"]), (5, 3))
             self.assertTrue(report.succeeded)
             self.assertTrue(report.published_artifacts)
-            self.assertFalse(any(artifact.role == CoreArtifactRoles.published("reject_conflicting_non_null_values", "report") for artifact in report.published_artifacts))
-            self.assertEqual(report.metrics["graph.nodes"], 5)
-            self.assertEqual(report.metrics["graph.edges"], 3)
+            self.assertFalse(any(artifact.role == WorkflowArtifactRoles.published("reject_conflicting_non_null_values", "report") for artifact in report.published_artifacts))
 
     def test_unbound_graph_slot_is_rejected(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be assigned with bind"):
@@ -116,7 +122,7 @@ class VerticalSliceTests(unittest.TestCase):
             projection_step = next(step for step in contract.workflow.steps if step.step_id == "core::projection.ExpandedInput")
             self.assertIn("UNNEST", str(projection_step.payload))
             report = build(contract)
-            self.assertEqual((report.nodes, report.edges), (5, 3))
+            self.assertEqual((self._file_result(report)["nodes"], self._file_result(report)["edges"]), (5, 3))
 
     def test_edge_endpoint_keys_contribute_source_requirements(self) -> None:
         root = Path(__file__).parents[1]
@@ -137,8 +143,8 @@ class VerticalSliceTests(unittest.TestCase):
             report = build(contract)
             self.assertEqual(len(report.unresolved_failures), 1)
             self.assertFalse(report.succeeded)
-            self.assertTrue(all(artifact.role.name.startswith("publication.") for artifact in report.published_artifacts))
-            validation_report = next(artifact for artifact in report.published_artifacts if artifact.role == CoreArtifactRoles.published("reject_conflicting_non_null_values", "report"))
+            self.assertTrue(all(artifact.role.namespace == "workflow" and artifact.role.name.startswith("publication.") for artifact in report.published_artifacts))
+            validation_report = next(artifact for artifact in report.published_artifacts if artifact.role == WorkflowArtifactRoles.published("reject_conflicting_non_null_values", "report"))
             self.assertGreaterEqual(len(validation_report.value.findings), 1)
             report_only_blueprint = create_blueprint(bindings=[
                 node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label))),
@@ -150,7 +156,7 @@ class VerticalSliceTests(unittest.TestCase):
             ])
             report_only = build(compile_blueprint(blueprint=report_only_blueprint))
             self.assertEqual(report_only.unresolved_failures, ())
-            self.assertTrue(any(artifact.role == CoreArtifactRoles.published("reject_conflicting_non_null_values", "report") for artifact in report_only.published_artifacts))
+            self.assertTrue(any(artifact.role == WorkflowArtifactRoles.published("reject_conflicting_non_null_values", "report") for artifact in report_only.published_artifacts))
 
     def test_unhandled_step_exception_becomes_a_failed_outcome(self) -> None:
         root = Path(__file__).parents[1]
@@ -185,9 +191,7 @@ class VerticalSliceTests(unittest.TestCase):
         self.assertTrue({"collapse_exact_duplicates", "merge_compatible_facts", "reject_conflicting_non_null_values"} <= {module.reference.module_id for module in contract.workflow.modules})
         file_step = next(step for step in contract.workflow.steps if step.module_id == "file")
         self.assertEqual(file_module.reference.configuration, {"location": "compiled-override.jsonl"})
-        termination = next(step for step in contract.workflow.steps if step.step_id == "core::publish.result")
-        self.assertEqual(termination.outputs, ())
-        self.assertTrue(any(connection.input_slot_id == "core::publish.result.publications" for connection in contract.workflow.connections))
+        self.assertFalse(any(step.step_id == "core::publish.result" for step in contract.workflow.steps))
 
     def test_module_priority_orders_steps_and_selects_the_latest_record_producer(self) -> None:
         root = Path(__file__).parents[1]

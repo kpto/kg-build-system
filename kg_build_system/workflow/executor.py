@@ -9,7 +9,7 @@ from tempfile import TemporaryDirectory
 from typing import Any
 
 from ..compile.models import BuildContract
-from .models import Artifact, BuildRuntime, ContinuableInput, DisruptedExecutionContext, DisruptingInput, ExecutionContext, ExecutorFactoryContext, Failure, PublishedArtifact, StepOutcome, StepStatus, WorkflowReport
+from .models import Artifact, BuildRuntime, ContinuableInput, DisruptedExecutionContext, DisruptingInput, ExecutionContext, ExecutorFactoryContext, Failure, PublishedArtifact, StepOutcome, StepStatus, WorkflowArtifactRoles, WorkflowReport
 from .services import ExecutionServices, LocalTemporaryStorage, LocalWorkingStorage, MappingCredentialResolver
 
 
@@ -53,10 +53,8 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
 
       output_owner = {slot.slot_id: step.step_id for step in contract.workflow.steps for slot in step.outputs}
       incoming: dict[str, list[str]] = defaultdict(list)
-      consumed_outputs: set[str] = set()
       for workflow_connection in contract.workflow.connections:
         incoming[workflow_connection.input_slot_id].append(workflow_connection.output_slot_id)
-        consumed_outputs.add(workflow_connection.output_slot_id)
 
       completed: set[str] = set()
       artifacts: dict[str, Artifact] = {}
@@ -113,26 +111,16 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
             completed.add(step.step_id)
             pending.remove(step)
 
-      sink_step_ids = {
-        step.step_id for step in contract.workflow.steps
-        if not step.outputs or any(slot.slot_id not in consumed_outputs for slot in step.outputs)
-    }
-      sink_outcomes = tuple(outcome for outcome in outcomes if outcome.step_id in sink_step_ids)
       published_artifacts = tuple(
         artifact
-        for outcome in sink_outcomes
-        for artifact in outcome.result.get("published_artifacts", ())
-        if isinstance(artifact, Artifact)
+        for outcome in outcomes
+        for artifact in outcome.artifacts
+        if WorkflowArtifactRoles.is_published(artifact.role)
     )
-      metrics: dict[str, int] = {}
-      for outcome in outcomes:
-        for name, value in outcome.metrics.items():
-            metrics[name] = metrics.get(name, 0) + value
       return WorkflowReport(
         published_artifacts=tuple(PublishedArtifact(role=artifact.role, value=artifact.value) for artifact in published_artifacts),
         recovered_failures=(),
         unresolved_failures=tuple(outcome.failure for outcome in outcomes if outcome.status == StepStatus.FAILED and outcome.failure is not None),
-        metrics=metrics,
         provenance={"blueprint_fingerprint": contract.blueprint_fingerprint, "workflow_fingerprint": contract.workflow_fingerprint},
     )
 
