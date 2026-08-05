@@ -99,6 +99,40 @@ contract base class is required.
 Framework metadata is `ClassVar` or unannotated, so it is not an author-facing
 constructor parameter.
 
+### Declaration names and decorator forms
+
+Every declaration has a stable logical name. An explicit `name=` wins;
+otherwise the system derives a snake-case name from the declaring Python class
+or member. Fields, properties, and projected fields infer their names from
+their Python attribute, so `targetID` becomes `target_id`.
+
+Class declarations remove one terminal suffix that identifies their own layer
+before snake-casing. The supported suffixes are `Node`, `Edge`, `Table`,
+`TableTemplate` (or `Template`), `Struct`, `TableGroup`, `Projection`, and
+`ComponentTemplate` (or `Template`). For example, `TargetNode` becomes
+`target`, `AssociatedWithEdge` becomes `associated_with`, and
+`EvidenceRelease2025_06TableGroup` becomes `evidence_release_2025_06`.
+Only a matching terminal suffix for the declaration's own layer is removed;
+a table named `TargetNode` therefore remains `target_node`. A suffix-only
+class name such as `Node` is invalid unless an explicit name is provided.
+
+Decorators with optional configuration support both bare and called forms:
+
+```python
+@node
+class TargetNode(GraphComponent): ...
+
+@table()
+class TargetTable: ...
+
+@table_group
+class ReleaseTableGroup: ...
+```
+
+The forms `@node()` and `@table` are equivalent when no configuration is
+needed. `@edge(...)` remains configured because source and target declarations
+are required.
+
 ## 4. Topology
 
 Topology declares graph meaning independently of source data. Nodes and edges
@@ -107,20 +141,20 @@ properties, direction, cardinality where known, and annotations.
 
 ```python
 @node(description="A biological target.")
-class Target(GraphComponent):
-    symbol: PropertySlot[str] = property(name="symbol", nullable=False)
-    name: PropertySlot[str | None] = property(name="name")
+class TargetNode(GraphComponent):
+    symbol: PropertySlot[str] = property(nullable=False)
+    name: PropertySlot[str | None] = property()
 
 
 @node(description="A disease or phenotype.")
-class Disease(GraphComponent):
-    name: PropertySlot[str] = property(name="name", nullable=False)
-    description: PropertySlot[str | None] = property(name="description")
+class DiseaseNode(GraphComponent):
+    name: PropertySlot[str] = property(nullable=False)
+    description: PropertySlot[str | None] = property()
 
 
-@edge(source=Target, target=Disease, description="Evidence-backed association.")
-class AssociatedWith(GraphComponent):
-    score: PropertySlot[float] = property(name="score", nullable=False)
+@edge(source=TargetNode, target=DiseaseNode, description="Evidence-backed association.")
+class AssociatedWithEdge(GraphComponent):
+    score: PropertySlot[float] = property(nullable=False)
 ```
 
 Annotations express semantics or target hints: ontology terms, indexes,
@@ -148,27 +182,29 @@ Table → Field → DataType
 ```
 
 `Field` may be scalar, optional, nested, or collection-valued. A `Struct` is a
-reusable nested record shape; it cannot be bound independently. A
-Every table or struct is an ordinary decorated class. Every field has an
-explicit external name; the Python attribute remains a typed authoring handle.
+reusable nested record shape; it cannot be bound independently.
+Every table or struct is an ordinary decorated class. A field's external name
+defaults to its snake-case Python attribute; authors provide `name=` only when
+the physical or external spelling differs. The Python attribute remains a
+typed authoring handle.
 
 ```python
 @struct
-class TargetDetails:
-    id: Field[str] = field(name="id")
-    symbol: Field[str] = field(name="symbol")
+class TargetDetailsStruct:
+    id: Field[str] = field()
+    symbol: Field[str] = field()
 
 
-@table_template(name="pharmacogenomics_annotation_shape")
-class PharmacogenomicsAnnotation:
-    target: Field[TargetDetails] = field(name="target")
+@table_template(description="Reusable pharmacogenomics input shape.")
+class PharmacogenomicsAnnotationTableTemplate:
+    target: Field[TargetDetailsStruct] = field()
     disease_ids: Field[list[str]] = field(name="diseaseIds")
     study_id: Field[str] = field(name="studyId")
-    score: Field[float] = field(name="score")
+    score: Field[float] = field()
 
 
-@table(name="pharmacogenomics_annotation")
-class OpenTargetsPharmacogenomicsAnnotation(PharmacogenomicsAnnotation):
+@table
+class OpenTargetsPharmacogenomicsAnnotationTable(PharmacogenomicsAnnotationTableTemplate):
     pass
 ```
 
@@ -180,8 +216,8 @@ prevents binding a reusable shape or inheriting a concrete table accidentally.
 Nested navigation creates typed field paths:
 
 ```python
-OpenTargetsPharmacogenomicsAnnotation.target.symbol  # FieldPath[str]
-OpenTargetsPharmacogenomicsAnnotation.disease_ids    # FieldPath[list[str]]
+OpenTargetsPharmacogenomicsAnnotationTable.target.symbol  # FieldPath[str]
+OpenTargetsPharmacogenomicsAnnotationTable.disease_ids    # FieldPath[list[str]]
 ```
 
 Types distinguish nullable fields, nullable collections, and nullable items:
@@ -202,32 +238,35 @@ a temporary item variable. `expand` requests row-context expansion for that
 path; compilation derives and shares the required parent-first unnests:
 
 ```python
-Association.evidence.element.disease_id  # collection-valued FieldPath[str]
-Association.evidence.element.labels      # collection-valued FieldPath[list[str]]
+AssociationTable.evidence.element.disease_id  # collection-valued FieldPath[str]
+AssociationTable.evidence.element.labels      # collection-valued FieldPath[list[str]]
 ```
 
 ## 6. Table groups and physical sources
 
 `TableGroup` provides named nested groups of concrete tables. Group and table
 names form a catalog path, while Python attributes remain typed handles.
+Groups may include only final tables or other table groups. Empty groups,
+cycles, duplicate final-table inclusion, and duplicate catalog paths are
+rejected.
 
 ```python
-@table_group(name="output")
-class OpenTargetsOutput:
-    pharmacogenomics_annotation = include(OpenTargetsPharmacogenomicsAnnotation)
+@table_group
+class OpenTargetsOutputTableGroup:
+    pharmacogenomics_annotation = include(OpenTargetsPharmacogenomicsAnnotationTable)
 ```
 
-`bind_source` attaches a table or group to physical configuration: location,
+`bind_source` attaches a final table or table group to physical configuration: location,
 format, partition layout, credential reference, version, and provenance. Group
 bindings expand to canonical `BoundTable` definitions.
 
 ```python
 open_targets_release = bind_source(
-    target=OpenTargetsOutput,
+    target=OpenTargetsOutputTableGroup,
     config=DataSourceConfig(
         location="s3://example/open-targets/2025-01",
         format=InputFormat.PARQUET,
-        layout=PartitionedParquetLayout(files="{group_path}/{table_name}/**/*.parquet"),
+        layout="{group_path}/{table_name}/**/*.parquet",
         credentials=environment_credential("PHARMACOGENOMICS_S3"),
         version="2025-01",
     ),
@@ -260,22 +299,22 @@ expressions; it has no separate `inputs` argument.
 
 ```python
 @projection
-class AssociationTable:
-    target_id = projected_field(OpenTargetsPharmacogenomicsAnnotation.target.id)
-    target_symbol = projected_field(OpenTargetsPharmacogenomicsAnnotation.target.symbol)
+class AssociationProjection:
+    target_id = projected_field(OpenTargetsPharmacogenomicsAnnotationTable.target.id)
+    target_symbol = projected_field(OpenTargetsPharmacogenomicsAnnotationTable.target.symbol)
     disease_id = projected_field(
-        collection.expand(OpenTargetsPharmacogenomicsAnnotation.disease_ids)
+        collection.expand(OpenTargetsPharmacogenomicsAnnotationTable.disease_ids)
     )
-    study_id = projected_field(OpenTargetsPharmacogenomicsAnnotation.study_id)
+    study_id = projected_field(OpenTargetsPharmacogenomicsAnnotationTable.study_id)
 ```
 
 Portable expression namespaces are direct authoring APIs:
 
 ```python
-value.literal(AssociationTable.target_symbol)            # Expression[str]
+value.literal(AssociationProjection.target_symbol)       # Expression[str]
 value.literal("unknown")                                 # Expression[str]
-value.concat("annotation::", AssociationTable.study_id)
-value.coalesce(AssociationTable.target_name, "unknown")
+value.concat("annotation::", AssociationProjection.study_id)
+value.coalesce(AssociationProjection.target_name, "unknown")
 ```
 
 ```text
@@ -312,7 +351,7 @@ prefix and lowers the two requested expansions into a parent-first plan:
 
 ```python
 @projection
-class EvidenceTable:
+class EvidenceProjection:
     disease_id = projected_field(collection.expand(Association.evidence.element.disease_id))
     evidence_label = projected_field(collection.expand(Association.evidence.element.labels))
 ```
@@ -332,17 +371,17 @@ expressions it uses.
 
 ```python
 target_from_pharmacogenomics = node_binding(
-    target=Target,
-    build_key=value.literal(AssociationTable.target_id),
-    properties=Target(symbol=bind(AssociationTable.target_symbol)),
+    target=TargetNode,
+    build_key=value.literal(AssociationProjection.target_id),
+    properties=TargetNode(symbol=bind(AssociationProjection.target_symbol)),
 )
 
 annotation_associated_with_disease = edge_binding(
-    target=AssociatedWith,
-    build_key=value.deterministic_uuid(AssociationTable.study_id),
-    source_build_key=value.concat("annotation::", AssociationTable.study_id),
-    target_build_key=value.literal(AssociationTable.disease_id),
-    properties=AssociatedWith(score=bind(AssociationTable.score)),
+    target=AssociatedWithEdge,
+    build_key=value.deterministic_uuid(AssociationProjection.study_id),
+    source_build_key=value.concat("annotation::", AssociationProjection.study_id),
+    target_build_key=value.literal(AssociationProjection.disease_id),
+    properties=AssociatedWithEdge(score=bind(AssociationProjection.score)),
 )
 ```
 
@@ -422,14 +461,15 @@ demo/                 # importable end-to-end example
 tests/                # feature-oriented tests by layer
 ```
 
-Dependencies flow `specification` → (`topology`, `data`) → `binding` →
+Dependencies flow `specification` → (`topology`, `table`) → `binding` →
 `compile` → `build`; targets depend on compiled/build protocols, never the
 reverse.
 
 Authoring practices:
 
 - Keep topology and graph bindings discoverable in a node-first layout.
-- Use explicit external names for all contract fields.
+- Let contract fields use inferred snake-case names; use explicit external
+  names only where the source spelling differs.
 - Use templates for reusable shape and final tables for inputs/bindings.
 - Make collection, lookup, missing-value, and identity policy explicit.
 - Keep physical sources and provenance in source bindings; keep secrets only in
@@ -448,9 +488,12 @@ Authoring practices:
 - both compiled definitions, inspectable DuckDB SQL, file output, and an
   importable demonstration.
 
-### MVP extensions
+### Implemented MVP extensions
 
-- table templates/groups and group source bindings;
+- table templates, nested table groups, and group source bindings;
+
+### Remaining MVP extensions
+
 - `lookup.one` uniqueness diagnostics and `collect` with explicit grouping;
 - dynamic fields guarded by `Unknown`;
 - build reports, target capability checks, ontology annotations, and minimal
