@@ -23,7 +23,7 @@ association_to_disease = edge_binding(
             value.coalesce(
                 lookup.one(
                     key=AssociationEvidence.study_id,
-                    match=Study.id,
+                    match=Study.study_id,
                     value=Study.details.name,
                     as_type=str,
                 ),

@@ -1,16 +1,14 @@
-from kg_build_system import Field, field, struct, table
+from kg_build_system import Field, field, table
 
-
-@struct
-class Evidence:
-    disease_id: Field[str] = field(name="disease_id")
-    labels: Field[list[str]] = field(name="labels")
+from demo.data.templates.evidence import Evidence
+from demo.data.templates.study import StudyReference
 
 
 @table(name="association")
-class Association:
+class Association(StudyReference):
+    """Concrete evidence input that reuses the shared study-reference contract."""
+
     target_id: Field[str] = field(name="target_id")
     target_symbol: Field[str] = field(name="target_symbol")
-    study_id: Field[str] = field(name="study_id")
     evidence: Field[list[Evidence]] = field(name="evidence")
     score: Field[float] = field(name="score")
