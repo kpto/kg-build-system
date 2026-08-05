@@ -100,7 +100,59 @@ class GroupedInputs:
     nested = include(NestedInputs)
     endpoint = include(GroupedEndpoint)
 
+
+@table_group()
+class AutoNamedTableGroup:
+    input = include(GroupedInput)
+
+
+@node()
+class TargetNode(GraphComponent):
+    displayName: PropertySlot[str] = property(nullable=False)
+
+
+@edge(source=TargetNode, target=TargetNode)
+class RelatedToEdge(GraphComponent):
+    pass
+
+
+@table()
+class CamelCaseTable:
+    targetID: Field[str] = field()
+
+
+@projection
+class CamelCaseProjection:
+    targetID: ProjectedField[str] = projected_field(CamelCaseTable.targetID)
+
 class VerticalSliceTests(unittest.TestCase):
+    def test_auto_names_use_snake_case_and_kind_suffixes(self) -> None:
+        self.assertEqual(TargetNode._component_name, "target")
+        self.assertEqual(RelatedToEdge._component_name, "related_to")
+        self.assertEqual(CamelCaseTable._table_name, "camel_case")
+        self.assertEqual(CamelCaseTable._fields["targetID"].name, "target_id")
+        self.assertEqual(CamelCaseProjection._projection_name, "camel_case")
+        self.assertEqual(CamelCaseProjection.targetID.path, ("target_id",))
+        self.assertEqual(AutoNamedTableGroup._table_group_name, "auto_named")
+
+        @table(name="external_input")
+        class ExplicitNameTable:
+            targetID: Field[str] = field(name="target_identifier")
+
+        @projection(name="external_projection")
+        class ExplicitNameProjection:
+            targetID: ProjectedField[str] = projected_field(ExplicitNameTable.targetID)
+
+        self.assertEqual(ExplicitNameTable._table_name, "external_input")
+        self.assertEqual(ExplicitNameTable._fields["targetID"].name, "target_identifier")
+        self.assertEqual(ExplicitNameProjection._projection_name, "external_projection")
+
+    def test_declaration_name_cannot_be_only_its_suffix(self) -> None:
+        with self.assertRaisesRegex(ValueError, "no name"):
+            @node()
+            class Node(GraphComponent):
+                pass
+
     def test_table_groups_expand_nested_catalog_paths_and_sources(self) -> None:
         grouped_source = bind_source(
             target=GroupedInputs,
@@ -118,8 +170,8 @@ class VerticalSliceTests(unittest.TestCase):
         self.assertEqual(
             tuple((source.table, source.location) for source in blueprint.sources),
             (
-                ("GroupedInput", "fixtures/release/nested/grouped_input.json"),
-                ("GroupedEndpoint", "fixtures/release/grouped_endpoint.json"),
+                ("grouped_input", "fixtures/release/nested/grouped_input.json"),
+                ("grouped_endpoint", "fixtures/release/grouped_endpoint.json"),
             ),
         )
 
@@ -196,8 +248,8 @@ class VerticalSliceTests(unittest.TestCase):
         publication = WorkflowArtifactRoles.published("example", "result")
         self.assertEqual(publication, ArtifactRole(namespace="workflow", name="publication.example.result"))
         self.assertTrue(WorkflowArtifactRoles.is_published(publication))
-        self.assertEqual(CoreArtifactRoles.table("Input"), ArtifactRole(namespace="core", name="data.table.Input"))
-        self.assertEqual(CoreArtifactRoles.projection("ExpandedInput"), ArtifactRole(namespace="core", name="data.projection.ExpandedInput"))
+        self.assertEqual(CoreArtifactRoles.table("input"), ArtifactRole(namespace="core", name="data.table.input"))
+        self.assertEqual(CoreArtifactRoles.projection("expanded_input"), ArtifactRole(namespace="core", name="data.projection.expanded_input"))
 
     def test_field_descriptor_and_bind_boundary(self) -> None:
         path = Input.label
@@ -223,16 +275,16 @@ class VerticalSliceTests(unittest.TestCase):
             contract = compile_blueprint(blueprint=blueprint)
             self.assertTrue(any("UNNEST" in str(step.payload) for step in contract.workflow.steps))
             self.assertTrue(any(step.step_id.startswith("core::binding.") for step in contract.workflow.steps))
-            self.assertTrue(any(step.step_id == "core::table.Input" for step in contract.workflow.steps))
-            self.assertTrue(any(step.step_id == "core::projection.ExpandedInput" for step in contract.workflow.steps))
-            projection_step = next(step for step in contract.workflow.steps if step.step_id == "core::projection.ExpandedInput")
+            self.assertTrue(any(step.step_id == "core::table.input" for step in contract.workflow.steps))
+            self.assertTrue(any(step.step_id == "core::projection.expanded_input" for step in contract.workflow.steps))
+            projection_step = next(step for step in contract.workflow.steps if step.step_id == "core::projection.expanded_input")
             binding_step = next(step for step in contract.workflow.steps if step.step_id.startswith("core::binding."))
             self.assertIn('"kg_table_0"', str(projection_step.payload))
             self.assertIn('"kg_projection_0"', str(binding_step.payload))
             self.assertNotIn("read_json_auto", str(binding_step.payload))
             self.assertTrue(any(
                 connection.input_slot_id == binding_step.inputs[0].slot_id
-                and connection.output_slot_id == "core::projection.ExpandedInput.output"
+                and connection.output_slot_id == "core::projection.expanded_input.output"
                 for connection in contract.workflow.connections
             ))
             report = build(contract)
@@ -258,7 +310,7 @@ class VerticalSliceTests(unittest.TestCase):
             self.assertEqual(len(binding_steps), 3)
             self.assertNotIn("UNNEST", str(binding_steps[0].payload))
             self.assertNotIn("UNNEST", str(binding_steps[1].payload))
-            projection_step = next(step for step in contract.workflow.steps if step.step_id == "core::projection.ExpandedInput")
+            projection_step = next(step for step in contract.workflow.steps if step.step_id == "core::projection.expanded_input")
             self.assertIn("UNNEST", str(projection_step.payload))
             report = build(contract)
             self.assertEqual((self._file_result(report)["nodes"], self._file_result(report)["edges"]), (5, 3))
@@ -268,7 +320,7 @@ class VerticalSliceTests(unittest.TestCase):
         blueprint = create_blueprint(bindings=[
             edge_binding(target=Related, build_key=Input.identifier, source_build_key=Input.identifier, target_build_key=Endpoint.identifier, properties=Related(weight=bind(Input.weight))),
         ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "data_files" / "association.json"), format=InputFormat.JSON))], modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration(str(root / "unused.jsonl")))])
-        with self.assertRaisesRegex(ValueError, "Endpoint"):
+        with self.assertRaisesRegex(ValueError, "endpoint"):
             compile_blueprint(blueprint=blueprint)
 
     def test_conflicting_non_null_facts_fail_in_duckdb_normalisation(self) -> None:
@@ -310,7 +362,7 @@ class VerticalSliceTests(unittest.TestCase):
         self.assertEqual(len(report.unresolved_failures), 1)
         failure = report.unresolved_failures[0]
         self.assertEqual(failure.module_id, "core")
-        self.assertEqual(failure.step_id, "core::table.Input")
+        self.assertEqual(failure.step_id, "core::table.input")
         self.assertIsNotNone(failure.exception_type)
 
     def test_contract_records_file_module(self) -> None:

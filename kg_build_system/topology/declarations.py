@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Protocol, TypeVar, cast, get_type_hints
 from .models import GraphComponent, PropertySlot, properties_for, property
+from .._support.naming import declaration_name
 
 T = TypeVar("T")
 C = TypeVar("C", bound=GraphComponent)
@@ -25,28 +26,30 @@ def _metadata(cls: type, metadata: dict[str, Any]) -> dict[str, Any]:
     inherited.update(metadata)
     return inherited
 
-def _component(kind: str, **metadata: Any) -> ComponentDecorator:
+def _component(kind: str, *, name: str | None = None, **metadata: Any) -> ComponentDecorator:
     def decorate(cls: type[C]) -> type[C]:
         if any(is_final_component(base) for base in cls.__mro__[1:]):
             raise TypeError("a final @node or @edge may not inherit from another final graph component")
         properties = properties_for(cls)
         annotations = dict(vars(cls).get("__annotations__", {}))
         hints = get_type_hints(cls)
-        for name in properties:
-            annotations.setdefault(name, hints.get(name, Any))
+        for attribute in properties:
+            annotations.setdefault(attribute, hints.get(attribute, Any))
         cls.__annotations__ = annotations
         cls._kind, cls._properties, cls._metadata = kind, properties, _metadata(cls, metadata)
+        cls._component_name = name or declaration_name(cls.__name__, suffixes=(("Node",) if kind == "node" else ("Edge",)))
         cls._component_declaration_kind = kind
         return cast(type[C], dataclass(cls, kw_only=True))
     return cast(ComponentDecorator, decorate)
 
 
-def component_template(**metadata: Any) -> ComponentDecorator:
+def component_template(*, name: str | None = None, **metadata: Any) -> ComponentDecorator:
     def decorate(cls: type[C]) -> type[C]:
         cls._kind, cls._properties, cls._metadata = "component", properties_for(cls), _metadata(cls, metadata)
+        cls._component_name = name or declaration_name(cls.__name__, suffixes=("ComponentTemplate", "Template"))
         cls._component_declaration_kind = "template"
         return cls
     return cast(ComponentDecorator, decorate)
 
-def node(**metadata: Any) -> ComponentDecorator: return _component("node", **metadata)
-def edge(*, source: type[GraphComponent], target: type[GraphComponent], **metadata: Any) -> ComponentDecorator: return _component("edge", source=source, target=target, **metadata)
+def node(*, name: str | None = None, **metadata: Any) -> ComponentDecorator: return _component("node", name=name, **metadata)
+def edge(*, source: type[GraphComponent], target: type[GraphComponent], name: str | None = None, **metadata: Any) -> ComponentDecorator: return _component("edge", name=name, source=source, target=target, **metadata)

@@ -8,14 +8,11 @@ field names in their source files.
 from kg_build_system import Field, field, struct, table_template
 
 
-@table_template(
-    name="study_reference",
-    description="A stable logical reference to a study or evidence provenance record.",
-)
-class StudyReference:
-    study_id: Field[str] = field(name="study_id")
+@table_template(description="A stable logical reference to a study or evidence provenance record.")
+class StudyReferenceTemplate:
+    study_id: Field[str] = field()
 
 
-@struct(name="study_details", description="Descriptive fields attached to a study.")
-class StudyDetails:
-    name: Field[str] = field(name="name")
+@struct(description="Descriptive fields attached to a study.")
+class StudyDetailsStruct:
+    name: Field[str] = field()

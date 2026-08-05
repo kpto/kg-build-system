@@ -1,11 +1,11 @@
 from kg_build_system import Field, field, table
 
-from demo.data.templates.study import StudyDetails, StudyReference
+from demo.data.templates.study import StudyDetailsStruct, StudyReferenceTemplate
 
 
-@table(name="study")
-class Study(StudyReference):
+@table()
+class StudyTable(StudyReferenceTemplate):
     """Concrete study input with the shared ID mapped to its source-specific name."""
 
     study_id: Field[str] = field(name="id")
-    details: Field[StudyDetails] = field(name="details")
+    details: Field[StudyDetailsStruct] = field()

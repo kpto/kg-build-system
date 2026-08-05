@@ -1,14 +1,14 @@
 from kg_build_system import Field, field, table
 
-from demo.data.templates.evidence import Evidence
-from demo.data.templates.study import StudyReference
+from demo.data.templates.evidence import EvidenceStruct
+from demo.data.templates.study import StudyReferenceTemplate
 
 
-@table(name="association")
-class Association(StudyReference):
+@table()
+class AssociationTable(StudyReferenceTemplate):
     """Concrete evidence input that reuses the shared study-reference contract."""
 
-    target_id: Field[str] = field(name="target_id")
-    target_symbol: Field[str] = field(name="target_symbol")
-    evidence: Field[list[Evidence]] = field(name="evidence")
-    score: Field[float] = field(name="score")
+    target_id: Field[str] = field()
+    target_symbol: Field[str] = field()
+    evidence: Field[list[EvidenceStruct]] = field()
+    score: Field[float] = field()

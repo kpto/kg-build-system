@@ -3,13 +3,13 @@
 from kg_build_system import Field, field, table
 
 
-@table(name="target")
-class TargetReference:
-    target_id: Field[str] = field(name="target_id")
-    symbol: Field[str] = field(name="symbol")
+@table()
+class TargetTable:
+    target_id: Field[str] = field()
+    symbol: Field[str] = field()
 
 
-@table(name="disease")
-class DiseaseReference:
-    disease_id: Field[str] = field(name="disease_id")
-    name: Field[str] = field(name="name")
+@table()
+class DiseaseTable:
+    disease_id: Field[str] = field()
+    name: Field[str] = field()

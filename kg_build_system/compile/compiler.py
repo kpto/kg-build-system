@@ -40,8 +40,12 @@ def _value_type(annotation: Any, cardinality: str = "scalar") -> ValueType:
     if shape.cardinality == "collection": return ValueType(kind="collection", name="list", item=type_name(shape.item_annotation), nullable=shape.nullable, item_nullable=shape.item_nullable)
     return ValueType(kind="scalar", name=type_name(shape.annotation), nullable=shape.nullable)
 
+def _logical_table_name(table: type) -> str:
+    return getattr(table, "_table_name", getattr(table, "_projection_name", table.__name__))
+
+
 def _to_ir(value: Expression[Any] | FieldPath[Any] | Any) -> Value:
-    if isinstance(value, FieldPath): return FieldReference(table=value.table.__name__, path=value.path, value_type=_value_type(value.type_hint, value.cardinality), collection_paths=value.collection_paths)
+    if isinstance(value, FieldPath): return FieldReference(table=_logical_table_name(value.table), path=value.path, value_type=_value_type(value.type_hint, value.cardinality), collection_paths=value.collection_paths)
     if isinstance(value, Expression):
         if value.op == "field": return _to_ir(value.args[0])
         if value.op == "literal": return _to_ir(value.args[0])
@@ -53,13 +57,13 @@ def _to_ir(value: Expression[Any] | FieldPath[Any] | Any) -> Value:
 
 def _component(component: type) -> ComponentDefinition:
     metadata = component._metadata; properties = tuple(PropertyDefinition(name=prop.name or attr, value_type=_value_type(prop.type_hint), nullable=prop.nullable) for attr, prop in component._properties.items())
-    return ComponentDefinition(name=component.__name__, kind=component._kind, properties=properties, source=getattr(metadata.get("source"), "__name__", None), target=getattr(metadata.get("target"), "__name__", None))
+    return ComponentDefinition(name=component._component_name, kind=component._kind, properties=properties, source=getattr(metadata.get("source"), "_component_name", None), target=getattr(metadata.get("target"), "_component_name", None))
 
 def _binding(binding: NodeBinding | EdgeBinding, *, symbol_id: str) -> BindingDefinition:
     properties = {name: _to_ir(value) for name, value in _property_expressions(binding).items()}
     if isinstance(binding, EdgeBinding):
-        return EdgeBindingDefinition(symbol_id=symbol_id, debug_name=binding.debug_name, component=binding.target.__name__, build_key=_to_ir(binding.build_key), source_build_key=_to_ir(binding.source_build_key), target_build_key=_to_ir(binding.target_build_key), properties=properties)
-    return NodeBindingDefinition(symbol_id=symbol_id, debug_name=binding.debug_name, component=binding.target.__name__, build_key=_to_ir(binding.build_key), properties=properties)
+        return EdgeBindingDefinition(symbol_id=symbol_id, debug_name=binding.debug_name, component=binding.target._component_name, build_key=_to_ir(binding.build_key), source_build_key=_to_ir(binding.source_build_key), target_build_key=_to_ir(binding.target_build_key), properties=properties)
+    return NodeBindingDefinition(symbol_id=symbol_id, debug_name=binding.debug_name, component=binding.target._component_name, build_key=_to_ir(binding.build_key), properties=properties)
 
 def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
     """Checks requiring declaration metadata, before it is discarded into IR."""
@@ -97,7 +101,7 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
     if key_type.nullable: raise TypeError(f"{binding.target.__name__} build key may not be nullable")
 
 def _source_definition(source: BoundTable) -> SourceDefinition:
-    return SourceDefinition(table=source.table.__name__, location=source.config.location, format=source.config.format.value, credential_reference=source.config.credentials, version=source.config.version)
+    return SourceDefinition(table=source.table._table_name, location=source.config.location, format=source.config.format.value, credential_reference=source.config.credentials, version=source.config.version)
 
 def _blueprint_module(registration: ModuleRegistration[Any]) -> BlueprintModule:
     module_class = registration.module_class
@@ -119,7 +123,7 @@ def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projectio
     if not authoring_bindings: raise ValueError("a graph requires at least one binding")
     for binding in authoring_bindings: _validate_authoring_binding(binding)
     components = tuple(sorted({_binding.target for _binding in authoring_bindings}, key=lambda item: item.__name__))
-    projection_ir = tuple(ProjectionDefinition(name=projection.__name__, fields={name: _to_ir(field.expression) for name, field in projection._projection_fields.items()}) for projection in projections)
+    projection_ir = tuple(ProjectionDefinition(name=projection._projection_name, fields={field.name or name: _to_ir(field.expression) for name, field in projection._projection_fields.items()}) for projection in projections)
     binding_definitions: list[BindingDefinition] = []
     occurrences: dict[str, int] = {}
     for binding in authoring_bindings:

@@ -3,6 +3,7 @@ from __future__ import annotations
 from dataclasses import replace
 from typing import Any, Callable, Protocol, TypeVar, cast, overload
 from ..expressions import Expression, FieldPath
+from .._support.naming import declaration_name
 from .models import BoundSource, BoundTable, BoundTableGroup, DataSourceConfig, Field, ProjectedField, fields_for
 
 T = TypeVar("T")
@@ -13,6 +14,10 @@ class TableDecorator(Protocol):
 
 
 class TableGroupDecorator(Protocol):
+    def __call__(self, cls: type[C]) -> type[C]: ...
+
+
+class ProjectionDecorator(Protocol):
     def __call__(self, cls: type[C]) -> type[C]: ...
 
 
@@ -45,13 +50,18 @@ def _prepare(cls: type[C], kind: str, *, name: str | None = None, metadata: dict
     setattr(cls, "_fields", fields_for(cls))
     setattr(cls, "_data_declaration_kind", kind)
     setattr(cls, "_data_metadata", inherited_metadata)
-    if name is not None:
-        setattr(cls, "_data_name", name)
+    suffixes = {
+        "table": ("Table",),
+        "table_template": ("TableTemplate", "Template"),
+        "struct": ("Struct",),
+    }.get(kind, ())
+    resolved_name = name or declaration_name(cls.__name__, suffixes=suffixes)
+    setattr(cls, "_data_name", resolved_name)
     if kind == "table":
-        setattr(cls, "_table_name", name)
+        setattr(cls, "_table_name", resolved_name)
     return cls
 
-def table(*, name: str) -> TableDecorator:
+def table(*, name: str | None = None) -> TableDecorator:
     def decorate(cls: type[C]) -> type[C]: return _prepare(cls, "table", name=name)
     return cast(TableDecorator, decorate)
 
@@ -68,13 +78,13 @@ def include(target: type) -> Included:
     return Included(target)
 
 
-def table_group(*, name: str) -> TableGroupDecorator:
+def table_group(*, name: str | None = None) -> TableGroupDecorator:
     def decorate(cls: type[C]) -> type[C]:
         entries = tuple(value.target for value in vars(cls).values() if isinstance(value, Included))
         if not entries:
             raise TypeError("a @table_group must include at least one table or nested group")
         setattr(cls, "_is_table_group", True)
-        setattr(cls, "_table_group_name", name)
+        setattr(cls, "_table_group_name", name or declaration_name(cls.__name__, suffixes=("TableGroup",)))
         setattr(cls, "_table_group_entries", entries)
         _group_tables(cls)  # validate nesting and duplicate table inclusion eagerly
         return cls
@@ -122,12 +132,19 @@ def _validate_projection_value(value: Expression[Any] | FieldPath[Any]) -> None:
             _validate_projection_value(argument)
 
 
-def projection(cls: type[C]) -> type[C]:
-    for value in vars(cls).values():
-        if isinstance(value, ProjectedField):
-            _validate_projection_value(value.expression)
-    setattr(cls, "_projection_fields", {name: value for name, value in vars(cls).items() if isinstance(value, ProjectedField)})
-    return cls
+@overload
+def projection(cls: type[C]) -> type[C]: ...
+@overload
+def projection(*, name: str | None = None) -> ProjectionDecorator: ...
+def projection(cls: type[C] | None = None, *, name: str | None = None) -> type[C] | ProjectionDecorator:
+    def decorate(shape: type[C]) -> type[C]:
+        for value in vars(shape).values():
+            if isinstance(value, ProjectedField):
+                _validate_projection_value(value.expression)
+        setattr(shape, "_projection_fields", {attribute: value for attribute, value in vars(shape).items() if isinstance(value, ProjectedField)})
+        setattr(shape, "_projection_name", name or declaration_name(shape.__name__, suffixes=("Projection",)))
+        return shape
+    return decorate if cls is None else decorate(cls)
 
 def _location_for(config: DataSourceConfig, group_path: tuple[str, ...], table_name: str) -> str:
     if config.layout is None:

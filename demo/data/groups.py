@@ -2,26 +2,26 @@
 
 from kg_build_system import include, table_group
 
-from .contracts.association import Association
-from .contracts.reference import DiseaseReference, TargetReference
-from .contracts.study import Study
+from .contracts.association import AssociationTable
+from .contracts.reference import DiseaseTable, TargetTable
+from .contracts.study import StudyTable
 
 
-@table_group(name="pharmacogenomics")
-class PharmacogenomicsEvidence:
+@table_group()
+class PharmacogenomicsTableGroup:
     """Evidence facts and their study provenance belong to one source product."""
 
-    association = include(Association)
-    study = include(Study)
+    association = include(AssociationTable)
+    study = include(StudyTable)
 
 
-@table_group(name="reference_data")
-class ReferenceData:
-    target = include(TargetReference)
-    disease = include(DiseaseReference)
+@table_group()
+class ReferenceDataTableGroup:
+    target = include(TargetTable)
+    disease = include(DiseaseTable)
 
 
-@table_group(name="evidence_release_2025_06")
-class EvidenceRelease:
-    reference_data = include(ReferenceData)
-    pharmacogenomics = include(PharmacogenomicsEvidence)
+@table_group()
+class EvidenceRelease2025_06TableGroup:
+    reference_data = include(ReferenceDataTableGroup)
+    pharmacogenomics = include(PharmacogenomicsTableGroup)

@@ -1,36 +1,36 @@
 from kg_build_system import bind, edge_binding, lookup, value
 
-from demo.data.contracts.study import Study
-from demo.data.projections.association_evidence import AssociationEvidence
-from demo.topology.nodes.target.edges.associated_with_disease import AssociatedWith
+from demo.data.contracts.study import StudyTable
+from demo.data.projections.association_evidence import AssociationEvidenceProjection
+from demo.topology.nodes.target.edges.associated_with_disease import AssociatedWithEdge
 
 
 association_to_disease = edge_binding(
     debug_name="association_to_disease",
-    target=AssociatedWith,
+    target=AssociatedWithEdge,
     build_key=value.deterministic_uuid(
         value.concat(
-            AssociationEvidence.target_id,
-            AssociationEvidence.disease_id,
-            AssociationEvidence.evidence_label,
+            AssociationEvidenceProjection.target_id,
+            AssociationEvidenceProjection.disease_id,
+            AssociationEvidenceProjection.evidence_label,
         )
     ),
-    source_build_key=value.concat("target::", AssociationEvidence.target_id),
-    target_build_key=value.concat("disease::", AssociationEvidence.disease_id),
-    properties=AssociatedWith(
-        score=bind(AssociationEvidence.score),
+    source_build_key=value.concat("target::", AssociationEvidenceProjection.target_id),
+    target_build_key=value.concat("disease::", AssociationEvidenceProjection.disease_id),
+    properties=AssociatedWithEdge(
+        score=bind(AssociationEvidenceProjection.score),
         study_name=bind(
             value.coalesce(
                 lookup.one(
-                    key=AssociationEvidence.study_id,
-                    match=Study.study_id,
-                    value=Study.details.name,
+                    key=AssociationEvidenceProjection.study_id,
+                    match=StudyTable.study_id,
+                    value=StudyTable.details.name,
                     as_type=str,
                 ),
                 "Unknown study",
             )
         ),
-        evidence_disease_id=bind(AssociationEvidence.disease_id),
-        evidence_label=bind(AssociationEvidence.evidence_label),
+        evidence_disease_id=bind(AssociationEvidenceProjection.disease_id),
+        evidence_label=bind(AssociationEvidenceProjection.evidence_label),
     ),
 )

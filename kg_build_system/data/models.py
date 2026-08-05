@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, Generic, Self, TypeAlias, TypeVar, get_args, get_type_hints, overload
 from ..expressions import Expression, FieldPath, item_type
+from .._support.naming import snake_case
 
 T = TypeVar("T")
 
@@ -15,7 +16,7 @@ class Field(Generic[T]):
     attr: str = ""
     def __set_name__(self, owner: type, attr: str) -> None:
         object.__setattr__(self, "attr", attr)
-        if self.name is None: object.__setattr__(self, "name", attr)
+        if self.name is None: object.__setattr__(self, "name", snake_case(attr))
     @overload
     def __get__(self, instance: None, owner: type | None = None) -> FieldPath[T]: ...
     @overload
@@ -44,7 +45,7 @@ class ProjectedField(Generic[T]):
     attr: str = ""
     def __set_name__(self, owner: type, attr: str) -> None:
         object.__setattr__(self, "attr", attr)
-        if self.name is None: object.__setattr__(self, "name", attr)
+        if self.name is None: object.__setattr__(self, "name", snake_case(attr))
     def __get__(self, instance: object | None, owner: type | None = None) -> Expression[T] | FieldPath[T]:
         return self.expression if instance is not None else FieldPath[T](owner or object, (self.name or self.attr,), self.expression.type_hint, self.expression.cardinality)
 

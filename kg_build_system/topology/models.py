@@ -2,6 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, ClassVar, Generic, TypeVar, dataclass_transform, get_args, get_type_hints
+from .._support.naming import snake_case
 
 T = TypeVar("T")
 
@@ -14,7 +15,7 @@ class PropertySlot(Generic[T]):
     attr: str = ""
     def __set_name__(self, owner: type, attr: str) -> None:
         object.__setattr__(self, "attr", attr)
-        if self.name is None: object.__setattr__(self, "name", attr)
+        if self.name is None: object.__setattr__(self, "name", snake_case(attr))
 
 
 def properties_for(cls: type) -> dict[str, "PropertySlot[Any]"]:
@@ -37,3 +38,4 @@ class GraphComponent:
     _properties: ClassVar[dict[str, PropertySlot[Any]]] = {}
     _metadata: ClassVar[dict[str, Any]] = {}
     _component_declaration_kind: ClassVar[str | None] = None
+    _component_name: ClassVar[str] = "component"

@@ -22,7 +22,7 @@ from kg_build_system.modules import (
 )
 
 from demo.bindings.bindings import demo_bindings
-from demo.data.projections.association_evidence import AssociationEvidence
+from demo.data.projections.association_evidence import AssociationEvidenceProjection
 from demo.data.sources import demo_sources
 
 
@@ -33,7 +33,7 @@ def create_demo_blueprint() -> BuildBlueprint:
     """Compose reusable declarations with concrete sources and workflow modules."""
     return create_blueprint(
         bindings=demo_bindings(),
-        projections=(AssociationEvidence,),
+        projections=(AssociationEvidenceProjection,),
         sources=demo_sources(),
         modules=(
             CollapseExactDuplicatesModule(),

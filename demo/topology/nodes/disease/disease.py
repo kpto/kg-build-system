@@ -1,8 +1,8 @@
 from kg_build_system import node
 
-from demo.topology.templates.named import NamedGraphComponent
+from demo.topology.templates.named import NamedGraphComponentTemplate
 
 
 @node(description="A disease or phenotype.")
-class Disease(NamedGraphComponent):
+class DiseaseNode(NamedGraphComponentTemplate):
     pass
