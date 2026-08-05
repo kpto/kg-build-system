@@ -26,7 +26,7 @@ from demo.table.projections.association_evidence import AssociationEvidenceProje
 from demo.table.sources import demo_sources
 
 
-OUTPUT_DIRECTORY = Path(__file__).parent / "output"
+OUTPUT_DIRECTORY = Path(__file__).parent / "build"
 
 
 def create_demo_blueprint() -> BuildBlueprint:

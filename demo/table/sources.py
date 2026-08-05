@@ -6,7 +6,7 @@ from kg_build_system.table.models import BoundSource
 from .groups import EvidenceRelease2025_06TableGroup
 
 
-DATA_DIRECTORY = Path(__file__).parents[1] / "data_files"
+DATA_DIRECTORY = Path(__file__).parents[1] / "data"
 
 
 def demo_sources() -> tuple[BoundSource, ...]:

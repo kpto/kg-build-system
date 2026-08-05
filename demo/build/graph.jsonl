@@ -1,0 +1,11 @@
+{"build_key": "d07d6c13c778bf193fda69abb90c0d6c", "evidence_disease_id": "MONDO:0003", "evidence_label": "genetic", "kind": "edge", "score": 0.91, "source_build_key": "target::ENSG0001", "study_name": "Targeted evidence study", "target_build_key": "disease::MONDO:0003", "type": "AssociatedWith"}
+{"build_key": "690f5b63847b680b2164fdc1cdc7deaa", "evidence_disease_id": "MONDO:0001", "evidence_label": "genetic", "kind": "edge", "score": 0.91, "source_build_key": "target::ENSG0001", "study_name": "Targeted evidence study", "target_build_key": "disease::MONDO:0001", "type": "AssociatedWith"}
+{"build_key": "a6162036cb65df48eaa63170d8b36bd0", "evidence_disease_id": "MONDO:0002", "evidence_label": "literature", "kind": "edge", "score": 0.76, "source_build_key": "target::ENSG0002", "study_name": "Literature evidence study", "target_build_key": "disease::MONDO:0002", "type": "AssociatedWith"}
+{"build_key": "d6b9acbeae33cdbf0f6dd82a7ca7f20f", "evidence_disease_id": "MONDO:0001", "evidence_label": "curated", "kind": "edge", "score": 0.91, "source_build_key": "target::ENSG0001", "study_name": "Targeted evidence study", "target_build_key": "disease::MONDO:0001", "type": "AssociatedWith"}
+{"build_key": "disease::MONDO:0003", "kind": "node", "name": "Example curated disease", "type": "Disease"}
+{"build_key": "disease::MONDO:0002", "kind": "node", "name": "Example literature disease", "type": "Disease"}
+{"build_key": "disease::MONDO:0001", "kind": "node", "name": "Example genetic disease", "type": "Disease"}
+{"build_key": "study::STUDY-1", "kind": "node", "name": "Targeted evidence study", "type": "StudyNode"}
+{"build_key": "study::STUDY-2", "kind": "node", "name": "Literature evidence study", "type": "StudyNode"}
+{"build_key": "target::ENSG0002", "kind": "node", "symbol": "GENE2", "type": "Target"}
+{"build_key": "target::ENSG0001", "kind": "node", "symbol": "GENE1", "type": "Target"}
