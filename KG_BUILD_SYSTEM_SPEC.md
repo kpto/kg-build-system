@@ -148,6 +148,7 @@ properties, direction, cardinality where known, and annotations.
 class TargetNode(GraphComponent):
     symbol: PropertySlot[str] = property()
     name: PropertySlot[str | None] = property()
+    description: PropertySlot[str | None] = property()
 
 
 @node(description="A disease or phenotype.")
@@ -197,6 +198,7 @@ typed authoring handle.
 class TargetDetailsStruct:
     id: Field[str] = field()
     symbol: Field[str] = field()
+    description: Field[str | None] = field()
 
 
 @table_template(description="Reusable pharmacogenomics input shape.")
@@ -232,6 +234,11 @@ Field[list[str]]
 Field[list[str] | None]
 Field[list[str | None]]
 ```
+
+Graph properties use the same type-driven convention. A nullable table field
+may be bound directly to a `PropertySlot[T | None]`; a JSON `null` remains a
+null graph-record value. It cannot be bound to a required `PropertySlot[T]`
+without an explicit expression that establishes a non-null value.
 
 Navigating a collection preserves its cardinality: it cannot select an item or
 duplicate a row implicitly.
@@ -516,6 +523,9 @@ Authoring practices:
 The first slice succeeds when a demo declares topology, typed input contracts,
 a source, projection, and node/edge bindings; compiles them to inspectable SQL;
 and writes a deterministic file graph with diagnostics and provenance.
+The demo includes nullable target, disease, and study descriptions with both
+populated and JSON-null fixture values, demonstrating type-driven nullability
+through its compiled graph records.
 
 The MVP succeeds when the same declared graph can be composed with valid
 sources and file/Neo4j targets, producing equivalent normalised graph records
