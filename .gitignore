@@ -8,9 +8,5 @@ wheels/
 
 # Virtual environments
 .venv
-demo/graph.jsonl
-demo/graph.jsonl.manifest.json
-demo/build_blueprint.json
-demo/build_contract.json
-demo/build_report.json
+demo/output/
 .uv-cache/

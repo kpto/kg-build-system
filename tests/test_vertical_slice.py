@@ -79,7 +79,7 @@ class VerticalSliceTests(unittest.TestCase):
             node_binding(target=Thing, build_key=ExpandedInput.identifier, properties=Thing(label=bind(ExpandedInput.label))),
             node_binding(target=Thing, build_key=ExpandedInput.related, properties=Thing(label=bind(ExpandedInput.related))),
             edge_binding(target=Related, build_key=value.deterministic_uuid(value.concat(ExpandedInput.identifier, ExpandedInput.related)), source_build_key=ExpandedInput.identifier, target_build_key=ExpandedInput.related, properties=Related(weight=bind(ExpandedInput.weight))),
-        ], projections=[ExpandedInput], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration(str(root / "unused.jsonl")))])
+        ], projections=[ExpandedInput], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "data_files" / "association.json"), format=InputFormat.JSON))], modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration(str(root / "unused.jsonl")))])
         with TemporaryDirectory() as directory:
             contract = compile_blueprint(blueprint=blueprint)
             self.assertTrue(any("UNNEST" in str(step.payload) for step in contract.workflow.steps))
@@ -112,7 +112,7 @@ class VerticalSliceTests(unittest.TestCase):
             node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label))),
             node_binding(target=Thing, build_key=ExpandedInput.related, properties=Thing(label=bind(ExpandedInput.related))),
             edge_binding(target=Related, build_key=value.deterministic_uuid(ExpandedInput.related), source_build_key=ExpandedInput.identifier, target_build_key=ExpandedInput.related, properties=Related(weight=bind(ExpandedInput.weight))),
-        ], projections=[ExpandedInput], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration(str(root / "unused.jsonl")))])
+        ], projections=[ExpandedInput], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "data_files" / "association.json"), format=InputFormat.JSON))], modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration(str(root / "unused.jsonl")))])
         with TemporaryDirectory() as directory:
             contract = compile_blueprint(blueprint=blueprint)
             binding_steps = [step for step in contract.workflow.steps if step.step_id.startswith("core::binding.")]
@@ -128,7 +128,7 @@ class VerticalSliceTests(unittest.TestCase):
         root = Path(__file__).parents[1]
         blueprint = create_blueprint(bindings=[
             edge_binding(target=Related, build_key=Input.identifier, source_build_key=Input.identifier, target_build_key=Endpoint.identifier, properties=Related(weight=bind(Input.weight))),
-        ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration(str(root / "unused.jsonl")))])
+        ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "data_files" / "association.json"), format=InputFormat.JSON))], modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration(str(root / "unused.jsonl")))])
         with self.assertRaisesRegex(ValueError, "Endpoint"):
             compile_blueprint(blueprint=blueprint)
 
@@ -137,7 +137,7 @@ class VerticalSliceTests(unittest.TestCase):
         blueprint = create_blueprint(bindings=[
             node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label))),
             node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(value.literal("conflict")))),
-        ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration(str(root / "unused.jsonl")))])
+        ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "data_files" / "association.json"), format=InputFormat.JSON))], modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration(str(root / "unused.jsonl")))])
         with TemporaryDirectory() as directory:
             contract = compile_blueprint(blueprint=blueprint)
             report = build(contract)
@@ -149,7 +149,7 @@ class VerticalSliceTests(unittest.TestCase):
             report_only_blueprint = create_blueprint(bindings=[
                 node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label))),
                 node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(value.literal("conflict")))),
-            ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))], modules=[
+        ], sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "data_files" / "association.json"), format=InputFormat.JSON))], modules=[
                 CollapseExactDuplicatesModule(),
                 RejectConflictingNonNullValuesModule(RejectConflictingNonNullValuesConfiguration(fail_on_error=False)), MergeCompatibleFactsModule(),
                 FileModule(FileModuleConfiguration(str(root / "unused.jsonl"))),
@@ -178,7 +178,7 @@ class VerticalSliceTests(unittest.TestCase):
         root = Path(__file__).parents[1]
         blueprint = create_blueprint(
             bindings=[node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label)))],
-            sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))],
+            sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "data_files" / "association.json"), format=InputFormat.JSON))],
             modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration("compiled-override.jsonl"))],
         )
         self.assertEqual({module.module_id for module in blueprint.modules}, {
@@ -198,7 +198,7 @@ class VerticalSliceTests(unittest.TestCase):
         def contract_for(modules: list[object]):
             blueprint = create_blueprint(
                 bindings=[node_binding(target=Thing, build_key=Input.identifier, properties=Thing(label=bind(Input.label)))],
-                sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "association.json"), format=InputFormat.JSON))],
+                sources=[bind_source(target=Input, config=DataSourceConfig(str(root / "demo" / "data_files" / "association.json"), format=InputFormat.JSON))],
                 modules=modules,
             )
             return compile_blueprint(blueprint=blueprint)
