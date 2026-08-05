@@ -1,24 +1,23 @@
 from pathlib import Path
 
 from kg_build_system import DataSourceConfig, InputFormat, bind_source
-from kg_build_system.data.models import BoundTable
+from kg_build_system.data.models import BoundSource
 
-from .contracts.association import Association
-from .contracts.study import Study
+from .groups import EvidenceRelease
 
 
 DATA_DIRECTORY = Path(__file__).parents[1] / "data_files"
 
 
-def demo_sources() -> tuple[BoundTable, BoundTable]:
-    """Bind concrete local fixtures without leaking source choices into declarations."""
+def demo_sources() -> tuple[BoundSource, ...]:
+    """Bind an evidence release hierarchy and resolve each final resource address."""
     return (
         bind_source(
-            target=Association,
-            config=DataSourceConfig(str(DATA_DIRECTORY / "association.json"), format=InputFormat.JSON),
-        ),
-        bind_source(
-            target=Study,
-            config=DataSourceConfig(str(DATA_DIRECTORY / "studies.json"), format=InputFormat.JSON),
+            target=EvidenceRelease,
+            config=DataSourceConfig(
+                str(DATA_DIRECTORY),
+                format=InputFormat.JSON,
+                layout="{group_path}/{table_name}.json",
+            ),
         ),
     )

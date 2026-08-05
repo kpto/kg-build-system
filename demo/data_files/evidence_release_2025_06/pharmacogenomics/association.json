@@ -1,0 +1,2 @@
+{"target_id":"ENSG0001","target_symbol":"GENE1","study_id":"STUDY-1","evidence":[{"disease_id":"MONDO:0001","labels":["genetic","curated"]},{"disease_id":"MONDO:0003","labels":["genetic"]}],"score":0.91}
+{"target_id":"ENSG0002","target_symbol":"GENE2","study_id":"STUDY-2","evidence":[{"disease_id":"MONDO:0002","labels":["literature"]}],"score":0.76}

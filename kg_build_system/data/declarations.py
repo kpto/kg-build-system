@@ -1,14 +1,24 @@
 """Table, struct, and projection decorators."""
 from __future__ import annotations
+from dataclasses import replace
 from typing import Any, Callable, Protocol, TypeVar, cast, overload
 from ..expressions import Expression, FieldPath
-from .models import BoundTable, DataSourceConfig, Field, ProjectedField, fields_for
+from .models import BoundSource, BoundTable, BoundTableGroup, DataSourceConfig, Field, ProjectedField, fields_for
 
 T = TypeVar("T")
 C = TypeVar("C")
 
 class TableDecorator(Protocol):
     def __call__(self, cls: type[C]) -> type[C]: ...
+
+
+class TableGroupDecorator(Protocol):
+    def __call__(self, cls: type[C]) -> type[C]: ...
+
+
+class Included:
+    def __init__(self, target: type) -> None:
+        self.target = target
 
 def field[T](*, name: str | None = None, description: str | None = None) -> Field[T]:  # pyright: ignore[reportInvalidTypeVarUse]
     return Field(name=name, description=description)
@@ -19,6 +29,10 @@ def _declaration_kind(cls: type) -> str | None:
 
 def is_concrete_table(cls: type) -> bool:
     return _declaration_kind(cls) == "table"
+
+
+def _is_table_group(cls: type) -> bool:
+    return bool(vars(cls).get("_is_table_group", False))
 
 
 def _prepare(cls: type[C], kind: str, *, name: str | None = None, metadata: dict[str, Any] | None = None) -> type[C]:
@@ -46,6 +60,44 @@ def table_template(*, name: str | None = None, description: str | None = None, *
         metadata["description"] = description
     def decorate(cls: type[C]) -> type[C]: return _prepare(cls, "table_template", name=name, metadata=metadata)
     return cast(TableDecorator, decorate)
+
+
+def include(target: type) -> Included:
+    if not is_concrete_table(target) and not _is_table_group(target):
+        raise TypeError("table groups may include only final @table declarations or @table_group declarations")
+    return Included(target)
+
+
+def table_group(*, name: str) -> TableGroupDecorator:
+    def decorate(cls: type[C]) -> type[C]:
+        entries = tuple(value.target for value in vars(cls).values() if isinstance(value, Included))
+        if not entries:
+            raise TypeError("a @table_group must include at least one table or nested group")
+        setattr(cls, "_is_table_group", True)
+        setattr(cls, "_table_group_name", name)
+        setattr(cls, "_table_group_entries", entries)
+        _group_tables(cls)  # validate nesting and duplicate table inclusion eagerly
+        return cls
+    return cast(TableGroupDecorator, decorate)
+
+
+def _group_tables(group: type, prefix: tuple[str, ...] = (), visited: tuple[type, ...] = ()) -> tuple[tuple[type, tuple[str, ...]], ...]:
+    if group in visited:
+        raise TypeError("table groups may not contain a cycle")
+    path = prefix + (group._table_group_name,)
+    result: list[tuple[type, tuple[str, ...]]] = []
+    for target in group._table_group_entries:
+        if is_concrete_table(target):
+            result.append((target, path + (target._table_name,)))
+        else:
+            result.extend(_group_tables(target, path, visited + (group,)))
+    tables = [table for table, _ in result]
+    paths = [catalog_path for _, catalog_path in result]
+    if len(set(tables)) != len(tables):
+        raise TypeError("a table group may include a final table only once")
+    if len(set(paths)) != len(paths):
+        raise TypeError("a table group has duplicate catalog paths")
+    return tuple(result)
 
 
 @overload
@@ -77,6 +129,29 @@ def projection(cls: type[C]) -> type[C]:
     setattr(cls, "_projection_fields", {name: value for name, value in vars(cls).items() if isinstance(value, ProjectedField)})
     return cls
 
-def bind_source(*, target: type, config: DataSourceConfig) -> BoundTable:
-    if not is_concrete_table(target): raise TypeError("sources require a final @table")
-    return BoundTable(target, config)
+def _location_for(config: DataSourceConfig, group_path: tuple[str, ...], table_name: str) -> str:
+    if config.layout is None:
+        raise ValueError("group sources require DataSourceConfig.layout to resolve each final resource address")
+    try:
+        relative_location = config.layout.format(group_path="/".join(group_path), table_name=table_name)
+    except (IndexError, KeyError) as error:
+        raise ValueError("group source layouts may use only {group_path} and {table_name}") from error
+    return f"{config.location.rstrip('/\\')}/{relative_location.lstrip('/\\')}"
+
+
+def resolve_bound_source(source: BoundSource) -> tuple[BoundTable, ...]:
+    """Resolve a group source to its executable concrete table resources."""
+    if isinstance(source, BoundTable):
+        return (source,)
+    return tuple(
+        BoundTable(table, replace(source.config, location=_location_for(source.config, catalog_path[:-1], catalog_path[-1]), layout=None))
+        for table, catalog_path in _group_tables(source.group)
+    )
+
+
+def bind_source(*, target: type, config: DataSourceConfig) -> BoundSource:
+    if is_concrete_table(target):
+        return BoundTable(target, config)
+    if _is_table_group(target):
+        return BoundTableGroup(target, config)
+    raise TypeError("sources require a final @table or @table_group")

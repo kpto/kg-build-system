@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, Generic, Self, TypeVar, get_args, get_type_hints, overload
+from typing import Any, Generic, Self, TypeAlias, TypeVar, get_args, get_type_hints, overload
 from ..expressions import Expression, FieldPath, item_type
 
 T = TypeVar("T")
@@ -50,6 +50,17 @@ class ProjectedField(Generic[T]):
 
 class InputFormat(StrEnum): CSV = "csv"; JSON = "json"; PARQUET = "parquet"
 @dataclass(frozen=True)
-class DataSourceConfig: location: str; format: InputFormat = InputFormat.CSV; credentials: str | None = None; version: str | None = None
+class DataSourceConfig: location: str; format: InputFormat = InputFormat.CSV; layout: str | None = None; credentials: str | None = None; version: str | None = None
 @dataclass(frozen=True)
-class BoundTable: table: type; config: DataSourceConfig
+class BoundTable:
+    table: type
+    config: DataSourceConfig
+
+
+@dataclass(frozen=True)
+class BoundTableGroup:
+    group: type
+    config: DataSourceConfig
+
+
+BoundSource: TypeAlias = BoundTable | BoundTableGroup

@@ -9,7 +9,8 @@ from hashlib import sha256
 import json
 from typing import Any, Literal, cast, get_type_hints
 from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
-from ..data import BoundTable
+from ..data import BoundSource, BoundTable
+from ..data.declarations import resolve_bound_source
 from ..data.declarations import is_concrete_table
 from ..topology.declarations import is_final_component
 from .models import (
@@ -113,7 +114,7 @@ def _blueprint_module(registration: ModuleRegistration[Any]) -> BlueprintModule:
     )
 
 
-def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = (), sources: Sequence[BoundTable] = (), modules: Sequence[ModuleRegistration[Any]]) -> BuildBlueprint:
+def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = (), sources: Sequence[BoundSource] = (), modules: Sequence[ModuleRegistration[Any]]) -> BuildBlueprint:
     authoring_bindings = tuple(bindings)
     if not authoring_bindings: raise ValueError("a graph requires at least one binding")
     for binding in authoring_bindings: _validate_authoring_binding(binding)
@@ -130,7 +131,10 @@ def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projectio
     module_definitions = tuple(_blueprint_module(module) for module in modules)
     if len({module.module_id for module in module_definitions}) != len(module_definitions):
         raise ValueError("blueprint module IDs must be unique")
-    return BuildBlueprint(components=tuple(_component(component) for component in components), projections=projection_ir, bindings=tuple(binding_definitions), sources=tuple(_source_definition(source) for source in sources), modules=module_definitions)
+    bound_tables = tuple(table for source in sources for table in resolve_bound_source(source))
+    if len({source.table for source in bound_tables}) != len(bound_tables):
+        raise ValueError("a build may bind each final table at most once")
+    return BuildBlueprint(components=tuple(_component(component) for component in components), projections=projection_ir, bindings=tuple(binding_definitions), sources=tuple(_source_definition(source) for source in bound_tables), modules=module_definitions)
 
 def _compile_binding_sql(*, graph: BuildBlueprint, sources: tuple[SourceDefinition, ...], binding: BindingDefinition) -> str:
     """Lower exactly one binding, without leaking other bindings' semantics."""
@@ -229,9 +233,9 @@ def _blueprint_fingerprint(blueprint: BuildBlueprint) -> str:
         binding.pop("debug_name", None)
     return _fingerprint(payload)
 
-def _effective_sources(*, blueprint: BuildBlueprint, overrides: Sequence[BoundTable]) -> tuple[SourceDefinition, ...]:
+def _effective_sources(*, blueprint: BuildBlueprint, overrides: Sequence[BoundSource]) -> tuple[SourceDefinition, ...]:
     sources = {source.table: source for source in blueprint.sources}
-    for bound_source in overrides:
+    for bound_source in (table for source in overrides for table in resolve_bound_source(source)):
         source = _source_definition(bound_source)
         sources[source.table] = source
     return tuple(sources[name] for name in sorted(sources))
@@ -250,10 +254,11 @@ def _load_registration(definition: BlueprintModule) -> ModuleRegistration[Any]:
     return registration
 
 
-async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[BoundTable] = (), settings: BuildSettings | None = None) -> BuildContract:
+async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[BoundSource] = (), settings: BuildSettings | None = None) -> BuildContract:
     """Compile core DuckDB work and contributor declarations into one workflow."""
     source_ir = _effective_sources(blueprint=blueprint, overrides=sources)
-    overrides = BuildOverrides(sources=tuple(SourceOverride(table=item.table, original=next((old for old in blueprint.sources if old.table == item.table), None), override=item) for item in (_source_definition(source) for source in sources)))
+    override_definitions = tuple(_source_definition(table) for source in sources for table in resolve_bound_source(source))
+    overrides = BuildOverrides(sources=tuple(SourceOverride(table=item.table, original=next((old for old in blueprint.sources if old.table == item.table), None), override=item) for item in override_definitions))
     compilation_settings = settings or BuildSettings()
     core_context = CompilationContext(
         blueprint=blueprint,
@@ -339,6 +344,6 @@ async def _compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[Bou
     return BuildContract(blueprint=blueprint, blueprint_fingerprint=_blueprint_fingerprint(blueprint), sources=source_ir, settings=compilation_settings, overrides=overrides, workflow_fingerprint=_fingerprint(workflow), workflow=workflow)
 
 
-def compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[BoundTable] = (), settings: BuildSettings | None = None) -> BuildContract:
+def compile_blueprint(*, blueprint: BuildBlueprint, sources: Sequence[BoundSource] = (), settings: BuildSettings | None = None) -> BuildContract:
     """Compile a complete semantic blueprint into its frozen workflow contract."""
     return asyncio.run(_compile_blueprint(blueprint=blueprint, sources=sources, settings=settings))

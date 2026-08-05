@@ -6,7 +6,7 @@ from kg_build_system import (
     BuildBlueprint, DataSourceConfig, ExpressionBinding, Field, GraphComponent, InputFormat,
     ProjectedField, PropertySlot, bind, bind_source, build, compile_blueprint,
     component_template, create_blueprint, edge, edge_binding, field, node, node_binding, projection,
-    projected_field, property, struct, table, table_template, value, collection, WorkflowArtifactRoles,
+    projected_field, property, struct, table, table_group, table_template, value, collection, WorkflowArtifactRoles, include,
 )
 from kg_build_system.expressions import Expression, FieldPath
 from kg_build_system.modules import CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration, MergeCompatibleFactsModule, RejectConflictingNonNullValuesConfiguration, RejectConflictingNonNullValuesModule
@@ -79,7 +79,50 @@ class ExplicitGraphShape(GraphComponent):
 class TemplatedThing(ImplicitGraphShape, ExplicitGraphShape):
     pass
 
+
+@table(name="grouped_input")
+class GroupedInput:
+    identifier: Field[str] = field(name="identifier")
+
+
+@table(name="grouped_endpoint")
+class GroupedEndpoint:
+    identifier: Field[str] = field(name="identifier")
+
+
+@table_group(name="nested")
+class NestedInputs:
+    input = include(GroupedInput)
+
+
+@table_group(name="release")
+class GroupedInputs:
+    nested = include(NestedInputs)
+    endpoint = include(GroupedEndpoint)
+
 class VerticalSliceTests(unittest.TestCase):
+    def test_table_groups_expand_nested_catalog_paths_and_sources(self) -> None:
+        grouped_source = bind_source(
+            target=GroupedInputs,
+            config=DataSourceConfig("fixtures", format=InputFormat.JSON, layout="{group_path}/{table_name}.json"),
+        )
+        self.assertEqual(
+            (grouped_source.group, grouped_source.config.location),  # type: ignore[union-attr]
+            (GroupedInputs, "fixtures"),
+        )
+        blueprint = create_blueprint(
+            bindings=[node_binding(target=Thing, build_key=GroupedInput.identifier, properties=Thing(label=bind(GroupedInput.identifier)))],
+            sources=[grouped_source],
+            modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration("unused.jsonl"))],
+        )
+        self.assertEqual(
+            tuple((source.table, source.location) for source in blueprint.sources),
+            (
+                ("GroupedInput", "fixtures/release/nested/grouped_input.json"),
+                ("GroupedEndpoint", "fixtures/release/grouped_endpoint.json"),
+            ),
+        )
+
     def test_implicit_and_explicit_data_templates_are_resolved_by_final_tables(self) -> None:
         self.assertEqual(TemplatedInput._data_declaration_kind, "table")
         self.assertEqual(ExplicitTableShape._data_declaration_kind, "table_template")
