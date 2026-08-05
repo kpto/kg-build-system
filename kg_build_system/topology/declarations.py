@@ -1,7 +1,7 @@
 """Graph component declaration decorators."""
 from __future__ import annotations
 from dataclasses import dataclass
-from typing import Any, Protocol, TypeVar, cast, get_type_hints
+from typing import Any, Protocol, TypeVar, cast, get_type_hints, overload
 from .models import GraphComponent, PropertySlot, properties_for, property
 from .._support.naming import declaration_name
 
@@ -43,13 +43,24 @@ def _component(kind: str, *, name: str | None = None, **metadata: Any) -> Compon
     return cast(ComponentDecorator, decorate)
 
 
-def component_template(*, name: str | None = None, **metadata: Any) -> ComponentDecorator:
+@overload
+def component_template(cls: type[C]) -> type[C]: ...
+@overload
+def component_template(*, name: str | None = None, **metadata: Any) -> ComponentDecorator: ...
+def component_template(cls: type[C] | None = None, *, name: str | None = None, **metadata: Any) -> type[C] | ComponentDecorator:
     def decorate(cls: type[C]) -> type[C]:
         cls._kind, cls._properties, cls._metadata = "component", properties_for(cls), _metadata(cls, metadata)
         cls._component_name = name or declaration_name(cls.__name__, suffixes=("ComponentTemplate", "Template"))
         cls._component_declaration_kind = "template"
         return cls
-    return cast(ComponentDecorator, decorate)
+    return decorate if cls is None else decorate(cls)
 
-def node(*, name: str | None = None, **metadata: Any) -> ComponentDecorator: return _component("node", name=name, **metadata)
+@overload
+def node(cls: type[C]) -> type[C]: ...
+@overload
+def node(*, name: str | None = None, **metadata: Any) -> ComponentDecorator: ...
+def node(cls: type[C] | None = None, *, name: str | None = None, **metadata: Any) -> type[C] | ComponentDecorator:
+    decorate = _component("node", name=name, **metadata)
+    return decorate if cls is None else decorate(cls)
+
 def edge(*, source: type[GraphComponent], target: type[GraphComponent], name: str | None = None, **metadata: Any) -> ComponentDecorator: return _component("edge", name=name, source=source, target=target, **metadata)

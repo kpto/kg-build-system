@@ -61,15 +61,23 @@ def _prepare(cls: type[C], kind: str, *, name: str | None = None, metadata: dict
         setattr(cls, "_table_name", resolved_name)
     return cls
 
-def table(*, name: str | None = None) -> TableDecorator:
+@overload
+def table(cls: type[C]) -> type[C]: ...
+@overload
+def table(*, name: str | None = None) -> TableDecorator: ...
+def table(cls: type[C] | None = None, *, name: str | None = None) -> type[C] | TableDecorator:
     def decorate(cls: type[C]) -> type[C]: return _prepare(cls, "table", name=name)
-    return cast(TableDecorator, decorate)
+    return decorate if cls is None else decorate(cls)
 
-def table_template(*, name: str | None = None, description: str | None = None, **metadata: Any) -> TableDecorator:
+@overload
+def table_template(cls: type[C]) -> type[C]: ...
+@overload
+def table_template(*, name: str | None = None, description: str | None = None, **metadata: Any) -> TableDecorator: ...
+def table_template(cls: type[C] | None = None, *, name: str | None = None, description: str | None = None, **metadata: Any) -> type[C] | TableDecorator:
     if description is not None:
         metadata["description"] = description
     def decorate(cls: type[C]) -> type[C]: return _prepare(cls, "table_template", name=name, metadata=metadata)
-    return cast(TableDecorator, decorate)
+    return decorate if cls is None else decorate(cls)
 
 
 def include(target: type) -> Included:
@@ -78,7 +86,11 @@ def include(target: type) -> Included:
     return Included(target)
 
 
-def table_group(*, name: str | None = None) -> TableGroupDecorator:
+@overload
+def table_group(cls: type[C]) -> type[C]: ...
+@overload
+def table_group(*, name: str | None = None) -> TableGroupDecorator: ...
+def table_group(cls: type[C] | None = None, *, name: str | None = None) -> type[C] | TableGroupDecorator:
     def decorate(cls: type[C]) -> type[C]:
         entries = tuple(value.target for value in vars(cls).values() if isinstance(value, Included))
         if not entries:
@@ -88,7 +100,7 @@ def table_group(*, name: str | None = None) -> TableGroupDecorator:
         setattr(cls, "_table_group_entries", entries)
         _group_tables(cls)  # validate nesting and duplicate table inclusion eagerly
         return cls
-    return cast(TableGroupDecorator, decorate)
+    return decorate if cls is None else decorate(cls)
 
 
 def _group_tables(group: type, prefix: tuple[str, ...] = (), visited: tuple[type, ...] = ()) -> tuple[tuple[type, tuple[str, ...]], ...]:

@@ -106,6 +106,36 @@ class AutoNamedTableGroup:
     input = include(GroupedInput)
 
 
+@table
+class BareTable:
+    identifier: Field[str] = field()
+
+
+@table_template
+class BareTemplate:
+    label: Field[str] = field()
+
+
+@struct
+class BareStruct:
+    value: Field[str] = field()
+
+
+@node
+class BareNode(GraphComponent):
+    label: PropertySlot[str] = property()
+
+
+@component_template
+class BareComponentTemplate(GraphComponent):
+    label: PropertySlot[str] = property()
+
+
+@table_group
+class BareTableGroup:
+    table = include(BareTable)
+
+
 @node()
 class TargetNode(GraphComponent):
     displayName: PropertySlot[str] = property(nullable=False)
@@ -134,6 +164,12 @@ class VerticalSliceTests(unittest.TestCase):
         self.assertEqual(CamelCaseProjection._projection_name, "camel_case")
         self.assertEqual(CamelCaseProjection.targetID.path, ("target_id",))
         self.assertEqual(AutoNamedTableGroup._table_group_name, "auto_named")
+        self.assertEqual(BareTable._table_name, "bare")
+        self.assertEqual(BareTemplate._data_name, "bare")
+        self.assertEqual(BareStruct._data_name, "bare")
+        self.assertEqual(BareNode._component_name, "bare")
+        self.assertEqual(BareComponentTemplate._component_name, "bare")
+        self.assertEqual(BareTableGroup._table_group_name, "bare")
 
         @table(name="external_input")
         class ExplicitNameTable:
