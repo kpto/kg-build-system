@@ -1,6 +1,6 @@
 from kg_build_system import Field, field, table
 
-from demo.data.templates.study import StudyDetailsStruct, StudyReferenceTemplate
+from demo.table.templates.study import StudyDetailsStruct, StudyReferenceTemplate
 
 
 @table()

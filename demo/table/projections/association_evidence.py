@@ -1,6 +1,6 @@
 from kg_build_system import ProjectedField, collection, projected_field, projection
 
-from demo.data.contracts.association import AssociationTable
+from demo.table.contracts.association import AssociationTable
 
 
 @projection

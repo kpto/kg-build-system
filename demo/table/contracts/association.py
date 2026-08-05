@@ -1,7 +1,7 @@
 from kg_build_system import Field, field, table
 
-from demo.data.templates.evidence import EvidenceStruct
-from demo.data.templates.study import StudyReferenceTemplate
+from demo.table.templates.evidence import EvidenceStruct
+from demo.table.templates.study import StudyReferenceTemplate
 
 
 @table()

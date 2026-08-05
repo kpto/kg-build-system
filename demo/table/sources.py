@@ -1,7 +1,7 @@
 from pathlib import Path
 
 from kg_build_system import DataSourceConfig, InputFormat, bind_source
-from kg_build_system.data.models import BoundSource
+from kg_build_system.table.models import BoundSource
 
 from .groups import EvidenceRelease2025_06TableGroup
 

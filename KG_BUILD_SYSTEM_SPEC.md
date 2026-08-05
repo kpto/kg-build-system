@@ -412,7 +412,7 @@ interchange writer; Neo4j is the first database target.
 kg_build_system/
   specification/     # shared foundations
   topology/          # graph declarations and codecs
-  data/              # contracts, sources, projections
+  table/             # contracts, sources, projections
   binding/           # graph bindings and expression constructors
   compile/           # abstract and concrete definitions
   build/             # DuckDB execution and reports

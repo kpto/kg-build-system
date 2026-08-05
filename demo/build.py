@@ -22,8 +22,8 @@ from kg_build_system.modules import (
 )
 
 from demo.bindings.bindings import demo_bindings
-from demo.data.projections.association_evidence import AssociationEvidenceProjection
-from demo.data.sources import demo_sources
+from demo.table.projections.association_evidence import AssociationEvidenceProjection
+from demo.table.sources import demo_sources
 
 
 OUTPUT_DIRECTORY = Path(__file__).parent / "output"

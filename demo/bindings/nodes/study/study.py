@@ -1,6 +1,6 @@
 from kg_build_system import bind, node_binding, value
 
-from demo.data.contracts.study import StudyTable
+from demo.table.contracts.study import StudyTable
 from demo.topology.nodes.study.study import StudyNode
 
 

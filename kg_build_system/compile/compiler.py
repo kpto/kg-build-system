@@ -9,9 +9,9 @@ from hashlib import sha256
 import json
 from typing import Any, Literal, cast, get_type_hints
 from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
-from ..data import BoundSource, BoundTable
-from ..data.declarations import resolve_bound_source
-from ..data.declarations import is_concrete_table
+from ..table import BoundSource, BoundTable
+from ..table.declarations import resolve_bound_source
+from ..table.declarations import is_concrete_table
 from ..topology.declarations import is_final_component
 from .models import (
     BindingDefinition, BlueprintModule, BuildBlueprint, BuildContract, BuildSettings,

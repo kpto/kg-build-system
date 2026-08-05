@@ -39,7 +39,7 @@ class FieldPath(Generic[T]):
             return FieldPath[Any](self.table, self.path, item, "collection", self.collection_paths)
         shape = item or type_shape(self.type_hint).annotation
         # Imported lazily to avoid the data-model -> expression import cycle.
-        from ..data.models import fields_for
+        from ..table.models import fields_for
         fields = fields_for(shape) if isinstance(shape, type) else {}
         if part not in fields:
             raise AttributeError(f"{self.type_hint!r} has no declared field {part!r}")

@@ -1,7 +1,7 @@
 from kg_build_system import bind, edge_binding, lookup, value
 
-from demo.data.contracts.study import StudyTable
-from demo.data.projections.association_evidence import AssociationEvidenceProjection
+from demo.table.contracts.study import StudyTable
+from demo.table.projections.association_evidence import AssociationEvidenceProjection
 from demo.topology.nodes.target.edges.associated_with_disease import AssociatedWithEdge
 
 
