@@ -10,6 +10,8 @@ import json
 from typing import Any, Literal, cast, get_type_hints
 from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
 from ..data import BoundTable
+from ..data.declarations import is_concrete_table
+from ..topology.declarations import is_final_component
 from .models import (
     BindingDefinition, BlueprintModule, BuildBlueprint, BuildContract, BuildSettings,
     BuildOverrides, ComponentDefinition, Connection, EdgeBindingDefinition, FieldReference, LiteralValue,
@@ -60,7 +62,24 @@ def _binding(binding: NodeBinding | EdgeBinding, *, symbol_id: str) -> BindingDe
 
 def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
     """Checks requiring declaration metadata, before it is discarded into IR."""
+    if not is_final_component(binding.target):
+        raise TypeError("graph bindings require a final @node or @edge target")
+    expected_kind = "edge" if isinstance(binding, EdgeBinding) else "node"
+    if binding.target._kind != expected_kind:
+        raise TypeError(f"{expected_kind}_binding requires a final @{expected_kind} target")
+    def validate_input(value: Expression[Any] | FieldPath[Any] | Any) -> None:
+        if isinstance(value, FieldPath):
+            if not is_concrete_table(value.table) and not hasattr(value.table, "_projection_fields"):
+                raise TypeError("graph bindings may reference only final @table inputs or projections")
+        elif isinstance(value, Expression):
+            for argument in value.args:
+                validate_input(argument)
+    validate_input(binding.build_key)
+    if isinstance(binding, EdgeBinding):
+        validate_input(binding.source_build_key)
+        validate_input(binding.target_build_key)
     for name, value in _property_expressions(binding).items():
+        validate_input(value)
         if getattr(value, "cardinality", "scalar") == "collection":
             raise TypeError(f"{binding.target.__name__}.{name} maps a collection; use collection.expand(...) explicitly")
         property_declaration = binding.target._properties[name]

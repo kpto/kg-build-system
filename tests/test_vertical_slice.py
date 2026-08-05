@@ -5,8 +5,8 @@ from tempfile import TemporaryDirectory
 from kg_build_system import (
     BuildBlueprint, DataSourceConfig, ExpressionBinding, Field, GraphComponent, InputFormat,
     ProjectedField, PropertySlot, bind, bind_source, build, compile_blueprint,
-    create_blueprint, edge, edge_binding, field, node, node_binding, projection,
-    projected_field, property, struct, table, value, collection, WorkflowArtifactRoles,
+    component_template, create_blueprint, edge, edge_binding, field, node, node_binding, projection,
+    projected_field, property, struct, table, table_template, value, collection, WorkflowArtifactRoles,
 )
 from kg_build_system.expressions import Expression, FieldPath
 from kg_build_system.modules import CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration, MergeCompatibleFactsModule, RejectConflictingNonNullValuesConfiguration, RejectConflictingNonNullValuesModule
@@ -46,7 +46,103 @@ class ExpandedInput:
     related: ProjectedField[str] = projected_field(collection.expand(Input.evidence.element.disease_id))
     weight: ProjectedField[float] = projected_field(Input.weight)
 
+
+class ImplicitDetails:
+    code: Field[str] = field(name="code")
+
+
+class ImplicitTableShape:
+    identifier: Field[str] = field(name="identifier")
+    details: Field[ImplicitDetails] = field(name="details")
+
+
+@table_template(name="explicit_shape", description="Reusable input shape")
+class ExplicitTableShape:
+    label: Field[str] = field(name="label")
+
+
+@table(name="templated_input")
+class TemplatedInput(ImplicitTableShape, ExplicitTableShape):
+    pass
+
+
+class ImplicitGraphShape(GraphComponent):
+    label: PropertySlot[str] = property(name="label", nullable=False)
+
+
+@component_template(description="Reusable graph component shape")
+class ExplicitGraphShape(GraphComponent):
+    description: PropertySlot[str | None] = property(name="description")
+
+
+@node()
+class TemplatedThing(ImplicitGraphShape, ExplicitGraphShape):
+    pass
+
 class VerticalSliceTests(unittest.TestCase):
+    def test_implicit_and_explicit_data_templates_are_resolved_by_final_tables(self) -> None:
+        self.assertEqual(TemplatedInput._data_declaration_kind, "table")
+        self.assertEqual(ExplicitTableShape._data_declaration_kind, "table_template")
+        self.assertEqual(ExplicitTableShape._data_metadata["description"], "Reusable input shape")
+        self.assertEqual(TemplatedInput._data_metadata["description"], "Reusable input shape")
+        self.assertEqual(TemplatedInput.identifier.type_hint, str)
+        self.assertEqual(TemplatedInput.label.type_hint, str)
+        self.assertEqual(TemplatedInput.details.code.path, ("details", "code"))
+        self.assertEqual(TemplatedInput.details.code.table, TemplatedInput)
+
+    def test_explicit_struct_is_optional_but_can_carry_metadata(self) -> None:
+        @struct(name="annotated_details", description="A reusable nested record")
+        class AnnotatedDetails:
+            code: Field[str] = field(name="code")
+
+        @table(name="annotated_input")
+        class AnnotatedInput:
+            details: Field[AnnotatedDetails] = field(name="details")
+
+        self.assertEqual(AnnotatedDetails._data_declaration_kind, "struct")
+        self.assertEqual(AnnotatedDetails._data_metadata["description"], "A reusable nested record")
+        self.assertEqual(AnnotatedInput.details.code.path, ("details", "code"))
+
+    def test_final_table_and_component_inheritance_is_rejected(self) -> None:
+        with self.assertRaisesRegex(TypeError, "final @table"):
+            @table(name="invalid_table")
+            class InvalidTable(Input):
+                pass
+
+        with self.assertRaisesRegex(TypeError, "final graph component"):
+            @node()
+            class InvalidComponent(Thing):
+                pass
+
+    def test_templates_are_not_executable_inputs(self) -> None:
+        with self.assertRaisesRegex(TypeError, "final @table"):
+            bind_source(target=ExplicitTableShape, config=DataSourceConfig("unused.json"))
+
+        with self.assertRaisesRegex(TypeError, "final @table"):
+            @projection
+            class InvalidProjection:
+                label = projected_field(ExplicitTableShape.label)
+
+        with self.assertRaisesRegex(TypeError, "final @node or @edge"):
+            create_blueprint(
+                bindings=[node_binding(target=ImplicitGraphShape, build_key=TemplatedInput.identifier, properties=TemplatedThing(label=bind(TemplatedInput.label), description=bind(value.literal(None))))],
+                sources=[bind_source(target=TemplatedInput, config=DataSourceConfig("unused.json"))],
+                modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration("unused.jsonl"))],
+            )
+
+        with self.assertRaisesRegex(TypeError, "final @table inputs"):
+            create_blueprint(
+                bindings=[node_binding(target=TemplatedThing, build_key=ExplicitTableShape.label, properties=TemplatedThing(label=bind(ExplicitTableShape.label), description=bind(value.literal(None))))],
+                modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration("unused.jsonl"))],
+            )
+
+    def test_implicit_and_explicit_component_templates_are_inherited(self) -> None:
+        self.assertEqual(TemplatedThing._kind, "node")
+        self.assertEqual(set(TemplatedThing._properties), {"label", "description"})
+        self.assertEqual(TemplatedThing._metadata["description"], "Reusable graph component shape")
+        instance = TemplatedThing(label=bind(value.literal("thing")), description=bind(value.literal(None)))
+        self.assertIsInstance(instance.label, ExpressionBinding)
+
     def test_core_artifact_roles_are_a_stable_extension_vocabulary(self) -> None:
         role = CoreArtifactRoles.graph_records("node", "Thing")
         self.assertEqual(role, ArtifactRole(namespace="core", name="graph.node.Thing"))

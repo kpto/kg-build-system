@@ -2,7 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, Generic, Self, TypeVar, overload
+from typing import Any, Generic, Self, TypeVar, get_args, get_type_hints, overload
 from ..expressions import Expression, FieldPath, item_type
 
 T = TypeVar("T")
@@ -24,6 +24,18 @@ class Field(Generic[T]):
         if instance is not None: return self
         path = (self.name or self.attr,); collections = (path,) if item_type(self.type_hint) is not None else ()
         return FieldPath[T](owner or object, path, self.type_hint, "collection" if collections else "scalar", collections)
+
+
+def fields_for(cls: type) -> dict[str, "Field[Any]"]:
+    """Resolve the declared data shape for final declarations and plain mixins alike."""
+    fields: dict[str, Field[Any]] = {}
+    for base in reversed(cls.__mro__):
+        fields.update({name: value for name, value in vars(base).items() if isinstance(value, Field)})
+    hints = get_type_hints(cls)
+    for attribute, descriptor in fields.items():
+        arguments = get_args(hints.get(attribute, Any))
+        object.__setattr__(descriptor, "type_hint", arguments[0] if arguments else Any)
+    return fields
 
 @dataclass(frozen=True)
 class ProjectedField(Generic[T]):

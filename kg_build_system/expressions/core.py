@@ -37,7 +37,10 @@ class FieldPath(Generic[T]):
             if item is None:
                 raise AttributeError("element is only available on a collection field path")
             return FieldPath[Any](self.table, self.path, item, "collection", self.collection_paths)
-        fields = getattr(item or type_shape(self.type_hint).annotation, "_fields", {})
+        shape = item or type_shape(self.type_hint).annotation
+        # Imported lazily to avoid the data-model -> expression import cycle.
+        from ..data.models import fields_for
+        fields = fields_for(shape) if isinstance(shape, type) else {}
         if part not in fields:
             raise AttributeError(f"{self.type_hint!r} has no declared field {part!r}")
         field = fields[part]
