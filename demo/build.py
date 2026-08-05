@@ -1,12 +1,16 @@
 """Composition root for the structured authoring reference.
 
-Run ``python -m demo.basic`` to compile the declarations and write inspectable
+Run ``python demo/build.py`` to compile the declarations and write inspectable
 artifacts under ``demo/output``.
 """
 
 from dataclasses import asdict
 import json
 from pathlib import Path
+import sys
+
+if __package__ in {None, ""}:
+    sys.path.insert(0, str(Path(__file__).parents[1]))
 
 from kg_build_system import BuildBlueprint, BuildContract, build, compile_blueprint, create_blueprint
 from kg_build_system.modules import (
@@ -17,8 +21,9 @@ from kg_build_system.modules import (
     RejectConflictingNonNullValuesModule,
 )
 
-from demo.bindings import demo_bindings
-from demo.data import AssociationEvidence, demo_sources
+from demo.bindings.bindings import demo_bindings
+from demo.data.projections.association_evidence import AssociationEvidence
+from demo.data.sources import demo_sources
 
 
 OUTPUT_DIRECTORY = Path(__file__).parent / "output"
@@ -61,3 +66,7 @@ def run_demo() -> None:
         encoding="utf-8",
     )
     print(report)
+
+
+if __name__ == "__main__":
+    run_demo()
