@@ -5,4 +5,4 @@ from kg_build_system import GraphComponent, PropertySlot, component_template, pr
 
 @component_template(description="A graph component with a required human-readable name.")
 class NamedGraphComponentTemplate(GraphComponent):
-    name: PropertySlot[str] = property(nullable=False)
+    name: PropertySlot[str] = property()

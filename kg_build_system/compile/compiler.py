@@ -56,7 +56,7 @@ def _to_ir(value: Expression[Any] | FieldPath[Any] | Any) -> Value:
     return LiteralValue(value=value, value_type=_value_type(type(value)))
 
 def _component(component: type) -> ComponentDefinition:
-    metadata = component._metadata; properties = tuple(PropertyDefinition(name=prop.name or attr, value_type=_value_type(prop.type_hint), nullable=prop.nullable) for attr, prop in component._properties.items())
+    metadata = component._metadata; properties = tuple(PropertyDefinition(name=prop.name or attr, value_type=_value_type(prop.type_hint), nullable=_value_type(prop.type_hint).nullable) for attr, prop in component._properties.items())
     return ComponentDefinition(name=component._component_name, kind=component._kind, properties=properties, source=getattr(metadata.get("source"), "_component_name", None), target=getattr(metadata.get("target"), "_component_name", None))
 
 def _binding(binding: NodeBinding | EdgeBinding, *, symbol_id: str) -> BindingDefinition:
@@ -92,7 +92,7 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
         actual = _value_type(getattr(value, "type_hint", Any), getattr(value, "cardinality", "scalar"))
         if expected.kind == "scalar" and actual.kind == "scalar" and expected.name != "unknown" and actual.name != "unknown" and expected.name != actual.name:
             raise TypeError(f"{binding.target.__name__}.{name} expects {expected.name}, but expression resolves to {actual.name}")
-        if not property_declaration.nullable and actual.nullable:
+        if not expected.nullable and actual.nullable:
             raise TypeError(f"{binding.target.__name__}.{name} is required but expression may be null")
     if getattr(binding.build_key, "cardinality", "scalar") == "collection":
         raise TypeError(f"{binding.target.__name__} build key maps a collection; use collection.expand(...) explicitly")

@@ -7,9 +7,11 @@ from kg_build_system import Field, field, table
 class TargetTable:
     target_id: Field[str] = field()
     symbol: Field[str] = field()
+    description: Field[str | None] = field()
 
 
 @table()
 class DiseaseTable:
     disease_id: Field[str] = field()
     name: Field[str] = field()
+    description: Field[str | None] = field()

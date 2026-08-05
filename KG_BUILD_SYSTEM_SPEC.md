@@ -99,6 +99,10 @@ contract base class is required.
 Framework metadata is `ClassVar` or unannotated, so it is not an author-facing
 constructor parameter.
 
+Property nullability is expressed only by its type: `PropertySlot[str]` is
+required and `PropertySlot[str | None]` is nullable. The `property()` factory
+has no `nullable` argument.
+
 ### Declaration names and decorator forms
 
 Every declaration has a stable logical name. An explicit `name=` wins;
@@ -142,19 +146,19 @@ properties, direction, cardinality where known, and annotations.
 ```python
 @node(description="A biological target.")
 class TargetNode(GraphComponent):
-    symbol: PropertySlot[str] = property(nullable=False)
+    symbol: PropertySlot[str] = property()
     name: PropertySlot[str | None] = property()
 
 
 @node(description="A disease or phenotype.")
 class DiseaseNode(GraphComponent):
-    name: PropertySlot[str] = property(nullable=False)
+    name: PropertySlot[str] = property()
     description: PropertySlot[str | None] = property()
 
 
 @edge(source=TargetNode, target=DiseaseNode, description="Evidence-backed association.")
 class AssociatedWithEdge(GraphComponent):
-    score: PropertySlot[float] = property(nullable=False)
+    score: PropertySlot[float] = property()
 ```
 
 Annotations express semantics or target hints: ontology terms, indexes,

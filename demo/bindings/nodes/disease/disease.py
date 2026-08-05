@@ -8,5 +8,8 @@ disease_from_reference = node_binding(
     debug_name="disease_from_reference",
     target=DiseaseNode,
     build_key=value.concat("disease::", DiseaseTable.disease_id),
-    properties=DiseaseNode(name=bind(DiseaseTable.name)),
+    properties=DiseaseNode(
+        name=bind(DiseaseTable.name),
+        description=bind(DiseaseTable.description),
+    ),
 )

@@ -10,7 +10,6 @@ T = TypeVar("T")
 class PropertySlot(Generic[T]):
     name: str | None = None
     description: str | None = None
-    nullable: bool = True
     type_hint: Any = None
     attr: str = ""
     def __set_name__(self, owner: type, attr: str) -> None:
@@ -29,8 +28,8 @@ def properties_for(cls: type) -> dict[str, "PropertySlot[Any]"]:
         object.__setattr__(slot, "type_hint", arguments[0] if arguments else Any)
     return properties
 
-def property[T](*, name: str | None = None, description: str | None = None, nullable: bool = True) -> PropertySlot[T]:  # pyright: ignore[reportInvalidTypeVarUse]
-    return PropertySlot(name=name, description=description, nullable=nullable)
+def property[T](*, name: str | None = None, description: str | None = None) -> PropertySlot[T]:  # pyright: ignore[reportInvalidTypeVarUse]
+    return PropertySlot(name=name, description=description)
 
 @dataclass_transform(field_specifiers=(property,), kw_only_default=True)
 class GraphComponent:

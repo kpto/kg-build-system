@@ -17,7 +17,7 @@ POST_PROCESSING = [CollapseExactDuplicatesModule(), RejectConflictingNonNullValu
 
 @node()
 class Thing(GraphComponent):
-    label: PropertySlot[str] = property(name="label", nullable=False)
+    label: PropertySlot[str] = property(name="label")
 
 @edge(source=Thing, target=Thing)
 class Related(GraphComponent):
@@ -67,7 +67,7 @@ class TemplatedInput(ImplicitTableShape, ExplicitTableShape):
 
 
 class ImplicitGraphShape(GraphComponent):
-    label: PropertySlot[str] = property(name="label", nullable=False)
+    label: PropertySlot[str] = property(name="label")
 
 
 @component_template(description="Reusable graph component shape")
@@ -138,7 +138,7 @@ class BareTableGroup:
 
 @node()
 class TargetNode(GraphComponent):
-    displayName: PropertySlot[str] = property(nullable=False)
+    displayName: PropertySlot[str] = property()
 
 
 @edge(source=TargetNode, target=TargetNode)
@@ -156,6 +156,28 @@ class CamelCaseProjection:
     targetID: ProjectedField[str] = projected_field(CamelCaseTable.targetID)
 
 class VerticalSliceTests(unittest.TestCase):
+    def test_property_nullability_is_derived_from_its_type(self) -> None:
+        blueprint = create_blueprint(
+            bindings=[
+                node_binding(
+                    target=TemplatedThing,
+                    build_key=TemplatedInput.identifier,
+                    properties=TemplatedThing(
+                        label=bind(TemplatedInput.label),
+                        description=bind(TemplatedInput.label),
+                    ),
+                ),
+            ],
+            modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration("unused.jsonl"))],
+        )
+        component = next(item for item in blueprint.components if item.name == "templated_thing")
+        self.assertEqual({item.name: item.nullable for item in component.properties}, {
+            "label": False,
+            "description": True,
+        })
+        with self.assertRaisesRegex(TypeError, "nullable"):
+            property(nullable=False)  # type: ignore[call-arg]
+
     def test_auto_names_use_snake_case_and_kind_suffixes(self) -> None:
         self.assertEqual(TargetNode._component_name, "target")
         self.assertEqual(RelatedToEdge._component_name, "related_to")

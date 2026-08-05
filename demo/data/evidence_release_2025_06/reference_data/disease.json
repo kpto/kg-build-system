@@ -1,3 +1,3 @@
-{"disease_id":"MONDO:0001","name":"Example genetic disease"}
-{"disease_id":"MONDO:0002","name":"Example literature disease"}
-{"disease_id":"MONDO:0003","name":"Example curated disease"}
+{"disease_id":"MONDO:0001","name":"Example genetic disease","description":"A disease supported by genetic evidence"}
+{"disease_id":"MONDO:0002","name":"Example literature disease","description":null}
+{"disease_id":"MONDO:0003","name":"Example curated disease","description":"A curated disease reference"}

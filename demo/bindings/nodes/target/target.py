@@ -8,5 +8,8 @@ target_from_reference = node_binding(
     debug_name="target_from_reference",
     target=TargetNode,
     build_key=value.concat("target::", TargetTable.target_id),
-    properties=TargetNode(symbol=bind(TargetTable.symbol)),
+    properties=TargetNode(
+        symbol=bind(TargetTable.symbol),
+        description=bind(TargetTable.description),
+    ),
 )

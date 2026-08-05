@@ -16,3 +16,4 @@ class StudyReferenceTemplate:
 @struct(description="Descriptive fields attached to a study.")
 class StudyDetailsStruct:
     name: Field[str] = field()
+    description: Field[str | None] = field()
