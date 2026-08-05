@@ -8,5 +8,5 @@ wheels/
 
 # Virtual environments
 .venv
-demo/output/
+demo/build/
 .uv-cache/
