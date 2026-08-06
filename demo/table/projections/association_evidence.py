@@ -9,10 +9,10 @@ class AssociationEvidenceProjection(Projection):
     target_id: ProjectedField[str] = projected_field(AssociationTable.target_id)
     target_symbol: ProjectedField[str] = projected_field(AssociationTable.target_symbol)
     disease_id: ProjectedField[str] = projected_field(
-        collection.expand(AssociationTable.evidence.element.disease_id)
+        collection.expand(AssociationTable.evidence.e.disease_id)
     )
     evidence_label: ProjectedField[str] = projected_field(
-        collection.expand(AssociationTable.evidence.element.labels)
+        collection.expand(AssociationTable.evidence.e.labels)
     )
     study_id: ProjectedField[str] = projected_field(AssociationTable.study_id)
     score: ProjectedField[float] = projected_field(AssociationTable.score)

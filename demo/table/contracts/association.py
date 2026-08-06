@@ -1,4 +1,4 @@
-from kg_build_system import Field, Table, field
+from kg_build_system import CollectionField, Field, Table, collection_field, field
 
 from demo.table.templates.evidence import EvidenceStruct
 from demo.table.templates.study import StudyReferenceTemplate
@@ -9,5 +9,5 @@ class AssociationTable(StudyReferenceTemplate, Table):
 
     target_id: Field[str] = field()
     target_symbol: Field[str] = field()
-    evidence: Field[list[EvidenceStruct]] = field()
+    evidence: CollectionField[EvidenceStruct] = collection_field()
     score: Field[float] = field()

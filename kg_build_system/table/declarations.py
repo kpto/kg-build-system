@@ -7,16 +7,25 @@ from typing import Sequence, TypeVar
 from ..annotations import Annotation, annotation_tuple
 from ..expressions import Expression, ValueRef
 from .models import (
-    BoundSource, BoundTable, BoundTableGroup, DataSourceConfig, Field,
-    ProjectedField, SourceBindingOptions, TablePathValueRefMetadata,
+    BoundSource, BoundTable, BoundTableGroup, CollectionField, DataSourceConfig, Field,
+    ProjectedField, SourceBindingOptions, Struct, StructField, TablePathValueRefMetadata,
 )
 
 
 T = TypeVar("T")
+S = TypeVar("S", bound=Struct)
 
 
 def field[T](*, name: str | None = None, description: str | None = None, annotations: Sequence[Annotation] = ()) -> Field[T]:  # pyright: ignore[reportInvalidTypeVarUse]
     return Field(_metadata=TablePathValueRefMetadata(name=name, description=description, annotations=annotation_tuple(list(annotations))))
+
+
+def struct_field(*, name: str | None = None, description: str | None = None, annotations: Sequence[Annotation] = ()) -> StructField[S]:  # pyright: ignore[reportInvalidTypeVarUse]
+    return StructField(_metadata=TablePathValueRefMetadata(name=name, description=description, annotations=annotation_tuple(list(annotations))))
+
+
+def collection_field[T](*, name: str | None = None, description: str | None = None, annotations: Sequence[Annotation] = ()) -> CollectionField[T]:  # pyright: ignore[reportInvalidTypeVarUse]
+    return CollectionField(_metadata=TablePathValueRefMetadata(name=name, description=description, annotations=annotation_tuple(list(annotations))))
 
 
 def projected_field[T](value: Expression[T] | ValueRef[T], *, annotations: Sequence[Annotation] = ()) -> ProjectedField[T]:

@@ -9,7 +9,7 @@ study_from_contract = node_binding(
     target=StudyNode,
     build_key=value.concat("study::", StudyTable.study_id),
     properties=StudyNode(
-        name=bind(value.coalesce(StudyTable.details.name, "Unknown study")),
-        description=bind(StudyTable.details.description),
+        name=bind(value.coalesce(StudyTable.details.m.name, "Unknown study")),
+        description=bind(StudyTable.details.m.description),
     ),
 )

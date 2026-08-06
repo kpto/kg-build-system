@@ -2,13 +2,14 @@
 from __future__ import annotations
 from dataclasses import dataclass, field as dataclass_field, replace
 from enum import StrEnum
-from typing import Any, ClassVar, Generic, Self, TypeAlias, TypeVar, get_args, get_type_hints, overload
+from typing import Any, ClassVar, Generic, Self, TypeAlias, TypeVar, cast, get_args, get_type_hints, overload
 from ..annotations import Annotation, annotation_tuple
 from ..expressions import Expression, ValueRef, item_type
 from .._support.annotations import type_shape
 from .._support.naming import declaration_name, member_name
 
 T = TypeVar("T")
+S = TypeVar("S", bound="Struct")
 
 
 @dataclass(frozen=True)
@@ -54,6 +55,26 @@ class TablePathValueRef(ValueRef[T]):
         ))
 
 
+def _bound_metadata(
+    reference: TablePathValueRef[Any], instance: object | None, owner: type | None, *, collection: bool,
+) -> TablePathValueRefMetadata:
+    metadata = reference._metadata
+    if isinstance(instance, Struct):
+        parent = instance._metadata
+        path = parent.path + (metadata.name or metadata.attr,)
+        annotations = parent.annotations + metadata.annotations
+        table = parent.table
+        collection_paths = parent.collection_paths
+    else:
+        path = (metadata.name or metadata.attr,)
+        annotations = metadata.annotations
+        table = owner or object
+        collection_paths = ()
+    if collection:
+        collection_paths += (path,)
+    return replace(metadata, table=table, path=path, collection_paths=collection_paths, annotations=annotations)
+
+
 @dataclass(frozen=True)
 class Field(TablePathValueRef[T], Generic[T]):
     """A generic table descriptor and root table value reference."""
@@ -69,27 +90,85 @@ class Field(TablePathValueRef[T], Generic[T]):
     def __get__(self, instance: object, owner: type | None = None) -> Self: ...
 
     def __get__(self, instance: object | None, owner: type | None = None) -> Self:
-        if instance is not None:
+        if instance is not None and not isinstance(instance, Struct):
             return self
-        metadata = self._metadata
-        path = (metadata.name or metadata.attr,)
-        collections = (path,) if item_type(self.type_hint) is not None else ()
+        metadata = _bound_metadata(self, instance, owner, collection=item_type(self.type_hint) is not None)
         return replace(
             self,
-            cardinality="collection" if collections else "scalar",
-            _metadata=replace(metadata, table=owner or object, path=path, collection_paths=collections),
+            cardinality="collection" if metadata.collection_paths else "scalar",
+            _metadata=metadata,
         )
 
 
-def fields_for(cls: type) -> dict[str, "Field[Any]"]:
+@dataclass(frozen=True)
+class StructField(TablePathValueRef[S], Generic[S]):
+    """A reference to a declared struct, navigated through ``member`` or ``m``."""
+
+    def __set_name__(self, owner: type, attr: str) -> None:
+        metadata = self._metadata
+        object.__setattr__(self, "_metadata", replace(metadata, attr=attr, name=metadata.name or member_name(attr)))
+
+    def __get__(self, instance: object | None, owner: type | None = None) -> Self:
+        if instance is not None and not isinstance(instance, Struct):
+            return self
+        metadata = _bound_metadata(self, instance, owner, collection=False)
+        return replace(self, cardinality="collection" if metadata.collection_paths else "scalar", _metadata=metadata)
+
+    @property
+    def member(self) -> S:
+        shape = type_shape(self.type_hint).annotation
+        if not isinstance(shape, type) or not issubclass(shape, Struct):
+            raise TypeError("StructField requires a Struct type")
+        return cast(S, shape(_metadata=self._metadata))
+
+    @property
+    def m(self) -> S:
+        return self.member
+
+
+@dataclass(frozen=True)
+class CollectionField(TablePathValueRef[list[T]], Generic[T]):
+    """A collection reference, navigated through its ``element`` or ``e``."""
+
+    def __set_name__(self, owner: type, attr: str) -> None:
+        metadata = self._metadata
+        object.__setattr__(self, "_metadata", replace(metadata, attr=attr, name=metadata.name or member_name(attr)))
+
+    def __get__(self, instance: object | None, owner: type | None = None) -> Self:
+        if instance is not None and not isinstance(instance, Struct):
+            return self
+        return replace(self, cardinality="collection", _metadata=_bound_metadata(self, instance, owner, collection=True))
+
+    @property
+    def element(self) -> T:
+        shape = item_type(self.type_hint)
+        if not isinstance(shape, type) or not issubclass(shape, Struct):
+            raise TypeError("CollectionField.element requires a Struct item type")
+        return cast(T, shape(_metadata=self._metadata))
+
+    @property
+    def e(self) -> T:
+        return self.element
+
+
+def fields_for(cls: type) -> dict[str, "TablePathValueRef[Any]"]:
     """Resolve the declared data shape for final declarations and plain mixins alike."""
-    fields: dict[str, Field[Any]] = {}
+    fields: dict[str, TablePathValueRef[Any]] = {}
     for base in reversed(cls.__mro__):
-        fields.update({name: value for name, value in vars(base).items() if isinstance(value, Field)})
+        fields.update({name: value for name, value in vars(base).items() if isinstance(value, (Field, StructField, CollectionField))})
     hints = get_type_hints(cls)
     for attribute, descriptor in fields.items():
         arguments = get_args(hints.get(attribute, Any))
-        object.__setattr__(descriptor, "type_hint", arguments[0] if arguments else Any)
+        type_hint = arguments[0] if arguments else Any
+        if isinstance(descriptor, CollectionField):
+            type_hint = list[type_hint]
+        if isinstance(descriptor, Field):
+            shape = type_shape(type_hint)
+            structured_type = shape.item_annotation or shape.annotation
+            if isinstance(structured_type, type) and issubclass(structured_type, Struct):
+                required = "CollectionField" if shape.item_annotation is not None else "StructField"
+                raise TypeError(f"{cls.__name__}.{attribute} uses a Struct type; declare it with {required}")
+        object.__setattr__(descriptor, "type_hint", type_hint)
     return fields
 
 @dataclass(frozen=True)
@@ -258,6 +337,9 @@ class TableTemplate:
 class Struct:
     """Final reusable nested record declaration."""
     options: ClassVar[StructOptions] = StructOptions()
+
+    def __init__(self, *, _metadata: TablePathValueRefMetadata = TablePathValueRefMetadata()) -> None:
+        self._metadata = _metadata
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)

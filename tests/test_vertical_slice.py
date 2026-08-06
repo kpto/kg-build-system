@@ -3,12 +3,12 @@ from dataclasses import dataclass
 from pathlib import Path
 
 from kg_build_system import (
-    Annotation, BindingOptions, DataSourceConfig, Edge, Field, GraphComponent,
+    Annotation, BindingOptions, CollectionField, DataSourceConfig, Edge, Field, GraphComponent,
     GraphComponentOptions, InputFormat, Node, NodeOptions, Projection,
     ProjectionOptions, ProjectedField, PropertySlot, SourceBindingOptions,
-    Struct, Table, TableGroup, TableGroupOptions, TableOptions, TableTemplate,
-    TableTemplateOptions, ValueRef, bind, bind_source, build, collection, compile_blueprint,
-    create_blueprint, edge_binding, field, node_binding, projected_field,
+    Struct, StructField, Table, TableGroup, TableGroupOptions, TableOptions, TableTemplate,
+    TableTemplateOptions, ValueRef, bind, bind_source, build, collection, collection_field, compile_blueprint,
+    create_blueprint, edge_binding, field, node_binding, projected_field, struct_field,
     property, value,
 )
 from kg_build_system.compile.models import ModuleDefinition, ModuleReference
@@ -98,14 +98,24 @@ class EvidenceStruct(Struct):
 class InputTable(Table):
     identifier: Field[str] = field(name="target_id")
     label: Field[str] = field(name="target_symbol")
-    evidence: Field[list[EvidenceStruct]] = field()
+    evidence: CollectionField[EvidenceStruct] = collection_field()
     weight: Field[float] = field(name="score")
+
+
+class NestedStruct(Struct):
+    nested_field: Field[str] = field()
+
+
+class StructuredInputTable(Table):
+    a: Field[str] = field()
+    b: StructField[NestedStruct] = struct_field()
+    c: CollectionField[NestedStruct] = collection_field()
 
 
 class ExpandedInputProjection(Projection):
     identifier: ProjectedField[str] = projected_field(InputTable.identifier)
     label: ProjectedField[str] = projected_field(InputTable.label)
-    related: ProjectedField[str] = projected_field(collection.expand(InputTable.evidence.element.disease_id))
+    related: ProjectedField[str] = projected_field(collection.expand(InputTable.evidence.e.disease_id))
     weight: ProjectedField[float] = projected_field(InputTable.weight)
 
 
@@ -172,6 +182,25 @@ class AuthoringSurfaceTests(unittest.TestCase):
         self.assertEqual(len(Field.__parameters__), 1)
         self.assertFalse(hasattr(expressions, "FieldPath"))
         self.assertEqual(value.literal(reference).op, "value_ref")
+
+    def test_struct_and_collection_fields_navigate_through_non_value_structs(self) -> None:
+        self.assertNotIsInstance(StructuredInputTable.b.member, ValueRef)
+        self.assertEqual(StructuredInputTable.b.member.nested_field._metadata.path, ("b", "nested_field"))
+        self.assertEqual(StructuredInputTable.b.m.nested_field._metadata.path, ("b", "nested_field"))
+        self.assertEqual(StructuredInputTable.c.element.nested_field._metadata.path, ("c", "nested_field"))
+        self.assertEqual(StructuredInputTable.c.e.nested_field._metadata.path, ("c", "nested_field"))
+        self.assertEqual(StructuredInputTable.c.element.nested_field._metadata.collection_paths, (("c",),))
+        self.assertEqual(value.literal(StructuredInputTable.b).op, "value_ref")
+        self.assertEqual(value.literal(StructuredInputTable.b.member.nested_field).op, "value_ref")
+
+    def test_field_rejects_struct_types(self) -> None:
+        with self.assertRaisesRegex(TypeError, "declare it with StructField"):
+            class InvalidStructFieldTable(Table):
+                nested: Field[NestedStruct] = field()
+
+        with self.assertRaisesRegex(TypeError, "declare it with CollectionField"):
+            class InvalidCollectionFieldTable(Table):
+                nested: Field[list[NestedStruct]] = field()
 
     def test_docstrings_and_explicit_options_define_metadata(self) -> None:
         self.assertEqual(ThingNode._component_name, "thing")

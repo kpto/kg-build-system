@@ -64,6 +64,14 @@ class Field[T]:
     def __get__(self, instance: object, owner: type | None = None) -> Self: ...
 
 
+class StructField[T: Struct]:
+    """A structured value, navigated through ``member`` or ``m``."""
+
+
+class CollectionField[T]:
+    """A collection of structs, navigated through ``element`` or ``e``."""
+
+
 class PropertySlot[T]:
     """A graph-component constructor slot."""
 

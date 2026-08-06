@@ -24,7 +24,7 @@ association_to_disease = edge_binding(
                 lookup.one(
                     key=AssociationEvidenceProjection.study_id,
                     match=StudyTable.study_id,
-                    value=StudyTable.details.name,
+                    value=StudyTable.details.m.name,
                     as_type=str,
                 ),
                 "Unknown study",
