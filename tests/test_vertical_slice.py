@@ -166,6 +166,10 @@ class AuthoringSurfaceTests(unittest.TestCase):
         reference = InputTable.identifier
         self.assertIsInstance(reference, ValueRef)
         self.assertIsInstance(reference, TableValueRef)
+        self.assertIsInstance(reference, Field)
+        self.assertIsInstance(InputTable.__dict__["identifier"], TableValueRef)
+        self.assertIs(reference.table, InputTable)
+        self.assertEqual(len(Field.__parameters__), 1)
         self.assertFalse(hasattr(expressions, "FieldPath"))
         self.assertEqual(value.literal(reference).op, "value_ref")
 

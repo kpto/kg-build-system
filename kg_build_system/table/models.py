@@ -1,6 +1,6 @@
 """Data-contract descriptors and source models."""
 from __future__ import annotations
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from enum import StrEnum
 from typing import Any, ClassVar, Generic, Self, TypeAlias, TypeVar, get_args, get_type_hints, overload
 from ..annotations import Annotation, annotation_tuple
@@ -19,6 +19,9 @@ class TableValueRef(ValueRef[T]):
     path: tuple[str, ...] = ()
     collection_paths: tuple[tuple[str, ...], ...] = ()
     annotations: tuple[Annotation, ...] = ()
+    name: str | None = None
+    description: str | None = None
+    attr: str = ""
 
     def __getattr__(self, part: str) -> "TableValueRef[Any]":
         if part.startswith("_"):
@@ -40,23 +43,31 @@ class TableValueRef(ValueRef[T]):
 
 
 @dataclass(frozen=True)
-class Field(Generic[T]):
-    name: str | None = None
-    description: str | None = None
-    type_hint: Any = None
-    attr: str = ""
-    annotations: tuple[Annotation, ...] = ()
+class Field(TableValueRef[T], Generic[T]):
+    """A generic table descriptor and root table value reference."""
+
     def __set_name__(self, owner: type, attr: str) -> None:
         object.__setattr__(self, "attr", attr)
         if self.name is None: object.__setattr__(self, "name", member_name(attr))
+
     @overload
-    def __get__(self, instance: None, owner: type | None = None) -> TableValueRef[T]: ...
+    def __get__(self, instance: None, owner: type | None = None) -> Self: ...
+
     @overload
     def __get__(self, instance: object, owner: type | None = None) -> Self: ...
-    def __get__(self, instance: object | None, owner: type | None = None) -> TableValueRef[T] | Self:
-        if instance is not None: return self
-        path = (self.name or self.attr,); collections = (path,) if item_type(self.type_hint) is not None else ()
-        return TableValueRef[T](self.type_hint, "collection" if collections else "scalar", owner or object, path, collections, self.annotations)
+
+    def __get__(self, instance: object | None, owner: type | None = None) -> Self:
+        if instance is not None:
+            return self
+        path = (self.name or self.attr,)
+        collections = (path,) if item_type(self.type_hint) is not None else ()
+        return replace(
+            self,
+            table=owner or object,
+            path=path,
+            cardinality="collection" if collections else "scalar",
+            collection_paths=collections,
+        )
 
 
 def fields_for(cls: type) -> dict[str, "Field[Any]"]:
