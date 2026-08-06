@@ -1,12 +1,20 @@
 import unittest
+from dataclasses import dataclass
 from pathlib import Path
 
 from kg_build_system import (
-    DataSourceConfig, Edge, Field, InputFormat, Node, NodeOptions, Projection,
-    ProjectedField, PropertySlot, Struct, Table, TableGroup, TableGroupOptions,
-    TableOptions, bind, bind_source, build, collection, compile_blueprint,
+    Annotation, BindingOptions, DataSourceConfig, Edge, Field, GraphComponent,
+    GraphComponentOptions, InputFormat, Node, NodeOptions, Projection,
+    ProjectionOptions, ProjectedField, PropertySlot, SourceBindingOptions,
+    Struct, Table, TableGroup, TableGroupOptions, TableOptions, TableTemplate,
+    TableTemplateOptions, bind, bind_source, build, collection, compile_blueprint,
     create_blueprint, edge_binding, field, node_binding, projected_field,
     property, value,
+)
+from kg_build_system.compile.models import ModuleDefinition, ModuleReference
+from kg_build_system.workflow.interfaces import (
+    CompilationContext, Module, ModuleCompilationResult, ModuleCompiler,
+    ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft,
 )
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration,
@@ -18,6 +26,57 @@ POST_PROCESSING = (
     CollapseExactDuplicatesModule(), RejectConflictingNonNullValuesModule(),
     MergeCompatibleFactsModule(),
 )
+
+
+@dataclass(frozen=True)
+class PortableIndex(Annotation):
+    namespace = "index"
+    annotation_id = "index"
+
+    unique: bool = False
+
+
+@dataclass(frozen=True)
+class ExampleModuleAnnotation(Annotation):
+    namespace = "annotation_probe"
+    annotation_id = "instruction"
+
+    value: str = "enabled"
+
+
+@dataclass(frozen=True)
+class _ProbeConfiguration(ModuleRegistrationConfiguration):
+    pass
+
+
+class _ProbeCompiler:
+    async def compile(self, context: CompilationContext[object]) -> ModuleCompilationResult:
+        AnnotationProbeModule.seen_blueprint = context.blueprint
+        return ModuleCompilationResult(
+            ModuleDefinition(reference=ModuleReference(
+                module_id=AnnotationProbeModule.ID,
+                import_module=AnnotationProbeModule.__module__,
+                class_qualname=AnnotationProbeModule.__qualname__,
+                implementation_version="1",
+                priority=context.priority,
+            )),
+            (),
+        )
+
+
+@dataclass(frozen=True)
+class AnnotationProbeModule(Module, ModuleRegistration[_ProbeConfiguration]):
+    configuration: _ProbeConfiguration = _ProbeConfiguration()
+    ID = "annotation_probe"
+    seen_blueprint = None
+
+    @classmethod
+    async def create_compiler(cls, context: object) -> ModuleCompiler:
+        return _ProbeCompiler()
+
+    @classmethod
+    async def create_executor(cls, context: object):
+        raise AssertionError("The probe module has no runtime steps")
 
 
 class ThingNode(Node):
@@ -74,6 +133,29 @@ class ReleaseTableGroup(TableGroup):
     """The test release hierarchy."""
 
     options = TableGroupOptions(members=(ReferenceGroup, TemplatedInputTable))
+
+
+class AnnotatedTableTemplate(TableTemplate):
+    options = TableTemplateOptions(annotations=[PortableIndex(unique=True)])
+    code: Field[str] = field(annotations=[PortableIndex()])
+
+
+class AnnotatedTable(AnnotatedTableTemplate, Table):
+    pass
+
+
+class AnnotatedGraphShape(GraphComponent):
+    options = GraphComponentOptions(annotations=[PortableIndex()])
+    code: PropertySlot[str] = property(annotations=[PortableIndex(unique=True)])
+
+
+class AnnotatedNode(AnnotatedGraphShape, Node):
+    options = NodeOptions(annotations=[ExampleModuleAnnotation("node")])
+
+
+class AnnotatedProjection(Projection):
+    options = ProjectionOptions(annotations=[PortableIndex()])
+    code: ProjectedField[str] = projected_field(AnnotatedTable.code, annotations=[ExampleModuleAnnotation("projection_field")])
 
 
 class AuthoringSurfaceTests(unittest.TestCase):
@@ -159,6 +241,42 @@ class AuthoringSurfaceTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "final Table"):
             class InvalidChild(InputTable):
                 pass
+
+    def test_annotations_are_serialised_additively_across_layers_and_visible_to_modules(self) -> None:
+        source = bind_source(
+            target=AnnotatedTable,
+            config=DataSourceConfig("annotated.json", InputFormat.JSON),
+            options=SourceBindingOptions(annotations=[ExampleModuleAnnotation("source")]),
+        )
+        blueprint = create_blueprint(
+            bindings=[node_binding(
+                target=AnnotatedNode,
+                build_key=AnnotatedProjection.code,
+                properties=AnnotatedNode(code=bind(AnnotatedProjection.code)),
+                options=BindingOptions(annotations=[ExampleModuleAnnotation("binding")]),
+            )],
+            projections=[AnnotatedProjection],
+            sources=[source],
+            modules=[AnnotationProbeModule(_ProbeConfiguration())],
+        )
+        component = blueprint.components[0]
+        self.assertEqual(
+            {(item.namespace, item.annotation_id, item.arguments.get("value")) for item in component.annotations},
+            {("index", "index", None), ("annotation_probe", "instruction", "node")},
+        )
+        self.assertEqual(component.properties[0].annotations[0].arguments, {"unique": True})
+        self.assertEqual(blueprint.projections[0].field_annotations["code"][0].annotation_id, "instruction")
+        self.assertEqual(blueprint.bindings[0].annotations[0].arguments, {"value": "binding"})
+        self.assertEqual(len(blueprint.sources[0].annotations), 2)
+        self.assertEqual(blueprint.sources[0].annotations[1].arguments, {"value": "source"})
+        self.assertEqual(blueprint.bindings[0].build_key.annotations[0].annotation_id, "instruction")
+        round_tripped = type(blueprint).model_validate_json(blueprint.model_dump_json())
+        self.assertEqual(round_tripped.components[0].annotations, component.annotations)
+
+        compile_blueprint(blueprint=blueprint)
+        self.assertIs(AnnotationProbeModule.seen_blueprint, blueprint)
+        assert AnnotationProbeModule.seen_blueprint is not None
+        self.assertEqual(AnnotationProbeModule.seen_blueprint.components[0].annotations[0].namespace, "index")
 
 
 if __name__ == "__main__":

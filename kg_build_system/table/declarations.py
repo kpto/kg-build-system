@@ -2,24 +2,25 @@
 from __future__ import annotations
 
 from dataclasses import replace
-from typing import TypeVar
+from typing import Sequence, TypeVar
 
+from ..annotations import Annotation, annotation_tuple
 from ..expressions import Expression, FieldPath
 from .models import (
     BoundSource, BoundTable, BoundTableGroup, DataSourceConfig, Field,
-    ProjectedField,
+    ProjectedField, SourceBindingOptions,
 )
 
 
 T = TypeVar("T")
 
 
-def field[T](*, name: str | None = None, description: str | None = None) -> Field[T]:  # pyright: ignore[reportInvalidTypeVarUse]
-    return Field(name=name, description=description)
+def field[T](*, name: str | None = None, description: str | None = None, annotations: Sequence[Annotation] = ()) -> Field[T]:  # pyright: ignore[reportInvalidTypeVarUse]
+    return Field(name=name, description=description, annotations=annotation_tuple(list(annotations)))
 
 
-def projected_field[T](value: Expression[T] | FieldPath[T]) -> ProjectedField[T]:
-    return ProjectedField(value)
+def projected_field[T](value: Expression[T] | FieldPath[T], *, annotations: Sequence[Annotation] = ()) -> ProjectedField[T]:
+    return ProjectedField(value, annotations=annotation_tuple(list(annotations)))
 
 
 def is_concrete_table(cls: type) -> bool:
@@ -65,14 +66,15 @@ def resolve_bound_source(source: BoundSource) -> tuple[BoundTable, ...]:
     if isinstance(source, BoundTable):
         return (source,)
     return tuple(
-        BoundTable(table, replace(source.config, location=_location_for(source.config, path[:-1], path[-1]), layout=None))
+        BoundTable(table, replace(source.config, location=_location_for(source.config, path[:-1], path[-1]), layout=None), source.annotations)
         for table, path in _group_tables(source.group)
     )
 
 
-def bind_source(*, target: type, config: DataSourceConfig) -> BoundSource:
+def bind_source(*, target: type, config: DataSourceConfig, options: SourceBindingOptions = SourceBindingOptions()) -> BoundSource:
+    resolved_annotations = options.annotations
     if is_concrete_table(target):
-        return BoundTable(target, config)
+        return BoundTable(target, config, resolved_annotations)
     if _is_table_group(target):
-        return BoundTableGroup(target, config)
+        return BoundTableGroup(target, config, resolved_annotations)
     raise TypeError("sources require a final Table or TableGroup")

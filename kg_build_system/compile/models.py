@@ -10,6 +10,12 @@ class IRModel(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
 
+class AnnotationDefinition(IRModel):
+    namespace: str = Field(min_length=1)
+    annotation_id: str = Field(min_length=1)
+    arguments: JsonValue
+
+
 class ValueType(IRModel):
     kind: Literal["scalar", "collection", "unknown"]
     name: str
@@ -24,6 +30,7 @@ class FieldReference(IRModel):
     path: tuple[str, ...] = Field(min_length=1)
     value_type: ValueType
     collection_paths: tuple[tuple[str, ...], ...] = ()
+    annotations: tuple[AnnotationDefinition, ...] = ()
 
 
 class LiteralValue(IRModel):
@@ -49,6 +56,7 @@ class PropertyDefinition(IRModel):
     name: str = Field(min_length=1)
     value_type: ValueType
     nullable: bool
+    annotations: tuple[AnnotationDefinition, ...] = ()
 
 
 class ComponentDefinition(IRModel):
@@ -58,11 +66,14 @@ class ComponentDefinition(IRModel):
     properties: tuple[PropertyDefinition, ...] = ()
     source: str | None = None
     target: str | None = None
+    annotations: tuple[AnnotationDefinition, ...] = ()
 
 
 class ProjectionDefinition(IRModel):
     name: str = Field(min_length=1)
     fields: dict[str, Value] = Field(min_length=1)
+    annotations: tuple[AnnotationDefinition, ...] = ()
+    field_annotations: dict[str, tuple[AnnotationDefinition, ...]] = Field(default_factory=dict)
 
 
 class NodeBindingDefinition(IRModel):
@@ -72,6 +83,7 @@ class NodeBindingDefinition(IRModel):
     component: str
     build_key: Value
     properties: dict[str, Value] = Field(default_factory=dict)
+    annotations: tuple[AnnotationDefinition, ...] = ()
 
 
 class EdgeBindingDefinition(IRModel):
@@ -83,6 +95,7 @@ class EdgeBindingDefinition(IRModel):
     source_build_key: Value
     target_build_key: Value
     properties: dict[str, Value] = Field(default_factory=dict)
+    annotations: tuple[AnnotationDefinition, ...] = ()
 
 
 BindingDefinition = Annotated[NodeBindingDefinition | EdgeBindingDefinition, Field(discriminator="kind")]
@@ -94,6 +107,7 @@ class SourceDefinition(IRModel):
     format: Literal["csv", "json", "parquet"]
     credential_reference: str | None = None
     version: str | None = None
+    annotations: tuple[AnnotationDefinition, ...] = ()
 
 
 class BlueprintModule(IRModel):

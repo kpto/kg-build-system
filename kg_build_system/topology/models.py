@@ -2,6 +2,7 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, ClassVar, Generic, TypeVar, dataclass_transform, get_args, get_type_hints
+from ..annotations import Annotation, annotation_tuple
 from .._support.naming import declaration_name, member_name
 
 T = TypeVar("T")
@@ -14,6 +15,7 @@ class PropertySlot(Generic[T]):
     description: str | None = None
     type_hint: Any = None
     attr: str = ""
+    annotations: tuple[Annotation, ...] = ()
     def __set_name__(self, owner: type, attr: str) -> None:
         object.__setattr__(self, "attr", attr)
         if self.name is None: object.__setattr__(self, "name", member_name(attr))
@@ -30,8 +32,8 @@ def properties_for(cls: type) -> dict[str, "PropertySlot[Any]"]:
         object.__setattr__(slot, "type_hint", arguments[0] if arguments else Any)
     return properties
 
-def property[T](*, name: str | None = None, description: str | None = None) -> PropertySlot[T]:  # pyright: ignore[reportInvalidTypeVarUse]
-    return PropertySlot(name=name, description=description)
+def property[T](*, name: str | None = None, description: str | None = None, annotations: tuple[Annotation, ...] | list[Annotation] = ()) -> PropertySlot[T]:  # pyright: ignore[reportInvalidTypeVarUse]
+    return PropertySlot(name=name, description=description, annotations=annotation_tuple(annotations))
 
 @dataclass_transform(field_specifiers=(property,), kw_only_default=True)
 class GraphComponent:
@@ -46,23 +48,36 @@ class GraphComponent:
 class NodeOptions:
     name: str | None = None
     description: str | None = None
-    metadata: dict[str, Any] | None = None
+    annotations: tuple[Annotation, ...] | list[Annotation] = ()
+
+    def __post_init__(self) -> None: object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
 
 @dataclass(frozen=True)
 class EdgeOptions:
     name: str | None = None
     description: str | None = None
-    metadata: dict[str, Any] | None = None
+    annotations: tuple[Annotation, ...] | list[Annotation] = ()
+
+    def __post_init__(self) -> None: object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
+
+
+@dataclass(frozen=True)
+class GraphComponentOptions:
+    annotations: tuple[Annotation, ...] | list[Annotation] = ()
+
+    def __post_init__(self) -> None: object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
 
 def _prepare_component(cls: type[GraphComponent], kind: str, options: NodeOptions | EdgeOptions) -> None:
     if any(vars(base).get("_component_declaration_kind") in {"node", "edge"} for base in cls.__mro__[1:]):
         raise TypeError("a final Node or Edge may not inherit from another final graph component")
-    metadata = dict(options.metadata or {})
+    component_annotations = (
+        tuple(annotation for base in reversed(cls.__mro__[1:] ) for annotation in vars(base).get("_component_annotations", ()))
+        + tuple(annotation for base in reversed(cls.__mro__[1:]) for annotation in getattr(vars(base).get("options", None), "annotations", ()) if isinstance(vars(base).get("options", None), GraphComponentOptions))
+        + tuple(options.annotations)
+    )
     description = options.description if options.description is not None else (vars(cls).get("__doc__") or None)
-    if description is not None:
-        metadata["description"] = description
     cls._kind = kind
     cls._properties = properties_for(cls)
     # Plain Python mixins deliberately need no framework base class.  Copy
@@ -73,7 +88,8 @@ def _prepare_component(cls: type[GraphComponent], kind: str, options: NodeOption
     for attribute in cls._properties:
         annotations.setdefault(attribute, hints.get(attribute, Any))
     cls.__annotations__ = annotations
-    cls._metadata = metadata
+    cls._metadata = {"description": description} if description is not None else {}
+    cls._component_annotations = component_annotations
     cls._component_name = options.name or declaration_name(cls.__name__, suffixes=("Node",) if kind == "node" else ("Edge",))
     cls._component_declaration_kind = kind
     dataclass(cls, kw_only=True)

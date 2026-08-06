@@ -4,6 +4,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
+from ..annotations import Annotation
+
 from .._support.annotations import type_shape
 
 T = TypeVar("T")
@@ -28,6 +30,7 @@ class FieldPath(Generic[T]):
     type_hint: Any = None
     cardinality: str = "scalar"
     collection_paths: tuple[tuple[str, ...], ...] = ()
+    annotations: tuple[Annotation, ...] = ()
 
     def __getattr__(self, part: str) -> "FieldPath[Any]":
         if part.startswith("_"):
@@ -36,7 +39,7 @@ class FieldPath(Generic[T]):
         if part == "element":
             if item is None:
                 raise AttributeError("element is only available on a collection field path")
-            return FieldPath[Any](self.table, self.path, item, "collection", self.collection_paths)
+            return FieldPath[Any](self.table, self.path, item, "collection", self.collection_paths, self.annotations)
         shape = item or type_shape(self.type_hint).annotation
         # Imported lazily to avoid the data-model -> expression import cycle.
         from ..table.models import fields_for
@@ -47,4 +50,4 @@ class FieldPath(Generic[T]):
         path = self.path + (field.name,)
         field_type = field.type_hint | None if type_shape(self.type_hint).nullable and field.type_hint is not Any else field.type_hint
         collection_paths = self.collection_paths + ((path,) if item_type(field_type) is not None else ())
-        return FieldPath[Any](self.table, path, field_type, "collection" if collection_paths else "scalar", collection_paths)
+        return FieldPath[Any](self.table, path, field_type, "collection" if collection_paths else "scalar", collection_paths, self.annotations + field.annotations)
