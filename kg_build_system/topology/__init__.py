@@ -1,4 +1,4 @@
-from .declarations import component_template, edge, node, property
-from .models import GraphComponent, PropertySlot
+from .declarations import property
+from .models import Edge, EdgeOptions, GraphComponent, Node, NodeOptions, PropertySlot
 
-__all__ = ["GraphComponent", "PropertySlot", "component_template", "edge", "node", "property"]
+__all__ = ["Edge", "EdgeOptions", "GraphComponent", "Node", "NodeOptions", "PropertySlot", "property"]

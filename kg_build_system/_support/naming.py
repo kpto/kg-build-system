@@ -13,6 +13,15 @@ def snake_case(value: str) -> str:
     return value.lower()
 
 
+def member_name(attribute: str) -> str:
+    """Infer an external member name, reserving one trailing underscore.
+
+    ``options_`` is the escape hatch for a declared member whose natural name
+    would otherwise collide with the class-level framework ``options`` value.
+    """
+    return snake_case(attribute[:-1] if attribute.endswith("_") else attribute)
+
+
 def declaration_name(class_name: str, *, suffixes: tuple[str, ...] = ()) -> str:
     """Infer a declaration name, removing one matching semantic suffix."""
     stem = class_name

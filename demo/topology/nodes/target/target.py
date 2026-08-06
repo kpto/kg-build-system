@@ -1,7 +1,9 @@
-from kg_build_system import GraphComponent, PropertySlot, node, property
+from kg_build_system import Node, NodeOptions, PropertySlot, property
 
 
-@node(description="A biological target.")
-class TargetNode(GraphComponent):
+class TargetNode(Node):
+    """A biological target."""
+
+    options = NodeOptions()
     symbol: PropertySlot[str] = property()
     description: PropertySlot[str | None] = property()

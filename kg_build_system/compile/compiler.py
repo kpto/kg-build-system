@@ -57,7 +57,7 @@ def _to_ir(value: Expression[Any] | FieldPath[Any] | Any) -> Value:
 
 def _component(component: type) -> ComponentDefinition:
     metadata = component._metadata; properties = tuple(PropertyDefinition(name=prop.name or attr, value_type=_value_type(prop.type_hint), nullable=_value_type(prop.type_hint).nullable) for attr, prop in component._properties.items())
-    return ComponentDefinition(name=component._component_name, kind=component._kind, properties=properties, source=getattr(metadata.get("source"), "_component_name", None), target=getattr(metadata.get("target"), "_component_name", None))
+    return ComponentDefinition(name=component._component_name, kind=component._kind, description=metadata.get("description"), properties=properties, source=getattr(metadata.get("source"), "_component_name", None), target=getattr(metadata.get("target"), "_component_name", None))
 
 def _binding(binding: NodeBinding | EdgeBinding, *, symbol_id: str) -> BindingDefinition:
     properties = {name: _to_ir(value) for name, value in _property_expressions(binding).items()}
@@ -68,14 +68,14 @@ def _binding(binding: NodeBinding | EdgeBinding, *, symbol_id: str) -> BindingDe
 def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
     """Checks requiring declaration metadata, before it is discarded into IR."""
     if not is_final_component(binding.target):
-        raise TypeError("graph bindings require a final @node or @edge target")
+        raise TypeError("graph bindings require a final Node or Edge target")
     expected_kind = "edge" if isinstance(binding, EdgeBinding) else "node"
     if binding.target._kind != expected_kind:
         raise TypeError(f"{expected_kind}_binding requires a final @{expected_kind} target")
     def validate_input(value: Expression[Any] | FieldPath[Any] | Any) -> None:
         if isinstance(value, FieldPath):
             if not is_concrete_table(value.table) and not hasattr(value.table, "_projection_fields"):
-                raise TypeError("graph bindings may reference only final @table inputs or projections")
+                raise TypeError("graph bindings may reference only final Table inputs or projections")
         elif isinstance(value, Expression):
             for argument in value.args:
                 validate_input(argument)

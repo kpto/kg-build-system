@@ -1,7 +1,9 @@
 from demo.topology.templates.named import NamedGraphComponentTemplate
-from kg_build_system import PropertySlot, node, property
+from kg_build_system import Node, NodeOptions, PropertySlot, property
 
 
-@node(description="A disease or phenotype.")
-class DiseaseNode(NamedGraphComponentTemplate):
+class DiseaseNode(NamedGraphComponentTemplate, Node):
+    """A disease or phenotype."""
+
+    options = NodeOptions()
     description: PropertySlot[str | None] = property()

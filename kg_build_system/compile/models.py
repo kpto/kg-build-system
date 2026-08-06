@@ -54,6 +54,7 @@ class PropertyDefinition(IRModel):
 class ComponentDefinition(IRModel):
     name: str = Field(min_length=1)
     kind: Literal["node", "edge"]
+    description: str | None = None
     properties: tuple[PropertyDefinition, ...] = ()
     source: str | None = None
     target: str | None = None

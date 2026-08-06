@@ -1,10 +1,9 @@
-from kg_build_system import ProjectedField, collection, projected_field, projection
+from kg_build_system import ProjectedField, Projection, collection, projected_field
 
 from demo.table.contracts.association import AssociationTable
 
 
-@projection
-class AssociationEvidenceProjection:
+class AssociationEvidenceProjection(Projection):
     """One logical evidence-label row, derived from an association contract."""
 
     target_id: ProjectedField[str] = projected_field(AssociationTable.target_id)

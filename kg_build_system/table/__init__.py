@@ -1,4 +1,4 @@
-from .declarations import bind_source, field, include, projected_field, projection, struct, table, table_group, table_template
-from .models import BoundSource, BoundTable, BoundTableGroup, DataSourceConfig, Field, InputFormat, ProjectedField
+from .declarations import bind_source, field, projected_field
+from .models import BoundSource, BoundTable, BoundTableGroup, DataSourceConfig, Field, InputFormat, ProjectedField, Projection, ProjectionOptions, Struct, StructOptions, Table, TableGroup, TableGroupOptions, TableOptions
 
-__all__ = ["BoundSource", "BoundTable", "BoundTableGroup", "DataSourceConfig", "Field", "InputFormat", "ProjectedField", "bind_source", "field", "include", "projected_field", "projection", "struct", "table", "table_group", "table_template"]
+__all__ = ["BoundSource", "BoundTable", "BoundTableGroup", "DataSourceConfig", "Field", "InputFormat", "ProjectedField", "Projection", "ProjectionOptions", "Struct", "StructOptions", "Table", "TableGroup", "TableGroupOptions", "TableOptions", "bind_source", "field", "projected_field"]

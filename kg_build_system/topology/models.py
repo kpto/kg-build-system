@@ -2,9 +2,11 @@
 from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, ClassVar, Generic, TypeVar, dataclass_transform, get_args, get_type_hints
-from .._support.naming import snake_case
+from .._support.naming import declaration_name, member_name
 
 T = TypeVar("T")
+S = TypeVar("S", bound="Node")
+D = TypeVar("D", bound="Node")
 
 @dataclass(frozen=True)
 class PropertySlot(Generic[T]):
@@ -14,7 +16,7 @@ class PropertySlot(Generic[T]):
     attr: str = ""
     def __set_name__(self, owner: type, attr: str) -> None:
         object.__setattr__(self, "attr", attr)
-        if self.name is None: object.__setattr__(self, "name", snake_case(attr))
+        if self.name is None: object.__setattr__(self, "name", member_name(attr))
 
 
 def properties_for(cls: type) -> dict[str, "PropertySlot[Any]"]:
@@ -38,3 +40,69 @@ class GraphComponent:
     _metadata: ClassVar[dict[str, Any]] = {}
     _component_declaration_kind: ClassVar[str | None] = None
     _component_name: ClassVar[str] = "component"
+
+
+@dataclass(frozen=True)
+class NodeOptions:
+    name: str | None = None
+    description: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+@dataclass(frozen=True)
+class EdgeOptions:
+    name: str | None = None
+    description: str | None = None
+    metadata: dict[str, Any] | None = None
+
+
+def _prepare_component(cls: type[GraphComponent], kind: str, options: NodeOptions | EdgeOptions) -> None:
+    if any(vars(base).get("_component_declaration_kind") in {"node", "edge"} for base in cls.__mro__[1:]):
+        raise TypeError("a final Node or Edge may not inherit from another final graph component")
+    metadata = dict(options.metadata or {})
+    description = options.description if options.description is not None else (vars(cls).get("__doc__") or None)
+    if description is not None:
+        metadata["description"] = description
+    cls._kind = kind
+    cls._properties = properties_for(cls)
+    # Plain Python mixins deliberately need no framework base class.  Copy
+    # their property annotations onto the final class before dataclass creates
+    # its keyword-only constructor.
+    annotations = dict(vars(cls).get("__annotations__", {}))
+    hints = get_type_hints(cls)
+    for attribute in cls._properties:
+        annotations.setdefault(attribute, hints.get(attribute, Any))
+    cls.__annotations__ = annotations
+    cls._metadata = metadata
+    cls._component_name = options.name or declaration_name(cls.__name__, suffixes=("Node",) if kind == "node" else ("Edge",))
+    cls._component_declaration_kind = kind
+    dataclass(cls, kw_only=True)
+
+
+class Node(GraphComponent):
+    """Final graph-node declaration."""
+    options: ClassVar[NodeOptions] = NodeOptions()
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        options = vars(cls).get("options", NodeOptions())
+        if not isinstance(options, NodeOptions):
+            raise TypeError("Node.options must be a NodeOptions value")
+        _prepare_component(cls, "node", options)
+
+
+class Edge(GraphComponent, Generic[S, D]):
+    """Final directed graph-edge declaration, parameterised by its endpoints."""
+    options: ClassVar[EdgeOptions] = EdgeOptions()
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        options = vars(cls).get("options", EdgeOptions())
+        if not isinstance(options, EdgeOptions):
+            raise TypeError("Edge.options must be an EdgeOptions value")
+        endpoints = next((base for base in getattr(cls, "__orig_bases__", ()) if getattr(base, "__origin__", None) is Edge), None)
+        endpoint_types = get_args(endpoints)
+        if len(endpoint_types) != 2 or not all(isinstance(item, type) and vars(item).get("_component_declaration_kind") == "node" for item in endpoint_types):
+            raise TypeError("Edge must declare final Node endpoints as Edge[SourceNode, TargetNode]")
+        _prepare_component(cls, "edge", options)
+        cls._metadata = cls._metadata | {"source": endpoint_types[0], "target": endpoint_types[1]}
