@@ -92,9 +92,12 @@ class GraphComponent(ABC):
     pass
 ```
 
-Tables, structs, and projections are ordinary decorated Python classes. Their
-members are explicitly annotated `Field[T]` or `ProjectedField[T]`; no shared
-contract base class is required.
+Final declarations are layer base classes: `Node`, `Edge[S, T]`, `Table`,
+`Struct`, `Projection`, and `TableGroup`. Their members are explicitly
+annotated `Field[T]`, `PropertySlot[T]`, or `ProjectedField[T]`. Reusable
+shapes may remain ordinary Python mixins; `TableTemplate` and
+`GraphComponent` are optional bases when a reusable shape needs framework
+metadata such as annotations.
 
 Framework metadata is `ClassVar` or unannotated, so it is not an author-facing
 constructor parameter.
@@ -103,7 +106,7 @@ Property nullability is expressed only by its type: `PropertySlot[str]` is
 required and `PropertySlot[str | None]` is nullable. The `property()` factory
 has no `nullable` argument.
 
-### Declaration names and decorator forms
+### Declaration names, options, and annotations
 
 Every declaration has a stable logical name. An explicit `name=` wins;
 otherwise the system derives a snake-case name from the declaring Python class
@@ -120,22 +123,47 @@ Only a matching terminal suffix for the declaration's own layer is removed;
 a table named `TargetNode` therefore remains `target_node`. A suffix-only
 class name such as `Node` is invalid unless an explicit name is provided.
 
-Decorators with optional configuration support both bare and called forms:
+Each final declaration may provide a class-level `options` value. It is
+framework metadata, never a field, property, projected field, or constructor
+argument. Descriptions default to the class docstring; an explicit
+`options.description` overrides that default.
 
 ```python
-@node
-class TargetNode(GraphComponent): ...
+class TargetNode(Node):
+    """A biological target."""
 
-@table()
-class TargetTable: ...
+    options = NodeOptions()
+    symbol: PropertySlot[str] = property()
 
-@table_group
-class ReleaseTableGroup: ...
+class AssociationEdge(Edge[TargetNode, DiseaseNode]):
+    score: PropertySlot[float] = property()
 ```
 
-The forms `@node()` and `@table` are equivalent when no configuration is
-needed. `@edge(...)` remains configured because source and target declarations
-are required.
+`Edge[S, T]` declares its endpoints through type arguments. A trailing
+underscore escapes the reserved `options` class attribute: `options_` becomes
+the external member name `options`; only one terminal underscore is removed.
+
+Annotations are portable, serialisable semantic metadata. Every annotation is
+a dataclass subclass of `Annotation` with a stable `namespace` and
+`annotation_id`; its dataclass fields are the arguments:
+
+```python
+@dataclass(frozen=True)
+class Index(Annotation):
+    namespace = "index"
+    annotation_id = "index"
+    unique: bool = False
+
+class TargetNode(Node):
+    options = NodeOptions(annotations=[Index(unique=True)])
+```
+
+Options use `annotations`, not an unstructured metadata map. Annotations are
+additive through reusable shapes and final declarations. They are supported on
+components, properties, tables/templates/structs/fields, projections/projected
+fields, table groups, bindings, and source bindings. Compiled IR serialises an
+annotation as `namespace`, `annotation_id`, and JSON arguments; it never
+serialises an annotation Python class.
 
 ## 4. Topology
 
@@ -144,28 +172,30 @@ are first-class `GraphComponent` contracts. Edges declare source, target,
 properties, direction, cardinality where known, and annotations.
 
 ```python
-@node(description="A biological target.")
-class TargetNode(GraphComponent):
+class TargetNode(Node):
+    """A biological target."""
     symbol: PropertySlot[str] = property()
     name: PropertySlot[str | None] = property()
     description: PropertySlot[str | None] = property()
 
 
-@node(description="A disease or phenotype.")
-class DiseaseNode(GraphComponent):
+class DiseaseNode(Node):
+    """A disease or phenotype."""
     name: PropertySlot[str] = property()
     description: PropertySlot[str | None] = property()
 
 
-@edge(source=TargetNode, target=DiseaseNode, description="Evidence-backed association.")
-class AssociatedWithEdge(GraphComponent):
+class AssociatedWithEdge(Edge[TargetNode, DiseaseNode]):
+    """Evidence-backed association."""
     score: PropertySlot[float] = property()
 ```
 
 Annotations express semantics or target hints: ontology terms, indexes,
-constraints, naming overrides, and similar metadata. They use namespaced keys
-such as `ontology.term` and `neo4j.index`. The core preserves unknown
-annotations; targets interpret only what they support.
+constraints, naming overrides, and similar metadata. A namespace is not an
+access-control boundary: every module compiler receives the complete compiled
+annotation graph and may interpret any annotation it recognises. A
+module-specific annotation conventionally uses the owning module's ID as its
+namespace. The core preserves unknown annotations.
 
 Components can be templates: subclasses inherit properties, descriptions, and
 annotations and may add or override properties. Source files may be node-first
@@ -188,34 +218,34 @@ Table → Field → DataType
 
 `Field` may be scalar, optional, nested, or collection-valued. A `Struct` is a
 reusable nested record shape; it cannot be bound independently.
-Every table or struct is an ordinary decorated class. A field's external name
+Every final table or struct derives from its layer base class. A field's external name
 defaults to its snake-case Python attribute; authors provide `name=` only when
 the physical or external spelling differs. The Python attribute remains a
 typed authoring handle.
 
 ```python
-@struct
-class TargetDetailsStruct:
+class TargetDetailsStruct(Struct):
     id: Field[str] = field()
     symbol: Field[str] = field()
     description: Field[str | None] = field()
 
 
-@table_template(description="Reusable pharmacogenomics input shape.")
-class PharmacogenomicsAnnotationTableTemplate:
+class PharmacogenomicsAnnotationTableTemplate(TableTemplate):
+    options = TableTemplateOptions(description="Reusable pharmacogenomics input shape.")
     target: Field[TargetDetailsStruct] = field()
     disease_ids: Field[list[str]] = field(name="diseaseIds")
     study_id: Field[str] = field(name="studyId")
     score: Field[float] = field()
 
 
-@table
-class OpenTargetsPharmacogenomicsAnnotationTable(PharmacogenomicsAnnotationTableTemplate):
+class OpenTargetsPharmacogenomicsAnnotationTable(
+    PharmacogenomicsAnnotationTableTemplate, Table,
+):
     pass
 ```
 
-`@table_template` preserves a reusable Python class and adds stable metadata.
-`@table` creates a distinct final table class. Only final
+`TableTemplate` is optional: ordinary mixins remain valid when they do not
+need declaration options. `Table` creates a distinct final table class. Only final
 concrete tables may be grouped, used in projections, or source-bound. This
 prevents binding a reusable shape or inheriting a concrete table accidentally.
 
@@ -262,9 +292,10 @@ cycles, duplicate final-table inclusion, and duplicate catalog paths are
 rejected.
 
 ```python
-@table_group
-class OpenTargetsOutputTableGroup:
-    pharmacogenomics_annotation = include(OpenTargetsPharmacogenomicsAnnotationTable)
+class OpenTargetsOutputTableGroup(TableGroup):
+    options = TableGroupOptions(
+        members=(OpenTargetsPharmacogenomicsAnnotationTable,),
+    )
 ```
 
 `bind_source` attaches a final table or table group to physical configuration: location,
@@ -281,6 +312,7 @@ open_targets_release = bind_source(
         credentials=environment_credential("PHARMACOGENOMICS_S3"),
         version="2025-01",
     ),
+    options=SourceBindingOptions(annotations=[...]),
 )
 ```
 
@@ -309,8 +341,7 @@ final concrete tables and derives its logical input requirements from its
 expressions; it has no separate `inputs` argument.
 
 ```python
-@projection
-class AssociationProjection:
+class AssociationProjection(Projection):
     target_id = projected_field(OpenTargetsPharmacogenomicsAnnotationTable.target.id)
     target_symbol = projected_field(OpenTargetsPharmacogenomicsAnnotationTable.target.symbol)
     disease_id = projected_field(
@@ -361,8 +392,7 @@ unnest items. For example, the compiler recognises the shared `evidence`
 prefix and lowers the two requested expansions into a parent-first plan:
 
 ```python
-@projection
-class EvidenceProjection:
+class EvidenceProjection(Projection):
     disease_id = projected_field(collection.expand(Association.evidence.element.disease_id))
     evidence_label = projected_field(collection.expand(Association.evidence.element.labels))
 ```
@@ -385,6 +415,7 @@ target_from_pharmacogenomics = node_binding(
     target=TargetNode,
     build_key=value.literal(AssociationProjection.target_id),
     properties=TargetNode(symbol=bind(AssociationProjection.target_symbol)),
+    options=BindingOptions(annotations=[...]),
 )
 
 annotation_associated_with_disease = edge_binding(
@@ -401,6 +432,10 @@ values created by `bind(...)`; it is not a dictionary keyed by property
 objects. Build keys are build-time identity handles, not topology identifiers
 or persisted graph properties.
 
+`BindingOptions` and `SourceBindingOptions` attach annotations to the concrete
+mapping and acquisition choices respectively. They do not alter graph meaning
+unless a compiler module recognises and lowers their annotations.
+
 An executable build must declare or inherit policies for null keys, duplicate
 keys, node property conflicts, edge deduplication, and generated identities.
 Generated portable IDs must be deterministic from declared stable inputs and a
@@ -413,6 +448,13 @@ projections, graph bindings, default source bindings, and post-processing
 declarations. It produces an immutable `BuildBlueprint`, validates
 compatibility and resolves expression/cardinality semantics. Incomplete work remains Python source rather than becoming a
 partially-specified document IR.
+
+It serialises every annotation into canonical immutable IR. The blueprint and
+contract preserve annotations without interpretation; annotations contribute to
+their fingerprints. During `compile_blueprint`, every module compiler receives
+the complete annotated blueprint and may derive serialisable workflow-step
+payloads from annotations in any namespace. Runtime receives only the frozen
+resulting workflow and does not resolve annotation classes.
 
 `compile_blueprint` combines a blueprint with optional source/target selections
 and serialisable compilation settings. It resolves permitted source, target, and lowering
@@ -502,6 +544,8 @@ Authoring practices:
 ### Implemented MVP extensions
 
 - table templates, nested table groups, and group source bindings;
+- universal serialisable annotations across declaration, binding, and source
+  layers; module compilers can inspect and interpret preserved annotations.
 
 ### Remaining MVP extensions
 
