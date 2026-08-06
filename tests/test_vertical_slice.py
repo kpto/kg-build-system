@@ -161,13 +161,13 @@ class AnnotatedProjection(Projection):
 class AuthoringSurfaceTests(unittest.TestCase):
     def test_expressions_use_portable_value_refs(self) -> None:
         from kg_build_system import expressions
-        from kg_build_system.table import TableValueRef
+        from kg_build_system.table import TablePathValueRef
 
         reference = InputTable.identifier
         self.assertIsInstance(reference, ValueRef)
-        self.assertIsInstance(reference, TableValueRef)
+        self.assertIsInstance(reference, TablePathValueRef)
         self.assertIsInstance(reference, Field)
-        self.assertIsInstance(InputTable.__dict__["identifier"], TableValueRef)
+        self.assertIsInstance(InputTable.__dict__["identifier"], TablePathValueRef)
         self.assertIs(reference._metadata.table, InputTable)
         self.assertEqual(len(Field.__parameters__), 1)
         self.assertFalse(hasattr(expressions, "FieldPath"))

@@ -12,7 +12,7 @@ T = TypeVar("T")
 
 
 @dataclass(frozen=True)
-class TableValueRefMetadata:
+class TablePathValueRefMetadata:
     """Table-specific state carried by a value reference."""
 
     table: type = object
@@ -25,19 +25,19 @@ class TableValueRefMetadata:
 
 
 @dataclass(frozen=True)
-class TableValueRef(ValueRef[T]):
+class TablePathValueRef(ValueRef[T]):
     """A typed value reference produced by table or projection navigation."""
 
-    _metadata: TableValueRefMetadata = dataclass_field(default_factory=TableValueRefMetadata)
+    _metadata: TablePathValueRefMetadata = dataclass_field(default_factory=TablePathValueRefMetadata)
 
-    def __getattr__(self, part: str) -> "TableValueRef[Any]":
+    def __getattr__(self, part: str) -> "TablePathValueRef[Any]":
         if part.startswith("_"):
             raise AttributeError(part)
         item = item_type(self.type_hint)
         if part == "element":
             if item is None:
                 raise AttributeError("element is only available on a collection field reference")
-            return TableValueRef[Any](item, "collection", self._metadata)
+            return TablePathValueRef[Any](item, "collection", self._metadata)
         shape = item or type_shape(self.type_hint).annotation
         fields = fields_for(shape) if isinstance(shape, type) else {}
         if part not in fields:
@@ -46,7 +46,7 @@ class TableValueRef(ValueRef[T]):
         path = self._metadata.path + (field._metadata.name or field._metadata.attr,)
         field_type = field.type_hint | None if type_shape(self.type_hint).nullable and field.type_hint is not Any else field.type_hint
         collection_paths = self._metadata.collection_paths + ((path,) if item_type(field_type) is not None else ())
-        return TableValueRef[Any](field_type, "collection" if collection_paths else "scalar", TableValueRefMetadata(
+        return TablePathValueRef[Any](field_type, "collection" if collection_paths else "scalar", TablePathValueRefMetadata(
             table=self._metadata.table,
             path=path,
             collection_paths=collection_paths,
@@ -55,7 +55,7 @@ class TableValueRef(ValueRef[T]):
 
 
 @dataclass(frozen=True)
-class Field(TableValueRef[T], Generic[T]):
+class Field(TablePathValueRef[T], Generic[T]):
     """A generic table descriptor and root table value reference."""
 
     def __set_name__(self, owner: type, attr: str) -> None:
@@ -102,10 +102,10 @@ class ProjectedField(Generic[T]):
         object.__setattr__(self, "attr", attr)
         if self.name is None: object.__setattr__(self, "name", member_name(attr))
     def __get__(self, instance: object | None, owner: type | None = None) -> Expression[T] | ValueRef[T]:
-        return self.expression if instance is not None else TableValueRef[T](
+        return self.expression if instance is not None else TablePathValueRef[T](
             self.expression.type_hint,
             self.expression.cardinality,
-            TableValueRefMetadata(
+            TablePathValueRefMetadata(
                 table=owner or object,
                 path=(self.name or self.attr,),
                 annotations=self.annotations,
@@ -213,7 +213,7 @@ def _is_concrete_table(cls: type) -> bool:
 
 
 def _validate_projection_value(value: Expression[Any] | ValueRef[Any]) -> None:
-    if isinstance(value, TableValueRef):
+    if isinstance(value, TablePathValueRef):
         if not _is_concrete_table(value._metadata.table):
             raise TypeError("projections may reference only final Table inputs")
     elif isinstance(value, Expression):

@@ -10,7 +10,7 @@ import json
 from typing import Any, Literal, cast, get_type_hints
 from ..annotations import Annotation
 from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
-from ..table import BoundSource, BoundTable, TableValueRef
+from ..table import BoundSource, BoundTable, TablePathValueRef
 from ..table.declarations import resolve_bound_source
 from ..table.declarations import is_concrete_table
 from ..topology.declarations import is_final_component
@@ -50,7 +50,7 @@ def _logical_table_name(table: type) -> str:
 
 
 def _to_ir(value: Expression[Any] | ValueRef[Any] | Any) -> Value:
-    if isinstance(value, TableValueRef): return FieldReference(table=_logical_table_name(value._metadata.table), path=value._metadata.path, value_type=_value_type(value.type_hint, value.cardinality), collection_paths=value._metadata.collection_paths, annotations=_annotations(value._metadata.annotations))
+    if isinstance(value, TablePathValueRef): return FieldReference(table=_logical_table_name(value._metadata.table), path=value._metadata.path, value_type=_value_type(value.type_hint, value.cardinality), collection_paths=value._metadata.collection_paths, annotations=_annotations(value._metadata.annotations))
     if isinstance(value, ValueRef):
         raise TypeError("only table or projection value references can be compiled")
     if isinstance(value, Expression):
@@ -80,7 +80,7 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
     if binding.target._kind != expected_kind:
         raise TypeError(f"{expected_kind}_binding requires a final @{expected_kind} target")
     def validate_input(value: Expression[Any] | ValueRef[Any] | Any) -> None:
-        if isinstance(value, TableValueRef):
+        if isinstance(value, TablePathValueRef):
             if not is_concrete_table(value._metadata.table) and not hasattr(value._metadata.table, "_projection_fields"):
                 raise TypeError("graph bindings may reference only final Table inputs or projections")
         elif isinstance(value, ValueRef):
