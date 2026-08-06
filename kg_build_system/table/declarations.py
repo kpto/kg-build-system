@@ -8,7 +8,7 @@ from ..annotations import Annotation, annotation_tuple
 from ..expressions import Expression, ValueRef
 from .models import (
     BoundSource, BoundTable, BoundTableGroup, DataSourceConfig, Field,
-    ProjectedField, SourceBindingOptions,
+    ProjectedField, SourceBindingOptions, TableValueRefMetadata,
 )
 
 
@@ -16,7 +16,7 @@ T = TypeVar("T")
 
 
 def field[T](*, name: str | None = None, description: str | None = None, annotations: Sequence[Annotation] = ()) -> Field[T]:  # pyright: ignore[reportInvalidTypeVarUse]
-    return Field(name=name, description=description, annotations=annotation_tuple(list(annotations)))
+    return Field(_metadata=TableValueRefMetadata(name=name, description=description, annotations=annotation_tuple(list(annotations))))
 
 
 def projected_field[T](value: Expression[T] | ValueRef[T], *, annotations: Sequence[Annotation] = ()) -> ProjectedField[T]:

@@ -168,7 +168,7 @@ class AuthoringSurfaceTests(unittest.TestCase):
         self.assertIsInstance(reference, TableValueRef)
         self.assertIsInstance(reference, Field)
         self.assertIsInstance(InputTable.__dict__["identifier"], TableValueRef)
-        self.assertIs(reference.table, InputTable)
+        self.assertIs(reference._metadata.table, InputTable)
         self.assertEqual(len(Field.__parameters__), 1)
         self.assertFalse(hasattr(expressions, "FieldPath"))
         self.assertEqual(value.literal(reference).op, "value_ref")
@@ -193,9 +193,9 @@ class AuthoringSurfaceTests(unittest.TestCase):
         self.assertEqual(ExplicitNode._metadata["description"], "The explicit description.")
 
     def test_options_is_framework_metadata_and_trailing_underscore_escapes_it(self) -> None:
-        self.assertEqual(TemplatedInputTable._fields["options_"].name, "options")
+        self.assertEqual(TemplatedInputTable._fields["options_"]._metadata.name, "options")
         self.assertEqual(OptionsNode._properties["options_"].name, "options")
-        self.assertEqual(OptionsProjection.options_.path, ("options",))
+        self.assertEqual(OptionsProjection.options_._metadata.path, ("options",))
         self.assertNotIn("options", TemplatedInputTable._fields)
         self.assertEqual(TemplatedInputTable._table_name, "templated_input")
         self.assertEqual(OptionsProjection._projection_name, "options")

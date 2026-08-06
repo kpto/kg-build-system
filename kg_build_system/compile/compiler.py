@@ -50,7 +50,7 @@ def _logical_table_name(table: type) -> str:
 
 
 def _to_ir(value: Expression[Any] | ValueRef[Any] | Any) -> Value:
-    if isinstance(value, TableValueRef): return FieldReference(table=_logical_table_name(value.table), path=value.path, value_type=_value_type(value.type_hint, value.cardinality), collection_paths=value.collection_paths, annotations=_annotations(value.annotations))
+    if isinstance(value, TableValueRef): return FieldReference(table=_logical_table_name(value._metadata.table), path=value._metadata.path, value_type=_value_type(value.type_hint, value.cardinality), collection_paths=value._metadata.collection_paths, annotations=_annotations(value._metadata.annotations))
     if isinstance(value, ValueRef):
         raise TypeError("only table or projection value references can be compiled")
     if isinstance(value, Expression):
@@ -81,7 +81,7 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
         raise TypeError(f"{expected_kind}_binding requires a final @{expected_kind} target")
     def validate_input(value: Expression[Any] | ValueRef[Any] | Any) -> None:
         if isinstance(value, TableValueRef):
-            if not is_concrete_table(value.table) and not hasattr(value.table, "_projection_fields"):
+            if not is_concrete_table(value._metadata.table) and not hasattr(value._metadata.table, "_projection_fields"):
                 raise TypeError("graph bindings may reference only final Table inputs or projections")
         elif isinstance(value, ValueRef):
             raise TypeError("graph bindings may reference only values supplied by a table or projection")

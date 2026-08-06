@@ -1,6 +1,6 @@
 """Data-contract descriptors and source models."""
 from __future__ import annotations
-from dataclasses import dataclass, replace
+from dataclasses import dataclass, field as dataclass_field, replace
 from enum import StrEnum
 from typing import Any, ClassVar, Generic, Self, TypeAlias, TypeVar, get_args, get_type_hints, overload
 from ..annotations import Annotation, annotation_tuple
@@ -12,8 +12,8 @@ T = TypeVar("T")
 
 
 @dataclass(frozen=True)
-class TableValueRef(ValueRef[T]):
-    """A typed value reference produced by table or projection navigation."""
+class TableValueRefMetadata:
+    """Table-specific state carried by a value reference."""
 
     table: type = object
     path: tuple[str, ...] = ()
@@ -23,6 +23,13 @@ class TableValueRef(ValueRef[T]):
     description: str | None = None
     attr: str = ""
 
+
+@dataclass(frozen=True)
+class TableValueRef(ValueRef[T]):
+    """A typed value reference produced by table or projection navigation."""
+
+    _metadata: TableValueRefMetadata = dataclass_field(default_factory=TableValueRefMetadata)
+
     def __getattr__(self, part: str) -> "TableValueRef[Any]":
         if part.startswith("_"):
             raise AttributeError(part)
@@ -30,16 +37,21 @@ class TableValueRef(ValueRef[T]):
         if part == "element":
             if item is None:
                 raise AttributeError("element is only available on a collection field reference")
-            return TableValueRef[Any](item, "collection", self.table, self.path, self.collection_paths, self.annotations)
+            return TableValueRef[Any](item, "collection", self._metadata)
         shape = item or type_shape(self.type_hint).annotation
         fields = fields_for(shape) if isinstance(shape, type) else {}
         if part not in fields:
             raise AttributeError(f"{self.type_hint!r} has no declared field {part!r}")
         field = fields[part]
-        path = self.path + (field.name or field.attr,)
+        path = self._metadata.path + (field._metadata.name or field._metadata.attr,)
         field_type = field.type_hint | None if type_shape(self.type_hint).nullable and field.type_hint is not Any else field.type_hint
-        collection_paths = self.collection_paths + ((path,) if item_type(field_type) is not None else ())
-        return TableValueRef[Any](field_type, "collection" if collection_paths else "scalar", self.table, path, collection_paths, self.annotations + field.annotations)
+        collection_paths = self._metadata.collection_paths + ((path,) if item_type(field_type) is not None else ())
+        return TableValueRef[Any](field_type, "collection" if collection_paths else "scalar", TableValueRefMetadata(
+            table=self._metadata.table,
+            path=path,
+            collection_paths=collection_paths,
+            annotations=self._metadata.annotations + field._metadata.annotations,
+        ))
 
 
 @dataclass(frozen=True)
@@ -47,8 +59,8 @@ class Field(TableValueRef[T], Generic[T]):
     """A generic table descriptor and root table value reference."""
 
     def __set_name__(self, owner: type, attr: str) -> None:
-        object.__setattr__(self, "attr", attr)
-        if self.name is None: object.__setattr__(self, "name", member_name(attr))
+        metadata = self._metadata
+        object.__setattr__(self, "_metadata", replace(metadata, attr=attr, name=metadata.name or member_name(attr)))
 
     @overload
     def __get__(self, instance: None, owner: type | None = None) -> Self: ...
@@ -59,14 +71,13 @@ class Field(TableValueRef[T], Generic[T]):
     def __get__(self, instance: object | None, owner: type | None = None) -> Self:
         if instance is not None:
             return self
-        path = (self.name or self.attr,)
+        metadata = self._metadata
+        path = (metadata.name or metadata.attr,)
         collections = (path,) if item_type(self.type_hint) is not None else ()
         return replace(
             self,
-            table=owner or object,
-            path=path,
             cardinality="collection" if collections else "scalar",
-            collection_paths=collections,
+            _metadata=replace(metadata, table=owner or object, path=path, collection_paths=collections),
         )
 
 
@@ -91,7 +102,15 @@ class ProjectedField(Generic[T]):
         object.__setattr__(self, "attr", attr)
         if self.name is None: object.__setattr__(self, "name", member_name(attr))
     def __get__(self, instance: object | None, owner: type | None = None) -> Expression[T] | ValueRef[T]:
-        return self.expression if instance is not None else TableValueRef[T](self.expression.type_hint, self.expression.cardinality, owner or object, (self.name or self.attr,), (), self.annotations)
+        return self.expression if instance is not None else TableValueRef[T](
+            self.expression.type_hint,
+            self.expression.cardinality,
+            TableValueRefMetadata(
+                table=owner or object,
+                path=(self.name or self.attr,),
+                annotations=self.annotations,
+            ),
+        )
 
 class InputFormat(StrEnum): CSV = "csv"; JSON = "json"; PARQUET = "parquet"
 @dataclass(frozen=True)
@@ -195,7 +214,7 @@ def _is_concrete_table(cls: type) -> bool:
 
 def _validate_projection_value(value: Expression[Any] | ValueRef[Any]) -> None:
     if isinstance(value, TableValueRef):
-        if not _is_concrete_table(value.table):
+        if not _is_concrete_table(value._metadata.table):
             raise TypeError("projections may reference only final Table inputs")
     elif isinstance(value, Expression):
         for argument in value.args:
