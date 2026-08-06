@@ -4,9 +4,9 @@ from typing import Any, Generic, TypeVar
 
 from ..annotations import Annotation, annotation_tuple
 from ..expressions import Expression
-from ..topology.models import PropertySlot
+from ..topology.models import GraphValue, PropertySlot
 
-T = TypeVar("T")
+T = TypeVar("T", bound=GraphValue)
 
 @dataclass(frozen=True)
 class ExpressionBinding(PropertySlot[T], Generic[T]):

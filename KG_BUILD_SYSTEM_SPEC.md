@@ -231,9 +231,30 @@ The source-independent data hierarchy is:
 Table → Field → DataType
 ```
 
-`Field` represents scalar values (including a scalar list). `StructField`
-represents one nested `Struct`; `CollectionField` represents a collection of
-`Struct` values. A `Struct` is a reusable nested record shape; it stores
+### Supported declaration value types
+
+The framework owns a closed portable scalar vocabulary:
+
+```python
+type Scalar = str | int | float | bool
+```
+
+Collections are expressed directly as `list[T]`; physical source collections
+are list-shaped.
+`Field[T]` accepts only a `Scalar` or `Scalar | None`; collections use
+`CollectionField[T]`. `StructField[S]` and `CollectionField[S]` admit nested
+records, while `CollectionField[T]` also supports scalar items. Maps, tuples,
+sets, nested collections, arbitrary Python classes, and `Any` are not
+declaration types.
+
+`PropertySlot[T]` and `bind(...)` accept only `Scalar` or `Scalar | None`:
+graph properties cannot be collections or structs. Expression literals use
+the same vocabulary. Runtime declaration validation enforces the contract for
+dynamic Python authoring, while the generic declaration types make invalid
+annotations visible to a static type checker at edit time.
+
+`Field` represents scalar values. `StructField` represents one nested `Struct`;
+`CollectionField` represents a scalar or `Struct` collection. A `Struct` is a reusable nested record shape; it stores
 `TablePathValueRefMetadata` only while serving navigation and is never a
 `ValueRef`, so it cannot be bound independently.
 Every final table or struct derives from its layer base class. A field's external name
@@ -251,7 +272,7 @@ class TargetDetailsStruct(Struct):
 class PharmacogenomicsAnnotationTableTemplate(TableTemplate):
     options = TableTemplateOptions(description="Reusable pharmacogenomics input shape.")
     target: StructField[TargetDetailsStruct] = struct_field()
-    disease_ids: Field[list[str]] = field(name="diseaseIds")
+    disease_ids: CollectionField[str] = collection_field(name="diseaseIds")
     study_id: Field[str] = field(name="studyId")
     score: Field[float] = field()
 
@@ -282,9 +303,8 @@ Types distinguish nullable fields, nullable collections, and nullable items:
 
 ```python
 Field[str | None]
-Field[list[str]]
-Field[list[str] | None]
-Field[list[str | None]]
+CollectionField[str]
+CollectionField[str | None]
 ```
 
 Graph properties use the same type-driven convention. A nullable table field

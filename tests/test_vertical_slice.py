@@ -202,6 +202,26 @@ class AuthoringSurfaceTests(unittest.TestCase):
             class InvalidCollectionFieldTable(Table):
                 nested: Field[list[NestedStruct]] = field()
 
+    def test_declarations_and_literals_reject_unsupported_types(self) -> None:
+        class ScalarCollectionTable(Table):
+            labels: CollectionField[str] = collection_field()
+
+        self.assertEqual(ScalarCollectionTable.labels.cardinality, "collection")
+        with self.assertRaisesRegex(TypeError, "may not be a collection"):
+            class InvalidScalarCollectionField(Table):
+                labels: Field[list[str]] = field()
+
+        with self.assertRaisesRegex(TypeError, "must be Scalar"):
+            class InvalidValueTable(Table):
+                payload: Field[dict[str, str]] = field()
+
+        with self.assertRaisesRegex(TypeError, "may not be a collection"):
+            class InvalidPropertyNode(Node):
+                labels: PropertySlot[list[str]] = property()
+
+        with self.assertRaisesRegex(TypeError, "literals must be Scalar"):
+            value.literal({"unsupported": "map"})
+
     def test_docstrings_and_explicit_options_define_metadata(self) -> None:
         self.assertEqual(ThingNode._component_name, "thing")
         self.assertEqual(ThingNode._metadata["description"], "A named test node.")

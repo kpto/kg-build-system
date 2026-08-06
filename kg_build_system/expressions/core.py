@@ -5,12 +5,11 @@ from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
 from .._support.annotations import type_shape
-
-T = TypeVar("T")
+T_co = TypeVar("T_co", covariant=True)
 
 
 @dataclass(frozen=True)
-class Expression(Generic[T]):
+class Expression(Generic[T_co]):
     op: str
     args: tuple[Any, ...]
     type_hint: Any = None
@@ -18,7 +17,7 @@ class Expression(Generic[T]):
 
 
 @dataclass(frozen=True)
-class ValueRef(Generic[T]):
+class ValueRef(Generic[T_co]):
     """A typed value supplied by another declaration layer.
 
     This deliberately contains no source/table or field-navigation metadata.

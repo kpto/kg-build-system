@@ -8,15 +8,15 @@ from ..annotations import Annotation, annotation_tuple
 from ..expressions import Expression, ValueRef
 from .models import (
     BoundSource, BoundTable, BoundTableGroup, CollectionField, DataSourceConfig, Field,
-    ProjectedField, SourceBindingOptions, Struct, StructField, TablePathValueRefMetadata,
+    CollectionItem, FieldValue, ProjectedField, SourceBindingOptions, Struct, StructField, TablePathValueRefMetadata, TableValue,
 )
 
 
-T = TypeVar("T")
+T = TypeVar("T", bound=FieldValue)
 S = TypeVar("S", bound=Struct)
 
 
-def field[T](*, name: str | None = None, description: str | None = None, annotations: Sequence[Annotation] = ()) -> Field[T]:  # pyright: ignore[reportInvalidTypeVarUse]
+def field[T: FieldValue](*, name: str | None = None, description: str | None = None, annotations: Sequence[Annotation] = ()) -> Field[T]:  # pyright: ignore[reportInvalidTypeVarUse]
     return Field(_metadata=TablePathValueRefMetadata(name=name, description=description, annotations=annotation_tuple(list(annotations))))
 
 
@@ -24,11 +24,11 @@ def struct_field(*, name: str | None = None, description: str | None = None, ann
     return StructField(_metadata=TablePathValueRefMetadata(name=name, description=description, annotations=annotation_tuple(list(annotations))))
 
 
-def collection_field[T](*, name: str | None = None, description: str | None = None, annotations: Sequence[Annotation] = ()) -> CollectionField[T]:  # pyright: ignore[reportInvalidTypeVarUse]
+def collection_field[T: CollectionItem](*, name: str | None = None, description: str | None = None, annotations: Sequence[Annotation] = ()) -> CollectionField[T]:  # pyright: ignore[reportInvalidTypeVarUse]
     return CollectionField(_metadata=TablePathValueRefMetadata(name=name, description=description, annotations=annotation_tuple(list(annotations))))
 
 
-def projected_field[T](value: Expression[T] | ValueRef[T], *, annotations: Sequence[Annotation] = ()) -> ProjectedField[T]:
+def projected_field[T: TableValue](value: Expression[T] | ValueRef[T], *, annotations: Sequence[Annotation] = ()) -> ProjectedField[T]:
     return ProjectedField(value, annotations=annotation_tuple(list(annotations)))
 
 
@@ -81,7 +81,7 @@ def resolve_bound_source(source: BoundSource) -> tuple[BoundTable, ...]:
 
 
 def bind_source(*, target: type, config: DataSourceConfig, options: SourceBindingOptions = SourceBindingOptions()) -> BoundSource:
-    resolved_annotations = options.annotations
+    resolved_annotations = annotation_tuple(options.annotations)
     if is_concrete_table(target):
         return BoundTable(target, config, resolved_annotations)
     if _is_table_group(target):

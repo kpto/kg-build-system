@@ -3,9 +3,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, ClassVar, Generic, TypeVar, dataclass_transform, get_args, get_type_hints
 from ..annotations import Annotation, annotation_tuple
+from ..data_types import Scalar, validate_value_type
 from .._support.naming import declaration_name, member_name
 
-T = TypeVar("T")
+type GraphValue = Scalar | None
+T = TypeVar("T", bound=GraphValue)
 S = TypeVar("S", bound="Node")
 D = TypeVar("D", bound="Node")
 
@@ -29,10 +31,12 @@ def properties_for(cls: type) -> dict[str, "PropertySlot[Any]"]:
     hints = get_type_hints(cls)
     for attribute, slot in properties.items():
         arguments = get_args(hints.get(attribute, Any))
-        object.__setattr__(slot, "type_hint", arguments[0] if arguments else Any)
+        type_hint = arguments[0] if arguments else Any
+        validate_value_type(type_hint, context=f"{cls.__name__}.{attribute}", allow_collection=False)
+        object.__setattr__(slot, "type_hint", type_hint)
     return properties
 
-def property[T](*, name: str | None = None, description: str | None = None, annotations: tuple[Annotation, ...] | list[Annotation] = ()) -> PropertySlot[T]:  # pyright: ignore[reportInvalidTypeVarUse]
+def property[T: GraphValue](*, name: str | None = None, description: str | None = None, annotations: tuple[Annotation, ...] | list[Annotation] = ()) -> PropertySlot[T]:  # pyright: ignore[reportInvalidTypeVarUse]
     return PropertySlot(name=name, description=description, annotations=annotation_tuple(annotations))
 
 @dataclass_transform(field_specifiers=(property,), kw_only_default=True)
@@ -42,6 +46,7 @@ class GraphComponent:
     _metadata: ClassVar[dict[str, Any]] = {}
     _component_declaration_kind: ClassVar[str | None] = None
     _component_name: ClassVar[str] = "component"
+    _component_annotations: ClassVar[tuple[Annotation, ...]] = ()
 
 
 @dataclass(frozen=True)
