@@ -1,7 +1,7 @@
 """Scalar portable expression constructors."""
 from typing import Any, Literal, overload
 
-from .core import Expression, FieldPath, item_type
+from .core import Expression, ValueRef, item_type
 from .inputs import to_expression
 
 
@@ -17,7 +17,7 @@ class ValueExpressions:
         return Expression("coalesce", expressions, expressions[0].type_hint if expressions else Any)
 
     @overload
-    def cast(self, value: FieldPath[list[str]] | Expression[list[str]], sql_type: Literal["VARCHAR[]", "TEXT[]"]) -> Expression[list[str]]: ...
+    def cast(self, value: ValueRef[list[str]] | Expression[list[str]], sql_type: Literal["VARCHAR[]", "TEXT[]"]) -> Expression[list[str]]: ...
 
     @overload
     def cast(self, value: Any, sql_type: str) -> Expression[Any]: ...

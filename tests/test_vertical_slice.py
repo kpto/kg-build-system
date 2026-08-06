@@ -7,7 +7,7 @@ from kg_build_system import (
     GraphComponentOptions, InputFormat, Node, NodeOptions, Projection,
     ProjectionOptions, ProjectedField, PropertySlot, SourceBindingOptions,
     Struct, Table, TableGroup, TableGroupOptions, TableOptions, TableTemplate,
-    TableTemplateOptions, bind, bind_source, build, collection, compile_blueprint,
+    TableTemplateOptions, ValueRef, bind, bind_source, build, collection, compile_blueprint,
     create_blueprint, edge_binding, field, node_binding, projected_field,
     property, value,
 )
@@ -159,6 +159,16 @@ class AnnotatedProjection(Projection):
 
 
 class AuthoringSurfaceTests(unittest.TestCase):
+    def test_expressions_use_portable_value_refs(self) -> None:
+        from kg_build_system import expressions
+        from kg_build_system.table import TableValueRef
+
+        reference = InputTable.identifier
+        self.assertIsInstance(reference, ValueRef)
+        self.assertIsInstance(reference, TableValueRef)
+        self.assertFalse(hasattr(expressions, "FieldPath"))
+        self.assertEqual(value.literal(reference).op, "value_ref")
+
     def test_docstrings_and_explicit_options_define_metadata(self) -> None:
         self.assertEqual(ThingNode._component_name, "thing")
         self.assertEqual(ThingNode._metadata["description"], "A named test node.")

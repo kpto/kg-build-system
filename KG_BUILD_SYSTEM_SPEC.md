@@ -53,13 +53,13 @@ It separates source-field references, portable computations, and graph-slot
 bindings so that static typing reflects their distinct roles:
 
 ```python
-class FieldPath[T]:
-    """A typed logical reference produced by table or struct navigation."""
+class ValueRef[T]:
+    """A typed value reference with no table or field metadata."""
 
 
 class Field[T]:
     @overload
-    def __get__(self, instance: None, owner: type | None = None) -> FieldPath[T]: ...
+    def __get__(self, instance: None, owner: type | None = None) -> ValueRef[T]: ...
     @overload
     def __get__(self, instance: object, owner: type | None = None) -> Self: ...
 
@@ -76,11 +76,11 @@ class Expression[T]:
     """A portable value computation."""
 ```
 
-`FieldPath[T]` never inherits from, or is cast into, `Expression[T]` or
+`ValueRef[T]` never inherits from, or is cast into, `Expression[T]` or
 `PropertySlot[T]`. `bind(...)` is the explicit graph-slot boundary:
 
 ```python
-def bind[T](value: T | FieldPath[T] | Expression[T]) -> ExpressionBinding[T]: ...
+def bind[T](value: T | ValueRef[T] | Expression[T]) -> ExpressionBinding[T]: ...
 ```
 
 The graph layer owns the only constructor transform. It is keyword-only and
@@ -252,8 +252,8 @@ prevents binding a reusable shape or inheriting a concrete table accidentally.
 Nested navigation creates typed field paths:
 
 ```python
-OpenTargetsPharmacogenomicsAnnotationTable.target.symbol  # FieldPath[str]
-OpenTargetsPharmacogenomicsAnnotationTable.disease_ids    # FieldPath[list[str]]
+OpenTargetsPharmacogenomicsAnnotationTable.target.symbol  # ValueRef[str]
+OpenTargetsPharmacogenomicsAnnotationTable.disease_ids    # ValueRef[list[str]]
 ```
 
 Types distinguish nullable fields, nullable collections, and nullable items:
@@ -279,8 +279,8 @@ a temporary item variable. `expand` requests row-context expansion for that
 path; compilation derives and shares the required parent-first unnests:
 
 ```python
-AssociationTable.evidence.element.disease_id  # collection-valued FieldPath[str]
-AssociationTable.evidence.element.labels      # collection-valued FieldPath[list[str]]
+AssociationTable.evidence.element.disease_id  # collection-valued ValueRef[str]
+AssociationTable.evidence.element.labels      # collection-valued ValueRef[list[str]]
 ```
 
 ## 6. Table groups and physical sources
@@ -360,12 +360,12 @@ value.coalesce(AssociationProjection.target_name, "unknown")
 ```
 
 ```text
-ExpressionInput[T] = T | FieldPath[T] | DynamicField[T] | Expression[T]
+ExpressionInput[T] = T | ValueRef[T] | DynamicField[T] | Expression[T]
 ```
 
-`FieldPath[T]` and `Expression[T]` are deliberately different types.
-Navigation of a table or struct member produces a `FieldPath[T]`, which is a
-typed logical reference and does **not** inherit from `Expression[T]`. An
+`ValueRef[T]` and `Expression[T]` are deliberately different types.
+Navigation of a table or struct member produces a table-owned `ValueRef[T]`,
+which is a typed logical reference and does **not** inherit from `Expression[T]`. An
 `Expression[T]` represents a portable value computation. A field path never
 becomes an expression or graph-property slot through inheritance or casting.
 

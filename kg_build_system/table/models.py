@@ -4,10 +4,40 @@ from dataclasses import dataclass
 from enum import StrEnum
 from typing import Any, ClassVar, Generic, Self, TypeAlias, TypeVar, get_args, get_type_hints, overload
 from ..annotations import Annotation, annotation_tuple
-from ..expressions import Expression, FieldPath, item_type
+from ..expressions import Expression, ValueRef, item_type
+from .._support.annotations import type_shape
 from .._support.naming import declaration_name, member_name
 
 T = TypeVar("T")
+
+
+@dataclass(frozen=True)
+class TableValueRef(ValueRef[T]):
+    """A typed value reference produced by table or projection navigation."""
+
+    table: type = object
+    path: tuple[str, ...] = ()
+    collection_paths: tuple[tuple[str, ...], ...] = ()
+    annotations: tuple[Annotation, ...] = ()
+
+    def __getattr__(self, part: str) -> "TableValueRef[Any]":
+        if part.startswith("_"):
+            raise AttributeError(part)
+        item = item_type(self.type_hint)
+        if part == "element":
+            if item is None:
+                raise AttributeError("element is only available on a collection field reference")
+            return TableValueRef[Any](item, "collection", self.table, self.path, self.collection_paths, self.annotations)
+        shape = item or type_shape(self.type_hint).annotation
+        fields = fields_for(shape) if isinstance(shape, type) else {}
+        if part not in fields:
+            raise AttributeError(f"{self.type_hint!r} has no declared field {part!r}")
+        field = fields[part]
+        path = self.path + (field.name or field.attr,)
+        field_type = field.type_hint | None if type_shape(self.type_hint).nullable and field.type_hint is not Any else field.type_hint
+        collection_paths = self.collection_paths + ((path,) if item_type(field_type) is not None else ())
+        return TableValueRef[Any](field_type, "collection" if collection_paths else "scalar", self.table, path, collection_paths, self.annotations + field.annotations)
+
 
 @dataclass(frozen=True)
 class Field(Generic[T]):
@@ -20,13 +50,13 @@ class Field(Generic[T]):
         object.__setattr__(self, "attr", attr)
         if self.name is None: object.__setattr__(self, "name", member_name(attr))
     @overload
-    def __get__(self, instance: None, owner: type | None = None) -> FieldPath[T]: ...
+    def __get__(self, instance: None, owner: type | None = None) -> TableValueRef[T]: ...
     @overload
     def __get__(self, instance: object, owner: type | None = None) -> Self: ...
-    def __get__(self, instance: object | None, owner: type | None = None) -> FieldPath[T] | Self:
+    def __get__(self, instance: object | None, owner: type | None = None) -> TableValueRef[T] | Self:
         if instance is not None: return self
         path = (self.name or self.attr,); collections = (path,) if item_type(self.type_hint) is not None else ()
-        return FieldPath[T](owner or object, path, self.type_hint, "collection" if collections else "scalar", collections, self.annotations)
+        return TableValueRef[T](self.type_hint, "collection" if collections else "scalar", owner or object, path, collections, self.annotations)
 
 
 def fields_for(cls: type) -> dict[str, "Field[Any]"]:
@@ -42,15 +72,15 @@ def fields_for(cls: type) -> dict[str, "Field[Any]"]:
 
 @dataclass(frozen=True)
 class ProjectedField(Generic[T]):
-    expression: Expression[T] | FieldPath[T]
+    expression: Expression[T] | ValueRef[T]
     name: str | None = None
     attr: str = ""
     annotations: tuple[Annotation, ...] = ()
     def __set_name__(self, owner: type, attr: str) -> None:
         object.__setattr__(self, "attr", attr)
         if self.name is None: object.__setattr__(self, "name", member_name(attr))
-    def __get__(self, instance: object | None, owner: type | None = None) -> Expression[T] | FieldPath[T]:
-        return self.expression if instance is not None else FieldPath[T](owner or object, (self.name or self.attr,), self.expression.type_hint, self.expression.cardinality, (), self.annotations)
+    def __get__(self, instance: object | None, owner: type | None = None) -> Expression[T] | ValueRef[T]:
+        return self.expression if instance is not None else TableValueRef[T](self.expression.type_hint, self.expression.cardinality, owner or object, (self.name or self.attr,), (), self.annotations)
 
 class InputFormat(StrEnum): CSV = "csv"; JSON = "json"; PARQUET = "parquet"
 @dataclass(frozen=True)
@@ -152,13 +182,13 @@ def _is_concrete_table(cls: type) -> bool:
     return vars(cls).get("_data_declaration_kind") == "table"
 
 
-def _validate_projection_value(value: Expression[Any] | FieldPath[Any]) -> None:
-    if isinstance(value, FieldPath):
+def _validate_projection_value(value: Expression[Any] | ValueRef[Any]) -> None:
+    if isinstance(value, TableValueRef):
         if not _is_concrete_table(value.table):
             raise TypeError("projections may reference only final Table inputs")
     elif isinstance(value, Expression):
         for argument in value.args:
-            if isinstance(argument, (Expression, FieldPath)):
+            if isinstance(argument, (Expression, ValueRef)):
                 _validate_projection_value(argument)
 
 

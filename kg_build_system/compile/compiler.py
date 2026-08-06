@@ -10,7 +10,7 @@ import json
 from typing import Any, Literal, cast, get_type_hints
 from ..annotations import Annotation
 from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
-from ..table import BoundSource, BoundTable
+from ..table import BoundSource, BoundTable, TableValueRef
 from ..table.declarations import resolve_bound_source
 from ..table.declarations import is_concrete_table
 from ..topology.declarations import is_final_component
@@ -21,7 +21,7 @@ from .models import (
     ProjectionDefinition, PropertyDefinition, SingleInputSlot, SourceDefinition,
     SourceOverride, Value, ValueType, WorkflowDefinition,
 )
-from ..expressions import Expression, FieldPath
+from ..expressions import Expression, ValueRef
 from .._support.annotations import type_name, type_shape
 from ..workflow.interfaces import CompilationContext, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft
 from ..modules.core.core import CoreModule
@@ -49,10 +49,12 @@ def _logical_table_name(table: type) -> str:
     return getattr(table, "_table_name", getattr(table, "_projection_name", table.__name__))
 
 
-def _to_ir(value: Expression[Any] | FieldPath[Any] | Any) -> Value:
-    if isinstance(value, FieldPath): return FieldReference(table=_logical_table_name(value.table), path=value.path, value_type=_value_type(value.type_hint, value.cardinality), collection_paths=value.collection_paths, annotations=_annotations(value.annotations))
+def _to_ir(value: Expression[Any] | ValueRef[Any] | Any) -> Value:
+    if isinstance(value, TableValueRef): return FieldReference(table=_logical_table_name(value.table), path=value.path, value_type=_value_type(value.type_hint, value.cardinality), collection_paths=value.collection_paths, annotations=_annotations(value.annotations))
+    if isinstance(value, ValueRef):
+        raise TypeError("only table or projection value references can be compiled")
     if isinstance(value, Expression):
-        if value.op == "field": return _to_ir(value.args[0])
+        if value.op == "value_ref": return _to_ir(value.args[0])
         if value.op == "literal": return _to_ir(value.args[0])
         operation = cast(Literal["concat", "coalesce", "cast", "deterministic_uuid", "expand", "struct_field", "lookup_one"], {"uuid": "deterministic_uuid"}.get(value.op, value.op))
         skip_string = (value.op == "cast" or value.op == "struct_field")
@@ -77,10 +79,12 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
     expected_kind = "edge" if isinstance(binding, EdgeBinding) else "node"
     if binding.target._kind != expected_kind:
         raise TypeError(f"{expected_kind}_binding requires a final @{expected_kind} target")
-    def validate_input(value: Expression[Any] | FieldPath[Any] | Any) -> None:
-        if isinstance(value, FieldPath):
+    def validate_input(value: Expression[Any] | ValueRef[Any] | Any) -> None:
+        if isinstance(value, TableValueRef):
             if not is_concrete_table(value.table) and not hasattr(value.table, "_projection_fields"):
                 raise TypeError("graph bindings may reference only final Table inputs or projections")
+        elif isinstance(value, ValueRef):
+            raise TypeError("graph bindings may reference only values supplied by a table or projection")
         elif isinstance(value, Expression):
             for argument in value.args:
                 validate_input(argument)

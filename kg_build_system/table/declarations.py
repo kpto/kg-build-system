@@ -5,7 +5,7 @@ from dataclasses import replace
 from typing import Sequence, TypeVar
 
 from ..annotations import Annotation, annotation_tuple
-from ..expressions import Expression, FieldPath
+from ..expressions import Expression, ValueRef
 from .models import (
     BoundSource, BoundTable, BoundTableGroup, DataSourceConfig, Field,
     ProjectedField, SourceBindingOptions,
@@ -19,7 +19,7 @@ def field[T](*, name: str | None = None, description: str | None = None, annotat
     return Field(name=name, description=description, annotations=annotation_tuple(list(annotations)))
 
 
-def projected_field[T](value: Expression[T] | FieldPath[T], *, annotations: Sequence[Annotation] = ()) -> ProjectedField[T]:
+def projected_field[T](value: Expression[T] | ValueRef[T], *, annotations: Sequence[Annotation] = ()) -> ProjectedField[T]:
     return ProjectedField(value, annotations=annotation_tuple(list(annotations)))
 
 
