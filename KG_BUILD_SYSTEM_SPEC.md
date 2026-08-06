@@ -57,18 +57,23 @@ class ValueRef[T]:
     """A typed value reference with no table or field metadata."""
 
 
-class Field[T]:
-    @overload
-    def __get__(self, instance: None, owner: type | None = None) -> ValueRef[T]: ...
-    @overload
-    def __get__(self, instance: object, owner: type | None = None) -> Self: ...
+class TablePathValueRefMetadata:
+    """Table, path, traversal, and declaration metadata."""
 
 
-class StructField[T: Struct]:
+class TablePathValueRef[T](ValueRef[T]):
+    _metadata: TablePathValueRefMetadata
+
+
+class Field[T](TablePathValueRef[T]):
+    """A scalar (or scalar-list) table field."""
+
+
+class StructField[T: Struct](TablePathValueRef[T]):
     """A structured value, navigated through ``member`` or ``m``."""
 
 
-class CollectionField[T]:
+class CollectionField[T](TablePathValueRef[list[T]]):
     """A collection of structs, navigated through ``element`` or ``e``."""
 
 
@@ -101,8 +106,10 @@ class GraphComponent(ABC):
 ```
 
 Final declarations are layer base classes: `Node`, `Edge[S, T]`, `Table`,
-`Struct`, `Projection`, and `TableGroup`. Their members are explicitly
-annotated `Field[T]`, `PropertySlot[T]`, or `ProjectedField[T]`. Reusable
+`Struct`, `Projection`, and `TableGroup`. Table and struct members are
+explicitly annotated `Field[T]`, `StructField[T]`, or `CollectionField[T]`;
+graph members use `PropertySlot[T]`, and projections use `ProjectedField[T]`.
+Reusable
 shapes may remain ordinary Python mixins; `TableTemplate` and
 `GraphComponent` are optional bases when a reusable shape needs framework
 metadata such as annotations.
@@ -224,8 +231,11 @@ The source-independent data hierarchy is:
 Table → Field → DataType
 ```
 
-`Field` may be scalar, optional, nested, or collection-valued. A `Struct` is a
-reusable nested record shape; it cannot be bound independently.
+`Field` represents scalar values (including a scalar list). `StructField`
+represents one nested `Struct`; `CollectionField` represents a collection of
+`Struct` values. A `Struct` is a reusable nested record shape; it stores
+`TablePathValueRefMetadata` only while serving navigation and is never a
+`ValueRef`, so it cannot be bound independently.
 Every final table or struct derives from its layer base class. A field's external name
 defaults to its snake-case Python attribute; authors provide `name=` only when
 the physical or external spelling differs. The Python attribute remains a
@@ -240,7 +250,7 @@ class TargetDetailsStruct(Struct):
 
 class PharmacogenomicsAnnotationTableTemplate(TableTemplate):
     options = TableTemplateOptions(description="Reusable pharmacogenomics input shape.")
-    target: Field[TargetDetailsStruct] = field()
+    target: StructField[TargetDetailsStruct] = struct_field()
     disease_ids: Field[list[str]] = field(name="diseaseIds")
     study_id: Field[str] = field(name="studyId")
     score: Field[float] = field()
@@ -257,10 +267,14 @@ need declaration options. `Table` creates a distinct final table class. Only fin
 concrete tables may be grouped, used in projections, or source-bound. This
 prevents binding a reusable shape or inheriting a concrete table accidentally.
 
-Nested navigation creates typed field paths:
+Table field descriptors are themselves `TablePathValueRef` values. Structured
+navigation first yields a non-value `Struct` proxy, then a typed value
+reference at a terminal field:
 
 ```python
-OpenTargetsPharmacogenomicsAnnotationTable.target.symbol  # ValueRef[str]
+OpenTargetsPharmacogenomicsAnnotationTable.target          # ValueRef[TargetDetailsStruct]
+OpenTargetsPharmacogenomicsAnnotationTable.target.m         # TargetDetailsStruct, not a ValueRef
+OpenTargetsPharmacogenomicsAnnotationTable.target.m.symbol  # ValueRef[str]
 OpenTargetsPharmacogenomicsAnnotationTable.disease_ids    # ValueRef[list[str]]
 ```
 
@@ -281,14 +295,18 @@ without an explicit expression that establishes a non-null value.
 Navigating a collection preserves its cardinality: it cannot select an item or
 duplicate a row implicitly.
 
-Nested navigation may continue through a collection. The resulting field path
+Collection navigation uses an explicit element proxy. The resulting field path
 retains every collection segment rather than requiring an author to introduce
 a temporary item variable. `expand` requests row-context expansion for that
 path; compilation derives and shares the required parent-first unnests:
 
 ```python
-AssociationTable.evidence.element.disease_id  # collection-valued ValueRef[str]
-AssociationTable.evidence.element.labels      # collection-valued ValueRef[list[str]]
+class AssociationTable(Table):
+    evidence: CollectionField[EvidenceStruct] = collection_field()
+
+
+AssociationTable.evidence.e.disease_id  # collection-valued ValueRef[str]
+AssociationTable.evidence.e.labels      # collection-valued ValueRef[list[str]]
 ```
 
 ## 6. Table groups and physical sources
@@ -350,8 +368,8 @@ expressions; it has no separate `inputs` argument.
 
 ```python
 class AssociationProjection(Projection):
-    target_id = projected_field(OpenTargetsPharmacogenomicsAnnotationTable.target.id)
-    target_symbol = projected_field(OpenTargetsPharmacogenomicsAnnotationTable.target.symbol)
+    target_id = projected_field(OpenTargetsPharmacogenomicsAnnotationTable.target.m.id)
+    target_symbol = projected_field(OpenTargetsPharmacogenomicsAnnotationTable.target.m.symbol)
     disease_id = projected_field(
         collection.expand(OpenTargetsPharmacogenomicsAnnotationTable.disease_ids)
     )
@@ -372,10 +390,15 @@ ExpressionInput[T] = T | ValueRef[T] | DynamicField[T] | Expression[T]
 ```
 
 `ValueRef[T]` and `Expression[T]` are deliberately different types.
-Navigation of a table or struct member produces a table-owned `ValueRef[T]`,
-which is a typed logical reference and does **not** inherit from `Expression[T]`. An
-`Expression[T]` represents a portable value computation. A field path never
-becomes an expression or graph-property slot through inheritance or casting.
+`TablePathValueRef[T]` is the table-owned implementation of `ValueRef[T]` and
+keeps its table/path details inside `_metadata`; the expressions package knows
+only the portable `ValueRef[T]` contract. `StructField.m` and
+`CollectionField.e` return a `Struct` proxy, not a `ValueRef`, so an
+intermediate struct cannot be supplied to an expression. A terminal member,
+such as `StudyTable.details.m.description`, is a `ValueRef[str | None]`.
+`Expression[T]` represents a portable value computation. A value reference
+never becomes an expression or graph-property slot through inheritance or
+casting.
 
 The expression namespaces accept `ExpressionInput[T]` directly and normalize
 their inputs internally. `bind(...)` is the separate graph-property-slot
@@ -395,14 +418,14 @@ grouping context rather than infer one. `lookup.one` requires a key that
 identifies at most one record; duplicates are diagnostics and `on_missing`
 declares absence semantics.
 
-Authors reference nested fields directly; they do not manage intermediate
-unnest items. For example, the compiler recognises the shared `evidence`
-prefix and lowers the two requested expansions into a parent-first plan:
+Authors reference nested terminal fields without managing temporary unnest
+items. For example, the compiler recognises the shared `evidence` prefix and
+lowers the two requested expansions into a parent-first plan:
 
 ```python
 class EvidenceProjection(Projection):
-    disease_id = projected_field(collection.expand(Association.evidence.element.disease_id))
-    evidence_label = projected_field(collection.expand(Association.evidence.element.labels))
+    disease_id = projected_field(collection.expand(Association.evidence.e.disease_id))
+    evidence_label = projected_field(collection.expand(Association.evidence.e.labels))
 ```
 
 This expresses one expansion over `evidence` followed by one over each
