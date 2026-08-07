@@ -339,7 +339,6 @@ class AuthoringSurfaceTests(unittest.TestCase):
                     properties=RelatedEdge(weight=bind(ExpandedInputProjection.weight)),
                 ),
             ],
-            projections=[ExpandedInputProjection],
             sources=[bind_source(target=InputTable, config=DataSourceConfig(str(root / "demo" / "data" / "association.json"), InputFormat.JSON))],
             modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration("unused.jsonl"))],
         )
@@ -376,7 +375,6 @@ class AuthoringSurfaceTests(unittest.TestCase):
                 properties=AnnotatedNode(code=bind(AnnotatedProjection.code)),
                 options=BindingOptions(annotations=[ExampleModuleAnnotation("binding")]),
             )],
-            projections=[AnnotatedProjection],
             sources=[source],
             modules=[AnnotationProbeModule(_ProbeConfiguration())],
         )

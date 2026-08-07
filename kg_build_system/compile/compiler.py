@@ -127,11 +127,35 @@ def _blueprint_module(registration: ModuleRegistration[Any]) -> BlueprintModule:
     )
 
 
-def create_blueprint(*, bindings: Iterable[Binding], projections: Sequence[type[Any]] = (), sources: Sequence[BoundSource] = (), modules: Sequence[ModuleRegistration[Any]]) -> BuildBlueprint:
+def _referenced_projections(bindings: Iterable[Binding]) -> tuple[type[Any], ...]:
+    """Discover projection declarations reachable from authoring bindings."""
+    projections: set[type[Any]] = set()
+
+    def visit(value: Expression[Any] | ValueRef[Any] | Any) -> None:
+        if isinstance(value, TablePathValueRef):
+            declaration = value._metadata.table
+            if hasattr(declaration, "_projection_fields"):
+                projections.add(declaration)
+        elif isinstance(value, Expression):
+            for argument in value.args:
+                visit(argument)
+
+    for binding in bindings:
+        visit(binding.build_key.expression)
+        if isinstance(binding, EdgeBinding):
+            visit(binding.source_build_key.expression)
+            visit(binding.target_build_key.expression)
+        for expression in _property_expressions(binding).values():
+            visit(expression)
+    return tuple(sorted(projections, key=lambda projection: projection._projection_name))
+
+
+def create_blueprint(*, bindings: Iterable[Binding], sources: Sequence[BoundSource] = (), modules: Sequence[ModuleRegistration[Any]]) -> BuildBlueprint:
     authoring_bindings = tuple(bindings)
     if not authoring_bindings: raise ValueError("a graph requires at least one binding")
     for binding in authoring_bindings: _validate_authoring_binding(binding)
     components = tuple(sorted({_binding.target for _binding in authoring_bindings}, key=lambda item: item.__name__))
+    projections = _referenced_projections(authoring_bindings)
     projection_ir = tuple(ProjectionDefinition(name=projection._projection_name, fields={field._metadata.name or name: _to_ir(field.expression) for name, field in projection._projection_fields.items()}, annotations=_annotations(projection._data_annotations), field_annotations={field._metadata.name or name: _annotations(field._metadata.annotations) for name, field in projection._projection_fields.items()}) for projection in projections)
     binding_definitions: list[BindingDefinition] = []
     occurrences: dict[str, int] = {}

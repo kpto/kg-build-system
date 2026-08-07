@@ -33,7 +33,6 @@ def create_demo_blueprint() -> BuildBlueprint:
     """Compose reusable declarations with concrete sources and workflow modules."""
     return create_blueprint(
         bindings=demo_bindings(),
-        projections=(AssociationEvidenceProjection,),
         sources=demo_sources(),
         modules=(
             CollapseExactDuplicatesModule(),
