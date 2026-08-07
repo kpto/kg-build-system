@@ -30,8 +30,18 @@ def collection_field[T: CollectionItem](*, name: str | None = None, description:
     return CollectionField(_metadata=TablePathValueRefMetadata(name=name, description=description, annotations=annotation_tuple(list(annotations))))
 
 
-def projected_field[T: TableValue](value: ProjectionInput[T], *, annotations: Sequence[Annotation] = ()) -> ProjectedField[T]:
-    return ProjectedField(to_expression(value), annotations=annotation_tuple(list(annotations)))
+def projected_field[T: TableValue](
+    value: ProjectionInput[T], *, name: str | None = None, description: str | None = None,
+    annotations: Sequence[Annotation] = (),
+) -> ProjectedField[T]:
+    return ProjectedField(
+        to_expression(value),
+        _metadata=TablePathValueRefMetadata(
+            name=name,
+            description=description,
+            annotations=annotation_tuple(list(annotations)),
+        ),
+    )
 
 
 def is_concrete_table(cls: type) -> bool:

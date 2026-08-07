@@ -188,26 +188,34 @@ def fields_for(cls: type) -> dict[str, "TablePathValueRef[Any]"]:
         object.__setattr__(descriptor, "type_hint", type_hint)
     return fields
 
-@dataclass(frozen=True)
-class ProjectedField(Generic[P]):
+@dataclass(frozen=True, init=False)
+class ProjectedField(TablePathValueRef[P], Generic[P]):
     """A projection declaration backed by a normalised portable expression."""
 
     expression: Expression[P]
-    name: str | None = None
-    attr: str = ""
-    annotations: tuple[Annotation, ...] = ()
+
+    def __init__(
+        self, expression: Expression[P], *, type_hint: Any = None, cardinality: str | None = None,
+        _metadata: TablePathValueRefMetadata = TablePathValueRefMetadata(),
+    ) -> None:
+        object.__setattr__(self, "type_hint", expression.type_hint if type_hint is None else type_hint)
+        object.__setattr__(self, "cardinality", expression.cardinality if cardinality is None else cardinality)
+        object.__setattr__(self, "_metadata", _metadata)
+        object.__setattr__(self, "expression", expression)
+
     def __set_name__(self, owner: type, attr: str) -> None:
-        object.__setattr__(self, "attr", attr)
-        if self.name is None: object.__setattr__(self, "name", member_name(attr))
-    def __get__(self, instance: object | None, owner: type | None = None) -> TablePathValueRef[P]:
+        metadata = self._metadata
+        object.__setattr__(self, "_metadata", replace(metadata, attr=attr, name=metadata.name or member_name(attr)))
+
+    def __get__(self, instance: object | None, owner: type | None = None) -> Self:
         """Expose the projected value as a reference, never its implementation."""
-        return TablePathValueRef[P](
-            self.expression.type_hint,
-            self.expression.cardinality,
-            TablePathValueRefMetadata(
+        metadata = self._metadata
+        return replace(
+            self,
+            _metadata=replace(
+                metadata,
                 table=owner or object,
-                path=(self.name or self.attr,),
-                annotations=self.annotations,
+                path=(metadata.name or metadata.attr,),
             ),
         )
 

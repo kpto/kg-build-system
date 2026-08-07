@@ -188,8 +188,28 @@ class AuthoringSurfaceTests(unittest.TestCase):
     def test_projected_fields_expose_value_references_not_source_expressions(self) -> None:
         reference = ExpandedInputProjection.related
         self.assertIsInstance(reference, ValueRef)
+        self.assertIsInstance(reference, ProjectedField)
         self.assertNotIsInstance(reference, Expression)
         self.assertEqual(reference._metadata.table, ExpandedInputProjection)
+
+    def test_projected_fields_use_standard_field_metadata(self) -> None:
+        from kg_build_system.table import TablePathValueRef
+
+        class MetadataProjection(Projection):
+            renamed: ProjectedField[str] = projected_field(
+                InputTable.identifier,
+                name="external_name",
+                description="A projected identifier.",
+                annotations=[PortableIndex()],
+            )
+
+        declaration = MetadataProjection.__dict__["renamed"]
+        self.assertIsInstance(declaration, TablePathValueRef)
+        self.assertEqual(declaration._metadata.attr, "renamed")
+        self.assertEqual(declaration._metadata.name, "external_name")
+        self.assertEqual(declaration._metadata.description, "A projected identifier.")
+        self.assertEqual(declaration._metadata.annotations, (PortableIndex(),))
+        self.assertEqual(MetadataProjection.renamed._metadata.path, ("external_name",))
 
     def test_struct_and_collection_fields_navigate_through_non_value_structs(self) -> None:
         self.assertTrue(issubclass(NestedStruct, DataStruct))
