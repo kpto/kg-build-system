@@ -1,6 +1,7 @@
 import unittest
 from dataclasses import dataclass
 from pathlib import Path
+from tempfile import TemporaryDirectory
 
 from kg_build_system import (
     Annotation, BindingOptions, CollectionField, DataSourceConfig, Edge, Field, GraphComponent,
@@ -344,10 +345,24 @@ class AuthoringSurfaceTests(unittest.TestCase):
         )
         contract = compile_blueprint(blueprint=blueprint)
         self.assertTrue(any(step.step_id == "core::projection.expanded_input" for step in contract.workflow.steps))
-        report = build(contract)
-        self.assertTrue(report.succeeded)
-        file_result = next(item.value for item in report.published_artifacts if item.role.name == "publication.file.write_result")
-        self.assertEqual((file_result["nodes"], file_result["edges"]), (5, 3))
+        with TemporaryDirectory() as directory:
+            output = Path(directory) / "output"
+            working = Path(directory) / "working"
+            temporary = Path(directory) / "temporary"
+            temporary.mkdir()
+            report = build(
+                contract,
+                output_directory=output,
+                working_directory=working,
+                temporary_directory=temporary,
+            )
+            self.assertTrue(report.succeeded)
+            file_result = next(item.value for item in report.published_artifacts if item.role.name == "publication.file.write_result")
+            self.assertEqual((file_result["nodes"], file_result["edges"]), (5, 3))
+            self.assertEqual(Path(file_result["location"]), output / "unused.jsonl")
+            self.assertTrue((output / "build_contract.json").is_file())
+            self.assertTrue((output / "build_report.json").is_file())
+            self.assertTrue(working.is_dir())
 
     def test_invalid_options_and_endpoints_are_rejected(self) -> None:
         with self.assertRaisesRegex(TypeError, "Table.options"):

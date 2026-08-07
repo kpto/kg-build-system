@@ -138,6 +138,7 @@ WorkflowDefinition
 
 ExecutionServices
   duckdb
+  output_storage
   working_storage
   temporary_storage
   credentials
@@ -485,10 +486,11 @@ there is deliberately no premature relation-service abstraction. Relation
 artifacts may therefore carry executor-local DuckDB relation names. A target
 module may use DuckDB directly to write an output file or database product.
 
-`working_storage` is the durable build-output root supplied at runtime. It is
-where modules write resulting files and other durable artifacts.
-`temporary_storage` is distinct, disposable scratch space used only during
-execution. Credential resolution is also a runtime service; resolved secrets
+`output_storage` is the publication root supplied at runtime. Target modules
+write published files beneath it using relative paths. `working_storage` is a
+separate root for durable intermediate artifacts and defaults to the output
+root. `temporary_storage` is disposable scratch space used only during
+execution and defaults to the system temporary location. Credential resolution is also a runtime service; resolved secrets
 remain outside the serialised contract and workflow payloads.
 
 The first implementation slice is:

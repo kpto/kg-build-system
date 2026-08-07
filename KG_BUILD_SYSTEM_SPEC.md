@@ -550,12 +550,20 @@ relations. Each binding step owns its complete relational row context, so a
 projection expansion used by one binding cannot change another binding's
 semantics.
 
-`build` consumes only `BuildContract` and `BuildRuntime`.
-`BuildRuntime` supplies resolved credentials plus operational settings such as
-temporary storage, resource limits, and logging. The build layer does not
+`build` consumes only `BuildContract` and `BuildRuntime`. It accepts explicit
+output, working, and temporary directories. The working directory defaults to
+the output directory, while temporary storage defaults to the system temporary
+location. The output directory receives published artifacts plus the serialised
+build contract and workflow report. `BuildRuntime` supplies resolved
+credentials plus operational settings such as resource limits and logging. The build layer does not
 interpret authoring classes, graph bindings, or expression values. It executes
 the contract's relational and diagnostic steps, then performs only its terminal
 target-write steps.
+
+Target modules configure output files with paths relative to the output
+directory. Workflow steps may use the separate working directory for durable
+intermediate artifacts, including materialised projections, and the temporary
+directory for disposable scratch data.
 
 Execution:
 

@@ -87,8 +87,9 @@ class DisruptingInput:
 class BuildRuntime:
     credentials: dict[str, str] = field(default_factory=dict)
     module_configuration: dict[str, dict[str, Any]] = field(default_factory=dict)
-    working_storage: Path = field(default_factory=lambda: Path.cwd())
-    temporary_storage: Path | None = None
+    output_directory: Path = field(default_factory=lambda: Path.cwd())
+    working_directory: Path | None = None
+    temporary_directory: Path | None = None
 
 
 @dataclass(frozen=True)

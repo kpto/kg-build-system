@@ -3,7 +3,9 @@ from __future__ import annotations
 
 import asyncio
 import importlib
+import json
 from collections import defaultdict
+from dataclasses import asdict, replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
@@ -20,8 +22,7 @@ def _load_class(import_module: str, qualname: str) -> type[Any]:
     return value
 
 
-async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -> WorkflowReport:
-    runtime = runtime or BuildRuntime()
+async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowReport:
     try:
         import duckdb
     except ImportError as error:
@@ -30,10 +31,12 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
     if contract.settings.duckdb_threads is not None:
         connection.execute(f"SET threads = {contract.settings.duckdb_threads}")
 
-    with TemporaryDirectory(dir=runtime.temporary_storage) as temporary_directory:
+    working_directory = runtime.working_directory or runtime.output_directory
+    with TemporaryDirectory(dir=runtime.temporary_directory) as temporary_directory:
       services = ExecutionServices(
           duckdb=connection,
-          working_storage=LocalWorkingStorage(runtime.working_storage),
+          output_storage=LocalWorkingStorage(runtime.output_directory),
+          working_storage=LocalWorkingStorage(working_directory),
           temporary_storage=LocalTemporaryStorage(Path(temporary_directory)),
           credentials=MappingCredentialResolver(runtime.credentials),
       )
@@ -125,6 +128,37 @@ async def _build(contract: BuildContract, runtime: BuildRuntime | None = None) -
     )
 
 
-def build(contract: BuildContract, runtime: BuildRuntime | None = None) -> WorkflowReport:
-    """Run a frozen workflow while keeping the public MVP entry point synchronous."""
-    return asyncio.run(_build(contract, runtime))
+def build(
+    contract: BuildContract, runtime: BuildRuntime | None = None, *,
+    output_directory: str | Path | None = None,
+    working_directory: str | Path | None = None,
+    temporary_directory: str | Path | None = None,
+) -> WorkflowReport:
+    """Run a frozen workflow and persist its contract and report."""
+    configured = runtime or BuildRuntime()
+    resolved_output = Path(output_directory) if output_directory is not None else configured.output_directory
+    resolved_working = Path(working_directory) if working_directory is not None else configured.working_directory
+    resolved_temporary = Path(temporary_directory) if temporary_directory is not None else configured.temporary_directory
+    configured = replace(
+        configured,
+        output_directory=resolved_output,
+        working_directory=resolved_working or resolved_output,
+        temporary_directory=resolved_temporary,
+    )
+    configured.output_directory.mkdir(parents=True, exist_ok=True)
+    assert configured.working_directory is not None
+    configured.working_directory.mkdir(parents=True, exist_ok=True)
+    if configured.temporary_directory is not None:
+        configured.temporary_directory.mkdir(parents=True, exist_ok=True)
+    (configured.output_directory / "build_contract.json").write_text(
+        contract.model_dump_json(indent=2), encoding="utf-8",
+    )
+    report = asyncio.run(_build(contract, configured))
+    (configured.output_directory / "build_report.json").write_text(
+        json.dumps(
+            asdict(report), indent=2, sort_keys=True,
+            default=lambda item: item.model_dump(mode="json") if hasattr(item, "model_dump") else str(item),
+        ),
+        encoding="utf-8",
+    )
+    return report

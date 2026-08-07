@@ -8,7 +8,7 @@ from typing import Any, Protocol
 
 
 class WorkingStorage(Protocol):
-    """Durable build-output root; distinct from disposable scratch storage."""
+    """Storage rooted at a caller-selected build directory."""
 
     def child(self, relative_path: PurePosixPath) -> Path: ...
 
@@ -47,6 +47,7 @@ class ExecutionServices:
     """
 
     duckdb: Any
+    output_storage: WorkingStorage
     working_storage: WorkingStorage
     temporary_storage: LocalTemporaryStorage
     credentials: CredentialResolver

@@ -4,8 +4,6 @@ Run ``python demo/build.py`` to compile the declarations and write inspectable
 artifacts under ``demo/output``.
 """
 
-from dataclasses import asdict
-import json
 from pathlib import Path
 import sys
 
@@ -22,7 +20,6 @@ from kg_build_system.modules import (
 )
 
 from demo.bindings.bindings import demo_bindings
-from demo.table.projections.association_evidence import AssociationEvidenceProjection
 from demo.table.sources import demo_sources
 
 
@@ -38,7 +35,7 @@ def create_demo_blueprint() -> BuildBlueprint:
             CollapseExactDuplicatesModule(),
             RejectConflictingNonNullValuesModule(),
             MergeCompatibleFactsModule(),
-            FileModule(FileModuleConfiguration(str(OUTPUT_DIRECTORY / "graph.jsonl"))),
+            FileModule(FileModuleConfiguration("graph.jsonl")),
         ),
     )
 
@@ -52,18 +49,7 @@ def run_demo() -> None:
     OUTPUT_DIRECTORY.mkdir(exist_ok=True)
     blueprint = create_demo_blueprint()
     contract = compile_blueprint(blueprint=blueprint)
-    (OUTPUT_DIRECTORY / "build_blueprint.json").write_text(blueprint.model_dump_json(indent=2), encoding="utf-8")
-    (OUTPUT_DIRECTORY / "build_contract.json").write_text(contract.model_dump_json(indent=2), encoding="utf-8")
-    report = build(contract)
-    (OUTPUT_DIRECTORY / "build_report.json").write_text(
-        json.dumps(
-            asdict(report),
-            indent=2,
-            sort_keys=True,
-            default=lambda item: item.model_dump(mode="json") if hasattr(item, "model_dump") else str(item),
-        ),
-        encoding="utf-8",
-    )
+    report = build(contract, output_directory=OUTPUT_DIRECTORY)
     print(report)
 
 
