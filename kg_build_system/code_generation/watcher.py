@@ -34,6 +34,12 @@ _CHANGE_KINDS = {
     Change.deleted: FileChangeKind.DELETED,
 }
 
+_CHANGE_PRIORITY = {
+    FileChangeKind.DELETED: 0,
+    FileChangeKind.CREATED: 1,
+    FileChangeKind.MODIFIED: 2,
+}
+
 
 def watch(
     root: str | Path,
@@ -70,14 +76,16 @@ def watch(
         stop_event=stop_event,
         raise_interrupt=False,
     ):
+        by_path: dict[Path, FileChangeKind] = {}
+        for change, path in batch:
+            relative = Path(path).resolve().relative_to(project_root)
+            kind = _CHANGE_KINDS[change]
+            previous = by_path.get(relative)
+            if previous is None or _CHANGE_PRIORITY[kind] > _CHANGE_PRIORITY[previous]:
+                by_path[relative] = kind
         changes = tuple(
-            sorted(
-                (
-                    FileChange(_CHANGE_KINDS[change], Path(path).resolve().relative_to(project_root))
-                    for change, path in batch
-                ),
-                key=lambda item: item.path.as_posix(),
-            )
+            FileChange(by_path[path], path)
+            for path in sorted(by_path, key=lambda value: value.as_posix())
         )
         if changes:
             yield changes

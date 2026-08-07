@@ -5,7 +5,7 @@ from unittest.mock import patch
 
 from watchfiles import Change
 
-from kg_build_system.code_generation import FileChangeKind, watch
+from kg_build_system.code_generation import FileChange, FileChangeKind, watch
 
 
 class WatcherTests(unittest.TestCase):
@@ -27,6 +27,23 @@ class WatcherTests(unittest.TestCase):
                     (FileChangeKind.CREATED, "created.json"),
                     (FileChangeKind.DELETED, "removed.py"),
                 ),
+            )
+
+    def test_coalesces_multiple_backend_events_for_the_same_path(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory).resolve()
+            path = str(root / "target.py")
+            batch = {
+                (Change.deleted, path),
+                (Change.added, path),
+                (Change.modified, path),
+            }
+            with patch("kg_build_system.code_generation.watcher._watchfiles", return_value=iter((batch,))):
+                changes = next(watch(root))
+
+            self.assertEqual(
+                changes,
+                (FileChange(FileChangeKind.MODIFIED, Path("target.py")),),
             )
 
     def test_passes_a_filter_for_suffixes_and_ignored_directories(self) -> None:

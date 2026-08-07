@@ -5,6 +5,7 @@ from __future__ import annotations
 from collections import defaultdict
 from collections.abc import Iterable
 from dataclasses import replace
+from hashlib import sha256
 import os
 from pathlib import Path
 import tempfile
@@ -185,11 +186,29 @@ class GenerationSession:
         self._by_source: dict[Path, tuple[DiscoveredGeneration, ...]] = {}
         self._by_dependency: dict[Path, set[Path]] = defaultdict(set)
         self._by_sidecar: dict[Path, Path] = {}
+        self._installed_source_fingerprints: dict[Path, str] = {}
+
+    @staticmethod
+    def _content_fingerprint(path: Path) -> str:
+        return sha256(path.read_bytes()).hexdigest()
+
+    def _remember_installed_sources(
+        self,
+        result: GenerationResult,
+        source_paths: Iterable[Path],
+    ) -> None:
+        changed = {self.root / path for path in result.changed_paths}
+        for source in source_paths:
+            if source in changed and source.exists():
+                self._installed_source_fingerprints[source] = self._content_fingerprint(source)
 
     def start(self) -> GenerationResult:
         """Establish a complete valid baseline and build the dependency index."""
         requests = discover(self.root)
         result = _generate_requests(self.root, requests)
+        self._remember_installed_sources(
+            result, (request.location.source_path for request in requests)
+        )
         self._replace_index(requests)
         return result
 
@@ -228,6 +247,14 @@ class GenerationSession:
             if absolute.suffix == ".py":
                 if absolute in self._by_sidecar:
                     continue
+                installed_fingerprint = self._installed_source_fingerprints.get(absolute)
+                if (
+                    installed_fingerprint is not None
+                    and absolute.exists()
+                    and self._content_fingerprint(absolute) == installed_fingerprint
+                ):
+                    continue
+                self._installed_source_fingerprints.pop(absolute, None)
                 if absolute.exists():
                     requests = discover_file(self.root, absolute)
                     if requests:
@@ -260,4 +287,6 @@ class GenerationSession:
         requests = tuple(request for source in sorted(affected) for request in self._by_source.get(source, ()))
         if not requests:
             return GenerationResult(GenerationStatus.CURRENT)
-        return replace(_generate_requests(self.root, requests), actions=tuple(actions))
+        result = _generate_requests(self.root, requests)
+        self._remember_installed_sources(result, affected)
+        return replace(result, actions=tuple(actions))

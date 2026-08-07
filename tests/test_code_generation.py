@@ -145,6 +145,35 @@ class CodeGenerationTests(unittest.TestCase):
             self.assertEqual(unknown_result.status, GenerationStatus.CURRENT)
             self.assertEqual(sidecar.read_text(encoding="utf-8"), "# manual intermediate edit\n")
 
+    def test_watch_session_ignores_its_own_source_repair_event(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = self._project(directory)
+            session = GenerationSession(root)
+            session.start()
+            authored = root / "contracts" / "target.py"
+
+            self.assertEqual(
+                session.handle((Path("contracts/target.py"),)).status,
+                GenerationStatus.CURRENT,
+            )
+
+            source = authored.read_text(encoding="utf-8")
+            authored.write_text(
+                source.replace(
+                    "from ._generated.target import G_TargetTable  # noqa: E402  # isort: skip\n\n",
+                    "",
+                ),
+                encoding="utf-8",
+            )
+            repair = session.handle((Path("contracts/target.py"),))
+            self.assertEqual(repair.status, GenerationStatus.CHANGED)
+            self.assertEqual(len(repair.actions), 1)
+            self.assertIn("from ._generated.target import G_TargetTable", authored.read_text(encoding="utf-8"))
+
+            follow_up = session.handle((Path("contracts/target.py"),))
+            self.assertEqual(follow_up.status, GenerationStatus.CURRENT)
+            self.assertEqual(follow_up.actions, ())
+
     def test_direct_qualified_and_aliased_decorators_are_discovered(self) -> None:
         statements = (
             "from kg_build_system import generated\nfrom kg_build_system.code_generation import DummyGenerationConfig, DummyProvider\n",
