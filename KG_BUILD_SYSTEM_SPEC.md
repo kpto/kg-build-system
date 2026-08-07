@@ -90,10 +90,11 @@ class Expression[T]:
 ```
 
 `ValueRef[T]` never inherits from, or is cast into, `Expression[T]` or
-`PropertySlot[T]`. `bind(...)` is the explicit graph-slot boundary:
+`PropertySlot[T]`. `bind(...)` is the explicit graph-facing boundary used for
+property values, build keys, and edge endpoint keys:
 
 ```python
-def bind[T](value: T | ValueRef[T] | Expression[T]) -> ExpressionBinding[T]: ...
+def bind[T: GraphValue](value: ExpressionInput[T]) -> ExpressionBinding[T]: ...
 ```
 
 The graph layer owns the only constructor transform. It is keyword-only and
@@ -443,10 +444,13 @@ never becomes an expression or graph-property slot through inheritance or
 casting.
 
 The expression namespaces accept `ExpressionInput[T]` directly and normalize
-their inputs internally. `bind(...)` is the separate graph-property-slot
-boundary: it accepts an `ExpressionInput[T]` and returns an
-`ExpressionBinding[T]`. Canonical bindings and compiled IR retain expressions,
-never disguised field paths.
+their inputs internally. `bind(...)` is the separate graph-facing boundary: it
+accepts an `ExpressionInput[T]` and returns an `ExpressionBinding[T]`.
+`node_binding(...)` requires an `ExpressionBinding[str]` build key;
+`edge_binding(...)` requires `ExpressionBinding[str]` values for its build,
+source, and target keys. Component property constructors likewise receive
+`ExpressionBinding[T]` values. Binding models retain these explicit wrappers;
+compiled IR retains their normalized expressions, never disguised field paths.
 
 - `value` provides `literal`, `concat`, `coalesce`, `cast`,
   `deterministic_uuid`, and `struct_field`.
@@ -486,24 +490,26 @@ expressions it uses.
 ```python
 target_from_pharmacogenomics = node_binding(
     target=TargetNode,
-    build_key=AssociationProjection.target_id,
+    build_key=bind(AssociationProjection.target_id),
     properties=TargetNode(symbol=bind(AssociationProjection.target_symbol)),
     options=BindingOptions(annotations=[...]),
 )
 
 annotation_associated_with_disease = edge_binding(
     target=AssociatedWithEdge,
-    build_key=value.deterministic_uuid(AssociationProjection.study_id),
-    source_build_key=value.concat("annotation::", AssociationProjection.study_id),
-    target_build_key=AssociationProjection.disease_id,
+    build_key=bind(value.deterministic_uuid(AssociationProjection.study_id)),
+    source_build_key=bind(value.concat("annotation::", AssociationProjection.study_id)),
+    target_build_key=bind(AssociationProjection.disease_id),
     properties=AssociatedWithEdge(score=bind(AssociationProjection.score)),
 )
 ```
 
 `properties` instantiates the graph contract with `ExpressionBinding[T]`
 values created by `bind(...)`; it is not a dictionary keyed by property
-objects. Build keys are build-time identity handles, not topology identifiers
-or persisted graph properties.
+objects. The binding factories couple the target component type to the
+properties instance type. Build and endpoint keys also use `bind(...)`, making
+every graph-facing value explicit. Build keys are build-time identity handles,
+not topology identifiers or persisted graph properties.
 
 `BindingOptions` and `SourceBindingOptions` attach annotations to the concrete
 mapping and acquisition choices respectively. They do not alter graph meaning

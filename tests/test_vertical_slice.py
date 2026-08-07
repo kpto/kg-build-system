@@ -246,6 +246,20 @@ class AuthoringSurfaceTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "unsupported SQL cast type"):
             value.cast("1", "DECIMAL")  # type: ignore[arg-type]
 
+    def test_graph_binding_arguments_require_explicit_bindings(self) -> None:
+        properties = ThingNode(label=bind(InputTable.label))
+        with self.assertRaisesRegex(TypeError, "build_key must be assigned with bind"):
+            node_binding(target=ThingNode, build_key=InputTable.identifier, properties=properties)  # type: ignore[arg-type]
+
+        with self.assertRaisesRegex(TypeError, "source_build_key must be assigned with bind"):
+            edge_binding(
+                target=RelatedEdge,
+                build_key=bind("edge"),
+                source_build_key=InputTable.identifier,  # type: ignore[arg-type]
+                target_build_key=bind(InputTable.identifier),
+                properties=RelatedEdge(weight=bind(InputTable.weight)),
+            )
+
     def test_docstrings_and_explicit_options_define_metadata(self) -> None:
         self.assertEqual(ThingNode._component_name, "thing")
         self.assertEqual(ThingNode._metadata["description"], "A named test node.")
@@ -254,7 +268,7 @@ class AuthoringSurfaceTests(unittest.TestCase):
         self.assertIs(RelatedEdge._metadata["target"], ThingNode)
 
         blueprint = create_blueprint(
-            bindings=[node_binding(target=ThingNode, build_key=InputTable.identifier, properties=ThingNode(label=bind(InputTable.label)))],
+            bindings=[node_binding(target=ThingNode, build_key=bind(InputTable.identifier), properties=ThingNode(label=bind(InputTable.label)))],
             modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration("unused.jsonl"))],
         )
         self.assertEqual(blueprint.components[0].description, "A named test node.")
@@ -279,7 +293,7 @@ class AuthoringSurfaceTests(unittest.TestCase):
             config=DataSourceConfig("fixtures", InputFormat.JSON, layout="{group_path}/{table_name}.json"),
         )
         blueprint = create_blueprint(
-            bindings=[node_binding(target=ThingNode, build_key=InputTable.identifier, properties=ThingNode(label=bind(InputTable.label)))],
+            bindings=[node_binding(target=ThingNode, build_key=bind(InputTable.identifier), properties=ThingNode(label=bind(InputTable.label)))],
             sources=[source], modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration("unused.jsonl"))],
         )
         self.assertEqual(ReleaseTableGroup._data_metadata["description"], "The test release hierarchy.")
@@ -295,13 +309,13 @@ class AuthoringSurfaceTests(unittest.TestCase):
         root = Path(__file__).parents[1]
         blueprint = create_blueprint(
             bindings=[
-                node_binding(target=ThingNode, build_key=ExpandedInputProjection.identifier, properties=ThingNode(label=bind(ExpandedInputProjection.label))),
-                node_binding(target=ThingNode, build_key=ExpandedInputProjection.related, properties=ThingNode(label=bind(ExpandedInputProjection.related))),
+                node_binding(target=ThingNode, build_key=bind(ExpandedInputProjection.identifier), properties=ThingNode(label=bind(ExpandedInputProjection.label))),
+                node_binding(target=ThingNode, build_key=bind(ExpandedInputProjection.related), properties=ThingNode(label=bind(ExpandedInputProjection.related))),
                 edge_binding(
                     target=RelatedEdge,
-                    build_key=value.deterministic_uuid(value.concat(ExpandedInputProjection.identifier, ExpandedInputProjection.related)),
-                    source_build_key=ExpandedInputProjection.identifier,
-                    target_build_key=ExpandedInputProjection.related,
+                    build_key=bind(value.deterministic_uuid(value.concat(ExpandedInputProjection.identifier, ExpandedInputProjection.related))),
+                    source_build_key=bind(ExpandedInputProjection.identifier),
+                    target_build_key=bind(ExpandedInputProjection.related),
                     properties=RelatedEdge(weight=bind(ExpandedInputProjection.weight)),
                 ),
             ],
@@ -338,7 +352,7 @@ class AuthoringSurfaceTests(unittest.TestCase):
         blueprint = create_blueprint(
             bindings=[node_binding(
                 target=AnnotatedNode,
-                build_key=AnnotatedProjection.code,
+                build_key=bind(AnnotatedProjection.code),
                 properties=AnnotatedNode(code=bind(AnnotatedProjection.code)),
                 options=BindingOptions(annotations=[ExampleModuleAnnotation("binding")]),
             )],

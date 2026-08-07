@@ -9,7 +9,7 @@ from hashlib import sha256
 import json
 from typing import Any, Literal, cast, get_type_hints
 from ..annotations import Annotation
-from ..binding import EdgeBinding, ExpressionBinding, NodeBinding
+from ..binding import Binding, EdgeBinding, ExpressionBinding, NodeBinding
 from ..table import BoundSource, BoundTable, TablePathValueRef
 from ..table.declarations import resolve_bound_source
 from ..table.declarations import is_concrete_table
@@ -26,11 +26,11 @@ from .._support.annotations import type_name, type_shape
 from ..workflow.interfaces import CompilationContext, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft
 from ..modules.core.core import CoreModule
 
-def _property_expressions(binding: NodeBinding | EdgeBinding) -> dict[str, Expression[Any]]:
+def _property_expressions(binding: Binding) -> dict[str, Expression[Any]]:
     values: dict[str, Expression[Any]] = {}
     for name in binding.target._properties:
         slot = getattr(binding.properties, name)
-        if not isinstance(slot, ExpressionBinding) or slot.expression is None:
+        if not isinstance(slot, ExpressionBinding):
             raise TypeError(f"{binding.target.__name__}.{name} must be assigned with bind(...)")
         values[name] = slot.expression
     return values
@@ -66,13 +66,13 @@ def _component(component: type) -> ComponentDefinition:
     metadata = component._metadata; properties = tuple(PropertyDefinition(name=prop.name or attr, value_type=_value_type(prop.type_hint), nullable=_value_type(prop.type_hint).nullable, annotations=_annotations(prop.annotations)) for attr, prop in component._properties.items())
     return ComponentDefinition(name=component._component_name, kind=component._kind, description=metadata.get("description"), properties=properties, source=getattr(metadata.get("source"), "_component_name", None), target=getattr(metadata.get("target"), "_component_name", None), annotations=_annotations(component._component_annotations))
 
-def _binding(binding: NodeBinding | EdgeBinding, *, symbol_id: str) -> BindingDefinition:
+def _binding(binding: Binding, *, symbol_id: str) -> BindingDefinition:
     properties = {name: _to_ir(value) for name, value in _property_expressions(binding).items()}
     if isinstance(binding, EdgeBinding):
-        return EdgeBindingDefinition(symbol_id=symbol_id, debug_name=binding.debug_name, component=binding.target._component_name, build_key=_to_ir(binding.build_key), source_build_key=_to_ir(binding.source_build_key), target_build_key=_to_ir(binding.target_build_key), properties=properties, annotations=_annotations(binding.annotations))
-    return NodeBindingDefinition(symbol_id=symbol_id, debug_name=binding.debug_name, component=binding.target._component_name, build_key=_to_ir(binding.build_key), properties=properties, annotations=_annotations(binding.annotations))
+        return EdgeBindingDefinition(symbol_id=symbol_id, debug_name=binding.debug_name, component=binding.target._component_name, build_key=_to_ir(binding.build_key.expression), source_build_key=_to_ir(binding.source_build_key.expression), target_build_key=_to_ir(binding.target_build_key.expression), properties=properties, annotations=_annotations(binding.annotations))
+    return NodeBindingDefinition(symbol_id=symbol_id, debug_name=binding.debug_name, component=binding.target._component_name, build_key=_to_ir(binding.build_key.expression), properties=properties, annotations=_annotations(binding.annotations))
 
-def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
+def _validate_authoring_binding(binding: Binding) -> None:
     """Checks requiring declaration metadata, before it is discarded into IR."""
     if not is_final_component(binding.target):
         raise TypeError("graph bindings require a final Node or Edge target")
@@ -88,10 +88,10 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
         elif isinstance(value, Expression):
             for argument in value.args:
                 validate_input(argument)
-    validate_input(binding.build_key)
+    validate_input(binding.build_key.expression)
     if isinstance(binding, EdgeBinding):
-        validate_input(binding.source_build_key)
-        validate_input(binding.target_build_key)
+        validate_input(binding.source_build_key.expression)
+        validate_input(binding.target_build_key.expression)
     for name, value in _property_expressions(binding).items():
         validate_input(value)
         if getattr(value, "cardinality", "scalar") == "collection":
@@ -103,9 +103,9 @@ def _validate_authoring_binding(binding: NodeBinding | EdgeBinding) -> None:
             raise TypeError(f"{binding.target.__name__}.{name} expects {expected.name}, but expression resolves to {actual.name}")
         if not expected.nullable and actual.nullable:
             raise TypeError(f"{binding.target.__name__}.{name} is required but expression may be null")
-    if getattr(binding.build_key, "cardinality", "scalar") == "collection":
+    if binding.build_key.expression.cardinality == "collection":
         raise TypeError(f"{binding.target.__name__} build key maps a collection; use collection.expand(...) explicitly")
-    key_type = _value_type(getattr(binding.build_key, "type_hint", Any), getattr(binding.build_key, "cardinality", "scalar"))
+    key_type = _value_type(binding.build_key.expression.type_hint, binding.build_key.expression.cardinality)
     if key_type.name not in {"str", "unknown"}: raise TypeError(f"{binding.target.__name__} build key must resolve to str, not {key_type.name}")
     if key_type.nullable: raise TypeError(f"{binding.target.__name__} build key may not be nullable")
 
@@ -127,7 +127,7 @@ def _blueprint_module(registration: ModuleRegistration[Any]) -> BlueprintModule:
     )
 
 
-def create_blueprint(*, bindings: Iterable[NodeBinding | EdgeBinding], projections: Sequence[type[Any]] = (), sources: Sequence[BoundSource] = (), modules: Sequence[ModuleRegistration[Any]]) -> BuildBlueprint:
+def create_blueprint(*, bindings: Iterable[Binding], projections: Sequence[type[Any]] = (), sources: Sequence[BoundSource] = (), modules: Sequence[ModuleRegistration[Any]]) -> BuildBlueprint:
     authoring_bindings = tuple(bindings)
     if not authoring_bindings: raise ValueError("a graph requires at least one binding")
     for binding in authoring_bindings: _validate_authoring_binding(binding)

@@ -8,15 +8,15 @@ from demo.topology.nodes.target.edges.associated_with_disease import AssociatedW
 association_to_disease = edge_binding(
     debug_name="association_to_disease",
     target=AssociatedWithEdge,
-    build_key=value.deterministic_uuid(
+    build_key=bind(value.deterministic_uuid(
         value.concat(
             AssociationEvidenceProjection.target_id,
             AssociationEvidenceProjection.disease_id,
             AssociationEvidenceProjection.evidence_label,
         )
-    ),
-    source_build_key=value.concat("target::", AssociationEvidenceProjection.target_id),
-    target_build_key=value.concat("disease::", AssociationEvidenceProjection.disease_id),
+    )),
+    source_build_key=bind(value.concat("target::", AssociationEvidenceProjection.target_id)),
+    target_build_key=bind(value.concat("disease::", AssociationEvidenceProjection.disease_id)),
     properties=AssociatedWithEdge(
         score=bind(AssociationEvidenceProjection.score),
         study_name=bind(
