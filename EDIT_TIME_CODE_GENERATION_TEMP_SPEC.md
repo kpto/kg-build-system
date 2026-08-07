@@ -9,9 +9,10 @@ of the stable public API.
 
 Code generation is a largely separate system from graph compilation and build
 execution. It is invoked as a development command and may run continuously as
-a file watcher. Its purpose is to make large declarations, such as table
-contracts derived from external schemas, practical to author while keeping the
-resulting runtime Python code explicit, inspectable, and version-controlled.
+a file watcher. Its purpose is to make declarations derived from provider-owned
+inputs practical to author while keeping the resulting runtime Python code
+explicit, inspectable, and version-controlled. The core generator does not
+interpret or assign domain meaning to provider configuration or dependencies.
 
 The generator must not defer declaration construction until blueprint or build
 compilation. Compilation consumes normal Python declarations that already
@@ -35,10 +36,10 @@ exist in the project.
 ## 3. Non-goals for the initial extension
 
 - Generation during `create_blueprint`, `compile_blueprint`, or `build`.
-- Runtime discovery of external schemas.
+- Runtime discovery or interpretation of provider dependencies.
 - Dynamic population of an empty class by a decorator or metaclass.
 - Generating only `.pyi` files while reconstructing runtime declarations later.
-- A stable plugin API for every possible schema provider.
+- A stable plugin API for every possible generation provider.
 - Automatically migrating arbitrary handwritten declarations.
 
 ## 4. Authoring model
@@ -149,9 +150,10 @@ validation, or formatting operation must leave the previous files intact.
 ## 6. Decorator semantics
 
 `generated(...)` is primarily a static generation marker and configuration
-carrier. At runtime it must not create fields, modify bases, resolve external
-schemas, or invoke a generator. It may attach non-secret generation provenance
-to the already constructed class, provided it returns the same class object.
+carrier. At runtime it must not create fields, modify bases, resolve provider
+dependencies, or invoke a generator. It may attach non-secret generation
+provenance to the already constructed class, provided it returns the same class
+object.
 
 ### 6.1 Stacked decorators
 
@@ -243,17 +245,29 @@ does not own.
 
 ### 8.2 Watch inputs
 
+The watcher performs one complete discovery and generation pass at startup,
+then builds an in-memory dependency index. A provider declares the project
+paths on which each generation request depends; the core assigns no schema,
+configuration, or other domain meaning to those paths.
+
 The watcher observes:
 
 - Python modules containing generated declarations;
-- declared external schema inputs;
-- relevant generator configuration;
-- generator templates or provider code when operating in a development
-  workspace.
+- paths explicitly declared by providers as dependencies.
 
-Changes to generated output trigger validation but must not cause a
-regeneration loop. File events should be debounced and coalesced into a
-deterministic generation pass.
+After startup, event batches are processed incrementally:
+
+- a changed authored Python module is rescanned and its dependency-index entry
+  is updated;
+- a changed provider-declared dependency regenerates only its dependent
+  authored modules;
+- a changed generated sidecar is ignored because generation is one-way;
+- an event for an unknown path is ignored rather than causing a full scan.
+
+File events are debounced and coalesced. One-shot generation and `--check`
+remain complete project operations. Watch mode uses the same rendering,
+validation, ownership, and installation implementation on the affected subset;
+it does not use a weaker generation path.
 
 ## 9. Discovery without importing project code
 
@@ -303,7 +317,7 @@ permit it; a separate explicit force or recovery operation may be added later.
 Generation occurs as a transaction:
 
 1. Discover and validate generation requests.
-2. Load and normalize provider inputs.
+2. Ask each provider for its declared dependencies and normalized output.
 3. Render sidecars and source integration edits in memory.
 4. Parse every rendered Python module.
 5. Validate declaration names, imports, bases, and ownership.
@@ -317,7 +331,7 @@ The initial implementation should include tests covering:
 
 - first generation of an empty declaration;
 - idempotent repeated generation;
-- sidecar changes after an external schema change;
+- sidecar changes after a provider dependency change;
 - stacked decorator preservation;
 - misplaced and duplicate generation decorators;
 - direct, qualified, and aliased decorator imports;
@@ -325,7 +339,8 @@ The initial implementation should include tests covering:
 - missing, stale, and manually altered generated files;
 - multiple declarations in one authored module;
 - import placement under formatting and lint fixes;
-- watcher event coalescing and avoidance of output loops;
+- watcher dependency indexing, incremental regeneration, event coalescing, and
+  ignoring generated-sidecar and unknown-path events;
 - rollback when any request in a pass fails.
 
 ## 12. Compilation relationship
@@ -339,8 +354,8 @@ class TargetTable(G_TargetTable, Table):
 ```
 
 The framework's existing declaration machinery collects fields inherited from
-the generated mixin. Compilation does not read generation requests or external
-schema inputs and does not synthesize missing declarations.
+the generated mixin. Compilation does not read generation requests or provider
+dependencies and does not synthesize missing declarations.
 
 Compilation may validate recorded generation provenance and reject an
 obviously incomplete or stale declaration with an actionable message:
@@ -354,22 +369,23 @@ decision. `kbs generate --check` is the canonical complete validation.
 
 ## 13. Initial vertical slice
 
-The first provider should demonstrate the mechanism using a representative
-schema with:
+The proof of concept uses a deliberately minimal `dummy` provider. It reads a
+small provider-owned JSON format and demonstrates required and nullable scalar
+fields, external names, descriptions, deterministic regeneration, and naming
+collision diagnostics. This format is test infrastructure, not a public schema
+standard or a source of domain concepts for the core generator.
 
-- required and nullable scalar fields;
-- nested structs;
-- collections of scalars;
-- collections of structs;
-- external names that differ from valid Python member names;
-- descriptions and supported annotations;
-- naming collisions that produce diagnostics.
+The core provider contract is generic. A provider:
 
-Open Targets Croissant metadata is the motivating input, but provider-specific
-metadata parsing should remain outside the core declaration and compilation
-packages. The first slice is successful when generated table and struct
-declarations are ordinary importable Python and compile through the existing
-blueprint path without runtime schema generation.
+- declares the project paths on which a request depends;
+- returns a provider-independent normalized declaration model;
+- owns all interpretation of its configuration and dependency contents.
+
+The first slice is successful when generated declarations are ordinary
+importable Python and compile through the existing blueprint path. Richer
+providers may later add nested structs, collections, annotations, or external
+metadata formats without changing discovery, watching, rendering, or build
+compilation.
 
 ## 14. Open questions
 
@@ -384,7 +400,8 @@ blueprint path without runtime schema generation.
   content was manually changed but their ownership is unambiguous.
 - Whether compilation checks freshness or leaves that exclusively to
   `kbs generate --check`.
-- The stable provider interface after the initial Croissant experiment.
+- Evolution of the provider-independent normalized declaration model beyond
+  the dummy proof of concept.
 
 ## 15. Module parsing and source transformation
 
@@ -416,9 +433,8 @@ from kg_build_system.generation import generated as codegen
 
 
 @codegen(
-    provider="croissant",
-    source="../../croissant.json",
-    selector="targets",
+    provider="dummy",
+    source="../../fields.json",
 )
 @registered
 class TargetTable(Table):
@@ -468,9 +484,8 @@ values:
 
 ```python
 @generated(
-    provider="croissant",
-    source="../../croissant.json",
-    selector="targets",
+    provider="dummy",
+    source="../../fields.json",
 )
 ```
 
@@ -479,9 +494,9 @@ lists, tuples, or dictionaries composed from supported values. Arbitrary calls,
 attribute reads, environment access, and computed expressions are rejected:
 
 ```python
-@generated(source=find_schema())          # rejected
-@generated(source=os.environ["SCHEMA"])  # rejected
-@generated(source=CONFIG.schema_path)      # rejected
+@generated(source=find_input())           # rejected
+@generated(source=os.environ["INPUT"])   # rejected
+@generated(source=CONFIG.input_path)       # rejected
 ```
 
 The implementation uses a small syntax-tree evaluator and never `eval`.
@@ -710,14 +725,16 @@ may be introduced if crash recovery requires it.
 Writing sidecars first ensures a normally interrupted pass does not leave a
 public source file referring to a sidecar that was never created.
 
-### 15.12 One implementation path for generate, check, and watch
+### 15.12 Shared desired-state implementation and incremental watching
 
-All command modes use the same desired-state computation:
+One-shot and check modes compute complete project state. Watch mode computes a
+complete baseline once and then applies the same desired-state implementation
+to indexed affected requests:
 
 ```text
 generate          desired state -> disk
 generate --check  desired state <-> disk
-generate --watch  repeat generate after relevant changes
+generate --watch  full baseline -> dependency index -> affected subsets
 ```
 
 `--check` must not use a second, weaker validation implementation. It renders
@@ -725,6 +742,8 @@ the exact desired files in memory, compares them with disk, reports concise
 diffs and diagnostics, and exits unsuccessfully if any source wiring or
 sidecar is missing, stale, or different.
 
-The watcher debounces relevant events and invokes the same deterministic
-single-pass operation. Changes caused by installing desired generated output
-must not cause a regeneration loop.
+The watcher must not rediscover the complete project after every event. It
+updates the index when an authored Python module changes and regenerates only
+modules selected by provider-declared dependency paths. Generated-sidecar
+events and unknown-path events are ignored. Installing generated output must
+therefore neither trigger reverse generation nor cause an output loop.
