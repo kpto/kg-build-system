@@ -528,6 +528,13 @@ declarations. It produces an immutable `BuildBlueprint`, validates
 compatibility and resolves expression/cardinality semantics. Incomplete work remains Python source rather than becoming a
 partially-specified document IR.
 
+As an alternative to passing bindings and sources explicitly,
+`create_blueprint(namespace_path=...)` recursively imports an importable Python
+namespace and discovers its module-level graph-binding and source-binding
+objects. Re-exported objects are deduplicated by identity; discovery never
+invokes arbitrary factory functions. Explicit bindings and sources may be
+added to the discovered declarations.
+
 It serialises every annotation into canonical immutable IR. The blueprint and
 contract preserve annotations without interpretation; annotations contribute to
 their fingerprints. During `compile_blueprint`, every module compiler receives

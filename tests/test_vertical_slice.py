@@ -364,6 +364,18 @@ class AuthoringSurfaceTests(unittest.TestCase):
             self.assertTrue((output / "build_report.json").is_file())
             self.assertTrue(working.is_dir())
 
+    def test_blueprint_discovers_bindings_and_sources_from_namespace_path(self) -> None:
+        from demo.build import create_demo_blueprint
+
+        blueprint = create_demo_blueprint()
+        self.assertEqual(len(blueprint.bindings), 4)
+        self.assertEqual(
+            {source.table for source in blueprint.sources},
+            {"association", "disease", "study", "target"},
+        )
+        dotted_blueprint = create_blueprint(namespace_path="demo", modules=POST_PROCESSING)
+        self.assertEqual(len(dotted_blueprint.bindings), 4)
+
     def test_invalid_options_and_endpoints_are_rejected(self) -> None:
         with self.assertRaisesRegex(TypeError, "Table.options"):
             class InvalidTable(Table):

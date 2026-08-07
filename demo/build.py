@@ -19,38 +19,20 @@ from kg_build_system.modules import (
     RejectConflictingNonNullValuesModule,
 )
 
-from demo.bindings.bindings import demo_bindings
-from demo.table.sources import demo_sources
-
-
-OUTPUT_DIRECTORY = Path(__file__).parent / "build"
-
-
-def create_demo_blueprint() -> BuildBlueprint:
-    """Compose reusable declarations with concrete sources and workflow modules."""
-    return create_blueprint(
-        bindings=demo_bindings(),
-        sources=demo_sources(),
-        modules=(
-            CollapseExactDuplicatesModule(),
-            RejectConflictingNonNullValuesModule(),
-            MergeCompatibleFactsModule(),
-            FileModule(FileModuleConfiguration("graph.jsonl")),
-        ),
-    )
-
-
-def compile_demo() -> BuildContract:
-    return compile_blueprint(blueprint=create_demo_blueprint())
-
 
 def run_demo() -> None:
     """Write the graph and inspectable compilation artifacts to ``demo/output``."""
+    OUTPUT_DIRECTORY = Path(__file__).parent / "build"
     OUTPUT_DIRECTORY.mkdir(exist_ok=True)
-    blueprint = create_demo_blueprint()
+
+    blueprint = create_blueprint(
+        namespace_path=Path(__file__).parent,
+        modules=(
+            FileModule(FileModuleConfiguration("graph.jsonl")),
+        ),
+    )
     contract = compile_blueprint(blueprint=blueprint)
-    report = build(contract, output_directory=OUTPUT_DIRECTORY)
-    print(report)
+    build(contract, output_directory=OUTPUT_DIRECTORY)
 
 
 if __name__ == "__main__":

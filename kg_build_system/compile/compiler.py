@@ -4,13 +4,17 @@ from __future__ import annotations
 from collections.abc import Iterable, Sequence
 import asyncio
 import importlib
+import importlib.util
+import sys
 from dataclasses import asdict
 from hashlib import sha256
 import json
-from typing import Any, Literal, cast, get_type_hints
+from pathlib import Path
+from types import ModuleType
+from typing import Any, Literal, cast, get_type_hints, overload
 from ..annotations import Annotation
 from ..binding import Binding, EdgeBinding, ExpressionBinding, NodeBinding
-from ..table import BoundSource, BoundTable, TablePathValueRef
+from ..table import BoundSource, BoundTable, BoundTableGroup, TablePathValueRef
 from ..table.declarations import resolve_bound_source
 from ..table.declarations import is_concrete_table
 from ..topology.declarations import is_final_component
@@ -150,8 +154,79 @@ def _referenced_projections(bindings: Iterable[Binding]) -> tuple[type[Any], ...
     return tuple(sorted(projections, key=lambda projection: projection._projection_name))
 
 
-def create_blueprint(*, bindings: Iterable[Binding], sources: Sequence[BoundSource] = (), modules: Sequence[ModuleRegistration[Any]]) -> BuildBlueprint:
-    authoring_bindings = tuple(bindings)
+def _namespace_modules(namespace_path: str | Path) -> tuple[ModuleType, ...]:
+    path = Path(namespace_path)
+    added_import_root: str | None = None
+    inserted_import_root = False
+    if path.exists():
+        root = path.resolve()
+        if not root.is_dir():
+            raise ValueError("namespace_path must identify a Python namespace directory")
+        namespace = root.name
+        added_import_root = str(root.parent)
+        search_roots = (root,)
+    else:
+        namespace = str(namespace_path)
+        spec = importlib.util.find_spec(namespace)
+        if spec is None or spec.submodule_search_locations is None:
+            raise ModuleNotFoundError(f"no importable namespace found for {namespace!r}")
+        search_roots = tuple(Path(location) for location in spec.submodule_search_locations)
+
+    module_names = {namespace}
+    for root in search_roots:
+        for source in root.rglob("*.py"):
+            relative = source.relative_to(root)
+            parts = relative.with_suffix("").parts
+            if parts[-1] == "__init__":
+                parts = parts[:-1]
+            module_names.add(".".join((namespace, *parts)) if parts else namespace)
+
+    if added_import_root is not None and added_import_root not in sys.path:
+        sys.path.insert(0, added_import_root)
+        inserted_import_root = True
+    try:
+        return tuple(importlib.import_module(name) for name in sorted(module_names))
+    finally:
+        if inserted_import_root and added_import_root is not None and sys.path[0] == added_import_root:
+            sys.path.pop(0)
+
+
+def _discover_namespace(namespace_path: str | Path) -> tuple[tuple[Binding, ...], tuple[BoundSource, ...]]:
+    bindings: list[Binding] = []
+    sources: list[BoundSource] = []
+    seen_bindings: set[int] = set()
+    seen_sources: set[int] = set()
+    for module in _namespace_modules(namespace_path):
+        for value in vars(module).values():
+            if isinstance(value, (NodeBinding, EdgeBinding)) and id(value) not in seen_bindings:
+                seen_bindings.add(id(value))
+                bindings.append(value)
+            elif isinstance(value, (BoundTable, BoundTableGroup)) and id(value) not in seen_sources:
+                seen_sources.add(id(value))
+                sources.append(value)
+    return tuple(bindings), tuple(sources)
+
+
+@overload
+def create_blueprint(*, bindings: Iterable[Binding], sources: Sequence[BoundSource] = (), modules: Sequence[ModuleRegistration[Any]]) -> BuildBlueprint: ...
+
+
+@overload
+def create_blueprint(*, namespace_path: str | Path, bindings: Iterable[Binding] = (), sources: Sequence[BoundSource] = (), modules: Sequence[ModuleRegistration[Any]]) -> BuildBlueprint: ...
+
+
+def create_blueprint(
+    *, bindings: Iterable[Binding] | None = None, namespace_path: str | Path | None = None,
+    sources: Sequence[BoundSource] = (), modules: Sequence[ModuleRegistration[Any]],
+) -> BuildBlueprint:
+    discovered_bindings: tuple[Binding, ...] = ()
+    discovered_sources: tuple[BoundSource, ...] = ()
+    if namespace_path is not None:
+        discovered_bindings, discovered_sources = _discover_namespace(namespace_path)
+    if bindings is None and namespace_path is None:
+        raise TypeError("create_blueprint requires bindings or namespace_path")
+    authoring_bindings = discovered_bindings + tuple(bindings or ())
+    sources = discovered_sources + tuple(sources)
     if not authoring_bindings: raise ValueError("a graph requires at least one binding")
     for binding in authoring_bindings: _validate_authoring_binding(binding)
     components = tuple(sorted({_binding.target for _binding in authoring_bindings}, key=lambda item: item.__name__))

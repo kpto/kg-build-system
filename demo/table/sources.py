@@ -9,15 +9,18 @@ from .groups import EvidenceRelease2025_06TableGroup
 DATA_DIRECTORY = Path(__file__).parents[1] / "data"
 
 
+evidence_release_source = bind_source(
+    target=EvidenceRelease2025_06TableGroup,
+    config=DataSourceConfig(
+        str(DATA_DIRECTORY),
+        format=InputFormat.JSON,
+        layout="{group_path}/{table_name}.json",
+    ),
+)
+
+
 def demo_sources() -> tuple[BoundSource, ...]:
-    """Bind an evidence release hierarchy and resolve each final resource address."""
+    """Return the discoverable evidence release source binding."""
     return (
-        bind_source(
-            target=EvidenceRelease2025_06TableGroup,
-            config=DataSourceConfig(
-                str(DATA_DIRECTORY),
-                format=InputFormat.JSON,
-                layout="{group_path}/{table_name}.json",
-            ),
-        ),
+        evidence_release_source,
     )
