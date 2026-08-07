@@ -10,6 +10,7 @@ from kg_build_system.code_generation import (
     DummyGenerationConfig,
     DummyProvider,
     GenerationError,
+    GenerationActionKind,
     GenerationSession,
     GenerationStatus,
     ProviderGenerationConfig,
@@ -121,6 +122,10 @@ class CodeGenerationTests(unittest.TestCase):
             )
             result = session.handle((Path("schema.json"),))
             self.assertEqual(result.status, GenerationStatus.CHANGED)
+            self.assertEqual(len(result.actions), 1)
+            self.assertEqual(result.actions[0].kind, GenerationActionKind.DEPENDENCY)
+            self.assertEqual(result.actions[0].trigger_path, Path("schema.json"))
+            self.assertEqual(result.actions[0].source_paths, (Path("contracts/target.py"),))
             self.assertEqual(
                 result.changed_paths,
                 (Path("contracts/_generated/target.py"),),

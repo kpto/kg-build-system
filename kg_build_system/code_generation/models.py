@@ -87,11 +87,26 @@ class GenerationStatus(StrEnum):
     STALE = "stale"
 
 
+class GenerationActionKind(StrEnum):
+    DECLARATION = "declaration"
+    DEPENDENCY = "dependency"
+
+
+@dataclass(frozen=True, slots=True)
+class GenerationAction:
+    """A watched input change and the declaration modules affected by it."""
+
+    kind: GenerationActionKind
+    trigger_path: Path
+    source_paths: tuple[Path, ...]
+
+
 @dataclass(frozen=True, slots=True)
 class GenerationResult:
     status: GenerationStatus
     changed_paths: tuple[Path, ...] = ()
     diagnostics: tuple[str, ...] = ()
+    actions: tuple[GenerationAction, ...] = ()
 
 
 class GenerationError(ValueError):

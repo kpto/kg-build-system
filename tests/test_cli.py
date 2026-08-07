@@ -8,7 +8,14 @@ import unittest
 from unittest.mock import MagicMock, patch
 
 from kg_build_system.cli import main
-from kg_build_system.code_generation import FileChange, FileChangeKind, GenerationResult, GenerationStatus
+from kg_build_system.code_generation import (
+    FileChange,
+    FileChangeKind,
+    GenerationAction,
+    GenerationActionKind,
+    GenerationResult,
+    GenerationStatus,
+)
 
 code_generation_command = importlib.import_module("kg_build_system.code_generation.command")
 
@@ -59,6 +66,37 @@ class CliTests(unittest.TestCase):
             re.compile(r"^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(?:[+-]\d{4})? INFO Watching "),
         )
         self.assertIn(str(Path(directory).resolve()), output.getvalue())
+
+    def test_watch_reports_generation_actions_instead_of_raw_file_events(self) -> None:
+        session = MagicMock()
+        session.start.return_value = GenerationResult(GenerationStatus.CURRENT)
+        session.handle.return_value = GenerationResult(
+            GenerationStatus.CHANGED,
+            changed_paths=(Path("contracts/_generated/target.py"),),
+            actions=(
+                GenerationAction(
+                    GenerationActionKind.DEPENDENCY,
+                    Path("schema.json"),
+                    (Path("contracts/target.py"),),
+                ),
+            ),
+        )
+        changes = ((FileChange(FileChangeKind.MODIFIED, Path("schema.json")),),)
+        with TemporaryDirectory() as directory, patch.object(
+            code_generation_command, "GenerationSession", return_value=session
+        ), patch.object(code_generation_command, "watch", return_value=iter(changes)):
+            output = StringIO()
+            with redirect_stdout(output):
+                result = main(("generate", "--watch", "--project", directory))
+
+        self.assertEqual(result, 0)
+        rendered = output.getvalue()
+        self.assertIn(
+            "Detected a provider dependency change in schema.json; regenerating contracts/target.py.",
+            rendered,
+        )
+        self.assertIn("Updated generation output contracts/_generated/target.py.", rendered)
+        self.assertNotIn("modified schema.json", rendered)
 
 
 if __name__ == "__main__":

@@ -9,11 +9,27 @@ from collections.abc import Callable
 from typing import Any
 
 from .engine import GenerationSession, generate
-from .models import GenerationResult, GenerationStatus
+from .models import GenerationAction, GenerationActionKind, GenerationResult, GenerationStatus
 from .watcher import watch
 
 
 _LOGGER = logging.getLogger("kg_build_system.code_generation")
+
+
+def _report_action(action: GenerationAction) -> None:
+    sources = ", ".join(path.as_posix() for path in action.source_paths)
+    if action.kind is GenerationActionKind.DECLARATION:
+        _LOGGER.info(
+            "Detected a generated declaration change in %s; regenerating %s.",
+            action.trigger_path.as_posix(),
+            sources,
+        )
+    else:
+        _LOGGER.info(
+            "Detected a provider dependency change in %s; regenerating %s.",
+            action.trigger_path.as_posix(),
+            sources,
+        )
 
 
 def _generate_and_report(operation: Callable[[], GenerationResult]) -> None:
@@ -23,8 +39,12 @@ def _generate_and_report(operation: Callable[[], GenerationResult]) -> None:
     except (OSError, ValueError) as error:
         _LOGGER.error("Generation failed: %s", error)
         return
+    for action in result.actions:
+        _report_action(action)
     for path in result.changed_paths:
-        _LOGGER.info("generated %s", path.as_posix())
+        _LOGGER.info("Updated generation output %s.", path.as_posix())
+    if result.actions and not result.changed_paths:
+        _LOGGER.info("Generated output is already current.")
 
 
 def add_generate_command(commands: Any) -> None:
@@ -55,8 +75,6 @@ def run_generate(arguments: argparse.Namespace) -> int:
     try:
         _generate_and_report(session.start)
         for changes in watch(root, debounce=arguments.debounce):
-            for change in changes:
-                _LOGGER.info("%s %s", change.kind.value, change.path.as_posix())
             _generate_and_report(lambda changes=changes: session.handle(change.path for change in changes))
     except KeyboardInterrupt:
         _LOGGER.info("Stopped.")

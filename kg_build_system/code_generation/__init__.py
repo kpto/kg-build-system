@@ -11,6 +11,8 @@ from .models import (
     GeneratedField,
     GeneratedFieldKind,
     GeneratedModule,
+    GenerationAction,
+    GenerationActionKind,
     GenerationError,
     GenerationRequest,
     GenerationResult,
@@ -23,6 +25,7 @@ from .watcher import FileChange, FileChangeKind, watch
 __all__ = [
     "DiscoveredGeneration", "DummyGenerationConfig", "DummyProvider", "FileChange", "FileChangeKind",
     "GeneratedAnnotation", "GeneratedClass", "GeneratedField", "GeneratedFieldKind", "GeneratedModule",
+    "GenerationAction", "GenerationActionKind",
     "GenerationError", "GenerationRequest", "GenerationResult", "GenerationSession", "GenerationStatus", "Provider",
     "ProviderContext", "ProviderGenerationConfig", "discover", "discover_file", "generate", "generated", "watch",
 ]

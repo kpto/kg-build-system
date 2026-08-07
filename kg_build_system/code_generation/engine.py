@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from collections.abc import Iterable
+from dataclasses import replace
 import os
 from pathlib import Path
 import tempfile
@@ -11,7 +12,14 @@ import tempfile
 import libcst as cst
 
 from .discovery import discover, discover_file
-from .models import DiscoveredGeneration, GenerationError, GenerationResult, GenerationStatus
+from .models import (
+    DiscoveredGeneration,
+    GenerationAction,
+    GenerationActionKind,
+    GenerationError,
+    GenerationResult,
+    GenerationStatus,
+)
 from .providers import ProviderContext, load_provider
 from .rendering import generation_fingerprint, render_sidecar
 
@@ -213,6 +221,7 @@ class GenerationSession:
     def handle(self, changed_paths: Iterable[str | Path]) -> GenerationResult:
         """Regenerate only authored modules affected by one watched event batch."""
         affected: set[Path] = set()
+        actions: list[GenerationAction] = []
         for changed in changed_paths:
             path = Path(changed)
             absolute = path.resolve() if path.is_absolute() else (self.root / path).resolve()
@@ -224,6 +233,13 @@ class GenerationSession:
                     if requests:
                         self._by_source[absolute] = requests
                         affected.add(absolute)
+                        actions.append(
+                            GenerationAction(
+                                GenerationActionKind.DECLARATION,
+                                absolute.relative_to(self.root),
+                                (absolute.relative_to(self.root),),
+                            )
+                        )
                     elif absolute in self._by_source:
                         del self._by_source[absolute]
                     self._rebuild_dependencies()
@@ -234,7 +250,14 @@ class GenerationSession:
             dependent_sources = self._by_dependency.get(absolute)
             if dependent_sources:
                 affected.update(dependent_sources)
+                actions.append(
+                    GenerationAction(
+                        GenerationActionKind.DEPENDENCY,
+                        absolute.relative_to(self.root),
+                        tuple(source.relative_to(self.root) for source in sorted(dependent_sources)),
+                    )
+                )
         requests = tuple(request for source in sorted(affected) for request in self._by_source.get(source, ()))
         if not requests:
             return GenerationResult(GenerationStatus.CURRENT)
-        return _generate_requests(self.root, requests)
+        return replace(_generate_requests(self.root, requests), actions=tuple(actions))
