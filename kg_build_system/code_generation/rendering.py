@@ -21,11 +21,10 @@ def generation_fingerprint(
     normalized = {
         "class": request.location.class_name,
         "configuration": request.request.configuration,
+        "config_type": f"{request.request.config_module}.{request.request.config_qualname}",
         "format_version": FORMAT_VERSION,
-        "provider": request.request.provider,
+        "provider": f"{request.request.provider_module}.{request.request.provider_qualname}",
         "provider_version": provider_version,
-        "selector": request.request.selector,
-        "source": request.request.source.replace("\\", "/"),
     }
     digest = sha256()
     digest.update(json.dumps(normalized, sort_keys=True, separators=(",", ":")).encode())

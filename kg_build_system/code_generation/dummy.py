@@ -8,8 +8,8 @@ from pathlib import Path
 import re
 from typing import Any, ClassVar
 
-from .models import GeneratedClass, GeneratedField, GeneratedFieldKind, GeneratedModule, GenerationError
-from .providers import ProviderContext
+from .models import GeneratedClass, GeneratedField, GeneratedFieldKind, GeneratedModule, GenerationError, ProviderGenerationConfig
+from .providers import Provider, ProviderContext
 
 
 _TYPES = {"string": "str", "integer": "int", "number": "float", "boolean": "bool"}
@@ -25,17 +25,25 @@ def _identifier(value: str) -> str:
     return result
 
 
-class DummyProvider:
+class DummyGenerationConfig(ProviderGenerationConfig):
+    source: str
+    selector: str | None = None
+
+
+class DummyProvider(Provider[DummyGenerationConfig]):
     """Read ``{"fields": [{"name": ..., "type": ...}]}`` JSON schemas."""
 
     ID: ClassVar[str] = "dummy"
     VERSION: ClassVar[str] = "1"
+    CONFIG_TYPE: ClassVar[type[ProviderGenerationConfig]] = DummyGenerationConfig
 
-    def dependencies(self, context: ProviderContext) -> tuple[Path, ...]:
-        return (context.resolve_path(context.request.source),)
+    @classmethod
+    def dependencies(cls, context: ProviderContext[DummyGenerationConfig]) -> tuple[Path, ...]:
+        return (context.resolve_path(context.config.source),)
 
-    def generate(self, context: ProviderContext, *, generated_name: str) -> GeneratedModule:
-        path = self.dependencies(context)[0]
+    @classmethod
+    def generate(cls, context: ProviderContext[DummyGenerationConfig], *, generated_name: str) -> GeneratedModule:
+        path = cls.dependencies(context)[0]
         try:
             schema = json.loads(path.read_text(encoding="utf-8"))
         except (OSError, json.JSONDecodeError) as error:

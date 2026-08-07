@@ -375,7 +375,29 @@ fields, external names, descriptions, deterministic regeneration, and naming
 collision diagnostics. This format is test infrastructure, not a public schema
 standard or a source of domain concepts for the core generator.
 
-The core provider contract is generic. A provider:
+The core provider contract is generic. Every provider implementation declares
+a frozen, strict, keyword-only configuration model:
+
+```python
+class ProviderGenerationConfig(BaseModel):
+    ...
+
+
+class Provider[T: ProviderGenerationConfig](ABC):
+    ID: ClassVar[str]
+    VERSION: ClassVar[str]
+    CONFIG_TYPE: ClassVar[type[ProviderGenerationConfig]]
+
+    @classmethod
+    def dependencies(cls, context: ProviderContext[T]) -> tuple[Path, ...]: ...
+
+    @classmethod
+    def generate(
+        cls, context: ProviderContext[T], *, generated_name: str,
+    ) -> GeneratedModule: ...
+```
+
+A provider:
 
 - declares the project paths on which a request depends;
 - returns a provider-independent normalized declaration model;
@@ -429,13 +451,11 @@ Given:
 
 ```python
 from kg_build_system import Table
+from kg_build_system.code_generation import DummyGenerationConfig, DummyProvider
 from kg_build_system.generation import generated as codegen
 
 
-@codegen(
-    provider="dummy",
-    source="../../fields.json",
-)
+@codegen(DummyProvider, DummyGenerationConfig(source="../../fields.json"))
 @registered
 class TargetTable(Table):
     ...
@@ -455,13 +475,12 @@ and runtime identity are less predictable.
 
 ### 15.2 Resolve the generation decorator
 
-A decorator may appear directly or as a call:
+A configured decorator call may use direct, qualified, or aliased imports:
 
 ```python
-@generated
-@generated(...)
-@kbs.generated(...)
-@codegen(...)
+@generated(DummyProvider, DummyGenerationConfig(...))
+@kbs.generated(providers.DummyProvider, providers.DummyGenerationConfig(...))
+@codegen(ProviderType, ConfigType(...))
 ```
 
 For a call, discovery examines its function expression. Qualified-name
@@ -483,10 +502,7 @@ The first API should constrain decorator arguments to statically readable
 values:
 
 ```python
-@generated(
-    provider="dummy",
-    source="../../fields.json",
-)
+@generated(DummyProvider, DummyGenerationConfig(source="../../fields.json"))
 ```
 
 Initially supported values are strings, numbers, booleans, `None`, and nested
@@ -494,15 +510,17 @@ lists, tuples, or dictionaries composed from supported values. Arbitrary calls,
 attribute reads, environment access, and computed expressions are rejected:
 
 ```python
-@generated(source=find_input())           # rejected
-@generated(source=os.environ["INPUT"])   # rejected
-@generated(source=CONFIG.input_path)       # rejected
+@generated(DummyProvider, make_config())                 # rejected
+@generated(DummyProvider, CONFIG)                        # rejected
+@generated(DummyProvider, DummyGenerationConfig(source=find_input()))  # rejected
 ```
 
 The implementation uses a small syntax-tree evaluator and never `eval`.
 Unsupported syntax receives a diagnostic at the argument's source location.
-Provider-configuration constructors may be added later if they can be resolved
-and interpreted without importing the user's declaration module.
+The provider and configuration types are resolved to import coordinates. The
+generator imports the provider module, verifies the provider's `CONFIG_TYPE`,
+and reconstructs the configuration with `model_validate`. It never imports the
+user's declaration module.
 
 ### 15.4 Derive deterministic wiring
 

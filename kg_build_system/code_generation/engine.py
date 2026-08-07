@@ -12,7 +12,7 @@ import libcst as cst
 
 from .discovery import discover, discover_file
 from .models import DiscoveredGeneration, GenerationError, GenerationResult, GenerationStatus
-from .providers import ProviderContext, get_provider
+from .providers import ProviderContext, load_provider
 from .rendering import generation_fingerprint, render_sidecar
 
 
@@ -119,8 +119,8 @@ def _generate_requests(
         modules = []
         fingerprints = []
         for request in source_requests:
-            provider = get_provider(request.request.provider)
-            context = ProviderContext(root, source_path, request.request)
+            provider, config = load_provider(request.request)
+            context = ProviderContext(root, source_path, config)
             dependencies = provider.dependencies(context)
             modules.append(provider.generate(context, generated_name=request.generated_name))
             fingerprints.append(
@@ -204,8 +204,8 @@ class GenerationSession:
                         f"generated output collision for {request.generated_name} in {request.sidecar_path}"
                     )
                 identities.add(identity)
-                context = ProviderContext(self.root, source, request.request)
-                provider = get_provider(request.request.provider)
+                provider, config = load_provider(request.request)
+                context = ProviderContext(self.root, source, config)
                 for dependency in provider.dependencies(context):
                     self._by_dependency[dependency].add(source)
                 self._by_sidecar[(self.root / request.sidecar_path).resolve()] = source

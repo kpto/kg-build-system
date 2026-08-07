@@ -1,19 +1,21 @@
-"""Provider registration and loading."""
+"""Typed provider implementation contract and loading."""
 
 from __future__ import annotations
 
+from abc import ABC, abstractmethod
 from dataclasses import dataclass
+import importlib
 from pathlib import Path
-from typing import ClassVar, Protocol
+from typing import ClassVar, cast
 
-from .models import GeneratedModule, GenerationRequest
+from .models import GeneratedModule, GenerationRequest, ProviderGenerationConfig
 
 
 @dataclass(frozen=True, slots=True)
-class ProviderContext:
+class ProviderContext[T: ProviderGenerationConfig]:
     project_root: Path
     declaration_path: Path
-    request: GenerationRequest
+    config: T
 
     def resolve_path(self, value: str) -> Path:
         """Resolve a provider-owned project path without assigning it semantics."""
@@ -25,28 +27,50 @@ class ProviderContext:
         return path
 
 
-class CodeGenerationProvider(Protocol):
+class Provider[T: ProviderGenerationConfig](ABC):
+    """Base class for typed edit-time generation providers."""
+
     ID: ClassVar[str]
     VERSION: ClassVar[str]
+    CONFIG_TYPE: ClassVar[type[ProviderGenerationConfig]]
 
-    def dependencies(self, context: ProviderContext) -> tuple[Path, ...]: ...
+    def __init_subclass__(cls) -> None:
+        super().__init_subclass__()
+        config_type = cls.__dict__.get("CONFIG_TYPE")
+        if not isinstance(config_type, type) or not issubclass(config_type, ProviderGenerationConfig):
+            raise TypeError("provider implementations must declare a ProviderGenerationConfig CONFIG_TYPE")
 
-    def generate(self, context: ProviderContext, *, generated_name: str) -> GeneratedModule: ...
+    @classmethod
+    @abstractmethod
+    def dependencies(cls, context: ProviderContext[T]) -> tuple[Path, ...]: ...
+
+    @classmethod
+    @abstractmethod
+    def generate(cls, context: ProviderContext[T], *, generated_name: str) -> GeneratedModule: ...
 
 
-_PROVIDERS: dict[str, CodeGenerationProvider] = {}
+def _load_class(module_name: str, qualname: str) -> type[object]:
+    value: object = importlib.import_module(module_name)
+    for part in qualname.split("."):
+        value = getattr(value, part)
+    if not isinstance(value, type):
+        raise TypeError(f"{module_name}.{qualname} is not a class")
+    return value
 
 
-def register_provider(provider: CodeGenerationProvider, *, replace: bool = False) -> None:
-    if not provider.ID or not provider.VERSION:
+def load_provider(
+    request: GenerationRequest,
+) -> tuple[type[Provider[ProviderGenerationConfig]], ProviderGenerationConfig]:
+    provider_type = _load_class(request.provider_module, request.provider_qualname)
+    if not issubclass(provider_type, Provider):
+        raise TypeError(
+            f"{request.provider_module}.{request.provider_qualname} is not a code-generation Provider"
+        )
+    if not provider_type.ID or not provider_type.VERSION:
         raise ValueError("providers require non-empty ID and VERSION values")
-    if provider.ID in _PROVIDERS and not replace:
-        raise ValueError(f"code-generation provider {provider.ID!r} is already registered")
-    _PROVIDERS[provider.ID] = provider
-
-
-def get_provider(provider_id: str) -> CodeGenerationProvider:
-    try:
-        return _PROVIDERS[provider_id]
-    except KeyError as error:
-        raise ValueError(f"unknown code-generation provider {provider_id!r}") from error
+    config_type = _load_class(request.config_module, request.config_qualname)
+    if config_type is not provider_type.CONFIG_TYPE:
+        expected = f"{provider_type.CONFIG_TYPE.__module__}.{provider_type.CONFIG_TYPE.__qualname__}"
+        raise TypeError(f"provider configuration must be constructed with {expected}")
+    config = provider_type.CONFIG_TYPE.model_validate(request.configuration)
+    return cast(type[Provider[ProviderGenerationConfig]], provider_type), config

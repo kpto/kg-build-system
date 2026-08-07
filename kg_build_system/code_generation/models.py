@@ -5,16 +5,24 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+from pydantic import BaseModel, ConfigDict
 type StaticValue = str | int | float | bool | None | list[StaticValue] | tuple[StaticValue, ...] | dict[str, StaticValue]
+
+
+class ProviderGenerationConfig(BaseModel):
+    """Immutable, keyword-only configuration owned by a generation provider."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
 
 @dataclass(frozen=True, slots=True)
 class GenerationRequest:
     """A statically discovered request attached to one public declaration."""
 
-    provider: str
-    source: str
-    selector: str | None = None
+    provider_module: str
+    provider_qualname: str
+    config_module: str
+    config_qualname: str
     configuration: dict[str, StaticValue] = field(default_factory=dict)
 
 

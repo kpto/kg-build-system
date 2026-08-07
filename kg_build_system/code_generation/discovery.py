@@ -22,6 +22,9 @@ _CANONICAL_MODULES = {
     "kg_build_system.code_generation",
     "kg_build_system.code_generation.decorator",
 }
+_CANONICAL_DECORATORS = {f"{module}.generated" for module in _CANONICAL_MODULES}
+
+
 def _dotted(node: cst.BaseExpression) -> str | None:
     if isinstance(node, cst.Name):
         return node.value
@@ -65,32 +68,33 @@ class _DiscoveryVisitor(cst.CSTVisitor):
     def __init__(self, project_root: Path, source_path: Path) -> None:
         self.project_root = project_root
         self.source_path = source_path
-        self.direct_names: set[str] = set()
-        self.module_aliases: set[str] = set()
+        self.direct_imports: dict[str, str] = {}
+        self.module_aliases: dict[str, str] = {}
         self.results: list[DiscoveredGeneration] = []
         self.scope_depth = 0
 
     def visit_ImportFrom(self, node: cst.ImportFrom) -> None:
         module = _dotted(node.module) if node.module is not None else None
-        if module not in _CANONICAL_MODULES or isinstance(node.names, cst.ImportStar):
+        if module is None or isinstance(node.names, cst.ImportStar):
             return
         for alias in node.names:
             if not isinstance(alias, cst.ImportAlias):
                 continue
-            if _dotted(alias.name) == "generated":
-                imported_name = _dotted(alias.asname.name) if alias.asname else "generated"
+            name = _dotted(alias.name)
+            if name:
+                imported_name = _dotted(alias.asname.name) if alias.asname else name
                 if imported_name:
-                    self.direct_names.add(imported_name)
+                    self.direct_imports[imported_name] = f"{module}.{name}"
 
     def visit_Import(self, node: cst.Import) -> None:
         for alias in node.names:
             if not isinstance(alias, cst.ImportAlias):
                 continue
             module = _dotted(alias.name)
-            if module in _CANONICAL_MODULES:
+            if module:
                 imported_name = _dotted(alias.asname.name) if alias.asname else module.split(".")[0]
                 if imported_name:
-                    self.module_aliases.add(imported_name)
+                    self.module_aliases[imported_name] = module if alias.asname else module.split(".")[0]
 
     def visit_FunctionDef(self, _node: cst.FunctionDef) -> None:
         self.scope_depth += 1
@@ -98,13 +102,20 @@ class _DiscoveryVisitor(cst.CSTVisitor):
     def leave_FunctionDef(self, _node: cst.FunctionDef) -> None:
         self.scope_depth -= 1
 
+    def _resolve(self, expression: cst.BaseExpression) -> str | None:
+        dotted = _dotted(expression)
+        if not dotted:
+            return None
+        parts = dotted.split(".")
+        if parts[0] in self.direct_imports:
+            return ".".join((self.direct_imports[parts[0]], *parts[1:]))
+        if parts[0] in self.module_aliases:
+            return ".".join((self.module_aliases[parts[0]], *parts[1:]))
+        return None
+
     def _matches(self, expression: cst.BaseExpression) -> bool:
         target = expression.func if isinstance(expression, cst.Call) else expression
-        dotted = _dotted(target)
-        return bool(
-            dotted in self.direct_names
-            or (dotted and dotted.endswith(".generated") and dotted.split(".")[0] in self.module_aliases)
-        )
+        return self._resolve(target) in _CANONICAL_DECORATORS
 
     def visit_ClassDef(self, node: cst.ClassDef) -> bool:
         matches = [index for index, decorator in enumerate(node.decorators) if self._matches(decorator.decorator)]
@@ -121,25 +132,39 @@ class _DiscoveryVisitor(cst.CSTVisitor):
             raise GenerationError(f"{prefix} @generated must be the topmost decorator")
         decorator = node.decorators[0].decorator
         if not isinstance(decorator, cst.Call):
-            raise GenerationError(f"{prefix} @generated requires provider and source arguments")
+            raise GenerationError(f"{prefix} @generated requires a provider type and config instance")
+        if len(decorator.args) != 2 or any(argument.keyword is not None or argument.star for argument in decorator.args):
+            raise GenerationError(f"{prefix} @generated requires a provider type and config instance")
+        provider_name = self._resolve(decorator.args[0].value)
+        config_call = decorator.args[1].value
+        if provider_name is None:
+            raise GenerationError(f"{prefix} provider type must be imported from a provider module")
+        if not isinstance(config_call, cst.Call):
+            raise GenerationError(f"{prefix} config must be constructed inline")
+        config_name = self._resolve(config_call.func)
+        if config_name is None:
+            raise GenerationError(f"{prefix} config type must be imported from a provider module")
         values: dict[str, StaticValue] = {}
-        for argument in decorator.args:
+        for argument in config_call.args:
             if argument.keyword is None or argument.star:
-                raise GenerationError(f"{prefix} @generated accepts keyword arguments only")
+                raise GenerationError(f"{prefix} provider config accepts keyword arguments only")
+            if argument.keyword.value in values:
+                raise GenerationError(f"{prefix} duplicate provider config argument {argument.keyword.value!r}")
             values[argument.keyword.value] = _static(argument.value)
-        provider = values.pop("provider", None)
-        source = values.pop("source", None)
-        selector = values.pop("selector", None)
-        if not isinstance(provider, str) or not provider or not isinstance(source, str) or not source:
-            raise GenerationError(f"{prefix} @generated requires string provider and source arguments")
-        if selector is not None and not isinstance(selector, str):
-            raise GenerationError(f"{prefix} selector must be a string or None")
+        provider_module, provider_qualname = provider_name.rsplit(".", 1)
+        config_module, config_qualname = config_name.rsplit(".", 1)
         generated_name = f"G_{node.name.value}"
         relative = self.source_path.relative_to(self.project_root)
         sidecar = relative.parent / "_generated" / relative.name
         self.results.append(
             DiscoveredGeneration(
-                GenerationRequest(provider, source, selector, values),
+                GenerationRequest(
+                    provider_module,
+                    provider_qualname,
+                    config_module,
+                    config_qualname,
+                    values,
+                ),
                 GenerationLocation(
                     self.project_root,
                     self.source_path,

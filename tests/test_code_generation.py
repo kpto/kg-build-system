@@ -6,19 +6,40 @@ import sys
 from tempfile import TemporaryDirectory
 import unittest
 
-from kg_build_system.code_generation import GenerationError, GenerationSession, GenerationStatus, discover, generate
+from kg_build_system.code_generation import (
+    DummyGenerationConfig,
+    DummyProvider,
+    GenerationError,
+    GenerationSession,
+    GenerationStatus,
+    ProviderGenerationConfig,
+    discover,
+    generate,
+    generated,
+)
 
 
 DECLARATION = '''from kg_build_system import Table, generated
+from kg_build_system.code_generation import DummyGenerationConfig, DummyProvider
 
 
-@generated(provider="dummy", source="../schema.json")
+@generated(DummyProvider, DummyGenerationConfig(source="../schema.json"))
 class TargetTable(Table):
     """Handwritten documentation."""
 '''
 
 
 class CodeGenerationTests(unittest.TestCase):
+    def test_provider_configs_are_keyword_only_and_runtime_checked(self) -> None:
+        with self.assertRaises(TypeError):
+            DummyGenerationConfig("schema.json")  # type: ignore[call-arg]
+
+        class OtherConfig(ProviderGenerationConfig):
+            source: str
+
+        with self.assertRaisesRegex(TypeError, "requires DummyGenerationConfig"):
+            generated(DummyProvider, OtherConfig(source="schema.json"))  # type: ignore[arg-type]
+
     def _project(self, directory: str) -> Path:
         root = Path(directory)
         (root / "contracts").mkdir()
@@ -86,7 +107,8 @@ class CodeGenerationTests(unittest.TestCase):
             )
             (root / "contracts" / "other.py").write_text(
                 'from kg_build_system import Table, generated\n\n'
-                '@generated(provider="dummy", source="../other_schema.json")\n'
+                'from kg_build_system.code_generation import DummyGenerationConfig, DummyProvider\n\n'
+                '@generated(DummyProvider, DummyGenerationConfig(source="../other_schema.json"))\n'
                 'class OtherTable(Table):\n    pass\n',
                 encoding="utf-8",
             )
@@ -119,19 +141,24 @@ class CodeGenerationTests(unittest.TestCase):
             self.assertEqual(sidecar.read_text(encoding="utf-8"), "# manual intermediate edit\n")
 
     def test_direct_qualified_and_aliased_decorators_are_discovered(self) -> None:
-        cases = (
-            "from kg_build_system import generated\n",
-            "import kg_build_system as kbs\n",
-            "from kg_build_system.code_generation import generated as codegen\n",
-            "from kg_build_system.code_generation.decorator import generated as implementation_generated\n",
+        statements = (
+            "from kg_build_system import generated\nfrom kg_build_system.code_generation import DummyGenerationConfig, DummyProvider\n",
+            "import kg_build_system as kbs\nimport kg_build_system.code_generation as codegen\n",
+            "from kg_build_system.code_generation import generated as codegen, DummyGenerationConfig as Config, DummyProvider as ProviderType\n",
+            "from kg_build_system.code_generation.decorator import generated as implementation_generated\nfrom kg_build_system.code_generation import DummyGenerationConfig, DummyProvider\n",
         )
-        decorators = ("generated", "kbs.generated", "codegen", "implementation_generated")
+        decorators = (
+            'generated(DummyProvider, DummyGenerationConfig(source="schema.json"))',
+            'kbs.generated(codegen.DummyProvider, codegen.DummyGenerationConfig(source="schema.json"))',
+            'codegen(ProviderType, Config(source="schema.json"))',
+            'implementation_generated(DummyProvider, DummyGenerationConfig(source="schema.json"))',
+        )
         with TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "schema.json").write_text('{"fields": [{"name": "id"}]}', encoding="utf-8")
-            for index, (statement, decorator) in enumerate(zip(cases, decorators, strict=True)):
+            for index, (statement, decorator) in enumerate(zip(statements, decorators, strict=True)):
                 (root / f"case_{index}.py").write_text(
-                    statement + f'@{decorator}(provider="dummy", source="schema.json")\nclass C{index}:\n    pass\n',
+                    statement + f'@{decorator}\nclass C{index}:\n    pass\n',
                     encoding="utf-8",
                 )
             self.assertEqual(len(discover(root)), 4)
@@ -141,10 +168,24 @@ class CodeGenerationTests(unittest.TestCase):
             root = Path(directory)
             (root / "bad.py").write_text(
                 'from kg_build_system import generated\n'
-                '@staticmethod\n@generated(provider="dummy", source=find_schema())\nclass Bad:\n    pass\n',
+                'from kg_build_system.code_generation import DummyGenerationConfig, DummyProvider\n'
+                '@staticmethod\n@generated(DummyProvider, DummyGenerationConfig(source=find_schema()))\nclass Bad:\n    pass\n',
                 encoding="utf-8",
             )
             with self.assertRaisesRegex(GenerationError, "topmost"):
+                discover(root)
+
+    def test_provider_config_constructor_requires_keyword_arguments(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "bad.py").write_text(
+                'from kg_build_system import generated\n'
+                'from kg_build_system.code_generation import DummyGenerationConfig, DummyProvider\n'
+                '@generated(DummyProvider, DummyGenerationConfig("schema.json"))\n'
+                'class Bad:\n    pass\n',
+                encoding="utf-8",
+            )
+            with self.assertRaisesRegex(GenerationError, "keyword arguments only"):
                 discover(root)
 
     def test_discovery_does_not_enter_dot_directories_or_read_dot_files(self) -> None:
@@ -167,11 +208,12 @@ class CodeGenerationTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             root = self._project(directory)
             (root / "other.py").write_text(
-                'from kg_build_system import generated\n'
-                '@generated(provider="missing", source="schema.json")\nclass Other:\n    pass\n',
+                'from kg_build_system import Table, generated\n'
+                'from kg_build_system.code_generation import DummyGenerationConfig\n'
+                '@generated(Table, DummyGenerationConfig(source="schema.json"))\nclass Other:\n    pass\n',
                 encoding="utf-8",
             )
-            with self.assertRaisesRegex(ValueError, "unknown code-generation provider"):
+            with self.assertRaisesRegex(TypeError, "not a code-generation Provider"):
                 generate(root)
             self.assertFalse((root / "contracts" / "_generated").exists())
 
@@ -181,9 +223,10 @@ class CodeGenerationTests(unittest.TestCase):
             (root / "schema.json").write_text('{"fields": [{"name": "id"}]}', encoding="utf-8")
             source = (
                 'from kg_build_system import generated\n\n'
+                'from kg_build_system.code_generation import DummyGenerationConfig, DummyProvider\n\n'
                 'class HandwrittenMixin:\n    pass\n\n'
                 '# Public declaration comment.\n'
-                '@generated(provider="dummy", source="schema.json")\n'
+                '@generated(DummyProvider, DummyGenerationConfig(source="schema.json"))\n'
                 '@staticmethod\n'
                 'class TargetTable(HandwrittenMixin):\n'
                 '    custom = 42\n'
@@ -193,7 +236,7 @@ class CodeGenerationTests(unittest.TestCase):
             generate(root)
             result = path.read_text(encoding="utf-8")
             self.assertIn("# Public declaration comment.\n@generated", result)
-            self.assertIn("@generated(provider=\"dummy\", source=\"schema.json\")\n@staticmethod", result)
+            self.assertIn('@generated(DummyProvider, DummyGenerationConfig(source="schema.json"))\n@staticmethod', result)
             self.assertIn("class TargetTable(G_TargetTable, HandwrittenMixin):", result)
             self.assertIn("    custom = 42", result)
 
