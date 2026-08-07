@@ -12,6 +12,8 @@ from kg_build_system import (
     property, value,
 )
 from kg_build_system.compile.models import ModuleDefinition, ModuleReference
+from kg_build_system.data_types import Struct as DataStruct
+from kg_build_system.expressions import Expression
 from kg_build_system.workflow.interfaces import (
     CompilationContext, Module, ModuleCompilationResult, ModuleCompiler,
     ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft,
@@ -183,7 +185,14 @@ class AuthoringSurfaceTests(unittest.TestCase):
         self.assertFalse(hasattr(expressions, "FieldPath"))
         self.assertEqual(value.literal(reference).op, "value_ref")
 
+    def test_projected_fields_expose_value_references_not_source_expressions(self) -> None:
+        reference = ExpandedInputProjection.related
+        self.assertIsInstance(reference, ValueRef)
+        self.assertNotIsInstance(reference, Expression)
+        self.assertEqual(reference._metadata.table, ExpandedInputProjection)
+
     def test_struct_and_collection_fields_navigate_through_non_value_structs(self) -> None:
+        self.assertTrue(issubclass(NestedStruct, DataStruct))
         self.assertNotIsInstance(StructuredInputTable.b.member, ValueRef)
         self.assertEqual(StructuredInputTable.b.member.nested_field._metadata.path, ("b", "nested_field"))
         self.assertEqual(StructuredInputTable.b.m.nested_field._metadata.path, ("b", "nested_field"))
@@ -221,6 +230,21 @@ class AuthoringSurfaceTests(unittest.TestCase):
 
         with self.assertRaisesRegex(TypeError, "literals must be Scalar"):
             value.literal({"unsupported": "map"})
+
+    def test_value_expression_contracts_are_reflected_at_runtime(self) -> None:
+        with self.assertRaises(TypeError):
+            value.concat()  # type: ignore[call-arg]
+        with self.assertRaises(TypeError):
+            value.coalesce()  # type: ignore[call-arg]
+
+        nullable = ValueRef[str | None](str | None)
+        self.assertIs(value.coalesce(nullable, "fallback").type_hint, str)
+        self.assertEqual(value.literal([["nested"], [None]]).args[0], [["nested"], [None]])
+
+        self.assertIs(value.cast("1", "INTEGER").type_hint, int)
+        self.assertEqual(value.cast(["1"], "VARCHAR[]").type_hint, list[str])
+        with self.assertRaisesRegex(ValueError, "unsupported SQL cast type"):
+            value.cast("1", "DECIMAL")  # type: ignore[arg-type]
 
     def test_docstrings_and_explicit_options_define_metadata(self) -> None:
         self.assertEqual(ThingNode._component_name, "thing")

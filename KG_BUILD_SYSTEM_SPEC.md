@@ -73,7 +73,7 @@ class StructField[T: Struct](TablePathValueRef[T]):
     """A structured value, navigated through ``member`` or ``m``."""
 
 
-class CollectionField[T](TablePathValueRef[list[T]]):
+class CollectionField[T](TablePathValueRef[Sequence[T]]):
     """A collection of structs, navigated through ``element`` or ``e``."""
 
 
@@ -237,21 +237,28 @@ The framework owns a closed portable scalar vocabulary:
 
 ```python
 type Scalar = str | int | float | bool
+
+class Struct:
+    ...
 ```
 
-Collections are expressed directly as `list[T]`; physical source collections
-are list-shaped.
+Collections are expressed through the portable `Sequence[T]` contract;
+physical source collections remain list-shaped.
 `Field[T]` accepts only a `Scalar` or `Scalar | None`; collections use
 `CollectionField[T]`. `StructField[S]` and `CollectionField[S]` admit nested
 records, while `CollectionField[T]` also supports scalar items. Maps, tuples,
 sets, nested collections, arbitrary Python classes, and `Any` are not
 declaration types.
 
+`Struct` is the shared portable nested-record base; the table layer extends it
+with declaration and navigation behaviour.
+
 `PropertySlot[T]` and `bind(...)` accept only `Scalar` or `Scalar | None`:
-graph properties cannot be collections or structs. Expression literals use
-the same vocabulary. Runtime declaration validation enforces the contract for
-dynamic Python authoring, while the generic declaration types make invalid
-annotations visible to a static type checker at edit time.
+graph properties cannot be collections or structs. Expression literals accept
+scalars, `None`, and recursively nested sequences of literal values. Runtime
+declaration validation enforces the contract for dynamic Python authoring,
+while the generic declaration types make invalid annotations visible to a
+static type checker at edit time.
 
 `Field` represents scalar values. `StructField` represents one nested `Struct`;
 `CollectionField` represents a scalar or `Struct` collection. A `Struct` is a reusable nested record shape; it stores
@@ -296,7 +303,7 @@ reference at a terminal field:
 OpenTargetsPharmacogenomicsAnnotationTable.target          # ValueRef[TargetDetailsStruct]
 OpenTargetsPharmacogenomicsAnnotationTable.target.m         # TargetDetailsStruct, not a ValueRef
 OpenTargetsPharmacogenomicsAnnotationTable.target.m.symbol  # ValueRef[str]
-OpenTargetsPharmacogenomicsAnnotationTable.disease_ids    # ValueRef[list[str]]
+OpenTargetsPharmacogenomicsAnnotationTable.disease_ids    # ValueRef[Sequence[str]]
 ```
 
 Types distinguish nullable fields, nullable collections, and nullable items:
@@ -326,7 +333,7 @@ class AssociationTable(Table):
 
 
 AssociationTable.evidence.e.disease_id  # collection-valued ValueRef[str]
-AssociationTable.evidence.e.labels      # collection-valued ValueRef[list[str]]
+AssociationTable.evidence.e.labels      # collection-valued ValueRef[Sequence[str]]
 ```
 
 ## 6. Table groups and physical sources
@@ -399,15 +406,30 @@ class AssociationProjection(Projection):
 Portable expression namespaces are direct authoring APIs:
 
 ```python
-value.literal(AssociationProjection.target_symbol)       # Expression[str]
-value.literal("unknown")                                 # Expression[str]
+value.literal("unknown")                                  # Expression[str]
+value.literal([["a"], [None]])                            # nested literal expression
 value.concat("annotation::", AssociationProjection.study_id)
 value.coalesce(AssociationProjection.target_name, "unknown")
+value.cast(AssociationProjection.score, "DOUBLE")         # Expression[float]
 ```
 
-```text
-ExpressionInput[T] = T | ValueRef[T] | DynamicField[T] | Expression[T]
+```python
+type PermittedExpressionValue = (
+    Scalar | Sequence[PermittedExpressionValue] | Struct | None
+)
+type ExpressionValue[T: PermittedExpressionValue] = (
+    Scalar | Sequence[T] | Struct
+)
+type ExpressionInput[T: PermittedExpressionValue] = (
+    T | ValueRef[T] | Expression[T]
+)
 ```
+
+`PermittedExpressionValue` is the closed recursive vocabulary carried by
+`ValueRef[T]` and `Expression[T]`. `ExpressionValue[T]` describes a non-null
+expression result; its type parameter preserves the item type of a sequence.
+Literal construction is narrower than general expression input: structs are
+declaration values and cannot be embedded as literals.
 
 `ValueRef[T]` and `Expression[T]` are deliberately different types.
 `TablePathValueRef[T]` is the table-owned implementation of `ValueRef[T]` and
@@ -426,17 +448,17 @@ boundary: it accepts an `ExpressionInput[T]` and returns an
 `ExpressionBinding[T]`. Canonical bindings and compiled IR retain expressions,
 never disguised field paths.
 
-- `value` provides `literal`, `concat`, `coalesce`, `cast`, `present`,
-  and `when`.
-- `collection` resolves cardinality through `expand` and `collect`.
+- `value` provides `literal`, `concat`, `coalesce`, `cast`,
+  `deterministic_uuid`, and `struct_field`.
+- `collection.expand` converts a declared sequence value into expanded
+  row cardinality and exposes its item type.
 - `lookup.one` declares singular key-based enrichment.
 
 `expand` makes one output-row context per item and repeats sibling scalar
-values. Its null/empty policy must be explicit. Multiple expansions require a
-declared `correlated` or `cartesian` policy. `collect` must require an explicit
-grouping context rather than infer one. `lookup.one` requires a key that
-identifies at most one record; duplicates are diagnostics and `on_missing`
-declares absence semantics.
+values. It rejects values that have neither a sequence item type nor declared
+collection cardinality. `lookup.one` requires a key that identifies at most
+one record; duplicate and missing-match policies belong to compilation and
+diagnostics rather than implicit Python evaluation.
 
 Authors reference nested terminal fields without managing temporary unnest
 items. For example, the compiler recognises the shared `evidence` prefix and
@@ -464,7 +486,7 @@ expressions it uses.
 ```python
 target_from_pharmacogenomics = node_binding(
     target=TargetNode,
-    build_key=value.literal(AssociationProjection.target_id),
+    build_key=AssociationProjection.target_id,
     properties=TargetNode(symbol=bind(AssociationProjection.target_symbol)),
     options=BindingOptions(annotations=[...]),
 )
@@ -473,7 +495,7 @@ annotation_associated_with_disease = edge_binding(
     target=AssociatedWithEdge,
     build_key=value.deterministic_uuid(AssociationProjection.study_id),
     source_build_key=value.concat("annotation::", AssociationProjection.study_id),
-    target_build_key=value.literal(AssociationProjection.disease_id),
+    target_build_key=AssociationProjection.disease_id,
     properties=AssociatedWithEdge(score=bind(AssociationProjection.score)),
 )
 ```

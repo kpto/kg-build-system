@@ -1,16 +1,17 @@
 """Collection-cardinality expression constructors."""
+from collections.abc import Sequence
 from typing import Any, overload
 
-from .core import Expression, ValueRef, item_type
+from .core import Expression, PermittedExpressionValue, ValueRef, item_type
 from .inputs import to_expression
 
 
 class CollectionExpressions:
     @overload
-    def expand[E](self, value: ValueRef[list[E]] | Expression[list[E]]) -> Expression[E]: ...
+    def expand[E: PermittedExpressionValue](self, value: ValueRef[Sequence[E]] | Expression[Sequence[E]]) -> Expression[E]: ...
 
     @overload
-    def expand[T](self, value: Expression[T] | ValueRef[T]) -> Expression[T]: ...
+    def expand[T: PermittedExpressionValue](self, value: Expression[T] | ValueRef[T]) -> Expression[T]: ...
 
     def expand(self, value: Any) -> Expression[Any]:
         expression = to_expression(value)

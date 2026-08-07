@@ -1,10 +1,15 @@
 """Canonical value types and validation for build-system declarations."""
 from __future__ import annotations
 
+from collections.abc import Sequence
 from types import UnionType
 from typing import Any, get_args, get_origin
 
 type Scalar = str | int | float | bool
+
+
+class Struct:
+    ...
 
 
 _SCALARS = frozenset({str, int, float, bool})
@@ -42,9 +47,11 @@ def validate_literal(value: Any) -> None:
     """Reject literal values that cannot be represented by the portable IR."""
     if value is None or type(value) in _SCALARS:
         return
-    if isinstance(value, list) and all(item is None or type(item) in _SCALARS for item in value):
+    if isinstance(value, Sequence):
+        for item in value:
+            validate_literal(item)
         return
-    raise TypeError(f"literals must be Scalar, Scalar | None, or list[Scalar | None], not {value!r}")
+    raise TypeError(f"literals must be Scalar, None, or Sequence of literal values, not {value!r}")
 
 
-__all__ = ["Scalar", "validate_literal", "validate_value_type"]
+__all__ = ["Scalar", "Struct", "validate_literal", "validate_value_type"]

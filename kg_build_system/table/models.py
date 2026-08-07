@@ -1,30 +1,25 @@
 """Data-contract descriptors and source models."""
 from __future__ import annotations
+from collections.abc import Sequence
 from dataclasses import dataclass, field as dataclass_field, replace
 from enum import StrEnum
-from typing import Any, ClassVar, Generic, Protocol, Self, TypeAlias, TypeVar, cast, get_args, get_type_hints, overload
+from typing import Any, ClassVar, Generic, Self, TypeAlias, TypeVar, cast, get_args, get_type_hints, overload
 from ..annotations import Annotation, annotation_tuple
-from ..data_types import Scalar, validate_value_type
-from ..expressions import Expression, ValueRef, item_type
+from ..data_types import Scalar, Struct as DataStruct, validate_value_type
+from ..expressions import Expression, ExpressionValue, ValueRef, item_type
 from .._support.annotations import type_shape
 from .._support.naming import declaration_name, member_name
 
 T = TypeVar("T")
-V = TypeVar("V")
+V = TypeVar("V", bound=ExpressionValue)
 type FieldValue = Scalar | None
-type TableValue = FieldValue | list[FieldValue]
+type TableValue = FieldValue | Sequence[FieldValue]
 D = TypeVar("D", bound=FieldValue)
 P = TypeVar("P", bound=TableValue)
 S = TypeVar("S", bound="Struct")
 
 
-class _StructValue(Protocol):
-    """The structural marker used to admit declared records in collections."""
-
-    _is_struct_declaration: ClassVar[bool]
-
-
-type CollectionItem = FieldValue | _StructValue
+type CollectionItem = FieldValue | DataStruct
 C = TypeVar("C", bound=CollectionItem)
 
 
@@ -143,7 +138,7 @@ class StructField(TablePathValueRef[S], Generic[S]):
 
 
 @dataclass(frozen=True)
-class CollectionField(TablePathValueRef[list[C]], Generic[C]):
+class CollectionField(TablePathValueRef[Sequence[C]], Generic[C]):
     """A collection declaration, whose item may be a scalar or a ``Struct``."""
 
     def __set_name__(self, owner: type, attr: str) -> None:
@@ -195,15 +190,18 @@ def fields_for(cls: type) -> dict[str, "TablePathValueRef[Any]"]:
 
 @dataclass(frozen=True)
 class ProjectedField(Generic[P]):
-    expression: Expression[P] | ValueRef[P]
+    """A projection declaration backed by a normalised portable expression."""
+
+    expression: Expression[P]
     name: str | None = None
     attr: str = ""
     annotations: tuple[Annotation, ...] = ()
     def __set_name__(self, owner: type, attr: str) -> None:
         object.__setattr__(self, "attr", attr)
         if self.name is None: object.__setattr__(self, "name", member_name(attr))
-    def __get__(self, instance: object | None, owner: type | None = None) -> Expression[P] | ValueRef[P]:
-        return self.expression if instance is not None else TablePathValueRef[P](
+    def __get__(self, instance: object | None, owner: type | None = None) -> TablePathValueRef[P]:
+        """Expose the projected value as a reference, never its implementation."""
+        return TablePathValueRef[P](
             self.expression.type_hint,
             self.expression.cardinality,
             TablePathValueRefMetadata(
@@ -292,11 +290,13 @@ def _prepare_final(cls: type, kind: str, options: TableOptions | StructOptions |
     suffixes = {"table": ("Table",), "table_template": ("TableTemplate", "Template"), "struct": ("Struct",), "projection": ("Projection",)}[kind]
     fields = fields_for(cls) if kind != "projection" else {}
     if kind == "projection":
+        projection_fields: dict[str, ProjectedField[Any]] = {}
         for attribute, value in vars(cls).items():
             if isinstance(value, ProjectedField):
                 _validate_projection_value(value.expression)
                 validate_value_type(value.expression.type_hint, context=f"{cls.__name__}.{attribute}", allow_collection=True)
-        setattr(cls, "_projection_fields", {name: value for name, value in vars(cls).items() if isinstance(value, ProjectedField)})
+                projection_fields[attribute] = value
+        setattr(cls, "_projection_fields", projection_fields)
         setattr(cls, "_projection_name", options.name or declaration_name(cls.__name__, suffixes=suffixes))
     else:
         setattr(cls, "_fields", fields)
@@ -357,10 +357,9 @@ class TableTemplate:
         _prepare_final(cls, "table_template", options)
 
 
-class Struct:
+class Struct(DataStruct):
     """Final reusable nested record declaration."""
     options: ClassVar[StructOptions] = StructOptions()
-    _is_struct_declaration: ClassVar[bool] = True
 
     def __init__(self, *, _metadata: TablePathValueRefMetadata = TablePathValueRefMetadata()) -> None:
         self._metadata = _metadata

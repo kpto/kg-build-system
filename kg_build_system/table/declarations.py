@@ -5,7 +5,7 @@ from dataclasses import replace
 from typing import Sequence, TypeVar
 
 from ..annotations import Annotation, annotation_tuple
-from ..expressions import Expression, ValueRef
+from ..expressions import Expression, ValueRef, to_expression
 from .models import (
     BoundSource, BoundTable, BoundTableGroup, CollectionField, DataSourceConfig, Field,
     CollectionItem, FieldValue, ProjectedField, SourceBindingOptions, Struct, StructField, TablePathValueRefMetadata, TableValue,
@@ -14,6 +14,8 @@ from .models import (
 
 T = TypeVar("T", bound=FieldValue)
 S = TypeVar("S", bound=Struct)
+
+type ProjectionInput[T: TableValue] = T | ValueRef[T] | Expression[T]
 
 
 def field[T: FieldValue](*, name: str | None = None, description: str | None = None, annotations: Sequence[Annotation] = ()) -> Field[T]:  # pyright: ignore[reportInvalidTypeVarUse]
@@ -28,8 +30,8 @@ def collection_field[T: CollectionItem](*, name: str | None = None, description:
     return CollectionField(_metadata=TablePathValueRefMetadata(name=name, description=description, annotations=annotation_tuple(list(annotations))))
 
 
-def projected_field[T: TableValue](value: Expression[T] | ValueRef[T], *, annotations: Sequence[Annotation] = ()) -> ProjectedField[T]:
-    return ProjectedField(value, annotations=annotation_tuple(list(annotations)))
+def projected_field[T: TableValue](value: ProjectionInput[T], *, annotations: Sequence[Annotation] = ()) -> ProjectedField[T]:
+    return ProjectedField(to_expression(value), annotations=annotation_tuple(list(annotations)))
 
 
 def is_concrete_table(cls: type) -> bool:

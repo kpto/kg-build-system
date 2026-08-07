@@ -1,20 +1,13 @@
 """Normalize author-facing values into portable expressions."""
-from typing import Any, TypeVar, overload
+from typing import Any
 
 from ..data_types import validate_literal
-from .core import Expression, ValueRef
+from .core import Expression, PermittedExpressionValue, ValueRef
 
-type ExpressionInput[T] = T | ValueRef[T] | Expression[T]
-T = TypeVar("T")
+type ExpressionInput[T: PermittedExpressionValue] = T | ValueRef[T] | Expression[T]
 
 
-@overload
-def to_expression(value: ValueRef[T] | Expression[T]) -> Expression[T]: ...
-
-@overload
-def to_expression(value: T) -> Expression[T]: ...
-
-def to_expression(value: Any) -> Expression[Any]:
+def to_expression[T: PermittedExpressionValue](value: T | ValueRef[T] | Expression[T]) -> Expression[T]:
     if isinstance(value, Expression):
         return value
     if isinstance(value, ValueRef):
