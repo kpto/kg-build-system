@@ -8,7 +8,11 @@ dependencies = [
     "duckdb>=1.1",
     "pydantic>=2.10",
     "sqlglot>=30.14.0",
+    "watchfiles>=1.1",
 ]
+
+[project.scripts]
+kbs = "kg_build_system.cli:main"
 
 [build-system]
 requires = ["hatchling"]

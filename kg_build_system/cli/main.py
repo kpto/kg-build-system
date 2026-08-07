@@ -1,0 +1,40 @@
+"""The ``kbs`` command-line interface."""
+
+from __future__ import annotations
+
+import argparse
+import logging
+import sys
+from typing import Sequence
+
+from ..code_generation.command import add_generate_command
+
+
+def _configure_logging() -> None:
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(logging.Formatter(
+        fmt="%(asctime)s %(levelname)s %(message)s",
+        datefmt="%Y-%m-%dT%H:%M:%S%z",
+    ))
+    logger = logging.getLogger("kg_build_system")
+    logger.handlers.clear()
+    logger.addHandler(handler)
+    logger.setLevel(logging.INFO)
+    logger.propagate = False
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(prog="kbs")
+    commands = parser.add_subparsers(dest="command", required=True)
+    add_generate_command(commands)
+    return parser
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    _configure_logging()
+    parser = _parser()
+    arguments = parser.parse_args(argv)
+    try:
+        return arguments.command_handler(arguments)
+    except ValueError as error:
+        parser.error(str(error))
