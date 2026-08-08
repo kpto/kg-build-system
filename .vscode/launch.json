@@ -11,6 +11,16 @@
             "program": "${workspaceFolder}/demo/build.py",
             "cwd": "${fileDirname}",
             "console": "integratedTerminal"
+        },
+        {
+            "name": "Python Debugger: Generate",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "kg_build_system.cli",
+            "console": "integratedTerminal",
+            "args": [
+                "generate"
+            ]
         }
     ]
 }
