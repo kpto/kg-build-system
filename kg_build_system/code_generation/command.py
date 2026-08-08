@@ -9,7 +9,7 @@ from collections.abc import Callable
 from typing import Any
 
 from .engine import GenerationSession, generate
-from .models import GenerationAction, GenerationActionKind, GenerationResult, GenerationStatus
+from .models import GenerationAction, GenerationActionKind, GenerationError, GenerationResult, GenerationStatus
 from .watcher import watch
 
 
@@ -63,7 +63,11 @@ def run_generate(arguments: argparse.Namespace) -> int:
     if arguments.watch and arguments.check:
         raise ValueError("--watch and --check cannot be combined")
     if not arguments.watch:
-        result = generate(root, check=arguments.check)
+        try:
+            result = generate(root, check=arguments.check)
+        except (GenerationError, OSError) as error:
+            _LOGGER.error("Generation failed: %s", error)
+            return 1
         for diagnostic in result.diagnostics:
             _LOGGER.error("%s", diagnostic)
         for path in result.changed_paths:

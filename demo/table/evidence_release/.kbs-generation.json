@@ -1,0 +1,31 @@
+{
+  "format_version": "2",
+  "owned_directories": [
+    "pharmacogenomics",
+    "reference_data"
+  ],
+  "owned_file_hashes": {
+    "__init__.py": "763ae09a4a52574c59e9e6ccafb44a9ad5286a9d9a80d1389828535ff18e1002",
+    "pharmacogenomics/__init__.py": "c810487738f05b7e2547089d4fa013fd8f4558e3a5b45e5026016ba4c57dbb9b",
+    "pharmacogenomics/association.py": "cd485e85d3e5ac0b0dd21f6bd5b15172c378b61fc1eae6dc76bfa6247469fdb6",
+    "pharmacogenomics/study.py": "812dd76cb5fdf9535566d337e46f6a0a1ffa43bfef7391bbb100ea6ad7a0afcc",
+    "reference_data/__init__.py": "baf0e97c86c343d018ea673b16b0ce2900392d239395bc39a3d273c259980d7f",
+    "reference_data/disease.py": "e20ee6fda8cfff3993b0ddffdd61654e945dd5e51134868ead607514a3fd6d73",
+    "reference_data/target.py": "eeea0c079f1b89204a693ad3922cc9b437e13ec35d62dc8b37fe0dc300985bae"
+  },
+  "owned_files": [
+    "__init__.py",
+    "pharmacogenomics/__init__.py",
+    "pharmacogenomics/association.py",
+    "pharmacogenomics/study.py",
+    "reference_data/__init__.py",
+    "reference_data/disease.py",
+    "reference_data/target.py"
+  ],
+  "provider_import": "kg_build_system.code_generation.builtins.schema_inference",
+  "provider_qualname": "InferDataContractProvider",
+  "provider_version": "1",
+  "request_fingerprint": "ab8c3f4b95028e0bfa03a049fccd458fae9536f82f6608736d203cddc82cb3ed",
+  "request_id": "evidence_release",
+  "request_source_package": "demo.table"
+}

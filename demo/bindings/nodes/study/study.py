@@ -1,13 +1,13 @@
 from kg_build_system import bind, node_binding, value
 
-from demo.table.contracts.study import StudyTable
+from demo.table.evidence_release.pharmacogenomics.study import StudyTable
 from demo.topology.nodes.study.study import StudyNode
 
 
 study_from_contract = node_binding(
     debug_name="study_from_contract",
     target=StudyNode,
-    build_key=bind(value.concat("study::", StudyTable.study_id)),
+    build_key=bind(value.concat("study::", StudyTable.id)),
     properties=StudyNode(
         name=bind(value.coalesce(StudyTable.details.m.name, "Unknown study")),
         description=bind(StudyTable.details.m.description),

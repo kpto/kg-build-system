@@ -1,6 +1,6 @@
 from kg_build_system import bind, node_binding, value
 
-from demo.table.contracts.reference import TargetTable
+from demo.table.evidence_release.reference_data.target import TargetTable
 from demo.topology.nodes.target.target import TargetNode
 
 

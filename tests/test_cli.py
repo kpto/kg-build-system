@@ -72,7 +72,7 @@ class CliTests(unittest.TestCase):
         session.start.return_value = GenerationResult(GenerationStatus.CURRENT)
         session.handle.return_value = GenerationResult(
             GenerationStatus.CHANGED,
-            changed_paths=(Path("contracts/_generated/target.py"),),
+            changed_paths=(Path("contracts/target/__init__.py"),),
             actions=(
                 GenerationAction(
                     GenerationActionKind.DEPENDENCY,
@@ -95,7 +95,7 @@ class CliTests(unittest.TestCase):
             "Detected a provider dependency change in schema.json; regenerating contracts/target.py.",
             rendered,
         )
-        self.assertIn("Updated generation output contracts/_generated/target.py.", rendered)
+        self.assertIn("Updated generation output contracts/target/__init__.py.", rendered)
         self.assertNotIn("modified schema.json", rendered)
 
 

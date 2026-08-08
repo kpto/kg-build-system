@@ -1,6 +1,6 @@
 from kg_build_system import bind, node_binding, value
 
-from demo.table.contracts.reference import DiseaseTable
+from demo.table.evidence_release.reference_data.disease import DiseaseTable
 from demo.topology.nodes.disease.disease import DiseaseNode
 
 

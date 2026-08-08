@@ -1,6 +1,6 @@
 """Edit-time code-generation public API."""
 
-from .decorator import generated
+from .requests import generation
 from .discovery import discover, discover_file
 from .engine import GenerationSession, generate
 from .models import (
@@ -9,8 +9,7 @@ from .models import (
     GeneratedClass,
     GeneratedField,
     GeneratedFieldKind,
-    GeneratedMember,
-    GeneratedModule,
+    GeneratedMember, GeneratedFile, GeneratedPackage, Generation,
     GenerationAction,
     GenerationActionKind,
     GenerationError,
@@ -24,8 +23,8 @@ from .watcher import FileChange, FileChangeKind, watch
 
 __all__ = [
     "DiscoveredGeneration", "FileChange", "FileChangeKind",
-    "GeneratedAnnotation", "GeneratedClass", "GeneratedField", "GeneratedFieldKind", "GeneratedMember", "GeneratedModule",
+    "GeneratedAnnotation", "GeneratedClass", "GeneratedField", "GeneratedFieldKind", "GeneratedMember", "GeneratedFile", "GeneratedPackage", "Generation",
     "GenerationAction", "GenerationActionKind",
     "GenerationError", "GenerationRequest", "GenerationResult", "GenerationSession", "GenerationStatus", "Provider",
-    "ProviderContext", "ProviderGenerationConfig", "discover", "discover_file", "generate", "generated", "watch",
+    "ProviderContext", "ProviderGenerationConfig", "discover", "discover_file", "generate", "generation", "watch",
 ]

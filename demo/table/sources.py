@@ -2,7 +2,7 @@ from pathlib import Path
 
 from kg_build_system import DataSourceConfig, InputFormat, bind_source
 
-from .groups import EvidenceReleaseTableGroup
+from .evidence_release import EvidenceReleaseTableGroup
 
 DATA_DIRECTORY = Path(__file__).parents[1] / "data"
 

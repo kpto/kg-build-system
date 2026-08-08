@@ -1,6 +1,6 @@
 from kg_build_system import bind, edge_binding, lookup, value
 
-from demo.table.contracts.study import StudyTable
+from demo.table.evidence_release.pharmacogenomics.study import StudyTable
 from demo.table.projections.association_evidence import AssociationEvidenceProjection
 from demo.topology.nodes.target.edges.associated_with_disease import AssociatedWithEdge
 
@@ -23,7 +23,7 @@ association_to_disease = edge_binding(
             value.coalesce(
                 lookup.one(
                     key=AssociationEvidenceProjection.study_id,
-                    match=StudyTable.study_id,
+                    match=StudyTable.id,
                     value=StudyTable.details.m.name,
                     as_type=str,
                 ),

@@ -365,7 +365,7 @@ class AuthoringSurfaceTests(unittest.TestCase):
                     properties=RelatedEdge(weight=bind(ExpandedInputProjection.weight)),
                 ),
             ],
-            sources=[bind_source(target=InputTable, config=DataSourceConfig(str(root / "demo" / "data" / "association.json"), InputFormat.JSON))],
+            sources=[bind_source(target=InputTable, config=DataSourceConfig(str(root / "demo" / "data" / "evidence_release" / "pharmacogenomics" / "association.json"), InputFormat.JSON))],
             modules=[*POST_PROCESSING, FileModule(FileModuleConfiguration("unused.jsonl"))],
         )
         contract = compile_blueprint(blueprint=blueprint)

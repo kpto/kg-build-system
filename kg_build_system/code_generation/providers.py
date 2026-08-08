@@ -8,18 +8,19 @@ import importlib
 from pathlib import Path
 from typing import ClassVar, cast
 
-from .models import GeneratedModule, GenerationRequest, ProviderGenerationConfig
+from .models import GeneratedPackage, GenerationRequest, ProviderGenerationConfig
 
 
 @dataclass(frozen=True, slots=True)
 class ProviderContext[T: ProviderGenerationConfig]:
     project_root: Path
-    declaration_path: Path
+    request_path: Path
+    request_id: str
     config: T
 
     def resolve_path(self, value: str) -> Path:
         """Resolve a provider-owned project path without assigning it semantics."""
-        path = (self.declaration_path.parent / value).resolve()
+        path = (self.request_path.parent / value).resolve()
         try:
             path.relative_to(self.project_root)
         except ValueError as error:
@@ -46,7 +47,7 @@ class Provider[T: ProviderGenerationConfig](ABC):
 
     @classmethod
     @abstractmethod
-    def generate(cls, context: ProviderContext[T], *, generated_name: str) -> GeneratedModule: ...
+    def generate(cls, context: ProviderContext[T]) -> GeneratedPackage: ...
 
 
 def _load_class(module_name: str, qualname: str) -> type[object]:

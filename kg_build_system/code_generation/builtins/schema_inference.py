@@ -13,8 +13,7 @@ from ..models import (
     GeneratedClass,
     GeneratedField,
     GeneratedFieldKind,
-    GeneratedMember,
-    GeneratedModule,
+    GeneratedMember, GeneratedFile, GeneratedPackage,
     GenerationError,
     ProviderGenerationConfig,
 )
@@ -96,12 +95,21 @@ def _field_for_type(
     if normalized.endswith("[]"):
         item_type = normalized[:-2].strip()
         scalar = _SCALAR_TYPES.get(_base_type(item_type))
+        item_declarations: tuple[GeneratedClass, ...] = ()
+        if scalar is None and item_type.upper().startswith("STRUCT("):
+            struct_field, item_declarations = _field_for_type(
+                name=name,
+                type_name=item_type,
+                nullable=False,
+                struct_prefix=struct_prefix,
+            )
+            scalar = struct_field.value_type
         if scalar is None:
             raise GenerationError(f"column {name!r} has unsupported collection item type {item_type!r}")
         return GeneratedField(
             _identifier(name), name, GeneratedFieldKind.COLLECTION, scalar,
-            nullable=nullable, item_nullable=True,
-        ), ()
+            nullable=nullable, item_nullable=False,
+        ), item_declarations
     scalar = _SCALAR_TYPES.get(_base_type(normalized))
     if scalar is not None:
         return GeneratedField(_identifier(name), name, GeneratedFieldKind.SCALAR, scalar, nullable=nullable), ()
@@ -115,7 +123,7 @@ def _field_for_type(
                 raise GenerationError(f"cannot interpret struct member {member!r} in column {name!r}")
             member_name = (match.group(1) or match.group(2) or "").replace('""', '"')
             generated, generated_nested = _field_for_type(
-                name=member_name, type_name=match.group(3), nullable=True, struct_prefix=struct_name,
+                name=member_name, type_name=match.group(3), nullable=False, struct_prefix=struct_name,
             )
             members.append(generated)
             nested.extend(generated_nested)
@@ -145,7 +153,15 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
 
     @classmethod
     def dependencies(cls, context: ProviderContext[DataContractInferenceConfig]) -> tuple[Path, ...]:
-        return (context.resolve_path(context.config.source),)
+        source = context.resolve_path(context.config.source)
+        if source.is_dir():
+            return tuple(
+                path for path in sorted(source.rglob("*"), key=lambda item: item.as_posix())
+                if path.is_file() and path.suffix.lower() in {
+                    ".csv", ".tsv", ".json", ".jsonl", ".ndjson", ".parquet", ".pq",
+                }
+            )
+        return (source,)
 
     @classmethod
     def _relations(cls, connection: duckdb.DuckDBPyConnection, path: Path) -> tuple[str, ...]:
@@ -177,7 +193,26 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
             rows = connection.execute(f"DESCRIBE {query}", parameters).fetchall()
         except duckdb.Error as error:
             raise GenerationError(f"cannot infer schema for {path} relation {relation!r}: {error}") from error
-        return tuple((str(row[0]), str(row[1]), str(row[2]).upper() != "NO") for row in rows)
+        declared = tuple((str(row[0]), str(row[1]), str(row[2]).upper() != "NO") for row in rows)
+        if suffix in _DATABASE_SUFFIXES or not declared:
+            return declared
+        null_checks = ", ".join(
+            f"count(*) FILTER (WHERE {_quote_identifier(name)} IS NULL)"
+            for name, _type_name, _nullable in declared
+        )
+        try:
+            null_counts = connection.execute(
+                f"SELECT {null_checks} FROM ({query}) AS inferred_input",
+                parameters,
+            ).fetchone()
+        except duckdb.Error as error:
+            raise GenerationError(f"cannot infer nullability for {path}: {error}") from error
+        if null_counts is None:
+            return declared
+        return tuple(
+            (name, type_name, bool(null_count))
+            for (name, type_name, _nullable), null_count in zip(declared, null_counts, strict=True)
+        )
 
     @classmethod
     def _table_classes(
@@ -202,15 +237,65 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
             supporting.extend(nested)
         if not fields:
             raise GenerationError(f"relation {relation!r} has no columns")
-        return (*supporting, GeneratedClass(class_name, tuple(fields), base="Table" if final else None))
+        return (
+            *supporting,
+            GeneratedClass(
+                class_name,
+                tuple(fields),
+                base="Table" if final else None,
+                declaration_name=relation if final else None,
+            ),
+        )
+
+    @classmethod
+    def _directory_package(
+        cls, context: ProviderContext[DataContractInferenceConfig], path: Path,
+        connection: duckdb.DuckDBPyConnection,
+    ) -> GeneratedPackage:
+        files: list[GeneratedFile] = []
+
+        def visit(directory: Path, relative: Path, group_name: str) -> str:
+            members: list[GeneratedMember] = []
+            declarations: list[GeneratedClass] = []
+            for child in sorted(directory.iterdir(), key=lambda item: item.name):
+                if child.is_dir():
+                    nested = f"{_class_part(child.name)}TableGroup"
+                    visit(child, relative / child.name, nested)
+                    members.append(GeneratedMember(_identifier(child.name, fallback="group"), nested))
+                elif child.suffix.lower() in {".csv", ".tsv", ".json", ".jsonl", ".ndjson", ".parquet", ".pq"}:
+                    table_name = f"{_class_part(child.stem)}Table"
+                    table_classes = cls._table_classes(
+                        connection=connection, path=child, relation=child.stem,
+                        class_name=table_name, final=True,
+                    )
+                    files.append(GeneratedFile(relative / f"{_identifier(child.stem, fallback='table')}.py", table_classes, (table_name,)))
+                    members.append(GeneratedMember(_identifier(child.stem, fallback="table"), table_name))
+            if not members: raise GenerationError(f"data directory {directory} contains no supported relations")
+            declarations.append(GeneratedClass(group_name, members=tuple(members), base="TableGroup", declaration_name=directory.name if relative.parts else context.request_id))
+            files.append(GeneratedFile(relative / "__init__.py", tuple(declarations), (group_name,)))
+            return group_name
+
+        root_name = f"{_class_part(context.request_id)}TableGroup"
+        visit(path, Path(), root_name)
+        return GeneratedPackage(tuple(files))
 
     @classmethod
     def generate(
-        cls, context: ProviderContext[DataContractInferenceConfig], *, generated_name: str,
-    ) -> GeneratedModule:
-        path = cls.dependencies(context)[0]
-        if not path.is_file():
+        cls, context: ProviderContext[DataContractInferenceConfig],
+    ) -> GeneratedPackage:
+        path = context.resolve_path(context.config.source)
+        if not path.exists():
             raise GenerationError(f"data-contract inference input does not exist: {path}")
+        if path.is_dir():
+            if context.config.mode != "table_group":
+                raise GenerationError("directory inference requires mode='table_group'")
+            if context.config.relation is not None:
+                raise GenerationError("directory table-group inference does not accept relation=")
+            connection = duckdb.connect(":memory:")
+            try:
+                return cls._directory_package(context, path, connection)
+            finally:
+                connection.close()
         is_database = path.suffix.lower() in _DATABASE_SUFFIXES
         try:
             connection = duckdb.connect(str(path) if is_database else ":memory:", read_only=is_database)
@@ -226,28 +311,33 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 relation = context.config.relation or relations[0]
                 if relation not in relations:
                     raise GenerationError(f"data input {path} has no relation {relation!r}")
-                return GeneratedModule(cls._table_classes(
+                class_name = f"{_class_part(context.request_id)}Table"
+                classes = cls._table_classes(
                     connection=connection, path=path, relation=relation,
-                    class_name=generated_name, final=False,
-                ))
+                    class_name=class_name, final=True,
+                )
+                return GeneratedPackage((GeneratedFile(Path("__init__.py"), classes, (class_name,)),))
             if context.config.relation is not None:
                 raise GenerationError("table-group inference does not accept relation=")
-            classes: list[GeneratedClass] = []
             members: list[GeneratedMember] = []
+            files: list[GeneratedFile] = []
             used_members: dict[str, str] = {}
+            group_name = f"{_class_part(context.request_id)}TableGroup"
             for relation in relations:
                 member_name = _identifier(relation, fallback="table")
                 previous = used_members.get(member_name)
                 if previous is not None:
                     raise GenerationError(f"relations {previous!r} and {relation!r} collide as {member_name!r}")
                 used_members[member_name] = relation
-                table_name = f"{generated_name}{_class_part(relation)}Table"
-                classes.extend(cls._table_classes(
+                table_name = f"{_class_part(relation)}Table"
+                classes = cls._table_classes(
                     connection=connection, path=path, relation=relation,
                     class_name=table_name, final=True,
-                ))
+                )
+                files.append(GeneratedFile(Path(f"{member_name}.py"), classes, (table_name,)))
                 members.append(GeneratedMember(member_name, table_name))
-            classes.append(GeneratedClass(generated_name, members=tuple(members)))
-            return GeneratedModule(tuple(classes))
+            group = GeneratedClass(group_name, members=tuple(members), base="TableGroup", declaration_name=context.request_id)
+            files.append(GeneratedFile(Path("__init__.py"), (group,), (group_name,)))
+            return GeneratedPackage(tuple(files))
         finally:
             connection.close()

@@ -1,6 +1,5 @@
 from kg_build_system import ProjectedField, Projection, collection, projected_field
-
-from demo.table.contracts.association import AssociationTable
+from demo.table.evidence_release.pharmacogenomics.association import AssociationTable
 
 
 class AssociationEvidenceProjection(Projection):

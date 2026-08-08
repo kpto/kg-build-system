@@ -1,10 +1,11 @@
-"""Public, provider-independent edit-time code-generation models."""
+"""Public, provider-independent edit-time generated-package models."""
 
 from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
+from typing import Generic, TypeVar
 from pydantic import BaseModel, ConfigDict
 type StaticValue = str | int | float | bool | None | list[StaticValue] | tuple[StaticValue, ...] | dict[str, StaticValue]
 
@@ -13,6 +14,17 @@ class ProviderGenerationConfig(BaseModel):
     """Immutable, keyword-only configuration owned by a generation provider."""
 
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+
+ConfigT = TypeVar("ConfigT", bound=ProviderGenerationConfig)
+
+
+@dataclass(frozen=True, slots=True)
+class Generation(Generic[ConfigT]):
+    """An inert, typed edit-time generation request."""
+
+    provider: type[object]
+    configuration: ConfigT
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,15 +44,16 @@ class GenerationLocation:
     source_path: Path
     line: int
     column: int
-    class_name: str
+    request_id: str
+    source_package: str
 
 
 @dataclass(frozen=True, slots=True)
 class DiscoveredGeneration:
     request: GenerationRequest
     location: GenerationLocation
-    sidecar_path: Path
-    generated_name: str
+    product_path: Path
+    package_import: str
 
 
 class GeneratedFieldKind(StrEnum):
@@ -70,7 +83,7 @@ class GeneratedField:
 
 @dataclass(frozen=True, slots=True)
 class GeneratedMember:
-    """A named declaration pointer carried by a generated plain mixin."""
+    """A named declaration pointer carried by a generated table group."""
 
     python_name: str
     declaration_name: str
@@ -83,11 +96,35 @@ class GeneratedClass:
     members: tuple[GeneratedMember, ...] = ()
     description: str | None = None
     base: str | None = None
+    declaration_name: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
-class GeneratedModule:
-    classes: tuple[GeneratedClass, ...]
+class GeneratedFile:
+    """One normalized Python file inside a generated package."""
+
+    relative_path: Path
+    declarations: tuple[GeneratedClass, ...] = ()
+    exports: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class GeneratedPackage:
+    files: tuple[GeneratedFile, ...]
+
+
+@dataclass(frozen=True, slots=True)
+class GenerationManifest:
+    format_version: str
+    request_id: str
+    request_source_package: str
+    provider_import: str
+    provider_qualname: str
+    provider_version: str
+    request_fingerprint: str
+    owned_files: tuple[str, ...]
+    owned_directories: tuple[str, ...]
+    owned_file_hashes: dict[str, str] = field(default_factory=dict)
 
 
 class GenerationStatus(StrEnum):
