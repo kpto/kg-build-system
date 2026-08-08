@@ -4,20 +4,26 @@ Run ``python demo/build.py`` to compile the declarations and write inspectable
 artifacts under ``demo/output``.
 """
 
-from pathlib import Path
 import sys
+from pathlib import Path
+
+from kg_build_system.compile.models import BuildBlueprint
 
 if __package__ in {None, ""}:
     sys.path.insert(0, str(Path(__file__).parents[1]))
 
-from kg_build_system import BuildBlueprint, BuildContract, build, compile_blueprint, create_blueprint
+from kg_build_system import build, compile_blueprint, create_blueprint
 from kg_build_system.modules import (
-    CollapseExactDuplicatesModule,
     FileModule,
     FileModuleConfiguration,
-    MergeCompatibleFactsModule,
-    RejectConflictingNonNullValuesModule,
 )
+
+
+def create_demo_blueprint() -> BuildBlueprint:
+    return create_blueprint(
+        namespace_path=Path(__file__).parent,
+        modules=(FileModule(FileModuleConfiguration("graph.jsonl")),),
+    )
 
 
 def run_demo() -> None:
@@ -25,12 +31,7 @@ def run_demo() -> None:
     OUTPUT_DIRECTORY = Path(__file__).parent / "build"
     OUTPUT_DIRECTORY.mkdir(exist_ok=True)
 
-    blueprint = create_blueprint(
-        namespace_path=Path(__file__).parent,
-        modules=(
-            FileModule(FileModuleConfiguration("graph.jsonl")),
-        ),
-    )
+    blueprint = create_demo_blueprint()
     contract = compile_blueprint(blueprint=blueprint)
     build(contract, output_directory=OUTPUT_DIRECTORY)
 

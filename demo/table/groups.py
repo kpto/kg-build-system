@@ -17,5 +17,7 @@ class ReferenceDataTableGroup(TableGroup):
     options = TableGroupOptions(members=(TargetTable, DiseaseTable))
 
 
-class EvidenceRelease2025_06TableGroup(TableGroup):
-    options = TableGroupOptions(members=(ReferenceDataTableGroup, PharmacogenomicsTableGroup))
+class EvidenceReleaseTableGroup(TableGroup):
+    options = TableGroupOptions(
+        members=(ReferenceDataTableGroup, PharmacogenomicsTableGroup)
+    )
