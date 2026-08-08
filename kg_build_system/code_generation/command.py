@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import logging
 from pathlib import Path
 from collections.abc import Awaitable, Callable
@@ -17,19 +18,28 @@ _LOGGER = logging.getLogger("kg_build_system.code_generation")
 
 
 def _report_action(action: GenerationAction) -> None:
-    sources = ", ".join(path.as_posix() for path in action.source_paths)
-    if action.kind is GenerationActionKind.DECLARATION:
-        _LOGGER.info(
-            "Detected a generated declaration change in %s; regenerating %s.",
-            action.trigger_path.as_posix(),
-            sources,
-        )
+    declaration = action.declaration_id or "<unknown>"
+    if action.kind is GenerationActionKind.DECLARATION_ADDED:
+        _LOGGER.info("Generation declaration added: %s. Processing...", declaration)
+    elif action.kind is GenerationActionKind.DECLARATION_CHANGED:
+        _LOGGER.info("Generation declaration changed: %s. Processing...", declaration)
+    elif action.kind is GenerationActionKind.DECLARATION_DELETED:
+        _LOGGER.info("Generation declaration deleted: %s. Processing...", declaration)
     else:
         _LOGGER.info(
-            "Detected a provider dependency change in %s; regenerating %s.",
+            "Dependency %s changed for generation declaration %s. Processing...",
             action.trigger_path.as_posix(),
-            sources,
+            declaration,
         )
+
+
+def _report_outputs(result: GenerationResult) -> None:
+    for path in result.created_paths:
+        _LOGGER.info("Created generated output %s.", path.as_posix())
+    for path in result.updated_paths:
+        _LOGGER.info("Updated generated output %s.", path.as_posix())
+    for path in result.deleted_paths:
+        _LOGGER.info("Deleted generated output %s.", path.as_posix())
 
 
 async def _generate_and_report(operation: Callable[[], Awaitable[GenerationResult]]) -> None:
@@ -39,12 +49,7 @@ async def _generate_and_report(operation: Callable[[], Awaitable[GenerationResul
     except (OSError, ValueError) as error:
         _LOGGER.error("Generation failed: %s", error)
         return
-    for action in result.actions:
-        _report_action(action)
-    for path in result.changed_paths:
-        _LOGGER.info("Updated generation output %s.", path.as_posix())
-    if result.actions and not result.changed_paths:
-        _LOGGER.info("Generated output is already current.")
+    _report_outputs(result)
 
 
 def add_generate_command(commands: Any) -> None:
@@ -70,16 +75,27 @@ async def run_generate(arguments: argparse.Namespace) -> int:
             return 1
         for diagnostic in result.diagnostics:
             _LOGGER.error("%s", diagnostic)
-        for path in result.changed_paths:
-            _LOGGER.info("generated %s", path.as_posix())
+        _report_outputs(result)
         return 1 if result.status is GenerationStatus.STALE else 0
 
-    _LOGGER.info("Watching %s for code-generation inputs. Press Ctrl+C to stop.", root)
+    _LOGGER.info("Running initial generation pass for %s...", root)
     session = GenerationSession(root)
     try:
-        await _generate_and_report(session.start)
+        try:
+            initial = await session.start()
+        except (OSError, ValueError) as error:
+            _LOGGER.error("Initial generation pass failed: %s", error)
+            _LOGGER.info("Watching %s for changes. Press Ctrl+C to stop.", root)
+        else:
+            _report_outputs(initial)
+            _LOGGER.info("Initial generation pass complete. Watching %s for changes. Press Ctrl+C to stop.", root)
         async for changes in watch(root, debounce=arguments.debounce):
-            await _generate_and_report(lambda changes=changes: session.handle(change.path for change in changes))
-    except KeyboardInterrupt:
+            await _generate_and_report(
+                lambda changes=changes: session.handle(
+                    (change.path for change in changes),
+                    on_action=_report_action,
+                )
+            )
+    except (asyncio.CancelledError, KeyboardInterrupt):
         _LOGGER.info("Stopped.")
     return 0

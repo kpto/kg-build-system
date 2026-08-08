@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections import defaultdict
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from dataclasses import asdict, replace
 from hashlib import sha256
 import json
@@ -212,6 +212,21 @@ async def generate(project_root: str | Path, *, check: bool = False) -> Generati
         return GenerationResult(GenerationStatus.STALE, diagnostics=tuple(f"{path.as_posix()} is missing, stale, altered, or orphaned" for path in changed_relative))
     if not changed_relative: return GenerationResult(GenerationStatus.CURRENT)
 
+    deleted_absolute = {
+        path for _product, _old, obsolete in obsolete_by_product for path in obsolete if path.exists()
+    }
+    for manifest_path in orphan_manifests:
+        manifest = _load_manifest(manifest_path)
+        deleted_absolute.update(
+            manifest_path.parent.joinpath(*_safe_owned(relative).parts)
+            for relative in manifest.owned_files
+            if manifest_path.parent.joinpath(*_safe_owned(relative).parts).exists()
+        )
+        deleted_absolute.add(manifest_path)
+    desired_absolute = {path for _request, _product, desired, _manifest, _dependencies in products for path in desired}
+    created_absolute = {path for path in desired_absolute if path in stale and not path.exists()}
+    updated_absolute = {path for path in desired_absolute if path in stale and path.exists()}
+
     # All providers, paths, ownership, and collisions have been validated before mutation.
     for product, old, obsolete in obsolete_by_product: _prune(product, old, obsolete)
     for path in orphan_manifests: _prune(path.parent, _load_manifest(path), remove_manifest=True)
@@ -221,7 +236,14 @@ async def generate(project_root: str | Path, *, check: bool = False) -> Generati
             if not path.exists() or path.read_text(encoding="utf-8") != content: _atomic_write(path, content)
     if (await generate(root, check=True)).status is not GenerationStatus.CURRENT:
         raise GenerationError("generation did not produce an idempotent desired state")
-    return GenerationResult(GenerationStatus.CHANGED, changed_paths=changed_relative)
+    relative = lambda values: tuple(sorted((path.relative_to(root) for path in values), key=lambda path: path.as_posix()))
+    return GenerationResult(
+        GenerationStatus.CHANGED,
+        changed_paths=changed_relative,
+        created_paths=relative(created_absolute),
+        updated_paths=relative(updated_absolute),
+        deleted_paths=relative(deleted_absolute),
+    )
 
 
 class GenerationSession:
@@ -230,6 +252,7 @@ class GenerationSession:
         self.root = Path(project_root).resolve()
         self._by_source: dict[Path, tuple[DiscoveredGeneration, ...]] = {}
         self._by_dependency: dict[Path, set[Path]] = defaultdict(set)
+        self._dependency_fingerprints: dict[Path, str | None] = {}
         self._products: tuple[Path, ...] = ()
 
     async def _index(self) -> None:
@@ -245,24 +268,55 @@ class GenerationSession:
             for dependency in await provider.dependencies(context): dependencies[dependency.resolve()].add(request.location.source_path)
         self._by_source = {path: tuple(values) for path, values in by_source.items()}
         self._by_dependency = dependencies
+        self._dependency_fingerprints = {
+            path: sha256(path.read_bytes()).hexdigest() if path.is_file() else None
+            for path in dependencies
+        }
         self._products = tuple(sorted(set(self._products).union(products), key=lambda path: path.as_posix()))
 
     async def start(self) -> GenerationResult:
         result = await generate(self.root); await self._index(); return result
 
-    async def handle(self, changed_paths: Iterable[str | Path]) -> GenerationResult:
+    async def handle(
+        self,
+        changed_paths: Iterable[str | Path],
+        *,
+        on_action: Callable[[GenerationAction], None] | None = None,
+    ) -> GenerationResult:
         actions: list[GenerationAction] = []
-        relevant = False
         for changed in changed_paths:
             path = Path(changed); absolute = path.resolve() if path.is_absolute() else (self.root / path).resolve()
             if any(absolute == product or product in absolute.parents for product in self._products): continue
             if absolute.name == "__init__.py":
-                relevant = True
-                actions.append(GenerationAction(GenerationActionKind.DECLARATION, absolute.relative_to(self.root), (absolute.relative_to(self.root),)))
+                previous = self._by_source.get(absolute, ())
+                current = discover_file(self.root, absolute) if absolute.is_file() else ()
+                if current == previous:
+                    continue
+                previous_by_id = {item.location.request_id: item for item in previous}
+                current_by_id = {item.location.request_id: item for item in current}
+                source = absolute.relative_to(self.root)
+                for request_id in sorted(previous_by_id.keys() | current_by_id.keys()):
+                    old, new = previous_by_id.get(request_id), current_by_id.get(request_id)
+                    if old is None and new is not None:
+                        actions.append(GenerationAction(GenerationActionKind.DECLARATION_ADDED, source, (source,), new.package_import))
+                    elif new is None and old is not None:
+                        actions.append(GenerationAction(GenerationActionKind.DECLARATION_DELETED, source, (source,), old.package_import))
+                    elif old != new and new is not None:
+                        actions.append(GenerationAction(GenerationActionKind.DECLARATION_CHANGED, source, (source,), new.package_import))
             elif absolute in self._by_dependency:
-                relevant = True
-                sources = tuple(source.relative_to(self.root) for source in sorted(self._by_dependency[absolute]))
-                actions.append(GenerationAction(GenerationActionKind.DEPENDENCY, absolute.relative_to(self.root), sources))
-        if not relevant: return GenerationResult(GenerationStatus.CURRENT)
+                fingerprint = sha256(absolute.read_bytes()).hexdigest() if absolute.is_file() else None
+                if fingerprint != self._dependency_fingerprints.get(absolute):
+                    for source_path in sorted(self._by_dependency[absolute]):
+                        for request in self._by_source.get(source_path, ()):
+                            actions.append(GenerationAction(
+                                GenerationActionKind.DEPENDENCY,
+                                absolute.relative_to(self.root),
+                                (source_path.relative_to(self.root),),
+                                request.package_import,
+                            ))
+        if not actions: return GenerationResult(GenerationStatus.CURRENT)
+        if on_action is not None:
+            for action in actions:
+                on_action(action)
         result = await generate(self.root); await self._index()
         return replace(result, actions=tuple(actions))

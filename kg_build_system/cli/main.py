@@ -41,5 +41,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         if inspect.isawaitable(result):
             return asyncio.run(result)
         return result
+    except KeyboardInterrupt:
+        logging.getLogger("kg_build_system").info("Stopped.")
+        return 0
     except ValueError as error:
         parser.error(str(error))

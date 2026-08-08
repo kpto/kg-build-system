@@ -12,7 +12,7 @@ from unittest.mock import patch
 
 from kg_build_system.code_generation import (
     GeneratedClass, GeneratedField, GeneratedFieldKind, GeneratedFile, GeneratedPackage,
-    Generation, GenerationError, GenerationStatus, Provider, ProviderContext,
+    Generation, GenerationAction, GenerationActionKind, GenerationError, GenerationSession, GenerationStatus, Provider, ProviderContext,
     ProviderGenerationConfig, discover, discover_file, generate, generation,
 )
 from kg_build_system.code_generation.builtins import (
@@ -106,6 +106,59 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
             self.assertNotIn("G_", generated_source)
             self.assertEqual((await generate(root)).status, GenerationStatus.CURRENT)
 
+    async def test_unchanged_dependency_save_is_ignored(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = self._project(directory)
+            session = GenerationSession(root)
+            await session.start()
+            result = await session.handle((Path("schema.json"),))
+
+            self.assertEqual(result.status, GenerationStatus.CURRENT)
+            self.assertEqual(result.actions, ())
+
+    async def test_unchanged_declaration_save_is_ignored(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = self._project(directory)
+            session = GenerationSession(root)
+            await session.start()
+            declaration = Path("contracts/__init__.py")
+
+            result = await session.handle((declaration,))
+
+            self.assertEqual(result.status, GenerationStatus.CURRENT)
+            self.assertEqual(result.actions, ())
+
+    async def test_declaration_calls_are_classified_and_reported_before_generation(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = self._project(directory)
+            session = GenerationSession(root)
+            await session.start()
+            declaration = root / "contracts" / "__init__.py"
+            declaration.write_text(request_source("../schema.json", shape="two"), encoding="utf-8")
+            reported: list[GenerationAction] = []
+
+            result = await session.handle(
+                (declaration,),
+                on_action=reported.append,
+            )
+
+            self.assertEqual(result.status, GenerationStatus.CHANGED)
+            self.assertEqual(reported, list(result.actions))
+            self.assertEqual(len(reported), 1)
+            self.assertEqual(reported[0].kind, GenerationActionKind.DECLARATION_CHANGED)
+            self.assertEqual(reported[0].declaration_id, "contracts.release")
+
+            declaration.write_text(request_source("../schema.json", name="renamed"), encoding="utf-8")
+            reported.clear()
+            await session.handle((declaration,), on_action=reported.append)
+            self.assertEqual(
+                {(action.kind, action.declaration_id) for action in reported},
+                {
+                    (GenerationActionKind.DECLARATION_ADDED, "contracts.renamed"),
+                    (GenerationActionKind.DECLARATION_DELETED, "contracts.release"),
+                },
+            )
+
     async def test_generated_final_declaration_imports_directly(self) -> None:
         with TemporaryDirectory() as directory:
             root = self._project(directory); await generate(root)
@@ -156,10 +209,12 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
             root = self._project(directory); await generate(root)
             old = root / "contracts" / "release"; (old / "notes.md").write_text("keep", encoding="utf-8")
             (root / "contracts" / "__init__.py").write_text(request_source("../schema.json", name="renamed"), encoding="utf-8")
-            await generate(root)
+            result = await generate(root)
             self.assertEqual((old / "notes.md").read_text(), "keep")
             self.assertFalse((old / ".kbs-generation.json").exists())
             self.assertTrue((root / "contracts" / "renamed" / "__init__.py").exists())
+            self.assertIn(Path("contracts/release/__init__.py"), result.deleted_paths)
+            self.assertIn(Path("contracts/renamed/__init__.py"), result.created_paths)
 
     async def test_pruning_removes_owned_python_bytecode_only(self) -> None:
         with TemporaryDirectory() as directory:

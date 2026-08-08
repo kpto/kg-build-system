@@ -134,7 +134,9 @@ class GenerationStatus(StrEnum):
 
 
 class GenerationActionKind(StrEnum):
-    DECLARATION = "declaration"
+    DECLARATION_ADDED = "declaration_added"
+    DECLARATION_CHANGED = "declaration_changed"
+    DECLARATION_DELETED = "declaration_deleted"
     DEPENDENCY = "dependency"
 
 
@@ -145,12 +147,16 @@ class GenerationAction:
     kind: GenerationActionKind
     trigger_path: Path
     source_paths: tuple[Path, ...]
+    declaration_id: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class GenerationResult:
     status: GenerationStatus
     changed_paths: tuple[Path, ...] = ()
+    created_paths: tuple[Path, ...] = ()
+    updated_paths: tuple[Path, ...] = ()
+    deleted_paths: tuple[Path, ...] = ()
     diagnostics: tuple[str, ...] = ()
     actions: tuple[GenerationAction, ...] = ()
 
