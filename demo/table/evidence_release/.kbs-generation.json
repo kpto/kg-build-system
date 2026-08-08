@@ -5,13 +5,13 @@
     "reference_data"
   ],
   "owned_file_hashes": {
-    "__init__.py": "987778d4de199083a8bdff6135d41b8921ab6e9c1b2e9b12c00e78ccff0ad020",
-    "pharmacogenomics/__init__.py": "0c9b3b98f59eab9e144324af49b351e11c20ff73d05091e828c0e2ae02da4e6f",
-    "pharmacogenomics/association.py": "06e9097fd3437b9a2d70ba90a3f6beaaef96668449381c5bff7613003f0057fc",
-    "pharmacogenomics/study.py": "5564cbef9dfef2c63a275d2fbcf7d3424c4cd84e74048976001ae466c3bf1e10",
-    "reference_data/__init__.py": "537a684ba3686581e2b54ecc1d71d54439d95bc356a04047af60706516d7afff",
-    "reference_data/disease.py": "b2a5953e01fb5cbcffa38d1756fbf895c69c51d6c0d31c761004b90f32c5eaa1",
-    "reference_data/target.py": "21e31f12b5150f21101c9ee32afa8e1e8acd6d16b8f8b2107f3fe5fb4b59db4f"
+    "__init__.py": "c856862005b829549e7c063ef66efe425da078039f867e52401b3317acefffd9",
+    "pharmacogenomics/__init__.py": "c4314f7c2a4533efb9531552ba3774c197d96629ff649802d8f70bc00fd96e9a",
+    "pharmacogenomics/association.py": "4520fce7c2e0c610c26ba48792ccb358c51fbc7b37c118a3720271265c42acff",
+    "pharmacogenomics/study.py": "f889aee04ddf0e19bc9ca4cf9bc0ae584f38b646bfcc5f3095ef4f728d979a84",
+    "reference_data/__init__.py": "6c6887501f739b45648ddcde7b1288025a339c9bd22caf3c6976a843ed4c99e2",
+    "reference_data/disease.py": "9263e563f5e67b771924a9d0bb51215749a16e64e5266f67a034a6d2a73064a8",
+    "reference_data/target.py": "a16407c1b0a41f1bf3f323af71f7596fbb96244caaf1e5742d3a0e046f4813d4"
   },
   "owned_files": [
     "__init__.py",
@@ -24,8 +24,8 @@
   ],
   "provider_import": "kg_build_system.code_generation.builtins.schema_inference",
   "provider_qualname": "InferDataContractProvider",
-  "provider_version": "1",
-  "request_fingerprint": "5c8357a31b79c31f50063617972fd8d6dde374cd4dc43a5021739fa79c6a9ad7",
+  "provider_version": "2",
+  "request_fingerprint": "076a3677420cb8cc06ca87b2f68e819d1c0dc8f8916e88310630cb9771abec5b",
   "request_id": "evidence_release",
   "request_source_package": "demo.table"
 }
