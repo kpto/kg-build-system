@@ -195,9 +195,12 @@ def _logical_tables(
     source: str,
     request_id: str,
     layout: Literal["files", "parquet_parts", "hive_partitioned_parquet"],
+    *,
+    anonymous: bool = False,
 ) -> tuple[_LogicalTable, ...]:
     """Walk a filesystem and collapse partitions/parts into logical datasets."""
-    filesystem, root = fsspec.core.url_to_fs(source)
+    storage_options = {"anon": True} if urlparse(source).scheme.lower() == "s3" and anonymous else {}
+    filesystem, root = fsspec.core.url_to_fs(source, **storage_options)
     if filesystem.isfile(root):
         return (_LogicalTable((), _source_stem(source), (source,)),)
     if not filesystem.isdir(root):
@@ -249,6 +252,7 @@ class DataContractInferenceConfig(ProviderGenerationConfig):
     relation: str | None = None
     mode: Literal["table", "table_group"] = "table"
     layout: Literal["files", "parquet_parts", "hive_partitioned_parquet"] = "files"
+    anonymous: bool = False
 
 
 class InferDataContractProvider(Provider[DataContractInferenceConfig]):
@@ -410,7 +414,12 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         if context.config.mode == "table_group" and _source_suffix(source) not in _DATABASE_SUFFIXES:
             if context.config.relation is not None:
                 raise GenerationError("table-group inference does not accept relation=")
-            tables = _logical_tables(source, context.request_id, context.config.layout)
+            tables = _logical_tables(
+                source,
+                context.request_id,
+                context.config.layout,
+                anonymous=context.config.anonymous,
+            )
             connection = duckdb.connect(":memory:")
             try:
                 if any(_remote_source(item) for table in tables for item in table.sources):
