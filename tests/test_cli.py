@@ -32,6 +32,22 @@ async def _cancelled_changes():
 
 
 class CliTests(unittest.TestCase):
+    def test_bare_generation_call_prints_assignment_error(self) -> None:
+        with TemporaryDirectory() as directory:
+            request = Path(directory) / "contracts" / "__init__.py"
+            request.parent.mkdir()
+            request.write_text(
+                "from kg_build_system.code_generation import generation\n\n"
+                "generation(Provider, Config())\n",
+                encoding="utf-8",
+            )
+            output = StringIO()
+            with redirect_stdout(output):
+                result = main(("generate", "--check", "--project", directory))
+
+        self.assertEqual(result, 1)
+        self.assertIn("generation(...) must be assigned to a name", output.getvalue())
+
     def test_ctrl_c_stops_async_watch_without_a_traceback(self) -> None:
         session = MagicMock()
         session.start = AsyncMock(return_value=GenerationResult(GenerationStatus.CURRENT))

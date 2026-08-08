@@ -6,9 +6,11 @@ readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
     "duckdb>=1.1",
+    "fsspec>=2025.7",
     "libcst>=1.8",
     "pydantic>=2.10",
     "sqlglot>=30.14.0",
+    "s3fs>=2025.7",
     "watchfiles>=1.1",
 ]
 

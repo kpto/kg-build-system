@@ -92,6 +92,15 @@ class _Visitor(cst.CSTVisitor):
     def visit_ClassDef(self, _node: cst.ClassDef) -> None: self.depth += 1
     def leave_ClassDef(self, _node: cst.ClassDef) -> None: self.depth -= 1
 
+    def visit_Expr(self, node: cst.Expr) -> None:
+        if not isinstance(node.value, cst.Call) or self._resolve(node.value.func) not in _CANONICAL:
+            return
+        position = cast(Any, self.get_metadata(PositionProvider, node)).start
+        raise GenerationError(
+            f"{self.path.as_posix()}:{position.line}: generation(...) must be assigned to a name, "
+            "for example release = generation(...); the assignment name defines the generated package identity"
+        )
+
     def visit_Assign(self, node: cst.Assign) -> None:
         if not isinstance(node.value, cst.Call) or self._resolve(node.value.func) not in _CANONICAL:
             return

@@ -8,7 +8,9 @@ from tempfile import TemporaryDirectory
 from threading import get_ident
 import unittest
 from typing import ClassVar
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
+
+import duckdb
 
 from kg_build_system.code_generation import (
     GeneratedClass, GeneratedField, GeneratedFieldKind, GeneratedFile, GeneratedPackage,
@@ -81,6 +83,7 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
     def test_invalid_request_locations_and_shapes_are_rejected(self) -> None:
         bad = (
             ("request.py", request_source(), "must be in __init__"),
+            ("__init__.py", request_source().replace("release = ", ""), "must be assigned to a name"),
             ("__init__.py", request_source().replace("release =", "release, other ="), "plain assignment"),
             ("__init__.py", request_source().replace("release =", "owner.release ="), "plain assignment"),
             ("__init__.py", request_source().replace("FixtureConfig(source='schema.json', shape='one')", "make_config()"), "statically imported"),
@@ -309,6 +312,127 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
         self.assertFalse(any(sql.startswith("SELECT count") for sql, _parameters in connection.calls))
         self.assertTrue(connection.thread_ids)
         self.assertNotIn(get_ident(), connection.thread_ids)
+
+    async def test_table_group_inference_collapses_hive_partitions_and_part_files(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            request_path = root / "contracts" / "__init__.py"
+            request_path.parent.mkdir()
+            dataset = root / "data" / "associations"
+            parts = (
+                dataset / "year=2024" / "part-00000.parquet",
+                dataset / "year=2025" / "part-00001.parquet",
+            )
+            connection = duckdb.connect(":memory:")
+            try:
+                for index, part in enumerate(parts):
+                    part.parent.mkdir(parents=True, exist_ok=True)
+                    escaped = str(part).replace("'", "''")
+                    connection.execute(
+                        f"COPY (SELECT {index}::INTEGER AS id) TO '{escaped}' (FORMAT PARQUET)"
+                    )
+            finally:
+                connection.close()
+
+            context = ProviderContext(
+                root,
+                request_path,
+                "release",
+                DataContractInferenceConfig(
+                    source="../data",
+                    mode="table_group",
+                    layout="hive_partitioned_parquet",
+                ),
+            )
+            package = await InferDataContractProvider.generate(context)
+
+        paths = {file.relative_path.as_posix() for file in package.files}
+        self.assertEqual(paths, {"__init__.py", "associations.py"})
+        table_file = next(file for file in package.files if file.relative_path.name == "associations.py")
+        table = table_file.declarations[-1]
+        self.assertEqual(table.name, "AssociationsTable")
+        self.assertEqual({field.external_name for field in table.fields}, {"id", "year"})
+
+    async def test_default_file_layout_does_not_apply_part_file_heuristics(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            request_path = root / "contracts" / "__init__.py"
+            request_path.parent.mkdir()
+            data = root / "data"
+            data.mkdir()
+            (data / "part-000.json").write_text('{"id": 1}\n', encoding="utf-8")
+            (data / "part-001.json").write_text('{"id": 2}\n', encoding="utf-8")
+            context = ProviderContext(
+                root,
+                request_path,
+                "release",
+                DataContractInferenceConfig(source="../data", mode="table_group"),
+            )
+
+            package = await InferDataContractProvider.generate(context)
+
+        self.assertEqual(
+            {file.relative_path.as_posix() for file in package.files},
+            {"__init__.py", "part_000.py", "part_001.py"},
+        )
+
+    async def test_s3_table_group_walk_uses_hive_layout(self) -> None:
+        class Result:
+            description = (("id",),)
+
+            def fetchall(self) -> list[tuple[object, ...]]:
+                return [("id", "VARCHAR", "YES")]
+
+        class Connection:
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, list[object] | None]] = []
+
+            def execute(self, sql: str, parameters: list[object] | None = None) -> Result:
+                self.calls.append((sql, parameters))
+                return Result()
+
+            def close(self) -> None:
+                pass
+
+        filesystem = MagicMock()
+        filesystem.isfile.side_effect = lambda path: str(path).endswith(".parquet")
+        filesystem.isdir.return_value = True
+        filesystem.find.return_value = [
+            "bucket/release/associations/year=2024/part-00000.parquet",
+            "bucket/release/associations/year=2025/part-00001.parquet",
+        ]
+        filesystem.unstrip_protocol.side_effect = lambda path: f"s3://{path}"
+        connection = Connection()
+        with TemporaryDirectory() as directory, patch(
+            "kg_build_system.code_generation.builtins.schema_inference.fsspec.core.url_to_fs",
+            return_value=(filesystem, "bucket/release"),
+        ), patch(
+            "kg_build_system.code_generation.builtins.schema_inference.duckdb.connect",
+            return_value=connection,
+        ):
+            root = Path(directory)
+            context = ProviderContext(
+                root,
+                root / "contracts" / "__init__.py",
+                "release",
+                DataContractInferenceConfig(
+                    source="s3://bucket/release",
+                    mode="table_group",
+                    layout="hive_partitioned_parquet",
+                ),
+            )
+            package = await InferDataContractProvider.generate(context)
+
+        self.assertEqual(
+            {file.relative_path.as_posix() for file in package.files},
+            {"__init__.py", "associations.py"},
+        )
+        describe = next((sql, parameters) for sql, parameters in connection.calls if sql.startswith("DESCRIBE"))
+        self.assertIn("hive_partitioning = true", describe[0])
+        self.assertEqual(describe[1], [[
+            "s3://bucket/release/associations/year=2024/part-00000.parquet",
+            "s3://bucket/release/associations/year=2025/part-00001.parquet",
+        ]])
 
 
 if __name__ == "__main__": unittest.main()
