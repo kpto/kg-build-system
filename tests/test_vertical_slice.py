@@ -326,6 +326,31 @@ class AuthoringSurfaceTests(unittest.TestCase):
             ),
         )
 
+    def test_table_groups_merge_option_and_inherited_field_members_distinctly(self) -> None:
+        class GeneratedGroupShape:
+            input = InputTable
+            repeated = TemplatedInputTable
+
+        class FieldDeclaredTableGroup(GeneratedGroupShape, TableGroup):
+            options = TableGroupOptions(members=(TemplatedInputTable,))
+
+        self.assertEqual(
+            FieldDeclaredTableGroup._table_group_entries,
+            (TemplatedInputTable, InputTable),
+        )
+
+        class FieldsOnlyTableGroup(TableGroup):
+            input = InputTable
+
+        self.assertEqual(FieldsOnlyTableGroup._table_group_entries, (InputTable,))
+
+        with self.assertRaisesRegex(TypeError, "member field 'input' is ambiguous"):
+            class ConflictingShape:
+                input = TemplatedInputTable
+
+            class InvalidGroup(GeneratedGroupShape, ConflictingShape, TableGroup):
+                pass
+
     def test_final_declarations_compile_and_execute(self) -> None:
         root = Path(__file__).parents[1]
         blueprint = create_blueprint(

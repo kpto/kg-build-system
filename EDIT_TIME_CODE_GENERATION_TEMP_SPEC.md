@@ -269,6 +269,15 @@ remain complete project operations. Watch mode uses the same rendering,
 validation, ownership, and installation implementation on the affected subset;
 it does not use a weaker generation path.
 
+Coalescing is path-based: multiple backend events for one normalized project
+path in a debounced batch produce one generation input. The watcher reports
+generation actions rather than raw filesystem events: it identifies the
+changed declaration or provider dependency, the declaration modules affected,
+and the outputs actually updated. Authored modules installed by the generator
+are content-fingerprinted so their resulting filesystem events do not cause a
+second no-op generation pass. A later user edit changes the fingerprint and is
+processed normally.
+
 ## 9. Discovery without importing project code
 
 The command initially discovers generation requests through static Python
@@ -281,9 +290,11 @@ execution in decorator arguments is outside the initial scope. Unsupported
 expressions produce a diagnostic rather than causing the project module to be
 imported.
 
-A later design may introduce explicitly importable provider configuration, but
-provider loading must remain separate from importing the user's declaration
-module.
+The provider type and its configuration constructor are resolved statically to
+import coordinates. Generation may import the provider implementation module,
+verify its declared configuration type, and reconstruct the configuration from
+statically decoded keyword arguments. Provider loading remains separate from
+importing the user's declaration module.
 
 ## 10. Determinism, ownership, and freshness
 
@@ -369,11 +380,9 @@ decision. `kbs generate --check` is the canonical complete validation.
 
 ## 13. Initial vertical slice
 
-The proof of concept uses a deliberately minimal `dummy` provider. It reads a
-small provider-owned JSON format and demonstrates required and nullable scalar
-fields, external names, descriptions, deterministic regeneration, and naming
-collision diagnostics. This format is test infrastructure, not a public schema
-standard or a source of domain concepts for the core generator.
+Provider-contract tests use a test-local fixture provider. It is test
+infrastructure, not a bundled implementation, public schema standard, or
+source of domain concepts for the core generator.
 
 The core provider contract is generic. Every provider implementation declares
 a frozen, strict, keyword-only configuration model:
@@ -404,17 +413,62 @@ A provider:
 - owns all interpretation of its configuration and dependency contents.
 
 The first slice is successful when generated declarations are ordinary
-importable Python and compile through the existing blueprint path. Richer
-providers may later add nested structs, collections, annotations, or external
-metadata formats without changing discovery, watching, rendering, or build
-compilation.
+importable Python and compile through the existing blueprint path. Bundled and
+third-party providers use the same provider contract without privileged access
+to discovery, watching, rendering, or build compilation.
+
+### 13.1 Table-group declaration members
+
+A `TableGroup` may declare member tables or nested table groups in two places:
+
+- `TableGroupOptions.members`;
+- class fields whose values are final `Table` or `TableGroup` declaration
+  types, including inherited fields supplied by an ordinary generated mixin.
+
+The effective group membership is the stable distinct merge of option members
+followed by class-field members in declaration/MRO order. Repeating the same
+declaration does not duplicate it. Invalid member values, ambiguous field
+names, duplicate catalog paths, repeated inclusion of one final table, empty
+effective groups, and cycles remain diagnostics.
+
+This permits generated group shapes to carry explicit pointers to generated
+tables or nested groups:
+
+```python
+class G_ReleaseTableGroup:
+    target = GeneratedTargetTable
+    evidence = GeneratedEvidenceTableGroup
+
+
+class ReleaseTableGroup(G_ReleaseTableGroup, TableGroup):
+    pass
+```
+
+`TableGroupOptions.members` remains supported for handwritten composition. The
+field form exists so generated mixins can participate through ordinary Python
+inheritance, consistent with generated table fields and graph properties.
+
+### 13.2 DuckDB schema provider
+
+The next provider uses DuckDB to inspect configured data inputs and return the
+same provider-independent normalized declaration model as other providers. It
+may generate:
+
+- one table contract for a selected input relation; or
+- a table group whose members point to generated table contracts or nested
+  generated groups when the configured input exposes multiple relations.
+
+The provider owns file-format detection, relation selection, DuckDB type
+interpretation, and dependency declaration. The core generator does not infer
+domain meaning from filenames, relations, or columns. Generated scalar,
+nullable, struct, and collection declarations must use the framework's closed
+portable type vocabulary; unsupported or ambiguous DuckDB types produce
+source-located diagnostics rather than `Any` fields.
 
 ## 14. Open questions
 
-- The final public names and import locations of `generated` and the CLI.
 - Whether the decorator should attach runtime provenance or be a strict
   identity decorator.
-- The concrete syntax tree library and formatter integration.
 - Exact handwritten-versus-generated member override rules.
 - Whether source integration imports need explicit marker comments in addition
   to their deterministic structure.
@@ -422,13 +476,13 @@ compilation.
   content was manually changed but their ownership is unambiguous.
 - Whether compilation checks freshness or leaves that exclusively to
   `kbs generate --check`.
-- Evolution of the provider-independent normalized declaration model beyond
-  the dummy proof of concept.
+- Evolution of the provider-independent normalized declaration model as
+  bundled and third-party providers gain richer declaration shapes.
 
 ## 15. Module parsing and source transformation
 
-The initial implementation should parse and edit Python modules with a
-concrete syntax tree library such as LibCST. Python's `ast` module is suitable
+The implementation parses and edits Python modules with LibCST. Python's
+`ast` module is suitable
 for semantic analysis but cannot reliably preserve comments, blank lines,
 whitespace, or exact formatting.
 
@@ -451,11 +505,11 @@ Given:
 
 ```python
 from kg_build_system import Table
-from kg_build_system.code_generation import DummyGenerationConfig, DummyProvider
+from my_provider import FixtureGenerationConfig, FixtureProvider
 from kg_build_system.generation import generated as codegen
 
 
-@codegen(DummyProvider, DummyGenerationConfig(source="../../fields.json"))
+@codegen(FixtureProvider, FixtureGenerationConfig(source="../../fields.json"))
 @registered
 class TargetTable(Table):
     ...
@@ -478,8 +532,8 @@ and runtime identity are less predictable.
 A configured decorator call may use direct, qualified, or aliased imports:
 
 ```python
-@generated(DummyProvider, DummyGenerationConfig(...))
-@kbs.generated(providers.DummyProvider, providers.DummyGenerationConfig(...))
+@generated(FixtureProvider, FixtureGenerationConfig(...))
+@kbs.generated(providers.FixtureProvider, providers.FixtureGenerationConfig(...))
 @codegen(ProviderType, ConfigType(...))
 ```
 
@@ -502,7 +556,7 @@ The first API should constrain decorator arguments to statically readable
 values:
 
 ```python
-@generated(DummyProvider, DummyGenerationConfig(source="../../fields.json"))
+@generated(FixtureProvider, FixtureGenerationConfig(source="../../fields.json"))
 ```
 
 Initially supported values are strings, numbers, booleans, `None`, and nested
@@ -510,9 +564,9 @@ lists, tuples, or dictionaries composed from supported values. Arbitrary calls,
 attribute reads, environment access, and computed expressions are rejected:
 
 ```python
-@generated(DummyProvider, make_config())                 # rejected
-@generated(DummyProvider, CONFIG)                        # rejected
-@generated(DummyProvider, DummyGenerationConfig(source=find_input()))  # rejected
+@generated(FixtureProvider, make_config())                 # rejected
+@generated(FixtureProvider, CONFIG)                        # rejected
+@generated(FixtureProvider, FixtureGenerationConfig(source=find_input()))  # rejected
 ```
 
 The implementation uses a small syntax-tree evaluator and never `eval`.
@@ -763,5 +817,7 @@ sidecar is missing, stale, or different.
 The watcher must not rediscover the complete project after every event. It
 updates the index when an authored Python module changes and regenerates only
 modules selected by provider-declared dependency paths. Generated-sidecar
-events and unknown-path events are ignored. Installing generated output must
-therefore neither trigger reverse generation nor cause an output loop.
+events and unknown-path events are ignored. Events for authored modules just
+installed by generation are suppressed while their content fingerprint still
+matches. Installing generated output therefore neither triggers reverse
+generation nor causes an output loop.

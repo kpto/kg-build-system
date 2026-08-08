@@ -273,7 +273,7 @@ class ProjectionOptions:
 
 @dataclass(frozen=True)
 class TableGroupOptions:
-    members: tuple[type, ...]
+    members: tuple[type, ...] = ()
     name: str | None = None
     description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
@@ -394,20 +394,32 @@ class Projection:
 
 class TableGroup:
     """Final named group of source-bindable tables and nested groups."""
-    options: ClassVar[TableGroupOptions]
+    options: ClassVar[TableGroupOptions] = TableGroupOptions()
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        options = vars(cls).get("options")
+        options = vars(cls).get("options", TableGroupOptions())
         if not isinstance(options, TableGroupOptions):
             raise TypeError("TableGroup.options must be a TableGroupOptions value")
-        if not options.members:
-            raise TypeError("TableGroup.options.members must not be empty")
+        declared_fields: dict[str, type] = {}
+        for base in reversed(cls.__mro__):
+            for attribute, value in vars(base).items():
+                if not isinstance(value, type) or not (
+                    _is_concrete_table(value) or vars(value).get("_is_table_group", False)
+                ):
+                    continue
+                previous = declared_fields.get(attribute)
+                if previous is not None and previous is not value:
+                    raise TypeError(f"table group member field {attribute!r} is ambiguous")
+                declared_fields[attribute] = value
         if any(not _is_concrete_table(item) and not vars(item).get("_is_table_group", False) for item in options.members):
             raise TypeError("table groups may include only final Table declarations or TableGroup declarations")
+        entries = tuple(dict.fromkeys((*options.members, *declared_fields.values())))
+        if not entries:
+            raise TypeError("table groups must declare at least one member in options or as a class field")
         cls._is_table_group = True
         cls._table_group_name = options.name or declaration_name(cls.__name__, suffixes=("TableGroup",))
-        cls._table_group_entries = options.members
+        cls._table_group_entries = entries
         annotations = tuple(annotation for base in reversed(cls.__mro__[1:]) for annotation in vars(base).get("_data_annotations", ())) + tuple(options.annotations)
         description = _description(cls, options.description)
         cls._data_annotations = annotations

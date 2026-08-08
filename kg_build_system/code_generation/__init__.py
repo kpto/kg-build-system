@@ -2,7 +2,6 @@
 
 from .decorator import generated
 from .discovery import discover, discover_file
-from .dummy import DummyGenerationConfig, DummyProvider
 from .engine import GenerationSession, generate
 from .models import (
     DiscoveredGeneration,
@@ -10,6 +9,7 @@ from .models import (
     GeneratedClass,
     GeneratedField,
     GeneratedFieldKind,
+    GeneratedMember,
     GeneratedModule,
     GenerationAction,
     GenerationActionKind,
@@ -23,8 +23,8 @@ from .providers import Provider, ProviderContext
 from .watcher import FileChange, FileChangeKind, watch
 
 __all__ = [
-    "DiscoveredGeneration", "DummyGenerationConfig", "DummyProvider", "FileChange", "FileChangeKind",
-    "GeneratedAnnotation", "GeneratedClass", "GeneratedField", "GeneratedFieldKind", "GeneratedModule",
+    "DiscoveredGeneration", "FileChange", "FileChangeKind",
+    "GeneratedAnnotation", "GeneratedClass", "GeneratedField", "GeneratedFieldKind", "GeneratedMember", "GeneratedModule",
     "GenerationAction", "GenerationActionKind",
     "GenerationError", "GenerationRequest", "GenerationResult", "GenerationSession", "GenerationStatus", "Provider",
     "ProviderContext", "ProviderGenerationConfig", "discover", "discover_file", "generate", "generated", "watch",

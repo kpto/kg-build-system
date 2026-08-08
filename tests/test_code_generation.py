@@ -1,14 +1,15 @@
 from __future__ import annotations
 
 import importlib
+import json
+import keyword
 from pathlib import Path
+import re
 import sys
 from tempfile import TemporaryDirectory
 import unittest
 
 from kg_build_system.code_generation import (
-    DummyGenerationConfig,
-    DummyProvider,
     GenerationError,
     GenerationActionKind,
     GenerationSession,
@@ -18,13 +19,63 @@ from kg_build_system.code_generation import (
     generate,
     generated,
 )
+from kg_build_system.code_generation.builtins import (
+    DataContractInferenceConfig,
+    InferDataContractProvider,
+)
+from kg_build_system.code_generation import (
+    GeneratedClass,
+    GeneratedField,
+    GeneratedFieldKind,
+    GeneratedModule,
+    Provider,
+    ProviderContext,
+)
+
+
+class FixtureGenerationConfig(ProviderGenerationConfig):
+    source: str
+
+
+class FixtureProvider(Provider[FixtureGenerationConfig]):
+    ID = "fixture"
+    VERSION = "1"
+    CONFIG_TYPE = FixtureGenerationConfig
+
+    @classmethod
+    def dependencies(cls, context: ProviderContext[FixtureGenerationConfig]) -> tuple[Path, ...]:
+        return (context.resolve_path(context.config.source),)
+
+    @classmethod
+    def generate(
+        cls, context: ProviderContext[FixtureGenerationConfig], *, generated_name: str,
+    ) -> GeneratedModule:
+        schema = json.loads(cls.dependencies(context)[0].read_text(encoding="utf-8"))
+        fields = []
+        for item in schema["fields"]:
+            external = item["name"]
+            python_name = re.sub(r"(?<=[a-z0-9])(?=[A-Z])", "_", external).lower()
+            if keyword.iskeyword(python_name) or python_name == "options":
+                python_name += "_"
+            fields.append(
+                GeneratedField(
+                    python_name,
+                    external,
+                    GeneratedFieldKind.SCALAR,
+                    {"string": "str", "integer": "int", "number": "float", "boolean": "bool"}[
+                        item.get("type", "string")
+                    ],
+                    nullable=bool(item.get("nullable", False)),
+                )
+            )
+        return GeneratedModule((GeneratedClass(generated_name, tuple(fields)),))
 
 
 DECLARATION = '''from kg_build_system import Table, generated
-from kg_build_system.code_generation import DummyGenerationConfig, DummyProvider
+from tests.test_code_generation import FixtureGenerationConfig, FixtureProvider
 
 
-@generated(DummyProvider, DummyGenerationConfig(source="../schema.json"))
+@generated(FixtureProvider, FixtureGenerationConfig(source="../schema.json"))
 class TargetTable(Table):
     """Handwritten documentation."""
 '''
@@ -33,13 +84,13 @@ class TargetTable(Table):
 class CodeGenerationTests(unittest.TestCase):
     def test_provider_configs_are_keyword_only_and_runtime_checked(self) -> None:
         with self.assertRaises(TypeError):
-            DummyGenerationConfig("schema.json")  # type: ignore[call-arg]
+            FixtureGenerationConfig("schema.json")  # type: ignore[call-arg]
 
         class OtherConfig(ProviderGenerationConfig):
             source: str
 
-        with self.assertRaisesRegex(TypeError, "requires DummyGenerationConfig"):
-            generated(DummyProvider, OtherConfig(source="schema.json"))  # type: ignore[arg-type]
+        with self.assertRaisesRegex(TypeError, "requires FixtureGenerationConfig"):
+            generated(FixtureProvider, OtherConfig(source="schema.json"))  # type: ignore[arg-type]
 
     def _project(self, directory: str) -> Path:
         root = Path(directory)
@@ -108,8 +159,8 @@ class CodeGenerationTests(unittest.TestCase):
             )
             (root / "contracts" / "other.py").write_text(
                 'from kg_build_system import Table, generated\n\n'
-                'from kg_build_system.code_generation import DummyGenerationConfig, DummyProvider\n\n'
-                '@generated(DummyProvider, DummyGenerationConfig(source="../other_schema.json"))\n'
+                'from tests.test_code_generation import FixtureGenerationConfig, FixtureProvider\n\n'
+                '@generated(FixtureProvider, FixtureGenerationConfig(source="../other_schema.json"))\n'
                 'class OtherTable(Table):\n    pass\n',
                 encoding="utf-8",
             )
@@ -176,16 +227,16 @@ class CodeGenerationTests(unittest.TestCase):
 
     def test_direct_qualified_and_aliased_decorators_are_discovered(self) -> None:
         statements = (
-            "from kg_build_system import generated\nfrom kg_build_system.code_generation import DummyGenerationConfig, DummyProvider\n",
-            "import kg_build_system as kbs\nimport kg_build_system.code_generation as codegen\n",
-            "from kg_build_system.code_generation import generated as codegen, DummyGenerationConfig as Config, DummyProvider as ProviderType\n",
-            "from kg_build_system.code_generation.decorator import generated as implementation_generated\nfrom kg_build_system.code_generation import DummyGenerationConfig, DummyProvider\n",
+            "from kg_build_system import generated\nfrom tests.test_code_generation import FixtureGenerationConfig, FixtureProvider\n",
+            "import kg_build_system as kbs\nimport tests.test_code_generation as providers\n",
+            "from kg_build_system.code_generation import generated as codegen\nfrom tests.test_code_generation import FixtureGenerationConfig as Config, FixtureProvider as ProviderType\n",
+            "from kg_build_system.code_generation.decorator import generated as implementation_generated\nfrom tests.test_code_generation import FixtureGenerationConfig, FixtureProvider\n",
         )
         decorators = (
-            'generated(DummyProvider, DummyGenerationConfig(source="schema.json"))',
-            'kbs.generated(codegen.DummyProvider, codegen.DummyGenerationConfig(source="schema.json"))',
+            'generated(FixtureProvider, FixtureGenerationConfig(source="schema.json"))',
+            'kbs.generated(providers.FixtureProvider, providers.FixtureGenerationConfig(source="schema.json"))',
             'codegen(ProviderType, Config(source="schema.json"))',
-            'implementation_generated(DummyProvider, DummyGenerationConfig(source="schema.json"))',
+            'implementation_generated(FixtureProvider, FixtureGenerationConfig(source="schema.json"))',
         )
         with TemporaryDirectory() as directory:
             root = Path(directory)
@@ -202,8 +253,8 @@ class CodeGenerationTests(unittest.TestCase):
             root = Path(directory)
             (root / "bad.py").write_text(
                 'from kg_build_system import generated\n'
-                'from kg_build_system.code_generation import DummyGenerationConfig, DummyProvider\n'
-                '@staticmethod\n@generated(DummyProvider, DummyGenerationConfig(source=find_schema()))\nclass Bad:\n    pass\n',
+                'from tests.test_code_generation import FixtureGenerationConfig, FixtureProvider\n'
+                '@staticmethod\n@generated(FixtureProvider, FixtureGenerationConfig(source=find_schema()))\nclass Bad:\n    pass\n',
                 encoding="utf-8",
             )
             with self.assertRaisesRegex(GenerationError, "topmost"):
@@ -214,8 +265,8 @@ class CodeGenerationTests(unittest.TestCase):
             root = Path(directory)
             (root / "bad.py").write_text(
                 'from kg_build_system import generated\n'
-                'from kg_build_system.code_generation import DummyGenerationConfig, DummyProvider\n'
-                '@generated(DummyProvider, DummyGenerationConfig("schema.json"))\n'
+                'from tests.test_code_generation import FixtureGenerationConfig, FixtureProvider\n'
+                '@generated(FixtureProvider, FixtureGenerationConfig("schema.json"))\n'
                 'class Bad:\n    pass\n',
                 encoding="utf-8",
             )
@@ -243,8 +294,8 @@ class CodeGenerationTests(unittest.TestCase):
             root = self._project(directory)
             (root / "other.py").write_text(
                 'from kg_build_system import Table, generated\n'
-                'from kg_build_system.code_generation import DummyGenerationConfig\n'
-                '@generated(Table, DummyGenerationConfig(source="schema.json"))\nclass Other:\n    pass\n',
+                'from tests.test_code_generation import FixtureGenerationConfig\n'
+                '@generated(Table, FixtureGenerationConfig(source="schema.json"))\nclass Other:\n    pass\n',
                 encoding="utf-8",
             )
             with self.assertRaisesRegex(TypeError, "not a code-generation Provider"):
@@ -257,10 +308,10 @@ class CodeGenerationTests(unittest.TestCase):
             (root / "schema.json").write_text('{"fields": [{"name": "id"}]}', encoding="utf-8")
             source = (
                 'from kg_build_system import generated\n\n'
-                'from kg_build_system.code_generation import DummyGenerationConfig, DummyProvider\n\n'
+                'from tests.test_code_generation import FixtureGenerationConfig, FixtureProvider\n\n'
                 'class HandwrittenMixin:\n    pass\n\n'
                 '# Public declaration comment.\n'
-                '@generated(DummyProvider, DummyGenerationConfig(source="schema.json"))\n'
+                '@generated(FixtureProvider, FixtureGenerationConfig(source="schema.json"))\n'
                 '@staticmethod\n'
                 'class TargetTable(HandwrittenMixin):\n'
                 '    custom = 42\n'
@@ -270,7 +321,7 @@ class CodeGenerationTests(unittest.TestCase):
             generate(root)
             result = path.read_text(encoding="utf-8")
             self.assertIn("# Public declaration comment.\n@generated", result)
-            self.assertIn('@generated(DummyProvider, DummyGenerationConfig(source="schema.json"))\n@staticmethod', result)
+            self.assertIn('@generated(FixtureProvider, FixtureGenerationConfig(source="schema.json"))\n@staticmethod', result)
             self.assertIn("class TargetTable(G_TargetTable, HandwrittenMixin):", result)
             self.assertIn("    custom = 42", result)
 
@@ -283,6 +334,72 @@ class CodeGenerationTests(unittest.TestCase):
             with self.assertRaisesRegex(GenerationError, "unowned"):
                 generate(root)
             self.assertEqual(sidecar.read_text(encoding="utf-8"), "# handwritten\n")
+
+    def test_schema_inference_provider_generates_a_table_contract_from_parquet(self) -> None:
+        import duckdb
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / "target.parquet"
+            duckdb.connect().execute(
+                "COPY (SELECT 1::INTEGER AS id, 'ENSG1'::VARCHAR AS approvedSymbol) TO ? (FORMAT PARQUET)",
+                [str(data)],
+            )
+            (root / "target.py").write_text(
+                "from kg_build_system import Table, generated\n"
+                "from kg_build_system.code_generation.builtins import DataContractInferenceConfig, InferDataContractProvider\n\n"
+                "@generated(InferDataContractProvider, DataContractInferenceConfig(source='target.parquet'))\n"
+                "class TargetTable(Table):\n    pass\n",
+                encoding="utf-8",
+            )
+
+            generate(root)
+
+            sidecar = (root / "_generated" / "target.py").read_text(encoding="utf-8")
+            self.assertIn("class G_TargetTable:", sidecar)
+            self.assertIn("id: Field[int | None]", sidecar)
+            self.assertIn("approved_symbol: Field[str | None]", sidecar)
+            self.assertIn("name='approvedSymbol'", sidecar)
+
+    def test_schema_inference_provider_generates_a_table_group_from_database_relations(self) -> None:
+        import duckdb
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            package = root / "contracts"
+            package.mkdir()
+            (package / "__init__.py").write_text("", encoding="utf-8")
+            database = root / "release.duckdb"
+            connection = duckdb.connect(str(database))
+            connection.execute("CREATE TABLE target(id VARCHAR, symbol VARCHAR)")
+            connection.execute("CREATE TABLE disease(id VARCHAR, name VARCHAR)")
+            connection.close()
+            (package / "release.py").write_text(
+                "from kg_build_system import TableGroup, generated\n"
+                "from kg_build_system.code_generation.builtins import DataContractInferenceConfig, InferDataContractProvider\n\n"
+                "@generated(InferDataContractProvider, DataContractInferenceConfig(source='../release.duckdb', mode='table_group'))\n"
+                "class ReleaseTableGroup(TableGroup):\n    pass\n",
+                encoding="utf-8",
+            )
+
+            generate(root)
+
+            sidecar = (package / "_generated" / "release.py").read_text(encoding="utf-8")
+            self.assertIn("class G_ReleaseTableGroupDiseaseTable(Table):", sidecar)
+            self.assertIn("class G_ReleaseTableGroupTargetTable(Table):", sidecar)
+            self.assertIn("class G_ReleaseTableGroup:", sidecar)
+            self.assertIn("disease = G_ReleaseTableGroupDiseaseTable", sidecar)
+            self.assertIn("target = G_ReleaseTableGroupTargetTable", sidecar)
+
+            sys.path.insert(0, str(root))
+            try:
+                module = importlib.import_module("contracts.release")
+                self.assertEqual(len(module.ReleaseTableGroup._table_group_entries), 2)
+            finally:
+                sys.path.remove(str(root))
+                for name in tuple(sys.modules):
+                    if name == "contracts" or name.startswith("contracts."):
+                        del sys.modules[name]
 
 
 if __name__ == "__main__":

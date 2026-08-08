@@ -76,6 +76,8 @@ def render_sidecar(
     imports = {"CollectionField", "Field", "StructField", "collection_field", "field", "struct_field"}
     if any(generated.base == "Struct" for generated in all_classes):
         imports.add("Struct")
+    if any(generated.base == "Table" for generated in all_classes):
+        imports.add("Table")
     annotation_imports: dict[str, set[str]] = {}
     for generated in all_classes:
         for field in generated.fields:
@@ -101,7 +103,9 @@ def render_sidecar(
         for field in generated.fields:
             annotation, declaration = _field(field)
             lines.append(f"    {field.python_name}: {annotation} = {declaration}")
-        if not generated.fields and not generated.description:
+        for member in generated.members:
+            lines.append(f"    {member.python_name} = {member.declaration_name}")
+        if not generated.fields and not generated.members and not generated.description:
             lines.append("    pass")
         if index != len(all_classes) - 1:
             lines.extend(("", ""))

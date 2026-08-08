@@ -69,9 +69,18 @@ class GeneratedField:
 
 
 @dataclass(frozen=True, slots=True)
+class GeneratedMember:
+    """A named declaration pointer carried by a generated plain mixin."""
+
+    python_name: str
+    declaration_name: str
+
+
+@dataclass(frozen=True, slots=True)
 class GeneratedClass:
     name: str
-    fields: tuple[GeneratedField, ...]
+    fields: tuple[GeneratedField, ...] = ()
+    members: tuple[GeneratedMember, ...] = ()
     description: str | None = None
     base: str | None = None
 
