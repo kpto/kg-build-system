@@ -7,11 +7,16 @@ import sys
 from tempfile import TemporaryDirectory
 import unittest
 from typing import ClassVar
+from unittest.mock import patch
 
 from kg_build_system.code_generation import (
     GeneratedClass, GeneratedField, GeneratedFieldKind, GeneratedFile, GeneratedPackage,
     Generation, GenerationError, GenerationStatus, Provider, ProviderContext,
     ProviderGenerationConfig, discover, discover_file, generate, generation,
+)
+from kg_build_system.code_generation.builtins import (
+    DataContractInferenceConfig,
+    InferDataContractProvider,
 )
 
 
@@ -193,6 +198,57 @@ class GeneratedPackageTests(unittest.TestCase):
             self.assertEqual(manifest["request_id"], "release")
             self.assertEqual(manifest["request_source_package"], "contracts")
             self.assertTrue(all(not Path(path).is_absolute() for path in manifest["owned_files"]))
+
+    def test_data_contract_inference_accepts_s3_urls_without_local_dependencies(self) -> None:
+        class Result:
+            def __init__(self, rows: list[tuple[object, ...]]) -> None:
+                self.rows = rows
+
+            def fetchall(self) -> list[tuple[object, ...]]:
+                return self.rows
+
+            def fetchone(self) -> tuple[object, ...] | None:
+                return self.rows[0] if self.rows else None
+
+        class Connection:
+            def __init__(self) -> None:
+                self.calls: list[tuple[str, list[str] | None]] = []
+
+            def execute(self, sql: str, parameters: list[str] | None = None) -> Result | "Connection":
+                self.calls.append((sql, parameters))
+                if sql.startswith("DESCRIBE"):
+                    return Result([("identifier", "VARCHAR", "YES")])
+                if sql.startswith("SELECT count"):
+                    return Result([(0,)])
+                return self
+
+            def close(self) -> None:
+                pass
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            source = "s3://example-bucket/contracts/release.parquet?versionId=123"
+            context = ProviderContext(
+                root,
+                root / "contracts" / "__init__.py",
+                "release",
+                DataContractInferenceConfig(source=source),
+            )
+            self.assertEqual(InferDataContractProvider.dependencies(context), ())
+            connection = Connection()
+            with patch(
+                "kg_build_system.code_generation.builtins.schema_inference.duckdb.connect",
+                return_value=connection,
+            ):
+                package = InferDataContractProvider.generate(context)
+
+        self.assertEqual(package.files[0].declarations[-1].name, "ReleaseTable")
+        self.assertIn(("LOAD httpfs", None), connection.calls)
+        self.assertTrue(any(
+            "read_parquet(?)" in sql and parameters == [source]
+            for sql, parameters in connection.calls
+        ))
+        self.assertFalse(any(sql.startswith("SELECT count") for sql, _parameters in connection.calls))
 
 
 if __name__ == "__main__": unittest.main()

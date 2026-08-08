@@ -6,6 +6,7 @@ import keyword
 from pathlib import Path
 import re
 from typing import ClassVar, Literal
+from urllib.parse import urlparse
 
 import duckdb
 
@@ -21,6 +22,7 @@ from ..providers import Provider, ProviderContext
 
 
 _DATABASE_SUFFIXES = {".db", ".ddb", ".duckdb"}
+_REMOTE_SCHEMES = {"http", "https", "s3"}
 _SCALAR_TYPES = {
     "BOOLEAN": "bool",
     "TINYINT": "int",
@@ -138,6 +140,36 @@ def _quote_identifier(value: str) -> str:
     return '"' + value.replace('"', '""') + '"'
 
 
+def _remote_source(value: str) -> bool:
+    """Whether ``value`` is a DuckDB-readable remote object URL."""
+    return urlparse(value).scheme.lower() in _REMOTE_SCHEMES
+
+
+def _source_suffix(value: str) -> str:
+    """Return a source suffix without treating a URL query as part of its name."""
+    return Path(urlparse(value).path if _remote_source(value) else value).suffix.lower()
+
+
+def _source_stem(value: str) -> str:
+    return Path(urlparse(value).path if _remote_source(value) else value).stem
+
+
+def _load_remote_access(connection: duckdb.DuckDBPyConnection, source: str) -> None:
+    """Enable DuckDB's URL and S3 filesystem support when a remote input needs it."""
+    if not _remote_source(source):
+        return
+    try:
+        connection.execute("LOAD httpfs")
+    except duckdb.Error:
+        try:
+            connection.execute("INSTALL httpfs")
+            connection.execute("LOAD httpfs")
+        except duckdb.Error as error:
+            raise GenerationError(
+                f"cannot enable DuckDB httpfs support required for remote source {source!r}: {error}"
+            ) from error
+
+
 class DataContractInferenceConfig(ProviderGenerationConfig):
     source: str
     relation: str | None = None
@@ -153,6 +185,8 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
 
     @classmethod
     def dependencies(cls, context: ProviderContext[DataContractInferenceConfig]) -> tuple[Path, ...]:
+        if _remote_source(context.config.source):
+            return ()
         source = context.resolve_path(context.config.source)
         if source.is_dir():
             return tuple(
@@ -164,9 +198,9 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         return (source,)
 
     @classmethod
-    def _relations(cls, connection: duckdb.DuckDBPyConnection, path: Path) -> tuple[str, ...]:
-        if path.suffix.lower() not in _DATABASE_SUFFIXES:
-            return (path.stem,)
+    def _relations(cls, connection: duckdb.DuckDBPyConnection, source: str) -> tuple[str, ...]:
+        if _source_suffix(source) not in _DATABASE_SUFFIXES:
+            return (_source_stem(source),)
         rows = connection.execute(
             "SELECT table_name FROM information_schema.tables "
             "WHERE table_schema NOT IN ('information_schema', 'pg_catalog') ORDER BY table_name"
@@ -175,54 +209,37 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
 
     @classmethod
     def _describe(
-        cls, connection: duckdb.DuckDBPyConnection, path: Path, relation: str,
+        cls, connection: duckdb.DuckDBPyConnection, source: str, relation: str,
     ) -> tuple[tuple[str, str, bool], ...]:
-        suffix = path.suffix.lower()
+        suffix = _source_suffix(source)
         if suffix in _DATABASE_SUFFIXES:
             query = f"SELECT * FROM {_quote_identifier(relation)}"
             parameters: list[str] = []
         elif suffix in {".parquet", ".pq"}:
-            query, parameters = "SELECT * FROM read_parquet(?)", [str(path)]
+            query, parameters = "SELECT * FROM read_parquet(?)", [source]
         elif suffix in {".csv", ".tsv"}:
-            query, parameters = "SELECT * FROM read_csv_auto(?)", [str(path)]
+            query, parameters = "SELECT * FROM read_csv_auto(?)", [source]
         elif suffix in {".json", ".jsonl", ".ndjson"}:
-            query, parameters = "SELECT * FROM read_json_auto(?)", [str(path)]
+            query, parameters = "SELECT * FROM read_json_auto(?)", [source]
         else:
             raise GenerationError(f"unsupported data-contract inference input format {suffix or '<none>'!r}")
         try:
             rows = connection.execute(f"DESCRIBE {query}", parameters).fetchall()
         except duckdb.Error as error:
-            raise GenerationError(f"cannot infer schema for {path} relation {relation!r}: {error}") from error
-        declared = tuple((str(row[0]), str(row[1]), str(row[2]).upper() != "NO") for row in rows)
-        if suffix in _DATABASE_SUFFIXES or not declared:
-            return declared
-        null_checks = ", ".join(
-            f"count(*) FILTER (WHERE {_quote_identifier(name)} IS NULL)"
-            for name, _type_name, _nullable in declared
-        )
-        try:
-            null_counts = connection.execute(
-                f"SELECT {null_checks} FROM ({query}) AS inferred_input",
-                parameters,
-            ).fetchone()
-        except duckdb.Error as error:
-            raise GenerationError(f"cannot infer nullability for {path}: {error}") from error
-        if null_counts is None:
-            return declared
-        return tuple(
-            (name, type_name, bool(null_count))
-            for (name, type_name, _nullable), null_count in zip(declared, null_counts, strict=True)
-        )
+            raise GenerationError(f"cannot infer schema for {source} relation {relation!r}: {error}") from error
+        # ``DESCRIBE`` is the schema boundary.  Do not scan source rows merely
+        # to infer whether a nullable column happens to contain null values.
+        return tuple((str(row[0]), str(row[1]), str(row[2]).upper() != "NO") for row in rows)
 
     @classmethod
     def _table_classes(
-        cls, *, connection: duckdb.DuckDBPyConnection, path: Path,
+        cls, *, connection: duckdb.DuckDBPyConnection, source: str,
         relation: str, class_name: str, final: bool,
     ) -> tuple[GeneratedClass, ...]:
         fields: list[GeneratedField] = []
         supporting: list[GeneratedClass] = []
         used: dict[str, str] = {}
-        for external_name, type_name, nullable in cls._describe(connection, path, relation):
+        for external_name, type_name, nullable in cls._describe(connection, source, relation):
             generated, nested = _field_for_type(
                 name=external_name, type_name=type_name, nullable=nullable,
                 struct_prefix=class_name,
@@ -265,7 +282,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 elif child.suffix.lower() in {".csv", ".tsv", ".json", ".jsonl", ".ndjson", ".parquet", ".pq"}:
                     table_name = f"{_class_part(child.stem)}Table"
                     table_classes = cls._table_classes(
-                        connection=connection, path=child, relation=child.stem,
+                        connection=connection, source=str(child), relation=child.stem,
                         class_name=table_name, final=True,
                     )
                     files.append(GeneratedFile(relative / f"{_identifier(child.stem, fallback='table')}.py", table_classes, (table_name,)))
@@ -283,10 +300,18 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
     def generate(
         cls, context: ProviderContext[DataContractInferenceConfig],
     ) -> GeneratedPackage:
-        path = context.resolve_path(context.config.source)
-        if not path.exists():
+        remote = _remote_source(context.config.source)
+        if remote:
+            if context.config.mode != "table":
+                raise GenerationError("remote inference supports mode='table' only")
+            path: Path | None = None
+            source = context.config.source
+        else:
+            path = context.resolve_path(context.config.source)
+            source = str(path)
+        if path is not None and not path.exists():
             raise GenerationError(f"data-contract inference input does not exist: {path}")
-        if path.is_dir():
+        if path is not None and path.is_dir():
             if context.config.mode != "table_group":
                 raise GenerationError("directory inference requires mode='table_group'")
             if context.config.relation is not None:
@@ -296,13 +321,14 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 return cls._directory_package(context, path, connection)
             finally:
                 connection.close()
-        is_database = path.suffix.lower() in _DATABASE_SUFFIXES
+        is_database = not remote and _source_suffix(source) in _DATABASE_SUFFIXES
         try:
-            connection = duckdb.connect(str(path) if is_database else ":memory:", read_only=is_database)
+            connection = duckdb.connect(source if is_database else ":memory:", read_only=is_database)
         except duckdb.Error as error:
             raise GenerationError(f"cannot open data-contract inference input {path}: {error}") from error
         try:
-            relations = cls._relations(connection, path)
+            _load_remote_access(connection, source)
+            relations = cls._relations(connection, source)
             if not relations:
                 raise GenerationError(f"data input {path} exposes no relations")
             if context.config.mode == "table":
@@ -313,7 +339,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                     raise GenerationError(f"data input {path} has no relation {relation!r}")
                 class_name = f"{_class_part(context.request_id)}Table"
                 classes = cls._table_classes(
-                    connection=connection, path=path, relation=relation,
+                    connection=connection, source=source, relation=relation,
                     class_name=class_name, final=True,
                 )
                 return GeneratedPackage((GeneratedFile(Path("__init__.py"), classes, (class_name,)),))
@@ -331,7 +357,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 used_members[member_name] = relation
                 table_name = f"{_class_part(relation)}Table"
                 classes = cls._table_classes(
-                    connection=connection, path=path, relation=relation,
+                    connection=connection, source=source, relation=relation,
                     class_name=table_name, final=True,
                 )
                 files.append(GeneratedFile(Path(f"{member_name}.py"), classes, (table_name,)))

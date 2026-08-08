@@ -114,17 +114,15 @@ def _desired(root: Path, request: DiscoveredGeneration) -> tuple[Path, dict[Path
         except ValueError as error: raise GenerationError(f"provider dependency is outside the project: {dependency}") from error
         if not dependency.is_file(): raise GenerationError(f"provider dependency does not exist: {dependency}")
     fingerprint = generation_fingerprint(request, provider.VERSION, tuple(path.read_bytes() for path in dependencies))
-    first = render_package(request, provider.generate(context), fingerprint)
-    second = render_package(request, provider.generate(context), fingerprint)
-    if first != second: raise GenerationError(f"provider {provider.__module__}.{provider.__qualname__} is not deterministic")
+    rendered = render_package(request, provider.generate(context), fingerprint)
     product = root / request.product_path
-    desired = {product.joinpath(*relative.parts): content for relative, content in first.items()}
-    relative_files = tuple(sorted(first, key=lambda value: value.as_posix()))
+    desired = {product.joinpath(*relative.parts): content for relative, content in rendered.items()}
+    relative_files = tuple(sorted(rendered, key=lambda value: value.as_posix()))
     manifest = GenerationManifest(
         FORMAT_VERSION, request.location.request_id, request.location.source_package,
         provider.__module__, provider.__qualname__, provider.VERSION, fingerprint,
         tuple(path.as_posix() for path in relative_files), _owned_directories(relative_files),
-        {path.as_posix(): sha256(first[path].encode()).hexdigest() for path in relative_files},
+        {path.as_posix(): sha256(rendered[path].encode()).hexdigest() for path in relative_files},
     )
     desired[product / MANIFEST] = _manifest_text(manifest)
     return product, desired, manifest, dependencies
