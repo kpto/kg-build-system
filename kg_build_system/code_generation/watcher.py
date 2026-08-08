@@ -2,13 +2,13 @@
 
 from __future__ import annotations
 
-from collections.abc import Iterable, Iterator
+from collections.abc import AsyncIterator, Iterable
 from dataclasses import dataclass
 from enum import StrEnum
 from pathlib import Path
 from threading import Event
 
-from watchfiles import Change, watch as _watchfiles
+from watchfiles import Change, awatch as _watchfiles
 
 
 class FileChangeKind(StrEnum):
@@ -41,14 +41,14 @@ _CHANGE_PRIORITY = {
 }
 
 
-def watch(
+async def watch(
     root: str | Path,
     *,
     debounce: int = 300,
     step: int = 50,
     suffixes: Iterable[str] = (".py", ".json", ".toml", ".yaml", ".yml"),
     stop_event: Event | None = None,
-) -> Iterator[tuple[FileChange, ...]]:
+) -> AsyncIterator[tuple[FileChange, ...]]:
     """Yield non-empty batches of relevant changes beneath ``root``."""
     project_root = Path(root).resolve()
     if not project_root.is_dir():
@@ -68,7 +68,7 @@ def watch(
             part in _IGNORED_DIRECTORIES for part in relative.parts
         )
 
-    for batch in _watchfiles(
+    async for batch in _watchfiles(
         project_root,
         watch_filter=relevant,
         debounce=debounce,

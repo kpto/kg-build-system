@@ -43,11 +43,11 @@ class Provider[T: ProviderGenerationConfig](ABC):
 
     @classmethod
     @abstractmethod
-    def dependencies(cls, context: ProviderContext[T]) -> tuple[Path, ...]: ...
+    async def dependencies(cls, context: ProviderContext[T]) -> tuple[Path, ...]: ...
 
     @classmethod
     @abstractmethod
-    def generate(cls, context: ProviderContext[T]) -> GeneratedPackage: ...
+    async def generate(cls, context: ProviderContext[T]) -> GeneratedPackage: ...
 
 
 def _load_class(module_name: str, qualname: str) -> type[object]:

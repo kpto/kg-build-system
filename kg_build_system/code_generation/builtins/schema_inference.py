@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import keyword
 from pathlib import Path
 import re
@@ -184,7 +185,11 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
     CONFIG_TYPE: ClassVar[type[ProviderGenerationConfig]] = DataContractInferenceConfig
 
     @classmethod
-    def dependencies(cls, context: ProviderContext[DataContractInferenceConfig]) -> tuple[Path, ...]:
+    async def dependencies(cls, context: ProviderContext[DataContractInferenceConfig]) -> tuple[Path, ...]:
+        return await asyncio.to_thread(cls._dependencies, context)
+
+    @classmethod
+    def _dependencies(cls, context: ProviderContext[DataContractInferenceConfig]) -> tuple[Path, ...]:
         if _remote_source(context.config.source):
             return ()
         source = context.resolve_path(context.config.source)
@@ -297,7 +302,13 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         return GeneratedPackage(tuple(files))
 
     @classmethod
-    def generate(
+    async def generate(
+        cls, context: ProviderContext[DataContractInferenceConfig],
+    ) -> GeneratedPackage:
+        return await asyncio.to_thread(cls._generate, context)
+
+    @classmethod
+    def _generate(
         cls, context: ProviderContext[DataContractInferenceConfig],
     ) -> GeneratedPackage:
         remote = _remote_source(context.config.source)

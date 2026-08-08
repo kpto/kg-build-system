@@ -105,16 +105,19 @@ def _owned_directories(files: Iterable[PurePosixPath]) -> tuple[str, ...]:
     return tuple(path.as_posix() for path in sorted(values, key=lambda p: (len(p.parts), p.as_posix())))
 
 
-def _desired(root: Path, request: DiscoveredGeneration) -> tuple[Path, dict[Path, str], GenerationManifest, tuple[Path, ...]]:
+async def _desired(root: Path, request: DiscoveredGeneration) -> tuple[Path, dict[Path, str], GenerationManifest, tuple[Path, ...]]:
     provider, config = load_provider(request.request)
     context = ProviderContext(root, request.location.source_path, request.location.request_id, config)
-    dependencies = tuple(provider.dependencies(context))
+    dependencies = tuple(await provider.dependencies(context))
     for dependency in dependencies:
         try: dependency.resolve().relative_to(root)
         except ValueError as error: raise GenerationError(f"provider dependency is outside the project: {dependency}") from error
         if not dependency.is_file(): raise GenerationError(f"provider dependency does not exist: {dependency}")
     fingerprint = generation_fingerprint(request, provider.VERSION, tuple(path.read_bytes() for path in dependencies))
-    rendered = render_package(request, provider.generate(context), fingerprint)
+    first = render_package(request, await provider.generate(context), fingerprint)
+    second = render_package(request, await provider.generate(context), fingerprint)
+    if first != second: raise GenerationError(f"provider {provider.__module__}.{provider.__qualname__} is not deterministic")
+    rendered = first
     product = root / request.product_path
     desired = {product.joinpath(*relative.parts): content for relative, content in rendered.items()}
     relative_files = tuple(sorted(rendered, key=lambda value: value.as_posix()))
@@ -173,14 +176,14 @@ def _prune(product: Path, manifest: GenerationManifest, files: Iterable[Path] | 
     return removed
 
 
-def generate(project_root: str | Path, *, check: bool = False) -> GenerationResult:
+async def generate(project_root: str | Path, *, check: bool = False) -> GenerationResult:
     """Generate or validate all requests as one desired-state pass."""
     root = Path(project_root).resolve()
     requests = discover(root)
     products: list[tuple[DiscoveredGeneration, Path, dict[Path, str], GenerationManifest, tuple[Path, ...]]] = []
     desired_product_paths: set[Path] = set()
     for request in requests:
-        product, desired, manifest, dependencies = _desired(root, request)
+        product, desired, manifest, dependencies = await _desired(root, request)
         resolved = product.resolve()
         if resolved in desired_product_paths: raise GenerationError(f"generated product collision at {product}")
         desired_product_paths.add(resolved)
@@ -216,7 +219,7 @@ def generate(project_root: str | Path, *, check: bool = False) -> GenerationResu
         _prune_bytecode(path for path, content in desired.items() if path.suffix == ".py" and path.exists() and path.read_text(encoding="utf-8") != content)
         for path, content in sorted(desired.items(), key=lambda item: (item[0].name == MANIFEST, item[0].as_posix())):
             if not path.exists() or path.read_text(encoding="utf-8") != content: _atomic_write(path, content)
-    if generate(root, check=True).status is not GenerationStatus.CURRENT:
+    if (await generate(root, check=True)).status is not GenerationStatus.CURRENT:
         raise GenerationError("generation did not produce an idempotent desired state")
     return GenerationResult(GenerationStatus.CHANGED, changed_paths=changed_relative)
 
@@ -229,7 +232,7 @@ class GenerationSession:
         self._by_dependency: dict[Path, set[Path]] = defaultdict(set)
         self._products: tuple[Path, ...] = ()
 
-    def _index(self) -> None:
+    async def _index(self) -> None:
         requests = discover(self.root)
         by_source: dict[Path, list[DiscoveredGeneration]] = defaultdict(list)
         dependencies: dict[Path, set[Path]] = defaultdict(set)
@@ -239,15 +242,15 @@ class GenerationSession:
             products.append((self.root / request.product_path).resolve())
             provider, config = load_provider(request.request)
             context = ProviderContext(self.root, request.location.source_path, request.location.request_id, config)
-            for dependency in provider.dependencies(context): dependencies[dependency.resolve()].add(request.location.source_path)
+            for dependency in await provider.dependencies(context): dependencies[dependency.resolve()].add(request.location.source_path)
         self._by_source = {path: tuple(values) for path, values in by_source.items()}
         self._by_dependency = dependencies
         self._products = tuple(sorted(set(self._products).union(products), key=lambda path: path.as_posix()))
 
-    def start(self) -> GenerationResult:
-        result = generate(self.root); self._index(); return result
+    async def start(self) -> GenerationResult:
+        result = await generate(self.root); await self._index(); return result
 
-    def handle(self, changed_paths: Iterable[str | Path]) -> GenerationResult:
+    async def handle(self, changed_paths: Iterable[str | Path]) -> GenerationResult:
         actions: list[GenerationAction] = []
         relevant = False
         for changed in changed_paths:
@@ -261,5 +264,5 @@ class GenerationSession:
                 sources = tuple(source.relative_to(self.root) for source in sorted(self._by_dependency[absolute]))
                 actions.append(GenerationAction(GenerationActionKind.DEPENDENCY, absolute.relative_to(self.root), sources))
         if not relevant: return GenerationResult(GenerationStatus.CURRENT)
-        result = generate(self.root); self._index()
+        result = await generate(self.root); await self._index()
         return replace(result, actions=tuple(actions))

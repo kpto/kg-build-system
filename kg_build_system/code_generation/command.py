@@ -5,7 +5,7 @@ from __future__ import annotations
 import argparse
 import logging
 from pathlib import Path
-from collections.abc import Callable
+from collections.abc import Awaitable, Callable
 from typing import Any
 
 from .engine import GenerationSession, generate
@@ -32,10 +32,10 @@ def _report_action(action: GenerationAction) -> None:
         )
 
 
-def _generate_and_report(operation: Callable[[], GenerationResult]) -> None:
+async def _generate_and_report(operation: Callable[[], Awaitable[GenerationResult]]) -> None:
     """Run one watched pass without allowing an invalid edit to stop the watcher."""
     try:
-        result = operation()
+        result = await operation()
     except (OSError, ValueError) as error:
         _LOGGER.error("Generation failed: %s", error)
         return
@@ -57,14 +57,14 @@ def add_generate_command(commands: Any) -> None:
     generate.set_defaults(command_handler=run_generate)
 
 
-def run_generate(arguments: argparse.Namespace) -> int:
+async def run_generate(arguments: argparse.Namespace) -> int:
     """Execute the ``generate`` command."""
     root = arguments.project.resolve()
     if arguments.watch and arguments.check:
         raise ValueError("--watch and --check cannot be combined")
     if not arguments.watch:
         try:
-            result = generate(root, check=arguments.check)
+            result = await generate(root, check=arguments.check)
         except (GenerationError, OSError) as error:
             _LOGGER.error("Generation failed: %s", error)
             return 1
@@ -77,9 +77,9 @@ def run_generate(arguments: argparse.Namespace) -> int:
     _LOGGER.info("Watching %s for code-generation inputs. Press Ctrl+C to stop.", root)
     session = GenerationSession(root)
     try:
-        _generate_and_report(session.start)
-        for changes in watch(root, debounce=arguments.debounce):
-            _generate_and_report(lambda changes=changes: session.handle(change.path for change in changes))
+        await _generate_and_report(session.start)
+        async for changes in watch(root, debounce=arguments.debounce):
+            await _generate_and_report(lambda changes=changes: session.handle(change.path for change in changes))
     except KeyboardInterrupt:
         _LOGGER.info("Stopped.")
     return 0

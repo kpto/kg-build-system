@@ -5,7 +5,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 import re
 import unittest
-from unittest.mock import MagicMock, patch
+from unittest.mock import AsyncMock, MagicMock, patch
 
 from kg_build_system.cli import main
 from kg_build_system.code_generation import (
@@ -20,17 +20,22 @@ from kg_build_system.code_generation import (
 code_generation_command = importlib.import_module("kg_build_system.code_generation.command")
 
 
+async def _changes(*values: tuple[FileChange, ...]):
+    for value in values:
+        yield value
+
+
 class CliTests(unittest.TestCase):
     def test_watch_reports_generation_errors_and_continues(self) -> None:
         session = MagicMock()
-        session.start.side_effect = ValueError("invalid edit")
-        session.handle.return_value = GenerationResult(GenerationStatus.CURRENT)
+        session.start = AsyncMock(side_effect=ValueError("invalid edit"))
+        session.handle = AsyncMock(return_value=GenerationResult(GenerationStatus.CURRENT))
         with TemporaryDirectory() as directory, patch.object(
             code_generation_command, "GenerationSession", return_value=session
         ), patch.object(
             code_generation_command,
             "watch",
-            return_value=iter(((FileChange(FileChangeKind.MODIFIED, Path("target.py")),),)),
+            return_value=_changes((FileChange(FileChangeKind.MODIFIED, Path("target.py")),)),
         ):
             output = StringIO()
             with redirect_stdout(output), patch.object(
@@ -54,7 +59,7 @@ class CliTests(unittest.TestCase):
 
     def test_watch_messages_include_timestamp_and_level(self) -> None:
         with TemporaryDirectory() as directory, patch.object(
-            code_generation_command, "watch", return_value=iter(())
+            code_generation_command, "watch", return_value=_changes()
         ):
             output = StringIO()
             with redirect_stdout(output):
@@ -69,8 +74,8 @@ class CliTests(unittest.TestCase):
 
     def test_watch_reports_generation_actions_instead_of_raw_file_events(self) -> None:
         session = MagicMock()
-        session.start.return_value = GenerationResult(GenerationStatus.CURRENT)
-        session.handle.return_value = GenerationResult(
+        session.start = AsyncMock(return_value=GenerationResult(GenerationStatus.CURRENT))
+        session.handle = AsyncMock(return_value=GenerationResult(
             GenerationStatus.CHANGED,
             changed_paths=(Path("contracts/target/__init__.py"),),
             actions=(
@@ -80,11 +85,11 @@ class CliTests(unittest.TestCase):
                     (Path("contracts/target.py"),),
                 ),
             ),
-        )
-        changes = ((FileChange(FileChangeKind.MODIFIED, Path("schema.json")),),)
+        ))
+        changes = _changes((FileChange(FileChangeKind.MODIFIED, Path("schema.json")),))
         with TemporaryDirectory() as directory, patch.object(
             code_generation_command, "GenerationSession", return_value=session
-        ), patch.object(code_generation_command, "watch", return_value=iter(changes)):
+        ), patch.object(code_generation_command, "watch", return_value=changes):
             output = StringIO()
             with redirect_stdout(output):
                 result = main(("generate", "--watch", "--project", directory))

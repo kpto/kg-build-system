@@ -5,6 +5,7 @@ import json
 from pathlib import Path
 import sys
 from tempfile import TemporaryDirectory
+from threading import get_ident
 import unittest
 from typing import ClassVar
 from unittest.mock import patch
@@ -31,11 +32,11 @@ class FixtureProvider(Provider[FixtureConfig]):
     CONFIG_TYPE: ClassVar[type[ProviderGenerationConfig]] = FixtureConfig
 
     @classmethod
-    def dependencies(cls, context: ProviderContext[FixtureConfig]) -> tuple[Path, ...]:
+    async def dependencies(cls, context: ProviderContext[FixtureConfig]) -> tuple[Path, ...]:
         return (context.resolve_path(context.config.source),)
 
     @classmethod
-    def generate(cls, context: ProviderContext[FixtureConfig]) -> GeneratedPackage:
+    async def generate(cls, context: ProviderContext[FixtureConfig]) -> GeneratedPackage:
         field = GeneratedField("id", "id", GeneratedFieldKind.SCALAR, "str")
         root_name = "".join(part.title() for part in context.request_id.split("_")) + "Table"
         files = [GeneratedFile(Path("__init__.py"), (GeneratedClass(root_name, (field,), base="Table", declaration_name=context.request_id),), (root_name,))]
@@ -52,7 +53,7 @@ def request_source(source: str = "schema.json", *, name: str = "release", shape:
     )
 
 
-class GeneratedPackageTests(unittest.TestCase):
+class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
     def _project(self, directory: str) -> Path:
         root = Path(directory)
         (root / "schema.json").write_text("{}", encoding="utf-8")
@@ -90,10 +91,10 @@ class GeneratedPackageTests(unittest.TestCase):
                 path = Path(directory) / filename; path.write_text(source, encoding="utf-8")
                 with self.assertRaisesRegex(GenerationError, message): discover_file(directory, path)
 
-    def test_assignment_name_controls_package_and_complete_declaration(self) -> None:
+    async def test_assignment_name_controls_package_and_complete_declaration(self) -> None:
         with TemporaryDirectory() as directory:
             root = self._project(directory)
-            result = generate(root)
+            result = await generate(root)
             self.assertEqual(result.status, GenerationStatus.CHANGED)
             product = root / "contracts" / "release"
             self.assertTrue((product / ".kbs-generation.json").is_file())
@@ -103,11 +104,11 @@ class GeneratedPackageTests(unittest.TestCase):
             self.assertIn("# fmt: off", generated_source)
             self.assertIn("# isort: skip_file", generated_source)
             self.assertNotIn("G_", generated_source)
-            self.assertEqual(generate(root).status, GenerationStatus.CURRENT)
+            self.assertEqual((await generate(root)).status, GenerationStatus.CURRENT)
 
-    def test_generated_final_declaration_imports_directly(self) -> None:
+    async def test_generated_final_declaration_imports_directly(self) -> None:
         with TemporaryDirectory() as directory:
-            root = self._project(directory); generate(root)
+            root = self._project(directory); await generate(root)
             sys.path.insert(0, str(root))
             try:
                 module = importlib.import_module("contracts.release")
@@ -117,55 +118,55 @@ class GeneratedPackageTests(unittest.TestCase):
                 for name in tuple(sys.modules):
                     if name == "contracts" or name.startswith("contracts."): del sys.modules[name]
 
-    def test_check_detects_missing_stale_and_orphaned_products(self) -> None:
+    async def test_check_detects_missing_stale_and_orphaned_products(self) -> None:
         with TemporaryDirectory() as directory:
-            root = self._project(directory); generate(root)
+            root = self._project(directory); await generate(root)
             generated = root / "contracts" / "release" / "__init__.py"
             generated.unlink()
-            self.assertEqual(generate(root, check=True).status, GenerationStatus.STALE)
-            generate(root)
+            self.assertEqual((await generate(root, check=True)).status, GenerationStatus.STALE)
+            await generate(root)
             (root / "contracts" / "__init__.py").write_text("", encoding="utf-8")
-            self.assertEqual(generate(root, check=True).status, GenerationStatus.STALE)
+            self.assertEqual((await generate(root, check=True)).status, GenerationStatus.STALE)
 
-    def test_refuses_to_overwrite_unrecognized_or_altered_content(self) -> None:
+    async def test_refuses_to_overwrite_unrecognized_or_altered_content(self) -> None:
         with TemporaryDirectory() as directory:
             root = self._project(directory)
             product = root / "contracts" / "release"; product.mkdir(); (product / "__init__.py").write_text("# mine\n", encoding="utf-8")
-            with self.assertRaisesRegex(GenerationError, "unrecognized"): generate(root)
+            with self.assertRaisesRegex(GenerationError, "unrecognized"): await generate(root)
         with TemporaryDirectory() as directory:
-            root = self._project(directory); generate(root)
+            root = self._project(directory); await generate(root)
             path = root / "contracts" / "release" / "__init__.py"
             path.write_text(path.read_text(encoding="utf-8") + "# changed\n", encoding="utf-8")
-            with self.assertRaisesRegex(GenerationError, "unexpectedly modified"): generate(root)
+            with self.assertRaisesRegex(GenerationError, "unexpectedly modified"): await generate(root)
 
-    def test_shape_change_prunes_only_owned_obsolete_files(self) -> None:
+    async def test_shape_change_prunes_only_owned_obsolete_files(self) -> None:
         with TemporaryDirectory() as directory:
             root = self._project(directory)
             init = root / "contracts" / "__init__.py"
             init.write_text(request_source("../schema.json", shape="two"), encoding="utf-8")
-            generate(root); product = root / "contracts" / "release"
+            await generate(root); product = root / "contracts" / "release"
             (product / "notes.md").write_text("keep", encoding="utf-8")
             init.write_text(request_source("../schema.json"), encoding="utf-8")
-            generate(root)
+            await generate(root)
             self.assertFalse((product / "extra.py").exists())
             self.assertEqual((product / "notes.md").read_text(), "keep")
 
-    def test_deletion_and_rename_preserve_unrecognized_content(self) -> None:
+    async def test_deletion_and_rename_preserve_unrecognized_content(self) -> None:
         with TemporaryDirectory() as directory:
-            root = self._project(directory); generate(root)
+            root = self._project(directory); await generate(root)
             old = root / "contracts" / "release"; (old / "notes.md").write_text("keep", encoding="utf-8")
             (root / "contracts" / "__init__.py").write_text(request_source("../schema.json", name="renamed"), encoding="utf-8")
-            generate(root)
+            await generate(root)
             self.assertEqual((old / "notes.md").read_text(), "keep")
             self.assertFalse((old / ".kbs-generation.json").exists())
             self.assertTrue((root / "contracts" / "renamed" / "__init__.py").exists())
 
-    def test_pruning_removes_owned_python_bytecode_only(self) -> None:
+    async def test_pruning_removes_owned_python_bytecode_only(self) -> None:
         with TemporaryDirectory() as directory:
             root = self._project(directory)
             init = root / "contracts" / "__init__.py"
             init.write_text(request_source("../schema.json", shape="two"), encoding="utf-8")
-            generate(root)
+            await generate(root)
             product = root / "contracts" / "release"
             cache = product / "__pycache__"; cache.mkdir()
             owned_cache = cache / "extra.cpython-312.pyc"
@@ -174,32 +175,32 @@ class GeneratedPackageTests(unittest.TestCase):
             unrelated_cache.write_bytes(b"keep")
 
             init.write_text(request_source("../schema.json"), encoding="utf-8")
-            generate(root)
+            await generate(root)
 
             self.assertFalse(owned_cache.exists())
             self.assertEqual(unrelated_cache.read_bytes(), b"keep")
 
-    def test_request_deletion_removes_nested_generated_bytecode(self) -> None:
+    async def test_request_deletion_removes_nested_generated_bytecode(self) -> None:
         with TemporaryDirectory() as directory:
-            root = self._project(directory); generate(root)
+            root = self._project(directory); await generate(root)
             product = root / "contracts" / "release"
             cache = product / "__pycache__"; cache.mkdir()
             (cache / "__init__.cpython-312.pyc").write_bytes(b"owned")
 
             (root / "contracts" / "__init__.py").write_text("", encoding="utf-8")
-            generate(root)
+            await generate(root)
 
             self.assertFalse(product.exists())
 
-    def test_manifest_is_machine_independent(self) -> None:
+    async def test_manifest_is_machine_independent(self) -> None:
         with TemporaryDirectory() as directory:
-            root = self._project(directory); generate(root)
+            root = self._project(directory); await generate(root)
             manifest = json.loads((root / "contracts" / "release" / ".kbs-generation.json").read_text())
             self.assertEqual(manifest["request_id"], "release")
             self.assertEqual(manifest["request_source_package"], "contracts")
             self.assertTrue(all(not Path(path).is_absolute() for path in manifest["owned_files"]))
 
-    def test_data_contract_inference_accepts_s3_urls_without_local_dependencies(self) -> None:
+    async def test_data_contract_inference_accepts_s3_urls_without_local_dependencies(self) -> None:
         class Result:
             def __init__(self, rows: list[tuple[object, ...]]) -> None:
                 self.rows = rows
@@ -213,8 +214,10 @@ class GeneratedPackageTests(unittest.TestCase):
         class Connection:
             def __init__(self) -> None:
                 self.calls: list[tuple[str, list[str] | None]] = []
+                self.thread_ids: list[int] = []
 
-            def execute(self, sql: str, parameters: list[str] | None = None) -> Result | "Connection":
+            def execute(self, sql: str, parameters: list[str] | None = None) -> Result | Connection:
+                self.thread_ids.append(get_ident())
                 self.calls.append((sql, parameters))
                 if sql.startswith("DESCRIBE"):
                     return Result([("identifier", "VARCHAR", "YES")])
@@ -234,13 +237,13 @@ class GeneratedPackageTests(unittest.TestCase):
                 "release",
                 DataContractInferenceConfig(source=source),
             )
-            self.assertEqual(InferDataContractProvider.dependencies(context), ())
+            self.assertEqual(await InferDataContractProvider.dependencies(context), ())
             connection = Connection()
             with patch(
                 "kg_build_system.code_generation.builtins.schema_inference.duckdb.connect",
                 return_value=connection,
             ):
-                package = InferDataContractProvider.generate(context)
+                package = await InferDataContractProvider.generate(context)
 
         self.assertEqual(package.files[0].declarations[-1].name, "ReleaseTable")
         self.assertIn(("LOAD httpfs", None), connection.calls)
@@ -249,6 +252,8 @@ class GeneratedPackageTests(unittest.TestCase):
             for sql, parameters in connection.calls
         ))
         self.assertFalse(any(sql.startswith("SELECT count") for sql, _parameters in connection.calls))
+        self.assertTrue(connection.thread_ids)
+        self.assertNotIn(get_ident(), connection.thread_ids)
 
 
 if __name__ == "__main__": unittest.main()

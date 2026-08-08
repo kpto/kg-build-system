@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
+import inspect
 import logging
 import sys
 from typing import Sequence
@@ -35,6 +37,9 @@ def main(argv: Sequence[str] | None = None) -> int:
     parser = _parser()
     arguments = parser.parse_args(argv)
     try:
-        return arguments.command_handler(arguments)
+        result = arguments.command_handler(arguments)
+        if inspect.isawaitable(result):
+            return asyncio.run(result)
+        return result
     except ValueError as error:
         parser.error(str(error))
