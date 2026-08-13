@@ -1,0 +1,59 @@
+"""Normalize Python authoring annotations into canonical logical types."""
+from __future__ import annotations
+
+from types import NoneType, UnionType
+from typing import Any, get_args, get_origin
+
+from .models import (
+    Array, ArrayType, BOOL, CustomDataType, CustomType, FLOAT, INT, LogicalType,
+    Nullable, NullableType, STR, Struct, StructType,
+)
+
+
+_UNITS = {bool: BOOL, int: INT, float: FLOAT, str: STR}
+
+
+def _declared_type(annotation: type[Any], kind: type[CustomType] | type[StructType]) -> CustomType | StructType:
+    if "<locals>" in annotation.__qualname__:
+        raise TypeError("logical type declarations must be importable top-level classes")
+    return kind(module=annotation.__module__, qualname=annotation.__qualname__)
+
+
+def _nullable(argument: Any) -> NullableType:
+    normalized = normalize_type(argument)
+    if isinstance(normalized, NullableType):
+        return normalized
+    return NullableType(normalized)
+
+
+def normalize_type(annotation: Any) -> LogicalType:
+    """Convert one supported authoring annotation to canonical form."""
+    if annotation is Any:
+        raise TypeError("logical types must be explicit; Any is not supported")
+    if annotation in _UNITS:
+        return _UNITS[annotation]
+
+    origin = get_origin(annotation)
+    arguments = get_args(annotation)
+    if origin is Array:
+        if len(arguments) != 1:
+            raise TypeError("Array must declare exactly one item type")
+        return ArrayType(normalize_type(arguments[0]))
+    if origin is Nullable:
+        if len(arguments) != 1:
+            raise TypeError("Nullable must declare exactly one value type")
+        return _nullable(arguments[0])
+    if origin is UnionType or str(origin) == "typing.Union":
+        non_null = tuple(argument for argument in arguments if argument is not NoneType)
+        if len(non_null) == 1 and len(arguments) == 2:
+            return _nullable(non_null[0])
+        raise TypeError("logical unions are limited to T | None")
+
+    if isinstance(annotation, type) and issubclass(annotation, CustomDataType):
+        return _declared_type(annotation, CustomType)
+    if isinstance(annotation, type) and issubclass(annotation, Struct):
+        return _declared_type(annotation, StructType)
+    raise TypeError(f"unsupported logical type annotation: {annotation!r}")
+
+
+__all__ = ["normalize_type"]
