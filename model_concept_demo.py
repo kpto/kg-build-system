@@ -6,7 +6,6 @@ from model_concept import (
     Array,
     BoolValueExpression,
     IntValueExpression,
-    Nullable,
     NullableDataType,
     NullableValueExpression,
     StrValueExpression,
@@ -21,11 +20,11 @@ class ExampleStruct(Struct):
     field_int: Field[Array[int]] = field()
     flag: Field[bool] = field()
     label: Field[str] = field()
-    maybe_score: Field[Nullable[int]] = field()
+    maybe_score: Field[int | None] = field()
 
 
 class ExampleTable(Table):
-    struct_field: Field[Nullable[ExampleStruct]] = field()
+    struct_field: Field[ExampleStruct | None] = field()
     scores: Field[Array[int]] = field()
     name: Field[str] = field()
 

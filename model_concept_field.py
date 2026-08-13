@@ -1,6 +1,6 @@
 """Authoring surface: Field descriptor and field() factory.
 
-Maps declared data types to expression types (sole fan-out point).
+Maps authoring types (T | None) to internal expression types (Nullable[T]).
 """
 from typing import Any, overload
 
@@ -25,8 +25,22 @@ from model_concept import (
     ValueExpression,
 )
 
+# Authoring-only: nullability is T | None. Core expressions keep Nullable[T].
+# Array[T | None] is not a valid core Array[...] (item bound is NullableDataType);
+# those overload lines are suppressed so Field can still expose the authoring form.
+type AuthoringDataType = (
+    bool
+    | int
+    | float
+    | str
+    | CustomDataType
+    | Struct
+    | Array[NullableDataType]
+    | None
+)
 
-class Field[T: NullableDataType]:
+
+class Field[T: AuthoringDataType]:
     # --- Table owner: non-null units ---
     @overload
     def __get__(
@@ -52,23 +66,23 @@ class Field[T: NullableDataType]:
     # --- Table owner: nullable units ---
     @overload
     def __get__(
-        self: "Field[Nullable[bool]]", instance: Any, owner: type["Table"]
+        self: "Field[bool | None]", instance: Any, owner: type["Table"]
     ) -> NullableValueExpression[bool, BoolValueExpression]: ...
     @overload
     def __get__(
-        self: "Field[Nullable[int]]", instance: Any, owner: type["Table"]
+        self: "Field[int | None]", instance: Any, owner: type["Table"]
     ) -> NullableValueExpression[int, IntValueExpression]: ...
     @overload
     def __get__(
-        self: "Field[Nullable[float]]", instance: Any, owner: type["Table"]
+        self: "Field[float | None]", instance: Any, owner: type["Table"]
     ) -> NullableValueExpression[float, FloatValueExpression]: ...
     @overload
     def __get__(
-        self: "Field[Nullable[str]]", instance: Any, owner: type["Table"]
+        self: "Field[str | None]", instance: Any, owner: type["Table"]
     ) -> NullableValueExpression[str, StrValueExpression]: ...
     @overload
     def __get__[TType: CustomDataType](
-        self: "Field[Nullable[TType]]", instance: Any, owner: type["Table"]
+        self: "Field[TType | None]", instance: Any, owner: type["Table"]
     ) -> NullableValueExpression[TType, CustomDataTypeValueExpression[TType]]: ...
 
     # --- Table owner: arrays (non-null array) ---
@@ -90,25 +104,25 @@ class Field[T: NullableDataType]:
     ) -> ArrayValueExpression[str, StrValueExpression]: ...
     @overload
     def __get__(
-        self: "Field[Array[Nullable[bool]]]", instance: Any, owner: type["Table"]
+        self: "Field[Array[bool | None]]", instance: Any, owner: type["Table"]  # pyright: ignore[reportInvalidTypeArguments]
     ) -> ArrayValueExpression[
         Nullable[bool], NullableValueExpression[bool, BoolValueExpression]
     ]: ...
     @overload
     def __get__(
-        self: "Field[Array[Nullable[int]]]", instance: Any, owner: type["Table"]
+        self: "Field[Array[int | None]]", instance: Any, owner: type["Table"]  # pyright: ignore[reportInvalidTypeArguments]
     ) -> ArrayValueExpression[
         Nullable[int], NullableValueExpression[int, IntValueExpression]
     ]: ...
     @overload
     def __get__(
-        self: "Field[Array[Nullable[float]]]", instance: Any, owner: type["Table"]
+        self: "Field[Array[float | None]]", instance: Any, owner: type["Table"]  # pyright: ignore[reportInvalidTypeArguments]
     ) -> ArrayValueExpression[
         Nullable[float], NullableValueExpression[float, FloatValueExpression]
     ]: ...
     @overload
     def __get__(
-        self: "Field[Array[Nullable[str]]]", instance: Any, owner: type["Table"]
+        self: "Field[Array[str | None]]", instance: Any, owner: type["Table"]  # pyright: ignore[reportInvalidTypeArguments]
     ) -> ArrayValueExpression[
         Nullable[str], NullableValueExpression[str, StrValueExpression]
     ]: ...
@@ -118,7 +132,7 @@ class Field[T: NullableDataType]:
     ) -> ArrayValueExpression[TStruct, StructValueExpression[TStruct]]: ...
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Array[Nullable[TStruct]]]", instance: Any, owner: type["Table"]
+        self: "Field[Array[TStruct | None]]", instance: Any, owner: type["Table"]  # pyright: ignore[reportInvalidTypeArguments]
     ) -> ArrayValueExpression[
         Nullable[TStruct], StructNullableValueExpression[TStruct]
     ]: ...
@@ -126,19 +140,19 @@ class Field[T: NullableDataType]:
     # --- Table owner: nullable arrays ---
     @overload
     def __get__(
-        self: "Field[Nullable[Array[bool]]]", instance: Any, owner: type["Table"]
+        self: "Field[Array[bool] | None]", instance: Any, owner: type["Table"]
     ) -> ArrayNullableValueExpression[
         bool, BoolValueExpression, NullableValueExpression[bool, BoolValueExpression]
     ]: ...
     @overload
     def __get__(
-        self: "Field[Nullable[Array[int]]]", instance: Any, owner: type["Table"]
+        self: "Field[Array[int] | None]", instance: Any, owner: type["Table"]
     ) -> ArrayNullableValueExpression[
         int, IntValueExpression, NullableValueExpression[int, IntValueExpression]
     ]: ...
     @overload
     def __get__(
-        self: "Field[Nullable[Array[float]]]", instance: Any, owner: type["Table"]
+        self: "Field[Array[float] | None]", instance: Any, owner: type["Table"]
     ) -> ArrayNullableValueExpression[
         float,
         FloatValueExpression,
@@ -146,13 +160,13 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__(
-        self: "Field[Nullable[Array[str]]]", instance: Any, owner: type["Table"]
+        self: "Field[Array[str] | None]", instance: Any, owner: type["Table"]
     ) -> ArrayNullableValueExpression[
         str, StrValueExpression, NullableValueExpression[str, StrValueExpression]
     ]: ...
     @overload
     def __get__(
-        self: "Field[Nullable[Array[Nullable[bool]]]]",
+        self: "Field[Array[bool | None] | None]",  # pyright: ignore[reportInvalidTypeArguments]
         instance: Any,
         owner: type["Table"],
     ) -> ArrayNullableValueExpression[
@@ -162,7 +176,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__(
-        self: "Field[Nullable[Array[Nullable[int]]]]",
+        self: "Field[Array[int | None] | None]",  # pyright: ignore[reportInvalidTypeArguments]
         instance: Any,
         owner: type["Table"],
     ) -> ArrayNullableValueExpression[
@@ -172,7 +186,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__(
-        self: "Field[Nullable[Array[Nullable[float]]]]",
+        self: "Field[Array[float | None] | None]",  # pyright: ignore[reportInvalidTypeArguments]
         instance: Any,
         owner: type["Table"],
     ) -> ArrayNullableValueExpression[
@@ -182,7 +196,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__(
-        self: "Field[Nullable[Array[Nullable[str]]]]",
+        self: "Field[Array[str | None] | None]",  # pyright: ignore[reportInvalidTypeArguments]
         instance: Any,
         owner: type["Table"],
     ) -> ArrayNullableValueExpression[
@@ -192,7 +206,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Nullable[Array[TStruct]]]", instance: Any, owner: type["Table"]
+        self: "Field[Array[TStruct] | None]", instance: Any, owner: type["Table"]
     ) -> ArrayNullableValueExpression[
         TStruct,
         StructValueExpression[TStruct],
@@ -200,7 +214,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Nullable[Array[Nullable[TStruct]]]]",
+        self: "Field[Array[TStruct | None] | None]",  # pyright: ignore[reportInvalidTypeArguments]
         instance: Any,
         owner: type["Table"],
     ) -> ArrayNullableValueExpression[
@@ -216,7 +230,7 @@ class Field[T: NullableDataType]:
     ) -> StructValueExpression[TStruct]: ...
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Nullable[TStruct]]", instance: Any, owner: type["Table"]
+        self: "Field[TStruct | None]", instance: Any, owner: type["Table"]
     ) -> StructNullableValueExpression[TStruct]: ...
 
     # --- Struct owner: non-null units ---
@@ -264,7 +278,7 @@ class Field[T: NullableDataType]:
     # --- Struct owner: nullable units ---
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Nullable[bool]]", instance: Any, owner: type[TStruct]
+        self: "Field[bool | None]", instance: Any, owner: type[TStruct]
     ) -> PickedField[
         TStruct,
         NullableValueExpression[bool, BoolValueExpression],
@@ -272,7 +286,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Nullable[int]]", instance: Any, owner: type[TStruct]
+        self: "Field[int | None]", instance: Any, owner: type[TStruct]
     ) -> PickedField[
         TStruct,
         NullableValueExpression[int, IntValueExpression],
@@ -280,7 +294,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Nullable[float]]", instance: Any, owner: type[TStruct]
+        self: "Field[float | None]", instance: Any, owner: type[TStruct]
     ) -> PickedField[
         TStruct,
         NullableValueExpression[float, FloatValueExpression],
@@ -288,7 +302,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Nullable[str]]", instance: Any, owner: type[TStruct]
+        self: "Field[str | None]", instance: Any, owner: type[TStruct]
     ) -> PickedField[
         TStruct,
         NullableValueExpression[str, StrValueExpression],
@@ -296,7 +310,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct, TType: CustomDataType](
-        self: "Field[Nullable[TType]]", instance: Any, owner: type[TStruct]
+        self: "Field[TType | None]", instance: Any, owner: type[TStruct]
     ) -> PickedField[
         TStruct,
         NullableValueExpression[TType, CustomDataTypeValueExpression[TType]],
@@ -348,7 +362,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Array[Nullable[bool]]]", instance: Any, owner: type[TStruct]
+        self: "Field[Array[bool | None]]", instance: Any, owner: type[TStruct]  # pyright: ignore[reportInvalidTypeArguments]
     ) -> PickedField[
         TStruct,
         ArrayValueExpression[
@@ -362,7 +376,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Array[Nullable[int]]]", instance: Any, owner: type[TStruct]
+        self: "Field[Array[int | None]]", instance: Any, owner: type[TStruct]  # pyright: ignore[reportInvalidTypeArguments]
     ) -> PickedField[
         TStruct,
         ArrayValueExpression[
@@ -376,7 +390,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Array[Nullable[float]]]", instance: Any, owner: type[TStruct]
+        self: "Field[Array[float | None]]", instance: Any, owner: type[TStruct]  # pyright: ignore[reportInvalidTypeArguments]
     ) -> PickedField[
         TStruct,
         ArrayValueExpression[
@@ -390,7 +404,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Array[Nullable[str]]]", instance: Any, owner: type[TStruct]
+        self: "Field[Array[str | None]]", instance: Any, owner: type[TStruct]  # pyright: ignore[reportInvalidTypeArguments]
     ) -> PickedField[
         TStruct,
         ArrayValueExpression[
@@ -416,7 +430,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct, TInner: Struct](
-        self: "Field[Array[Nullable[TInner]]]", instance: Any, owner: type[TStruct]
+        self: "Field[Array[TInner | None]]", instance: Any, owner: type[TStruct]  # pyright: ignore[reportInvalidTypeArguments]
     ) -> PickedField[
         TStruct,
         ArrayValueExpression[Nullable[TInner], StructNullableValueExpression[TInner]],
@@ -430,7 +444,7 @@ class Field[T: NullableDataType]:
     # --- Struct owner: nullable arrays ---
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Nullable[Array[bool]]]", instance: Any, owner: type[TStruct]
+        self: "Field[Array[bool] | None]", instance: Any, owner: type[TStruct]
     ) -> PickedField[
         TStruct,
         ArrayNullableValueExpression[
@@ -442,7 +456,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Nullable[Array[int]]]", instance: Any, owner: type[TStruct]
+        self: "Field[Array[int] | None]", instance: Any, owner: type[TStruct]
     ) -> PickedField[
         TStruct,
         ArrayNullableValueExpression[
@@ -454,7 +468,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Nullable[Array[float]]]", instance: Any, owner: type[TStruct]
+        self: "Field[Array[float] | None]", instance: Any, owner: type[TStruct]
     ) -> PickedField[
         TStruct,
         ArrayNullableValueExpression[
@@ -470,7 +484,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct](
-        self: "Field[Nullable[Array[str]]]", instance: Any, owner: type[TStruct]
+        self: "Field[Array[str] | None]", instance: Any, owner: type[TStruct]
     ) -> PickedField[
         TStruct,
         ArrayNullableValueExpression[
@@ -482,7 +496,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct, TInner: Struct](
-        self: "Field[Nullable[Array[TInner]]]", instance: Any, owner: type[TStruct]
+        self: "Field[Array[TInner] | None]", instance: Any, owner: type[TStruct]
     ) -> PickedField[
         TStruct,
         ArrayNullableValueExpression[
@@ -508,7 +522,7 @@ class Field[T: NullableDataType]:
     ]: ...
     @overload
     def __get__[TStruct: Struct, TInner: Struct](
-        self: "Field[Nullable[TInner]]", instance: Any, owner: type[TStruct]
+        self: "Field[TInner | None]", instance: Any, owner: type[TStruct]
     ) -> PickedField[
         TStruct,
         StructNullableValueExpression[TInner],
@@ -518,4 +532,4 @@ class Field[T: NullableDataType]:
     def __get__(self, instance: Any, owner: Any) -> Any: ...
 
 
-def field[TType: NullableDataType]() -> Field[TType]: ...  # pyright: ignore[reportInvalidTypeVarUse]
+def field[TType: AuthoringDataType]() -> Field[TType]: ...  # pyright: ignore[reportInvalidTypeVarUse]
