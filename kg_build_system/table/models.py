@@ -1,237 +1,44 @@
-"""Data-contract descriptors and source models."""
+"""Logical data declarations and physical source-binding models."""
 from __future__ import annotations
-from collections.abc import Sequence
-from dataclasses import dataclass, field as dataclass_field, replace
+
+from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, ClassVar, Generic, Self, TypeAlias, TypeVar, cast, get_args, get_type_hints, overload
+from typing import Any, ClassVar, TypeAlias
+
+from .._support.naming import declaration_name
 from ..annotations import Annotation, annotation_tuple
-from ..data_types import Scalar, Struct as DataStruct, validate_value_type
-from ..expressions import Expression, ExpressionValue, ValueRef, item_type
-from .._support.annotations import type_shape
-from .._support.naming import declaration_name, member_name
-
-T = TypeVar("T")
-V = TypeVar("V", bound=ExpressionValue)
-type FieldValue = Scalar | None
-type TableValue = FieldValue | Sequence[FieldValue]
-D = TypeVar("D", bound=FieldValue)
-P = TypeVar("P", bound=TableValue)
-S = TypeVar("S", bound="Struct")
+from ..types import Struct as StructDeclaration
 
 
-type CollectionItem = FieldValue | DataStruct
-C = TypeVar("C", bound=CollectionItem)
+class InputFormat(StrEnum):
+    CSV = "csv"
+    JSON = "json"
+    PARQUET = "parquet"
 
 
 @dataclass(frozen=True)
-class TablePathValueRefMetadata:
-    """Table-specific state carried by a value reference."""
+class DataSourceConfig:
+    location: str
+    format: InputFormat = InputFormat.CSV
+    layout: str | None = None
+    credentials: str | None = None
+    version: str | None = None
 
-    table: type = object
-    path: tuple[str, ...] = ()
-    collection_paths: tuple[tuple[str, ...], ...] = ()
-    annotations: tuple[Annotation, ...] = ()
-    name: str | None = None
-    description: str | None = None
-    attr: str = ""
-
-
-@dataclass(frozen=True)
-class TablePathValueRef(ValueRef[V]):
-    """A typed value reference produced by table or projection navigation."""
-
-    _metadata: TablePathValueRefMetadata = dataclass_field(default_factory=TablePathValueRefMetadata)
-
-    def __getattr__(self, part: str) -> "TablePathValueRef[Any]":
-        if part.startswith("_"):
-            raise AttributeError(part)
-        item = item_type(self.type_hint)
-        if part == "element":
-            if item is None:
-                raise AttributeError("element is only available on a collection field reference")
-            return TablePathValueRef[Any](item, "collection", self._metadata)
-        shape = item or type_shape(self.type_hint).annotation
-        fields = fields_for(shape) if isinstance(shape, type) else {}
-        if part not in fields:
-            raise AttributeError(f"{self.type_hint!r} has no declared field {part!r}")
-        field = fields[part]
-        path = self._metadata.path + (field._metadata.name or field._metadata.attr,)
-        field_type = field.type_hint | None if type_shape(self.type_hint).nullable and field.type_hint is not Any else field.type_hint
-        collection_paths = self._metadata.collection_paths + ((path,) if item_type(field_type) is not None else ())
-        return TablePathValueRef[Any](field_type, "collection" if collection_paths else "scalar", TablePathValueRefMetadata(
-            table=self._metadata.table,
-            path=path,
-            collection_paths=collection_paths,
-            annotations=self._metadata.annotations + field._metadata.annotations,
-        ))
+    def __post_init__(self) -> None:
+        if not self.location:
+            raise ValueError("data sources require a non-empty location")
 
 
-def _bound_metadata(
-    reference: TablePathValueRef[Any], instance: object | None, owner: type | None, *, collection: bool,
-) -> TablePathValueRefMetadata:
-    metadata = reference._metadata
-    if isinstance(instance, Struct):
-        parent = instance._metadata
-        path = parent.path + (metadata.name or metadata.attr,)
-        annotations = parent.annotations + metadata.annotations
-        table = parent.table
-        collection_paths = parent.collection_paths
-    else:
-        path = (metadata.name or metadata.attr,)
-        annotations = metadata.annotations
-        table = owner or object
-        collection_paths = ()
-    if collection:
-        collection_paths += (path,)
-    return replace(metadata, table=table, path=path, collection_paths=collection_paths, annotations=annotations)
-
-
-@dataclass(frozen=True)
-class Field(TablePathValueRef[D], Generic[D]):
-    """A scalar table descriptor and root table value reference."""
-
-    def __set_name__(self, owner: type, attr: str) -> None:
-        metadata = self._metadata
-        object.__setattr__(self, "_metadata", replace(metadata, attr=attr, name=metadata.name or member_name(attr)))
-
-    @overload
-    def __get__(self, instance: None, owner: type | None = None) -> Self: ...
-
-    @overload
-    def __get__(self, instance: object, owner: type | None = None) -> Self: ...
-
-    def __get__(self, instance: object | None, owner: type | None = None) -> Self:
-        if instance is not None and not isinstance(instance, Struct):
-            return self
-        metadata = _bound_metadata(self, instance, owner, collection=False)
-        return replace(
-            self,
-            cardinality="collection" if metadata.collection_paths else "scalar",
-            _metadata=metadata,
-        )
-
-
-@dataclass(frozen=True)
-class StructField(TablePathValueRef[S], Generic[S]):
-    """A reference to a declared struct, navigated through ``member`` or ``m``."""
-
-    def __set_name__(self, owner: type, attr: str) -> None:
-        metadata = self._metadata
-        object.__setattr__(self, "_metadata", replace(metadata, attr=attr, name=metadata.name or member_name(attr)))
-
-    def __get__(self, instance: object | None, owner: type | None = None) -> Self:
-        if instance is not None and not isinstance(instance, Struct):
-            return self
-        metadata = _bound_metadata(self, instance, owner, collection=False)
-        return replace(self, cardinality="collection" if metadata.collection_paths else "scalar", _metadata=metadata)
-
-    @property
-    def member(self) -> S:
-        shape = type_shape(self.type_hint).annotation
-        if not isinstance(shape, type) or not issubclass(shape, Struct):
-            raise TypeError("StructField requires a Struct type")
-        return cast(S, shape(_metadata=self._metadata))
-
-    @property
-    def m(self) -> S:
-        return self.member
-
-
-@dataclass(frozen=True)
-class CollectionField(TablePathValueRef[Sequence[C]], Generic[C]):
-    """A collection declaration, whose item may be a scalar or a ``Struct``."""
-
-    def __set_name__(self, owner: type, attr: str) -> None:
-        metadata = self._metadata
-        object.__setattr__(self, "_metadata", replace(metadata, attr=attr, name=metadata.name or member_name(attr)))
-
-    def __get__(self, instance: object | None, owner: type | None = None) -> Self:
-        if instance is not None and not isinstance(instance, Struct):
-            return self
-        return replace(self, cardinality="collection", _metadata=_bound_metadata(self, instance, owner, collection=True))
-
-    @property
-    def element(self) -> C:
-        shape = item_type(self.type_hint)
-        if not isinstance(shape, type) or not issubclass(shape, Struct):
-            raise TypeError("CollectionField.element requires a Struct item type")
-        return cast(C, shape(_metadata=self._metadata))
-
-    @property
-    def e(self) -> C:
-        return self.element
-
-
-def fields_for(cls: type) -> dict[str, "TablePathValueRef[Any]"]:
-    """Resolve the declared data shape for final declarations and plain mixins alike."""
-    fields: dict[str, TablePathValueRef[Any]] = {}
-    for base in reversed(cls.__mro__):
-        fields.update({name: value for name, value in vars(base).items() if isinstance(value, (Field, StructField, CollectionField))})
-    hints = get_type_hints(cls)
-    for attribute, descriptor in fields.items():
-        arguments = get_args(hints.get(attribute, Any))
-        type_hint = arguments[0] if arguments else Any
-        if isinstance(descriptor, Field):
-            shape = type_shape(type_hint)
-            structured_type = shape.item_annotation or shape.annotation
-            if isinstance(structured_type, type) and Struct in getattr(structured_type, "__mro__", ()):
-                required = "CollectionField" if shape.item_annotation is not None else "StructField"
-                raise TypeError(f"{cls.__name__}.{attribute} uses a Struct type; declare it with {required}")
-            validate_value_type(type_hint, context=f"{cls.__name__}.{attribute}", allow_collection=False)
-        elif isinstance(descriptor, StructField):
-            if not isinstance(type_hint, type) or Struct not in getattr(type_hint, "__mro__", ()):
-                raise TypeError(f"{cls.__name__}.{attribute} must declare a StructField[Struct]")
-        elif isinstance(descriptor, CollectionField):
-            if not (isinstance(type_hint, type) and Struct in getattr(type_hint, "__mro__", ())):
-                validate_value_type(type_hint, context=f"{cls.__name__}.{attribute} collection item", allow_collection=False)
-            type_hint = list[type_hint]
-        object.__setattr__(descriptor, "type_hint", type_hint)
-    return fields
-
-@dataclass(frozen=True, init=False)
-class ProjectedField(TablePathValueRef[P], Generic[P]):
-    """A projection declaration backed by a normalised portable expression."""
-
-    expression: Expression[P]
-
-    def __init__(
-        self, expression: Expression[P], *, type_hint: Any = None, cardinality: str | None = None,
-        _metadata: TablePathValueRefMetadata = TablePathValueRefMetadata(),
-    ) -> None:
-        object.__setattr__(self, "type_hint", expression.type_hint if type_hint is None else type_hint)
-        object.__setattr__(self, "cardinality", expression.cardinality if cardinality is None else cardinality)
-        object.__setattr__(self, "_metadata", _metadata)
-        object.__setattr__(self, "expression", expression)
-
-    def __set_name__(self, owner: type, attr: str) -> None:
-        metadata = self._metadata
-        object.__setattr__(self, "_metadata", replace(metadata, attr=attr, name=metadata.name or member_name(attr)))
-
-    def __get__(self, instance: object | None, owner: type | None = None) -> Self:
-        """Expose the projected value as a reference, never its implementation."""
-        metadata = self._metadata
-        return replace(
-            self,
-            _metadata=replace(
-                metadata,
-                table=owner or object,
-                path=(metadata.name or metadata.attr,),
-            ),
-        )
-
-class InputFormat(StrEnum): CSV = "csv"; JSON = "json"; PARQUET = "parquet"
-@dataclass(frozen=True)
-class DataSourceConfig: location: str; format: InputFormat = InputFormat.CSV; layout: str | None = None; credentials: str | None = None; version: str | None = None
 @dataclass(frozen=True)
 class BoundTable:
-    table: type
+    table: type[Table]
     config: DataSourceConfig
     annotations: tuple[Annotation, ...] = ()
 
 
 @dataclass(frozen=True)
 class BoundTableGroup:
-    group: type
+    group: type[TableGroup]
     config: DataSourceConfig
     annotations: tuple[Annotation, ...] = ()
 
@@ -245,7 +52,10 @@ class TableOptions:
     description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
 
-    def __post_init__(self) -> None: object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
+    def __post_init__(self) -> None:
+        if self.name is not None and not self.name:
+            raise ValueError("table names must be non-empty")
+        object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
 
 @dataclass(frozen=True)
@@ -259,7 +69,10 @@ class StructOptions:
     description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
 
-    def __post_init__(self) -> None: object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
+    def __post_init__(self) -> None:
+        if self.name is not None and not self.name:
+            raise ValueError("struct names must be non-empty")
+        object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
 
 @dataclass(frozen=True)
@@ -268,7 +81,10 @@ class ProjectionOptions:
     description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
 
-    def __post_init__(self) -> None: object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
+    def __post_init__(self) -> None:
+        if self.name is not None and not self.name:
+            raise ValueError("projection names must be non-empty")
+        object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
 
 @dataclass(frozen=True)
@@ -278,153 +94,222 @@ class TableGroupOptions:
     description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
 
-    def __post_init__(self) -> None: object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
+    def __post_init__(self) -> None:
+        if self.name is not None and not self.name:
+            raise ValueError("table-group names must be non-empty")
+        object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
 
 @dataclass(frozen=True)
 class SourceBindingOptions:
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
 
-    def __post_init__(self) -> None: object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
 
-def _description(cls: type, configured: str | None) -> str | None:
+def _description(cls: type[Any], configured: str | None) -> str | None:
     return configured if configured is not None else (vars(cls).get("__doc__") or None)
 
 
-def _prepare_final(cls: type, kind: str, options: TableOptions | StructOptions | ProjectionOptions) -> None:
-    if kind == "table" and any(vars(base).get("_data_declaration_kind") == "table" for base in cls.__mro__[1:]):
-        raise TypeError("a final Table may not inherit from another final Table")
-    suffixes = {"table": ("Table",), "table_template": ("TableTemplate", "Template"), "struct": ("Struct",), "projection": ("Projection",)}[kind]
-    fields = fields_for(cls) if kind != "projection" else {}
-    if kind == "projection":
-        projection_fields: dict[str, ProjectedField[Any]] = {}
-        for attribute, value in vars(cls).items():
-            if isinstance(value, ProjectedField):
-                _validate_projection_value(value.expression)
-                validate_value_type(value.expression.type_hint, context=f"{cls.__name__}.{attribute}", allow_collection=True)
-                projection_fields[attribute] = value
-        setattr(cls, "_projection_fields", projection_fields)
-        setattr(cls, "_projection_name", options.name or declaration_name(cls.__name__, suffixes=suffixes))
-    else:
-        setattr(cls, "_fields", fields)
-        setattr(cls, "_data_name", options.name or declaration_name(cls.__name__, suffixes=suffixes))
-        if kind == "table":
-            setattr(cls, "_table_name", cls._data_name)
-    setattr(cls, "_data_declaration_kind", kind)
-    annotations = tuple(annotation for base in reversed(cls.__mro__[1:]) for annotation in vars(base).get("_data_annotations", ())) + tuple(options.annotations)
-    description = _description(cls, options.description)
-    setattr(cls, "_data_annotations", annotations)
-    setattr(cls, "_data_metadata", {"description": description} if description is not None else {})
+def _inherited_annotations(cls: type[Any]) -> tuple[Annotation, ...]:
+    return tuple(
+        annotation
+        for base in cls.__bases__
+        for annotation in vars(base).get("_data_annotations", ())
+    )
 
 
-def _is_concrete_table(cls: type) -> bool:
-    return vars(cls).get("_data_declaration_kind") == "table"
+def _prepare_fields(
+    cls: type[Any],
+    *,
+    kind: str,
+    name: str,
+    description: str | None,
+    annotations: tuple[Annotation, ...],
+) -> None:
+    from .fields import declared_fields
 
-
-def _validate_projection_value(value: Expression[Any] | ValueRef[Any]) -> None:
-    if isinstance(value, TablePathValueRef):
-        if not _is_concrete_table(value._metadata.table):
-            raise TypeError("projections may reference only final Table inputs")
-    elif isinstance(value, Expression):
-        for argument in value.args:
-            if isinstance(argument, (Expression, ValueRef)):
-                _validate_projection_value(argument)
+    cls._fields = declared_fields(cls)
+    cls._data_declaration_kind = kind
+    cls._data_name = name
+    cls._data_annotations = annotations
+    cls._data_metadata = {"description": description} if description is not None else {}
 
 
 class Table:
-    """Final, source-bindable logical table declaration."""
+    """A final, source-bindable logical table declaration."""
+
     options: ClassVar[TableOptions] = TableOptions()
+    _data_declaration_kind: ClassVar[str | None] = None
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
+        if any(vars(base).get("_data_declaration_kind") == "table" for base in cls.__mro__[1:]):
+            raise TypeError("a final Table may not inherit from another final Table")
         options = vars(cls).get("options", TableOptions())
         if not isinstance(options, TableOptions):
             raise TypeError("Table.options must be a TableOptions value")
-        _prepare_final(cls, "table", options)
+        name = options.name or declaration_name(cls.__name__, suffixes=("Table",))
+        cls._table_name = name
+        _prepare_fields(
+            cls,
+            kind="table",
+            name=name,
+            description=_description(cls, options.description),
+            annotations=(*_inherited_annotations(cls), *options.annotations),
+        )
 
 
 class TableTemplate:
-    """Optional reusable table shape with annotations and a stable name."""
+    """An optional reusable table shape carrying framework metadata."""
+
     options: ClassVar[TableTemplateOptions] = TableTemplateOptions()
+    _data_declaration_kind: ClassVar[str | None] = None
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        # A reusable template may precede Table in a natural multiple-
-        # inheritance declaration.  In that MRO this hook wins, so finalise
-        # the class as a table rather than as another template.
-        if Table in cls.__mro__[1:]:
-            options = vars(cls).get("options", TableOptions())
-            if not isinstance(options, TableOptions):
-                raise TypeError("Table.options must be a TableOptions value")
-            _prepare_final(cls, "table", options)
+        # ``class Concrete(Shape, Table)`` is finalised by Table's hook while
+        # walking this cooperative MRO.
+        if vars(cls).get("_data_declaration_kind") == "table":
             return
         options = vars(cls).get("options", TableTemplateOptions())
         if not isinstance(options, TableTemplateOptions):
             raise TypeError("TableTemplate.options must be a TableTemplateOptions value")
-        _prepare_final(cls, "table_template", options)
+        name = options.name or declaration_name(
+            cls.__name__, suffixes=("TableTemplate", "Template")
+        )
+        _prepare_fields(
+            cls,
+            kind="table_template",
+            name=name,
+            description=_description(cls, options.description),
+            annotations=(*_inherited_annotations(cls), *options.annotations),
+        )
 
 
-class Struct(DataStruct):
-    """Final reusable nested record declaration."""
+class Struct(StructDeclaration):
+    """A reusable nested-record declaration composed from unified fields."""
+
     options: ClassVar[StructOptions] = StructOptions()
-
-    def __init__(self, *, _metadata: TablePathValueRefMetadata = TablePathValueRefMetadata()) -> None:
-        self._metadata = _metadata
+    _data_declaration_kind: ClassVar[str | None] = None
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         options = vars(cls).get("options", StructOptions())
         if not isinstance(options, StructOptions):
             raise TypeError("Struct.options must be a StructOptions value")
-        _prepare_final(cls, "struct", options)
+        name = options.name or declaration_name(cls.__name__, suffixes=("Struct",))
+        _prepare_fields(
+            cls,
+            kind="struct",
+            name=name,
+            description=_description(cls, options.description),
+            annotations=(*_inherited_annotations(cls), *options.annotations),
+        )
 
 
 class Projection:
-    """Final logical projection declaration."""
+    """A final named logical product composed from typed expressions."""
+
     options: ClassVar[ProjectionOptions] = ProjectionOptions()
+    _data_declaration_kind: ClassVar[str | None] = None
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
+        if any(vars(base).get("_data_declaration_kind") == "projection" for base in cls.__mro__[1:]):
+            raise TypeError("a final Projection may not inherit from another final Projection")
         options = vars(cls).get("options", ProjectionOptions())
         if not isinstance(options, ProjectionOptions):
             raise TypeError("Projection.options must be a ProjectionOptions value")
-        _prepare_final(cls, "projection", options)
+
+        from .projections import declared_projection_fields
+
+        fields = declared_projection_fields(cls)
+        if not fields:
+            raise TypeError("projections must declare at least one projection_field")
+        cls._projection_name = options.name or declaration_name(
+            cls.__name__, suffixes=("Projection",)
+        )
+        cls._projection_fields = fields
+        cls._data_declaration_kind = "projection"
+        cls._data_annotations = (*_inherited_annotations(cls), *options.annotations)
+        description = _description(cls, options.description)
+        cls._data_metadata = {"description": description} if description is not None else {}
+
+
+def is_concrete_table(cls: type[Any]) -> bool:
+    return vars(cls).get("_data_declaration_kind") == "table"
+
+
+def is_table_group(cls: type[Any]) -> bool:
+    return bool(vars(cls).get("_is_table_group", False))
 
 
 class TableGroup:
-    """Final named group of source-bindable tables and nested groups."""
+    """A final named hierarchy of concrete tables and nested table groups."""
+
     options: ClassVar[TableGroupOptions] = TableGroupOptions()
+    _is_table_group: ClassVar[bool] = False
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
+        if any(vars(base).get("_is_table_group", False) for base in cls.__mro__[1:]):
+            raise TypeError("a final TableGroup may not inherit from another final TableGroup")
         options = vars(cls).get("options", TableGroupOptions())
         if not isinstance(options, TableGroupOptions):
             raise TypeError("TableGroup.options must be a TableGroupOptions value")
-        declared_fields: dict[str, type] = {}
+
+        declared: dict[str, type[Any]] = {}
         for base in reversed(cls.__mro__):
             for attribute, value in vars(base).items():
-                if not isinstance(value, type) or not (
-                    _is_concrete_table(value) or vars(value).get("_is_table_group", False)
-                ):
-                    continue
-                previous = declared_fields.get(attribute)
-                if previous is not None and previous is not value:
-                    raise TypeError(f"table group member field {attribute!r} is ambiguous")
-                declared_fields[attribute] = value
-        if any(not _is_concrete_table(item) and not vars(item).get("_is_table_group", False) for item in options.members):
-            raise TypeError("table groups may include only final Table declarations or TableGroup declarations")
-        entries = tuple(dict.fromkeys((*options.members, *declared_fields.values())))
+                if isinstance(value, type) and (is_concrete_table(value) or is_table_group(value)):
+                    declared[attribute] = value
+                elif attribute in declared:
+                    del declared[attribute]
+
+        invalid = tuple(
+            member
+            for member in options.members
+            if not is_concrete_table(member) and not is_table_group(member)
+        )
+        if invalid:
+            raise TypeError("table groups may contain only final Table or TableGroup declarations")
+        entries = tuple(dict.fromkeys((*options.members, *declared.values())))
         if not entries:
-            raise TypeError("table groups must declare at least one member in options or as a class field")
+            raise TypeError("table groups must declare at least one member")
+
         cls._is_table_group = True
-        cls._table_group_name = options.name or declaration_name(cls.__name__, suffixes=("TableGroup",))
+        cls._table_group_name = options.name or declaration_name(
+            cls.__name__, suffixes=("TableGroup",)
+        )
         cls._table_group_entries = entries
-        annotations = tuple(annotation for base in reversed(cls.__mro__[1:]) for annotation in vars(base).get("_data_annotations", ())) + tuple(options.annotations)
+        cls._data_annotations = (*_inherited_annotations(cls), *options.annotations)
         description = _description(cls, options.description)
-        cls._data_annotations = annotations
         cls._data_metadata = {"description": description} if description is not None else {}
-        # Validate recursive membership and duplicate inclusion as soon as the
-        # declaration is completed, not only when a source is bound later.
-        from .declarations import _group_tables
-        _group_tables(cls)
+
+        from .declarations import group_tables
+
+        group_tables(cls)
+
+
+__all__ = [
+    "BoundSource",
+    "BoundTable",
+    "BoundTableGroup",
+    "DataSourceConfig",
+    "InputFormat",
+    "Projection",
+    "ProjectionOptions",
+    "SourceBindingOptions",
+    "Struct",
+    "StructOptions",
+    "Table",
+    "TableGroup",
+    "TableGroupOptions",
+    "TableOptions",
+    "TableTemplate",
+    "TableTemplateOptions",
+    "is_concrete_table",
+    "is_table_group",
+]

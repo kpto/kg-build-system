@@ -1,10 +1,9 @@
 """Unified typed field declarations for tables and structs.
 
-This module is the new declaration boundary.  It intentionally coexists with
-the legacy table descriptors until the table/projection migration is complete.
 Every supported logical value is declared with ``Field[T]``; descriptor access
 turns table fields into typed value expressions and struct fields into typed
-``PickedField`` path tokens.
+``PickedField`` path tokens. Scalar, struct, and array declarations therefore
+share one metadata and validation path.
 """
 from __future__ import annotations
 

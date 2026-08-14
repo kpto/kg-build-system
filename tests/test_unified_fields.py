@@ -111,18 +111,14 @@ class UnifiedFieldTests(unittest.TestCase):
         self.assertEqual(fields["renamed"].metadata.name, "externalName")
 
     def test_invalid_annotations_and_duplicate_external_names_are_rejected(self) -> None:
-        class MissingAnnotationTable(Table):
-            value = field()
-
         with self.assertRaisesRegex(TypeError, r"Field\[T\]"):
-            declared_fields(MissingAnnotationTable)
-
-        class DuplicateTable(Table):
-            first: Field[str] = field(name="same")
-            second: Field[str] = field(name="same")
+            class MissingAnnotationTable(Table):
+                value = field()
 
         with self.assertRaisesRegex(TypeError, "share external name"):
-            declared_fields(DuplicateTable)
+            class DuplicateTable(Table):
+                first: Field[str] = field(name="same")
+                second: Field[str] = field(name="same")
 
 
 if __name__ == "__main__":
