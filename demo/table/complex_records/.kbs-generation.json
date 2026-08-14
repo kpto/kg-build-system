@@ -1,0 +1,16 @@
+{
+  "format_version": "3",
+  "owned_directories": [],
+  "owned_file_hashes": {
+    "__init__.py": "a266ff9fb6c056cbee9b5f4ad0462382013a89f610aeaa98fb27c0496daf516f"
+  },
+  "owned_files": [
+    "__init__.py"
+  ],
+  "provider_import": "kg_build_system.code_generation.builtins.schema_inference",
+  "provider_qualname": "InferDataContractProvider",
+  "provider_version": "2",
+  "request_fingerprint": "4d491143b7d57ebb0d49de661fdd7d5db6c2eace7a88f441a8351a7aaaaeed6f",
+  "request_id": "complex_records",
+  "request_source_package": "demo.table"
+}

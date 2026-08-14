@@ -1,0 +1,96 @@
+[
+  {
+    "record_id": "r1",
+    "title": "First record",
+    "profile": {
+      "display_name": "Ada",
+      "contact": {
+        "email": "ada@example.test",
+        "location": {
+          "city": "Northport",
+          "room": "A-01"
+        }
+      }
+    },
+    "groups": [
+      {
+        "group_id": "g1",
+        "label": "Primary",
+        "items": [
+          {
+            "item_id": "i1",
+            "enabled": true,
+            "metrics": [
+              {
+                "code": "latency",
+                "value": 10.5,
+                "notes": ["fast path", "cached path"]
+              }
+            ]
+          },
+          {
+            "item_id": "i2",
+            "enabled": false,
+            "metrics": []
+          }
+        ]
+      },
+      {
+        "group_id": "g2",
+        "label": "Unlabelled fallback case",
+        "items": [
+          {
+            "item_id": "i3",
+            "enabled": false,
+            "metrics": [
+              {
+                "code": "quality",
+                "value": 0.0,
+                "notes": ["zero-valued metric"]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "optional_scores": [1, 2, 3]
+  },
+  {
+    "record_id": "r2",
+    "title": null,
+    "profile": null,
+    "groups": [
+      {
+        "group_id": "g3",
+        "label": "Secondary",
+        "items": [
+          {
+            "item_id": "i4",
+            "enabled": true,
+            "metrics": [
+              {
+                "code": "throughput",
+                "value": 4.0,
+                "notes": ["steady"]
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "optional_scores": null
+  },
+  {
+    "record_id": "r3",
+    "title": "No groups",
+    "profile": {
+      "display_name": null,
+      "contact": {
+        "email": null,
+        "location": null
+      }
+    },
+    "groups": null,
+    "optional_scores": []
+  }
+]

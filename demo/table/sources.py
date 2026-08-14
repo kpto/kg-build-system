@@ -1,17 +1,19 @@
+"""Physical sources selected for the synthetic demo build."""
+
 from pathlib import Path
 
 from kg_build_system import DataSourceConfig, InputFormat, bind_source
 
-from .evidence_release import EvidenceReleaseTableGroup
-
-DATA_DIRECTORY = Path(__file__).parents[1] / "data"
+from demo.table.complex_records import ComplexRecordsTable
 
 
-evidence_release_source = bind_source(
-    target=EvidenceReleaseTableGroup,
+DATA_FILE = Path(__file__).parents[1] / "data" / "complex_records.json"
+
+complex_records_source = bind_source(
+    target=ComplexRecordsTable,
     config=DataSourceConfig(
-        str(DATA_DIRECTORY),
+        str(DATA_FILE),
         format=InputFormat.JSON,
-        layout="{group_path}/{table_name}.json",
+        version="demo-v1",
     ),
 )

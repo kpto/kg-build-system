@@ -2,13 +2,20 @@ from pathlib import Path
 
 from kg_build_system import build, compile_blueprint, create_blueprint
 from kg_build_system.compile.models import BuildBlueprint
-from kg_build_system.modules import FileModule, FileModuleConfiguration
+from kg_build_system.modules import (
+    CollapseExactDuplicatesModule,
+    FileModule,
+    FileModuleConfiguration,
+)
 
 
 def create_demo_blueprint() -> BuildBlueprint:
     return create_blueprint(
         namespace_path=Path(__file__).parent,
-        modules=(FileModule(FileModuleConfiguration("graph.jsonl")),),
+        modules=(
+            CollapseExactDuplicatesModule(),
+            FileModule(FileModuleConfiguration("graph.jsonl")),
+        ),
     )
 
 

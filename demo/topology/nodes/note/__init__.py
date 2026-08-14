@@ -1,0 +1,1 @@
+"""Note topology declarations."""
