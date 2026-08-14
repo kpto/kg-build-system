@@ -8,7 +8,7 @@ from .base import field_reference, operation
 from .codec import decode_expression, encode_expression
 from .ir import (
     ExpressionIR, ExpressionNode, FieldReferenceExpression, LiteralExpression,
-    OperationExpression, OperationParameter, PRESERVE_ROWS, RowSemantics, Traversal,
+    OperationExpression, OperationParameter, PRESERVE_ROWS, RowEffect, RowSemantics, Traversal,
 )
 from .literals import literal
 from .visitors import ExpressionVisitor, rewrite_expression, visit_expression, walk_expression
@@ -28,7 +28,7 @@ __all__ = [
     "ExpressionVisitor", "FieldReferenceExpression", "LiteralExpression", "OperationExpression",
     "FloatValueExpression", "IntValueExpression", "NullableValueExpression",
     "NumberValueExpression", "OperationParameter", "PRESERVE_ROWS", "PermittedExpressionValue",
-    "PickedField", "RowSemantics", "StrValueExpression", "StructNullableValueExpression",
+    "PickedField", "RowEffect", "RowSemantics", "StrValueExpression", "StructNullableValueExpression",
     "StructValueExpression", "Traversal", "ValueExpression", "ValueRef", "collection", "decode_expression", "encode_expression",
     "field_reference", "item_type", "literal", "lookup", "operation", "rewrite_expression",
     "to_expression", "value", "value_expression", "visit_expression", "walk_expression",

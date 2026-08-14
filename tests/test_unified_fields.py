@@ -11,6 +11,7 @@ from kg_build_system.expressions import (
     PickedField,
     StrValueExpression,
     StructNullableValueExpression,
+    StructValueExpression,
 )
 from kg_build_system.table.fields import Field, declared_fields, field
 from kg_build_system.table.models import Table, TableOptions
@@ -24,9 +25,16 @@ class Indexed(Annotation):
     unique: bool = False
 
 
+class EvidenceStruct(Struct):
+    label: Field[str] = field()
+    labels: Field[Array[str]] = field()
+
+
 class DetailsStruct(Struct):
     label: Field[str] = field(description="Display label")
     maybe_score: Field[int | None] = field()
+    evidence: Field[EvidenceStruct | None] = field()
+    scores: Field[Array[int] | None] = field()
 
 
 class InputTable(Table):
@@ -35,6 +43,7 @@ class InputTable(Table):
     options_: Field[str] = field()
     details: Field[DetailsStruct | None] = field()
     scores: Field[Array[int]] = field()
+    evidence: Field[Array[EvidenceStruct]] = field()
 
 
 class InputShape:
@@ -65,6 +74,27 @@ class UnifiedFieldTests(unittest.TestCase):
 
         selected = InputTable.details.pick(lambda value: value.label)
         self.assertIsInstance(selected, NullableValueExpression)
+        self.assertIsInstance(selected.expression, type(InputTable.targetID.expression))
+        self.assertEqual(selected.expression.path, ("details", "label"))
+
+        nested = InputTable.details.pick(lambda value: value.evidence)
+        self.assertIsInstance(nested, StructNullableValueExpression)
+        nested_label = nested.pick(lambda value: value.label)
+        self.assertIsInstance(nested_label, NullableValueExpression)
+        self.assertEqual(nested_label.expression.path, ("details", "evidence", "label"))
+
+    def test_nested_array_expansion_retains_complete_row_context(self) -> None:
+        evidence = InputTable.evidence.each()
+        self.assertIsInstance(evidence, StructValueExpression)
+        labels = evidence.pick(lambda value: value.labels).each().append("!")
+        effects = labels.expression.row_semantics.effects
+        self.assertEqual(len(effects), 2)
+        self.assertTrue(all(effect.mode == "expand" for effect in effects))
+        self.assertEqual(effects[0].scope, ("input", "evidence"))
+
+    def test_struct_selector_rejects_a_field_from_another_declaration(self) -> None:
+        with self.assertRaisesRegex(TypeError, "input declaration"):
+            InputTable.details.pick(lambda _value: object.__new__(EvidenceStruct).label)
 
     def test_metadata_naming_annotations_and_escape_are_preserved(self) -> None:
         fields = declared_fields(InputTable)

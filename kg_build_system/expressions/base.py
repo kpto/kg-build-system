@@ -7,8 +7,25 @@ from typing import Any
 from ..types import LogicalType
 from .ir import (
     ExpressionNode, FieldReferenceExpression, FrozenJson, FrozenObject, OperationExpression,
-    OperationParameter, PRESERVE_ROWS, RowSemantics, Traversal,
+    OperationParameter, PRESERVE_ROWS, RowEffect, RowSemantics, Traversal,
 )
+
+
+def compose_row_semantics(
+    *expressions: ExpressionNode, local: RowSemantics = PRESERVE_ROWS,
+) -> RowSemantics:
+    """Compose input and local row effects, sharing identical expansions."""
+    effects: list[RowEffect] = []
+    for expression in expressions:
+        for effect in expression.row_semantics.effects:
+            if effect.mode == "expand" and effect in effects:
+                continue
+            effects.append(effect)
+    for effect in local.effects:
+        if effect.mode == "expand" and effect in effects:
+            continue
+        effects.append(effect)
+    return RowSemantics.from_effects(tuple(effects))
 
 
 def freeze_json(value: Any) -> FrozenJson:
@@ -54,8 +71,8 @@ def operation(
         arguments=tuple(arguments),
         parameters=frozen_parameters,
         logical_type=logical_type,
-        row_semantics=row_semantics,
+        row_semantics=compose_row_semantics(*arguments, local=row_semantics),
     )
 
 
-__all__ = ["field_reference", "freeze_json", "operation"]
+__all__ = ["compose_row_semantics", "field_reference", "freeze_json", "operation"]

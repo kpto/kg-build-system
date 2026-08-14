@@ -19,11 +19,30 @@ type FrozenJson = JsonScalar | tuple["FrozenJson", ...] | FrozenObject
 
 
 @dataclass(frozen=True, slots=True)
+class RowEffect:
+    """One ordered change to the row context of an expression."""
+
+    mode: Literal["expand", "filter"]
+    scope: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        if self.mode not in {"expand", "filter"}:
+            raise ValueError(f"unknown row-effect mode {self.mode!r}")
+        if any(not part for part in self.scope):
+            raise ValueError("row-semantic scope parts must be non-empty")
+        if self.mode == "expand" and not self.scope:
+            raise ValueError("expanding row semantics require a stable scope")
+        if self.mode == "filter" and self.scope:
+            raise ValueError("filtering row semantics may not declare a scope")
+
+
+@dataclass(frozen=True, slots=True)
 class RowSemantics:
-    """How evaluating an expression affects its containing relational row."""
+    """The ordered row effects required to evaluate an expression."""
 
     mode: Literal["preserve", "expand", "filter"] = "preserve"
     scope: tuple[str, ...] = ()
+    upstream: tuple[RowEffect, ...] = ()
 
     def __post_init__(self) -> None:
         if self.mode not in {"preserve", "expand", "filter"}:
@@ -34,6 +53,20 @@ class RowSemantics:
             raise ValueError("expanding row semantics require a stable scope")
         if self.mode != "expand" and self.scope:
             raise ValueError("only expanding row semantics may declare a scope")
+        if self.mode == "preserve" and self.upstream:
+            raise ValueError("preserving row semantics may not have upstream effects")
+
+    @property
+    def effects(self) -> tuple[RowEffect, ...]:
+        if self.mode == "preserve":
+            return ()
+        return (*self.upstream, RowEffect(self.mode, self.scope))
+
+    @classmethod
+    def from_effects(cls, effects: tuple[RowEffect, ...]) -> "RowSemantics":
+        if not effects:
+            return cls()
+        return cls(effects[-1].mode, effects[-1].scope, effects[:-1])
 
 
 PRESERVE_ROWS = RowSemantics()
@@ -118,5 +151,5 @@ ExpressionIR: TypeAlias = Expression
 __all__ = [
     "Expression", "ExpressionIR", "ExpressionNode", "FieldReferenceExpression", "FrozenJson", "FrozenObject",
     "JsonScalar", "LiteralExpression", "OperationExpression", "OperationParameter",
-    "PRESERVE_ROWS", "RowSemantics", "Traversal",
+    "PRESERVE_ROWS", "RowEffect", "RowSemantics", "Traversal",
 ]

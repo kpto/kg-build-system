@@ -17,7 +17,7 @@ from kg_build_system.expressions import (
     wrap_expression,
 )
 from kg_build_system.expressions.base import field_reference
-from kg_build_system.expressions.ir import OperationExpression
+from kg_build_system.expressions.ir import FieldReferenceExpression, OperationExpression
 from kg_build_system.types import Array, INT, NullableType, STR, Struct, normalize_type
 
 
@@ -102,7 +102,8 @@ class TypedExpressionTests(unittest.TestCase):
         selected = optional.pick(lambda item: item.label)  # type: ignore[attr-defined]
         self.assertIsInstance(selected, NullableValueExpression)
         self.assertEqual(selected.logical_type, NullableType(STR))
-        self.assertIsInstance(selected.expression, OperationExpression)
+        self.assertIsInstance(selected.expression, FieldReferenceExpression)
+        self.assertEqual(selected.expression.path, ("details", "label"))
 
 
 if __name__ == "__main__":

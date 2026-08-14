@@ -8,7 +8,7 @@ from ..types import decode_type, encode_type
 from .base import freeze_json
 from .ir import (
     Expression, ExpressionNode, FieldReferenceExpression, FrozenJson, FrozenObject, LiteralExpression, OperationExpression,
-    OperationParameter, RowSemantics, Traversal,
+    OperationParameter, RowEffect, RowSemantics, Traversal,
 )
 
 
@@ -21,10 +21,12 @@ def _thaw(value: FrozenJson) -> Any:
 
 
 def _encode_rows(rows: RowSemantics) -> dict[str, Any]:
-    result: dict[str, Any] = {"mode": rows.mode}
-    if rows.scope:
-        result["scope"] = list(rows.scope)
-    return result
+    return {
+        "effects": [
+            {"mode": effect.mode, **({"scope": list(effect.scope)} if effect.scope else {})}
+            for effect in rows.effects
+        ]
+    }
 
 
 def encode_expression(expression: ExpressionNode) -> dict[str, Any]:
@@ -81,6 +83,20 @@ def _strings(value: Any, *, field: str, allow_empty: bool = False) -> tuple[str,
 
 def _rows(value: Mapping[str, Any]) -> RowSemantics:
     rows = _mapping(value, "rows")
+    effects_value = rows.get("effects")
+    if effects_value is not None:
+        if not isinstance(effects_value, Sequence) or isinstance(effects_value, (str, bytes, bytearray)):
+            raise ValueError("expression row effects must be an array")
+        effects: list[RowEffect] = []
+        for effect in effects_value:
+            if not isinstance(effect, Mapping):
+                raise ValueError("each expression row effect must be an object")
+            mode = effect.get("mode")
+            if mode not in {"expand", "filter"}:
+                raise ValueError(f"unknown row-effect mode {mode!r}")
+            effects.append(RowEffect(mode, _strings(effect.get("scope", ()), field="scope", allow_empty=True)))
+        return RowSemantics.from_effects(tuple(effects))
+    # Accept the earlier single-effect representation during the transition.
     mode = rows.get("mode")
     if mode not in {"preserve", "expand", "filter"}:
         raise ValueError(f"unknown row-semantics mode {mode!r}")

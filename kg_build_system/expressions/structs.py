@@ -6,8 +6,9 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Generic, TypeVar, cast
 
-from ..types import LogicalType, NullableType, Struct, StructType
-from .base import operation
+from ..types import ArrayType, LogicalType, NullableType, Struct, StructType
+from .base import field_reference, operation
+from .ir import FieldReferenceExpression, Traversal
 from .nullable import NullableValueExpression
 from .values import ValueExpression
 
@@ -23,6 +24,7 @@ class PickedField(Generic[TStruct, TExpr, TNullExpr]):
 
     name: str
     logical_type: LogicalType
+    declaration: StructType | None = None
 
     def __post_init__(self) -> None:
         if not self.name:
@@ -39,18 +41,38 @@ def _declaration(logical_type: StructType) -> type[Struct]:
     return declaration
 
 
-def _selected(parent, selected: PickedField, *, propagate_null: bool):
+def _selected(
+    parent, selected: PickedField, *, parent_type: StructType, propagate_null: bool,
+):
     from .factory import wrap_expression
 
+    if selected.declaration is not None and selected.declaration != parent_type:
+        raise TypeError("struct selectors must return a field from their input declaration")
     result_type = selected.logical_type
     if propagate_null and not isinstance(result_type, NullableType):
         result_type = NullableType(result_type)
-    result = operation(
-        "struct_field",
-        parent,
-        logical_type=result_type,
-        parameters={"name": selected.name},
-    )
+    if isinstance(parent, FieldReferenceExpression):
+        path = (*parent.path, selected.name)
+        traversals = list(parent.traversals)
+        selected_base = selected.logical_type.value if isinstance(selected.logical_type, NullableType) else selected.logical_type
+        if isinstance(selected_base, StructType):
+            traversals.append(Traversal("struct", path))
+        elif isinstance(selected_base, ArrayType):
+            traversals.append(Traversal("array", path))
+        result = field_reference(
+            source=parent.source,
+            path=path,
+            logical_type=result_type,
+            traversals=traversals,
+            row_semantics=parent.row_semantics,
+        )
+    else:
+        result = operation(
+            "struct_field",
+            parent,
+            logical_type=result_type,
+            parameters={"name": selected.name},
+        )
     return wrap_expression(result)
 
 
@@ -67,7 +89,9 @@ class StructValueExpression(ValueExpression[TStruct], Generic[TStruct]):
         selected = selector(cast(TStruct, proxy))
         if not isinstance(selected, PickedField):
             raise TypeError("struct selectors must return a declared field")
-        return cast(TExpr, _selected(self.expression, selected, propagate_null=False))
+        return cast(TExpr, _selected(
+            self.expression, selected, parent_type=logical_type, propagate_null=False,
+        ))
 
 
 class StructNullableValueExpression(
@@ -90,7 +114,9 @@ class StructNullableValueExpression(
         selected = selector(cast(TStruct, proxy))
         if not isinstance(selected, PickedField):
             raise TypeError("struct selectors must return a declared field")
-        return cast(TNullExpr, _selected(self.expression, selected, propagate_null=True))
+        return cast(TNullExpr, _selected(
+            self.expression, selected, parent_type=logical_type.value, propagate_null=True,
+        ))
 
 
 __all__ = ["PickedField", "StructNullableValueExpression", "StructValueExpression"]

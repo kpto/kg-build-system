@@ -4,7 +4,7 @@ import unittest
 
 from kg_build_system.expressions.base import field_reference, operation
 from kg_build_system.expressions.codec import decode_expression, encode_expression
-from kg_build_system.expressions.ir import FieldReferenceExpression, LiteralExpression, RowSemantics, Traversal
+from kg_build_system.expressions.ir import FieldReferenceExpression, LiteralExpression, RowEffect, RowSemantics, Traversal
 from kg_build_system.expressions.literals import literal
 from kg_build_system.expressions.visitors import rewrite_expression, walk_expression
 from kg_build_system.types import ArrayType, INT, NullableType, STR
@@ -71,6 +71,26 @@ class ExpressionIRTests(unittest.TestCase):
         self.assertNotEqual(rewritten, expression)
         self.assertEqual(tuple(walk_expression(rewritten))[-1], literal(3))
 
+    def test_operations_compose_and_share_ordered_row_effects(self) -> None:
+        first = operation(
+            "each", literal([1], logical_type=ArrayType(INT)), logical_type=INT,
+            row_semantics=RowSemantics("expand", ("input", "values")),
+        )
+        combined = operation("add", first, first, logical_type=INT)
+        self.assertEqual(
+            combined.row_semantics.effects,
+            (RowEffect("expand", ("input", "values")),),
+        )
+        filtered = operation(
+            "when_present", combined, logical_type=INT,
+            row_semantics=RowSemantics("filter"),
+        )
+        self.assertEqual(
+            filtered.row_semantics.effects,
+            (RowEffect("expand", ("input", "values")), RowEffect("filter")),
+        )
+        self.assertEqual(decode_expression(encode_expression(filtered)), filtered)
+
     def test_invalid_row_semantics_are_rejected(self) -> None:
         with self.assertRaisesRegex(ValueError, "stable scope"):
             RowSemantics("expand")
@@ -78,6 +98,8 @@ class ExpressionIRTests(unittest.TestCase):
             RowSemantics("filter", ("field",))
         with self.assertRaisesRegex(ValueError, "unknown row-semantics"):
             RowSemantics("invalid")  # type: ignore[arg-type]
+        with self.assertRaisesRegex(ValueError, "upstream"):
+            RowSemantics("preserve", upstream=(RowEffect("filter"),))
 
 
 if __name__ == "__main__":
