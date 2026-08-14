@@ -8,7 +8,7 @@ from ..types import (
     ArrayType, BOOL, FLOAT, INT, LogicalType, NullableType, STR, StructType, CustomType,
 )
 from .base import freeze_json
-from .ir import LiteralExpression
+from .models import LiteralExpression
 
 
 def _infer(value: Any) -> LogicalType:

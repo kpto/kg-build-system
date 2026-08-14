@@ -3,13 +3,13 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
-from ...binding.dto import BindingDTO as BindingDefinition, EdgeBindingDTO as EdgeBindingDefinition
+from ...binding.ir import BindingIR as BindingDefinition, EdgeBindingIR as EdgeBindingDefinition
 from ...compile.blueprint import BuildBlueprint
-from ...table.dto import ProjectionDTO as ProjectionDefinition
+from ...table.ir import ProjectionIR as ProjectionDefinition
 from ...engines.duckdb import lower_relation_sql
-from ...expressions.dto import (
-    FieldReferenceExpressionDTO as FieldReferenceExpression,
-    walk_expression_dto as walk_expression,
+from ...expressions.ir import (
+    FieldReferenceExpressionIR as FieldReferenceExpression,
+    walk_expression_ir as walk_expression,
 )
 from ...relational import lower_product
 

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any, ClassVar, Literal, cast
 
 from ...compile.blueprint import BuildBlueprint
-from ...table.dto import ProjectionDTO as ProjectionDefinition
+from ...table.ir import ProjectionIR as ProjectionDefinition
 from ...workflow.models import (
     ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference,
     OutputSlot, WorkflowStep,

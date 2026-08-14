@@ -11,10 +11,10 @@ from kg_build_system import (
 )
 from kg_build_system.compile import blueprint_from_json, blueprint_json, validate_blueprint
 from kg_build_system.compile.blueprint import BuildBlueprint
-from kg_build_system.expressions.dto import RowEffectDTO
-from kg_build_system.table.dto import FieldDTO, TableDTO
+from kg_build_system.expressions.ir import RowEffectIR
+from kg_build_system.table.ir import FieldIR, TableIR
 from kg_build_system.types import STR
-from kg_build_system.types.mapping import type_to_dto
+from kg_build_system.types.mapping import type_to_ir
 
 
 @dataclass(frozen=True)
@@ -81,7 +81,7 @@ class BlueprintIRTests(unittest.TestCase):
         self.assertEqual(tuple(item.name for item in result.projections), ("evidence_rows",))
         self.assertEqual({item.name for item in result.components}, {"entity", "related"})
         label = result.projections[0].fields[1].expression
-        self.assertIn(RowEffectDTO("expand", ("evidence", "evidence")), label.row_semantics.effects)
+        self.assertIn(RowEffectIR("expand", ("evidence", "evidence")), label.row_semantics.effects)
 
     def test_json_codec_is_stable_and_round_trips_canonical_objects(self) -> None:
         result = self.blueprint()
@@ -101,7 +101,7 @@ class BlueprintIRTests(unittest.TestCase):
 
     def test_validator_rejects_unknown_expression_sources(self) -> None:
         result = self.blueprint()
-        broken = replace(result, tables=(TableDTO("table:other", "other", (FieldDTO("id", type_to_dto(STR)),)),))
+        broken = replace(result, tables=(TableIR("table:other", "other", (FieldIR("id", type_to_ir(STR)),)),))
         with self.assertRaisesRegex(ValueError, "unknown logical source"):
             validate_blueprint(broken)
 

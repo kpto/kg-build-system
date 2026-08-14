@@ -7,7 +7,7 @@ from ..types import ArrayType, CustomType, NullableType, StructType, UnitType
 from .arrays import ArrayNullableValueExpression, ArrayValueExpression
 from .boolean import BoolValueExpression
 from .custom import CustomDataTypeValueExpression
-from .ir import ExpressionNode
+from .models import ExpressionNode
 from .literals import literal
 from .nullable import NullableValueExpression
 from .numeric import FloatValueExpression, IntValueExpression

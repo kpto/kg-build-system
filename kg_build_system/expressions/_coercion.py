@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from ..types import FLOAT, LogicalType, NullableType
-from .ir import ExpressionNode
+from .models import ExpressionNode
 from .literals import literal
 from .values import ValueExpression
 

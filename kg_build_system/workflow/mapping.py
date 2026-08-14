@@ -1,53 +1,53 @@
-"""Mappings between workflow domain models and compilation DTOs."""
+"""Mappings between workflow domain models and compilation IRs."""
 from __future__ import annotations
 
 from dataclasses import asdict
 
-from . import dto
+from . import ir
 from . import models
 
 
-def role_to_dto(value: models.ArtifactRole) -> dto.ArtifactRoleDTO:
-    return dto.ArtifactRoleDTO(namespace=value.namespace, name=value.name)
+def role_to_ir(value: models.ArtifactRole) -> ir.ArtifactRoleIR:
+    return ir.ArtifactRoleIR(namespace=value.namespace, name=value.name)
 
 
-def role_from_dto(value: dto.ArtifactRoleDTO) -> models.ArtifactRole:
+def role_from_ir(value: ir.ArtifactRoleIR) -> models.ArtifactRole:
     return models.ArtifactRole(namespace=value.namespace, name=value.name)
 
 
-def workflow_to_dto(value: models.WorkflowDefinition) -> dto.WorkflowDefinitionDTO:
-    return dto.WorkflowDefinitionDTO(
+def workflow_to_ir(value: models.WorkflowDefinition) -> ir.WorkflowDefinitionIR:
+    return ir.WorkflowDefinitionIR(
         modules=tuple(
-            dto.ModuleDTO(
-                reference=dto.ModuleReferenceDTO(**asdict(module.reference)),
-                runtime_fields=tuple(dto.RuntimeFieldDTO(**asdict(field)) for field in module.runtime_fields),
+            ir.ModuleIR(
+                reference=ir.ModuleReferenceIR(**asdict(module.reference)),
+                runtime_fields=tuple(ir.RuntimeFieldIR(**asdict(field)) for field in module.runtime_fields),
             )
             for module in value.modules
         ),
         steps=tuple(
-            dto.WorkflowStepDTO(
+            ir.WorkflowStepIR(
                 step_id=step.step_id,
                 module_id=step.module_id,
                 assembly_preference=step.assembly_preference,
                 inputs=tuple(
-                    dto.SingleInputSlotDTO(slot_id=slot.slot_id)
+                    ir.SingleInputSlotIR(slot_id=slot.slot_id)
                     if isinstance(slot, models.SingleInputSlot)
-                    else dto.CollectionInputSlotDTO(slot_id=slot.slot_id)
+                    else ir.CollectionInputSlotIR(slot_id=slot.slot_id)
                     for slot in step.inputs
                 ),
                 outputs=tuple(
-                    dto.OutputSlotDTO(slot_id=slot.slot_id, artifact_role=role_to_dto(slot.artifact_role))
+                    ir.OutputSlotIR(slot_id=slot.slot_id, artifact_role=role_to_ir(slot.artifact_role))
                     for slot in step.outputs
                 ),
                 payload=step.payload,
             )
             for step in value.steps
         ),
-        connections=tuple(dto.ConnectionDTO(**asdict(connection)) for connection in value.connections),
+        connections=tuple(ir.ConnectionIR(**asdict(connection)) for connection in value.connections),
     )
 
 
-def workflow_from_dto(value: dto.WorkflowDefinitionDTO) -> models.WorkflowDefinition:
+def workflow_from_ir(value: ir.WorkflowDefinitionIR) -> models.WorkflowDefinition:
     return models.WorkflowDefinition(
         modules=tuple(
             models.ModuleDefinition(
@@ -63,12 +63,12 @@ def workflow_from_dto(value: dto.WorkflowDefinitionDTO) -> models.WorkflowDefini
                 assembly_preference=step.assembly_preference,
                 inputs=tuple(
                     models.SingleInputSlot(slot_id=slot.slot_id)
-                    if isinstance(slot, dto.SingleInputSlotDTO)
+                    if isinstance(slot, ir.SingleInputSlotIR)
                     else models.CollectionInputSlot(slot_id=slot.slot_id)
                     for slot in step.inputs
                 ),
                 outputs=tuple(
-                    models.OutputSlot(slot_id=slot.slot_id, artifact_role=role_from_dto(slot.artifact_role))
+                    models.OutputSlot(slot_id=slot.slot_id, artifact_role=role_from_ir(slot.artifact_role))
                     for slot in step.outputs
                 ),
                 payload=step.payload,
@@ -79,4 +79,4 @@ def workflow_from_dto(value: dto.WorkflowDefinitionDTO) -> models.WorkflowDefini
     )
 
 
-__all__ = ["role_from_dto", "role_to_dto", "workflow_from_dto", "workflow_to_dto"]
+__all__ = ["role_from_ir", "role_to_ir", "workflow_from_ir", "workflow_to_ir"]

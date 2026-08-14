@@ -1,6 +1,6 @@
 """Workflow execution API.
 
-The facade is lazy so importing compilation-only workflow DTOs does not
+The facade is lazy so importing compilation-only workflow IRs does not
 initialize the runtime executor or recreate a compile/workflow cycle.
 """
 from __future__ import annotations

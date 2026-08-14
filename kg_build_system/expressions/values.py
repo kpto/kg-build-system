@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Generic, TypeVar
 
 from ..types import LogicalType
-from .ir import ExpressionNode
+from .models import ExpressionNode
 
 
 T_co = TypeVar("T_co", covariant=True)

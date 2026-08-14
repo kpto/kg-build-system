@@ -5,9 +5,9 @@ from typing import Annotated, Any
 
 from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, PlainSerializer, PlainValidator
 
-from ..table.dto import SourceDTO
-from ..workflow.dto import WorkflowDefinitionDTO
-from ..workflow.mapping import workflow_to_dto
+from ..table.ir import SourceIR
+from ..workflow.ir import WorkflowDefinitionIR
+from ..workflow.mapping import workflow_to_ir
 from ..workflow.models import WorkflowDefinition
 from .blueprint import BuildBlueprint
 
@@ -22,8 +22,8 @@ class BuildSettings(ContractModel):
 
 class SourceOverride(ContractModel):
     table: str = Field(min_length=1)
-    original: SourceDTO | None = None
-    override: SourceDTO
+    original: SourceIR | None = None
+    override: SourceIR
 
 
 class BuildOverrides(ContractModel):
@@ -45,16 +45,16 @@ BlueprintField = Annotated[
 ]
 
 
-def _decode_workflow(value: Any) -> WorkflowDefinitionDTO:
-    if isinstance(value, WorkflowDefinitionDTO):
+def _decode_workflow(value: Any) -> WorkflowDefinitionIR:
+    if isinstance(value, WorkflowDefinitionIR):
         return value
     if isinstance(value, WorkflowDefinition):
-        return workflow_to_dto(value)
-    return WorkflowDefinitionDTO.model_validate(value, strict=False)
+        return workflow_to_ir(value)
+    return WorkflowDefinitionIR.model_validate(value, strict=False)
 
 
 WorkflowField = Annotated[
-    WorkflowDefinitionDTO,
+    WorkflowDefinitionIR,
     BeforeValidator(_decode_workflow),
 ]
 
@@ -64,7 +64,7 @@ class BuildContract(ContractModel):
 
     blueprint: BlueprintField
     blueprint_fingerprint: str = Field(min_length=1)
-    sources: tuple[SourceDTO, ...] = Field(min_length=1)
+    sources: tuple[SourceIR, ...] = Field(min_length=1)
     settings: BuildSettings = Field(default_factory=BuildSettings)
     overrides: BuildOverrides = Field(default_factory=BuildOverrides)
     workflow_fingerprint: str = Field(min_length=1)

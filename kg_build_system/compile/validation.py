@@ -3,17 +3,17 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from ..expressions.dto import (
-    FieldReferenceExpressionDTO as FieldReferenceExpression,
-    OperationExpressionDTO as OperationExpression,
-    walk_expression_dto as walk_expression,
+from ..expressions.ir import (
+    FieldReferenceExpressionIR as FieldReferenceExpression,
+    OperationExpressionIR as OperationExpression,
+    walk_expression_ir as walk_expression,
 )
-from ..types.dto import (
-    ArrayTypeDTO as ArrayType,
-    NullableTypeDTO as NullableType,
-    StructTypeDTO as StructType,
+from ..types.ir import (
+    ArrayTypeIR as ArrayType,
+    NullableTypeIR as NullableType,
+    StructTypeIR as StructType,
 )
-from ..binding.dto import EdgeBindingDTO as EdgeBindingDefinition
+from ..binding.ir import EdgeBindingIR as EdgeBindingDefinition
 from .blueprint import BLUEPRINT_SCHEMA_VERSION, BuildBlueprint
 
 

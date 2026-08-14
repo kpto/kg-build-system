@@ -1,6 +1,6 @@
 """Portable expression declarations and constructors."""
 from .base import field_reference, operation
-from .ir import (
+from .models import (
     ExpressionNode, FieldReferenceExpression, LiteralExpression,
     OperationExpression, OperationParameter, PRESERVE_ROWS, RowEffect, RowSemantics, Traversal,
 )

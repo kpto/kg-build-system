@@ -1,27 +1,27 @@
-"""Mappings from logical-type domain models to compilation DTOs."""
+"""Mappings from logical-type domain models to compilation IRs."""
 from __future__ import annotations
 
 from typing import Any, cast
 
-from . import dto
+from . import ir
 from . import models
 
 
-def type_to_dto(value: models.LogicalType) -> dto.LogicalTypeDTO:
+def type_to_ir(value: models.LogicalType) -> ir.LogicalTypeIR:
     if isinstance(value, models.UnitType):
-        return dto.UnitTypeDTO(cast(Any, value.name))
+        return ir.UnitTypeIR(cast(Any, value.name))
     if isinstance(value, models.CustomType):
-        return dto.CustomTypeDTO(value.module, value.qualname)
+        return ir.CustomTypeIR(value.module, value.qualname)
     if isinstance(value, models.StructType):
-        return dto.StructTypeDTO(value.module, value.qualname)
+        return ir.StructTypeIR(value.module, value.qualname)
     if isinstance(value, models.ArrayType):
-        return dto.ArrayTypeDTO(type_to_dto(value.item))
+        return ir.ArrayTypeIR(type_to_ir(value.item))
     if isinstance(value, models.NullableType):
-        inner = type_to_dto(value.value)
-        if isinstance(inner, dto.NullableTypeDTO):
-            raise ValueError("nullable type DTOs may not be nested")
-        return dto.NullableTypeDTO(inner)
+        inner = type_to_ir(value.value)
+        if isinstance(inner, ir.NullableTypeIR):
+            raise ValueError("nullable type IRs may not be nested")
+        return ir.NullableTypeIR(inner)
     raise TypeError(f"unsupported logical type domain model {value!r}")
 
 
-__all__ = ["type_to_dto"]
+__all__ = ["type_to_ir"]

@@ -1,10 +1,12 @@
+"""Tests for the authoring expression domain models."""
+
 from __future__ import annotations
 
 import unittest
 
 from kg_build_system.expressions.base import field_reference, operation
 from kg_build_system.expressions.codec import decode_expression, encode_expression
-from kg_build_system.expressions.ir import FieldReferenceExpression, LiteralExpression, RowEffect, RowSemantics, Traversal
+from kg_build_system.expressions.models import FieldReferenceExpression, LiteralExpression, RowEffect, RowSemantics, Traversal
 from kg_build_system.expressions.literals import literal
 from kg_build_system.expressions.visitors import rewrite_expression, walk_expression
 from kg_build_system.types import ArrayType, INT, NullableType, STR

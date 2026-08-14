@@ -6,13 +6,13 @@ from typing import Any
 
 from sqlglot import exp
 
-from ...expressions.dto import (
-    FieldReferenceExpressionDTO as FieldReferenceExpression,
-    LiteralExpressionDTO as LiteralExpression,
-    OperationExpressionDTO as OperationExpression,
+from ...expressions.ir import (
+    FieldReferenceExpressionIR as FieldReferenceExpression,
+    LiteralExpressionIR as LiteralExpression,
+    OperationExpressionIR as OperationExpression,
 )
 from ..._frozen_json import FrozenObject
-from ...relational.dto import RelationPlanDTO as RelationPlan
+from ...relational.ir import RelationPlanIR as RelationPlan
 
 
 def _identifier(value: str, *, quoted: bool = True) -> exp.Identifier:

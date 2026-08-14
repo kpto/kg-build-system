@@ -6,23 +6,24 @@ from pathlib import Path
 
 import kg_build_system
 from kg_build_system import value_expression
-from kg_build_system.expressions.dto import ExpressionDTOBase
+from kg_build_system.expressions.ir import ExpressionIRBase
 
 
 class DomainBoundaryTests(unittest.TestCase):
-    def test_compilation_dtos_are_not_exported_by_public_facades(self) -> None:
+    def test_compilation_irs_are_not_exported_by_public_facades(self) -> None:
         self.assertNotIn("BuildBlueprint", kg_build_system.__all__)
         self.assertNotIn("BuildContract", kg_build_system.__all__)
-        self.assertFalse(any(name.endswith("DTO") for name in kg_build_system.__all__))
+        self.assertFalse(any(name.endswith("IR") for name in kg_build_system.__all__))
 
-    def test_authoring_expressions_retain_domain_models_not_dtos(self) -> None:
-        self.assertNotIsInstance(value_expression(1).expression, ExpressionDTOBase)
+    def test_authoring_expressions_retain_domain_models_not_irs(self) -> None:
+        self.assertNotIsInstance(value_expression(1).expression, ExpressionIRBase)
 
-    def test_domain_model_modules_do_not_import_compilation_dtos(self) -> None:
+    def test_domain_model_modules_do_not_import_compilation_irs(self) -> None:
         package = Path(kg_build_system.__file__).parent
         model_modules = (
             package / "annotations" / "models.py",
             package / "binding" / "models.py",
+            package / "expressions" / "models.py",
             package / "table" / "models.py",
             package / "topology" / "models.py",
             package / "types" / "models.py",
@@ -36,8 +37,8 @@ class DomainBoundaryTests(unittest.TestCase):
                 if isinstance(node, ast.ImportFrom)
             }
             self.assertFalse(
-                any(module == "dto" or module.endswith(".dto") for module in imported),
-                f"{path} imports a compilation DTO module",
+                any(module == "ir" or module.endswith(".ir") for module in imported),
+                f"{path} imports a compilation IR module",
             )
 
 

@@ -8,7 +8,7 @@ from typing import Generic, TypeVar, cast
 from ..types import Array, ArrayType, NullableType
 from .base import operation
 from .codec import encode_expression
-from .ir import FieldReferenceExpression, OperationExpression, RowSemantics
+from .models import FieldReferenceExpression, OperationExpression, RowSemantics
 from .nullable import NullableValueExpression
 from .values import ValueExpression
 

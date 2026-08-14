@@ -11,7 +11,7 @@ from tempfile import TemporaryDirectory
 from typing import Any, Literal, cast
 
 from ..compile.contracts import BuildContract
-from .mapping import workflow_from_dto
+from .mapping import workflow_from_ir
 from .models import Artifact, BuildRuntime, ContinuableInput, DisruptedExecutionContext, DisruptingInput, ExecutionContext, ExecutorFactoryContext, Failure, PublishedArtifact, StepOutcome, StepStatus, WorkflowArtifactRoles, WorkflowReport
 from .services import ExecutionServices, LocalTemporaryStorage, LocalWorkingStorage, MappingCredentialResolver
 
@@ -77,7 +77,7 @@ async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowRepo
     except ImportError as error:
         raise RuntimeError("DuckDB is required to execute builds") from error
     connection = duckdb.connect()
-    workflow = workflow_from_dto(contract.workflow)
+    workflow = workflow_from_ir(contract.workflow)
     if contract.settings.duckdb_threads is not None:
         connection.execute(f"SET threads = {contract.settings.duckdb_threads}")
 

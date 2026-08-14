@@ -65,10 +65,10 @@ The workflow contract contains only immutable, serialisable definitions. The
 executor resolves each compiled module reference to its Python implementation
 at runtime; the implementation object itself is never serialised.
 
-The serialized definitions are compilation DTOs owned by `workflow.dto`.
+The serialized definitions are compilation IRs owned by `workflow.ir`.
 Workflow-module behavior, assembly, and runtime execution use frozen workflow
 domain models from `workflow.models`. Explicit mapping occurs when a build
-contract is frozen and once again when execution begins; DTOs are not passed to
+contract is frozen and once again when execution begins; IRs are not passed to
 module executors or retained by runtime contexts.
 
 ```text
@@ -530,6 +530,6 @@ Implemented additions to this slice:
   module-specific artifact payloads.
 - Validators may use private finding slots and a module-owned aggregation step
   to publish one optional validation report and apply configured gate policy.
-- Workflow compilation DTOs and workflow domain models are distinct; module
+- Workflow compilation IRs and workflow domain models are distinct; module
   implementations use domain models, and runtime contexts do not expose the
   serialized build contract.

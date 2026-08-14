@@ -17,7 +17,7 @@ from kg_build_system.expressions import (
     wrap_expression,
 )
 from kg_build_system.expressions.base import field_reference
-from kg_build_system.expressions.ir import FieldReferenceExpression, OperationExpression
+from kg_build_system.expressions.models import FieldReferenceExpression, OperationExpression
 from kg_build_system.types import Array, INT, NullableType, STR, Struct, normalize_type
 
 

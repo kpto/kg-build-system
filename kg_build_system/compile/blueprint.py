@@ -1,13 +1,13 @@
-"""Aggregate compilation DTO for an immutable declaration blueprint."""
+"""Aggregate compilation IR for an immutable declaration blueprint."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, Final, Literal
 
-from ..binding.dto import BindingDTO
-from ..table.dto import ProjectionDTO, SourceDTO, StructDTO, TableDTO
-from ..topology.dto import ComponentDTO
-from ..workflow.dto import BlueprintModuleDTO
+from ..binding.ir import BindingIR
+from ..table.ir import ProjectionIR, SourceIR, StructIR, TableIR
+from ..topology.ir import ComponentIR
+from ..workflow.ir import BlueprintModuleIR
 
 
 BLUEPRINT_SCHEMA_VERSION: Final = 1
@@ -17,13 +17,13 @@ BLUEPRINT_SCHEMA_VERSION: Final = 1
 class BuildBlueprint:
     """A compilation artifact containing no authoring Python classes."""
 
-    structs: tuple[StructDTO, ...]
-    tables: tuple[TableDTO, ...]
-    components: tuple[ComponentDTO, ...]
-    projections: tuple[ProjectionDTO, ...]
-    bindings: tuple[BindingDTO, ...]
-    sources: tuple[SourceDTO, ...] = ()
-    modules: tuple[BlueprintModuleDTO, ...] = ()
+    structs: tuple[StructIR, ...]
+    tables: tuple[TableIR, ...]
+    components: tuple[ComponentIR, ...]
+    projections: tuple[ProjectionIR, ...]
+    bindings: tuple[BindingIR, ...]
+    sources: tuple[SourceIR, ...] = ()
+    modules: tuple[BlueprintModuleIR, ...] = ()
     schema_version: Literal[1] = 1
 
     def model_dump(self, *, mode: str = "python", **_: Any) -> dict[str, Any]:

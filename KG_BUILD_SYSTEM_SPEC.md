@@ -46,7 +46,7 @@ composition choices.
 
 - Separate graph meaning, data acquisition, relational planning, and execution.
 - Use one logical-type domain model in authoring and map it explicitly into a
-  structurally equivalent compilation DTO model.
+  structurally equivalent compilation IR model.
 - Make invalid operations unavailable through specialized expression types.
 - Represent field references as expressions rather than as a parallel value
   hierarchy.
@@ -349,7 +349,7 @@ sources without mutating logical declarations.
 ## 10. Canonical expression and blueprint IR
 
 Expression authoring uses an immutable domain expression tree. Compilation
-maps that tree into a separate, engine-neutral expression DTO tree:
+maps that tree into a separate, engine-neutral expression IR tree:
 
 ```text
 LiteralExpression
@@ -361,7 +361,7 @@ Every domain expression carries its logical type and `RowSemantics`. Supported
 row effects are ordered, immutable `expand` effects with scopes and `filter`
 effects. The compiler maps logical types, expressions, annotations, data
 declarations, topology, bindings, and workflow definitions into domain-owned
-DTOs. Codecs serialize only those DTOs and frozen JSON values.
+IRs. Codecs serialize only those IRs and frozen JSON values.
 
 `create_blueprint` validates declarations and produces `BuildBlueprint`
 schema version 2. It contains immutable definitions for:
@@ -378,10 +378,10 @@ Definitions use stable symbol IDs and logical names. The blueprint contains no
 Python class objects or authoring domain objects. Its JSON codec is
 deterministic and round-trippable.
 
-Compilation DTOs live in each owning domain's `dto.py`; they are not exported
-from the root authoring API. Domain models never retain DTO instances. Mapping
-modules form the one-way boundary from domain models to compilation DTOs.
-Runtime workflow execution converts its serialized workflow DTO into workflow
+Compilation IRs live in each owning domain's `ir.py`; they are not exported
+from the root authoring API. Domain models never retain IR instances. Mapping
+modules form the one-way boundary from domain models to compilation IRs.
+Runtime workflow execution converts its serialized workflow IR into workflow
 domain models before dispatching module business logic.
 
 `create_blueprint(namespace_path=...)` recursively imports an importable Python
@@ -461,17 +461,17 @@ ownership, check, watch, and pruning contract is defined in
 
 ```text
 kg_build_system/
-  annotations/       # annotation domain model and compilation DTO
-  types/             # logical-type domain model, DTO, mapping, and codecs
-  expressions/       # authoring domain tree plus compilation DTO and mapping
-  table/             # data-contract domain models and compilation DTOs
-  topology/          # topology domain models and compilation DTOs
-  binding/           # binding domain models and compilation DTOs
+  annotations/       # annotation domain model and compilation IR
+  types/             # logical-type domain model, IR, mapping, and codecs
+  expressions/       # authoring domain tree plus compilation IR and mapping
+  table/             # data-contract domain models and compilation IRs
+  topology/          # topology domain models and compilation IRs
+  binding/           # binding domain models and compilation IRs
   compile/           # blueprint aggregate, compiler, codecs, and contracts
-  relational/        # engine-neutral planning and plan DTOs
+  relational/        # engine-neutral planning and plan IRs
   engines/duckdb/    # SQL lowering
   modules/           # core, operators, and targets
-  workflow/          # domain models, compilation DTOs, mapping, execution
+  workflow/          # domain models, compilation IRs, mapping, execution
   code_generation/   # edit-time generated packages
 demo/                 # importable end-to-end example
 tests/                # runtime and static typing contracts

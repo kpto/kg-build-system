@@ -14,37 +14,37 @@ from types import ModuleType
 from typing import Any, get_type_hints, overload
 
 from ..annotations import Annotation
-from ..annotations.dto import AnnotationDTO as AnnotationDefinition
+from ..annotations.ir import AnnotationIR as AnnotationDefinition
 from ..binding import Binding, EdgeBinding, NodeBinding
-from ..binding.dto import (
-    EdgeBindingDTO as EdgeBindingDefinition,
-    NodeBindingDTO as NodeBindingDefinition,
+from ..binding.ir import (
+    EdgeBindingIR as EdgeBindingDefinition,
+    NodeBindingIR as NodeBindingDefinition,
 )
 from ..expressions import FieldReferenceExpression, ValueExpression, walk_expression
 from ..expressions.base import freeze_json
 from ..expressions.codec import encode_expression
-from ..expressions.mapping import expression_to_dto
+from ..expressions.mapping import expression_to_ir
 from ..table import BoundSource, BoundTable, Projection, Struct, Table
 from ..table.declarations import resolve_bound_source
-from ..table.dto import (
-    FieldDTO as FieldDefinition,
-    ProjectionDTO as ProjectionDefinition,
-    ProjectionFieldDTO as ProjectionFieldDefinition,
-    SourceDTO as SourceDefinition,
-    StructDTO as StructDefinition,
-    TableDTO as TableDefinition,
+from ..table.ir import (
+    FieldIR as FieldDefinition,
+    ProjectionIR as ProjectionDefinition,
+    ProjectionFieldIR as ProjectionFieldDefinition,
+    SourceIR as SourceDefinition,
+    StructIR as StructDefinition,
+    TableIR as TableDefinition,
 )
-from ..topology.dto import (
-    ComponentDTO as ComponentDefinition,
-    PropertyDTO as PropertyDefinition,
+from ..topology.ir import (
+    ComponentIR as ComponentDefinition,
+    PropertyIR as PropertyDefinition,
 )
 from ..types import ArrayType, NullableType, StructType
-from ..types.mapping import type_to_dto
-from ..workflow.dto import BlueprintModuleDTO as BlueprintModule
+from ..types.mapping import type_to_ir
+from ..workflow.ir import BlueprintModuleIR as BlueprintModule
 from ..workflow.interfaces import ModuleRegistration
 from .blueprint import BuildBlueprint
 from .validation import validate_blueprint
-from ..workflow.mapping import workflow_to_dto
+from ..workflow.mapping import workflow_to_ir
 from ..workflow.models import (
     ArtifactRole, Connection, OutputSlot, SingleInputSlot, WorkflowDefinition,
 )
@@ -71,7 +71,7 @@ def _field(owner: type[Any], declaration: Any) -> FieldDefinition:
     metadata = declaration.metadata
     assert metadata.name is not None
     return FieldDefinition(
-        metadata.name, type_to_dto(declaration._logical_type(owner)), metadata.description,
+        metadata.name, type_to_ir(declaration._logical_type(owner)), metadata.description,
         _annotations(metadata.annotations),
     )
 
@@ -99,7 +99,7 @@ def _table(declaration: type[Table]) -> TableDefinition:
 def _component(declaration: type[Any]) -> ComponentDefinition:
     properties = tuple(
         PropertyDefinition(
-            prop.name or attribute, type_to_dto(prop.logical_type), prop.description,
+            prop.name or attribute, type_to_ir(prop.logical_type), prop.description,
             _annotations(prop.annotations),
         )
         for attribute, prop in declaration._properties.items()
@@ -117,7 +117,7 @@ def _component(declaration: type[Any]) -> ComponentDefinition:
 def _projection(declaration: type[Projection]) -> ProjectionDefinition:
     fields = tuple(
         ProjectionFieldDefinition(
-            field.metadata.name or attribute, expression_to_dto(field.expression),
+            field.metadata.name or attribute, expression_to_ir(field.expression),
             field.metadata.description, _annotations(field.metadata.annotations),
         )
         for attribute, field in declaration._projection_fields.items()
@@ -159,17 +159,17 @@ def _binding_symbol(binding: Binding) -> str:
 def _binding(binding: Binding) -> NodeBindingDefinition | EdgeBindingDefinition:
     common = (
         _binding_symbol(binding), binding.target._component_name,
-        expression_to_dto(binding.build_key.expression),
+        expression_to_ir(binding.build_key.expression),
     )
     properties = tuple(
-        (name, expression_to_dto(expression))
+        (name, expression_to_ir(expression))
         for name, expression in _property_expressions(binding)
     )
     rest = (properties, binding.debug_name, _annotations(binding.annotations))
     if isinstance(binding, EdgeBinding):
         return EdgeBindingDefinition(
-            *common, expression_to_dto(binding.source_build_key.expression),
-            expression_to_dto(binding.target_build_key.expression), *rest,
+            *common, expression_to_ir(binding.source_build_key.expression),
+            expression_to_ir(binding.target_build_key.expression), *rest,
         )
     return NodeBindingDefinition(*common, *rest)
 
@@ -378,7 +378,7 @@ def _effective_sources(
 
 
 def _thaw(value: Any) -> Any:
-    from ..expressions.ir import FrozenObject
+    from ..expressions.models import FrozenObject
     if isinstance(value, FrozenObject):
         return {key: _thaw(item) for key, item in value.items}
     if isinstance(value, tuple):
@@ -564,15 +564,15 @@ async def _compile_blueprint(
         connections=tuple(connections),
     )
     validate_workflow(workflow)
-    workflow_dto = workflow_to_dto(workflow)
+    workflow_ir = workflow_to_ir(workflow)
     return BuildContract(
         blueprint=blueprint,
         blueprint_fingerprint=_blueprint_fingerprint(blueprint),
         sources=effective_sources,
         settings=compilation_settings,
         overrides=overrides,
-        workflow_fingerprint=_fingerprint(workflow_dto.model_dump(mode="json")),
-        workflow=workflow_dto,
+        workflow_fingerprint=_fingerprint(workflow_ir.model_dump(mode="json")),
+        workflow=workflow_ir,
     )
 
 

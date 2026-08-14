@@ -8,7 +8,7 @@ from typing import Generic, TypeVar, cast
 
 from ..types import ArrayType, LogicalType, NullableType, Struct, StructType
 from .base import field_reference, operation
-from .ir import FieldReferenceExpression, Traversal
+from .models import FieldReferenceExpression, Traversal
 from .nullable import NullableValueExpression
 from .values import ValueExpression
 

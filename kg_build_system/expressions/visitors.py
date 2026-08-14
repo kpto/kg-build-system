@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator
 from typing import Protocol, TypeVar
 
-from .ir import Expression, ExpressionNode, FieldReferenceExpression, LiteralExpression, OperationExpression
+from .models import Expression, ExpressionNode, FieldReferenceExpression, LiteralExpression, OperationExpression
 
 
 T_co = TypeVar("T_co", covariant=True)

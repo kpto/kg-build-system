@@ -1,4 +1,4 @@
-"""Compilation-only transfer objects for a frozen workflow definition.
+"""Compilation-only IR for a frozen workflow definition.
 
 These types are not re-exported by :mod:`kg_build_system.workflow`; workflow
 authoring and runtime APIs use their own models and interfaces.
@@ -13,18 +13,18 @@ from pydantic import BaseModel, ConfigDict, Field, JsonValue
 
 
 @dataclass(frozen=True, slots=True)
-class BlueprintModuleDTO:
+class BlueprintModuleIR:
     module_id: str
     module_import: str
     module_qualname: str
     configuration: FrozenJson | None = None
 
 
-class WorkflowDTO(BaseModel):
+class WorkflowIR(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
 
-class ModuleReferenceDTO(WorkflowDTO):
+class ModuleReferenceIR(WorkflowIR):
     module_id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     import_module: str = Field(min_length=1)
     class_qualname: str = Field(min_length=1)
@@ -33,7 +33,7 @@ class ModuleReferenceDTO(WorkflowDTO):
     configuration: JsonValue | None = None
 
 
-class RuntimeFieldDTO(WorkflowDTO):
+class RuntimeFieldIR(WorkflowIR):
     key: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     description: str = Field(min_length=1)
     required: bool = True
@@ -41,60 +41,60 @@ class RuntimeFieldDTO(WorkflowDTO):
     secret: bool = False
 
 
-class ModuleDTO(WorkflowDTO):
-    reference: ModuleReferenceDTO
-    runtime_fields: tuple[RuntimeFieldDTO, ...] = ()
+class ModuleIR(WorkflowIR):
+    reference: ModuleReferenceIR
+    runtime_fields: tuple[RuntimeFieldIR, ...] = ()
 
 
-class ArtifactRoleDTO(WorkflowDTO):
+class ArtifactRoleIR(WorkflowIR):
     namespace: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     name: str = Field(min_length=1)
 
 
-class OutputSlotDTO(WorkflowDTO):
+class OutputSlotIR(WorkflowIR):
     slot_id: str = Field(min_length=1)
-    artifact_role: ArtifactRoleDTO
+    artifact_role: ArtifactRoleIR
 
 
-class SingleInputSlotDTO(WorkflowDTO):
+class SingleInputSlotIR(WorkflowIR):
     kind: Literal["single"] = "single"
     slot_id: str = Field(min_length=1)
 
 
-class CollectionInputSlotDTO(WorkflowDTO):
+class CollectionInputSlotIR(WorkflowIR):
     kind: Literal["collection"] = "collection"
     slot_id: str = Field(min_length=1)
 
 
-InputSlotDTO = Annotated[
-    SingleInputSlotDTO | CollectionInputSlotDTO,
+InputSlotIR = Annotated[
+    SingleInputSlotIR | CollectionInputSlotIR,
     Field(discriminator="kind"),
 ]
 
 
-class WorkflowStepDTO(WorkflowDTO):
+class WorkflowStepIR(WorkflowIR):
     step_id: str = Field(min_length=1)
     module_id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
     assembly_preference: Literal["eager", "deferred"] = "eager"
-    inputs: tuple[InputSlotDTO, ...] = ()
-    outputs: tuple[OutputSlotDTO, ...] = ()
+    inputs: tuple[InputSlotIR, ...] = ()
+    outputs: tuple[OutputSlotIR, ...] = ()
     payload: JsonValue | None = None
 
 
-class ConnectionDTO(WorkflowDTO):
+class ConnectionIR(WorkflowIR):
     input_slot_id: str = Field(min_length=1)
     output_slot_id: str = Field(min_length=1)
 
 
-class WorkflowDefinitionDTO(WorkflowDTO):
-    modules: tuple[ModuleDTO, ...] = Field(min_length=1)
-    steps: tuple[WorkflowStepDTO, ...] = Field(min_length=1)
-    connections: tuple[ConnectionDTO, ...] = ()
+class WorkflowDefinitionIR(WorkflowIR):
+    modules: tuple[ModuleIR, ...] = Field(min_length=1)
+    steps: tuple[WorkflowStepIR, ...] = Field(min_length=1)
+    connections: tuple[ConnectionIR, ...] = ()
 
 
 __all__ = [
-    "ArtifactRoleDTO", "BlueprintModuleDTO", "CollectionInputSlotDTO",
-    "ConnectionDTO", "InputSlotDTO", "ModuleDTO", "ModuleReferenceDTO",
-    "OutputSlotDTO", "RuntimeFieldDTO", "SingleInputSlotDTO",
-    "WorkflowDefinitionDTO", "WorkflowStepDTO",
+    "ArtifactRoleIR", "BlueprintModuleIR", "CollectionInputSlotIR",
+    "ConnectionIR", "InputSlotIR", "ModuleIR", "ModuleReferenceIR",
+    "OutputSlotIR", "RuntimeFieldIR", "SingleInputSlotIR",
+    "WorkflowDefinitionIR", "WorkflowStepIR",
 ]

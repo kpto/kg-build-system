@@ -7,7 +7,7 @@ from typing import Generic, TypeVar
 from ..types import Nullable, NullableType
 from ._coercion import expression_input
 from .base import operation
-from .ir import ExpressionNode, RowSemantics
+from .models import ExpressionNode, RowSemantics
 from .values import AuthoringValueExpression, ValueExpression
 
 

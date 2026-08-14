@@ -7,7 +7,7 @@ from pathlib import Path
 from typing import Any, ClassVar
 
 from kg_build_system.compile.blueprint import BuildBlueprint
-from kg_build_system.table.dto import SourceDTO as SourceDefinition
+from kg_build_system.table.ir import SourceIR as SourceDefinition
 from kg_build_system.compile.contracts import BuildContract
 from kg_build_system.workflow import BuildRuntime, build
 from kg_build_system.workflow.interfaces import (

@@ -5,7 +5,7 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from ..types import LogicalType
-from .ir import (
+from .models import (
     ExpressionNode, FieldReferenceExpression, FrozenJson, FrozenObject, OperationExpression,
     OperationParameter, PRESERVE_ROWS, RowEffect, RowSemantics, Traversal,
 )

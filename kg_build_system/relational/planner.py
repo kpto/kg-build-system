@@ -4,18 +4,18 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 
-from ..expressions.dto import (
-    ExpressionDTO as ExpressionNode,
-    FieldReferenceExpressionDTO as FieldReferenceExpression,
-    OperationExpressionDTO as OperationExpression,
-    walk_expression_dto as walk_expression,
+from ..expressions.ir import (
+    ExpressionIR as ExpressionNode,
+    FieldReferenceExpressionIR as FieldReferenceExpression,
+    OperationExpressionIR as OperationExpression,
+    walk_expression_ir as walk_expression,
 )
-from ..expressions.dto_codec import encode_expression_dto as encode_expression
-from ..expressions.ir import ExpressionNode as DomainExpressionNode
-from ..expressions.mapping import expression_to_dto
-from .dto import (
-    ExpandDTO as Expand, FilterDTO as Filter, RelationPlanDTO as RelationPlan,
-    ScanDTO as Scan,
+from ..expressions.ir_codec import encode_expression_ir as encode_expression
+from ..expressions.models import ExpressionNode as DomainExpressionNode
+from ..expressions.mapping import expression_to_ir
+from .ir import (
+    ExpandIR as Expand, FilterIR as Filter, RelationPlanIR as RelationPlan,
+    ScanIR as Scan,
 )
 
 
@@ -40,7 +40,7 @@ def lower_product(
     if not outputs:
         raise ValueError("relational products require at least one output")
     compiled_outputs = {
-        name: expression_to_dto(expression)
+        name: expression_to_ir(expression)
         if isinstance(expression, DomainExpressionNode)
         else expression
         for name, expression in outputs.items()

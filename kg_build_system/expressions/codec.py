@@ -6,7 +6,7 @@ from typing import Any
 
 from ..types import decode_type, encode_type
 from .base import freeze_json
-from .ir import (
+from .models import (
     Expression, ExpressionNode, FieldReferenceExpression, FrozenJson, FrozenObject, LiteralExpression, OperationExpression,
     OperationParameter, RowEffect, RowSemantics, Traversal,
 )
