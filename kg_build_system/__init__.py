@@ -7,6 +7,10 @@ authoring APIs.
 
 from .annotations import Annotation
 from .binding import Binding, BindingOptions, EdgeBinding, NodeBinding, edge_binding, node_binding
+from .compile import (
+    BuildBlueprint, blueprint_from_json, blueprint_json, create_blueprint,
+    decode_blueprint, encode_blueprint, validate_blueprint,
+)
 from .expressions import (
     ArrayNullableValueExpression,
     ArrayValueExpression,
@@ -57,6 +61,7 @@ __all__ = [
     "Annotation",
     "Binding",
     "BindingOptions",
+    "BuildBlueprint",
     "Array",
     "ArrayNullableValueExpression",
     "ArrayValueExpression",
@@ -100,10 +105,16 @@ __all__ = [
     "TableTemplateOptions",
     "ValueExpression",
     "bind_source",
+    "blueprint_from_json",
+    "blueprint_json",
+    "create_blueprint",
+    "decode_blueprint",
     "edge_binding",
     "field",
     "node_binding",
     "projection_field",
     "property",
+    "encode_blueprint",
+    "validate_blueprint",
     "value_expression",
 ]
