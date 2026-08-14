@@ -8,7 +8,7 @@ from collections import defaultdict
 from dataclasses import asdict, replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
-from typing import Any
+from typing import Any, Literal, cast
 
 from ..compile.models import BuildContract
 from .models import Artifact, BuildRuntime, ContinuableInput, DisruptedExecutionContext, DisruptingInput, ExecutionContext, ExecutorFactoryContext, Failure, PublishedArtifact, StepOutcome, StepStatus, WorkflowArtifactRoles, WorkflowReport
@@ -77,9 +77,18 @@ async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowRepo
                     previous = outcomes_by_step[output_owner[output_slot_id]]
                     artifact = artifacts.get(output_slot_id)
                     if previous.status in {StepStatus.SUCCEEDED, StepStatus.WARNING}:
-                        contributions.append(ContinuableInput(output_slot_id, previous.status, artifact))
+                        contributions.append(ContinuableInput(
+                            output_slot_id,
+                            cast(Literal[StepStatus.SUCCEEDED, StepStatus.WARNING], previous.status),
+                            artifact,
+                        ))
                     else:
-                        disruption = DisruptingInput(output_slot_id, previous.status, artifact, previous.failure)
+                        disruption = DisruptingInput(
+                            output_slot_id,
+                            cast(Literal[StepStatus.FAILED, StepStatus.SKIPPED], previous.status),
+                            artifact,
+                            previous.failure,
+                        )
                         contributions.append(disruption)
                         disruptions.append(disruption)
                 inputs[input_slot.slot_id] = tuple(contributions)

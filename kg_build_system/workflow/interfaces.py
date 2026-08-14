@@ -4,7 +4,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, ClassVar, Protocol
+from typing import Any, ClassVar, Protocol, cast
 
 from ..compile.models import ArtifactRole, BuildBlueprint, BuildOverrides, BuildSettings, InputSlot, ModuleDefinition, OutputSlot, WorkflowStep
 from .models import DisruptedExecutionContext, ExecutionContext, StepOutcome, StepStatus
@@ -21,7 +21,7 @@ class ModuleRegistration[T: ModuleRegistrationConfiguration](ABC):
 
     @property
     def module_class(self) -> type[Module]:
-        return type(self)
+        return cast(type[Module], type(self))
 
 
 @dataclass(frozen=True)

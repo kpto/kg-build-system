@@ -23,7 +23,9 @@ class CollapseExactDuplicatesModule(Module, ModuleRegistration[_Configuration]):
         return ModuleCompilationResult(ModuleDefinition(reference=ModuleReference(module_id=self.ID,import_module=type(self).__module__,class_qualname=type(self).__qualname__,implementation_version="1",priority=0,configuration={})),tuple(steps))
 class _Executor(ModuleExecutor):
     async def handle(self, context: ExecutionContext) -> StepOutcome:
-        step = context.step; payload=step.payload or {}; relation=str(payload["relation"]).replace('"','""'); input_relation=next(item.artifact.value for inputs in context.inputs.values() for item in inputs if item.artifact is not None)
+        step = context.step; payload=step.payload
+        if not isinstance(payload, dict): raise ValueError("deduplication requires an object payload")
+        relation=str(payload["relation"]).replace('"','""'); input_relation=next(item.artifact.value for inputs in context.inputs.values() for item in inputs if item.artifact is not None)
         context.services.duckdb.execute(f'CREATE TEMP TABLE "{relation}" AS SELECT DISTINCT * FROM "{str(input_relation).replace(chr(34),chr(34)*2)}"'); slot=step.outputs[0]
         return StepOutcome(step.step_id,step.module_id,StepStatus.SUCCEEDED,(Artifact(slot.slot_id,slot.artifact_role,payload["relation"]),))
 

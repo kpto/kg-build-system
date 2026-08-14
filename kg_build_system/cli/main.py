@@ -7,7 +7,8 @@ import asyncio
 import inspect
 import logging
 import sys
-from typing import Sequence
+from collections.abc import Coroutine
+from typing import Any, Sequence, cast
 
 from ..code_generation.command import add_generate_command
 
@@ -39,7 +40,7 @@ def main(argv: Sequence[str] | None = None) -> int:
     try:
         result = arguments.command_handler(arguments)
         if inspect.isawaitable(result):
-            return asyncio.run(result)
+            return asyncio.run(cast(Coroutine[Any, Any, int], result))
         return result
     except KeyboardInterrupt:
         logging.getLogger("kg_build_system").info("Stopped.")

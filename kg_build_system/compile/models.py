@@ -1,9 +1,12 @@
 """Canonical immutable declaration, compilation, and workflow IR."""
 from __future__ import annotations
 
-from typing import Annotated, Literal, Self
+from typing import Annotated, Any, Literal, Self
 
-from pydantic import BaseModel, ConfigDict, Field, JsonValue, model_validator
+from pydantic import BaseModel, ConfigDict, Field, JsonValue, PlainSerializer, PlainValidator, model_validator
+
+from .ir import BuildBlueprint as CanonicalBuildBlueprint
+from .ir import SourceDefinition as CanonicalSourceDefinition
 
 
 class IRModel(BaseModel):
@@ -118,12 +121,17 @@ class BlueprintModule(IRModel):
     configuration: JsonValue | None = None
 
 
-class BuildBlueprint(IRModel):
+class LegacyBuildBlueprint(IRModel):
     components: tuple[ComponentDefinition, ...] = Field(min_length=1)
     projections: tuple[ProjectionDefinition, ...] = ()
     bindings: tuple[BindingDefinition, ...] = Field(min_length=1)
     sources: tuple[SourceDefinition, ...] = ()
     modules: tuple[BlueprintModule, ...] = ()
+
+
+# Workflow contracts use the version-2 declaration graph.  The legacy models
+# above remain temporarily importable for old serialized fixtures only.
+BuildBlueprint = CanonicalBuildBlueprint
 
 
 class ModuleReference(IRModel):
@@ -216,18 +224,36 @@ class BuildSettings(IRModel):
 
 class SourceOverride(IRModel):
     table: str = Field(min_length=1)
-    original: SourceDefinition | None = None
-    override: SourceDefinition
+    original: CanonicalSourceDefinition | None = None
+    override: CanonicalSourceDefinition
 
 
 class BuildOverrides(IRModel):
     sources: tuple[SourceOverride, ...] = ()
 
 
+def _decode_contract_blueprint(value: Any) -> BuildBlueprint:
+    return BuildBlueprint.model_validate(value)
+
+
+def _encode_contract_blueprint(value: BuildBlueprint) -> dict[str, Any]:
+    return value.model_dump(mode="json")
+
+
+ContractBlueprint = Annotated[
+    BuildBlueprint,
+    PlainValidator(_decode_contract_blueprint),
+    PlainSerializer(_encode_contract_blueprint, return_type=dict[str, Any]),
+]
+
+
 class BuildContract(IRModel):
-    blueprint: BuildBlueprint
+    # Pydantic's generic dataclass handling erases concrete expression-node
+    # subclasses.  This boundary deliberately delegates to the canonical v2
+    # blueprint codec instead.
+    blueprint: ContractBlueprint
     blueprint_fingerprint: str = Field(min_length=1)
-    sources: tuple[SourceDefinition, ...] = Field(min_length=1)
+    sources: tuple[CanonicalSourceDefinition, ...] = Field(min_length=1)
     settings: BuildSettings = Field(default_factory=BuildSettings)
     overrides: BuildOverrides = Field(default_factory=BuildOverrides)
     workflow_fingerprint: str = Field(min_length=1)

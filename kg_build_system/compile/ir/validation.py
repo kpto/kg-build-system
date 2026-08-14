@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from ...expressions import FieldReferenceExpression, walk_expression
+from ...expressions import FieldReferenceExpression, OperationExpression, walk_expression
 from ...types import ArrayType, NullableType, StructType
 from .models import BuildBlueprint, EdgeBindingDefinition
 
@@ -66,9 +66,17 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
             for traversal in node.traversals
             if traversal.kind == "array"
         }
+        declared_expansions = {
+            node.row_semantics.effects[-1].scope
+            for node in nodes
+            if isinstance(node, OperationExpression)
+            and node.operator == "each"
+            and node.row_semantics.effects
+            and node.row_semantics.effects[-1].mode == "expand"
+        }
         for node in nodes:
             for effect in node.row_semantics.effects:
-                if effect.mode == "expand" and effect.scope not in array_paths:
+                if effect.mode == "expand" and effect.scope not in array_paths | declared_expansions:
                     raise ValueError(f"{owner} expands undeclared array traversal {effect.scope!r}")
             if not isinstance(node, FieldReferenceExpression):
                 continue

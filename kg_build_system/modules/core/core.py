@@ -6,22 +6,37 @@ published by core graph work.  Modules should use it instead of role strings.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, Literal, cast
 
+from ...compile.ir import BuildBlueprint
 from ...compile.models import (
-    ArtifactRole,
-    BindingDefinition,
-    BuildBlueprint,
-    CollectionInputSlot,
-    ModuleDefinition,
-    ModuleReference,
-    OutputSlot,
-    SourceDefinition,
-    WorkflowStep,
+    ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference,
+    OutputSlot, WorkflowStep,
 )
 from ...workflow.interfaces import CompilationContext, Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, WorkflowStepDraft
 from ...workflow.models import Artifact, DisruptedExecutionContext, ExecutionContext, StepOutcome, StepStatus
-from .lowering import binding_relation_names, lower_binding_sql, lower_projection_sql, projection_tables
+from .lowering import binding_sources, lower_binding_sql, lower_projection_sql, projection_sources
+
+
+def _ordered_projections(blueprint: BuildBlueprint):
+    pending = {projection.name: projection for projection in blueprint.projections}
+    completed: set[str] = set()
+    result = []
+    while pending:
+        ready = sorted(
+            (
+                projection for projection in pending.values()
+                if not (projection_sources(projection) & pending.keys())
+            ),
+            key=lambda projection: projection.symbol_id,
+        )
+        if not ready:
+            raise ValueError("projection dependency graph contains a cycle")
+        for projection in ready:
+            result.append(projection)
+            completed.add(projection.name)
+            del pending[projection.name]
+    return tuple(result)
 
 
 @dataclass(frozen=True)
@@ -67,7 +82,9 @@ class CoreArtifactRoles:
         parts = role.name.split(".", 2)
         if len(parts) != 3 or parts[0] != "graph" or parts[1] not in {"node", "edge"} or not parts[2]:
             return None
-        return GraphRecordArtifact(kind=parts[1], component=parts[2])
+        return GraphRecordArtifact(
+            kind=cast(Literal["node", "edge"], parts[1]), component=parts[2],
+        )
 
     @classmethod
     def is_graph_records(cls, role: ArtifactRole) -> bool:
@@ -90,7 +107,8 @@ class CoreCompiler:
         source_map.update({override.table: override.override for override in context.overrides.sources})
         sources = tuple(source_map[name] for name in sorted(source_map))
         table_relations = {source.table: f"kg_table_{index}" for index, source in enumerate(sources)}
-        projection_relations = {projection.name: f"kg_projection_{index}" for index, projection in enumerate(context.blueprint.projections)}
+        projections = _ordered_projections(context.blueprint)
+        projection_relations = {projection.name: f"kg_projection_{index}" for index, projection in enumerate(projections)}
         relations = table_relations | projection_relations
         for source in sources:
             output = OutputSlot(
@@ -105,8 +123,9 @@ class CoreCompiler:
                 step_id=f"core::table.{source.table}", module_id=CoreModule.ID,
                 outputs=(output,), payload={"action": "relation", "relation": relation, "sql": sql, "materialization": "temporary_table"},
             ), {}))
-        for index, projection in enumerate(context.blueprint.projections):
-            required = projection_tables(context.blueprint, projection)
+        projection_names = set(projection_relations)
+        for index, projection in enumerate(projections):
+            required = projection_sources(projection)
             input_slot = CollectionInputSlot(slot_id=f"core::projection.{projection.name}.tables")
             output = OutputSlot(
                 slot_id=f"core::projection.{projection.name}.output",
@@ -116,16 +135,19 @@ class CoreCompiler:
                 step_id=f"core::projection.{projection.name}", module_id=CoreModule.ID,
                 inputs=(input_slot,), outputs=(output,), payload={
                     "action": "relation", "relation": f"kg_projection_{index}",
-                    "sql": lower_projection_sql(context.blueprint, table_relations, projection),
+                    "sql": lower_projection_sql(context.blueprint, relations, projection),
                     "materialization": "temporary_table",
                 },
-            ), {input_slot.slot_id: lambda _input, candidate, required=required: candidate.artifact_role in {CoreArtifactRoles.table(table) for table in required}}))
+            ), {input_slot.slot_id: lambda _input, candidate, required=required, projection_names=projection_names: candidate.artifact_role in tuple(
+                CoreArtifactRoles.projection(name) if name in projection_names else CoreArtifactRoles.table(name)
+                for name in required
+            )}))
         for index, binding in enumerate(context.blueprint.bindings):
-            relation_names = binding_relation_names(binding)
-            required_roles = {
+            relation_names = binding_sources(binding)
+            required_roles = tuple(
                 CoreArtifactRoles.projection(name) if name in projection_relations else CoreArtifactRoles.table(name)
                 for name in relation_names
-            }
+            )
             inputs = ()
             candidates = {}
             if required_roles:
@@ -150,7 +172,7 @@ class CoreCompiler:
             )
             drafts.append(WorkflowStepDraft(step, candidates))
         for component in context.blueprint.components:
-            binding_roles = {CoreArtifactRoles.binding(binding.symbol_id) for binding in context.blueprint.bindings if binding.component == component.name}
+            binding_roles = tuple(CoreArtifactRoles.binding(binding.symbol_id) for binding in context.blueprint.bindings if binding.component == component.name)
             if not binding_roles:
                 continue
             input_slot = CollectionInputSlot(slot_id=f"core::aggregate.{component.name}.bindings")
@@ -176,7 +198,9 @@ class CoreModule(Module):
 class CoreExecutor(ModuleExecutor):
     async def handle(self, context: ExecutionContext) -> StepOutcome:
         step = context.step
-        payload = step.payload or {}
+        payload = step.payload
+        if not isinstance(payload, dict):
+            raise ValueError("core workflow steps require an object payload")
         connection = context.services.duckdb
         if payload.get("action") == "aggregate":
             relation = str(payload["relation"]).replace('"', '""')

@@ -8,7 +8,8 @@ authoring APIs.
 from .annotations import Annotation
 from .binding import Binding, BindingOptions, EdgeBinding, NodeBinding, edge_binding, node_binding
 from .compile import (
-    BuildBlueprint, blueprint_from_json, blueprint_json, create_blueprint,
+    BuildBlueprint, BuildContract, BuildSettings, blueprint_from_json, blueprint_json,
+    compile_blueprint, create_blueprint,
     decode_blueprint, encode_blueprint, validate_blueprint,
 )
 from .expressions import (
@@ -56,12 +57,16 @@ from .topology import (
     Edge, EdgeOptions, GraphComponent, GraphComponentOptions, Node, NodeOptions,
     PropertySlot, property,
 )
+from .workflow import BuildRuntime, WorkflowReport, build
 
 __all__ = [
     "Annotation",
     "Binding",
     "BindingOptions",
     "BuildBlueprint",
+    "BuildContract",
+    "BuildRuntime",
+    "BuildSettings",
     "Array",
     "ArrayNullableValueExpression",
     "ArrayValueExpression",
@@ -104,9 +109,12 @@ __all__ = [
     "TableTemplate",
     "TableTemplateOptions",
     "ValueExpression",
+    "WorkflowReport",
     "bind_source",
     "blueprint_from_json",
     "blueprint_json",
+    "build",
+    "compile_blueprint",
     "create_blueprint",
     "decode_blueprint",
     "edge_binding",
