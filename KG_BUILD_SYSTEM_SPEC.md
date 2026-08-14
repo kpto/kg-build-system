@@ -3,668 +3,531 @@
 ## 1. Purpose and status
 
 This is the canonical specification for the Knowledge Graph Build System. It
-centralises the model, public declaration patterns, compilation architecture,
-and authoring practices.
+describes the implemented authoring model, canonical intermediate
+representations, compilation workflow, and execution boundary.
 
-The system builds knowledge graphs from declared logical data contracts. It
-separates graph meaning from physical input sources and from concrete build
-execution. Python is the MVP authoring surface and DuckDB is the initial
-relational engine.
+The system builds knowledge graphs from typed logical data contracts. Graph
+meaning is independent of physical acquisition, and both are independent of
+target-specific execution. Python is the authoring surface, canonical frozen
+objects are the portable definition format, and DuckDB is the first relational
+engine.
 
-The architecture below is intentionally larger than the first deliverable.
-Features are classified as foundation, MVP extension, or future work so that
-the system's direction does not become a commitment to build everything first.
+The current implementation includes typed nested data declarations, typed
+expressions, projections, direct graph bindings, canonical blueprint schema
+version 2, engine-neutral relational planning, DuckDB lowering, composable
+workflow modules, file output, and edit-time generated data-contract packages.
 
 ## 2. Core model
 
 ```text
-topology ──────── graph types, properties, constraints, annotations
-data contracts ── logical tables, fields, structs, projections
-bindings ──────── values mapped into graph components
+topology ──────── graph components and scalar properties
+data contracts ── logical tables, unified fields, structs, projections
+expressions ───── typed values plus local row effects
+bindings ──────── expressions mapped into graph components
 sources ───────── physical locations and credential references
-build ─────────── compiled target-specific execution
+modules ───────── compilation and execution extensions
 ```
 
 ```text
-topology declarations ─┐
-data declarations ─────┼─> create_blueprint ─> BuildBlueprint ─┐
-graph bindings ────────┘                                        ├─> compile_blueprint ─> BuildContract ─> build
-default sources, target, compilation settings ──────────────────┘
+Python declarations ──> create_blueprint ──> BuildBlueprint (schema v2)
+                                                    │
+sources/settings/overrides ──> compile_blueprint ───┤
+                                                    v
+                                             BuildContract
+                                                    │
+runtime configuration ────────────────> build ──────┘
 ```
 
-Topology, data contracts, and bindings are reusable declarations. Sources,
-targets, and build configuration are concrete composition choices.
+Topology, data contracts, expressions, and bindings are reusable logical
+declarations. Sources, modules, settings, and runtime configuration are
+composition choices.
 
 ### Principles
 
-- Separate meaning, acquisition, and execution.
-- Use typed declarations by default; dynamic fields are explicit and never
-  silently become `Any`.
-- Declare values, cardinality, and lookups—not joins or query plans.
-- Compile every authoring surface to canonical, immutable IRs.
-- Express target features as namespaced annotations.
-- Store credential references in definitions and resolved credentials only in
-  runtime configuration.
+- Separate graph meaning, data acquisition, relational planning, and execution.
+- Use one canonical logical type system in declarations, expressions, and IR.
+- Make invalid operations unavailable through specialized expression types.
+- Represent field references as expressions rather than as a parallel value
+  hierarchy.
+- Keep null behavior and row-producing behavior explicit.
+- Compile authoring objects into immutable IR containing no Python class
+  objects.
+- Plan each projection and binding as a self-contained relational product.
+- Preserve portable annotations without requiring the core to interpret them.
+- Store credential references in definitions and resolved secrets only at
+  runtime.
 
-## 3. Foundation: specifications and declarations
+## 3. Canonical logical types
 
-The authoring surface has no shared `Specification` or `Declaration` base.
-It separates source-field references, portable computations, and graph-slot
-bindings so that static typing reflects their distinct roles:
-
-```python
-class ValueRef[T]:
-    """A typed value reference with no table or field metadata."""
-
-
-class TablePathValueRefMetadata:
-    """Table, path, traversal, and declaration metadata."""
-
-
-class TablePathValueRef[T](ValueRef[T]):
-    _metadata: TablePathValueRefMetadata
-
-
-class Field[T](TablePathValueRef[T]):
-    """A scalar (or scalar-list) table field."""
-
-
-class StructField[T: Struct](TablePathValueRef[T]):
-    """A structured value, navigated through ``member`` or ``m``."""
-
-
-class CollectionField[T](TablePathValueRef[Sequence[T]]):
-    """A collection of structs, navigated through ``element`` or ``e``."""
-
-
-class PropertySlot[T]:
-    """A graph-component constructor slot."""
-
-
-class ExpressionBinding[T](PropertySlot[T]):
-    expression: Expression[T]
-
-
-class Expression[T]:
-    """A portable value computation."""
-```
-
-`ValueRef[T]` never inherits from, or is cast into, `Expression[T]` or
-`PropertySlot[T]`. `bind(...)` is the explicit graph-facing boundary used for
-property values, build keys, and edge endpoint keys:
+The author-facing vocabulary is:
 
 ```python
-def bind[T: GraphValue](value: ExpressionInput[T]) -> ExpressionBinding[T]: ...
+type UnitType = bool | int | float | str | CustomDataType
+type DataType = UnitType | Struct | Array[DataType | None]
+type AuthoringDataType = DataType | None
 ```
 
-The graph layer owns the only constructor transform. It is keyword-only and
-accepts `ExpressionBinding[T]` values through the `PropertySlot[T]` subtype:
+`Array[T]` is the portable ordered-collection marker. It is deliberately not
+`list[T]`, `Sequence[T]`, or a physical storage type. `Struct` declares a
+portable nested record. `CustomDataType` identifies an application-defined
+scalar by module and qualified name.
 
-```python
-@dataclass_transform(field_specifiers=(property,), kw_only_default=True)
-class GraphComponent(ABC):
-    pass
-```
-
-Final declarations are layer base classes: `Node`, `Edge[S, T]`, `Table`,
-`Struct`, `Projection`, and `TableGroup`. Table and struct members are
-explicitly annotated `Field[T]`, `StructField[T]`, or `CollectionField[T]`;
-graph members use `PropertySlot[T]`, and projections use `ProjectedField[T]`.
-Reusable
-shapes may remain ordinary Python mixins; `TableTemplate` and
-`GraphComponent` are optional bases when a reusable shape needs framework
-metadata such as annotations.
-
-Framework metadata is `ClassVar` or unannotated, so it is not an author-facing
-constructor parameter.
-
-Property nullability is expressed only by its type: `PropertySlot[str]` is
-required and `PropertySlot[str | None]` is nullable. The `property()` factory
-has no `nullable` argument.
-
-### Declaration names, options, and annotations
-
-Every declaration has a stable logical name. An explicit `name=` wins;
-otherwise the system derives a snake-case name from the declaring Python class
-or member. Fields, properties, and projected fields infer their names from
-their Python attribute, so `targetID` becomes `target_id`.
-
-Class declarations remove one terminal suffix that identifies their own layer
-before snake-casing. The supported suffixes are `Node`, `Edge`, `Table`,
-`TableTemplate` (or `Template`), `Struct`, `TableGroup`, `Projection`, and
-`ComponentTemplate` (or `Template`). For example, `TargetNode` becomes
-`target`, `AssociatedWithEdge` becomes `associated_with`, and
-`EvidenceRelease2025_06TableGroup` becomes `evidence_release_2025_06`.
-Only a matching terminal suffix for the declaration's own layer is removed;
-a table named `TargetNode` therefore remains `target_node`. A suffix-only
-class name such as `Node` is invalid unless an explicit name is provided.
-
-Each final declaration may provide a class-level `options` value. It is
-framework metadata, never a field, property, projected field, or constructor
-argument. Descriptions default to the class docstring; an explicit
-`options.description` overrides that default.
-
-```python
-class TargetNode(Node):
-    """A biological target."""
-
-    options = NodeOptions()
-    symbol: PropertySlot[str] = property()
-
-class AssociationEdge(Edge[TargetNode, DiseaseNode]):
-    score: PropertySlot[float] = property()
-```
-
-`Edge[S, T]` declares its endpoints through type arguments. A trailing
-underscore escapes the reserved `options` class attribute: `options_` becomes
-the external member name `options`; only one terminal underscore is removed.
-
-Annotations are portable, serialisable semantic metadata. Every annotation is
-a dataclass subclass of `Annotation` with a stable `namespace` and
-`annotation_id`; its dataclass fields are the arguments:
-
-```python
-@dataclass(frozen=True)
-class Index(Annotation):
-    namespace = "index"
-    annotation_id = "index"
-    unique: bool = False
-
-class TargetNode(Node):
-    options = NodeOptions(annotations=[Index(unique=True)])
-```
-
-Options use `annotations`, not an unstructured metadata map. Annotations are
-additive through reusable shapes and final declarations. They are supported on
-components, properties, tables/templates/structs/fields, projections/projected
-fields, table groups, bindings, and source bindings. Compiled IR serialises an
-annotation as `namespace`, `annotation_id`, and JSON arguments; it never
-serialises an annotation Python class.
-
-## 4. Topology
-
-Topology declares graph meaning independently of source data. Nodes and edges
-are first-class `GraphComponent` contracts. Edges declare source, target,
-properties, direction, cardinality where known, and annotations.
-
-```python
-class TargetNode(Node):
-    """A biological target."""
-    symbol: PropertySlot[str] = property()
-    name: PropertySlot[str | None] = property()
-    description: PropertySlot[str | None] = property()
-
-
-class DiseaseNode(Node):
-    """A disease or phenotype."""
-    name: PropertySlot[str] = property()
-    description: PropertySlot[str | None] = property()
-
-
-class AssociatedWithEdge(Edge[TargetNode, DiseaseNode]):
-    """Evidence-backed association."""
-    score: PropertySlot[float] = property()
-```
-
-Annotations express semantics or target hints: ontology terms, indexes,
-constraints, naming overrides, and similar metadata. A namespace is not an
-access-control boundary: every module compiler receives the complete compiled
-annotation graph and may interpret any annotation it recognises. A
-module-specific annotation conventionally uses the owning module's ID as its
-namespace. The core preserves unknown annotations.
-
-Components can be templates: subclasses inherit properties, descriptions, and
-annotations and may add or override properties. Source files may be node-first
-for discoverability while compiled topology uses graph-level registries.
-
-```text
-topology/
-  nodes/target/
-    target.py
-    edges/associated_with_disease.py
-```
-
-## 5. Logical data contracts
-
-The source-independent data hierarchy is:
-
-```text
-Table → Field → DataType
-```
-
-### Supported declaration value types
-
-The framework owns a closed portable scalar vocabulary:
-
-```python
-type Scalar = str | int | float | bool
-
-class Struct:
-    ...
-```
-
-Collections are expressed through the portable `Sequence[T]` contract;
-physical source collections remain list-shaped.
-`Field[T]` accepts only a `Scalar` or `Scalar | None`; collections use
-`CollectionField[T]`. `StructField[S]` and `CollectionField[S]` admit nested
-records, while `CollectionField[T]` also supports scalar items. Maps, tuples,
-sets, nested collections, arbitrary Python classes, and `Any` are not
-declaration types.
-
-`Struct` is the shared portable nested-record base; the table layer extends it
-with declaration and navigation behaviour.
-
-`PropertySlot[T]` and `bind(...)` accept only `Scalar` or `Scalar | None`:
-graph properties cannot be collections or structs. Expression literals accept
-scalars, `None`, and recursively nested sequences of literal values. Runtime
-declaration validation enforces the contract for dynamic Python authoring,
-while the generic declaration types make invalid annotations visible to a
-static type checker at edit time.
-
-`Field` represents scalar values. `StructField` represents one nested `Struct`;
-`CollectionField` represents a scalar or `Struct` collection. A `Struct` is a reusable nested record shape; it stores
-`TablePathValueRefMetadata` only while serving navigation and is never a
-`ValueRef`, so it cannot be bound independently.
-Every final table or struct derives from its layer base class. A field's external name
-defaults to its snake-case Python attribute; authors provide `name=` only when
-the physical or external spelling differs. The Python attribute remains a
-typed authoring handle.
-
-```python
-class TargetDetailsStruct(Struct):
-    id: Field[str] = field()
-    symbol: Field[str] = field()
-    description: Field[str | None] = field()
-
-
-class PharmacogenomicsAnnotationTableTemplate(TableTemplate):
-    options = TableTemplateOptions(description="Reusable pharmacogenomics input shape.")
-    target: StructField[TargetDetailsStruct] = struct_field()
-    disease_ids: CollectionField[str] = collection_field(name="diseaseIds")
-    study_id: Field[str] = field(name="studyId")
-    score: Field[float] = field()
-
-
-class OpenTargetsPharmacogenomicsAnnotationTable(
-    PharmacogenomicsAnnotationTableTemplate, Table,
-):
-    pass
-```
-
-`TableTemplate` is optional: ordinary mixins remain valid when they do not
-need declaration options. `Table` creates a distinct final table class. Only final
-concrete tables may be grouped, used in projections, or source-bound. This
-prevents binding a reusable shape or inheriting a concrete table accidentally.
-
-Table field descriptors are themselves `TablePathValueRef` values. Structured
-navigation first yields a non-value `Struct` proxy, then a typed value
-reference at a terminal field:
-
-```python
-OpenTargetsPharmacogenomicsAnnotationTable.target          # ValueRef[TargetDetailsStruct]
-OpenTargetsPharmacogenomicsAnnotationTable.target.m         # TargetDetailsStruct, not a ValueRef
-OpenTargetsPharmacogenomicsAnnotationTable.target.m.symbol  # ValueRef[str]
-OpenTargetsPharmacogenomicsAnnotationTable.disease_ids    # ValueRef[Sequence[str]]
-```
-
-Types distinguish nullable fields, nullable collections, and nullable items:
+Authors express nullability with normal Python unions:
 
 ```python
 Field[str | None]
-CollectionField[str]
-CollectionField[str | None]
+Field[Array[int] | None]
+Field[Array[str | None]]
+Field[Array[str | None] | None]
 ```
 
-Graph properties use the same type-driven convention. A nullable table field
-may be bound directly to a `PropertySlot[T | None]`; a JSON `null` remains a
-null graph-record value. It cannot be bound to a required `PropertySlot[T]`
-without an explicit expression that establishes a non-null value.
+The framework normalizes these into immutable logical types:
 
-Navigating a collection preserves its cardinality: it cannot select an item or
-duplicate a row implicitly.
-
-Collection navigation uses an explicit element proxy. The resulting field path
-retains every collection segment rather than requiring an author to introduce
-a temporary item variable. `expand` requests row-context expansion for that
-path; compilation derives and shares the required parent-first unnests:
-
-```python
-class AssociationTable(Table):
-    evidence: CollectionField[EvidenceStruct] = collection_field()
-
-
-AssociationTable.evidence.e.disease_id  # collection-valued ValueRef[str]
-AssociationTable.evidence.e.labels      # collection-valued ValueRef[Sequence[str]]
+```text
+UnitType(name)
+CustomType(module, qualname)
+StructType(module, qualname)
+ArrayType(item)
+NullableType(value)
 ```
 
-## 6. Table groups and physical sources
+`Nullable[T]` is an internal typing marker corresponding to
+`NullableType(T)`. Authors do not use it in declarations. Canonical nullable
+types are flattened and never wrap another `NullableType`.
 
-`TableGroup` provides named nested groups of concrete tables. Group and table
-names form a catalog path, while Python attributes remain typed handles.
-Groups may include only final tables or other table groups. Empty groups,
-cycles, duplicate final-table inclusion, and duplicate catalog paths are
-rejected.
+Graph properties and graph identity keys must be scalar. Build and endpoint
+keys must additionally be non-null. Arrays and structs remain valid expression
+values but cannot be graph properties or keys.
+
+## 4. Unified fields and data declarations
+
+Every table or struct member uses the same descriptor:
 
 ```python
-class OpenTargetsOutputTableGroup(TableGroup):
-    options = TableGroupOptions(
-        members=(OpenTargetsPharmacogenomicsAnnotationTable,),
+class Field[T]: ...
+
+def field[T](
+    *,
+    name: str | None = None,
+    description: str | None = None,
+    annotations: Sequence[Annotation] = (),
+) -> Field[T]: ...
+```
+
+There are no separate scalar, struct, or collection field classes.
+
+```python
+class LocationStruct(Struct):
+    city: Field[str] = field()
+    room: Field[str | None] = field()
+
+
+class EventStruct(Struct):
+    code: Field[str] = field()
+    labels: Field[Array[str | None] | None] = field()
+
+
+class InputTable(Table):
+    identifier: Field[str] = field()
+    label: Field[str] = field()
+    description: Field[str | None] = field()
+    optional_count: Field[int | None] = field()
+    optional_flag: Field[bool | None] = field()
+    location: Field[LocationStruct | None] = field()
+    events: Field[Array[EventStruct] | None] = field()
+```
+
+Descriptor access produces a typed expression. The runtime wrapper is selected
+from the normalized logical type, and the overload surface exposes the same
+specialized type to static analysis.
+
+Final declaration bases are `Table`, `Struct`, `Projection`, and `TableGroup`.
+`TableTemplate` remains available for reusable table shapes carrying framework
+metadata. Only final `Table` declarations may be source-bound or placed in
+table groups.
+
+Framework `options` values are class metadata, not fields or constructor
+arguments. Descriptions default to class docstrings unless explicitly
+overridden.
+
+## 5. Typed expressions
+
+`ValueExpression[T]` is the common bindable output. A field reference is one
+canonical expression variant; it is not a separate `ValueRef` object.
+
+Specialized expression families expose only valid operations:
+
+```text
+IntValueExpression       add, sub
+FloatValueExpression     add, sub
+StrValueExpression       prepend, append
+BoolValueExpression      not_, and_, or_
+ArrayValueExpression     each
+StructValueExpression    pick
+NullableValueExpression  or_else, when_present
+```
+
+Custom scalar, nullable array, nullable struct, and nullable item combinations
+have corresponding specialized wrappers. Operations preserve the most
+specific useful result type:
+
+```python
+InputTable.identifier.prepend("input::")
+InputTable.optional_count.or_else(0).add(1)
+InputTable.optional_flag.when_present().not_()
+```
+
+Portable literals are created with `value_expression(...)`. Null, empty-array,
+and all-null-array literals require an explicit logical type. Struct and custom
+type values cannot be embedded as literals.
+
+### Struct selection
+
+Struct navigation uses `pick` with a selector:
+
+```python
+city = InputTable.location.pick(lambda value: value.city)
+```
+
+Fields read through the selector are `PickedField` path tokens, not standalone
+expressions. A token records its logical type and declaring struct. The parent
+expression turns it into a canonical field reference or `struct_field`
+operation.
+
+Nullability propagates through the whole path. Selecting a required field from
+a nullable struct produces a nullable result. Selecting an already-nullable
+field does not create nested nullability:
+
+```python
+InputTable.location.pick(lambda value: value.city)  # nullable string
+```
+
+### Array expansion
+
+`each()` explicitly converts an array value into one row per item:
+
+```python
+event = InputTable.events.each()
+label = event.pick(lambda value: value.labels).each()
+```
+
+A nullable array produces no rows when null. Item nullability is independent:
+expanding `Array[T | None]` produces a nullable item expression.
+
+Each `each()` records an `expand` row effect with a stable scope derived from
+the logical field path. Repeated expressions with the same scope share one
+expansion. Nested scopes are planned parent-first.
+
+### Null handling
+
+A `NullableValueExpression` deliberately exposes no type-specific operations
+until the author chooses null semantics:
+
+- `or_else(value)` replaces null and returns the non-null specialized family;
+- `when_present()` filters the containing relational product when the value is
+  null and returns the non-null specialized family.
+
+These operations differ semantically. `or_else` preserves the row;
+`when_present` adds a local filter row effect. A projection or binding owns
+that effect, so it cannot change a sibling product.
+
+## 6. Projections
+
+A projection is a named logical data product. Its outputs use
+`projection_field(...)`:
+
+```python
+event = InputTable.events.each()
+
+
+class EventProjection(Projection):
+    input_id = projection_field(InputTable.identifier)
+    code = projection_field(event.pick(lambda value: value.code))
+    label = projection_field(
+        event.pick(lambda value: value.labels).each().or_else("unknown")
     )
 ```
 
-`bind_source` attaches a final table or table group to physical configuration: location,
-format, partition layout, credential reference, version, and provenance. Group
-bindings expand to canonical `BoundTable` definitions.
+Reading `EventProjection.code` returns a field-reference expression to the
+materialized projection output, not the source implementation. Consequently,
+projections may consume other projections without embedding or duplicating
+their row plans.
+
+Projection inputs are derived from expression references; there is no separate
+input list. The projection dependency graph must be acyclic. Every projection
+has one driving logical source. Additional sources require an explicit lookup
+facility; implicit cross products are rejected.
+
+## 7. Topology and graph bindings
+
+Topology declares graph meaning independently of input data:
 
 ```python
-open_targets_release = bind_source(
-    target=OpenTargetsOutputTableGroup,
-    config=DataSourceConfig(
-        location="s3://example/open-targets/2025-01",
-        format=InputFormat.PARQUET,
-        layout="{group_path}/{table_name}/**/*.parquet",
-        credentials=environment_credential("PHARMACOGENOMICS_S3"),
-        version="2025-01",
+class InputNode(Node):
+    label: PropertySlot[str] = property()
+    description: PropertySlot[str | None] = property()
+
+
+class ContainsEdge(Edge[InputNode, InputNode]):
+    score: PropertySlot[float] = property()
+```
+
+`PropertySlot[T]` is the static constructor contract for an authoring
+expression of type `T`. Property declarations remain separate metadata; graph
+properties do not inherit from expression objects.
+
+Expressions bind directly. There is no `bind(...)` wrapper:
+
+```python
+input_binding = node_binding(
+    target=InputNode,
+    build_key=InputTable.identifier.prepend("input::"),
+    properties=InputNode(
+        label=InputTable.label,
+        description=InputTable.description,
     ),
-    options=SourceBindingOptions(annotations=[...]),
 )
 ```
 
-Many sources may be capable of binding a logical table, but a concrete build
-must resolve each required table to exactly one bound table or issue an
-ambiguity diagnostic. Source selection belongs to build composition, never to
-projection semantics.
+`node_binding` requires a non-null scalar build key. `edge_binding` requires
+non-null scalar build, source, and target keys. Keys may use any supported
+scalar type. Property expressions must exactly match their declared logical
+type, except that a non-null value may satisfy a nullable property.
 
-Dynamic tables are optional. An unasserted dynamic field is `Unknown`, not
-`Any`, and cannot silently satisfy an incompatible graph property mapping:
+A binding owns its complete relational row context. Expansions and filters in
+one binding never alter another binding, even when both refer to the same
+table or projection.
 
-```python
-annotations = bind_source(target=DynamicTable(), config=csv_config)
-study_id = annotations.field("study_id")                 # DynamicField[Unknown]
-score = annotations.field("score", as_type=float)        # DynamicField[float]
-```
+## 8. Names, options, and annotations
 
-Typed and dynamic declarations compile to the same table and field-reference
-IR.
+Every declaration has a stable logical name. Explicit `options.name` wins;
+otherwise names are inferred in snake case. One matching terminal layer suffix
+is removed, for example `InputTable` becomes `input`, `InputNode` becomes
+`input`, and `ContainsEdge` becomes `contains`.
 
-## 7. Projections and value expressions
+Field, property, and projection-field names default to their Python attribute
+name converted to snake case. One trailing underscore escapes a reserved
+framework attribute such as `options`.
 
-A projection is a logical data product. Its fields are inferred from
-`projected_field(...)`, distinct from contract `field(...)`. It references
-final concrete tables and derives its logical input requirements from its
-expressions; it has no separate `inputs` argument.
+Annotations are frozen dataclass values with a stable `namespace` and
+`annotation_id`. Their fields become JSON-compatible arguments. Annotations
+may be attached to declarations, fields, properties, projections, bindings,
+and sources. The blueprint stores only the portable namespace, ID, and frozen
+arguments; it never stores the annotation Python class.
 
-```python
-class AssociationProjection(Projection):
-    target_id = projected_field(OpenTargetsPharmacogenomicsAnnotationTable.target.m.id)
-    target_symbol = projected_field(OpenTargetsPharmacogenomicsAnnotationTable.target.m.symbol)
-    disease_id = projected_field(
-        collection.expand(OpenTargetsPharmacogenomicsAnnotationTable.disease_ids)
-    )
-    study_id = projected_field(OpenTargetsPharmacogenomicsAnnotationTable.study_id)
-```
+Unknown annotations are preserved. Module compilers receive the complete
+annotated blueprint and may interpret any annotations they recognize.
 
-Portable expression namespaces are direct authoring APIs:
+## 9. Table groups and physical sources
 
-```python
-value.literal("unknown")                                  # Expression[str]
-value.literal([["a"], [None]])                            # nested literal expression
-value.concat("annotation::", AssociationProjection.study_id)
-value.coalesce(AssociationProjection.target_name, "unknown")
-value.cast(AssociationProjection.score, "DOUBLE")         # Expression[float]
-```
+`TableGroup` gives final tables a named nested catalog structure. Groups may
+contain final tables or other groups. Empty groups, cycles, duplicate table
+inclusion, and duplicate catalog paths are rejected.
+
+`bind_source` associates a final table or group with a physical configuration:
 
 ```python
-type PermittedExpressionValue = (
-    Scalar | Sequence[PermittedExpressionValue] | Struct | None
-)
-type ExpressionValue[T: PermittedExpressionValue] = (
-    Scalar | Sequence[T] | Struct
-)
-type ExpressionInput[T: PermittedExpressionValue] = (
-    T | ValueRef[T] | Expression[T]
+source = bind_source(
+    target=InputTable,
+    config=DataSourceConfig(
+        location="data/input.json",
+        format=InputFormat.JSON,
+        version="2026-08",
+    ),
 )
 ```
 
-`PermittedExpressionValue` is the closed recursive vocabulary carried by
-`ValueRef[T]` and `Expression[T]`. `ExpressionValue[T]` describes a non-null
-expression result; its type parameter preserves the item type of a sequence.
-Literal construction is narrower than general expression input: structs are
-declaration values and cannot be embedded as literals.
+Group source bindings require a layout using `{group_path}` and
+`{table_name}`. They expand into canonical per-table source definitions.
 
-`ValueRef[T]` and `Expression[T]` are deliberately different types.
-`TablePathValueRef[T]` is the table-owned implementation of `ValueRef[T]` and
-keeps its table/path details inside `_metadata`; the expressions package knows
-only the portable `ValueRef[T]` contract. `StructField.m` and
-`CollectionField.e` return a `Struct` proxy, not a `ValueRef`, so an
-intermediate struct cannot be supplied to an expression. A terminal member,
-such as `StudyTable.details.m.description`, is a `ValueRef[str | None]`.
-`Expression[T]` represents a portable value computation. A value reference
-never becomes an expression or graph-property slot through inheritance or
-casting.
+Definitions contain credential references, never resolved credentials. A
+concrete compilation resolves every required table to exactly one effective
+source. Explicit compile-time source overrides replace matching blueprint
+sources without mutating logical declarations.
 
-The expression namespaces accept `ExpressionInput[T]` directly and normalize
-their inputs internally. `bind(...)` is the separate graph-facing boundary: it
-accepts an `ExpressionInput[T]` and returns an `ExpressionBinding[T]`.
-`node_binding(...)` requires an `ExpressionBinding[str]` build key;
-`edge_binding(...)` requires `ExpressionBinding[str]` values for its build,
-source, and target keys. Component property constructors likewise receive
-`ExpressionBinding[T]` values. Binding models retain these explicit wrappers;
-compiled IR retains their normalized expressions, never disguised field paths.
+## 10. Canonical expression and blueprint IR
 
-- `value` provides `literal`, `concat`, `coalesce`, `cast`,
-  `deterministic_uuid`, and `struct_field`.
-- `collection.expand` converts a declared sequence value into expanded
-  row cardinality and exposes its item type.
-- `lookup.one` declares singular key-based enrichment.
+Expression IR is immutable and engine-neutral:
 
-`expand` makes one output-row context per item and repeats sibling scalar
-values. It rejects values that have neither a sequence item type nor declared
-collection cardinality. `lookup.one` requires a key that identifies at most
-one record; duplicate and missing-match policies belong to compilation and
-diagnostics rather than implicit Python evaluation.
-
-Authors reference nested terminal fields without managing temporary unnest
-items. For example, the compiler recognises the shared `evidence` prefix and
-lowers the two requested expansions into a parent-first plan:
-
-```python
-class EvidenceProjection(Projection):
-    disease_id = projected_field(collection.expand(Association.evidence.e.disease_id))
-    evidence_label = projected_field(collection.expand(Association.evidence.e.labels))
+```text
+LiteralExpression
+FieldReferenceExpression(source, path, traversals)
+OperationExpression(operator, arguments, parameters)
 ```
 
-This expresses one expansion over `evidence` followed by one over each
-evidence record's `labels`; the authoring declaration contains no temporary
-row-context variable or target-specific unnest plan.
+Every expression carries its canonical logical type and `RowSemantics`.
+Supported row effects are ordered, immutable `expand` effects with scopes and
+`filter` effects. Codecs serialize logical types, expressions, annotations,
+and frozen JSON values without importing authoring classes.
 
-The expression IR records table roles, traversal, cardinality, lookup meaning,
-and ambiguity resolution without exposing a SQL query plan.
+`create_blueprint` validates declarations and produces `BuildBlueprint`
+schema version 2. It contains immutable definitions for:
 
-## 8. Graph bindings and identity
+- structs and fields;
+- final tables and fields;
+- projections and output expressions;
+- nodes, edges, and properties;
+- node and edge bindings;
+- source bindings;
+- configured workflow modules.
 
-A graph binding maps expressions to a declared node or edge. It neither
-acquires data nor selects a target. Its logical inputs are derived from the
-expressions it uses.
+Definitions use stable symbol IDs and logical names. The blueprint contains no
+Python class objects. Its JSON codec is deterministic and round-trippable.
 
-```python
-target_from_pharmacogenomics = node_binding(
-    target=TargetNode,
-    build_key=bind(AssociationProjection.target_id),
-    properties=TargetNode(symbol=bind(AssociationProjection.target_symbol)),
-    options=BindingOptions(annotations=[...]),
-)
-
-annotation_associated_with_disease = edge_binding(
-    target=AssociatedWithEdge,
-    build_key=bind(value.deterministic_uuid(AssociationProjection.study_id)),
-    source_build_key=bind(value.concat("annotation::", AssociationProjection.study_id)),
-    target_build_key=bind(AssociationProjection.disease_id),
-    properties=AssociatedWithEdge(score=bind(AssociationProjection.score)),
-)
-```
-
-`properties` instantiates the graph contract with `ExpressionBinding[T]`
-values created by `bind(...)`; it is not a dictionary keyed by property
-objects. The binding factories couple the target component type to the
-properties instance type. Build and endpoint keys also use `bind(...)`, making
-every graph-facing value explicit. Build keys are build-time identity handles,
-not topology identifiers or persisted graph properties.
-
-`BindingOptions` and `SourceBindingOptions` attach annotations to the concrete
-mapping and acquisition choices respectively. They do not alter graph meaning
-unless a compiler module recognises and lowers their annotations.
-
-An executable build must declare or inherit policies for null keys, duplicate
-keys, node property conflicts, edge deduplication, and generated identities.
-Generated portable IDs must be deterministic from declared stable inputs and a
-namespace. Random UUIDs are excluded from reproducible builds.
-
-## 9. Compilation and execution
-
-`create_blueprint` consumes a complete set of topology, data declarations,
-projections, graph bindings, default source bindings, and post-processing
-declarations. It produces an immutable `BuildBlueprint`, validates
-compatibility and resolves expression/cardinality semantics. Incomplete work remains Python source rather than becoming a
-partially-specified document IR.
-
-As an alternative to passing bindings and sources explicitly,
 `create_blueprint(namespace_path=...)` recursively imports an importable Python
-namespace and discovers its module-level graph-binding and source-binding
-objects. Re-exported objects are deduplicated by identity; discovery never
-invokes arbitrary factory functions. Explicit bindings and sources may be
-added to the discovered declarations.
+namespace and discovers module-level binding and source objects. Re-exported
+objects are deduplicated by identity. Discovery never invokes arbitrary
+factories.
 
-It serialises every annotation into canonical immutable IR. The blueprint and
-contract preserve annotations without interpretation; annotations contribute to
-their fingerprints. During `compile_blueprint`, every module compiler receives
-the complete annotated blueprint and may derive serialisable workflow-step
-payloads from annotations in any namespace. Runtime receives only the frozen
-resulting workflow and does not resolve annotation classes.
+## 11. Relational planning and DuckDB lowering
 
-`compile_blueprint` combines a blueprint with optional source/target selections
-and serialisable compilation settings. It resolves permitted source, target, and lowering
-overrides without mutating graph semantics and creates an immutable
-target-specific `BuildContract`. The contract contains effective source
-versions and credential references, DuckDB SQL, target-writing instructions,
-binding origins, and blueprint/execution-plan fingerprints. It never
-contains resolved credentials.
+Canonical expressions lower in two stages:
 
-A contract contains one dependency-aware execution plan. Its relational steps
-produce binding, aggregation, and normalised component relations; validation
-steps emit diagnostics; terminal target-write steps consume final graph
-relations. Each binding step owns its complete relational row context, so a
-projection expansion used by one binding cannot change another binding's
-semantics.
+```text
+expression outputs
+      │
+      v
+RelationPlan(scans, expands, filters, outputs)
+      │
+      v
+engine-specific DuckDB SQL
+```
 
-`build` consumes only `BuildContract` and `BuildRuntime`. It accepts explicit
-output, working, and temporary directories. The working directory defaults to
-the output directory, while temporary storage defaults to the system temporary
-location. The output directory receives published artifacts plus the serialised
-build contract and workflow report. `BuildRuntime` supplies resolved
-credentials plus operational settings such as resource limits and logging. The build layer does not
-interpret authoring classes, graph bindings, or expression values. It executes
-the contract's relational and diagnostic steps, then performs only its terminal
-target-write steps.
+`lower_product` plans one projection or binding. It derives its driving scan,
+deduplicates shared expansions, orders nested expansions parent-first, and
+collects `when_present` filters. Plans remain independent of SQL syntax.
 
-Target modules configure output files with paths relative to the output
-directory. Workflow steps may use the separate working directory for durable
-intermediate artifacts, including materialised projections, and the temporary
-directory for disposable scratch data.
+The DuckDB engine lowers scans, struct access, `UNNEST`, filters, numeric,
+string, Boolean, and coalesce operations into inspectable SQL. Relational
+products are materialized as temporary tables so downstream projections and
+bindings reference stable relations.
 
-Execution:
+## 12. Compilation, workflow, and execution
 
-1. Create the reusable build blueprint.
-2. Compile and validate the concrete build contract.
-3. Resolve runtime credentials and operational settings.
-4. Lower each binding to a self-contained, inspectable DuckDB record plan.
-5. Execute relational work with scan, filter, and projection pushdown.
-6. Stream the resulting normalised node and edge records to a target writer.
-7. Apply supported target actions and emit counts, diagnostics, provenance, and
-   plan fingerprints.
+`compile_blueprint` validates blueprint schema version 2, resolves effective
+sources and overrides, compiles the core module and configured extension
+modules, and assembles one dependency-aware `BuildContract`.
 
-DuckDB owns scans, joins, unnests, aggregations, casts, and deterministic
-expression evaluation. Arbitrary Python transformations are outside the
-portable MVP.
+The contract includes:
 
-## 10. Targets, organisation, and practices
+- the complete blueprint and its fingerprint;
+- effective sources and credential references;
+- build settings and explicit overrides;
+- frozen module definitions and workflow steps;
+- inspectable SQL payloads;
+- the workflow fingerprint.
 
-Targets consume a stable normalised graph-record protocol and declare their
-capabilities. Unsupported annotations follow a declared strictness policy:
-error, warning, or preserve-without-action. The initial target is a file
-interchange writer; Neo4j is the first database target.
+It never contains resolved credentials.
+
+The core module creates source-materialization, projection, binding, and graph
+aggregation steps. Extension modules claim artifacts by semantic
+`ArtifactRole` rather than temporary relation names. Current supplied modules
+include exact duplicate collapse, compatible-fact merging, conflicting-value
+validation, and file output.
+
+`build` consumes only `BuildContract` and `BuildRuntime`. It imports the module
+classes named in the contract, validates runtime configuration, executes ready
+steps in dependency order, propagates failed or skipped inputs, and verifies
+every returned artifact against its declared output slot.
+
+The output directory receives published artifacts, `build_contract.json`, and
+`build_report.json`. The working directory defaults to the output directory;
+temporary storage defaults to a system temporary directory. Runtime
+credentials are resolved through runtime services.
+
+## 13. Edit-time generated packages
+
+Data contracts may be generated at edit time from typed, inert requests in an
+author-owned package `__init__.py`. Generated tables and structs are ordinary
+final declarations and participate in blueprint compilation exactly like
+handwritten declarations.
+
+Compilation never invokes providers or repairs stale generated content.
+`kbs generate --check` is the canonical freshness check. The complete request,
+ownership, check, watch, and pruning contract is defined in
+`EDIT_TIME_GENERATED_PACKAGE_SPEC.md`.
+
+## 14. Project organization and practices
 
 ```text
 kg_build_system/
-  specification/     # shared foundations
-  topology/          # graph declarations and codecs
-  table/             # contracts, sources, projections
-  binding/           # graph bindings and expression constructors
-  compile/           # abstract and concrete definitions
-  build/             # DuckDB execution and reports
-  targets/file/      # interchange output
-  targets/neo4j/     # Neo4j output
+  types/             # canonical logical types and codecs
+  expressions/       # typed authoring families and expression IR
+  table/             # unified fields, tables, structs, projections, sources
+  topology/          # nodes, edges, and property declarations
+  binding/           # direct node and edge bindings
+  compile/ir/        # immutable blueprint schema version 2
+  relational/        # engine-neutral row planning
+  engines/duckdb/    # SQL lowering
+  modules/           # core, operators, and targets
+  workflow/          # contract execution and reports
+  code_generation/   # edit-time generated packages
 demo/                 # importable end-to-end example
-tests/                # feature-oriented tests by layer
+tests/                # runtime and static typing contracts
 ```
-
-Dependencies flow `specification` → (`topology`, `table`) → `binding` →
-`compile` → `build`; targets depend on compiled/build protocols, never the
-reverse.
 
 Authoring practices:
 
-- Keep topology and graph bindings discoverable in a node-first layout.
-- Let contract fields use inferred snake-case names; use explicit external
-  names only where the source spelling differs.
-- Use templates for reusable shape and final tables for inputs/bindings.
-- Make collection, lookup, missing-value, and identity policy explicit.
-- Keep physical sources and provenance in source bindings; keep secrets only in
-  runtime configuration.
-- Treat compiled definitions and generated SQL as inspectable development
-  artifacts.
+- Use `Field[T]` for every logical table and struct member.
+- Express nullability with `T | None`; do not use internal `Nullable[T]` in
+  declarations.
+- Use `pick` and `each` so nested selection and row production remain explicit.
+- Choose `or_else` versus `when_present` deliberately.
+- Keep topology and bindings discoverable in a node-first layout.
+- Use projections to name reusable data products and isolate expansion scopes.
+- Keep physical locations and provenance in source bindings.
+- Treat generated packages, blueprint JSON, workflow contracts, and SQL as
+  inspectable development artifacts.
+- Check static contracts with Pyright as well as runtime behavior.
 
-## 11. Delivery scope
+## 15. Delivery scope
 
-### First vertical slice
+### Implemented
 
-- specification/declaration foundations and class-based topology;
-- typed scalar/nested tables with one concrete CSV or Parquet source per table;
-- simple projections, scalar expressions, and one explicit `expand`;
-- deterministic node/edge identity with duplicate and conflict policy;
-- both compiled definitions, inspectable DuckDB SQL, file output, and an
-  importable demonstration.
+- canonical logical types and type codecs;
+- unified typed fields for scalars, structs, arrays, and custom scalar types;
+- specialized expressions with explicit null and row semantics;
+- nested `pick`, nested/shared `each`, and projection chaining;
+- direct typed node and edge bindings;
+- annotations across declaration, binding, and source layers;
+- immutable blueprint schema version 2 and deterministic JSON codecs;
+- engine-neutral relational plans and DuckDB lowering;
+- dependency-aware workflow contracts and execution reports;
+- file graph output and supplied validation/merge/deduplication modules;
+- edit-time generated table and table-group packages;
+- an importable demo combining deep nesting, null handling, expansions, and
+  multiple projection layers.
 
-### Implemented MVP extensions
+### Remaining extensions
 
-- table templates, nested table groups, and group source bindings;
-- universal serialisable annotations across declaration, binding, and source
-  layers; module compilers can inspect and interpret preserved annotations.
-
-### Remaining MVP extensions
-
-- `lookup.one` uniqueness diagnostics and `collect` with explicit grouping;
-- dynamic fields guarded by `Unknown`;
-- build reports, target capability checks, ontology annotations, and minimal
-  Neo4j output.
+- explicit lookup planning with uniqueness and missing-match diagnostics;
+- grouping and collection aggregation;
+- dynamic fields guarded by an `Unknown` type;
+- broader target capability checks and ontology annotations;
+- a minimal Neo4j target;
+- richer source schema metadata, including nested-member nullability where the
+  physical schema can provide it.
 
 ### Future
 
-- YAML/JSON import, code generation, and explicit synchronisation;
-- schema generation from external metadata;
-- distributed, scheduled, incremental, and CDC builds;
-- arbitrary Python transformations, target migrations, additional databases,
-  graphical editing, and cross-binding optimisation.
+- additional generation providers and schema formats;
+- distributed, scheduled, incremental, and change-data-capture builds;
+- arbitrary non-portable Python transformations;
+- target migrations and additional database targets;
+- graphical editing and cross-product optimization.
 
-## 12. Success criteria
+## 16. Success criteria
 
-The first slice succeeds when a demo declares topology, typed input contracts,
-a source, projection, and node/edge bindings; compiles them to inspectable SQL;
-and writes a deterministic file graph with diagnostics and provenance.
-The demo includes nullable target, disease, and study descriptions with both
-populated and JSON-null fixture values, demonstrating type-driven nullability
-through its compiled graph records.
+The implemented vertical slice succeeds when one importable demo:
 
-The MVP succeeds when the same declared graph can be composed with valid
-sources and file/Neo4j targets, producing equivalent normalised graph records
-and applying supported annotations according to capability policy.
+1. obtains a typed table contract from edit-time generation;
+2. declares deep nested fields and nullable top-level values;
+3. composes nested expansions and chained projections;
+4. binds nodes and edges directly from typed expressions;
+5. compiles to deterministic blueprint JSON, a frozen workflow, and
+   inspectable DuckDB SQL;
+6. executes to deterministic normalized graph records with a build report.
+
+The broader MVP succeeds when the same blueprint can be composed with multiple
+valid sources and equivalent file/database targets while preserving normalized
+graph records, annotations, diagnostics, and fingerprints.
