@@ -1,4 +1,4 @@
-"""Core relational planning and DuckDB lowering over the version-2 IR."""
+"""Plan and lower blueprint expressions into DuckDB SQL."""
 from __future__ import annotations
 
 from collections.abc import Mapping

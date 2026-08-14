@@ -1,12 +1,15 @@
-"""Immutable version-2 blueprint declaration IR."""
+"""Immutable blueprint declaration models."""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal, TypeAlias
+from typing import Any, Final, Literal, TypeAlias
 
 from ...expressions import ExpressionNode
 from ...expressions.ir import FrozenJson
 from ...types import LogicalType
+
+
+BLUEPRINT_SCHEMA_VERSION: Final = 1
 
 
 @dataclass(frozen=True, slots=True)
@@ -136,7 +139,7 @@ class BuildBlueprint:
     bindings: tuple[BindingDefinition, ...]
     sources: tuple[SourceDefinition, ...] = ()
     modules: tuple[BlueprintModule, ...] = ()
-    schema_version: Literal[2] = 2
+    schema_version: Literal[1] = 1
 
     def model_dump(self, *, mode: str = "python", **_: Any) -> dict[str, Any]:
         from .codec import encode_blueprint
@@ -163,7 +166,7 @@ class BuildBlueprint:
 
 
 __all__ = [
-    "AnnotationDefinition", "BindingDefinition", "BlueprintModule", "BuildBlueprint",
+    "AnnotationDefinition", "BindingDefinition", "BLUEPRINT_SCHEMA_VERSION", "BlueprintModule", "BuildBlueprint",
     "ComponentDefinition", "EdgeBindingDefinition", "FieldDefinition", "NodeBindingDefinition",
     "ProjectionDefinition", "ProjectionFieldDefinition", "PropertyDefinition", "SourceDefinition",
     "StructDefinition", "TableDefinition",

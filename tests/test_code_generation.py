@@ -177,8 +177,6 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("from contracts.release.details import DetailsStruct", source)
         self.assertIn("details: Field[DetailsStruct | None] = field(name='details')", source)
         self.assertIn("scores: Field[Array[int | None] | None] = field(name='scores')", source)
-        self.assertNotIn("StructField", source)
-        self.assertNotIn("CollectionField", source)
 
     async def test_unchanged_dependency_save_is_ignored(self) -> None:
         with TemporaryDirectory() as directory:

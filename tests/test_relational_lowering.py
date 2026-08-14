@@ -72,7 +72,7 @@ class RelationalLoweringTests(unittest.TestCase):
         self.assertIn("WHERE NOT", sql)
         self.assertIn("CONCAT", sql.upper())
 
-    def test_compilation_preserves_the_v2_blueprint_in_contract_json(self) -> None:
+    def test_compilation_preserves_the_blueprint_in_contract_json(self) -> None:
         source = bind_source(
             target=LoweringInput,
             config=DataSourceConfig("input.json", format=InputFormat.JSON),

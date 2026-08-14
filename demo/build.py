@@ -1,7 +1,6 @@
 from pathlib import Path
 
-from kg_build_system import build, compile_blueprint, create_blueprint
-from kg_build_system.compile.models import BuildBlueprint
+from kg_build_system import BuildBlueprint, build, compile_blueprint, create_blueprint
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule,
     FileModule,

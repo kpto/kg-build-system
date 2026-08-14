@@ -1,34 +1,56 @@
-"""Built-in module for portable DuckDB workflow steps and artifact roles.
-
-``CoreArtifactRoles`` is the extension-facing vocabulary for artifacts
-published by core graph work.  Modules should use it instead of role strings.
-"""
+"""Core workflow compilation, execution, and artifact roles."""
 from __future__ import annotations
 
 from dataclasses import dataclass
 from typing import Any, ClassVar, Literal, cast
 
-from ...compile.ir import BuildBlueprint
+from ...compile.ir import BuildBlueprint, ProjectionDefinition
 from ...compile.models import (
-    ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference,
-    OutputSlot, WorkflowStep,
+    ArtifactRole,
+    CollectionInputSlot,
+    ModuleDefinition,
+    ModuleReference,
+    OutputSlot,
+    WorkflowStep,
 )
-from ...workflow.interfaces import CompilationContext, Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, WorkflowStepDraft
+from ...workflow.interfaces import (
+    CompilationContext,
+    Module,
+    ModuleCompilationResult,
+    ModuleCompiler,
+    ModuleExecutor,
+    WorkflowStepDraft,
+)
 from ...workflow.models import (
-    Artifact, DisruptedExecutionContext, ExecutionContext,
-    ExecutorFactoryContext, StepOutcome, StepStatus,
+    Artifact,
+    DisruptedExecutionContext,
+    ExecutionContext,
+    ExecutorFactoryContext,
+    StepOutcome,
+    StepStatus,
 )
-from .lowering import binding_sources, lower_binding_sql, lower_projection_sql, projection_sources
+from .lowering import (
+    binding_sources,
+    lower_binding_sql,
+    lower_projection_sql,
+    projection_sources,
+)
 
 
-def _ordered_projections(blueprint: BuildBlueprint):
+def _quote_identifier(value: object) -> str:
+    return str(value).replace('"', '""')
+
+
+def _ordered_projections(
+    blueprint: BuildBlueprint,
+) -> tuple[ProjectionDefinition, ...]:
     pending = {projection.name: projection for projection in blueprint.projections}
-    completed: set[str] = set()
-    result = []
+    ordered: list[ProjectionDefinition] = []
     while pending:
         ready = sorted(
             (
-                projection for projection in pending.values()
+                projection
+                for projection in pending.values()
                 if not (projection_sources(projection) & pending.keys())
             ),
             key=lambda projection: projection.symbol_id,
@@ -36,57 +58,66 @@ def _ordered_projections(blueprint: BuildBlueprint):
         if not ready:
             raise ValueError("projection dependency graph contains a cycle")
         for projection in ready:
-            result.append(projection)
-            completed.add(projection.name)
+            ordered.append(projection)
             del pending[projection.name]
-    return tuple(result)
+    return tuple(ordered)
 
 
 @dataclass(frozen=True)
 class GraphRecordArtifact:
-    """The component described by a core graph-record role."""
-
     kind: Literal["node", "edge"]
     component: str
 
 
 class CoreArtifactRoles:
-    """Stable semantic roles produced by the core module.
-
-    ``graph_records`` and ``published`` are the supported extension-facing
-    roles.  Temporary DuckDB relation names are executor details, never
-    workflow vocabulary.
-    """
+    """Stable semantic roles produced and consumed by graph workflow modules."""
 
     NAMESPACE = "core"
 
     @classmethod
-    def graph_records(cls, kind: Literal["node", "edge"], component: str) -> ArtifactRole:
-        return ArtifactRole(namespace=cls.NAMESPACE, name=f"graph.{kind}.{component}")
+    def graph_records(
+        cls, kind: Literal["node", "edge"], component: str,
+    ) -> ArtifactRole:
+        return ArtifactRole(
+            namespace=cls.NAMESPACE,
+            name=f"graph.{kind}.{component}",
+        )
 
     @classmethod
     def binding(cls, symbol_id: str) -> ArtifactRole:
-        return ArtifactRole(namespace=cls.NAMESPACE, name=f"binding.{symbol_id}")
+        return ArtifactRole(
+            namespace=cls.NAMESPACE,
+            name=f"binding.{symbol_id}",
+        )
 
     @classmethod
     def table(cls, name: str) -> ArtifactRole:
-        """The relation materialised from one logical source table."""
         return ArtifactRole(namespace=cls.NAMESPACE, name=f"data.table.{name}")
 
     @classmethod
     def projection(cls, name: str) -> ArtifactRole:
-        """The relation materialised for one logical projection."""
-        return ArtifactRole(namespace=cls.NAMESPACE, name=f"data.projection.{name}")
+        return ArtifactRole(
+            namespace=cls.NAMESPACE,
+            name=f"data.projection.{name}",
+        )
 
     @classmethod
-    def graph_record_identity(cls, role: ArtifactRole) -> GraphRecordArtifact | None:
+    def graph_record_identity(
+        cls, role: ArtifactRole,
+    ) -> GraphRecordArtifact | None:
         if role.namespace != cls.NAMESPACE:
             return None
         parts = role.name.split(".", 2)
-        if len(parts) != 3 or parts[0] != "graph" or parts[1] not in {"node", "edge"} or not parts[2]:
+        if (
+            len(parts) != 3
+            or parts[0] != "graph"
+            or parts[1] not in {"node", "edge"}
+            or not parts[2]
+        ):
             return None
         return GraphRecordArtifact(
-            kind=cast(Literal["node", "edge"], parts[1]), component=parts[2],
+            kind=cast(Literal["node", "edge"], parts[1]),
+            component=parts[2],
         )
 
     @classmethod
@@ -95,7 +126,9 @@ class CoreArtifactRoles:
 
 
 class CoreCompiler:
-    async def compile(self, context: CompilationContext[Any]) -> ModuleCompilationResult:
+    async def compile(
+        self, context: CompilationContext[Any],
+    ) -> ModuleCompilationResult:
         definition = ModuleDefinition(
             reference=ModuleReference(
                 module_id=CoreModule.ID,
@@ -103,86 +136,218 @@ class CoreCompiler:
                 class_qualname=CoreModule.__qualname__,
                 implementation_version=CoreModule.VERSION,
                 priority=0,
-            ),
+            )
         )
-        drafts: list[WorkflowStepDraft] = []
-        source_map = {source.table: source for source in context.blueprint.sources}
-        source_map.update({override.table: override.override for override in context.overrides.sources})
-        sources = tuple(source_map[name] for name in sorted(source_map))
-        table_relations = {source.table: f"kg_table_{index}" for index, source in enumerate(sources)}
+        sources = self._sources(context)
         projections = _ordered_projections(context.blueprint)
-        projection_relations = {projection.name: f"kg_projection_{index}" for index, projection in enumerate(projections)}
+        table_relations = {
+            source.table: f"kg_table_{index}"
+            for index, source in enumerate(sources)
+        }
+        projection_relations = {
+            projection.name: f"kg_projection_{index}"
+            for index, projection in enumerate(projections)
+        }
         relations = table_relations | projection_relations
-        for source in sources:
-            output = OutputSlot(
-                slot_id=f"core::table.{source.table}.output",
-                artifact_role=CoreArtifactRoles.table(source.table),
+
+        drafts = [
+            self._source_step(source, table_relations[source.table])
+            for source in sources
+        ]
+        drafts.extend(
+            self._projection_step(
+                context.blueprint,
+                projection,
+                projection_relations[projection.name],
+                relations,
+                projection_relations,
             )
-            function = {"csv": "read_csv_auto", "json": "read_json_auto", "parquet": "read_parquet"}[source.format]
-            relation = table_relations[source.table]
-            location = source.location.replace("'", "''")
-            sql = f"SELECT * FROM {function}('{location}')"
-            drafts.append(WorkflowStepDraft(WorkflowStep(
-                step_id=f"core::table.{source.table}", module_id=CoreModule.ID,
-                outputs=(output,), payload={"action": "relation", "relation": relation, "sql": sql, "materialization": "temporary_table"},
-            ), {}))
-        projection_names = set(projection_relations)
-        for index, projection in enumerate(projections):
-            required = projection_sources(projection)
-            input_slot = CollectionInputSlot(slot_id=f"core::projection.{projection.name}.tables")
-            output = OutputSlot(
-                slot_id=f"core::projection.{projection.name}.output",
-                artifact_role=CoreArtifactRoles.projection(projection.name),
+            for projection in projections
+        )
+        drafts.extend(
+            self._binding_step(
+                context.blueprint,
+                binding,
+                index,
+                relations,
+                projection_relations,
             )
-            drafts.append(WorkflowStepDraft(WorkflowStep(
-                step_id=f"core::projection.{projection.name}", module_id=CoreModule.ID,
-                inputs=(input_slot,), outputs=(output,), payload={
-                    "action": "relation", "relation": f"kg_projection_{index}",
-                    "sql": lower_projection_sql(context.blueprint, relations, projection),
-                    "materialization": "temporary_table",
-                },
-            ), {input_slot.slot_id: lambda _input, candidate, required=required, projection_names=projection_names: candidate.artifact_role in tuple(
-                CoreArtifactRoles.projection(name) if name in projection_names else CoreArtifactRoles.table(name)
-                for name in required
-            )}))
-        for index, binding in enumerate(context.blueprint.bindings):
-            relation_names = binding_sources(binding)
-            required_roles = tuple(
-                CoreArtifactRoles.projection(name) if name in projection_relations else CoreArtifactRoles.table(name)
-                for name in relation_names
+            for index, binding in enumerate(context.blueprint.bindings)
+        )
+        drafts.extend(self._aggregation_steps(context.blueprint))
+        return ModuleCompilationResult(definition, tuple(drafts))
+
+    @staticmethod
+    def _sources(context: CompilationContext[Any]):
+        sources = {source.table: source for source in context.blueprint.sources}
+        sources.update(
+            {
+                override.table: override.override
+                for override in context.overrides.sources
+            }
+        )
+        return tuple(sources[name] for name in sorted(sources))
+
+    @staticmethod
+    def _source_step(source, relation: str) -> WorkflowStepDraft:
+        scan_function = {
+            "csv": "read_csv_auto",
+            "json": "read_json_auto",
+            "parquet": "read_parquet",
+        }[source.format]
+        location = source.location.replace("'", "''")
+        output = OutputSlot(
+            slot_id=f"core::table.{source.table}.output",
+            artifact_role=CoreArtifactRoles.table(source.table),
+        )
+        step = WorkflowStep(
+            step_id=f"core::table.{source.table}",
+            module_id=CoreModule.ID,
+            outputs=(output,),
+            payload={
+                "action": "relation",
+                "relation": relation,
+                "sql": f"SELECT * FROM {scan_function}('{location}')",
+            },
+        )
+        return WorkflowStepDraft(step, {})
+
+    @staticmethod
+    def _projection_step(
+        blueprint: BuildBlueprint,
+        projection: ProjectionDefinition,
+        relation: str,
+        relations: dict[str, str],
+        projection_relations: dict[str, str],
+    ) -> WorkflowStepDraft:
+        required_sources = projection_sources(projection)
+        required_roles = tuple(
+            CoreArtifactRoles.projection(name)
+            if name in projection_relations
+            else CoreArtifactRoles.table(name)
+            for name in required_sources
+        )
+        input_slot = CollectionInputSlot(
+            slot_id=f"core::projection.{projection.name}.inputs"
+        )
+        output = OutputSlot(
+            slot_id=f"core::projection.{projection.name}.output",
+            artifact_role=CoreArtifactRoles.projection(projection.name),
+        )
+        step = WorkflowStep(
+            step_id=f"core::projection.{projection.name}",
+            module_id=CoreModule.ID,
+            inputs=(input_slot,),
+            outputs=(output,),
+            payload={
+                "action": "relation",
+                "relation": relation,
+                "sql": lower_projection_sql(
+                    blueprint, relations, projection
+                ),
+            },
+        )
+        candidates = {
+            input_slot.slot_id: lambda _input, candidate, roles=required_roles: (
+                candidate.artifact_role in roles
             )
-            inputs = ()
-            candidates = {}
-            if required_roles:
-                input_slot = CollectionInputSlot(slot_id=f"core::binding.{index}.inputs")
-                inputs = (input_slot,)
-                candidates = {input_slot.slot_id: lambda _input, candidate, roles=required_roles: candidate.artifact_role in roles}
-            output = OutputSlot(
-                slot_id=f"core::binding.{index}.output",
-                artifact_role=CoreArtifactRoles.binding(binding.symbol_id),
+        }
+        return WorkflowStepDraft(step, candidates)
+
+    @staticmethod
+    def _binding_step(
+        blueprint: BuildBlueprint,
+        binding,
+        index: int,
+        relations: dict[str, str],
+        projection_relations: dict[str, str],
+    ) -> WorkflowStepDraft:
+        required_roles = tuple(
+            CoreArtifactRoles.projection(name)
+            if name in projection_relations
+            else CoreArtifactRoles.table(name)
+            for name in binding_sources(binding)
+        )
+        inputs = ()
+        candidates = {}
+        if required_roles:
+            input_slot = CollectionInputSlot(
+                slot_id=f"core::binding.{index}.inputs"
             )
-            step = WorkflowStep(
-                step_id=f"core::binding.{index}",
-                module_id=CoreModule.ID,
-                inputs=inputs,
-                outputs=(output,),
-                payload={
-                    "action": "relation",
-                    "relation": f"kg_binding_{index}",
-                    "sql": f"SELECT *, '{binding.symbol_id}' AS _kg_binding_symbol FROM ({lower_binding_sql(context.blueprint, relations, binding)})",
-                    "materialization": "temporary_table",
-                },
+            inputs = (input_slot,)
+            candidates = {
+                input_slot.slot_id: (
+                    lambda _input, candidate, roles=required_roles: (
+                        candidate.artifact_role in roles
+                    )
+                )
+            }
+
+        output = OutputSlot(
+            slot_id=f"core::binding.{index}.output",
+            artifact_role=CoreArtifactRoles.binding(binding.symbol_id),
+        )
+        binding_sql = lower_binding_sql(
+            blueprint, relations, binding
+        )
+        step = WorkflowStep(
+            step_id=f"core::binding.{index}",
+            module_id=CoreModule.ID,
+            inputs=inputs,
+            outputs=(output,),
+            payload={
+                "action": "relation",
+                "relation": f"kg_binding_{index}",
+                "sql": (
+                    f"SELECT *, '{binding.symbol_id}' AS _kg_binding_symbol "
+                    f"FROM ({binding_sql})"
+                ),
+            },
+        )
+        return WorkflowStepDraft(step, candidates)
+
+    @staticmethod
+    def _aggregation_steps(
+        blueprint: BuildBlueprint,
+    ) -> tuple[WorkflowStepDraft, ...]:
+        drafts: list[WorkflowStepDraft] = []
+        for component in blueprint.components:
+            binding_roles = tuple(
+                CoreArtifactRoles.binding(binding.symbol_id)
+                for binding in blueprint.bindings
+                if binding.component == component.name
             )
-            drafts.append(WorkflowStepDraft(step, candidates))
-        for component in context.blueprint.components:
-            binding_roles = tuple(CoreArtifactRoles.binding(binding.symbol_id) for binding in context.blueprint.bindings if binding.component == component.name)
             if not binding_roles:
                 continue
-            input_slot = CollectionInputSlot(slot_id=f"core::aggregate.{component.name}.bindings")
-            output = OutputSlot(slot_id=f"core::aggregate.{component.name}.output", artifact_role=CoreArtifactRoles.graph_records(component.kind, component.name))
-            step = WorkflowStep(step_id=f"core::aggregate.{component.name}", module_id=CoreModule.ID, assembly_preference="deferred", inputs=(input_slot,), outputs=(output,), payload={"action": "aggregate", "relation": f"kg_graph_{component.name.lower()}"})
-            drafts.append(WorkflowStepDraft(step, {input_slot.slot_id: lambda _input, candidate, roles=binding_roles: candidate.artifact_role in roles}))
-        return ModuleCompilationResult(definition, tuple(drafts))
+            input_slot = CollectionInputSlot(
+                slot_id=f"core::aggregate.{component.name}.bindings"
+            )
+            output = OutputSlot(
+                slot_id=f"core::aggregate.{component.name}.output",
+                artifact_role=CoreArtifactRoles.graph_records(
+                    component.kind, component.name
+                ),
+            )
+            step = WorkflowStep(
+                step_id=f"core::aggregate.{component.name}",
+                module_id=CoreModule.ID,
+                assembly_preference="deferred",
+                inputs=(input_slot,),
+                outputs=(output,),
+                payload={
+                    "action": "aggregate",
+                    "relation": f"kg_graph_{component.name.lower()}",
+                },
+            )
+            candidates = {
+                input_slot.slot_id: (
+                    lambda _input, candidate, roles=binding_roles: (
+                        candidate.artifact_role in roles
+                    )
+                )
+            }
+            drafts.append(WorkflowStepDraft(step, candidates))
+        return tuple(drafts)
 
 
 class CoreModule(Module):
@@ -204,30 +369,59 @@ class CoreModule(Module):
 
 class CoreExecutor(ModuleExecutor):
     async def handle(self, context: ExecutionContext) -> StepOutcome:
-        step = context.step
-        payload = step.payload
+        payload = context.step.payload
         if not isinstance(payload, dict):
             raise ValueError("core workflow steps require an object payload")
-        connection = context.services.duckdb
-        if payload.get("action") == "aggregate":
-            relation = str(payload["relation"]).replace('"', '""')
-            values = tuple(item.artifact.value for inputs in context.inputs.values() for item in inputs if item.artifact is not None)
-            sql = " UNION ALL ".join(f'SELECT * FROM "{str(value).replace(chr(34), chr(34)*2)}"' for value in values)
-            connection.execute(f'CREATE TEMP TABLE "{relation}" AS {sql}')
-            output = step.outputs[0]
-            return StepOutcome(step.step_id, step.module_id, StepStatus.SUCCEEDED, (Artifact(output.slot_id, output.artifact_role, relation),))
-        if payload.get("action") != "relation":
-            raise ValueError(f"unsupported core action {payload.get('action')!r}")
-        materialization = "TABLE" if payload.get("materialization") == "temporary_table" else "VIEW"
-        relation = str(payload["relation"]).replace('"', '""')
-        connection.execute(f'CREATE TEMP {materialization} "{relation}" AS {payload["sql"]}')
-        output = step.outputs[0]
+
+        action = payload.get("action")
+        if action == "aggregate":
+            return self._aggregate(context, payload)
+        if action == "relation":
+            return self._materialize_relation(context, payload)
+        raise ValueError(f"unsupported core action {action!r}")
+
+    @staticmethod
+    def _aggregate(
+        context: ExecutionContext, payload: dict[str, Any],
+    ) -> StepOutcome:
+        relation = _quote_identifier(payload["relation"])
+        source_relations = tuple(
+            item.artifact.value
+            for contributions in context.inputs.values()
+            for item in contributions
+            if item.artifact is not None
+        )
+        union_sql = " UNION ALL ".join(
+            f'SELECT * FROM "{_quote_identifier(source)}"'
+            for source in source_relations
+        )
+        context.services.duckdb.execute(
+            f'CREATE TEMP TABLE "{relation}" AS {union_sql}'
+        )
+        return CoreExecutor._success(context, relation)
+
+    @staticmethod
+    def _materialize_relation(
+        context: ExecutionContext, payload: dict[str, Any],
+    ) -> StepOutcome:
+        relation = _quote_identifier(payload["relation"])
+        context.services.duckdb.execute(
+            f'CREATE TEMP TABLE "{relation}" AS {payload["sql"]}'
+        )
+        return CoreExecutor._success(context, relation)
+
+    @staticmethod
+    def _success(context: ExecutionContext, relation: str) -> StepOutcome:
+        output = context.step.outputs[0]
+        artifact = Artifact(output.slot_id, output.artifact_role, relation)
         return StepOutcome(
-            step_id=step.step_id,
-            module_id=step.module_id,
+            step_id=context.step.step_id,
+            module_id=context.step.module_id,
             status=StepStatus.SUCCEEDED,
-            artifacts=(Artifact(output.slot_id, output.artifact_role, relation),),
+            artifacts=(artifact,),
         )
 
-    async def handle_disrupted(self, context: DisruptedExecutionContext) -> StepOutcome:
+    async def handle_disrupted(
+        self, context: DisruptedExecutionContext,
+    ) -> StepOutcome:
         return await super().handle_disrupted(context)

@@ -4,7 +4,7 @@ from .models import *
 from .validation import validate_blueprint
 
 __all__ = [
-    "AnnotationDefinition", "BindingDefinition", "BlueprintModule", "BuildBlueprint",
+    "AnnotationDefinition", "BindingDefinition", "BLUEPRINT_SCHEMA_VERSION", "BlueprintModule", "BuildBlueprint",
     "ComponentDefinition", "EdgeBindingDefinition", "FieldDefinition", "NodeBindingDefinition",
     "ProjectionDefinition", "ProjectionFieldDefinition", "PropertyDefinition", "SourceDefinition",
     "StructDefinition", "TableDefinition", "blueprint_from_json", "blueprint_json",

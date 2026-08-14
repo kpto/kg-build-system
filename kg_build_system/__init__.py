@@ -1,9 +1,4 @@
-"""Typed authoring foundations for declarative knowledge-graph builds.
-
-The compiler migration follows the type, expression, data-declaration, and
-graph-binding layers. This root surface exports only those coherent migrated
-authoring APIs.
-"""
+"""Declarative, typed, and reproducible knowledge-graph builds."""
 
 from .annotations import Annotation
 from .binding import Binding, BindingOptions, EdgeBinding, NodeBinding, edge_binding, node_binding

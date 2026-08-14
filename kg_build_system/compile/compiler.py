@@ -1,4 +1,4 @@
-"""Compile Python declarations into the canonical version-2 blueprint IR."""
+"""Compile Python declarations into immutable blueprints and build contracts."""
 from __future__ import annotations
 
 import asyncio
@@ -328,9 +328,13 @@ def create_blueprint(
 
 
 def _fingerprint(value: object) -> str:
-    if hasattr(value, "model_dump"):
-        value = value.model_dump(mode="json")  # type: ignore[union-attr]
-    return sha256(json.dumps(value, sort_keys=True, separators=(",", ":"), default=str).encode()).hexdigest()
+    encoded = json.dumps(
+        value,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode()
+    return sha256(encoded).hexdigest()
 
 
 def _blueprint_fingerprint(blueprint: BuildBlueprint) -> str:
@@ -541,7 +545,7 @@ async def _compile_blueprint(
         sources=effective_sources,
         settings=compilation_settings,
         overrides=overrides,
-        workflow_fingerprint=_fingerprint(workflow),
+        workflow_fingerprint=_fingerprint(workflow.model_dump(mode="json")),
         workflow=workflow,
     )
 
@@ -550,7 +554,7 @@ def compile_blueprint(
     *, blueprint: BuildBlueprint, sources: Sequence[BoundSource] = (),
     settings: BuildSettings | None = None,
 ) -> BuildContract:
-    """Lower a version-2 blueprint into one frozen workflow contract."""
+    """Compile a blueprint into one frozen executable workflow contract."""
     return asyncio.run(_compile_blueprint(
         blueprint=blueprint, sources=sources, settings=settings,
     ))

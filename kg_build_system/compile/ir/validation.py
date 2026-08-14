@@ -1,11 +1,11 @@
-"""Cross-declaration validation for version-2 blueprints."""
+"""Cross-declaration validation for build blueprints."""
 from __future__ import annotations
 
 from collections.abc import Iterable
 
 from ...expressions import FieldReferenceExpression, OperationExpression, walk_expression
 from ...types import ArrayType, NullableType, StructType
-from .models import BuildBlueprint, EdgeBindingDefinition
+from .models import BLUEPRINT_SCHEMA_VERSION, BuildBlueprint, EdgeBindingDefinition
 
 
 def _unique(values: Iterable[str], context: str) -> None:
@@ -20,7 +20,7 @@ def _base(value):
 
 def validate_blueprint(blueprint: BuildBlueprint) -> None:
     """Validate names, references, expression sources, and binding shapes."""
-    if blueprint.schema_version != 2:
+    if blueprint.schema_version != BLUEPRINT_SCHEMA_VERSION:
         raise ValueError(f"unsupported blueprint schema version {blueprint.schema_version!r}")
     if not blueprint.components:
         raise ValueError("blueprints require at least one graph component")
@@ -119,9 +119,14 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
         component = component_by_name.get(binding.component)
         if component is None or component.kind != binding.kind:
             raise ValueError(f"{binding.kind} binding {binding.symbol_id!r} targets an incompatible component")
-        expressions = [binding.build_key, *(expression for _, expression in binding.properties)]
+        expressions = [
+            binding.build_key,
+            *(expression for _, expression in binding.properties),
+        ]
+        keys = [binding.build_key]
         if isinstance(binding, EdgeBindingDefinition):
             expressions.extend((binding.source_build_key, binding.target_build_key))
+            keys.extend((binding.source_build_key, binding.target_build_key))
         for expression in expressions:
             validate_expression(expression, owner=binding.symbol_id)
         expected = {prop.name: prop.logical_type for prop in component.properties}
@@ -134,7 +139,7 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
                 isinstance(expected_type, NullableType) and expected_type.value == expression.logical_type
             ):
                 raise ValueError(f"binding {binding.symbol_id!r} property {name!r} has an incompatible logical type")
-        for key in expressions[:1] + (expressions[-2:] if isinstance(binding, EdgeBindingDefinition) else []):
+        for key in keys:
             logical_type = _base(key.logical_type)
             if isinstance(key.logical_type, NullableType) or isinstance(logical_type, (ArrayType, StructType)):
                 raise ValueError(f"binding {binding.symbol_id!r} keys must be non-null scalar expressions")

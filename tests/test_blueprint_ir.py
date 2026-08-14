@@ -73,7 +73,7 @@ class BlueprintIRTests(unittest.TestCase):
 
     def test_blueprint_contains_complete_canonical_declarations(self) -> None:
         result = self.blueprint()
-        self.assertEqual(result.schema_version, 2)
+        self.assertEqual(result.schema_version, 1)
         self.assertEqual(tuple(item.name for item in result.structs), ("evidence",))
         self.assertEqual(tuple(item.name for item in result.tables), ("evidence",))
         self.assertEqual(tuple(item.name for item in result.projections), ("evidence_rows",))
@@ -87,7 +87,7 @@ class BlueprintIRTests(unittest.TestCase):
         decoded = blueprint_from_json(encoded)
         self.assertEqual(decoded, result)
         self.assertEqual(blueprint_json(decoded), encoded)
-        self.assertEqual(json.loads(encoded)["schema_version"], 2)
+        self.assertEqual(json.loads(encoded)["schema_version"], 1)
 
     def test_binding_symbols_are_deterministic(self) -> None:
         first = self.blueprint()
@@ -105,7 +105,7 @@ class BlueprintIRTests(unittest.TestCase):
 
     def test_codec_rejects_other_schema_versions(self) -> None:
         raw = json.loads(blueprint_json(self.blueprint()))
-        raw["schema_version"] = 3
+        raw["schema_version"] = 999
         with self.assertRaisesRegex(ValueError, "unsupported blueprint schema version"):
             BuildBlueprint.model_validate(raw)
 
