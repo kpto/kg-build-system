@@ -1,29 +1,22 @@
-from pathlib import Path
+"""Import the complete authoring surface for the demonstration graph.
 
-from kg_build_system import build, compile_blueprint, create_blueprint
-from kg_build_system.compile.models import BuildBlueprint
-from kg_build_system.modules import (
-    FileModule,
-    FileModuleConfiguration,
+Blueprint compilation and execution are intentionally paused until the new
+authoring model has a canonical blueprint IR.
+"""
+
+from demo.bindings.nodes.disease.disease import disease_from_reference
+from demo.bindings.nodes.study.study import study_from_contract
+from demo.bindings.nodes.target.edges.associated_with_disease import association_to_disease
+from demo.bindings.nodes.target.target import target_from_reference
+from demo.table.sources import evidence_release_source
+
+
+authoring_declarations = (
+    evidence_release_source,
+    target_from_reference,
+    disease_from_reference,
+    study_from_contract,
+    association_to_disease,
 )
 
-
-def create_demo_blueprint() -> BuildBlueprint:
-    return create_blueprint(
-        namespace_path=Path(__file__).parent,
-        modules=(FileModule(FileModuleConfiguration("graph.jsonl")),),
-    )
-
-
-def run_demo() -> None:
-    """Write the graph and inspectable compilation artifacts to ``demo/output``."""
-    output_dir = Path(__file__).parent / "build"
-    output_dir.mkdir(exist_ok=True)
-
-    blueprint = create_demo_blueprint()
-    contract = compile_blueprint(blueprint=blueprint)
-    build(contract, output_directory=output_dir)
-
-
-if __name__ == "__main__":
-    run_demo()
+__all__ = ["authoring_declarations"]

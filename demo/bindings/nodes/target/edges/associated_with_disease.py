@@ -1,6 +1,5 @@
-from kg_build_system import bind, edge_binding, lookup, value
+from kg_build_system import edge_binding
 
-from demo.table.evidence_release.pharmacogenomics.study import StudyTable
 from demo.table.projections.association_evidence import AssociationEvidenceProjection
 from demo.topology.nodes.target.edges.associated_with_disease import AssociatedWithEdge
 
@@ -8,29 +7,20 @@ from demo.topology.nodes.target.edges.associated_with_disease import AssociatedW
 association_to_disease = edge_binding(
     debug_name="association_to_disease",
     target=AssociatedWithEdge,
-    build_key=bind(value.deterministic_uuid(
-        value.concat(
-            AssociationEvidenceProjection.target_id,
-            AssociationEvidenceProjection.disease_id,
-            AssociationEvidenceProjection.evidence_label,
-        )
-    )),
-    source_build_key=bind(value.concat("target::", AssociationEvidenceProjection.target_id)),
-    target_build_key=bind(value.concat("disease::", AssociationEvidenceProjection.disease_id)),
+    build_key=(
+        AssociationEvidenceProjection.target_id
+        .prepend("association::")
+        .append("::")
+        .append(AssociationEvidenceProjection.disease_id)
+        .append("::")
+        .append(AssociationEvidenceProjection.evidence_label)
+    ),
+    source_build_key=AssociationEvidenceProjection.target_id.prepend("target::"),
+    target_build_key=AssociationEvidenceProjection.disease_id.prepend("disease::"),
     properties=AssociatedWithEdge(
-        score=bind(AssociationEvidenceProjection.score),
-        study_name=bind(
-            value.coalesce(
-                lookup.one(
-                    key=AssociationEvidenceProjection.study_id,
-                    match=StudyTable.id,
-                    value=StudyTable.details.m.name,
-                    as_type=str,
-                ),
-                "Unknown study",
-            )
-        ),
-        evidence_disease_id=bind(AssociationEvidenceProjection.disease_id),
-        evidence_label=bind(AssociationEvidenceProjection.evidence_label),
+        score=AssociationEvidenceProjection.score,
+        study_id=AssociationEvidenceProjection.study_id,
+        evidence_disease_id=AssociationEvidenceProjection.disease_id,
+        evidence_label=AssociationEvidenceProjection.evidence_label,
     ),
 )

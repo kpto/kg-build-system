@@ -7,6 +7,6 @@ from demo.topology.nodes.target.target import TargetNode
 class AssociatedWithEdge(Edge[TargetNode, DiseaseNode]):
     """Evidence-backed target-disease association."""
     score: PropertySlot[float] = property()
-    study_name: PropertySlot[str] = property()
+    study_id: PropertySlot[str] = property()
     evidence_disease_id: PropertySlot[str] = property()
     evidence_label: PropertySlot[str] = property()
