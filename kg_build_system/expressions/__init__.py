@@ -1,9 +1,4 @@
 """Portable expression declarations and constructors."""
-from .collection import collection
-from .core import Expression, ExpressionValue, PermittedExpressionValue, ValueRef, item_type
-from .inputs import ExpressionInput, to_expression
-from .lookup import lookup
-from .value import value
 from .base import field_reference, operation
 from .codec import decode_expression, encode_expression
 from .ir import (
@@ -24,13 +19,13 @@ from .values import AuthoringValueExpression, ValueExpression
 
 __all__ = [
     "ArrayNullableValueExpression", "ArrayValueExpression", "AuthoringValueExpression", "BoolValueExpression",
-    "CustomDataTypeValueExpression", "Expression", "ExpressionIR", "ExpressionInput", "ExpressionNode", "ExpressionValue",
+    "CustomDataTypeValueExpression", "ExpressionIR", "ExpressionNode",
     "ExpressionVisitor", "FieldReferenceExpression", "LiteralExpression", "OperationExpression",
     "FloatValueExpression", "IntValueExpression", "NullableValueExpression",
-    "NumberValueExpression", "OperationParameter", "PRESERVE_ROWS", "PermittedExpressionValue",
+    "NumberValueExpression", "OperationParameter", "PRESERVE_ROWS",
     "PickedField", "RowEffect", "RowSemantics", "StrValueExpression", "StructNullableValueExpression",
-    "StructValueExpression", "Traversal", "ValueExpression", "ValueRef", "collection", "decode_expression", "encode_expression",
-    "field_reference", "item_type", "literal", "lookup", "operation", "rewrite_expression",
-    "to_expression", "value", "value_expression", "visit_expression", "walk_expression",
+    "StructValueExpression", "Traversal", "ValueExpression", "decode_expression", "encode_expression",
+    "field_reference", "literal", "operation", "rewrite_expression",
+    "value_expression", "visit_expression", "walk_expression",
     "wrap_expression",
 ]
