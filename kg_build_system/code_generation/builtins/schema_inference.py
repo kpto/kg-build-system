@@ -105,20 +105,13 @@ def _field_for_type(
     normalized = type_name.strip()
     if normalized.endswith("[]"):
         item_type = normalized[:-2].strip()
-        item_declarations: tuple[GeneratedClass, ...] = ()
-        scalar = _SCALAR_TYPES.get(_base_type(item_type))
-        if scalar is not None:
-            generated_type = GeneratedScalarType(scalar)
-        elif item_type.upper().startswith("STRUCT("):
-            struct_field, item_declarations = _field_for_type(
-                name=name,
-                type_name=item_type,
-                nullable=False,
-                struct_prefix=struct_prefix,
-            )
-            generated_type = struct_field.value_type
-        else:
-            raise GenerationError(f"column {name!r} has unsupported collection item type {item_type!r}")
+        item_field, item_declarations = _field_for_type(
+            name=name,
+            type_name=item_type,
+            nullable=False,
+            struct_prefix=struct_prefix,
+        )
+        generated_type = item_field.value_type
         value_type = GeneratedArrayType(generated_type)
         if nullable:
             value_type = GeneratedNullableType(value_type)
@@ -338,23 +331,35 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         fields: list[GeneratedField] = []
         supporting: list[GeneratedClass] = []
         used: dict[str, str] = {}
-        for external_name, type_name, nullable in cls._describe(
+        described_fields = cls._describe(
             connection, sources, relation, hive_partitioned=hive_partitioned,
-        ):
-            generated, nested = _field_for_type(
-                name=external_name, type_name=type_name, nullable=nullable,
-                struct_prefix=class_name,
-            )
-            previous = used.get(generated.python_name)
-            if previous is not None:
-                raise GenerationError(
-                    f"columns {previous!r} and {external_name!r} collide as {generated.python_name!r}"
+        )
+        try:
+            for external_name, type_name, nullable in described_fields:
+                generated, nested = _field_for_type(
+                    name=external_name, type_name=type_name, nullable=nullable,
+                    struct_prefix=class_name,
                 )
-            used[generated.python_name] = external_name
-            fields.append(generated)
-            supporting.extend(nested)
-        if not fields:
-            raise GenerationError(f"relation {relation!r} has no columns")
+                previous = used.get(generated.python_name)
+                if previous is not None:
+                    raise GenerationError(
+                        f"columns {previous!r} and {external_name!r} collide as {generated.python_name!r}"
+                    )
+                used[generated.python_name] = external_name
+                fields.append(generated)
+                supporting.extend(nested)
+            if not fields:
+                raise GenerationError(f"relation {relation!r} has no columns")
+        except GenerationError as error:
+            resource = sources[0]
+            additional = (
+                f" and {len(sources) - 1} additional resources"
+                if len(sources) > 1 else ""
+            )
+            raise GenerationError(
+                f"cannot generate data contract for resource {resource!r}{additional} "
+                f"relation {relation!r}: {error}"
+            ) from error
         return (
             *supporting,
             GeneratedClass(

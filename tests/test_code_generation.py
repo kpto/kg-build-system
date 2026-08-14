@@ -384,6 +384,72 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
         self.assertTrue(connection.thread_ids)
         self.assertNotIn(get_ident(), connection.thread_ids)
 
+    async def test_data_contract_inference_supports_nested_arrays(self) -> None:
+        class Result:
+            def fetchall(self) -> list[tuple[object, ...]]:
+                return [("path", "VARCHAR[][]", "YES")]
+
+        class Connection:
+            def execute(self, sql: str, parameters: list[str] | None = None) -> Result | Connection:
+                return Result() if sql.startswith("DESCRIBE") else self
+
+            def close(self) -> None:
+                pass
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            context = ProviderContext(
+                root,
+                root / "contracts" / "__init__.py",
+                "release",
+                DataContractInferenceConfig(source="s3://bucket/reactome.parquet"),
+            )
+            with patch(
+                "kg_build_system.code_generation.builtins.schema_inference.duckdb.connect",
+                return_value=Connection(),
+            ):
+                package = await InferDataContractProvider.generate(context)
+
+        field = package.files[0].declarations[-1].fields[0]
+        self.assertEqual(
+            field.value_type,
+            GeneratedNullableType(
+                GeneratedArrayType(GeneratedArrayType(GeneratedScalarType("str")))
+            ),
+        )
+
+    async def test_data_contract_inference_errors_name_the_resource_and_relation(self) -> None:
+        class Result:
+            def fetchall(self) -> list[tuple[object, ...]]:
+                return [("metadata", "MAP(VARCHAR, VARCHAR)", "YES")]
+
+        class Connection:
+            def execute(self, sql: str, parameters: list[str] | None = None) -> Result | Connection:
+                return Result() if sql.startswith("DESCRIBE") else self
+
+            def close(self) -> None:
+                pass
+
+        source = "s3://bucket/problematic.parquet"
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            context = ProviderContext(
+                root,
+                root / "contracts" / "__init__.py",
+                "release",
+                DataContractInferenceConfig(source=source),
+            )
+            with patch(
+                "kg_build_system.code_generation.builtins.schema_inference.duckdb.connect",
+                return_value=Connection(),
+            ), self.assertRaises(GenerationError) as raised:
+                await InferDataContractProvider.generate(context)
+
+        message = str(raised.exception)
+        self.assertIn(f"resource {source!r}", message)
+        self.assertIn("relation 'problematic'", message)
+        self.assertIn("column 'metadata' has unsupported type", message)
+
     async def test_table_group_inference_collapses_hive_partitions_and_part_files(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)
