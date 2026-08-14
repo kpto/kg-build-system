@@ -132,7 +132,15 @@ async def _desired(root: Path, request: DiscoveredGeneration) -> tuple[Path, dic
 
 
 def _existing_manifests(root: Path) -> tuple[Path, ...]:
-    return tuple(sorted(root.rglob(MANIFEST), key=lambda path: path.as_posix()))
+    manifests: list[Path] = []
+    for directory, directory_names, file_names in root.walk(top_down=True):
+        directory_names[:] = sorted(
+            name for name in directory_names
+            if not name.startswith(".") and name != "__pycache__"
+        )
+        if MANIFEST in file_names:
+            manifests.append(directory / MANIFEST)
+    return tuple(sorted(manifests, key=lambda path: path.as_posix()))
 
 
 def _compare_product(product: Path, desired: dict[Path, str], manifest: GenerationManifest) -> tuple[list[Path], list[Path]]:

@@ -16,8 +16,11 @@ from fsspec import AbstractFileSystem
 
 from ..models import (
     GeneratedClass,
+    GeneratedArrayType,
     GeneratedField,
-    GeneratedFieldKind,
+    GeneratedNullableType,
+    GeneratedScalarType,
+    GeneratedStructType,
     GeneratedMember, GeneratedFile, GeneratedPackage,
     GenerationError,
     ProviderGenerationConfig,
@@ -102,25 +105,33 @@ def _field_for_type(
     normalized = type_name.strip()
     if normalized.endswith("[]"):
         item_type = normalized[:-2].strip()
-        scalar = _SCALAR_TYPES.get(_base_type(item_type))
         item_declarations: tuple[GeneratedClass, ...] = ()
-        if scalar is None and item_type.upper().startswith("STRUCT("):
+        scalar = _SCALAR_TYPES.get(_base_type(item_type))
+        if scalar is not None:
+            generated_type = GeneratedScalarType(scalar)
+        elif item_type.upper().startswith("STRUCT("):
             struct_field, item_declarations = _field_for_type(
                 name=name,
                 type_name=item_type,
                 nullable=False,
                 struct_prefix=struct_prefix,
             )
-            scalar = struct_field.value_type
-        if scalar is None:
+            generated_type = struct_field.value_type
+        else:
             raise GenerationError(f"column {name!r} has unsupported collection item type {item_type!r}")
+        value_type = GeneratedArrayType(generated_type)
+        if nullable:
+            value_type = GeneratedNullableType(value_type)
         return GeneratedField(
-            _identifier(name), name, GeneratedFieldKind.COLLECTION, scalar,
-            nullable=nullable, item_nullable=False,
+            _identifier(name), name, value_type,
         ), item_declarations
     scalar = _SCALAR_TYPES.get(_base_type(normalized))
     if scalar is not None:
-        return GeneratedField(_identifier(name), name, GeneratedFieldKind.SCALAR, scalar, nullable=nullable), ()
+        value_type = GeneratedScalarType(scalar)
+        return GeneratedField(
+            _identifier(name), name,
+            GeneratedNullableType(value_type) if nullable else value_type,
+        ), ()
     if normalized.upper().startswith("STRUCT(") and normalized.endswith(")"):
         struct_name = f"{struct_prefix}{_class_part(name)}Struct"
         members: list[GeneratedField] = []
@@ -136,8 +147,10 @@ def _field_for_type(
             members.append(generated)
             nested.extend(generated_nested)
         nested.append(GeneratedClass(struct_name, tuple(members), base="Struct"))
+        value_type = GeneratedStructType(struct_name)
         return GeneratedField(
-            _identifier(name), name, GeneratedFieldKind.STRUCT, struct_name, nullable=nullable,
+            _identifier(name), name,
+            GeneratedNullableType(value_type) if nullable else value_type,
         ), tuple(nested)
     raise GenerationError(f"column {name!r} has unsupported type {type_name!r}")
 

@@ -56,10 +56,33 @@ class DiscoveredGeneration:
     package_import: str
 
 
-class GeneratedFieldKind(StrEnum):
-    SCALAR = "scalar"
-    STRUCT = "struct"
-    COLLECTION = "collection"
+@dataclass(frozen=True, slots=True)
+class GeneratedScalarType:
+    """A portable scalar name understood by the public authoring surface."""
+
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
+class GeneratedStructType:
+    """A reference to another declaration in the generated package."""
+
+    declaration_name: str
+
+
+@dataclass(frozen=True, slots=True)
+class GeneratedArrayType:
+    item: "GeneratedType"
+
+
+@dataclass(frozen=True, slots=True)
+class GeneratedNullableType:
+    value: "GeneratedType"
+
+
+type GeneratedType = (
+    GeneratedScalarType | GeneratedStructType | GeneratedArrayType | GeneratedNullableType
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -73,10 +96,7 @@ class GeneratedAnnotation:
 class GeneratedField:
     python_name: str
     external_name: str
-    kind: GeneratedFieldKind
-    value_type: str
-    nullable: bool = False
-    item_nullable: bool = False
+    value_type: GeneratedType
     description: str | None = None
     annotations: tuple[GeneratedAnnotation, ...] = ()
 

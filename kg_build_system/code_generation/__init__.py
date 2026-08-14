@@ -6,9 +6,13 @@ from .engine import GenerationSession, generate
 from .models import (
     DiscoveredGeneration,
     GeneratedAnnotation,
+    GeneratedArrayType,
     GeneratedClass,
     GeneratedField,
-    GeneratedFieldKind,
+    GeneratedNullableType,
+    GeneratedScalarType,
+    GeneratedStructType,
+    GeneratedType,
     GeneratedMember, GeneratedFile, GeneratedPackage, Generation,
     GenerationAction,
     GenerationActionKind,
@@ -23,7 +27,10 @@ from .watcher import FileChange, FileChangeKind, watch
 
 __all__ = [
     "DiscoveredGeneration", "FileChange", "FileChangeKind",
-    "GeneratedAnnotation", "GeneratedClass", "GeneratedField", "GeneratedFieldKind", "GeneratedMember", "GeneratedFile", "GeneratedPackage", "Generation",
+    "GeneratedAnnotation", "GeneratedArrayType", "GeneratedClass", "GeneratedField",
+    "GeneratedNullableType", "GeneratedScalarType", "GeneratedStructType",
+    "GeneratedType",
+    "GeneratedMember", "GeneratedFile", "GeneratedPackage", "Generation",
     "GenerationAction", "GenerationActionKind",
     "GenerationError", "GenerationRequest", "GenerationResult", "GenerationSession", "GenerationStatus", "Provider",
     "ProviderContext", "ProviderGenerationConfig", "discover", "discover_file", "generate", "generation", "watch",

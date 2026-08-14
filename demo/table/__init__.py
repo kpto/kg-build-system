@@ -1,5 +1,15 @@
-"""Hand-authored logical contracts for the authoring-surface demo.
+"""Logical input contracts generated from the example evidence release."""
 
-Code generation is intentionally disabled while it is migrated to unified
-``Field[T]`` declarations and the new logical type system.
-"""
+from kg_build_system.code_generation import generation
+from kg_build_system.code_generation.builtins import (
+    DataContractInferenceConfig,
+    InferDataContractProvider,
+)
+
+evidence_release = generation(
+    InferDataContractProvider,
+    DataContractInferenceConfig(
+        source="../data/evidence_release",
+        mode="table_group",
+    ),
+)

@@ -9,7 +9,7 @@ study_from_contract = node_binding(
     target=StudyNode,
     build_key=StudyTable.id.when_present().prepend("study::"),
     properties=StudyNode(
-        name=StudyTable.details.pick(lambda details: details.name),
+        name=StudyTable.details.pick(lambda details: details.name).or_else("Unknown study"),
         description=StudyTable.details.pick(lambda details: details.description),
     ),
 )

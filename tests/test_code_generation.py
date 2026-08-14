@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import importlib
 import json
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 import sys
 from tempfile import TemporaryDirectory
 from threading import get_ident
@@ -13,7 +13,8 @@ from unittest.mock import MagicMock, patch
 import duckdb
 
 from kg_build_system.code_generation import (
-    GeneratedClass, GeneratedField, GeneratedFieldKind, GeneratedFile, GeneratedPackage,
+    GeneratedArrayType, GeneratedClass, GeneratedField, GeneratedFile,
+    GeneratedNullableType, GeneratedPackage, GeneratedScalarType, GeneratedStructType,
     Generation, GenerationAction, GenerationActionKind, GenerationError, GenerationSession, GenerationStatus, Provider, ProviderContext,
     ProviderGenerationConfig, discover, discover_file, generate, generation,
 )
@@ -39,7 +40,7 @@ class FixtureProvider(Provider[FixtureConfig]):
 
     @classmethod
     async def generate(cls, context: ProviderContext[FixtureConfig]) -> GeneratedPackage:
-        field = GeneratedField("id", "id", GeneratedFieldKind.SCALAR, "str")
+        field = GeneratedField("id", "id", GeneratedScalarType("str"))
         root_name = "".join(part.title() for part in context.request_id.split("_")) + "Table"
         files = [GeneratedFile(Path("__init__.py"), (GeneratedClass(root_name, (field,), base="Table", declaration_name=context.request_id),), (root_name,))]
         if context.config.shape == "two":
@@ -108,6 +109,76 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn("# isort: skip_file", generated_source)
             self.assertNotIn("G_", generated_source)
             self.assertEqual((await generate(root)).status, GenerationStatus.CURRENT)
+
+    async def test_unified_fields_render_arrays_structs_and_nullability(self) -> None:
+        class UnifiedProvider(Provider[FixtureConfig]):
+            ID: ClassVar[str] = "unified_fixture"
+            VERSION: ClassVar[str] = "1"
+            CONFIG_TYPE: ClassVar[type[ProviderGenerationConfig]] = FixtureConfig
+
+            @classmethod
+            async def dependencies(cls, context: ProviderContext[FixtureConfig]) -> tuple[Path, ...]:
+                return ()
+
+            @classmethod
+            async def generate(cls, context: ProviderContext[FixtureConfig]) -> GeneratedPackage:
+                details = GeneratedClass(
+                    "DetailsStruct",
+                    (GeneratedField("label", "label", GeneratedScalarType("str")),),
+                    base="Struct",
+                )
+                table = GeneratedClass(
+                    "ReleaseTable",
+                    (
+                        GeneratedField(
+                            "details", "details",
+                            GeneratedNullableType(GeneratedStructType("DetailsStruct")),
+                        ),
+                        GeneratedField(
+                            "scores", "scores",
+                            GeneratedNullableType(
+                                GeneratedArrayType(
+                                    GeneratedNullableType(GeneratedScalarType("int")),
+                                ),
+                            ),
+                        ),
+                    ),
+                    base="Table",
+                )
+                return GeneratedPackage((
+                    GeneratedFile(Path("details.py"), (details,), ("DetailsStruct",)),
+                    GeneratedFile(Path("__init__.py"), (table,), ("ReleaseTable",)),
+                ))
+
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            package = root / "contracts"
+            package.mkdir()
+            (package / "__init__.py").write_text(
+                "from kg_build_system.code_generation import generation\n"
+                "from tests.test_code_generation import FixtureConfig\n"
+                "from tests.test_code_generation import GeneratedPackageTests as T\n"
+                "release = generation(T, FixtureConfig(source='ignored'))\n",
+                encoding="utf-8",
+            )
+            request = discover(root)[0]
+            from kg_build_system.code_generation.rendering import render_package
+
+            rendered = render_package(
+                request,
+                await UnifiedProvider.generate(
+                    ProviderContext(root, package / "__init__.py", "release", FixtureConfig(source="ignored")),
+                ),
+                "fingerprint",
+            )
+
+        source = rendered[PurePosixPath("__init__.py")]
+        self.assertIn("from kg_build_system import Array, Field, Table, TableOptions, field", source)
+        self.assertIn("from contracts.release.details import DetailsStruct", source)
+        self.assertIn("details: Field[DetailsStruct | None] = field(name='details')", source)
+        self.assertIn("scores: Field[Array[int | None] | None] = field(name='scores')", source)
+        self.assertNotIn("StructField", source)
+        self.assertNotIn("CollectionField", source)
 
     async def test_unchanged_dependency_save_is_ignored(self) -> None:
         with TemporaryDirectory() as directory:
