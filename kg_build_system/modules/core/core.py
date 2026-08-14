@@ -4,14 +4,11 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, ClassVar, Literal, cast
 
-from ...compile.ir import BuildBlueprint, ProjectionDefinition
-from ...compile.models import (
-    ArtifactRole,
-    CollectionInputSlot,
-    ModuleDefinition,
-    ModuleReference,
-    OutputSlot,
-    WorkflowStep,
+from ...compile.blueprint import BuildBlueprint
+from ...table.dto import ProjectionDTO as ProjectionDefinition
+from ...workflow.models import (
+    ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference,
+    OutputSlot, WorkflowStep,
 )
 from ...workflow.interfaces import (
     CompilationContext,

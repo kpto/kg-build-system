@@ -5,26 +5,26 @@ import json
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, TypeVar, cast
 
-from ...expressions import decode_expression, encode_expression
-from ...expressions.base import freeze_json
-from ...expressions.ir import FrozenJson, FrozenObject
-from ...types import decode_type, encode_type
-from .models import (
-    BLUEPRINT_SCHEMA_VERSION,
-    AnnotationDefinition,
-    BlueprintModule,
-    BuildBlueprint,
-    ComponentDefinition,
-    EdgeBindingDefinition,
-    FieldDefinition,
-    NodeBindingDefinition,
-    ProjectionDefinition,
-    ProjectionFieldDefinition,
-    PropertyDefinition,
-    SourceDefinition,
-    StructDefinition,
-    TableDefinition,
+from ..expressions.dto_codec import decode_expression_dto, encode_expression_dto
+from ..expressions.base import freeze_json
+from .._frozen_json import FrozenJson, FrozenObject
+from ..types.dto_codec import decode_type_dto, encode_type_dto
+from ..annotations.dto import AnnotationDTO as AnnotationDefinition
+from ..binding.dto import (
+    EdgeBindingDTO as EdgeBindingDefinition,
+    NodeBindingDTO as NodeBindingDefinition,
 )
+from ..table.dto import (
+    FieldDTO as FieldDefinition,
+    ProjectionDTO as ProjectionDefinition,
+    ProjectionFieldDTO as ProjectionFieldDefinition,
+    SourceDTO as SourceDefinition,
+    StructDTO as StructDefinition,
+    TableDTO as TableDefinition,
+)
+from ..topology.dto import ComponentDTO as ComponentDefinition, PropertyDTO as PropertyDefinition
+from ..workflow.dto import BlueprintModuleDTO as BlueprintModule
+from .blueprint import BLUEPRINT_SCHEMA_VERSION, BuildBlueprint
 from .validation import validate_blueprint
 
 T = TypeVar("T")
@@ -51,7 +51,7 @@ def _encode_typed_declaration(
 ) -> dict[str, Any]:
     result: dict[str, Any] = {
         "name": value.name,
-        "logical_type": encode_type(value.logical_type),
+        "logical_type": encode_type_dto(value.logical_type),
         "annotations": [_encode_annotation(item) for item in value.annotations],
     }
     if value.description is not None:
@@ -96,7 +96,7 @@ def _encode_projection(value: ProjectionDefinition) -> dict[str, Any]:
     for field in value.fields:
         encoded: dict[str, Any] = {
             "name": field.name,
-            "expression": encode_expression(field.expression),
+            "expression": encode_expression_dto(field.expression),
             "annotations": [
                 _encode_annotation(item) for item in field.annotations
             ],
@@ -123,9 +123,9 @@ def _encode_binding(
         "kind": value.kind,
         "symbol_id": value.symbol_id,
         "component": value.component,
-        "build_key": encode_expression(value.build_key),
+        "build_key": encode_expression_dto(value.build_key),
         "properties": {
-            name: encode_expression(expression)
+            name: encode_expression_dto(expression)
             for name, expression in value.properties
         },
         "annotations": [_encode_annotation(item) for item in value.annotations],
@@ -133,8 +133,8 @@ def _encode_binding(
     if value.debug_name is not None:
         result["debug_name"] = value.debug_name
     if isinstance(value, EdgeBindingDefinition):
-        result["source_build_key"] = encode_expression(value.source_build_key)
-        result["target_build_key"] = encode_expression(value.target_build_key)
+        result["source_build_key"] = encode_expression_dto(value.source_build_key)
+        result["target_build_key"] = encode_expression_dto(value.target_build_key)
     return result
 
 
@@ -225,7 +225,7 @@ def _decode_annotation(value: Mapping[str, Any]) -> AnnotationDefinition:
 def _decode_field(value: Mapping[str, Any]) -> FieldDefinition:
     return FieldDefinition(
         name=_text(value, "name"),
-        logical_type=decode_type(_object(value.get("logical_type"), "logical_type")),
+        logical_type=decode_type_dto(_object(value.get("logical_type"), "logical_type")),
         description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", _decode_annotation),
     )
@@ -234,7 +234,7 @@ def _decode_field(value: Mapping[str, Any]) -> FieldDefinition:
 def _decode_property(value: Mapping[str, Any]) -> PropertyDefinition:
     return PropertyDefinition(
         name=_text(value, "name"),
-        logical_type=decode_type(_object(value.get("logical_type"), "logical_type")),
+        logical_type=decode_type_dto(_object(value.get("logical_type"), "logical_type")),
         description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", _decode_annotation),
     )
@@ -281,7 +281,7 @@ def _decode_projection_field(
 ) -> ProjectionFieldDefinition:
     return ProjectionFieldDefinition(
         name=_text(value, "name"),
-        expression=decode_expression(_object(value.get("expression"), "expression")),
+        expression=decode_expression_dto(_object(value.get("expression"), "expression")),
         description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", _decode_annotation),
     )
@@ -305,7 +305,7 @@ def _decode_properties(
         sorted(
             (
                 str(name),
-                decode_expression(_object(expression, "property expression")),
+                decode_expression_dto(_object(expression, "property expression")),
             )
             for name, expression in properties.items()
         )
@@ -318,7 +318,7 @@ def _decode_binding(
     common = {
         "symbol_id": _text(value, "symbol_id"),
         "component": _text(value, "component"),
-        "build_key": decode_expression(_object(value.get("build_key"), "build_key")),
+        "build_key": decode_expression_dto(_object(value.get("build_key"), "build_key")),
         "properties": _decode_properties(value),
         "debug_name": _optional_text(value, "debug_name"),
         "annotations": _items(value, "annotations", _decode_annotation),
@@ -329,10 +329,10 @@ def _decode_binding(
     if kind == "edge":
         return EdgeBindingDefinition(
             **common,
-            source_build_key=decode_expression(
+            source_build_key=decode_expression_dto(
                 _object(value.get("source_build_key"), "source_build_key")
             ),
-            target_build_key=decode_expression(
+            target_build_key=decode_expression_dto(
                 _object(value.get("target_build_key"), "target_build_key")
             ),
         )

@@ -4,11 +4,19 @@ from __future__ import annotations
 import json
 from collections.abc import Mapping
 
-from ..expressions import (
-    ExpressionNode, FieldReferenceExpression, OperationExpression,
-    encode_expression, walk_expression,
+from ..expressions.dto import (
+    ExpressionDTO as ExpressionNode,
+    FieldReferenceExpressionDTO as FieldReferenceExpression,
+    OperationExpressionDTO as OperationExpression,
+    walk_expression_dto as walk_expression,
 )
-from .models import Expand, Filter, RelationPlan, Scan
+from ..expressions.dto_codec import encode_expression_dto as encode_expression
+from ..expressions.ir import ExpressionNode as DomainExpressionNode
+from ..expressions.mapping import expression_to_dto
+from .dto import (
+    ExpandDTO as Expand, FilterDTO as Filter, RelationPlanDTO as RelationPlan,
+    ScanDTO as Scan,
+)
 
 
 def _key(expression: ExpressionNode) -> str:
@@ -26,14 +34,20 @@ def _operators_post_order(expression: ExpressionNode):
 
 
 def lower_product(
-    outputs: Mapping[str, ExpressionNode], relations: Mapping[str, str],
+    outputs: Mapping[str, ExpressionNode | DomainExpressionNode], relations: Mapping[str, str],
 ) -> RelationPlan:
     """Plan one projection or binding without leaking its row effects elsewhere."""
     if not outputs:
         raise ValueError("relational products require at least one output")
+    compiled_outputs = {
+        name: expression_to_dto(expression)
+        if isinstance(expression, DomainExpressionNode)
+        else expression
+        for name, expression in outputs.items()
+    }
     referenced = sorted({
         node.source
-        for expression in outputs.values()
+        for expression in compiled_outputs.values()
         for node in walk_expression(expression)
         if isinstance(node, FieldReferenceExpression)
     })
@@ -51,7 +65,7 @@ def lower_product(
     filters: list[Filter] = []
     expansion_scopes: set[tuple[str, ...]] = set()
     filter_keys: set[str] = set()
-    for expression in outputs.values():
+    for expression in compiled_outputs.values():
         for operation in _operators_post_order(expression):
             if operation.operator == "each":
                 effects = operation.row_semantics.effects
@@ -69,7 +83,7 @@ def lower_product(
                     filter_keys.add(key)
                     filters.append(Filter(operation.arguments[0]))
 
-    return RelationPlan(scans, tuple(expands), tuple(filters), tuple(outputs.items()))
+    return RelationPlan(scans, tuple(expands), tuple(filters), tuple(compiled_outputs.items()))
 
 
 __all__ = ["lower_product"]

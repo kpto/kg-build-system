@@ -10,7 +10,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Literal, cast
 
-from ..compile.models import BuildContract
+from ..compile.contracts import BuildContract
+from .mapping import workflow_from_dto
 from .models import Artifact, BuildRuntime, ContinuableInput, DisruptedExecutionContext, DisruptingInput, ExecutionContext, ExecutorFactoryContext, Failure, PublishedArtifact, StepOutcome, StepStatus, WorkflowArtifactRoles, WorkflowReport
 from .services import ExecutionServices, LocalTemporaryStorage, LocalWorkingStorage, MappingCredentialResolver
 
@@ -76,6 +77,7 @@ async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowRepo
     except ImportError as error:
         raise RuntimeError("DuckDB is required to execute builds") from error
     connection = duckdb.connect()
+    workflow = workflow_from_dto(contract.workflow)
     if contract.settings.duckdb_threads is not None:
         connection.execute(f"SET threads = {contract.settings.duckdb_threads}")
 
@@ -89,8 +91,8 @@ async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowRepo
           credentials=MappingCredentialResolver(runtime.credentials),
       )
       executors: dict[str, Any] = {}
-      definitions = {module.reference.module_id: module for module in contract.workflow.modules}
-      for module in contract.workflow.modules:
+      definitions = {module.reference.module_id: module for module in workflow.modules}
+      for module in workflow.modules:
         reference = module.reference
         cls = _load_class(reference.import_module, reference.class_qualname)
         if getattr(cls, "ID", None) != reference.module_id:
@@ -104,12 +106,12 @@ async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowRepo
             )
         configuration = runtime.module_configuration.get(reference.module_id, {})
         _validate_runtime_configuration(module, configuration)
-        factory_context = ExecutorFactoryContext(contract, module, configuration, services)
+        factory_context = ExecutorFactoryContext(module, configuration, services)
         executors[reference.module_id] = await cls.create_executor(factory_context)
 
-      output_owner = {slot.slot_id: step.step_id for step in contract.workflow.steps for slot in step.outputs}
+      output_owner = {slot.slot_id: step.step_id for step in workflow.steps for slot in step.outputs}
       incoming: dict[str, list[str]] = defaultdict(list)
-      for workflow_connection in contract.workflow.connections:
+      for workflow_connection in workflow.connections:
         incoming[workflow_connection.input_slot_id].append(workflow_connection.output_slot_id)
 
       completed: set[str] = set()
@@ -117,7 +119,7 @@ async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowRepo
       outcomes_by_step: dict[str, StepOutcome] = {}
       active_failures_by_step: dict[str, set[Failure]] = {}
       outcomes: list[StepOutcome] = []
-      pending = list(contract.workflow.steps)
+      pending = list(workflow.steps)
       while pending:
         ready = [step for step in pending if all(output_owner[slot_id] in completed for input_slot in step.inputs for slot_id in incoming[input_slot.slot_id])]
         if not ready:
@@ -151,11 +153,11 @@ async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowRepo
                 inputs[input_slot.slot_id] = tuple(contributions)
             try:
                 if disruptions:
-                    context = DisruptedExecutionContext(contract, definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), inputs, tuple(disruptions), services)
+                    context = DisruptedExecutionContext(definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), inputs, tuple(disruptions), services)
                     outcome = await executors[step.module_id].handle_disrupted(context)
                 else:
                     continuable_inputs = {slot_id: tuple(item for item in values if isinstance(item, ContinuableInput)) for slot_id, values in inputs.items()}
-                    context = ExecutionContext(contract, definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), continuable_inputs, services)
+                    context = ExecutionContext(definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), continuable_inputs, services)
                     outcome = await executors[step.module_id].handle(context)
             except Exception as error:
                 outcome = StepOutcome(
@@ -196,10 +198,10 @@ async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowRepo
     )
       producer_steps = {
           output_owner[connection.output_slot_id]
-          for connection in contract.workflow.connections
+          for connection in workflow.connections
       }
       sink_steps = {
-          step.step_id for step in contract.workflow.steps
+          step.step_id for step in workflow.steps
           if step.step_id not in producer_steps
       }
       unresolved = set().union(

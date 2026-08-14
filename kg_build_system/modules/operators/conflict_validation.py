@@ -4,14 +4,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, ClassVar
 
-from ...compile.models import (
-    ArtifactRole,
-    CollectionInputSlot,
-    ModuleDefinition,
-    ModuleReference,
-    OutputSlot,
-    SingleInputSlot,
-    WorkflowStep,
+from ...workflow.models import (
+    ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference,
+    OutputSlot, SingleInputSlot, WorkflowStep,
 )
 from ...workflow.interfaces import (
     CandidatePredicate,

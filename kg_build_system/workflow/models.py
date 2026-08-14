@@ -5,10 +5,84 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, TypeAlias
 
-from ..compile.models import ArtifactRole, BuildContract, ModuleDefinition, WorkflowStep
 from .services import ExecutionServices
+
+
+@dataclass(frozen=True, slots=True)
+class ModuleReference:
+    module_id: str
+    import_module: str
+    class_qualname: str
+    implementation_version: str
+    priority: int
+    configuration: Any = None
+
+
+@dataclass(frozen=True, slots=True)
+class RuntimeFieldDefinition:
+    key: str
+    description: str
+    required: bool = True
+    value_type: Literal["string", "integer", "number", "boolean", "json"] = "string"
+    secret: bool = False
+
+
+@dataclass(frozen=True, slots=True)
+class ModuleDefinition:
+    reference: ModuleReference
+    runtime_fields: tuple[RuntimeFieldDefinition, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
+class ArtifactRole:
+    namespace: str
+    name: str
+
+
+@dataclass(frozen=True, slots=True)
+class OutputSlot:
+    slot_id: str
+    artifact_role: ArtifactRole
+
+
+@dataclass(frozen=True, slots=True)
+class SingleInputSlot:
+    slot_id: str
+    kind: Literal["single"] = "single"
+
+
+@dataclass(frozen=True, slots=True)
+class CollectionInputSlot:
+    slot_id: str
+    kind: Literal["collection"] = "collection"
+
+
+InputSlot: TypeAlias = SingleInputSlot | CollectionInputSlot
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowStep:
+    step_id: str
+    module_id: str
+    assembly_preference: Literal["eager", "deferred"] = "eager"
+    inputs: tuple[InputSlot, ...] = ()
+    outputs: tuple[OutputSlot, ...] = ()
+    payload: Any = None
+
+
+@dataclass(frozen=True, slots=True)
+class Connection:
+    input_slot_id: str
+    output_slot_id: str
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowDefinition:
+    modules: tuple[ModuleDefinition, ...]
+    steps: tuple[WorkflowStep, ...]
+    connections: tuple[Connection, ...] = ()
 
 
 class StepStatus(StrEnum):
@@ -94,7 +168,6 @@ class BuildRuntime:
 
 @dataclass(frozen=True)
 class ExecutionContext:
-    contract: BuildContract
     module: ModuleDefinition
     step: WorkflowStep
     runtime_configuration: Mapping[str, Any]
@@ -106,7 +179,6 @@ class ExecutionContext:
 class DisruptedExecutionContext:
     """Context for a step with at least one failed or skipped input."""
 
-    contract: BuildContract
     module: ModuleDefinition
     step: WorkflowStep
     runtime_configuration: Mapping[str, Any]
@@ -119,7 +191,6 @@ class DisruptedExecutionContext:
 class ExecutorFactoryContext:
     """Generic context used once while constructing a module executor."""
 
-    contract: BuildContract
     module: ModuleDefinition
     runtime_configuration: Mapping[str, Any]
     services: ExecutionServices

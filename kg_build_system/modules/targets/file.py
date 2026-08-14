@@ -6,13 +6,9 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar
 
-from ...compile.models import (
-    CollectionInputSlot,
-    ModuleDefinition,
-    ModuleReference,
-    OutputSlot,
-    RuntimeFieldDefinition,
-    WorkflowStep,
+from ...workflow.models import (
+    CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot,
+    RuntimeFieldDefinition, WorkflowStep,
 )
 from ...workflow.interfaces import (
     CompilationContext,

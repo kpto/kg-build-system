@@ -45,7 +45,8 @@ composition choices.
 ### Principles
 
 - Separate graph meaning, data acquisition, relational planning, and execution.
-- Use one canonical logical type system in declarations, expressions, and IR.
+- Use one logical-type domain model in authoring and map it explicitly into a
+  structurally equivalent compilation DTO model.
 - Make invalid operations unavailable through specialized expression types.
 - Represent field references as expressions rather than as a parallel value
   hierarchy.
@@ -347,7 +348,8 @@ sources without mutating logical declarations.
 
 ## 10. Canonical expression and blueprint IR
 
-Expression IR is immutable and engine-neutral:
+Expression authoring uses an immutable domain expression tree. Compilation
+maps that tree into a separate, engine-neutral expression DTO tree:
 
 ```text
 LiteralExpression
@@ -355,10 +357,11 @@ FieldReferenceExpression(source, path, traversals)
 OperationExpression(operator, arguments, parameters)
 ```
 
-Every expression carries its canonical logical type and `RowSemantics`.
-Supported row effects are ordered, immutable `expand` effects with scopes and
-`filter` effects. Codecs serialize logical types, expressions, annotations,
-and frozen JSON values without importing authoring classes.
+Every domain expression carries its logical type and `RowSemantics`. Supported
+row effects are ordered, immutable `expand` effects with scopes and `filter`
+effects. The compiler maps logical types, expressions, annotations, data
+declarations, topology, bindings, and workflow definitions into domain-owned
+DTOs. Codecs serialize only those DTOs and frozen JSON values.
 
 `create_blueprint` validates declarations and produces `BuildBlueprint`
 schema version 2. It contains immutable definitions for:
@@ -372,7 +375,14 @@ schema version 2. It contains immutable definitions for:
 - configured workflow modules.
 
 Definitions use stable symbol IDs and logical names. The blueprint contains no
-Python class objects. Its JSON codec is deterministic and round-trippable.
+Python class objects or authoring domain objects. Its JSON codec is
+deterministic and round-trippable.
+
+Compilation DTOs live in each owning domain's `dto.py`; they are not exported
+from the root authoring API. Domain models never retain DTO instances. Mapping
+modules form the one-way boundary from domain models to compilation DTOs.
+Runtime workflow execution converts its serialized workflow DTO into workflow
+domain models before dispatching module business logic.
 
 `create_blueprint(namespace_path=...)` recursively imports an importable Python
 namespace and discovers module-level binding and source objects. Re-exported
@@ -451,16 +461,17 @@ ownership, check, watch, and pruning contract is defined in
 
 ```text
 kg_build_system/
-  types/             # canonical logical types and codecs
-  expressions/       # typed authoring families and expression IR
-  table/             # unified fields, tables, structs, projections, sources
-  topology/          # nodes, edges, and property declarations
-  binding/           # direct node and edge bindings
-  compile/ir/        # immutable blueprint schema version 2
-  relational/        # engine-neutral row planning
+  annotations/       # annotation domain model and compilation DTO
+  types/             # logical-type domain model, DTO, mapping, and codecs
+  expressions/       # authoring domain tree plus compilation DTO and mapping
+  table/             # data-contract domain models and compilation DTOs
+  topology/          # topology domain models and compilation DTOs
+  binding/           # binding domain models and compilation DTOs
+  compile/           # blueprint aggregate, compiler, codecs, and contracts
+  relational/        # engine-neutral planning and plan DTOs
   engines/duckdb/    # SQL lowering
   modules/           # core, operators, and targets
-  workflow/          # contract execution and reports
+  workflow/          # domain models, compilation DTOs, mapping, execution
   code_generation/   # edit-time generated packages
 demo/                 # importable end-to-end example
 tests/                # runtime and static typing contracts

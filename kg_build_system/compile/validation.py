@@ -3,9 +3,18 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
-from ...expressions import FieldReferenceExpression, OperationExpression, walk_expression
-from ...types import ArrayType, NullableType, StructType
-from .models import BLUEPRINT_SCHEMA_VERSION, BuildBlueprint, EdgeBindingDefinition
+from ..expressions.dto import (
+    FieldReferenceExpressionDTO as FieldReferenceExpression,
+    OperationExpressionDTO as OperationExpression,
+    walk_expression_dto as walk_expression,
+)
+from ..types.dto import (
+    ArrayTypeDTO as ArrayType,
+    NullableTypeDTO as NullableType,
+    StructTypeDTO as StructType,
+)
+from ..binding.dto import EdgeBindingDTO as EdgeBindingDefinition
+from .blueprint import BLUEPRINT_SCHEMA_VERSION, BuildBlueprint
 
 
 def _unique(values: Iterable[str], context: str) -> None:

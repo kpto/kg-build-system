@@ -1,8 +1,7 @@
 """Portable expression declarations and constructors."""
 from .base import field_reference, operation
-from .codec import decode_expression, encode_expression
 from .ir import (
-    ExpressionIR, ExpressionNode, FieldReferenceExpression, LiteralExpression,
+    ExpressionNode, FieldReferenceExpression, LiteralExpression,
     OperationExpression, OperationParameter, PRESERVE_ROWS, RowEffect, RowSemantics, Traversal,
 )
 from .literals import literal
@@ -19,12 +18,12 @@ from .values import AuthoringValueExpression, ValueExpression
 
 __all__ = [
     "ArrayNullableValueExpression", "ArrayValueExpression", "AuthoringValueExpression", "BoolValueExpression",
-    "CustomDataTypeValueExpression", "ExpressionIR", "ExpressionNode",
+    "CustomDataTypeValueExpression", "ExpressionNode",
     "ExpressionVisitor", "FieldReferenceExpression", "LiteralExpression", "OperationExpression",
     "FloatValueExpression", "IntValueExpression", "NullableValueExpression",
     "NumberValueExpression", "OperationParameter", "PRESERVE_ROWS",
     "PickedField", "RowEffect", "RowSemantics", "StrValueExpression", "StructNullableValueExpression",
-    "StructValueExpression", "Traversal", "ValueExpression", "decode_expression", "encode_expression",
+    "StructValueExpression", "Traversal", "ValueExpression",
     "field_reference", "literal", "operation", "rewrite_expression",
     "value_expression", "visit_expression", "walk_expression",
     "wrap_expression",

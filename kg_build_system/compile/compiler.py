@@ -7,30 +7,49 @@ import importlib.util
 import json
 import sys
 from collections.abc import Iterable, Sequence
-from dataclasses import asdict
+from dataclasses import asdict, replace
 from hashlib import sha256
 from pathlib import Path
 from types import ModuleType
 from typing import Any, get_type_hints, overload
 
 from ..annotations import Annotation
+from ..annotations.dto import AnnotationDTO as AnnotationDefinition
 from ..binding import Binding, EdgeBinding, NodeBinding
-from ..expressions import FieldReferenceExpression, ValueExpression, encode_expression, walk_expression
+from ..binding.dto import (
+    EdgeBindingDTO as EdgeBindingDefinition,
+    NodeBindingDTO as NodeBindingDefinition,
+)
+from ..expressions import FieldReferenceExpression, ValueExpression, walk_expression
 from ..expressions.base import freeze_json
+from ..expressions.codec import encode_expression
+from ..expressions.mapping import expression_to_dto
 from ..table import BoundSource, BoundTable, Projection, Struct, Table
 from ..table.declarations import resolve_bound_source
+from ..table.dto import (
+    FieldDTO as FieldDefinition,
+    ProjectionDTO as ProjectionDefinition,
+    ProjectionFieldDTO as ProjectionFieldDefinition,
+    SourceDTO as SourceDefinition,
+    StructDTO as StructDefinition,
+    TableDTO as TableDefinition,
+)
+from ..topology.dto import (
+    ComponentDTO as ComponentDefinition,
+    PropertyDTO as PropertyDefinition,
+)
 from ..types import ArrayType, NullableType, StructType
+from ..types.mapping import type_to_dto
+from ..workflow.dto import BlueprintModuleDTO as BlueprintModule
 from ..workflow.interfaces import ModuleRegistration
-from .ir import (
-    AnnotationDefinition, BlueprintModule, BuildBlueprint, ComponentDefinition,
-    EdgeBindingDefinition, FieldDefinition, NodeBindingDefinition, ProjectionDefinition,
-    ProjectionFieldDefinition, PropertyDefinition, SourceDefinition, StructDefinition,
-    TableDefinition, validate_blueprint,
+from .blueprint import BuildBlueprint
+from .validation import validate_blueprint
+from ..workflow.mapping import workflow_to_dto
+from ..workflow.models import (
+    ArtifactRole, Connection, OutputSlot, SingleInputSlot, WorkflowDefinition,
 )
-from .models import (
-    ArtifactRole, BuildContract, BuildOverrides, BuildSettings, Connection,
-    OutputSlot, SingleInputSlot, SourceOverride, WorkflowDefinition,
-)
+from ..workflow.validation import validate_workflow
+from .contracts import BuildContract, BuildOverrides, BuildSettings, SourceOverride
 from ..modules.core.core import CoreModule
 from ..workflow.interfaces import (
     CompilationContext, ModuleRegistrationConfiguration, WorkflowStepDraft,
@@ -52,7 +71,7 @@ def _field(owner: type[Any], declaration: Any) -> FieldDefinition:
     metadata = declaration.metadata
     assert metadata.name is not None
     return FieldDefinition(
-        metadata.name, declaration._logical_type(owner), metadata.description,
+        metadata.name, type_to_dto(declaration._logical_type(owner)), metadata.description,
         _annotations(metadata.annotations),
     )
 
@@ -80,7 +99,7 @@ def _table(declaration: type[Table]) -> TableDefinition:
 def _component(declaration: type[Any]) -> ComponentDefinition:
     properties = tuple(
         PropertyDefinition(
-            prop.name or attribute, prop.logical_type, prop.description,
+            prop.name or attribute, type_to_dto(prop.logical_type), prop.description,
             _annotations(prop.annotations),
         )
         for attribute, prop in declaration._properties.items()
@@ -98,7 +117,7 @@ def _component(declaration: type[Any]) -> ComponentDefinition:
 def _projection(declaration: type[Projection]) -> ProjectionDefinition:
     fields = tuple(
         ProjectionFieldDefinition(
-            field.metadata.name or attribute, field.expression,
+            field.metadata.name or attribute, expression_to_dto(field.expression),
             field.metadata.description, _annotations(field.metadata.annotations),
         )
         for attribute, field in declaration._projection_fields.items()
@@ -140,13 +159,17 @@ def _binding_symbol(binding: Binding) -> str:
 def _binding(binding: Binding) -> NodeBindingDefinition | EdgeBindingDefinition:
     common = (
         _binding_symbol(binding), binding.target._component_name,
-        binding.build_key.expression,
+        expression_to_dto(binding.build_key.expression),
     )
-    rest = (_property_expressions(binding), binding.debug_name, _annotations(binding.annotations))
+    properties = tuple(
+        (name, expression_to_dto(expression))
+        for name, expression in _property_expressions(binding)
+    )
+    rest = (properties, binding.debug_name, _annotations(binding.annotations))
     if isinstance(binding, EdgeBinding):
         return EdgeBindingDefinition(
-            *common, binding.source_build_key.expression,
-            binding.target_build_key.expression, *rest,
+            *common, expression_to_dto(binding.source_build_key.expression),
+            expression_to_dto(binding.target_build_key.expression), *rest,
         )
     return NodeBindingDefinition(*common, *rest)
 
@@ -421,14 +444,15 @@ async def _compile_blueprint(
         if declaration.module.reference.module_id != definition.module_id:
             raise ValueError("module class ID does not match its compilation result")
         cls = registration.module_class
-        reference = declaration.module.reference.model_copy(update={
-            "import_module": cls.__module__,
-            "class_qualname": cls.__qualname__,
-            "implementation_version": str(getattr(cls, "VERSION", declaration.module.reference.implementation_version)),
-            "priority": priority,
-        })
+        reference = replace(
+            declaration.module.reference,
+            import_module=cls.__module__,
+            class_qualname=cls.__qualname__,
+            implementation_version=str(getattr(cls, "VERSION", declaration.module.reference.implementation_version)),
+            priority=priority,
+        )
         declarations.append(type(declaration)(
-            declaration.module.model_copy(update={"reference": reference}), declaration.steps,
+            replace(declaration.module, reference=reference), declaration.steps,
         ))
 
     drafts = [draft for declaration in declarations for draft in declaration.steps]
@@ -539,14 +563,16 @@ async def _compile_blueprint(
         steps=tuple(draft.definition for draft in drafts),
         connections=tuple(connections),
     )
+    validate_workflow(workflow)
+    workflow_dto = workflow_to_dto(workflow)
     return BuildContract(
         blueprint=blueprint,
         blueprint_fingerprint=_blueprint_fingerprint(blueprint),
         sources=effective_sources,
         settings=compilation_settings,
         overrides=overrides,
-        workflow_fingerprint=_fingerprint(workflow.model_dump(mode="json")),
-        workflow=workflow,
+        workflow_fingerprint=_fingerprint(workflow_dto.model_dump(mode="json")),
+        workflow=workflow_dto,
     )
 
 

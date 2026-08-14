@@ -10,7 +10,7 @@ from kg_build_system import (
     Struct, Table, bind_source, build, compile_blueprint, create_blueprint,
     field, node_binding, projection_field, property,
 )
-from kg_build_system.compile.models import BuildContract
+from kg_build_system.compile.contracts import BuildContract
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration,
     MergeCompatibleFactsModule,

@@ -6,23 +6,22 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, ClassVar
 
-from pydantic import ValidationError
-
-from kg_build_system.compile.ir import BuildBlueprint, SourceDefinition
-from kg_build_system.compile.models import (
-    ArtifactRole, BuildContract, CollectionInputSlot, Connection,
-    ModuleDefinition, ModuleReference, OutputSlot, RuntimeFieldDefinition,
-    SingleInputSlot, WorkflowDefinition, WorkflowStep,
-)
+from kg_build_system.compile.blueprint import BuildBlueprint
+from kg_build_system.table.dto import SourceDTO as SourceDefinition
+from kg_build_system.compile.contracts import BuildContract
 from kg_build_system.workflow import BuildRuntime, build
 from kg_build_system.workflow.interfaces import (
     CompilationContext, Module, ModuleCompilationResult, ModuleCompiler,
     ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration,
 )
 from kg_build_system.workflow.models import (
-    Artifact, DisruptedExecutionContext, ExecutionContext,
-    ExecutorFactoryContext, StepOutcome, StepStatus, WorkflowArtifactRoles,
+    Artifact, ArtifactRole, CollectionInputSlot, Connection,
+    DisruptedExecutionContext, ExecutionContext, ExecutorFactoryContext,
+    ModuleDefinition, ModuleReference, OutputSlot, RuntimeFieldDefinition,
+    SingleInputSlot, StepOutcome, StepStatus, WorkflowArtifactRoles,
+    WorkflowDefinition, WorkflowStep,
 )
+from kg_build_system.workflow.validation import validate_workflow
 
 
 @dataclass(frozen=True)
@@ -146,8 +145,9 @@ class WorkflowDefinitionTests(unittest.TestCase):
             module_id=RecoveryModule.ID,
             inputs=(CollectionInputSlot(slot_id="test_recovery::consumer.inputs"),),
         )
-        with self.assertRaisesRegex(ValidationError, "requires at least one connection"):
-            WorkflowDefinition(modules=(module,), steps=(step,))
+        workflow = WorkflowDefinition(modules=(module,), steps=(step,))
+        with self.assertRaisesRegex(ValueError, "requires at least one connection"):
+            validate_workflow(workflow)
 
     def test_rejects_a_dependency_cycle_before_execution(self) -> None:
         role = ArtifactRole(namespace="test_recovery", name="value")
@@ -163,21 +163,22 @@ class WorkflowDefinitionTests(unittest.TestCase):
             inputs=(SingleInputSlot(slot_id="test_recovery::second.input"),),
             outputs=(OutputSlot(slot_id="test_recovery::second.output", artifact_role=role),),
         )
-        with self.assertRaisesRegex(ValidationError, "contains a cycle"):
-            WorkflowDefinition(
-                modules=(_module_definition(),),
-                steps=(first, second),
-                connections=(
-                    Connection(
-                        input_slot_id=first.inputs[0].slot_id,
-                        output_slot_id=second.outputs[0].slot_id,
-                    ),
-                    Connection(
-                        input_slot_id=second.inputs[0].slot_id,
-                        output_slot_id=first.outputs[0].slot_id,
-                    ),
+        workflow = WorkflowDefinition(
+            modules=(_module_definition(),),
+            steps=(first, second),
+            connections=(
+                Connection(
+                    input_slot_id=first.inputs[0].slot_id,
+                    output_slot_id=second.outputs[0].slot_id,
                 ),
-            )
+                Connection(
+                    input_slot_id=second.inputs[0].slot_id,
+                    output_slot_id=first.outputs[0].slot_id,
+                ),
+            ),
+        )
+        with self.assertRaisesRegex(ValueError, "contains a cycle"):
+            validate_workflow(workflow)
 
 
 class WorkflowRuntimeTests(unittest.TestCase):

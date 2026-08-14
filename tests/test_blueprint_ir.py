@@ -5,14 +5,16 @@ import unittest
 from dataclasses import dataclass, replace
 
 from kg_build_system import (
-    Annotation, Array, BuildBlueprint, DataSourceConfig, Edge, Field,
+    Annotation, Array, DataSourceConfig, Edge, Field,
     InputFormat, Node, Projection, ProjectionOptions, PropertySlot, Struct, Table, bind_source,
-    blueprint_from_json, blueprint_json, create_blueprint, edge_binding,
-    field, node_binding, projection_field, property, validate_blueprint,
+    create_blueprint, edge_binding, field, node_binding, projection_field, property,
 )
-from kg_build_system.compile.ir import FieldDefinition, TableDefinition
-from kg_build_system.expressions import RowEffect
+from kg_build_system.compile import blueprint_from_json, blueprint_json, validate_blueprint
+from kg_build_system.compile.blueprint import BuildBlueprint
+from kg_build_system.expressions.dto import RowEffectDTO
+from kg_build_system.table.dto import FieldDTO, TableDTO
 from kg_build_system.types import STR
+from kg_build_system.types.mapping import type_to_dto
 
 
 @dataclass(frozen=True)
@@ -79,7 +81,7 @@ class BlueprintIRTests(unittest.TestCase):
         self.assertEqual(tuple(item.name for item in result.projections), ("evidence_rows",))
         self.assertEqual({item.name for item in result.components}, {"entity", "related"})
         label = result.projections[0].fields[1].expression
-        self.assertIn(RowEffect("expand", ("evidence", "evidence")), label.row_semantics.effects)
+        self.assertIn(RowEffectDTO("expand", ("evidence", "evidence")), label.row_semantics.effects)
 
     def test_json_codec_is_stable_and_round_trips_canonical_objects(self) -> None:
         result = self.blueprint()
@@ -99,7 +101,7 @@ class BlueprintIRTests(unittest.TestCase):
 
     def test_validator_rejects_unknown_expression_sources(self) -> None:
         result = self.blueprint()
-        broken = replace(result, tables=(TableDefinition("table:other", "other", (FieldDefinition("id", STR),)),))
+        broken = replace(result, tables=(TableDTO("table:other", "other", (FieldDTO("id", type_to_dto(STR)),)),))
         with self.assertRaisesRegex(ValueError, "unknown logical source"):
             validate_blueprint(broken)
 

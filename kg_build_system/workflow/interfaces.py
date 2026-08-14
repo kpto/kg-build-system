@@ -6,19 +6,12 @@ from collections.abc import Callable
 from dataclasses import dataclass
 from typing import Any, ClassVar, Protocol, cast
 
-from ..compile.ir import BuildBlueprint
-from ..compile.models import (
-    ArtifactRole,
-    BuildOverrides,
-    BuildSettings,
-    InputSlot,
-    ModuleDefinition,
-    OutputSlot,
-    WorkflowStep,
-)
+from ..compile.blueprint import BuildBlueprint
+from ..compile.contracts import BuildOverrides, BuildSettings
 from .models import (
-    DisruptedExecutionContext, ExecutionContext, ExecutorFactoryContext,
-    StepOutcome, StepStatus,
+    ArtifactRole, DisruptedExecutionContext, ExecutionContext,
+    ExecutorFactoryContext, InputSlot, ModuleDefinition, OutputSlot, StepOutcome,
+    StepStatus, WorkflowStep,
 )
 
 

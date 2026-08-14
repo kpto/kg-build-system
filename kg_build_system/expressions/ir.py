@@ -1,21 +1,11 @@
-"""Canonical, immutable expression intermediate representation."""
+"""Immutable expression domain model used by the authoring DSL."""
 from __future__ import annotations
 
 from dataclasses import dataclass, replace
 from typing import Literal, TypeAlias
 
+from .._frozen_json import FrozenJson, FrozenObject, JsonScalar
 from ..types import LogicalType
-
-
-type JsonScalar = str | int | float | bool | None
-
-
-@dataclass(frozen=True, slots=True)
-class FrozenObject:
-    items: tuple[tuple[str, "FrozenJson"], ...]
-
-
-type FrozenJson = JsonScalar | tuple["FrozenJson", ...] | FrozenObject
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,11 +135,8 @@ class OperationExpression(ExpressionNode):
 
 
 Expression: TypeAlias = LiteralExpression | FieldReferenceExpression | OperationExpression
-ExpressionIR: TypeAlias = Expression
-
-
 __all__ = [
-    "Expression", "ExpressionIR", "ExpressionNode", "FieldReferenceExpression", "FrozenJson", "FrozenObject",
+    "Expression", "ExpressionNode", "FieldReferenceExpression", "FrozenJson", "FrozenObject",
     "JsonScalar", "LiteralExpression", "OperationExpression", "OperationParameter",
     "PRESERVE_ROWS", "RowEffect", "RowSemantics", "Traversal",
 ]
