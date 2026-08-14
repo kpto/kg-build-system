@@ -5,8 +5,8 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar
 from ...compile.models import ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot, RuntimeFieldDefinition, WorkflowStep
-from ...workflow.interfaces import Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft
-from ...workflow.models import Artifact, DisruptedExecutionContext, ExecutionContext, StepOutcome, StepStatus, WorkflowArtifactRoles
+from ...workflow.interfaces import CompilationContext, Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration, WorkflowStepDraft
+from ...workflow.models import Artifact, DisruptedExecutionContext, ExecutionContext, ExecutorFactoryContext, StepOutcome, StepStatus, WorkflowArtifactRoles
 from ..core import CoreArtifactRoles
 
 @dataclass(frozen=True)
@@ -23,10 +23,10 @@ class FileModule(Module, ModuleRegistration[FileModuleConfiguration]):
     configuration: FileModuleConfiguration
     ID: ClassVar[str] = "file"; VERSION: ClassVar[str] = "1"
     @classmethod
-    async def create_compiler(cls, context: Any) -> ModuleCompiler: return cls(context.registration_configuration)
+    async def create_compiler(cls, context: CompilationContext[Any]) -> ModuleCompiler: return cls(context.registration_configuration)
     @classmethod
-    async def create_executor(cls, context: Any) -> ModuleExecutor: return FileExecutor(context.runtime_configuration)
-    async def compile(self, context: Any) -> ModuleCompilationResult:
+    async def create_executor(cls, context: ExecutorFactoryContext) -> ModuleExecutor: return FileExecutor(dict(context.runtime_configuration))
+    async def compile(self, context: CompilationContext[Any]) -> ModuleCompilationResult:
         records=CollectionInputSlot(slot_id="file::write.records")
         step=WorkflowStep(step_id="file::write",module_id=self.ID,assembly_preference="deferred",inputs=(records,),outputs=(OutputSlot(slot_id="file::write.result",artifact_role=WorkflowArtifactRoles.published(self.ID, "write_result")),),payload={})
         definition=ModuleDefinition(reference=ModuleReference(module_id=self.ID,import_module=type(self).__module__,class_qualname=type(self).__qualname__,implementation_version=self.VERSION,priority=0,configuration={"relative_path":self.configuration.relative_path}),runtime_fields=(RuntimeFieldDefinition(key="relative_path",description="Optional runtime replacement for the relative output path.",required=False),))

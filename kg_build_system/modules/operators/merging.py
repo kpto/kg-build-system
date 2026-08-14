@@ -9,7 +9,7 @@ from ..core.core import CoreArtifactRoles
 class _Configuration(ModuleRegistrationConfiguration): pass
 @dataclass(frozen=True)
 class MergeCompatibleFactsModule(Module, ModuleRegistration[_Configuration]):
-    configuration: _Configuration = field(default_factory=_Configuration); ID: ClassVar[str]="merge_compatible_facts"
+    configuration: _Configuration = field(default_factory=_Configuration); ID: ClassVar[str]="merge_compatible_facts"; VERSION: ClassVar[str]="1"
     @classmethod
     async def create_compiler(cls, context: Any) -> ModuleCompiler: return cls(context.registration_configuration)
     @classmethod

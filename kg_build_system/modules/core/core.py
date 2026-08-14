@@ -14,7 +14,10 @@ from ...compile.models import (
     OutputSlot, WorkflowStep,
 )
 from ...workflow.interfaces import CompilationContext, Module, ModuleCompilationResult, ModuleCompiler, ModuleExecutor, WorkflowStepDraft
-from ...workflow.models import Artifact, DisruptedExecutionContext, ExecutionContext, StepOutcome, StepStatus
+from ...workflow.models import (
+    Artifact, DisruptedExecutionContext, ExecutionContext,
+    ExecutorFactoryContext, StepOutcome, StepStatus,
+)
 from .lowering import binding_sources, lower_binding_sql, lower_projection_sql, projection_sources
 
 
@@ -187,11 +190,15 @@ class CoreModule(Module):
     VERSION: ClassVar[str] = "1"
 
     @classmethod
-    async def create_compiler(cls, context: Any) -> ModuleCompiler:
+    async def create_compiler(
+        cls, context: CompilationContext[Any],
+    ) -> ModuleCompiler:
         return CoreCompiler()
 
     @classmethod
-    async def create_executor(cls, context: Any) -> ModuleExecutor:
+    async def create_executor(
+        cls, context: ExecutorFactoryContext,
+    ) -> ModuleExecutor:
         return CoreExecutor()
 
 

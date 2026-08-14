@@ -29,7 +29,7 @@ from .ir import (
 )
 from .models import (
     ArtifactRole, BuildContract, BuildOverrides, BuildSettings, Connection,
-    SingleInputSlot, SourceOverride, WorkflowDefinition,
+    OutputSlot, SingleInputSlot, SourceOverride, WorkflowDefinition,
 )
 from ..modules.core.core import CoreModule
 from ..workflow.interfaces import (
@@ -443,6 +443,32 @@ async def _compile_blueprint(
         slot.slot_id: draft.definition.module_id
         for draft in drafts for slot in draft.definition.outputs
     }
+    dependencies: dict[str, set[str]] = {
+        draft.definition.step_id: set() for draft in drafts
+    }
+
+    def creates_cycle(producer: str, consumer: str) -> bool:
+        if producer == consumer:
+            return True
+        pending = [consumer]
+        visited: set[str] = set()
+        while pending:
+            step_id = pending.pop()
+            if step_id == producer:
+                return True
+            if step_id in visited:
+                continue
+            visited.add(step_id)
+            pending.extend(dependencies[step_id])
+        return False
+
+    def candidate_order(output: OutputSlot) -> tuple[int, int, str]:
+        return (
+            priorities[output_module[output.slot_id]],
+            output_order[output.slot_id],
+            output.slot_id,
+        )
+
     claims = sorted(
         drafts,
         key=lambda draft: (
@@ -463,27 +489,47 @@ async def _compile_blueprint(
                 if output_step[output.slot_id] != draft.definition.step_id
                 and predicate is not None and predicate(input_slot, output)
             ]
-            # Until module-instance continuations carry explicit lineage, use
-            # declaration order to avoid selecting a downstream passthrough and
-            # manufacturing a cycle. Every module still declares before assembly.
             candidates = [
                 output for output in candidates
-                if declaration_order[output_step[output.slot_id]] < declaration_order[draft.definition.step_id]
+                if not creates_cycle(
+                    output_step[output.slot_id], draft.definition.step_id,
+                )
             ]
             if isinstance(input_slot, SingleInputSlot):
                 if not candidates:
                     raise ValueError(f"input {input_slot.slot_id} has no compatible output")
-                selected = min(candidates, key=lambda output: (
-                    uses.get(output.slot_id, 0),
-                    -priorities[output_module[output.slot_id]],
-                    -output_order[output.slot_id],
-                    output.slot_id,
-                ))
+                open_candidates = [
+                    output for output in candidates
+                    if uses.get(output.slot_id, 0) == 0
+                ]
+                selected = max(open_candidates or candidates, key=candidate_order)
                 connections.append(Connection(input_slot_id=input_slot.slot_id, output_slot_id=selected.slot_id))
                 uses[selected.slot_id] = uses.get(selected.slot_id, 0) + 1
+                dependencies[output_step[selected.slot_id]].add(
+                    draft.definition.step_id,
+                )
             else:
+                by_role: dict[tuple[str, str], list[OutputSlot]] = {}
                 for output in candidates:
+                    role = output.artifact_role
+                    by_role.setdefault((role.namespace, role.name), []).append(output)
+                selected_outputs: list[OutputSlot] = []
+                for role_candidates in by_role.values():
+                    open_candidates = [
+                        output for output in role_candidates
+                        if uses.get(output.slot_id, 0) == 0
+                    ]
+                    selected_outputs.extend(
+                        open_candidates or (max(role_candidates, key=candidate_order),)
+                    )
+                if not selected_outputs:
+                    raise ValueError(f"input {input_slot.slot_id} has no compatible output")
+                for output in sorted(selected_outputs, key=candidate_order):
                     connections.append(Connection(input_slot_id=input_slot.slot_id, output_slot_id=output.slot_id))
+                    uses[output.slot_id] = uses.get(output.slot_id, 0) + 1
+                    dependencies[output_step[output.slot_id]].add(
+                        draft.definition.step_id,
+                    )
     workflow = WorkflowDefinition(
         modules=modules,
         steps=tuple(draft.definition for draft in drafts),

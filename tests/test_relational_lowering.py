@@ -11,7 +11,10 @@ from kg_build_system import (
     field, node_binding, projection_field, property,
 )
 from kg_build_system.compile.models import BuildContract
-from kg_build_system.modules import FileModule, FileModuleConfiguration
+from kg_build_system.modules import (
+    CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration,
+    MergeCompatibleFactsModule,
+)
 from kg_build_system.relational import lower_product
 from kg_build_system.engines.duckdb import lower_relation_sql
 
@@ -113,7 +116,10 @@ class RelationalLoweringTests(unittest.TestCase):
             )
             blueprint = create_blueprint(
                 bindings=(binding,), sources=(source,),
-                modules=(FileModule(FileModuleConfiguration("graph.jsonl")),),
+                modules=(
+                    FileModule(FileModuleConfiguration("graph.jsonl")),
+                    CollapseExactDuplicatesModule(),
+                ),
             )
             report = build(
                 compile_blueprint(blueprint=blueprint),
@@ -126,6 +132,36 @@ class RelationalLoweringTests(unittest.TestCase):
             ]
             self.assertEqual(sorted(row["label"] for row in rows), ["one!", "two!"])
             self.assertEqual(len(report.published_artifacts), 1)
+
+    def test_global_assembly_connects_a_target_to_the_terminal_graph_records(self) -> None:
+        source = bind_source(
+            target=LoweringInput,
+            config=DataSourceConfig("input.json", format=InputFormat.JSON),
+        )
+        binding = node_binding(
+            target=LoweringNode,
+            build_key=LoweringProjection.identifier,
+            properties=LoweringNode(label=LoweringProjection.label),
+        )
+        blueprint = create_blueprint(
+            bindings=(binding,),
+            sources=(source,),
+            modules=(
+                FileModule(FileModuleConfiguration("graph.jsonl")),
+                MergeCompatibleFactsModule(),
+                CollapseExactDuplicatesModule(),
+            ),
+        )
+        contract = compile_blueprint(blueprint=blueprint)
+        file_outputs = {
+            connection.output_slot_id
+            for connection in contract.workflow.connections
+            if connection.input_slot_id == "file::write.records"
+        }
+        self.assertEqual(len(file_outputs), 1)
+        self.assertTrue(
+            next(iter(file_outputs)).startswith("collapse_exact_duplicates::")
+        )
 
 
 if __name__ == "__main__":

@@ -210,11 +210,46 @@ class WorkflowDefinition(IRModel):
         if len(inputs) != sum(len(step.inputs) for step in self.steps): raise ValueError("workflow input slot IDs must be unique")
         if len(outputs) != sum(len(step.outputs) for step in self.steps): raise ValueError("workflow output slot IDs must be unique")
         counts: dict[str, int] = {}
+        connection_pairs: set[tuple[str, str]] = set()
         for connection in self.connections:
             if connection.input_slot_id not in inputs or connection.output_slot_id not in outputs: raise ValueError("workflow connection references an unknown slot")
+            pair = (connection.input_slot_id, connection.output_slot_id)
+            if pair in connection_pairs:
+                raise ValueError("workflow connections must be unique")
+            connection_pairs.add(pair)
             counts[connection.input_slot_id] = counts.get(connection.input_slot_id, 0) + 1
         for slot_id, slot in inputs.items():
-            if isinstance(slot, SingleInputSlot) and counts.get(slot_id) != 1: raise ValueError(f"single input {slot_id!r} requires exactly one connection")
+            count = counts.get(slot_id, 0)
+            if count == 0:
+                raise ValueError(f"input {slot_id!r} requires at least one connection")
+            if isinstance(slot, SingleInputSlot) and count != 1:
+                raise ValueError(f"single input {slot_id!r} requires exactly one connection")
+
+        output_owners = {
+            slot.slot_id: step.step_id for step in self.steps for slot in step.outputs
+        }
+        input_owners = {
+            slot.slot_id: step.step_id for step in self.steps for slot in step.inputs
+        }
+        dependencies: dict[str, set[str]] = {step.step_id: set() for step in self.steps}
+        indegrees = {step.step_id: 0 for step in self.steps}
+        for connection in self.connections:
+            producer = output_owners[connection.output_slot_id]
+            consumer = input_owners[connection.input_slot_id]
+            if consumer not in dependencies[producer]:
+                dependencies[producer].add(consumer)
+                indegrees[consumer] += 1
+        ready = [step_id for step_id, degree in indegrees.items() if degree == 0]
+        visited = 0
+        while ready:
+            producer = ready.pop()
+            visited += 1
+            for consumer in dependencies[producer]:
+                indegrees[consumer] -= 1
+                if indegrees[consumer] == 0:
+                    ready.append(consumer)
+        if visited != len(self.steps):
+            raise ValueError("workflow dependency graph contains a cycle")
         return self
 
 

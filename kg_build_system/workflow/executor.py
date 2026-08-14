@@ -22,6 +22,54 @@ def _load_class(import_module: str, qualname: str) -> type[Any]:
     return value
 
 
+def _runtime_value_matches(value: Any, value_type: str) -> bool:
+    if value_type == "string":
+        return isinstance(value, str)
+    if value_type == "integer":
+        return isinstance(value, int) and not isinstance(value, bool)
+    if value_type == "number":
+        return isinstance(value, (int, float)) and not isinstance(value, bool)
+    if value_type == "boolean":
+        return isinstance(value, bool)
+    if value_type == "json":
+        try:
+            json.dumps(value)
+        except (TypeError, ValueError):
+            return False
+        return True
+    return False
+
+
+def _validate_runtime_configuration(
+    module: Any, configuration: dict[str, Any],
+) -> None:
+    fields = {field.key: field for field in module.runtime_fields}
+    unknown = sorted(set(configuration) - set(fields))
+    if unknown:
+        raise ValueError(
+            f"unknown runtime configuration for {module.reference.module_id}: "
+            + ", ".join(unknown)
+        )
+    missing = sorted(
+        key for key, field in fields.items()
+        if field.required and key not in configuration
+    )
+    if missing:
+        raise ValueError(
+            f"missing runtime configuration for {module.reference.module_id}: "
+            + ", ".join(missing)
+        )
+    invalid = sorted(
+        key for key, value in configuration.items()
+        if not _runtime_value_matches(value, fields[key].value_type)
+    )
+    if invalid:
+        raise TypeError(
+            f"invalid runtime configuration for {module.reference.module_id}: "
+            + ", ".join(invalid)
+        )
+
+
 async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowReport:
     try:
         import duckdb
@@ -47,10 +95,15 @@ async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowRepo
         cls = _load_class(reference.import_module, reference.class_qualname)
         if getattr(cls, "ID", None) != reference.module_id:
             raise RuntimeError(f"module import does not provide {reference.module_id!r}")
+        runtime_version = getattr(cls, "VERSION", None)
+        if str(runtime_version) != reference.implementation_version:
+            raise RuntimeError(
+                f"module {reference.module_id!r} implementation version "
+                f"{runtime_version!r} does not match compiled version "
+                f"{reference.implementation_version!r}"
+            )
         configuration = runtime.module_configuration.get(reference.module_id, {})
-        missing = [field.key for field in module.runtime_fields if field.required and field.key not in configuration]
-        if missing:
-            raise ValueError(f"missing runtime configuration for {reference.module_id}: {', '.join(missing)}")
+        _validate_runtime_configuration(module, configuration)
         factory_context = ExecutorFactoryContext(contract, module, configuration, services)
         executors[reference.module_id] = await cls.create_executor(factory_context)
 
@@ -62,6 +115,7 @@ async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowRepo
       completed: set[str] = set()
       artifacts: dict[str, Artifact] = {}
       outcomes_by_step: dict[str, StepOutcome] = {}
+      active_failures_by_step: dict[str, set[Failure]] = {}
       outcomes: list[StepOutcome] = []
       pending = list(contract.workflow.steps)
       while pending:
@@ -71,10 +125,13 @@ async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowRepo
         for step in ready:
             inputs = {}
             disruptions: list[DisruptingInput] = []
+            inherited_failures: set[Failure] = set()
             for input_slot in step.inputs:
                 contributions: list[ContinuableInput | DisruptingInput] = []
                 for output_slot_id in incoming[input_slot.slot_id]:
-                    previous = outcomes_by_step[output_owner[output_slot_id]]
+                    owner = output_owner[output_slot_id]
+                    previous = outcomes_by_step[owner]
+                    inherited_failures.update(active_failures_by_step[owner])
                     artifact = artifacts.get(output_slot_id)
                     if previous.status in {StepStatus.SUCCEEDED, StepStatus.WARNING}:
                         contributions.append(ContinuableInput(
@@ -119,6 +176,14 @@ async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowRepo
                 raise RuntimeError(f"step {step.step_id} returned an artifact role inconsistent with its output slot")
             artifacts.update(returned)
             outcomes_by_step[step.step_id] = outcome
+            if outcome.status == StepStatus.FAILED:
+                active_failures_by_step[step.step_id] = inherited_failures | {
+                    outcome.failure
+                } if outcome.failure is not None else inherited_failures
+            elif outcome.status == StepStatus.SKIPPED:
+                active_failures_by_step[step.step_id] = inherited_failures
+            else:
+                active_failures_by_step[step.step_id] = set()
             outcomes.append(outcome)
             completed.add(step.step_id)
             pending.remove(step)
@@ -129,10 +194,24 @@ async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowRepo
         for artifact in outcome.artifacts
         if WorkflowArtifactRoles.is_published(artifact.role)
     )
+      producer_steps = {
+          output_owner[connection.output_slot_id]
+          for connection in contract.workflow.connections
+      }
+      sink_steps = {
+          step.step_id for step in contract.workflow.steps
+          if step.step_id not in producer_steps
+      }
+      unresolved = set().union(
+          *(active_failures_by_step[step_id] for step_id in sink_steps),
+      ) if sink_steps else set()
+      all_failures = tuple(
+          outcome.failure for outcome in outcomes if outcome.failure is not None
+      )
       return WorkflowReport(
         published_artifacts=tuple(PublishedArtifact(role=artifact.role, value=artifact.value) for artifact in published_artifacts),
-        recovered_failures=(),
-        unresolved_failures=tuple(outcome.failure for outcome in outcomes if outcome.status == StepStatus.FAILED and outcome.failure is not None),
+        recovered_failures=tuple(failure for failure in all_failures if failure not in unresolved),
+        unresolved_failures=tuple(failure for failure in all_failures if failure in unresolved),
         provenance={"blueprint_fingerprint": contract.blueprint_fingerprint, "workflow_fingerprint": contract.workflow_fingerprint},
     )
 

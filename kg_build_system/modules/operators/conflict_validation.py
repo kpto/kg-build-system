@@ -13,7 +13,7 @@ class ConflictingNonNullValueFinding: component:str; build_key:str; property_nam
 class ConflictingNonNullValuesReport: findings:tuple[ConflictingNonNullValueFinding,...]
 @dataclass(frozen=True)
 class RejectConflictingNonNullValuesModule(Module, ModuleRegistration[RejectConflictingNonNullValuesConfiguration]):
-    configuration: RejectConflictingNonNullValuesConfiguration=field(default_factory=RejectConflictingNonNullValuesConfiguration); ID:ClassVar[str]="reject_conflicting_non_null_values"
+    configuration: RejectConflictingNonNullValuesConfiguration=field(default_factory=RejectConflictingNonNullValuesConfiguration); ID:ClassVar[str]="reject_conflicting_non_null_values"; VERSION:ClassVar[str]="1"
     @classmethod
     async def create_compiler(cls,context:Any)->ModuleCompiler:return cls(context.registration_configuration)
     @classmethod

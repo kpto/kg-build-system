@@ -7,7 +7,10 @@ from dataclasses import dataclass
 from typing import Any, ClassVar, Protocol, cast
 
 from ..compile.models import ArtifactRole, BuildBlueprint, BuildOverrides, BuildSettings, InputSlot, ModuleDefinition, OutputSlot, WorkflowStep
-from .models import DisruptedExecutionContext, ExecutionContext, StepOutcome, StepStatus
+from .models import (
+    DisruptedExecutionContext, ExecutionContext, ExecutorFactoryContext,
+    StepOutcome, StepStatus,
+)
 
 
 @dataclass(frozen=True)
@@ -77,11 +80,15 @@ class Module(ABC):
 
     @classmethod
     @abstractmethod
-    async def create_compiler(cls, context: Any) -> ModuleCompiler: ...
+    async def create_compiler(
+        cls, context: CompilationContext[Any],
+    ) -> ModuleCompiler: ...
 
     @classmethod
     @abstractmethod
-    async def create_executor(cls, context: Any) -> ModuleExecutor: ...
+    async def create_executor(
+        cls, context: ExecutorFactoryContext,
+    ) -> ModuleExecutor: ...
 
 
 def role_is(role: ArtifactRole) -> CandidatePredicate:
