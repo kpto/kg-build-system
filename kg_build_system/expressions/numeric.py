@@ -6,13 +6,15 @@ from typing import Generic, TypeVar
 from ..types import FLOAT, INT
 from ._coercion import expression_input
 from .base import operation
-from .values import ValueExpression
+from .values import AuthoringValueExpression, ValueExpression
 
 
 TNumber = TypeVar("TNumber", int, float)
 
 
-class NumberValueExpression(ValueExpression[TNumber], Generic[TNumber]):
+class NumberValueExpression(
+    ValueExpression[TNumber], AuthoringValueExpression[TNumber], Generic[TNumber]
+):
     """Shared numeric operations with a family-preserving result."""
 
     def _binary(self, operator: str, other: TNumber | ValueExpression[TNumber]):

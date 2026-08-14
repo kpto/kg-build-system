@@ -1,11 +1,12 @@
 """Typed authoring foundations for declarative knowledge-graph builds.
 
-The table/type/expression overhaul is intentionally being delivered before
-the graph-binding and compiler migrations.  This root surface therefore
-exports only the coherent authoring layers that have moved to the new model.
+The compiler migration follows the type, expression, data-declaration, and
+graph-binding layers. This root surface exports only those coherent migrated
+authoring APIs.
 """
 
 from .annotations import Annotation
+from .binding import Binding, BindingOptions, EdgeBinding, NodeBinding, edge_binding, node_binding
 from .expressions import (
     ArrayNullableValueExpression,
     ArrayValueExpression,
@@ -47,9 +48,15 @@ from .table import (
     projection_field,
 )
 from .types import Nullable
+from .topology import (
+    Edge, EdgeOptions, GraphComponent, GraphComponentOptions, Node, NodeOptions,
+    PropertySlot, property,
+)
 
 __all__ = [
     "Annotation",
+    "Binding",
+    "BindingOptions",
     "Array",
     "ArrayNullableValueExpression",
     "ArrayValueExpression",
@@ -60,16 +67,25 @@ __all__ = [
     "CustomDataType",
     "CustomDataTypeValueExpression",
     "DataSourceConfig",
+    "Edge",
+    "EdgeBinding",
+    "EdgeOptions",
     "Field",
     "FloatValueExpression",
+    "GraphComponent",
+    "GraphComponentOptions",
     "InputFormat",
     "IntValueExpression",
     "Nullable",
     "NullableValueExpression",
+    "Node",
+    "NodeBinding",
+    "NodeOptions",
     "NumberValueExpression",
     "Projection",
     "ProjectionField",
     "ProjectionOptions",
+    "PropertySlot",
     "SourceBindingOptions",
     "StrValueExpression",
     "Struct",
@@ -84,7 +100,10 @@ __all__ = [
     "TableTemplateOptions",
     "ValueExpression",
     "bind_source",
+    "edge_binding",
     "field",
+    "node_binding",
     "projection_field",
+    "property",
     "value_expression",
 ]

@@ -4,13 +4,15 @@ from __future__ import annotations
 from typing import Generic, TypeVar
 
 from ..types import CustomDataType, CustomType
-from .values import ValueExpression
+from .values import AuthoringValueExpression, ValueExpression
 
 
 TCustom = TypeVar("TCustom", bound=CustomDataType)
 
 
-class CustomDataTypeValueExpression(ValueExpression[TCustom], Generic[TCustom]):
+class CustomDataTypeValueExpression(
+    ValueExpression[TCustom], AuthoringValueExpression[TCustom], Generic[TCustom]
+):
     def __init__(self, expression):
         if not isinstance(expression.logical_type, CustomType):
             raise TypeError("CustomDataTypeValueExpression requires a custom logical type")

@@ -8,7 +8,7 @@ from ..types import Nullable, NullableType
 from ._coercion import expression_input
 from .base import operation
 from .ir import ExpressionNode, RowSemantics
-from .values import ValueExpression
+from .values import AuthoringValueExpression, ValueExpression
 
 
 TData = TypeVar("TData")
@@ -16,7 +16,9 @@ TNonNullExpr = TypeVar("TNonNullExpr", bound=ValueExpression)
 
 
 class NullableValueExpression(
-    ValueExpression[Nullable[TData]], Generic[TData, TNonNullExpr]
+    ValueExpression[Nullable[TData]],
+    AuthoringValueExpression[TData | None],
+    Generic[TData, TNonNullExpr],
 ):
     """A nullable value exposing only explicit null-handling operations."""
 

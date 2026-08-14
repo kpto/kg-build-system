@@ -4,10 +4,10 @@ from __future__ import annotations
 from ..types import BOOL
 from ._coercion import expression_input
 from .base import operation
-from .values import ValueExpression
+from .values import AuthoringValueExpression, ValueExpression
 
 
-class BoolValueExpression(ValueExpression[bool]):
+class BoolValueExpression(ValueExpression[bool], AuthoringValueExpression[bool]):
     def __init__(self, expression):
         if expression.logical_type != BOOL:
             raise TypeError("BoolValueExpression requires the bool logical type")

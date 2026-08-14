@@ -20,10 +20,10 @@ from .nullable import NullableValueExpression
 from .numeric import FloatValueExpression, IntValueExpression, NumberValueExpression
 from .structs import PickedField, StructNullableValueExpression, StructValueExpression
 from .text import StrValueExpression
-from .values import ValueExpression
+from .values import AuthoringValueExpression, ValueExpression
 
 __all__ = [
-    "ArrayNullableValueExpression", "ArrayValueExpression", "BoolValueExpression",
+    "ArrayNullableValueExpression", "ArrayValueExpression", "AuthoringValueExpression", "BoolValueExpression",
     "CustomDataTypeValueExpression", "Expression", "ExpressionIR", "ExpressionInput", "ExpressionNode", "ExpressionValue",
     "ExpressionVisitor", "FieldReferenceExpression", "LiteralExpression", "OperationExpression",
     "FloatValueExpression", "IntValueExpression", "NullableValueExpression",

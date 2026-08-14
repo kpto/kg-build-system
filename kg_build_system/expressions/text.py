@@ -4,10 +4,10 @@ from __future__ import annotations
 from ..types import STR
 from ._coercion import expression_input
 from .base import operation
-from .values import ValueExpression
+from .values import AuthoringValueExpression, ValueExpression
 
 
-class StrValueExpression(ValueExpression[str]):
+class StrValueExpression(ValueExpression[str], AuthoringValueExpression[str]):
     def __init__(self, expression):
         if expression.logical_type != STR:
             raise TypeError("StrValueExpression requires the str logical type")

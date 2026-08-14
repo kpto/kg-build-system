@@ -8,6 +8,17 @@ from .ir import ExpressionNode
 
 
 T_co = TypeVar("T_co", covariant=True)
+T_authoring_co = TypeVar("T_authoring_co", covariant=True)
+
+
+class AuthoringValueExpression(Generic[T_authoring_co]):
+    """Static marker for the Python authoring type produced by an expression.
+
+    Canonical expression types use ``Nullable[T]`` internally, while graph
+    declarations use the author-facing ``T | None`` spelling.  This separate
+    covariant marker lets an expression expose both views without weakening
+    either one to ``Any``.
+    """
 
 
 class ValueExpression(Generic[T_co]):
@@ -34,4 +45,4 @@ class ValueExpression(Generic[T_co]):
         return f"{type(self).__name__}({self._expression!r})"
 
 
-__all__ = ["ValueExpression"]
+__all__ = ["AuthoringValueExpression", "ValueExpression"]
