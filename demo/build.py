@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from kg_build_system import build, compile_blueprint, create_blueprint
-from kg_build_system.compile.blueprint import BuildBlueprint
+from kg_build_system import build, compile
+from kg_build_system.compile.contracts import BuildContract
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule,
     FileModule,
@@ -9,8 +9,8 @@ from kg_build_system.modules import (
 )
 
 
-def create_demo_blueprint() -> BuildBlueprint:
-    return create_blueprint(
+def compile_demo() -> BuildContract:
+    return compile(
         namespace_path=Path(__file__).parent,
         modules=(
             CollapseExactDuplicatesModule(),
@@ -24,8 +24,7 @@ def run_demo() -> None:
     output_dir = Path(__file__).parent / "build"
     output_dir.mkdir(exist_ok=True)
 
-    blueprint = create_demo_blueprint()
-    contract = compile_blueprint(blueprint=blueprint)
+    contract = compile_demo()
     build(contract, output_directory=output_dir)
 
 

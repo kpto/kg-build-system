@@ -59,18 +59,76 @@ def create_blueprint(
     )
 
 
-def compile_blueprint(
+@overload
+def compile(
     *,
     blueprint: BuildBlueprint,
+    source_overrides: Sequence[BoundSource] = (),
+    settings: BuildSettings | None = None,
+) -> BuildContract: ...
+
+
+@overload
+def compile(
+    *,
+    bindings: Iterable[Binding],
     sources: Sequence[BoundSource] = (),
+    source_overrides: Sequence[BoundSource] = (),
+    modules: Sequence[ModuleRegistration[Any]] = (),
+    settings: BuildSettings | None = None,
+) -> BuildContract: ...
+
+
+@overload
+def compile(
+    *,
+    namespace_path: str | Path,
+    bindings: Iterable[Binding] = (),
+    sources: Sequence[BoundSource] = (),
+    source_overrides: Sequence[BoundSource] = (),
+    modules: Sequence[ModuleRegistration[Any]] = (),
+    settings: BuildSettings | None = None,
+) -> BuildContract: ...
+
+
+def compile(
+    *,
+    blueprint: BuildBlueprint | None = None,
+    bindings: Iterable[Binding] = (),
+    sources: Sequence[BoundSource] = (),
+    source_overrides: Sequence[BoundSource] = (),
+    modules: Sequence[ModuleRegistration[Any]] = (),
+    namespace_path: str | Path | None = None,
     settings: BuildSettings | None = None,
 ) -> BuildContract:
-    """Compile a composed blueprint into a frozen executable workflow."""
+    """Compile authoring declarations directly into an executable contract."""
+    authoring_bindings = tuple(bindings)
+    if blueprint is not None:
+        if authoring_bindings or sources or modules or namespace_path is not None:
+            raise ValueError(
+                "blueprint cannot be combined with authoring declarations, "
+                "sources, modules, or namespace_path"
+            )
+        composed_blueprint = blueprint
+    else:
+        if namespace_path is None:
+            composed_blueprint = create_blueprint(
+                bindings=authoring_bindings,
+                sources=sources,
+                modules=modules,
+            )
+        else:
+            composed_blueprint = create_blueprint(
+                namespace_path=namespace_path,
+                bindings=authoring_bindings,
+                sources=sources,
+                modules=modules,
+            )
     return _compile_blueprint(
-        blueprint=blueprint,
-        sources=sources,
+        blueprint=composed_blueprint,
+        sources=source_overrides,
         settings=settings,
     )
 
 
-__all__ = ["compile_blueprint", "create_blueprint"]
+__all__ = ["compile", "create_blueprint"]

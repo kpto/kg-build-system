@@ -1,7 +1,6 @@
 """Declarative, typed, and reproducible knowledge-graph builds."""
 
 from .annotations import Annotation
-from .api import compile_blueprint, create_blueprint
 from .binding import Binding, BindingOptions, EdgeBinding, NodeBinding, edge_binding, node_binding
 from .compile import BuildSettings
 from .expressions import (
@@ -50,6 +49,7 @@ from .topology import (
     PropertySlot, property,
 )
 from .workflow import BuildRuntime, WorkflowReport, build
+from .api import compile, create_blueprint
 
 __all__ = [
     "Annotation",
@@ -102,7 +102,7 @@ __all__ = [
     "WorkflowReport",
     "bind_source",
     "build",
-    "compile_blueprint",
+    "compile",
     "create_blueprint",
     "edge_binding",
     "field",

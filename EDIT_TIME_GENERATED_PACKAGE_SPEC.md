@@ -404,9 +404,11 @@ declarations:
 from demo.table.complex_records import ComplexRecordsTable
 ```
 
-`create_blueprint` does not inspect request objects, load providers, consult
-manifests, or generate files. Generated declarations and handwritten
-declarations compile to the same immutable blueprint schema version 2.
+`compile` does not inspect request objects, load providers, consult manifests,
+or generate files. Generated declarations and handwritten declarations pass
+through the same immutable blueprint schema version 2. The auxiliary
+`create_blueprint` function exposes that intermediate representation without
+changing the generation boundary.
 
 This boundary keeps provider dependencies and source inspection out of runtime
 builds and makes generated Python, ownership metadata, blueprint JSON, and SQL

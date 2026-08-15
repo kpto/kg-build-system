@@ -8,7 +8,7 @@ from unittest.mock import MagicMock, patch
 
 from kg_build_system import (
     Array, DataSourceConfig, Field, InputFormat, Node, Projection, PropertySlot,
-    Struct, Table, bind_source, build, compile_blueprint, create_blueprint,
+    Struct, Table, bind_source, build, compile, create_blueprint,
     field, node_binding, projection_field, property,
 )
 from kg_build_system.compile.contracts import BuildContract
@@ -92,7 +92,7 @@ class RelationalLoweringTests(unittest.TestCase):
             tuple(module.module_id for module in blueprint.modules),
             (FileModule.ID, "core"),
         )
-        contract = compile_blueprint(blueprint=blueprint)
+        contract = compile(blueprint=blueprint)
         restored = BuildContract.model_validate_json(contract.model_dump_json())
         self.assertEqual(restored.blueprint, blueprint)
         self.assertEqual(restored.workflow, contract.workflow)
@@ -128,9 +128,7 @@ class RelationalLoweringTests(unittest.TestCase):
             build_key=LoweringProjection.identifier,
             properties=LoweringNode(label=LoweringProjection.label),
         )
-        contract = compile_blueprint(blueprint=create_blueprint(
-            bindings=(binding,), sources=(source,),
-        ))
+        contract = compile(bindings=(binding,), sources=(source,))
         source_step = next(
             step for step in contract.workflow.steps
             if step.step_id == "core::table.lowering_input"
@@ -183,7 +181,7 @@ class RelationalLoweringTests(unittest.TestCase):
                 build_key=LoweringProjection.identifier,
                 properties=LoweringNode(label=LoweringProjection.label),
             )
-            blueprint = create_blueprint(
+            contract = compile(
                 bindings=(binding,), sources=(source,),
                 modules=(
                     FileModule(FileModuleConfiguration("graph.jsonl")),
@@ -191,7 +189,7 @@ class RelationalLoweringTests(unittest.TestCase):
                 ),
             )
             report = build(
-                compile_blueprint(blueprint=blueprint),
+                contract,
                 output_directory=root / "output",
             )
             self.assertTrue(report.succeeded)
@@ -221,7 +219,7 @@ class RelationalLoweringTests(unittest.TestCase):
                 CollapseExactDuplicatesModule(),
             ),
         )
-        contract = compile_blueprint(blueprint=blueprint)
+        contract = compile(blueprint=blueprint)
         file_outputs = {
             connection.output_slot_id
             for connection in contract.workflow.connections

@@ -36,8 +36,8 @@ it is used as the module namespace for steps, slots, artifact roles, runtime
 configuration, and annotations the module owns. A
 compiled workflow may contain at most one configured instance of a module ID.
 
-An author supplies module registrations to `create_blueprint`; they are part
-of the complete declared build intention. A registration contains a module
+An author supplies module registrations to `compile`; they are part of the
+complete declared build intention. A registration contains a module
 class and serialisable, non-secret registration configuration. The blueprint
 records import coordinates for that class and the registration configuration,
 never a Python object. At compilation, the compiler re-imports and
@@ -266,9 +266,9 @@ class Module(ABC):
     ) -> ModuleExecutor: ...
 ```
 
-`create_blueprint` serialises registrations into blueprint module entries.
-`compile_blueprint` reconstructs them, calls `create_compiler`, then calls
-`ModuleCompiler.compile`. The resulting `ModuleCompilationResult` contains a
+`compile` creates its blueprint internally and serialises registrations into
+blueprint module entries. It then reconstructs them, calls `create_compiler`,
+and calls `ModuleCompiler.compile`. The resulting `ModuleCompilationResult` contains a
 serialisable module definition, step drafts, and candidate predicates. The
 compiler retains only serialisable definitions and resolved connections in the
 contract, and owns selection, connection creation, and graph validation.

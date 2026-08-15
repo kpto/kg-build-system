@@ -29,13 +29,12 @@ modules ───────── compilation and execution extensions
 ```
 
 ```text
-Python declarations ──> create_blueprint ──> BuildBlueprint (schema v2)
-                                                    │
-sources/settings/overrides ──> compile_blueprint ───┤
-                                                    v
-                                             BuildContract
-                                                    │
-runtime configuration ────────────────> build ──────┘
+Python declarations/sources/modules/settings ──> compile ──> BuildContract
+                                                     │
+runtime configuration ─────────────────> build <─────┘
+
+                         create_blueprint ──> BuildBlueprint (schema v2)
+                         auxiliary inspection and serialization boundary
 ```
 
 Topology, data contracts, expressions, and bindings are reusable logical
@@ -366,8 +365,10 @@ blueprint. The compiler maps logical types, expressions, annotations, data
 declarations, topology, bindings, and workflow definitions into domain-owned
 IRs. Codecs serialize only those IRs and frozen JSON values.
 
-`create_blueprint` validates declarations and produces `BuildBlueprint`
-schema version 2. It contains immutable definitions for:
+The auxiliary `create_blueprint` function validates declarations and produces
+`BuildBlueprint` schema version 2 for inspection, serialization, and advanced
+tooling. Normal builds call `compile` directly. A blueprint contains immutable
+definitions for:
 
 - structs and fields;
 - final tables and fields;
@@ -387,10 +388,11 @@ modules form the one-way boundary from domain models to compilation IRs.
 Runtime workflow execution converts its serialized workflow IR into workflow
 domain models before dispatching module business logic.
 
-`create_blueprint(namespace_path=...)` recursively imports an importable Python
-namespace and discovers module-level binding and source objects. Re-exported
-objects are deduplicated by identity. Discovery never invokes arbitrary
-factories.
+`compile(namespace_path=...)` recursively imports an importable Python
+namespace and discovers module-level binding and source objects while creating
+its internal blueprint. The auxiliary `create_blueprint` exposes the same
+discovery boundary. Re-exported objects are deduplicated by identity. Discovery
+never invokes arbitrary factories.
 
 ## 11. Relational planning and DuckDB lowering
 
@@ -417,12 +419,13 @@ bindings reference stable relations.
 
 ## 12. Compilation, workflow, and execution
 
-The public `create_blueprint` API appends the mandatory core module after the
-configured extension modules. `compile_blueprint` validates blueprint schema
-version 2, resolves effective sources and overrides, compiles every registered
-module through the common module interface, and assembles one dependency-aware
-`BuildContract`. The compiler does not import or bootstrap concrete module
-implementations.
+The public `compile` API creates the canonical blueprint internally and appends
+the mandatory core module after the configured extension modules. It validates
+blueprint schema version 2, resolves effective sources and overrides, compiles
+every registered module through the common module interface, and assembles one
+dependency-aware `BuildContract`. The compiler does not import or bootstrap
+concrete module implementations. `compile(blueprint=...)` remains available for
+advanced callers using an auxiliary prebuilt blueprint.
 
 The contract includes:
 
