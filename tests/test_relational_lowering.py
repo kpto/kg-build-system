@@ -90,11 +90,52 @@ class RelationalLoweringTests(unittest.TestCase):
         restored = BuildContract.model_validate_json(contract.model_dump_json())
         self.assertEqual(restored.blueprint, blueprint)
         self.assertEqual(restored.workflow, contract.workflow)
+        contract_document = json.loads(contract.model_dump_json())
+        self.assertEqual(contract_document["schema_version"], 1)
+        self.assertNotIn("sources", contract_document)
+        self.assertNotIn("overrides", contract_document)
+        self.assertTrue(all(
+            "priority" not in module["reference"]
+            for module in contract_document["workflow"]["modules"]
+        ))
+        self.assertTrue(all(
+            "assembly_preference" not in step
+            for step in contract_document["workflow"]["steps"]
+        ))
         projection_step = next(
             step for step in contract.workflow.steps
             if step.step_id == f"core::projection.{blueprint.projections[0].name}"
         )
         self.assertEqual(str(projection_step.payload["sql"]).count("UNNEST"), 2)  # type: ignore[index]
+
+    def test_source_instruction_retains_credential_reference(self) -> None:
+        source = bind_source(
+            target=LoweringInput,
+            config=DataSourceConfig(
+                "s3://bucket/input.json",
+                format=InputFormat.JSON,
+                credentials="source_credentials",
+            ),
+        )
+        binding = node_binding(
+            target=LoweringNode,
+            build_key=LoweringProjection.identifier,
+            properties=LoweringNode(label=LoweringProjection.label),
+        )
+        contract = compile_blueprint(blueprint=create_blueprint(
+            bindings=(binding,), sources=(source,),
+        ))
+        source_step = next(
+            step for step in contract.workflow.steps
+            if step.step_id == "core::table.lowering_input"
+        )
+        self.assertEqual(source_step.payload, {
+            "action": "source_relation",
+            "relation": "kg_table_0",
+            "location": "s3://bucket/input.json",
+            "format": "json",
+            "credential_reference": "source_credentials",
+        })
 
     def test_compiled_workflow_executes_and_publishes_file_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

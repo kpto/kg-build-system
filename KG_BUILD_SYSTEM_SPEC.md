@@ -353,13 +353,16 @@ maps that tree into a separate, engine-neutral expression IR tree:
 
 ```text
 LiteralExpression
-FieldReferenceExpression(source, path, traversals)
+FieldReferenceExpression(source, path)
 OperationExpression(operator, arguments, parameters)
 ```
 
-Every domain expression carries its logical type and `RowSemantics`. Supported
-row effects are ordered, immutable `expand` effects with scopes and `filter`
-effects. The compiler maps logical types, expressions, annotations, data
+Every domain expression carries its logical type and may retain authoring-time
+`RowSemantics`, but expression IR records only the explicit expression syntax
+and normalized logical type. `each` and `when_present` remain ordinary explicit
+operations. Relational planning derives expansion identities, ordering, and
+filters from that syntax; planner scopes and traversal hints never enter the
+blueprint. The compiler maps logical types, expressions, annotations, data
 declarations, topology, bindings, and workflow definitions into domain-owned
 IRs. Codecs serialize only those IRs and frozen JSON values.
 
@@ -420,10 +423,13 @@ modules, and assembles one dependency-aware `BuildContract`.
 
 The contract includes:
 
+- a contract schema version;
 - the complete blueprint and its fingerprint;
-- effective sources and credential references;
-- build settings and explicit overrides;
-- frozen module definitions and workflow steps;
+- execution settings;
+- frozen module definitions, executable workflow steps, and resolved
+  connections;
+- effective source instructions containing locations, formats, and credential
+  references where required;
 - inspectable SQL payloads;
 - the workflow fingerprint.
 
@@ -443,7 +449,9 @@ every returned artifact against its declared output slot.
 The output directory receives published artifacts, `build_contract.json`, and
 `build_report.json`. The working directory defaults to the output directory;
 temporary storage defaults to a system temporary directory. Runtime
-credentials are resolved through runtime services.
+credentials are resolved through runtime services. Core source credentials
+resolve to JSON objects containing `fsspec` filesystem options; the resolved
+values configure an executor-local filesystem and never enter the contract.
 
 ## 13. Edit-time generated packages
 

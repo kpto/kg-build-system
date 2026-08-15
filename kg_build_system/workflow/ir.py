@@ -29,7 +29,6 @@ class ModuleReferenceIR(WorkflowIR):
     import_module: str = Field(min_length=1)
     class_qualname: str = Field(min_length=1)
     implementation_version: str = Field(min_length=1)
-    priority: int = Field(ge=0)
     configuration: JsonValue | None = None
 
 
@@ -75,7 +74,6 @@ InputSlotIR = Annotated[
 class WorkflowStepIR(WorkflowIR):
     step_id: str = Field(min_length=1)
     module_id: str = Field(pattern=r"^[a-z][a-z0-9_]*$")
-    assembly_preference: Literal["eager", "deferred"] = "eager"
     inputs: tuple[InputSlotIR, ...] = ()
     outputs: tuple[OutputSlotIR, ...] = ()
     payload: JsonValue | None = None

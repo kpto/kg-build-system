@@ -20,8 +20,8 @@ from ..binding.ir import (
     EdgeBindingIR as EdgeBindingDefinition,
     NodeBindingIR as NodeBindingDefinition,
 )
+from .._frozen_json import freeze_json
 from ..expressions import FieldReferenceExpression, ValueExpression, walk_expression
-from ..expressions.base import freeze_json
 from ..expressions.codec import encode_expression
 from ..expressions.mapping import expression_to_ir
 from ..table import BoundSource, BoundTable, Projection, Struct, Table
@@ -361,7 +361,9 @@ def _fingerprint(value: object) -> str:
 
 
 def _blueprint_fingerprint(blueprint: BuildBlueprint) -> str:
-    payload = blueprint.model_dump(mode="json")
+    from .codec import encode_blueprint
+
+    payload = encode_blueprint(blueprint)
     for binding in payload["bindings"]:
         binding.pop("debug_name", None)
     return _fingerprint(payload)
@@ -568,9 +570,7 @@ async def _compile_blueprint(
     return BuildContract(
         blueprint=blueprint,
         blueprint_fingerprint=_blueprint_fingerprint(blueprint),
-        sources=effective_sources,
         settings=compilation_settings,
-        overrides=overrides,
         workflow_fingerprint=_fingerprint(workflow_ir.model_dump(mode="json")),
         workflow=workflow_ir,
     )

@@ -2,27 +2,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterator, Literal, TypeAlias
+from typing import Iterator, TypeAlias
 
 from ..types.ir import LogicalTypeIR
 from .._frozen_json import FrozenJson
 
 
-@dataclass(frozen=True, slots=True)
-class RowEffectIR:
-    mode: Literal["expand", "filter"]
-    scope: tuple[str, ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
-class RowSemanticsIR:
-    effects: tuple[RowEffectIR, ...] = ()
-
-
 @dataclass(frozen=True, slots=True, kw_only=True)
 class ExpressionIRBase:
     logical_type: LogicalTypeIR
-    row_semantics: RowSemanticsIR = RowSemanticsIR()
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -30,17 +18,10 @@ class LiteralExpressionIR(ExpressionIRBase):
     value: FrozenJson
 
 
-@dataclass(frozen=True, slots=True)
-class TraversalIR:
-    kind: Literal["struct", "array"]
-    path: tuple[str, ...]
-
-
 @dataclass(frozen=True, slots=True, kw_only=True)
 class FieldReferenceExpressionIR(ExpressionIRBase):
     source: str
     path: tuple[str, ...]
-    traversals: tuple[TraversalIR, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -71,5 +52,5 @@ def walk_expression_ir(expression: ExpressionIR) -> Iterator[ExpressionIR]:
 __all__ = [
     "ExpressionIR", "ExpressionIRBase", "FieldReferenceExpressionIR",
     "LiteralExpressionIR", "OperationExpressionIR", "OperationParameterIR",
-    "RowEffectIR", "RowSemanticsIR", "TraversalIR", "walk_expression_ir",
+    "walk_expression_ir",
 ]

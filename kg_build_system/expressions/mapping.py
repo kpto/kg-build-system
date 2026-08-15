@@ -6,18 +6,13 @@ from ..types.mapping import type_to_ir
 
 
 def expression_to_ir(value: models.ExpressionNode) -> ir.ExpressionIR:
-    rows = ir.RowSemanticsIR(tuple(
-        ir.RowEffectIR(effect.mode, effect.scope)
-        for effect in value.row_semantics.effects
-    ))
-    common = {"logical_type": type_to_ir(value.logical_type), "row_semantics": rows}
+    common = {"logical_type": type_to_ir(value.logical_type)}
     if isinstance(value, models.LiteralExpression):
         return ir.LiteralExpressionIR(value=value.value, **common)
     if isinstance(value, models.FieldReferenceExpression):
         return ir.FieldReferenceExpressionIR(
             source=value.source,
             path=value.path,
-            traversals=tuple(ir.TraversalIR(item.kind, item.path) for item in value.traversals),
             **common,
         )
     if isinstance(value, models.OperationExpression):

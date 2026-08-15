@@ -4,14 +4,12 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
+from .._frozen_json import FrozenJson, FrozenObject, freeze_json
 from ..types.ir_codec import decode_type_ir, encode_type_ir
-from .base import freeze_json
 from .ir import (
     ExpressionIR, FieldReferenceExpressionIR, LiteralExpressionIR,
-    OperationExpressionIR, OperationParameterIR, RowEffectIR,
-    RowSemanticsIR, TraversalIR,
+    OperationExpressionIR, OperationParameterIR,
 )
-from .._frozen_json import FrozenJson, FrozenObject
 
 
 def _thaw(value: FrozenJson) -> Any:
@@ -23,20 +21,13 @@ def _thaw(value: FrozenJson) -> Any:
 
 
 def encode_expression_ir(expression: ExpressionIR) -> dict[str, Any]:
-    common = {
-        "logical_type": encode_type_ir(expression.logical_type),
-        "rows": {"effects": [
-            {"mode": effect.mode, **({"scope": list(effect.scope)} if effect.scope else {})}
-            for effect in expression.row_semantics.effects
-        ]},
-    }
+    common = {"logical_type": encode_type_ir(expression.logical_type)}
     if isinstance(expression, LiteralExpressionIR):
         return {"kind": "literal", "value": _thaw(expression.value), **common}
     if isinstance(expression, FieldReferenceExpressionIR):
         return {
             "kind": "field", "source": expression.source,
             "path": list(expression.path),
-            "traversals": [{"kind": item.kind, "path": list(item.path)} for item in expression.traversals],
             **common,
         }
     if isinstance(expression, OperationExpressionIR):
@@ -73,35 +64,14 @@ def _strings(value: Any, *, field: str, allow_empty: bool = False) -> tuple[str,
 
 def decode_expression_ir(value: Mapping[str, Any]) -> ExpressionIR:
     logical_type = decode_type_ir(_object(value.get("logical_type"), "logical_type"))
-    rows = _object(value.get("rows"), "rows")
-    effects_value = rows.get("effects", ())
-    if not isinstance(effects_value, Sequence) or isinstance(effects_value, (str, bytes, bytearray)):
-        raise ValueError("expression row effects must be an array")
-    effects: list[RowEffectIR] = []
-    for effect_value in effects_value:
-        effect = _object(effect_value, "row effect")
-        mode = effect.get("mode")
-        if mode not in {"expand", "filter"}:
-            raise ValueError(f"unknown row-effect mode {mode!r}")
-        effects.append(RowEffectIR(cast(Any, mode), _strings(effect.get("scope", ()), field="scope", allow_empty=True)))
-    common = {"logical_type": logical_type, "row_semantics": RowSemanticsIR(tuple(effects))}
+    common = {"logical_type": logical_type}
     kind = value.get("kind")
     if kind == "literal":
         return LiteralExpressionIR(value=freeze_json(value.get("value")), **common)
     if kind == "field":
-        traversals_value = value.get("traversals", ())
-        if not isinstance(traversals_value, Sequence) or isinstance(traversals_value, (str, bytes, bytearray)):
-            raise ValueError("expression field 'traversals' must be an array")
-        traversals = tuple(
-            TraversalIR(
-                cast(Any, _text(_object(item, "traversal"), "kind")),
-                _strings(_object(item, "traversal").get("path"), field="path"),
-            )
-            for item in traversals_value
-        )
         return FieldReferenceExpressionIR(
             source=_text(value, "source"), path=_strings(value.get("path"), field="path"),
-            traversals=traversals, **common,
+            **common,
         )
     if kind == "operation":
         arguments_value = value.get("arguments")

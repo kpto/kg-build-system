@@ -89,7 +89,6 @@ ModuleReference
   import_module
   class_qualname
   implementation_version
-  priority
   configuration
 
 ModuleDefinition
@@ -128,7 +127,6 @@ CollectionInputSlot
 WorkflowStep
   step_id
   module_id
-  assembly_preference: eager | deferred
   inputs
   outputs
   payload
@@ -213,9 +211,11 @@ deterministic, pure, and synchronous: it cannot inspect runtime configuration,
 resolved credentials, physical artifacts, or execution state. The contract
 retains resolved connections, not Python predicate objects.
 
-Assembly preference and module priority determine which candidate a single
+Compile-only step drafts carry assembly preference, and compilation context
+carries module priority. Together they determine which candidate a single
 input selects; collection inputs retain every candidate selected by their
-module's predicate.
+module's predicate. Both values are discarded after connections are resolved
+and therefore do not enter the serialized workflow IR or its fingerprint.
 
 ## Workflow-module interface
 
@@ -337,7 +337,7 @@ module candidate predicates or resolving any connection. An output is a
 candidate even when its producing step has not yet had its own inputs
 connected.
 
-Each step declares one assembly preference:
+Each compile-only step draft declares one assembly preference:
 
 - `eager` — resolve its input claims early;
 - `deferred` — resolve its input claims late.
@@ -353,9 +353,9 @@ the deterministic assembly ordering. This produces a preferred continuation
 without preventing useful fan-out. Missing or unresolved equally preferred
 connections are compilation errors.
 
-Once every connection is resolved, it becomes a dependency edge. The resulting
-dependency graph, rather than module priority or assembly preference, defines
-runtime execution order.
+Once every connection is resolved, it becomes a dependency edge. Module
+priority and assembly preference are discarded. The resulting dependency graph
+alone defines runtime execution order.
 
 ## Execution and failures
 

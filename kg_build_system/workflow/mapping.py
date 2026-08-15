@@ -19,7 +19,13 @@ def workflow_to_ir(value: models.WorkflowDefinition) -> ir.WorkflowDefinitionIR:
     return ir.WorkflowDefinitionIR(
         modules=tuple(
             ir.ModuleIR(
-                reference=ir.ModuleReferenceIR(**asdict(module.reference)),
+                reference=ir.ModuleReferenceIR(
+                    module_id=module.reference.module_id,
+                    import_module=module.reference.import_module,
+                    class_qualname=module.reference.class_qualname,
+                    implementation_version=module.reference.implementation_version,
+                    configuration=module.reference.configuration,
+                ),
                 runtime_fields=tuple(ir.RuntimeFieldIR(**asdict(field)) for field in module.runtime_fields),
             )
             for module in value.modules
@@ -28,7 +34,6 @@ def workflow_to_ir(value: models.WorkflowDefinition) -> ir.WorkflowDefinitionIR:
             ir.WorkflowStepIR(
                 step_id=step.step_id,
                 module_id=step.module_id,
-                assembly_preference=step.assembly_preference,
                 inputs=tuple(
                     ir.SingleInputSlotIR(slot_id=slot.slot_id)
                     if isinstance(slot, models.SingleInputSlot)
@@ -51,7 +56,14 @@ def workflow_from_ir(value: ir.WorkflowDefinitionIR) -> models.WorkflowDefinitio
     return models.WorkflowDefinition(
         modules=tuple(
             models.ModuleDefinition(
-                reference=models.ModuleReference(**module.reference.model_dump()),
+                reference=models.ModuleReference(
+                    module_id=module.reference.module_id,
+                    import_module=module.reference.import_module,
+                    class_qualname=module.reference.class_qualname,
+                    implementation_version=module.reference.implementation_version,
+                    priority=0,
+                    configuration=module.reference.configuration,
+                ),
                 runtime_fields=tuple(models.RuntimeFieldDefinition(**field.model_dump()) for field in module.runtime_fields),
             )
             for module in value.modules
@@ -60,7 +72,6 @@ def workflow_from_ir(value: ir.WorkflowDefinitionIR) -> models.WorkflowDefinitio
             models.WorkflowStep(
                 step_id=step.step_id,
                 module_id=step.module_id,
-                assembly_preference=step.assembly_preference,
                 inputs=tuple(
                     models.SingleInputSlot(slot_id=slot.slot_id)
                     if isinstance(slot, ir.SingleInputSlotIR)

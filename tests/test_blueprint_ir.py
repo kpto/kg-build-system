@@ -9,9 +9,11 @@ from kg_build_system import (
     InputFormat, Node, Projection, ProjectionOptions, PropertySlot, Struct, Table, bind_source,
     create_blueprint, edge_binding, field, node_binding, projection_field, property,
 )
-from kg_build_system.compile import blueprint_from_json, blueprint_json, validate_blueprint
+from kg_build_system.compile import (
+    blueprint_from_json, blueprint_json, decode_blueprint, validate_blueprint,
+)
 from kg_build_system.compile.blueprint import BuildBlueprint
-from kg_build_system.expressions.ir import RowEffectIR
+from kg_build_system.expressions.ir import OperationExpressionIR, walk_expression_ir
 from kg_build_system.table.ir import FieldIR, TableIR
 from kg_build_system.types import STR
 from kg_build_system.types.mapping import type_to_ir
@@ -75,13 +77,16 @@ class BlueprintIRTests(unittest.TestCase):
 
     def test_blueprint_contains_complete_canonical_declarations(self) -> None:
         result = self.blueprint()
-        self.assertEqual(result.schema_version, 1)
+        self.assertEqual(result.schema_version, 2)
         self.assertEqual(tuple(item.name for item in result.structs), ("evidence",))
         self.assertEqual(tuple(item.name for item in result.tables), ("evidence",))
         self.assertEqual(tuple(item.name for item in result.projections), ("evidence_rows",))
         self.assertEqual({item.name for item in result.components}, {"entity", "related"})
         label = result.projections[0].fields[1].expression
-        self.assertIn(RowEffectIR("expand", ("evidence", "evidence")), label.row_semantics.effects)
+        self.assertTrue(any(
+            isinstance(item, OperationExpressionIR) and item.operator == "each"
+            for item in walk_expression_ir(label)
+        ))
 
     def test_json_codec_is_stable_and_round_trips_canonical_objects(self) -> None:
         result = self.blueprint()
@@ -89,7 +94,11 @@ class BlueprintIRTests(unittest.TestCase):
         decoded = blueprint_from_json(encoded)
         self.assertEqual(decoded, result)
         self.assertEqual(blueprint_json(decoded), encoded)
-        self.assertEqual(json.loads(encoded)["schema_version"], 1)
+        document = json.loads(encoded)
+        self.assertEqual(document["schema_version"], 2)
+        expression = document["projections"][0]["fields"][1]["expression"]
+        self.assertNotIn("rows", json.dumps(expression))
+        self.assertNotIn("traversals", json.dumps(expression))
 
     def test_binding_symbols_are_deterministic(self) -> None:
         first = self.blueprint()
@@ -109,7 +118,7 @@ class BlueprintIRTests(unittest.TestCase):
         raw = json.loads(blueprint_json(self.blueprint()))
         raw["schema_version"] = 999
         with self.assertRaisesRegex(ValueError, "unsupported blueprint schema version"):
-            BuildBlueprint.model_validate(raw)
+            decode_blueprint(raw)
 
 
 if __name__ == "__main__":

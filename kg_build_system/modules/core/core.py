@@ -2,7 +2,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import json
 from typing import Any, ClassVar, Literal, cast
+from urllib.parse import urlsplit
 
 from ...compile.blueprint import BuildBlueprint
 from ...table.ir import ProjectionIR as ProjectionDefinition
@@ -31,6 +33,11 @@ from .lowering import (
     lower_binding_sql,
     lower_projection_sql,
     projection_sources,
+)
+from .ir import (
+    AggregateInstructionIR, RelationInstructionIR,
+    SourceRelationInstructionIR, decode_core_instruction,
+    encode_core_instruction,
 )
 
 
@@ -187,12 +194,6 @@ class CoreCompiler:
 
     @staticmethod
     def _source_step(source, relation: str) -> WorkflowStepDraft:
-        scan_function = {
-            "csv": "read_csv_auto",
-            "json": "read_json_auto",
-            "parquet": "read_parquet",
-        }[source.format]
-        location = source.location.replace("'", "''")
         output = OutputSlot(
             slot_id=f"core::table.{source.table}.output",
             artifact_role=CoreArtifactRoles.table(source.table),
@@ -201,11 +202,12 @@ class CoreCompiler:
             step_id=f"core::table.{source.table}",
             module_id=CoreModule.ID,
             outputs=(output,),
-            payload={
-                "action": "relation",
-                "relation": relation,
-                "sql": f"SELECT * FROM {scan_function}('{location}')",
-            },
+            payload=encode_core_instruction(SourceRelationInstructionIR(
+                relation=relation,
+                location=source.location,
+                format=source.format,
+                credential_reference=source.credential_reference,
+            )),
         )
         return WorkflowStepDraft(step, {})
 
@@ -236,13 +238,12 @@ class CoreCompiler:
             module_id=CoreModule.ID,
             inputs=(input_slot,),
             outputs=(output,),
-            payload={
-                "action": "relation",
-                "relation": relation,
-                "sql": lower_projection_sql(
+            payload=encode_core_instruction(RelationInstructionIR(
+                relation=relation,
+                sql=lower_projection_sql(
                     blueprint, relations, projection
                 ),
-            },
+            )),
         )
         candidates = {
             input_slot.slot_id: lambda _input, candidate, roles=required_roles: (
@@ -292,14 +293,13 @@ class CoreCompiler:
             module_id=CoreModule.ID,
             inputs=inputs,
             outputs=(output,),
-            payload={
-                "action": "relation",
-                "relation": f"kg_binding_{index}",
-                "sql": (
+            payload=encode_core_instruction(RelationInstructionIR(
+                relation=f"kg_binding_{index}",
+                sql=(
                     f"SELECT *, '{binding.symbol_id}' AS _kg_binding_symbol "
                     f"FROM ({binding_sql})"
                 ),
-            },
+            )),
         )
         return WorkflowStepDraft(step, candidates)
 
@@ -331,10 +331,9 @@ class CoreCompiler:
                 assembly_preference="deferred",
                 inputs=(input_slot,),
                 outputs=(output,),
-                payload={
-                    "action": "aggregate",
-                    "relation": f"kg_graph_{component.name.lower()}",
-                },
+                payload=encode_core_instruction(AggregateInstructionIR(
+                    relation=f"kg_graph_{component.name.lower()}",
+                )),
             )
             candidates = {
                 input_slot.slot_id: (
@@ -366,22 +365,18 @@ class CoreModule(Module):
 
 class CoreExecutor(ModuleExecutor):
     async def handle(self, context: ExecutionContext) -> StepOutcome:
-        payload = context.step.payload
-        if not isinstance(payload, dict):
-            raise ValueError("core workflow steps require an object payload")
-
-        action = payload.get("action")
-        if action == "aggregate":
-            return self._aggregate(context, payload)
-        if action == "relation":
-            return self._materialize_relation(context, payload)
-        raise ValueError(f"unsupported core action {action!r}")
+        instruction = decode_core_instruction(context.step.payload)
+        if isinstance(instruction, AggregateInstructionIR):
+            return self._aggregate(context, instruction)
+        if isinstance(instruction, SourceRelationInstructionIR):
+            return self._materialize_source(context, instruction)
+        return self._materialize_relation(context, instruction)
 
     @staticmethod
     def _aggregate(
-        context: ExecutionContext, payload: dict[str, Any],
+        context: ExecutionContext, instruction: AggregateInstructionIR,
     ) -> StepOutcome:
-        relation = _quote_identifier(payload["relation"])
+        relation = _quote_identifier(instruction.relation)
         source_relations = tuple(
             item.artifact.value
             for contributions in context.inputs.values()
@@ -399,13 +394,60 @@ class CoreExecutor(ModuleExecutor):
 
     @staticmethod
     def _materialize_relation(
-        context: ExecutionContext, payload: dict[str, Any],
+        context: ExecutionContext, instruction: RelationInstructionIR,
     ) -> StepOutcome:
-        relation = _quote_identifier(payload["relation"])
+        relation = _quote_identifier(instruction.relation)
         context.services.duckdb.execute(
-            f'CREATE TEMP TABLE "{relation}" AS {payload["sql"]}'
+            f'CREATE TEMP TABLE "{relation}" AS {instruction.sql}'
         )
         return CoreExecutor._success(context, relation)
+
+    @staticmethod
+    def _materialize_source(
+        context: ExecutionContext, instruction: SourceRelationInstructionIR,
+    ) -> StepOutcome:
+        if instruction.credential_reference is not None:
+            raw_options = context.services.credentials.resolve(
+                instruction.credential_reference
+            )
+            try:
+                options = json.loads(raw_options)
+            except json.JSONDecodeError as error:
+                raise ValueError(
+                    "source credentials must resolve to a JSON object of "
+                    "fsspec filesystem options"
+                ) from error
+            if not isinstance(options, dict) or any(
+                not isinstance(key, str) for key in options
+            ):
+                raise ValueError(
+                    "source credentials must resolve to a JSON object of "
+                    "fsspec filesystem options"
+                )
+            protocol = urlsplit(instruction.location).scheme
+            if not protocol:
+                raise ValueError(
+                    "credentialed source locations require a URI scheme"
+                )
+            import fsspec
+
+            filesystem = fsspec.filesystem(protocol, **options)
+            context.services.duckdb.register_filesystem(filesystem)
+
+        scan_function = {
+            "csv": "read_csv_auto",
+            "json": "read_json_auto",
+            "parquet": "read_parquet",
+        }[instruction.format]
+        location = instruction.location.replace("'", "''")
+        sql = f"SELECT * FROM {scan_function}('{location}')"
+        return CoreExecutor._materialize_relation(
+            context,
+            RelationInstructionIR(
+                relation=instruction.relation,
+                sql=sql,
+            ),
+        )
 
     @staticmethod
     def _success(context: ExecutionContext, relation: str) -> StepOutcome:

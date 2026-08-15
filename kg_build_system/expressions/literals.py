@@ -4,10 +4,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
+from .._frozen_json import freeze_json
 from ..types import (
     ArrayType, BOOL, FLOAT, INT, LogicalType, NullableType, STR, StructType, CustomType,
 )
-from .base import freeze_json
 from .models import LiteralExpression
 
 

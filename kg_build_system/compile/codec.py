@@ -6,8 +6,7 @@ from collections.abc import Callable, Mapping, Sequence
 from typing import Any, TypeVar, cast
 
 from ..expressions.ir_codec import decode_expression_ir, encode_expression_ir
-from ..expressions.base import freeze_json
-from .._frozen_json import FrozenJson, FrozenObject
+from .._frozen_json import FrozenJson, FrozenObject, freeze_json
 from ..types.ir_codec import decode_type_ir, encode_type_ir
 from ..annotations.ir import AnnotationIR as AnnotationDefinition
 from ..binding.ir import (

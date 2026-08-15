@@ -68,25 +68,15 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
 
     def validate_expression(expression, *, owner: str) -> None:
         nodes = tuple(walk_expression(expression))
-        array_paths = {
-            (node.source, *traversal.path)
-            for node in nodes
-            if isinstance(node, FieldReferenceExpression)
-            for traversal in node.traversals
-            if traversal.kind == "array"
-        }
-        declared_expansions = {
-            node.row_semantics.effects[-1].scope
-            for node in nodes
-            if isinstance(node, OperationExpression)
-            and node.operator == "each"
-            and node.row_semantics.effects
-            and node.row_semantics.effects[-1].mode == "expand"
-        }
         for node in nodes:
-            for effect in node.row_semantics.effects:
-                if effect.mode == "expand" and effect.scope not in array_paths | declared_expansions:
-                    raise ValueError(f"{owner} expands undeclared array traversal {effect.scope!r}")
+            if isinstance(node, OperationExpression) and node.operator == "each":
+                if len(node.arguments) != 1:
+                    raise ValueError(f"{owner} each operation requires one argument")
+                input_type = _base(node.arguments[0].logical_type)
+                if not isinstance(input_type, ArrayType):
+                    raise ValueError(f"{owner} each operation requires an array argument")
+                if node.logical_type != input_type.item:
+                    raise ValueError(f"{owner} each operation has an incompatible result type")
             if not isinstance(node, FieldReferenceExpression):
                 continue
             if node.source not in sources:

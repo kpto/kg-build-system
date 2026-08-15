@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Mapping
+from hashlib import sha256
 
 from ..expressions.ir import (
     ExpressionIR as ExpressionNode,
@@ -23,6 +24,35 @@ def _key(expression: ExpressionNode) -> str:
     return json.dumps(
         encode_expression(expression), sort_keys=True, separators=(",", ":"),
     )
+
+
+def expansion_scope(expression: OperationExpression) -> tuple[str, ...]:
+    """Derive a stable, plan-local identity for one explicit ``each`` operation."""
+    if expression.operator != "each":
+        raise ValueError("expansion scopes can only be derived for each operations")
+    if len(expression.arguments) != 1:
+        raise ValueError("each requires one argument")
+    argument = expression.arguments[0]
+    if isinstance(argument, FieldReferenceExpression):
+        return (argument.source, *argument.path)
+    if (
+        isinstance(argument, OperationExpression)
+        and argument.operator == "struct_field"
+        and len(argument.arguments) == 1
+        and isinstance(argument.arguments[0], OperationExpression)
+        and argument.arguments[0].operator == "each"
+    ):
+        name = next(
+            (
+                parameter.value
+                for parameter in argument.parameters
+                if parameter.name == "name"
+            ),
+            None,
+        )
+        if isinstance(name, str) and name:
+            return (*expansion_scope(argument.arguments[0]), name)
+    return ("expression", sha256(_key(expression).encode("utf-8")).hexdigest())
 
 
 def _operators_post_order(expression: ExpressionNode):
@@ -68,10 +98,9 @@ def lower_product(
     for expression in compiled_outputs.values():
         for operation in _operators_post_order(expression):
             if operation.operator == "each":
-                effects = operation.row_semantics.effects
-                if not effects or effects[-1].mode != "expand":
-                    raise ValueError("each expressions require a local expansion effect")
-                scope = effects[-1].scope
+                if len(operation.arguments) != 1:
+                    raise ValueError("each requires one argument")
+                scope = expansion_scope(operation)
                 if scope not in expansion_scopes:
                     expansion_scopes.add(scope)
                     expands.append(Expand(scope, operation.arguments[0], f"expanded{len(expands)}"))
@@ -86,4 +115,4 @@ def lower_product(
     return RelationPlan(scans, tuple(expands), tuple(filters), tuple(compiled_outputs.items()))
 
 
-__all__ = ["lower_product"]
+__all__ = ["expansion_scope", "lower_product"]

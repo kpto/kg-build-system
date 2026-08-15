@@ -4,8 +4,8 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from .._frozen_json import freeze_json
 from ..types import decode_type, encode_type
-from .base import freeze_json
 from .models import (
     Expression, ExpressionNode, FieldReferenceExpression, FrozenJson, FrozenObject, LiteralExpression, OperationExpression,
     OperationParameter, RowEffect, RowSemantics, Traversal,

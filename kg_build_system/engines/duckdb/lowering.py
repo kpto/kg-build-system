@@ -13,6 +13,7 @@ from ...expressions.ir import (
 )
 from ..._frozen_json import FrozenObject
 from ...relational.ir import RelationPlanIR as RelationPlan
+from ...relational.planner import expansion_scope
 
 
 def _identifier(value: str, *, quoted: bool = True) -> exp.Identifier:
@@ -58,7 +59,7 @@ def _render(expression, context: _Context) -> Any:
     if not isinstance(expression, OperationExpression):
         raise TypeError(f"unsupported expression node {expression!r}")
     if expression.operator == "each":
-        scope = expression.row_semantics.effects[-1].scope
+        scope = expansion_scope(expression)
         try:
             return context.expansions[scope]
         except KeyError as error:

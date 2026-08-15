@@ -4,9 +4,10 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from .._frozen_json import freeze_json
 from ..types import LogicalType
 from .models import (
-    ExpressionNode, FieldReferenceExpression, FrozenJson, FrozenObject, OperationExpression,
+    ExpressionNode, FieldReferenceExpression, OperationExpression,
     OperationParameter, PRESERVE_ROWS, RowEffect, RowSemantics, Traversal,
 )
 
@@ -26,20 +27,6 @@ def compose_row_semantics(
             continue
         effects.append(effect)
     return RowSemantics.from_effects(tuple(effects))
-
-
-def freeze_json(value: Any) -> FrozenJson:
-    """Convert JSON-compatible input into an immutable canonical value."""
-    if value is None or type(value) in {str, int, float, bool}:
-        return value
-    if isinstance(value, Mapping):
-        items = tuple(sorted(((str(key), freeze_json(item)) for key, item in value.items()), key=lambda item: item[0]))
-        if len(items) != len({key for key, _ in items}):
-            raise ValueError("JSON object keys must be unique after string normalization")
-        return FrozenObject(items)
-    if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
-        return tuple(freeze_json(item) for item in value)
-    raise TypeError(f"expression metadata must be JSON-compatible, not {value!r}")
 
 
 def field_reference(
@@ -75,4 +62,4 @@ def operation(
     )
 
 
-__all__ = ["compose_row_semantics", "field_reference", "freeze_json", "operation"]
+__all__ = ["compose_row_semantics", "field_reference", "operation"]

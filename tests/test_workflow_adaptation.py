@@ -131,7 +131,6 @@ def _contract(
     return BuildContract(
         blueprint=blueprint,
         blueprint_fingerprint="blueprint",
-        sources=(source,),
         workflow_fingerprint="workflow",
         workflow=workflow,
     )
