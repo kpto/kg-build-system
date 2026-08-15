@@ -4,6 +4,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import MagicMock, patch
 
 from kg_build_system import (
     Array, DataSourceConfig, Field, InputFormat, Node, Projection, PropertySlot,
@@ -15,6 +16,7 @@ from kg_build_system.modules import (
     CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration,
     MergeCompatibleFactsModule,
 )
+from kg_build_system.modules.core.credentials import configure_source_credentials
 from kg_build_system.relational import lower_product
 from kg_build_system.engines.duckdb import lower_relation_sql
 
@@ -136,6 +138,28 @@ class RelationalLoweringTests(unittest.TestCase):
             "format": "json",
             "credential_reference": "source_credentials",
         })
+
+    def test_core_module_owns_source_credential_options(self) -> None:
+        services = MagicMock()
+        services.credentials.resolve.return_value = json.dumps({
+            "filesystem_options": {
+                "key": "runtime-key",
+                "secret": "runtime-secret",
+            },
+        })
+        filesystem = object()
+        with patch("fsspec.filesystem", return_value=filesystem) as factory:
+            configure_source_credentials(
+                services,
+                location="s3://bucket/input.json",
+                credential_reference="source_credentials",
+            )
+
+        services.credentials.resolve.assert_called_once_with("source_credentials")
+        factory.assert_called_once_with(
+            "s3", key="runtime-key", secret="runtime-secret",
+        )
+        services.duckdb.register_filesystem.assert_called_once_with(filesystem)
 
     def test_compiled_workflow_executes_and_publishes_file_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

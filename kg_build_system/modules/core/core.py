@@ -2,9 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import json
 from typing import Any, ClassVar, Literal, cast
-from urllib.parse import urlsplit
 
 from ...compile.blueprint import BuildBlueprint
 from ...table.ir import ProjectionIR as ProjectionDefinition
@@ -39,6 +37,7 @@ from .ir import (
     SourceRelationInstructionIR, decode_core_instruction,
     encode_core_instruction,
 )
+from .credentials import configure_source_credentials
 
 
 def _quote_identifier(value: object) -> str:
@@ -407,32 +406,11 @@ class CoreExecutor(ModuleExecutor):
         context: ExecutionContext, instruction: SourceRelationInstructionIR,
     ) -> StepOutcome:
         if instruction.credential_reference is not None:
-            raw_options = context.services.credentials.resolve(
-                instruction.credential_reference
+            configure_source_credentials(
+                context.services,
+                location=instruction.location,
+                credential_reference=instruction.credential_reference,
             )
-            try:
-                options = json.loads(raw_options)
-            except json.JSONDecodeError as error:
-                raise ValueError(
-                    "source credentials must resolve to a JSON object of "
-                    "fsspec filesystem options"
-                ) from error
-            if not isinstance(options, dict) or any(
-                not isinstance(key, str) for key in options
-            ):
-                raise ValueError(
-                    "source credentials must resolve to a JSON object of "
-                    "fsspec filesystem options"
-                )
-            protocol = urlsplit(instruction.location).scheme
-            if not protocol:
-                raise ValueError(
-                    "credentialed source locations require a URI scheme"
-                )
-            import fsspec
-
-            filesystem = fsspec.filesystem(protocol, **options)
-            context.services.duckdb.register_filesystem(filesystem)
 
         scan_function = {
             "csv": "read_csv_auto",

@@ -449,9 +449,10 @@ every returned artifact against its declared output slot.
 The output directory receives published artifacts, `build_contract.json`, and
 `build_report.json`. The working directory defaults to the output directory;
 temporary storage defaults to a system temporary directory. Runtime
-credentials are resolved through runtime services. Core source credentials
-resolve to JSON objects containing `fsspec` filesystem options; the resolved
-values configure an executor-local filesystem and never enter the contract.
+credentials are resolved through runtime services. Credential values and their
+option schemas are opaque to the blueprint and workflow contract. The module
+owning a credentialed execution instruction defines and validates those
+runtime-only options; resolved values never enter the contract.
 
 ## 13. Edit-time generated packages
 
