@@ -1,7 +1,7 @@
 """Core workflow compilation, execution, and artifact roles."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, ClassVar, Literal, cast
 
 from ...compile.blueprint import BuildBlueprint
@@ -16,6 +16,8 @@ from ...workflow.interfaces import (
     ModuleCompilationResult,
     ModuleCompiler,
     ModuleExecutor,
+    ModuleRegistration,
+    ModuleRegistrationConfiguration,
     WorkflowStepDraft,
 )
 from ...workflow.models import (
@@ -128,6 +130,11 @@ class CoreArtifactRoles:
         return cls.graph_record_identity(role) is not None
 
 
+@dataclass(frozen=True)
+class _CoreConfiguration(ModuleRegistrationConfiguration):
+    """The mandatory core module has no author-configurable behavior."""
+
+
 class CoreCompiler:
     async def compile(
         self, context: CompilationContext[Any],
@@ -138,7 +145,7 @@ class CoreCompiler:
                 import_module=CoreModule.__module__,
                 class_qualname=CoreModule.__qualname__,
                 implementation_version=CoreModule.VERSION,
-                priority=0,
+                configuration={},
             )
         )
         sources = self._sources(context)
@@ -345,7 +352,10 @@ class CoreCompiler:
         return tuple(drafts)
 
 
-class CoreModule(Module):
+@dataclass(frozen=True)
+class CoreModule(Module, ModuleRegistration[_CoreConfiguration]):
+    configuration: _CoreConfiguration = field(default_factory=_CoreConfiguration)
+
     ID: ClassVar[str] = "core"
     VERSION: ClassVar[str] = "1"
 

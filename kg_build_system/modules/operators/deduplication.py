@@ -94,7 +94,6 @@ class CollapseExactDuplicatesModule(Module, ModuleRegistration[_Configuration]):
                 import_module=type(self).__module__,
                 class_qualname=type(self).__qualname__,
                 implementation_version=self.VERSION,
-                priority=0,
                 configuration={},
             )
         )

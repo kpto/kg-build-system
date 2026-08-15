@@ -37,7 +37,6 @@ class CompilationContext[T: ModuleRegistrationConfiguration]:
     settings: BuildSettings
     overrides: BuildOverrides
     module_id: str
-    priority: int
     registration_configuration: T
 
 

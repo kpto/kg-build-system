@@ -16,7 +16,6 @@ class ModuleReference:
     import_module: str
     class_qualname: str
     implementation_version: str
-    priority: int
     configuration: Any = None
 
 

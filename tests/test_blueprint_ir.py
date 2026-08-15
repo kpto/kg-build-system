@@ -78,6 +78,7 @@ class BlueprintIRTests(unittest.TestCase):
     def test_blueprint_contains_complete_canonical_declarations(self) -> None:
         result = self.blueprint()
         self.assertEqual(result.schema_version, 2)
+        self.assertEqual(tuple(item.module_id for item in result.modules), ("core",))
         self.assertEqual(tuple(item.name for item in result.structs), ("evidence",))
         self.assertEqual(tuple(item.name for item in result.tables), ("evidence",))
         self.assertEqual(tuple(item.name for item in result.projections), ("evidence_rows",))

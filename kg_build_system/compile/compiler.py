@@ -50,9 +50,8 @@ from ..workflow.models import (
 )
 from ..workflow.validation import validate_workflow
 from .contracts import BuildContract, BuildOverrides, BuildSettings, SourceOverride
-from ..modules.core.core import CoreModule
 from ..workflow.interfaces import (
-    CompilationContext, ModuleRegistrationConfiguration, WorkflowStepDraft,
+    CompilationContext, WorkflowStepDraft,
 )
 
 
@@ -429,17 +428,11 @@ async def _compile_blueprint(
     ))
     compilation_settings = settings or BuildSettings()
     declarations = []
-    core_context = CompilationContext(
-        blueprint, compilation_settings, overrides, CoreModule.ID, 0,
-        ModuleRegistrationConfiguration(),
-    )
-    core_compiler = await CoreModule.create_compiler(core_context)
-    declarations.append(await core_compiler.compile(core_context))
-    for priority, definition in enumerate(blueprint.modules, start=1):
+    for definition in blueprint.modules:
         registration = _load_registration(definition)
         context = CompilationContext(
             blueprint, compilation_settings, overrides, definition.module_id,
-            priority, registration.configuration,
+            registration.configuration,
         )
         compiler = await registration.module_class.create_compiler(context)
         declaration = await compiler.compile(context)
@@ -451,7 +444,6 @@ async def _compile_blueprint(
             import_module=cls.__module__,
             class_qualname=cls.__qualname__,
             implementation_version=str(getattr(cls, "VERSION", declaration.module.reference.implementation_version)),
-            priority=priority,
         )
         declarations.append(type(declaration)(
             replace(declaration.module, reference=reference), declaration.steps,
@@ -461,7 +453,9 @@ async def _compile_blueprint(
     modules = tuple(declaration.module for declaration in declarations)
     if len({module.reference.module_id for module in modules}) != len(modules):
         raise ValueError("workflow module IDs must be unique")
-    priorities = {module.reference.module_id: module.reference.priority for module in modules}
+    module_order = {
+        module.reference.module_id: index for index, module in enumerate(modules)
+    }
     declaration_order = {draft.definition.step_id: index for index, draft in enumerate(drafts)}
     output_step = {
         slot.slot_id: draft.definition.step_id
@@ -494,7 +488,7 @@ async def _compile_blueprint(
 
     def candidate_order(output: OutputSlot) -> tuple[int, int, str]:
         return (
-            priorities[output_module[output.slot_id]],
+            module_order[output_module[output.slot_id]],
             output_order[output.slot_id],
             output.slot_id,
         )
@@ -503,9 +497,9 @@ async def _compile_blueprint(
         drafts,
         key=lambda draft: (
             0 if draft.definition.assembly_preference == "eager" else 1,
-            -priorities[draft.definition.module_id]
+            module_order[draft.definition.module_id]
             if draft.definition.assembly_preference == "eager"
-            else priorities[draft.definition.module_id],
+            else -module_order[draft.definition.module_id],
             declaration_order[draft.definition.step_id],
         ),
     )

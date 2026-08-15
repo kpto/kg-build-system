@@ -61,7 +61,6 @@ def workflow_from_ir(value: ir.WorkflowDefinitionIR) -> models.WorkflowDefinitio
                     import_module=module.reference.import_module,
                     class_qualname=module.reference.class_qualname,
                     implementation_version=module.reference.implementation_version,
-                    priority=0,
                     configuration=module.reference.configuration,
                 ),
                 runtime_fields=tuple(models.RuntimeFieldDefinition(**field.model_dump()) for field in module.runtime_fields),

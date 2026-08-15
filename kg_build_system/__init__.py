@@ -1,10 +1,9 @@
 """Declarative, typed, and reproducible knowledge-graph builds."""
 
 from .annotations import Annotation
+from .api import compile_blueprint, create_blueprint
 from .binding import Binding, BindingOptions, EdgeBinding, NodeBinding, edge_binding, node_binding
-from .compile import (
-    BuildSettings, compile_blueprint, create_blueprint,
-)
+from .compile import BuildSettings
 from .expressions import (
     ArrayNullableValueExpression,
     ArrayValueExpression,

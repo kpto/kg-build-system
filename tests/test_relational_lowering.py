@@ -88,6 +88,10 @@ class RelationalLoweringTests(unittest.TestCase):
             bindings=(binding,), sources=(source,),
             modules=(FileModule(FileModuleConfiguration("graph.jsonl")),),
         )
+        self.assertEqual(
+            tuple(module.module_id for module in blueprint.modules),
+            (FileModule.ID, "core"),
+        )
         contract = compile_blueprint(blueprint=blueprint)
         restored = BuildContract.model_validate_json(contract.model_dump_json())
         self.assertEqual(restored.blueprint, blueprint)

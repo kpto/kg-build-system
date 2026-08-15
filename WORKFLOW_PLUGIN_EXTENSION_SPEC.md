@@ -50,9 +50,11 @@ registration configuration, but need not. At runtime, the executor imports
 that class and delegates step execution to it. Python class or module objects
 are never stored in a blueprint or build contract.
 
-Modules are supplied in a uniquely ordered list. This order is module
-priority: it resolves competing workflow-assembly preferences and provides
-deterministic tie-breaking; it is not execution order.
+Modules are supplied in a uniquely ordered list. Earlier modules have higher
+assembly priority: the order resolves competing workflow-assembly preferences
+and provides deterministic tie-breaking; it is not execution order. The public
+API appends the mandatory core module last, making it the lowest-priority
+fallback without storing a numeric priority setting.
 
 There is no target configuration or target-specific policy in the workflow
 model. A file writer, database writer, source reader, validator, or cleanup
@@ -100,7 +102,6 @@ CompilationContext
   settings
   overrides
   module_id
-  priority
   registration_configuration
 
 RuntimeFieldDefinition
@@ -173,8 +174,9 @@ module, including the built-in core module. Source bindings are declarations
 on `BuildBlueprint`; they are not duplicated in the context. A module derives
 effective sources by applying serialisable source overrides to
 `blueprint.sources`. The context exposes the blueprint, compilation settings,
-overrides, module identity and priority, and that module's reconstructed,
-non-secret registration configuration. It never exposes authoring classes.
+overrides, module identity, and that module's reconstructed, non-secret
+registration configuration. It never exposes authoring classes. Assembly
+priority belongs to the ordered module list and is not module configuration.
 
 `module_id` identifies one configured module in a workflow. Supporting two
 independently configured instances of the same implementation requires either
@@ -211,11 +213,12 @@ deterministic, pure, and synchronous: it cannot inspect runtime configuration,
 resolved credentials, physical artifacts, or execution state. The contract
 retains resolved connections, not Python predicate objects.
 
-Compile-only step drafts carry assembly preference, and compilation context
-carries module priority. Together they determine which candidate a single
-input selects; collection inputs retain every candidate selected by their
-module's predicate. Both values are discarded after connections are resolved
-and therefore do not enter the serialized workflow IR or its fingerprint.
+Compile-only step drafts carry assembly preference, while the ordered module
+list supplies assembly priority. Together they determine which candidate a
+single input selects; collection inputs retain every candidate selected by
+their module's predicate. Both values are discarded after connections are
+resolved and therefore do not enter the serialized workflow IR or its
+fingerprint.
 
 ## Workflow-module interface
 
@@ -346,6 +349,10 @@ Connection claims are resolved in this deterministic order:
 
 1. `eager` steps from higher-priority modules to lower-priority modules;
 2. `deferred` steps from lower-priority modules to higher-priority modules.
+
+Higher priority means earlier in the declared module list. The public API
+places core last so extension modules can claim and continue core artifacts
+without a special priority value or compiler-owned core bootstrap path.
 
 For a candidate input/output pair, assembly prefers an open output slot. If it
 must use an already-used output, it prefers the latest compatible output according to

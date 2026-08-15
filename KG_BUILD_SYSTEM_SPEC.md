@@ -417,9 +417,12 @@ bindings reference stable relations.
 
 ## 12. Compilation, workflow, and execution
 
-`compile_blueprint` validates blueprint schema version 2, resolves effective
-sources and overrides, compiles the core module and configured extension
-modules, and assembles one dependency-aware `BuildContract`.
+The public `create_blueprint` API appends the mandatory core module after the
+configured extension modules. `compile_blueprint` validates blueprint schema
+version 2, resolves effective sources and overrides, compiles every registered
+module through the common module interface, and assembles one dependency-aware
+`BuildContract`. The compiler does not import or bootstrap concrete module
+implementations.
 
 The contract includes:
 

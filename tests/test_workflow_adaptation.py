@@ -85,7 +85,6 @@ def _module_definition(
             import_module=RecoveryModule.__module__,
             class_qualname=RecoveryModule.__qualname__,
             implementation_version=version,
-            priority=0,
         ),
         runtime_fields=runtime_fields,
     )

@@ -128,7 +128,6 @@ class RejectConflictingNonNullValuesModule(
                 import_module=type(self).__module__,
                 class_qualname=type(self).__qualname__,
                 implementation_version=self.VERSION,
-                priority=0,
                 configuration={"fail_on_error": self.configuration.fail_on_error},
             )
         )

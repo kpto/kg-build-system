@@ -96,7 +96,6 @@ class FileModule(Module, ModuleRegistration[FileModuleConfiguration]):
                 import_module=type(self).__module__,
                 class_qualname=type(self).__qualname__,
                 implementation_version=self.VERSION,
-                priority=0,
                 configuration={"relative_path": self.configuration.relative_path},
             ),
             runtime_fields=(
