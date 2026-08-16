@@ -4,19 +4,19 @@ from typing import assert_type
 
 from model_concept import (
     Array,
-    ArrayValueExpression,
-    ArrayValuePlan,
-    BoolValueExpression,
-    IntValueExpression,
+    ArrayExpression,
+    ArraySelection,
+    BoolExpression,
+    IntExpression,
     NullableDataType,
-    NullableValueExpression,
-    NullableValuePlan,
-    StrValueExpression,
+    NullableExpression,
+    NullableSelection,
+    StrExpression,
     Struct,
-    StructValuePlan,
+    StructSelection,
     Table,
     ValueExpression,
-    ValuePlan,
+    ValueSelection,
 )
 from model_concept_field import Field, field
 
@@ -39,60 +39,62 @@ def accept_expression[TType: NullableDataType](
 ) -> TType: ...
 
 
-def accept_plan[TType: NullableDataType](plan: ValuePlan[TType]) -> None: ...
+def accept_selection[TType: NullableDataType](selection: ValueSelection[TType]) -> None: ...
 
 
-# Field → plan specialisation by shape; .value specialises the expression
-assert_type(ExampleTable.struct_field, NullableValuePlan[ExampleStruct])
-assert_type(ExampleTable.scores, ArrayValuePlan[int])
-assert_type(ExampleTable.name, ValuePlan[str])
-assert_type(ExampleTable.scores.value, ArrayValueExpression[int])
-assert_type(ExampleTable.name.value, StrValueExpression)
+# Field → selection specialization by shape; .expression exposes a specialized
+# bindable calculation.
+assert_type(ExampleTable.struct_field, NullableSelection[ExampleStruct])
+assert_type(ExampleTable.scores, ArraySelection[int])
+assert_type(ExampleTable.name, ValueSelection[str])
+assert_type(ExampleTable.scores.expression, ArrayExpression[int])
+assert_type(ExampleTable.name.expression, StrExpression)
 
-accept_plan(ExampleTable.name)
-accept_plan(ExampleTable.scores)
-accept_plan(ExampleTable.struct_field)
+accept_selection(ExampleTable.name)
+accept_selection(ExampleTable.scores)
+accept_selection(ExampleTable.struct_field)
 
-# Struct/Array plans expose pick/each; result plans stay generic ValuePlan[T] for units
-item_plan = ExampleTable.struct_field.pick(lambda x: x.field_int).each()
-assert_type(item_plan, ValuePlan[int])
-assert_type(item_plan.value, IntValueExpression)
-assert_type(item_plan.value.add(3), IntValueExpression)
+# Struct/array selections expose pick/expand; unit results remain generic
+# ValueSelection[T].
+item_selection = ExampleTable.struct_field.pick(lambda x: x.field_int).expand()
+assert_type(item_selection, ValueSelection[int])
+assert_type(item_selection.expression, IntExpression)
+assert_type(item_selection.expression.add(3), IntExpression)
 
-from_array = ExampleTable.scores.each()
-assert_type(from_array, ValuePlan[int])
-assert_type(from_array.value.add(1).sub(1), IntValueExpression)
+from_array = ExampleTable.scores.expand()
+assert_type(from_array, ValueSelection[int])
+assert_type(from_array.expression.add(1).sub(1), IntExpression)
 
-# Null handling on NullableValuePlan
+# Null handling on NullableSelection
 maybe_flag = ExampleTable.struct_field.pick(lambda x: x.flag)
-assert_type(maybe_flag, NullableValuePlan[bool])
-assert_type(maybe_flag.or_else(False), ValuePlan[bool])
-assert_type(maybe_flag.or_else(False).value.not_(), BoolValueExpression)
-assert_type(maybe_flag.when_present(), ValuePlan[bool])
-assert_type(maybe_flag.when_present().value.not_(), BoolValueExpression)
+assert_type(maybe_flag, NullableSelection[bool])
+assert_type(maybe_flag.default_to(False), ValueSelection[bool])
+assert_type(maybe_flag.default_to(False).expression.not_(), BoolExpression)
+assert_type(maybe_flag.where_present(), ValueSelection[bool])
+assert_type(maybe_flag.where_present().expression.not_(), BoolExpression)
 
 maybe_label = ExampleTable.struct_field.pick(lambda x: x.label)
-assert_type(maybe_label, NullableValuePlan[str])
-assert_type(maybe_label.or_else("").value.append("!"), StrValueExpression)
-assert_type(maybe_label.when_present().value.prepend("id:"), StrValueExpression)
+assert_type(maybe_label, NullableSelection[str])
+assert_type(maybe_label.default_to("").expression.append("!"), StrExpression)
+assert_type(maybe_label.where_present().expression.prepend("id:"), StrExpression)
 
 maybe_score = ExampleTable.struct_field.pick(lambda x: x.maybe_score)
-assert_type(maybe_score, NullableValuePlan[int])
-assert_type(maybe_score.or_else(0).value.add(3), IntValueExpression)
-assert_type(maybe_score.when_present().value.add(3), IntValueExpression)
-assert_type(maybe_score.value, NullableValueExpression[int, IntValueExpression])
+assert_type(maybe_score, NullableSelection[int])
+assert_type(maybe_score.default_to(0).expression.add(3), IntExpression)
+assert_type(maybe_score.where_present().expression.add(3), IntExpression)
+assert_type(maybe_score.expression, NullableExpression[int, IntExpression])
 
-# pick of array field under nullable struct → NullableValuePlan[Array[int]]
+# Picking an array beneath a nullable struct produces a nullable selection.
 array_under_null = ExampleTable.struct_field.pick(lambda x: x.field_int)
-assert_type(array_under_null, NullableValuePlan[Array[int]])
-assert_type(array_under_null.each(), ValuePlan[int])
+assert_type(array_under_null, NullableSelection[Array[int]])
+assert_type(array_under_null.expand(), ValueSelection[int])
 
 assert_type(
-    ExampleTable.name.value.prepend("[").append("]"),
-    StrValueExpression,
+    ExampleTable.name.expression.prepend("[").append("]"),
+    StrExpression,
 )
 
 expr = (
-    ExampleTable.struct_field.pick(lambda x: x.field_int).each().value.add(3)
+    ExampleTable.struct_field.pick(lambda x: x.field_int).expand().expression.add(3)
 )
 result = accept_expression(expr)

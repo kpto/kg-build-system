@@ -27,276 +27,277 @@ class CustomDataType: ...
 
 
 # ---------------------------------------------------------------------------
-# Expressions: specialised bindable ops (only via ValuePlan.value)
+# Expressions: specialised bindable calculations exposed by a selection
 # ---------------------------------------------------------------------------
 
 
 class ValueExpression[TType: NullableDataType]:
-    """Bindable output. Obtained from ValuePlan.value."""
+    """Bindable calculation exposed by ``ValueSelection.expression``."""
 
 
-class NullableValueExpression[
+class NullableExpression[
     TData: DataType,
     TNonNullExpr: ValueExpression[Any],
 ](ValueExpression[Nullable[TData]]):
-    """Bindable nullable value (null policy lives on NullableValuePlan)."""
+    """Bindable nullable value (null policy lives on ``NullableSelection``)."""
 
 
-class NumberValueExpression[TType: (int, float)](ValueExpression[TType]):
+class NumberExpression[TType: (int, float)](ValueExpression[TType]):
     def add(
         self, other: TType | ValueExpression[TType]
-    ) -> "NumberValueExpression[TType]": ...
+    ) -> "NumberExpression[TType]": ...
     def sub(
         self, other: TType | ValueExpression[TType]
-    ) -> "NumberValueExpression[TType]": ...
+    ) -> "NumberExpression[TType]": ...
 
 
-class IntValueExpression(NumberValueExpression[int]):
-    def add(self, other: int | ValueExpression[int]) -> "IntValueExpression": ...
-    def sub(self, other: int | ValueExpression[int]) -> "IntValueExpression": ...
+class IntExpression(NumberExpression[int]):
+    def add(self, other: int | ValueExpression[int]) -> "IntExpression": ...
+    def sub(self, other: int | ValueExpression[int]) -> "IntExpression": ...
 
 
-class FloatValueExpression(NumberValueExpression[float]):
-    def add(self, other: float | ValueExpression[float]) -> "FloatValueExpression": ...
-    def sub(self, other: float | ValueExpression[float]) -> "FloatValueExpression": ...
+class FloatExpression(NumberExpression[float]):
+    def add(self, other: float | ValueExpression[float]) -> "FloatExpression": ...
+    def sub(self, other: float | ValueExpression[float]) -> "FloatExpression": ...
 
 
-class BoolValueExpression(ValueExpression[bool]):
-    def not_(self) -> "BoolValueExpression": ...
-    def and_(self, other: bool | ValueExpression[bool]) -> "BoolValueExpression": ...
-    def or_(self, other: bool | ValueExpression[bool]) -> "BoolValueExpression": ...
+class BoolExpression(ValueExpression[bool]):
+    def not_(self) -> "BoolExpression": ...
+    def and_(self, other: bool | ValueExpression[bool]) -> "BoolExpression": ...
+    def or_(self, other: bool | ValueExpression[bool]) -> "BoolExpression": ...
 
 
-class StrValueExpression(ValueExpression[str]):
-    def prepend(self, value: str | ValueExpression[str]) -> "StrValueExpression": ...
-    def append(self, value: str | ValueExpression[str]) -> "StrValueExpression": ...
+class StrExpression(ValueExpression[str]):
+    def prepend(self, value: str | ValueExpression[str]) -> "StrExpression": ...
+    def append(self, value: str | ValueExpression[str]) -> "StrExpression": ...
 
 
-class CustomDataTypeValueExpression[TType: CustomDataType](ValueExpression[TType]): ...
+class CustomDataTypeExpression[TType: CustomDataType](ValueExpression[TType]): ...
 
 
-class ArrayValueExpression[TItem: NullableDataType](ValueExpression[Array[TItem]]): ...
+class ArrayExpression[TItem: NullableDataType](ValueExpression[Array[TItem]]): ...
 
 
-class StructValueExpression[TStruct: Struct](ValueExpression[TStruct]): ...
+class StructExpression[TStruct: Struct](ValueExpression[TStruct]): ...
 
 
 # ---------------------------------------------------------------------------
-# ValuePlan[T]: generic handle; .value specialises the expression.
+# ValueSelection[T]: structural and null-aware selection whose .expression
+# exposes a specialised bindable calculation.
 # Three structural specialisations: Nullable / Array / Struct.
-# Plan ops use UnitType (not per-scalar overload matrices).
+# Selection ops use UnitType (not per-scalar overload matrices).
 # ---------------------------------------------------------------------------
 
 
-class ValuePlanValueDescriptor:
-    """ValuePlan.value → specialised expression for T.
+class _ExpressionDescriptor:
+    """ValueSelection.expression → specialised expression for T.
 
     Unit cases are listed individually: a TypeVar bound to UnitType cannot
-    select BoolValueExpression vs IntValueExpression vs ….
+    select BoolExpression vs IntExpression vs ….
     """
 
     @overload
     def __get__(
-        self, instance: "ValuePlan[bool]", owner: type[Any] | None
-    ) -> BoolValueExpression: ...
+        self, instance: "ValueSelection[bool]", owner: type[Any] | None
+    ) -> BoolExpression: ...
     @overload
     def __get__(
-        self, instance: "ValuePlan[int]", owner: type[Any] | None
-    ) -> IntValueExpression: ...
+        self, instance: "ValueSelection[int]", owner: type[Any] | None
+    ) -> IntExpression: ...
     @overload
     def __get__(
-        self, instance: "ValuePlan[float]", owner: type[Any] | None
-    ) -> FloatValueExpression: ...
+        self, instance: "ValueSelection[float]", owner: type[Any] | None
+    ) -> FloatExpression: ...
     @overload
     def __get__(
-        self, instance: "ValuePlan[str]", owner: type[Any] | None
-    ) -> StrValueExpression: ...
+        self, instance: "ValueSelection[str]", owner: type[Any] | None
+    ) -> StrExpression: ...
     @overload
     def __get__[TType: CustomDataType](
-        self, instance: "ValuePlan[TType]", owner: type[Any] | None
-    ) -> CustomDataTypeValueExpression[TType]: ...
+        self, instance: "ValueSelection[TType]", owner: type[Any] | None
+    ) -> CustomDataTypeExpression[TType]: ...
     @overload
     def __get__(
-        self, instance: "ValuePlan[Nullable[bool]]", owner: type[Any] | None
-    ) -> NullableValueExpression[bool, BoolValueExpression]: ...
+        self, instance: "ValueSelection[Nullable[bool]]", owner: type[Any] | None
+    ) -> NullableExpression[bool, BoolExpression]: ...
     @overload
     def __get__(
-        self, instance: "ValuePlan[Nullable[int]]", owner: type[Any] | None
-    ) -> NullableValueExpression[int, IntValueExpression]: ...
+        self, instance: "ValueSelection[Nullable[int]]", owner: type[Any] | None
+    ) -> NullableExpression[int, IntExpression]: ...
     @overload
     def __get__(
-        self, instance: "ValuePlan[Nullable[float]]", owner: type[Any] | None
-    ) -> NullableValueExpression[float, FloatValueExpression]: ...
+        self, instance: "ValueSelection[Nullable[float]]", owner: type[Any] | None
+    ) -> NullableExpression[float, FloatExpression]: ...
     @overload
     def __get__(
-        self, instance: "ValuePlan[Nullable[str]]", owner: type[Any] | None
-    ) -> NullableValueExpression[str, StrValueExpression]: ...
+        self, instance: "ValueSelection[Nullable[str]]", owner: type[Any] | None
+    ) -> NullableExpression[str, StrExpression]: ...
     @overload
     def __get__[TType: CustomDataType](
-        self, instance: "ValuePlan[Nullable[TType]]", owner: type[Any] | None
-    ) -> NullableValueExpression[TType, CustomDataTypeValueExpression[TType]]: ...
+        self, instance: "ValueSelection[Nullable[TType]]", owner: type[Any] | None
+    ) -> NullableExpression[TType, CustomDataTypeExpression[TType]]: ...
     @overload
     def __get__[TItem: NullableDataType](
-        self, instance: "ValuePlan[Array[TItem]]", owner: type[Any] | None
-    ) -> ArrayValueExpression[TItem]: ...
+        self, instance: "ValueSelection[Array[TItem]]", owner: type[Any] | None
+    ) -> ArrayExpression[TItem]: ...
     @overload
     def __get__[TItem: NullableDataType](
-        self, instance: "ValuePlan[Nullable[Array[TItem]]]", owner: type[Any] | None
-    ) -> NullableValueExpression[Array[TItem], ArrayValueExpression[TItem]]: ...
+        self, instance: "ValueSelection[Nullable[Array[TItem]]]", owner: type[Any] | None
+    ) -> NullableExpression[Array[TItem], ArrayExpression[TItem]]: ...
     @overload
     def __get__[TStruct: Struct](
-        self, instance: "ValuePlan[TStruct]", owner: type[Any] | None
-    ) -> StructValueExpression[TStruct]: ...
+        self, instance: "ValueSelection[TStruct]", owner: type[Any] | None
+    ) -> StructExpression[TStruct]: ...
     @overload
     def __get__[TStruct: Struct](
-        self, instance: "ValuePlan[Nullable[TStruct]]", owner: type[Any] | None
-    ) -> NullableValueExpression[TStruct, StructValueExpression[TStruct]]: ...
+        self, instance: "ValueSelection[Nullable[TStruct]]", owner: type[Any] | None
+    ) -> NullableExpression[TStruct, StructExpression[TStruct]]: ...
 
     def __get__(self, instance: Any, owner: Any) -> Any: ...
 
 
-class ValuePlan[TType: NullableDataType]:
-    """Generic plan. Specialised expression only via `.value`."""
+class ValueSelection[TType: NullableDataType]:
+    """Generic selection. Bindable calculation exposed through `.expression`."""
 
-    value: ValuePlanValueDescriptor = ValuePlanValueDescriptor()
+    expression: _ExpressionDescriptor = _ExpressionDescriptor()
 
 
-class NullableValuePlan[TData: DataType](ValuePlan[Nullable[TData]]):
-    """Nullable plan: null handling. Returns a non-null plan for TData."""
+class NullableSelection[TData: DataType](ValueSelection[Nullable[TData]]):
+    """Nullable selection whose null policy returns a non-null selection."""
 
     @overload
-    def or_else[TUnit: UnitType](  # pyright: ignore[reportOverlappingOverload]
-        self: "NullableValuePlan[TUnit]",
+    def default_to[TUnit: UnitType](  # pyright: ignore[reportOverlappingOverload]
+        self: "NullableSelection[TUnit]",
         value: TUnit | ValueExpression[TUnit],
-    ) -> ValuePlan[TUnit]: ...
+    ) -> ValueSelection[TUnit]: ...
     @overload
-    def or_else[TItem: NullableDataType](
-        self: "NullableValuePlan[Array[TItem]]",
+    def default_to[TItem: NullableDataType](
+        self: "NullableSelection[Array[TItem]]",
         value: Array[TItem] | ValueExpression[Array[TItem]],
-    ) -> "ArrayValuePlan[TItem]": ...
+    ) -> "ArraySelection[TItem]": ...
     @overload
-    def or_else[TStruct: Struct](
-        self: "NullableValuePlan[TStruct]",
+    def default_to[TStruct: Struct](
+        self: "NullableSelection[TStruct]",
         value: TStruct | ValueExpression[TStruct],
-    ) -> "StructValuePlan[TStruct]": ...
+    ) -> "StructSelection[TStruct]": ...
 
-    def or_else(self, value: Any) -> Any: ...
+    def default_to(self, value: Any) -> Any: ...
 
     @overload
-    def when_present[TUnit: UnitType](  # pyright: ignore[reportOverlappingOverload]
-        self: "NullableValuePlan[TUnit]",
-    ) -> ValuePlan[TUnit]: ...
+    def where_present[TUnit: UnitType](  # pyright: ignore[reportOverlappingOverload]
+        self: "NullableSelection[TUnit]",
+    ) -> ValueSelection[TUnit]: ...
     @overload
-    def when_present[TItem: NullableDataType](
-        self: "NullableValuePlan[Array[TItem]]",
-    ) -> "ArrayValuePlan[TItem]": ...
+    def where_present[TItem: NullableDataType](
+        self: "NullableSelection[Array[TItem]]",
+    ) -> "ArraySelection[TItem]": ...
     @overload
-    def when_present[TStruct: Struct](
-        self: "NullableValuePlan[TStruct]",
-    ) -> "StructValuePlan[TStruct]": ...
+    def where_present[TStruct: Struct](
+        self: "NullableSelection[TStruct]",
+    ) -> "StructSelection[TStruct]": ...
 
-    def when_present(self) -> Any:
-        """Produce only when present; null means this mapping contributes nothing."""
+    def where_present(self) -> Any:
+        """Retain only rows where this selection is present."""
         ...
 
-    # Nullable array/struct: navigation without unwrapping first.
+    # Nullable arrays and structs support navigation without first defaulting.
     @overload
-    def each[TUnit: UnitType](  # pyright: ignore[reportOverlappingOverload]
-        self: "NullableValuePlan[Array[TUnit]]",
-    ) -> ValuePlan[TUnit]: ...
+    def expand[TUnit: UnitType](  # pyright: ignore[reportOverlappingOverload]
+        self: "NullableSelection[Array[TUnit]]",
+    ) -> ValueSelection[TUnit]: ...
     @overload
-    def each[TUnit: UnitType](
-        self: "NullableValuePlan[Array[Nullable[TUnit]]]",
-    ) -> "NullableValuePlan[TUnit]": ...
+    def expand[TUnit: UnitType](
+        self: "NullableSelection[Array[Nullable[TUnit]]]",
+    ) -> "NullableSelection[TUnit]": ...
     @overload
-    def each[TItem: NullableDataType](
-        self: "NullableValuePlan[Array[TItem]]",
-    ) -> ValuePlan[TItem]: ...
+    def expand[TItem: NullableDataType](
+        self: "NullableSelection[Array[TItem]]",
+    ) -> ValueSelection[TItem]: ...
     @overload
-    def each[TItem: DataType](
-        self: "NullableValuePlan[Array[Nullable[TItem]]]",
-    ) -> "NullableValuePlan[TItem]": ...
+    def expand[TItem: DataType](
+        self: "NullableSelection[Array[Nullable[TItem]]]",
+    ) -> "NullableSelection[TItem]": ...
     @overload
-    def each[TStruct: Struct](
-        self: "NullableValuePlan[Array[TStruct]]",
-    ) -> "StructValuePlan[TStruct]": ...
+    def expand[TStruct: Struct](
+        self: "NullableSelection[Array[TStruct]]",
+    ) -> "StructSelection[TStruct]": ...
     @overload
-    def each[TStruct: Struct](
-        self: "NullableValuePlan[Array[Nullable[TStruct]]]",
-    ) -> "NullableValuePlan[TStruct]": ...
+    def expand[TStruct: Struct](
+        self: "NullableSelection[Array[Nullable[TStruct]]]",
+    ) -> "NullableSelection[TStruct]": ...
 
-    def each(self) -> Any: ...
+    def expand(self) -> Any: ...
 
     @overload
     def pick[TStruct: Struct, TUnit: UnitType](  # pyright: ignore[reportOverlappingOverload]
-        self: "NullableValuePlan[TStruct]",
-        expr: Callable[[TStruct], ValuePlan[TUnit]],
-    ) -> "NullableValuePlan[TUnit]": ...
+        self: "NullableSelection[TStruct]",
+        expr: Callable[[TStruct], ValueSelection[TUnit]],
+    ) -> "NullableSelection[TUnit]": ...
     @overload
     def pick[TStruct: Struct, TInnerData: DataType](
-        self: "NullableValuePlan[TStruct]",
-        expr: Callable[[TStruct], "NullableValuePlan[TInnerData]"],
-    ) -> "NullableValuePlan[TInnerData]": ...
+        self: "NullableSelection[TStruct]",
+        expr: Callable[[TStruct], "NullableSelection[TInnerData]"],
+    ) -> "NullableSelection[TInnerData]": ...
     @overload
     def pick[TStruct: Struct, TItem: NullableDataType](
-        self: "NullableValuePlan[TStruct]",
-        expr: Callable[[TStruct], "ArrayValuePlan[TItem]"],
-    ) -> "NullableValuePlan[Array[TItem]]": ...
+        self: "NullableSelection[TStruct]",
+        expr: Callable[[TStruct], "ArraySelection[TItem]"],
+    ) -> "NullableSelection[Array[TItem]]": ...
     @overload
     def pick[TStruct: Struct, TInner: Struct](
-        self: "NullableValuePlan[TStruct]",
-        expr: Callable[[TStruct], "StructValuePlan[TInner]"],
-    ) -> "NullableValuePlan[TInner]": ...
+        self: "NullableSelection[TStruct]",
+        expr: Callable[[TStruct], "StructSelection[TInner]"],
+    ) -> "NullableSelection[TInner]": ...
 
     def pick(self, expr: Any) -> Any: ...
 
 
-class ArrayValuePlan[TItem: NullableDataType](ValuePlan[Array[TItem]]):
-    """Array plan: element navigation via each."""
+class ArraySelection[TItem: NullableDataType](ValueSelection[Array[TItem]]):
+    """Array selection supporting row-producing item expansion."""
 
     @overload
-    def each[TUnit: UnitType](  # pyright: ignore[reportOverlappingOverload]
-        self: "ArrayValuePlan[TUnit]",
-    ) -> ValuePlan[TUnit]: ...
+    def expand[TUnit: UnitType](  # pyright: ignore[reportOverlappingOverload]
+        self: "ArraySelection[TUnit]",
+    ) -> ValueSelection[TUnit]: ...
     @overload
-    def each[TUnit: UnitType](
-        self: "ArrayValuePlan[Nullable[TUnit]]",
-    ) -> "NullableValuePlan[TUnit]": ...
+    def expand[TUnit: UnitType](
+        self: "ArraySelection[Nullable[TUnit]]",
+    ) -> "NullableSelection[TUnit]": ...
     @overload
-    def each[TStruct: Struct](
-        self: "ArrayValuePlan[TStruct]",
-    ) -> "StructValuePlan[TStruct]": ...
+    def expand[TStruct: Struct](
+        self: "ArraySelection[TStruct]",
+    ) -> "StructSelection[TStruct]": ...
     @overload
-    def each[TStruct: Struct](
-        self: "ArrayValuePlan[Nullable[TStruct]]",
-    ) -> "NullableValuePlan[TStruct]": ...
+    def expand[TStruct: Struct](
+        self: "ArraySelection[Nullable[TStruct]]",
+    ) -> "NullableSelection[TStruct]": ...
     @overload
-    def each[TInnerItem: NullableDataType](
-        self: "ArrayValuePlan[Array[TInnerItem]]",
-    ) -> "ArrayValuePlan[TInnerItem]": ...
+    def expand[TInnerItem: NullableDataType](
+        self: "ArraySelection[Array[TInnerItem]]",
+    ) -> "ArraySelection[TInnerItem]": ...
 
-    def each(self) -> Any: ...
+    def expand(self) -> Any: ...
 
 
-class StructValuePlan[TStruct: Struct](ValuePlan[TStruct]):
-    """Struct plan: member navigation via pick."""
+class StructSelection[TStruct: Struct](ValueSelection[TStruct]):
+    """Struct selection supporting declared-member navigation."""
 
     @overload
     def pick[TItem: NullableDataType](  # pyright: ignore[reportOverlappingOverload]
-        self, expr: Callable[[TStruct], ArrayValuePlan[TItem]]
-    ) -> ArrayValuePlan[TItem]: ...
+        self, expr: Callable[[TStruct], ArraySelection[TItem]]
+    ) -> ArraySelection[TItem]: ...
     @overload
     def pick[TInner: Struct](
-        self, expr: Callable[[TStruct], "StructValuePlan[TInner]"]
-    ) -> "StructValuePlan[TInner]": ...
+        self, expr: Callable[[TStruct], "StructSelection[TInner]"]
+    ) -> "StructSelection[TInner]": ...
     @overload
     def pick[TData: DataType](
-        self, expr: Callable[[TStruct], NullableValuePlan[TData]]
-    ) -> NullableValuePlan[TData]: ...
+        self, expr: Callable[[TStruct], NullableSelection[TData]]
+    ) -> NullableSelection[TData]: ...
     @overload
     def pick[TUnit: UnitType](
-        self, expr: Callable[[TStruct], ValuePlan[TUnit]]
-    ) -> ValuePlan[TUnit]: ...
+        self, expr: Callable[[TStruct], ValueSelection[TUnit]]
+    ) -> ValueSelection[TUnit]: ...
 
     def pick(self, expr: Any) -> Any: ...
 
