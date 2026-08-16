@@ -1,5 +1,6 @@
-"""Demo of the model_concept authoring and expression API."""
+"""Demo of the model_concept selection and expression API."""
 
+from dataclasses import dataclass
 from typing import assert_type
 
 from model_concept import (
@@ -16,7 +17,9 @@ from model_concept import (
     StructSelection,
     Table,
     ValueExpression,
+    ValueInput,
     ValueSelection,
+    as_expression,
 )
 from model_concept_field import Field, field
 
@@ -42,6 +45,36 @@ def accept_expression[TType: NullableDataType](
 def accept_selection[TType: NullableDataType](selection: ValueSelection[TType]) -> None: ...
 
 
+# Terminal declaration APIs accept either a selection or an expression. They
+# normalize immediately and store only the bindable expression.
+@dataclass(frozen=True)
+class ProjectedField[TType: NullableDataType]:
+    expression: ValueExpression[TType]
+
+
+def projected_field[TType: NullableDataType](
+    value: ValueInput[TType],
+) -> ProjectedField[TType]:
+    return ProjectedField(as_expression(value))
+
+
+@dataclass(frozen=True)
+class Binding[KeyType: NullableDataType, ValueType: NullableDataType]:
+    key: ValueExpression[KeyType]
+    value: ValueExpression[ValueType]
+
+
+def binding[
+    KeyType: NullableDataType,
+    ValueType: NullableDataType,
+](
+    *,
+    key: ValueInput[KeyType],
+    value: ValueInput[ValueType],
+) -> Binding[KeyType, ValueType]:
+    return Binding(as_expression(key), as_expression(value))
+
+
 # Field → selection specialization by shape; .expression exposes a specialized
 # bindable calculation.
 assert_type(ExampleTable.struct_field, NullableSelection[ExampleStruct])
@@ -53,6 +86,26 @@ assert_type(ExampleTable.name.expression, StrExpression)
 accept_selection(ExampleTable.name)
 accept_selection(ExampleTable.scores)
 accept_selection(ExampleTable.struct_field)
+
+# Selection shortcuts and explicit expressions are equivalent at declaration
+# boundaries.
+selection_field = projected_field(ExampleTable.name)
+expression_field = projected_field(
+    ExampleTable.name.expression.prepend("display:")
+)
+assert_type(selection_field, ProjectedField[str])
+assert_type(expression_field, ProjectedField[str])
+
+selection_binding = binding(
+    key=ExampleTable.name,
+    value=ExampleTable.name,
+)
+expression_binding = binding(
+    key=ExampleTable.name.expression.prepend("entity:"),
+    value=ExampleTable.name.expression.append("!"),
+)
+assert_type(selection_binding, Binding[str, str])
+assert_type(expression_binding, Binding[str, str])
 
 # Struct/array selections expose pick/expand; unit results remain generic
 # ValueSelection[T].

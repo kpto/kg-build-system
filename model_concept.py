@@ -1,5 +1,5 @@
 from collections.abc import Callable
-from typing import Any, Generic, TypeVar, overload
+from typing import Any, Generic, TypeVar, cast, overload
 
 type UnitType = str | int | float | bool | CustomDataType
 type StructuredType = Array[NullableDataType] | Struct
@@ -152,6 +152,10 @@ class _ExpressionDescriptor:
     def __get__[TStruct: Struct](
         self, instance: "ValueSelection[Nullable[TStruct]]", owner: type[Any] | None
     ) -> NullableExpression[TStruct, StructExpression[TStruct]]: ...
+    @overload
+    def __get__[TType: NullableDataType](  # pyright: ignore[reportOverlappingOverload]
+        self, instance: "ValueSelection[TType]", owner: type[Any] | None
+    ) -> ValueExpression[TType]: ...
 
     def __get__(self, instance: Any, owner: Any) -> Any: ...
 
@@ -300,6 +304,20 @@ class StructSelection[TStruct: Struct](ValueSelection[TStruct]):
     ) -> ValueSelection[TUnit]: ...
 
     def pick(self, expr: Any) -> Any: ...
+
+
+type ValueInput[TType: NullableDataType] = (
+    ValueSelection[TType] | ValueExpression[TType]
+)
+
+
+def as_expression[TType: NullableDataType](
+    value: ValueInput[TType],
+) -> ValueExpression[TType]:
+    """Normalize a terminal authoring input to its bindable expression."""
+    if isinstance(value, ValueSelection):
+        return cast(ValueExpression[TType], value.expression)
+    return value
 
 
 # Table is a Struct: same Field access path for roots and nested shapes.
