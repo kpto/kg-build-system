@@ -2,17 +2,19 @@ from __future__ import annotations
 
 import ast
 import unittest
+from dataclasses import fields
 from pathlib import Path
 
 import kg_build_system
 from kg_build_system import value_expression
 from kg_build_system.expressions.ir import ExpressionIRBase
+from kg_build_system.workflow.ir import WorkflowContractIR
+from kg_build_system.workflow.models import WorkflowStep, WorkflowStepDraft
 
 
 class DomainBoundaryTests(unittest.TestCase):
     def test_compilation_irs_are_not_exported_by_public_facades(self) -> None:
         self.assertNotIn("BuildBlueprint", kg_build_system.__all__)
-        self.assertNotIn("BuildContract", kg_build_system.__all__)
         self.assertFalse(any(name.endswith("IR") for name in kg_build_system.__all__))
 
     def test_authoring_expressions_retain_domain_models_not_irs(self) -> None:
@@ -40,6 +42,48 @@ class DomainBoundaryTests(unittest.TestCase):
                 any(module == "ir" or module.endswith(".ir") for module in imported),
                 f"{path} imports a compilation IR module",
             )
+
+    def test_workflow_does_not_depend_on_compile(self) -> None:
+        package = Path(kg_build_system.__file__).parent
+        for path in (package / "workflow").glob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            imports = {
+                node.module or ""
+                for node in ast.walk(tree)
+                if isinstance(node, ast.ImportFrom)
+            }
+            self.assertFalse(
+                any(module == "compile" or module.startswith("compile.") for module in imports),
+                f"{path} depends on the compile domain",
+            )
+
+    def test_compile_does_not_depend_on_concrete_modules(self) -> None:
+        package = Path(kg_build_system.__file__).parent
+        for path in (package / "compile").glob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            imports = {
+                node.module or ""
+                for node in ast.walk(tree)
+                if isinstance(node, ast.ImportFrom)
+            }
+            self.assertFalse(
+                any(module.startswith("modules.") for module in imports),
+                f"{path} imports a concrete module",
+            )
+
+    def test_assembly_inputs_do_not_leak_into_executable_workflow_models(self) -> None:
+        self.assertNotIn(
+            "assembly_preference", {item.name for item in fields(WorkflowStep)}
+        )
+        self.assertIn(
+            "assembly_preference", {item.name for item in fields(WorkflowStepDraft)}
+        )
+
+    def test_workflow_contract_has_only_workflow_semantics_and_provenance(self) -> None:
+        self.assertEqual(
+            set(WorkflowContractIR.model_fields),
+            {"schema_version", "workflow", "workflow_fingerprint", "provenance"},
+        )
 
 
 if __name__ == "__main__":

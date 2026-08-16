@@ -6,20 +6,14 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar
 
+from ..._frozen_json import freeze_json, thaw_json
 from ...workflow.models import (
     CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot,
     RuntimeFieldDefinition, WorkflowStep,
 )
-from ...workflow.interfaces import (
-    CompilationContext,
-    Module,
-    ModuleCompilationResult,
-    ModuleCompiler,
-    ModuleExecutor,
-    ModuleRegistration,
-    ModuleRegistrationConfiguration,
-    WorkflowStepDraft,
-)
+from ...compile.interfaces import CompilationContext, ModuleCompiler
+from ...modules.interfaces import Module, ModuleRegistrationConfiguration
+from ...workflow.interfaces import ModuleExecutor
 from ...workflow.models import (
     Artifact,
     DisruptedExecutionContext,
@@ -27,6 +21,8 @@ from ...workflow.models import (
     ExecutorFactoryContext,
     StepOutcome,
     StepStatus,
+    WorkflowContribution,
+    WorkflowStepDraft,
     WorkflowArtifactRoles,
 )
 from ..core import CoreArtifactRoles
@@ -53,17 +49,18 @@ class FileModuleConfiguration(ModuleRegistrationConfiguration):
 
 
 @dataclass(frozen=True)
-class FileModule(Module, ModuleRegistration[FileModuleConfiguration]):
+class FileModule(Module):
     configuration: FileModuleConfiguration
 
     ID: ClassVar[str] = "file"
     VERSION: ClassVar[str] = "1"
+    CONFIGURATION_TYPE: ClassVar[type[FileModuleConfiguration]] = FileModuleConfiguration
 
     @classmethod
     async def create_compiler(
         cls, context: CompilationContext[Any],
     ) -> ModuleCompiler:
-        return cls(context.registration_configuration)
+        return cls(context.configuration)
 
     @classmethod
     async def create_executor(
@@ -73,12 +70,11 @@ class FileModule(Module, ModuleRegistration[FileModuleConfiguration]):
 
     async def compile(
         self, context: CompilationContext[Any],
-    ) -> ModuleCompilationResult:
+    ) -> WorkflowContribution:
         records = CollectionInputSlot(slot_id="file::write.records")
         step = WorkflowStep(
             step_id="file::write",
             module_id=self.ID,
-            assembly_preference="deferred",
             inputs=(records,),
             outputs=(
                 OutputSlot(
@@ -88,7 +84,7 @@ class FileModule(Module, ModuleRegistration[FileModuleConfiguration]):
                     ),
                 ),
             ),
-            payload={},
+            payload=freeze_json({}),
         )
         definition = ModuleDefinition(
             reference=ModuleReference(
@@ -96,7 +92,9 @@ class FileModule(Module, ModuleRegistration[FileModuleConfiguration]):
                 import_module=type(self).__module__,
                 class_qualname=type(self).__qualname__,
                 implementation_version=self.VERSION,
-                configuration={"relative_path": self.configuration.relative_path},
+                configuration=freeze_json({
+                    "relative_path": self.configuration.relative_path,
+                }),
             ),
             runtime_fields=(
                 RuntimeFieldDefinition(
@@ -113,9 +111,13 @@ class FileModule(Module, ModuleRegistration[FileModuleConfiguration]):
                 CoreArtifactRoles.is_graph_records(output.artifact_role)
             )
         }
-        return ModuleCompilationResult(
+        return WorkflowContribution(
             definition,
-            (WorkflowStepDraft(step, candidates),),
+            (WorkflowStepDraft(
+                definition=step,
+                assembly_preference="deferred",
+                candidates=candidates,
+            ),),
         )
 
 
@@ -124,7 +126,9 @@ class FileExecutor(ModuleExecutor):
         self._configuration = configuration
 
     def _relative_path(self, context: ExecutionContext) -> str:
-        compiled = context.module.reference.configuration
+        compiled = thaw_json(  # type: ignore[arg-type]
+            context.module.reference.configuration
+        )
         if not isinstance(compiled, dict):
             raise RuntimeError("file module requires an object configuration")
         configured_path = compiled.get("relative_path")

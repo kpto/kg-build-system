@@ -12,7 +12,7 @@ from kg_build_system import (
 from kg_build_system.compile import (
     blueprint_from_json, blueprint_json, decode_blueprint, validate_blueprint,
 )
-from kg_build_system.compile.blueprint import BuildBlueprint
+from kg_build_system.compile.models import BuildBlueprint
 from kg_build_system.expressions.ir import OperationExpressionIR, walk_expression_ir
 from kg_build_system.table.ir import FieldIR, TableIR
 from kg_build_system.types import STR

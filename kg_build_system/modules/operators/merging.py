@@ -1,23 +1,16 @@
 """Workflow operator that merges compatible facts by graph identity."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, ClassVar
 
+from ..._frozen_json import freeze_json, thaw_json
 from ...workflow.models import (
     ModuleDefinition, ModuleReference, OutputSlot, SingleInputSlot, WorkflowStep,
 )
-from ...workflow.interfaces import (
-    CompilationContext,
-    Module,
-    ModuleCompilationResult,
-    ModuleCompiler,
-    ModuleExecutor,
-    ModuleRegistration,
-    ModuleRegistrationConfiguration,
-    WorkflowStepDraft,
-    role_is,
-)
+from ...compile.interfaces import CompilationContext, ModuleCompiler
+from ...modules.interfaces import Module, ModuleRegistrationConfiguration
+from ...workflow.interfaces import ModuleExecutor
 from ...workflow.models import (
     Artifact,
     DisruptedExecutionContext,
@@ -25,6 +18,9 @@ from ...workflow.models import (
     ExecutorFactoryContext,
     StepOutcome,
     StepStatus,
+    WorkflowContribution,
+    WorkflowStepDraft,
+    role_is,
 )
 from ..core import CoreArtifactRoles
 
@@ -39,17 +35,17 @@ def _quote_identifier(value: object) -> str:
 
 
 @dataclass(frozen=True)
-class MergeCompatibleFactsModule(Module, ModuleRegistration[_Configuration]):
-    configuration: _Configuration = field(default_factory=_Configuration)
-
+class MergeCompatibleFactsModule(Module):
+    configuration: _Configuration
     ID: ClassVar[str] = "merge_compatible_facts"
     VERSION: ClassVar[str] = "1"
+    CONFIGURATION_TYPE: ClassVar[type[_Configuration]] = _Configuration
 
     @classmethod
     async def create_compiler(
         cls, context: CompilationContext[Any],
     ) -> ModuleCompiler:
-        return cls(context.registration_configuration)
+        return cls(context.configuration)
 
     @classmethod
     async def create_executor(
@@ -59,7 +55,7 @@ class MergeCompatibleFactsModule(Module, ModuleRegistration[_Configuration]):
 
     async def compile(
         self, context: CompilationContext[Any],
-    ) -> ModuleCompilationResult:
+    ) -> WorkflowContribution:
         steps: list[WorkflowStepDraft] = []
         for component in context.blueprint.components:
             input_slot = SingleInputSlot(
@@ -87,7 +83,7 @@ class MergeCompatibleFactsModule(Module, ModuleRegistration[_Configuration]):
                         artifact_role=output_role,
                     ),
                 ),
-                payload={"relation": relation, "select": select},
+                payload=freeze_json({"relation": relation, "select": select}),
             )
             steps.append(
                 WorkflowStepDraft(
@@ -102,15 +98,15 @@ class MergeCompatibleFactsModule(Module, ModuleRegistration[_Configuration]):
                 import_module=type(self).__module__,
                 class_qualname=type(self).__qualname__,
                 implementation_version=self.VERSION,
-                configuration={},
+                configuration=freeze_json({}),
             )
         )
-        return ModuleCompilationResult(definition, tuple(steps))
+        return WorkflowContribution(definition, tuple(steps))
 
 
 class _Executor(ModuleExecutor):
     async def handle(self, context: ExecutionContext) -> StepOutcome:
-        payload = context.step.payload
+        payload = thaw_json(context.step.payload)  # type: ignore[arg-type]
         if not isinstance(payload, dict):
             raise ValueError("fact merging requires an object payload")
 

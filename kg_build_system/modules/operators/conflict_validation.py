@@ -1,34 +1,30 @@
 """Validation for conflicting non-null graph property values."""
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Any, ClassVar
 
+from ..._frozen_json import freeze_json, thaw_json
 from ...workflow.models import (
     ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference,
     OutputSlot, SingleInputSlot, WorkflowStep,
 )
-from ...workflow.interfaces import (
-    CandidatePredicate,
-    CompilationContext,
-    Module,
-    ModuleCompilationResult,
-    ModuleCompiler,
-    ModuleExecutor,
-    ModuleRegistration,
-    ModuleRegistrationConfiguration,
-    WorkflowStepDraft,
-    role_is,
-)
+from ...compile.interfaces import CompilationContext, ModuleCompiler
+from ...modules.interfaces import Module, ModuleRegistrationConfiguration
+from ...workflow.interfaces import ModuleExecutor
 from ...workflow.models import (
     Artifact,
+    CandidatePredicate,
     DisruptedExecutionContext,
     ExecutionContext,
     ExecutorFactoryContext,
     Failure,
     StepOutcome,
     StepStatus,
+    WorkflowContribution,
+    WorkflowStepDraft,
     WorkflowArtifactRoles,
+    role_is,
 )
 from ..core import CoreArtifactRoles
 
@@ -56,22 +52,20 @@ def _quote_identifier(value: object) -> str:
 
 
 @dataclass(frozen=True)
-class RejectConflictingNonNullValuesModule(
-    Module,
-    ModuleRegistration[RejectConflictingNonNullValuesConfiguration],
-):
-    configuration: RejectConflictingNonNullValuesConfiguration = field(
-        default_factory=RejectConflictingNonNullValuesConfiguration
-    )
+class RejectConflictingNonNullValuesModule(Module):
+    configuration: RejectConflictingNonNullValuesConfiguration
 
     ID: ClassVar[str] = "reject_conflicting_non_null_values"
     VERSION: ClassVar[str] = "1"
+    CONFIGURATION_TYPE: ClassVar[
+        type[RejectConflictingNonNullValuesConfiguration]
+    ] = RejectConflictingNonNullValuesConfiguration
 
     @classmethod
     async def create_compiler(
         cls, context: CompilationContext[Any],
     ) -> ModuleCompiler:
-        return cls(context.registration_configuration)
+        return cls(context.configuration)
 
     @classmethod
     async def create_executor(
@@ -81,7 +75,7 @@ class RejectConflictingNonNullValuesModule(
 
     async def compile(
         self, context: CompilationContext[Any],
-    ) -> ModuleCompilationResult:
+    ) -> WorkflowContribution:
         steps: list[WorkflowStepDraft] = []
         for component in context.blueprint.components:
             graph_role = CoreArtifactRoles.graph_records(
@@ -107,11 +101,11 @@ class RejectConflictingNonNullValuesModule(
                             artifact_role=output_role,
                         ),
                     ),
-                    payload={
+                    payload=freeze_json({
                         "action": "findings",
                         "component": component.name,
                         "field": prop.name,
-                    },
+                    }),
                 )
                 steps.append(
                     WorkflowStepDraft(
@@ -128,10 +122,12 @@ class RejectConflictingNonNullValuesModule(
                 import_module=type(self).__module__,
                 class_qualname=type(self).__qualname__,
                 implementation_version=self.VERSION,
-                configuration={"fail_on_error": self.configuration.fail_on_error},
+                configuration=freeze_json({
+                    "fail_on_error": self.configuration.fail_on_error,
+                }),
             )
         )
-        return ModuleCompilationResult(definition, tuple(steps))
+        return WorkflowContribution(definition, tuple(steps))
 
     def _report_step(
         self, context: CompilationContext[Any],
@@ -163,13 +159,12 @@ class RejectConflictingNonNullValuesModule(
         step = WorkflowStep(
             step_id=f"{self.ID}::report",
             module_id=self.ID,
-            assembly_preference="deferred",
             inputs=(finding_slot, *record_slots),
             outputs=outputs,
-            payload={
+            payload=freeze_json({
                 "action": "report",
                 "fail_on_error": self.configuration.fail_on_error,
-            },
+            }),
         )
         candidates: dict[str, CandidatePredicate] = {
             finding_slot.slot_id: lambda _input, output: (
@@ -184,12 +179,16 @@ class RejectConflictingNonNullValuesModule(
                 component.kind, component.name
             )
             candidates[slot.slot_id] = role_is(role)
-        return WorkflowStepDraft(step, candidates)
+        return WorkflowStepDraft(
+            definition=step,
+            assembly_preference="deferred",
+            candidates=candidates,
+        )
 
 
 class _Executor(ModuleExecutor):
     async def handle(self, context: ExecutionContext) -> StepOutcome:
-        payload = context.step.payload
+        payload = thaw_json(context.step.payload)  # type: ignore[arg-type]
         if not isinstance(payload, dict):
             raise ValueError("conflict validation requires an object payload")
         if payload.get("action") == "findings":

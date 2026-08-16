@@ -1,12 +1,10 @@
-# Workflow Module Extension — Temporary Specification
+# Workflow Module Extension — Specification
 
 ## Status
 
-This temporary specification records the workflow-module design under
-discussion. It is not yet part of the canonical specification.
-
-The initial workflow-contract and runtime-result slice is implemented. The
-current implementation has serialisable module references, frozen workflow
+This specification records the implemented workflow-module design and expands
+the canonical system specification. The current implementation has
+serialisable module references, frozen workflow
 steps/slots/connections, runtime-only step outcomes, explicit publication, a
 user-facing workflow report, a file-output module, and state-aware error
 handling. Recovery policy is owned by downstream modules.
@@ -48,7 +46,7 @@ Compilation produces distinct module-reference configuration for execution.
 The module controls this transformation: execution configuration may equal its
 registration configuration, but need not. At runtime, the executor imports
 that class and delegates step execution to it. Python class or module objects
-are never stored in a blueprint or build contract.
+are never stored in a blueprint or workflow contract.
 
 Modules are supplied in a uniquely ordered list. Earlier modules have higher
 assembly priority: the order resolves competing workflow-assembly preferences
@@ -102,7 +100,7 @@ CompilationContext
   settings
   overrides
   module_id
-  registration_configuration
+  configuration
 
 RuntimeFieldDefinition
   key
@@ -220,29 +218,30 @@ their module's predicate. Both values are discarded after connections are
 resolved and therefore do not enter the serialized workflow IR or its
 fingerprint.
 
-## Workflow-module interface
+## Workflow-module interfaces
 
-Modules use abstract base classes for registration and lifecycle ownership.
-Compiler and executor capabilities remain narrow protocols:
+Ownership follows the capability boundary. `compile.interfaces` defines the
+compiler protocol and compilation context, `workflow.interfaces` defines the
+executor protocol, and `modules.interfaces` combines them for public module
+implementations and registrations:
 
 ```python
-@dataclass
-class ModuleRegistrationConfiguration(ABC): ...
-
-
-@dataclass
-class ModuleRegistration[T](ABC):
-    module_class: type
-    configuration: T
+@dataclass(frozen=True, slots=True)
+class CompilationContext:
+    blueprint: BuildBlueprint
+    settings: CompilationSettings
+    overrides: CompilationOverrides
+    module_id: str
+    configuration: object
 
 
 class ModuleCompiler(Protocol):
     async def compile(
         self, context: CompilationContext,
-    ) -> ModuleCompilationResult: ...
+    ) -> WorkflowContribution: ...
 
 
-class ModuleExecutor(Protocol):
+class ModuleExecutor(ABC):
     async def handle(
         self, context: ExecutionContext,
     ) -> StepOutcome: ...
@@ -254,6 +253,8 @@ class ModuleExecutor(Protocol):
 
 class Module(ABC):
     ID: ClassVar[str]
+    VERSION: ClassVar[str]
+    CONFIGURATION_TYPE: ClassVar[type[ModuleRegistrationConfiguration]]
 
     @classmethod
     async def create_compiler(
@@ -264,14 +265,22 @@ class Module(ABC):
     async def create_executor(
         cls, context: ExecutorFactoryContext,
     ) -> ModuleExecutor: ...
+
+
+@dataclass(frozen=True, slots=True)
+class ModuleRegistration[T]:
+    module_class: type[Module]
+    configuration: T
 ```
 
 `compile` creates its blueprint internally and serialises registrations into
 blueprint module entries. It then reconstructs them, calls `create_compiler`,
-and calls `ModuleCompiler.compile`. The resulting `ModuleCompilationResult` contains a
-serialisable module definition, step drafts, and candidate predicates. The
-compiler retains only serialisable definitions and resolved connections in the
-contract, and owns selection, connection creation, and graph validation.
+and calls `ModuleCompiler.compile`. The resulting `WorkflowContribution`
+contains a serialisable module definition, step drafts, and candidate
+predicates. Compile preserves contribution order and delegates candidate
+selection, connection creation, ambiguity checks, and graph validation to
+`workflow.assemble_workflow`. Only the resulting serialisable workflow enters
+the contract.
 
 At runtime, the executor validates and supplies runtime configuration, combines
 it with the compiled `ModuleReference`, and calls `create_executor` with a
@@ -539,4 +548,4 @@ Implemented additions to this slice:
   to publish one optional validation report and apply configured gate policy.
 - Workflow compilation IRs and workflow domain models are distinct; module
   implementations use domain models, and runtime contexts do not expose the
-  serialized build contract.
+  serialized workflow contract.

@@ -1,20 +1,21 @@
 from pathlib import Path
 
 from kg_build_system import build, compile
-from kg_build_system.compile.contracts import BuildContract
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule,
     FileModule,
     FileModuleConfiguration,
+    register_module,
 )
+from kg_build_system.workflow.ir import WorkflowContractIR
 
 
-def compile_demo() -> BuildContract:
+def compile_demo() -> WorkflowContractIR:
     return compile(
         namespace_path=Path(__file__).parent,
         modules=(
-            CollapseExactDuplicatesModule(),
-            FileModule(FileModuleConfiguration("graph.jsonl")),
+            register_module(CollapseExactDuplicatesModule),
+            register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
         ),
     )
 

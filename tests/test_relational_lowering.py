@@ -11,14 +11,14 @@ from kg_build_system import (
     Struct, Table, bind_source, build, compile, create_blueprint,
     field, node_binding, projection_field, property,
 )
-from kg_build_system.compile.contracts import BuildContract
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration,
-    MergeCompatibleFactsModule,
+    MergeCompatibleFactsModule, register_module,
 )
 from kg_build_system.modules.core.credentials import configure_source_credentials
 from kg_build_system.relational import lower_product
 from kg_build_system.engines.duckdb import lower_relation_sql
+from kg_build_system.workflow.ir import WorkflowContractIR
 
 
 class LoweringEvidence(Struct):
@@ -86,20 +86,27 @@ class RelationalLoweringTests(unittest.TestCase):
         )
         blueprint = create_blueprint(
             bindings=(binding,), sources=(source,),
-            modules=(FileModule(FileModuleConfiguration("graph.jsonl")),),
+            modules=(register_module(
+                FileModule, FileModuleConfiguration("graph.jsonl")
+            ),),
         )
         self.assertEqual(
             tuple(module.module_id for module in blueprint.modules),
             (FileModule.ID, "core"),
         )
         contract = compile(blueprint=blueprint)
-        restored = BuildContract.model_validate_json(contract.model_dump_json())
-        self.assertEqual(restored.blueprint, blueprint)
+        restored = WorkflowContractIR.model_validate_json(
+            contract.model_dump_json()
+        )
         self.assertEqual(restored.workflow, contract.workflow)
         contract_document = json.loads(contract.model_dump_json())
         self.assertEqual(contract_document["schema_version"], 1)
-        self.assertNotIn("sources", contract_document)
-        self.assertNotIn("overrides", contract_document)
+        self.assertEqual(
+            contract_document["provenance"]["compile"]["blueprint"]["schema_version"],
+            blueprint.schema_version,
+        )
+        self.assertNotIn("blueprint", contract_document)
+        self.assertNotIn("settings", contract_document)
         self.assertTrue(all(
             "priority" not in module["reference"]
             for module in contract_document["workflow"]["modules"]
@@ -184,8 +191,10 @@ class RelationalLoweringTests(unittest.TestCase):
             contract = compile(
                 bindings=(binding,), sources=(source,),
                 modules=(
-                    FileModule(FileModuleConfiguration("graph.jsonl")),
-                    CollapseExactDuplicatesModule(),
+                    register_module(
+                        FileModule, FileModuleConfiguration("graph.jsonl")
+                    ),
+                    register_module(CollapseExactDuplicatesModule),
                 ),
             )
             report = build(
@@ -214,9 +223,11 @@ class RelationalLoweringTests(unittest.TestCase):
             bindings=(binding,),
             sources=(source,),
             modules=(
-                FileModule(FileModuleConfiguration("graph.jsonl")),
-                MergeCompatibleFactsModule(),
-                CollapseExactDuplicatesModule(),
+                register_module(
+                    FileModule, FileModuleConfiguration("graph.jsonl")
+                ),
+                register_module(MergeCompatibleFactsModule),
+                register_module(CollapseExactDuplicatesModule),
             ),
         )
         contract = compile(blueprint=blueprint)

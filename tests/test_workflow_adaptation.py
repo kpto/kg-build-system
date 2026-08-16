@@ -2,24 +2,23 @@ from __future__ import annotations
 
 import tempfile
 import unittest
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, ClassVar
 
-from kg_build_system.compile.blueprint import BuildBlueprint
-from kg_build_system.table.ir import SourceIR as SourceDefinition
-from kg_build_system.compile.contracts import BuildContract
+from kg_build_system._frozen_json import thaw_json
+from kg_build_system.compile.interfaces import CompilationContext, ModuleCompiler
+from kg_build_system.modules import Module, ModuleRegistrationConfiguration
 from kg_build_system.workflow import BuildRuntime, build
-from kg_build_system.workflow.interfaces import (
-    CompilationContext, Module, ModuleCompilationResult, ModuleCompiler,
-    ModuleExecutor, ModuleRegistration, ModuleRegistrationConfiguration,
-)
+from kg_build_system.workflow.contracts import create_workflow_contract
+from kg_build_system.workflow.interfaces import ModuleExecutor
+from kg_build_system.workflow.ir import WorkflowContractIR
 from kg_build_system.workflow.models import (
     Artifact, ArtifactRole, CollectionInputSlot, Connection,
     DisruptedExecutionContext, ExecutionContext, ExecutorFactoryContext,
     ModuleDefinition, ModuleReference, OutputSlot, RuntimeFieldDefinition,
     SingleInputSlot, StepOutcome, StepStatus, WorkflowArtifactRoles,
-    WorkflowDefinition, WorkflowStep,
+    WorkflowContribution, WorkflowDefinition, WorkflowStep,
 )
 from kg_build_system.workflow.validation import validate_workflow
 
@@ -29,19 +28,16 @@ class RecoveryConfiguration(ModuleRegistrationConfiguration):
     pass
 
 
-@dataclass(frozen=True)
-class RecoveryModule(Module, ModuleRegistration[RecoveryConfiguration]):
-    configuration: RecoveryConfiguration = field(
-        default_factory=RecoveryConfiguration,
-    )
+class RecoveryModule(Module):
     ID: ClassVar[str] = "test_recovery"
     VERSION: ClassVar[str] = "1"
+    CONFIGURATION_TYPE: ClassVar[type[RecoveryConfiguration]] = RecoveryConfiguration
 
     @classmethod
     async def create_compiler(
         cls, context: CompilationContext[Any],
     ) -> ModuleCompiler:
-        return cls(context.registration_configuration)
+        return RecoveryCompiler()
 
     @classmethod
     async def create_executor(
@@ -49,15 +45,17 @@ class RecoveryModule(Module, ModuleRegistration[RecoveryConfiguration]):
     ) -> ModuleExecutor:
         return RecoveryExecutor()
 
+
+class RecoveryCompiler:
     async def compile(
         self, context: CompilationContext[Any],
-    ) -> ModuleCompilationResult:
+    ) -> WorkflowContribution:
         raise NotImplementedError
 
 
 class RecoveryExecutor(ModuleExecutor):
     async def handle(self, context: ExecutionContext) -> StepOutcome:
-        if context.step.payload == {"action": "fail"}:
+        if thaw_json(context.step.payload) == {"action": "fail"}:  # type: ignore[arg-type]
             raise RuntimeError("intentional failure")
         return StepOutcome(
             context.step.step_id, context.step.module_id, StepStatus.SUCCEEDED,
@@ -93,7 +91,7 @@ def _module_definition(
 def _contract(
     *, version: str = "1",
     runtime_fields: tuple[RuntimeFieldDefinition, ...] = (),
-) -> BuildContract:
+) -> WorkflowContractIR:
     private_role = ArtifactRole(namespace="test_recovery", name="failed")
     published_role = WorkflowArtifactRoles.published(
         RecoveryModule.ID, "report",
@@ -111,14 +109,6 @@ def _contract(
         inputs=(recovery_input,),
         outputs=(OutputSlot(slot_id="test_recovery::recover.output", artifact_role=published_role),),
     )
-    source = SourceDefinition(
-        symbol_id="table:test", table="test", location="unused.json",
-        format="json",
-    )
-    blueprint = BuildBlueprint(
-        structs=(), tables=(), components=(), projections=(), bindings=(),
-        sources=(source,),
-    )
     workflow = WorkflowDefinition(
         modules=(_module_definition(version=version, runtime_fields=runtime_fields),),
         steps=(failing, recovering),
@@ -127,11 +117,9 @@ def _contract(
             output_slot_id=failing.outputs[0].slot_id,
         ),),
     )
-    return BuildContract(
-        blueprint=blueprint,
-        blueprint_fingerprint="blueprint",
-        workflow_fingerprint="workflow",
-        workflow=workflow,
+    return create_workflow_contract(
+        workflow,
+        provenance={"test": "workflow_adaptation"},
     )
 
 

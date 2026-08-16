@@ -1,4 +1,4 @@
-"""Compile Python declarations into immutable blueprints and build contracts."""
+"""Compile Python declarations into immutable workflow contracts."""
 from __future__ import annotations
 
 import asyncio
@@ -11,7 +11,7 @@ from dataclasses import asdict, replace
 from hashlib import sha256
 from pathlib import Path
 from types import ModuleType
-from typing import Any, get_type_hints, overload
+from typing import Any, cast, overload
 
 from ..annotations import Annotation
 from ..annotations.ir import AnnotationIR as AnnotationDefinition
@@ -41,18 +41,16 @@ from ..topology.ir import (
 from ..types import ArrayType, NullableType, StructType
 from ..types.mapping import type_to_ir
 from ..workflow.ir import BlueprintModuleIR as BlueprintModule
-from ..workflow.interfaces import ModuleRegistration
-from .blueprint import BuildBlueprint
+from ..workflow.assembly import assemble_workflow
+from ..workflow.contracts import create_workflow_contract
+from ..workflow.ir import WorkflowContractIR
+from .interfaces import (
+    CompilableModule, CompilationContext, CompileModuleRegistration,
+)
+from .models import (
+    BuildBlueprint, CompilationOverrides, CompilationSettings, SourceOverride,
+)
 from .validation import validate_blueprint
-from ..workflow.mapping import workflow_to_ir
-from ..workflow.models import (
-    ArtifactRole, Connection, OutputSlot, SingleInputSlot, WorkflowDefinition,
-)
-from ..workflow.validation import validate_workflow
-from .contracts import BuildContract, BuildOverrides, BuildSettings, SourceOverride
-from ..workflow.interfaces import (
-    CompilationContext, WorkflowStepDraft,
-)
 
 
 def _symbol(kind: str, declaration: type[Any]) -> str:
@@ -183,7 +181,7 @@ def _source(source: BoundTable) -> SourceDefinition:
     )
 
 
-def _module(registration: ModuleRegistration[Any]) -> BlueprintModule:
+def _module(registration: CompileModuleRegistration[Any]) -> BlueprintModule:
     cls = registration.module_class
     module_id = getattr(cls, "ID", None)
     if not isinstance(module_id, str) or not module_id:
@@ -314,14 +312,14 @@ def _deduplicate_identity[T](values: Iterable[T]) -> tuple[T, ...]:
 
 
 @overload
-def create_blueprint(*, bindings: Iterable[Binding], sources: Sequence[BoundSource] = (), modules: Sequence[ModuleRegistration[Any]] = ()) -> BuildBlueprint: ...
+def create_blueprint(*, bindings: Iterable[Binding], sources: Sequence[BoundSource] = (), modules: Sequence[CompileModuleRegistration[Any]] = ()) -> BuildBlueprint: ...
 @overload
-def create_blueprint(*, namespace_path: str | Path, bindings: Iterable[Binding] = (), sources: Sequence[BoundSource] = (), modules: Sequence[ModuleRegistration[Any]] = ()) -> BuildBlueprint: ...
+def create_blueprint(*, namespace_path: str | Path, bindings: Iterable[Binding] = (), sources: Sequence[BoundSource] = (), modules: Sequence[CompileModuleRegistration[Any]] = ()) -> BuildBlueprint: ...
 
 
 def create_blueprint(
     *, bindings: Iterable[Binding] = (), sources: Sequence[BoundSource] = (),
-    modules: Sequence[ModuleRegistration[Any]] = (), namespace_path: str | Path | None = None,
+    modules: Sequence[CompileModuleRegistration[Any]] = (), namespace_path: str | Path | None = None,
 ) -> BuildBlueprint:
     discovered_bindings: tuple[Binding, ...] = ()
     discovered_sources: tuple[BoundSource, ...] = ()
@@ -387,28 +385,51 @@ def _thaw(value: Any) -> Any:
     return value
 
 
-def _load_registration(definition: BlueprintModule) -> ModuleRegistration[Any]:
+def _source_document(source: SourceDefinition | None) -> dict[str, Any] | None:
+    if source is None:
+        return None
+    return {
+        "symbol_id": source.symbol_id,
+        "table": source.table,
+        "location": source.location,
+        "format": source.format,
+        "credential_reference": source.credential_reference,
+        "version": source.version,
+        "annotations": [
+            {
+                "namespace": annotation.namespace,
+                "annotation_id": annotation.annotation_id,
+                "arguments": _thaw(annotation.arguments),
+            }
+            for annotation in source.annotations
+        ],
+    }
+
+
+def _load_module(
+    definition: BlueprintModule,
+) -> tuple[type[CompilableModule], Any]:
     module_class: Any = importlib.import_module(definition.module_import)
     for part in definition.module_qualname.split("."):
         module_class = getattr(module_class, part)
-    configuration_type = get_type_hints(module_class).get("configuration")
+    configuration_type = getattr(module_class, "CONFIGURATION_TYPE", None)
     configuration = _thaw(definition.configuration)
-    if configuration_type is None or not isinstance(configuration, dict):
+    if not isinstance(configuration_type, type) or not isinstance(configuration, dict):
         raise TypeError(
             f"workflow module {definition.module_id!r} cannot reconstruct its registration configuration"
         )
-    registration = module_class(configuration_type(**configuration))
-    if registration.module_class.ID != definition.module_id:
+    if getattr(module_class, "ID", None) != definition.module_id:
         raise RuntimeError(
-            f"blueprint module {definition.module_id!r} resolved to {registration.module_class.ID!r}"
+            f"blueprint module {definition.module_id!r} resolved to "
+            f"{getattr(module_class, 'ID', None)!r}"
         )
-    return registration
+    return cast(type[CompilableModule], module_class), configuration_type(**configuration)
 
 
-async def _compile_blueprint(
+async def _compile_workflow(
     *, blueprint: BuildBlueprint, sources: Sequence[BoundSource] = (),
-    settings: BuildSettings | None = None,
-) -> BuildContract:
+    settings: CompilationSettings | None = None,
+) -> WorkflowContractIR:
     validate_blueprint(blueprint)
     effective_sources = _effective_sources(blueprint, sources)
     referenced_tables = {table.name for table in blueprint.tables}
@@ -418,7 +439,7 @@ async def _compile_blueprint(
     override_sources = tuple(
         _source(item) for source in sources for item in resolve_bound_source(source)
     )
-    overrides = BuildOverrides(sources=tuple(
+    overrides = CompilationOverrides(sources=tuple(
         SourceOverride(
             table=item.table,
             original=next((source for source in blueprint.sources if source.table == item.table), None),
@@ -426,158 +447,61 @@ async def _compile_blueprint(
         )
         for item in override_sources
     ))
-    compilation_settings = settings or BuildSettings()
-    declarations = []
+    compilation_settings = settings or CompilationSettings()
+    contributions = []
     for definition in blueprint.modules:
-        registration = _load_registration(definition)
+        module_class, configuration = _load_module(definition)
         context = CompilationContext(
             blueprint, compilation_settings, overrides, definition.module_id,
-            registration.configuration,
+            configuration,
         )
-        compiler = await registration.module_class.create_compiler(context)
-        declaration = await compiler.compile(context)
-        if declaration.module.reference.module_id != definition.module_id:
+        compiler = await module_class.create_compiler(context)
+        contribution = await compiler.compile(context)
+        if contribution.module.reference.module_id != definition.module_id:
             raise ValueError("module class ID does not match its compilation result")
-        cls = registration.module_class
         reference = replace(
-            declaration.module.reference,
-            import_module=cls.__module__,
-            class_qualname=cls.__qualname__,
-            implementation_version=str(getattr(cls, "VERSION", declaration.module.reference.implementation_version)),
+            contribution.module.reference,
+            import_module=module_class.__module__,
+            class_qualname=module_class.__qualname__,
+            implementation_version=str(module_class.VERSION),
         )
-        declarations.append(type(declaration)(
-            replace(declaration.module, reference=reference), declaration.steps,
+        contributions.append(type(contribution)(
+            replace(contribution.module, reference=reference), contribution.steps,
         ))
+    workflow = assemble_workflow(contributions)
+    from .codec import encode_blueprint
 
-    drafts = [draft for declaration in declarations for draft in declaration.steps]
-    modules = tuple(declaration.module for declaration in declarations)
-    if len({module.reference.module_id for module in modules}) != len(modules):
-        raise ValueError("workflow module IDs must be unique")
-    module_order = {
-        module.reference.module_id: index for index, module in enumerate(modules)
+    provenance = {
+        "compile": {
+            "blueprint": encode_blueprint(blueprint),
+            "blueprint_fingerprint": _blueprint_fingerprint(blueprint),
+            "settings": asdict(compilation_settings),
+            "overrides": {
+                "sources": [
+                    {
+                        "table": override.table,
+                        "original": _source_document(override.original),
+                        "override": _source_document(override.override),
+                    }
+                    for override in overrides.sources
+                ],
+            },
+        }
     }
-    declaration_order = {draft.definition.step_id: index for index, draft in enumerate(drafts)}
-    output_step = {
-        slot.slot_id: draft.definition.step_id
-        for draft in drafts for slot in draft.definition.outputs
-    }
-    outputs = [slot for draft in drafts for slot in draft.definition.outputs]
-    output_order = {slot.slot_id: index for index, slot in enumerate(outputs)}
-    output_module = {
-        slot.slot_id: draft.definition.module_id
-        for draft in drafts for slot in draft.definition.outputs
-    }
-    dependencies: dict[str, set[str]] = {
-        draft.definition.step_id: set() for draft in drafts
-    }
-
-    def creates_cycle(producer: str, consumer: str) -> bool:
-        if producer == consumer:
-            return True
-        pending = [consumer]
-        visited: set[str] = set()
-        while pending:
-            step_id = pending.pop()
-            if step_id == producer:
-                return True
-            if step_id in visited:
-                continue
-            visited.add(step_id)
-            pending.extend(dependencies[step_id])
-        return False
-
-    def candidate_order(output: OutputSlot) -> tuple[int, int, str]:
-        return (
-            module_order[output_module[output.slot_id]],
-            output_order[output.slot_id],
-            output.slot_id,
-        )
-
-    claims = sorted(
-        drafts,
-        key=lambda draft: (
-            0 if draft.definition.assembly_preference == "eager" else 1,
-            module_order[draft.definition.module_id]
-            if draft.definition.assembly_preference == "eager"
-            else -module_order[draft.definition.module_id],
-            declaration_order[draft.definition.step_id],
-        ),
-    )
-    connections: list[Connection] = []
-    uses: dict[str, int] = {}
-    for draft in claims:
-        for input_slot in draft.definition.inputs:
-            predicate = draft.candidates.get(input_slot.slot_id)
-            candidates = [
-                output for output in outputs
-                if output_step[output.slot_id] != draft.definition.step_id
-                and predicate is not None and predicate(input_slot, output)
-            ]
-            candidates = [
-                output for output in candidates
-                if not creates_cycle(
-                    output_step[output.slot_id], draft.definition.step_id,
-                )
-            ]
-            if isinstance(input_slot, SingleInputSlot):
-                if not candidates:
-                    raise ValueError(f"input {input_slot.slot_id} has no compatible output")
-                open_candidates = [
-                    output for output in candidates
-                    if uses.get(output.slot_id, 0) == 0
-                ]
-                selected = max(open_candidates or candidates, key=candidate_order)
-                connections.append(Connection(input_slot_id=input_slot.slot_id, output_slot_id=selected.slot_id))
-                uses[selected.slot_id] = uses.get(selected.slot_id, 0) + 1
-                dependencies[output_step[selected.slot_id]].add(
-                    draft.definition.step_id,
-                )
-            else:
-                by_role: dict[tuple[str, str], list[OutputSlot]] = {}
-                for output in candidates:
-                    role = output.artifact_role
-                    by_role.setdefault((role.namespace, role.name), []).append(output)
-                selected_outputs: list[OutputSlot] = []
-                for role_candidates in by_role.values():
-                    open_candidates = [
-                        output for output in role_candidates
-                        if uses.get(output.slot_id, 0) == 0
-                    ]
-                    selected_outputs.extend(
-                        open_candidates or (max(role_candidates, key=candidate_order),)
-                    )
-                if not selected_outputs:
-                    raise ValueError(f"input {input_slot.slot_id} has no compatible output")
-                for output in sorted(selected_outputs, key=candidate_order):
-                    connections.append(Connection(input_slot_id=input_slot.slot_id, output_slot_id=output.slot_id))
-                    uses[output.slot_id] = uses.get(output.slot_id, 0) + 1
-                    dependencies[output_step[output.slot_id]].add(
-                        draft.definition.step_id,
-                    )
-    workflow = WorkflowDefinition(
-        modules=modules,
-        steps=tuple(draft.definition for draft in drafts),
-        connections=tuple(connections),
-    )
-    validate_workflow(workflow)
-    workflow_ir = workflow_to_ir(workflow)
-    return BuildContract(
-        blueprint=blueprint,
-        blueprint_fingerprint=_blueprint_fingerprint(blueprint),
-        settings=compilation_settings,
-        workflow_fingerprint=_fingerprint(workflow_ir.model_dump(mode="json")),
-        workflow=workflow_ir,
+    return create_workflow_contract(
+        workflow,
+        provenance=cast(Any, provenance),
     )
 
 
-def compile_blueprint(
+def compile_workflow(
     *, blueprint: BuildBlueprint, sources: Sequence[BoundSource] = (),
-    settings: BuildSettings | None = None,
-) -> BuildContract:
+    settings: CompilationSettings | None = None,
+) -> WorkflowContractIR:
     """Compile a blueprint into one frozen executable workflow contract."""
-    return asyncio.run(_compile_blueprint(
+    return asyncio.run(_compile_workflow(
         blueprint=blueprint, sources=sources, settings=settings,
     ))
 
 
-__all__ = ["compile_blueprint", "create_blueprint"]
+__all__ = ["compile_workflow", "create_blueprint"]

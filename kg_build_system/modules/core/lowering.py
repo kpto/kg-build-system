@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from ...binding.ir import BindingIR as BindingDefinition, EdgeBindingIR as EdgeBindingDefinition
-from ...compile.blueprint import BuildBlueprint
+from ...compile.models import BuildBlueprint
 from ...table.ir import ProjectionIR as ProjectionDefinition
 from ...engines.duckdb import lower_relation_sql
 from ...expressions.ir import (

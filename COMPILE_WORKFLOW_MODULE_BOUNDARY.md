@@ -1,5 +1,12 @@
 # Compile, Workflow, and Module Boundary
 
+## Status
+
+Implemented. Boundary tests enforce that workflow has no dependency on
+compile, compile has no dependency on concrete modules, assembly-only state is
+absent from executable workflow models, and the workflow contract exposes
+compilation detail only as opaque provenance.
+
 ## High-level design
 
 `compile` translates authoring declarations into ordered module contributions.
@@ -67,7 +74,7 @@ cycles, and discards priority and assembly preference from the final workflow.
 The workflow fingerprint covers executable workflow IR only. Compiler-specific
 fingerprints and metadata live in provenance.
 
-## Domain model draft
+## Implemented domain model
 
 ### `compile/models.py`
 
@@ -118,6 +125,7 @@ class ModuleCompiler(Protocol):
 class CompilableModule(Protocol):
     ID: ClassVar[str]
     VERSION: ClassVar[str]
+    CONFIGURATION_TYPE: ClassVar[type[Any]]
 
     @classmethod
     async def create_compiler(
@@ -280,6 +288,7 @@ class ModuleRegistrationConfiguration:
 class Module(ABC):
     ID: ClassVar[str]
     VERSION: ClassVar[str]
+    CONFIGURATION_TYPE: ClassVar[type[ModuleRegistrationConfiguration]]
 
     @classmethod
     @abstractmethod
@@ -301,6 +310,10 @@ class ModuleRegistration(Generic[ConfigT]):
     module_class: type[Module]
     configuration: ConfigT
 ```
+
+`CONFIGURATION_TYPE` is the stable reconstruction boundary for compiling an
+auxiliary serialized blueprint. `register_module` constructs registrations and
+creates the module's default configuration when one is not supplied.
 
 `ModuleRegistration` structurally satisfies `CompileModuleRegistration`.
 Imported runtime module classes structurally satisfy `ExecutableModule`.

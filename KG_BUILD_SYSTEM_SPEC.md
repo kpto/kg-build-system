@@ -29,7 +29,7 @@ modules ───────── compilation and execution extensions
 ```
 
 ```text
-Python declarations/sources/modules/settings ──> compile ──> BuildContract
+Python declarations/sources/modules/settings ──> compile ──> WorkflowContractIR
                                                      │
 runtime configuration ─────────────────> build <─────┘
 
@@ -421,25 +421,27 @@ bindings reference stable relations.
 
 The public `compile` API creates the canonical blueprint internally and appends
 the mandatory core module after the configured extension modules. It validates
-blueprint schema version 2, resolves effective sources and overrides, compiles
-every registered module through the common module interface, and assembles one
-dependency-aware `BuildContract`. The compiler does not import or bootstrap
-concrete module implementations. `compile(blueprint=...)` remains available for
-advanced callers using an auxiliary prebuilt blueprint.
+blueprint schema version 2, resolves effective sources and overrides, and
+compiles every registered module through the compile-time capability interface.
+The workflow domain then assembles the ordered contributions into one
+dependency-aware `WorkflowContractIR`. The compiler does not import or
+bootstrap concrete module implementations. `compile(blueprint=...)` remains
+available for advanced callers using an auxiliary prebuilt blueprint.
 
-The contract includes:
+The workflow contract includes:
 
 - a contract schema version;
-- the complete blueprint and its fingerprint;
-- execution settings;
 - frozen module definitions, executable workflow steps, and resolved
   connections;
-- effective source instructions containing locations, formats, and credential
-  references where required;
-- inspectable SQL payloads;
-- the workflow fingerprint.
+- effective source instructions and inspectable SQL in module-owned step
+  payloads;
+- the workflow fingerprint;
+- optional opaque compilation provenance containing the blueprint, its
+  fingerprint, compilation settings, and overrides.
 
-It never contains resolved credentials.
+Workflow does not interpret compilation provenance. Execution settings are
+supplied through `BuildRuntime`. The contract never contains resolved
+credentials.
 
 The core module creates source-materialization, projection, binding, and graph
 aggregation steps. Extension modules claim artifacts by semantic
@@ -447,12 +449,12 @@ aggregation steps. Extension modules claim artifacts by semantic
 include exact duplicate collapse, compatible-fact merging, conflicting-value
 validation, and file output.
 
-`build` consumes only `BuildContract` and `BuildRuntime`. It imports the module
+`build` consumes only `WorkflowContractIR` and `BuildRuntime`. It imports the module
 classes named in the contract, validates runtime configuration, executes ready
 steps in dependency order, propagates failed or skipped inputs, and verifies
 every returned artifact against its declared output slot.
 
-The output directory receives published artifacts, `build_contract.json`, and
+The output directory receives published artifacts, `workflow_contract.json`, and
 `build_report.json`. The working directory defaults to the output directory;
 temporary storage defaults to a system temporary directory. Runtime
 credentials are resolved through runtime services. Credential values and their

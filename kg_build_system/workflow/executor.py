@@ -10,7 +10,7 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Literal, cast
 
-from ..compile.contracts import BuildContract
+from .ir import WorkflowContractIR
 from .mapping import workflow_from_ir
 from .models import Artifact, BuildRuntime, ContinuableInput, DisruptedExecutionContext, DisruptingInput, ExecutionContext, ExecutorFactoryContext, Failure, PublishedArtifact, StepOutcome, StepStatus, WorkflowArtifactRoles, WorkflowReport
 from .services import ExecutionServices, LocalTemporaryStorage, LocalWorkingStorage, MappingCredentialResolver
@@ -71,15 +71,19 @@ def _validate_runtime_configuration(
         )
 
 
-async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowReport:
+async def _build(
+    contract: WorkflowContractIR, runtime: BuildRuntime,
+) -> WorkflowReport:
     try:
         import duckdb
     except ImportError as error:
         raise RuntimeError("DuckDB is required to execute builds") from error
     connection = duckdb.connect()
     workflow = workflow_from_ir(contract.workflow)
-    if contract.settings.duckdb_threads is not None:
-        connection.execute(f"SET threads = {contract.settings.duckdb_threads}")
+    if runtime.duckdb_threads is not None:
+        if runtime.duckdb_threads < 1:
+            raise ValueError("duckdb_threads must be at least one")
+        connection.execute(f"SET threads = {runtime.duckdb_threads}")
 
     working_directory = runtime.working_directory or runtime.output_directory
     with TemporaryDirectory(dir=runtime.temporary_directory) as temporary_directory:
@@ -210,16 +214,22 @@ async def _build(contract: BuildContract, runtime: BuildRuntime) -> WorkflowRepo
       all_failures = tuple(
           outcome.failure for outcome in outcomes if outcome.failure is not None
       )
+      provenance = (
+          dict(contract.provenance)
+          if isinstance(contract.provenance, dict)
+          else {"contract": contract.provenance}
+      )
+      provenance["workflow_fingerprint"] = contract.workflow_fingerprint
       return WorkflowReport(
         published_artifacts=tuple(PublishedArtifact(role=artifact.role, value=artifact.value) for artifact in published_artifacts),
         recovered_failures=tuple(failure for failure in all_failures if failure not in unresolved),
         unresolved_failures=tuple(failure for failure in all_failures if failure in unresolved),
-        provenance={"blueprint_fingerprint": contract.blueprint_fingerprint, "workflow_fingerprint": contract.workflow_fingerprint},
+        provenance=provenance,
     )
 
 
 def build(
-    contract: BuildContract, runtime: BuildRuntime | None = None, *,
+    contract: WorkflowContractIR, runtime: BuildRuntime | None = None, *,
     output_directory: str | Path | None = None,
     working_directory: str | Path | None = None,
     temporary_directory: str | Path | None = None,
@@ -240,7 +250,7 @@ def build(
     configured.working_directory.mkdir(parents=True, exist_ok=True)
     if configured.temporary_directory is not None:
         configured.temporary_directory.mkdir(parents=True, exist_ok=True)
-    (configured.output_directory / "build_contract.json").write_text(
+    (configured.output_directory / "workflow_contract.json").write_text(
         contract.model_dump_json(indent=2), encoding="utf-8",
     )
     report = asyncio.run(_build(contract, configured))

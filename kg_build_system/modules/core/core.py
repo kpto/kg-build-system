@@ -4,22 +4,16 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Literal, cast
 
-from ...compile.blueprint import BuildBlueprint
+from ..._frozen_json import freeze_json
+from ...compile.models import BuildBlueprint
 from ...table.ir import ProjectionIR as ProjectionDefinition
 from ...workflow.models import (
     ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference,
     OutputSlot, WorkflowStep,
 )
-from ...workflow.interfaces import (
-    CompilationContext,
-    Module,
-    ModuleCompilationResult,
-    ModuleCompiler,
-    ModuleExecutor,
-    ModuleRegistration,
-    ModuleRegistrationConfiguration,
-    WorkflowStepDraft,
-)
+from ...compile.interfaces import CompilationContext, ModuleCompiler
+from ...modules.interfaces import Module, ModuleRegistrationConfiguration
+from ...workflow.interfaces import ModuleExecutor
 from ...workflow.models import (
     Artifact,
     DisruptedExecutionContext,
@@ -27,6 +21,8 @@ from ...workflow.models import (
     ExecutorFactoryContext,
     StepOutcome,
     StepStatus,
+    WorkflowContribution,
+    WorkflowStepDraft,
 )
 from .lowering import (
     binding_sources,
@@ -138,14 +134,14 @@ class _CoreConfiguration(ModuleRegistrationConfiguration):
 class CoreCompiler:
     async def compile(
         self, context: CompilationContext[Any],
-    ) -> ModuleCompilationResult:
+    ) -> WorkflowContribution:
         definition = ModuleDefinition(
             reference=ModuleReference(
                 module_id=CoreModule.ID,
                 import_module=CoreModule.__module__,
                 class_qualname=CoreModule.__qualname__,
                 implementation_version=CoreModule.VERSION,
-                configuration={},
+                configuration=freeze_json({}),
             )
         )
         sources = self._sources(context)
@@ -185,7 +181,7 @@ class CoreCompiler:
             for index, binding in enumerate(context.blueprint.bindings)
         )
         drafts.extend(self._aggregation_steps(context.blueprint))
-        return ModuleCompilationResult(definition, tuple(drafts))
+        return WorkflowContribution(definition, tuple(drafts))
 
     @staticmethod
     def _sources(context: CompilationContext[Any]):
@@ -215,7 +211,7 @@ class CoreCompiler:
                 credential_reference=source.credential_reference,
             )),
         )
-        return WorkflowStepDraft(step, {})
+        return WorkflowStepDraft(definition=step)
 
     @staticmethod
     def _projection_step(
@@ -256,7 +252,7 @@ class CoreCompiler:
                 candidate.artifact_role in roles
             )
         }
-        return WorkflowStepDraft(step, candidates)
+        return WorkflowStepDraft(definition=step, candidates=candidates)
 
     @staticmethod
     def _binding_step(
@@ -307,7 +303,7 @@ class CoreCompiler:
                 ),
             )),
         )
-        return WorkflowStepDraft(step, candidates)
+        return WorkflowStepDraft(definition=step, candidates=candidates)
 
     @staticmethod
     def _aggregation_steps(
@@ -334,7 +330,6 @@ class CoreCompiler:
             step = WorkflowStep(
                 step_id=f"core::aggregate.{component.name}",
                 module_id=CoreModule.ID,
-                assembly_preference="deferred",
                 inputs=(input_slot,),
                 outputs=(output,),
                 payload=encode_core_instruction(AggregateInstructionIR(
@@ -348,16 +343,18 @@ class CoreCompiler:
                     )
                 )
             }
-            drafts.append(WorkflowStepDraft(step, candidates))
+            drafts.append(WorkflowStepDraft(
+                definition=step,
+                assembly_preference="deferred",
+                candidates=candidates,
+            ))
         return tuple(drafts)
 
 
-@dataclass(frozen=True)
-class CoreModule(Module, ModuleRegistration[_CoreConfiguration]):
-    configuration: _CoreConfiguration = field(default_factory=_CoreConfiguration)
-
+class CoreModule(Module):
     ID: ClassVar[str] = "core"
     VERSION: ClassVar[str] = "1"
+    CONFIGURATION_TYPE: ClassVar[type[_CoreConfiguration]] = _CoreConfiguration
 
     @classmethod
     async def create_compiler(

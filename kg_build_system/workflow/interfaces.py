@@ -1,62 +1,13 @@
-"""Workflow-module registration, compilation, and execution interfaces."""
+"""Runtime capabilities implemented by executable workflow modules."""
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from collections.abc import Callable
-from dataclasses import dataclass
-from typing import Any, ClassVar, Protocol, cast
+from typing import ClassVar, Protocol
 
-from ..compile.blueprint import BuildBlueprint
-from ..compile.contracts import BuildOverrides, BuildSettings
 from .models import (
-    ArtifactRole, DisruptedExecutionContext, ExecutionContext,
-    ExecutorFactoryContext, InputSlot, ModuleDefinition, OutputSlot, StepOutcome,
-    StepStatus, WorkflowStep,
+    DisruptedExecutionContext, ExecutionContext, ExecutorFactoryContext,
+    StepOutcome, StepStatus,
 )
-
-
-@dataclass(frozen=True)
-class ModuleRegistrationConfiguration(ABC):
-    """Serializable, non-secret configuration declared in a blueprint."""
-
-
-@dataclass(frozen=True)
-class ModuleRegistration[T: ModuleRegistrationConfiguration](ABC):
-    configuration: T
-
-    @property
-    def module_class(self) -> type[Module]:
-        return cast(type[Module], type(self))
-
-
-@dataclass(frozen=True)
-class CompilationContext[T: ModuleRegistrationConfiguration]:
-    """Generic compile-time context for one configured workflow module."""
-
-    blueprint: BuildBlueprint
-    settings: BuildSettings
-    overrides: BuildOverrides
-    module_id: str
-    registration_configuration: T
-
-
-CandidatePredicate = Callable[[InputSlot, OutputSlot], bool]
-
-
-@dataclass(frozen=True)
-class WorkflowStepDraft:
-    definition: WorkflowStep
-    candidates: dict[str, CandidatePredicate]
-
-
-@dataclass(frozen=True)
-class ModuleCompilationResult:
-    module: ModuleDefinition
-    steps: tuple[WorkflowStepDraft, ...]
-
-
-class ModuleCompiler(Protocol):
-    async def compile(self, context: CompilationContext[Any]) -> ModuleCompilationResult: ...
 
 
 class ModuleExecutor(ABC):
@@ -76,21 +27,14 @@ class ModuleExecutor(ABC):
         )
 
 
-class Module(ABC):
+class ExecutableModule(Protocol):
     ID: ClassVar[str]
+    VERSION: ClassVar[str]
 
     @classmethod
-    @abstractmethod
-    async def create_compiler(
-        cls, context: CompilationContext[Any],
-    ) -> ModuleCompiler: ...
-
-    @classmethod
-    @abstractmethod
     async def create_executor(
         cls, context: ExecutorFactoryContext,
     ) -> ModuleExecutor: ...
 
 
-def role_is(role: ArtifactRole) -> CandidatePredicate:
-    return lambda _input, output: output.artifact_role == role
+__all__ = ["ExecutableModule", "ModuleExecutor"]

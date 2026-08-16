@@ -6,15 +6,15 @@ from pathlib import Path
 from typing import Any, overload
 
 from .binding import Binding
-from .compile.blueprint import BuildBlueprint
+from .compile.models import BuildBlueprint, CompilationSettings
 from .compile.compiler import (
-    compile_blueprint as _compile_blueprint,
+    compile_workflow as _compile_workflow,
     create_blueprint as _create_blueprint,
 )
-from .compile.contracts import BuildContract, BuildSettings
+from .modules import ModuleRegistration, register_module
 from .modules.core import CoreModule
 from .table import BoundSource
-from .workflow.interfaces import ModuleRegistration
+from .workflow.ir import WorkflowContractIR
 
 
 @overload
@@ -44,7 +44,7 @@ def create_blueprint(
     namespace_path: str | Path | None = None,
 ) -> BuildBlueprint:
     """Create a blueprint with the mandatory core module as the final fallback."""
-    composed_modules = (*modules, CoreModule())
+    composed_modules = (*modules, register_module(CoreModule))
     if namespace_path is None:
         return _create_blueprint(
             bindings=bindings,
@@ -64,8 +64,8 @@ def compile(
     *,
     blueprint: BuildBlueprint,
     source_overrides: Sequence[BoundSource] = (),
-    settings: BuildSettings | None = None,
-) -> BuildContract: ...
+    settings: CompilationSettings | None = None,
+) -> WorkflowContractIR: ...
 
 
 @overload
@@ -75,8 +75,8 @@ def compile(
     sources: Sequence[BoundSource] = (),
     source_overrides: Sequence[BoundSource] = (),
     modules: Sequence[ModuleRegistration[Any]] = (),
-    settings: BuildSettings | None = None,
-) -> BuildContract: ...
+    settings: CompilationSettings | None = None,
+) -> WorkflowContractIR: ...
 
 
 @overload
@@ -87,8 +87,8 @@ def compile(
     sources: Sequence[BoundSource] = (),
     source_overrides: Sequence[BoundSource] = (),
     modules: Sequence[ModuleRegistration[Any]] = (),
-    settings: BuildSettings | None = None,
-) -> BuildContract: ...
+    settings: CompilationSettings | None = None,
+) -> WorkflowContractIR: ...
 
 
 def compile(
@@ -99,8 +99,8 @@ def compile(
     source_overrides: Sequence[BoundSource] = (),
     modules: Sequence[ModuleRegistration[Any]] = (),
     namespace_path: str | Path | None = None,
-    settings: BuildSettings | None = None,
-) -> BuildContract:
+    settings: CompilationSettings | None = None,
+) -> WorkflowContractIR:
     """Compile authoring declarations directly into an executable contract."""
     authoring_bindings = tuple(bindings)
     if blueprint is not None:
@@ -124,7 +124,7 @@ def compile(
                 sources=sources,
                 modules=modules,
             )
-    return _compile_blueprint(
+    return _compile_workflow(
         blueprint=composed_blueprint,
         sources=source_overrides,
         settings=settings,

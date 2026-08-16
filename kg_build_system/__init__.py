@@ -2,7 +2,6 @@
 
 from .annotations import Annotation
 from .binding import Binding, BindingOptions, EdgeBinding, NodeBinding, edge_binding, node_binding
-from .compile import BuildSettings
 from .expressions import (
     ArrayNullableValueExpression,
     ArrayValueExpression,
@@ -56,7 +55,6 @@ __all__ = [
     "Binding",
     "BindingOptions",
     "BuildRuntime",
-    "BuildSettings",
     "Array",
     "ArrayNullableValueExpression",
     "ArrayValueExpression",

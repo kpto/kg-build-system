@@ -5,6 +5,8 @@ from typing import Annotated, Literal, Mapping, TypeAlias
 
 from pydantic import BaseModel, ConfigDict, Field, TypeAdapter
 
+from ..._frozen_json import FrozenJson, freeze_json, thaw_json
+
 
 class CoreInstructionIR(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
@@ -38,13 +40,14 @@ _INSTRUCTION_ADAPTER = TypeAdapter(CoreStepInstructionIR)
 
 
 def decode_core_instruction(value: object) -> CoreStepInstructionIR:
+    value = thaw_json(value)  # type: ignore[arg-type]
     if not isinstance(value, Mapping):
         raise ValueError("core workflow steps require an object payload")
     return _INSTRUCTION_ADAPTER.validate_python(value, strict=True)
 
 
-def encode_core_instruction(value: CoreStepInstructionIR) -> dict[str, object]:
-    return value.model_dump(mode="json")
+def encode_core_instruction(value: CoreStepInstructionIR) -> FrozenJson:
+    return freeze_json(value.model_dump(mode="json"))
 
 
 __all__ = [

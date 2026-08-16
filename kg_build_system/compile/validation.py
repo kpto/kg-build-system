@@ -14,7 +14,7 @@ from ..types.ir import (
     StructTypeIR as StructType,
 )
 from ..binding.ir import EdgeBindingIR as EdgeBindingDefinition
-from .blueprint import BLUEPRINT_SCHEMA_VERSION, BuildBlueprint
+from .models import BLUEPRINT_SCHEMA_VERSION, BuildBlueprint
 
 
 def _unique(values: Iterable[str], context: str) -> None:

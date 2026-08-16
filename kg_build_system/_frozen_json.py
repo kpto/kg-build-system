@@ -19,6 +19,8 @@ type FrozenJson = JsonScalar | tuple["FrozenJson", ...] | FrozenObject
 
 def freeze_json(value: Any) -> FrozenJson:
     """Convert JSON-compatible input into an immutable canonical value."""
+    if isinstance(value, FrozenObject):
+        return value
     if value is None or type(value) in {str, int, float, bool}:
         return value
     if isinstance(value, Mapping):
@@ -41,4 +43,15 @@ def freeze_json(value: Any) -> FrozenJson:
     raise TypeError(f"value must be JSON-compatible, not {value!r}")
 
 
-__all__ = ["FrozenJson", "FrozenObject", "JsonScalar", "freeze_json"]
+def thaw_json(value: FrozenJson) -> Any:
+    """Convert an immutable JSON value back into ordinary JSON containers."""
+    if isinstance(value, FrozenObject):
+        return {key: thaw_json(item) for key, item in value.items}
+    if isinstance(value, tuple):
+        return [thaw_json(item) for item in value]
+    return value
+
+
+__all__ = [
+    "FrozenJson", "FrozenObject", "JsonScalar", "freeze_json", "thaw_json",
+]

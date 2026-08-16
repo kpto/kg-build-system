@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from dataclasses import asdict
 
+from .._frozen_json import freeze_json, thaw_json
 from . import ir
 from . import models
 
@@ -24,7 +25,8 @@ def workflow_to_ir(value: models.WorkflowDefinition) -> ir.WorkflowDefinitionIR:
                     import_module=module.reference.import_module,
                     class_qualname=module.reference.class_qualname,
                     implementation_version=module.reference.implementation_version,
-                    configuration=module.reference.configuration,
+                    configuration=thaw_json(module.reference.configuration)
+                    if module.reference.configuration is not None else None,
                 ),
                 runtime_fields=tuple(ir.RuntimeFieldIR(**asdict(field)) for field in module.runtime_fields),
             )
@@ -44,7 +46,7 @@ def workflow_to_ir(value: models.WorkflowDefinition) -> ir.WorkflowDefinitionIR:
                     ir.OutputSlotIR(slot_id=slot.slot_id, artifact_role=role_to_ir(slot.artifact_role))
                     for slot in step.outputs
                 ),
-                payload=step.payload,
+                payload=thaw_json(step.payload) if step.payload is not None else None,
             )
             for step in value.steps
         ),
@@ -61,7 +63,8 @@ def workflow_from_ir(value: ir.WorkflowDefinitionIR) -> models.WorkflowDefinitio
                     import_module=module.reference.import_module,
                     class_qualname=module.reference.class_qualname,
                     implementation_version=module.reference.implementation_version,
-                    configuration=module.reference.configuration,
+                    configuration=freeze_json(module.reference.configuration)
+                    if module.reference.configuration is not None else None,
                 ),
                 runtime_fields=tuple(models.RuntimeFieldDefinition(**field.model_dump()) for field in module.runtime_fields),
             )
@@ -81,7 +84,7 @@ def workflow_from_ir(value: ir.WorkflowDefinitionIR) -> models.WorkflowDefinitio
                     models.OutputSlot(slot_id=slot.slot_id, artifact_role=role_from_ir(slot.artifact_role))
                     for slot in step.outputs
                 ),
-                payload=step.payload,
+                payload=freeze_json(step.payload) if step.payload is not None else None,
             )
             for step in value.steps
         ),

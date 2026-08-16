@@ -6,7 +6,7 @@ authoring and runtime APIs use their own models and interfaces.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Annotated, Literal
+from typing import Annotated, Final, Literal
 
 from .._frozen_json import FrozenJson
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
@@ -90,9 +90,20 @@ class WorkflowDefinitionIR(WorkflowIR):
     connections: tuple[ConnectionIR, ...] = ()
 
 
+WORKFLOW_CONTRACT_SCHEMA_VERSION: Final = 1
+
+
+class WorkflowContractIR(WorkflowIR):
+    schema_version: Literal[1] = 1
+    workflow: WorkflowDefinitionIR
+    workflow_fingerprint: str = Field(min_length=1)
+    provenance: JsonValue | None = None
+
+
 __all__ = [
     "ArtifactRoleIR", "BlueprintModuleIR", "CollectionInputSlotIR",
     "ConnectionIR", "InputSlotIR", "ModuleIR", "ModuleReferenceIR",
     "OutputSlotIR", "RuntimeFieldIR", "SingleInputSlotIR",
+    "WORKFLOW_CONTRACT_SCHEMA_VERSION", "WorkflowContractIR",
     "WorkflowDefinitionIR", "WorkflowStepIR",
 ]

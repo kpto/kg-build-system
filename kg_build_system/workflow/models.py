@@ -1,12 +1,13 @@
 """Runtime-only workflow models shared by the executor and workflow modules."""
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
 from typing import Any, Literal, TypeAlias
 
+from .._frozen_json import FrozenJson, freeze_json
 from .services import ExecutionServices
 
 
@@ -16,7 +17,11 @@ class ModuleReference:
     import_module: str
     class_qualname: str
     implementation_version: str
-    configuration: Any = None
+    configuration: FrozenJson | None = None
+
+    def __post_init__(self) -> None:
+        if self.configuration is not None:
+            object.__setattr__(self, "configuration", freeze_json(self.configuration))
 
 
 @dataclass(frozen=True, slots=True)
@@ -65,10 +70,33 @@ InputSlot: TypeAlias = SingleInputSlot | CollectionInputSlot
 class WorkflowStep:
     step_id: str
     module_id: str
-    assembly_preference: Literal["eager", "deferred"] = "eager"
     inputs: tuple[InputSlot, ...] = ()
     outputs: tuple[OutputSlot, ...] = ()
-    payload: Any = None
+    payload: FrozenJson | None = None
+
+    def __post_init__(self) -> None:
+        if self.payload is not None:
+            object.__setattr__(self, "payload", freeze_json(self.payload))
+
+
+CandidatePredicate: TypeAlias = Callable[[InputSlot, OutputSlot], bool]
+
+
+def role_is(role: ArtifactRole) -> CandidatePredicate:
+    return lambda _input, output: output.artifact_role == role
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowStepDraft:
+    definition: WorkflowStep
+    assembly_preference: Literal["eager", "deferred"] = "eager"
+    candidates: Mapping[str, CandidatePredicate] = field(default_factory=dict)
+
+
+@dataclass(frozen=True, slots=True)
+class WorkflowContribution:
+    module: ModuleDefinition
+    steps: tuple[WorkflowStepDraft, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -163,6 +191,7 @@ class BuildRuntime:
     output_directory: Path = field(default_factory=lambda: Path.cwd())
     working_directory: Path | None = None
     temporary_directory: Path | None = None
+    duckdb_threads: int | None = None
 
 
 @dataclass(frozen=True)

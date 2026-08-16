@@ -23,7 +23,7 @@ from ..table.ir import (
 )
 from ..topology.ir import ComponentIR as ComponentDefinition, PropertyIR as PropertyDefinition
 from ..workflow.ir import BlueprintModuleIR as BlueprintModule
-from .blueprint import BLUEPRINT_SCHEMA_VERSION, BuildBlueprint
+from .models import BLUEPRINT_SCHEMA_VERSION, BuildBlueprint
 from .validation import validate_blueprint
 
 T = TypeVar("T")
