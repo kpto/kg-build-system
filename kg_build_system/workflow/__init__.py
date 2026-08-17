@@ -6,11 +6,15 @@ from .models import (
     ExecutionContext, ExecutorFactoryContext, Failure, PublishedArtifact,
     StepOutcome, StepStatus, WorkflowArtifactRoles, WorkflowReport,
 )
+from .monitor import (
+    NullWorkflowMonitor, RichWorkflowMonitor, WorkflowExecutionMonitor,
+)
 
 
 __all__ = [
     "BuildRuntime", "ContinuableInput",
     "DisruptedExecutionContext", "DisruptingInput", "ExecutionContext",
     "ExecutorFactoryContext", "Failure", "PublishedArtifact", "StepOutcome",
-    "StepStatus", "WorkflowArtifactRoles", "WorkflowReport", "build",
+    "StepStatus", "WorkflowArtifactRoles", "WorkflowExecutionMonitor",
+    "WorkflowReport", "NullWorkflowMonitor", "RichWorkflowMonitor", "build",
 ]

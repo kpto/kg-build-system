@@ -7,6 +7,18 @@ from pathlib import Path, PurePosixPath
 from typing import Any, Protocol
 
 
+class WorkflowLogger(Protocol):
+    """Step-scoped logging exposed to workflow module executors."""
+
+    def debug(self, message: str, *args: object) -> None: ...
+
+    def info(self, message: str, *args: object) -> None: ...
+
+    def warning(self, message: str, *args: object) -> None: ...
+
+    def error(self, message: str, *args: object) -> None: ...
+
+
 class WorkingStorage(Protocol):
     """Storage rooted at a caller-selected build directory."""
 
@@ -51,3 +63,4 @@ class ExecutionServices:
     working_storage: WorkingStorage
     temporary_storage: LocalTemporaryStorage
     credentials: CredentialResolver
+    logger: WorkflowLogger

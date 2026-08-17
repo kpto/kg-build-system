@@ -4,7 +4,10 @@ import tempfile
 import unittest
 from dataclasses import dataclass
 from pathlib import Path
+from io import StringIO
 from typing import Any, ClassVar
+
+from rich.console import Console
 
 from kg_build_system._frozen_json import thaw_json
 from kg_build_system.compile.interfaces import CompilationContext, ModuleCompiler
@@ -13,6 +16,7 @@ from kg_build_system.workflow import BuildRuntime, build
 from kg_build_system.workflow.contracts import create_workflow_contract
 from kg_build_system.workflow.interfaces import ModuleExecutor
 from kg_build_system.workflow.ir import WorkflowContractIR
+from kg_build_system.workflow.monitor import RichWorkflowMonitor
 from kg_build_system.workflow.models import (
     Artifact, ArtifactRole, CollectionInputSlot, Connection,
     DisruptedExecutionContext, ExecutionContext, ExecutorFactoryContext,
@@ -55,6 +59,7 @@ class RecoveryCompiler:
 
 class RecoveryExecutor(ModuleExecutor):
     async def handle(self, context: ExecutionContext) -> StepOutcome:
+        context.services.logger.info("Handling recovery test step")
         if thaw_json(context.step.payload) == {"action": "fail"}:  # type: ignore[arg-type]
             raise RuntimeError("intentional failure")
         return StepOutcome(
@@ -64,6 +69,7 @@ class RecoveryExecutor(ModuleExecutor):
     async def handle_disrupted(
         self, context: DisruptedExecutionContext,
     ) -> StepOutcome:
+        context.services.logger.warning("Recovering disrupted input")
         output = context.step.outputs[0]
         return StepOutcome(
             context.step.step_id,
@@ -121,6 +127,32 @@ def _contract(
         workflow,
         provenance={"test": "workflow_adaptation"},
     )
+
+
+class RecordingMonitor:
+    def __init__(self) -> None:
+        self.started: list[str] = []
+        self.finished: list[tuple[str, StepStatus]] = []
+        self.logs: list[tuple[str, str, str | None]] = []
+        self.start_calls = 0
+        self.stop_calls = 0
+
+    def start(self, workflow: WorkflowDefinition) -> None:
+        self.start_calls += 1
+
+    def step_started(self, step: WorkflowStep, detail: str) -> None:
+        self.started.append(step.step_id)
+
+    def step_finished(self, outcome: StepOutcome, detail: str) -> None:
+        self.finished.append((outcome.step_id, outcome.status))
+
+    def log(
+        self, level: str, message: str, *, step_id: str | None = None,
+    ) -> None:
+        self.logs.append((level, message, step_id))
+
+    def stop(self) -> None:
+        self.stop_calls += 1
 
 
 class WorkflowDefinitionTests(unittest.TestCase):
@@ -197,6 +229,93 @@ class WorkflowRuntimeTests(unittest.TestCase):
                     _contract(runtime_fields=(runtime_field,)), runtime,
                     output_directory=Path(directory),
                 )
+
+    def test_monitor_receives_step_lifecycle_and_module_logs(self) -> None:
+        monitor = RecordingMonitor()
+        with tempfile.TemporaryDirectory() as directory:
+            build(
+                _contract(), output_directory=Path(directory), monitor=monitor,
+            )
+
+        self.assertEqual(monitor.start_calls, 1)
+        self.assertEqual(monitor.stop_calls, 1)
+        self.assertEqual(monitor.started, [
+            "test_recovery::fail", "test_recovery::recover",
+        ])
+        self.assertEqual(monitor.finished, [
+            ("test_recovery::fail", StepStatus.FAILED),
+            ("test_recovery::recover", StepStatus.WARNING),
+        ])
+        self.assertTrue(any(
+            message == "Handling recovery test step"
+            and step_id == "test_recovery::fail"
+            for _level, message, step_id in monitor.logs
+        ))
+        self.assertTrue(any(
+            message == "Recovering disrupted input"
+            and step_id == "test_recovery::recover"
+            for _level, message, step_id in monitor.logs
+        ))
+
+    def test_rich_monitor_renders_progress_steps_and_scrolling_logs(self) -> None:
+        output = StringIO()
+        console = Console(
+            file=output, force_terminal=False, color_system=None, width=100,
+        )
+        monitor = RichWorkflowMonitor(console=console, log_lines=2)
+        step = WorkflowStep("test_recovery::only", RecoveryModule.ID)
+        workflow = WorkflowDefinition(
+            modules=(_module_definition(),), steps=(step,),
+        )
+        monitor.start(workflow)
+        monitor.step_started(step, "Processing 0 input slot(s) → 0 output slot(s)")
+        monitor.log("INFO", "first message", step_id=step.step_id)
+        monitor.log("INFO", "second message", step_id=step.step_id)
+        monitor.log("WARNING", "latest message", step_id=step.step_id)
+        monitor.step_finished(
+            StepOutcome(step.step_id, step.module_id, StepStatus.SUCCEEDED),
+            "succeeded; 0 artifact(s)",
+        )
+        monitor.stop()
+
+        rendered = output.getvalue()
+        self.assertIn("Workflow", rendered)
+        self.assertIn("Overall 1/1 steps", rendered)
+        self.assertIn("Steps", rendered)
+        self.assertIn("test_recovery::only", rendered)
+        self.assertIn("Logs", rendered)
+        self.assertNotIn("first message", rendered)
+        self.assertIn("second message", rendered)
+        self.assertIn("latest message", rendered)
+
+    def test_rich_monitor_prioritizes_active_and_recent_steps_in_fixed_view(self) -> None:
+        output = StringIO()
+        console = Console(
+            file=output, force_terminal=False, color_system=None, width=100,
+        )
+        monitor = RichWorkflowMonitor(console=console, step_lines=3)
+        steps = tuple(
+            WorkflowStep(f"test_recovery::step_{index}", RecoveryModule.ID)
+            for index in range(5)
+        )
+        workflow = WorkflowDefinition(
+            modules=(_module_definition(),), steps=steps,
+        )
+        monitor.start(workflow)
+        monitor.step_started(steps[0], "Processing first")
+        monitor.step_finished(
+            StepOutcome(steps[0].step_id, steps[0].module_id, StepStatus.SUCCEEDED),
+            "succeeded",
+        )
+        monitor.step_started(steps[1], "Processing second")
+        monitor.stop()
+
+        rendered = output.getvalue()
+        processing_position = rendered.index(steps[1].step_id)
+        recent_position = rendered.index(steps[0].step_id)
+        self.assertLess(processing_position, recent_position)
+        self.assertIn("… 3 more step(s)", rendered)
+        self.assertNotIn(steps[2].step_id, rendered)
 
 
 if __name__ == "__main__":

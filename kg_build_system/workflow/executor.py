@@ -4,6 +4,7 @@ from __future__ import annotations
 import asyncio
 import importlib
 import json
+import logging
 from collections import defaultdict
 from dataclasses import asdict, replace
 from pathlib import Path
@@ -13,7 +14,62 @@ from typing import Any, Literal, cast
 from .ir import WorkflowContractIR
 from .mapping import workflow_from_ir
 from .models import Artifact, BuildRuntime, ContinuableInput, DisruptedExecutionContext, DisruptingInput, ExecutionContext, ExecutorFactoryContext, Failure, PublishedArtifact, StepOutcome, StepStatus, WorkflowArtifactRoles, WorkflowReport
+from .monitor import (
+    NullWorkflowMonitor, RichWorkflowMonitor, WorkflowExecutionMonitor,
+)
 from .services import ExecutionServices, LocalTemporaryStorage, LocalWorkingStorage, MappingCredentialResolver
+
+
+_LOGGER = logging.getLogger("kg_build_system.workflow.execution")
+_LOGGER.addHandler(logging.NullHandler())
+
+
+class _MonitorLogger:
+    def __init__(
+        self, monitor: WorkflowExecutionMonitor, *,
+        module_id: str | None = None, step_id: str | None = None,
+    ) -> None:
+        self._monitor = monitor
+        self._module_id = module_id
+        self._step_id = step_id
+
+    def debug(self, message: str, *args: object) -> None:
+        self._emit(logging.DEBUG, message, args)
+
+    def info(self, message: str, *args: object) -> None:
+        self._emit(logging.INFO, message, args)
+
+    def warning(self, message: str, *args: object) -> None:
+        self._emit(logging.WARNING, message, args)
+
+    def error(self, message: str, *args: object) -> None:
+        self._emit(logging.ERROR, message, args)
+
+    def _emit(
+        self, level: int, message: str, args: tuple[object, ...],
+    ) -> None:
+        rendered = message % args if args else message
+        extra = {
+            "workflow_module_id": self._module_id,
+            "workflow_step_id": self._step_id,
+        }
+        _LOGGER.log(level, rendered, extra=extra)
+        self._monitor.log(
+            logging.getLevelName(level), rendered, step_id=self._step_id,
+        )
+
+
+def _resolve_monitor(
+    monitor: WorkflowExecutionMonitor | bool | None,
+) -> WorkflowExecutionMonitor:
+    if monitor is False:
+        return NullWorkflowMonitor()
+    if monitor is not None and monitor is not True:
+        return monitor
+    rich_monitor = RichWorkflowMonitor()
+    if monitor is True or rich_monitor.console.is_terminal:
+        return rich_monitor
+    return NullWorkflowMonitor()
 
 
 def _load_class(import_module: str, qualname: str) -> type[Any]:
@@ -73,6 +129,7 @@ def _validate_runtime_configuration(
 
 async def _build(
     contract: WorkflowContractIR, runtime: BuildRuntime,
+    monitor: WorkflowExecutionMonitor,
 ) -> WorkflowReport:
     try:
         import duckdb
@@ -93,6 +150,7 @@ async def _build(
           working_storage=LocalWorkingStorage(working_directory),
           temporary_storage=LocalTemporaryStorage(Path(temporary_directory)),
           credentials=MappingCredentialResolver(runtime.credentials),
+          logger=_MonitorLogger(monitor),
       )
       executors: dict[str, Any] = {}
       definitions = {module.reference.module_id: module for module in workflow.modules}
@@ -110,7 +168,15 @@ async def _build(
             )
         configuration = runtime.module_configuration.get(reference.module_id, {})
         _validate_runtime_configuration(module, configuration)
-        factory_context = ExecutorFactoryContext(module, configuration, services)
+        module_services = replace(
+            services,
+            logger=_MonitorLogger(
+                monitor, module_id=reference.module_id,
+            ),
+        )
+        factory_context = ExecutorFactoryContext(
+            module, configuration, module_services,
+        )
         executors[reference.module_id] = await cls.create_executor(factory_context)
 
       output_owner = {slot.slot_id: step.step_id for step in workflow.steps for slot in step.outputs}
@@ -129,6 +195,18 @@ async def _build(
         if not ready:
             raise RuntimeError("workflow has a dependency cycle")
         for step in ready:
+            detail = (
+                f"Processing {len(step.inputs)} input slot(s) → "
+                f"{len(step.outputs)} output slot(s)"
+            )
+            monitor.step_started(step, detail)
+            step_services = replace(
+                services,
+                logger=_MonitorLogger(
+                    monitor, module_id=step.module_id, step_id=step.step_id,
+                ),
+            )
+            step_services.logger.info("Started: %s", detail)
             inputs = {}
             disruptions: list[DisruptingInput] = []
             inherited_failures: set[Failure] = set()
@@ -157,13 +235,16 @@ async def _build(
                 inputs[input_slot.slot_id] = tuple(contributions)
             try:
                 if disruptions:
-                    context = DisruptedExecutionContext(definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), inputs, tuple(disruptions), services)
+                    context = DisruptedExecutionContext(definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), inputs, tuple(disruptions), step_services)
                     outcome = await executors[step.module_id].handle_disrupted(context)
                 else:
                     continuable_inputs = {slot_id: tuple(item for item in values if isinstance(item, ContinuableInput)) for slot_id, values in inputs.items()}
-                    context = ExecutionContext(definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), continuable_inputs, services)
+                    context = ExecutionContext(definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), continuable_inputs, step_services)
                     outcome = await executors[step.module_id].handle(context)
             except Exception as error:
+                step_services.logger.error(
+                    "%s: %s", type(error).__name__, error,
+                )
                 outcome = StepOutcome(
                     step_id=step.step_id,
                     module_id=step.module_id,
@@ -193,6 +274,16 @@ async def _build(
             outcomes.append(outcome)
             completed.add(step.step_id)
             pending.remove(step)
+            outcome_detail = f"{outcome.status.value}; {len(outcome.artifacts)} artifact(s)"
+            if outcome.failure is not None:
+                outcome_detail += f" — {outcome.failure.message}"
+            monitor.step_finished(outcome, outcome_detail)
+            if outcome.status == StepStatus.FAILED:
+                step_services.logger.error("Finished: %s", outcome_detail)
+            elif outcome.status == StepStatus.WARNING:
+                step_services.logger.warning("Finished: %s", outcome_detail)
+            else:
+                step_services.logger.info("Finished: %s", outcome_detail)
 
       published_artifacts = tuple(
         artifact
@@ -233,8 +324,14 @@ def build(
     output_directory: str | Path | None = None,
     working_directory: str | Path | None = None,
     temporary_directory: str | Path | None = None,
+    monitor: WorkflowExecutionMonitor | bool | None = None,
 ) -> WorkflowReport:
-    """Run a frozen workflow and persist its contract and report."""
+    """Run a frozen workflow and persist its contract and report.
+
+    Rich monitoring is enabled automatically on an interactive terminal. Pass
+    ``monitor=True`` to force it, ``False`` to disable it, or provide a custom
+    :class:`WorkflowExecutionMonitor` implementation.
+    """
     configured = runtime or BuildRuntime()
     resolved_output = Path(output_directory) if output_directory is not None else configured.output_directory
     resolved_working = Path(working_directory) if working_directory is not None else configured.working_directory
@@ -253,7 +350,18 @@ def build(
     (configured.output_directory / "workflow_contract.json").write_text(
         contract.model_dump_json(indent=2), encoding="utf-8",
     )
-    report = asyncio.run(_build(contract, configured))
+    execution_monitor = _resolve_monitor(monitor)
+    workflow = workflow_from_ir(contract.workflow)
+    execution_monitor.start(workflow)
+    try:
+        report = asyncio.run(_build(contract, configured, execution_monitor))
+    except Exception as error:
+        execution_monitor.log(
+            "ERROR", f"Workflow execution stopped: {type(error).__name__}: {error}",
+        )
+        raise
+    finally:
+        execution_monitor.stop()
     (configured.output_directory / "build_report.json").write_text(
         json.dumps(
             asdict(report), indent=2, sort_keys=True,
