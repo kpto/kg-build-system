@@ -3,17 +3,19 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..expressions import AuthoringValueExpression, ValueExpression
+from ..expressions import ValueExpression, ValueInput, as_expression
 from ..topology.models import Edge, Node, NonNullableGraphValue
 from ..types import NullableType, require_non_nullable, require_scalar
 from .models import BindingOptions, EdgeBinding, NodeBinding
 
 
 def _require_key(value: object, *, argument: str) -> ValueExpression[Any]:
-    if not isinstance(value, ValueExpression):
-        raise TypeError(f"{argument} must be a value expression")
-    require_non_nullable(require_scalar(value.logical_type, context=argument), context=argument)
-    return value
+    try:
+        expression = as_expression(value)  # type: ignore[arg-type]
+    except TypeError as error:
+        raise TypeError(f"{argument} must be a value selection or expression") from error
+    require_non_nullable(require_scalar(expression.logical_type, context=argument), context=argument)
+    return expression
 
 
 def _compatible(expected: object, actual: object) -> bool:
@@ -26,9 +28,12 @@ def _require_properties[C: Node | Edge[Any, Any]](value: C, *, target: type[C]) 
     if not isinstance(value, target):
         raise TypeError(f"properties must be an instance of {target.__name__}")
     for attribute, declaration in target._properties.items():
-        expression = getattr(value, attribute)
-        if not isinstance(expression, ValueExpression):
-            raise TypeError(f"{target.__name__}.{attribute} must be assigned a value expression")
+        try:
+            expression = as_expression(getattr(value, attribute))
+        except TypeError as error:
+            raise TypeError(
+                f"{target.__name__}.{attribute} must be assigned a value selection or expression"
+            ) from error
         expected = declaration.logical_type
         assert expected is not None
         if not _compatible(expected, expression.logical_type):
@@ -36,11 +41,12 @@ def _require_properties[C: Node | Edge[Any, Any]](value: C, *, target: type[C]) 
                 f"{target.__name__}.{attribute} expects {expected!r}, "
                 f"but the expression resolves to {expression.logical_type!r}"
             )
+        setattr(value, attribute, expression)
     return value
 
 
 def node_binding[N: Node, Key: NonNullableGraphValue](
-    *, target: type[N], build_key: AuthoringValueExpression[Key], properties: N,
+    *, target: type[N], build_key: ValueInput[Key], properties: N,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
 ) -> NodeBinding[N]:
     return NodeBinding(
@@ -53,9 +59,9 @@ def edge_binding[
     E: Edge[Any, Any], Key: NonNullableGraphValue,
     SourceKey: NonNullableGraphValue, TargetKey: NonNullableGraphValue,
 ](
-    *, target: type[E], build_key: AuthoringValueExpression[Key],
-    source_build_key: AuthoringValueExpression[SourceKey],
-    target_build_key: AuthoringValueExpression[TargetKey], properties: E,
+    *, target: type[E], build_key: ValueInput[Key],
+    source_build_key: ValueInput[SourceKey],
+    target_build_key: ValueInput[TargetKey], properties: E,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
 ) -> EdgeBinding[E]:
     return EdgeBinding(

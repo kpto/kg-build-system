@@ -18,7 +18,15 @@ class DomainBoundaryTests(unittest.TestCase):
         self.assertFalse(any(name.endswith("IR") for name in kg_build_system.__all__))
 
     def test_authoring_expressions_retain_domain_models_not_irs(self) -> None:
-        self.assertNotIsInstance(value_expression(1).expression, ExpressionIRBase)
+        self.assertNotIsInstance(value_expression(1).model, ExpressionIRBase)
+
+    def test_public_api_exposes_only_the_selection_expression_model(self) -> None:
+        self.assertFalse(any(
+            name.endswith("ValueExpression") and name != "ValueExpression"
+            for name in kg_build_system.__all__
+        ))
+        self.assertIn("ValueSelection", kg_build_system.__all__)
+        self.assertIn("ValueExpression", kg_build_system.__all__)
 
     def test_domain_model_modules_do_not_import_compilation_irs(self) -> None:
         package = Path(kg_build_system.__file__).parent

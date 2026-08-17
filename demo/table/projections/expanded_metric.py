@@ -5,9 +5,9 @@ from kg_build_system import Projection, projection_field
 from demo.table.complex_records import ComplexRecordsTable
 
 
-group = ComplexRecordsTable.groups.each()
-item = group.pick(lambda value: value.items).each()
-metric = item.pick(lambda value: value.metrics).each()
+group = ComplexRecordsTable.groups.expand()
+item = group.pick(lambda value: value.items).expand()
+metric = item.pick(lambda value: value.metrics).expand()
 
 deep_city = (
     ComplexRecordsTable.profile
@@ -18,9 +18,9 @@ deep_city = (
 
 
 class ExpandedMetricProjection(Projection):
-    record_id = projection_field(ComplexRecordsTable.record_id.when_present())
-    record_title = projection_field(ComplexRecordsTable.title.or_else("Untitled"))
-    city = projection_field(deep_city.or_else("Unknown city"))
+    record_id = projection_field(ComplexRecordsTable.record_id.where_present())
+    record_title = projection_field(ComplexRecordsTable.title.default_to("Untitled"))
+    city = projection_field(deep_city.default_to("Unknown city"))
     group_id = projection_field(group.pick(lambda value: value.group_id))
     group_label = projection_field(group.pick(lambda value: value.label))
     item_id = projection_field(item.pick(lambda value: value.item_id))

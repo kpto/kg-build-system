@@ -27,11 +27,11 @@ def _key(expression: ExpressionNode) -> str:
 
 
 def expansion_scope(expression: OperationExpression) -> tuple[str, ...]:
-    """Derive a stable, plan-local identity for one explicit ``each`` operation."""
-    if expression.operator != "each":
-        raise ValueError("expansion scopes can only be derived for each operations")
+    """Derive a stable, plan-local identity for one explicit ``expand`` operation."""
+    if expression.operator != "expand":
+        raise ValueError("expansion scopes can only be derived for expand operations")
     if len(expression.arguments) != 1:
-        raise ValueError("each requires one argument")
+        raise ValueError("expand requires one argument")
     argument = expression.arguments[0]
     if isinstance(argument, FieldReferenceExpression):
         return (argument.source, *argument.path)
@@ -40,7 +40,7 @@ def expansion_scope(expression: OperationExpression) -> tuple[str, ...]:
         and argument.operator == "struct_field"
         and len(argument.arguments) == 1
         and isinstance(argument.arguments[0], OperationExpression)
-        and argument.arguments[0].operator == "each"
+        and argument.arguments[0].operator == "expand"
     ):
         name = next(
             (
@@ -97,16 +97,16 @@ def lower_product(
     filter_keys: set[str] = set()
     for expression in compiled_outputs.values():
         for operation in _operators_post_order(expression):
-            if operation.operator == "each":
+            if operation.operator == "expand":
                 if len(operation.arguments) != 1:
-                    raise ValueError("each requires one argument")
+                    raise ValueError("expand requires one argument")
                 scope = expansion_scope(operation)
                 if scope not in expansion_scopes:
                     expansion_scopes.add(scope)
                     expands.append(Expand(scope, operation.arguments[0], f"expanded{len(expands)}"))
-            elif operation.operator == "when_present":
+            elif operation.operator == "where_present":
                 if len(operation.arguments) != 1:
-                    raise ValueError("when_present requires one argument")
+                    raise ValueError("where_present requires one argument")
                 key = _key(operation)
                 if key not in filter_keys:
                     filter_keys.add(key)

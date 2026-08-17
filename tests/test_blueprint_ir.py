@@ -39,7 +39,7 @@ class EvidenceProjection(Projection):
     options = ProjectionOptions(name="evidence_rows")
     identifier = projection_field(EvidenceTable.identifier)
     label = projection_field(
-        EvidenceTable.evidence.each().pick(lambda item: item.label)
+        EvidenceTable.evidence.expand().pick(lambda item: item.label)
     )
 
 
@@ -85,7 +85,7 @@ class BlueprintIRTests(unittest.TestCase):
         self.assertEqual({item.name for item in result.components}, {"entity", "related"})
         label = result.projections[0].fields[1].expression
         self.assertTrue(any(
-            isinstance(item, OperationExpressionIR) and item.operator == "each"
+            isinstance(item, OperationExpressionIR) and item.operator == "expand"
             for item in walk_expression_ir(label)
         ))
 

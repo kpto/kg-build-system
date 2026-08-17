@@ -1,10 +1,4 @@
-"""Unified typed field declarations for tables and structs.
-
-Every supported logical value is declared with ``Field[T]``; descriptor access
-turns table fields into typed value expressions and struct fields into typed
-``PickedField`` path tokens. Scalar, struct, and array declarations therefore
-share one metadata and validation path.
-"""
+"""Unified field declarations producing shape-specialized selections."""
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -14,32 +8,13 @@ from typing import Any, Generic, TypeVar, get_args, get_origin, get_type_hints, 
 from .._support.naming import declaration_name, member_name
 from ..annotations import Annotation, annotation_tuple
 from ..expressions import (
-    ArrayNullableValueExpression,
-    ArrayValueExpression,
-    BoolValueExpression,
-    CustomDataTypeValueExpression,
-    FloatValueExpression,
-    IntValueExpression,
-    NullableValueExpression,
-    PickedField,
-    StrValueExpression,
-    StructNullableValueExpression,
-    StructValueExpression,
-    Traversal,
-    ValueExpression,
-    field_reference,
-    wrap_expression,
+    ArraySelection, NullableDataType, NullableSelection, SelectionUnit,
+    StructSelection, Traversal, ValueSelection, field_reference, select_expression,
+    select_member, wrap_expression,
 )
 from ..types import (
-    Array,
-    ArrayType,
-    CustomDataType,
-    LogicalType,
-    Nullable,
-    NullableType,
-    Struct,
-    StructType,
-    normalize_type,
+    Array, ArrayType, CustomDataType, LogicalType, Nullable, NullableType,
+    Struct, StructType, normalize_type,
 )
 from .models import Table
 
@@ -52,8 +27,6 @@ T = TypeVar("T", bound=AuthoringDataType)
 
 @dataclass(frozen=True, slots=True)
 class FieldMetadata:
-    """Portable author-facing metadata belonging to one declared field."""
-
     name: str | None = None
     description: str | None = None
     annotations: tuple[Annotation, ...] = ()
@@ -81,7 +54,7 @@ def _traversals(name: str, logical_type: LogicalType) -> tuple[Traversal, ...]:
 
 
 class Field(Generic[T]):
-    """A single descriptor for scalar, custom, struct, and array fields."""
+    """A logical field whose access returns a selection, never a calculation."""
 
     __slots__ = ("_metadata", "_owner")
 
@@ -117,187 +90,44 @@ class Field(Generic[T]):
             raise TypeError(f"{owner.__name__}.{attribute} must have a Field[T] annotation")
         return normalize_type(arguments[0])
 
-    # Table-owner scalar results.
     @overload
-    def __get__(self: "Field[bool]", instance: Any, owner: type[Table]) -> BoolValueExpression: ...
+    def __get__[U: SelectionUnit](self: "Field[U]", instance: Any, owner: type[Struct]) -> ValueSelection[U]: ...
     @overload
-    def __get__(self: "Field[int]", instance: Any, owner: type[Table]) -> IntValueExpression: ...
+    def __get__[U: SelectionUnit](self: "Field[U | None]", instance: Any, owner: type[Struct]) -> NullableSelection[U]: ...
     @overload
-    def __get__(self: "Field[float]", instance: Any, owner: type[Table]) -> FloatValueExpression: ...
+    def __get__[I: NullableDataType](self: "Field[Array[I]]", instance: Any, owner: type[Struct]) -> ArraySelection[I]: ...
     @overload
-    def __get__(self: "Field[str]", instance: Any, owner: type[Table]) -> StrValueExpression: ...
+    def __get__[U: SelectionUnit](self: "Field[Array[U | None]]", instance: Any, owner: type[Struct]) -> ArraySelection[Nullable[U]]: ...  # pyright: ignore[reportInvalidTypeArguments]
     @overload
-    def __get__[C: CustomDataType](self: "Field[C]", instance: Any, owner: type[Table]) -> CustomDataTypeValueExpression[C]: ...
+    def __get__[S: Struct](self: "Field[Array[S | None]]", instance: Any, owner: type[Struct]) -> ArraySelection[Nullable[S]]: ...  # pyright: ignore[reportInvalidTypeArguments]
+    @overload
+    def __get__[I: NullableDataType](self: "Field[Array[I] | None]", instance: Any, owner: type[Struct]) -> NullableSelection[Array[I]]: ...
+    @overload
+    def __get__[U: SelectionUnit](self: "Field[Array[U | None] | None]", instance: Any, owner: type[Struct]) -> NullableSelection[Array[Nullable[U]]]: ...  # pyright: ignore[reportInvalidTypeArguments]
+    @overload
+    def __get__[S: Struct](self: "Field[Array[S | None] | None]", instance: Any, owner: type[Struct]) -> NullableSelection[Array[Nullable[S]]]: ...  # pyright: ignore[reportInvalidTypeArguments]
+    @overload
+    def __get__[S: Struct](self: "Field[S]", instance: Any, owner: type[Struct]) -> StructSelection[S]: ...
+    @overload
+    def __get__[S: Struct](self: "Field[S | None]", instance: Any, owner: type[Struct]) -> NullableSelection[S]: ...
 
-    # Nullable table-owner scalars.
-    @overload
-    def __get__(self: "Field[bool | None]", instance: Any, owner: type[Table]) -> NullableValueExpression[bool, BoolValueExpression]: ...
-    @overload
-    def __get__(self: "Field[int | None]", instance: Any, owner: type[Table]) -> NullableValueExpression[int, IntValueExpression]: ...
-    @overload
-    def __get__(self: "Field[float | None]", instance: Any, owner: type[Table]) -> NullableValueExpression[float, FloatValueExpression]: ...
-    @overload
-    def __get__(self: "Field[str | None]", instance: Any, owner: type[Table]) -> NullableValueExpression[str, StrValueExpression]: ...
-    @overload
-    def __get__[C: CustomDataType](self: "Field[C | None]", instance: Any, owner: type[Table]) -> NullableValueExpression[C, CustomDataTypeValueExpression[C]]: ...
-
-    # Arrays exposed by tables.  The expression family's second parameter is
-    # inferred for common scalar and struct items; nullable items retain their
-    # explicit Nullable marker internally.
-    @overload
-    def __get__(self: "Field[Array[bool]]", instance: Any, owner: type[Table]) -> ArrayValueExpression[bool, BoolValueExpression]: ...
-    @overload
-    def __get__(self: "Field[Array[int]]", instance: Any, owner: type[Table]) -> ArrayValueExpression[int, IntValueExpression]: ...
-    @overload
-    def __get__(self: "Field[Array[float]]", instance: Any, owner: type[Table]) -> ArrayValueExpression[float, FloatValueExpression]: ...
-    @overload
-    def __get__(self: "Field[Array[str]]", instance: Any, owner: type[Table]) -> ArrayValueExpression[str, StrValueExpression]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[S]]", instance: Any, owner: type[Table]) -> ArrayValueExpression[S, StructValueExpression[S]]: ...
-    @overload
-    def __get__[C: CustomDataType](self: "Field[Array[C]]", instance: Any, owner: type[Table]) -> ArrayValueExpression[C, CustomDataTypeValueExpression[C]]: ...
-    @overload
-    def __get__(self: "Field[Array[bool | None]]", instance: Any, owner: type[Table]) -> ArrayValueExpression[Nullable[bool], NullableValueExpression[bool, BoolValueExpression]]: ...
-    @overload
-    def __get__(self: "Field[Array[int | None]]", instance: Any, owner: type[Table]) -> ArrayValueExpression[Nullable[int], NullableValueExpression[int, IntValueExpression]]: ...  # pyright: ignore[reportInvalidTypeArguments]
-    @overload
-    def __get__(self: "Field[Array[float | None]]", instance: Any, owner: type[Table]) -> ArrayValueExpression[Nullable[float], NullableValueExpression[float, FloatValueExpression]]: ...
-    @overload
-    def __get__(self: "Field[Array[str | None]]", instance: Any, owner: type[Table]) -> ArrayValueExpression[Nullable[str], NullableValueExpression[str, StrValueExpression]]: ...  # pyright: ignore[reportInvalidTypeArguments]
-    @overload
-    def __get__[C: CustomDataType](self: "Field[Array[C | None]]", instance: Any, owner: type[Table]) -> ArrayValueExpression[Nullable[C], NullableValueExpression[C, CustomDataTypeValueExpression[C]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[S | None]]", instance: Any, owner: type[Table]) -> ArrayValueExpression[Nullable[S], StructNullableValueExpression[S]]: ...
-    @overload
-    def __get__(self: "Field[Array[bool] | None]", instance: Any, owner: type[Table]) -> ArrayNullableValueExpression[bool, BoolValueExpression, NullableValueExpression[bool, BoolValueExpression]]: ...
-    @overload
-    def __get__(self: "Field[Array[int] | None]", instance: Any, owner: type[Table]) -> ArrayNullableValueExpression[int, IntValueExpression, NullableValueExpression[int, IntValueExpression]]: ...
-    @overload
-    def __get__(self: "Field[Array[float] | None]", instance: Any, owner: type[Table]) -> ArrayNullableValueExpression[float, FloatValueExpression, NullableValueExpression[float, FloatValueExpression]]: ...
-    @overload
-    def __get__(self: "Field[Array[str] | None]", instance: Any, owner: type[Table]) -> ArrayNullableValueExpression[str, StrValueExpression, NullableValueExpression[str, StrValueExpression]]: ...
-    @overload
-    def __get__[C: CustomDataType](self: "Field[Array[C] | None]", instance: Any, owner: type[Table]) -> ArrayNullableValueExpression[C, CustomDataTypeValueExpression[C], NullableValueExpression[C, CustomDataTypeValueExpression[C]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[S] | None]", instance: Any, owner: type[Table]) -> ArrayNullableValueExpression[S, StructValueExpression[S], StructNullableValueExpression[S]]: ...
-    @overload
-    def __get__(self: "Field[Array[bool | None] | None]", instance: Any, owner: type[Table]) -> ArrayNullableValueExpression[Nullable[bool], NullableValueExpression[bool, BoolValueExpression], NullableValueExpression[bool, BoolValueExpression]]: ...
-    @overload
-    def __get__(self: "Field[Array[int | None] | None]", instance: Any, owner: type[Table]) -> ArrayNullableValueExpression[Nullable[int], NullableValueExpression[int, IntValueExpression], NullableValueExpression[int, IntValueExpression]]: ...
-    @overload
-    def __get__(self: "Field[Array[float | None] | None]", instance: Any, owner: type[Table]) -> ArrayNullableValueExpression[Nullable[float], NullableValueExpression[float, FloatValueExpression], NullableValueExpression[float, FloatValueExpression]]: ...
-    @overload
-    def __get__(self: "Field[Array[str | None] | None]", instance: Any, owner: type[Table]) -> ArrayNullableValueExpression[Nullable[str], NullableValueExpression[str, StrValueExpression], NullableValueExpression[str, StrValueExpression]]: ...
-    @overload
-    def __get__[C: CustomDataType](self: "Field[Array[C | None] | None]", instance: Any, owner: type[Table]) -> ArrayNullableValueExpression[Nullable[C], NullableValueExpression[C, CustomDataTypeValueExpression[C]], NullableValueExpression[C, CustomDataTypeValueExpression[C]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[S | None] | None]", instance: Any, owner: type[Table]) -> ArrayNullableValueExpression[Nullable[S], StructNullableValueExpression[S], StructNullableValueExpression[S]]: ...
-
-    # Structs exposed by tables.
-    @overload
-    def __get__[S: Struct](self: "Field[S]", instance: Any, owner: type[Table]) -> StructValueExpression[S]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[S | None]", instance: Any, owner: type[Table]) -> StructNullableValueExpression[S]: ...
-
-    # Fields read through a Struct proxy are path tokens.  Each token carries
-    # both the direct result family and the family produced when a nullable
-    # parent propagates null through the selection.
-    @overload
-    def __get__[S: Struct](self: "Field[bool]", instance: S, owner: type[S]) -> PickedField[S, BoolValueExpression, NullableValueExpression[bool, BoolValueExpression]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[int]", instance: S, owner: type[S]) -> PickedField[S, IntValueExpression, NullableValueExpression[int, IntValueExpression]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[float]", instance: S, owner: type[S]) -> PickedField[S, FloatValueExpression, NullableValueExpression[float, FloatValueExpression]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[str]", instance: S, owner: type[S]) -> PickedField[S, StrValueExpression, NullableValueExpression[str, StrValueExpression]]: ...
-    @overload
-    def __get__[S: Struct, C: CustomDataType](self: "Field[C]", instance: S, owner: type[S]) -> PickedField[S, CustomDataTypeValueExpression[C], NullableValueExpression[C, CustomDataTypeValueExpression[C]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[bool | None]", instance: S, owner: type[S]) -> PickedField[S, NullableValueExpression[bool, BoolValueExpression], NullableValueExpression[bool, BoolValueExpression]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[int | None]", instance: S, owner: type[S]) -> PickedField[S, NullableValueExpression[int, IntValueExpression], NullableValueExpression[int, IntValueExpression]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[float | None]", instance: S, owner: type[S]) -> PickedField[S, NullableValueExpression[float, FloatValueExpression], NullableValueExpression[float, FloatValueExpression]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[str | None]", instance: S, owner: type[S]) -> PickedField[S, NullableValueExpression[str, StrValueExpression], NullableValueExpression[str, StrValueExpression]]: ...
-    @overload
-    def __get__[S: Struct, C: CustomDataType](self: "Field[C | None]", instance: S, owner: type[S]) -> PickedField[S, NullableValueExpression[C, CustomDataTypeValueExpression[C]], NullableValueExpression[C, CustomDataTypeValueExpression[C]]]: ...
-    @overload
-    def __get__[S: Struct, Inner: Struct](self: "Field[Inner]", instance: S, owner: type[S]) -> PickedField[S, StructValueExpression[Inner], StructNullableValueExpression[Inner]]: ...
-    @overload
-    def __get__[S: Struct, Inner: Struct](self: "Field[Inner | None]", instance: S, owner: type[S]) -> PickedField[S, StructNullableValueExpression[Inner], StructNullableValueExpression[Inner]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[int]]", instance: S, owner: type[S]) -> PickedField[S, ArrayValueExpression[int, IntValueExpression], ArrayNullableValueExpression[int, IntValueExpression, NullableValueExpression[int, IntValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[str]]", instance: S, owner: type[S]) -> PickedField[S, ArrayValueExpression[str, StrValueExpression], ArrayNullableValueExpression[str, StrValueExpression, NullableValueExpression[str, StrValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct, Inner: Struct](self: "Field[Array[Inner]]", instance: S, owner: type[S]) -> PickedField[S, ArrayValueExpression[Inner, StructValueExpression[Inner]], ArrayNullableValueExpression[Inner, StructValueExpression[Inner], StructNullableValueExpression[Inner]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[bool]]", instance: S, owner: type[S]) -> PickedField[S, ArrayValueExpression[bool, BoolValueExpression], ArrayNullableValueExpression[bool, BoolValueExpression, NullableValueExpression[bool, BoolValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[float]]", instance: S, owner: type[S]) -> PickedField[S, ArrayValueExpression[float, FloatValueExpression], ArrayNullableValueExpression[float, FloatValueExpression, NullableValueExpression[float, FloatValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct, C: CustomDataType](self: "Field[Array[C]]", instance: S, owner: type[S]) -> PickedField[S, ArrayValueExpression[C, CustomDataTypeValueExpression[C]], ArrayNullableValueExpression[C, CustomDataTypeValueExpression[C], NullableValueExpression[C, CustomDataTypeValueExpression[C]]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[bool | None]]", instance: S, owner: type[S]) -> PickedField[S, ArrayValueExpression[Nullable[bool], NullableValueExpression[bool, BoolValueExpression]], ArrayNullableValueExpression[Nullable[bool], NullableValueExpression[bool, BoolValueExpression], NullableValueExpression[bool, BoolValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[int | None]]", instance: S, owner: type[S]) -> PickedField[S, ArrayValueExpression[Nullable[int], NullableValueExpression[int, IntValueExpression]], ArrayNullableValueExpression[Nullable[int], NullableValueExpression[int, IntValueExpression], NullableValueExpression[int, IntValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[float | None]]", instance: S, owner: type[S]) -> PickedField[S, ArrayValueExpression[Nullable[float], NullableValueExpression[float, FloatValueExpression]], ArrayNullableValueExpression[Nullable[float], NullableValueExpression[float, FloatValueExpression], NullableValueExpression[float, FloatValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[str | None]]", instance: S, owner: type[S]) -> PickedField[S, ArrayValueExpression[Nullable[str], NullableValueExpression[str, StrValueExpression]], ArrayNullableValueExpression[Nullable[str], NullableValueExpression[str, StrValueExpression], NullableValueExpression[str, StrValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct, C: CustomDataType](self: "Field[Array[C | None]]", instance: S, owner: type[S]) -> PickedField[S, ArrayValueExpression[Nullable[C], NullableValueExpression[C, CustomDataTypeValueExpression[C]]], ArrayNullableValueExpression[Nullable[C], NullableValueExpression[C, CustomDataTypeValueExpression[C]], NullableValueExpression[C, CustomDataTypeValueExpression[C]]]]: ...
-    @overload
-    def __get__[S: Struct, Inner: Struct](self: "Field[Array[Inner | None]]", instance: S, owner: type[S]) -> PickedField[S, ArrayValueExpression[Nullable[Inner], StructNullableValueExpression[Inner]], ArrayNullableValueExpression[Nullable[Inner], StructNullableValueExpression[Inner], StructNullableValueExpression[Inner]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[bool] | None]", instance: S, owner: type[S]) -> PickedField[S, ArrayNullableValueExpression[bool, BoolValueExpression, NullableValueExpression[bool, BoolValueExpression]], ArrayNullableValueExpression[bool, BoolValueExpression, NullableValueExpression[bool, BoolValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[int] | None]", instance: S, owner: type[S]) -> PickedField[S, ArrayNullableValueExpression[int, IntValueExpression, NullableValueExpression[int, IntValueExpression]], ArrayNullableValueExpression[int, IntValueExpression, NullableValueExpression[int, IntValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[float] | None]", instance: S, owner: type[S]) -> PickedField[S, ArrayNullableValueExpression[float, FloatValueExpression, NullableValueExpression[float, FloatValueExpression]], ArrayNullableValueExpression[float, FloatValueExpression, NullableValueExpression[float, FloatValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[str] | None]", instance: S, owner: type[S]) -> PickedField[S, ArrayNullableValueExpression[str, StrValueExpression, NullableValueExpression[str, StrValueExpression]], ArrayNullableValueExpression[str, StrValueExpression, NullableValueExpression[str, StrValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct, C: CustomDataType](self: "Field[Array[C] | None]", instance: S, owner: type[S]) -> PickedField[S, ArrayNullableValueExpression[C, CustomDataTypeValueExpression[C], NullableValueExpression[C, CustomDataTypeValueExpression[C]]], ArrayNullableValueExpression[C, CustomDataTypeValueExpression[C], NullableValueExpression[C, CustomDataTypeValueExpression[C]]]]: ...
-    @overload
-    def __get__[S: Struct, Inner: Struct](self: "Field[Array[Inner] | None]", instance: S, owner: type[S]) -> PickedField[S, ArrayNullableValueExpression[Inner, StructValueExpression[Inner], StructNullableValueExpression[Inner]], ArrayNullableValueExpression[Inner, StructValueExpression[Inner], StructNullableValueExpression[Inner]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[bool | None] | None]", instance: S, owner: type[S]) -> PickedField[S, ArrayNullableValueExpression[Nullable[bool], NullableValueExpression[bool, BoolValueExpression], NullableValueExpression[bool, BoolValueExpression]], ArrayNullableValueExpression[Nullable[bool], NullableValueExpression[bool, BoolValueExpression], NullableValueExpression[bool, BoolValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[int | None] | None]", instance: S, owner: type[S]) -> PickedField[S, ArrayNullableValueExpression[Nullable[int], NullableValueExpression[int, IntValueExpression], NullableValueExpression[int, IntValueExpression]], ArrayNullableValueExpression[Nullable[int], NullableValueExpression[int, IntValueExpression], NullableValueExpression[int, IntValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[float | None] | None]", instance: S, owner: type[S]) -> PickedField[S, ArrayNullableValueExpression[Nullable[float], NullableValueExpression[float, FloatValueExpression], NullableValueExpression[float, FloatValueExpression]], ArrayNullableValueExpression[Nullable[float], NullableValueExpression[float, FloatValueExpression], NullableValueExpression[float, FloatValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct](self: "Field[Array[str | None] | None]", instance: S, owner: type[S]) -> PickedField[S, ArrayNullableValueExpression[Nullable[str], NullableValueExpression[str, StrValueExpression], NullableValueExpression[str, StrValueExpression]], ArrayNullableValueExpression[Nullable[str], NullableValueExpression[str, StrValueExpression], NullableValueExpression[str, StrValueExpression]]]: ...
-    @overload
-    def __get__[S: Struct, C: CustomDataType](self: "Field[Array[C | None] | None]", instance: S, owner: type[S]) -> PickedField[S, ArrayNullableValueExpression[Nullable[C], NullableValueExpression[C, CustomDataTypeValueExpression[C]], NullableValueExpression[C, CustomDataTypeValueExpression[C]]], ArrayNullableValueExpression[Nullable[C], NullableValueExpression[C, CustomDataTypeValueExpression[C]], NullableValueExpression[C, CustomDataTypeValueExpression[C]]]]: ...
-    @overload
-    def __get__[S: Struct, Inner: Struct](self: "Field[Array[Inner | None] | None]", instance: S, owner: type[S]) -> PickedField[S, ArrayNullableValueExpression[Nullable[Inner], StructNullableValueExpression[Inner], StructNullableValueExpression[Inner]], ArrayNullableValueExpression[Nullable[Inner], StructNullableValueExpression[Inner], StructNullableValueExpression[Inner]]]: ...
-
-    # Runtime implementation.  Struct proxy access returns a path token;
-    # table access returns a fully typed field-reference expression.
-    def __get__(self, instance: Any, owner: type[Any] | None = None) -> Any:
+    def __get__(self, instance: Any, owner: type[Any] | None = None) -> ValueSelection[Any]:
         owner = owner or type(instance)
         logical_type = self._logical_type(owner)
         name = self._metadata.name
         assert name is not None
-        if issubclass(owner, Struct):
-            return PickedField(
-                name,
-                logical_type,
-                StructType(owner.__module__, owner.__qualname__),
-            )
-        if not _table_owner(owner):
-            raise TypeError("Field owners must derive from Table or Struct")
-        return wrap_expression(
-            field_reference(
+        if _table_owner(owner):
+            return select_expression(wrap_expression(field_reference(
                 source=_source_name(owner),
                 path=(name,),
                 logical_type=logical_type,
                 traversals=_traversals(name, logical_type),
+            )))
+        if issubclass(owner, Struct):
+            return select_member(
+                name, logical_type, StructType(owner.__module__, owner.__qualname__)
             )
-        )
+        raise TypeError("Field owners must derive from Table or Struct")
 
 
 def field[T: AuthoringDataType](  # pyright: ignore[reportInvalidTypeVarUse]
@@ -306,20 +136,16 @@ def field[T: AuthoringDataType](  # pyright: ignore[reportInvalidTypeVarUse]
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
 ) -> Field[T]:  # pyright: ignore[reportInvalidTypeVarUse]
-    """Declare one logical field; its type is supplied by ``Field[T]``."""
     if name is not None and not name:
         raise ValueError("field names must be non-empty")
-    return Field(
-        FieldMetadata(
-            name=name,
-            description=description,
-            annotations=annotation_tuple(list(annotations)),
-        )
-    )
+    return Field(FieldMetadata(
+        name=name,
+        description=description,
+        annotations=annotation_tuple(list(annotations)),
+    ))
 
 
 def declared_fields(owner: type[Any]) -> dict[str, Field[Any]]:
-    """Resolve inherited fields with ordinary Python shadowing semantics."""
     result: dict[str, Field[Any]] = {}
     for base in reversed(owner.__mro__):
         for attribute, value in vars(base).items():

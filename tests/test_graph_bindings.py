@@ -37,7 +37,7 @@ class RelatedEdge(Edge[EntityNode, EntityNode]):
 
 
 class GraphBindingTests(unittest.TestCase):
-    def test_expressions_bind_directly_without_a_wrapper(self) -> None:
+    def test_selections_normalize_to_expressions_at_the_binding_boundary(self) -> None:
         properties = EntityNode(
             label=BindingInputTable.label,
             description=BindingInputTable.optional_label,
@@ -48,11 +48,11 @@ class GraphBindingTests(unittest.TestCase):
             properties=properties,
         )
 
-        self.assertEqual(binding.build_key.expression, BindingInputTable.identifier.expression)
-        self.assertEqual(binding.properties.label.expression, BindingInputTable.label.expression)
+        self.assertEqual(binding.build_key.model, BindingInputTable.identifier.expression.model)
+        self.assertEqual(binding.properties.label.model, BindingInputTable.label.expression.model)
         self.assertEqual(
-            binding.properties.description.expression,
-            BindingInputTable.optional_label.expression,
+            binding.properties.description.model,
+            BindingInputTable.optional_label.expression.model,
         )
 
     def test_non_null_values_may_satisfy_nullable_properties(self) -> None:
@@ -66,18 +66,18 @@ class GraphBindingTests(unittest.TestCase):
         )
         self.assertEqual(binding.build_key.logical_type, INT)
 
-    def test_when_present_narrows_and_filters_the_binding_row(self) -> None:
-        narrowed = BindingInputTable.optional_label.when_present()
+    def test_where_present_narrows_and_filters_the_binding_row(self) -> None:
+        narrowed = BindingInputTable.optional_label.where_present()
         binding = node_binding(
             target=EntityNode,
             build_key=narrowed,
             properties=EntityNode(label=narrowed, description=narrowed),
         )
 
-        self.assertEqual(narrowed.expression.row_semantics.effects, (RowEffect("filter"),))
-        self.assertIs(binding.build_key, narrowed)
+        self.assertEqual(narrowed.expression.model.row_semantics.effects, (RowEffect("filter"),))
+        self.assertIs(binding.build_key, narrowed.expression)
 
-    def test_edge_keys_and_properties_are_direct_expressions(self) -> None:
+    def test_edge_inputs_are_normalized_to_expressions(self) -> None:
         binding = edge_binding(
             target=RelatedEdge,
             build_key=BindingInputTable.identifier,
@@ -85,7 +85,7 @@ class GraphBindingTests(unittest.TestCase):
             target_build_key=BindingInputTable.alternate_identifier,
             properties=RelatedEdge(score=BindingInputTable.score),
         )
-        self.assertEqual(binding.properties.score.expression, BindingInputTable.score.expression)
+        self.assertEqual(binding.properties.score.model, BindingInputTable.score.expression.model)
 
     def test_property_types_are_validated_at_binding_creation(self) -> None:
         with self.assertRaisesRegex(TypeError, "EntityNode.label expects"):
@@ -125,7 +125,7 @@ class GraphBindingTests(unittest.TestCase):
                 build_key=BindingInputTable.tags,  # type: ignore[arg-type]
                 properties=properties,
             )
-        with self.assertRaisesRegex(TypeError, "build_key must be a value expression"):
+        with self.assertRaisesRegex(TypeError, "build_key must be a value selection or expression"):
             node_binding(
                 target=EntityNode,
                 build_key="raw",  # type: ignore[arg-type]

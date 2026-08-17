@@ -69,14 +69,14 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
     def validate_expression(expression, *, owner: str) -> None:
         nodes = tuple(walk_expression(expression))
         for node in nodes:
-            if isinstance(node, OperationExpression) and node.operator == "each":
+            if isinstance(node, OperationExpression) and node.operator == "expand":
                 if len(node.arguments) != 1:
-                    raise ValueError(f"{owner} each operation requires one argument")
+                    raise ValueError(f"{owner} expand operation requires one argument")
                 input_type = _base(node.arguments[0].logical_type)
                 if not isinstance(input_type, ArrayType):
-                    raise ValueError(f"{owner} each operation requires an array argument")
+                    raise ValueError(f"{owner} expand operation requires an array argument")
                 if node.logical_type != input_type.item:
-                    raise ValueError(f"{owner} each operation has an incompatible result type")
+                    raise ValueError(f"{owner} expand operation has an incompatible result type")
             if not isinstance(node, FieldReferenceExpression):
                 continue
             if node.source not in sources:

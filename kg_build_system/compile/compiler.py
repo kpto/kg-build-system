@@ -114,7 +114,7 @@ def _component(declaration: type[Any]) -> ComponentDefinition:
 def _projection(declaration: type[Projection]) -> ProjectionDefinition:
     fields = tuple(
         ProjectionFieldDefinition(
-            field.metadata.name or attribute, expression_to_ir(field.expression),
+            field.metadata.name or attribute, expression_to_ir(field.expression.model),
             field.metadata.description, _annotations(field.metadata.annotations),
         )
         for attribute, field in declaration._projection_fields.items()
@@ -132,7 +132,7 @@ def _property_expressions(binding: Binding) -> tuple[tuple[str, Any], ...]:
         value = getattr(binding.properties, attribute)
         if not isinstance(value, ValueExpression):
             raise TypeError(f"{binding.target.__name__}.{attribute} must be a value expression")
-        result.append((declaration.name or attribute, value.expression))
+        result.append((declaration.name or attribute, value.model))
     return tuple(sorted(result))
 
 
@@ -141,13 +141,13 @@ def _binding_symbol(binding: Binding) -> str:
         "kind": "edge" if isinstance(binding, EdgeBinding) else "node",
         "component": binding.target._component_name,
         "debug_name": binding.debug_name,
-        "build_key": encode_expression(binding.build_key.expression),
+        "build_key": encode_expression(binding.build_key.model),
         "properties": {name: encode_expression(value) for name, value in _property_expressions(binding)},
     }
     if isinstance(binding, EdgeBinding):
         payload.update(
-            source_build_key=encode_expression(binding.source_build_key.expression),
-            target_build_key=encode_expression(binding.target_build_key.expression),
+            source_build_key=encode_expression(binding.source_build_key.model),
+            target_build_key=encode_expression(binding.target_build_key.model),
         )
     fingerprint = sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:24]
     return f"binding:{payload['kind']}:{binding.target._component_name}:{fingerprint}"
@@ -156,7 +156,7 @@ def _binding_symbol(binding: Binding) -> str:
 def _binding(binding: Binding) -> NodeBindingDefinition | EdgeBindingDefinition:
     common = (
         _binding_symbol(binding), binding.target._component_name,
-        expression_to_ir(binding.build_key.expression),
+        expression_to_ir(binding.build_key.model),
     )
     properties = tuple(
         (name, expression_to_ir(expression))
@@ -165,8 +165,8 @@ def _binding(binding: Binding) -> NodeBindingDefinition | EdgeBindingDefinition:
     rest = (properties, binding.debug_name, _annotations(binding.annotations))
     if isinstance(binding, EdgeBinding):
         return EdgeBindingDefinition(
-            *common, expression_to_ir(binding.source_build_key.expression),
-            expression_to_ir(binding.target_build_key.expression), *rest,
+            *common, expression_to_ir(binding.source_build_key.model),
+            expression_to_ir(binding.target_build_key.model), *rest,
         )
     return NodeBindingDefinition(*common, *rest)
 
@@ -209,9 +209,9 @@ def _expression_sources(expressions: Iterable[Any]) -> set[str]:
 
 
 def _binding_expressions(binding: Binding) -> tuple[Any, ...]:
-    result = [binding.build_key.expression, *(value for _, value in _property_expressions(binding))]
+    result = [binding.build_key.model, *(value for _, value in _property_expressions(binding))]
     if isinstance(binding, EdgeBinding):
-        result.extend((binding.source_build_key.expression, binding.target_build_key.expression))
+        result.extend((binding.source_build_key.model, binding.target_build_key.model))
     return tuple(result)
 
 
@@ -235,7 +235,7 @@ def _resolve_declarations(bindings: tuple[Binding, ...], sources: tuple[BoundTab
         for name in pending:
             declaration = projection_registry[name]
             projections[name] = declaration
-            required.update(_expression_sources(field.expression for field in declaration._projection_fields.values()))
+            required.update(_expression_sources(field.expression.model for field in declaration._projection_fields.values()))
     tables = {source.table._table_name: source.table for source in sources}
     for name in required - projections.keys():
         if name in table_registry:

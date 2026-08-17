@@ -1,18 +1,18 @@
-"""Runtime selection of the most specific typed expression wrapper."""
+"""Construct the most specific bindable expression family for a model."""
 from __future__ import annotations
 
 from typing import Any
 
 from ..types import ArrayType, CustomType, NullableType, StructType, UnitType
-from .arrays import ArrayNullableValueExpression, ArrayValueExpression
-from .boolean import BoolValueExpression
-from .custom import CustomDataTypeValueExpression
+from .arrays import ArrayExpression
+from .boolean import BoolExpression
+from .custom import CustomDataTypeExpression
 from .models import ExpressionNode
 from .literals import literal
-from .nullable import NullableValueExpression
-from .numeric import FloatValueExpression, IntValueExpression
-from .structs import StructNullableValueExpression, StructValueExpression
-from .text import StrValueExpression
+from .nullable import NullableExpression
+from .numeric import FloatExpression, IntExpression
+from .structs import StructExpression
+from .text import StrExpression
 from .values import ValueExpression
 
 
@@ -22,22 +22,22 @@ def wrap_expression(expression: ExpressionNode) -> ValueExpression[Any]:
     if isinstance(logical_type, NullableType):
         inner = logical_type.value
         if isinstance(inner, ArrayType):
-            return ArrayNullableValueExpression(expression)
+            return NullableExpression(expression, ArrayExpression)
         if isinstance(inner, StructType):
-            return StructNullableValueExpression(expression)
-        return NullableValueExpression(expression, wrap_expression)
+            return NullableExpression(expression, StructExpression)
+        return NullableExpression(expression, wrap_expression)
     if isinstance(logical_type, ArrayType):
-        return ArrayValueExpression(expression)
+        return ArrayExpression(expression)
     if isinstance(logical_type, StructType):
-        return StructValueExpression(expression)
+        return StructExpression(expression)
     if isinstance(logical_type, CustomType):
-        return CustomDataTypeValueExpression(expression)
+        return CustomDataTypeExpression(expression)
     if isinstance(logical_type, UnitType):
         factories = {
-            "bool": BoolValueExpression,
-            "int": IntValueExpression,
-            "float": FloatValueExpression,
-            "str": StrValueExpression,
+            "bool": BoolExpression,
+            "int": IntExpression,
+            "float": FloatExpression,
+            "str": StrExpression,
         }
         return factories[logical_type.name](expression)
     raise TypeError(f"unsupported expression logical type {logical_type!r}")

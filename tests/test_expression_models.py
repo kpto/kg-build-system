@@ -75,7 +75,7 @@ class ExpressionIRTests(unittest.TestCase):
 
     def test_operations_compose_and_share_ordered_row_effects(self) -> None:
         first = operation(
-            "each", literal([1], logical_type=ArrayType(INT)), logical_type=INT,
+            "expand", literal([1], logical_type=ArrayType(INT)), logical_type=INT,
             row_semantics=RowSemantics("expand", ("input", "values")),
         )
         combined = operation("add", first, first, logical_type=INT)
@@ -84,7 +84,7 @@ class ExpressionIRTests(unittest.TestCase):
             (RowEffect("expand", ("input", "values")),),
         )
         filtered = operation(
-            "when_present", combined, logical_type=INT,
+            "where_present", combined, logical_type=INT,
             row_semantics=RowSemantics("filter"),
         )
         self.assertEqual(

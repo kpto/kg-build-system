@@ -1,30 +1,38 @@
-"""Portable expression declarations and constructors."""
+"""Typed selections, bindable expressions, and expression domain models."""
+
+from .arrays import ArrayExpression
 from .base import field_reference, operation
-from .models import (
-    ExpressionNode, FieldReferenceExpression, LiteralExpression,
-    OperationExpression, OperationParameter, PRESERVE_ROWS, RowEffect, RowSemantics, Traversal,
-)
-from .literals import literal
-from .visitors import ExpressionVisitor, rewrite_expression, visit_expression, walk_expression
-from .arrays import ArrayNullableValueExpression, ArrayValueExpression
-from .boolean import BoolValueExpression
-from .custom import CustomDataTypeValueExpression
+from .boolean import BoolExpression
+from .custom import CustomDataTypeExpression
 from .factory import value_expression, wrap_expression
-from .nullable import NullableValueExpression
-from .numeric import FloatValueExpression, IntValueExpression, NumberValueExpression
-from .structs import PickedField, StructNullableValueExpression, StructValueExpression
-from .text import StrValueExpression
-from .values import AuthoringValueExpression, ValueExpression
+from .literals import literal
+from .models import (
+    ExpressionNode, FieldReferenceExpression, LiteralExpression, OperationExpression,
+    OperationParameter, PRESERVE_ROWS, RowEffect, RowSemantics, Traversal,
+)
+from .nullable import NullableExpression
+from .numeric import FloatExpression, IntExpression, NumberExpression
+from .selections import (
+    ArraySelection, NullableDataType, NullableSelection, SelectionDataType,
+    SelectionStructured, SelectionUnit, StructSelection, ValueInput,
+    ValueSelection, as_expression, select_expression, select_member,
+)
+from .structs import StructExpression
+from .text import StrExpression
+from .values import NullableAuthoringInput, ValueExpression
+from .visitors import (
+    ExpressionVisitor, rewrite_expression, visit_expression, walk_expression,
+)
 
 __all__ = [
-    "ArrayNullableValueExpression", "ArrayValueExpression", "AuthoringValueExpression", "BoolValueExpression",
-    "CustomDataTypeValueExpression", "ExpressionNode",
-    "ExpressionVisitor", "FieldReferenceExpression", "LiteralExpression", "OperationExpression",
-    "FloatValueExpression", "IntValueExpression", "NullableValueExpression",
-    "NumberValueExpression", "OperationParameter", "PRESERVE_ROWS",
-    "PickedField", "RowEffect", "RowSemantics", "StrValueExpression", "StructNullableValueExpression",
-    "StructValueExpression", "Traversal", "ValueExpression",
-    "field_reference", "literal", "operation", "rewrite_expression",
-    "value_expression", "visit_expression", "walk_expression",
-    "wrap_expression",
+    "ArrayExpression", "ArraySelection", "BoolExpression", "CustomDataTypeExpression",
+    "ExpressionNode", "ExpressionVisitor", "FieldReferenceExpression", "FloatExpression",
+    "IntExpression", "LiteralExpression", "NullableAuthoringInput", "NullableDataType", "NullableExpression",
+    "NullableSelection", "NumberExpression", "OperationExpression", "OperationParameter",
+    "PRESERVE_ROWS", "RowEffect", "RowSemantics", "SelectionDataType",
+    "SelectionStructured", "SelectionUnit", "StrExpression", "StructExpression",
+    "StructSelection", "Traversal", "ValueExpression", "ValueInput", "ValueSelection",
+    "as_expression", "field_reference", "literal", "operation", "rewrite_expression",
+    "select_expression", "select_member", "value_expression", "visit_expression",
+    "walk_expression", "wrap_expression",
 ]

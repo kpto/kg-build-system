@@ -7,4 +7,4 @@ from demo.table.projections.metric_display import MetricDisplayProjection
 
 class ExpandedNoteProjection(Projection):
     metric_key = projection_field(MetricDisplayProjection.metric_key)
-    note = projection_field(MetricDisplayProjection.notes.each())
+    note = projection_field(MetricDisplayProjection.notes.expand())

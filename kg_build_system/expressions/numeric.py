@@ -6,54 +6,52 @@ from typing import Generic, TypeVar
 from ..types import FLOAT, INT
 from ._coercion import expression_input
 from .base import operation
-from .values import AuthoringValueExpression, ValueExpression
+from .values import ValueExpression
 
 
 TNumber = TypeVar("TNumber", int, float)
 
 
-class NumberValueExpression(
-    ValueExpression[TNumber], AuthoringValueExpression[TNumber], Generic[TNumber]
-):
+class NumberExpression(ValueExpression[TNumber], Generic[TNumber]):
     """Shared numeric operations with a family-preserving result."""
 
     def _binary(self, operator: str, other: TNumber | ValueExpression[TNumber]):
         right = expression_input(other, self.logical_type)
         return type(self)(
-            operation(operator, self.expression, right, logical_type=self.logical_type)
+            operation(operator, self.model, right, logical_type=self.logical_type)
         )
 
-    def add(self, other: TNumber | ValueExpression[TNumber]) -> "NumberValueExpression[TNumber]":
+    def add(self, other: TNumber | ValueExpression[TNumber]) -> "NumberExpression[TNumber]":
         return self._binary("add", other)
 
-    def sub(self, other: TNumber | ValueExpression[TNumber]) -> "NumberValueExpression[TNumber]":
+    def sub(self, other: TNumber | ValueExpression[TNumber]) -> "NumberExpression[TNumber]":
         return self._binary("subtract", other)
 
 
-class IntValueExpression(NumberValueExpression[int]):
+class IntExpression(NumberExpression[int]):
     def __init__(self, expression):
         if expression.logical_type != INT:
-            raise TypeError("IntValueExpression requires the int logical type")
+            raise TypeError("IntExpression requires the int logical type")
         super().__init__(expression)
 
-    def add(self, other: int | ValueExpression[int]) -> "IntValueExpression":
+    def add(self, other: int | ValueExpression[int]) -> "IntExpression":
         return self._binary("add", other)
 
-    def sub(self, other: int | ValueExpression[int]) -> "IntValueExpression":
+    def sub(self, other: int | ValueExpression[int]) -> "IntExpression":
         return self._binary("subtract", other)
 
 
-class FloatValueExpression(NumberValueExpression[float]):
+class FloatExpression(NumberExpression[float]):
     def __init__(self, expression):
         if expression.logical_type != FLOAT:
-            raise TypeError("FloatValueExpression requires the float logical type")
+            raise TypeError("FloatExpression requires the float logical type")
         super().__init__(expression)
 
-    def add(self, other: float | ValueExpression[float]) -> "FloatValueExpression":
+    def add(self, other: float | ValueExpression[float]) -> "FloatExpression":
         return self._binary("add", other)
 
-    def sub(self, other: float | ValueExpression[float]) -> "FloatValueExpression":
+    def sub(self, other: float | ValueExpression[float]) -> "FloatExpression":
         return self._binary("subtract", other)
 
 
-__all__ = ["FloatValueExpression", "IntValueExpression", "NumberValueExpression"]
+__all__ = ["FloatExpression", "IntExpression", "NumberExpression"]

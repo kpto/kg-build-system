@@ -1,18 +1,9 @@
-"""Static contract for authoring-typed properties and direct graph bindings."""
+"""Static contract for selections and expressions at graph binding boundaries."""
 from typing import assert_type
 
 from kg_build_system import (
-    Edge,
-    EdgeBinding,
-    Field,
-    Node,
-    NodeBinding,
-    PropertySlot,
-    Table,
-    edge_binding,
-    field,
-    node_binding,
-    property,
+    Edge, EdgeBinding, Field, Node, NodeBinding, PropertySlot, Table,
+    edge_binding, field, node_binding, property,
 )
 
 
@@ -32,18 +23,17 @@ class RelatedEdge(Edge[EntityNode, EntityNode]):
     score: PropertySlot[float] = property()
 
 
-node_properties = EntityNode(
-    label=BindingTable.label,
-    description=BindingTable.description,
-)
 node = node_binding(
     target=EntityNode,
     build_key=BindingTable.identifier,
-    properties=node_properties,
+    properties=EntityNode(
+        label=BindingTable.label,
+        description=BindingTable.description,
+    ),
 )
 assert_type(node, NodeBinding[EntityNode])
 
-narrowed = BindingTable.description.when_present()
+narrowed = BindingTable.description.where_present()
 narrowed_node = node_binding(
     target=EntityNode,
     build_key=narrowed,
@@ -53,7 +43,7 @@ assert_type(narrowed_node, NodeBinding[EntityNode])
 
 edge = edge_binding(
     target=RelatedEdge,
-    build_key=BindingTable.identifier,
+    build_key=BindingTable.identifier.expression.prepend("edge:"),
     source_build_key=BindingTable.identifier,
     target_build_key=BindingTable.identifier,
     properties=RelatedEdge(score=BindingTable.score),

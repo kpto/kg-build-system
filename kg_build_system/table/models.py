@@ -137,7 +137,7 @@ def _prepare_fields(
     cls._data_metadata = {"description": description} if description is not None else {}
 
 
-class Table:
+class Table(StructDeclaration):
     """A final, source-bindable logical table declaration."""
 
     options: ClassVar[TableOptions] = TableOptions()

@@ -12,7 +12,7 @@ from kg_build_system import (
     Projection,
     ProjectionOptions,
     SourceBindingOptions,
-    StrValueExpression,
+    StrExpression,
     Struct,
     StructOptions,
     Table,
@@ -64,7 +64,7 @@ class LabelProjection(Projection):
     options = ProjectionOptions(annotations=(Marker("projection"),))
     entity_id = projection_field(EntityTable.identifier)
     label = projection_field(
-        EntityTable.details.pick(lambda details: details.label).append("!"),
+        EntityTable.details.pick(lambda details: details.label).expression.append("!"),
         name="display_label",
         description="Decorated display label",
         annotations=(Marker("output"),),
@@ -103,17 +103,18 @@ class DataDeclarationTests(unittest.TestCase):
 
     def test_projection_outputs_hide_their_implementation(self) -> None:
         declaration = LabelProjection.__dict__["label"]
-        self.assertIsInstance(declaration.expression, OperationExpression)
+        self.assertIsInstance(declaration.expression, StrExpression)
+        self.assertIsInstance(declaration.expression.model, OperationExpression)
         self.assertEqual(declaration.metadata.name, "display_label")
         self.assertEqual(declaration.metadata.description, "Decorated display label")
         self.assertEqual(declaration.metadata.annotations, (Marker("output"),))
 
         reference = LabelProjection.label
-        self.assertIsInstance(reference, StrValueExpression)
-        self.assertIsInstance(reference.expression, FieldReferenceExpression)
-        self.assertEqual(reference.expression.source, "label")
-        self.assertEqual(reference.expression.path, ("display_label",))
-        self.assertEqual(reference.expression.row_semantics.effects, ())
+        self.assertIsInstance(reference.expression, StrExpression)
+        self.assertIsInstance(reference.expression.model, FieldReferenceExpression)
+        self.assertEqual(reference.expression.model.source, "label")
+        self.assertEqual(reference.expression.model.path, ("display_label",))
+        self.assertEqual(reference.expression.model.row_semantics.effects, ())
 
     def test_projection_declarations_are_final_and_validate_outputs(self) -> None:
         with self.assertRaisesRegex(TypeError, "at least one projection_field"):

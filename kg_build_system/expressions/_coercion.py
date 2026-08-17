@@ -11,7 +11,7 @@ from .values import ValueExpression
 
 def expression_input(value: Any, expected: LogicalType) -> ExpressionNode:
     if isinstance(value, ValueExpression):
-        result = value.expression
+        result = value.model
     else:
         literal_type = expected
         if isinstance(expected, NullableType) and value is not None:

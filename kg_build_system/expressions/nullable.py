@@ -1,37 +1,38 @@
-"""Null-aware typed expression family."""
+"""Bindable nullable expression family.
+
+Null policy belongs to selections. Nullable expressions are terminal
+calculations and deliberately expose no narrowing operations.
+"""
 from __future__ import annotations
 
 from collections.abc import Callable
 from typing import Generic, TypeVar
 
 from ..types import Nullable, NullableType
-from ._coercion import expression_input
-from .base import operation
-from .models import ExpressionNode, RowSemantics
-from .values import AuthoringValueExpression, ValueExpression
+from .models import ExpressionNode
+from .values import NullableAuthoringInput, ValueExpression
 
 
 TData = TypeVar("TData")
 TNonNullExpr = TypeVar("TNonNullExpr", bound=ValueExpression)
 
 
-class NullableValueExpression(
-    ValueExpression[Nullable[TData]],
-    AuthoringValueExpression[TData | None],
-    Generic[TData, TNonNullExpr],
+class NullableExpression(
+    ValueExpression[Nullable[TData]], NullableAuthoringInput[TData | None],
+    Generic[TData, TNonNullExpr]
 ):
-    """A nullable value exposing only explicit null-handling operations."""
+    """Bindable nullable calculation with a known non-null expression family."""
 
     __slots__ = ("_non_null_factory",)
 
     def __init__(
         self,
-        expression: ExpressionNode,
+        model: ExpressionNode,
         non_null_factory: Callable[[ExpressionNode], TNonNullExpr],
     ) -> None:
-        if not isinstance(expression.logical_type, NullableType):
-            raise TypeError("NullableValueExpression requires a nullable logical type")
-        super().__init__(expression)
+        if not isinstance(model.logical_type, NullableType):
+            raise TypeError("NullableExpression requires a nullable logical type")
+        super().__init__(model)
         self._non_null_factory = non_null_factory
 
     @property
@@ -40,29 +41,8 @@ class NullableValueExpression(
         assert isinstance(logical_type, NullableType)
         return logical_type.value
 
-    def or_else(
-        self, value: TData | ValueExpression[TData]
-    ) -> TNonNullExpr:
-        fallback = expression_input(value, self.non_null_logical_type)
-        return self._non_null_factory(
-            operation(
-                "coalesce",
-                self.expression,
-                fallback,
-                logical_type=self.non_null_logical_type,
-            )
-        )
-
-    def when_present(self) -> TNonNullExpr:
-        """Suppress the containing mapping when this value is null."""
-        return self._non_null_factory(
-            operation(
-                "when_present",
-                self.expression,
-                logical_type=self.non_null_logical_type,
-                row_semantics=RowSemantics("filter"),
-            )
-        )
+    def _non_null(self, model: ExpressionNode) -> TNonNullExpr:
+        return self._non_null_factory(model)
 
 
-__all__ = ["NullableValueExpression"]
+__all__ = ["NullableExpression"]

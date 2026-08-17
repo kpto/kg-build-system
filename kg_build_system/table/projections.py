@@ -1,4 +1,4 @@
-"""Typed projection-output declarations built on canonical expressions."""
+"""Projection outputs normalizing selections and bindable expressions."""
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -10,15 +10,16 @@ from ..annotations import Annotation, annotation_tuple
 from ..expressions import (
     FieldReferenceExpression,
     Traversal,
-    ValueExpression,
+    ArraySelection, NullableDataType, NullableSelection, SelectionUnit,
+    StructSelection, ValueExpression, ValueInput, ValueSelection, as_expression, select_expression,
     field_reference,
     walk_expression,
     wrap_expression,
 )
-from ..types import ArrayType, LogicalType, NullableType, StructType
+from ..types import Array, ArrayType, LogicalType, Nullable, NullableType, Struct, StructType
 
 
-TExpression = TypeVar("TExpression", bound=ValueExpression[Any])
+TValue = TypeVar("TValue")
 
 
 @dataclass(frozen=True, slots=True)
@@ -38,7 +39,7 @@ def _traversals(name: str, logical_type: LogicalType) -> tuple[Traversal, ...]:
     return ()
 
 
-class ProjectionField(Generic[TExpression]):
+class ProjectionField(Generic[TValue]):
     """A named projection output whose implementation is a typed expression.
 
     Reading the descriptor through its projection class produces a reference
@@ -47,26 +48,20 @@ class ProjectionField(Generic[TExpression]):
     :attr:`expression`.
     """
 
-    __slots__ = ("_value", "_metadata", "_owner")
+    __slots__ = ("_expression", "_metadata", "_owner")
 
     def __init__(
         self,
-        value: TExpression,
+        value: ValueInput[TValue],
         metadata: ProjectionFieldMetadata = ProjectionFieldMetadata(),
     ) -> None:
-        if not isinstance(value, ValueExpression):
-            raise TypeError("projection fields require a typed ValueExpression")
-        self._value = value
+        self._expression = as_expression(value)
         self._metadata = metadata
         self._owner: type[Any] | None = None
 
     @property
-    def value(self) -> TExpression:
-        return self._value
-
-    @property
-    def expression(self):
-        return self._value.expression
+    def expression(self) -> ValueExpression[TValue]:
+        return self._expression
 
     @property
     def metadata(self) -> ProjectionFieldMetadata:
@@ -84,12 +79,22 @@ class ProjectionField(Generic[TExpression]):
         )
 
     @overload
-    def __get__(self, instance: None, owner: type[Any]) -> TExpression: ...
+    def __get__[U: SelectionUnit](self: "ProjectionField[U]", instance: None, owner: type[Any]) -> ValueSelection[U]: ...
+    @overload
+    def __get__[U: SelectionUnit](self: "ProjectionField[Nullable[U]]", instance: None, owner: type[Any]) -> NullableSelection[U]: ...
+    @overload
+    def __get__[I: NullableDataType](self: "ProjectionField[Array[I]]", instance: None, owner: type[Any]) -> ArraySelection[I]: ...
+    @overload
+    def __get__[I: NullableDataType](self: "ProjectionField[Nullable[Array[I]]]", instance: None, owner: type[Any]) -> NullableSelection[Array[I]]: ...
+    @overload
+    def __get__[S: Struct](self: "ProjectionField[S]", instance: None, owner: type[Any]) -> StructSelection[S]: ...
+    @overload
+    def __get__[S: Struct](self: "ProjectionField[Nullable[S]]", instance: None, owner: type[Any]) -> NullableSelection[S]: ...
 
     @overload
-    def __get__(self, instance: object, owner: type[Any] | None = None) -> TExpression: ...
+    def __get__(self, instance: object, owner: type[Any] | None = None) -> ValueSelection[TValue]: ...
 
-    def __get__(self, instance: object | None, owner: type[Any] | None = None) -> TExpression:
+    def __get__(self, instance: object | None, owner: type[Any] | None = None) -> Any:
         if owner is None:
             if instance is None:
                 raise TypeError("projection fields require a declaration owner")
@@ -99,16 +104,16 @@ class ProjectionField(Generic[TExpression]):
             raise TypeError("ProjectionField owners must be final Projection declarations")
         name = self._metadata.name
         assert name is not None
-        return wrap_expression(field_reference(
+        return select_expression(wrap_expression(field_reference(
             source=source,
             path=(name,),
             logical_type=self.expression.logical_type,
             traversals=_traversals(name, self.expression.logical_type),
-        ))  # type: ignore[return-value]
+        )))  # type: ignore[return-value]
 
 
-def projection_field[T: ValueExpression[Any]](
-    value: T,
+def projection_field[T](
+    value: ValueInput[T],
     *,
     name: str | None = None,
     description: str | None = None,
@@ -151,7 +156,7 @@ def declared_projection_fields(owner: type[Any]) -> dict[str, ProjectionField[An
 def referenced_sources(field: ProjectionField[Any]) -> frozenset[str]:
     return frozenset(
         node.source
-        for node in walk_expression(field.expression)
+        for node in walk_expression(field.expression.model)
         if isinstance(node, FieldReferenceExpression)
     )
 

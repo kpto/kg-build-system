@@ -13,10 +13,10 @@ deep_city = (
 
 record_binding = node_binding(
     target=RecordNode,
-    build_key=ComplexRecordsTable.record_id.when_present().prepend("record::"),
+    build_key=ComplexRecordsTable.record_id.where_present().expression.prepend("record::"),
     properties=RecordNode(
-        title=ComplexRecordsTable.title.or_else("Untitled"),
-        city=deep_city.or_else("Unknown city"),
+        title=ComplexRecordsTable.title.default_to("Untitled"),
+        city=deep_city.default_to("Unknown city"),
     ),
     debug_name="records_without_expansion",
 )

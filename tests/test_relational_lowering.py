@@ -34,10 +34,10 @@ class LoweringInput(Table):
 class LoweringProjection(Projection):
     identifier = projection_field(LoweringInput.identifier)
     label = projection_field(
-        LoweringInput.evidence.each()
+        LoweringInput.evidence.expand()
         .pick(lambda item: item.labels)
-        .each()
-        .append("!")
+        .expand()
+        .expression.append("!")
     )
 
 
@@ -48,16 +48,16 @@ class LoweringNode(Node):
 class RelationalLoweringTests(unittest.TestCase):
     def test_nested_expansions_are_parent_first_and_shared(self) -> None:
         first = (
-            LoweringInput.evidence.each()
+            LoweringInput.evidence.expand()
             .pick(lambda item: item.labels)
-            .each()
-            .append("!")
+            .expand()
+            .expression.append("!")
         )
         plan = lower_product(
             {
-                "first": first.expression,
-                "second": first.expression,
-                "present": LoweringInput.optional_label.when_present().expression,
+                "first": first.model,
+                "second": first.model,
+                "present": LoweringInput.optional_label.where_present().expression.model,
             },
             {"lowering_input": "input_relation"},
         )

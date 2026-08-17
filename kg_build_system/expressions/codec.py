@@ -134,7 +134,7 @@ def decode_expression(value: Mapping[str, Any]) -> Expression:
         if not isinstance(arguments_value, Sequence) or isinstance(arguments_value, (str, bytes, bytearray)):
             raise ValueError("expression field 'arguments' must be an array")
         if any(not isinstance(item, Mapping) for item in arguments_value):
-            raise ValueError("each operation argument must be an object")
+            raise ValueError("all operation arguments must be objects")
         parameters_value = value.get("parameters", {})
         if not isinstance(parameters_value, Mapping):
             raise ValueError("expression field 'parameters' must be an object")

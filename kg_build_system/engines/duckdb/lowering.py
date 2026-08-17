@@ -58,13 +58,13 @@ def _render(expression, context: _Context) -> Any:
         return _field(expression, context)
     if not isinstance(expression, OperationExpression):
         raise TypeError(f"unsupported expression node {expression!r}")
-    if expression.operator == "each":
+    if expression.operator == "expand":
         scope = expansion_scope(expression)
         try:
             return context.expansions[scope]
         except KeyError as error:
             raise ValueError(f"expansion scope {scope!r} was not planned") from error
-    if expression.operator == "when_present":
+    if expression.operator == "where_present":
         return _render(expression.arguments[0], context)
     arguments = tuple(_render(argument, context) for argument in expression.arguments)
     if expression.operator == "add":

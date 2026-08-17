@@ -137,9 +137,9 @@ class InputTable(Table):
     events: Field[Array[EventStruct] | None] = field()
 ```
 
-Descriptor access produces a typed expression. The runtime wrapper is selected
-from the normalized logical type, and the overload surface exposes the same
-specialized type to static analysis.
+Descriptor access produces a typed selection. Its structural specialization is
+selected from the normalized logical type, and `.expression` exposes the
+matching bindable calculation family to static analysis.
 
 Final declaration bases are `Table`, `Struct`, `Projection`, and `TableGroup`.
 `TableTemplate` remains available for reusable table shapes carrying framework
@@ -150,31 +150,42 @@ Framework `options` values are class metadata, not fields or constructor
 arguments. Descriptions default to class docstrings unless explicitly
 overridden.
 
-## 5. Typed expressions
+## 5. Selections and typed expressions
 
-`ValueExpression[T]` is the common bindable output. A field reference is one
-canonical expression variant; it is not a separate `ValueRef` object.
+Field access produces a `ValueSelection[T]`. Selections represent a location
+in a logical product and own structural navigation, row expansion, and null
+policy. Their `.expression` property exposes the bindable calculation for the
+selected value. A field reference is one expression-model variant; it is not a
+parallel value-reference hierarchy.
 
-Specialized expression families expose only valid operations:
+Selection families are specialized by logical shape:
 
 ```text
-IntValueExpression       add, sub
-FloatValueExpression     add, sub
-StrValueExpression       prepend, append
-BoolValueExpression      not_, and_, or_
-ArrayValueExpression     each
-StructValueExpression    pick
-NullableValueExpression  or_else, when_present
+ValueSelection[T]       scalar selection
+ArraySelection[T]       expand
+StructSelection[T]      pick
+NullableSelection[T]    default_to, where_present, nullable pick/expand
 ```
 
-Custom scalar, nullable array, nullable struct, and nullable item combinations
-have corresponding specialized wrappers. Operations preserve the most
-specific useful result type:
+Bindable expression families expose calculation operations only:
+
+```text
+IntExpression            add, sub
+FloatExpression          add, sub
+StrExpression            prepend, append
+BoolExpression           not_, and_, or_
+CustomDataTypeExpression bindable custom scalar
+ArrayExpression          bindable array value
+StructExpression         bindable struct value
+NullableExpression       bindable nullable value
+```
+
+Calculations preserve the most specific useful expression family:
 
 ```python
-InputTable.identifier.prepend("input::")
-InputTable.optional_count.or_else(0).add(1)
-InputTable.optional_flag.when_present().not_()
+InputTable.identifier.expression.prepend("input::")
+InputTable.optional_count.default_to(0).expression.add(1)
+InputTable.optional_flag.where_present().expression.not_()
 ```
 
 Portable literals are created with `value_expression(...)`. Null, empty-array,
@@ -189,10 +200,11 @@ Struct navigation uses `pick` with a selector:
 city = InputTable.location.pick(lambda value: value.city)
 ```
 
-Fields read through the selector are `PickedField` path tokens, not standalone
-expressions. A token records its logical type and declaring struct. The parent
-expression turns it into a canonical field reference or `struct_field`
-operation.
+Fields read through the selector are temporary member selections associated
+with their declaring struct. The parent selection turns the selected member
+into a normal selection backed by a canonical field reference or
+`struct_field` operation. Temporary member state cannot cross a terminal
+authoring boundary.
 
 Nullability propagates through the whole path. Selecting a required field from
 a nullable struct produces a nullable result. Selecting an already-nullable
@@ -204,31 +216,31 @@ InputTable.location.pick(lambda value: value.city)  # nullable string
 
 ### Array expansion
 
-`each()` explicitly converts an array value into one row per item:
+`expand()` explicitly converts an array selection into one row per item:
 
 ```python
-event = InputTable.events.each()
-label = event.pick(lambda value: value.labels).each()
+event = InputTable.events.expand()
+label = event.pick(lambda value: value.labels).expand()
 ```
 
 A nullable array produces no rows when null. Item nullability is independent:
-expanding `Array[T | None]` produces a nullable item expression.
+expanding `Array[T | None]` produces a nullable item selection.
 
-Each `each()` records an `expand` row effect with a stable scope derived from
+Each `expand()` records an explicit `expand` operation with a stable scope derived from
 the logical field path. Repeated expressions with the same scope share one
 expansion. Nested scopes are planned parent-first.
 
 ### Null handling
 
-A `NullableValueExpression` deliberately exposes no type-specific operations
-until the author chooses null semantics:
+A `NullableSelection` owns null policy. Its bindable `NullableExpression`
+deliberately exposes no null-policy or type-specific operations:
 
-- `or_else(value)` replaces null and returns the non-null specialized family;
-- `when_present()` filters the containing relational product when the value is
-  null and returns the non-null specialized family.
+- `default_to(value)` replaces null and returns a non-null selection;
+- `where_present()` filters the containing relational product when the value
+  is null and returns a non-null selection.
 
-These operations differ semantically. `or_else` preserves the row;
-`when_present` adds a local filter row effect. A projection or binding owns
+These operations differ semantically. `default_to` preserves the row;
+`where_present` adds a local filter row effect. A projection or binding owns
 that effect, so it cannot change a sibling product.
 
 ## 6. Projections
@@ -237,18 +249,18 @@ A projection is a named logical data product. Its outputs use
 `projection_field(...)`:
 
 ```python
-event = InputTable.events.each()
+event = InputTable.events.expand()
 
 
 class EventProjection(Projection):
     input_id = projection_field(InputTable.identifier)
     code = projection_field(event.pick(lambda value: value.code))
     label = projection_field(
-        event.pick(lambda value: value.labels).each().or_else("unknown")
+        event.pick(lambda value: value.labels).expand().default_to("unknown")
     )
 ```
 
-Reading `EventProjection.code` returns a field-reference expression to the
+Reading `EventProjection.code` returns a field-reference selection for the
 materialized projection output, not the source implementation. Consequently,
 projections may consume other projections without embedding or duplicating
 their row plans.
@@ -273,15 +285,17 @@ class ContainsEdge(Edge[InputNode, InputNode]):
 ```
 
 `PropertySlot[T]` is the static constructor contract for an authoring
-expression of type `T`. Property declarations remain separate metadata; graph
+selection or expression of type `T`. Property declarations remain separate metadata; graph
 properties do not inherit from expression objects.
 
-Expressions bind directly. There is no `bind(...)` wrapper:
+Selections and expressions bind directly. Terminal declaration APIs normalize
+selections immediately and store only bindable expressions. There is no
+`bind(...)` wrapper:
 
 ```python
 input_binding = node_binding(
     target=InputNode,
-    build_key=InputTable.identifier.prepend("input::"),
+    build_key=InputTable.identifier.expression.prepend("input::"),
     properties=InputNode(
         label=InputTable.label,
         description=InputTable.description,
@@ -291,7 +305,7 @@ input_binding = node_binding(
 
 `node_binding` requires a non-null scalar build key. `edge_binding` requires
 non-null scalar build, source, and target keys. Keys may use any supported
-scalar type. Property expressions must exactly match their declared logical
+scalar type. Property inputs must exactly match their declared logical
 type, except that a non-null value may satisfy a nullable property.
 
 A binding owns its complete relational row context. Expansions and filters in
@@ -358,7 +372,7 @@ OperationExpression(operator, arguments, parameters)
 
 Every domain expression carries its logical type and may retain authoring-time
 `RowSemantics`, but expression IR records only the explicit expression syntax
-and normalized logical type. `each` and `when_present` remain ordinary explicit
+and normalized logical type. `expand` and `where_present` remain ordinary explicit
 operations. Relational planning derives expansion identities, ordering, and
 filters from that syntax; planner scopes and traversal hints never enter the
 blueprint. The compiler maps logical types, expressions, annotations, data
@@ -410,7 +424,7 @@ engine-specific DuckDB SQL
 
 `lower_product` plans one projection or binding. It derives its driving scan,
 deduplicates shared expansions, orders nested expansions parent-first, and
-collects `when_present` filters. Plans remain independent of SQL syntax.
+collects `where_present` filters. Plans remain independent of SQL syntax.
 
 The DuckDB engine lowers scans, struct access, `UNNEST`, filters, numeric,
 string, Boolean, and coalesce operations into inspectable SQL. Relational
@@ -499,8 +513,8 @@ Authoring practices:
 - Use `Field[T]` for every logical table and struct member.
 - Express nullability with `T | None`; do not use internal `Nullable[T]` in
   declarations.
-- Use `pick` and `each` so nested selection and row production remain explicit.
-- Choose `or_else` versus `when_present` deliberately.
+- Use `pick` and `expand` so nested selection and row production remain explicit.
+- Choose `default_to` versus `where_present` deliberately.
 - Keep topology and bindings discoverable in a node-first layout.
 - Use projections to name reusable data products and isolate expansion scopes.
 - Keep physical locations and provenance in source bindings.
@@ -515,7 +529,7 @@ Authoring practices:
 - canonical logical types and type codecs;
 - unified typed fields for scalars, structs, arrays, and custom scalar types;
 - specialized expressions with explicit null and row semantics;
-- nested `pick`, nested/shared `each`, and projection chaining;
+- nested `pick`, nested/shared `expand`, and projection chaining;
 - direct typed node and edge bindings;
 - annotations across declaration, binding, and source layers;
 - immutable blueprint schema version 2 and deterministic JSON codecs;
@@ -551,7 +565,7 @@ The implemented vertical slice succeeds when one importable demo:
 1. obtains a typed table contract from edit-time generation;
 2. declares deep nested fields and nullable top-level values;
 3. composes nested expansions and chained projections;
-4. binds nodes and edges directly from typed expressions;
+4. normalizes typed selections and expressions directly into node and edge bindings;
 5. compiles to deterministic blueprint JSON, a frozen workflow, and
    inspectable DuckDB SQL;
 6. executes to deterministic normalized graph records with a build report.

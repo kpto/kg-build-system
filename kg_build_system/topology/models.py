@@ -7,7 +7,7 @@ from typing import Any, ClassVar, Generic, TypeVar, cast, dataclass_transform, g
 
 from .._support.naming import declaration_name, member_name
 from ..annotations import Annotation, annotation_tuple
-from ..expressions import AuthoringValueExpression
+from ..expressions import NullableAuthoringInput, ValueInput
 from ..types import CustomDataType, LogicalType, normalize_type, require_scalar
 
 type GraphValue = bool | int | float | str | CustomDataType | None
@@ -18,7 +18,7 @@ D = TypeVar("D", bound="Node")
 
 # The public slot type describes accepted values. Declaration metadata remains
 # separate so expressions do not inherit from graph-schema objects.
-type PropertySlot[T: GraphValue] = AuthoringValueExpression[T]
+type PropertySlot[T: GraphValue] = ValueInput[T] | NullableAuthoringInput[T]
 
 
 @dataclass(frozen=True, slots=True)
