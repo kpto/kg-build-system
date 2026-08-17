@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import json
+import tempfile
 import unittest
 from dataclasses import dataclass, replace
+from pathlib import Path
 
 from kg_build_system import (
     Annotation, Array, DataSourceConfig, Edge, Field,
@@ -13,6 +15,7 @@ from kg_build_system.compile import (
     blueprint_from_json, blueprint_json, decode_blueprint, validate_blueprint,
 )
 from kg_build_system.compile.models import BuildBlueprint
+from kg_build_system.compile.compiler import _namespace_modules
 from kg_build_system.expressions.ir import OperationExpressionIR, walk_expression_ir
 from kg_build_system.table.ir import FieldIR, TableIR
 from kg_build_system.types import STR
@@ -120,6 +123,25 @@ class BlueprintIRTests(unittest.TestCase):
         raw["schema_version"] = 999
         with self.assertRaisesRegex(ValueError, "unsupported blueprint schema version"):
             decode_blueprint(raw)
+
+    def test_namespace_discovery_skips_non_importable_python_paths(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            package = Path(directory) / "discovery_fixture"
+            package.mkdir()
+            (package / "__init__.py").write_text("", encoding="utf-8")
+            (package / "valid.py").write_text("VALUE = 1\n", encoding="utf-8")
+            generated = package / "generated-output"
+            generated.mkdir()
+            (generated / "import_data.py").write_text(
+                "raise AssertionError('must not be imported')\n", encoding="utf-8"
+            )
+
+            modules = _namespace_modules(package)
+
+        self.assertEqual(
+            {module.__name__ for module in modules},
+            {"discovery_fixture", "discovery_fixture.valid"},
+        )
 
 
 if __name__ == "__main__":

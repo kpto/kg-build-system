@@ -5,6 +5,7 @@ from kg_build_system.modules import (
     CollapseExactDuplicatesModule,
     FileModule,
     FileModuleConfiguration,
+    Neo4jModule,
     register_module,
 )
 from kg_build_system.workflow.ir import WorkflowContractIR
@@ -16,6 +17,7 @@ def compile_demo() -> WorkflowContractIR:
         modules=(
             register_module(CollapseExactDuplicatesModule),
             register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
+            register_module(Neo4jModule),
         ),
     )
 

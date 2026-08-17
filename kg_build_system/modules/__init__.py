@@ -9,6 +9,7 @@ from .operators import (
     RejectConflictingNonNullValuesModule,
 )
 from .targets.file import FileModule, FileModuleConfiguration
+from .targets.neo4j import Neo4jModule, Neo4jModuleConfiguration
 
 __all__ = [
     "CollapseExactDuplicatesModule",
@@ -18,6 +19,8 @@ __all__ = [
     "Module",
     "ModuleRegistration",
     "ModuleRegistrationConfiguration",
+    "Neo4jModule",
+    "Neo4jModuleConfiguration",
     "RejectConflictingNonNullValuesConfiguration",
     "RejectConflictingNonNullValuesModule",
     "register_module",

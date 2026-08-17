@@ -286,8 +286,20 @@ def _namespace_modules(namespace_path: str | Path) -> tuple[ModuleType, ...]:
         roots = tuple(Path(item) for item in spec.submodule_search_locations)
     names = {namespace}
     for root in roots:
-        names.update(f"{namespace}.{file.relative_to(root).with_suffix('').as_posix().replace('/', '.')}" for file in root.rglob("*.py") if file.name != "__init__.py")
-        names.update(f"{namespace}.{folder.relative_to(root).as_posix().replace('/', '.')}" for folder in root.rglob("*") if folder.is_dir() and (folder / "__init__.py").exists())
+        for file in root.rglob("*.py"):
+            relative = file.relative_to(root).with_suffix("")
+            if file.name != "__init__.py" and all(
+                part.isidentifier() for part in relative.parts
+            ):
+                names.add(f"{namespace}.{'.'.join(relative.parts)}")
+        for folder in root.rglob("*"):
+            relative = folder.relative_to(root)
+            if (
+                folder.is_dir()
+                and (folder / "__init__.py").exists()
+                and all(part.isidentifier() for part in relative.parts)
+            ):
+                names.add(f"{namespace}.{'.'.join(relative.parts)}")
     try:
         return tuple(importlib.import_module(name) for name in sorted(names))
     finally:

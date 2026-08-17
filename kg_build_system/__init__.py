@@ -1,6 +1,6 @@
 """Declarative, typed, and reproducible knowledge-graph builds."""
 
-from .annotations import Annotation
+from .annotations import Annotation, EdgeLabel, NodeLabel
 from .binding import Binding, BindingOptions, EdgeBinding, NodeBinding, edge_binding, node_binding
 from .expressions import (
     ArrayExpression,
@@ -70,6 +70,7 @@ __all__ = [
     "CustomDataTypeExpression",
     "DataSourceConfig",
     "Edge",
+    "EdgeLabel",
     "EdgeBinding",
     "EdgeOptions",
     "Field",
@@ -82,6 +83,7 @@ __all__ = [
     "NullableExpression",
     "NullableSelection",
     "Node",
+    "NodeLabel",
     "NodeBinding",
     "NodeOptions",
     "NumberExpression",

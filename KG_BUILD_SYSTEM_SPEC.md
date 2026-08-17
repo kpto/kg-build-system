@@ -15,7 +15,8 @@ engine.
 The current implementation includes typed nested data declarations, typed
 expressions, projections, direct graph bindings, canonical blueprint schema
 version 2, engine-neutral relational planning, DuckDB lowering, composable
-workflow modules, file output, and edit-time generated data-contract packages.
+workflow modules, file and Neo4j administrative-import output, and edit-time
+generated data-contract packages.
 
 ## 2. Core model
 
@@ -284,6 +285,21 @@ class ContainsEdge(Edge[InputNode, InputNode]):
     score: PropertySlot[float] = property()
 ```
 
+Target-neutral `NodeLabel` and `EdgeLabel` annotations optionally override the
+computed semantic label of a graph component. At most one matching annotation
+may be supplied. A target may interpret the effective label using its own native
+vocabulary; the Neo4j target maps a node label to `:LABEL` and an edge label to
+the relationship `:TYPE` header.
+
+```python
+class InputNode(Node):
+    options = NodeOptions(annotations=(NodeLabel("Input"),))
+
+
+class ContainsEdge(Edge[InputNode, InputNode]):
+    options = EdgeOptions(annotations=(EdgeLabel("CONTAINS"),))
+```
+
 `PropertySlot[T]` is the static constructor contract for an authoring
 selection or expression of type `T`. Property declarations remain separate metadata; graph
 properties do not inherit from expression objects.
@@ -461,7 +477,7 @@ The core module creates source-materialization, projection, binding, and graph
 aggregation steps. Extension modules claim artifacts by semantic
 `ArtifactRole` rather than temporary relation names. Current supplied modules
 include exact duplicate collapse, compatible-fact merging, conflicting-value
-validation, and file output.
+validation, file output, and Neo4j administrative-import output.
 
 `build` consumes only `WorkflowContractIR` and `BuildRuntime`. It imports the module
 classes named in the contract, validates runtime configuration, executes ready
@@ -475,6 +491,14 @@ credentials are resolved through runtime services. Credential values and their
 option schemas are opaque to the blueprint and workflow contract. The module
 owning a credentialed execution instruction defines and validates those
 runtime-only options; resolved values never enter the contract.
+
+The Neo4j target consumes terminal graph-record artifacts and writes one
+Parquet file per node or edge component. Parquet column names contain the
+`neo4j-admin database import` headers directly: node IDs use stable
+per-component ID spaces, edge endpoints reference those spaces, and component
+labels are written as `:LABEL` or `:TYPE`. The bundle also contains a
+standalone Python script that locates a local `neo4j-admin` executable and runs
+a full Parquet import without requiring this package at import time.
 
 ## 13. Edit-time generated packages
 
@@ -536,6 +560,7 @@ Authoring practices:
 - engine-neutral relational plans and DuckDB lowering;
 - dependency-aware workflow contracts and execution reports;
 - file graph output and supplied validation/merge/deduplication modules;
+- Neo4j administrative-import Parquet bundles and standalone import scripts;
 - edit-time generated table and table-group packages;
 - an importable demo combining deep nesting, null handling, expansions, and
   multiple projection layers.
@@ -546,7 +571,6 @@ Authoring practices:
 - grouping and collection aggregation;
 - dynamic fields guarded by an `Unknown` type;
 - broader target capability checks and ontology annotations;
-- a minimal Neo4j target;
 - richer source schema metadata, including nested-member nullability where the
   physical schema can provide it.
 
