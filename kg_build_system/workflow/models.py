@@ -192,6 +192,8 @@ class BuildRuntime:
     working_directory: Path | None = None
     temporary_directory: Path | None = None
     duckdb_threads: int | None = None
+    duckdb_memory_limit: str | None = None
+    duckdb_compression: bool = True
 
 
 @dataclass(frozen=True)

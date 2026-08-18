@@ -6,6 +6,7 @@ import importlib
 import json
 import logging
 from collections import defaultdict
+from contextlib import ExitStack
 from dataclasses import asdict, replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
@@ -22,6 +23,7 @@ from .services import ExecutionServices, LocalTemporaryStorage, LocalWorkingStor
 
 _LOGGER = logging.getLogger("kg_build_system.workflow.execution")
 _LOGGER.addHandler(logging.NullHandler())
+_DUCKDB_BUILD_DATABASE = "kg_build_memory"
 
 
 class _MonitorLogger:
@@ -127,6 +129,37 @@ def _validate_runtime_configuration(
         )
 
 
+def _configure_duckdb(
+    connection: Any, runtime: BuildRuntime, temporary_directory: Path,
+) -> None:
+    """Configure bounded, compressed in-memory storage for one build."""
+    if runtime.duckdb_threads is not None:
+        if runtime.duckdb_threads < 1:
+            raise ValueError("duckdb_threads must be at least one")
+        connection.execute("SET threads = ?", [runtime.duckdb_threads])
+
+    if runtime.duckdb_memory_limit is not None:
+        if not isinstance(runtime.duckdb_memory_limit, str):
+            raise TypeError("duckdb_memory_limit must be a string")
+        if not runtime.duckdb_memory_limit.strip():
+            raise ValueError("duckdb_memory_limit must be non-empty")
+        connection.execute(
+            "SET memory_limit = ?", [runtime.duckdb_memory_limit]
+        )
+
+    if not isinstance(runtime.duckdb_compression, bool):
+        raise TypeError("duckdb_compression must be a boolean")
+
+    connection.execute(
+        "SET temp_directory = ?", [temporary_directory.resolve().as_posix()]
+    )
+    compression = " (COMPRESS)" if runtime.duckdb_compression else ""
+    connection.execute(
+        f"ATTACH ':memory:' AS {_DUCKDB_BUILD_DATABASE}{compression}"
+    )
+    connection.execute(f"USE {_DUCKDB_BUILD_DATABASE}")
+
+
 async def _build(
     contract: WorkflowContractIR, runtime: BuildRuntime,
     monitor: WorkflowExecutionMonitor,
@@ -137,13 +170,14 @@ async def _build(
         raise RuntimeError("DuckDB is required to execute builds") from error
     connection = duckdb.connect()
     workflow = workflow_from_ir(contract.workflow)
-    if runtime.duckdb_threads is not None:
-        if runtime.duckdb_threads < 1:
-            raise ValueError("duckdb_threads must be at least one")
-        connection.execute(f"SET threads = {runtime.duckdb_threads}")
 
     working_directory = runtime.working_directory or runtime.output_directory
-    with TemporaryDirectory(dir=runtime.temporary_directory) as temporary_directory:
+    with ExitStack() as resources:
+      temporary_directory = resources.enter_context(
+          TemporaryDirectory(dir=runtime.temporary_directory)
+      )
+      resources.callback(connection.close)
+      _configure_duckdb(connection, runtime, Path(temporary_directory))
       services = ExecutionServices(
           duckdb=connection,
           output_storage=LocalWorkingStorage(runtime.output_directory),
@@ -151,6 +185,7 @@ async def _build(
           temporary_storage=LocalTemporaryStorage(Path(temporary_directory)),
           credentials=MappingCredentialResolver(runtime.credentials),
           logger=_MonitorLogger(monitor),
+          duckdb_compression=runtime.duckdb_compression,
       )
       executors: dict[str, Any] = {}
       definitions = {module.reference.module_id: module for module in workflow.modules}

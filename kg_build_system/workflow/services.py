@@ -64,3 +64,4 @@ class ExecutionServices:
     temporary_storage: LocalTemporaryStorage
     credentials: CredentialResolver
     logger: WorkflowLogger
+    duckdb_compression: bool = True

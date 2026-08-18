@@ -394,8 +394,10 @@ class CoreExecutor(ModuleExecutor):
             for source in source_relations
         )
         context.services.duckdb.execute(
-            f'CREATE TEMP TABLE "{relation}" AS {union_sql}'
+            f'CREATE TABLE "{relation}" AS {union_sql}'
         )
+        if context.services.duckdb_compression:
+            context.services.duckdb.execute("CHECKPOINT")
         return CoreExecutor._success(context, relation)
 
     @staticmethod
@@ -404,8 +406,10 @@ class CoreExecutor(ModuleExecutor):
     ) -> StepOutcome:
         relation = _quote_identifier(instruction.relation)
         context.services.duckdb.execute(
-            f'CREATE TEMP TABLE "{relation}" AS {instruction.sql}'
+            f'CREATE TABLE "{relation}" AS {instruction.sql}'
         )
+        if context.services.duckdb_compression:
+            context.services.duckdb.execute("CHECKPOINT")
         return CoreExecutor._success(context, relation)
 
     @staticmethod

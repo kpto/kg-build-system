@@ -492,6 +492,15 @@ option schemas are opaque to the blueprint and workflow contract. The module
 owning a credentialed execution instruction defines and validates those
 runtime-only options; resolved values never enter the contract.
 
+Runtime relational intermediates live in a compressed in-memory DuckDB
+database. Framework materialization steps checkpoint their tables so DuckDB's
+lightweight column compression is applied, and DuckDB spills constrained data
+into the build's temporary directory. `BuildRuntime.duckdb_memory_limit`
+accepts DuckDB size strings such as `"4GiB"`; when omitted, DuckDB retains its
+platform-derived default memory limit. `BuildRuntime.duckdb_compression`
+controls in-memory table compression and defaults to `True`.
+`BuildRuntime.duckdb_threads` continues to control query parallelism.
+
 The Neo4j target consumes terminal graph-record artifacts and writes one
 Parquet file per node or edge component. Parquet column names contain the
 `neo4j-admin database import` headers directly: node IDs use stable

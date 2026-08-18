@@ -111,9 +111,11 @@ class _Executor(ModuleExecutor):
         relation = _quote_identifier(payload["relation"])
         source = _quote_identifier(input_relation)
         context.services.duckdb.execute(
-            f'CREATE TEMP TABLE "{relation}" AS '
+            f'CREATE TABLE "{relation}" AS '
             f'SELECT DISTINCT * FROM "{source}"'
         )
+        if context.services.duckdb_compression:
+            context.services.duckdb.execute("CHECKPOINT")
 
         output = context.step.outputs[0]
         artifact = Artifact(
