@@ -262,7 +262,7 @@ class EventProjection(Projection):
 ```
 
 Reading `EventProjection.code` returns a field-reference selection for the
-materialized projection output, not the source implementation. Consequently,
+declared projection output, not the source implementation. Consequently,
 projections may consume other projections without embedding or duplicating
 their row plans.
 
@@ -443,9 +443,12 @@ deduplicates shared expansions, orders nested expansions parent-first, and
 collects `where_present` filters. Plans remain independent of SQL syntax.
 
 The DuckDB engine lowers scans, struct access, `UNNEST`, filters, numeric,
-string, Boolean, and coalesce operations into inspectable SQL. Relational
-products are materialized as temporary tables so downstream projections and
-bindings reference stable relations.
+string, Boolean, and coalesce operations into inspectable SQL. Every runtime
+relational artifact exposes a stable logical view. Core source, projection,
+binding, and graph-aggregation views remain lazy so DuckDB can optimize through
+the complete query chain and push projections and filters into physical scans.
+When an upper workflow layer requests a reuse or snapshot boundary, the runtime
+may instead back the same public view with a private materialized table.
 
 ## 12. Compilation, workflow, and execution
 
@@ -473,8 +476,8 @@ Workflow does not interpret compilation provenance. Execution settings are
 supplied through `BuildRuntime`. The contract never contains resolved
 credentials.
 
-The core module creates source-materialization, projection, binding, and graph
-aggregation steps. Extension modules claim artifacts by semantic
+The core module creates source-view, projection-view, binding-view, and graph
+aggregation-view steps. Extension modules claim artifacts by semantic
 `ArtifactRole` rather than temporary relation names. Current supplied modules
 include exact duplicate collapse, compatible-fact merging, conflicting-value
 validation, file output, and Neo4j administrative-import output.
@@ -492,11 +495,14 @@ option schemas are opaque to the blueprint and workflow contract. The module
 owning a credentialed execution instruction defines and validates those
 runtime-only options; resolved values never enter the contract.
 
-The executor owns a DuckDB relation service that materializes persistent
-tables, returns opaque runtime-only `RelationRef` values, and checkpoints once
-after each step that created relations. Modules request materialization and use
-the service for queries, Parquet export, and filesystem registration; storage
-lifecycle policy does not leak into module implementations.
+The executor owns a DuckDB relation service that returns opaque runtime-only
+`RelationRef` values. Every reference names a public view. A module may define a
+lazy view or request a reuse/snapshot boundary, in which case the service creates
+a private persistent table and exposes it through the same public view shape.
+The service checkpoints once after each step that created materialized backing
+tables. Modules use it for relation definition, queries, Parquet export, and
+filesystem registration; physical table names and storage lifecycle policy do
+not leak into consuming module implementations.
 
 `BuildRuntime` exposes four DuckDB controls:
 

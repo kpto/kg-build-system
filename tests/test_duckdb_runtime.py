@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import tempfile
 import unittest
 from pathlib import Path
@@ -8,11 +9,125 @@ from unittest.mock import MagicMock
 import duckdb
 
 from kg_build_system.workflow.executor import _configure_duckdb, _open_duckdb
-from kg_build_system.workflow.models import BuildRuntime
+from kg_build_system.modules.core.core import CoreExecutor
+from kg_build_system.modules.core.ir import (
+    RelationInstructionIR,
+    encode_core_instruction,
+)
+from kg_build_system.workflow.models import (
+    BuildRuntime,
+    ExecutionContext,
+    ModuleDefinition,
+    ModuleReference,
+    OutputSlot,
+    WorkflowStep,
+)
+from kg_build_system.workflow.models import ArtifactRole
 from kg_build_system.workflow.services import DuckDBRelationService, RelationRef
 
 
+def _materialized_backing(name: str) -> str:
+    return f"__kg_materialized_{name}"
+
+
 class DuckDBRuntimeConfigurationTests(unittest.TestCase):
+    def test_core_relations_use_lazy_views(self) -> None:
+        services = MagicMock()
+        services.relations.view.return_value = RelationRef("logical_values")
+        module = ModuleDefinition(ModuleReference(
+            module_id="core",
+            import_module="kg_build_system.modules.core.core",
+            class_qualname="CoreModule",
+            implementation_version="1",
+        ))
+        step = WorkflowStep(
+            step_id="core::projection.logical_values",
+            module_id="core",
+            outputs=(OutputSlot(
+                "core::projection.logical_values.output",
+                ArtifactRole("core", "data.projection.logical_values"),
+            ),),
+            payload=encode_core_instruction(RelationInstructionIR(
+                relation="logical_values",
+                sql="SELECT 1 AS value",
+            )),
+        )
+
+        outcome = asyncio.run(CoreExecutor().handle(ExecutionContext(
+            module=module,
+            step=step,
+            runtime_configuration={},
+            inputs={},
+            services=services,
+        )))
+
+        services.relations.view.assert_called_once_with(
+            "logical_values", "SELECT 1 AS value"
+        )
+        services.relations.materialize.assert_not_called()
+        self.assertEqual(
+            outcome.artifacts[0].value, RelationRef("logical_values")
+        )
+
+    def test_logical_views_remain_lazy(self) -> None:
+        connection = duckdb.connect()
+        connection.execute("CREATE TABLE source_values(value INTEGER)")
+        connection.execute("INSERT INTO source_values VALUES (1)")
+        relations = DuckDBRelationService(connection, checkpoint_on_step=False)
+
+        reference = relations.view(
+            "logical_values", "SELECT value FROM source_values"
+        )
+        connection.execute("INSERT INTO source_values VALUES (2)")
+
+        self.assertEqual(reference, RelationRef("logical_values"))
+        self.assertEqual(
+            connection.execute(
+                "SELECT value FROM logical_values ORDER BY value"
+            ).fetchall(),
+            [(1,), (2,)],
+        )
+        self.assertEqual(
+            connection.execute(
+                "SELECT view_name FROM duckdb_views() "
+                "WHERE view_name = 'logical_values'"
+            ).fetchall(),
+            [("logical_values",)],
+        )
+        connection.close()
+
+    def test_materialized_relations_are_exposed_through_stable_views(self) -> None:
+        connection = duckdb.connect()
+        connection.execute("CREATE TABLE source_values(value INTEGER)")
+        connection.execute("INSERT INTO source_values VALUES (1)")
+        relations = DuckDBRelationService(connection, checkpoint_on_step=False)
+
+        reference = relations.materialize(
+            "logical_values", "SELECT value FROM source_values"
+        )
+        connection.execute("INSERT INTO source_values VALUES (2)")
+
+        self.assertEqual(reference, RelationRef("logical_values"))
+        self.assertEqual(
+            connection.execute("SELECT value FROM logical_values").fetchall(),
+            [(1,)],
+        )
+        self.assertEqual(
+            connection.execute(
+                "SELECT table_name FROM duckdb_tables() WHERE table_name = ?",
+                [_materialized_backing("logical_values")],
+            ).fetchall(),
+            [(_materialized_backing("logical_values"),)],
+        )
+        self.assertEqual(
+            connection.execute(
+                "SELECT view_name FROM duckdb_views() "
+                "WHERE view_name = 'logical_values'"
+            ).fetchall(),
+            [("logical_values",)],
+        )
+        connection.close()
+
     def test_relation_service_checkpoints_once_per_step(self) -> None:
         connection = MagicMock()
         relations = DuckDBRelationService(connection, checkpoint_on_step=True)
@@ -36,7 +151,7 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "RelationRef"):
             relations.reference("untyped_relation")
 
-    def test_relation_query_does_not_allow_modules_to_bypass_materialization(self) -> None:
+    def test_relation_query_does_not_allow_modules_to_bypass_relation_lifecycle(self) -> None:
         relations = DuckDBRelationService(MagicMock(), checkpoint_on_step=True)
         with self.assertRaisesRegex(ValueError, "must not contain DDL"):
             relations.query("CREATE TEMP TABLE bypass AS SELECT 1")
@@ -81,7 +196,7 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
             self.assertEqual(reference, RelationRef("compressed_probe"))
             storage = connection.execute(
                 "SELECT DISTINCT compression, persistent "
-                "FROM pragma_storage_info('compressed_probe')"
+                f"FROM pragma_storage_info('{_materialized_backing('compressed_probe')}')"
             ).fetchall()
             self.assertTrue(all(persistent for _, persistent in storage))
             self.assertTrue(any(
@@ -119,7 +234,7 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
             relations.finish_step()
             compression = connection.execute(
                 "SELECT DISTINCT compression "
-                "FROM pragma_storage_info('uncompressed_probe')"
+                f"FROM pragma_storage_info('{_materialized_backing('uncompressed_probe')}')"
             ).fetchall()
             self.assertEqual(compression, [("Uncompressed",)])
         connection.close()
@@ -156,7 +271,7 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
             compression = {
                 value for value, in connection.execute(
                     "SELECT DISTINCT compression "
-                    "FROM pragma_storage_info('disk_probe')"
+                    f"FROM pragma_storage_info('{_materialized_backing('disk_probe')}')"
                 ).fetchall()
             }
             self.assertIn("Uncompressed", compression)
@@ -184,7 +299,7 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
             compression = {
                 value for value, in connection.execute(
                     "SELECT DISTINCT compression "
-                    "FROM pragma_storage_info('compressed_disk_probe')"
+                    f"FROM pragma_storage_info('{_materialized_backing('compressed_disk_probe')}')"
                 ).fetchall()
             }
             self.assertTrue(compression - {"Uncompressed", "Constant"})

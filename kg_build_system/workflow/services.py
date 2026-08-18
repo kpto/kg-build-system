@@ -66,9 +66,15 @@ class RelationService(Protocol):
 
     def reference(self, value: object) -> str: ...
 
+    def view(self, name: str, query: str) -> RelationRef:
+        """Expose a logical relation without materializing its query."""
+        ...
+
     def materialize(
         self, name: str, query: str, parameters: Sequence[object] = (),
-    ) -> RelationRef: ...
+    ) -> RelationRef:
+        """Expose a logical relation backed by a private materialized table."""
+        ...
 
     def query(
         self, query: str, parameters: Sequence[object] = (),
@@ -111,13 +117,25 @@ class DuckDBRelationService:
             raise TypeError("relational artifacts must contain RelationRef values")
         return _quote_identifier(value.name)
 
+    def view(self, name: str, query: str) -> RelationRef:
+        reference = RelationRef(name)
+        self._connection.execute(
+            f"CREATE VIEW {_quote_identifier(reference.name)} AS {query}"
+        )
+        return reference
+
     def materialize(
         self, name: str, query: str, parameters: Sequence[object] = (),
     ) -> RelationRef:
         reference = RelationRef(name)
+        backing_name = f"__kg_materialized_{reference.name}"
         self._connection.execute(
-            f"CREATE TABLE {_quote_identifier(reference.name)} AS {query}",
+            f"CREATE TABLE {_quote_identifier(backing_name)} AS {query}",
             list(parameters),
+        )
+        self._connection.execute(
+            f"CREATE VIEW {_quote_identifier(reference.name)} AS "
+            f"SELECT * FROM {_quote_identifier(backing_name)}"
         )
         self._dirty = True
         return reference

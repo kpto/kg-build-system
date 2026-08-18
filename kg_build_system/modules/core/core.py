@@ -372,8 +372,8 @@ class CoreExecutor(ModuleExecutor):
         if isinstance(instruction, AggregateInstructionIR):
             return self._aggregate(context, instruction)
         if isinstance(instruction, SourceRelationInstructionIR):
-            return self._materialize_source(context, instruction)
-        return self._materialize_relation(context, instruction)
+            return self._define_source(context, instruction)
+        return self._define_relation(context, instruction)
 
     @staticmethod
     def _aggregate(
@@ -389,22 +389,22 @@ class CoreExecutor(ModuleExecutor):
             f"SELECT * FROM {source}"
             for source in source_relations
         )
-        relation = context.services.relations.materialize(
+        relation = context.services.relations.view(
             instruction.relation, union_sql,
         )
         return CoreExecutor._success(context, relation)
 
     @staticmethod
-    def _materialize_relation(
+    def _define_relation(
         context: ExecutionContext, instruction: RelationInstructionIR,
     ) -> StepOutcome:
-        relation = context.services.relations.materialize(
+        relation = context.services.relations.view(
             instruction.relation, instruction.sql,
         )
         return CoreExecutor._success(context, relation)
 
     @staticmethod
-    def _materialize_source(
+    def _define_source(
         context: ExecutionContext, instruction: SourceRelationInstructionIR,
     ) -> StepOutcome:
         if instruction.credential_reference is not None:
@@ -421,7 +421,7 @@ class CoreExecutor(ModuleExecutor):
         }[instruction.format]
         location = instruction.location.replace("'", "''")
         sql = f"SELECT * FROM {scan_function}('{location}')"
-        return CoreExecutor._materialize_relation(
+        return CoreExecutor._define_relation(
             context,
             RelationInstructionIR(
                 relation=instruction.relation,

@@ -506,11 +506,13 @@ across every input slot is continuable; otherwise it calls `handle_disrupted`.
 Runtime services expose an executor-owned, DuckDB-specific relation service.
 This is a lifecycle boundary rather than an engine-neutral relational model:
 module compilers still emit DuckDB SQL, while module executors ask the service
-to materialize tables, run queries, export Parquet, and register filesystems.
-The service returns opaque runtime-only `RelationRef` values, owns identifier
-handling, and applies checkpoint and compression policy once per completed
-step. Modules never receive the unrestricted connection or the compression
-configuration.
+to define lazy views or materialized reuse boundaries, run queries, export
+Parquet, and register filesystems. The service returns opaque runtime-only
+`RelationRef` values that always identify public views. A materialized relation
+uses a private backing table hidden behind that view. The service owns identifier
+handling and applies checkpoint and compression policy once per completed step
+that created materialized backing. Modules never receive the unrestricted
+connection or the compression configuration.
 
 The executor may back the service with a compressed or uncompressed in-memory
 database using temporary storage, or with an ephemeral persistent database
