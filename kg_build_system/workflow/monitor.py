@@ -127,8 +127,6 @@ class RichWorkflowMonitor:
     ) -> None:
         """Set the safe runtime summary rendered beside overall progress."""
         with self._lock:
-            if self._live is not None:
-                raise RuntimeError("cannot change DuckDB settings while monitoring")
             summary = Text()
             summary.append("DuckDB ", style="bold")
             summary.append(storage, style="cyan")
@@ -139,6 +137,7 @@ class RichWorkflowMonitor:
             summary.append(" · threads ", style="dim")
             summary.append(str(threads) if threads is not None else "default")
             self._duckdb_settings = summary
+            self._refresh()
 
     def start(self, workflow: WorkflowDefinition) -> None:
         with self._lock:

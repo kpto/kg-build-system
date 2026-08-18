@@ -9,7 +9,9 @@ from unittest.mock import MagicMock
 
 import duckdb
 
-from kg_build_system.workflow.executor import _configure_duckdb, _open_duckdb
+from kg_build_system.workflow.executor import (
+    _configure_duckdb, _effective_duckdb_resources, _open_duckdb,
+)
 from kg_build_system.modules.core.core import CoreExecutor
 from kg_build_system.modules.core.ir import (
     RelationInstructionIR,
@@ -254,6 +256,9 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
             ).fetchall())
             self.assertEqual(settings["memory_limit"], "256.0 MiB")
             self.assertEqual(settings["threads"], "1")
+            self.assertEqual(
+                _effective_duckdb_resources(connection), ("256.0 MiB", 1),
+            )
             self.assertEqual(
                 Path(settings["temp_directory"]).resolve(),
                 temporary_directory.resolve(),

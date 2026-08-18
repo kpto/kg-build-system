@@ -180,6 +180,15 @@ def _configure_duckdb(
         raise ValueError("duckdb_storage must be 'memory' or 'disk'")
 
 
+def _effective_duckdb_resources(connection: Any) -> tuple[str, int]:
+    """Read DuckDB's normalized effective resource settings."""
+    settings = dict(connection.execute(
+        "SELECT name, value FROM duckdb_settings() "
+        "WHERE name IN ('memory_limit', 'threads')"
+    ).fetchall())
+    return str(settings["memory_limit"]), int(settings["threads"])
+
+
 def _build(
     contract: WorkflowContractIR, runtime: BuildRuntime,
     monitor: WorkflowExecutionMonitor,
@@ -209,6 +218,14 @@ def _build(
       except BaseException:
           connection.close()
           raise
+      if isinstance(monitor, RichWorkflowMonitor):
+          memory_limit, threads = _effective_duckdb_resources(connection)
+          monitor.set_duckdb_settings(
+              storage=runtime.duckdb_storage,
+              compression=runtime.duckdb_compression,
+              memory_limit=memory_limit,
+              threads=threads,
+          )
       relations = DuckDBRelationService(
           connection,
           checkpoint_on_step=(
@@ -424,13 +441,6 @@ def build(
         contract.model_dump_json(indent=2), encoding="utf-8",
     )
     execution_monitor = _resolve_monitor(monitor)
-    if isinstance(execution_monitor, RichWorkflowMonitor):
-        execution_monitor.set_duckdb_settings(
-            storage=configured.duckdb_storage,
-            compression=configured.duckdb_compression,
-            memory_limit=configured.duckdb_memory_limit,
-            threads=configured.duckdb_threads,
-        )
     workflow = workflow_from_ir(contract.workflow)
     execution_monitor.start(workflow)
     try:

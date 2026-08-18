@@ -343,6 +343,23 @@ class WorkflowRuntimeTests(unittest.TestCase):
         rendered = output.getvalue()
         self.assertIn("Halted 1/1 steps", rendered)
 
+    def test_build_monitor_shows_effective_default_duckdb_resources(self) -> None:
+        output = StringIO()
+        console = Console(
+            file=output, force_terminal=False, color_system=None, width=160,
+        )
+        monitor = RichWorkflowMonitor(console=console)
+        with tempfile.TemporaryDirectory() as directory:
+            build(
+                _contract(), output_directory=Path(directory), monitor=monitor,
+            )
+
+        rendered = output.getvalue()
+        self.assertNotIn("memory default", rendered)
+        self.assertNotIn("threads default", rendered)
+        self.assertRegex(rendered, r"memory [0-9.]+ [A-Za-z]+")
+        self.assertRegex(rendered, r"threads [1-9][0-9]*")
+
     def test_rich_monitor_prioritizes_active_and_recent_steps_in_fixed_view(self) -> None:
         output = StringIO()
         console = Console(
