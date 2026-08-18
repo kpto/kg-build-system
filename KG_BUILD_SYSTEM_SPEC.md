@@ -492,19 +492,23 @@ option schemas are opaque to the blueprint and workflow contract. The module
 owning a credentialed execution instruction defines and validates those
 runtime-only options; resolved values never enter the contract.
 
-Runtime relational intermediates live in a compressed in-memory DuckDB
-database. The executor owns a DuckDB relation service that materializes
-persistent tables, returns opaque runtime-only `RelationRef` values, and
-checkpoints once after each step that created relations. Modules request
-materialization and use the service for queries, Parquet export, and filesystem
-registration; compression and storage lifecycle policy do not leak into module
-implementations. DuckDB applies lightweight column compression to checkpointed
-tables and spills constrained data into the build's temporary directory.
-`BuildRuntime.duckdb_memory_limit`
-accepts DuckDB size strings such as `"4GiB"`; when omitted, DuckDB retains its
-platform-derived default memory limit. `BuildRuntime.duckdb_compression`
-controls in-memory table compression and defaults to `True`.
-`BuildRuntime.duckdb_threads` continues to control query parallelism.
+The executor owns a DuckDB relation service that materializes persistent
+tables, returns opaque runtime-only `RelationRef` values, and checkpoints once
+after each step that created relations. Modules request materialization and use
+the service for queries, Parquet export, and filesystem registration; storage
+lifecycle policy does not leak into module implementations.
+
+`BuildRuntime` exposes four DuckDB controls:
+
+- `duckdb_storage` is `"memory"` by default. In-memory databases and their spill
+  files use the build's temporary directory. `"disk"` opens an ephemeral
+  database and places spill files beneath the working directory for the build's
+  duration.
+- `duckdb_compression` defaults to `True` and controls lightweight column
+  compression in either storage mode.
+- `duckdb_memory_limit` accepts DuckDB size strings such as `"4GiB"`; when
+  omitted, DuckDB retains its platform-derived default memory limit.
+- `duckdb_threads` controls query parallelism when supplied.
 
 The Neo4j target consumes terminal graph-record artifacts and writes one
 Parquet file per node or edge component. Parquet column names contain the

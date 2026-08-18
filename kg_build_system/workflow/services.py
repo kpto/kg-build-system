@@ -101,9 +101,9 @@ def _require_query(sql: str) -> None:
 class DuckDBRelationService:
     """DuckDB-backed relation lifecycle controlled by the executor."""
 
-    def __init__(self, connection: Any, *, compression: bool) -> None:
+    def __init__(self, connection: Any, *, checkpoint_on_step: bool) -> None:
         self._connection = connection
-        self._compression = compression
+        self._checkpoint_on_step = checkpoint_on_step
         self._dirty = False
 
     def reference(self, value: object) -> str:
@@ -141,7 +141,7 @@ class DuckDBRelationService:
 
     def finish_step(self) -> None:
         """Apply storage policy once after all materializations in a step."""
-        if self._dirty and self._compression:
+        if self._dirty and self._checkpoint_on_step:
             self._connection.execute("CHECKPOINT")
         self._dirty = False
 

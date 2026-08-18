@@ -27,6 +27,7 @@ from .services import (
 _LOGGER = logging.getLogger("kg_build_system.workflow.execution")
 _LOGGER.addHandler(logging.NullHandler())
 _DUCKDB_BUILD_DATABASE = "kg_build_memory"
+_DUCKDB_BUILD_FILENAME = "kg_build.duckdb"
 
 
 class _MonitorLogger:
@@ -132,10 +133,21 @@ def _validate_runtime_configuration(
         )
 
 
+def _open_duckdb(
+    duckdb: Any, runtime: BuildRuntime, storage_directory: Path,
+) -> Any:
+    """Open the configured in-memory or working-directory database."""
+    if runtime.duckdb_storage == "memory":
+        return duckdb.connect()
+    if runtime.duckdb_storage == "disk":
+        return duckdb.connect(str(storage_directory / _DUCKDB_BUILD_FILENAME))
+    raise ValueError("duckdb_storage must be 'memory' or 'disk'")
+
+
 def _configure_duckdb(
-    connection: Any, runtime: BuildRuntime, temporary_directory: Path,
+    connection: Any, runtime: BuildRuntime, storage_directory: Path,
 ) -> None:
-    """Configure bounded, compressed in-memory storage for one build."""
+    """Configure resource limits and storage policy for one build."""
     if runtime.duckdb_threads is not None:
         if runtime.duckdb_threads < 1:
             raise ValueError("duckdb_threads must be at least one")
@@ -154,13 +166,19 @@ def _configure_duckdb(
         raise TypeError("duckdb_compression must be a boolean")
 
     connection.execute(
-        "SET temp_directory = ?", [temporary_directory.resolve().as_posix()]
+        "SET temp_directory = ?", [storage_directory.resolve().as_posix()]
     )
-    compression = " (COMPRESS)" if runtime.duckdb_compression else ""
-    connection.execute(
-        f"ATTACH ':memory:' AS {_DUCKDB_BUILD_DATABASE}{compression}"
-    )
-    connection.execute(f"USE {_DUCKDB_BUILD_DATABASE}")
+    if runtime.duckdb_storage == "memory":
+        compression = " (COMPRESS)" if runtime.duckdb_compression else ""
+        connection.execute(
+            f"ATTACH ':memory:' AS {_DUCKDB_BUILD_DATABASE}{compression}"
+        )
+        connection.execute(f"USE {_DUCKDB_BUILD_DATABASE}")
+    elif runtime.duckdb_storage == "disk":
+        if not runtime.duckdb_compression:
+            connection.execute("PRAGMA force_compression = 'uncompressed'")
+    else:
+        raise ValueError("duckdb_storage must be 'memory' or 'disk'")
 
 
 async def _build(
@@ -171,7 +189,6 @@ async def _build(
         import duckdb
     except ImportError as error:
         raise RuntimeError("DuckDB is required to execute builds") from error
-    connection = duckdb.connect()
     workflow = workflow_from_ir(contract.workflow)
 
     working_directory = runtime.working_directory or runtime.output_directory
@@ -179,10 +196,22 @@ async def _build(
       temporary_directory = resources.enter_context(
           TemporaryDirectory(dir=runtime.temporary_directory)
       )
+      if runtime.duckdb_storage == "disk":
+          storage_directory = Path(resources.enter_context(
+              TemporaryDirectory(
+                  prefix=".kg-build-duckdb-", dir=working_directory,
+              )
+          ))
+      else:
+          storage_directory = Path(temporary_directory)
+      connection = _open_duckdb(duckdb, runtime, storage_directory)
       resources.callback(connection.close)
-      _configure_duckdb(connection, runtime, Path(temporary_directory))
+      _configure_duckdb(connection, runtime, storage_directory)
       relations = DuckDBRelationService(
-          connection, compression=runtime.duckdb_compression,
+          connection,
+          checkpoint_on_step=(
+              runtime.duckdb_compression or runtime.duckdb_storage == "disk"
+          ),
       )
       services = ExecutionServices(
           relations=relations,

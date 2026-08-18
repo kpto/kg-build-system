@@ -512,6 +512,11 @@ handling, and applies checkpoint and compression policy once per completed
 step. Modules never receive the unrestricted connection or the compression
 configuration.
 
+The executor may back the service with a compressed or uncompressed in-memory
+database using temporary storage, or with an ephemeral persistent database
+using working storage. Runtime memory limits and thread counts apply to either
+mode.
+
 `output_storage` is the publication root supplied at runtime. Target modules
 write published files beneath it using relative paths. `working_storage` is a
 separate root for durable intermediate artifacts and defaults to the output

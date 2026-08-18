@@ -7,8 +7,8 @@ from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 from kg_build_system import (
-    Array, DataSourceConfig, Field, InputFormat, Node, Projection, PropertySlot,
-    Struct, Table, bind_source, build, compile, create_blueprint,
+    Array, BuildRuntime, DataSourceConfig, Field, InputFormat, Node, Projection,
+    PropertySlot, Struct, Table, bind_source, build, compile, create_blueprint,
     field, node_binding, projection_field, property,
 )
 from kg_build_system.modules import (
@@ -199,6 +199,10 @@ class RelationalLoweringTests(unittest.TestCase):
             )
             report = build(
                 contract,
+                BuildRuntime(
+                    duckdb_storage="disk",
+                    working_directory=root / "working",
+                ),
                 output_directory=root / "output",
             )
             self.assertTrue(report.succeeded)
@@ -208,6 +212,9 @@ class RelationalLoweringTests(unittest.TestCase):
             ]
             self.assertEqual(sorted(row["label"] for row in rows), ["one!", "two!"])
             self.assertEqual(len(report.published_artifacts), 1)
+            self.assertEqual(
+                tuple((root / "working").glob(".kg-build-duckdb-*")), ()
+            )
 
     def test_global_assembly_connects_a_target_to_the_terminal_graph_records(self) -> None:
         source = bind_source(
