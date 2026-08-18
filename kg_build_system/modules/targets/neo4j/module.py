@@ -16,6 +16,7 @@ from ....topology.ir import ComponentIR
 from ....workflow.interfaces import ModuleExecutor
 from ....workflow.models import (
     Artifact,
+    ArtifactRole,
     CollectionInputSlot,
     DisruptedExecutionContext,
     ExecutionContext,
@@ -24,6 +25,7 @@ from ....workflow.models import (
     ModuleReference,
     OutputSlot,
     RuntimeFieldDefinition,
+    SingleInputSlot,
     StepOutcome,
     StepStatus,
     WorkflowArtifactRoles,
@@ -36,8 +38,9 @@ from ...core import CoreArtifactRoles
 from .ir import (
     Neo4jComponentImportIR,
     Neo4jEdgeImportIR,
+    Neo4jExportInstructionIR,
     Neo4jNodeImportIR,
-    Neo4jWriteInstructionIR,
+    Neo4jScriptInstructionIR,
     decode_neo4j_instruction,
     encode_neo4j_instruction,
 )
@@ -45,6 +48,7 @@ from .script import render_import_script
 
 
 _HEADER_CONTROL = frozenset(":{}\r\n")
+_MODULE_ID = "neo4j"
 _RESERVED_PROPERTIES = frozenset({
     "build_key", "source_build_key", "target_build_key", "_kg_binding_symbol",
 })
@@ -76,6 +80,20 @@ def _component_stem(component: ComponentIR) -> str:
 def _id_space(component: ComponentIR) -> str:
     digest = sha256(component.symbol_id.encode("utf-8")).hexdigest()[:16]
     return f"kg_{digest}"
+
+
+def _component_export_role(
+    specification: Neo4jComponentImportIR,
+) -> ArtifactRole:
+    return ArtifactRole(
+        namespace=_MODULE_ID,
+        name=f"component.{specification.kind}.{specification.symbol_id}",
+    )
+
+
+def _component_step_key(specification: Neo4jComponentImportIR) -> str:
+    stem = PurePosixPath(specification.relative_path).stem
+    return f"{specification.kind}.{stem}"
 
 
 def _annotation_label(component: ComponentIR) -> str:
@@ -150,12 +168,20 @@ class Neo4jModuleConfiguration(ModuleRegistrationConfiguration):
             raise ValueError("Neo4j default database must be non-empty")
 
 
+@dataclass(frozen=True, slots=True)
+class Neo4jComponentExport:
+    kind: Literal["node", "edge"]
+    component: str
+    relative_path: str
+    rows: int
+
+
 @dataclass(frozen=True)
 class Neo4jModule(Module):
     configuration: Neo4jModuleConfiguration
 
-    ID: ClassVar[str] = "neo4j"
-    VERSION: ClassVar[str] = "1"
+    ID: ClassVar[str] = _MODULE_ID
+    VERSION: ClassVar[str] = "2"
     CONFIGURATION_TYPE: ClassVar[type[Neo4jModuleConfiguration]] = (
         Neo4jModuleConfiguration
     )
@@ -176,22 +202,6 @@ class Neo4jModule(Module):
         self, context: CompilationContext[Any],
     ) -> WorkflowContribution:
         components = self._component_imports(context)
-        records = CollectionInputSlot(slot_id="neo4j::write.records")
-        result = OutputSlot(
-            slot_id="neo4j::write.result",
-            artifact_role=WorkflowArtifactRoles.published(self.ID, "import_bundle"),
-        )
-        step = WorkflowStep(
-            step_id="neo4j::write",
-            module_id=self.ID,
-            inputs=(records,),
-            outputs=(result,),
-            payload=encode_neo4j_instruction(Neo4jWriteInstructionIR(
-                components=components,
-                script_name=self.configuration.script_name,
-                default_database=self.configuration.default_database,
-            )),
-        )
         definition = ModuleDefinition(
             reference=ModuleReference(
                 module_id=self.ID,
@@ -212,17 +222,74 @@ class Neo4jModule(Module):
                 required=False,
             ),),
         )
+        exports = tuple(
+            self._component_export_step(component) for component in components
+        )
         return WorkflowContribution(
             definition,
-            (WorkflowStepDraft(
-                definition=step,
-                assembly_preference="deferred",
-                candidates={
-                    records.slot_id: lambda _input, output: (
-                        CoreArtifactRoles.is_graph_records(output.artifact_role)
-                    )
-                },
-            ),),
+            (*exports, self._script_step(components)),
+        )
+
+    @classmethod
+    def _component_export_step(
+        cls, component: Neo4jComponentImportIR,
+    ) -> WorkflowStepDraft:
+        key = _component_step_key(component)
+        records = SingleInputSlot(slot_id=f"neo4j::export.{key}.records")
+        output = OutputSlot(
+            slot_id=f"neo4j::export.{key}.result",
+            artifact_role=_component_export_role(component),
+        )
+        step = WorkflowStep(
+            step_id=f"neo4j::export.{key}",
+            module_id=cls.ID,
+            inputs=(records,),
+            outputs=(output,),
+            payload=encode_neo4j_instruction(Neo4jExportInstructionIR(
+                component=component,
+            )),
+        )
+        expected_role = CoreArtifactRoles.graph_records(
+            component.kind, component.component,
+        )
+        return WorkflowStepDraft(
+            definition=step,
+            assembly_preference="deferred",
+            candidates={
+                records.slot_id: lambda _input, candidate, role=expected_role: (
+                    candidate.artifact_role == role
+                )
+            },
+        )
+
+    def _script_step(
+        self, components: tuple[Neo4jComponentImportIR, ...],
+    ) -> WorkflowStepDraft:
+        inputs = CollectionInputSlot(slot_id="neo4j::script.components")
+        output = OutputSlot(
+            slot_id="neo4j::script.result",
+            artifact_role=WorkflowArtifactRoles.published(self.ID, "import_bundle"),
+        )
+        step = WorkflowStep(
+            step_id="neo4j::script",
+            module_id=self.ID,
+            inputs=(inputs,),
+            outputs=(output,),
+            payload=encode_neo4j_instruction(Neo4jScriptInstructionIR(
+                components=components,
+                script_name=self.configuration.script_name,
+                default_database=self.configuration.default_database,
+            )),
+        )
+        roles = frozenset(_component_export_role(item) for item in components)
+        return WorkflowStepDraft(
+            definition=step,
+            assembly_preference="deferred",
+            candidates={
+                inputs.slot_id: lambda _input, candidate, expected=roles: (
+                    candidate.artifact_role in expected
+                )
+            },
         )
 
     @staticmethod
@@ -294,54 +361,101 @@ class Neo4jExecutor(ModuleExecutor):
 
     async def handle(self, context: ExecutionContext) -> StepOutcome:
         instruction = decode_neo4j_instruction(context.step.payload)
-        relative_directory = self._relative_directory(context)
-        bundle_path = context.services.output_storage.child(
-            PurePosixPath(relative_directory)
-        )
+        bundle_path = context.services.output_storage.child(PurePosixPath(
+            self._relative_directory(context)
+        ))
         bundle_path.mkdir(parents=True, exist_ok=True)
+        if isinstance(instruction, Neo4jExportInstructionIR):
+            return self._export_component(context, bundle_path, instruction)
+        return self._write_script(context, bundle_path, instruction)
 
-        specifications = {
+    @staticmethod
+    def _export_component(
+        context: ExecutionContext,
+        bundle_path: Path,
+        instruction: Neo4jExportInstructionIR,
+    ) -> StepOutcome:
+        specification = instruction.component
+        artifacts = tuple(
+            contribution.artifact
+            for contributions in context.inputs.values()
+            for contribution in contributions
+            if contribution.artifact is not None
+        )
+        if len(artifacts) != 1:
+            raise RuntimeError(
+                f"Neo4j component export {specification.component!r} requires "
+                "exactly one graph-record artifact"
+            )
+        artifact = artifacts[0]
+        identity = CoreArtifactRoles.graph_record_identity(artifact.role)
+        if (
+            identity is None
+            or identity.kind != specification.kind
+            or identity.component != specification.component
+        ):
+            raise RuntimeError(
+                f"unexpected graph-record artifact for {specification.component!r}"
+            )
+        if not isinstance(artifact.value, RelationRef):
+            raise TypeError("graph-record artifacts must contain RelationRef values")
+
+        relation_sql = context.services.relations.reference(artifact.value)
+        output_path = bundle_path.joinpath(
+            *PurePosixPath(specification.relative_path).parts
+        )
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+        context.services.relations.export_parquet(
+            Neo4jExecutor._select_sql(specification, relation_sql), output_path,
+        )
+        count = context.services.relations.query(
+            "SELECT count(*) FROM read_parquet(?)", [str(output_path)]
+        ).fetchone()[0]
+        result = Neo4jComponentExport(
+            kind=specification.kind,
+            component=specification.component,
+            relative_path=specification.relative_path,
+            rows=int(count),
+        )
+        output = context.step.outputs[0]
+        return StepOutcome(
+            context.step.step_id,
+            context.step.module_id,
+            StepStatus.SUCCEEDED,
+            (Artifact(output.slot_id, output.artifact_role, result),),
+        )
+
+    @staticmethod
+    def _write_script(
+        context: ExecutionContext,
+        bundle_path: Path,
+        instruction: Neo4jScriptInstructionIR,
+    ) -> StepOutcome:
+        expected = {
             (item.kind, item.component): item for item in instruction.components
         }
-        relations: dict[tuple[str, str], RelationRef] = {}
+        exports: dict[tuple[str, str], Neo4jComponentExport] = {}
         for contributions in context.inputs.values():
             for contribution in contributions:
                 artifact = contribution.artifact
                 if artifact is None:
                     continue
-                identity = CoreArtifactRoles.graph_record_identity(artifact.role)
-                if identity is None:
-                    continue
-                key = (identity.kind, identity.component)
-                if key not in specifications:
-                    continue
-                if key in relations:
-                    raise RuntimeError(f"multiple graph-record artifacts supplied for {key}")
-                if not isinstance(artifact.value, RelationRef):
-                    raise TypeError("graph-record artifacts must contain RelationRef values")
-                relations[key] = artifact.value
+                if not isinstance(artifact.value, Neo4jComponentExport):
+                    raise TypeError(
+                        "Neo4j script inputs must contain component export results"
+                    )
+                result = artifact.value
+                key = (result.kind, result.component)
+                if key not in expected or result.relative_path != expected[key].relative_path:
+                    raise RuntimeError(f"unexpected Neo4j component export {key}")
+                if key in exports:
+                    raise RuntimeError(f"duplicate Neo4j component export {key}")
+                exports[key] = result
 
-        missing = set(specifications) - set(relations)
+        missing = set(expected) - set(exports)
         if missing:
             names = ", ".join(f"{kind}:{name}" for kind, name in sorted(missing))
-            raise RuntimeError(f"missing graph-record artifacts for {names}")
-
-        counts: dict[Literal["node", "edge"], int] = {"node": 0, "edge": 0}
-        for key, specification in specifications.items():
-            relation = relations[key]
-            relation_sql = context.services.relations.reference(relation)
-            output_path = bundle_path.joinpath(
-                *PurePosixPath(specification.relative_path).parts
-            )
-            output_path.parent.mkdir(parents=True, exist_ok=True)
-            select_sql = self._select_sql(specification, relation_sql)
-            context.services.relations.export_parquet(
-                select_sql, output_path,
-            )
-            count = context.services.relations.query(
-                f"SELECT count(*) FROM {relation_sql}"
-            ).fetchone()[0]
-            counts[specification.kind] += int(count)
+            raise RuntimeError(f"missing Neo4j component exports for {names}")
 
         node_paths = tuple(
             item.relative_path for item in instruction.components if item.kind == "node"
@@ -358,6 +472,9 @@ class Neo4jExecutor(ModuleExecutor):
         if os.name != "nt":
             script_path.chmod(script_path.stat().st_mode | 0o111)
 
+        counts: dict[Literal["node", "edge"], int] = {"node": 0, "edge": 0}
+        for result in exports.values():
+            counts[result.kind] += result.rows
         summary = {
             "directory": str(bundle_path),
             "script": str(script_path),

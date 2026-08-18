@@ -38,7 +38,11 @@ from kg_build_system.modules import (
     Neo4jModuleConfiguration,
     register_module,
 )
-from kg_build_system.modules.targets.neo4j.ir import decode_neo4j_instruction
+from kg_build_system.modules.targets.neo4j.ir import (
+    Neo4jExportInstructionIR,
+    Neo4jScriptInstructionIR,
+    decode_neo4j_instruction,
+)
 
 
 class Neo4jInput(Table):
@@ -137,13 +141,18 @@ class LabelAnnotationTests(unittest.TestCase):
             sources=(_source(Path("input.json")),),
             modules=(register_module(Neo4jModule),),
         )
-        step = next(
-            item for item in contract.workflow.steps
-            if item.step_id == "neo4j::write"
+        instructions = tuple(
+            instruction
+            for step in contract.workflow.steps
+            if step.module_id == Neo4jModule.ID
+            for instruction in (decode_neo4j_instruction(step.payload),)
+            if isinstance(instruction, Neo4jExportInstructionIR)
         )
-        instruction = decode_neo4j_instruction(step.payload)
         self.assertEqual(
-            {item.kind: item.label for item in instruction.components},
+            {
+                instruction.component.kind: instruction.component.label
+                for instruction in instructions
+            },
             {"node": "ENTITY", "edge": "IS_A"},
         )
 
@@ -169,6 +178,72 @@ class LabelAnnotationTests(unittest.TestCase):
 
 
 class Neo4jTargetTests(unittest.TestCase):
+    def test_compiles_one_export_per_component_then_the_script(self) -> None:
+        contract = compile(
+            bindings=(person_binding, knows_binding),
+            sources=(_source(Path("input.json")),),
+            modules=(register_module(Neo4jModule),),
+        )
+        neo4j_steps = tuple(
+            step for step in contract.workflow.steps
+            if step.module_id == Neo4jModule.ID
+        )
+        export_steps = tuple(
+            step for step in neo4j_steps
+            if isinstance(
+                decode_neo4j_instruction(step.payload),
+                Neo4jExportInstructionIR,
+            )
+        )
+        export_instructions = tuple(
+            instruction
+            for step in export_steps
+            for instruction in (decode_neo4j_instruction(step.payload),)
+            if isinstance(instruction, Neo4jExportInstructionIR)
+        )
+        script_step = neo4j_steps[-1]
+        script_instruction = decode_neo4j_instruction(script_step.payload)
+
+        self.assertEqual(len(export_steps), 2)
+        self.assertEqual(
+            {
+                instruction.component.component
+                for instruction in export_instructions
+            },
+            {"person", "knows"},
+        )
+        self.assertEqual(script_step.step_id, "neo4j::script")
+        self.assertIsInstance(script_instruction, Neo4jScriptInstructionIR)
+
+        output_owner = {
+            output.slot_id: step.step_id
+            for step in contract.workflow.steps
+            for output in step.outputs
+        }
+        export_dependencies = {
+            step.step_id: {
+                output_owner[connection.output_slot_id]
+                for connection in contract.workflow.connections
+                if connection.input_slot_id == step.inputs[0].slot_id
+            }
+            for step in export_steps
+        }
+        self.assertTrue(all(
+            len(dependencies) == 1
+            and next(iter(dependencies)).startswith("core::aggregate.")
+            for dependencies in export_dependencies.values()
+        ))
+        script_input = script_step.inputs[0].slot_id
+        script_dependencies = {
+            output_owner[connection.output_slot_id]
+            for connection in contract.workflow.connections
+            if connection.input_slot_id == script_input
+        }
+        self.assertEqual(
+            script_dependencies,
+            {step.step_id for step in export_steps},
+        )
+
     def test_writes_import_header_parquet_and_standalone_script(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)

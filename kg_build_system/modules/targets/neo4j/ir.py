@@ -35,33 +35,49 @@ Neo4jComponentImportIR: TypeAlias = Annotated[
 ]
 
 
-class Neo4jWriteInstructionIR(BaseModel):
+class Neo4jExportInstructionIR(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid")
 
+    action: Literal["export_component"] = "export_component"
+    component: Neo4jComponentImportIR
+
+
+class Neo4jScriptInstructionIR(BaseModel):
+    model_config = ConfigDict(frozen=True, extra="forbid")
+
+    action: Literal["write_script"] = "write_script"
     components: tuple[Neo4jComponentImportIR, ...]
     script_name: str = Field(min_length=1)
     default_database: str = Field(min_length=1)
 
 
-_INSTRUCTION_ADAPTER = TypeAdapter(Neo4jWriteInstructionIR)
+Neo4jInstructionIR: TypeAlias = Annotated[
+    Neo4jExportInstructionIR | Neo4jScriptInstructionIR,
+    Field(discriminator="action"),
+]
 
 
-def decode_neo4j_instruction(value: object) -> Neo4jWriteInstructionIR:
+_INSTRUCTION_ADAPTER = TypeAdapter(Neo4jInstructionIR)
+
+
+def decode_neo4j_instruction(value: object) -> Neo4jInstructionIR:
     value = thaw_json(value)  # type: ignore[arg-type]
     if not isinstance(value, Mapping):
         raise ValueError("Neo4j workflow steps require an object payload")
     return _INSTRUCTION_ADAPTER.validate_python(value)
 
 
-def encode_neo4j_instruction(value: Neo4jWriteInstructionIR) -> FrozenJson:
+def encode_neo4j_instruction(value: Neo4jInstructionIR) -> FrozenJson:
     return freeze_json(value.model_dump(mode="json"))
 
 
 __all__ = [
     "Neo4jComponentImportIR",
     "Neo4jEdgeImportIR",
+    "Neo4jExportInstructionIR",
+    "Neo4jInstructionIR",
     "Neo4jNodeImportIR",
-    "Neo4jWriteInstructionIR",
+    "Neo4jScriptInstructionIR",
     "decode_neo4j_instruction",
     "encode_neo4j_instruction",
 ]

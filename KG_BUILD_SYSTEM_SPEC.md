@@ -516,13 +516,15 @@ not leak into consuming module implementations.
   omitted, DuckDB retains its platform-derived default memory limit.
 - `duckdb_threads` controls query parallelism when supplied.
 
-The Neo4j target consumes terminal graph-record artifacts and writes one
-Parquet file per node or edge component. Parquet column names contain the
-`neo4j-admin database import` headers directly: node IDs use stable
-per-component ID spaces, edge endpoints reference those spaces, and component
-labels are written as `:LABEL` or `:TYPE`. The bundle also contains a
-standalone Python script that locates a local `neo4j-admin` executable and runs
-a full Parquet import without requiring this package at import time.
+The Neo4j target creates one export step per bound node or edge component. Each
+step consumes exactly that component's terminal graph-record artifact and writes
+one Parquet file. Parquet column names contain the `neo4j-admin database import`
+headers directly: node IDs use stable per-component ID spaces, edge endpoints
+reference those spaces, and component labels are written as `:LABEL` or
+`:TYPE`. A final script step depends on every component export, aggregates their
+row counts, publishes the bundle summary, and writes a standalone Python script
+that locates a local `neo4j-admin` executable and runs a full Parquet import
+without requiring this package at import time.
 
 ## 13. Edit-time generated packages
 
