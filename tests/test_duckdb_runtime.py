@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import asyncio
 import tempfile
 import unittest
 from pathlib import Path
@@ -53,13 +52,13 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
             )),
         )
 
-        outcome = asyncio.run(CoreExecutor().handle(ExecutionContext(
+        outcome = CoreExecutor().handle(ExecutionContext(
             module=module,
             step=step,
             runtime_configuration={},
             inputs={},
             services=services,
-        )))
+        ))
 
         services.relations.view.assert_called_once_with(
             "logical_values", "SELECT 1 AS value"

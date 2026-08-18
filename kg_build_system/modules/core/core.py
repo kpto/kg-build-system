@@ -360,14 +360,14 @@ class CoreModule(Module):
         return CoreCompiler()
 
     @classmethod
-    async def create_executor(
+    def create_executor(
         cls, context: ExecutorFactoryContext,
     ) -> ModuleExecutor:
         return CoreExecutor()
 
 
 class CoreExecutor(ModuleExecutor):
-    async def handle(self, context: ExecutionContext) -> StepOutcome:
+    def handle(self, context: ExecutionContext) -> StepOutcome:
         instruction = decode_core_instruction(context.step.payload)
         if isinstance(instruction, AggregateInstructionIR):
             return self._aggregate(context, instruction)
@@ -440,7 +440,7 @@ class CoreExecutor(ModuleExecutor):
             artifacts=(artifact,),
         )
 
-    async def handle_disrupted(
+    def handle_disrupted(
         self, context: DisruptedExecutionContext,
     ) -> StepOutcome:
-        return await super().handle_disrupted(context)
+        return super().handle_disrupted(context)

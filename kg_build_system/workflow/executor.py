@@ -1,7 +1,6 @@
 """Execute frozen workflow contracts through importable workflow modules."""
 from __future__ import annotations
 
-import asyncio
 import importlib
 import json
 import logging
@@ -181,7 +180,7 @@ def _configure_duckdb(
         raise ValueError("duckdb_storage must be 'memory' or 'disk'")
 
 
-async def _build(
+def _build(
     contract: WorkflowContractIR, runtime: BuildRuntime,
     monitor: WorkflowExecutionMonitor,
 ) -> WorkflowReport:
@@ -246,7 +245,7 @@ async def _build(
         factory_context = ExecutorFactoryContext(
             module, configuration, module_services,
         )
-        executors[reference.module_id] = await cls.create_executor(factory_context)
+        executors[reference.module_id] = cls.create_executor(factory_context)
 
       output_owner = {slot.slot_id: step.step_id for step in workflow.steps for slot in step.outputs}
       incoming: dict[str, list[str]] = defaultdict(list)
@@ -305,11 +304,11 @@ async def _build(
             try:
                 if disruptions:
                     context = DisruptedExecutionContext(definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), inputs, tuple(disruptions), step_services)
-                    outcome = await executors[step.module_id].handle_disrupted(context)
+                    outcome = executors[step.module_id].handle_disrupted(context)
                 else:
                     continuable_inputs = {slot_id: tuple(item for item in values if isinstance(item, ContinuableInput)) for slot_id, values in inputs.items()}
                     context = ExecutionContext(definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), continuable_inputs, step_services)
-                    outcome = await executors[step.module_id].handle(context)
+                    outcome = executors[step.module_id].handle(context)
                 relations.finish_step()
             except Exception as error:
                 step_services.logger.error(
@@ -431,7 +430,7 @@ def build(
     workflow = workflow_from_ir(contract.workflow)
     execution_monitor.start(workflow)
     try:
-        report = asyncio.run(_build(contract, configured, execution_monitor))
+        report = _build(contract, configured, execution_monitor)
     except Exception as error:
         execution_monitor.log(
             "ERROR", f"Workflow execution stopped: {type(error).__name__}: {error}",

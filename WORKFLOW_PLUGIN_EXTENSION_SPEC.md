@@ -243,11 +243,11 @@ class ModuleCompiler(Protocol):
 
 
 class ModuleExecutor(ABC):
-    async def handle(
+    def handle(
         self, context: ExecutionContext,
     ) -> StepOutcome: ...
 
-    async def handle_disrupted(
+    def handle_disrupted(
         self, context: DisruptedExecutionContext,
     ) -> StepOutcome: ...
 
@@ -263,7 +263,7 @@ class Module(ABC):
     ) -> ModuleCompiler: ...
 
     @classmethod
-    async def create_executor(
+    def create_executor(
         cls, context: ExecutorFactoryContext,
     ) -> ModuleExecutor: ...
 

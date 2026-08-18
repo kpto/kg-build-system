@@ -48,7 +48,7 @@ class MergeCompatibleFactsModule(Module):
         return cls(context.configuration)
 
     @classmethod
-    async def create_executor(
+    def create_executor(
         cls, context: ExecutorFactoryContext,
     ) -> ModuleExecutor:
         return _Executor()
@@ -105,7 +105,7 @@ class MergeCompatibleFactsModule(Module):
 
 
 class _Executor(ModuleExecutor):
-    async def handle(self, context: ExecutionContext) -> StepOutcome:
+    def handle(self, context: ExecutionContext) -> StepOutcome:
         payload = thaw_json(context.step.payload)  # type: ignore[arg-type]
         if not isinstance(payload, dict):
             raise ValueError("fact merging requires an object payload")
@@ -143,7 +143,7 @@ class _Executor(ModuleExecutor):
             (artifact,),
         )
 
-    async def handle_disrupted(
+    def handle_disrupted(
         self, context: DisruptedExecutionContext,
     ) -> StepOutcome:
-        return await super().handle_disrupted(context)
+        return super().handle_disrupted(context)

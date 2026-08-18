@@ -59,7 +59,7 @@ class FileModule(Module):
         return cls(context.configuration)
 
     @classmethod
-    async def create_executor(
+    def create_executor(
         cls, context: ExecutorFactoryContext,
     ) -> ModuleExecutor:
         return FileExecutor(dict(context.runtime_configuration))
@@ -137,7 +137,7 @@ class FileExecutor(ModuleExecutor):
         _validate_relative_path(relative_path)
         return relative_path
 
-    async def handle(self, context: ExecutionContext) -> StepOutcome:
+    def handle(self, context: ExecutionContext) -> StepOutcome:
         relative_path = self._relative_path(context)
         output_path = context.services.output_storage.child(
             PurePosixPath(relative_path)
@@ -191,7 +191,7 @@ class FileExecutor(ModuleExecutor):
             (artifact,),
         )
 
-    async def handle_disrupted(
+    def handle_disrupted(
         self, context: DisruptedExecutionContext,
     ) -> StepOutcome:
-        return await super().handle_disrupted(context)
+        return super().handle_disrupted(context)

@@ -31,7 +31,7 @@ class Module(ABC):
 
     @classmethod
     @abstractmethod
-    async def create_executor(
+    def create_executor(
         cls, context: ExecutorFactoryContext,
     ) -> ModuleExecutor: ...
 

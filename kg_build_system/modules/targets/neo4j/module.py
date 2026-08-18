@@ -193,7 +193,7 @@ class Neo4jModule(Module):
         return cls(context.configuration)
 
     @classmethod
-    async def create_executor(
+    def create_executor(
         cls, context: ExecutorFactoryContext,
     ) -> ModuleExecutor:
         return Neo4jExecutor(dict(context.runtime_configuration))
@@ -359,7 +359,7 @@ class Neo4jExecutor(ModuleExecutor):
         _validate_relative_path(value, context="Neo4j output directory")
         return value
 
-    async def handle(self, context: ExecutionContext) -> StepOutcome:
+    def handle(self, context: ExecutionContext) -> StepOutcome:
         instruction = decode_neo4j_instruction(context.step.payload)
         bundle_path = context.services.output_storage.child(PurePosixPath(
             self._relative_directory(context)
@@ -519,10 +519,10 @@ class Neo4jExecutor(ModuleExecutor):
             + f" FROM {relation_sql}"
         )
 
-    async def handle_disrupted(
+    def handle_disrupted(
         self, context: DisruptedExecutionContext,
     ) -> StepOutcome:
-        return await super().handle_disrupted(context)
+        return super().handle_disrupted(context)
 
 
 __all__ = ["Neo4jModule", "Neo4jModuleConfiguration"]

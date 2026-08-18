@@ -482,10 +482,12 @@ aggregation-view steps. Extension modules claim artifacts by semantic
 include exact duplicate collapse, compatible-fact merging, conflicting-value
 validation, file output, and Neo4j administrative-import output.
 
-`build` consumes only `WorkflowContractIR` and `BuildRuntime`. It imports the module
-classes named in the contract, validates runtime configuration, executes ready
-steps in dependency order, propagates failed or skipped inputs, and verifies
-every returned artifact against its declared output slot.
+`build` synchronously consumes only `WorkflowContractIR` and `BuildRuntime`. It
+imports the module classes named in the contract, validates runtime
+configuration, executes ready steps in dependency order, propagates failed or
+skipped inputs, and verifies every returned artifact against its declared
+output slot. Module executor construction and step handlers are synchronous;
+compile-time module compilation remains a separate asynchronous lifecycle.
 
 The output directory receives published artifacts, `workflow_contract.json`, and
 `build_report.json`. The working directory defaults to the output directory;

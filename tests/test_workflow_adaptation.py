@@ -44,7 +44,7 @@ class RecoveryModule(Module):
         return RecoveryCompiler()
 
     @classmethod
-    async def create_executor(
+    def create_executor(
         cls, context: ExecutorFactoryContext,
     ) -> ModuleExecutor:
         return RecoveryExecutor()
@@ -58,7 +58,7 @@ class RecoveryCompiler:
 
 
 class RecoveryExecutor(ModuleExecutor):
-    async def handle(self, context: ExecutionContext) -> StepOutcome:
+    def handle(self, context: ExecutionContext) -> StepOutcome:
         context.services.logger.info("Handling recovery test step")
         if thaw_json(context.step.payload) == {"action": "fail"}:  # type: ignore[arg-type]
             raise RuntimeError("intentional failure")
@@ -66,7 +66,7 @@ class RecoveryExecutor(ModuleExecutor):
             context.step.step_id, context.step.module_id, StepStatus.SUCCEEDED,
         )
 
-    async def handle_disrupted(
+    def handle_disrupted(
         self, context: DisruptedExecutionContext,
     ) -> StepOutcome:
         context.services.logger.warning("Recovering disrupted input")

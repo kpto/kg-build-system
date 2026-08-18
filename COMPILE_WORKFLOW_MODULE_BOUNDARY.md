@@ -254,10 +254,10 @@ Example compiler provenance:
 ```python
 class ModuleExecutor(ABC):
     @abstractmethod
-    async def handle(self, context: ExecutionContext) -> StepOutcome: ...
+    def handle(self, context: ExecutionContext) -> StepOutcome: ...
 
     @abstractmethod
-    async def handle_disrupted(
+    def handle_disrupted(
         self,
         context: DisruptedExecutionContext,
     ) -> StepOutcome: ...
@@ -268,7 +268,7 @@ class ExecutableModule(Protocol):
     VERSION: ClassVar[str]
 
     @classmethod
-    async def create_executor(
+    def create_executor(
         cls,
         context: ExecutorFactoryContext,
     ) -> ModuleExecutor: ...
@@ -299,7 +299,7 @@ class Module(ABC):
 
     @classmethod
     @abstractmethod
-    async def create_executor(
+    def create_executor(
         cls,
         context: ExecutorFactoryContext,
     ) -> ModuleExecutor: ...
