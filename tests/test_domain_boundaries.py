@@ -10,9 +10,16 @@ from kg_build_system import value_expression
 from kg_build_system.expressions.ir import ExpressionIRBase
 from kg_build_system.workflow.ir import WorkflowContractIR
 from kg_build_system.workflow.models import WorkflowStep, WorkflowStepDraft
+from kg_build_system.workflow.services import ExecutionServices
 
 
 class DomainBoundaryTests(unittest.TestCase):
+    def test_modules_receive_relation_services_not_duckdb_storage_policy(self) -> None:
+        service_fields = {item.name for item in fields(ExecutionServices)}
+        self.assertIn("relations", service_fields)
+        self.assertNotIn("duckdb", service_fields)
+        self.assertNotIn("duckdb_compression", service_fields)
+
     def test_compilation_irs_are_not_exported_by_public_facades(self) -> None:
         self.assertNotIn("BuildBlueprint", kg_build_system.__all__)
         self.assertFalse(any(name.endswith("IR") for name in kg_build_system.__all__))

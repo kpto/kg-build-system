@@ -140,11 +140,12 @@ WorkflowDefinition
   connections
 
 ExecutionServices
-  duckdb
+  relations
   output_storage
   working_storage
   temporary_storage
   credentials
+  logger
 
 ExecutorFactoryContext
   contract
@@ -502,11 +503,14 @@ For collection slots the execution context contains one input contribution per
 connected output slot. The executor calls `handle` only if every contribution
 across every input slot is continuable; otherwise it calls `handle_disrupted`.
 
-Runtime services expose the DuckDB connection directly. DuckDB is the initial
-execution engine and modules are expected to push relational work into it;
-there is deliberately no premature relation-service abstraction. Relation
-artifacts may therefore carry executor-local DuckDB relation names. A target
-module may use DuckDB directly to write an output file or database product.
+Runtime services expose an executor-owned, DuckDB-specific relation service.
+This is a lifecycle boundary rather than an engine-neutral relational model:
+module compilers still emit DuckDB SQL, while module executors ask the service
+to materialize tables, run queries, export Parquet, and register filesystems.
+The service returns opaque runtime-only `RelationRef` values, owns identifier
+handling, and applies checkpoint and compression policy once per completed
+step. Modules never receive the unrestricted connection or the compression
+configuration.
 
 `output_storage` is the publication root supplied at runtime. Target modules
 write published files beneath it using relative paths. `working_storage` is a
@@ -538,8 +542,8 @@ Implemented additions to this slice:
 - `CompilationContext`, `ExecutorFactoryContext`, and `ExecutionContext` are
   generic contexts shared by every module; core has no context or lifecycle
   privilege.
-- Runtime execution services expose DuckDB directly alongside distinct durable
-  working storage and disposable temporary storage.
+- Runtime execution services expose an executor-owned DuckDB relation service
+  alongside distinct durable working storage and disposable temporary storage.
 - `WorkflowArtifactRoles` is the neutral publication vocabulary; the executor
   directly collects matching declared artifacts into `WorkflowReport`, which
   exposes those values, failures, and compact provenance without interpreting

@@ -31,6 +31,7 @@ from ....workflow.models import (
     WorkflowStep,
     WorkflowStepDraft,
 )
+from ....workflow.services import RelationRef
 from ...core import CoreArtifactRoles
 from .ir import (
     Neo4jComponentImportIR,
@@ -302,7 +303,7 @@ class Neo4jExecutor(ModuleExecutor):
         specifications = {
             (item.kind, item.component): item for item in instruction.components
         }
-        relations: dict[tuple[str, str], str] = {}
+        relations: dict[tuple[str, str], RelationRef] = {}
         for contributions in context.inputs.values():
             for contribution in contributions:
                 artifact = contribution.artifact
@@ -316,8 +317,8 @@ class Neo4jExecutor(ModuleExecutor):
                     continue
                 if key in relations:
                     raise RuntimeError(f"multiple graph-record artifacts supplied for {key}")
-                if not isinstance(artifact.value, str):
-                    raise TypeError("graph-record artifacts must contain relation names")
+                if not isinstance(artifact.value, RelationRef):
+                    raise TypeError("graph-record artifacts must contain RelationRef values")
                 relations[key] = artifact.value
 
         missing = set(specifications) - set(relations)
@@ -328,18 +329,17 @@ class Neo4jExecutor(ModuleExecutor):
         counts: dict[Literal["node", "edge"], int] = {"node": 0, "edge": 0}
         for key, specification in specifications.items():
             relation = relations[key]
+            relation_sql = context.services.relations.reference(relation)
             output_path = bundle_path.joinpath(
                 *PurePosixPath(specification.relative_path).parts
             )
             output_path.parent.mkdir(parents=True, exist_ok=True)
-            select_sql = self._select_sql(specification, relation)
-            destination = _sql_string(output_path.resolve().as_posix())
-            context.services.duckdb.execute(
-                f"COPY ({select_sql}) TO {destination} "
-                "(FORMAT PARQUET, COMPRESSION ZSTD)"
+            select_sql = self._select_sql(specification, relation_sql)
+            context.services.relations.export_parquet(
+                select_sql, output_path,
             )
-            count = context.services.duckdb.execute(
-                f'SELECT count(*) FROM "{_quote_identifier(relation)}"'
+            count = context.services.relations.query(
+                f"SELECT count(*) FROM {relation_sql}"
             ).fetchone()[0]
             counts[specification.kind] += int(count)
 
@@ -376,7 +376,7 @@ class Neo4jExecutor(ModuleExecutor):
 
     @staticmethod
     def _select_sql(
-        specification: Neo4jComponentImportIR, relation: str,
+        specification: Neo4jComponentImportIR, relation_sql: str,
     ) -> str:
         columns: list[str]
         if isinstance(specification, Neo4jNodeImportIR):
@@ -399,7 +399,7 @@ class Neo4jExecutor(ModuleExecutor):
         columns.append(f'{_sql_string(specification.label)} AS "{special}"')
         return (
             "SELECT " + ", ".join(columns)
-            + f' FROM "{_quote_identifier(relation)}"'
+            + f" FROM {relation_sql}"
         )
 
     async def handle_disrupted(

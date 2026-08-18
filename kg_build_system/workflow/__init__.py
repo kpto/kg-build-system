@@ -9,12 +9,14 @@ from .models import (
 from .monitor import (
     NullWorkflowMonitor, RichWorkflowMonitor, WorkflowExecutionMonitor,
 )
+from .services import RelationRef, RelationService
 
 
 __all__ = [
     "BuildRuntime", "ContinuableInput",
     "DisruptedExecutionContext", "DisruptingInput", "ExecutionContext",
-    "ExecutorFactoryContext", "Failure", "PublishedArtifact", "StepOutcome",
+    "ExecutorFactoryContext", "Failure", "PublishedArtifact", "RelationRef",
+    "RelationService", "StepOutcome",
     "StepStatus", "WorkflowArtifactRoles", "WorkflowExecutionMonitor",
     "WorkflowReport", "NullWorkflowMonitor", "RichWorkflowMonitor", "build",
 ]

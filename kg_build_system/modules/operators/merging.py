@@ -126,18 +126,15 @@ class _Executor(ModuleExecutor):
                 StepStatus.SUCCEEDED,
             )
 
-        relation = _quote_identifier(payload["relation"])
-        source = _quote_identifier(input_relation)
-        context.services.duckdb.execute(
-            f'CREATE TABLE "{relation}" AS '
-            f'SELECT {payload["select"]} FROM "{source}" GROUP BY "build_key"'
+        source = context.services.relations.reference(input_relation)
+        relation = context.services.relations.materialize(
+            str(payload["relation"]),
+            f'SELECT {payload["select"]} FROM {source} GROUP BY "build_key"',
         )
-        if context.services.duckdb_compression:
-            context.services.duckdb.execute("CHECKPOINT")
 
         output = context.step.outputs[0]
         artifact = Artifact(
-            output.slot_id, output.artifact_role, payload["relation"]
+            output.slot_id, output.artifact_role, relation
         )
         return StepOutcome(
             context.step.step_id,

@@ -14,6 +14,7 @@ from ...workflow.models import (
 from ...compile.interfaces import CompilationContext, ModuleCompiler
 from ...modules.interfaces import Module, ModuleRegistrationConfiguration
 from ...workflow.interfaces import ModuleExecutor
+from ...workflow.services import RelationRef
 from ...workflow.models import (
     Artifact,
     DisruptedExecutionContext,
@@ -36,10 +37,6 @@ from .ir import (
     encode_core_instruction,
 )
 from .credentials import configure_source_credentials
-
-
-def _quote_identifier(value: object) -> str:
-    return str(value).replace('"', '""')
 
 
 def _ordered_projections(
@@ -382,34 +379,28 @@ class CoreExecutor(ModuleExecutor):
     def _aggregate(
         context: ExecutionContext, instruction: AggregateInstructionIR,
     ) -> StepOutcome:
-        relation = _quote_identifier(instruction.relation)
         source_relations = tuple(
-            item.artifact.value
+            context.services.relations.reference(item.artifact.value)
             for contributions in context.inputs.values()
             for item in contributions
             if item.artifact is not None
         )
         union_sql = " UNION ALL ".join(
-            f'SELECT * FROM "{_quote_identifier(source)}"'
+            f"SELECT * FROM {source}"
             for source in source_relations
         )
-        context.services.duckdb.execute(
-            f'CREATE TABLE "{relation}" AS {union_sql}'
+        relation = context.services.relations.materialize(
+            instruction.relation, union_sql,
         )
-        if context.services.duckdb_compression:
-            context.services.duckdb.execute("CHECKPOINT")
         return CoreExecutor._success(context, relation)
 
     @staticmethod
     def _materialize_relation(
         context: ExecutionContext, instruction: RelationInstructionIR,
     ) -> StepOutcome:
-        relation = _quote_identifier(instruction.relation)
-        context.services.duckdb.execute(
-            f'CREATE TABLE "{relation}" AS {instruction.sql}'
+        relation = context.services.relations.materialize(
+            instruction.relation, instruction.sql,
         )
-        if context.services.duckdb_compression:
-            context.services.duckdb.execute("CHECKPOINT")
         return CoreExecutor._success(context, relation)
 
     @staticmethod
@@ -439,7 +430,7 @@ class CoreExecutor(ModuleExecutor):
         )
 
     @staticmethod
-    def _success(context: ExecutionContext, relation: str) -> StepOutcome:
+    def _success(context: ExecutionContext, relation: RelationRef) -> StepOutcome:
         output = context.step.outputs[0]
         artifact = Artifact(output.slot_id, output.artifact_role, relation)
         return StepOutcome(

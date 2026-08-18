@@ -18,7 +18,10 @@ from .models import Artifact, BuildRuntime, ContinuableInput, DisruptedExecution
 from .monitor import (
     NullWorkflowMonitor, RichWorkflowMonitor, WorkflowExecutionMonitor,
 )
-from .services import ExecutionServices, LocalTemporaryStorage, LocalWorkingStorage, MappingCredentialResolver
+from .services import (
+    DuckDBRelationService, ExecutionServices, LocalTemporaryStorage,
+    LocalWorkingStorage, MappingCredentialResolver,
+)
 
 
 _LOGGER = logging.getLogger("kg_build_system.workflow.execution")
@@ -178,14 +181,16 @@ async def _build(
       )
       resources.callback(connection.close)
       _configure_duckdb(connection, runtime, Path(temporary_directory))
+      relations = DuckDBRelationService(
+          connection, compression=runtime.duckdb_compression,
+      )
       services = ExecutionServices(
-          duckdb=connection,
+          relations=relations,
           output_storage=LocalWorkingStorage(runtime.output_directory),
           working_storage=LocalWorkingStorage(working_directory),
           temporary_storage=LocalTemporaryStorage(Path(temporary_directory)),
           credentials=MappingCredentialResolver(runtime.credentials),
           logger=_MonitorLogger(monitor),
-          duckdb_compression=runtime.duckdb_compression,
       )
       executors: dict[str, Any] = {}
       definitions = {module.reference.module_id: module for module in workflow.modules}
@@ -276,6 +281,7 @@ async def _build(
                     continuable_inputs = {slot_id: tuple(item for item in values if isinstance(item, ContinuableInput)) for slot_id, values in inputs.items()}
                     context = ExecutionContext(definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), continuable_inputs, step_services)
                     outcome = await executors[step.module_id].handle(context)
+                relations.finish_step()
             except Exception as error:
                 step_services.logger.error(
                     "%s: %s", type(error).__name__, error,

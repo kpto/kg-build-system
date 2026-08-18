@@ -36,10 +36,6 @@ def _validate_relative_path(value: str) -> None:
         )
 
 
-def _quote_identifier(value: object) -> str:
-    return str(value).replace('"', '""')
-
-
 @dataclass(frozen=True)
 class FileModuleConfiguration(ModuleRegistrationConfiguration):
     relative_path: str
@@ -160,9 +156,9 @@ class FileExecutor(ModuleExecutor):
                     if identity is None:
                         continue
 
-                    relation = _quote_identifier(artifact.value)
-                    query = context.services.duckdb.execute(
-                        f'SELECT * FROM "{relation}"'
+                    relation = context.services.relations.reference(artifact.value)
+                    query = context.services.relations.query(
+                        f"SELECT * FROM {relation}"
                     )
                     columns = tuple(column[0] for column in query.description)
                     while batch := query.fetchmany(1_000):

@@ -30,10 +30,6 @@ class _Configuration(ModuleRegistrationConfiguration):
     """The operator has no configurable behavior."""
 
 
-def _quote_identifier(value: object) -> str:
-    return str(value).replace('"', '""')
-
-
 @dataclass(frozen=True)
 class CollapseExactDuplicatesModule(Module):
     configuration: _Configuration
@@ -108,18 +104,14 @@ class _Executor(ModuleExecutor):
             for item in contributions
             if item.artifact is not None
         )
-        relation = _quote_identifier(payload["relation"])
-        source = _quote_identifier(input_relation)
-        context.services.duckdb.execute(
-            f'CREATE TABLE "{relation}" AS '
-            f'SELECT DISTINCT * FROM "{source}"'
+        source = context.services.relations.reference(input_relation)
+        relation = context.services.relations.materialize(
+            str(payload["relation"]), f"SELECT DISTINCT * FROM {source}",
         )
-        if context.services.duckdb_compression:
-            context.services.duckdb.execute("CHECKPOINT")
 
         output = context.step.outputs[0]
         artifact = Artifact(
-            output.slot_id, output.artifact_role, payload["relation"]
+            output.slot_id, output.artifact_role, relation
         )
         return StepOutcome(
             context.step.step_id,

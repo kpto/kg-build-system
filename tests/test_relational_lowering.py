@@ -168,7 +168,7 @@ class RelationalLoweringTests(unittest.TestCase):
         factory.assert_called_once_with(
             "s3", key="runtime-key", secret="runtime-secret",
         )
-        services.duckdb.register_filesystem.assert_called_once_with(filesystem)
+        services.relations.register_filesystem.assert_called_once_with(filesystem)
 
     def test_compiled_workflow_executes_and_publishes_file_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

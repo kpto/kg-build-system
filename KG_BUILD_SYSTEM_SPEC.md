@@ -493,9 +493,14 @@ owning a credentialed execution instruction defines and validates those
 runtime-only options; resolved values never enter the contract.
 
 Runtime relational intermediates live in a compressed in-memory DuckDB
-database. Framework materialization steps checkpoint their tables so DuckDB's
-lightweight column compression is applied, and DuckDB spills constrained data
-into the build's temporary directory. `BuildRuntime.duckdb_memory_limit`
+database. The executor owns a DuckDB relation service that materializes
+persistent tables, returns opaque runtime-only `RelationRef` values, and
+checkpoints once after each step that created relations. Modules request
+materialization and use the service for queries, Parquet export, and filesystem
+registration; compression and storage lifecycle policy do not leak into module
+implementations. DuckDB applies lightweight column compression to checkpointed
+tables and spills constrained data into the build's temporary directory.
+`BuildRuntime.duckdb_memory_limit`
 accepts DuckDB size strings such as `"4GiB"`; when omitted, DuckDB retains its
 platform-derived default memory limit. `BuildRuntime.duckdb_compression`
 controls in-memory table compression and defaults to `True`.

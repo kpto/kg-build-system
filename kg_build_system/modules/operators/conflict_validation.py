@@ -208,10 +208,10 @@ class _Executor(ModuleExecutor):
         )
         field_name = str(payload["field"])
         field = _quote_identifier(field_name)
-        source = _quote_identifier(relation)
+        source = context.services.relations.reference(relation)
         sql = (
             f'SELECT "build_key", count(DISTINCT "{field}") '
-            f'FROM "{source}" '
+            f"FROM {source} "
             'WHERE "build_key" IS NOT NULL '
             'GROUP BY "build_key" '
             f'HAVING count(DISTINCT "{field}") '
@@ -224,7 +224,7 @@ class _Executor(ModuleExecutor):
                 property_name=field_name,
                 distinct_values=count,
             )
-            for key, count in context.services.duckdb.execute(sql).fetchall()
+            for key, count in context.services.relations.query(sql).fetchall()
         )
         output = context.step.outputs[0]
         artifact = Artifact(output.slot_id, output.artifact_role, findings)

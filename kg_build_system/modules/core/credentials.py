@@ -36,7 +36,7 @@ def configure_source_credentials(
         protocol,
         **_thaw_json(options.filesystem_options),
     )
-    services.duckdb.register_filesystem(filesystem)
+    services.relations.register_filesystem(filesystem)
 
 
 def _thaw_json(value: JsonValue) -> Any:
