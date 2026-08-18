@@ -20,9 +20,9 @@ from kg_build_system.workflow.monitor import RichWorkflowMonitor
 from kg_build_system.workflow.models import (
     Artifact, ArtifactRole, CollectionInputSlot, Connection,
     DisruptedExecutionContext, ExecutionContext, ExecutorFactoryContext,
-    ModuleDefinition, ModuleReference, OutputSlot, RuntimeFieldDefinition,
+    Failure, ModuleDefinition, ModuleReference, OutputSlot, RuntimeFieldDefinition,
     SingleInputSlot, StepOutcome, StepStatus, WorkflowArtifactRoles,
-    WorkflowContribution, WorkflowDefinition, WorkflowStep,
+    WorkflowContribution, WorkflowDefinition, WorkflowReport, WorkflowStep,
 )
 from kg_build_system.workflow.validation import validate_workflow
 
@@ -136,6 +136,8 @@ class RecordingMonitor:
         self.logs: list[tuple[str, str, str | None]] = []
         self.start_calls = 0
         self.stop_calls = 0
+        self.workflow_reports: list[WorkflowReport] = []
+        self.halted_messages: list[str] = []
 
     def start(self, workflow: WorkflowDefinition) -> None:
         self.start_calls += 1
@@ -145,6 +147,12 @@ class RecordingMonitor:
 
     def step_finished(self, outcome: StepOutcome, detail: str) -> None:
         self.finished.append((outcome.step_id, outcome.status))
+
+    def workflow_finished(self, report: WorkflowReport) -> None:
+        self.workflow_reports.append(report)
+
+    def workflow_halted(self, message: str) -> None:
+        self.halted_messages.append(message)
 
     def log(
         self, level: str, message: str, *, step_id: str | None = None,
@@ -209,11 +217,16 @@ class WorkflowRuntimeTests(unittest.TestCase):
         self.assertEqual(report.published_artifacts[0].value, {"recovered": True})
 
     def test_rejects_an_incompatible_runtime_module_version(self) -> None:
+        monitor = RecordingMonitor()
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(RuntimeError, "does not match compiled version"):
                 build(
                     _contract(version="2"), output_directory=Path(directory),
+                    monitor=monitor,
                 )
+        self.assertEqual(len(monitor.halted_messages), 1)
+        self.assertEqual(monitor.workflow_reports, [])
+        self.assertEqual(monitor.stop_calls, 1)
 
     def test_validates_runtime_configuration_types(self) -> None:
         runtime_field = RuntimeFieldDefinition(
@@ -239,6 +252,8 @@ class WorkflowRuntimeTests(unittest.TestCase):
 
         self.assertEqual(monitor.start_calls, 1)
         self.assertEqual(monitor.stop_calls, 1)
+        self.assertEqual(len(monitor.workflow_reports), 1)
+        self.assertEqual(monitor.halted_messages, [])
         self.assertEqual(monitor.started, [
             "test_recovery::fail", "test_recovery::recover",
         ])
@@ -280,11 +295,12 @@ class WorkflowRuntimeTests(unittest.TestCase):
             StepOutcome(step.step_id, step.module_id, StepStatus.SUCCEEDED),
             "succeeded; 0 artifact(s)",
         )
+        monitor.workflow_finished(WorkflowReport((), (), (), {}))
         monitor.stop()
 
         rendered = output.getvalue()
         self.assertIn("Workflow", rendered)
-        self.assertIn("Overall 1/1 steps", rendered)
+        self.assertIn("Succeeded 1/1", rendered)
         self.assertIn("DuckDB disk", rendered)
         self.assertIn("compression off", rendered)
         self.assertIn("memory 2GiB", rendered)
@@ -295,6 +311,37 @@ class WorkflowRuntimeTests(unittest.TestCase):
         self.assertNotIn("first message", rendered)
         self.assertIn("second message", rendered)
         self.assertIn("latest message", rendered)
+
+    def test_rich_monitor_colors_workflow_health_status_and_bar(self) -> None:
+        output = StringIO()
+        console = Console(
+            file=output, force_terminal=False, color_system=None, width=120,
+        )
+        monitor = RichWorkflowMonitor(console=console)
+        step = WorkflowStep("test_recovery::health", RecoveryModule.ID)
+        workflow = WorkflowDefinition(
+            modules=(_module_definition(),), steps=(step,),
+        )
+        monitor.start(workflow)
+        monitor.step_started(step, "Processing")
+        failure = Failure(
+            "failed", RecoveryModule.ID, step.step_id, "RuntimeError",
+        )
+        monitor.step_finished(
+            StepOutcome(
+                step.step_id, step.module_id, StepStatus.FAILED,
+                failure=failure,
+            ),
+            "failed",
+        )
+        self.assertIsNotNone(monitor._bar_column)
+        self.assertEqual(monitor._bar_column.complete_style, "yellow")
+        monitor.workflow_finished(WorkflowReport((), (), (failure,), {}))
+        self.assertEqual(monitor._bar_column.complete_style, "red")
+        monitor.stop()
+
+        rendered = output.getvalue()
+        self.assertIn("Halted 1/1 steps", rendered)
 
     def test_rich_monitor_prioritizes_active_and_recent_steps_in_fixed_view(self) -> None:
         output = StringIO()

@@ -10,12 +10,26 @@ from typing import Protocol
 from rich.console import Console, Group, RenderableType
 from rich.live import Live
 from rich.panel import Panel
-from rich.progress import BarColumn, Progress, TaskID, TaskProgressColumn, TextColumn
+from rich.progress import (
+    BarColumn, Progress, ProgressColumn, Task, TaskID, TaskProgressColumn,
+)
 from rich.spinner import Spinner
 from rich.table import Table
 from rich.text import Text
 
-from .models import StepOutcome, StepStatus, WorkflowDefinition, WorkflowStep
+from .models import (
+    StepOutcome, StepStatus, WorkflowDefinition, WorkflowReport, WorkflowStep,
+)
+
+
+class _WorkflowStatusColumn(ProgressColumn):
+    def render(self, task: Task) -> Text:
+        status = str(task.fields.get("workflow_status", "Running"))
+        style = str(task.fields.get("workflow_status_style", "bold green"))
+        total = task.total or 0
+        return Text(
+            f"{status} {task.completed:.0f}/{total:.0f} steps", style=style,
+        )
 
 
 class WorkflowExecutionMonitor(Protocol):
@@ -26,6 +40,10 @@ class WorkflowExecutionMonitor(Protocol):
     def step_started(self, step: WorkflowStep, detail: str) -> None: ...
 
     def step_finished(self, outcome: StepOutcome, detail: str) -> None: ...
+
+    def workflow_finished(self, report: WorkflowReport) -> None: ...
+
+    def workflow_halted(self, message: str) -> None: ...
 
     def log(
         self, level: str, message: str, *, step_id: str | None = None,
@@ -44,6 +62,12 @@ class NullWorkflowMonitor:
         pass
 
     def step_finished(self, outcome: StepOutcome, detail: str) -> None:
+        pass
+
+    def workflow_finished(self, report: WorkflowReport) -> None:
+        pass
+
+    def workflow_halted(self, message: str) -> None:
         pass
 
     def log(
@@ -92,6 +116,7 @@ class RichWorkflowMonitor:
         self._completed = 0
         self._progress: Progress | None = None
         self._progress_task: TaskID | None = None
+        self._bar_column: BarColumn | None = None
         self._duckdb_settings: Text | None = None
         self._live: Live | None = None
         self._lock = RLock()
@@ -126,15 +151,24 @@ class RichWorkflowMonitor:
             }
             self._finish_order = []
             self._completed = 0
+            self._bar_column = BarColumn(
+                bar_width=None,
+                style="green dim",
+                complete_style="green",
+                finished_style="green",
+                pulse_style="green",
+            )
             self._progress = Progress(
-                TextColumn("[bold]Overall[/bold] {task.completed:.0f}/{task.total:.0f} steps"),
-                BarColumn(bar_width=None),
+                _WorkflowStatusColumn(),
+                self._bar_column,
                 TaskProgressColumn(),
                 console=self.console,
                 expand=True,
             )
             self._progress_task = self._progress.add_task(
                 "workflow", total=len(workflow.steps), completed=0,
+                workflow_status="Running",
+                workflow_status_style="bold green",
             )
             self._live = Live(
                 self._render(),
@@ -162,6 +196,25 @@ class RichWorkflowMonitor:
                 self._progress.update(
                     self._progress_task, completed=self._completed,
                 )
+            if outcome.status == StepStatus.FAILED:
+                self._set_workflow_status(
+                    "Continuing with errors", "yellow",
+                )
+            self._refresh()
+
+    def workflow_finished(self, report: WorkflowReport) -> None:
+        with self._lock:
+            if report.unresolved_failures:
+                self._set_workflow_status("Halted", "red")
+            elif report.recovered_failures:
+                self._set_workflow_status("Completed with errors", "yellow")
+            else:
+                self._set_workflow_status("Succeeded", "green")
+            self._refresh()
+
+    def workflow_halted(self, message: str) -> None:
+        with self._lock:
+            self._set_workflow_status("Halted", "red")
             self._refresh()
 
     def log(
@@ -257,6 +310,19 @@ class RichWorkflowMonitor:
     def _refresh(self) -> None:
         if self._live is not None:
             self._live.update(self._render(), refresh=True)
+
+    def _set_workflow_status(self, status: str, color: str) -> None:
+        if self._progress is not None and self._progress_task is not None:
+            self._progress.update(
+                self._progress_task,
+                workflow_status=status,
+                workflow_status_style=f"bold {color}",
+            )
+        if self._bar_column is not None:
+            self._bar_column.style = f"{color} dim"
+            self._bar_column.complete_style = color
+            self._bar_column.finished_style = color
+            self._bar_column.pulse_style = color
 
 
 __all__ = [

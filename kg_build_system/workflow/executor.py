@@ -436,10 +436,13 @@ def build(
     try:
         report = _build(contract, configured, execution_monitor)
     except Exception as error:
+        execution_monitor.workflow_halted(str(error))
         execution_monitor.log(
             "ERROR", f"Workflow execution stopped: {type(error).__name__}: {error}",
         )
         raise
+    else:
+        execution_monitor.workflow_finished(report)
     finally:
         execution_monitor.stop()
     (configured.output_directory / "build_report.json").write_text(
