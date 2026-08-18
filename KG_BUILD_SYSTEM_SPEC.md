@@ -572,12 +572,72 @@ Authoring practices:
   declarations.
 - Use `pick` and `expand` so nested selection and row production remain explicit.
 - Choose `default_to` versus `where_present` deliberately.
-- Keep topology and bindings discoverable in a node-first layout.
+- Keep topology and bindings discoverable in the compact node-first layout
+  defined below.
 - Use projections to name reusable data products and isolate expansion scopes.
 - Keep physical locations and provenance in source bindings.
 - Treat generated packages, blueprint JSON, workflow contracts, and SQL as
   inspectable development artifacts.
 - Check static contracts with Pyright as well as runtime behavior.
+
+### Recommended graph-pipeline layout
+
+Consumer projects should use a compact node-first package layout. A direct
+child package of `topology/` represents one node. The node declaration lives in
+that package's `__init__.py`, while its other public modules declare edges that
+originate from that node. `bindings/` mirrors the same paths: its package
+`__init__.py` contains the node binding and its edge modules contain the
+corresponding edge bindings.
+
+```text
+graph_pipeline/
+  build.py
+  sources.py                              # physical source bindings
+  data/
+  table/
+    __init__.py                         # generation requests, when used
+    generated_contract/                 # generated Table/Struct package
+      __init__.py
+      .kbs-generation.json
+    projections/                        # reusable logical data products
+      __init__.py
+      expanded_target.py
+  topology/
+    target/
+      __init__.py                       # TargetNode
+      has_association_by_overall_direct__disease.py
+    disease/
+      __init__.py                       # DiseaseNode
+  bindings/
+    target/
+      __init__.py                       # TargetNode binding
+      has_association_by_overall_direct__disease.py
+    disease/
+      __init__.py                       # DiseaseNode binding
+```
+
+An edge module name has the form
+`<relationship_predicate>__<destination_node>.py`. Both parts use snake case,
+and the double underscore visually separates the relationship from its
+destination. For example:
+
+```text
+Target -[HAS_ASSOCIATION_BY_OVERALL_DIRECT]-> Disease
+
+topology/target/has_association_by_overall_direct__disease.py
+bindings/target/has_association_by_overall_direct__disease.py
+```
+
+The source node is implicit in the containing package, but the graph semantics
+are not inferred from filesystem names. The edge declaration must still state
+its endpoints through `Edge[TargetNode, DiseaseNode]`, and its effective graph
+label remains declaration metadata. The layout is an authoring and discovery
+convention rather than a second topology model.
+
+Public edge modules should not be re-exported from the node package's
+`__init__.py`; keeping imports directed from an edge module toward its endpoint
+node packages avoids circular imports. Underscore-prefixed modules such as
+`_shared.py` are reserved for private helpers and do not represent edges.
 
 ## 15. Delivery scope
 
