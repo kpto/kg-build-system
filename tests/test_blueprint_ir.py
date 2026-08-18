@@ -8,8 +8,9 @@ from pathlib import Path
 
 from kg_build_system import (
     Annotation, Array, DataSourceConfig, Edge, Field,
-    InputFormat, Node, Projection, ProjectionOptions, PropertySlot, Struct, Table, bind_source,
-    create_blueprint, edge_binding, field, node_binding, projection_field, property,
+    InputFormat, Node, Projection, ProjectionOptions, PropertySlot, Struct, Table,
+    TableGroup, bind_source, create_blueprint, edge_binding, field, node_binding,
+    projection_field, property,
 )
 from kg_build_system.compile import (
     blueprint_from_json, blueprint_json, decode_blueprint, validate_blueprint,
@@ -36,6 +37,15 @@ class EvidenceStruct(Struct):
 class EvidenceTable(Table):
     identifier: Field[str] = field()
     evidence: Field[Array[EvidenceStruct]] = field()
+
+
+class UnusedTable(Table):
+    identifier: Field[str] = field()
+
+
+class BlueprintTableGroup(TableGroup):
+    evidence = EvidenceTable
+    unused = UnusedTable
 
 
 class EvidenceProjection(Projection):
@@ -91,6 +101,26 @@ class BlueprintIRTests(unittest.TestCase):
             isinstance(item, OperationExpressionIR) and item.operator == "expand"
             for item in walk_expression_ir(label)
         ))
+
+    def test_blueprint_prunes_unused_group_tables_and_sources(self) -> None:
+        group_source = bind_source(
+            target=BlueprintTableGroup,
+            config=DataSourceConfig(
+                "tables",
+                format=InputFormat.PARQUET,
+                layout="{table_name}/**/*.parquet",
+            ),
+        )
+
+        result = create_blueprint(bindings=(node,), sources=(group_source,))
+
+        self.assertEqual(tuple(item.name for item in result.tables), ("evidence",))
+        self.assertEqual(
+            tuple(item.name for item in result.projections), ("evidence_rows",)
+        )
+        self.assertEqual(tuple(item.name for item in result.structs), ("evidence",))
+        self.assertEqual(tuple(item.table for item in result.sources), ("evidence",))
+        self.assertEqual(result.sources[0].location, "tables/evidence/**/*.parquet")
 
     def test_json_codec_is_stable_and_round_trips_canonical_objects(self) -> None:
         result = self.blueprint()

@@ -236,9 +236,12 @@ def _resolve_declarations(bindings: tuple[Binding, ...], sources: tuple[BoundTab
             declaration = projection_registry[name]
             projections[name] = declaration
             required.update(_expression_sources(field.expression.model for field in declaration._projection_fields.values()))
-    tables = {source.table._table_name: source.table for source in sources}
+    source_tables = {source.table._table_name: source.table for source in sources}
+    tables: dict[str, type[Table]] = {}
     for name in required - projections.keys():
-        if name in table_registry:
+        if name in source_tables:
+            tables[name] = source_tables[name]
+        elif name in table_registry:
             tables[name] = table_registry[name]
     missing = required - tables.keys() - projections.keys()
     if missing:
@@ -342,6 +345,11 @@ def create_blueprint(
         item for source in (*discovered_sources, *sources) for item in resolve_bound_source(source)
     )
     tables, projections, structs = _resolve_declarations(authoring_bindings, bound_tables)
+    required_tables = {table._table_name for table in tables}
+    bound_tables = tuple(
+        source for source in bound_tables
+        if source.table._table_name in required_tables
+    )
     component_classes = {binding.target for binding in authoring_bindings}
     for component in tuple(component_classes):
         if component._kind == "edge":
