@@ -204,14 +204,18 @@ def _build(
       else:
           storage_directory = Path(temporary_directory)
       connection = _open_duckdb(duckdb, runtime, storage_directory)
-      resources.callback(connection.close)
-      _configure_duckdb(connection, runtime, storage_directory)
+      try:
+          _configure_duckdb(connection, runtime, storage_directory)
+      except BaseException:
+          connection.close()
+          raise
       relations = DuckDBRelationService(
           connection,
           checkpoint_on_step=(
               runtime.duckdb_compression or runtime.duckdb_storage == "disk"
           ),
       )
+      resources.callback(relations.close)
       services = ExecutionServices(
           relations=relations,
           output_storage=LocalWorkingStorage(runtime.output_directory),

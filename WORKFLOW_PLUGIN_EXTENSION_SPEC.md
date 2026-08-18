@@ -514,6 +514,13 @@ handling and applies checkpoint and compression policy once per completed step
 that created materialized backing. Modules never receive the unrestricted
 connection or the compression configuration.
 
+The relation service serializes execution, result fetching, filesystem
+registration, export, checkpointing, and connection shutdown through one
+worker thread. Its public API remains synchronous. The workflow thread waits
+for worker results in short interruptible intervals; Ctrl-C interrupts the
+active DuckDB connection and propagates `KeyboardInterrupt` after the worker
+operation settles.
+
 The executor may back the service with a compressed or uncompressed in-memory
 database using temporary storage, or with an ephemeral persistent database
 using working storage. Runtime memory limits and thread counts apply to either

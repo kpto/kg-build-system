@@ -504,7 +504,12 @@ a private persistent table and exposes it through the same public view shape.
 The service checkpoints once after each step that created materialized backing
 tables. Modules use it for relation definition, queries, Parquet export, and
 filesystem registration; physical table names and storage lifecycle policy do
-not leak into consuming module implementations.
+not leak into consuming module implementations. All DuckDB operations and
+result fetching are serialized through one service-owned worker thread. The
+calling workflow thread waits in interruptible intervals; on Ctrl-C it invokes
+DuckDB's connection interrupt, waits for the pending operation to settle, and
+then propagates `KeyboardInterrupt`. Connection shutdown also runs on the
+worker before the worker is joined.
 
 `BuildRuntime` exposes four DuckDB controls:
 

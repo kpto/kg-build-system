@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import _thread
 import tempfile
+import threading
 import unittest
 from pathlib import Path
 from unittest.mock import MagicMock
@@ -29,7 +31,84 @@ def _materialized_backing(name: str) -> str:
     return f"__kg_materialized_{name}"
 
 
+class _RecordingConnection:
+    def __init__(self, *, block: bool = False) -> None:
+        self.thread_ids: list[int] = []
+        self.description = (("value",),)
+        self.interrupted = threading.Event()
+        self._block = block
+
+    def _record(self) -> None:
+        self.thread_ids.append(threading.get_ident())
+
+    def execute(self, query: str, parameters: object = None):
+        self._record()
+        if self._block:
+            self.interrupted.wait()
+            raise RuntimeError("query interrupted")
+        return self
+
+    def fetchone(self):
+        self._record()
+        return (1,)
+
+    def fetchall(self):
+        self._record()
+        return [(1,)]
+
+    def fetchmany(self, size: int):
+        self._record()
+        return [(1,)]
+
+    def register_filesystem(self, filesystem: object) -> None:
+        self._record()
+
+    def interrupt(self) -> None:
+        self.interrupted.set()
+
+    def close(self) -> None:
+        self._record()
+
+
 class DuckDBRuntimeConfigurationTests(unittest.TestCase):
+    def test_relation_operations_and_result_fetching_use_one_worker(self) -> None:
+        connection = _RecordingConnection()
+        relations = DuckDBRelationService(
+            connection, checkpoint_on_step=True,
+        )
+        main_thread = threading.get_ident()
+
+        relations.view("view_values", "SELECT 1 AS value")
+        relations.materialize("stored_values", "SELECT 2 AS value")
+        result = relations.query("SELECT 3 AS value")
+        self.assertEqual(result.description, (("value",),))
+        self.assertEqual(result.fetchone(), (1,))
+        self.assertEqual(result.fetchall(), [(1,)])
+        self.assertEqual(result.fetchmany(10), [(1,)])
+        relations.export_parquet("SELECT 4", Path("values.parquet"))
+        relations.register_filesystem(object())
+        relations.finish_step()
+        relations.close()
+
+        self.assertEqual(len(set(connection.thread_ids)), 1)
+        self.assertNotEqual(connection.thread_ids[0], main_thread)
+
+    def test_ctrl_c_interrupts_the_worker_connection(self) -> None:
+        connection = _RecordingConnection(block=True)
+        relations = DuckDBRelationService(
+            connection, checkpoint_on_step=False,
+        )
+        timer = threading.Timer(0.1, _thread.interrupt_main)
+        timer.start()
+        try:
+            with self.assertRaises(KeyboardInterrupt):
+                relations.query("SELECT 1")
+        finally:
+            timer.cancel()
+            relations.close()
+
+        self.assertTrue(connection.interrupted.is_set())
+
     def test_core_relations_use_lazy_views(self) -> None:
         services = MagicMock()
         services.relations.view.return_value = RelationRef("logical_values")
@@ -93,7 +172,7 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
             ).fetchall(),
             [("logical_values",)],
         )
-        connection.close()
+        relations.close()
 
     def test_materialized_relations_are_exposed_through_stable_views(self) -> None:
         connection = duckdb.connect()
@@ -125,7 +204,7 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
             ).fetchall(),
             [("logical_values",)],
         )
-        connection.close()
+        relations.close()
 
     def test_relation_service_checkpoints_once_per_step(self) -> None:
         connection = MagicMock()
@@ -144,6 +223,7 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
             ),
             1,
         )
+        relations.close()
 
     def test_relation_service_rejects_untyped_relation_values(self) -> None:
         relations = DuckDBRelationService(MagicMock(), checkpoint_on_step=True)
@@ -201,7 +281,7 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
             self.assertTrue(any(
                 compression != "Uncompressed" for compression, _ in storage
             ))
-        connection.close()
+            relations.close()
 
     def test_rejects_invalid_memory_limits_before_starting_a_build(self) -> None:
         connection = duckdb.connect()
@@ -236,7 +316,7 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
                 f"FROM pragma_storage_info('{_materialized_backing('uncompressed_probe')}')"
             ).fetchall()
             self.assertEqual(compression, [("Uncompressed",)])
-        connection.close()
+            relations.close()
 
     def test_disk_storage_uses_working_directory_and_compression_policy(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -276,7 +356,7 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
             self.assertIn("Uncompressed", compression)
             self.assertNotIn("Dictionary", compression)
             self.assertNotIn("BitPacking", compression)
-            connection.close()
+            relations.close()
 
     def test_disk_storage_uses_compression_by_default(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -302,7 +382,7 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
                 ).fetchall()
             }
             self.assertTrue(compression - {"Uncompressed", "Constant"})
-            connection.close()
+            relations.close()
 
     def test_rejects_unknown_storage_mode(self) -> None:
         runtime = BuildRuntime()
