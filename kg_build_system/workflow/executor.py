@@ -421,6 +421,13 @@ def build(
         contract.model_dump_json(indent=2), encoding="utf-8",
     )
     execution_monitor = _resolve_monitor(monitor)
+    if isinstance(execution_monitor, RichWorkflowMonitor):
+        execution_monitor.set_duckdb_settings(
+            storage=configured.duckdb_storage,
+            compression=configured.duckdb_compression,
+            memory_limit=configured.duckdb_memory_limit,
+            threads=configured.duckdb_threads,
+        )
     workflow = workflow_from_ir(contract.workflow)
     execution_monitor.start(workflow)
     try:

@@ -263,6 +263,10 @@ class WorkflowRuntimeTests(unittest.TestCase):
             file=output, force_terminal=False, color_system=None, width=100,
         )
         monitor = RichWorkflowMonitor(console=console, log_lines=2)
+        monitor.set_duckdb_settings(
+            storage="disk", compression=False,
+            memory_limit="2GiB", threads=3,
+        )
         step = WorkflowStep("test_recovery::only", RecoveryModule.ID)
         workflow = WorkflowDefinition(
             modules=(_module_definition(),), steps=(step,),
@@ -281,6 +285,10 @@ class WorkflowRuntimeTests(unittest.TestCase):
         rendered = output.getvalue()
         self.assertIn("Workflow", rendered)
         self.assertIn("Overall 1/1 steps", rendered)
+        self.assertIn("DuckDB disk", rendered)
+        self.assertIn("compression off", rendered)
+        self.assertIn("memory 2GiB", rendered)
+        self.assertIn("threads 3", rendered)
         self.assertIn("Steps", rendered)
         self.assertIn("test_recovery::only", rendered)
         self.assertIn("Logs", rendered)

@@ -12,6 +12,7 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.progress import BarColumn, Progress, TaskID, TaskProgressColumn, TextColumn
 from rich.spinner import Spinner
+from rich.table import Table
 from rich.text import Text
 
 from .models import StepOutcome, StepStatus, WorkflowDefinition, WorkflowStep
@@ -91,8 +92,28 @@ class RichWorkflowMonitor:
         self._completed = 0
         self._progress: Progress | None = None
         self._progress_task: TaskID | None = None
+        self._duckdb_settings: Text | None = None
         self._live: Live | None = None
         self._lock = RLock()
+
+    def set_duckdb_settings(
+        self, *, storage: str, compression: bool,
+        memory_limit: str | None, threads: int | None,
+    ) -> None:
+        """Set the safe runtime summary rendered beside overall progress."""
+        with self._lock:
+            if self._live is not None:
+                raise RuntimeError("cannot change DuckDB settings while monitoring")
+            summary = Text()
+            summary.append("DuckDB ", style="bold")
+            summary.append(storage, style="cyan")
+            summary.append(" · compression ", style="dim")
+            summary.append("on" if compression else "off")
+            summary.append(" · memory ", style="dim")
+            summary.append(memory_limit or "default")
+            summary.append(" · threads ", style="dim")
+            summary.append(str(threads) if threads is not None else "default")
+            self._duckdb_settings = summary
 
     def start(self, workflow: WorkflowDefinition) -> None:
         with self._lock:
@@ -212,13 +233,20 @@ class RichWorkflowMonitor:
 
     def _render(self) -> RenderableType:
         progress: RenderableType = self._progress or Text("Preparing workflow")
+        workflow_header: RenderableType = progress
+        if self._duckdb_settings is not None:
+            header_grid = Table.grid(expand=True, padding=(0, 2))
+            header_grid.add_column(ratio=3)
+            header_grid.add_column(justify="right")
+            header_grid.add_row(progress, self._duckdb_settings)
+            workflow_header = header_grid
         logs: RenderableType
         if self._log_messages:
             logs = Group(*self._log_messages)
         else:
             logs = Text("Waiting for step messages…", style="dim")
         return Group(
-            Panel(progress, title="Workflow", border_style="blue"),
+            Panel(workflow_header, title="Workflow", border_style="blue"),
             Panel(
                 self._render_steps(), title="Steps", border_style="cyan",
                 height=self._step_lines + 2,
