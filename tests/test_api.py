@@ -5,7 +5,7 @@ from pathlib import Path
 
 from kg_build_system import compile, create_blueprint
 
-from demo.build import compile_demo, create_demo_blueprint
+from reference_project.build import compile_demo, create_demo_blueprint
 
 
 class CompositionApiTests(unittest.TestCase):
@@ -20,7 +20,7 @@ class CompositionApiTests(unittest.TestCase):
 
     def test_explicit_namespace_path_is_supported(self) -> None:
         blueprint = create_blueprint(
-            namespace_path=Path(__file__).parents[1] / "demo",
+            namespace_path=Path(__file__).parents[1] / "reference_project",
             modules=(),
         )
 

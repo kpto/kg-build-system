@@ -1,7 +1,7 @@
 from kg_build_system import node_binding
 
-from demo.table.complex_records import ComplexRecordsTable
-from demo.topology.nodes.record.record import RecordNode
+from reference_project.table.complex_records import ComplexRecordsTable
+from reference_project.topology.record import RecordNode
 
 
 deep_city = (

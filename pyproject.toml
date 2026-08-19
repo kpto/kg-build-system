@@ -28,14 +28,14 @@ dev = ["pyright>=1.1.400"]
 [tool.pyright]
 include = [
     "kg_build_system",
-    "demo",
+    "reference_project",
     "tests/typecheck_data_declarations.py",
     "tests/typecheck_graph_bindings.py",
     "tests/typecheck_typed_expressions.py",
     "tests/typecheck_unified_fields.py",
 ]
 typeCheckingMode = "basic"
-strict = ["demo"]
+strict = ["reference_project"]
 reportMissingTypeStubs = false
 
 [tool.hatch.build.targets.wheel]
