@@ -1,6 +1,7 @@
 from pathlib import Path
 
-from kg_build_system import build, compile
+from kg_build_system import build, compile, create_blueprint
+from kg_build_system.compile.models import BuildBlueprint
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule,
     FileModule,
@@ -11,9 +12,18 @@ from kg_build_system.modules import (
 from kg_build_system.workflow.ir import WorkflowContractIR
 
 
+def create_demo_blueprint() -> BuildBlueprint:
+    return create_blueprint(
+        modules=(
+            register_module(CollapseExactDuplicatesModule),
+            register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
+            register_module(Neo4jModule),
+        ),
+    )
+
+
 def compile_demo() -> WorkflowContractIR:
     return compile(
-        namespace_path=Path(__file__).parent,
         modules=(
             register_module(CollapseExactDuplicatesModule),
             register_module(FileModule, FileModuleConfiguration("graph.jsonl")),

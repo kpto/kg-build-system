@@ -97,8 +97,6 @@ ModuleDefinition
 
 CompilationContext
   blueprint
-  settings
-  overrides
   module_id
   configuration
 
@@ -170,12 +168,11 @@ Runtime configuration remains separate and is supplied only at execution.
 
 `CompilationContext` is the single generic compile-time context used by every
 module, including the built-in core module. Source bindings are declarations
-on `BuildBlueprint`; they are not duplicated in the context. A module derives
-effective sources by applying serialisable source overrides to
-`blueprint.sources`. The context exposes the blueprint, compilation settings,
-overrides, module identity, and that module's reconstructed, non-secret
-registration configuration. It never exposes authoring classes. Assembly
-priority belongs to the ordered module list and is not module configuration.
+on `BuildBlueprint`; they are not duplicated in the context. The context
+exposes the blueprint, module identity, and that module's reconstructed,
+non-secret registration configuration. It never exposes authoring classes.
+Assembly priority belongs to the ordered module list and is not module
+configuration.
 
 `module_id` identifies one configured module in a workflow. Supporting two
 independently configured instances of the same implementation requires either
@@ -230,8 +227,6 @@ implementations and registrations:
 @dataclass(frozen=True, slots=True)
 class CompilationContext:
     blueprint: BuildBlueprint
-    settings: CompilationSettings
-    overrides: CompilationOverrides
     module_id: str
     configuration: object
 

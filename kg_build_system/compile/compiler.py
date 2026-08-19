@@ -47,9 +47,7 @@ from ..workflow.ir import WorkflowContractIR
 from .interfaces import (
     CompilableModule, CompilationContext, CompileModuleRegistration,
 )
-from .models import (
-    BuildBlueprint, CompilationOverrides, CompilationSettings, SourceOverride,
-)
+from .models import BuildBlueprint
 from .validation import validate_blueprint
 
 
@@ -367,6 +365,19 @@ def create_blueprint(
     return blueprint
 
 
+def configure_blueprint_modules(
+    blueprint: BuildBlueprint,
+    modules: Sequence[CompileModuleRegistration[Any]],
+) -> BuildBlueprint:
+    """Replace a blueprint's module composition and validate the result."""
+    configured = replace(
+        blueprint,
+        modules=tuple(_module(registration) for registration in modules),
+    )
+    validate_blueprint(configured)
+    return configured
+
+
 def _fingerprint(value: object) -> str:
     encoded = json.dumps(
         value,
@@ -386,16 +397,6 @@ def _blueprint_fingerprint(blueprint: BuildBlueprint) -> str:
     return _fingerprint(payload)
 
 
-def _effective_sources(
-    blueprint: BuildBlueprint, overrides: Sequence[BoundSource],
-) -> tuple[SourceDefinition, ...]:
-    result = {source.table: source for source in blueprint.sources}
-    for bound in (item for source in overrides for item in resolve_bound_source(source)):
-        replacement = _source(bound)
-        result[replacement.table] = replacement
-    return tuple(result[name] for name in sorted(result))
-
-
 def _thaw(value: Any) -> Any:
     from ..expressions.models import FrozenObject
     if isinstance(value, FrozenObject):
@@ -403,27 +404,6 @@ def _thaw(value: Any) -> Any:
     if isinstance(value, tuple):
         return [_thaw(item) for item in value]
     return value
-
-
-def _source_document(source: SourceDefinition | None) -> dict[str, Any] | None:
-    if source is None:
-        return None
-    return {
-        "symbol_id": source.symbol_id,
-        "table": source.table,
-        "location": source.location,
-        "format": source.format,
-        "credential_reference": source.credential_reference,
-        "version": source.version,
-        "annotations": [
-            {
-                "namespace": annotation.namespace,
-                "annotation_id": annotation.annotation_id,
-                "arguments": _thaw(annotation.arguments),
-            }
-            for annotation in source.annotations
-        ],
-    }
 
 
 def _load_module(
@@ -447,34 +427,17 @@ def _load_module(
 
 
 async def _compile_workflow(
-    *, blueprint: BuildBlueprint, sources: Sequence[BoundSource] = (),
-    settings: CompilationSettings | None = None,
+    *, blueprint: BuildBlueprint,
 ) -> WorkflowContractIR:
     validate_blueprint(blueprint)
-    effective_sources = _effective_sources(blueprint, sources)
     referenced_tables = {table.name for table in blueprint.tables}
-    missing = referenced_tables - {source.table for source in effective_sources}
+    missing = referenced_tables - {source.table for source in blueprint.sources}
     if missing:
         raise ValueError("no source bound for: " + ", ".join(sorted(missing)))
-    override_sources = tuple(
-        _source(item) for source in sources for item in resolve_bound_source(source)
-    )
-    overrides = CompilationOverrides(sources=tuple(
-        SourceOverride(
-            table=item.table,
-            original=next((source for source in blueprint.sources if source.table == item.table), None),
-            override=item,
-        )
-        for item in override_sources
-    ))
-    compilation_settings = settings or CompilationSettings()
     contributions = []
     for definition in blueprint.modules:
         module_class, configuration = _load_module(definition)
-        context = CompilationContext(
-            blueprint, compilation_settings, overrides, definition.module_id,
-            configuration,
-        )
+        context = CompilationContext(blueprint, definition.module_id, configuration)
         compiler = await module_class.create_compiler(context)
         contribution = await compiler.compile(context)
         if contribution.module.reference.module_id != definition.module_id:
@@ -495,17 +458,6 @@ async def _compile_workflow(
         "compile": {
             "blueprint": encode_blueprint(blueprint),
             "blueprint_fingerprint": _blueprint_fingerprint(blueprint),
-            "settings": asdict(compilation_settings),
-            "overrides": {
-                "sources": [
-                    {
-                        "table": override.table,
-                        "original": _source_document(override.original),
-                        "override": _source_document(override.override),
-                    }
-                    for override in overrides.sources
-                ],
-            },
         }
     }
     return create_workflow_contract(
@@ -515,13 +467,10 @@ async def _compile_workflow(
 
 
 def compile_workflow(
-    *, blueprint: BuildBlueprint, sources: Sequence[BoundSource] = (),
-    settings: CompilationSettings | None = None,
+    *, blueprint: BuildBlueprint,
 ) -> WorkflowContractIR:
     """Compile a blueprint into one frozen executable workflow contract."""
-    return asyncio.run(_compile_workflow(
-        blueprint=blueprint, sources=sources, settings=settings,
-    ))
+    return asyncio.run(_compile_workflow(blueprint=blueprint))
 
 
 __all__ = ["compile_workflow", "create_blueprint"]

@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from typing import Any, ClassVar, Protocol, TypeVar
 
 from ..workflow.models import WorkflowContribution
-from .models import BuildBlueprint, CompilationOverrides, CompilationSettings
+from .models import BuildBlueprint
 
 
 ConfigT = TypeVar("ConfigT", covariant=True)
@@ -14,8 +14,6 @@ ConfigT = TypeVar("ConfigT", covariant=True)
 @dataclass(frozen=True, slots=True)
 class CompilationContext[ConfigT]:
     blueprint: BuildBlueprint
-    settings: CompilationSettings
-    overrides: CompilationOverrides
     module_id: str
     configuration: ConfigT
 

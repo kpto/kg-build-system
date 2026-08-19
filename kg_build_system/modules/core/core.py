@@ -141,7 +141,9 @@ class CoreCompiler:
                 configuration=freeze_json({}),
             )
         )
-        sources = self._sources(context)
+        sources = tuple(sorted(
+            context.blueprint.sources, key=lambda source: source.table,
+        ))
         projections = _ordered_projections(context.blueprint)
         table_relations = {
             source.table: f"kg_table_{index}"
@@ -179,17 +181,6 @@ class CoreCompiler:
         )
         drafts.extend(self._aggregation_steps(context.blueprint))
         return WorkflowContribution(definition, tuple(drafts))
-
-    @staticmethod
-    def _sources(context: CompilationContext[Any]):
-        sources = {source.table: source for source in context.blueprint.sources}
-        sources.update(
-            {
-                override.table: override.override
-                for override in context.overrides.sources
-            }
-        )
-        return tuple(sources[name] for name in sorted(sources))
 
     @staticmethod
     def _source_step(source, relation: str) -> WorkflowStepDraft:

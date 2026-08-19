@@ -21,9 +21,8 @@ executor, while `compile` and `workflow` depend only on the capability each one
 uses.
 
 The workflow contract is the only bridge from compilation to execution.
-Workflow does not know about blueprints, source overrides, or compilation
-settings. Compile may attach them to the contract as opaque, immutable
-provenance.
+Workflow does not know about blueprints. Compile may attach the blueprint and
+its fingerprint to the contract as opaque, immutable provenance.
 
 ```text
 compile ──────────────> workflow
@@ -80,16 +79,6 @@ fingerprints and metadata live in provenance.
 
 ```python
 @dataclass(frozen=True, slots=True)
-class CompilationSettings:
-    pass
-
-
-@dataclass(frozen=True, slots=True)
-class CompilationOverrides:
-    pass
-
-
-@dataclass(frozen=True, slots=True)
 class BuildBlueprint:
     structs: tuple[StructIR, ...]
     tables: tuple[TableIR, ...]
@@ -109,8 +98,6 @@ ConfigT = TypeVar("ConfigT", covariant=True)
 @dataclass(frozen=True, slots=True)
 class CompilationContext(Generic[ConfigT]):
     blueprint: BuildBlueprint
-    settings: CompilationSettings
-    overrides: CompilationOverrides
     module_id: str
     configuration: ConfigT
 
@@ -242,9 +229,7 @@ Example compiler provenance:
 {
   "compile": {
     "blueprint": {},
-    "blueprint_fingerprint": "...",
-    "settings": {},
-    "overrides": {}
+    "blueprint_fingerprint": "..."
   }
 }
 ```

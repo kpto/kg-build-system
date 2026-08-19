@@ -86,7 +86,9 @@ source = bind_source(
 
 class BlueprintIRTests(unittest.TestCase):
     def blueprint(self) -> BuildBlueprint:
-        return create_blueprint(bindings=(node, edge), sources=(source,))
+        return create_blueprint(
+            bindings=(node, edge), sources=(source,), modules=(),
+        )
 
     def test_blueprint_contains_complete_canonical_declarations(self) -> None:
         result = self.blueprint()
@@ -112,7 +114,9 @@ class BlueprintIRTests(unittest.TestCase):
             ),
         )
 
-        result = create_blueprint(bindings=(node,), sources=(group_source,))
+        result = create_blueprint(
+            bindings=(node,), sources=(group_source,), modules=(),
+        )
 
         self.assertEqual(tuple(item.name for item in result.tables), ("evidence",))
         self.assertEqual(

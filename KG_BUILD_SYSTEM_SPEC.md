@@ -370,10 +370,8 @@ source = bind_source(
 Group source bindings require a layout using `{group_path}` and
 `{table_name}`. They expand into canonical per-table source definitions.
 
-Definitions contain credential references, never resolved credentials. A
-concrete compilation resolves every required table to exactly one effective
-source. Explicit compile-time source overrides replace matching blueprint
-sources without mutating logical declarations.
+Definitions contain credential references, never resolved credentials. Every
+required table has exactly one source in the blueprint supplied to compilation.
 
 ## 10. Canonical expression and blueprint IR
 
@@ -418,11 +416,15 @@ modules form the one-way boundary from domain models to compilation IRs.
 Runtime workflow execution converts its serialized workflow IR into workflow
 domain models before dispatching module business logic.
 
-`compile(namespace_path=...)` recursively imports an importable Python
-namespace and discovers module-level binding and source objects while creating
-its internal blueprint. The auxiliary `create_blueprint` exposes the same
-discovery boundary. Re-exported objects are deduplicated by identity. Discovery
-never invokes arbitrary factories.
+`compile` and `create_blueprint` support three declaration inputs: the calling
+file's namespace when only `modules` is supplied, an explicit
+`namespace_path`, or explicit `bindings` and `sources`. `compile` additionally
+accepts a prebuilt `blueprint`. Every mode requires `modules`; those modules,
+followed by the mandatory core module, are the complete module composition for
+the operation. Namespace discovery recursively imports an importable Python
+namespace and finds module-level binding and source objects. Re-exported
+objects are deduplicated by identity. Discovery never invokes arbitrary
+factories.
 
 ## 11. Relational planning and DuckDB lowering
 
@@ -452,10 +454,10 @@ may instead back the same public view with a private materialized table.
 
 ## 12. Compilation, workflow, and execution
 
-The public `compile` API creates the canonical blueprint internally and appends
+The public `compile` API creates or accepts the canonical blueprint and appends
 the mandatory core module after the configured extension modules. It validates
-blueprint schema version 2, resolves effective sources and overrides, and
-compiles every registered module through the compile-time capability interface.
+blueprint schema version 2 and compiles every registered module through the
+compile-time capability interface.
 The workflow domain then assembles the ordered contributions into one
 dependency-aware `WorkflowContractIR`. The compiler does not import or
 bootstrap concrete module implementations. `compile(blueprint=...)` remains
@@ -469,8 +471,8 @@ The workflow contract includes:
 - effective source instructions and inspectable SQL in module-owned step
   payloads;
 - the workflow fingerprint;
-- optional opaque compilation provenance containing the blueprint, its
-  fingerprint, compilation settings, and overrides.
+- optional opaque compilation provenance containing the blueprint and its
+  fingerprint.
 
 Workflow does not interpret compilation provenance. Execution settings are
 supplied through `BuildRuntime`. The contract never contains resolved

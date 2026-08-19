@@ -94,7 +94,12 @@ class RelationalLoweringTests(unittest.TestCase):
             tuple(module.module_id for module in blueprint.modules),
             (FileModule.ID, "core"),
         )
-        contract = compile(blueprint=blueprint)
+        contract = compile(
+            blueprint=blueprint,
+            modules=(register_module(
+                FileModule, FileModuleConfiguration("graph.jsonl")
+            ),),
+        )
         restored = WorkflowContractIR.model_validate_json(
             contract.model_dump_json()
         )
@@ -106,7 +111,6 @@ class RelationalLoweringTests(unittest.TestCase):
             blueprint.schema_version,
         )
         self.assertNotIn("blueprint", contract_document)
-        self.assertNotIn("settings", contract_document)
         self.assertTrue(all(
             "priority" not in module["reference"]
             for module in contract_document["workflow"]["modules"]
@@ -135,7 +139,9 @@ class RelationalLoweringTests(unittest.TestCase):
             build_key=LoweringProjection.identifier,
             properties=LoweringNode(label=LoweringProjection.label),
         )
-        contract = compile(bindings=(binding,), sources=(source,))
+        contract = compile(
+            bindings=(binding,), sources=(source,), modules=(),
+        )
         source_step = next(
             step for step in contract.workflow.steps
             if step.step_id == "core::table.lowering_input"
@@ -237,7 +243,13 @@ class RelationalLoweringTests(unittest.TestCase):
                 register_module(CollapseExactDuplicatesModule),
             ),
         )
-        contract = compile(blueprint=blueprint)
+        contract = compile(
+            blueprint=blueprint,
+            modules=(
+                register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
+                register_module(CollapseExactDuplicatesModule),
+            ),
+        )
         file_outputs = {
             connection.output_slot_id
             for connection in contract.workflow.connections

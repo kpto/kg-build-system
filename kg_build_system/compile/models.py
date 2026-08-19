@@ -14,23 +14,6 @@ BLUEPRINT_SCHEMA_VERSION: Final = 2
 
 
 @dataclass(frozen=True, slots=True)
-class CompilationSettings:
-    """Settings that affect compilation rather than workflow execution."""
-
-
-@dataclass(frozen=True, slots=True)
-class SourceOverride:
-    table: str
-    original: SourceIR | None
-    override: SourceIR
-
-
-@dataclass(frozen=True, slots=True)
-class CompilationOverrides:
-    sources: tuple[SourceOverride, ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
 class BuildBlueprint:
     """A compilation artifact containing no authoring Python classes."""
 
@@ -44,7 +27,4 @@ class BuildBlueprint:
     schema_version: Literal[2] = 2
 
 
-__all__ = [
-    "BLUEPRINT_SCHEMA_VERSION", "BuildBlueprint", "CompilationOverrides",
-    "CompilationSettings", "SourceOverride",
-]
+__all__ = ["BLUEPRINT_SCHEMA_VERSION", "BuildBlueprint"]

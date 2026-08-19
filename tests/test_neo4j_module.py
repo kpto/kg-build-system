@@ -91,7 +91,9 @@ def _source(path: Path):
 
 class LabelAnnotationTests(unittest.TestCase):
     def test_labels_are_portable_topology_annotations(self) -> None:
-        blueprint = create_blueprint(bindings=(person_binding, knows_binding))
+        blueprint = create_blueprint(
+            bindings=(person_binding, knows_binding), sources=(), modules=(),
+        )
         labels = {
             component.kind: (
                 component.annotations[0].namespace,
