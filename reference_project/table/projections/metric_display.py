@@ -1,8 +1,7 @@
 """A second projection exercising projection-to-projection expressions."""
 
 from kg_build_system import Projection, projection_field
-
-from demo.table.projections.expanded_metric import ExpandedMetricProjection
+from reference_project.table.projections.expanded_metric import ExpandedMetricProjection
 
 
 class MetricDisplayProjection(Projection):
@@ -10,8 +9,7 @@ class MetricDisplayProjection(Projection):
         ExpandedMetricProjection.record_id.expression.prepend("record::")
     )
     metric_key = projection_field(
-        ExpandedMetricProjection.record_id
-        .expression.prepend("metric::")
+        ExpandedMetricProjection.record_id.expression.prepend("metric::")
         .append("::")
         .append(ExpandedMetricProjection.group_id.expression)
         .append("::")
@@ -20,9 +18,9 @@ class MetricDisplayProjection(Projection):
         .append(ExpandedMetricProjection.metric_code.expression)
     )
     label = projection_field(
-        ExpandedMetricProjection.group_label.expression
-        .append(" / ")
-        .append(ExpandedMetricProjection.metric_code.expression)
+        ExpandedMetricProjection.group_label.expression.append(" / ").append(
+            ExpandedMetricProjection.metric_code.expression
+        )
     )
     adjusted_value = projection_field(
         ExpandedMetricProjection.metric_value.expression.add(1.5).sub(0.5)

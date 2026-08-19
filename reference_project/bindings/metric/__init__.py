@@ -1,8 +1,6 @@
 from kg_build_system import node_binding
-
-from demo.table.projections.metric_display import MetricDisplayProjection
-from demo.topology.nodes.metric.metric import MetricNode
-
+from reference_project.table.projections.metric_display import MetricDisplayProjection
+from reference_project.topology.metric import MetricNode
 
 metric_binding = node_binding(
     target=MetricNode,

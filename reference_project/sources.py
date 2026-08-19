@@ -3,9 +3,7 @@
 from pathlib import Path
 
 from kg_build_system import DataSourceConfig, InputFormat, bind_source
-
-from demo.table.complex_records import ComplexRecordsTable
-
+from reference_project.table.complex_records import ComplexRecordsTable
 
 DATA_FILE = Path(__file__).parents[1] / "data" / "complex_records.json"
 

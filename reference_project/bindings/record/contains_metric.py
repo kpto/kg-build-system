@@ -1,8 +1,6 @@
 from kg_build_system import edge_binding
-
-from demo.table.projections.metric_display import MetricDisplayProjection
-from demo.topology.nodes.record.edges.contains_metric import ContainsMetricEdge
-
+from reference_project.table.projections.metric_display import MetricDisplayProjection
+from reference_project.topology.record.contains_metric import ContainsMetricEdge
 
 contains_metric_binding = edge_binding(
     target=ContainsMetricEdge,

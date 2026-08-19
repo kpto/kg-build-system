@@ -1,1 +1,0 @@
-"""Metric graph bindings."""

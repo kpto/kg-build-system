@@ -1,17 +1,14 @@
 """One metric row produced from three correlated nested expansions."""
 
 from kg_build_system import Projection, projection_field
-
-from demo.table.complex_records import ComplexRecordsTable
-
+from reference_project.table.complex_records import ComplexRecordsTable
 
 group = ComplexRecordsTable.groups.expand()
 item = group.pick(lambda value: value.items).expand()
 metric = item.pick(lambda value: value.metrics).expand()
 
 deep_city = (
-    ComplexRecordsTable.profile
-    .pick(lambda value: value.contact)
+    ComplexRecordsTable.profile.pick(lambda value: value.contact)
     .pick(lambda value: value.location)
     .pick(lambda value: value.city)
 )
