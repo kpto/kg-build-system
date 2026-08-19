@@ -492,8 +492,10 @@ output slot. Module executor construction and step handlers are synchronous;
 compile-time module compilation remains a separate asynchronous lifecycle.
 
 The output directory receives published artifacts, `workflow_contract.json`, and
-`build_report.json`. The working directory defaults to the output directory;
-temporary storage defaults to a system temporary directory. Runtime
+`build_report.json`. It defaults to `build` beneath the current working
+directory. The working directory defaults to `_workdir` beneath the selected
+output directory; relative working-directory arguments are resolved beneath
+that output directory. Temporary storage defaults to a system temporary directory. Runtime
 credentials are resolved through runtime services. Credential values and their
 option schemas are opaque to the blueprint and workflow contract. The module
 owning a credentialed execution instruction defines and validates those

@@ -205,11 +205,9 @@ class RelationalLoweringTests(unittest.TestCase):
             )
             report = build(
                 contract,
-                BuildRuntime(
-                    duckdb_storage="disk",
-                    working_directory=root / "working",
-                ),
+                BuildRuntime(duckdb_storage="disk"),
                 output_directory=root / "output",
+                working_directory=root / "working",
             )
             self.assertTrue(report.succeeded)
             rows = [

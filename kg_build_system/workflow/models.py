@@ -188,13 +188,21 @@ class DisruptingInput:
 class BuildRuntime:
     credentials: dict[str, str] = field(default_factory=dict)
     module_configuration: dict[str, dict[str, Any]] = field(default_factory=dict)
-    output_directory: Path = field(default_factory=lambda: Path.cwd())
-    working_directory: Path | None = None
+    output_directory: Path = field(default_factory=lambda: Path.cwd() / "build")
+    working_directory: Path = field(default_factory=lambda: Path("_workdir"))
     temporary_directory: Path | None = None
     duckdb_storage: Literal["memory", "disk"] = "memory"
     duckdb_threads: int | None = None
     duckdb_memory_limit: str | None = None
     duckdb_compression: bool = True
+
+    def __post_init__(self) -> None:
+        if not self.working_directory.is_absolute():
+            object.__setattr__(
+                self,
+                "working_directory",
+                self.output_directory / self.working_directory,
+            )
 
 
 @dataclass(frozen=True)

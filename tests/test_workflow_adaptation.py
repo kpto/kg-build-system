@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import tempfile
 import unittest
+from contextlib import chdir
 from dataclasses import dataclass
 from pathlib import Path
 from io import StringIO
@@ -208,6 +209,28 @@ class WorkflowDefinitionTests(unittest.TestCase):
 
 
 class WorkflowRuntimeTests(unittest.TestCase):
+    def test_runtime_working_directory_is_derived_from_its_output(self) -> None:
+        output = Path("custom-output")
+        runtime = BuildRuntime(output_directory=output)
+
+        self.assertEqual(runtime.working_directory, output / "_workdir")
+
+    def test_default_directories_are_explicit_and_relative_to_cwd(self) -> None:
+        with tempfile.TemporaryDirectory() as directory, chdir(directory):
+            build(_contract(), monitor=False)
+
+            output = Path(directory) / "build"
+            self.assertTrue((output / "workflow_contract.json").is_file())
+            self.assertTrue((output / "build_report.json").is_file())
+            self.assertTrue((output / "_workdir").is_dir())
+
+    def test_default_working_directory_follows_custom_output(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "custom-output"
+            build(_contract(), output_directory=output, monitor=False)
+
+            self.assertTrue((output / "_workdir").is_dir())
+
     def test_successful_disrupted_handler_recovers_upstream_failure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             report = build(_contract(), output_directory=Path(directory))

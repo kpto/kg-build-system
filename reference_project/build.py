@@ -33,7 +33,7 @@ def compile_demo() -> WorkflowContractIR:
 
 
 def run_demo() -> None:
-    """Write the graph and inspectable compilation artifacts to ``demo/build``."""
+    """Write the graph and compilation artifacts to ``reference_project/build``."""
     output_dir = Path(__file__).parent / "build"
     output_dir.mkdir(exist_ok=True)
 

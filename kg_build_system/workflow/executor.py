@@ -199,7 +199,7 @@ def _build(
         raise RuntimeError("DuckDB is required to execute builds") from error
     workflow = workflow_from_ir(contract.workflow)
 
-    working_directory = runtime.working_directory or runtime.output_directory
+    working_directory = runtime.working_directory
     with ExitStack() as resources:
       temporary_directory = resources.enter_context(
           TemporaryDirectory(dir=runtime.temporary_directory)
@@ -411,8 +411,8 @@ def _build(
 
 def build(
     contract: WorkflowContractIR, runtime: BuildRuntime | None = None, *,
-    output_directory: str | Path | None = None,
-    working_directory: str | Path | None = None,
+    output_directory: str | Path = Path("build"),
+    working_directory: str | Path = Path("_workdir"),
     temporary_directory: str | Path | None = None,
     monitor: WorkflowExecutionMonitor | bool | None = None,
 ) -> WorkflowReport:
@@ -423,17 +423,21 @@ def build(
     :class:`WorkflowExecutionMonitor` implementation.
     """
     configured = runtime or BuildRuntime()
-    resolved_output = Path(output_directory) if output_directory is not None else configured.output_directory
-    resolved_working = Path(working_directory) if working_directory is not None else configured.working_directory
+    resolved_output = Path(output_directory).resolve()
+    requested_working = Path(working_directory)
+    resolved_working = (
+        requested_working.resolve()
+        if requested_working.is_absolute()
+        else resolved_output / requested_working
+    )
     resolved_temporary = Path(temporary_directory) if temporary_directory is not None else configured.temporary_directory
     configured = replace(
         configured,
         output_directory=resolved_output,
-        working_directory=resolved_working or resolved_output,
+        working_directory=resolved_working,
         temporary_directory=resolved_temporary,
     )
     configured.output_directory.mkdir(parents=True, exist_ok=True)
-    assert configured.working_directory is not None
     configured.working_directory.mkdir(parents=True, exist_ok=True)
     if configured.temporary_directory is not None:
         configured.temporary_directory.mkdir(parents=True, exist_ok=True)
