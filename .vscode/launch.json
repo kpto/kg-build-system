@@ -5,11 +5,11 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python Debugger: Demo",
+            "name": "Python Debugger: Reference Project",
             "type": "debugpy",
             "request": "launch",
-            "program": "${workspaceFolder}/demo/build.py",
-            "cwd": "${fileDirname}",
+            "program": "${workspaceFolder}/reference_project/build.py",
+            "cwd": "${workspaceFolder}/reference_project",
             "console": "integratedTerminal"
         },
         {
