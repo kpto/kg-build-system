@@ -107,21 +107,21 @@ widening (`parent` becomes `parents`), DAG → tree is a breaking change.
 concrete — as endpoint categories. One edge component covers all concrete
 pairs actually bound in a build; the author pays only for pairs that exist.
 
-`edge_binding` gains endpoint identity tokens:
+`edge_binding` gains endpoint identity arguments, wrapped with `endpoint(...)`:
 
 ```python
 @dataclass(frozen=True)
-class ComponentKey(Generic[N_co]):
+class Endpoint(Generic[N_co]):
     target: type[N_co]
 
-def component_key[N: Node](target: type[N]) -> ComponentKey[N]: ...
+def endpoint[N: Node](target: type[N]) -> Endpoint[N]: ...
 
 def edge_binding(
     *,
     target: type[Edge[S, D]],
-    source_node: ComponentKey[S] | None,
+    source_node: Endpoint[S] | None,
     source_build_key: ValueExpression[Hashable],
-    target_node: ComponentKey[D] | None,
+    target_node: Endpoint[D] | None,
     target_build_key: ValueExpression[Hashable],
     build_key: ValueExpression[Hashable],
     properties: E,
@@ -143,11 +143,11 @@ Rationale, each decision measured rather than assumed (see §9):
   choosing one producer as the endpoint witness is meaningless, couples the
   edge to one producer's existence, and fails the moment a node has two
   bindings. Identity is per component; producers are per binding.
-- **The token.** `component_key`'s `N: Node` bound makes an abstract class
-  statically unable to become a token, and covariance of the frozen marker
-  enforces category membership by variance. The endpoint argument is then
-  itself the witness that the component is declared; "must the namespace be
-  instantiated" collapses into "does the argument exist."
+- **The wrapper.** `endpoint`'s `N: Node` bound makes an abstract class
+  statically unable to become an endpoint, and covariance of the frozen
+  wrapper enforces category membership by variance. The endpoint argument is
+  then itself the witness that the component is declared; "must the namespace
+  be instantiated" collapses into "does the argument exist."
 
 Verified static behavior (demo, pyright): valid call with two `RecordNode`
 producers in scope passes; abstract category, wrong category, and raw class
@@ -155,7 +155,7 @@ each fail statically; a bypassed runtime construction raises `TypeError`.
 
 Two mechanical facts that are easy to regress: `Edge`'s endpoint type
 parameters must stay **invariant** (covariant endpoints silently stop
-detecting category violations — measured), and `ComponentKey`'s covariant
+detecting category violations — measured), and `Endpoint`'s covariant
 parameter is bound to `_DeclarationBase` so it instantiates with abstract
 categories. The PEP 695 bridging pattern (`def f[S, SC: S]`) is broken in
 current pyright and must not be substituted.
@@ -192,8 +192,9 @@ Not in this branch; the binding shape is designed to make it an
 author-invisible follow-up. Today namespaces are hand-written into key
 values (`record::…`) and the Neo4j "ID space" is decorative: imports resolve
 endpoints by global value. Stage 2 moves namespace composition into core:
-global identity = `token(component) ⊕ local key value` for node bindings and
-edge endpoints symmetrically. Cross-type endpoint matches then become
+global identity = the component's endpoint identity ⊕ the local key value,
+for node bindings and edge endpoints symmetrically. Cross-type endpoint
+matches then become
 unmatchable even against pathological data, the prefix discipline disappears
 from authoring, and the remaining author duty shrinks to disjoint value
 ranges within one's own components. `source_node`/`target_node` are the seam
@@ -219,7 +220,7 @@ additive for existing builds. Preparation hooks follow the cooperative
 super-first + kind-guard pattern already used by `TableTemplate` / `Table`.
 
 Testing contracts: runtime unit tests for R1–R3 (including the diamond case
-and the mixin-redirect message), token factory guards, blueprint endpoint
+and the mixin-redirect message), endpoint factory guards, blueprint endpoint
 validation, codec round-trip and fingerprint change; one
 `tests/typecheck_topology_hierarchy.py` static-contract file for the
 positive side only — pyright has no expect-error directive, so the negative
@@ -230,7 +231,7 @@ side is owned by runtime tests and pinned by the demo.
 The demo is the executable proof of the pattern and part of this spec. It
 shows: the six-base shape (inert stand-in templates/abstracts under the real
 decorated root), one component with two producers, a choice-free
-`component_key` endpoint, and exactly three intended static misuses
+`endpoint(...)` wrapper, and exactly three intended static misuses
 (abstract category, wrong category, raw class) plus a runtime backstop.
 Expected: `uv run pyright demo_endpoint_pattern.py` reports exactly 3 errors
 inside the `_misuse_*` block; `uv run python demo_endpoint_pattern.py`

@@ -28,14 +28,14 @@ class AbstractNode(GraphComponent):
 
 
 @dataclass(frozen=True)
-class ComponentKey(Generic[N_co]):
+class Endpoint(Generic[N_co]):
     target: type[N_co]
 
 
-def component_key[N: Node](target: type[N]) -> ComponentKey[N]:
+def endpoint[N: Node](target: type[N]) -> Endpoint[N]:
     if vars(target).get("_component_declaration_kind") != "node":
         raise TypeError(f"'{target.__name__}' is not a concrete node")
-    return ComponentKey(target)
+    return Endpoint(target)
 
 
 class EdgeBase(GraphComponent, Generic[S, D]):
@@ -45,8 +45,8 @@ class EdgeBase(GraphComponent, Generic[S, D]):
 def edge_binding(
     *,
     target: type[EdgeBase[S, D]],
-    source_node: ComponentKey[S],
-    target_node: ComponentKey[D],
+    source_node: Endpoint[S],
+    target_node: Endpoint[D],
     source_build_key: ValueExpression[str],
     target_build_key: ValueExpression[str],
 ) -> None: ...
@@ -119,8 +119,8 @@ records_from_stream = node_binding(
 # choice-free endpoint: identity is the component, not either producer
 edge_binding(
     target=ContainsEdge,
-    source_node=component_key(RecordNode),
-    target_node=component_key(MetricNode),
+    source_node=endpoint(RecordNode),
+    target_node=endpoint(MetricNode),
     source_build_key=MetricsView.record_id.expression.prepend("record::"),
     target_build_key=MetricsView.code.expression.prepend("metric::"),
 )
@@ -131,8 +131,8 @@ edge_binding(
 def _misuse_abstract_endpoint() -> None:  # EXPECT-STATIC: abstract category
     edge_binding(
         target=ContainsEdge,
-        source_node=component_key(EntityNode),
-        target_node=component_key(MetricNode),
+        source_node=endpoint(EntityNode),
+        target_node=endpoint(MetricNode),
         source_build_key=MetricsView.record_id.expression,
         target_build_key=MetricsView.code.expression,
     )
@@ -141,8 +141,8 @@ def _misuse_abstract_endpoint() -> None:  # EXPECT-STATIC: abstract category
 def _misuse_wrong_category() -> None:  # EXPECT-STATIC: outside the endpoint category
     edge_binding(
         target=ContainsEdge,
-        source_node=component_key(OutsideNode),
-        target_node=component_key(MetricNode),
+        source_node=endpoint(OutsideNode),
+        target_node=endpoint(MetricNode),
         source_build_key=MetricsView.record_id.expression,
         target_build_key=MetricsView.code.expression,
     )
@@ -152,7 +152,7 @@ def _misuse_raw_class() -> None:  # EXPECT-STATIC: class where identity token re
     edge_binding(
         target=ContainsEdge,
         source_node=RecordNode,
-        target_node=component_key(MetricNode),
+        target_node=endpoint(MetricNode),
         source_build_key=MetricsView.record_id.expression,
         target_build_key=MetricsView.code.expression,
     )
@@ -162,7 +162,7 @@ def _misuse_raw_class() -> None:  # EXPECT-STATIC: class where identity token re
 
 def _runtime_backstop() -> None:
     try:
-        component_key(EntityNode)  # pyright: ignore[reportArgumentType]
+        endpoint(EntityNode)  # pyright: ignore[reportArgumentType]
         raise AssertionError("abstract component must be rejected at runtime")
     except TypeError:
         pass
