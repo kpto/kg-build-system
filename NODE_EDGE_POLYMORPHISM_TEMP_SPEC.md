@@ -107,7 +107,9 @@ widening (`parent` becomes `parents`), DAG → tree is a breaking change.
 concrete — as endpoint categories. One edge component covers all concrete
 pairs actually bound in a build; the author pays only for pairs that exist.
 
-`edge_binding` gains endpoint identity arguments, wrapped with `endpoint(...)`:
+`edge_binding` gains endpoint identity arguments, wrapped with `endpoint(...)`,
+as an overload matrix that makes each token required exactly when its declared
+endpoint is abstract:
 
 ```python
 @dataclass(frozen=True)
@@ -116,22 +118,41 @@ class Endpoint(Generic[N_co]):
 
 def endpoint[N: Node](target: type[N]) -> Endpoint[N]: ...
 
-def edge_binding(
-    *,
-    target: type[Edge[S, D]],
-    source_node: Endpoint[S] | None,
-    source_build_key: ValueExpression[Hashable],
-    target_node: Endpoint[D] | None,
-    target_build_key: ValueExpression[Hashable],
-    build_key: ValueExpression[Hashable],
-    properties: E,
-): ...
+@overload
+def edge_binding[S: Node, D: Node](
+    *, target: type[Edge[S, D]], source_build_key: ...,
+    target_build_key: ..., build_key: ..., properties: E,
+): ...  # both sides concrete: tokens omittable
+@overload
+def edge_binding[S: Node, DC](  # DC: node-side category base
+    *, target: type[Edge[S, DC]], source_build_key: ...,
+    target_node: Endpoint[DC], target_build_key: ...,
+    build_key: ..., properties: E,
+): ...  # concrete source, category target
+@overload
+def edge_binding[SC, D: Node](  # SC: node-side category base
+    *, target: type[Edge[SC, D]], source_node: Endpoint[SC],
+    source_build_key: ..., target_build_key: ...,
+    build_key: ..., properties: E,
+): ...  # category source, concrete target
+@overload
+def edge_binding[SC, DC](  # both: node-side category base
+    *, target: type[Edge[SC, DC]], source_node: Endpoint[SC],
+    source_build_key: ..., target_node: Endpoint[DC],
+    target_build_key: ..., build_key: ..., properties: E,
+): ...  # both sides category
 ```
 
-`source_node` / `target_node` are required when the declared endpoint is
-abstract, may be omitted when it is concrete (defaulting to the declared
-component), and must resolve to the declared component itself when concrete
-and supplied.
+Each endpoint slot appears in exactly the overloads where its side's typevar,
+inferred from `target`, is bound to the category base rather than to `Node`.
+An abstract declared endpoint cannot satisfy the `Node` bound, so the call
+falls to an overload whose signature demands the token — the same
+concreteness predicate that gates the `endpoint(...)` factory and the runtime
+guard, with only independent per-overload typevars (the banned bridging
+pattern is not involved). A supplied endpoint must resolve to the declared
+component itself when concrete — explicit tokens naming it stay valid — and
+to a concrete descendant when the declaration is abstract; the runtime
+implementation enforces the identical rule for bypassed callers.
 
 Rationale, each decision measured rather than assumed (see §9):
 
@@ -149,9 +170,13 @@ Rationale, each decision measured rather than assumed (see §9):
   then itself the witness that the component is declared; "must the namespace
   be instantiated" collapses into "does the argument exist."
 
-Verified static behavior (demo, pyright): valid call with two `RecordNode`
-producers in scope passes; abstract category, wrong category, and raw class
-each fail statically; a bypassed runtime construction raises `TypeError`.
+Verified static behavior (demo, pyright): valid calls pass for a category
+edge with two tokens while two `RecordNode` producers are in scope, for a
+fully concrete edge with both tokens omitted, for a concrete edge with
+explicit tokens naming the declared components, and for a mixed edge with a
+token only on the category side; abstract category, wrong category, raw
+class, and an omitted token on a category-declared side each fail statically;
+a bypassed runtime construction raises `TypeError`.
 
 Two mechanical facts that are easy to regress: `Edge`'s endpoint type
 parameters must stay **invariant** (covariant endpoints silently stop
@@ -220,7 +245,8 @@ additive for existing builds. Preparation hooks follow the cooperative
 super-first + kind-guard pattern already used by `TableTemplate` / `Table`.
 
 Testing contracts: runtime unit tests for R1–R3 (including the diamond case
-and the mixin-redirect message), endpoint factory guards, blueprint endpoint
+and the mixin-redirect message), endpoint factory and omitted-token guards
+(static overload matrix plus the runtime backstop), blueprint endpoint
 validation, codec round-trip and fingerprint change; one
 `tests/typecheck_topology_hierarchy.py` static-contract file for the
 positive side only — pyright has no expect-error directive, so the negative
@@ -231,10 +257,11 @@ side is owned by runtime tests and pinned by the demo.
 The demo is the executable proof of the pattern and part of this spec. It
 shows: the six-base shape (inert stand-in templates/abstracts under the real
 decorated root), one component with two producers, a choice-free
-`endpoint(...)` wrapper, and exactly three intended static misuses
-(abstract category, wrong category, raw class) plus a runtime backstop.
-Expected: `uv run pyright demo_endpoint_pattern.py` reports exactly 3 errors
-inside the `_misuse_*` block; `uv run python demo_endpoint_pattern.py`
-prints `OK`. Implementation replaces its stand-ins (`EdgeBase`, inert
+`endpoint(...)` wrapper, the endpoint-optionality overload matrix, and exactly
+five intended static misuses (abstract category, wrong category, raw class,
+and omitted tokens on a fully abstract edge and on the category side of a
+mixed edge) plus a runtime backstop. Expected:
+`uv run pyright demo_endpoint_pattern.py` reports exactly 5 errors inside the
+`_misuse_*` block; `uv run python demo_endpoint_pattern.py` prints `OK`. Implementation replaces its stand-ins (`EdgeBase`, inert
 `AbstractNode`) with the real machinery; keep the demo until the real tests
 subsume it, then fold its cases into §8.

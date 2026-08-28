@@ -1,11 +1,16 @@
-"""Proof of the abstract-endpoint binding pattern: endpoints reference a
+"""Proof of the abstract endpoint binding pattern: endpoints reference a
 component's identity, not one of its producers.
 
-Expected pyright result: exactly 3 errors, all inside the `_misuse_*` block.
+The overload matrix keys each endpoint token on the concreteness of the
+declared endpoint: the typevar inferred from ``target`` is bound to ``Node``
+where the token is omittable and to the category base where it is required.
+No typevar bridging is involved; each overload uses independent typevars.
+
+Expected pyright result: exactly 5 errors, all inside the `_misuse_*` block.
 Expected runtime result: prints OK.
 """
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import Generic, TypeVar, overload
 
 from kg_build_system import (
     Field, Node, PropertySlot, Table, field, node_binding, property,
@@ -42,14 +47,40 @@ class EdgeBase(GraphComponent, Generic[S, D]):
     """Stand-in for Edge; real Edge relaxes its endpoint bound to categories."""
 
 
-def edge_binding(
+@overload
+def edge_binding[S: Node, D: Node](
     *,
     target: type[EdgeBase[S, D]],
-    source_node: Endpoint[S],
-    target_node: Endpoint[D],
     source_build_key: ValueExpression[str],
     target_build_key: ValueExpression[str],
 ) -> None: ...
+@overload
+def edge_binding[S: Node, DC: GraphComponent](
+    *,
+    target: type[EdgeBase[S, DC]],
+    source_build_key: ValueExpression[str],
+    target_node: Endpoint[DC],
+    target_build_key: ValueExpression[str],
+) -> None: ...
+@overload
+def edge_binding[SC: GraphComponent, D: Node](
+    *,
+    target: type[EdgeBase[SC, D]],
+    source_node: Endpoint[SC],
+    source_build_key: ValueExpression[str],
+    target_build_key: ValueExpression[str],
+) -> None: ...
+@overload
+def edge_binding[SC: GraphComponent, DC: GraphComponent](
+    *,
+    target: type[EdgeBase[SC, DC]],
+    source_node: Endpoint[SC],
+    source_build_key: ValueExpression[str],
+    target_node: Endpoint[DC],
+    target_build_key: ValueExpression[str],
+) -> None: ...
+def edge_binding(**_kwargs: object) -> None:
+    """Stand-in implementation; the real binding enforces the same contract."""
 
 
 # --- authoring -----------------------------------------------------------
@@ -98,6 +129,14 @@ class ContainsEdge(EdgeBase[EntityNode, EntityNode]):
     pass
 
 
+class DirectEdge(EdgeBase[RecordNode, MetricNode]):
+    """Both endpoints concrete: both tokens omittable."""
+
+
+class MixedEdge(EdgeBase[EntityNode, MetricNode]):
+    """One category endpoint: the token is required only for that side."""
+
+
 # one component, two producers -- the situation that forced the design
 records_from_legacy = node_binding(
     target=RecordNode,
@@ -120,7 +159,31 @@ records_from_stream = node_binding(
 edge_binding(
     target=ContainsEdge,
     source_node=endpoint(RecordNode),
+    source_build_key=MetricsView.record_id.expression.prepend("record::"),
     target_node=endpoint(MetricNode),
+    target_build_key=MetricsView.code.expression.prepend("metric::"),
+)
+
+# concrete endpoints: tokens default to the declared components
+edge_binding(
+    target=DirectEdge,
+    source_build_key=MetricsView.record_id.expression.prepend("record::"),
+    target_build_key=MetricsView.code.expression.prepend("metric::"),
+)
+
+# concrete endpoints: explicit tokens naming the declared components stay valid
+edge_binding(
+    target=DirectEdge,
+    source_node=endpoint(RecordNode),
+    source_build_key=MetricsView.record_id.expression.prepend("record::"),
+    target_node=endpoint(MetricNode),
+    target_build_key=MetricsView.code.expression.prepend("metric::"),
+)
+
+# mixed endpoints: only the abstract side needs a token
+edge_binding(
+    target=MixedEdge,
+    source_node=endpoint(RecordNode),
     source_build_key=MetricsView.record_id.expression.prepend("record::"),
     target_build_key=MetricsView.code.expression.prepend("metric::"),
 )
@@ -132,8 +195,8 @@ def _misuse_abstract_endpoint() -> None:  # EXPECT-STATIC: abstract category
     edge_binding(
         target=ContainsEdge,
         source_node=endpoint(EntityNode),
-        target_node=endpoint(MetricNode),
         source_build_key=MetricsView.record_id.expression,
+        target_node=endpoint(MetricNode),
         target_build_key=MetricsView.code.expression,
     )
 
@@ -142,8 +205,8 @@ def _misuse_wrong_category() -> None:  # EXPECT-STATIC: outside the endpoint cat
     edge_binding(
         target=ContainsEdge,
         source_node=endpoint(OutsideNode),
-        target_node=endpoint(MetricNode),
         source_build_key=MetricsView.record_id.expression,
+        target_node=endpoint(MetricNode),
         target_build_key=MetricsView.code.expression,
     )
 
@@ -152,7 +215,23 @@ def _misuse_raw_class() -> None:  # EXPECT-STATIC: class where identity token re
     edge_binding(
         target=ContainsEdge,
         source_node=RecordNode,
+        source_build_key=MetricsView.record_id.expression,
         target_node=endpoint(MetricNode),
+        target_build_key=MetricsView.code.expression,
+    )
+
+
+def _misuse_missing_abstract_endpoint() -> None:  # EXPECT-STATIC: token omitted on abstract endpoint
+    edge_binding(
+        target=ContainsEdge,
+        source_build_key=MetricsView.record_id.expression,
+        target_build_key=MetricsView.code.expression,
+    )
+
+
+def _misuse_mixed_endpoint_omitted() -> None:  # EXPECT-STATIC: abstract side of a mixed edge omitted
+    edge_binding(
+        target=MixedEdge,
         source_build_key=MetricsView.record_id.expression,
         target_build_key=MetricsView.code.expression,
     )
