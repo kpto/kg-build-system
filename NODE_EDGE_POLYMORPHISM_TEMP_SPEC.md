@@ -37,14 +37,32 @@ Six public bases, all descending from one internal decorated root:
 | `AbstractNode` / `AbstractEdge[S, D]` | category; specialization target | no | yes (`abstract`) |
 | `Node` / `Edge[S, D]` | concrete component | yes | yes |
 
-The shared root carries `@dataclass_transform`, is internal, and is named
-without graph semantics: **`_DeclarationBase`** ("declaration" is existing
-framework vocabulary). The current public `GraphComponent` /
+The six bases share one internal decorated root:
+**`_TopologyDeclarationBase`** — the carrier of the domain's
+`@dataclass_transform(field_specifiers=(property,), kw_only_default=True)`,
+which is what gives the property declarations their edit-time synthesized
+constructor for binding input and, per R2, keeps template- and
+category-mixed declarations visible in it. Decorated roots do not
+generalize across domains: each authoring domain carries its own root with
+its own declaration protocol (the table domain has no transform at all),
+and there is no framework-wide declaration root — PEP 681's inheritance
+would leak one domain's transform semantics into an unrelated chain. The
+current public `GraphComponent` /
 `GraphComponentOptions` names are withdrawn (§8); authors reference only the
 six bases. Every tier declares `options`, and the options type identifies the
 tier — `NodeOptions` / `EdgeOptions` on the IR-visible bases, kind-matched
 `NodeOptionsTemplate` / `EdgeOptionsTemplate` on templates
 — no abstract flag, the base class is the marker.
+
+On the edge side the concrete base is declared above its abstract
+counterpart: `Edge[S, D]` derives from `AbstractEdge[S, D]` — this
+derivation is what makes endpoint descent checkable (§4). On the node
+side, `Node` and `AbstractNode` are siblings under the node-side root.
+Base order is canonical
+and normative — template, abstract parents, terminal base last,
+mirroring the node side — because the order is load-bearing for an edge
+that re-declares endpoints under an abstract parent: the checker
+rejects the terminal base declared first (§4).
 
 ```python
 class Audited(NodeTemplate):                      # sharing only — no graph link
@@ -59,7 +77,7 @@ class RecordNode(Audited, EntityNode, Node):      # specializes entity
     city: PropertySlot[str] = property()
 
 class ContainsEdge(AbstractEdge[EntityNode, EntityNode]): ...
-class ContainsMetricEdge(Edge[EntityNode, MetricNode], ContainsEdge): ...
+class ContainsMetricEdge(ContainsEdge, Edge[EntityNode, MetricNode]): ...
 ```
 
 Inheritance from a template creates no graph relationship; inheritance from an
@@ -184,10 +202,10 @@ just direct bases, so violations fail at their earliest declaration:
 - **R1 — one category slot.** At most one abstract component of the matching
   kind (node or edge) in the MRO; any number of matching-kind templates.
   Framework bases are excluded from the count. A diamond such as
-  `class Both(Named, Sourced)` from two abstracts fails at `Both`, not at a
+  `class Both(Alive, Classified)` from two abstracts fails at `Both`, not at a
   later concrete class.
 - **R2 — framework-lineage MRO.** Every MRO class (below the component,
-  above `object`) must descend from `_DeclarationBase`. This mirrors
+  above `object`) must descend from `_TopologyDeclarationBase`. This mirrors
   pyright's `dataclass_transform` scoping rule, which was empirically
   established: constructor-field visibility follows the *chain root*, so a
   `NodeTemplate`-rooted chain with plain intermediates is fully visible, and
@@ -200,6 +218,15 @@ just direct bases, so violations fail at their earliest declaration:
   `NodeOptions` node-side, `EdgeOptions` edge-side on IR-visible bases;
   `NodeOptionsTemplate` / `EdgeOptionsTemplate` on their matching
   template lineage (§2).
+- **R4 — endpoint descent.** Every edge declaration — abstract or
+  concrete — states its endpoint categories explicitly, and each
+  re-declared endpoint must equal or
+  descend from every abstract edge ancestor's declared endpoint. The
+  checker enforces this at edit time from base-class consistency (§4);
+  the preparation walk enforces the same `issubclass` predicate at
+  class creation, base-order insensitively, and also catches what the
+  checker cannot see — an edge inheriting endpoint lineage without
+  re-declaring it, or declaring no endpoints at all.
 
 Consequences: the hierarchy is a tree (one parent), abstracts may not extend
 concretes, and category errors raise with the redirect that maintains the
@@ -221,6 +248,15 @@ widening (`parent` becomes `parents`), DAG → tree is a breaking change.
 `Edge[S, D]` / `AbstractEdge[S, D]` accept node components — abstract or
 concrete — as endpoint categories. One edge component covers all concrete
 pairs actually bound in a build; the author pays only for pairs that exist.
+An edge descended under an abstract edge — concrete or abstract —
+re-declares its endpoints through its terminal base specialization, and
+each re-declared endpoint must
+equal or descend from the parent's declared category (R4). Descent is
+statically checkable because `AbstractEdge`'s endpoint parameters are
+covariant while `Edge`'s stay invariant: the child's narrower
+specialization through `Edge` stays subtype-compatible with the parent's
+pinned specialization, and pyright's base-consistency rule rejects every
+incompatible re-declaration at the declaration site (measured).
 
 `edge_binding` gains endpoint identity arguments, wrapped with `endpoint(...)`,
 as an overload matrix that makes each token required exactly when its declared
@@ -285,19 +321,38 @@ Rationale, each decision measured rather than assumed (see §9):
   then itself the witness that the component is declared; "must the namespace
   be instantiated" collapses into "does the argument exist."
 
-Verified static behavior (demo, pyright): valid calls pass for a category
-edge with two tokens while two `RecordNode` producers are in scope, for a
+Verified static behavior (demo, pyright): valid calls pass for a concrete
+edge over two abstract categories with both tokens while two `RecordNode`
+producers are in scope, for a descended edge with a token only on its
+remaining category side, for a
 fully concrete edge with both tokens omitted, for a concrete edge with
 explicit tokens naming the declared components, and for a mixed edge with a
 token only on the category side; abstract category, wrong category, raw
-class, and an omitted token on a category-declared side each fail statically;
+class, an omitted token on a category-declared side, a terminal base whose
+endpoint widens past the abstract parent, a terminal base declared
+before its abstract parent, and an edge-kind endpoint category each fail statically;
 a bypassed runtime construction raises `TypeError`.
 
-Two mechanical facts that are easy to regress: `Edge`'s endpoint type
+Three mechanical facts that are easy to regress: `Edge`'s endpoint type
 parameters must stay **invariant** (covariant endpoints silently stop
-detecting category violations — measured), and `Endpoint`'s covariant
-parameter is bound to `_DeclarationBase` so it instantiates with abstract
-categories. The PEP 695 bridging pattern (`def f[S, SC: S]`) is broken in
+detecting category violations — measured); `AbstractEdge`'s endpoint
+parameters must stay **covariant** (with invariant parameters pyright
+rejects the descent case too — endpoint descent becomes unrepresentable —
+measured); and every endpoint-category parameter — `Edge`/`AbstractEdge`
+endpoint parameters and `Endpoint`'s parameter — is bound to the
+**node-side root**, an internal base shared by `AbstractNode` and `Node`
+(`_TopologyDeclarationBase` is too loose: it would admit edge-kind categories).
+The bound instantiates with abstract node categories and makes an
+edge-kind type argument statically impossible. Constrained typevars
+(`TypeVar("S", AbstractNode, Node)`) were measured and rejected as the
+mechanism: they break `type[Edge[S, D]]` inference for the binding matrix
+and silently disable the base-consistency order guard — they must not be
+substituted. Base order is load-bearing exactly where lineage narrowing is
+involved: the abstract parent must precede the terminal `Edge[...]` base,
+and a terminal-first declaration fails the checker even with valid
+endpoints (measured) — which is what makes the canonical
+template → abstract → terminal-last order normative. The PEP 695 bridging
+pattern (`def f[S, SC: S]`) is broken in
 current pyright and must not be substituted.
 
 `source_build_key` / `target_build_key` are unchanged: local scalar
@@ -372,7 +427,7 @@ generated `__init__` signature into the `__doc__` of a docstring-less class
 (measured; the demo's stand-in walk was misled by exactly this stamp), so a
 post-creation docstring read silently reports a signature as a description.
 
-Testing contracts: runtime unit tests for R1–R3 (including the diamond case
+Testing contracts: runtime unit tests for R1–R4 (including the diamond case
 and the mixin-redirect message), endpoint factory and omitted-token guards
 (static overload matrix plus the runtime backstop), options-tier
 semantics (template options annotations reach the abstract's and concrete's effective
@@ -382,7 +437,13 @@ sequence, and an IR-visible class given template options, each raise with
 the redirect; a shared template
 in a diamond contributes once; cross-kind options raise on IR-visible
 bases; category annotations never mix into children; description is never
-inherited; label conflicts name the contributing declarations), blueprint
+inherited; label conflicts name the contributing declarations), endpoint
+descent (equal and descended specializations accepted; widened or
+unrelated endpoints rejected at declaration; inherited lineage without a
+re-declared endpoint and an edge with no endpoint declaration rejected at
+class creation, order-insensitively; edge-kind endpoint categories
+rejected statically by the node-side bound and at class creation by the
+same predicate), blueprint
 endpoint validation, codec round-trip and fingerprint change; one
 `tests/typecheck_topology_hierarchy.py` static-contract file for the
 positive side only — pyright has no expect-error directive, so the negative
@@ -391,19 +452,36 @@ side is owned by runtime tests and pinned by the demo.
 ## 9. Model reference: `demo_endpoint_pattern.py`
 
 The demo is the executable proof of the pattern and part of this spec. It
-shows: the six-base shape (inert stand-in templates/abstracts under the real
-decorated root), the per-tier typed options with a stand-in preparation walk
+shows: the six-base shape — template, abstract, and concrete bases under
+their eventual names, as stand-ins under the real decorated root, later
+renamed `_TopologyDeclarationBase` (the
+node side uses the real `Node`; the edge side a stand-in `Edge` derived
+from the covariant stand-in `AbstractEdge` with its own parameters
+invariant; endpoint parameters bound to `AbstractNode | Node`, the
+stand-in for the internal node-side root) —, the per-tier typed options with a stand-in preparation walk
 pinning the flow contract (template options annotations flow into the
-declaring class; category options do not; description is never inherited),
-one component with two
+declaring class; category options do not; description is never inherited —
+proved on both sides, with the abstract edge's own label staying on its
+entry when a concrete child descends and narrows), one component with two
 producers, a choice-free `endpoint(...)` wrapper, the endpoint-optionality
-overload matrix, and exactly five intended static misuses (abstract
-category, wrong category, raw class, and omitted tokens on a fully abstract
-edge and on the category side of a mixed edge) plus runtime backstops for
-the endpoint factory and the options-tier guards. Expected:
-`uv run pyright demo_endpoint_pattern.py` reports exactly 5 errors inside the
+overload matrix, endpoint descent enforced through invariant-into-covariant
+base consistency, and exactly eight intended static misuses (abstract
+category, wrong category, raw class, omitted tokens on a fully abstract
+edge, omission on the category side of a mixed edge, a terminal base
+widening an endpoint past its abstract parent, a terminal base
+declared before its abstract parent, and an edge-kind endpoint category) plus runtime backstops for
+the endpoint factory, the options-tier guards, and endpoint descent
+(widening rejected, inherited lineage without a re-declared endpoint
+rejected, an edge declaring no endpoints at all rejected, a
+`type()`-bypassed edge-kind specialization rejected, and an
+order-flipped valid declaration accepted — proving the
+base-order rule checker-only and the preparation predicate
+order-insensitive). Expected:
+`uv run pyright demo_endpoint_pattern.py` reports exactly 8 errors inside the
 `_misuse_*` block; `uv run python demo_endpoint_pattern.py` prints `OK`.
-Implementation replaces its stand-ins (`EdgeBase`, the inert
-`AbstractNode`, the template options types, and the options-tier guards)
+Implementation replaces the stand-in edge `Edge` and abstract
+`AbstractEdge`, the inert `AbstractNode`, the template roots and template
+options types, and the
+options-tier and endpoint-lineage guards
 with the real machinery; keep the demo until the real tests
 subsume it, then fold its cases into §8.
