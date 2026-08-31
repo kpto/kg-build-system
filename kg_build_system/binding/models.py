@@ -39,6 +39,8 @@ class EdgeBinding(Generic[E_co]):
     target_build_key: ValueExpression[Any]
     properties: E_co
     annotations: tuple[Annotation, ...] = ()
+    source_node: type[Node] | None = None
+    target_node: type[Node] | None = None
 
 
 type Binding = NodeBinding[Any] | EdgeBinding[Any]

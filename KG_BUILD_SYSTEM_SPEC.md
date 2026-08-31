@@ -13,8 +13,9 @@ objects are the portable definition format, and DuckDB is the first relational
 engine.
 
 The current implementation includes typed nested data declarations, typed
-expressions, projections, direct graph bindings, canonical blueprint schema
-version 2, engine-neutral relational planning, DuckDB lowering, composable
+expressions, projections, a three-tier topology hierarchy with category
+endpoints, direct graph bindings, canonical blueprint schema version 3,
+engine-neutral relational planning, DuckDB lowering, composable
 workflow modules, file and Neo4j administrative-import output, and edit-time
 generated data-contract packages.
 
@@ -34,7 +35,7 @@ Python declarations/sources/modules/settings ──> compile ──> WorkflowCon
                                                      │
 runtime configuration ─────────────────> build <─────┘
 
-                         create_blueprint ──> BuildBlueprint (schema v2)
+                         create_blueprint ──> BuildBlueprint (schema v3)
                          auxiliary inspection and serialization boundary
 ```
 
@@ -271,7 +272,7 @@ input list. The projection dependency graph must be acyclic. Every projection
 has one driving logical source. Additional sources require an explicit lookup
 facility; implicit cross products are rejected.
 
-## 7. Topology and graph bindings
+## 7. Topology hierarchy and graph bindings
 
 Topology declares graph meaning independently of input data:
 
@@ -285,20 +286,63 @@ class ContainsEdge(Edge[InputNode, InputNode]):
     score: PropertySlot[float] = property()
 ```
 
-Target-neutral `NodeLabel` and `EdgeLabel` annotations optionally override the
-computed semantic label of a graph component. At most one matching annotation
-may be supplied. A target may interpret the effective label using its own native
-vocabulary; the Neo4j target maps a node label to `:LABEL` and an edge label to
-the relationship `:TYPE` header.
+Six public bases sit under one internal `@dataclass_transform` root in three
+tiers: template (`NodeTemplate`/`EdgeTemplate`) shares property slots and
+annotation flow and never enters the IR; category (`AbstractNode`/
+`AbstractEdge[S, D]`) is a graph-visible parent recorded in the IR;
+concrete (`Node`/`Edge[S, D]`) is bindable and terminal. `Edge` derives
+from `AbstractEdge[S, D]` — that derivation is what makes endpoint descent
+checkable, because `AbstractEdge`'s endpoint parameters are covariant while
+`Edge`'s stay invariant. `Node` and `AbstractNode` are siblings under an
+internal node-side root to which every endpoint-category parameter is bound,
+so an edge-kind type argument is statically impossible. The hierarchy is a
+tree: one category parent, any number of matching-kind mixins, and every
+framework declaration in the MRO.
+
+Canonical base order is templates, abstract parents, terminal base last.
+Class creation enforces the same predicates order-insensitively: one
+category slot, framework-lineage MRO, kind-paired templates and options, and
+endpoint descent — every edge declaration states its own endpoints, and each
+re-declared endpoint equals or descends from every abstract edge ancestor's.
 
 ```python
-class InputNode(Node):
-    options = NodeOptions(annotations=(NodeLabel("Input"),))
+class Audited(NodeTemplate):
+    options = NodeOptionsTemplate(annotations=(AuditTrail(track="audit"),))
+    revision: PropertySlot[str] = property()
 
 
-class ContainsEdge(Edge[InputNode, InputNode]):
+class EntityNode(AbstractNode):
+    options = NodeOptions(annotations=(NodeLabel("Entity"),))
+    title: PropertySlot[str] = property()
+
+
+class RecordNode(Audited, EntityNode, Node): ...
+
+
+class ContainsEdge(Weighted, AbstractEdge[EntityNode, EntityNode]):
     options = EdgeOptions(annotations=(EdgeLabel("CONTAINS"),))
+
+
+class ContainsMetricEdge(ContainsEdge, Edge[EntityNode, MetricNode]): ...
+# descended; the target category narrowed EntityNode -> MetricNode
 ```
+
+Every tier declares `options`, and the options type identifies the tier:
+`NodeOptions`/`EdgeOptions` (name, description, annotations) for IR-visible
+classes, annotations-only `NodeOptionsTemplate`/`EdgeOptionsTemplate` for
+templates. For an IR-visible class the effective name is own `options.name`
+or own class name, never mixed; the effective description is own
+`options.description` or own docstring, never inherited; effective
+annotations are template options in C3 order — each template exactly once,
+category parents included — then own `options.annotations`. A category's own
+options stay on the category's IR entry, reachable through `parent`. Label
+uniqueness is enforced against the effective set at class creation.
+
+Target-neutral `NodeLabel` and `EdgeLabel` annotations optionally override the
+computed semantic label of a graph component. At most one matching annotation
+may be supplied. A target may interpret the effective label using its own
+native vocabulary; the Neo4j target maps a node label to `:LABEL` and an edge
+label to the relationship `:TYPE` header.
 
 `PropertySlot[T]` is the static constructor contract for an authoring
 selection or expression of type `T`. Property declarations remain separate metadata; graph
@@ -323,6 +367,30 @@ input_binding = node_binding(
 non-null scalar build, source, and target keys. Keys may use any supported
 scalar type. Property inputs must exactly match their declared logical
 type, except that a non-null value may satisfy a nullable property.
+
+Each edge endpoint may name a category. An endpoint of an abstract declared
+side is supplied with an `endpoint(...)` token naming a concrete component;
+concrete declared endpoints default to the declaration, and an explicit
+token naming the declared component stays valid. `edge_binding` overloads
+require each token exactly when its declared endpoint is abstract, and the
+token's covariance enforces category membership.
+
+```python
+edge_binding(
+    target=ContainsMetricEdge,
+    source_node=endpoint(RecordNode),
+    build_key=...,
+    source_build_key=...,
+    target_build_key=...,
+)
+```
+
+Endpoints reference the component, not a producer: identity is per component,
+bindings name the pairs that actually exist, and nothing synthesizes
+components or cross products. Abstract components are never binding targets.
+Blueprint validation checks that a supplied endpoint is concrete, is equal to
+or descends from the declared category through the IR parent chain, and is
+covered by at least one node binding in the blueprint.
 
 A binding owns its complete relational row context. Expansions and filters in
 one binding never alter another binding, even when both refer to the same
@@ -394,15 +462,18 @@ declarations, topology, bindings, and workflow definitions into domain-owned
 IRs. Codecs serialize only those IRs and frozen JSON values.
 
 The auxiliary `create_blueprint` function validates declarations and produces
-`BuildBlueprint` schema version 2 for inspection, serialization, and advanced
+`BuildBlueprint` schema version 3 for inspection, serialization, and advanced
 tooling. Normal builds call `compile` directly. A blueprint contains immutable
 definitions for:
 
 - structs and fields;
 - final tables and fields;
 - projections and output expressions;
-- nodes, edges, and properties;
-- node and edge bindings;
+- nodes, edges, and properties, including abstract categories flagged in the
+  IR with their nearest abstract parent; the component closure walks binding
+  targets, edge endpoints, and their full abstract chains;
+- node and edge bindings, recording endpoint tokens that name a concrete
+  component for an abstract declared side;
 - source bindings;
 - configured workflow modules.
 
@@ -456,7 +527,7 @@ may instead back the same public view with a private materialized table.
 
 The public `compile` API creates or accepts the canonical blueprint and appends
 the mandatory core module after the configured extension modules. It validates
-blueprint schema version 2 and compiles every registered module through the
+blueprint schema version 3 and compiles every registered module through the
 compile-time capability interface.
 The workflow domain then assembles the ordered contributions into one
 dependency-aware `WorkflowContractIR`. The compiler does not import or
@@ -651,9 +722,11 @@ node packages avoids circular imports. Underscore-prefixed modules such as
 - unified typed fields for scalars, structs, arrays, and custom scalar types;
 - specialized expressions with explicit null and row semantics;
 - nested `pick`, nested/shared `expand`, and projection chaining;
+- three-tier topology hierarchy (templates, categories, concrete components)
+  with category edge endpoints and per-binding endpoint tokens;
 - direct typed node and edge bindings;
 - annotations across declaration, binding, and source layers;
-- immutable blueprint schema version 2 and deterministic JSON codecs;
+- immutable blueprint schema version 3 and deterministic JSON codecs;
 - engine-neutral relational plans and DuckDB lowering;
 - dependency-aware workflow contracts and execution reports;
 - file graph output and supplied validation/merge/deduplication modules;

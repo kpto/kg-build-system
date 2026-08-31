@@ -1,11 +1,10 @@
 # Node/Edge Hierarchy and Category Endpoints — Extension Spec
 
-Status: design agreed, not yet implemented. Canonical extension for
-`feat/node-edge-polymorphism`; folds into `KG_BUILD_SYSTEM_SPEC.md` when
-implemented. Supersedes `NODE_EDGE_POLYMORPHISM_TEMP_SPEC.md` and
-`demo_endpoint_pattern.py` as the statement of the model; the demo remains
-the executable proof (pyright: exactly 8 errors, all in `_misuse_*`;
-runtime: prints `OK`).
+Status: implemented for `feat/node-edge-polymorphism`; folded into
+`KG_BUILD_SYSTEM_SPEC.md` (§7 topology hierarchy and category endpoints, §10
+blueprint schema v3). This document remains the detailed record of the model;
+the demo remains the executable proof (pyright: exactly 8 errors, all in
+`_misuse_*`; runtime: prints `OK`) and now exercises the real framework bases.
 
 ## 1. Public surface
 

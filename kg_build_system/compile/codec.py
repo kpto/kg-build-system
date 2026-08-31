@@ -77,6 +77,7 @@ def _encode_component(value: ComponentDefinition) -> dict[str, Any]:
         "symbol_id": value.symbol_id,
         "name": value.name,
         "kind": value.kind,
+        "abstract": value.abstract,
         "properties": [
             _encode_typed_declaration(prop) for prop in value.properties
         ],
@@ -84,6 +85,8 @@ def _encode_component(value: ComponentDefinition) -> dict[str, Any]:
     }
     if value.description is not None:
         result["description"] = value.description
+    if value.parent is not None:
+        result["parent"] = value.parent
     if value.kind == "edge":
         result["source"] = value.source
         result["target"] = value.target
@@ -134,6 +137,10 @@ def _encode_binding(
     if isinstance(value, EdgeBindingDefinition):
         result["source_build_key"] = encode_expression_ir(value.source_build_key)
         result["target_build_key"] = encode_expression_ir(value.target_build_key)
+        if value.source_node is not None:
+            result["source_node"] = value.source_node
+        if value.target_node is not None:
+            result["target_node"] = value.target_node
     return result
 
 
@@ -263,6 +270,9 @@ def _decode_component(value: Mapping[str, Any]) -> ComponentDefinition:
     kind = value.get("kind")
     if kind not in {"node", "edge"}:
         raise ValueError(f"unknown component kind {kind!r}")
+    abstract = value.get("abstract", False)
+    if not isinstance(abstract, bool):
+        raise ValueError("'abstract' must be a boolean")
     return ComponentDefinition(
         symbol_id=_text(value, "symbol_id"),
         name=_text(value, "name"),
@@ -272,6 +282,8 @@ def _decode_component(value: Mapping[str, Any]) -> ComponentDefinition:
         source=_optional_text(value, "source"),
         target=_optional_text(value, "target"),
         annotations=_items(value, "annotations", _decode_annotation),
+        abstract=abstract,
+        parent=_optional_text(value, "parent"),
     )
 
 
@@ -334,6 +346,8 @@ def _decode_binding(
             target_build_key=decode_expression_ir(
                 _object(value.get("target_build_key"), "target_build_key")
             ),
+            source_node=_optional_text(value, "source_node"),
+            target_node=_optional_text(value, "target_node"),
         )
     raise ValueError(f"unknown binding kind {kind!r}")
 

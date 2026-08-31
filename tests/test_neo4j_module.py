@@ -158,25 +158,17 @@ class LabelAnnotationTests(unittest.TestCase):
             {"node": "ENTITY", "edge": "IS_A"},
         )
 
-    def test_neo4j_compiler_rejects_multiple_labels(self) -> None:
-        class AmbiguousNode(Node):
-            options = NodeOptions(
-                annotations=(NodeLabel("First"), NodeLabel("Second")),
-            )
+    def test_multiple_labels_are_rejected_at_class_creation(self) -> None:
+        # Label uniqueness is enforced against the effective annotation set
+        # at class creation; the Neo4j compiler keeps its own check as a
+        # backstop for decoded blueprints.
+        with self.assertRaisesRegex(TypeError, "2 node labels"):
+            class AmbiguousNode(Node):
+                options = NodeOptions(
+                    annotations=(NodeLabel("First"), NodeLabel("Second")),
+                )
 
-            name: PropertySlot[str] = property()
-
-        binding = node_binding(
-            target=AmbiguousNode,
-            build_key=Neo4jInput.identifier,
-            properties=AmbiguousNode(name=Neo4jInput.name),
-        )
-        with self.assertRaisesRegex(ValueError, "at most one NodeLabel"):
-            compile(
-                bindings=(binding,),
-                sources=(_source(Path("input.json")),),
-                modules=(register_module(Neo4jModule),),
-            )
+                name: PropertySlot[str] = property()
 
 
 class Neo4jTargetTests(unittest.TestCase):

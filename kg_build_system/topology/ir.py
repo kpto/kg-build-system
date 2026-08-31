@@ -26,6 +26,8 @@ class ComponentIR:
     source: str | None = None
     target: str | None = None
     annotations: tuple[AnnotationIR, ...] = ()
+    abstract: bool = False
+    parent: str | None = None
 
 
 __all__ = ["ComponentIR", "PropertyIR"]

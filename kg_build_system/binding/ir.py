@@ -29,6 +29,8 @@ class EdgeBindingIR:
     properties: tuple[tuple[str, ExpressionIR], ...]
     debug_name: str | None = None
     annotations: tuple[AnnotationIR, ...] = ()
+    source_node: str | None = None
+    target_node: str | None = None
     kind: Literal["edge"] = "edge"
 
 

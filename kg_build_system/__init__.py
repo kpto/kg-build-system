@@ -48,13 +48,16 @@ from .table import (
 )
 from .types import Nullable
 from .topology import (
-    Edge, EdgeOptions, GraphComponent, GraphComponentOptions, Node, NodeOptions,
-    PropertySlot, property,
+    AbstractEdge, AbstractNode, Edge, EdgeOptions, EdgeOptionsTemplate,
+    EdgeTemplate, Endpoint, Node, NodeOptions, NodeOptionsTemplate,
+    NodeTemplate, PropertySlot, endpoint, property,
 )
 from .workflow import BuildRuntime, WorkflowReport, build
 from .api import compile, create_blueprint
 
 __all__ = [
+    "AbstractEdge",
+    "AbstractNode",
     "Annotation",
     "Binding",
     "BindingOptions",
@@ -73,10 +76,11 @@ __all__ = [
     "EdgeLabel",
     "EdgeBinding",
     "EdgeOptions",
+    "EdgeOptionsTemplate",
+    "EdgeTemplate",
+    "Endpoint",
     "Field",
     "FloatExpression",
-    "GraphComponent",
-    "GraphComponentOptions",
     "InputFormat",
     "IntExpression",
     "Nullable",
@@ -86,6 +90,8 @@ __all__ = [
     "NodeLabel",
     "NodeBinding",
     "NodeOptions",
+    "NodeOptionsTemplate",
+    "NodeTemplate",
     "NumberExpression",
     "Projection",
     "ProjectionField",
@@ -113,6 +119,7 @@ __all__ = [
     "compile",
     "create_blueprint",
     "edge_binding",
+    "endpoint",
     "field",
     "node_binding",
     "projection_field",

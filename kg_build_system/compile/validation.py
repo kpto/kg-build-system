@@ -54,9 +54,44 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
         elif component.source is not None or component.target is not None:
             raise ValueError(f"node {component.name!r} may not declare endpoints")
     component_by_name = {item.name: item for item in blueprint.components}
+    component_by_symbol = {item.symbol_id: item for item in blueprint.components}
     for component in blueprint.components:
         if component.kind == "edge" and (component.source not in component_by_name or component.target not in component_by_name):
             raise ValueError(f"edge {component.name!r} references an unknown endpoint")
+    for component in blueprint.components:
+        if component.parent is None:
+            continue
+        parent = component_by_symbol.get(component.parent)
+        if parent is None:
+            raise ValueError(f"component {component.name!r} references an unknown parent")
+        if not parent.abstract or parent.kind != component.kind:
+            raise ValueError(
+                f"component {component.name!r} parent must name an abstract "
+                f"{component.kind} component"
+            )
+
+    def descend_or_self(name: str, ancestor: str) -> bool:
+        seen: set[str] = set()
+        current: str | None = name
+        while current is not None and current not in seen:
+            if current == ancestor:
+                return True
+            seen.add(current)
+            parent_symbol = component_by_name[current].parent
+            current = None if parent_symbol is None else component_by_symbol[parent_symbol].name
+        return False
+
+    for component in blueprint.components:
+        seen: set[str] = set()
+        current_symbol: str | None = component.parent
+        while current_symbol is not None:
+            if current_symbol == component.symbol_id or current_symbol in seen:
+                raise ValueError(
+                    "component parent chain cycle includes "
+                    f"{component_by_symbol[current_symbol].name!r}"
+                )
+            seen.add(current_symbol)
+            current_symbol = component_by_symbol[current_symbol].parent
 
     sources = {item.name for item in blueprint.tables} | {item.name for item in blueprint.projections}
     source_fields = {
@@ -118,6 +153,41 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
         component = component_by_name.get(binding.component)
         if component is None or component.kind != binding.kind:
             raise ValueError(f"{binding.kind} binding {binding.symbol_id!r} targets an incompatible component")
+        if component.abstract:
+            raise ValueError(
+                f"{binding.kind} binding {binding.symbol_id!r} may not target "
+                f"abstract component {component.name!r}"
+            )
+        if isinstance(binding, EdgeBindingDefinition):
+            node_producers = {
+                node_binding.component
+                for node_binding in blueprint.bindings
+                if node_binding.kind == "node"
+            }
+            for side, declared, supplied in (
+                ("source", component.source, binding.source_node),
+                ("target", component.target, binding.target_node),
+            ):
+                # Edge components are validated to declare both endpoints.
+                assert declared is not None
+                resolved = supplied if supplied is not None else declared
+                endpoint = component_by_name.get(resolved)
+                if endpoint is None or endpoint.kind != "node" or endpoint.abstract:
+                    raise ValueError(
+                        f"edge binding {binding.symbol_id!r} {side} endpoint "
+                        f"{resolved!r} must name a concrete node component"
+                    )
+                if not descend_or_self(resolved, declared):
+                    raise ValueError(
+                        f"edge binding {binding.symbol_id!r} {side} endpoint "
+                        f"{resolved!r} must equal or descend from the declared "
+                        f"endpoint {declared!r}"
+                    )
+                if supplied is not None and supplied not in node_producers:
+                    raise ValueError(
+                        f"edge binding {binding.symbol_id!r} {side} endpoint "
+                        f"{supplied!r} has no node binding producing it"
+                    )
         expressions = [
             binding.build_key,
             *(expression for _, expression in binding.properties),

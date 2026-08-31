@@ -100,12 +100,15 @@ def _component(declaration: type[Any]) -> ComponentDefinition:
         for attribute, prop in declaration._properties.items()
     )
     metadata = declaration._metadata
+    parent = declaration._component_parent_class
     return ComponentDefinition(
         _symbol(declaration._kind, declaration), declaration._component_name,
         declaration._kind, properties, metadata.get("description"),
         getattr(metadata.get("source"), "_component_name", None),
         getattr(metadata.get("target"), "_component_name", None),
         _annotations(declaration._component_annotations),
+        bool(declaration._component_abstract),
+        None if parent is None else _symbol(parent._kind, parent),
     )
 
 
@@ -146,6 +149,8 @@ def _binding_symbol(binding: Binding) -> str:
         payload.update(
             source_build_key=encode_expression(binding.source_build_key.model),
             target_build_key=encode_expression(binding.target_build_key.model),
+            source_node=None if binding.source_node is None else binding.source_node._component_name,
+            target_node=None if binding.target_node is None else binding.target_node._component_name,
         )
     fingerprint = sha256(json.dumps(payload, sort_keys=True, separators=(",", ":")).encode()).hexdigest()[:24]
     return f"binding:{payload['kind']}:{binding.target._component_name}:{fingerprint}"
@@ -165,6 +170,14 @@ def _binding(binding: Binding) -> NodeBindingDefinition | EdgeBindingDefinition:
         return EdgeBindingDefinition(
             *common, expression_to_ir(binding.source_build_key.model),
             expression_to_ir(binding.target_build_key.model), *rest,
+            source_node=(
+                None if binding.source_node is None
+                else binding.source_node._component_name
+            ),
+            target_node=(
+                None if binding.target_node is None
+                else binding.target_node._component_name
+            ),
         )
     return NodeBindingDefinition(*common, *rest)
 
@@ -348,10 +361,26 @@ def create_blueprint(
         source for source in bound_tables
         if source.table._table_name in required_tables
     )
-    component_classes = {binding.target for binding in authoring_bindings}
-    for component in tuple(component_classes):
+    component_classes: set[type[Any]] = set()
+    component_queue: list[type[Any]] = [binding.target for binding in authoring_bindings]
+    for binding in authoring_bindings:
+        if isinstance(binding, EdgeBinding):
+            component_queue.extend(
+                item for item in (binding.source_node, binding.target_node)
+                if item is not None
+            )
+    while component_queue:
+        component = component_queue.pop()
+        if component in component_classes:
+            continue
+        component_classes.add(component)
+        parent = getattr(component, "_component_parent_class", None)
+        if parent is not None:
+            component_queue.append(parent)
         if component._kind == "edge":
-            component_classes.update((component._metadata["source"], component._metadata["target"]))
+            component_queue.extend(
+                (component._metadata["source"], component._metadata["target"])
+            )
     blueprint = BuildBlueprint(
         structs=tuple(sorted((_struct(item) for item in structs), key=lambda item: item.symbol_id)),
         tables=tuple(sorted((_table(item) for item in tables), key=lambda item: item.symbol_id)),

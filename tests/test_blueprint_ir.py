@@ -92,7 +92,7 @@ class BlueprintIRTests(unittest.TestCase):
 
     def test_blueprint_contains_complete_canonical_declarations(self) -> None:
         result = self.blueprint()
-        self.assertEqual(result.schema_version, 2)
+        self.assertEqual(result.schema_version, 3)
         self.assertEqual(tuple(item.module_id for item in result.modules), ("core",))
         self.assertEqual(tuple(item.name for item in result.structs), ("evidence",))
         self.assertEqual(tuple(item.name for item in result.tables), ("evidence",))
@@ -133,7 +133,7 @@ class BlueprintIRTests(unittest.TestCase):
         self.assertEqual(decoded, result)
         self.assertEqual(blueprint_json(decoded), encoded)
         document = json.loads(encoded)
-        self.assertEqual(document["schema_version"], 2)
+        self.assertEqual(document["schema_version"], 3)
         expression = document["projections"][0]["fields"][1]["expression"]
         self.assertNotIn("rows", json.dumps(expression))
         self.assertNotIn("traversals", json.dumps(expression))
