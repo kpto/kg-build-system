@@ -1,12 +1,12 @@
+from kg_build_system import Node, NodeLabel, NodeOptions, PropertySlot, property
+
 from reference_project.topology.common import (
     DocumentedAbstractNode, ProvenancedNodeTemplate,
 )
 
-from kg_build_system import Node, NodeLabel, NodeOptions, PropertySlot, property
-
 
 class SiteNode(ProvenancedNodeTemplate, DocumentedAbstractNode, Node):
-    """A monitored site: the premises a set of equipment readings belongs to."""
+    """A monitored site: a premises the estate maintains."""
 
     options = NodeOptions(annotations=(NodeLabel("Site"),))
 
@@ -14,4 +14,4 @@ class SiteNode(ProvenancedNodeTemplate, DocumentedAbstractNode, Node):
     """The site's display name."""
 
     city: PropertySlot[str] = property()
-    """City the site is located in."""
+    """City the premises is located in."""

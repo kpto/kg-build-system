@@ -1,0 +1,23 @@
+[
+  {
+    "site_id": "b1",
+    "site_name": "Northgate Depot",
+    "premises": {
+      "contact_name": "Ada",
+      "contact": { "email": "ada@example.test", "location": { "city": "Northport", "room": "A-01" } }
+    },
+    "priority_scores": [3, 7, 1]
+  },
+  {
+    "site_id": "b2",
+    "site_name": null,
+    "premises": null,
+    "priority_scores": null
+  },
+  {
+    "site_id": "b3",
+    "site_name": "Harbour Store",
+    "premises": { "contact_name": null, "contact": { "email": null, "location": null } },
+    "priority_scores": []
+  }
+]

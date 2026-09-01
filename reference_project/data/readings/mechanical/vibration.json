@@ -1,0 +1,4 @@
+[
+  { "reading_uid": "RD-9101", "unit_ref": "CH-1001", "mm_s": 0.0,  "bearing": "drive-end", "recorded_on": "2026-07-14" },
+  { "reading_uid": "RD-9102", "unit_ref": "P-3001",  "mm_s": 2.75, "bearing": "non-drive", "recorded_on": "2026-07-16" }
+]

@@ -1,0 +1,59 @@
+[
+  {
+    "survey_id": "SV-2026-07", "site_id": "b1", "surveyed_on": "2026-07-14",
+    "surveyor": { "name": "Ada", "firm": { "name": "Northgate Consulting", "accreditation": "MRICS" } },
+    "areas": [
+      {
+        "area_code": "boiler-room", "area_name": "Boiler room",
+        "elements": [
+          {
+            "element_ref": "boiler-room:CH-1001", "unit_ref": "CH-1001",
+            "defects": [
+              {
+                "defect_id": "DF-5001", "title": "Refrigerant leak at flange", "condition_rating": "poor",
+                "observed_by": "Visual", "observed_on": "2026-07-14",
+                "observations": [
+                  { "observation_uid": "OB-7001", "value": 12.0, "observed_by": "Ultrasonic", "observed_on": "2026-07-14" },
+                  { "observation_uid": "OB-7002", "value": 15.5, "observed_by": "Ultrasonic", "observed_on": "2026-07-21" }
+                ]
+              },
+              {
+                "defect_id": "DF-5002", "title": "Corroded casing", "condition_rating": "fair",
+                "observed_by": "Visual", "observed_on": "2026-07-14", "observations": []
+              }
+            ]
+          },
+          { "element_ref": "boiler-room:CH-1002", "unit_ref": "CH-1002", "defects": null }
+        ]
+      },
+      {
+        "area_code": "roof", "area_name": "Roof plant",
+        "elements": [ { "element_ref": "roof:AH-2001", "unit_ref": "AH-2001", "defects": [] } ]
+      }
+    ]
+  },
+  {
+    "survey_id": "SV-2026-08", "site_id": "b2", "surveyed_on": "2026-08-02",
+    "surveyor": { "name": "Grace", "firm": null },
+    "areas": [
+      {
+        "area_code": "basement", "area_name": "Basement",
+        "elements": [
+          {
+            "element_ref": "basement:P-3001", "unit_ref": "P-3001",
+            "defects": [
+              {
+                "defect_id": "DF-5101", "title": "Bearing wear", "condition_rating": "poor",
+                "observed_by": "Vibration analysis", "observed_on": "2026-08-02",
+                "observations": [
+                  { "observation_uid": "OB-7101", "value": 4.4, "observed_by": "Vibration analysis", "observed_on": "2026-08-02" }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  { "survey_id": "SV-2026-09", "site_id": "b3", "surveyed_on": "2026-08-11", "surveyor": null, "areas": null }
+]

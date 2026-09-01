@@ -1,20 +1,20 @@
+from kg_build_system import Node, NodeLabel, NodeOptions, PropertySlot, property
+
 from reference_project.topology.common import (
     DocumentedAbstractNode, ProvenancedNodeTemplate,
 )
 
-from kg_build_system import Node, NodeLabel, NodeOptions, PropertySlot, property
-
 
 class ReadingNode(ProvenancedNodeTemplate, DocumentedAbstractNode, Node):
-    """A single equipment reading, identified by its zone, unit, and code."""
+    """One measurement sample reported by a logger against a unit."""
 
     options = NodeOptions(annotations=(NodeLabel("Reading"),))
 
-    name: PropertySlot[str] = property()
-    """The reading's display name, naming its zone and code."""
+    value: PropertySlot[float | None] = property()
+    """The measured value, absent when the logger reported no sample."""
 
-    calibrated_value: PropertySlot[float] = property()
-    """The reading's calibrated numeric value."""
+    unit_of_measure: PropertySlot[str] = property()
+    """The scale the value is expressed on, which differs by logger family."""
 
-    out_of_service: PropertySlot[bool] = property()
-    """True while the measured equipment unit is out of service."""
+    recorded_on: PropertySlot[str] = property()
+    """Date the sample was taken."""

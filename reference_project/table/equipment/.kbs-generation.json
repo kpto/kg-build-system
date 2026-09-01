@@ -2,7 +2,7 @@
   "format_version": "3",
   "owned_directories": [],
   "owned_file_hashes": {
-    "__init__.py": "5e054afdd625213190e96894b71aa409354c7d7f4a3049901589efed7a575357"
+    "__init__.py": "414b8e3b139fb7ef4a15547806a5b5c72be1c44fb51077d9b73755762b48ee45"
   },
   "owned_files": [
     "__init__.py"
@@ -10,7 +10,7 @@
   "provider_import": "kg_build_system.code_generation.builtins.schema_inference",
   "provider_qualname": "InferDataContractProvider",
   "provider_version": "2",
-  "request_fingerprint": "f9d4d98a188d3530101aa2fc1f349e69b5e515d96a78adfc1749e1a892e85d39",
-  "request_id": "monitored_sites",
-  "request_source_package": "table"
+  "request_fingerprint": "af803beae6b844c9b4ed5e689ff9a7b4d5f1f807503db6a7d0de70a7d291a219",
+  "request_id": "equipment",
+  "request_source_package": "reference_project.table"
 }

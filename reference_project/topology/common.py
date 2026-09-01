@@ -1,15 +1,9 @@
 """Topology vocabulary shared across node packages.
 
-A plain module directly under ``topology/`` carries the authoring
-declarations shared across node packages — templates share property slots
-and annotation flow, categories are the graph-visible parents recorded in
-the blueprint IR. They own no ``bindings/`` mirror because abstract
-components are never binding targets.
-
-Authoring convention: every declaration carries its tier in the class-name
-suffix — ``...NodeTemplate``/``...EdgeTemplate``, ``...AbstractNode``/
-``...AbstractEdge``, ``...Node``/``...Edge`` — and the framework strips the
-matching suffix to infer the logical name.
+Templates contribute property slots and annotations to every declaration that
+mixes them in, and never reach the blueprint themselves. Categories are the
+graph-visible parents: they own a shared property, appear in the hierarchy, and
+let an edge declare its endpoint as a whole category rather than one component.
 """
 
 from dataclasses import dataclass
@@ -23,7 +17,7 @@ from kg_build_system import (
 
 @dataclass(frozen=True)
 class Provenance(Annotation):
-    """Records which authoring stage produced or tracks a component."""
+    """Records which build stage produced or tracks a component."""
 
     namespace = "reference_project"
     annotation_id = "provenance"
@@ -32,11 +26,10 @@ class Provenance(Annotation):
 
 
 class ProvenancedNodeTemplate(NodeTemplate):
-    """Every concrete node records the data version it was built from."""
+    """Every node records the feed version that produced it."""
 
     options = NodeOptionsTemplate(annotations=(Provenance(stage="built"),))
     source_version: PropertySlot[str] = property()
-    """The data release whose facts this node asserts."""
 
 
 class DocumentedAbstractNode(AbstractNode):
@@ -44,22 +37,17 @@ class DocumentedAbstractNode(AbstractNode):
 
     options = NodeOptions(annotations=(NodeLabel("Documented"),))
     summary: PropertySlot[str] = property()
-    """A one-line human-readable rendering of the entity."""
 
 
-class TrackedRelationEdgeTemplate(EdgeTemplate):
-    """Every derived relation carries the originating record's profile city
-    and stamps the derivation stage it was produced in."""
+class RecordedRelationEdgeTemplate(EdgeTemplate):
+    """Every relation states what it is asserted as at, and by which stage."""
 
     options = EdgeOptionsTemplate(annotations=(Provenance(stage="derived"),))
-    city: PropertySlot[str] = property()
-    """City the relationship was established in."""
-
+    as_at: PropertySlot[str] = property()
     stage: PropertySlot[str] = property()
-    """Provenance stage at which the relationship is asserted."""
 
 
 class MonitoredRelationAbstractEdge(AbstractEdge[DocumentedAbstractNode, DocumentedAbstractNode]):
-    """Category: a relationship asserted by the monitored site data."""
+    """Category: a relationship asserted by the monitored estate data."""
 
     options = EdgeOptions(annotations=(EdgeLabel("MONITORED"),))

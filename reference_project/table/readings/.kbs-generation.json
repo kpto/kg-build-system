@@ -1,0 +1,24 @@
+{
+  "format_version": "3",
+  "owned_directories": [
+    "mechanical"
+  ],
+  "owned_file_hashes": {
+    "__init__.py": "9a957693cf2f63dab0c578a04aad76b15594a4b1bc8d891621a425876cb9b4f5",
+    "mechanical/__init__.py": "6e5a6d641c8f86efb4e504955fdb5e4037ff777022477f4f373a39325e73e676",
+    "mechanical/vibration.py": "01fb65c39f2a2b043f1bc65eb7a97a384cd6c9e6155df6ead508bbc7a1a1e9d5",
+    "temperature.py": "380cc0666f185f17a74584dc8cccf01537d194985f92212a2e27a243bee0aba6"
+  },
+  "owned_files": [
+    "__init__.py",
+    "mechanical/__init__.py",
+    "mechanical/vibration.py",
+    "temperature.py"
+  ],
+  "provider_import": "kg_build_system.code_generation.builtins.schema_inference",
+  "provider_qualname": "InferDataContractProvider",
+  "provider_version": "2",
+  "request_fingerprint": "117f30454bab6901b9b6750b4b6433d189dd2ead4dad71cda33373c941b92826",
+  "request_id": "readings",
+  "request_source_package": "reference_project.table"
+}

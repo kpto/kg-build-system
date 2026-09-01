@@ -25,7 +25,7 @@ provenance_stamps: ProvenanceStamps = {
 
 
 class RelationStamps(TypedDict):
-    """The identical parameters every tracked relation binding stamps."""
+    """The identical parameters every recorded relation binding stamps."""
 
     stage: ValueExpression[str]
 

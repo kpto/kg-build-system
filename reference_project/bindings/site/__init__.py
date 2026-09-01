@@ -1,27 +1,31 @@
-from kg_build_system import node_binding
+from kg_build_system import StrExpression, node_binding
 
 from reference_project.bindings.common import provenance_stamps
-from reference_project.table.monitored_sites import MonitoredSitesTable
+from reference_project.table.sites import SitesTable
 from reference_project.topology.site import SiteNode
 
 
-deep_city = (
-    MonitoredSitesTable.premises
+# The site grain is the grain of the source, so this binding reads the contract
+# directly: no expansion, and the build key is a column.
+site_key: StrExpression = SitesTable.site_id.where_present().expression
+
+site_name = SitesTable.site_name.default_to("Unnamed site")
+
+site_city = (
+    SitesTable.premises
     .pick(lambda value: value.contact)
     .pick(lambda value: value.location)
     .pick(lambda value: value.city)
+    .default_to("Unlisted city")
 )
-
-site_name = MonitoredSitesTable.site_name.default_to("Unnamed site")
 
 site_binding = node_binding(
     target=SiteNode,
-    build_key=MonitoredSitesTable.site_id.where_present().expression.prepend("site::"),
+    build_key=site_key,
     properties=SiteNode(
         name=site_name,
-        city=deep_city.default_to("Unknown city"),
+        city=site_city,
         summary=site_name,
         **provenance_stamps,
     ),
-    debug_name="sites_without_expansion",
 )

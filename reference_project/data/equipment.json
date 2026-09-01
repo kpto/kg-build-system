@@ -1,0 +1,6 @@
+[
+  { "unit_ref": "CH-1001", "unit_name": "Chiller 1", "site_id": "b1", "in_service": true,  "survey_period": "2026-Q3" },
+  { "unit_ref": "CH-1002", "unit_name": "Chiller 2", "site_id": "b1", "in_service": false, "survey_period": "2026-Q3" },
+  { "unit_ref": "AH-2001", "unit_name": "Roof air handler", "site_id": "b1", "in_service": true, "survey_period": "2026-Q2" },
+  { "unit_ref": "P-3001",  "unit_name": "Transfer pump", "site_id": "b2", "in_service": true, "survey_period": null }
+]

@@ -696,7 +696,11 @@ Authoring practices:
 - Name each topology tier explicitly in the class name — `RecordNode`,
   `DocumentedAbstractNode`, `ProvenancedNodeTemplate` — so the tier suffix
   is visible at every use site and is stripped from the logical name.
-- Use projections to name reusable data products and isolate expansion scopes.
+- Publish a grain as a projection when more than one binding needs it. A
+  projection is a named row product, so the grain is what it publishes, and
+  reaching a new grain with a further `expand` needs a further projection
+  because a projection has one row plan. A one-step derivation over a scan the
+  build already shares needs only a shared selection name, not a projection.
 - Keep physical locations and provenance in source bindings.
 - Treat generated packages, blueprint JSON, workflow contracts, and SQL as
   inspectable development artifacts.
