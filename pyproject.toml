@@ -1,5 +1,9 @@
 [project]
 name = "kg-build-system"
+authors = [
+  { name = "Paul Ka Po To", email = "kto@ebi.ac.uk" }
+]
+license = { text = "Apache-2.0" }
 version = "0.1.0"
 description = "Declarative knowledge graph build system"
 readme = "README.md"
