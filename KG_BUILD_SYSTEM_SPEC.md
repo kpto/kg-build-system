@@ -300,10 +300,12 @@ tree: one category parent, any number of matching-kind mixins, and every
 framework declaration in the MRO.
 
 Canonical base order is templates, abstract parents, terminal base last.
-Class creation enforces the same predicates order-insensitively: one
-category slot, framework-lineage MRO, kind-paired templates and options, and
-endpoint descent — every edge declaration states its own endpoints, and each
-re-declared endpoint equals or descends from every abstract edge ancestor's.
+Class creation enforces the same predicates order-insensitively: one direct
+category parent, framework-lineage MRO, kind-paired templates and options,
+and
+endpoint descent — an edge inherits its endpoints from its abstract edge
+parent and stays abstract when it re-declares nothing, while any re-declared
+endpoint equals or descends from every abstract edge ancestor's.
 
 ```python
 class Audited(NodeTemplate):
@@ -388,9 +390,8 @@ edge_binding(
 Endpoints reference the component, not a producer: identity is per component,
 bindings name the pairs that actually exist, and nothing synthesizes
 components or cross products. Abstract components are never binding targets.
-Blueprint validation checks that a supplied endpoint is concrete, is equal to
-or descends from the declared category through the IR parent chain, and is
-covered by at least one node binding in the blueprint.
+Blueprint validation checks that a supplied endpoint is concrete and is equal
+to or descends from the declared category through the IR parent chain.
 
 A binding owns its complete relational row context. Expansions and filters in
 one binding never alter another binding, even when both refer to the same

@@ -159,11 +159,6 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
                 f"abstract component {component.name!r}"
             )
         if isinstance(binding, EdgeBindingDefinition):
-            node_producers = {
-                node_binding.component
-                for node_binding in blueprint.bindings
-                if node_binding.kind == "node"
-            }
             for side, declared, supplied in (
                 ("source", component.source, binding.source_node),
                 ("target", component.target, binding.target_node),
@@ -182,11 +177,6 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
                         f"edge binding {binding.symbol_id!r} {side} endpoint "
                         f"{resolved!r} must equal or descend from the declared "
                         f"endpoint {declared!r}"
-                    )
-                if supplied is not None and supplied not in node_producers:
-                    raise ValueError(
-                        f"edge binding {binding.symbol_id!r} {side} endpoint "
-                        f"{supplied!r} has no node binding producing it"
                     )
         expressions = [
             binding.build_key,

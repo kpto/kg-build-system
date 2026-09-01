@@ -228,12 +228,16 @@ def _endpoint_category_error(cls: type[Any], category: Any) -> str:
     return ""
 
 
-def _resolve_edge_endpoints(cls: type[Any]) -> tuple[type[Any], type[Any]]:
-    """R4: every edge states its endpoints; each equals or descends from ancestors.
+def _resolve_edge_endpoints(
+    cls: type[Any], parent: type[Any] | None,
+) -> tuple[type[Any], type[Any]]:
+    """R4: endpoints follow the abstract edge parent; re-declaration may narrow.
 
-    Only the class's own ``__orig_bases__`` reveal its declaration — the
-    attribute is inherited through the MRO — and the preparation walk is
-    base-order insensitive, catching what the checker alone cannot see.
+    Only the class's own ``__orig_bases__`` reveal a re-declaration — the
+    attribute is inherited through the MRO. A re-declared endpoint must equal
+    or descend from every abstract edge ancestor's; a class that re-declares
+    nothing inherits its parent's endpoints. An edge with neither has no
+    endpoints and fails at class creation.
     """
 
     def concrete(args: tuple[object, ...]) -> bool:
@@ -265,25 +269,21 @@ def _resolve_edge_endpoints(cls: type[Any]) -> tuple[type[Any], type[Any]]:
         error = _endpoint_category_error(cls, category)
         if error:
             raise TypeError(error)
-    for spec in inherited:
-        if own is None:
-            raise TypeError(
-                f"{cls.__name__} inherits edge endpoints "
-                f"({spec[0].__name__}, {spec[1].__name__}) but declares no "
-                "endpoints of its own"
-            )
-        if not (issubclass(own[0], spec[0]) and issubclass(own[1], spec[1])):
-            raise TypeError(
-                f"{cls.__name__} endpoints ({own[0].__name__}, {own[1].__name__}) "
-                "must equal or descend from its abstract edge lineage "
-                f"({spec[0].__name__}, {spec[1].__name__})"
-            )
-    if own is None:
-        raise TypeError(
-            f"{cls.__name__} must declare its edge endpoints, for example "
-            "`Edge[SourceNode, TargetNode]`"
-        )
-    return cast(tuple[type[Any], type[Any]], own)
+    if own is not None:
+        for spec in inherited:
+            if not (issubclass(own[0], spec[0]) and issubclass(own[1], spec[1])):
+                raise TypeError(
+                    f"{cls.__name__} endpoints ({own[0].__name__}, {own[1].__name__}) "
+                    "must equal or descend from its abstract edge lineage "
+                    f"({spec[0].__name__}, {spec[1].__name__})"
+                )
+        return cast(tuple[type[Any], type[Any]], own)
+    if parent is not None:
+        return parent._metadata["source"], parent._metadata["target"]
+    raise TypeError(
+        f"{cls.__name__} must declare its edge endpoints, for example "
+        "`Edge[SourceNode, TargetNode]`, or inherit them from an abstract edge"
+    )
 
 
 def _prepare_topology_declaration(cls: type[Any]) -> None:
@@ -330,23 +330,26 @@ def _prepare_topology_declaration(cls: type[Any]) -> None:
     tier = "concrete" if issubclass(cls, Node if kind == "node" else Edge) else "abstract"
     own_options = _require_visible_options(cls, kind, own_options)
 
-    # R1: one category parent; concrete components stay terminal.
-    categories = [
-        base for base in cls.__mro__[1:]
+    # R1: one direct category parent; concrete components stay terminal.
+    parents = [
+        base for base in cls.__bases__
         if vars(base).get("_component_declaration_kind") == kind
         and not _is_framework_root(base)
     ]
-    for base in categories:
-        if not vars(base).get("_component_abstract", False):
+    for base in cls.__mro__[1:]:
+        if (
+            vars(base).get("_component_declaration_kind") == kind
+            and not _is_framework_root(base)
+            and not vars(base).get("_component_abstract", False)
+        ):
             raise TypeError(
                 f"{cls.__name__} cannot inherit from concrete graph component "
                 f"{base.__name__}"
             )
-    if len(categories) > 1:
-        names = ", ".join(base.__name__ for base in categories)
+    if len(parents) > 1:
+        names = ", ".join(base.__name__ for base in parents)
         raise TypeError(
-            f"{cls.__name__} has more than one abstract category parent in its "
-            f"lineage: {names}"
+            f"{cls.__name__} has more than one abstract category parent: {names}"
         )
 
     template_annotations = tuple(
@@ -365,7 +368,7 @@ def _prepare_topology_declaration(cls: type[Any]) -> None:
 
     metadata: dict[str, Any] = {"description": description} if description is not None else {}
     if kind == "edge":
-        source, target = _resolve_edge_endpoints(cls)
+        source, target = _resolve_edge_endpoints(cls, parents[0] if parents else None)
         metadata["source"] = source
         metadata["target"] = target
 
@@ -379,7 +382,7 @@ def _prepare_topology_declaration(cls: type[Any]) -> None:
     cls._metadata = metadata
     cls._component_declaration_kind = kind
     cls._component_abstract = tier == "abstract"
-    cls._component_parent_class = categories[0] if categories else None
+    cls._component_parent_class = parents[0] if parents else None
     cls._component_annotations = effective_annotations
     cls._component_name = name
 

@@ -19,7 +19,11 @@ parent's pinned one, and widening, an edge-kind category, or a terminal
 base declared before the abstract parent is rejected. The canonical base
 order is therefore template, abstract parent, terminal base last --
 mirroring the node side. The preparation walk enforces the same
-``issubclass`` predicate at class creation, base-order insensitive.
+``issubclass`` predicate at class creation, base-order insensitive. A bare
+abstract child states no endpoints and inherits its parent's; an explicit
+re-declaration through ``AbstractEdge[...]`` or the terminal ``Edge[...]``
+base may only narrow, and an edge with neither a declaration nor an
+endpoint-bearing abstract parent fails at class creation.
 
 The file also proves endpoint categories are node-side: every endpoint
 type parameter is bound to the internal node-side root shared by
@@ -175,7 +179,7 @@ records_from_stream = node_binding(
     ),
 )
 
-# endpoint coverage: every endpoint a binding names has a producer
+# a producer for the MetricNode endpoint named by the edge bindings below
 metrics_from_view = node_binding(
     target=MetricNode,
     build_key=MetricsView.code.expression.prepend("metric::"),
@@ -416,16 +420,15 @@ def _runtime_backstop() -> None:
         raise AssertionError("endpoints widened past the abstract lineage must be rejected")
     except TypeError:
         pass
-    try:
-        class Leaf(ContainsEdge):
-            ...
-        raise AssertionError("an edge inheriting lineage without declaring endpoints must be rejected")
-    except TypeError:
-        pass
+    # a bare abstract child states nothing and inherits its endpoints
+    class Leaf(ContainsEdge):
+        ...
+    assert Leaf._component_abstract
+    assert Leaf._metadata["target"] is EntityNode
     try:
         class Undeclared(AbstractEdge):
             ...
-        raise AssertionError("an edge declaring no endpoints must be rejected")
+        raise AssertionError("an edge with no endpoints anywhere must be rejected")
     except TypeError:
         pass
     try:

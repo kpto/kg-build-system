@@ -254,9 +254,34 @@ class EndpointDescentTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "equal or descend"):
             class Widened(Links, Edge[Entity, Plain]): ...
 
-    def test_endpoints_must_be_declared(self) -> None:
-        with self.assertRaisesRegex(TypeError, "declares no endpoints"):
-            class Leaf(Links): ...
+    def test_endpoints_are_inherited_and_may_be_narrowed(self) -> None:
+        class Leaf(Links): ...
+        self.assertTrue(Leaf._component_abstract)
+        self.assertIs(Leaf._component_parent_class, Links)
+        self.assertIs(Leaf._metadata["source"], Entity)
+        self.assertIs(Leaf._metadata["target"], Entity)
+
+        class Narrowed(Links, AbstractEdge[Entity, Item]): ...
+        self.assertTrue(Narrowed._component_abstract)
+        self.assertIs(Narrowed._metadata["target"], Item)
+
+        # a concrete child under the bare abstract child inherits the
+        # lineage through it and may narrow
+        class LeafChild(Leaf, Edge[Entity, Item]): ...
+        self.assertFalse(LeafChild._component_abstract)
+        self.assertIs(LeafChild._component_parent_class, Leaf)
+        self.assertIs(LeafChild._metadata["target"], Item)
+
+        # a bare terminal base keeps the parent's endpoints unchanged
+        class Untouched(Links, Edge): ...
+        self.assertFalse(Untouched._component_abstract)
+        self.assertIs(Untouched._metadata["source"], Entity)
+        self.assertIs(Untouched._metadata["target"], Entity)
+
+        with self.assertRaisesRegex(TypeError, "equal or descend"):
+            class Widened(Leaf, Edge[Entity, Plain]): ...
+
+    def test_endpoints_must_be_declared_or_inherited(self) -> None:
         with self.assertRaisesRegex(TypeError, "must declare its edge endpoints"):
             class Undeclared(AbstractEdge): ...
 
@@ -421,20 +446,21 @@ class BlueprintTests(unittest.TestCase):
                 result, bindings=(replace(node, component="entity"),)
             ))
 
-    def test_supplied_endpoint_requires_a_producer(self) -> None:
+    def test_supplied_endpoint_needs_no_producer(self) -> None:
+        # Endpoint identity is the component, not a producer: naming an
+        # endpoint requires no node binding producing it in this blueprint
         result = _blueprint((
             _item_binding(), _orphan_binding(), _links_item_binding(),
         ))
         edge = next(item for item in result.bindings if item.kind == "edge")
-        others = tuple(
+        without_producer = tuple(
             item for item in result.bindings
             if item.kind == "node" and item.component != "orphan"
         )
-        with self.assertRaisesRegex(ValueError, "no node binding producing"):
-            validate_blueprint(replace(
-                result,
-                bindings=(*others, replace(edge, source_node="orphan")),
-            ))
+        validate_blueprint(replace(
+            result,
+            bindings=(*without_producer, replace(edge, source_node="orphan")),
+        ))
 
     def test_endpoint_must_descend_from_the_declared_category(self) -> None:
         result = _blueprint((
@@ -450,7 +476,7 @@ class BlueprintTests(unittest.TestCase):
                 ),
             ))
 
-    def test_declared_abstract_endpoints_need_no_producer(self) -> None:
+    def test_declared_abstract_endpoints_are_fine_unbound(self) -> None:
         # `links` declares the abstract Entity endpoints and no binding
         # names them; the default blueprint carries it and stays valid
         validate_blueprint(self.blueprint())

@@ -86,22 +86,27 @@ Effective resolution for an IR-visible class, over its framework lineage:
 
 ## 4. Structural rules (class creation, full MRO)
 
-- **R1 — one category slot.** At most one abstract of the matching kind in
-  the MRO; any number of matching-kind templates. Two abstract bases fail at
-  the diamond, not at a later concrete class.
+- **R1 — one category slot.** At most one *direct* abstract parent of the
+  matching kind; any number of matching-kind templates. Abstract chains are
+  fine — each class has one category parent and the parent links form the
+  tree. Two abstract bases among the direct bases fail at the diamond, not
+  at a later concrete class.
 - **R2 — framework-lineage MRO.** Every MRO class between the declaration and
   `object` descends from `_TopologyDeclarationBase` — pyright's
   `dataclass_transform` scope follows the chain root.
 - **R3 — kind pairing.** Node-side preparations accept only `NodeTemplate`
   lineage, edge-side only `EdgeTemplate`; the options type is kind-paired at
   every tier.
-- **R4 — endpoint descent.** Every edge declaration states its endpoint
-  categories explicitly; each re-declared endpoint equals or descends from
-  every abstract edge ancestor's. The checker enforces it from base-class
-  consistency; the preparation walk enforces the same predicate at class
-  creation, base-order insensitively, and catches the static blind spots —
-  inherited lineage without re-declaration, no declaration at all, and
-  bypassed edge-kind categories.
+- **R4 — endpoint inheritance and descent.** An edge inherits its endpoint
+  categories from its abstract edge parent, and inheriting an abstract edge
+  without re-declaring endpoints keeps the class abstract. Re-declaration is
+  optional and only narrows: each re-declared endpoint equals or descends from
+  every abstract edge ancestor's, so an abstract child may narrow a category
+  and a concrete terminal base may narrow it further. An edge with neither a
+  declaration nor an endpoint-bearing abstract parent fails at class creation.
+  The checker enforces the narrowing predicate from base-class consistency;
+  the preparation walk enforces the same predicate at class creation,
+  base-order insensitively, and catches bypassed edge-kind categories.
 
 ## 5. Category endpoints and binding
 
@@ -133,9 +138,10 @@ def edge_binding[S: Node, DC: NodeSide](
 - Identity is per component, not per producer: endpoints reference the
   component; bindings name the pairs that actually exist. No synthesized
   components, no implicit cross products, no binding of abstracts.
-- Blueprint validation: a supplied endpoint is concrete, a descendant of the
-  declared category via the IR parent chain, and covered by at least one
-  node binding in the blueprint.
+- Blueprint validation: a supplied endpoint is concrete and a descendant of
+  the declared category via the IR parent chain. Naming an endpoint requires
+  no node binding producing it in the same blueprint — bindings name the
+  pairs that exist; producers are a separate concern.
 
 ## 6. Measured facts (regression guards)
 
@@ -177,7 +183,7 @@ def edge_binding[S: Node, DC: NodeSide](
 |---|---|
 | Checker (pyright) | token optionality matrix; endpoint descent via invariant→covariant base consistency; node-side endpoint bound; canonical base order |
 | Class creation (preparation walk) | R1–R4, options-tier guards, label conflicts, description resolution — same predicates, order-insensitive, bypass-proof |
-| Blueprint validation | no abstract binding targets; endpoints concrete, descended, and producer-covered |
+| Blueprint validation | no abstract binding targets; endpoints concrete and descended |
 
 ## 9. Non-goals
 
@@ -201,7 +207,7 @@ class Edge(AbstractEdge[S, D], Generic[S, D]):
 # Preparation guards at class creation (order-insensitive, same predicates):
 #   endpoint categories are node-side
 #   own spec equal-or-descended from every inherited spec
-#   every edge states its own endpoints (own __orig_bases__, not inherited)
+#   a bare edge inherits its parent's endpoints; with no lineage it must declare
 
 # Valid binding shapes (RelatesEdge[Entity,Entity], ContainsMetricEdge descended,
 # DirectEdge[Record,Metric], MixedEdge[Entity,Metric]):
