@@ -13,4 +13,6 @@ from kg_build_system import Edge, EdgeLabel, EdgeOptions
 class HasNoteEdge(
     TrackedRelationEdgeTemplate, DerivedRelationAbstractEdge, Edge[MetricNode, NoteNode]
 ):
+    """Relates a measurement to one of its remarks."""
+
     options = EdgeOptions(annotations=(EdgeLabel("HAS_NOTE"),))

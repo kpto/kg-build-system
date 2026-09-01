@@ -688,6 +688,9 @@ Authoring practices:
   declarations.
 - Use `pick` and `expand` so nested selection and row production remain explicit.
 - Choose `default_to` versus `where_present` deliberately.
+- Describe a component or member by what it means in the graph, not by how the
+  build derives it. A description states that a measurement can be deactivated,
+  not that it is `not enabled` after an expansion.
 - Keep topology and bindings discoverable in the compact node-first layout
   defined below.
 - Name each topology tier explicitly in the class name — `RecordNode`,

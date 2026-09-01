@@ -13,4 +13,6 @@ from kg_build_system import Edge, EdgeLabel, EdgeOptions
 class ContainsMetricEdge(
     TrackedRelationEdgeTemplate, DerivedRelationAbstractEdge, Edge[RecordNode, MetricNode]
 ):
+    """Relates a record to one of its measurements."""
+
     options = EdgeOptions(annotations=(EdgeLabel("CONTAINS_METRIC"),))

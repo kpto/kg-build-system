@@ -36,6 +36,7 @@ class ProvenancedNodeTemplate(NodeTemplate):
 
     options = NodeOptionsTemplate(annotations=(Provenance(stage="demo-v1"),))
     source_version: PropertySlot[str] = property()
+    """The data release whose facts this node asserts."""
 
 
 class DocumentedAbstractNode(AbstractNode):
@@ -43,6 +44,7 @@ class DocumentedAbstractNode(AbstractNode):
 
     options = NodeOptions(annotations=(NodeLabel("Documented"),))
     summary: PropertySlot[str] = property()
+    """A one-line human-readable rendering of the entity."""
 
 
 class TrackedRelationEdgeTemplate(EdgeTemplate):
@@ -51,7 +53,10 @@ class TrackedRelationEdgeTemplate(EdgeTemplate):
 
     options = EdgeOptionsTemplate(annotations=(Provenance(stage="derived"),))
     city: PropertySlot[str] = property()
+    """City the relationship was established in."""
+
     stage: PropertySlot[str] = property()
+    """Provenance stage at which the relationship is asserted."""
 
 
 class DerivedRelationAbstractEdge(AbstractEdge[DocumentedAbstractNode, DocumentedAbstractNode]):
