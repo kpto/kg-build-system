@@ -22,7 +22,7 @@ from ...workflow.models import (
     WorkflowStepDraft,
     role_is,
 )
-from ..core import CoreArtifactRoles
+from ..core import CoreArtifactRoles, graph_record_components
 
 
 @dataclass(frozen=True)
@@ -57,7 +57,7 @@ class MergeCompatibleFactsModule(Module):
         self, context: CompilationContext[Any],
     ) -> WorkflowContribution:
         steps: list[WorkflowStepDraft] = []
-        for component in context.blueprint.components:
+        for component in graph_record_components(context.blueprint):
             input_slot = SingleInputSlot(
                 slot_id=f"{self.ID}::{component.name}.input"
             )

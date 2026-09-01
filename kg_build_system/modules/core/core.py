@@ -7,6 +7,7 @@ from typing import Any, ClassVar, Literal, cast
 from ..._frozen_json import freeze_json
 from ...compile.models import BuildBlueprint
 from ...table.ir import ProjectionIR as ProjectionDefinition
+from ...topology.ir import ComponentIR as ComponentDefinition
 from ...workflow.models import (
     ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference,
     OutputSlot, WorkflowStep,
@@ -121,6 +122,20 @@ class CoreArtifactRoles:
     @classmethod
     def is_graph_records(cls, role: ArtifactRole) -> bool:
         return cls.graph_record_identity(role) is not None
+
+
+def graph_record_components(
+    blueprint: BuildBlueprint,
+) -> tuple[ComponentDefinition, ...]:
+    """Components that actually produce graph records.
+
+    A component produces records only when at least one binding targets it.
+    Abstract categories enter the blueprint to carry topology meaning and the
+    parent chain, and are never binding targets, so they produce no records,
+    no aggregation step, and no downstream artifact for any consumer.
+    """
+    bound = {binding.component for binding in blueprint.bindings}
+    return tuple(item for item in blueprint.components if item.name in bound)
 
 
 @dataclass(frozen=True)
@@ -298,7 +313,7 @@ class CoreCompiler:
         blueprint: BuildBlueprint,
     ) -> tuple[WorkflowStepDraft, ...]:
         drafts: list[WorkflowStepDraft] = []
-        for component in blueprint.components:
+        for component in graph_record_components(blueprint):
             binding_roles = tuple(
                 CoreArtifactRoles.binding(binding.symbol_id)
                 for binding in blueprint.bindings

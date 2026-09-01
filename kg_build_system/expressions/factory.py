@@ -3,7 +3,9 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..types import ArrayType, CustomType, NullableType, StructType, UnitType
+from ..types import (
+    ArrayType, CustomType, LogicalType, NullableType, StructType, UnitType,
+)
 from .arrays import ArrayExpression
 from .boolean import BoolExpression
 from .custom import CustomDataTypeExpression
@@ -43,7 +45,9 @@ def wrap_expression(expression: ExpressionNode) -> ValueExpression[Any]:
     raise TypeError(f"unsupported expression logical type {logical_type!r}")
 
 
-def value_expression(value: Any, *, logical_type=None) -> ValueExpression[Any]:
+def value_expression(
+    value: Any, *, logical_type: LogicalType | None = None,
+) -> ValueExpression[Any]:
     """Construct a typed authoring expression from a portable literal."""
     return wrap_expression(literal(value, logical_type=logical_type))
 

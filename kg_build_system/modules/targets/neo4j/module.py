@@ -34,7 +34,7 @@ from ....workflow.models import (
     WorkflowStepDraft,
 )
 from ....workflow.services import RelationRef
-from ...core import CoreArtifactRoles
+from ...core import CoreArtifactRoles, graph_record_components
 from .ir import (
     Neo4jComponentImportIR,
     Neo4jEdgeImportIR,
@@ -296,14 +296,8 @@ class Neo4jModule(Module):
     def _component_imports(
         context: CompilationContext[Any],
     ) -> tuple[Neo4jComponentImportIR, ...]:
-        bound_components = {
-            binding.component for binding in context.blueprint.bindings
-        }
         ordered = tuple(sorted(
-            (
-                component for component in context.blueprint.components
-                if component.name in bound_components
-            ),
+            graph_record_components(context.blueprint),
             key=lambda item: (item.kind, item.symbol_id),
         ))
         node_spaces = {

@@ -26,7 +26,7 @@ from ...workflow.models import (
     WorkflowArtifactRoles,
     role_is,
 )
-from ..core import CoreArtifactRoles
+from ..core import CoreArtifactRoles, graph_record_components
 
 
 @dataclass(frozen=True)
@@ -77,7 +77,7 @@ class RejectConflictingNonNullValuesModule(Module):
         self, context: CompilationContext[Any],
     ) -> WorkflowContribution:
         steps: list[WorkflowStepDraft] = []
-        for component in context.blueprint.components:
+        for component in graph_record_components(context.blueprint):
             graph_role = CoreArtifactRoles.graph_records(
                 component.kind, component.name
             )
@@ -135,11 +135,12 @@ class RejectConflictingNonNullValuesModule(Module):
         finding_slot = CollectionInputSlot(
             slot_id=f"{self.ID}::report.findings"
         )
+        components = graph_record_components(context.blueprint)
         record_slots = tuple(
             SingleInputSlot(
                 slot_id=f"{self.ID}::report.{component.name}.records"
             )
-            for component in context.blueprint.components
+            for component in components
         )
         outputs = (
             OutputSlot(
@@ -153,7 +154,7 @@ class RejectConflictingNonNullValuesModule(Module):
                         component.kind, component.name
                     ),
                 )
-                for component in context.blueprint.components
+                for component in components
             ),
         )
         step = WorkflowStep(
@@ -172,9 +173,7 @@ class RejectConflictingNonNullValuesModule(Module):
                 and output.artifact_role.name.startswith("findings.")
             )
         }
-        for slot, component in zip(
-            record_slots, context.blueprint.components, strict=True
-        ):
+        for slot, component in zip(record_slots, components, strict=True):
             role = CoreArtifactRoles.graph_records(
                 component.kind, component.name
             )

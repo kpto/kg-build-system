@@ -1,2 +1,2 @@
-from .core import CoreArtifactRoles, CoreModule
-__all__ = ["CoreArtifactRoles", "CoreModule"]
+from .core import CoreArtifactRoles, CoreModule, graph_record_components
+__all__ = ["CoreArtifactRoles", "CoreModule", "graph_record_components"]
