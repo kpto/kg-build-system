@@ -723,10 +723,10 @@ Public edge modules should not be re-exported from the node package's
 `__init__.py`; keeping imports directed from an edge module toward its endpoint
 node packages avoids circular imports. Underscore-prefixed modules such as
 `_shared.py` are reserved for private helpers and do not represent edges.
-Templates and categories shared across node packages live in an
-underscore-prefixed module directly under `topology/` (for example
-`topology/_common.py`); they carry no `bindings/` mirror because abstract
-components and templates are never binding targets.
+Templates and categories shared across node packages are first-class
+declarations and live in a plain module directly under `topology/` (for
+example `topology/common.py`); they carry no `bindings/` mirror because
+abstract components and templates are never binding targets.
 
 ## 15. Delivery scope
 

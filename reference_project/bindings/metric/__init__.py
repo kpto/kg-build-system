@@ -1,4 +1,5 @@
-from kg_build_system import node_binding, value_expression
+from kg_build_system import node_binding
+from reference_project.bindings.common import provenance_stamps
 from reference_project.table.projections.metric_display import MetricDisplayProjection
 from reference_project.topology.metric import MetricNode
 
@@ -10,7 +11,7 @@ metric_binding = node_binding(
         adjusted_value=MetricDisplayProjection.adjusted_value,
         disabled=MetricDisplayProjection.disabled,
         summary=MetricDisplayProjection.label,
-        source_version=value_expression("demo-v1"),
+        **provenance_stamps,
     ),
     debug_name="expanded_metrics",
 )

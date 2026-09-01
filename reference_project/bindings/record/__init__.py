@@ -1,5 +1,6 @@
-from kg_build_system import node_binding, value_expression
+from kg_build_system import node_binding
 
+from reference_project.bindings.common import provenance_stamps
 from reference_project.table.complex_records import ComplexRecordsTable
 from reference_project.topology.record import RecordNode
 
@@ -20,7 +21,7 @@ record_binding = node_binding(
         title=title,
         city=deep_city.default_to("Unknown city"),
         summary=title,
-        source_version=value_expression("demo-v1"),
+        **provenance_stamps,
     ),
     debug_name="records_without_expansion",
 )

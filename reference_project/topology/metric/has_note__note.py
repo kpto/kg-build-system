@@ -1,7 +1,7 @@
 """Metric -[:HAS_NOTE]-> Note, a second child of the derived-relation
 category narrowed to a different concrete endpoint pair."""
 
-from reference_project.topology._common import (
+from reference_project.topology.common import (
     DerivedRelationAbstractEdge, TrackedRelationEdgeTemplate,
 )
 from reference_project.topology.metric import MetricNode

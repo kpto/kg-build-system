@@ -1,0 +1,31 @@
+"""Binding vocabulary shared across binding packages.
+
+Components that share a template often bind identical values to the
+inherited properties. Declaring those stamps once as a ``TypedDict`` keeps
+the key set and value types checked at every ``**``-unpacking binding site,
+so a missing or mistyped shared stamp is a static error rather than a
+binding-time surprise. The bundles pair with the templates and their
+``Provenance`` annotations in ``reference_project.topology.common``.
+"""
+
+from typing import TypedDict
+
+from kg_build_system import ValueExpression, value_expression
+
+
+class ProvenanceStamps(TypedDict):
+    """The identical parameters every provenanced node binding stamps."""
+
+    source_version: ValueExpression[str]
+
+
+provenance_stamps: ProvenanceStamps = {"source_version": value_expression("demo-v1")}
+
+
+class RelationStamps(TypedDict):
+    """The identical parameters every tracked relation binding stamps."""
+
+    stage: ValueExpression[str]
+
+
+relation_stamps: RelationStamps = {"stage": value_expression("derived")}

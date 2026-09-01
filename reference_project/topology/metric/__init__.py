@@ -1,4 +1,4 @@
-from reference_project.topology._common import (
+from reference_project.topology.common import (
     DocumentedAbstractNode, ProvenancedNodeTemplate,
 )
 

@@ -1,6 +1,6 @@
-"""Shared topology declarations: templates and categories, never bound.
+"""Topology vocabulary shared across node packages.
 
-Underscore-prefixed modules directly under ``topology/`` carry authoring
+A plain module directly under ``topology/`` carries the authoring
 declarations shared across node packages — templates share property slots
 and annotation flow, categories are the graph-visible parents recorded in
 the blueprint IR. They own no ``bindings/`` mirror because abstract
@@ -46,10 +46,12 @@ class DocumentedAbstractNode(AbstractNode):
 
 
 class TrackedRelationEdgeTemplate(EdgeTemplate):
-    """Every derived relation carries the originating record's profile city."""
+    """Every derived relation carries the originating record's profile city
+    and stamps the derivation stage it was produced in."""
 
     options = EdgeOptionsTemplate(annotations=(Provenance(stage="derived"),))
     city: PropertySlot[str] = property()
+    stage: PropertySlot[str] = property()
 
 
 class DerivedRelationAbstractEdge(AbstractEdge[DocumentedAbstractNode, DocumentedAbstractNode]):

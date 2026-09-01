@@ -1,4 +1,5 @@
-from kg_build_system import node_binding, value_expression
+from kg_build_system import node_binding
+from reference_project.bindings.common import provenance_stamps
 from reference_project.table.projections.expanded_note import ExpandedNoteProjection
 from reference_project.topology.note import NoteNode
 
@@ -12,7 +13,7 @@ note_binding = node_binding(
     properties=NoteNode(
         text=ExpandedNoteProjection.note,
         summary=ExpandedNoteProjection.note,
-        source_version=value_expression("demo-v1"),
+        **provenance_stamps,
     ),
     debug_name="expanded_notes",
 )
