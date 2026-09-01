@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar, Generic, TypeVar, cast, dataclass_transform, get_args, get_origin, get_type_hints
 
+from .._support.docstrings import attribute_docstring
 from .._support.naming import declaration_name, member_name
 from ..annotations import Annotation, EdgeLabel, NodeLabel, annotation_tuple
 from ..expressions import NullableAuthoringInput, ValueInput
@@ -32,6 +33,12 @@ class _PropertyDeclaration(Generic[T]):
         object.__setattr__(self, "attr", attr)
         if self.name is None:
             object.__setattr__(self, "name", member_name(attr))
+        if self.description is None:
+            # Resolved against the declaring class, which inheritance shares
+            # rather than copies, so this runs once per declaration.
+            object.__setattr__(
+                self, "description", attribute_docstring(owner, attr),
+            )
 
 
 def properties_for(cls: type[Any]) -> dict[str, _PropertyDeclaration[Any]]:

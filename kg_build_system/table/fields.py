@@ -5,6 +5,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar, get_args, get_origin, get_type_hints, overload
 
+from .._support.docstrings import attribute_docstring
 from .._support.naming import declaration_name, member_name
 from ..annotations import Annotation, annotation_tuple
 from ..expressions import (
@@ -72,7 +73,10 @@ class Field(Generic[T]):
         self._owner = owner
         self._metadata = FieldMetadata(
             name=self._metadata.name or member_name(attribute),
-            description=self._metadata.description,
+            # An explicit description wins; otherwise a documentation string
+            # written directly below the field describes it.
+            description=self._metadata.description
+            or attribute_docstring(owner, attribute),
             annotations=self._metadata.annotations,
             attribute=attribute,
         )

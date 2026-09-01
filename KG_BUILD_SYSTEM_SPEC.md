@@ -152,6 +152,26 @@ Framework `options` values are class metadata, not fields or constructor
 arguments. Descriptions default to class docstrings unless explicitly
 overridden.
 
+A field or graph property is described by a documentation string written
+directly below its declaration, and an explicit `description` argument wins over
+it:
+
+```python
+class InputTable(Table):
+    identifier: Field[str] = field()
+    """The caller-supplied row identifier."""
+
+    label: Field[str] = field(description="Explicit description.")
+    """Ignored: the explicit description wins."""
+```
+
+This is resolved once while the declaring class is created, so an inherited
+member keeps the description of the class that declared it. Python discards such
+a string literal rather than attaching it to anything, so it is recovered from
+module source: a declaration whose module source cannot be read — a class built
+by `exec`, or a module without a source file — simply resolves no member
+description, exactly as if the documentation string had been omitted.
+
 ## 5. Selections and typed expressions
 
 Field access produces a `ValueSelection[T]`. Selections represent a location
