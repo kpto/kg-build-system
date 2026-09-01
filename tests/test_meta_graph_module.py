@@ -859,45 +859,43 @@ class HtmlVisualizationTests(unittest.TestCase):
         self.assertIn("font-weight: 600", node_rule)
 
     @unittest.skipUnless(shutil.which("node"), "node is not installed")
-    def test_self_loop_meets_the_node_perpendicular_at_both_ends(self) -> None:
+    def test_self_loop_is_a_circular_arc_perpendicular_at_both_ends(self) -> None:
         output, _contract, _report, _document = _run(self, register_module(MetaGraphModule))
         app = _APP_BLOCK.search(_html_text(output))
         assert app
-        # For a cubic, the tangent at each end points along the segment to its
-        # neighbouring control point. Meeting the circle at ninety degrees means
-        # that tangent is parallel to the radius at the anchor.
+        # An arc's tangent is perpendicular to its own radius, so the tangent
+        # meets the node square on exactly when that radius is perpendicular to
+        # the node's radius at the anchor.
         derived = _run_app_code(app.group(1), r"""
 const node = { x: 200, y: 150, radius: 18 };
-const n = selfLoop(node).match(/-?\d+(\.\d+)?/g).map(Number);
-const P0 = {x:n[0], y:n[1]},  C1 = {x:n[2], y:n[3]};
-const C4 = {x:n[10], y:n[11]}, P3 = {x:n[12], y:n[13]};
-const sin = (a, b) => Math.abs(a.x*b.y - a.y*b.x)
-  / (Math.hypot(a.x, a.y) * Math.hypot(b.x, b.y));
 const g = loopGeometry(node);
-const leftLeg = [node.x - g.ax, node.x - (g.ax + g.nx * g.reach), g.run];
-const rightLeg = [g.bx - node.x, (g.bx + g.mx * g.reach) - node.x, g.run];
-const widest = Math.max(...leftLeg.map((v, i) => Math.abs(v - rightLeg[i])));
+const d = selfLoop(node);
+const cross = (u, v) => u.x * v.y - u.y * v.x;
+const dot = (u, v) => u.x * v.x + u.y * v.y;
+const TWO_PI = 2 * Math.PI;
+const ang = (p) => (Math.atan2(p.y - g.cy, p.x - g.cx) + TWO_PI) % TWO_PI;
+const a0 = ang({ x: g.ax, y: g.ay }), a1 = ang({ x: g.bx, y: g.by });
+const sweep = (a1 - a0 + TWO_PI) % TWO_PI;
+const top = (Math.atan2(g.top - g.cy, 1e-9) + TWO_PI) % TWO_PI;
+const arc = d.match(/A([-\d.]+),([-\d.]+) 0 (\d) (\d)/);
 console.log(JSON.stringify({
-  leavesPerpendicular: sin({x:C1.x-P0.x, y:C1.y-P0.y}, {x:P0.x-node.x, y:P0.y-node.y}) < 1e-9,
-  returnsPerpendicular: sin({x:P3.x-C4.x, y:P3.y-C4.y}, {x:P3.x-node.x, y:P3.y-node.y}) < 1e-9,
-  startsOnSurface: Math.abs(Math.hypot(P0.x-node.x, P0.y-node.y) - node.radius) < 1e-6,
-  tipReachesSurface: Math.abs(Math.hypot(P3.x-node.x, P3.y-node.y) - (node.radius + ARROW_LENGTH)) < 1e-6,
-  crownOnAxis: g.px === node.x,
-  crownAboveNode: g.py < node.y - node.radius,
-  // Legs mirror to within the head-length the return anchor sits out by, which
-  // is hidden by the arrow itself.
-  legsMirrorWithinHeadLength: widest <= ARROW_LENGTH + 1e-9,
+  stemIsRadial: Math.abs(cross({ x: g.ax - node.x, y: g.ay - node.y },
+                               { x: g.sx - node.x, y: g.sy - node.y })) < 1e-9,
+  leavesPerpendicular: Math.abs(dot({ x: g.ax - g.cx, y: g.ay - g.cy },
+                                    { x: g.ax - node.x, y: g.ay - node.y })) < 1e-9,
+  returnsPerpendicular: Math.abs(dot({ x: g.bx - g.cx, y: g.by - g.cy },
+                                     { x: g.bx - node.x, y: g.by - node.y })) < 1e-9,
+  singleCircle: !!arc && arc[1] === arc[2] && Math.abs(+arc[1] - g.radius) < 1e-9,
+  // The run over the top spans 180 + 2*theta degrees, so it must be flagged as
+  // the major arc travelling in the positive angle direction.
+  majorArc: sweep > Math.PI,
+  largeArcFlag: !!arc && arc[3] === '1',
+  sweepFlag: !!arc && arc[4] === '1',
+  passesOverTheTop: ((top - a0 + TWO_PI) % TWO_PI) <= sweep,
+  tipReachesSurface: Math.abs(g.rho - node.radius - ARROW_LENGTH) < 1e-9,
 }));
 """)
-        self.assertEqual(derived, {
-            "leavesPerpendicular": True,
-            "returnsPerpendicular": True,
-            "startsOnSurface": True,
-            "tipReachesSurface": True,
-            "crownOnAxis": True,
-            "crownAboveNode": True,
-            "legsMirrorWithinHeadLength": True,
-        })
+        self.assertEqual(derived, {key: True for key in derived}, str(derived))
 
     @unittest.skipUnless(shutil.which("node"), "node is not installed")
     def test_panel_attributes_inherited_properties_to_their_category(self) -> None:

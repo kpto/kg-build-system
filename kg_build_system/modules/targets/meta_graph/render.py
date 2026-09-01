@@ -218,34 +218,35 @@ function spreadLinks(links) {
 }
 
 // A category declared over a single component has nowhere else to point, so it
-// loops back onto itself. The anchors sit either side of the top of the circle
-// and each control point lies on the outward radius at its anchor, so the curve
-// leaves and returns perpendicular to the surface instead of peeling off at a
-// slant.
+// loops back onto itself. It is a short radial stem, one true circular arc, and
+// the arrow returning along the opposite radius.
+//
+// The circle's centre and radius are not tuned by eye: with anchors on the two
+// radii at half-angle theta, requiring the arc's tangent to be parallel to each
+// anchor's own radius forces the centre to sit at rho / cos(theta) above the
+// node and the radius to be rho * tan(theta). That is what lets a circular arc
+// meet the node square on without a kink where the stem joins it.
 function loopGeometry(node) {
-  var x = node.x, y = node.y, r = node.radius;
-  var angle = 0.6;                       // radians from vertical, about 34 degrees
-  var sx = Math.sin(angle), cs = Math.cos(angle);
+  var theta = 0.6;                                  // radians from vertical, ~34 degrees
+  var sin = Math.sin(theta), cos = Math.cos(theta);
+  var rho = node.radius + ARROW_LENGTH;             // anchors sit one head out
+  var centre = node.y - rho / cos;
+  var radius = rho * Math.tan(theta);
   return {
-    ax: x - sx * r, ay: y - cs * r,      // leaves from the surface
-    // Returns a head-length out, still along its own radius, so the arrow tip
-    // reaches the circle while travelling perpendicular to it.
-    bx: x + sx * (r + ARROW_LENGTH), by: y - cs * (r + ARROW_LENGTH),
-    nx: -sx, ny: -cs,                    // outward radius at the left anchor
-    mx: sx, my: -cs,                     // outward radius at the right anchor
-    px: x, py: y - (r + r * 1.15),       // crown of the loop
-    reach: r * 1.15, run: r * 0.62,
+    cx: node.x, cy: centre, radius: radius, theta: theta, rho: rho,
+    sx: node.x - sin * node.radius, sy: node.y - cos * node.radius,   // stem foot
+    ax: node.x - sin * rho, ay: node.y - cos * rho,                   // arc starts
+    bx: node.x + sin * rho, by: node.y - cos * rho,                   // arc ends
+    top: centre - radius,
   };
 }
 
 function selfLoop(node) {
   var g = loopGeometry(node);
-  return 'M' + g.ax + ',' + g.ay +
-    'C' + (g.ax + g.nx * g.reach) + ',' + (g.ay + g.ny * g.reach) +
-    ' ' + (g.px - g.run) + ',' + g.py + ' ' + g.px + ',' + g.py +
-    'C' + (g.px + g.run) + ',' + g.py +
-    ' ' + (g.bx + g.mx * g.reach) + ',' + (g.by + g.my * g.reach) +
-    ' ' + g.bx + ',' + g.by;
+  // large-arc is 1 because the run over the top spans 180 + 2*theta degrees.
+  return 'M' + g.sx + ',' + g.sy +
+    'L' + g.ax + ',' + g.ay +
+    'A' + g.radius + ',' + g.radius + ' 0 1 1 ' + g.bx + ',' + g.by;
 }
 
 function isNullable(type) { return /\|\s*None\s*$/.test(String(type).trim()); }
@@ -406,14 +407,21 @@ function main(documentData) {
   var simulation = d3.forceSimulation(graph.nodes)
     .force('link', d3.forceLink(links).id(function (d) { return d.name; })
       .distance(function (link) {
-        return link.type === 'hierarchy' ? 80 : link.type === 'category' ? 60 : 140;
+        return link.type === 'hierarchy' ? 130 : link.type === 'category' ? 90 : 240;
       })
       // A declaration is information, not a constraint, so it is held loosely;
       // d3's own jiggle keeps a self-declaration from dividing by a zero length.
       .strength(function (link) { return link.type === 'hierarchy' ? 0.5 : link.type === 'category' ? 0.05 : 0.25; }))
-    .force('charge', d3.forceManyBody().strength(-500))
-    .force('center', d3.forceCenter(box.width / 2, box.height / 2))
-    .force('collide', d3.forceCollide().radius(function (d) { return d.radius + 16; }));
+    // Repulsion scales with the vertex so large nodes claim room for their
+    // labels, and is capped so distant parts of the graph stop pushing.
+    .force('charge', d3.forceManyBody()
+      .strength(function (d) { return -700 - 30 * d.radius; })
+      .distanceMax(1400))
+    // Weak centring rather than forceCenter: the graph may spread, but it stays
+    // near the middle of the panel instead of drifting away.
+    .force('x', d3.forceX(box.width / 2).strength(0.045))
+    .force('y', d3.forceY(box.height / 2).strength(0.045))
+    .force('collide', d3.forceCollide().radius(function (d) { return d.radius + 40; }));
 
   // Each link is one group holding a wide transparent hit path and the visible
   // path, so a thin curve still has a target a pointer can find.
@@ -521,7 +529,7 @@ function main(documentData) {
   function labelPoint(link) {
     if (link.source === link.target) {
       var loop = loopGeometry(link.source);
-      return { x: loop.px, y: loop.py - 9 };
+      return { x: loop.cx, y: loop.top - 9 };
     }
     var g = geometry(link);
     var x = g.curved ? 0.25 * g.sx + 0.5 * g.mx + 0.25 * g.ex : (g.sx + g.ex) / 2;
