@@ -9,6 +9,7 @@ from .operators import (
     RejectConflictingNonNullValuesModule,
 )
 from .targets.file import FileModule, FileModuleConfiguration
+from .targets.meta_graph import MetaGraphModule, MetaGraphModuleConfiguration
 from .targets.neo4j import Neo4jModule, Neo4jModuleConfiguration
 
 __all__ = [
@@ -16,6 +17,8 @@ __all__ = [
     "FileModule",
     "FileModuleConfiguration",
     "MergeCompatibleFactsModule",
+    "MetaGraphModule",
+    "MetaGraphModuleConfiguration",
     "Module",
     "ModuleRegistration",
     "ModuleRegistrationConfiguration",

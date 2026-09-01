@@ -9,7 +9,6 @@ from pathlib import Path, PurePosixPath
 from typing import Any, ClassVar, Literal, cast
 
 from ...._frozen_json import freeze_json, thaw_json
-from ....annotations import EdgeLabel, NodeLabel
 from ....compile.interfaces import CompilationContext, ModuleCompiler
 from ....modules.interfaces import Module, ModuleRegistrationConfiguration
 from ....topology.ir import ComponentIR
@@ -35,6 +34,8 @@ from ....workflow.models import (
 )
 from ....workflow.services import RelationRef
 from ...core import CoreArtifactRoles, graph_record_components
+from ..._labels import semantic_label
+from ..._paths import validate_relative_path
 from .ir import (
     Neo4jComponentImportIR,
     Neo4jEdgeImportIR,
@@ -55,11 +56,7 @@ _RESERVED_PROPERTIES = frozenset({
 
 
 def _validate_relative_path(value: str, *, context: str) -> None:
-    if not isinstance(value, str) or not value.strip():
-        raise ValueError(f"{context} must be a non-empty relative path")
-    path = Path(value)
-    if path.is_absolute() or ".." in path.parts:
-        raise ValueError(f"{context} must be relative to the build output directory")
+    validate_relative_path(value, context=context)
 
 
 def _quote_identifier(value: object) -> str:
@@ -97,37 +94,7 @@ def _component_step_key(specification: Neo4jComponentImportIR) -> str:
 
 
 def _annotation_label(component: ComponentIR) -> str:
-    expected = NodeLabel if component.kind == "node" else EdgeLabel
-    opposite = EdgeLabel if component.kind == "node" else NodeLabel
-    wrong = [
-        item for item in component.annotations
-        if item.namespace == opposite.namespace
-        and item.annotation_id == opposite.annotation_id
-    ]
-    if wrong:
-        raise ValueError(
-            f"{component.kind} component {component.name!r} has an incompatible "
-            f"{opposite.__name__} annotation"
-        )
-    matches = [
-        item for item in component.annotations
-        if item.namespace == expected.namespace
-        and item.annotation_id == expected.annotation_id
-    ]
-    if len(matches) > 1:
-        raise ValueError(
-            f"{component.kind} component {component.name!r} accepts at most one "
-            f"{expected.__name__} annotation"
-        )
-    if not matches:
-        label = component.name
-    else:
-        arguments = thaw_json(matches[0].arguments)
-        if not isinstance(arguments, dict) or set(arguments) != {"label"}:
-            raise ValueError(f"{expected.__name__} has invalid serialized arguments")
-        label = arguments["label"]
-        if not isinstance(label, str) or not label.strip():
-            raise ValueError(f"{expected.__name__} label must be a non-empty string")
+    label = semantic_label(component)
     if component.kind == "node" and ";" in label:
         raise ValueError(
             f"node component {component.name!r} must have a single Neo4j label"

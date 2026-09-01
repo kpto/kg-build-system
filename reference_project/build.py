@@ -6,30 +6,28 @@ from kg_build_system.modules import (
     CollapseExactDuplicatesModule,
     FileModule,
     FileModuleConfiguration,
+    MetaGraphModule,
     Neo4jModule,
     register_module,
 )
 from kg_build_system.workflow.ir import WorkflowContractIR
 
 
-def create_demo_blueprint() -> BuildBlueprint:
-    return create_blueprint(
-        modules=(
-            register_module(CollapseExactDuplicatesModule),
-            register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
-            register_module(Neo4jModule),
-        ),
+def _modules():
+    return (
+        register_module(CollapseExactDuplicatesModule),
+        register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
+        register_module(MetaGraphModule),
+        register_module(Neo4jModule),
     )
+
+
+def create_demo_blueprint() -> BuildBlueprint:
+    return create_blueprint(modules=_modules())
 
 
 def compile_demo() -> WorkflowContractIR:
-    return compile(
-        modules=(
-            register_module(CollapseExactDuplicatesModule),
-            register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
-            register_module(Neo4jModule),
-        ),
-    )
+    return compile(modules=_modules())
 
 
 def run_demo() -> None:

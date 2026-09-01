@@ -560,7 +560,21 @@ The core module creates source-view, projection-view, binding-view, and graph
 aggregation-view steps. Extension modules claim artifacts by semantic
 `ArtifactRole` rather than temporary relation names. Current supplied modules
 include exact duplicate collapse, compatible-fact merging, conflicting-value
-validation, file output, and Neo4j administrative-import output.
+validation, file output, meta-graph description, and Neo4j administrative-import
+output.
+
+The meta-graph module writes one JSON document describing the effective
+topology: every component a binding targets, the abstract ancestors and edge
+endpoint categories those components depend on, and nothing else. It records the
+hierarchy by logical name (`parent`, `children`, `depth`) alongside each
+component's debugging symbol ID, its effective semantic label and description,
+its properties with normalized logical types, and per-component record counts.
+Abstract categories are never binding targets and so produce no artifact of
+their own; their count is the sum over their concrete descendants. The step
+claims the graph-record artifact for each effective component, so a count
+reflects whatever stage last owned that role — after collapse, merge, or
+validation when those modules are configured. Static topology travels in the
+step payload, because a module executor receives no blueprint.
 
 `build` synchronously consumes only `WorkflowContractIR` and `BuildRuntime`. It
 imports the module classes named in the contract, validates runtime
@@ -744,6 +758,8 @@ abstract components and templates are never binding targets.
 - engine-neutral relational plans and DuckDB lowering;
 - dependency-aware workflow contracts and execution reports;
 - file graph output and supplied validation/merge/deduplication modules;
+- an effective-topology meta-graph JSON document with hierarchy, labels,
+  descriptions, property logical types, and per-component record counts;
 - Neo4j administrative-import Parquet bundles and standalone import scripts;
 - edit-time generated table and table-group packages;
 - an importable demo combining deep nesting, null handling, expansions, and

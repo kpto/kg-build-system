@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from pathlib import PurePosixPath
 from typing import Any, ClassVar
 
 from ..._frozen_json import freeze_json, thaw_json
@@ -13,6 +13,7 @@ from ...workflow.models import (
 )
 from ...compile.interfaces import CompilationContext, ModuleCompiler
 from ...modules.interfaces import Module, ModuleRegistrationConfiguration
+from ...modules._paths import validate_relative_path
 from ...workflow.interfaces import ModuleExecutor
 from ...workflow.models import (
     Artifact,
@@ -29,11 +30,7 @@ from ..core import CoreArtifactRoles
 
 
 def _validate_relative_path(value: str) -> None:
-    path = Path(value)
-    if path.is_absolute() or ".." in path.parts:
-        raise ValueError(
-            "file output path must be relative to the build output directory"
-        )
+    validate_relative_path(value, context="file output path")
 
 
 @dataclass(frozen=True)
