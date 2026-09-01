@@ -1,6 +1,6 @@
 from kg_build_system import edge_binding
 from reference_project.table.projections.expanded_note import ExpandedNoteProjection
-from reference_project.topology.metric.has_note import HasNoteEdge
+from reference_project.topology.metric.has_note__note import HasNoteEdge
 
 note_key = ExpandedNoteProjection.metric_key.expression.append("::note::").append(
     ExpandedNoteProjection.note.expression
