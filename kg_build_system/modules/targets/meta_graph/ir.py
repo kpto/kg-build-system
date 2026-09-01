@@ -71,12 +71,13 @@ class MetaGraphComponentIR(BaseModel):
 
 
 class MetaGraphDocumentIR(BaseModel):
-    """The static half of the document; record counts arrive at runtime."""
+    """The static half of the document; counts and example values are runtime."""
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[1] = 1
+    schema_version: Literal[2] = 2
     relative_path: str = Field(min_length=1)
+    example_limit: int = Field(default=3, ge=0)
     components: tuple[MetaGraphComponentIR, ...] = ()
 
 

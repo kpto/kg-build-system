@@ -539,5 +539,127 @@ class ConfigurationTests(unittest.TestCase):
         )
 
 
+class ExampleValueTests(unittest.TestCase):
+    def test_properties_carry_values_from_the_emitted_records(self) -> None:
+        _output, _contract, _report, document = _run(self, register_module(MetaGraphModule))
+        person = _by_name(document, "nodes")["person"]
+        name = next(item for item in person["properties"] if item["name"] == "name")
+        self.assertEqual(set(name["examples"]), {"Ada", "Grace"})
+
+    def test_examples_never_include_nulls(self) -> None:
+        _output, _contract, _report, document = _run(self, register_module(MetaGraphModule))
+        person = _by_name(document, "nodes")["person"]
+        summary = next(
+            item for item in person["properties"] if item["name"] == "summary"
+        )
+        self.assertNotIn(None, summary["examples"])
+        self.assertEqual(summary["examples"], ["documented"])
+
+    def test_example_limit_caps_values_per_property(self) -> None:
+        _output, _contract, _report, document = _run(
+            self,
+            register_module(MetaGraphModule, MetaGraphModuleConfiguration(example_limit=1)),
+        )
+        for entry in document["nodes"] + document["edges"]:
+            for prop in entry["properties"]:
+                self.assertLessEqual(len(prop["examples"]), 1, entry["name"])
+
+    def test_zero_example_limit_omits_examples_entirely(self) -> None:
+        _output, _contract, _report, document = _run(
+            self,
+            register_module(MetaGraphModule, MetaGraphModuleConfiguration(example_limit=0)),
+        )
+        for entry in document["nodes"] + document["edges"]:
+            for prop in entry["properties"]:
+                self.assertNotIn("examples", prop)
+
+    def test_an_abstract_component_inherits_examples_from_its_descendants(self) -> None:
+        _output, _contract, _report, document = _run(self, register_module(MetaGraphModule))
+        category = _by_name(document, "nodes")["documented"]
+        self.assertEqual(category["counts"]["records"], 0)
+        summary = next(
+            item for item in category["properties"] if item["name"] == "summary"
+        )
+        self.assertEqual(summary["examples"], ["documented"])
+
+    def test_examples_are_deterministic_across_builds(self) -> None:
+        def collected() -> list[tuple[str, str, list[str]]]:
+            _output, _contract, _report, document = _run(
+                self, register_module(MetaGraphModule),
+            )
+            return [
+                (entry["name"], prop["name"], sorted(str(v) for v in prop["examples"]))
+                for entry in document["nodes"] + document["edges"]
+                for prop in entry["properties"]
+            ]
+
+        self.assertEqual(collected(), collected())
+
+    def test_the_example_method_is_recorded_in_the_document(self) -> None:
+        _output, _contract, _report, document = _run(
+            self,
+            register_module(
+                MetaGraphModule, MetaGraphModuleConfiguration(example_limit=2),
+            ),
+        )
+        self.assertEqual(
+            document["examples"], {"method": "approx_top_k", "limit": 2},
+        )
+
+    def test_example_limit_configuration_is_validated(self) -> None:
+        with self.assertRaisesRegex(ValueError, "example limit"):
+            MetaGraphModuleConfiguration(example_limit=-1)
+
+
+class NullableKeyTable(Table):
+    maybe_id: Field[str | None] = field()
+    detail: Field[str] = field()
+
+
+class EmptySetNode(Node):
+    options = NodeOptions(name="empty_set")
+
+    detail: PropertySlot[str] = property()
+
+
+empty_set_binding = node_binding(
+    target=EmptySetNode,
+    build_key=NullableKeyTable.maybe_id.where_present(),
+    properties=EmptySetNode(detail=NullableKeyTable.detail),
+)
+
+
+class EmptyProducingComponentTests(unittest.TestCase):
+    def test_a_component_that_emits_no_rows_is_still_described(self) -> None:
+        # An empty aggregate gives the sampling query no row to carry the
+        # window count out on, so the count needs its own path.
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / "input.json"
+            data.write_text(json.dumps([
+                {"maybe_id": None, "detail": "first"},
+                {"maybe_id": None, "detail": "second"},
+            ]), encoding="utf-8")
+            output = root / "output"
+            contract = compile(
+                bindings=(empty_set_binding,),
+                sources=(bind_source(
+                    target=NullableKeyTable,
+                    config=DataSourceConfig(str(data), format=InputFormat.JSON),
+                ),),
+                modules=(register_module(MetaGraphModule),),
+            )
+            report = build(contract, output_directory=output)
+
+            self.assertTrue(report.succeeded)
+            document = json.loads(
+                (output / "meta_graph.json").read_text(encoding="utf-8")
+            )
+            entry = _by_name(document, "nodes")["empty_set"]
+            self.assertEqual(entry["counts"]["records"], 0)
+            self.assertEqual(entry["counts"]["inclusive_records"], 0)
+            self.assertEqual(entry["properties"][0]["examples"], [])
+
+
 if __name__ == "__main__":
     unittest.main()

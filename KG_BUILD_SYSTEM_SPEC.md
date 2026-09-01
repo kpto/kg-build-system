@@ -548,7 +548,9 @@ relational artifact exposes a stable logical view. Core source, projection,
 binding, and graph-aggregation views remain lazy so DuckDB can optimize through
 the complete query chain and push projections and filters into physical scans.
 When an upper workflow layer requests a reuse or snapshot boundary, the runtime
-may instead back the same public view with a private materialized table.
+may instead back the same public view with a private materialized table. Which
+relations deserve that boundary is unresolved; see
+`WORKFLOW_RELATION_REUSE.md`.
 
 ## 12. Compilation, workflow, and execution
 
@@ -593,8 +595,20 @@ Abstract categories are never binding targets and so produce no artifact of
 their own; their count is the sum over their concrete descendants. The step
 claims the graph-record artifact for each effective component, so a count
 reflects whatever stage last owned that role — after collapse, merge, or
-validation when those modules are configured. Static topology travels in the
-step payload, because a module executor receives no blueprint.
+validation when those modules are configured.
+
+Each property also carries example values taken from those same records: up to
+`example_limit` of the most common values per property, from DuckDB's
+`approx_top_k` frequency sketch. Count and examples together form a single
+aggregate query per component, so the relation is streamed once with memory that
+does not depend on its size. Counts stay exact; examples are approximate and are
+ordered canonically so two builds publish the same document. A category has no
+rows of its own, so it inherits examples from its descendants by property name.
+This makes the document data-bearing rather than pure metadata; it sits beside
+`graph.jsonl`, which already holds every value.
+
+Static topology travels in the step payload, because a module executor receives
+no blueprint.
 
 `build` synchronously consumes only `WorkflowContractIR` and `BuildRuntime`. It
 imports the module classes named in the contract, validates runtime
