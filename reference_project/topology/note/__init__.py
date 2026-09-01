@@ -1,9 +1,11 @@
-from reference_project.topology._common import Documented, Provenanced
+from reference_project.topology._common import (
+    DocumentedAbstractNode, ProvenancedNodeTemplate,
+)
 
 from kg_build_system import Node, NodeLabel, NodeOptions, PropertySlot, property
 
 
-class NoteNode(Provenanced, Documented, Node):
+class NoteNode(ProvenancedNodeTemplate, DocumentedAbstractNode, Node):
     options = NodeOptions(annotations=(NodeLabel("Note"),))
 
     text: PropertySlot[str] = property()

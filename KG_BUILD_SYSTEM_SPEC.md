@@ -401,9 +401,14 @@ table or projection.
 ## 8. Names, options, and annotations
 
 Every declaration has a stable logical name. Explicit `options.name` wins;
-otherwise names are inferred in snake case. One matching terminal layer suffix
-is removed, for example `InputTable` becomes `input`, `InputNode` becomes
-`input`, and `ContainsEdge` becomes `contains`.
+otherwise names are inferred in snake case. One matching tier suffix is removed,
+for example `InputTable` becomes `input`, `InputNode` becomes `input`, and
+`ContainsEdge` becomes `contains`. Topology declarations should name their tier
+explicitly — `RecordNode`, `DocumentedAbstractNode`, `DocumentedNodeTemplate` —
+and the matching suffix is stripped, so an abstract node and its template both
+infer `documented`. Abstract components strip `AbstractNode`/`AbstractEdge`
+before falling back to the terminal `Node`/`Edge` suffix; template suffixes
+carry no logical name, since a template never enters the IR.
 
 Field, property, and projection-field names default to their Python attribute
 name converted to snake case. One trailing underscore escapes a reserved
@@ -651,6 +656,9 @@ Authoring practices:
 - Choose `default_to` versus `where_present` deliberately.
 - Keep topology and bindings discoverable in the compact node-first layout
   defined below.
+- Name each topology tier explicitly in the class name — `RecordNode`,
+  `DocumentedAbstractNode`, `ProvenancedNodeTemplate` — so the tier suffix
+  is visible at every use site and is stripped from the logical name.
 - Use projections to name reusable data products and isolate expansion scopes.
 - Keep physical locations and provenance in source bindings.
 - Treat generated packages, blueprint JSON, workflow contracts, and SQL as
@@ -715,6 +723,10 @@ Public edge modules should not be re-exported from the node package's
 `__init__.py`; keeping imports directed from an edge module toward its endpoint
 node packages avoids circular imports. Underscore-prefixed modules such as
 `_shared.py` are reserved for private helpers and do not represent edges.
+Templates and categories shared across node packages live in an
+underscore-prefixed module directly under `topology/` (for example
+`topology/_common.py`); they carry no `bindings/` mirror because abstract
+components and templates are never binding targets.
 
 ## 15. Delivery scope
 

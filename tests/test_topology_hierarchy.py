@@ -126,6 +126,29 @@ def _blueprint(bindings, **overrides) -> BuildBlueprint:
     return result
 
 
+class NamingTests(unittest.TestCase):
+    def test_tier_suffixes_strip_from_inferred_names(self) -> None:
+        class TracedAbstractNode(AbstractNode): ...
+        class LegacyNode(AbstractNode): ...
+
+        class Widget(AbstractNode): ...
+
+        class PairAbstractEdge(AbstractEdge[Entity, Entity]): ...
+        class LegacyEdge(AbstractEdge[Entity, Entity]): ...
+
+        class PlainTracedNode(TracedAbstractNode, Node): ...
+        class Explicit(AbstractNode):
+            options = NodeOptions(name="Chosen Name")
+
+        self.assertEqual(TracedAbstractNode._component_name, "traced")
+        self.assertEqual(LegacyNode._component_name, "legacy")
+        self.assertEqual(Widget._component_name, "widget")
+        self.assertEqual(PairAbstractEdge._component_name, "pair")
+        self.assertEqual(LegacyEdge._component_name, "legacy")
+        self.assertEqual(PlainTracedNode._component_name, "plain_traced")
+        self.assertEqual(Explicit._component_name, "Chosen Name")
+
+
 class TierTests(unittest.TestCase):
     def test_template_is_inert(self) -> None:
         self.assertIsNone(vars(Traced).get("_component_declaration_kind"))

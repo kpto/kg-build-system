@@ -5,6 +5,11 @@ declarations shared across node packages — templates share property slots
 and annotation flow, categories are the graph-visible parents recorded in
 the blueprint IR. They own no ``bindings/`` mirror because abstract
 components are never binding targets.
+
+Authoring convention: every declaration carries its tier in the class-name
+suffix — ``...NodeTemplate``/``...EdgeTemplate``, ``...AbstractNode``/
+``...AbstractEdge``, ``...Node``/``...Edge`` — and the framework strips the
+matching suffix to infer the logical name.
 """
 
 from dataclasses import dataclass
@@ -26,28 +31,28 @@ class Provenance(Annotation):
     stage: str
 
 
-class Provenanced(NodeTemplate):
+class ProvenancedNodeTemplate(NodeTemplate):
     """Every concrete node records the data version it was built from."""
 
     options = NodeOptionsTemplate(annotations=(Provenance(stage="demo-v1"),))
     source_version: PropertySlot[str] = property()
 
 
-class Documented(AbstractNode):
+class DocumentedAbstractNode(AbstractNode):
     """Category: every documented entity carries a human-readable summary."""
 
     options = NodeOptions(annotations=(NodeLabel("Documented"),))
     summary: PropertySlot[str] = property()
 
 
-class TrackedRelation(EdgeTemplate):
+class TrackedRelationEdgeTemplate(EdgeTemplate):
     """Every derived relation carries the originating record's profile city."""
 
     options = EdgeOptionsTemplate(annotations=(Provenance(stage="derived"),))
     city: PropertySlot[str] = property()
 
 
-class DerivedRelation(AbstractEdge[Documented, Documented]):
+class DerivedRelationAbstractEdge(AbstractEdge[DocumentedAbstractNode, DocumentedAbstractNode]):
     """Category: relations derived between documented entities."""
 
     options = EdgeOptions(annotations=(EdgeLabel("DERIVED"),))

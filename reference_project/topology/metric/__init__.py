@@ -1,9 +1,11 @@
-from reference_project.topology._common import Documented, Provenanced
+from reference_project.topology._common import (
+    DocumentedAbstractNode, ProvenancedNodeTemplate,
+)
 
 from kg_build_system import Node, NodeLabel, NodeOptions, PropertySlot, property
 
 
-class MetricNode(Provenanced, Documented, Node):
+class MetricNode(ProvenancedNodeTemplate, DocumentedAbstractNode, Node):
     options = NodeOptions(annotations=(NodeLabel("Metric"),))
 
     label: PropertySlot[str] = property()

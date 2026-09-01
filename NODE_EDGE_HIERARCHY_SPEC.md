@@ -68,7 +68,7 @@ Effective resolution for an IR-visible class, over its framework lineage:
 
 | Field | Effective value |
 |---|---|
-| name | own `options.name`, else own class name — never mixed |
+| name | own `options.name`, else own class name with the tier suffix stripped (`AbstractNode`/`AbstractEdge` for categories, `Node`/`Edge` for concrete) — never mixed |
 | description | own `options.description`, else own docstring — never inherited; resolved at class creation |
 | annotations | template options in C3 order — each template exactly once, collected wherever it enters the lineage, category parents included — then own `options.annotations` |
 

@@ -286,6 +286,25 @@ def _resolve_edge_endpoints(
     )
 
 
+def _inferred_component_name(cls: type[Any], kind: str, tier: str) -> str:
+    """Infer a logical name from the class name, stripping its tier suffix.
+
+    Authoring convention carries the tier in the class name
+    (``RecordNode``, ``DocumentedAbstractNode``, ``DerivedRelationAbstractEdge``)
+    and the matching tier suffix is removed. Concrete components strip one
+    trailing ``Node``/``Edge``; abstract components additionally strip
+    ``AbstractNode``/``AbstractEdge`` first, so an explicit ``...AbstractNode``
+    name does not degrade to ``..._abstract``.
+    """
+    kind_suffix = "Node" if kind == "node" else "Edge"
+    suffixes: tuple[str, ...]
+    if tier == "abstract":
+        suffixes = (f"Abstract{kind_suffix}", kind_suffix)
+    else:
+        suffixes = (kind_suffix,)
+    return declaration_name(cls.__name__, suffixes=suffixes)
+
+
 def _prepare_topology_declaration(cls: type[Any]) -> None:
     """One pass at class creation: lineage, tiers, options, endpoints."""
     if _is_framework_root(cls):
@@ -362,9 +381,7 @@ def _prepare_topology_declaration(cls: type[Any]) -> None:
     _require_label_uniqueness(cls, kind, effective_annotations)
 
     description = own_options.description if own_options is not None and own_options.description is not None else (vars(cls).get("__doc__") or None)
-    name = (own_options.name if own_options is not None else None) or declaration_name(
-        cls.__name__, suffixes=("Node",) if kind == "node" else ("Edge",)
-    )
+    name = (own_options.name if own_options is not None else None) or _inferred_component_name(cls, kind, tier)
 
     metadata: dict[str, Any] = {"description": description} if description is not None else {}
     if kind == "edge":
