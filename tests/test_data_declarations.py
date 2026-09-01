@@ -15,12 +15,12 @@ from kg_build_system import (
     StrExpression,
     Struct,
     StructOptions,
+    StructOptionsTemplate,
+    StructTemplate,
     Table,
     TableGroup,
     TableGroupOptions,
     TableOptions,
-    TableTemplate,
-    TableTemplateOptions,
     bind_source,
     field,
     projection_field,
@@ -45,8 +45,8 @@ class DetailsStruct(Struct):
     aliases: Field[Array[str]] = field()
 
 
-class EntityTableTemplate(TableTemplate):
-    options = TableTemplateOptions(annotations=(Marker("template"),))
+class EntityTableTemplate(StructTemplate):
+    options = StructOptionsTemplate(annotations=(Marker("template"),))
     identifier: Field[str] = field(name="id")
     details: Field[DetailsStruct] = field()
 
@@ -92,7 +92,11 @@ class DataDeclarationTests(unittest.TestCase):
     def test_struct_table_and_template_metadata_are_finalized_eagerly(self) -> None:
         self.assertEqual(DetailsStruct._data_name, "details")
         self.assertEqual(DetailsStruct._data_metadata["description"], "Reusable nested details.")
-        self.assertEqual(EntityTableTemplate._data_declaration_kind, "table_template")
+        self.assertEqual(
+            EntityTableTemplate._data_template_annotations, (Marker("template"),)
+        )
+        self.assertIsNone(vars(EntityTableTemplate).get("_data_declaration_kind"))
+        self.assertIsNone(getattr(EntityTableTemplate, "_data_name", None))
         self.assertEqual(EntityTable._data_declaration_kind, "table")
         self.assertEqual(EntityTable._table_name, "entity")
         self.assertEqual(tuple(EntityTable._fields), ("identifier", "details", "category"))
@@ -161,6 +165,72 @@ class DataDeclarationTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "final TableGroup"):
             class ChildGroup(ReleaseTableGroup):
                 pass
+
+    def test_templates_compose_into_struct_hosts(self) -> None:
+        class AuditedStructTemplate(StructTemplate):
+            options = StructOptionsTemplate(annotations=(Marker("audited"),))
+            audited_by: Field[str] = field()
+
+        class AuditStruct(AuditedStructTemplate, Struct):
+            note: Field[str] = field()
+
+        self.assertEqual(tuple(AuditStruct._fields), ("audited_by", "note"))
+        self.assertEqual(AuditStruct._data_name, "audit")
+        self.assertEqual(AuditStruct._data_annotations, (Marker("audited"),))
+
+    def test_template_lineages_flow_base_first_exactly_once(self) -> None:
+        class BaseShape(StructTemplate):
+            options = StructOptionsTemplate(annotations=(Marker("base"),))
+
+        class DerivedShape(BaseShape):
+            options = StructOptionsTemplate(annotations=(Marker("derived"),))
+
+        class Diamond(BaseShape):
+            pass
+
+        class LineageTable(DerivedShape, Diamond, Table):
+            marker: Field[str] = field()
+
+        # BaseShape enters through both branches yet contributes once; the
+        # derived template contributes after the base in C3 order.
+        self.assertEqual(
+            LineageTable._data_annotations,
+            (Marker("base"), Marker("derived")),
+        )
+
+    def test_templates_never_enter_the_ir(self) -> None:
+        class UnboundTemplate(StructTemplate):
+            pass
+
+        self.assertIsNone(vars(UnboundTemplate).get("_data_declaration_kind"))
+        self.assertFalse(hasattr(UnboundTemplate, "_table_name"))
+        self.assertFalse(hasattr(UnboundTemplate, "_fields"))
+
+    def test_template_option_tiers_are_guarded(self) -> None:
+        with self.assertRaisesRegex(TypeError, "wrap it"):
+            class RealOptions(StructTemplate):
+                options = StructOptions(name="identity")
+
+        with self.assertRaisesRegex(TypeError, "wrap the value"):
+            class RawOptions(StructTemplate):
+                options = (Marker("raw"),)
+
+        with self.assertRaisesRegex(TypeError, "declare TableOptions, not template"):
+            class TemplateOptionsOnTable(EntityTableTemplate, Table):
+                options = StructOptionsTemplate()
+
+        with self.assertRaisesRegex(TypeError, "declare StructOptions, not template"):
+            class TemplateOptionsOnStruct(Struct):
+                options = StructOptionsTemplate()
+
+    def test_templates_mix_only_into_record_hosts(self) -> None:
+        with self.assertRaisesRegex(TypeError, "only Table and Struct hosts"):
+            class TemplatedProjection(EntityTableTemplate, Projection):
+                identifier = projection_field(EntityTable.identifier)
+
+        with self.assertRaisesRegex(TypeError, "only Table and Struct hosts"):
+            class TemplatedGroup(EntityTableTemplate, TableGroup):
+                reference = ReferenceTable
 
 
 if __name__ == "__main__":

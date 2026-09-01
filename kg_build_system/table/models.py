@@ -59,8 +59,16 @@ class TableOptions:
 
 
 @dataclass(frozen=True)
-class TableTemplateOptions(TableOptions):
-    pass
+class StructOptionsTemplate:
+    """Annotations-only options for the data-domain template tier.
+
+    A template carries no identity syntax, so it has no name or description.
+    """
+
+    annotations: tuple[Annotation, ...] | list[Annotation] = ()
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
 
 @dataclass(frozen=True)
@@ -112,12 +120,49 @@ def _description(cls: type[Any], configured: str | None) -> str | None:
     return configured if configured is not None else (vars(cls).get("__doc__") or None)
 
 
-def _inherited_annotations(cls: type[Any]) -> tuple[Annotation, ...]:
+def _template_annotations(cls: type[Any]) -> tuple[Annotation, ...]:
+    """Collect each template's own contribution in C3 order, base first.
+
+    Only templates contribute: an IR-visible declaration's own options stay
+    on its own IR entry. Because the walk reads each class's own dict over
+    the MRO, a template entering through several branches contributes once.
+    """
     return tuple(
         annotation
-        for base in cls.__bases__
-        for annotation in vars(base).get("_data_annotations", ())
+        for base in reversed(cls.__mro__[1:])
+        for annotation in vars(base).get("_data_template_annotations", ())
     )
+
+
+def _record_template_annotations(cls: type[Any], options: Any) -> None:
+    """Record a template class's own annotation contribution."""
+    if options is None:
+        cls._data_template_annotations = ()
+        return
+    if isinstance(options, StructOptionsTemplate):
+        cls._data_template_annotations = tuple(options.annotations)
+        return
+    if isinstance(options, (TableOptions, StructOptions)):
+        raise TypeError(
+            f"{cls.__name__} is a data template: its options must be "
+            "StructOptionsTemplate, which carries no name or description — wrap it: "
+            "`options = StructOptionsTemplate(annotations=(...))`"
+        )
+    raise TypeError(
+        f"{cls.__name__} is a data template: wrap the value: "
+        "`options = StructOptionsTemplate(annotations=(...))`"
+    )
+
+
+def _require_host_options(cls: type[Any], kind: str, options: Any, expected: type) -> None:
+    """IR-visible declarations own real options; templates never flow as hosts."""
+    if isinstance(options, StructOptionsTemplate):
+        raise TypeError(
+            f"{cls.__name__} is a {kind} declaration: declare {expected.__name__}, "
+            "not template options"
+        )
+    if not isinstance(options, expected):
+        raise TypeError(f"{kind}.options must be a {expected.__name__} value")
 
 
 def _prepare_fields(
@@ -148,8 +193,7 @@ class Table(StructDeclaration):
         if any(vars(base).get("_data_declaration_kind") == "table" for base in cls.__mro__[1:]):
             raise TypeError("a final Table may not inherit from another final Table")
         options = vars(cls).get("options", TableOptions())
-        if not isinstance(options, TableOptions):
-            raise TypeError("Table.options must be a TableOptions value")
+        _require_host_options(cls, "Table", options, TableOptions)
         name = options.name or declaration_name(cls.__name__, suffixes=("Table",))
         cls._table_name = name
         _prepare_fields(
@@ -157,39 +201,41 @@ class Table(StructDeclaration):
             kind="table",
             name=name,
             description=_description(cls, options.description),
-            annotations=(*_inherited_annotations(cls), *options.annotations),
+            annotations=(*_template_annotations(cls), *options.annotations),
         )
 
 
-class TableTemplate:
-    """An optional reusable table shape carrying framework metadata."""
+class StructTemplate:
+    """The data-domain template tier for both ``Table`` and ``Struct`` hosts.
 
-    options: ClassVar[TableTemplateOptions] = TableTemplateOptions()
-    _data_declaration_kind: ClassVar[str | None] = None
+    A template shares field slots and annotation flow with its hosts and
+    never enters the blueprint IR; it carries no name or description.
+    Authoring order follows the topology convention with templates first:
+    ``class Entity(EntityTemplate, Table)``. A template extending a base
+    template simply names the base, which already carries this root —
+    ``class AuditedShape(EntityTemplate)``.
+    """
+
+    options: ClassVar[Any] = StructOptionsTemplate()
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        # ``class Concrete(Shape, Table)`` is finalised by Table's hook while
-        # walking this cooperative MRO.
-        if vars(cls).get("_data_declaration_kind") == "table":
-            return
-        options = vars(cls).get("options", TableTemplateOptions())
-        if not isinstance(options, TableTemplateOptions):
-            raise TypeError("TableTemplate.options must be a TableTemplateOptions value")
-        name = options.name or declaration_name(
-            cls.__name__, suffixes=("TableTemplate", "Template")
-        )
-        _prepare_fields(
-            cls,
-            kind="table_template",
-            name=name,
-            description=_description(cls, options.description),
-            annotations=(*_inherited_annotations(cls), *options.annotations),
-        )
+        if issubclass(cls, (Projection, TableGroup)):
+            raise TypeError(
+                f"{cls.__name__} mixes StructTemplate into a non-record declaration: "
+                "the template tier serves only Table and Struct hosts"
+            )
+        if issubclass(cls, (Table, Struct)):
+            return  # host declaration: the host's own hook finalizes it
+        _record_template_annotations(cls, vars(cls).get("options"))
 
 
 class Struct(StructDeclaration):
-    """A reusable nested-record declaration composed from unified fields."""
+    """A nested-record declaration composed from unified fields.
+
+    A struct is composable (referenced as ``Field[CityStruct]``), not a reuse
+    mechanism: shared shape concerns belong to the ``StructTemplate`` tier.
+    """
 
     options: ClassVar[StructOptions] = StructOptions()
     _data_declaration_kind: ClassVar[str | None] = None
@@ -197,15 +243,14 @@ class Struct(StructDeclaration):
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         options = vars(cls).get("options", StructOptions())
-        if not isinstance(options, StructOptions):
-            raise TypeError("Struct.options must be a StructOptions value")
+        _require_host_options(cls, "Struct", options, StructOptions)
         name = options.name or declaration_name(cls.__name__, suffixes=("Struct",))
         _prepare_fields(
             cls,
             kind="struct",
             name=name,
             description=_description(cls, options.description),
-            annotations=(*_inherited_annotations(cls), *options.annotations),
+            annotations=(*_template_annotations(cls), *options.annotations),
         )
 
 
@@ -220,8 +265,7 @@ class Projection:
         if any(vars(base).get("_data_declaration_kind") == "projection" for base in cls.__mro__[1:]):
             raise TypeError("a final Projection may not inherit from another final Projection")
         options = vars(cls).get("options", ProjectionOptions())
-        if not isinstance(options, ProjectionOptions):
-            raise TypeError("Projection.options must be a ProjectionOptions value")
+        _require_host_options(cls, "Projection", options, ProjectionOptions)
 
         from .projections import declared_projection_fields
 
@@ -233,7 +277,7 @@ class Projection:
         )
         cls._projection_fields = fields
         cls._data_declaration_kind = "projection"
-        cls._data_annotations = (*_inherited_annotations(cls), *options.annotations)
+        cls._data_annotations = tuple(options.annotations)
         description = _description(cls, options.description)
         cls._data_metadata = {"description": description} if description is not None else {}
 
@@ -257,8 +301,7 @@ class TableGroup:
         if any(vars(base).get("_is_table_group", False) for base in cls.__mro__[1:]):
             raise TypeError("a final TableGroup may not inherit from another final TableGroup")
         options = vars(cls).get("options", TableGroupOptions())
-        if not isinstance(options, TableGroupOptions):
-            raise TypeError("TableGroup.options must be a TableGroupOptions value")
+        _require_host_options(cls, "TableGroup", options, TableGroupOptions)
 
         declared: dict[str, type[Any]] = {}
         for base in reversed(cls.__mro__):
@@ -284,7 +327,7 @@ class TableGroup:
             cls.__name__, suffixes=("TableGroup",)
         )
         cls._table_group_entries = entries
-        cls._data_annotations = (*_inherited_annotations(cls), *options.annotations)
+        cls._data_annotations = tuple(options.annotations)
         description = _description(cls, options.description)
         cls._data_metadata = {"description": description} if description is not None else {}
 
@@ -304,12 +347,12 @@ __all__ = [
     "SourceBindingOptions",
     "Struct",
     "StructOptions",
+    "StructOptionsTemplate",
+    "StructTemplate",
     "Table",
     "TableGroup",
     "TableGroupOptions",
     "TableOptions",
-    "TableTemplate",
-    "TableTemplateOptions",
     "is_concrete_table",
     "is_table_group",
 ]

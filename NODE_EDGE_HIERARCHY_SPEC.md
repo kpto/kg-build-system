@@ -2,9 +2,7 @@
 
 Status: implemented for `feat/node-edge-polymorphism`; folded into
 `KG_BUILD_SYSTEM_SPEC.md` (§7 topology hierarchy and category endpoints, §10
-blueprint schema v3). This document remains the detailed record of the model;
-the demo remains the executable proof (pyright: exactly 8 errors, all in
-`_misuse_*`; runtime: prints `OK`) and now exercises the real framework bases.
+blueprint schema v3). This document remains the detailed record of the model.
 
 ## 1. Public surface
 
@@ -197,14 +195,14 @@ same IR data) · DAG categories · synthesized edge subclasses per bound pair
 · binding abstract components or endpoints · value-level cross-product key
 equality checks.
 
-## 10. Model reference (condensed from the demo)
+## 10. Model reference
 
 ```python
 NodeSide = AbstractNode | Node      # stands in for the internal node-side root
 S_co = TypeVar("S_co", bound=NodeSide, covariant=True); D_co = ...
 S = TypeVar("S", bound=NodeSide);   D = TypeVar("D", bound=NodeSide)
 
-class AbstractEdge(GraphComponent, Generic[S_co, D_co]):
+class AbstractEdge(_TopologyDeclarationBase, Generic[S_co, D_co]):
     """Category edge; covariant parameters let children descend."""
 class Edge(AbstractEdge[S, D], Generic[S, D]):
     """Concrete edge; invariant parameters, as the binding matrix requires."""
@@ -240,5 +238,7 @@ predicates for bypassed construction.
   additive.
 - Tests: runtime unit tests for R1–R4, options-tier semantics, and endpoint
   descent (all layers of §8); a positive-side static typecheck file
-  (`tests/typecheck_topology_hierarchy.py`) — the negative static side is
-  owned by the demo's misuse matrix until runtime tests subsume it.
+  (`tests/typecheck_topology_hierarchy.py`). The checker-side negative
+  matrix (token misuse, widened endpoints, reversed base order, edge-kind
+  categories) was exercised by the endpoint-pattern demo, since removed;
+  no repo artifact owns it today.
