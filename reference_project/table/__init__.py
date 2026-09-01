@@ -1,4 +1,4 @@
-"""Generated logical contracts for the synthetic complex-cases demo."""
+"""Generated logical contracts for the monitored-sites reference build."""
 
 from kg_build_system.code_generation import generation
 from kg_build_system.code_generation.builtins import (
@@ -7,10 +7,10 @@ from kg_build_system.code_generation.builtins import (
 )
 
 
-complex_records = generation(
+monitored_sites = generation(
     InferDataContractProvider,
     DataContractInferenceConfig(
-        source="../data/complex_records.json",
+        source="../data/monitored_sites.json",
         mode="table",
     ),
 )

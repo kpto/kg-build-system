@@ -19,7 +19,9 @@ class ProvenanceStamps(TypedDict):
     source_version: ValueExpression[str]
 
 
-provenance_stamps: ProvenanceStamps = {"source_version": value_expression("demo-v1")}
+provenance_stamps: ProvenanceStamps = {
+    "source_version": value_expression("survey-2026-08"),
+}
 
 
 class RelationStamps(TypedDict):

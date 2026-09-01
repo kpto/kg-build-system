@@ -5,13 +5,13 @@ from pathlib import Path
 
 from kg_build_system import compile, create_blueprint
 
-from reference_project.build import compile_demo, create_demo_blueprint
+from reference_project.build import compile_reference_build, create_reference_blueprint
 
 
 class CompositionApiTests(unittest.TestCase):
     def test_modules_only_uses_the_calling_file_namespace(self) -> None:
-        blueprint = create_demo_blueprint()
-        contract = compile_demo()
+        blueprint = create_reference_blueprint()
+        contract = compile_reference_build()
 
         self.assertTrue(blueprint.bindings)
         self.assertTrue(blueprint.sources)
@@ -28,7 +28,7 @@ class CompositionApiTests(unittest.TestCase):
         self.assertTrue(blueprint.sources)
 
     def test_blueprint_compilation_replaces_its_module_composition(self) -> None:
-        blueprint = create_demo_blueprint()
+        blueprint = create_reference_blueprint()
         contract = compile(blueprint=blueprint, modules=())
 
         self.assertEqual(

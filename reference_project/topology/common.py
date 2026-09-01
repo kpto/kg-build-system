@@ -34,7 +34,7 @@ class Provenance(Annotation):
 class ProvenancedNodeTemplate(NodeTemplate):
     """Every concrete node records the data version it was built from."""
 
-    options = NodeOptionsTemplate(annotations=(Provenance(stage="demo-v1"),))
+    options = NodeOptionsTemplate(annotations=(Provenance(stage="built"),))
     source_version: PropertySlot[str] = property()
     """The data release whose facts this node asserts."""
 
@@ -59,7 +59,7 @@ class TrackedRelationEdgeTemplate(EdgeTemplate):
     """Provenance stage at which the relationship is asserted."""
 
 
-class DerivedRelationAbstractEdge(AbstractEdge[DocumentedAbstractNode, DocumentedAbstractNode]):
-    """Category: relations derived between documented entities."""
+class MonitoredRelationAbstractEdge(AbstractEdge[DocumentedAbstractNode, DocumentedAbstractNode]):
+    """Category: a relationship asserted by the monitored site data."""
 
-    options = EdgeOptions(annotations=(EdgeLabel("DERIVED"),))
+    options = EdgeOptions(annotations=(EdgeLabel("MONITORED"),))

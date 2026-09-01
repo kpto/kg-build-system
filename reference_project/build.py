@@ -1,3 +1,5 @@
+"""Composition entry points for the monitored-sites reference build."""
+
 from pathlib import Path
 
 from kg_build_system import build, compile, create_blueprint
@@ -22,22 +24,22 @@ def _modules():
     )
 
 
-def create_demo_blueprint() -> BuildBlueprint:
+def create_reference_blueprint() -> BuildBlueprint:
     return create_blueprint(modules=_modules())
 
 
-def compile_demo() -> WorkflowContractIR:
+def compile_reference_build() -> WorkflowContractIR:
     return compile(modules=_modules())
 
 
-def run_demo() -> None:
+def run_reference_build() -> None:
     """Write the graph and compilation artifacts to ``reference_project/build``."""
     output_dir = Path(__file__).parent / "build"
     output_dir.mkdir(exist_ok=True)
 
-    contract = compile_demo()
+    contract = compile_reference_build()
     build(contract, output_directory=output_dir)
 
 
 if __name__ == "__main__":
-    run_demo()
+    run_reference_build()
