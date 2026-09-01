@@ -438,6 +438,37 @@ class BlueprintTests(unittest.TestCase):
             any(item.get("parent") for item in document["components"])
         )
 
+    def test_multi_level_chain_flows_through_the_blueprint(self) -> None:
+        class Chain(Links, AbstractEdge[Entity, Item]):
+            """Abstract chain level that narrows the target category."""
+
+        class LeafChild(Chain, Edge[Entity, Item]):
+            """Concrete edge under the narrowed chain level."""
+
+        binding = edge_binding(
+            target=LeafChild,
+            source_node=endpoint(Item),
+            build_key=HierarchyInput.identifier.expression.prepend("chain::"),
+            source_build_key=HierarchyInput.identifier,
+            target_build_key=HierarchyInput.code,
+            properties=LeafChild(),
+        )
+        result = _blueprint((_item_binding(), binding))
+        components = {item.name: item for item in result.components}
+        by_symbol = {item.symbol_id: item for item in result.components}
+        self.assertEqual(
+            set(components), {"entity", "item", "links", "chain", "leaf_child"}
+        )
+        leaf = components["leaf_child"]
+        self.assertEqual(leaf.parent, components["chain"].symbol_id)
+        self.assertEqual(components["chain"].parent, components["links"].symbol_id)
+        self.assertEqual((leaf.source, leaf.target), ("entity", "item"))
+        edge_ir = next(item for item in result.bindings if item.kind == "edge")
+        self.assertEqual(edge_ir.source_node, "item")
+        self.assertIsNone(edge_ir.target_node)
+        # every abstract in the chain entered the IR unbound
+        self.assertTrue(all(components[name].abstract for name in ("links", "chain")))
+
     def test_abstract_binding_targets_are_rejected(self) -> None:
         result = self.blueprint()
         node = next(item for item in result.bindings if item.kind == "node")

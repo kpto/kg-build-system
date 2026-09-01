@@ -387,9 +387,10 @@ edge_binding(
 )
 ```
 
-Endpoints reference the component, not a producer: identity is per component,
-bindings name the pairs that actually exist, and nothing synthesizes
-components or cross products. Abstract components are never binding targets.
+Endpoints reference the component, not a producer: identity is per component
+and each binding names the endpoint pair it uses rather than the cross
+product of the declared categories. Abstract components are never binding
+targets.
 Blueprint validation checks that a supplied endpoint is concrete and is equal
 to or descends from the declared category through the IR parent chain.
 

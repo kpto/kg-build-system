@@ -136,12 +136,12 @@ def edge_binding[S: Node, DC: NodeSide](
   category membership; an explicit token naming a concrete declared
   endpoint stays valid.
 - Identity is per component, not per producer: endpoints reference the
-  component; bindings name the pairs that actually exist. No synthesized
-  components, no implicit cross products, no binding of abstracts.
+  component; each binding names the endpoint pair it uses, never the cross
+  product of the declared categories. No synthesized components, no
+  implicit cross products, no binding of abstracts.
 - Blueprint validation: a supplied endpoint is concrete and a descendant of
-  the declared category via the IR parent chain. Naming an endpoint requires
-  no node binding producing it in the same blueprint — bindings name the
-  pairs that exist; producers are a separate concern.
+  the declared category via the IR parent chain. Whether some node binding
+  produces that endpoint is not a blueprint concern.
 
 ## 6. Measured facts (regression guards)
 
@@ -176,6 +176,11 @@ def edge_binding[S: Node, DC: NodeSide](
   aggregation, workflow assembly, and execution are untouched.
 - Staged, no authoring change: build-key namespacing composed from the
   endpoint identity inside core (`source_node`/`target_node` is the seam).
+  Until targets consume the per-binding endpoint identity, a target that
+  maps edge endpoints onto node ID spaces (Neo4j) keys off the edge's
+  declared endpoints and rejects a bound edge whose declared endpoints are
+  abstract; category-endpoint edges are consumed by targets that take the
+  per-binding view (file output).
 
 ## 8. Enforcement layers
 
