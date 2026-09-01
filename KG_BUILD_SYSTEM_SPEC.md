@@ -607,6 +607,14 @@ rows of its own, so it inherits examples from its descendants by property name.
 This makes the document data-bearing rather than pure metadata; it sits beside
 `graph.jsonl`, which already holds every value.
 
+The module also writes a companion page: one self-contained HTML file with d3
+inlined and the same document embedded as JSON. It draws the topology as a
+force-directed diagram in which every component is selectable — node components
+and abstract categories as vertices, edge components as links between their
+declared endpoints, with the is-a hierarchy drawn in a separate style — and the
+selection panel shows description, semantic label, record counts, endpoints, and
+the property table. It needs no network and no sibling files.
+
 Static topology travels in the step payload, because a module executor receives
 no blueprint.
 
@@ -800,7 +808,8 @@ abstract components and templates are never binding targets.
 - dependency-aware workflow contracts and execution reports;
 - file graph output and supplied validation/merge/deduplication modules;
 - an effective-topology meta-graph JSON document with hierarchy, labels,
-  descriptions, property logical types, and per-component record counts;
+  descriptions, property logical types, example values, and per-component record
+  counts, plus a self-contained HTML page visualising the same document;
 - Neo4j administrative-import Parquet bundles and standalone import scripts;
 - edit-time generated table and table-group packages;
 - an importable demo combining deep nesting, null handling, expansions, and

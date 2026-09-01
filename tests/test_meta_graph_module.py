@@ -1,8 +1,13 @@
 from __future__ import annotations
 
 import json
+import os
+import re
+import shutil
+import subprocess
 import tempfile
 import unittest
+from html.parser import HTMLParser
 from pathlib import Path
 
 from kg_build_system import (
@@ -47,6 +52,7 @@ from kg_build_system.modules.targets.meta_graph.ir import (
     decode_meta_graph_instruction,
     encode_meta_graph_instruction,
 )
+from kg_build_system.modules.targets.meta_graph.render import render
 from kg_build_system.modules.targets.meta_graph.topology import (
     component_entries,
     display_type,
@@ -491,9 +497,11 @@ class ExecutionTests(unittest.TestCase):
         )
 
         def body(document: dict[str, object]) -> str:
-            # Only the published location varies between two output directories.
+            # Both output paths name a temporary directory that differs between
+            # runs; everything else must match byte for byte.
             summary = dict(document["summary"])
             summary.pop("location")
+            summary.pop("html_location", None)
             return json.dumps({**document, "summary": summary}, sort_keys=True)
 
         self.assertEqual(body(first), body(second))
@@ -659,6 +667,362 @@ class EmptyProducingComponentTests(unittest.TestCase):
             self.assertEqual(entry["counts"]["records"], 0)
             self.assertEqual(entry["counts"]["inclusive_records"], 0)
             self.assertEqual(entry["properties"][0]["examples"], [])
+
+
+class _ScriptCounter(HTMLParser):
+    """Counts script blocks and confirms the embedded data block is present."""
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.scripts = 0
+        self.data_block = False
+
+    def handle_starttag(self, tag: str, attrs) -> None:
+        if tag == "script":
+            self.scripts += 1
+            if ("id", "meta-graph-data") in list(attrs):
+                self.data_block = True
+
+
+_DATA_BLOCK = re.compile(
+    r'<script id="meta-graph-data" type="application/json">(.*?)</script>', re.DOTALL
+)
+_APP_BLOCK = re.compile(r"/\* APP-START \*/(.*?)/\* APP-END \*/", re.DOTALL)
+
+
+def _html_text(output: Path) -> str:
+    return (output / "meta_graph.html").read_text(encoding="utf-8")
+
+
+def _embedded(html: str) -> dict:
+    match = _DATA_BLOCK.search(html)
+    assert match, "the meta graph data block is missing"
+    return json.loads(match.group(1).replace("<\\/", "</"))
+
+
+def _run_app_code(app_code: str, driver: str) -> dict:
+    """Run the page's DOM-free derivation code under node and read its output."""
+    handle, name = tempfile.mkstemp(suffix=".js")
+    os.close(handle)  # Windows refuses to reuse a path with a live descriptor.
+    Path(name).write_text(app_code + "\n" + driver + "\n", encoding="utf-8")
+    try:
+        result = subprocess.run(
+            ["node", name], capture_output=True, text=True, check=True,
+        )
+    finally:
+        Path(name).unlink(missing_ok=True)
+    return json.loads(result.stdout)
+
+
+class HtmlVisualizationTests(unittest.TestCase):
+    def test_html_is_written_beside_the_document(self) -> None:
+        output, _contract, report, document = _run(self, register_module(MetaGraphModule))
+        self.assertTrue((output / "meta_graph.html").is_file())
+        self.assertTrue((output / "meta_graph.json").is_file())
+        published = report.published_artifacts[0].value
+        self.assertEqual(published["html_location"], str(output / "meta_graph.html"))
+        self.assertEqual(document["summary"]["html_location"], published["html_location"])
+
+    def test_html_embeds_the_same_document_as_the_json_file(self) -> None:
+        output, _contract, _report, document = _run(self, register_module(MetaGraphModule))
+        embedded = _embedded(_html_text(output))
+        embedded["summary"].pop("location")
+        document["summary"].pop("location")
+        self.assertEqual(embedded, document)
+
+    def test_html_is_a_single_self_contained_file(self) -> None:
+        output, _contract, _report, _document = _run(self, register_module(MetaGraphModule))
+        html = _html_text(output)
+        self.assertIn("https://d3js.org v7", html, "d3 should be inlined, not referenced")
+        self.assertIn("forceSimulation", html)
+        external = re.findall(r'(?:src|href)\s*=\s*["\']([^"\']+)', html)
+        self.assertEqual([u for u in external if not u.startswith("#")], [])
+
+    def test_arrowheads_do_not_scale_with_stroke_width(self) -> None:
+        # The default markerUnits is strokeWidth, so thickening a selected link
+        # would enlarge its arrowhead and slide it off the node boundary.
+        output, _contract, _report, _document = _run(self, register_module(MetaGraphModule))
+        html = _html_text(output)
+        self.assertIn("markerUnits", html)
+        self.assertIn("userSpaceOnUse", html)
+        self.assertIn("arrow-selected", html, "the highlight needs its own marker")
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_property_markup_and_type_families_are_correct(self) -> None:
+        output, _contract, _report, _document = _run(self, register_module(MetaGraphModule))
+        app = _APP_BLOCK.search(_html_text(output))
+        assert app
+        component = {
+            "name": "x", "kind": "node", "label": "X", "symbol_id": "s", "abstract": False,
+            "counts": {"records": 1, "inclusive_records": 1, "bindings": 1},
+            "properties": [
+                {"name": "title", "type": "str",
+                 "description": 'A <tag> & "quote"', "examples": ["a"]},
+                {"name": "count", "type": "int", "description": None, "examples": []},
+                {"name": "flag", "type": "bool | None", "description": "d",
+                 "examples": [True, False]},
+                {"name": "tags", "type": "Array[str | None] | None", "description": "d",
+                 "examples": []},
+                {"name": "where", "type": "Place | None", "description": "d", "examples": []},
+            ],
+        }
+        derived = _run_app_code(
+            app.group(1),
+            "console.log(JSON.stringify({"
+            " families: ['str','int','float','bool','str | None',"
+            "   'Array[str | None] | None','Place | None','Currency'].map(typeFamily),"
+            " nullable: ['str','str | None','Array[str | None] | None','Array[str]']"
+            "   .map(isNullable),"
+            f" html: propertyList({json.dumps(component)})"
+            "}));",
+        )
+
+        self.assertEqual(
+            derived["families"],
+            ["string", "number", "number", "boolean", "string", "array",
+             "composite", "composite"],
+        )
+        self.assertEqual(derived["nullable"], [False, True, True, False])
+
+        html = derived["html"]
+        for family in ("string", "number", "boolean", "array", "composite"):
+            self.assertIn(f'class="type {family}"', html)
+        # Nullable is a badge, so three of the five properties carry it.
+        self.assertEqual(html.count('class="nullable"'), 3)
+        self.assertIn("&lt;tag&gt; &amp; &quot;quote&quot;", html)
+        self.assertNotIn("<tag>", html)
+        self.assertIn("No description.", html, "a null description is still labelled")
+        self.assertEqual(html.count("None observed."), 3)
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_only_colliding_edges_are_asked_to_curve(self) -> None:
+        output, _contract, _report, _document = _run(self, register_module(MetaGraphModule))
+        app = _APP_BLOCK.search(_html_text(output))
+        assert app
+        derived = _run_app_code(
+            app.group(1),
+            "const links = ["
+            " {source:'a', target:'b', component:{name:'e1'}},"
+            " {source:'a', target:'b', component:{name:'e2'}},"
+            " {source:'b', target:'a', component:{name:'e3'}},"
+            " {source:'a', target:'c', component:{name:'e4'}},"
+            " {source:'a', target:'a', component:{name:'self'}}];\n"
+            "spreadLinks(links);\n"
+            "console.log(JSON.stringify(links.map(function (l) {\n"
+            "  return l.component.name + ':' + l.spread;\n"
+            "})));",
+        )
+        # One edge per pair draws straight; three between a and b fan out
+        # symmetrically; a self-declaration is handled by geometry, not spread.
+        self.assertEqual(
+            derived, ["e1:-1", "e2:0", "e3:1", "e4:0", "self:0"],
+        )
+
+    def test_interaction_surfaces_are_singular_and_inert_lines_are_marked(self) -> None:
+        output, _contract, _report, _document = _run(self, register_module(MetaGraphModule))
+        html = _html_text(output)
+        # One feedback surface: the panel. No second tooltip widget, and no
+        # per-shape <title> that would label a hierarchy line as a component.
+        self.assertNotIn("hover-card", html)
+        self.assertEqual(html.count("<title>"), 1, "only the document title")
+        self.assertIn("canHover", html)          # hover is gated by the lock
+        self.assertIn("renderPanel", html)
+        # Hover and click share one view builder, so a hover highlights the same
+        # relationships a click does.
+        self.assertIn("focusOf", html)
+        self.assertIn("[selected, hovered].filter(Boolean)", html)
+        self.assertIn("arrow-associated", html)
+        # Every link group carries its kind so a hierarchy line can be styled and
+        # treated as non-interactive, and the arrow follows the line's emphasis.
+        self.assertIn("'link-group ' + link.type", html)
+        self.assertIn("arrow-hover", html)
+
+    def test_edge_labels_are_styled_apart_from_node_labels(self) -> None:
+        output, _contract, _report, _document = _run(self, register_module(MetaGraphModule))
+        html = _html_text(output)
+        self.assertIn("'link-label'", html)
+        rule = html.split(".link-label {", 1)[1].split("}", 1)[0]
+        self.assertIn("monospace", rule)
+        self.assertIn("italic", rule)
+        # An outer halo, painted under the fill so the glyphs stay crisp.
+        for prop in ("paint-order: stroke", "stroke: var(--canvas)",
+                     "stroke-width: 3px", "stroke-linejoin: round"):
+            self.assertIn(prop, rule)
+        self.assertIn("--canvas:", html)
+        # Labels are hit-testable and bubble to their own group, so a name can be
+        # pointed at as easily as the shape it labels.
+        self.assertNotIn("pointer-events: none", rule)
+        self.assertIn("cursor: pointer", rule)
+        node_rule = html.split(".node text {", 1)[1].split("}", 1)[0]
+        self.assertNotIn("italic", node_rule)
+        self.assertNotIn("pointer-events: none", node_rule)
+        self.assertIn("font-weight: 600", node_rule)
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_self_loop_meets_the_node_perpendicular_at_both_ends(self) -> None:
+        output, _contract, _report, _document = _run(self, register_module(MetaGraphModule))
+        app = _APP_BLOCK.search(_html_text(output))
+        assert app
+        # For a cubic, the tangent at each end points along the segment to its
+        # neighbouring control point. Meeting the circle at ninety degrees means
+        # that tangent is parallel to the radius at the anchor.
+        derived = _run_app_code(app.group(1), r"""
+const node = { x: 200, y: 150, radius: 18 };
+const n = selfLoop(node).match(/-?\d+(\.\d+)?/g).map(Number);
+const P0 = {x:n[0], y:n[1]},  C1 = {x:n[2], y:n[3]};
+const C4 = {x:n[10], y:n[11]}, P3 = {x:n[12], y:n[13]};
+const sin = (a, b) => Math.abs(a.x*b.y - a.y*b.x)
+  / (Math.hypot(a.x, a.y) * Math.hypot(b.x, b.y));
+const g = loopGeometry(node);
+const leftLeg = [node.x - g.ax, node.x - (g.ax + g.nx * g.reach), g.run];
+const rightLeg = [g.bx - node.x, (g.bx + g.mx * g.reach) - node.x, g.run];
+const widest = Math.max(...leftLeg.map((v, i) => Math.abs(v - rightLeg[i])));
+console.log(JSON.stringify({
+  leavesPerpendicular: sin({x:C1.x-P0.x, y:C1.y-P0.y}, {x:P0.x-node.x, y:P0.y-node.y}) < 1e-9,
+  returnsPerpendicular: sin({x:P3.x-C4.x, y:P3.y-C4.y}, {x:P3.x-node.x, y:P3.y-node.y}) < 1e-9,
+  startsOnSurface: Math.abs(Math.hypot(P0.x-node.x, P0.y-node.y) - node.radius) < 1e-6,
+  tipReachesSurface: Math.abs(Math.hypot(P3.x-node.x, P3.y-node.y) - (node.radius + ARROW_LENGTH)) < 1e-6,
+  crownOnAxis: g.px === node.x,
+  crownAboveNode: g.py < node.y - node.radius,
+  // Legs mirror to within the head-length the return anchor sits out by, which
+  // is hidden by the arrow itself.
+  legsMirrorWithinHeadLength: widest <= ARROW_LENGTH + 1e-9,
+}));
+""")
+        self.assertEqual(derived, {
+            "leavesPerpendicular": True,
+            "returnsPerpendicular": True,
+            "startsOnSurface": True,
+            "tipReachesSurface": True,
+            "crownOnAxis": True,
+            "crownAboveNode": True,
+            "legsMirrorWithinHeadLength": True,
+        })
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_panel_attributes_inherited_properties_to_their_category(self) -> None:
+        output, _contract, _report, _document = _run(self, register_module(MetaGraphModule))
+        app = _APP_BLOCK.search(_html_text(output))
+        assert app
+        derived = _run_app_code(app.group(1), """
+const ancestors = [{ name: 'documented', properties: [{ name: 'summary' }] }];
+const component = {
+  name: 'defect', kind: 'node', label: 'Defect', symbol_id: 's', abstract: false,
+  counts: { records: 1, inclusive_records: 1, bindings: 1 },
+  properties: [
+    { name: 'summary', type: 'str', description: 'd', examples: ['x'] },
+    { name: 'title', type: 'str', description: 'd', examples: ['y'] },
+  ],
+};
+const html = propertyList(component, ancestors);
+console.log(JSON.stringify({
+  summaryOrigin: propertyOrigin('summary', ancestors),
+  titleOrigin: propertyOrigin('title', ancestors),
+  noAncestors: propertyOrigin('summary', []),
+  badges: (html.match(/class="inherited"/g) || []).length,
+  badgeText: (html.match(/class="inherited">([^<]+)</) || [])[1],
+  heading: (html.match(/<h3>[^<]*(?:<[^>]+>[^<]*<\/span>)?[^<]*<\/h3>/) || [])[0],
+}));
+""")
+        self.assertEqual(derived["summaryOrigin"], "documented")
+        self.assertIsNone(derived["titleOrigin"], "own properties carry no attribution")
+        self.assertIsNone(derived["noAncestors"])
+        self.assertEqual(derived["badges"], 1, "only the inherited one is marked")
+        self.assertEqual(derived["badgeText"], "from documented")
+        self.assertIn("1 inherited", derived["heading"])
+
+    def test_html_can_be_disabled(self) -> None:
+        output, _contract, report, document = _run(
+            self,
+            register_module(MetaGraphModule, MetaGraphModuleConfiguration(include_html=False)),
+        )
+        self.assertFalse((output / "meta_graph.html").exists())
+        self.assertTrue((output / "meta_graph.json").is_file())
+        self.assertNotIn("html_location", document["summary"])
+        self.assertNotIn("html_location", report.published_artifacts[0].value)
+
+    def test_html_path_is_validated(self) -> None:
+        with self.assertRaisesRegex(ValueError, "HTML path"):
+            MetaGraphModuleConfiguration(html_relative_path="../escape.html")
+
+    def test_a_closing_tag_in_the_data_cannot_break_the_block(self) -> None:
+        payload = {"nodes": [], "edges": [], "summary": {},
+                   "note": "</script><script>alert(1)</script>"}
+        html = render(payload)
+        self.assertEqual(html.count("</script>"), 3, "only the three real script blocks")
+        self.assertIn("<\\/script>", html, "the payload should be escaped")
+        self.assertEqual(_embedded(html)["note"], payload["note"])
+
+    def test_html_parses_as_a_single_document(self) -> None:
+        output, _contract, _report, _document = _run(self, register_module(MetaGraphModule))
+        parser = _ScriptCounter()
+        parser.feed(_html_text(output))
+        self.assertEqual(parser.scripts, 3)
+        self.assertTrue(parser.data_block)
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_the_derivation_runs_outside_a_browser(self) -> None:
+        output, _contract, _report, document = _run(self, register_module(MetaGraphModule))
+        app = _APP_BLOCK.search(_html_text(output))
+        assert app, "the app derivation block is missing"
+        derived = _run_app_code(
+            app.group(1),
+            "const data = " + json.dumps(document) + ";\n"
+            "const graph = buildGraph(data);\n"
+            "const names = graph.nodes.map(function (n) { return n.name; });\n"
+            "const unresolved = graph.links.filter(function (l) {\n"
+            "  return names.indexOf(l.source) < 0 || names.indexOf(l.target) < 0;\n"
+            "});\n"
+            "const touched = new Set();\n"
+            "graph.links.forEach(function (l) { touched.add(l.source); touched.add(l.target); });\n"
+            "const index = new Map(data.nodes.concat(data.edges).map(function (c) { return [c.name, c]; }));\n"
+            "const samples = [\n"
+            "  data.nodes.filter(function (c) { return c.parent; })[0],\n"
+            "  data.edges.filter(function (c) { return c.parent; })[0],\n"
+            "  data.edges.filter(function (c) { return c.abstract; })[0],\n"
+            "];\n"
+            "console.log(JSON.stringify({\n"
+            "  nodes: names,\n"
+            "  ancestors: samples.map(function (c) {\n"
+            "    return c.name + '=' + ancestorNames(index, c).join('+');\n"
+            "  }),\n"
+            "  relations: graph.links.filter(function (l) { return l.type === 'relation'; }).length,\n"
+            "  hierarchy: graph.links.filter(function (l) { return l.type === 'hierarchy'; }).length,\n"
+            "  categories: graph.links.filter(function (l) { return l.type === 'category'; })\n"
+            "    .map(function (l) { return l.component.name + ':' + l.source + '->' + l.target; }),\n"
+            "  unresolved: unresolved.length,\n"
+            "  isolated: names.filter(function (n) { return !touched.has(n); }),\n"
+            "}));",
+        )
+
+        concrete = [e for e in document["edges"] if not e["abstract"]]
+        # The abstraction chain must be the same one the page draws with.
+        node_sample = next(n for n in document["nodes"] if n["parent"])
+        edge_sample = next(e for e in document["edges"] if e["parent"])
+        abstract_sample = next(e for e in document["edges"] if e["abstract"])
+        self.assertEqual(
+            derived["ancestors"],
+            [
+                f"{node_sample['name']}={node_sample['parent']}",
+                f"{edge_sample['name']}={edge_sample['parent']}",
+                f"{abstract_sample['name']}={abstract_sample['parent'] or ''}",
+            ],
+        )
+        abstract_edges = [e["name"] for e in document["edges"] if e["abstract"]]
+        categories = {n["name"] for n in document["nodes"]}
+        self.assertEqual(derived["unresolved"], 0)
+        self.assertEqual(derived["relations"], len(concrete))
+        for name in categories:
+            self.assertIn(name, derived["nodes"])
+        # An abstract edge is a declaration over endpoint kinds, so it draws as a
+        # link between those kinds rather than being dropped or floated as a node.
+        self.assertEqual(
+            derived["categories"],
+            [f"{name}:documented->documented" for name in abstract_edges],
+        )
+        for name in abstract_edges:
+            self.assertNotIn(name, derived["nodes"])
+        self.assertEqual(derived["isolated"], [], "every vertex must be connected")
 
 
 if __name__ == "__main__":

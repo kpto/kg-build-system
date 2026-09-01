@@ -1,4 +1,4 @@
-"""Workflow module that writes the effective topology as a JSON document."""
+"""Workflow module that describes the effective topology as JSON and HTML."""
 from __future__ import annotations
 
 import json
@@ -35,6 +35,7 @@ from .ir import (
     decode_meta_graph_instruction,
     encode_meta_graph_instruction,
 )
+from .render import render
 from .topology import component_entries
 
 _MODULE_ID = "meta_graph"
@@ -256,14 +257,19 @@ def _document(
 
 @dataclass(frozen=True)
 class MetaGraphModuleConfiguration(ModuleRegistrationConfiguration):
-    """Where the document lands, and how many example values it may quote."""
+    """Where the document lands, and how much of the data it may quote."""
 
     relative_path: str = "meta_graph.json"
     example_limit: int = 3
+    include_html: bool = True
+    html_relative_path: str = "meta_graph.html"
 
     def __post_init__(self) -> None:
         validate_relative_path(
             self.relative_path, context="meta-graph document path",
+        )
+        validate_relative_path(
+            self.html_relative_path, context="meta-graph HTML path",
         )
         if self.example_limit < 0:
             raise ValueError("meta-graph example limit may not be negative")
@@ -336,6 +342,8 @@ class MetaGraphModule(Module):
             payload=encode_meta_graph_instruction(MetaGraphDocumentIR(
                 relative_path=self.configuration.relative_path,
                 example_limit=self.configuration.example_limit,
+                include_html=self.configuration.include_html,
+                html_relative_path=self.configuration.html_relative_path,
                 components=entries,
             )),
         )
@@ -361,12 +369,29 @@ class MetaGraphExecutor(ModuleExecutor):
         document = _document(
             instruction, _observed_components(context, instruction), str(output_path),
         )
+
+        html_path = None
+        if instruction.include_html:
+            validate_relative_path(
+                instruction.html_relative_path, context="meta-graph HTML path",
+            )
+            html_path = context.services.output_storage.child(
+                PurePosixPath(instruction.html_relative_path),
+            )
+            # Recorded before either file is written, so the JSON on disk and
+            # the copy embedded in the page name the same pair.
+            document["summary"]["html_location"] = str(html_path)
+
         output_path.write_text(
             # Example values are whatever the graph holds, so a property can
             # carry a type the JSON encoder has never seen.
             json.dumps(document, sort_keys=True, indent=2, default=str) + "\n",
             encoding="utf-8",
         )
+
+        if html_path is not None:
+            html_path.parent.mkdir(parents=True, exist_ok=True)
+            html_path.write_text(render(document), encoding="utf-8")
 
         output = context.step.outputs[0]
         artifact = Artifact(
