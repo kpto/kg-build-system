@@ -19,7 +19,7 @@ from .monitor import (
 )
 from .services import (
     DuckDBRelationService, ExecutionServices, LocalTemporaryStorage,
-    LocalWorkingStorage, MappingCredentialResolver,
+    LocalWorkingStorage, MappingCredentialResolver, configure_framework_macros,
 )
 
 
@@ -178,6 +178,9 @@ def _configure_duckdb(
             connection.execute("PRAGMA force_compression = 'uncompressed'")
     else:
         raise ValueError("duckdb_storage must be 'memory' or 'disk'")
+    # After USE, so the macro lands in the database the build works in, and
+    # before any relation is defined, which is when a lowered guard resolves.
+    configure_framework_macros(connection)
 
 
 def _effective_duckdb_resources(connection: Any) -> tuple[str, int]:

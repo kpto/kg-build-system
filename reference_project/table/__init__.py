@@ -12,7 +12,6 @@ from kg_build_system.code_generation.builtins import (
     InferDataContractProvider,
 )
 
-
 sites = generation(
     InferDataContractProvider,
     DataContractInferenceConfig(source="../data/sites.json", mode="table"),

@@ -1,5 +1,5 @@
 [
-  { "reading_uid": "RD-9001", "unit_ref": "CH-1001", "deg_c": 6.4,  "recorded_on": "2026-07-14" },
-  { "reading_uid": "RD-9002", "unit_ref": "CH-1002", "deg_c": null, "recorded_on": "2026-07-14" },
-  { "reading_uid": "RD-9003", "unit_ref": "AH-2001", "deg_c": 21.8, "recorded_on": "2026-07-15" }
+  { "reading_uid": "RD-9001", "unit_ref": "CH-1001", "deg_c": 6.4,  "recorded_on": "2026-07-14T06:15" },
+  { "reading_uid": "RD-9002", "unit_ref": "CH-1002", "deg_c": null, "recorded_on": "2026-07-14T18:40" },
+  { "reading_uid": "RD-9003", "unit_ref": "AH-2001", "deg_c": 21.8, "recorded_on": "2026-07-15T06:15" }
 ]

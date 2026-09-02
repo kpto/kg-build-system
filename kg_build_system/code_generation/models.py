@@ -16,6 +16,23 @@ class ProviderGenerationConfig(BaseModel):
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
 
+class Nullability(StrEnum):
+    """How far a declared non-nullability is trusted, per source tier."""
+
+    DECLARED = "declared"
+    ENFORCED = "enforced"
+    DEFAULTED = "defaulted"
+
+
+class ScalarTypeName(StrEnum):
+    """Scalar names the public authoring surface understands."""
+
+    BOOL = "bool"
+    INT = "int"
+    FLOAT = "float"
+    STR = "str"
+
+
 ConfigT = TypeVar("ConfigT", bound=ProviderGenerationConfig)
 
 
@@ -99,6 +116,9 @@ class GeneratedField:
     value_type: GeneratedType
     description: str | None = None
     annotations: tuple[GeneratedAnnotation, ...] = ()
+    nullability: Nullability = Nullability.DEFAULTED
+    schema_path: str = ""
+    logical_path: str = ""
 
 
 @dataclass(frozen=True, slots=True)
@@ -129,8 +149,23 @@ class GeneratedFile:
 
 
 @dataclass(frozen=True, slots=True)
+class NullabilityNote:
+    """One rendered provenance line about where a shape's nullability came from.
+
+    ``sources`` names the physical inputs the line describes and ``declarations``
+    the declarations derived from them, so a catalogue rendered one file per table
+    carries only the lines about its own source.
+    """
+
+    line: str
+    sources: tuple[str, ...] = ()
+    declarations: tuple[str, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class GeneratedPackage:
     files: tuple[GeneratedFile, ...]
+    nullability_notes: tuple[NullabilityNote, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)

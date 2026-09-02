@@ -1,6 +1,6 @@
 [
   {
-    "survey_id": "SV-2026-07", "site_id": "b1", "surveyed_on": "2026-07-14",
+    "survey_id": "SV-2026-07", "site_id": "b1", "surveyed_on": "2026-07-14T09:00",
     "surveyor": { "name": "Ada", "firm": { "name": "Northgate Consulting", "accreditation": "MRICS" } },
     "areas": [
       {
@@ -11,15 +11,15 @@
             "defects": [
               {
                 "defect_id": "DF-5001", "title": "Refrigerant leak at flange", "condition_rating": "poor",
-                "observed_by": "Visual", "observed_on": "2026-07-14",
+                "observed_by": "Visual", "observed_on": "2026-07-14T09:35",
                 "observations": [
-                  { "observation_uid": "OB-7001", "value": 12.0, "observed_by": "Ultrasonic", "observed_on": "2026-07-14" },
-                  { "observation_uid": "OB-7002", "value": 15.5, "observed_by": "Ultrasonic", "observed_on": "2026-07-21" }
+                  { "observation_uid": "OB-7001", "value": 12.0, "observed_by": "Ultrasonic", "observed_on": "2026-07-14T10:12" },
+                  { "observation_uid": "OB-7002", "value": 15.5, "observed_by": "Ultrasonic", "observed_on": "2026-07-21T08:45" }
                 ]
               },
               {
                 "defect_id": "DF-5002", "title": "Corroded casing", "condition_rating": "fair",
-                "observed_by": "Visual", "observed_on": "2026-07-14", "observations": []
+                "observed_by": "Visual", "observed_on": "2026-07-14T09:40", "observations": []
               }
             ]
           },
@@ -33,7 +33,7 @@
     ]
   },
   {
-    "survey_id": "SV-2026-08", "site_id": "b2", "surveyed_on": "2026-08-02",
+    "survey_id": "SV-2026-08", "site_id": "b2", "surveyed_on": "2026-08-02T13:30",
     "surveyor": { "name": "Grace", "firm": null },
     "areas": [
       {
@@ -44,9 +44,9 @@
             "defects": [
               {
                 "defect_id": "DF-5101", "title": "Bearing wear", "condition_rating": "poor",
-                "observed_by": "Vibration analysis", "observed_on": "2026-08-02",
+                "observed_by": "Vibration analysis", "observed_on": "2026-08-02T14:05",
                 "observations": [
-                  { "observation_uid": "OB-7101", "value": 4.4, "observed_by": "Vibration analysis", "observed_on": "2026-08-02" }
+                  { "observation_uid": "OB-7101", "value": 4.4, "observed_by": "Vibration analysis", "observed_on": "2026-08-02T14:20" }
                 ]
               }
             ]
@@ -55,5 +55,5 @@
       }
     ]
   },
-  { "survey_id": "SV-2026-09", "site_id": "b3", "surveyed_on": "2026-08-11", "surveyor": null, "areas": null }
+  { "survey_id": "SV-2026-09", "site_id": "b3", "surveyed_on": "2026-08-11T10:15", "surveyor": null, "areas": null }
 ]

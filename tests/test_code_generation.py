@@ -48,6 +48,34 @@ class FixtureProvider(Provider[FixtureConfig]):
         return GeneratedPackage(tuple(files))
 
 
+class _Rows:
+    """A stand-in cursor for a fake DuckDB connection."""
+
+    def __init__(self, rows: list[tuple[object, ...]]) -> None:
+        self.rows = rows
+
+    def fetchall(self) -> list[tuple[object, ...]]:
+        return self.rows
+
+    def fetchone(self) -> tuple[object, ...] | None:
+        return self.rows[0] if self.rows else None
+
+
+def parquet_nodes(
+    file_name: str, columns: tuple[tuple[str, str], ...],
+) -> list[tuple[object, ...]]:
+    """``parquet_schema()`` rows for a flat record of OPTIONAL scalar columns.
+
+    ``columns`` is ``(name, duckdb_type)`` per top-level column.
+    """
+    rows: list[tuple[object, ...]] = [
+        (file_name, "duckdb_schema", "REQUIRED", None, len(columns), None, 0),
+    ]
+    for index, (name, duckdb_type) in enumerate(columns, start=1):
+        rows.append((file_name, name, "OPTIONAL", "VARCHAR", None, duckdb_type, index))
+    return rows
+
+
 def request_source(source: str = "schema.json", *, name: str = "release", shape: str = "one") -> str:
     return (
         "from kg_build_system.code_generation import generation\n"
@@ -348,6 +376,11 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
                 self.calls.append((sql, parameters))
                 if sql.startswith("DESCRIBE"):
                     return Result([("identifier", "VARCHAR", "YES")])
+                if "parquet_schema(" in sql:
+                    return Result([
+                        (source, "duckdb_schema", "REQUIRED", None, 1, None, 0),
+                        (source, "identifier", "OPTIONAL", "VARCHAR", None, "VARCHAR", 1),
+                    ])
                 if sql.startswith("SELECT count"):
                     return Result([(0,)])
                 return self
@@ -383,13 +416,23 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
         self.assertNotIn(get_ident(), connection.thread_ids)
 
     async def test_data_contract_inference_supports_nested_arrays(self) -> None:
-        class Result:
-            def fetchall(self) -> list[tuple[object, ...]]:
-                return [("path", "VARCHAR[][]", "YES")]
+        name = "s3://bucket/reactome.parquet"
+        rows = [
+            (name, "duckdb_schema", "REQUIRED", None, 1, None, 0),
+            (name, "path", "OPTIONAL", None, 1, None, 1),
+            (name, "list", "REPEATED", None, 1, None, 2),
+            (name, "element", "OPTIONAL", None, 1, None, 3),
+            (name, "list", "REPEATED", None, 1, None, 4),
+            (name, "element", "OPTIONAL", "VARCHAR", None, "VARCHAR", 5),
+        ]
 
         class Connection:
-            def execute(self, sql: str, parameters: list[str] | None = None) -> Result | Connection:
-                return Result() if sql.startswith("DESCRIBE") else self
+            def execute(self, sql: str, parameters: list[str] | None = None) -> object:
+                if sql.startswith("DESCRIBE"):
+                    return _Rows([("path", "VARCHAR[][]", "YES")])
+                if "parquet_schema(" in sql:
+                    return _Rows(rows)
+                return self
 
             def close(self) -> None:
                 pass
@@ -409,21 +452,29 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
                 package = await InferDataContractProvider.generate(context)
 
         field = package.files[0].declarations[-1].fields[0]
+        # The Parquet node tree decides item nullability at every level: the
+        # convention nests inside itself for an array of arrays, so each
+        # ``element`` that is OPTIONAL makes its item nullable.
         self.assertEqual(
             field.value_type,
-            GeneratedNullableType(
-                GeneratedArrayType(GeneratedArrayType(GeneratedScalarType("str")))
-            ),
+            GeneratedNullableType(GeneratedArrayType(GeneratedNullableType(
+                GeneratedArrayType(
+                    GeneratedNullableType(GeneratedScalarType("str")),
+                ),
+            ))),
         )
 
     async def test_data_contract_inference_errors_name_the_resource_and_relation(self) -> None:
-        class Result:
-            def fetchall(self) -> list[tuple[object, ...]]:
-                return [("metadata", "MAP(VARCHAR, VARCHAR)", "YES")]
-
         class Connection:
-            def execute(self, sql: str, parameters: list[str] | None = None) -> Result | Connection:
-                return Result() if sql.startswith("DESCRIBE") else self
+            def execute(self, sql: str, parameters: list[str] | None = None) -> object:
+                if sql.startswith("DESCRIBE"):
+                    return _Rows([("metadata", "MAP(VARCHAR, VARCHAR)", "YES")])
+                if "parquet_schema(" in sql:
+                    return _Rows(parquet_nodes(
+                        "s3://bucket/problematic.parquet",
+                        (("metadata", "MAP(VARCHAR, VARCHAR)"),),
+                    ))
+                return self
 
             def close(self) -> None:
                 pass
@@ -446,7 +497,10 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
         message = str(raised.exception)
         self.assertIn(f"resource {source!r}", message)
         self.assertIn("relation 'problematic'", message)
-        self.assertIn("column 'metadata' has unsupported type", message)
+        self.assertIn(
+            "column 'metadata' has DuckDB type 'MAP(VARCHAR, VARCHAR)', which is rejected",
+            message,
+        )
 
     async def test_table_group_inference_collapses_hive_partitions_and_part_files(self) -> None:
         with TemporaryDirectory() as directory:
@@ -524,6 +578,12 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
 
             def execute(self, sql: str, parameters: list[object] | None = None) -> Result:
                 self.calls.append((sql, parameters))
+                if "parquet_schema(" in sql:
+                    files = parameters[0] if parameters else []
+                    rows: list[tuple[object, ...]] = []
+                    for name in files:
+                        rows.extend(parquet_nodes(str(name), (("id", "BIGINT"),)))
+                    return _Rows(rows)
                 return Result()
 
             def close(self) -> None:

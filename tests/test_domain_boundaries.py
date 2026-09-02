@@ -12,8 +12,63 @@ from kg_build_system.workflow.ir import WorkflowContractIR
 from kg_build_system.workflow.models import WorkflowStep, WorkflowStepDraft
 from kg_build_system.workflow.services import ExecutionServices
 
+PACKAGE = Path(kg_build_system.__file__).parent
+
+
+def _top_level_imports(path: Path) -> set[str]:
+    """Every other subsystem a module imports, resolved through relative imports.
+
+    ``from ...modules.core import x`` has to read as a dependency on ``modules``;
+    matching the raw module string would miss it, and that is how the edit-time
+    subsystem once reached into a runtime module unnoticed.
+    """
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    own_package = path.relative_to(PACKAGE).parts[:-1]
+    if path.name == "__init__.py":
+        own_package = path.relative_to(PACKAGE).parts[:-1]
+    found: set[str] = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for alias in node.names:
+                found.add(alias.name.split(".")[0])
+        elif not isinstance(node, ast.ImportFrom):
+            continue
+        elif node.level == 0:
+            if node.module:
+                found.add(node.module.split(".")[0])
+            continue
+        else:
+            depth = node.level - 1 if path.name != "__init__.py" else node.level - 2
+            base = own_package[: len(own_package) - depth] if depth else own_package
+            target = ".".join([*base, *([node.module] if node.module else [])])
+            found.add(target.split(".")[0] if target else "")
+    return {name for name in found if name}
+
 
 class DomainBoundaryTests(unittest.TestCase):
+    def test_code_generation_does_not_depend_on_the_build_pipeline(self) -> None:
+        """Edit-time generation may use an engine, but never a runtime subsystem.
+
+        A shared Parquet-metadata reader belongs with the engine that provides
+        ``parquet_schema()``, not with the module that happens to want it at build
+        time; otherwise authoring depends on execution.
+        """
+        forbidden = {"compile", "workflow", "modules", "api"}
+        for path in (PACKAGE / "code_generation").rglob("*.py"):
+            offenders = _top_level_imports(path) & forbidden
+            self.assertFalse(
+                offenders, f"{path} depends on the build pipeline: {sorted(offenders)}",
+            )
+
+    def test_engines_do_not_depend_on_higher_layers(self) -> None:
+        """An engine is a leaf: authoring and execution may both reach down to it."""
+        forbidden = {"code_generation", "compile", "workflow", "modules", "api", "cli"}
+        for path in (PACKAGE / "engines").rglob("*.py"):
+            offenders = _top_level_imports(path) & forbidden
+            self.assertFalse(
+                offenders, f"{path} is not a leaf layer: {sorted(offenders)}",
+            )
+
     def test_modules_receive_relation_services_not_duckdb_storage_policy(self) -> None:
         service_fields = {item.name for item in fields(ExecutionServices)}
         self.assertIn("relations", service_fields)

@@ -7,6 +7,8 @@ from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 from typing import Any, Callable, Protocol, TypeVar
 
+from ..engines.duckdb import NULL_GUARD_MACRO_SQL
+
 
 ResultT = TypeVar("ResultT")
 _WORKER_POLL_SECONDS = 0.05
@@ -120,6 +122,18 @@ def _require_query(sql: str) -> None:
         "DESCRIBE", "EXPLAIN", "SELECT", "SHOW", "SUMMARIZE", "VALUES", "WITH",
     }:
         raise ValueError("relation queries must not contain DDL or mutation statements")
+
+
+def configure_framework_macros(connection: Any) -> None:
+    """Create the engine's framework macros on one build connection.
+
+    The statements come from the engine that will run them; this function only
+    owns when they are created. Macro names are database-scoped and a disk build
+    opens a fresh database each time, so creation is idempotent and runs as part
+    of connection setup — before any view exists, which is the only point at
+    which a lowered guard can resolve.
+    """
+    connection.execute(NULL_GUARD_MACRO_SQL)
 
 
 class DuckDBRelationService:

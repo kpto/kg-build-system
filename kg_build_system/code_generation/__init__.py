@@ -20,6 +20,8 @@ from .models import (
     GenerationRequest,
     GenerationResult,
     GenerationStatus,
+    Nullability,
+    NullabilityNote,
     ProviderGenerationConfig,
 )
 from .providers import Provider, ProviderContext
@@ -33,5 +35,6 @@ __all__ = [
     "GeneratedMember", "GeneratedFile", "GeneratedPackage", "Generation",
     "GenerationAction", "GenerationActionKind",
     "GenerationError", "GenerationRequest", "GenerationResult", "GenerationSession", "GenerationStatus", "Provider",
-    "ProviderContext", "ProviderGenerationConfig", "discover", "discover_file", "generate", "generation", "watch",
+    "ProviderContext", "ProviderGenerationConfig", "Nullability", "NullabilityNote",
+    "discover", "discover_file", "generate", "generation", "watch",
 ]

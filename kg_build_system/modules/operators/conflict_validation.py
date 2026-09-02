@@ -208,10 +208,13 @@ class _Executor(ModuleExecutor):
         field_name = str(payload["field"])
         field = _quote_identifier(field_name)
         source = context.services.relations.reference(relation)
+        # No filter on ``build_key``: an operator looking for bad values must not
+        # exclude the records most worth reporting. Identity guards upstream mean
+        # a null key has already aborted the build; if one ever reaches here it is
+        # grouped like any other key rather than discarded in silence.
         sql = (
             f'SELECT "build_key", count(DISTINCT "{field}") '
             f"FROM {source} "
-            'WHERE "build_key" IS NOT NULL '
             'GROUP BY "build_key" '
             f'HAVING count(DISTINCT "{field}") '
             f'FILTER (WHERE "{field}" IS NOT NULL) > 1'

@@ -1,12 +1,23 @@
 """Core workflow compilation, execution, and artifact roles."""
 from __future__ import annotations
 
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Literal, cast
 
 from ..._frozen_json import freeze_json
 from ...compile.models import BuildBlueprint
+from ...engines.duckdb import (
+    PARQUET_LIST_WRAPPER_PATH,
+    read_declared_null_statistics,
+)
+from ...expressions.ir import (
+    FieldReferenceExpressionIR,
+    walk_expression_ir,
+)
 from ...table.ir import ProjectionIR as ProjectionDefinition
+from ...table.ir import StructIR
+from ...types.ir import ArrayTypeIR, NullableTypeIR, StructTypeIR
 from ...topology.ir import ComponentIR as ComponentDefinition
 from ...workflow.models import (
     ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference,
@@ -27,13 +38,14 @@ from ...workflow.models import (
     WorkflowStepDraft,
 )
 from .lowering import (
+    binding_outputs,
     binding_sources,
     lower_binding_sql,
     lower_projection_sql,
     projection_sources,
 )
 from .ir import (
-    AggregateInstructionIR, RelationInstructionIR,
+    AggregateInstructionIR, DeclaredPathIR, RelationInstructionIR,
     SourceRelationInstructionIR, decode_core_instruction,
     encode_core_instruction,
 )
@@ -143,6 +155,106 @@ class _CoreConfiguration(ModuleRegistrationConfiguration):
     """The mandatory core module has no author-configurable behavior."""
 
 
+def _declared_non_null_paths(
+    table, structs: Mapping[str, StructIR],
+) -> dict[tuple[str, ...], tuple[str, ...]]:
+    """Every path the contract claims is non-null, by logical and schema form.
+
+    The contract's array markers supply Parquet's list wrappers, so the schema
+    form matches what ``parquet_metadata()`` reports as ``path_in_schema`` even
+    for a member several expansions deep.
+    """
+    found: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
+
+    def walk(
+        fields, prefix: tuple[str, ...], schema_prefix: tuple[str, ...],
+        parents: frozenset[str],
+    ) -> None:
+        for declared in fields:
+            logical_type = declared.logical_type
+            nullable = isinstance(logical_type, NullableTypeIR)
+            base = logical_type.value if nullable else logical_type
+            is_array = isinstance(base, ArrayTypeIR)
+            item = base.item if is_array else base
+            logical_path = (*prefix, declared.name)
+            schema_path = (
+                *schema_prefix, declared.name,
+                *(PARQUET_LIST_WRAPPER_PATH if is_array else ()),
+            )
+            if not nullable:
+                found.append((logical_path, schema_path))
+            if isinstance(item, StructTypeIR) and item.qualname not in parents:
+                declaration = structs.get(item.qualname)
+                if declaration is not None:
+                    walk(
+                        declaration.fields, logical_path, schema_path,
+                        parents | {item.qualname},
+                    )
+
+    walk(table.fields, (), (), frozenset())
+    return dict(found)
+
+
+def _declared_read_paths(blueprint: BuildBlueprint) -> dict[str, tuple[DeclaredPathIR, ...]]:
+    """The non-null-claiming contract paths this build reads, per table.
+
+    The null-count pre-flight asks only about what is read: a forty-column table
+    whose three used columns are clean should not fill a report with the
+    thirty-seven nobody reads. A projection output is consumed whole, so the table
+    columns feeding a consumed projection count as read too. Claimed paths come
+    from the contract, so a nullable path never reaches the pre-flight at all.
+    """
+    tables = {table.name: table for table in blueprint.tables}
+    structs = {struct.symbol_id.split(":")[-1]: struct for struct in blueprint.structs}
+    projections = {projection.name: projection for projection in blueprint.projections}
+    claims = {
+        name: _declared_non_null_paths(table, structs)
+        for name, table in tables.items()
+    }
+    read: dict[str, set[tuple[str, ...]]] = {name: set() for name in tables}
+    pending: list[Any] = [
+        expression
+        for binding in blueprint.bindings
+        for expression in binding_outputs(binding).values()
+    ]
+    included: set[str] = set()
+    while pending:
+        for node in walk_expression_ir(pending.pop()):
+            if not isinstance(node, FieldReferenceExpressionIR):
+                continue
+            if node.source in tables:
+                read[node.source].add(node.path)
+            elif node.source in projections and node.source not in included:
+                included.add(node.source)
+                pending.extend(
+                    field.expression for field in projections[node.source].fields
+                )
+    def is_read(table_name: str, claimed: tuple[str, ...]) -> bool:
+        """Whether the build reaches one claimed path.
+
+        A reference to a nested value arrives as the outermost field plus a
+        ``struct_field``/``expand`` operation over it, so a read of a prefix
+        reaches everything below that prefix.
+        """
+        return any(
+            claimed[:len(seen)] == seen for seen in read[table_name]
+        )
+
+    return {
+        table: tuple(
+            DeclaredPathIR(
+                schema_path=".".join(claims[table][path]),
+                logical_path=".".join(path),
+            )
+            for path in sorted(
+                claimed for claimed in claims[table] if is_read(table, claimed)
+            )
+        )
+        for table in tables
+        if any(is_read(table, claimed) for claimed in claims[table])
+    }
+
+
 class CoreCompiler:
     async def compile(
         self, context: CompilationContext[Any],
@@ -164,6 +276,7 @@ class CoreCompiler:
             source.table: f"kg_table_{index}"
             for index, source in enumerate(sources)
         }
+        read_paths = _declared_read_paths(context.blueprint)
         projection_relations = {
             projection.name: f"kg_projection_{index}"
             for index, projection in enumerate(projections)
@@ -171,7 +284,12 @@ class CoreCompiler:
         relations = table_relations | projection_relations
 
         drafts = [
-            self._source_step(source, table_relations[source.table])
+            self._source_step(
+                source,
+                table_relations[source.table],
+                context.blueprint,
+                read_paths,
+            )
             for source in sources
         ]
         drafts.extend(
@@ -198,10 +316,16 @@ class CoreCompiler:
         return WorkflowContribution(definition, tuple(drafts))
 
     @staticmethod
-    def _source_step(source, relation: str) -> WorkflowStepDraft:
+    def _source_step(
+        source, relation: str, blueprint: BuildBlueprint,
+        read_paths: Mapping[str, tuple[DeclaredPathIR, ...]],
+    ) -> WorkflowStepDraft:
         output = OutputSlot(
             slot_id=f"core::table.{source.table}.output",
             artifact_role=CoreArtifactRoles.table(source.table),
+        )
+        table = next(
+            (item for item in blueprint.tables if item.name == source.table), None,
         )
         step = WorkflowStep(
             step_id=f"core::table.{source.table}",
@@ -212,6 +336,14 @@ class CoreCompiler:
                 location=source.location,
                 format=source.format,
                 credential_reference=source.credential_reference,
+                declaration=source.table,
+                declared_columns=tuple(
+                    field.name for field in table.fields
+                ) if table is not None else (),
+                declared_paths=tuple(
+                    path for path in read_paths.get(source.table, ())
+                    if path.schema_path
+                ),
             )),
         )
         return WorkflowStepDraft(definition=step)
@@ -356,7 +488,7 @@ class CoreCompiler:
 
 class CoreModule(Module):
     ID: ClassVar[str] = "core"
-    VERSION: ClassVar[str] = "1"
+    VERSION: ClassVar[str] = "2"
     CONFIGURATION_TYPE: ClassVar[type[_CoreConfiguration]] = _CoreConfiguration
 
     @classmethod
@@ -370,6 +502,87 @@ class CoreModule(Module):
         cls, context: ExecutorFactoryContext,
     ) -> ModuleExecutor:
         return CoreExecutor()
+
+
+def _require_declared_columns(
+    context: ExecutionContext, instruction: SourceRelationInstructionIR,
+) -> None:
+    """Check the contract's declared fields against the relation, before any use.
+
+    A missing column otherwise surfaces much later as a DuckDB binder error naming
+    candidate columns from the file, and a source whose declared format does not
+    match its bytes fails mid-execution in DuckDB's vocabulary. Both are framework
+    facts — a declaration and a location — so both are reported here, in
+    framework terms, while nothing has yet read a row.
+    """
+    if not instruction.declared_columns:
+        return
+    source = context.services.relations.reference(
+        RelationRef(instruction.relation)
+    )
+    query = f"DESCRIBE SELECT * FROM {source}"
+    try:
+        columns = {
+            str(row[0])
+            for row in context.services.relations.query(query).fetchall()
+        }
+    except Exception as error:
+        raise RuntimeError(
+            f"the shape of the source at '{instruction.location}' for "
+            f"'{instruction.declaration}' cannot be read as the declared "
+            f"'{instruction.format}' format: {error}"
+        ) from error
+    missing = [name for name in instruction.declared_columns if name not in columns]
+    if missing:
+        raise RuntimeError(
+            f"declared field(s) {', '.join(repr(name) for name in missing)} are "
+            f"absent from '{instruction.location}' for "
+            f"'{instruction.declaration}'; the source exposes "
+            f"{', '.join(sorted(map(repr, columns))) or 'no columns'}"
+        )
+
+
+def _report_declared_null_statistics(
+    context: ExecutionContext, instruction: SourceRelationInstructionIR,
+) -> bool:
+    """Count nulls behind a declared non-null claim, from file footers only.
+
+    A statistic tests a claim, it never sets or enforces one, so this reports and
+    never fails: enforcement belongs to the guard at the point of use. A path with
+    no published statistic is unknown, which is not the same as zero.
+    """
+    if instruction.format != "parquet" or not instruction.declared_paths:
+        return False
+    def read(query: str, parameters: Sequence[object]) -> list[tuple[Any, ...]]:
+        return list(context.services.relations.query(query, parameters).fetchall())
+
+    try:
+        report = read_declared_null_statistics(
+            read,
+            (instruction.location,),
+            [path.schema_path for path in instruction.declared_paths],
+        )
+    except Exception as error:
+        context.services.logger.warning(
+            "could not read null statistics from %s: %s",
+            instruction.location, error,
+        )
+        return False
+    logical = {
+        path.schema_path: path.logical_path for path in instruction.declared_paths
+    }
+    for statistic in report.violations:
+        context.services.logger.warning(
+            "%s reports %d null value(s) in %d rows for the declared non-null "
+            "column %r; the guard will abort the build unless the contract changes",
+            instruction.location, statistic.nulls, statistic.values,
+            logical.get(statistic.schema_path, statistic.schema_path),
+        )
+    for path in report.unknown_paths:
+        context.services.logger.debug(
+            "no null statistics published for %r; unknown is not zero", path,
+        )
+    return bool(report.violations)
 
 
 class CoreExecutor(ModuleExecutor):
@@ -427,22 +640,38 @@ class CoreExecutor(ModuleExecutor):
         }[instruction.format]
         location = instruction.location.replace("'", "''")
         sql = f"SELECT * FROM {scan_function}('{location}')"
-        return CoreExecutor._define_relation(
-            context,
-            RelationInstructionIR(
-                relation=instruction.relation,
-                sql=sql,
-            ),
+        try:
+            relation = context.services.relations.view(instruction.relation, sql)
+        except Exception as error:
+            # DuckDB binds a view as it is created, so a source whose declared
+            # format does not match its bytes fails here — in framework terms,
+            # naming the declaration and the location, rather than mid-build.
+            raise RuntimeError(
+                f"the source at '{instruction.location}' for "
+                f"'{instruction.declaration}' cannot be read as the declared "
+                f"'{instruction.format}' format: {error}"
+            ) from error
+        # ``CREATE VIEW`` reads nothing, so every check below issues its own
+        # metadata query. Both run before any consumer can reach this relation,
+        # because every other step arrives through the role this step emits.
+        _require_declared_columns(context, instruction)
+        found = _report_declared_null_statistics(context, instruction)
+        return CoreExecutor._success(
+            context, relation,
+            status=StepStatus.WARNING if found else StepStatus.SUCCEEDED,
         )
 
     @staticmethod
-    def _success(context: ExecutionContext, relation: RelationRef) -> StepOutcome:
+    def _success(
+        context: ExecutionContext, relation: RelationRef,
+        *, status: StepStatus = StepStatus.SUCCEEDED,
+    ) -> StepOutcome:
         output = context.step.outputs[0]
         artifact = Artifact(output.slot_id, output.artifact_role, relation)
         return StepOutcome(
             step_id=context.step.step_id,
             module_id=context.step.module_id,
-            status=StepStatus.SUCCEEDED,
+            status=status,
             artifacts=(artifact,),
         )
 

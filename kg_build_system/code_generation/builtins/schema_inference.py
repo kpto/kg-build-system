@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 import keyword
+import logging
 from pathlib import Path, PurePosixPath
 import re
-from typing import Any, ClassVar, Literal
+from typing import Any, ClassVar, Iterator, Literal, Sequence
 from urllib.parse import urlparse
 
 import duckdb
@@ -15,51 +16,100 @@ import fsspec
 from fsspec import AbstractFileSystem
 
 from ..models import (
-    GeneratedClass,
     GeneratedArrayType,
+    GeneratedClass,
     GeneratedField,
+    GeneratedFile,
+    GeneratedMember,
     GeneratedNullableType,
+    GeneratedPackage,
     GeneratedScalarType,
     GeneratedStructType,
-    GeneratedMember, GeneratedFile, GeneratedPackage,
+    GeneratedType,
     GenerationError,
+    Nullability,
+    NullabilityNote,
     ProviderGenerationConfig,
+    ScalarTypeName,
 )
 from ..providers import Provider, ProviderContext
+from ...engines.duckdb import (
+    PARQUET_LIST_WRAPPERS as _LIST_WRAPPERS,
+    read_declared_null_statistics,
+    read_parquet_schema_rows,
+)
 
+
+def _reader(connection: duckdb.DuckDBPyConnection):
+    """Adapt a DuckDB connection to the read-only query contract."""
+    def read(query: str, parameters: Sequence[object]) -> Sequence[Sequence[Any]]:
+        return connection.execute(query, list(parameters)).fetchall()
+
+    return read
+
+_LOGGER = logging.getLogger("kg_build_system.code_generation.inference")
 
 _DATABASE_SUFFIXES = {".db", ".ddb", ".duckdb"}
 _REMOTE_SCHEMES = {"http", "https", "s3"}
 _DATA_SUFFIXES = {".csv", ".tsv", ".json", ".jsonl", ".ndjson", ".parquet", ".pq"}
+_PARQUET_SUFFIXES = {".parquet", ".pq"}
 _HIVE_PARTITION = re.compile(r"^[^/=]+=[^/]+$")
-_SCALAR_TYPES = {
-    "BOOLEAN": "bool",
-    "TINYINT": "int",
-    "SMALLINT": "int",
-    "INTEGER": "int",
-    "BIGINT": "int",
-    "HUGEINT": "int",
-    "UTINYINT": "int",
-    "USMALLINT": "int",
-    "UINTEGER": "int",
-    "UBIGINT": "int",
-    "FLOAT": "float",
-    "REAL": "float",
-    "DOUBLE": "float",
-    "DECIMAL": "float",
-    "VARCHAR": "str",
-    "CHAR": "str",
-    "BPCHAR": "str",
-    "STRING": "str",
-    "UUID": "str",
-    "DATE": "str",
-    "TIME": "str",
-    "TIME WITH TIME ZONE": "str",
-    "TIMESTAMP": "str",
-    "TIMESTAMP WITH TIME ZONE": "str",
-    "TIMESTAMP_S": "str",
-    "TIMESTAMP_MS": "str",
-    "TIMESTAMP_NS": "str",
+
+#: The three levels of schema trust of SOURCE_SCHEMA_TRUST_AND_NULLABILITY_SPEC.md section 3.
+SchemaTier = Literal["enforced", "declared", "defaulted"]
+
+#: Every DuckDB type name with a total mapping into a logical scalar.
+_SCALAR_TYPES: dict[str, ScalarTypeName] = {
+    "BOOLEAN": ScalarTypeName.BOOL,
+    "TINYINT": ScalarTypeName.INT,
+    "SMALLINT": ScalarTypeName.INT,
+    "INTEGER": ScalarTypeName.INT,
+    "BIGINT": ScalarTypeName.INT,
+    "HUGEINT": ScalarTypeName.INT,
+    "VARINT": ScalarTypeName.INT,
+    "UTINYINT": ScalarTypeName.INT,
+    "USMALLINT": ScalarTypeName.INT,
+    "UINTEGER": ScalarTypeName.INT,
+    "UBIGINT": ScalarTypeName.INT,
+    "UHUGEINT": ScalarTypeName.INT,
+    "FLOAT": ScalarTypeName.FLOAT,
+    "REAL": ScalarTypeName.FLOAT,
+    "DOUBLE": ScalarTypeName.FLOAT,
+    "VARCHAR": ScalarTypeName.STR,
+    "CHAR": ScalarTypeName.STR,
+    "BPCHAR": ScalarTypeName.STR,
+    "TEXT": ScalarTypeName.STR,
+    "STRING": ScalarTypeName.STR,
+    "UUID": ScalarTypeName.STR,
+    "JSON": ScalarTypeName.STR,
+}
+
+#: DuckDB types that are known but have no total mapping into a logical scalar.
+#: They are rejected by name so a rejection is never confused with an
+#: unrecognised type; how each would be represented is one deferred decision
+#: covering all specific types together (section 8), not a per-type patch here.
+_REJECTED_TYPES: dict[str, str] = {
+    "DECIMAL": "exact numeric",
+    "DATE": "a date",
+    "TIME": "a time of day",
+    "TIME WITH TIME ZONE": "a time with a zone",
+    "TIMESTAMP": "a timestamp",
+    "TIMESTAMP WITH TIME ZONE": "a timestamp with a zone",
+    "TIMESTAMP_S": "a second-precision timestamp",
+    "TIMESTAMP_MS": "a millisecond-precision timestamp",
+    "TIMESTAMP_NS": "a nanosecond-precision timestamp",
+    "BLOB": "binary data",
+    "BIT": "a bit string",
+    "INTERVAL": "an interval",
+    "ENUM": "an enumeration",
+    "UNION": "a union",
+    "VARIANT": "semi-structured data",
+    "NULL": "an all-null column",
+    "GEOGRAPHY": "geography",
+    "GEOMETRY": "geometry",
+    "ROW": "an anonymous record",
+    "MAP": "a mapping",
+    "ARRAY": "a fixed-size array",
 }
 
 
@@ -95,57 +145,437 @@ def _split_top_level(value: str, separator: str = ",") -> tuple[str, ...]:
     return tuple(part for part in result if part)
 
 
-def _base_type(value: str) -> str:
-    return value.split("(", 1)[0].strip().upper()
+def _type_name(value: str) -> str:
+    """One DuckDB type name with any parameter list removed."""
+    return re.sub(r"\s*\(.*\)$", "", value.strip()).upper()
 
 
-def _field_for_type(
-    *, name: str, type_name: str, nullable: bool, struct_prefix: str,
+def _is_struct_text(type_name: str) -> bool:
+    normalized = type_name.strip()
+    return normalized.upper().startswith("STRUCT(") and normalized.endswith(")")
+
+
+def _tier_for_suffix(suffix: str) -> SchemaTier:
+    """One tier decision per source, per section 3 of the trust specification."""
+    if suffix in _DATABASE_SUFFIXES:
+        return "enforced"
+    if suffix in _PARQUET_SUFFIXES:
+        return "declared"
+    return "defaulted"
+
+
+def _describe_nullability(tier: SchemaTier, describe_reports_nullable: bool) -> Nullability:
+    """Map ``DESCRIBE``'s ``null`` column according to the source tier.
+
+    That column reports only *enforced* ``NOT NULL`` catalog constraints, so it is
+    silent about what a file declares: a table-function scan answers ``YES`` for
+    every column whether or not the file marks it ``required``. Only an enforced
+    store may therefore yield non-nullability here, and Parquet is overridden
+    from ``parquet_schema()`` afterwards.
+    """
+    if tier != "enforced":
+        return Nullability.DEFAULTED
+    return Nullability.DEFAULTED if describe_reports_nullable else Nullability.ENFORCED
+
+
+def _resolve_scalar(type_name: str, *, path: str) -> ScalarTypeName:
+    """Map one DuckDB type name to a logical scalar, or reject it by name."""
+    name = _type_name(type_name)
+    mapped = _SCALAR_TYPES.get(name)
+    if mapped is not None:
+        return mapped
+    reason = _REJECTED_TYPES.get(name)
+    if reason is not None:
+        raise GenerationError(
+            f"column {path!r} has DuckDB type {type_name!r}, which is rejected: it is "
+            f"{reason}, and no logical-type mapping for it has been chosen yet. "
+            "Either export the column in a mappable type, or declare this table "
+            "outside a generated package."
+        )
+    raise GenerationError(f"column {path!r} has unsupported type {type_name!r}")
+
+
+def _wrap(value: GeneratedType, nullability: Nullability) -> GeneratedType:
+    if nullability is Nullability.DEFAULTED and not isinstance(value, GeneratedNullableType):
+        return GeneratedNullableType(value)
+    return value
+
+
+def _array_item_text(type_name: str) -> str:
+    normalized = type_name.strip()
+    return normalized[:-2].strip() if normalized.endswith("[]") else "VARCHAR"
+
+
+def _struct_member_texts(type_name: str) -> dict[str, str]:
+    if not _is_struct_text(type_name):
+        return {}
+    result: dict[str, str] = {}
+    for member in _split_top_level(type_name.strip()[7:-1]):
+        match = re.match(r'(?s)^(?:"((?:[^"]|"")+)"|([^ ]+))\s+(.+)$', member)
+        if match is None:
+            raise GenerationError(
+                f"cannot interpret struct member {member!r} in column {type_name!r}"
+            )
+        result[(match.group(1) or match.group(2) or "").replace('""', '"')] = match.group(3)
+    return result
+
+
+@dataclass(frozen=True, slots=True)
+class _Paths:
+    """The two path forms one inferred member is recorded under.
+
+    ``schema`` names every Parquet node, including the ``list``/``element``
+    wrappers, which is the form ``parquet_metadata()`` reports in
+    ``path_in_schema``; ``logical`` drops them, which is the form a report shows
+    an author.
+    """
+
+    schema: tuple[str, ...]
+    logical: tuple[str, ...]
+
+    def child(self, *parts: str) -> "_Paths":
+        return _Paths((*self.schema, *parts), (*self.logical, *parts))
+
+    @property
+    def schema_text(self) -> str:
+        return ".".join(self.schema)
+
+    @property
+    def logical_text(self) -> str:
+        return ".".join(self.logical)
+
+
+@dataclass
+class _Inference:
+    """State shared by one generation pass.
+
+    ``used_names`` is scoped per relation rather than per pass: two tables in one
+    group may legitimately have a column of the same name, while two columns of
+    one relation may not collide.
+    """
+
+    declared_paths: set[str] = field(default_factory=set)
+    used_names: dict[str, str] = field(default_factory=dict)
+
+
+def _register(
+    inferred: GeneratedField, paths: _Paths, inference: _Inference,
+) -> GeneratedField:
+    """Record the paths one finished member claims, for the statistics pre-flight."""
+    if inferred.nullability is not Nullability.DEFAULTED:
+        inference.declared_paths.add(inferred.schema_path or paths.schema_text)
+    return inferred
+
+
+def _make_field(
+    name: str, paths: _Paths, value_type: GeneratedType, *, inference: _Inference,
+) -> GeneratedField:
+    nullability = (
+        Nullability.DEFAULTED if isinstance(value_type, GeneratedNullableType)
+        else Nullability.DECLARED
+    )
+    return _register(
+        GeneratedField(
+            _identifier(name), name, value_type, nullability=nullability,
+            schema_path=paths.schema_text, logical_path=paths.logical_text,
+        ),
+        paths, inference,
+    )
+
+
+class _ParquetNode:
+    """One node of a Parquet schema tree, in the file's own naming."""
+
+    __slots__ = ("name", "repetition", "duckdb_type", "children")
+
+    def __init__(
+        self, name: str, repetition: str, duckdb_type: str | None,
+        children: tuple["_ParquetNode", ...],
+    ) -> None:
+        self.name = name
+        self.repetition = repetition
+        self.duckdb_type = duckdb_type
+        self.children = children
+
+    @property
+    def declared(self) -> bool:
+        return self.repetition.upper() == "REQUIRED"
+
+    @property
+    def repeated(self) -> bool:
+        return self.repetition.upper() == "REPEATED"
+
+    def __repr__(self) -> str:
+        return f"<{self.name} {self.repetition} {self.duckdb_type} {len(self.children)}>"
+
+
+def _fold_parquet_schema(
+    rows: Sequence[tuple[str, str, str | None, int | None, str | None, int]],
+) -> tuple[_ParquetNode, ...]:
+    """Fold one file's flat ``parquet_schema()`` rows into a node tree.
+
+    Rows arrive in pre-order depth-first order and a group owns the
+    ``num_children`` subtrees that follow it. The first node is the root — DuckDB
+    names it ``duckdb_schema`` — and it carries the top-level columns.
+    """
+    position = 0
+
+    def parse() -> _ParquetNode:
+        nonlocal position
+        name, repetition, _physical, children, duckdb_type, _column_id = rows[position]
+        position += 1
+        return _ParquetNode(
+            name, repetition, duckdb_type,
+            tuple(parse() for _ in range(children or 0)),
+        )
+
+    root = parse()
+    if position != len(rows):
+        raise GenerationError("Parquet schema nodes did not form a single tree")
+    return root.children
+
+
+def _walk_nodes(nodes: Sequence[_ParquetNode]) -> Iterator[_ParquetNode]:
+    for node in nodes:
+        yield node
+        yield from _walk_nodes(node.children)
+
+
+def _node_shape(nodes: Sequence[_ParquetNode]) -> tuple[tuple[str, str, str | None], ...]:
+    return tuple(
+        (node.name, node.repetition.upper(), node.duckdb_type)
+        for node in _walk_nodes(nodes)
+    )
+
+
+def _parquet_trees(
+    connection: duckdb.DuckDBPyConnection, sources: tuple[str, ...],
+) -> tuple[_ParquetNode, ...]:
+    """Parse every file of one source and require the files to agree (decision D3).
+
+    A partitioned source is only inferrable while every file declares the same
+    nodes; silently taking the first file would hide a schema change in one
+    partition behind a contract the other partitions violate.
+    """
+    rows = read_parquet_schema_rows(_reader(connection), sources)
+    grouped: dict[str, list[tuple[str, str, str | None, int | None, str | None, int]]] = {}
+    for file_name, name, repetition, physical, children, duckdb_type, column_id in rows:
+        grouped.setdefault(file_name, []).append(
+            (name, repetition, physical, children, duckdb_type, column_id)
+        )
+    if not grouped:
+        located = ", ".join(repr(item) for item in sources) or "the given source"
+        raise GenerationError(
+            f"parquet_schema() returned no schema for {located}"
+        )
+    trees = {name: _fold_parquet_schema(tuple(items)) for name, items in grouped.items()}
+    reference_name, reference = next(iter(trees.items()))
+    reference_shape = _node_shape(reference)
+    for name, tree in trees.items():
+        if _node_shape(tree) != reference_shape:
+            raise GenerationError(
+                "the Parquet files of this relation declare different schemas: "
+                f"{reference_name!r} and {name!r} disagree; a partitioned source can "
+                "only be inferred while every file agrees"
+            )
+    return reference
+
+
+def _shape_for_node(
+    *, node: _ParquetNode, paths: _Paths, describe_type: str, inference: _Inference,
+) -> tuple[GeneratedType, tuple[GeneratedClass, ...], bool]:
+    """One node's shape, its nested declarations, and whether it is nullable.
+
+    One recursion covers scalar, list and record alike, which is what lets an
+    array of arrays be read correctly: DuckDB nests the three-level list
+    convention inside itself, so ``VARCHAR[][]`` arrives as
+    ``list / element / list / element`` and each level is one more array.
+    """
+    if not node.children:
+        scalar = _resolve_scalar(describe_type, path=paths.logical_text)
+        return GeneratedScalarType(scalar), (), not node.declared
+
+    if _is_list_node(node):
+        wrapper = node.children[0]
+        if not wrapper.repeated:
+            raise GenerationError(
+                f"column {paths.logical_text!r} is shaped like a Parquet list but "
+                f"its {wrapper.name!r} wrapper is not REPEATED"
+            )
+        item_type, declarations, item_nullable = _item_of_list(
+            wrapper=wrapper, paths=paths, describe_type=describe_type,
+            inference=inference,
+        )
+        return (
+            GeneratedArrayType(
+                _wrap(item_type, Nullability.DEFAULTED) if item_nullable else item_type
+            ),
+            declarations,
+            not node.declared,
+        )
+
+    struct_name = f"{_path_prefix(paths)}{_class_part(_leaf_name(paths))}Struct"
+    described = _struct_member_texts(describe_type)
+    members: list[GeneratedField] = []
+    nested: list[GeneratedClass] = []
+    for child in node.children:
+        field_, child_declarations = _tree_field(
+            node=child, paths=paths.child(child.name),
+            describe_type=described.get(child.name, "VARCHAR"), inference=inference,
+        )
+        members.append(field_)
+        nested.extend(child_declarations)
+    nested.append(GeneratedClass(struct_name, tuple(members), base="Struct"))
+    return GeneratedStructType(struct_name), tuple(nested), not node.declared
+
+
+def _item_of_list(
+    *, wrapper: _ParquetNode, paths: _Paths, describe_type: str, inference: _Inference,
+) -> tuple[GeneratedType, tuple[GeneratedClass, ...], bool]:
+    """The item shape of a REPEATED wrapper, and whether that item is nullable.
+
+    A legacy two-level list repeats a primitive directly; the standard
+    three-level convention repeats a group named ``element``.
+    """
+    if not wrapper.children:
+        item_paths = paths.child(wrapper.name)
+        scalar = _resolve_scalar(
+            _array_item_text(describe_type), path=item_paths.logical_text,
+        )
+        return GeneratedScalarType(scalar), (), not wrapper.declared
+    element = wrapper.children[0]
+    item_paths = paths.child(wrapper.name, element.name)
+    item_type, declarations, item_nullable = _shape_for_node(
+        node=element, paths=item_paths, describe_type=_array_item_text(describe_type),
+        inference=inference,
+    )
+    return item_type, declarations, item_nullable
+
+
+def _leaf_name(paths: _Paths) -> str:
+    """The field a derived record is named after.
+
+    The Parquet three-level list convention names the item node ``element``, so a
+    record inside an array would otherwise be named for the convention rather
+    than for the field it belongs to.
+    """
+    parts = [part for part in paths.logical if part not in _LIST_WRAPPERS]
+    return parts[-1] if parts else "Item"
+
+
+def _path_prefix(paths: _Paths) -> str:
+    """The derived-record prefix contributed by the members above this one.
+
+    Keyed on the member path rather than the leaf name, so two unrelated structs
+    may share a member name.
+    """
+    parts = [part for part in paths.logical if part not in _LIST_WRAPPERS]
+    return "".join(_class_part(part) for part in parts[:-1])
+
+
+def _tree_field(
+    *, node: _ParquetNode, paths: _Paths, describe_type: str, inference: _Inference,
 ) -> tuple[GeneratedField, tuple[GeneratedClass, ...]]:
+    """One member whose shape comes from the Parquet node tree."""
+    shape, declarations, _shape_is_nullable = _shape_for_node(
+        node=node, paths=paths, describe_type=describe_type, inference=inference,
+    )
+    value = _wrap(shape, _level_nullability(node.repetition))
+    return (
+        _make_field(node.name, paths, value, inference=inference),
+        declarations,
+    )
+
+
+def _is_list_node(node: _ParquetNode) -> bool:
+    return (
+        bool(node.children) and len(node.children) <= 2
+        and any(child.name in _LIST_WRAPPERS for child in node.children)
+    )
+
+
+def _level_nullability(repetition: str) -> Nullability:
+    """The file's own word for one node: ``required`` is a claim, ``optional`` is not."""
+    return Nullability.DECLARED if repetition.upper() == "REQUIRED" else Nullability.DEFAULTED
+
+
+def _text_item_shape(
+    *, type_name: str, parent_class: str, paths: _Paths, inference: _Inference,
+) -> tuple[GeneratedType, tuple[GeneratedClass, ...]]:
+    """Resolve the item shape carried by a flattened ``DESCRIBE`` type string.
+
+    A flattened string names no nullability at any level, so nothing here may
+    claim it: the result is a shape, and the caller decides nullability. An item
+    has no name of its own in this form.
+    """
     normalized = type_name.strip()
     if normalized.endswith("[]"):
-        item_type = normalized[:-2].strip()
-        item_field, item_declarations = _field_for_type(
-            name=name,
-            type_name=item_type,
-            nullable=False,
-            struct_prefix=struct_prefix,
+        return _text_item_shape(
+            type_name=normalized[:-2].strip(), parent_class=parent_class,
+            paths=paths, inference=inference,
         )
-        generated_type = item_field.value_type
-        value_type = GeneratedArrayType(generated_type)
-        if nullable:
-            value_type = GeneratedNullableType(value_type)
-        return GeneratedField(
-            _identifier(name), name, value_type,
-        ), item_declarations
-    scalar = _SCALAR_TYPES.get(_base_type(normalized))
-    if scalar is not None:
-        value_type = GeneratedScalarType(scalar)
-        return GeneratedField(
-            _identifier(name), name,
-            GeneratedNullableType(value_type) if nullable else value_type,
-        ), ()
-    if normalized.upper().startswith("STRUCT(") and normalized.endswith(")"):
-        struct_name = f"{struct_prefix}{_class_part(name)}Struct"
+    item_paths = paths.child("element") if paths.logical[-1] != "element" else paths
+    if not _is_struct_text(normalized):
+        scalar = _resolve_scalar(normalized, path=item_paths.logical_text)
+        return GeneratedScalarType(scalar), ()
+    struct_name = f"{parent_class}{_class_part(paths.logical[-1])}Struct"
+    members: list[GeneratedField] = []
+    nested: list[GeneratedClass] = []
+    for member_name, member_type in _struct_member_texts(normalized).items():
+        field_, declarations = _text_field(
+            name=member_name, type_name=member_type, nullability=Nullability.DEFAULTED,
+            parent_class=struct_name, paths=item_paths.child(member_name),
+            inference=inference,
+        )
+        members.append(field_)
+        nested.extend(declarations)
+    nested.append(GeneratedClass(struct_name, tuple(members), base="Struct"))
+    return GeneratedStructType(struct_name), tuple(nested)
+
+
+def _text_field(
+    *, name: str, type_name: str, nullability: Nullability, parent_class: str,
+    paths: _Paths, inference: _Inference,
+) -> tuple[GeneratedField, tuple[GeneratedClass, ...]]:
+    """One member inferred from a ``DESCRIBE`` type string, nullability included."""
+    normalized = type_name.strip()
+    declarations: tuple[GeneratedClass, ...] = ()
+    if normalized.endswith("[]"):
+        item, declarations = _text_item_shape(
+            type_name=normalized, parent_class=parent_class, paths=paths,
+            inference=inference,
+        )
+        # A flattened type string names no nullability at any level, so an item
+        # of a schema-less array is nullable too: absence of a declaration is not
+        # a declaration of presence, at the item level as much as the field's.
+        if not isinstance(item, GeneratedNullableType):
+            item = GeneratedNullableType(item)
+        value: GeneratedType = GeneratedArrayType(item)
+    elif _is_struct_text(normalized):
+        struct_name = f"{parent_class}{_class_part(name)}Struct"
         members: list[GeneratedField] = []
         nested: list[GeneratedClass] = []
-        for member in _split_top_level(normalized[7:-1]):
-            match = re.match(r'(?s)^(?:"((?:[^"]|"")+)"|([^ ]+))\s+(.+)$', member)
-            if match is None:
-                raise GenerationError(f"cannot interpret struct member {member!r} in column {name!r}")
-            member_name = (match.group(1) or match.group(2) or "").replace('""', '"')
-            generated, generated_nested = _field_for_type(
-                name=member_name, type_name=match.group(3), nullable=False, struct_prefix=struct_name,
+        for member_name, member_type in _struct_member_texts(normalized).items():
+            field_, member_declarations = _text_field(
+                name=member_name, type_name=member_type,
+                nullability=Nullability.DEFAULTED, parent_class=struct_name,
+                paths=paths.child(member_name), inference=inference,
             )
-            members.append(generated)
-            nested.extend(generated_nested)
+            members.append(field_)
+            nested.extend(member_declarations)
         nested.append(GeneratedClass(struct_name, tuple(members), base="Struct"))
-        value_type = GeneratedStructType(struct_name)
-        return GeneratedField(
-            _identifier(name), name,
-            GeneratedNullableType(value_type) if nullable else value_type,
-        ), tuple(nested)
-    raise GenerationError(f"column {name!r} has unsupported type {type_name!r}")
+        value = GeneratedStructType(struct_name)
+        declarations = tuple(nested)
+    else:
+        scalar = _resolve_scalar(normalized, path=paths.logical_text)
+        value = GeneratedScalarType(scalar)
+
+    return (
+        _make_field(
+            name, paths, _wrap(value, nullability), inference=inference,
+        ),
+        declarations,
+    )
 
 
 def _quote_identifier(value: str) -> str:
@@ -164,6 +594,31 @@ def _source_suffix(value: str) -> str:
 
 def _source_stem(value: str) -> str:
     return Path(urlparse(value).path if _remote_source(value) else value).stem
+
+
+def _source_label(source: str, sources: tuple[str, ...]) -> str:
+    """How one physical source is named in a generated provenance header."""
+    name = Path(urlparse(source).path if _remote_source(source) else source).name
+    label = f"{name} ({_source_suffix(source).lstrip('.')})"
+    if len(sources) > 1:
+        return f"{label} and {len(sources) - 1} more file(s)"
+    return label
+
+
+def _nullability_note(
+    tier: SchemaTier, source: str, sources: tuple[str, ...], relation: str,
+    declarations: tuple[str, ...] = (),
+) -> NullabilityNote:
+    label = _source_label(source, sources)
+    if tier == "enforced":
+        line = (
+            f"nullability: enforced by relation '{relation}' in {label} (NOT NULL)"
+        )
+    elif tier == "declared":
+        line = f"nullability: declared by {label} (required/optional)"
+    else:
+        line = f"nullability: not declared by {label} - all members nullable"
+    return NullabilityNote(line, tuple(sources), declarations)
 
 
 def _load_remote_access(connection: duckdb.DuckDBPyConnection, source: str) -> None:
@@ -265,7 +720,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
     """Infer portable table or table-group declarations from a data input."""
 
     ID: ClassVar[str] = "infer_data_contract"
-    VERSION: ClassVar[str] = "2"
+    VERSION: ClassVar[str] = "3"
     CONFIG_TYPE: ClassVar[type[ProviderGenerationConfig]] = DataContractInferenceConfig
 
     @classmethod
@@ -300,53 +755,118 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
     def _describe(
         cls, connection: duckdb.DuckDBPyConnection, sources: tuple[str, ...], relation: str,
         *, hive_partitioned: bool = False,
-    ) -> tuple[tuple[str, str, bool], ...]:
+    ) -> tuple[tuple[str, str, Nullability], ...]:
+        """Structure and tier-decided nullability for one relation's columns.
+
+        ``DESCRIBE`` is the structural boundary — it decides which columns exist
+        and what scalar each holds. Its ``null`` column reports only *enforced*
+        catalog constraints, so it is silent about what a file declares, and
+        nullability is therefore decided by tier rather than read off it directly.
+        Nullability is never derived from observed values.
+        """
         source = sources[0]
         suffix = _source_suffix(source)
         if suffix in _DATABASE_SUFFIXES:
             query = f"SELECT * FROM {_quote_identifier(relation)}"
             parameters: list[Any] = []
-        elif suffix in {".parquet", ".pq"}:
-            query = "SELECT * FROM read_parquet(?, hive_partitioning = true)" if hive_partitioned else "SELECT * FROM read_parquet(?)"
+        elif suffix in _PARQUET_SUFFIXES:
+            query = (
+                "SELECT * FROM read_parquet(?, hive_partitioning = true)"
+                if hive_partitioned else "SELECT * FROM read_parquet(?)"
+            )
             parameters = [source if len(sources) == 1 else list(sources)]
         elif suffix in {".csv", ".tsv"}:
             query, parameters = "SELECT * FROM read_csv_auto(?)", [source if len(sources) == 1 else list(sources)]
         elif suffix in {".json", ".jsonl", ".ndjson"}:
             query, parameters = "SELECT * FROM read_json_auto(?)", [source if len(sources) == 1 else list(sources)]
         else:
-            raise GenerationError(f"unsupported data-contract inference input format {suffix or '<none>'!r}")
+            raise GenerationError(
+                f"unsupported data-contract inference input format {suffix or '<none>'!r}"
+            )
         try:
             rows = connection.execute(f"DESCRIBE {query}", parameters).fetchall()
         except duckdb.Error as error:
-            raise GenerationError(f"cannot infer schema for {source} relation {relation!r}: {error}") from error
-        # ``DESCRIBE`` is the schema boundary.  Do not scan source rows merely
-        # to infer whether a nullable column happens to contain null values.
-        return tuple((str(row[0]), str(row[1]), str(row[2]).upper() != "NO") for row in rows)
+            raise GenerationError(
+                f"cannot infer schema for {source} relation {relation!r}: {error}"
+            ) from error
+        tier = _tier_for_suffix(suffix)
+        return tuple(
+            (
+                str(row[0]), str(row[1]),
+                _describe_nullability(tier, str(row[2]).upper() != "NO"),
+            )
+            for row in rows
+        )
+
+    @classmethod
+    def _members(
+        cls,
+        *,
+        connection: duckdb.DuckDBPyConnection,
+        described: tuple[tuple[str, str, Nullability], ...],
+        sources: tuple[str, ...],
+        class_prefix: str,
+        inference: _Inference,
+    ) -> tuple[tuple[GeneratedField, tuple[GeneratedClass, ...]], ...]:
+        """One finished member per DuckDB column, with the source's own shape.
+
+        The two authorities stay separate: DuckDB's own read decides which columns
+        exist and what scalar each holds, and — for Parquet only —
+        ``parquet_schema()`` decides nested structure and nullability at every
+        level. A DuckDB column that no file declares, such as a hive partition
+        key, is ``DEFAULTED``; a node the read does not expose means the two views
+        of the file disagree, which fails.
+        """
+        suffix = _source_suffix(sources[0])
+        nodes = _parquet_trees(connection, sources) if suffix in _PARQUET_SUFFIXES else ()
+        by_column = {node.name: node for node in nodes}
+        unbacked = sorted(set(by_column) - {name for name, _type, _null in described})
+        if unbacked:
+            raise GenerationError(
+                "parquet_schema() declares "
+                + ", ".join(repr(name) for name in unbacked)
+                + f" of {sources[0]!r}, which DuckDB's read of the same file does not expose"
+            )
+        members: list[tuple[GeneratedField, tuple[GeneratedClass, ...]]] = []
+        for name, type_name, nullability in described:
+            node = by_column.get(name)
+            paths = _Paths((name,), (name,))
+            if node is None:
+                members.append(_text_field(
+                    name=name, type_name=type_name, nullability=nullability,
+                    parent_class=class_prefix, paths=paths, inference=inference,
+                ))
+                continue
+            members.append(_tree_field(
+                node=node, paths=paths, describe_type=type_name, inference=inference,
+            ))
+        return tuple(members)
 
     @classmethod
     def _table_classes(
         cls, *, connection: duckdb.DuckDBPyConnection, sources: tuple[str, ...],
         relation: str, class_name: str, final: bool, hive_partitioned: bool = False,
+        inference: _Inference,
     ) -> tuple[GeneratedClass, ...]:
         fields: list[GeneratedField] = []
         supporting: list[GeneratedClass] = []
-        used: dict[str, str] = {}
+        inference.used_names = {}
         described_fields = cls._describe(
             connection, sources, relation, hive_partitioned=hive_partitioned,
         )
         try:
-            for external_name, type_name, nullable in described_fields:
-                generated, nested = _field_for_type(
-                    name=external_name, type_name=type_name, nullable=nullable,
-                    struct_prefix=class_name,
-                )
-                previous = used.get(generated.python_name)
+            for field_, nested in cls._members(
+                connection=connection, described=described_fields, sources=sources,
+                class_prefix=class_name, inference=inference,
+            ):
+                previous = inference.used_names.get(field_.python_name)
                 if previous is not None:
                     raise GenerationError(
-                        f"columns {previous!r} and {external_name!r} collide as {generated.python_name!r}"
+                        f"columns {previous!r} and {field_.external_name!r} "
+                        f"collide as {field_.python_name!r}"
                     )
-                used[generated.python_name] = external_name
-                fields.append(generated)
+                inference.used_names[field_.python_name] = field_.external_name
+                fields.append(field_)
                 supporting.extend(nested)
             if not fields:
                 raise GenerationError(f"relation {relation!r} has no columns")
@@ -372,11 +892,17 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
 
     @classmethod
     def _table_group_package(
-        cls, context: ProviderContext[DataContractInferenceConfig], tables: tuple[_LogicalTable, ...],
-        connection: duckdb.DuckDBPyConnection,
+        cls, context: ProviderContext[DataContractInferenceConfig],
+        tables: tuple[_LogicalTable, ...], connection: duckdb.DuckDBPyConnection,
+        inference: _Inference,
     ) -> GeneratedPackage:
         files: list[GeneratedFile] = []
-        group_paths = {prefix for table in tables for size in range(len(table.group_path) + 1) for prefix in (table.group_path[:size],)}
+        notes: dict[str, NullabilityNote] = {}
+        group_paths = {
+            prefix for table in tables
+            for size in range(len(table.group_path) + 1)
+            for prefix in (table.group_path[:size],)
+        }
 
         def group_class(path: tuple[str, ...]) -> str:
             return f"{''.join(_class_part(part) for part in path) or _class_part(context.request_id)}TableGroup"
@@ -390,16 +916,30 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 class_name=table_name,
                 final=True,
                 hive_partitioned=table.hive_partitioned,
+                inference=inference,
             )
+            cls._report_null_statistics(connection, table.sources, inference)
+            note = _nullability_note(
+                _tier_for_suffix(_source_suffix(table.sources[0])),
+                table.sources[0], table.sources, table.name, (table_name,),
+            )
+            notes.setdefault(note.line, note)
             relative = Path(*table.group_path) / f"{_identifier(table.name, fallback='table')}.py"
             files.append(GeneratedFile(relative, classes, (table_name,)))
 
         for group_path in sorted(group_paths, key=lambda value: (-len(value), value)):
             members = [
-                GeneratedMember(_identifier(table.name, fallback="table"), f"{_class_part(table.name)}Table")
+                GeneratedMember(
+                    _identifier(table.name, fallback="table"),
+                    f"{_class_part(table.name)}Table",
+                )
                 for table in tables if table.group_path == group_path
             ]
-            children = sorted({path[len(group_path)] for path in group_paths if len(path) == len(group_path) + 1 and path[:len(group_path)] == group_path})
+            children = sorted({
+                path[len(group_path)] for path in group_paths
+                if len(path) == len(group_path) + 1
+                and path[:len(group_path)] == group_path
+            })
             members.extend(
                 GeneratedMember(_identifier(child, fallback="group"), group_class((*group_path, child)))
                 for child in children
@@ -412,7 +952,35 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 declaration_name=logical_name,
             )
             files.append(GeneratedFile(Path(*group_path) / "__init__.py", (declaration,), (declaration.name,)))
-        return GeneratedPackage(tuple(files))
+        return GeneratedPackage(tuple(files), tuple(notes.values()))
+
+    @classmethod
+    def _report_null_statistics(
+        cls, connection: duckdb.DuckDBPyConnection, sources: tuple[str, ...],
+        inference: _Inference,
+    ) -> None:
+        """Test declared non-nullability against the file's own column statistics.
+
+        A statistic tests a claim, it never sets or enforces one, so this reports
+        and never fails. Generation is where it earns most: the author can still
+        change the request. An absent statistic is unknown and is never read as a
+        zero count.
+        """
+        if _source_suffix(sources[0]) not in _PARQUET_SUFFIXES or not inference.declared_paths:
+            return
+        report = read_declared_null_statistics(
+            _reader(connection), sources, sorted(inference.declared_paths),
+        )
+        for statistic in report.violations:
+            _LOGGER.warning(
+                "%s reports %d null value(s) in %d rows for the declared non-null "
+                "column %r; inference will keep claiming it is non-null until the "
+                "request says otherwise, and the build guard will abort on it",
+                _source_label(sources[0], sources), statistic.nulls, statistic.values,
+                statistic.schema_path,
+            )
+        for path in report.unknown_paths:
+            _LOGGER.debug("no null statistics published for %r; unknown is not zero", path)
 
     @classmethod
     async def generate(
@@ -429,7 +997,15 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         source = context.config.source if remote else str(path)
         if context.config.layout != "files" and context.config.mode != "table_group":
             raise GenerationError(f"layout={context.config.layout!r} requires mode='table_group'")
-        if context.config.mode == "table_group" and _source_suffix(source) not in _DATABASE_SUFFIXES:
+        if _source_suffix(source) in _DATABASE_SUFFIXES:
+            raise GenerationError(
+                f"data-contract inference input {source} is a DuckDB database: its "
+                "relations can be inferred but never bound, because no InputFormat "
+                "selects a database reader. Export the relation to Parquet, or "
+                "declare the contract outside a generated package."
+            )
+        inference = _Inference()
+        if context.config.mode == "table_group":
             if context.config.relation is not None:
                 raise GenerationError("table-group inference does not accept relation=")
             tables = _logical_tables(
@@ -440,58 +1016,44 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
             )
             connection = duckdb.connect(":memory:")
             try:
-                if any(_remote_source(item) for table in tables for item in table.sources):
-                    _load_remote_access(connection, tables[0].sources[0])
-                return cls._table_group_package(context, tables, connection)
+                for table in tables:
+                    for item in table.sources:
+                        _load_remote_access(connection, item)
+                package = cls._table_group_package(context, tables, connection, inference)
+                return package
             finally:
                 connection.close()
         if path is not None and not path.exists():
             raise GenerationError(f"data-contract inference input does not exist: {path}")
         if path is not None and path.is_dir():
             raise GenerationError("directory inference requires mode='table_group'")
-        is_database = not remote and _source_suffix(source) in _DATABASE_SUFFIXES
-        try:
-            connection = duckdb.connect(source if is_database else ":memory:", read_only=is_database)
-        except duckdb.Error as error:
-            raise GenerationError(f"cannot open data-contract inference input {path}: {error}") from error
+        connection = duckdb.connect(":memory:")
         try:
             _load_remote_access(connection, source)
             relations = cls._relations(connection, source)
             if not relations:
                 raise GenerationError(f"data input {path} exposes no relations")
-            if context.config.mode == "table":
-                if context.config.relation is None and len(relations) != 1:
-                    raise GenerationError("table-contract inference requires relation= when the input exposes multiple relations")
-                relation = context.config.relation or relations[0]
-                if relation not in relations:
-                    raise GenerationError(f"data input {path} has no relation {relation!r}")
-                class_name = f"{_class_part(context.request_id)}Table"
-                classes = cls._table_classes(
-                    connection=connection, sources=(source,), relation=relation,
-                    class_name=class_name, final=True,
+            if context.config.relation is None and len(relations) != 1:
+                raise GenerationError(
+                    "table-contract inference requires relation= when the input "
+                    "exposes multiple relations"
                 )
-                return GeneratedPackage((GeneratedFile(Path("__init__.py"), classes, (class_name,)),))
-            if context.config.relation is not None:
-                raise GenerationError("table-group inference does not accept relation=")
-            members: list[GeneratedMember] = []
-            files: list[GeneratedFile] = []
-            used_members: dict[str, str] = {}
-            group_name = f"{_class_part(context.request_id)}TableGroup"
-            for relation in relations:
-                member_name = _identifier(relation, fallback="table")
-                previous = used_members.get(member_name)
-                if previous is not None:
-                    raise GenerationError(f"relations {previous!r} and {relation!r} collide as {member_name!r}")
-                used_members[member_name] = relation
-                table_name = f"{_class_part(relation)}Table"
-                classes = cls._table_classes(
-                    connection=connection, sources=(source,), relation=relation,
-                    class_name=table_name, final=True,
-                )
-                files.append(GeneratedFile(Path(f"{member_name}.py"), classes, (table_name,)))
-                members.append(GeneratedMember(member_name, table_name))
-            group = GeneratedClass(group_name, members=tuple(members), base="TableGroup", declaration_name=context.request_id)
-            files.append(GeneratedFile(Path("__init__.py"), (group,), (group_name,)))
-            return GeneratedPackage(tuple(files))
+            relation = context.config.relation or relations[0]
+            if relation not in relations:
+                raise GenerationError(f"data input {path} has no relation {relation!r}")
+            class_name = f"{_class_part(context.request_id)}Table"
+            classes = cls._table_classes(
+                connection=connection, sources=(source,), relation=relation,
+                class_name=class_name, final=True, inference=inference,
+            )
+            cls._report_null_statistics(connection, (source,), inference)
+            return GeneratedPackage(
+                (GeneratedFile(Path("__init__.py"), classes, (class_name,)),),
+                (_nullability_note(
+                    _tier_for_suffix(_source_suffix(source)), source, (source,), relation,
+                ),),
+            )
         finally:
             connection.close()
+
+__all__ = ["DataContractInferenceConfig", "InferDataContractProvider"]

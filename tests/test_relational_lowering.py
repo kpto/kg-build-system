@@ -146,12 +146,27 @@ class RelationalLoweringTests(unittest.TestCase):
             step for step in contract.workflow.steps
             if step.step_id == "core::table.lowering_input"
         )
+        # The source step carries what the contract knows about the contract, so
+        # the shape check and the null-count pre-flight can run without a
+        # blueprint. Only paths the build reads that claim non-nullity are listed:
+        # a read of an expanded array reaches the members below it, and a Parquet
+        # path carries one pair of list wrappers per array level crossed.
         self.assertEqual(source_step.payload, {
             "action": "source_relation",
             "relation": "kg_table_0",
             "location": "s3://bucket/input.json",
             "format": "json",
             "credential_reference": "source_credentials",
+            "declaration": "lowering_input",
+            "declared_columns": ["identifier", "optional_label", "evidence"],
+            "declared_paths": [
+                {"logical_path": "evidence", "schema_path": "evidence.list.element"},
+                {
+                    "logical_path": "evidence.labels",
+                    "schema_path": "evidence.list.element.labels.list.element",
+                },
+                {"logical_path": "identifier", "schema_path": "identifier"},
+            ],
         })
 
     def test_core_module_owns_source_credential_options(self) -> None:
