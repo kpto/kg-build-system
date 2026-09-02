@@ -17,6 +17,7 @@ dependencies = [
     "sqlglot>=30.14.0",
     "s3fs>=2025.7",
     "watchfiles>=1.1",
+    "pytz>=2026.3.post1",
 ]
 
 [project.scripts]
