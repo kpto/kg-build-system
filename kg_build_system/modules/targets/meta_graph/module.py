@@ -9,6 +9,7 @@ from pathlib import PurePosixPath
 from typing import Any, ClassVar
 
 from ...._frozen_json import freeze_json
+from ....types import canonical_value_text
 from ....compile.interfaces import CompilationContext, ModuleCompiler
 from ....modules._paths import validate_relative_path
 from ....modules.interfaces import Module, ModuleRegistrationConfiguration
@@ -52,20 +53,16 @@ def _canonical_example_value(value: Any) -> Any:
 
     The document quotes values straight out of the graph relation, so a ``date``,
     ``time``, ``timestamp`` or ``uuid`` column arrives as the Python object DuckDB
-    hands back. This is the same mapping the file target applies to a property
-    value: the temporals take ``isoformat()``, which keeps the ISO-8601 ``T`` that
-    ``str()`` replaces with a space, and a uuid its hyphenated text. A value
-    outside the canonical vocabulary — a ``bytes`` or ``Decimal`` the boundary
-    should have refused — has no form here and raises naming its type, rather than
-    being quietly stringified into a document that is supposed to be reproducible.
+    hands back, and a scalar with a canonical text form takes it from the shared
+    mapping. A value outside the canonical vocabulary — a ``bytes`` or ``Decimal``
+    the boundary should have refused — has no form here and raises naming its type,
+    rather than being quietly stringified into a document that is supposed to be
+    reproducible.
     """
     if value is None or isinstance(value, (bool, int, float, str)):
         return value
-    # A datetime is a date, so the three share one test and one canonical form.
-    if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
-        return value.isoformat()
-    if isinstance(value, uuid.UUID):
-        return str(value)
+    if isinstance(value, (datetime.datetime, datetime.date, datetime.time, uuid.UUID)):
+        return canonical_value_text(value)
     if isinstance(value, dict):
         return {key: _canonical_example_value(item) for key, item in value.items()}
     if isinstance(value, (list, tuple)):

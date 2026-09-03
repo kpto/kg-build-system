@@ -52,7 +52,9 @@ REPRESENTATIVE_TYPES: Final = {
 #: because an un-imported annotation raises ``NameError`` while the class body
 #: executes. Deriving the line from what a file annotates is what made it possible
 #: to forget one.
-REPRESENTATIVE_IMPORT: Final = "from kg_build_system.types import Array, Date, Time, Timestamp, Uuid"
+REPRESENTATIVE_IMPORT: Final = (
+    f"from kg_build_system.types import Array, {', '.join(sorted(set(REPRESENTATIVE_TYPES.values())))}"
+)
 
 
 def generation_fingerprint(request: DiscoveredGeneration, provider_version: str, dependency_content: tuple[bytes, ...]) -> str:

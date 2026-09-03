@@ -36,11 +36,32 @@ Timestamp = datetime.datetime
 Uuid = uuid.UUID
 
 
+def canonical_value_text(value: Date | Time | Timestamp | Uuid) -> str:
+    """The one text form a value of a text-canonical unit is carried as.
+
+    ``isoformat`` is total for these classes and stable under ``fromisoformat``, so the
+    text needs no decoder to round-trip; for ``timestamp`` it carries the ``T`` separator
+    that ``str()`` replaces with a space, and ``uuid`` keeps its lowercase hyphenated
+    spelling. Anything else has no canonical text form and is refused by name.
+    """
+    # A datetime is a date, so the subclass has to be tested first.
+    if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
+        return value.isoformat()
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    raise TypeError(f"{type(value).__qualname__} has no canonical text form")
+
+
 type UnitTypeName = Literal["bool", "int", "float", "str", "date", "time", "timestamp", "uuid"]
 
 #: The canonical unit vocabulary; every gate on a unit name reads this set.
 CANONICAL_UNIT_NAMES: Final = frozenset({
     "bool", "int", "float", "str", "date", "time", "timestamp", "uuid",
+})
+
+#: Units whose values carry a canonical text form through the JSON/IR boundary.
+TEXT_CANONICAL_UNIT_NAMES: Final[frozenset[UnitTypeName]] = frozenset({
+    "date", "time", "timestamp", "uuid",
 })
 
 
@@ -115,6 +136,7 @@ UUID = UnitType("uuid")
 __all__ = [
     "Array", "ArrayType", "BOOL", "CANONICAL_UNIT_NAMES", "CustomDataType", "CustomType",
     "DATE", "Date", "FLOAT", "INT", "LogicalType", "NonNullableLogicalType", "Nullable",
-    "NullableType", "STR", "Struct", "StructType", "TIME", "TIMESTAMP", "Time", "Timestamp",
-    "UUID", "UnitType", "UnitTypeName", "Uuid", "is_canonical_unit_name",
+    "NullableType", "STR", "Struct", "StructType", "TEXT_CANONICAL_UNIT_NAMES", "TIME",
+    "TIMESTAMP", "Time", "Timestamp", "UUID", "UnitType", "UnitTypeName", "Uuid",
+    "canonical_value_text", "is_canonical_unit_name",
 ]

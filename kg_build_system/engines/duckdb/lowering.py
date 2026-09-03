@@ -14,6 +14,7 @@ from ...expressions.ir import (
 from ..._frozen_json import FrozenObject
 from ...relational.ir import RelationPlanIR as RelationPlan
 from ...relational.planner import expansion_scope
+from ...types import TEXT_CANONICAL_UNIT_NAMES
 from ...types.ir import ArrayTypeIR, LogicalTypeIR, NullableTypeIR, UnitTypeIR
 from .types import ArraySqlType, SqlType, canonical_sql_type
 
@@ -32,9 +33,6 @@ def _thaw(value: Any) -> Any:
 
 # A literal of one of these units is frozen as canonical text, which alone would lower
 # to a VARCHAR; the node's logical type names the unit, so it lowers to a typed literal.
-_TEXT_UNITS: frozenset[str] = frozenset({"date", "time", "timestamp", "uuid"})
-
-
 def _text_unit_sql_type(logical_type: LogicalTypeIR) -> SqlType | None:
     """The canonical type a literal frozen as text carries, as the SQL algebra accepts it.
 
@@ -45,7 +43,7 @@ def _text_unit_sql_type(logical_type: LogicalTypeIR) -> SqlType | None:
     """
     value = logical_type.value if isinstance(logical_type, NullableTypeIR) else logical_type
     if isinstance(value, UnitTypeIR):
-        return value.name if value.name in _TEXT_UNITS else None
+        return value.name if value.name in TEXT_CANONICAL_UNIT_NAMES else None
     if isinstance(value, ArrayTypeIR):
         item = _text_unit_sql_type(value.item)
         return ArraySqlType(item=item) if item is not None else None

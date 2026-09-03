@@ -114,31 +114,68 @@ class DomainBoundaryTests(unittest.TestCase):
             )
 
     def test_workflow_does_not_depend_on_compile(self) -> None:
-        package = Path(kg_build_system.__file__).parent
-        for path in (package / "workflow").glob("*.py"):
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            imports = {
-                node.module or ""
-                for node in ast.walk(tree)
-                if isinstance(node, ast.ImportFrom)
-            }
+        """Only the downward wire-up direction is legal: compile reads workflow IR."""
+        for path in (PACKAGE / "workflow").rglob("*.py"):
+            offenders = _top_level_imports(path) & {"compile"}
             self.assertFalse(
-                any(module == "compile" or module.startswith("compile.") for module in imports),
-                f"{path} depends on the compile domain",
+                offenders, f"{path} depends on the compile domain: {sorted(offenders)}",
             )
 
     def test_compile_does_not_depend_on_concrete_modules(self) -> None:
-        package = Path(kg_build_system.__file__).parent
-        for path in (package / "compile").glob("*.py"):
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            imports = {
-                node.module or ""
-                for node in ast.walk(tree)
-                if isinstance(node, ast.ImportFrom)
-            }
+        for path in (PACKAGE / "compile").rglob("*.py"):
+            offenders = _top_level_imports(path) & {"modules"}
             self.assertFalse(
-                any(module.startswith("modules.") for module in imports),
-                f"{path} imports a concrete module",
+                offenders, f"{path} imports a concrete module: {sorted(offenders)}",
+            )
+
+    def test_only_executing_lanes_may_import_engines(self) -> None:
+        """Engine knowledge stays in the lanes that actually execute against one.
+
+        ``engines`` may be reached by the engine itself, the edit-time generation
+        lane (``code_generation``), the runtime host (``workflow`` — the layer that
+        opens the DuckDB connection), and ``modules`` (DuckDB-bound execution).
+        Everything below those lanes — the declarative IR subsystems and the
+        package-private helpers — must stay engine-agnostic.
+        """
+        forbidden_subsystems = (
+            "types", "annotations", "expressions", "table", "topology",
+            "binding", "relational", "compile",
+        )
+        scanned = [path for sub in forbidden_subsystems for path in (PACKAGE / sub).rglob("*.py")]
+        scanned += [PACKAGE / "_frozen_json.py", *(PACKAGE / "_support").rglob("*.py")]
+        for path in scanned:
+            offenders = _top_level_imports(path) & {"engines"}
+            self.assertFalse(
+                offenders, f"{path} must not depend on a concrete engine: {sorted(offenders)}",
+            )
+
+    def test_package_never_imports_itself_by_absolute_name(self) -> None:
+        """Every internal dependency is a relative import.
+
+        The boundary walks resolve relative imports to owning subsystem names; an
+        absolute ``kg_build_system.x`` import collapses to the package root and
+        slips past all of them, so absolute self-imports are banned outright.
+        """
+        root = PACKAGE.name
+        for path in PACKAGE.rglob("*.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            absolute: list[str] = []
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    absolute += [
+                        alias.name
+                        for alias in node.names
+                        if alias.name == root or alias.name.startswith(f"{root}.")
+                    ]
+                elif (
+                    isinstance(node, ast.ImportFrom)
+                    and node.level == 0
+                    and node.module
+                    and (node.module == root or node.module.startswith(f"{root}."))
+                ):
+                    absolute.append(node.module)
+            self.assertFalse(
+                absolute, f"{path} imports the package by absolute name: {sorted(set(absolute))}",
             )
 
     def test_assembly_inputs_do_not_leak_into_executable_workflow_models(self) -> None:

@@ -9,6 +9,7 @@ from pathlib import PurePosixPath
 from typing import Any, ClassVar
 
 from ..._frozen_json import freeze_json, thaw_json
+from ...types import canonical_value_text
 from ...workflow.models import (
     CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot,
     RuntimeFieldDefinition, WorkflowStep,
@@ -41,20 +42,16 @@ def _canonical_property_value(value: Any) -> Any:
     ``json.dumps`` hands this only the values it cannot encode itself, so the
     JSON scalars are returned untouched and an existing record keeps its bytes.
     The build key is passed here directly before taking its text, so a key that
-    is temporal or a ``uuid`` is written in canonical form too.
-    The temporal canonicals are written with ``isoformat()``, which keeps the
-    ISO-8601 ``T`` separator that ``str()`` replaces with a space, and ``uuid``
-    with its hyphenated text. A value outside the canonical vocabulary — a
-    ``bytes``, ``Decimal`` or ``timedelta`` the boundary refuses — has no form
-    here and raises rather than being quietly stringified into the graph.
+    is temporal or a ``uuid`` is written in canonical form too. A scalar with a
+    canonical text form takes it from the shared mapping; a value outside the
+    canonical vocabulary — a ``bytes``, ``Decimal`` or ``timedelta`` the boundary
+    refuses — has no form here and raises rather than being quietly stringified
+    into the graph.
     """
     if value is None or isinstance(value, (bool, int, float, str)):
         return value
-    # A datetime is a date, so the three share one test and one canonical form.
-    if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
-        return value.isoformat()
-    if isinstance(value, uuid.UUID):
-        return str(value)
+    if isinstance(value, (datetime.datetime, datetime.date, datetime.time, uuid.UUID)):
+        return canonical_value_text(value)
     if isinstance(value, dict):
         return {
             key: _canonical_property_value(item) for key, item in value.items()

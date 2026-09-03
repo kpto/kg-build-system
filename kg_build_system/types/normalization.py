@@ -2,17 +2,19 @@
 from __future__ import annotations
 
 from types import NoneType, UnionType
-from typing import Any, get_args, get_origin
+from typing import Any, Final, get_args, get_origin
 
 from .models import (
     Array, ArrayType, BOOL, CustomDataType, CustomType, DATE, Date, FLOAT, INT, LogicalType,
-    Nullable, NullableType, STR, Struct, StructType, TIME, TIMESTAMP, Time, Timestamp, UUID, Uuid,
+    Nullable, NullableType, STR, Struct, StructType, TIME, TIMESTAMP, Time, Timestamp, UnitType,
+    UUID, Uuid,
 )
 
 
 # The keys are the stdlib classes the representative aliases name, so an author
-# writing ``Date`` or ``datetime.date`` normalizes to the same canonical unit.
-_UNITS = {
+# writing ``Date`` or ``datetime.date`` normalizes to the same canonical unit. The
+# one class-to-unit fact every exact-class dispatch reads is this mapping.
+UNIT_BY_REPRESENTATIVE_CLASS: Final[dict[type[Any], UnitType]] = {
     bool: BOOL, int: INT, float: FLOAT, str: STR,
     Date: DATE, Time: TIME, Timestamp: TIMESTAMP, Uuid: UUID,
 }
@@ -35,8 +37,8 @@ def normalize_type(annotation: Any) -> LogicalType:
     """Convert one supported authoring annotation to canonical form."""
     if annotation is Any:
         raise TypeError("logical types must be explicit; Any is not supported")
-    if annotation in _UNITS:
-        return _UNITS[annotation]
+    if annotation in UNIT_BY_REPRESENTATIVE_CLASS:
+        return UNIT_BY_REPRESENTATIVE_CLASS[annotation]
 
     origin = get_origin(annotation)
     arguments = get_args(annotation)
@@ -61,4 +63,4 @@ def normalize_type(annotation: Any) -> LogicalType:
     raise TypeError(f"unsupported logical type annotation: {annotation!r}")
 
 
-__all__ = ["normalize_type"]
+__all__ = ["UNIT_BY_REPRESENTATIVE_CLASS", "normalize_type"]

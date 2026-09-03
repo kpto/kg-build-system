@@ -2,44 +2,33 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any, Final, cast
+from typing import Any
 
 from .._frozen_json import FrozenJson, freeze_json
 from ..types import (
-    ArrayType, BOOL, CustomType, DATE, FLOAT, INT, LogicalType, NullableType, STR,
-    StructType, TIME, TIMESTAMP, UUID, Date, Time, Timestamp, UnitType, Uuid,
+    ArrayType, CustomType, LogicalType, NullableType, StructType, TEXT_CANONICAL_UNIT_NAMES,
+    UNIT_BY_REPRESENTATIVE_CLASS, Date, Time, Timestamp, UnitType, Uuid, canonical_value_text,
 )
 from .models import LiteralExpression
 
 
 # A literal is accepted as exactly one Python class: the representative type of the
 # unit, which is an alias of the value class itself. Identity is the test, so
-# Timestamp stays distinct from its Date supertype and bool from int.
-_UNITS_BY_CLASS: dict[type[Any], UnitType] = {
-    bool: BOOL, int: INT, float: FLOAT, str: STR,
-    Date: DATE, Time: TIME, Timestamp: TIMESTAMP, Uuid: UUID,
-}
+# Timestamp stays distinct from its Date supertype and bool from int. This is the
+# normalization map itself, not a restatement of it.
+_UNITS_BY_CLASS = UNIT_BY_REPRESENTATIVE_CLASS
 _CLASSES_BY_UNIT_NAME: dict[str, type[Any]] = {
     unit.name: value for value, unit in _UNITS_BY_CLASS.items()
 }
 
-# Frozen values are JSON, so a literal of one of these units is stored as text and its
-# unit is carried by the node's logical type, which tells `date`, `time`, `timestamp`
-# and `uuid` apart from a `str` wherever the frozen value is read.
-_TEXT_UNITS: Final[frozenset[str]] = frozenset({"date", "time", "timestamp", "uuid"})
 
-
-def _canonical_text(value: Date | Time | Timestamp | Uuid, unit_name: str) -> str:
+def _canonical_text(value: Date | Time | Timestamp | Uuid) -> str:
     """The one text form a literal of a text-canonical unit is frozen as.
 
-    ``isoformat`` is total for the exact class each unit admits and is stable under
-    ``fromisoformat``, so the text needs no decoder to round-trip; for ``timestamp``
-    it carries the ``T`` separator that ``str()`` would replace with a space, and
-    ``uuid`` keeps its lowercase hyphenated spelling.
+    ``_validate`` has already pinned the exact class the unit admits and ``_freeze``
+    has already rejected every unit with no text form, so this only delegates.
     """
-    if unit_name == "uuid":
-        return str(value)
-    return cast(Date | Time | Timestamp, value).isoformat()
+    return canonical_value_text(value)
 
 
 def _infer(value: Any) -> LogicalType:
@@ -90,8 +79,8 @@ def _freeze(value: Any, logical_type: LogicalType) -> FrozenJson:
     if isinstance(logical_type, NullableType):
         return None if value is None else _freeze(value, logical_type.value)
     if isinstance(logical_type, UnitType):
-        if logical_type.name in _TEXT_UNITS:
-            return _canonical_text(value, logical_type.name)
+        if logical_type.name in TEXT_CANONICAL_UNIT_NAMES:
+            return _canonical_text(value)
         return freeze_json(value)
     if isinstance(logical_type, ArrayType):
         return tuple(_freeze(item, logical_type.item) for item in value)

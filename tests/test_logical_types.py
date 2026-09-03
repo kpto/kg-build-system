@@ -3,7 +3,7 @@ from __future__ import annotations
 import datetime
 import unittest
 import uuid
-from typing import Any
+from typing import Any, get_args, get_type_hints
 
 from kg_build_system.types import (
     Array, ArrayType, BOOL, CANONICAL_UNIT_NAMES, CustomDataType, CustomType, DATE, Date,
@@ -101,6 +101,13 @@ class LogicalTypeTests(unittest.TestCase):
     def test_codec_rejects_nested_nullable_ir(self) -> None:
         with self.assertRaises(ValueError):
             decode_type({"kind": "nullable", "value": {"kind": "nullable", "value": {"kind": "unit", "name": "str"}}})
+
+    def test_the_ir_unit_name_literal_is_the_canonical_vocabulary(self) -> None:
+        """The IR layer names no models module, so its literal is pinned to the set."""
+        self.assertEqual(
+            set(get_args(get_type_hints(UnitTypeIR)["name"])),
+            set(CANONICAL_UNIT_NAMES),
+        )
 
     def test_models_reject_noncanonical_direct_construction(self) -> None:
         for name in ("decimal", "instant", "interval", "binary", "DATE", ""):
