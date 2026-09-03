@@ -1,13 +1,22 @@
 from __future__ import annotations
 
+import datetime
 import unittest
+import uuid
 from typing import Any
 
 from kg_build_system.types import (
-    Array, ArrayType, CustomDataType, CustomType, INT, Nullable, NullableType, STR, Struct,
-    StructType, UnitType, array_item, decode_type, encode_type, is_nullable, normalize_type,
-    require_non_nullable, require_scalar,
+    Array, ArrayType, BOOL, CANONICAL_UNIT_NAMES, CustomDataType, CustomType, DATE, Date,
+    FLOAT, INT, Nullable, NullableType, STR, Struct, StructType, TIME, TIMESTAMP, Time,
+    Timestamp, UUID, UnitType, Uuid, array_item, decode_type, encode_type, is_nullable,
+    normalize_type, require_non_nullable, require_scalar,
 )
+from kg_build_system.types.ir import UnitTypeIR
+from kg_build_system.types.ir_codec import decode_type_ir, encode_type_ir
+from kg_build_system.types.mapping import type_to_ir
+
+
+_UNITS: tuple[UnitType, ...] = (BOOL, INT, FLOAT, STR, DATE, TIME, TIMESTAMP, UUID)
 
 
 class ExampleStruct(Struct):
@@ -27,6 +36,28 @@ class LogicalTypeTests(unittest.TestCase):
         self.assertEqual(normalize_type(Array[str | None] | None), NullableType(ArrayType(NullableType(STR))))
         self.assertEqual(normalize_type(Nullable[str]), NullableType(STR))
         self.assertEqual(normalize_type(Nullable[str | None]), NullableType(STR))
+
+    def test_every_canonical_unit_name_normalizes_from_both_spellings(self) -> None:
+        """The lowercase canonical names have exactly one representative class each."""
+        self.assertEqual({unit.name for unit in _UNITS}, set(CANONICAL_UNIT_NAMES))
+        for annotation, expected in (
+            (bool, BOOL), (int, INT), (float, FLOAT), (str, STR),
+            (Date, DATE), (datetime.date, DATE),
+            (Time, TIME), (datetime.time, TIME),
+            (Timestamp, TIMESTAMP), (datetime.datetime, TIMESTAMP),
+            (Uuid, UUID), (uuid.UUID, UUID),
+        ):
+            with self.subTest(annotation=annotation):
+                self.assertEqual(normalize_type(annotation), expected)
+
+    def test_temporal_and_identifier_types_compose(self) -> None:
+        self.assertEqual(normalize_type(Uuid | None), NullableType(UUID))
+        self.assertEqual(
+            normalize_type(Array[Timestamp | None]), ArrayType(NullableType(TIMESTAMP)),
+        )
+        self.assertEqual(
+            normalize_type(Array[Date] | None), NullableType(ArrayType(DATE)),
+        )
 
     def test_rejects_open_or_ambiguous_python_types(self) -> None:
         for annotation in (Any, list[str], dict[str, str], str | int, None):
@@ -52,13 +83,29 @@ class LogicalTypeTests(unittest.TestCase):
         logical_type = normalize_type(Array[ExampleStruct | None] | None)
         self.assertEqual(decode_type(encode_type(logical_type)), logical_type)
 
+    def test_every_canonical_unit_name_round_trips_through_both_codecs(self) -> None:
+        for unit in _UNITS:
+            with self.subTest(name=unit.name):
+                self.assertEqual(decode_type(encode_type(unit)), unit)
+                encoded_ir = encode_type_ir(type_to_ir(unit))
+                self.assertEqual(encoded_ir, {"kind": "unit", "name": unit.name})
+                self.assertEqual(decode_type_ir(encoded_ir), UnitTypeIR(unit.name))
+
+    def test_codecs_reject_a_noncanonical_unit_name(self) -> None:
+        payload = {"kind": "unit", "name": "decimal"}
+        with self.assertRaisesRegex(ValueError, "unknown unit logical type 'decimal'"):
+            decode_type(payload)
+        with self.assertRaisesRegex(ValueError, "unknown unit type 'decimal'"):
+            decode_type_ir(payload)
+
     def test_codec_rejects_nested_nullable_ir(self) -> None:
         with self.assertRaises(ValueError):
             decode_type({"kind": "nullable", "value": {"kind": "nullable", "value": {"kind": "unit", "name": "str"}}})
 
     def test_models_reject_noncanonical_direct_construction(self) -> None:
-        with self.assertRaises(ValueError):
-            UnitType("decimal")
+        for name in ("decimal", "instant", "interval", "binary", "DATE", ""):
+            with self.subTest(name=name), self.assertRaisesRegex(ValueError, "unknown unit logical type"):
+                UnitType(name)  # type: ignore[arg-type]
         with self.assertRaises(ValueError):
             StructType("", "Example")
         with self.assertRaises(ValueError):

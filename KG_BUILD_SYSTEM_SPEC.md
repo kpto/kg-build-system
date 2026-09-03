@@ -61,13 +61,38 @@ composition choices.
 
 ## 3. Canonical logical types
 
-The author-facing vocabulary is:
+The canonical vocabulary, as the unit names carried by a logical type, is:
 
 ```python
-type UnitType = bool | int | float | str | CustomDataType
+type UnitType = (
+    bool | int | float | str | date | time | timestamp | uuid | CustomDataType
+)
 type DataType = UnitType | Struct | Array[DataType | None]
 type AuthoringDataType = DataType | None
 ```
+
+Canonical type names are uniformly lowercase: `bool int float str date time
+timestamp uuid`, plus the nested `Array[T]` and `Struct{…}` above. The canonical
+name is the identity carried by the logical type, the IR, the codecs and the
+messages; a source type is *digested* into one of these names, and a source type
+with no meaning-preserving canonical form is refused rather than coerced. A
+capitalised name always marks a **representative type** instead: the class an
+author writes in an annotation, which must be the very class of the value the
+engine returns, because expressions, selections and property slots are
+parameterised by it.
+
+| Canonical | Representative | Class it denotes |
+| --- | --- | --- |
+| `bool`, `int`, `float`, `str` | `bool`, `int`, `float`, `str` | the builtins |
+| `date` | `Date` | `datetime.date` |
+| `time` | `Time` | `datetime.time` |
+| `timestamp` | `Timestamp` | `datetime.datetime` |
+| `uuid` | `Uuid` | `uuid.UUID` |
+
+`Date`, `Time`, `Timestamp` and `Uuid` are exported by `kg_build_system.types` as
+aliases of the stdlib classes, not as new classes. Normalization dispatches on class
+identity, so the alias spelling and the stdlib spelling are one annotation and cannot
+drift into two meanings.
 
 `Array[T]` is the portable ordered-collection marker. It is deliberately not
 `list[T]`, `Sequence[T]`, or a physical storage type. `Struct` declares a
@@ -78,6 +103,7 @@ Authors express nullability with normal Python unions:
 
 ```python
 Field[str | None]
+Field[Timestamp | None]
 Field[Array[int] | None]
 Field[Array[str | None]]
 Field[Array[str | None] | None]
@@ -97,9 +123,15 @@ NullableType(value)
 `NullableType(T)`. Authors do not use it in declarations. Canonical nullable
 types are flattened and never wrap another `NullableType`.
 
-Graph properties and graph identity keys must be scalar. Build and endpoint
-keys must additionally be non-null. Arrays and structs remain valid expression
-values but cannot be graph properties or keys.
+Graph properties and graph identity keys must be scalar, and every canonical
+scalar above — the four temporal and identifier types included — is usable as
+either. Build and endpoint keys must additionally be non-null. Arrays and
+structs remain valid expression values but cannot be graph properties or keys.
+
+Exact numerics, instants, durations and binary data are not canonical types:
+`decimal(p, s)`, `instant`, `interval` and `binary` are deferred with their reasons
+recorded, alongside `map` and `variant`, in
+[`DUCKDB_TYPE_ACCEPTANCE_MATRIX.md`](DUCKDB_TYPE_ACCEPTANCE_MATRIX.md).
 
 ## 4. Unified fields and data declarations
 
@@ -822,7 +854,16 @@ abstract components and templates are never binding targets.
 - dynamic fields guarded by an `Unknown` type;
 - broader target capability checks and ontology annotations;
 - richer source schema metadata, including nested-member nullability where the
-  physical schema can provide it.
+  physical schema can provide it. The type half of that item is now in scope and
+  specified: the widened canonical vocabulary of §3 (`date time timestamp uuid`),
+  the ingest **digest** gate that maps each DuckDB type onto a canonical type or
+  refuses it with a recorded reason, and declared temporal promotion at generation
+  time for a column whose reader cannot type it itself.
+- explicitly **out** of that scope: comparison and filtering operators for the
+  temporal and `uuid` types. Values of those types store, deduplicate, merge and
+  export correctly, but no new expression operators are offered for them, and
+  `decimal(p, s)`, `instant`, `interval`, `binary`, `map` and `variant` remain
+  non-canonical.
 
 ### Future
 

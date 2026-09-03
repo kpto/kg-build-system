@@ -15,7 +15,9 @@ temperature_reading_binding = node_binding(
     properties=ReadingNode(
         value=TemperatureTable.deg_c,
         unit_of_measure=value_expression("degC"),
-        recorded_on=TemperatureTable.recorded_on.default_to("Undated"),
+        # A timestamp has no honest sentinel, so a sample the logger left
+        # undated carries no date rather than the text a string property used.
+        recorded_on=TemperatureTable.recorded_on,
         summary=TemperatureTable.reading_uid.default_to("Unidentified sample"),
         **provenance_stamps,
     ),
@@ -28,7 +30,7 @@ vibration_reading_binding = node_binding(
     properties=ReadingNode(
         value=VibrationTable.mm_s,
         unit_of_measure=value_expression("mm/s"),
-        recorded_on=VibrationTable.recorded_on.default_to("Undated"),
+        recorded_on=VibrationTable.recorded_on,
         summary=VibrationTable.reading_uid.default_to("Unidentified sample"),
         **provenance_stamps,
     ),

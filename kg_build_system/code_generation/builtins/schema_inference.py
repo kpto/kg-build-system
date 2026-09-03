@@ -8,7 +8,7 @@ import keyword
 import logging
 from pathlib import Path, PurePosixPath
 import re
-from typing import Any, ClassVar, Iterator, Literal, Sequence
+from typing import Any, ClassVar, Final, Iterator, Literal, Sequence
 from urllib.parse import urlparse
 
 import duckdb
@@ -35,8 +35,17 @@ from ..models import (
 from ..providers import Provider, ProviderContext
 from ...engines.duckdb import (
     PARQUET_LIST_WRAPPERS as _LIST_WRAPPERS,
+    DeclaredOnlyDigest,
+    RefusedDigest,
+    canonical_sql_type,
+    digest_for,
     read_declared_null_statistics,
     read_parquet_schema_rows,
+)
+from ...types import (
+    CANONICAL_UNIT_NAMES,
+    UnitTypeName,
+    is_canonical_unit_name,
 )
 
 
@@ -57,60 +66,6 @@ _HIVE_PARTITION = re.compile(r"^[^/=]+=[^/]+$")
 
 #: The three levels of schema trust of SOURCE_SCHEMA_TRUST_AND_NULLABILITY_SPEC.md section 3.
 SchemaTier = Literal["enforced", "declared", "defaulted"]
-
-#: Every DuckDB type name with a total mapping into a logical scalar.
-_SCALAR_TYPES: dict[str, ScalarTypeName] = {
-    "BOOLEAN": ScalarTypeName.BOOL,
-    "TINYINT": ScalarTypeName.INT,
-    "SMALLINT": ScalarTypeName.INT,
-    "INTEGER": ScalarTypeName.INT,
-    "BIGINT": ScalarTypeName.INT,
-    "HUGEINT": ScalarTypeName.INT,
-    "VARINT": ScalarTypeName.INT,
-    "UTINYINT": ScalarTypeName.INT,
-    "USMALLINT": ScalarTypeName.INT,
-    "UINTEGER": ScalarTypeName.INT,
-    "UBIGINT": ScalarTypeName.INT,
-    "UHUGEINT": ScalarTypeName.INT,
-    "FLOAT": ScalarTypeName.FLOAT,
-    "REAL": ScalarTypeName.FLOAT,
-    "DOUBLE": ScalarTypeName.FLOAT,
-    "VARCHAR": ScalarTypeName.STR,
-    "CHAR": ScalarTypeName.STR,
-    "BPCHAR": ScalarTypeName.STR,
-    "TEXT": ScalarTypeName.STR,
-    "STRING": ScalarTypeName.STR,
-    "UUID": ScalarTypeName.STR,
-    "JSON": ScalarTypeName.STR,
-}
-
-#: DuckDB types that are known but have no total mapping into a logical scalar.
-#: They are rejected by name so a rejection is never confused with an
-#: unrecognised type; how each would be represented is one deferred decision
-#: covering all specific types together (section 8), not a per-type patch here.
-_REJECTED_TYPES: dict[str, str] = {
-    "DECIMAL": "exact numeric",
-    "DATE": "a date",
-    "TIME": "a time of day",
-    "TIME WITH TIME ZONE": "a time with a zone",
-    "TIMESTAMP": "a timestamp",
-    "TIMESTAMP WITH TIME ZONE": "a timestamp with a zone",
-    "TIMESTAMP_S": "a second-precision timestamp",
-    "TIMESTAMP_MS": "a millisecond-precision timestamp",
-    "TIMESTAMP_NS": "a nanosecond-precision timestamp",
-    "BLOB": "binary data",
-    "BIT": "a bit string",
-    "INTERVAL": "an interval",
-    "ENUM": "an enumeration",
-    "UNION": "a union",
-    "VARIANT": "semi-structured data",
-    "NULL": "an all-null column",
-    "GEOGRAPHY": "geography",
-    "GEOMETRY": "geometry",
-    "ROW": "an anonymous record",
-    "MAP": "a mapping",
-    "ARRAY": "a fixed-size array",
-}
 
 
 def _identifier(value: str, *, fallback: str = "field") -> str:
@@ -145,14 +100,28 @@ def _split_top_level(value: str, separator: str = ",") -> tuple[str, ...]:
     return tuple(part for part in result if part)
 
 
-def _type_name(value: str) -> str:
-    """One DuckDB type name with any parameter list removed."""
-    return re.sub(r"\s*\(.*\)$", "", value.strip()).upper()
-
-
 def _is_struct_text(type_name: str) -> bool:
     normalized = type_name.strip()
     return normalized.upper().startswith("STRUCT(") and normalized.endswith(")")
+
+
+#: A fixed-size array is reported as ``INTEGER[3]``, so its item is whatever
+#: precedes either bracket.
+_FIXED_ARRAY_ITEM = re.compile(r"(?s)^(.*)\[\d+\]$")
+
+
+def _array_item_text(type_name: str) -> str | None:
+    """The item type a flattened DuckDB type string names for an array, if any.
+
+    ``None`` says the string carries no array at all, which is not the same thing
+    as a string naming an item of its own: the caller then needs the type the
+    Parquet node carries, and failing that has to report the disagreement.
+    """
+    normalized = type_name.strip()
+    if normalized.endswith("[]"):
+        return normalized[:-2].strip() or None
+    match = _FIXED_ARRAY_ITEM.match(normalized)
+    return (match.group(1).strip() or None) if match else None
 
 
 def _tier_for_suffix(suffix: str) -> SchemaTier:
@@ -178,32 +147,190 @@ def _describe_nullability(tier: SchemaTier, describe_reports_nullable: bool) -> 
     return Nullability.DEFAULTED if describe_reports_nullable else Nullability.ENFORCED
 
 
-def _resolve_scalar(type_name: str, *, path: str) -> ScalarTypeName:
-    """Map one DuckDB type name to a logical scalar, or reject it by name."""
-    name = _type_name(type_name)
-    mapped = _SCALAR_TYPES.get(name)
-    if mapped is not None:
-        return mapped
-    reason = _REJECTED_TYPES.get(name)
-    if reason is not None:
+def _rejected(type_name: str, path: str, reason: str) -> GenerationError:
+    return GenerationError(
+        f"column {path!r} has DuckDB type {type_name!r}, which is rejected: {reason}. "
+        "Either export the column in a mappable type, or declare this table "
+        "outside a generated package."
+    )
+
+
+#: The scope limit of a promotion, recorded by decision 9 of
+#: ``DUCKDB_TYPE_IMPLEMENTATION_PLAN.md``. It is a decision the plan has not made
+#: rather than a mistake a request can be corrected to avoid, so it is told rather
+#: than reported as an absent column.
+_NESTED_PROMOTION: Final = (
+    "a promotion declares the canonical type of one top-level column, and nested "
+    "promotion would need read_json(columns={...}), which replaces sniffing with a "
+    "declared schema and moves the source's nullability from defaulted to declared "
+    "— a separate decision"
+)
+
+
+def _promotion_declaration(column: str, canonical: str) -> str:
+    """The request text that declares one top-level column's canonical type."""
+    return f"promote={{{column!r}: {canonical!r}}}"
+
+
+def _container_promotion(
+    type_name: str, *, column: str, canonical: UnitTypeName,
+) -> GenerationError:
+    """A promotion names one canonical unit type, which no container has.
+
+    The shape of a container is digested from the item or member types below it, so
+    declaring a unit for the column itself would leave them undeclared while the
+    contract read as a scalar.
+    """
+    return GenerationError(
+        f"column {column!r} is read as {type_name!r}, a container whose shape is "
+        f"digested from the types below it, so "
+        f"{_promotion_declaration(column, canonical)} has no single canonical type "
+        "of the column to declare; a promotion covers a column the reader reports "
+        "as a scalar"
+    )
+
+
+def _promoted_type_name(
+    type_name: str, *, column: str, canonical: UnitTypeName,
+) -> str:
+    """The type one top-level column is resolved from once a promotion declares it.
+
+    A promotion says what the author means a column to hold; it does not make a
+    refused physical type digestible, because refusal means no meaning-preserving
+    canonical form exists rather than that no declaration has been made yet. The
+    narrowing a declared-only type asks for is the declaration that gate reserves
+    for an author, so a promotion is it, and the checked cast the scan then applies
+    is what fails the build on a value that does not fit.
+    """
+    if _array_item_text(type_name) is not None or _is_struct_text(type_name):
+        raise _container_promotion(type_name, column=column, canonical=canonical)
+    digest = digest_for(type_name)
+    if digest is None:
+        raise GenerationError(f"column {column!r} has unsupported type {type_name!r}")
+    if isinstance(digest, RefusedDigest):
         raise GenerationError(
-            f"column {path!r} has DuckDB type {type_name!r}, which is rejected: it is "
-            f"{reason}, and no logical-type mapping for it has been chosen yet. "
-            "Either export the column in a mappable type, or declare this table "
-            "outside a generated package."
+            f"column {column!r} has DuckDB type {type_name!r}, which is rejected: "
+            f"{digest.reason}. A rejection is not a gate a declaration lifts: it "
+            "says no meaning-preserving canonical type exists for the values the "
+            f"source holds, so {_promotion_declaration(column, canonical)} cannot "
+            "be honoured. Either export the column in a mappable type, or declare "
+            "this table outside a generated package."
         )
-    raise GenerationError(f"column {path!r} has unsupported type {type_name!r}")
+    if not is_canonical_unit_name(digest.canonical):
+        raise _container_promotion(type_name, column=column, canonical=canonical)
+    return canonical_sql_type(canonical)
+
+
+def _declared_promotions(promote: dict[str, str]) -> dict[str, UnitTypeName]:
+    """The promotion declarations of one request, checked as far as the source-free
+    part of a decision reaches.
+
+    A target has to be a canonical unit name because it becomes a declaration in the
+    contract, and a key has to name a top-level column whatever the source turns out
+    to hold. Whether such a column exists is a fact about the source, settled later.
+    """
+    declared: dict[str, UnitTypeName] = {}
+    for column, canonical in sorted(promote.items()):
+        if not is_canonical_unit_name(canonical):
+            raise GenerationError(
+                f"{_promotion_declaration(column, canonical)} does not name a "
+                "canonical unit type; a promotion declares one of "
+                + ", ".join(repr(name) for name in sorted(CANONICAL_UNIT_NAMES))
+            )
+        if "." in column:
+            raise GenerationError(
+                f"promote names {column!r}, which is a path rather than a column "
+                f"name; {_NESTED_PROMOTION}"
+            )
+        declared[column] = canonical
+    return declared
+
+
+def _require_promoted_columns(inference: _Inference) -> None:
+    """Settle each promotion against the columns the source actually reported.
+
+    A key naming nothing is a typo or a request left stale by the data; a key naming
+    a member of a column is the plan's own scope limit, and is told as such instead
+    of being reported beside columns it could have named.
+    """
+    for column in sorted(set(inference.promote) - inference.promoted):
+        if column in inference.nested_members:
+            raise GenerationError(
+                f"promote names {column!r}, which the source reports only as a "
+                f"member of a column, not as a column; {_NESTED_PROMOTION}"
+            )
+        available = "; ".join(
+            f"relation {relation!r} exposes "
+            + ", ".join(repr(name) for name in sorted(names))
+            for relation, names in sorted(inference.columns.items())
+        ) or "no relation was inferred"
+        raise GenerationError(
+            f"promote names {column!r}, which is not a column the source reports; "
+            f"{available}. A promotion declares a column the reader reports, so it "
+            "has to name one of those"
+        )
+
+
+def _top_level_column(paths: _Paths) -> str | None:
+    """The column a member is, when it is one, since only a column can be promoted."""
+    return paths.logical[0] if len(paths.logical) == 1 else None
+
+
+def _resolve_scalar(
+    type_name: str, *, path: str, column: str | None = None,
+) -> ScalarTypeName:
+    """Map one DuckDB type name to a logical scalar through the digest gate.
+
+    The gate is the engine's table, not a copy of it here, so a decision is made
+    once for every DuckDB type: digestible as it stands, digestible only through
+    an author declaration because the only cast narrows, or refused with a reason.
+    An unknown name is a fourth case, and stays fail-closed.
+
+    ``column`` is what the member is when it is a top-level column, which decides
+    whether the declaration a declared-only type asks for can be named in terms an
+    author can actually write.
+    """
+    digest = digest_for(type_name)
+    if digest is None:
+        raise GenerationError(f"column {path!r} has unsupported type {type_name!r}")
+    if isinstance(digest, RefusedDigest):
+        raise _rejected(type_name, path, digest.reason)
+    if isinstance(digest, DeclaredOnlyDigest):
+        declared = canonical_sql_type(digest.canonical)
+        if column is None:
+            remedy = (
+                f"export the member as {declared} or declare this table outside a "
+                "generated package: an override reaches top-level columns only"
+            )
+            subject = "member"
+        else:
+            remedy = (
+                f"{_promotion_declaration(column, str(digest.canonical))} on this "
+                "request is the override, and the checked cast the scan then "
+                "applies fails the build on a value that does not fit"
+            )
+            subject = "column"
+        raise GenerationError(
+            f"column {path!r} has DuckDB type {type_name!r}, which reaches the "
+            f"canonical type {digest.canonical!r} only by narrowing: {digest.narrowing}. "
+            "The ingest boundary widens and never narrows by itself, so this "
+            f"{subject} needs a declared override saying that {declared} is the "
+            f"type meant; {remedy}."
+        )
+    if not is_canonical_unit_name(digest.canonical):
+        raise GenerationError(
+            f"column {path!r} has DuckDB type {type_name!r}, which digests to the "
+            f"canonical {digest.canonical!r} shape: a container is digested from "
+            "its item or member types rather than as a scalar, so the reported "
+            "type and the shape it belongs to do not fit each other."
+        )
+    return ScalarTypeName(digest.canonical)
 
 
 def _wrap(value: GeneratedType, nullability: Nullability) -> GeneratedType:
     if nullability is Nullability.DEFAULTED and not isinstance(value, GeneratedNullableType):
         return GeneratedNullableType(value)
     return value
-
-
-def _array_item_text(type_name: str) -> str:
-    normalized = type_name.strip()
-    return normalized[:-2].strip() if normalized.endswith("[]") else "VARCHAR"
 
 
 def _struct_member_texts(type_name: str) -> dict[str, str]:
@@ -251,17 +378,24 @@ class _Inference:
 
     ``used_names`` is scoped per relation rather than per pass: two tables in one
     group may legitimately have a column of the same name, while two columns of
-    one relation may not collide.
+    one relation may not collide. The promotion state is scoped per pass instead,
+    because a request declares a promotion once for the whole of what it generates.
     """
 
     declared_paths: set[str] = field(default_factory=set)
     used_names: dict[str, str] = field(default_factory=dict)
+    promote: dict[str, UnitTypeName] = field(default_factory=dict)
+    promoted: set[str] = field(default_factory=set)
+    columns: dict[str, set[str]] = field(default_factory=dict)
+    nested_members: set[str] = field(default_factory=set)
 
 
 def _register(
     inferred: GeneratedField, paths: _Paths, inference: _Inference,
 ) -> GeneratedField:
     """Record the paths one finished member claims, for the statistics pre-flight."""
+    if len(paths.logical) > 1:
+        inference.nested_members.update(paths.logical[1:])
     if inferred.nullability is not Nullability.DEFAULTED:
         inference.declared_paths.add(inferred.schema_path or paths.schema_text)
     return inferred
@@ -381,6 +515,18 @@ def _parquet_trees(
     return reference
 
 
+def _require_not_refused(type_name: str, *, path: str) -> None:
+    """Refuse a type the digest gate refuses, whichever authority reported it.
+
+    The node tree decides the shape and ``DESCRIBE`` decides the type, so a
+    refused family has to be refused before the tree reads it: a ``MAP`` footer
+    looks exactly like a record of a ``key`` and a ``value`` member.
+    """
+    digest = digest_for(type_name)
+    if isinstance(digest, RefusedDigest):
+        raise _rejected(type_name, path, digest.reason)
+
+
 def _shape_for_node(
     *, node: _ParquetNode, paths: _Paths, describe_type: str, inference: _Inference,
 ) -> tuple[GeneratedType, tuple[GeneratedClass, ...], bool]:
@@ -391,8 +537,11 @@ def _shape_for_node(
     convention inside itself, so ``VARCHAR[][]`` arrives as
     ``list / element / list / element`` and each level is one more array.
     """
+    _require_not_refused(describe_type, path=paths.logical_text)
     if not node.children:
-        scalar = _resolve_scalar(describe_type, path=paths.logical_text)
+        scalar = _resolve_scalar(
+            describe_type, path=paths.logical_text, column=_top_level_column(paths),
+        )
         return GeneratedScalarType(scalar), (), not node.declared
 
     if _is_list_node(node):
@@ -421,12 +570,56 @@ def _shape_for_node(
     for child in node.children:
         field_, child_declarations = _tree_field(
             node=child, paths=paths.child(child.name),
-            describe_type=described.get(child.name, "VARCHAR"), inference=inference,
+            describe_type=_member_type(
+                described, child, describe_type=describe_type, paths=paths,
+            ),
+            inference=inference,
         )
         members.append(field_)
         nested.extend(child_declarations)
     nested.append(GeneratedClass(struct_name, tuple(members), base="Struct"))
     return GeneratedStructType(struct_name), tuple(nested), not node.declared
+
+
+def _member_type(
+    described: dict[str, str], child: "_ParquetNode", *,
+    describe_type: str, paths: _Paths,
+) -> str:
+    """The type one record member is reported as, by either authority.
+
+    The flattened ``DESCRIBE`` string names the members it carries; a member it
+    leaves out still has a type of its own in the footer. Nothing here may guess:
+    a member no authority types would otherwise be read as text, which is a
+    claim about a value nobody made.
+    """
+    reported = described.get(child.name) or child.duckdb_type
+    if reported is None:
+        raise GenerationError(
+            f"member {paths.child(child.name).logical_text!r} is declared by the "
+            f"Parquet footer, but {describe_type!r} names no type for it and the "
+            "footer carries none either; the two views of this file do not agree "
+            "about its shape"
+        )
+    return reported
+
+
+def _item_type_text(describe_type: str, carrier: _ParquetNode, *, paths: _Paths) -> str:
+    """The type one list item is reported as, by either authority.
+
+    The flattened ``DESCRIBE`` string carries the item type inside its brackets
+    when it carries an array at all; otherwise the repeated node's own type is the
+    only report of it. A string naming neither is a disagreement, not an absence
+    of type: inventing one here would put a claim about the item in the contract.
+    """
+    reported = _array_item_text(describe_type) or carrier.duckdb_type
+    if reported is None:
+        raise GenerationError(
+            f"column {paths.logical_text!r} is a list in the Parquet footer, but "
+            f"{describe_type!r} names no item type and the {carrier.name!r} node "
+            "carries none either; the two views of this file do not agree about "
+            "its shape"
+        )
+    return reported
 
 
 def _item_of_list(
@@ -440,13 +633,15 @@ def _item_of_list(
     if not wrapper.children:
         item_paths = paths.child(wrapper.name)
         scalar = _resolve_scalar(
-            _array_item_text(describe_type), path=item_paths.logical_text,
+            _item_type_text(describe_type, wrapper, paths=paths),
+            path=item_paths.logical_text,
         )
         return GeneratedScalarType(scalar), (), not wrapper.declared
     element = wrapper.children[0]
     item_paths = paths.child(wrapper.name, element.name)
     item_type, declarations, item_nullable = _shape_for_node(
-        node=element, paths=item_paths, describe_type=_array_item_text(describe_type),
+        node=element, paths=item_paths,
+        describe_type=_item_type_text(describe_type, element, paths=paths),
         inference=inference,
     )
     return item_type, declarations, item_nullable
@@ -509,9 +704,10 @@ def _text_item_shape(
     has no name of its own in this form.
     """
     normalized = type_name.strip()
-    if normalized.endswith("[]"):
+    item = _array_item_text(normalized)
+    if item is not None:
         return _text_item_shape(
-            type_name=normalized[:-2].strip(), parent_class=parent_class,
+            type_name=item, parent_class=parent_class,
             paths=paths, inference=inference,
         )
     item_paths = paths.child("element") if paths.logical[-1] != "element" else paths
@@ -540,7 +736,7 @@ def _text_field(
     """One member inferred from a ``DESCRIBE`` type string, nullability included."""
     normalized = type_name.strip()
     declarations: tuple[GeneratedClass, ...] = ()
-    if normalized.endswith("[]"):
+    if _array_item_text(normalized) is not None:
         item, declarations = _text_item_shape(
             type_name=normalized, parent_class=parent_class, paths=paths,
             inference=inference,
@@ -567,7 +763,9 @@ def _text_field(
         value = GeneratedStructType(struct_name)
         declarations = tuple(nested)
     else:
-        scalar = _resolve_scalar(normalized, path=paths.logical_text)
+        scalar = _resolve_scalar(
+            normalized, path=paths.logical_text, column=_top_level_column(paths),
+        )
         value = GeneratedScalarType(scalar)
 
     return (
@@ -714,6 +912,12 @@ class DataContractInferenceConfig(ProviderGenerationConfig):
     mode: Literal["table", "table_group"] = "table"
     layout: Literal["files", "parquet_parts", "hive_partitioned_parquet"] = "files"
     anonymous: bool = False
+    #: The canonical type an author means a TOP-LEVEL column to hold, whatever the
+    #: reader reports for it, keyed by column name. A sniffing reader leaves a
+    #: ``YYYY-MM-DDTHH:MM`` string as ``VARCHAR``, so the temporal type of such a
+    #: feed has to be declared rather than inferred; the contract carries the
+    #: declared type and the source view applies the checked cast to it.
+    promote: dict[str, str] = {}
 
 
 class InferDataContractProvider(Provider[DataContractInferenceConfig]):
@@ -816,6 +1020,11 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         level. A DuckDB column that no file declares, such as a hive partition
         key, is ``DEFAULTED``; a node the read does not expose means the two views
         of the file disagree, which fails.
+
+        Where the request declares a canonical type for one of these columns, the
+        declaration replaces the type the read reported before either authority is
+        read for shape: it is the author's own word about what the column means, and
+        the scan's checked cast is what tests it against the values.
         """
         suffix = _source_suffix(sources[0])
         nodes = _parquet_trees(connection, sources) if suffix in _PARQUET_SUFFIXES else ()
@@ -831,6 +1040,14 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         for name, type_name, nullability in described:
             node = by_column.get(name)
             paths = _Paths((name,), (name,))
+            declared = inference.promote.get(name)
+            if declared is not None:
+                inference.promoted.add(name)
+                if node is not None and node.children:
+                    raise _container_promotion(type_name, column=name, canonical=declared)
+                type_name = _promoted_type_name(
+                    type_name, column=name, canonical=declared,
+                )
             if node is None:
                 members.append(_text_field(
                     name=name, type_name=type_name, nullability=nullability,
@@ -870,6 +1087,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 supporting.extend(nested)
             if not fields:
                 raise GenerationError(f"relation {relation!r} has no columns")
+            inference.columns[relation] = {field.external_name for field in fields}
         except GenerationError as error:
             resource = sources[0]
             additional = (
@@ -1004,7 +1222,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 "selects a database reader. Export the relation to Parquet, or "
                 "declare the contract outside a generated package."
             )
-        inference = _Inference()
+        inference = _Inference(promote=_declared_promotions(context.config.promote))
         if context.config.mode == "table_group":
             if context.config.relation is not None:
                 raise GenerationError("table-group inference does not accept relation=")
@@ -1020,6 +1238,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                     for item in table.sources:
                         _load_remote_access(connection, item)
                 package = cls._table_group_package(context, tables, connection, inference)
+                _require_promoted_columns(inference)
                 return package
             finally:
                 connection.close()
@@ -1047,6 +1266,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 class_name=class_name, final=True, inference=inference,
             )
             cls._report_null_statistics(connection, (source,), inference)
+            _require_promoted_columns(inference)
             return GeneratedPackage(
                 (GeneratedFile(Path("__init__.py"), classes, (class_name,)),),
                 (_nullability_note(

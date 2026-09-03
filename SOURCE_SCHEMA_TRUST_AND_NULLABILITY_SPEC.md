@@ -8,10 +8,23 @@ with the A7 migration of the reference project. Coverage lives in
 `tests/test_source_schema_trust.py`; §9 records where the implementation departs from
 a work item's wording, and why. The open decisions D1–D5 were settled (§7) before
 implementation.
-How an individual type is *represented* — dates, timestamps, decimals — remains out
-of scope and deferred to a later decision covering all specific types together (§8);
-this document decides only that a type with no total mapping is rejected rather than
+How an individual type is *represented* — dates, timestamps, decimals — was left out of
+scope here and deferred to a later decision covering all specific types together (§8);
+this document decided only that a type with no total mapping is rejected rather than
 guessed at.
+
+**Amendment — DuckDB type acceptance.** That later decision has since been taken, and it
+partly supersedes this document. The normative type table is
+[`DUCKDB_TYPE_ACCEPTANCE_MATRIX.md`](DUCKDB_TYPE_ACCEPTANCE_MATRIX.md); the plan is
+[`DUCKDB_TYPE_IMPLEMENTATION_PLAN.md`](DUCKDB_TYPE_IMPLEMENTATION_PLAN.md). They supersede
+**D1** for `date`, `time`, `timestamp` and `uuid`, which became canonical types that the
+digest gate accepts rather than refuses, while **D2** stands: `decimal` remains refused and
+deferred. They close **A4**'s deferral, reinstate the in-band override **A6** had recorded
+as removed — now at generation time, as a declared temporal promotion — and reverse part of
+**A7**. Superseded passages are marked where they stand rather than deleted, because this
+document stays the record of the decision as it was taken. What survives of it intact is
+the rule that a type with no meaning-preserving canonical form is refused rather than
+guessed at, and that nullability is never inferred from a value's shape.
 
 This document specifies how data-contract inference decides nullability, and how the
 framework verifies declared non-nullability against the data that actually arrives.
@@ -344,6 +357,12 @@ into the logical shape and matched to paths such as `authors[].email` against
    than falling through, and `DECIMAL` is rejected rather than coerced to `float` (§2.6).
    Rejecting a type is only safe while an author has somewhere else to put the column:
    export it in a mappable type, or declare that table outside a generated package.
+   *Superseded in part.* The fail-closed rule stands, and so does the refusal to coerce
+   `DECIMAL` — the digest gate still refuses every type with no meaning-preserving
+   canonical form. What changed is the size of the mapped set: `DATE`, `TIME`,
+   `TIMESTAMP` and `UUID` now digest to the canonical types `date`, `time`, `timestamp`
+   and `uuid`, and the third exit assumed missing here exists as a generation-time
+   declaration (A6).
 5. File statistics are a **pre-flight diagnostic, never the enforcement**. Their best
    use is at generation — the one moment the author can still change the request: "you
    declared `Field[str]` for `amount`; this file reports 1 null in 4 rows." At build they
@@ -480,7 +499,9 @@ handled in the same pass as a single file.
   `Field[str]`: `read_json_auto` types `published` as `DATE` today and inference
   silently produces a string, which invites a date into an identity key. `str` is not a
   lossy *value*, but it is a lossy *type*, and a rejection stays visible where a silent
-  `Field[str]` disappears.
+  `Field[str]` disappears. *(Superseded: `DATE`, `TIME`, `TIMESTAMP` and `UUID` are
+  canonical types now, each digested to its own canonical name rather than to `str`; the
+  argument that a silent `Field[str]` is unacceptable is what decided it.)*
 
 **What rejection removes.** `DECIMAL` plus the eleven temporal entries `DATE`, `TIME`,
 `TIME WITH TIME ZONE`, `TIMESTAMP`, `TIMESTAMP WITH TIME ZONE`, `TIMESTAMP_S`,
@@ -498,13 +519,23 @@ covered by unit tests on synthetic fixtures, not by the reference project — wh
 it belonged anyway. If a future fixture reintroduces a bare ISO date, generation fails
 loudly, and that is the intended behaviour.
 
-**Deferral.** *How* a specific type is represented — `DATE`, `TIMESTAMP`, `TIME`,
+*(Superseded, two ways: a bare ISO date is digested as canonical `date` now rather than
+refused, and the columns named above are typed by declared promotion rather than left
+`VARCHAR` — see A7.)*
+
+**Deferral — closed.** *How* a specific type is represented — `DATE`, `TIMESTAMP`, `TIME`,
 `DECIMAL`, and any other DuckDB name with no total mapping into the current logical
-scalars — is deliberately **not** decided here, and is deferred to one later decision
-covering all specific types together. What this document decides is only the behaviour
-while nothing has been decided: reject, fail closed, name the column path. A consequence
-worth stating now is that rejection needs an author-side exit or the deferral becomes a
-blocker, so A6's request-level override generalises from nullability to type.
+scalars — was deliberately **not** decided here, and was deferred to one later decision
+covering all specific types together. That decision has been taken:
+[`DUCKDB_TYPE_ACCEPTANCE_MATRIX.md`](DUCKDB_TYPE_ACCEPTANCE_MATRIX.md) is its normative
+type table and [`DUCKDB_TYPE_IMPLEMENTATION_PLAN.md`](DUCKDB_TYPE_IMPLEMENTATION_PLAN.md)
+its plan. `date`, `time`, `timestamp` and `uuid` became canonical types alongside
+`bool int float str`, each with a representative type for author annotations; `decimal`,
+`instant`, `interval` and `binary` stay refused with a reason recorded per row, so the
+`DECIMAL` coercion removed here is still removed. What this item decided for the interim —
+reject, fail closed, name the column path — is unchanged and is exactly the matrix's
+`reject` disposition. The author-side exit anticipated in the last sentence landed too, as
+A6's generation-time `promote:` declaration, not as a runtime override.
 
 **Tests:** one per rejected type name; a table-driven test asserting every type name
 produced by a fixture is either mapped or rejected. These run on synthetic fixtures the
@@ -616,7 +647,8 @@ an author who wants the null keeps it nullable.
 ### A6 — Exit paths
 
 *Not implemented. Neither remaining bullet is needed until inference reads remote
-sources; the exits that do exist are out-of-band.*
+sources; the exits that do exist are out-of-band.* *(Amended: an in-band type exit now
+exists at generation time — see the note at the end of this item.)*
 
 - Edit-time credential resolver, required only if inference is to read remote sources
   at all — Parquet or otherwise. Credentials are runtime-only today
@@ -628,6 +660,27 @@ export the column in a mappable type, or declare the table outside a generated
 package. Hand-editing a generated file remains refused (§2.5), which is deliberate —
 a generated product that no longer matches its request is not a contract anyone can
 regenerate.
+
+**Amended — the in-band exit is reinstated, at generation time.** Decision 7 of
+`DUCKDB_TYPE_IMPLEMENTATION_PLAN.md` places the declared/narrowing gate where the engine
+is available rather than at runtime, so `DataContractInferenceConfig` carries a top-level
+`promote: dict[str, canonical_name]` — `{"recorded_on": "timestamp"}` — and the
+declaration lives in the author-owned request file, never in the product (work package
+WP6). Three things this does **not** reopen:
+
+- it is a declaration, not an inference. The provider treats the promoted column as that
+  canonical type for contract purposes while the reader still reports `VARCHAR`, and the
+  scan applies the checked `CAST`;
+- it is a **declared-only** route for every type whose only available cast narrows the
+  value or its precision — `TIMESTAMP_NS`, `TIME_NS`, `HUGEINT`, `UBIGINT`, `UHUGEINT` —
+  and the ingest boundary only widens otherwise. A type with no meaning-preserving
+  canonical form is still refused, and scope stops at top-level columns: nested promotion
+  would replace sniffing with a declared schema and move JSON from the *defaulted* tier to
+  the *declared* one, which is a separate decision;
+- hand-editing a generated file remains refused (§2.5). The generation fingerprint covers
+  source bytes, so data that drifts away from the declaration makes the contract stale
+  rather than silently wrong — which is why the gate can sit at generation and still be
+  honest.
 
 ### A7 — Migration, same release as A2
 
@@ -673,7 +726,27 @@ each happen at a moment, so the data became more precise rather than evasive, an
 it still reads as a timestamp to whoever edits it next. Inference renders `Field[str]`
 either way — `_SCALAR_TYPES` maps `DATE`, the `TIMESTAMP*` family and `VARCHAR` all to
 `str` — so **no generated contract changes** and A7's migration is the seven binding inputs
-above and nothing else.
+above and nothing else. *(That last clause was true only while D1 stood; superseded below.)*
+
+**Amended — decision 8 reverses part of this.** `DATE`, `TIME`, `TIMESTAMP` and `UUID` are
+canonical types now, so `Field[str]` is no longer what inference renders either way: it
+renders `Field[str]` for a `VARCHAR` column and `Field[Timestamp | None]` for a temporal one.
+The reference project adopts typed temporal properties, so `surveys.surveyed_on`,
+`readings/temperature.recorded_on` and `readings/mechanical/vibration.recorded_on` become
+`Field[Timestamp | None]`, each with its `PropertySlot[Timestamp]` in the owning topology
+node and its binding remedy (`where_present()` or `default_to(...)`) under the exact-type
+rule. The two nested `observed_on` columns stay `Field[str | None]` — nested promotion is
+out of scope — and `equipment.survey_period` stays a string because `2026-Q3` is a period
+label, not a moment.
+
+What the fixture move did *not* survive is its dispensability. The `YYYY-MM-DDTHH:MM`
+no-seconds form is now **load-bearing**: `read_json_auto` reports a value written with
+seconds as `TIMESTAMP` and one written without as `VARCHAR`, and only the A6 declaration
+applies the checked `CAST`. Typing those columns is therefore a decision recorded in the
+request, not an accident of how the bytes are spelled. "Fixing" the format to include
+seconds would make the reader infer `TIMESTAMP` where nothing has been declared, and would
+leave the promotion in the request doing nothing anyone would notice; the plan asks for a
+comment in the data or the request so that stays visible.
 
 ### A8 — En-route cleanups
 
@@ -697,6 +770,7 @@ A5d withdrawn - a static rejection already beats the runtime message it asked fo
 A7 ships with A2
 A8 independent
 Deferred: how specific types are represented — not A1-A8, one later decision (§8)
+          [taken: DUCKDB_TYPE_ACCEPTANCE_MATRIX.md; A4's deferral is closed]
 ```
 
 - **A1** can ship alone; it changes no behaviour.
@@ -716,8 +790,8 @@ Deferred: how specific types are represented — not A1-A8, one later decision (
 
 | # | decision | resolution | consequence |
 |---|---|---|---|
-| D1 | `date` / `timestamp` | **Reject** at inference. Not a logical scalar, not a silent `Field[str]`, and not `CustomDataType` either — picking a representation is exactly what is deferred | Fail-closed per decision 4. The reference fixture moved to `YYYY-MM-DDTHH:MM` instants, so nothing in `reference_project/data` reaches a rejected type and no generated contract changes (A4, A7). Representation deferred to one later decision covering all specific types (§8) |
-| D2 | `decimal` | **Reject** outright, same basis as D1 | Removes the last silent coercion in `_SCALAR_TYPES`. No `DECIMAL` occurs in the reference data, so nothing there needs adapting |
+| D1 | `date` / `timestamp` | **Superseded** for `date`, `time`, `timestamp` and `uuid` by [`DUCKDB_TYPE_ACCEPTANCE_MATRIX.md`](DUCKDB_TYPE_ACCEPTANCE_MATRIX.md): each is a canonical logical type now, with representative types `Date`, `Time`, `Timestamp`, `Uuid` for annotations, and each is digested rather than refused. What was decided here was: **Reject** at inference — not a logical scalar, not a silent `Field[str]`, and not `CustomDataType` either, because picking a representation was exactly what was deferred. Refusal remains the rule for every type the matrix refuses (`TIME WITH TIME ZONE`, `TIMESTAMP WITH TIME ZONE`, `BIGNUM`, …) | Was: fail-closed per decision 4; the reference fixture moved to `YYYY-MM-DDTHH:MM` instants, so nothing in `reference_project/data` reached a rejected type and no generated contract changed (A4, A7). Now: the deferral is closed by the matrix, and those top-level columns are typed by a declared temporal promotion, which makes the no-seconds format load-bearing (A7) |
+| D2 | `decimal` | **Reject** outright, same basis as D1 — **and this verdict stands.** `decimal(p, s)` is still a refused type in the matrix, deferred because it needs a parameterised canonical type plus DuckDB's result-width rules, and because `DECIMAL / DECIMAL` returns `DOUBLE`, so no division operator may be offered. The silent `DECIMAL → float` coercion stays removed | Removes the last silent coercion in `_SCALAR_TYPES`. No `DECIMAL` occurs in the reference data, so nothing there needs adapting |
 | D3 | per-file divergence in a partitioned directory | **Fail**, naming both paths and files | A partitioned source is only inferrable when every file agrees; unifying to a `DEFAULTED` union stays a future option |
 | D4 | severity for a `DECLARED` **property** that receives nulls | **Abort**, same as a key | One severity, no configuration knob, and no findings module for A5a. A build can now fail purely because a read-only consumer was added — see A5's behaviour-change note |
 | D5 | statistics absent for a `DECLARED` Parquet column | **Proceed on the guard alone**, no count | The `SUM(CASE WHEN col IS NULL …)` aggregate is deleted from A5b; unknown stays unknown and a build-time null check costs one footer read |
@@ -743,6 +817,13 @@ Deferred: how specific types are represented — not A1-A8, one later decision (
   to one later decision rather than to per-type patches in the inference table.
 - Cross-source joins or lookups; `relational/planner.py` still requires one driving
   source and no lookup API exists.
+
+*Amended by the DuckDB type acceptance work* (§7 D1/D2, §5 A4) *:* the two type-related
+bullets above held nothing back permanently. `date`, `time`, `timestamp` and `uuid` have
+since entered the logical type model as canonical types, closing the deferral; `decimal`,
+`instant`, `interval` and `binary` did not, and are refused with a reason per row. Nothing
+here was overturned about **nullability**: it is still never derived from observed values,
+and the trust tiers *enforced / declared / defaulted* are unchanged.
 
 ---
 

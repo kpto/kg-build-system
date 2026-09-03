@@ -1,8 +1,8 @@
 {
-  "format_version": "4",
+  "format_version": "5",
   "owned_directories": [],
   "owned_file_hashes": {
-    "__init__.py": "8a11f8934402f9000f81e3b9c484c8c77c8669107c4fd1a83e0b6009482fee89"
+    "__init__.py": "d06112d0b00416bdab10cdaddf332c345ee7197290773aa740892bcf30137205"
   },
   "owned_files": [
     "__init__.py"
@@ -10,7 +10,7 @@
   "provider_import": "kg_build_system.code_generation.builtins.schema_inference",
   "provider_qualname": "InferDataContractProvider",
   "provider_version": "3",
-  "request_fingerprint": "37c79a8a11386050ae1c220e54c8aa91516c5f6583a2d6ff86e382cd4f52cf34",
+  "request_fingerprint": "f792fa8872c2563cf4429402c1d8febec8ac05fc9721c61a244242740b4cd7d8",
   "request_id": "surveys",
   "request_source_package": "reference_project.table"
 }

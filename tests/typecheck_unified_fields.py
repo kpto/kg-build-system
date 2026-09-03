@@ -1,14 +1,16 @@
 """Static contract for selection-specialized unified fields."""
+import datetime
 from typing import assert_type
+from uuid import UUID
 
 from kg_build_system.expressions import (
     ArrayExpression, ArraySelection, BoolExpression, IntExpression,
     NullableExpression, NullableSelection, StrExpression, StructExpression,
-    StructSelection, ValueSelection,
+    StructSelection, ValueExpression, ValueSelection,
 )
 from kg_build_system.table.fields import Field, field
 from kg_build_system.table.models import Struct, Table
-from kg_build_system.types import Array, Nullable
+from kg_build_system.types import Array, Date, Nullable, Time, Timestamp, Uuid
 
 
 class EvidenceStruct(Struct):
@@ -71,3 +73,42 @@ assert_type(
 )
 
 internal_nullable: object = Nullable[int]
+
+
+class TemporalTable(Table):
+    """Representative and stdlib spellings are one declaration, so they select alike."""
+
+    on: Field[Date] = field()
+    at: Field[Time | None] = field()
+    recorded: Field[Timestamp] = field()
+    token: Field[Uuid] = field()
+    stdlib_on: Field[datetime.date | None] = field()
+    stdlib_at: Field[datetime.time] = field()
+    stdlib_recorded: Field[datetime.datetime] = field()
+    stdlib_token: Field[UUID] = field()
+
+
+assert_type(TemporalTable.on, ValueSelection[Date])
+assert_type(TemporalTable.on.expression, ValueExpression[Date])
+assert_type(TemporalTable.at, NullableSelection[Time])
+assert_type(TemporalTable.at.where_present(), ValueSelection[Time])
+assert_type(TemporalTable.at.default_to(datetime.time(9, 30)), ValueSelection[Time])
+assert_type(TemporalTable.recorded, ValueSelection[Timestamp])
+assert_type(TemporalTable.token, ValueSelection[Uuid])
+assert_type(TemporalTable.token.expression, ValueExpression[Uuid])
+
+assert_type(TemporalTable.stdlib_on, NullableSelection[Date])
+assert_type(TemporalTable.stdlib_on.where_present(), ValueSelection[Date])
+assert_type(TemporalTable.stdlib_at, ValueSelection[Time])
+assert_type(TemporalTable.stdlib_recorded, ValueSelection[Timestamp])
+assert_type(TemporalTable.stdlib_token, ValueSelection[Uuid])
+
+
+class ReadingTable(Table):
+    taken_at: Field[Array[Timestamp]] = field()
+    observed_on: Field[Array[Date | None] | None] = field()
+
+
+assert_type(ReadingTable.taken_at, ArraySelection[Timestamp])
+assert_type(ReadingTable.taken_at.expand(), ValueSelection[Timestamp])
+assert_type(ReadingTable.observed_on.expand(), NullableSelection[Date])

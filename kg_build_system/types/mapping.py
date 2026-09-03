@@ -1,15 +1,13 @@
 """Mappings from logical-type domain models to compilation IRs."""
 from __future__ import annotations
 
-from typing import Any, cast
-
 from . import ir
 from . import models
 
 
 def type_to_ir(value: models.LogicalType) -> ir.LogicalTypeIR:
     if isinstance(value, models.UnitType):
-        return ir.UnitTypeIR(cast(Any, value.name))
+        return ir.UnitTypeIR(value.name)
     if isinstance(value, models.CustomType):
         return ir.CustomTypeIR(value.module, value.qualname)
     if isinstance(value, models.StructType):

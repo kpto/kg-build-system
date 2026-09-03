@@ -93,6 +93,11 @@ code { font-family: ui-monospace, monospace; font-size: 12px; background: #1a212
 .type.boolean { color: #dfa6ff; border-color: #4b2c5e; background: #201629; }
 .type.array { color: #f0b866; border-color: #5a4321; background: #231c12; }
 .type.composite { color: #7fd6e6; border-color: #28505a; background: #122326; }
+/* Temporals are one shape read at increasing precision, so the three share the
+   rose the older families leave free; an identifier is neither text nor number,
+   so it takes the yellow-green that is likewise unclaimed. */
+.type.date, .type.time, .type.timestamp { color: #f2a3a3; border-color: #5c2f2f; background: #241414; }
+.type.uuid { color: #cfe08a; border-color: #4f5a2a; background: #1e2313; }
 .nullable { font-size: 11px; color: #93a0b4; border: 1px dashed #3b475a; border-radius: 4px; padding: 1px 6px; }
 /* Which category introduced a property, in the violet used for abstractions. */
 .inherited { font-size: 11px; font-style: italic; color: #c4a2ff; margin-left: auto; }
@@ -181,13 +186,17 @@ function reachable(graph, name) {
 
 // Colour is keyed on the shape of the type, not its spelling, so a struct and a
 // custom scalar read as the same family while strings, numbers, booleans and
-// arrays each get their own. Nullability is a separate badge rather than a
-// colour, because it is a modifier on every family.
+// arrays each get their own. Each canonical unit that is its own shape — the
+// temporals and uuid — takes its canonical name as its family, so the badge class
+// and the document's type vocabulary say the same thing. Nullability is a separate
+// badge rather than a colour, because it is a modifier on every family.
 function typeFamily(type) {
   var base = String(type).replace(/\s*\|\s*None\s*$/, '').trim();
   if (base === 'bool') { return 'boolean'; }
   if (base === 'int' || base === 'float') { return 'number'; }
   if (base === 'str') { return 'string'; }
+  if (base === 'date' || base === 'time'
+      || base === 'timestamp' || base === 'uuid') { return base; }
   if (/^Array\s*\[/.test(base)) { return 'array'; }
   return 'composite';
 }
@@ -675,7 +684,10 @@ function main(documentData) {
 
 def _embed(document: dict[str, Any]) -> str:
     """Serialise the document for a ``<script type="application/json">`` block."""
-    payload = json.dumps(document, sort_keys=True, indent=2, default=str)
+    # The module canonicalises every example value before it renders, so the
+    # document is plain JSON here and a default hook would only paper over a value
+    # whose spelling disagrees with the JSON file written beside this page.
+    payload = json.dumps(document, sort_keys=True, indent=2)
     # A literal closing tag inside a string value would end the block early.
     return payload.replace("</", "<\\/")
 

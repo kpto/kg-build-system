@@ -11,7 +11,9 @@ survey_visit_binding = node_binding(
     target=SurveyVisitNode,
     build_key=SurveysTable.survey_id.where_present(),
     properties=SurveyVisitNode(
-        surveyed_on=SurveysTable.surveyed_on.default_to("Undated survey"),
+        # A timestamp has no honest sentinel, so an undated survey carries no
+        # date at all rather than the text a string property would have needed.
+        surveyed_on=SurveysTable.surveyed_on,
         surveyor=SurveysTable.surveyor.pick(lambda value: value.name).default_to("Unattributed"),
         practice=(
             SurveysTable.surveyor

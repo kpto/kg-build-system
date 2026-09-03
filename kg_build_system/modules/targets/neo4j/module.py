@@ -12,6 +12,14 @@ from ...._frozen_json import freeze_json, thaw_json
 from ....compile.interfaces import CompilationContext, ModuleCompiler
 from ....modules.interfaces import Module, ModuleRegistrationConfiguration
 from ....topology.ir import ComponentIR
+from ....types.ir import (
+    ArrayTypeIR,
+    CustomTypeIR,
+    LogicalTypeIR,
+    NullableTypeIR,
+    StructTypeIR,
+    UnitTypeIR,
+)
 from ....workflow.interfaces import ModuleExecutor
 from ....workflow.models import (
     Artifact,
@@ -52,6 +60,17 @@ _HEADER_CONTROL = frozenset(":{}\r\n")
 _MODULE_ID = "neo4j"
 _RESERVED_PROPERTIES = frozenset({
     "build_key", "source_build_key", "target_build_key", "_kg_binding_symbol",
+})
+# The canonical property types this target can export. The bundle declares no
+# header types (see `render_import_script`), so the importer infers each column
+# from its Parquet schema: BOOLEAN, INT32/INT64 and FLOAT/DOUBLE map to
+# boolean/long/double, BINARY and UTF-8 to string, and the DATE, TIME and
+# TIMESTAMP logical types to Neo4j temporals — Operations Manual → Import →
+# "Default data types for Parquet" (Table 5). `uuid` has no entry in that
+# mapping and Neo4j has no UUID property type — Cypher Manual → "Property,
+# structural, and constructed values" — so it is refused rather than coerced.
+_PROPERTY_TYPE_CAPABILITY = frozenset({
+    "bool", "int", "float", "str", "date", "time", "timestamp",
 })
 
 
@@ -102,9 +121,33 @@ def _annotation_label(component: ComponentIR) -> str:
     return label
 
 
+def _display_logical_type(value: LogicalTypeIR) -> str:
+    """Render a property's logical type in the author-facing vocabulary."""
+    if isinstance(value, UnitTypeIR):
+        return value.name
+    if isinstance(value, CustomTypeIR | StructTypeIR):
+        return value.qualname
+    if isinstance(value, ArrayTypeIR):
+        return f"Array[{_display_logical_type(value.item)}]"
+    if isinstance(value, NullableTypeIR):
+        return f"{_display_logical_type(value.value)} | None"
+    raise TypeError(f"unsupported logical type {value!r}")
+
+
+def _capability_key(value: LogicalTypeIR) -> str | None:
+    """The canonical unit name a property is exported under, if it has one.
+
+    Nullability is not a capability question: an absent value simply produces no
+    property on the node or relationship.
+    """
+    unit = value.value if isinstance(value, NullableTypeIR) else value
+    return unit.name if isinstance(unit, UnitTypeIR) else None
+
+
 def _validate_properties(component: ComponentIR) -> tuple[str, ...]:
-    names = tuple(item.name for item in component.properties)
-    for name in names:
+    names: list[str] = []
+    for declaration in component.properties:
+        name = declaration.name
         if name in _RESERVED_PROPERTIES:
             raise ValueError(
                 f"component {component.name!r} property {name!r} conflicts with "
@@ -115,7 +158,16 @@ def _validate_properties(component: ComponentIR) -> tuple[str, ...]:
                 f"component {component.name!r} property {name!r} cannot be encoded "
                 "as an inline Neo4j import header"
             )
-    return names
+        if _capability_key(declaration.logical_type) not in _PROPERTY_TYPE_CAPABILITY:
+            supported = ", ".join(sorted(_PROPERTY_TYPE_CAPABILITY))
+            raise ValueError(
+                f"neo4j target cannot export {component.kind} component "
+                f"{component.name!r} property {name!r} of type "
+                f"{_display_logical_type(declaration.logical_type)!r}; it exports "
+                f"these canonical property types: {supported}"
+            )
+        names.append(name)
+    return tuple(names)
 
 
 @dataclass(frozen=True)
@@ -149,6 +201,7 @@ class Neo4jModule(Module):
 
     ID: ClassVar[str] = _MODULE_ID
     VERSION: ClassVar[str] = "2"
+    PROPERTY_TYPE_CAPABILITY: ClassVar[frozenset[str]] = _PROPERTY_TYPE_CAPABILITY
     CONFIGURATION_TYPE: ClassVar[type[Neo4jModuleConfiguration]] = (
         Neo4jModuleConfiguration
     )

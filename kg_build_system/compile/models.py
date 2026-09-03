@@ -10,7 +10,7 @@ from ..topology.ir import ComponentIR
 from ..workflow.ir import BlueprintModuleIR
 
 
-BLUEPRINT_SCHEMA_VERSION: Final = 3
+BLUEPRINT_SCHEMA_VERSION: Final = 4
 
 
 @dataclass(frozen=True, slots=True)
@@ -24,7 +24,7 @@ class BuildBlueprint:
     bindings: tuple[BindingIR, ...]
     sources: tuple[SourceIR, ...] = ()
     modules: tuple[BlueprintModuleIR, ...] = ()
-    schema_version: Literal[3] = 3
+    schema_version: Literal[4] = 4
 
 
 __all__ = ["BLUEPRINT_SCHEMA_VERSION", "BuildBlueprint"]

@@ -453,9 +453,9 @@ class BlueprintTests(unittest.TestCase):
         result = self.blueprint()
         encoded = blueprint_json(result)
         self.assertEqual(decode_blueprint(json.loads(encoded)), result)
-        self.assertEqual(result.schema_version, 3)
+        self.assertEqual(result.schema_version, 4)
         document = json.loads(encoded)
-        self.assertEqual(document["schema_version"], 3)
+        self.assertEqual(document["schema_version"], 4)
         self.assertTrue(any(item.get("abstract") for item in document["components"]))
         self.assertTrue(
             any(item.get("parent") for item in document["components"])

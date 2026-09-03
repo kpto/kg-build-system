@@ -24,7 +24,16 @@ equipment = generation(
 
 surveys = generation(
     InferDataContractProvider,
-    DataContractInferenceConfig(source="../data/surveys.json", mode="table"),
+    DataContractInferenceConfig(
+        source="../data/surveys.json",
+        mode="table",
+        # ``surveyed_on`` holds ``YYYY-MM-DDTHH:MM`` without seconds, which
+        # ``read_json_auto`` sniffs as VARCHAR rather than TIMESTAMP, so the
+        # temporal type is declared here and the scan applies the checked cast.
+        # That seconds-free spelling is load-bearing: writing ``14:20:00`` makes
+        # the reader report TIMESTAMP and this promotion silently does nothing.
+        promote={"surveyed_on": "timestamp"},
+    ),
 )
 
 readings = generation(
@@ -33,5 +42,12 @@ readings = generation(
         source="../data/readings",
         mode="table_group",
         layout="files",
+        # Every logger family records ``recorded_on`` as ``YYYY-MM-DDTHH:MM``
+        # without seconds, which ``read_json_auto`` sniffs as VARCHAR rather
+        # than TIMESTAMP, so one declaration covers each relation in the group
+        # that has the column. That seconds-free spelling is load-bearing:
+        # writing ``14:20:00`` makes the reader report TIMESTAMP and this
+        # promotion silently does nothing.
+        promote={"recorded_on": "timestamp"},
     ),
 )

@@ -11,7 +11,7 @@ surveyed_at_binding = edge_binding(
     source_build_key=SurveysTable.survey_id.where_present(),
     target_build_key=SurveysTable.site_id.where_present(),
     properties=SurveyedAtEdge(
-        as_at=SurveysTable.surveyed_on.default_to("Undated survey"),
+        as_at=SurveysTable.surveyed_on,
         **relation_stamps,
     ),
 )

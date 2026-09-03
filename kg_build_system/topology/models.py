@@ -9,10 +9,10 @@ from .._support.docstrings import attribute_docstring
 from .._support.naming import declaration_name, member_name
 from ..annotations import Annotation, EdgeLabel, NodeLabel, annotation_tuple
 from ..expressions import NullableAuthoringInput, ValueInput
-from ..types import CustomDataType, LogicalType, normalize_type, require_scalar
+from ..types import CustomDataType, Date, LogicalType, Time, Timestamp, Uuid, normalize_type, require_scalar
 
-type GraphValue = bool | int | float | str | CustomDataType | None
-type NonNullableGraphValue = bool | int | float | str | CustomDataType
+type GraphValue = bool | int | float | str | Date | Time | Timestamp | Uuid | CustomDataType | None
+type NonNullableGraphValue = bool | int | float | str | Date | Time | Timestamp | Uuid | CustomDataType
 T = TypeVar("T", bound=GraphValue)
 
 # The public slot type describes accepted values. Declaration metadata remains

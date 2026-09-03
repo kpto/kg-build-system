@@ -13,6 +13,7 @@ from kg_build_system import (
     EdgeOptionsTemplate, EdgeTemplate, NodeLabel, NodeOptions,
     NodeOptionsTemplate, NodeTemplate, PropertySlot, property,
 )
+from kg_build_system.types import Timestamp
 
 
 @dataclass(frozen=True)
@@ -47,6 +48,22 @@ class RecordedRelationEdgeTemplate(EdgeTemplate):
     options = EdgeOptionsTemplate(annotations=(Provenance(stage="derived"),))
     as_at: PropertySlot[str] = property()
     """The date or period the relation is asserted as at."""
+
+    stage: PropertySlot[str] = property()
+    """The build stage that asserted the relation."""
+
+
+class TimestampedRelationEdgeTemplate(EdgeTemplate):
+    """Every relation states the instant it is asserted as at, and by which stage.
+
+    A sibling of the recorded template rather than a subclass of it: ``as_at``
+    is one slot, and a subclass cannot re-declare an inherited slot at another
+    type, so a relation whose as-at the feed types as a moment mixes this one.
+    """
+
+    options = EdgeOptionsTemplate(annotations=(Provenance(stage="derived"),))
+    as_at: PropertySlot[Timestamp | None] = property()
+    """The instant the relation is asserted as at, absent when the feed gives none."""
 
     stage: PropertySlot[str] = property()
     """The build stage that asserted the relation."""

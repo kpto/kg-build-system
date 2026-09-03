@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import asyncio
 import importlib
 import json
 from pathlib import Path, PurePosixPath
@@ -135,6 +136,14 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
             self.assertIn("id: Field[str] = field(name='id')", generated_source)
             self.assertIn("# fmt: off", generated_source)
             self.assertIn("# isort: skip_file", generated_source)
+            # The representative import names the whole set whatever a file
+            # annotates (decision 5), so the unused names it leaves are suppressed.
+            self.assertIn("# ruff: noqa: F401", generated_source)
+            self.assertIn("# pyright: reportUnusedImport=false", generated_source)
+            self.assertIn(
+                "from kg_build_system.types import Array, Date, Time, Timestamp, Uuid",
+                generated_source,
+            )
             self.assertNotIn("G_", generated_source)
             self.assertEqual((await generate(root)).status, GenerationStatus.CURRENT)
 
@@ -201,7 +210,10 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
             )
 
         source = rendered[PurePosixPath("__init__.py")]
-        self.assertIn("from kg_build_system import Array, Field, Table, TableOptions, field", source)
+        self.assertIn("from kg_build_system import Field, Table, TableOptions, field", source)
+        self.assertIn(
+            "from kg_build_system.types import Array, Date, Time, Timestamp, Uuid", source,
+        )
         self.assertIn("from contracts.release.details import DetailsStruct", source)
         self.assertIn("details: Field[DetailsStruct | None] = field(name='details')", source)
         self.assertIn("scores: Field[Array[int | None] | None] = field(name='scores')", source)
@@ -628,6 +640,325 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
             "s3://bucket/release/associations/year=2024/part-00000.parquet",
             "s3://bucket/release/associations/year=2025/part-00001.parquet",
         ]])
+
+
+class _ReportedConnection:
+    """A connection answering ``DESCRIBE`` from fixed rows.
+
+    A file cannot always be written in the type under test — Parquet does not keep
+    nanosecond precision, and a refused type may have no writer at all — so the
+    reader's own report is stated directly, as the digest gate reads it.
+    """
+
+    def __init__(self, described: list[tuple[object, ...]]) -> None:
+        self.described = described
+
+    def execute(self, sql: str, parameters: object = None) -> _Rows:
+        return _Rows(self.described) if sql.startswith("DESCRIBE") else _Rows([])
+
+    def close(self) -> None:
+        pass
+
+
+#: The whole representative set, imported by every generated file that declares
+#: anything (DUCKDB_TYPE_IMPLEMENTATION_PLAN.md decision 5).
+REPRESENTATIVE_IMPORT = "from kg_build_system.types import Array, Date, Time, Timestamp, Uuid"
+
+#: An ISO date-time with no seconds, which ``read_json_auto`` leaves as text: the
+#: measured behaviour that makes decision 9 necessary.
+TEMPORAL_TEXT = "2026-07-14T06:15"
+
+PROMOTING_REQUEST = (
+    "from kg_build_system.code_generation import generation\n"
+    "from kg_build_system.code_generation.builtins import (\n"
+    "    DataContractInferenceConfig,\n"
+    "    InferDataContractProvider,\n"
+    ")\n\n"
+    "notes = generation(\n"
+    "    InferDataContractProvider,\n"
+    "    DataContractInferenceConfig(\n"
+    '        source="../data/n.json", promote={"when": "timestamp"},\n'
+    "    ),\n"
+    ")\n"
+)
+
+
+class DeclaredPromotionTests(unittest.IsolatedAsyncioTestCase):
+    """Decision 9 — a request may declare the canonical type of one of its columns.
+
+    The reader reports what it sniffed, so the temporal type of a text feed is a
+    declaration rather than an inference. Every limit the decision draws is one case
+    here: what a declaration may lift, what it may not, and which columns it reaches.
+    """
+
+    async def infer(self, root: Path, **configuration: object):
+        context = ProviderContext(
+            root, root / "__init__.py", "release",
+            DataContractInferenceConfig(**configuration),  # type: ignore[arg-type]
+        )
+        return await InferDataContractProvider.generate(context)
+
+    async def infer_reported(
+        self, described: list[tuple[object, ...]], **configuration: object,
+    ):
+        with patch(
+            "kg_build_system.code_generation.builtins.schema_inference.duckdb.connect",
+            return_value=_ReportedConnection(described),
+        ):
+            return await self.infer(
+                Path("."), source="s3://bucket/release.json", **configuration,
+            )
+
+    @staticmethod
+    def shapes(package) -> dict[str, object]:
+        table = next(
+            declaration
+            for file in package.files
+            for declaration in file.declarations
+            if declaration.base == "Table"
+        )
+        return {field.external_name: field.value_type for field in table.fields}
+
+    def test_the_reader_leaves_a_date_time_without_seconds_as_text(self) -> None:
+        """The premise of the decision, measured rather than assumed."""
+        with TemporaryDirectory() as directory:
+            location = str(Path(directory, "n.json")).replace("\\", "/")
+            Path(location).write_text(
+                json.dumps([{"when": TEMPORAL_TEXT, "day": "2026-08-02"}]),
+                encoding="utf-8",
+            )
+            connection = duckdb.connect()
+            try:
+                reported = {
+                    str(row[0]): str(row[1]) for row in connection.execute(
+                        f"DESCRIBE SELECT * FROM read_json_auto('{location}')"
+                    ).fetchall()
+                }
+            finally:
+                connection.close()
+
+        self.assertEqual(reported, {"when": "VARCHAR", "day": "DATE"})
+
+    async def test_a_promoted_column_is_declared_as_the_type_it_was_meant_for(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "n.json").write_text(
+                json.dumps([{"when": TEMPORAL_TEXT}]), encoding="utf-8",
+            )
+            inferred = await self.infer(root, source="n.json")
+            promoted = await self.infer(
+                root, source="n.json", promote={"when": "timestamp"},
+            )
+
+        self.assertEqual(
+            self.shapes(inferred)["when"],
+            GeneratedNullableType(GeneratedScalarType("str")),
+            "without the declaration the contract can only say what was sniffed",
+        )
+        self.assertEqual(
+            self.shapes(promoted)["when"],
+            GeneratedNullableType(GeneratedScalarType("timestamp")),
+            "nullability still comes from the source tier, the type from the author",
+        )
+
+    async def test_a_promotion_reaches_the_generated_declaration(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory) / "project"
+            (root / "data").mkdir(parents=True)
+            (root / "data" / "n.json").write_text(
+                json.dumps([{"when": TEMPORAL_TEXT}]), encoding="utf-8",
+            )
+            (root / "contracts").mkdir()
+            (root / "contracts" / "__init__.py").write_text(
+                PROMOTING_REQUEST, encoding="utf-8",
+            )
+            result = await generate(root)
+            generated = (root / "contracts" / "notes" / "__init__.py").read_text(
+                encoding="utf-8",
+            )
+            self.assertEqual(result.status, GenerationStatus.CHANGED)
+            self.assertIn("when: Field[Timestamp | None] = field(name='when')", generated)
+            self.assertIn(REPRESENTATIVE_IMPORT, generated)
+            self.assertEqual(
+                (await generate(root, check=True)).status, GenerationStatus.CURRENT,
+            )
+
+    async def test_a_promotion_does_not_lift_a_refusal(self) -> None:
+        """(a) A refusal says no canonical form exists, not that none was declared."""
+        for type_name in ("DECIMAL(18,2)", "INTERVAL", "BLOB", "TIMESTAMP WITH TIME ZONE"):
+            with self.subTest(type=type_name):
+                with self.assertRaises(GenerationError) as raised:
+                    await self.infer_reported(
+                        [("amount", type_name, "YES")],
+                        promote={"amount": "timestamp"},
+                    )
+                message = str(raised.exception)
+                self.assertIn("column 'amount'", message)
+                self.assertIn("rejected", message)
+                self.assertIn("not a gate a declaration lifts", message)
+                self.assertIn("no meaning-preserving canonical type exists", message)
+                self.assertIn("outside a generated package", message)
+
+    async def test_a_promotion_is_the_declaration_a_declared_only_type_asks_for(self) -> None:
+        """(b) A narrowing reserved for a declaration is exactly what one grants."""
+        cases = (
+            ("UBIGINT", "int"), ("HUGEINT", "int"), ("UHUGEINT", "int"),
+            ("TIME_NS", "time"), ("TIMESTAMP_NS", "timestamp"),
+        )
+        for type_name, canonical in cases:
+            with self.subTest(type=type_name):
+                with self.assertRaises(GenerationError) as raised:
+                    await self.infer_reported([("value", type_name, "YES")])
+                self.assertIn(
+                    "promote={'value': " + repr(canonical) + "}", str(raised.exception),
+                    "the message names the declaration that would carry it",
+                )
+                package = await self.infer_reported(
+                    [("value", type_name, "YES")], promote={"value": canonical},
+                )
+                self.assertEqual(
+                    self.shapes(package)["value"],
+                    GeneratedNullableType(GeneratedScalarType(canonical)),
+                )
+
+    async def test_a_promotion_onto_a_mapped_or_equal_type_is_allowed(self) -> None:
+        """(f) DuckDB's checked cast, not a rule here, arbitrates a promotion."""
+        for type_name, canonical in (
+            ("BIGINT", "str"), ("DOUBLE", "int"), ("VARCHAR", "uuid"), ("BIGINT", "int"),
+        ):
+            with self.subTest(type=type_name, canonical=canonical):
+                package = await self.infer_reported(
+                    [("value", type_name, "YES")], promote={"value": canonical},
+                )
+                self.assertEqual(
+                    self.shapes(package)["value"],
+                    GeneratedNullableType(GeneratedScalarType(canonical)),
+                )
+
+    async def test_a_promotion_naming_no_column_names_the_columns_there_are(self) -> None:
+        """(d) A stale or mistyped key fails generation rather than being ignored."""
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "n.json").write_text(
+                json.dumps([{"survey_id": "S-1", "surveyed_on": TEMPORAL_TEXT}]),
+                encoding="utf-8",
+            )
+            with self.assertRaises(GenerationError) as raised:
+                await self.infer(
+                    root, source="n.json", promote={"recorded_on": "timestamp"},
+                )
+
+        message = str(raised.exception)
+        self.assertIn("promote names 'recorded_on'", message)
+        self.assertIn("'survey_id'", message, "the available columns are named")
+        self.assertIn("'surveyed_on'", message)
+        self.assertIn("relation 'n'", message)
+
+    async def test_a_promotion_of_a_path_is_refused_as_a_nested_promotion(self) -> None:
+        """(e) A dotted key names a member, and nested promotion is undecided."""
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "n.json").write_text(
+                json.dumps([{"meta": {"observed_on": TEMPORAL_TEXT}}]), encoding="utf-8",
+            )
+            with self.assertRaises(GenerationError) as raised:
+                await self.infer(
+                    root, source="n.json", promote={"meta.observed_on": "timestamp"},
+                )
+
+        self.assertIn("a path rather than a column name", str(raised.exception))
+        self.assertIn("a separate decision", str(raised.exception))
+
+    async def test_a_promotion_naming_a_nested_member_is_refused_as_such(self) -> None:
+        """(e) The same limit holds when the key is spelled as one bare name."""
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "n.json").write_text(
+                json.dumps([{"meta": {"observed_on": TEMPORAL_TEXT}}]), encoding="utf-8",
+            )
+            with self.assertRaises(GenerationError) as raised:
+                await self.infer(
+                    root, source="n.json", promote={"observed_on": "timestamp"},
+                )
+
+        message = str(raised.exception)
+        self.assertIn("only as a member of a column", message)
+        self.assertIn("a separate decision", message)
+        self.assertNotIn("is not a column the source reports", message)
+
+    async def test_a_promotion_of_a_container_column_has_no_type_to_declare(self) -> None:
+        """The scope limit again, met by a column the reader reports as a shape."""
+        for value in ({"a": TEMPORAL_TEXT}, [TEMPORAL_TEXT]):
+            with self.subTest(shape=type(value).__name__):
+                with TemporaryDirectory() as directory:
+                    root = Path(directory)
+                    (root / "n.json").write_text(
+                        json.dumps([{"meta": value}]), encoding="utf-8",
+                    )
+                    with self.assertRaises(GenerationError) as raised:
+                        await self.infer(
+                            root, source="n.json", promote={"meta": "timestamp"},
+                        )
+
+                message = str(raised.exception)
+                self.assertIn("column 'meta'", message)
+                self.assertIn("a container whose shape is digested from the types below it", message)
+
+    async def test_a_promotion_applies_across_a_group_from_one_declaration(self) -> None:
+        """(d) at group scope: one request declares once for the source it reads.
+
+        A table group is one source, so a key has to name a column some relation of
+        it exposes, and it promotes every relation that has that column.
+        """
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "data").mkdir()
+            (root / "data" / "temperature.json").write_text(
+                json.dumps([{"recorded_on": TEMPORAL_TEXT}]), encoding="utf-8",
+            )
+            (root / "data" / "vibration.json").write_text(
+                json.dumps([{"recorded_on": TEMPORAL_TEXT, "note": "x"}]), encoding="utf-8",
+            )
+            promoted = await self.infer(
+                root, source="data", mode="table_group",
+                promote={"recorded_on": "timestamp"},
+            )
+            with self.assertRaises(GenerationError) as raised:
+                await self.infer(
+                    root, source="data", mode="table_group",
+                    promote={"surveyed_on": "timestamp"},
+                )
+
+        declared = {
+            field.external_name: field.value_type
+            for file in promoted.files
+            for declaration in file.declarations
+            if declaration.base == "Table"
+            for field in declaration.fields
+        }
+        self.assertEqual(
+            declared["recorded_on"],
+            GeneratedNullableType(GeneratedScalarType("timestamp")),
+            "both partitions carry the declared type from the one declaration",
+        )
+        message = str(raised.exception)
+        self.assertIn("promote names 'surveyed_on'", message)
+        self.assertIn("relation 'temperature' exposes 'recorded_on'", message)
+        self.assertIn("'note'", message, "every relation's columns are named")
+
+    async def test_a_promotion_target_must_be_a_canonical_unit_name(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "n.json").write_text(
+                json.dumps([{"when": TEMPORAL_TEXT}]), encoding="utf-8",
+            )
+            with self.assertRaises(GenerationError) as raised:
+                await self.infer(root, source="n.json", promote={"when": "datetime"})
+
+        message = str(raised.exception)
+        self.assertIn("does not name a canonical unit type", message)
+        self.assertIn("'timestamp'", message, "the vocabulary a promotion may name")
+        self.assertIn("'uuid'", message)
 
 
 if __name__ == "__main__": unittest.main()

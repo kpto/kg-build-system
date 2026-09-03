@@ -5,12 +5,17 @@ from types import NoneType, UnionType
 from typing import Any, get_args, get_origin
 
 from .models import (
-    Array, ArrayType, BOOL, CustomDataType, CustomType, FLOAT, INT, LogicalType,
-    Nullable, NullableType, STR, Struct, StructType,
+    Array, ArrayType, BOOL, CustomDataType, CustomType, DATE, Date, FLOAT, INT, LogicalType,
+    Nullable, NullableType, STR, Struct, StructType, TIME, TIMESTAMP, Time, Timestamp, UUID, Uuid,
 )
 
 
-_UNITS = {bool: BOOL, int: INT, float: FLOAT, str: STR}
+# The keys are the stdlib classes the representative aliases name, so an author
+# writing ``Date`` or ``datetime.date`` normalizes to the same canonical unit.
+_UNITS = {
+    bool: BOOL, int: INT, float: FLOAT, str: STR,
+    Date: DATE, Time: TIME, Timestamp: TIMESTAMP, Uuid: UUID,
+}
 
 
 def _declared_type(annotation: type[Any], kind: type[CustomType] | type[StructType]) -> CustomType | StructType:

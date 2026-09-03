@@ -7,7 +7,7 @@ from typing import Literal, TypeAlias
 
 @dataclass(frozen=True, slots=True)
 class UnitTypeIR:
-    name: Literal["bool", "int", "float", "str"]
+    name: Literal["bool", "int", "float", "str", "date", "time", "timestamp", "uuid"]
 
 
 @dataclass(frozen=True, slots=True)

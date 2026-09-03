@@ -40,9 +40,13 @@ from kg_build_system.modules import (
 )
 from kg_build_system.modules.targets.neo4j.ir import (
     Neo4jExportInstructionIR,
+    Neo4jNodeImportIR,
     Neo4jScriptInstructionIR,
     decode_neo4j_instruction,
 )
+from kg_build_system.modules.targets.neo4j.module import Neo4jExecutor
+from kg_build_system.types import Date, Time, Timestamp, Uuid
+from kg_build_system.workflow.ir import WorkflowContractIR
 
 
 class Neo4jInput(Table):
@@ -86,6 +90,81 @@ def _source(path: Path):
     return bind_source(
         target=Neo4jInput,
         config=DataSourceConfig(str(path), format=InputFormat.JSON),
+    )
+
+
+class TemporalInput(Table):
+    identifier: Field[str] = field()
+    visited_on: Field[Date] = field()
+    visited_at: Field[Time] = field()
+    recorded: Field[Timestamp | None] = field()
+
+
+class VisitNode(Node):
+    options = NodeOptions(annotations=(NodeLabel("Visit"),))
+
+    visited_on: PropertySlot[Date] = property()
+    visited_at: PropertySlot[Time] = property()
+    recorded: PropertySlot[Timestamp | None] = property()
+
+
+visit_binding = node_binding(
+    target=VisitNode,
+    build_key=TemporalInput.identifier,
+    properties=VisitNode(
+        visited_on=TemporalInput.visited_on,
+        visited_at=TemporalInput.visited_at,
+        recorded=TemporalInput.recorded,
+    ),
+)
+
+
+class TokenInput(Table):
+    identifier: Field[str] = field()
+    friend_identifier: Field[str] = field()
+    token: Field[Uuid] = field()
+
+
+class CredentialNode(Node):
+    options = NodeOptions(annotations=(NodeLabel("Credential"),))
+
+    token: PropertySlot[Uuid] = property()
+
+
+class IssuedEdge(Edge[PersonNode, PersonNode]):
+    options = EdgeOptions(annotations=(EdgeLabel("ISSUED"),))
+
+    token: PropertySlot[Uuid] = property()
+
+
+credential_binding = node_binding(
+    target=CredentialNode,
+    build_key=TokenInput.identifier,
+    properties=CredentialNode(token=TokenInput.token),
+)
+issued_binding = edge_binding(
+    target=IssuedEdge,
+    build_key=TokenInput.identifier,
+    source_build_key=TokenInput.identifier,
+    target_build_key=TokenInput.friend_identifier,
+    properties=IssuedEdge(token=TokenInput.token),
+)
+
+
+def _bound(table: type[Table], path: Path):
+    return bind_source(
+        target=table,
+        config=DataSourceConfig(str(path), format=InputFormat.JSON),
+    )
+
+
+def _export_instructions(contract: WorkflowContractIR) -> tuple[Neo4jExportInstructionIR, ...]:
+    return tuple(
+        instruction
+        for step in contract.workflow.steps
+        if step.module_id == Neo4jModule.ID
+        for instruction in (decode_neo4j_instruction(step.payload),)
+        if isinstance(instruction, Neo4jExportInstructionIR)
     )
 
 
@@ -338,6 +417,66 @@ class Neo4jTargetTests(unittest.TestCase):
             self.assertIn("--input-type=parquet", command)
             self.assertIn(f"--nodes={node_path}", command)
             self.assertIn(f"--relationships={edge_path}", command)
+
+    def test_compiles_the_canonical_temporal_property_types(self) -> None:
+        contract = compile(
+            bindings=(visit_binding,),
+            sources=(_bound(TemporalInput, Path("input.json")),),
+            modules=(register_module(Neo4jModule),),
+        )
+        export = next(
+            item for item in _export_instructions(contract)
+            if item.component.kind == "node"
+        )
+        self.assertEqual(
+            export.component.properties, ("visited_on", "visited_at", "recorded"),
+        )
+
+    def test_temporal_properties_are_exported_uncast(self) -> None:
+        """Parquet carries the column type, so the exporter must not cast it."""
+        sql = Neo4jExecutor._select_sql(
+            Neo4jNodeImportIR(
+                component="visit",
+                symbol_id="node:visit",
+                label="Visit",
+                relative_path="nodes/visit.parquet",
+                properties=("visited_on", "visited_at", "recorded"),
+                id_space="kg_0123456789abcdef",
+            ),
+            "temporal_relation",
+        )
+        self.assertIn('"visited_on", "visited_at", "recorded"', sql)
+
+    def test_uuid_property_is_a_neo4j_capability_gap(self) -> None:
+        # `uuid` is a legal graph property and the core target compiles it; only
+        # this target cannot carry it, so the gap is reported here instead of the
+        # value being coerced to a string.
+        self.assertNotIn("uuid", Neo4jModule.PROPERTY_TYPE_CAPABILITY)
+        sources = (_bound(TokenInput, Path("input.json")),)
+        compile(bindings=(credential_binding,), sources=sources, modules=())
+        with self.assertRaises(ValueError) as raised:
+            compile(
+                bindings=(credential_binding,),
+                sources=sources,
+                modules=(register_module(Neo4jModule),),
+            )
+        message = str(raised.exception)
+        self.assertIn("node component 'credential'", message)
+        self.assertIn("property 'token'", message)
+        self.assertIn("of type 'uuid'", message)
+        self.assertIn("bool, date, float, int, str, time, timestamp", message)
+
+    def test_uuid_property_on_an_edge_names_the_edge_component(self) -> None:
+        with self.assertRaises(ValueError) as raised:
+            compile(
+                bindings=(person_binding, issued_binding),
+                sources=(
+                    _source(Path("input.json")),
+                    _bound(TokenInput, Path("tokens.json")),
+                ),
+                modules=(register_module(Neo4jModule),),
+            )
+        self.assertIn("edge component 'issued'", str(raised.exception))
 
     def test_configuration_rejects_escaping_paths(self) -> None:
         with self.assertRaisesRegex(ValueError, "relative"):

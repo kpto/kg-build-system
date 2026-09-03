@@ -14,6 +14,8 @@ from ...expressions.ir import (
 from ..._frozen_json import FrozenObject
 from ...relational.ir import RelationPlanIR as RelationPlan
 from ...relational.planner import expansion_scope
+from ...types.ir import ArrayTypeIR, LogicalTypeIR, NullableTypeIR, UnitTypeIR
+from .types import ArraySqlType, SqlType, canonical_sql_type
 
 
 def _identifier(value: str, *, quoted: bool = True) -> exp.Identifier:
@@ -26,6 +28,41 @@ def _thaw(value: Any) -> Any:
     if isinstance(value, tuple):
         return [_thaw(item) for item in value]
     return value
+
+
+# A literal of one of these units is frozen as canonical text, which alone would lower
+# to a VARCHAR; the node's logical type names the unit, so it lowers to a typed literal.
+_TEXT_UNITS: frozenset[str] = frozenset({"date", "time", "timestamp", "uuid"})
+
+
+def _text_unit_sql_type(logical_type: LogicalTypeIR) -> SqlType | None:
+    """The canonical type a literal frozen as text carries, as the SQL algebra accepts it.
+
+    Only the node's logical type distinguishes that text from a `str`, and an array names
+    its SQL type one item at a time, so `Array[Date]` reaches DuckDB as `DATE[]`. A logical
+    type built only of bool, int, float and str freezes as JSON that lowers to the SQL type
+    of its own accord, and answers None so it is left exactly as it froze.
+    """
+    value = logical_type.value if isinstance(logical_type, NullableTypeIR) else logical_type
+    if isinstance(value, UnitTypeIR):
+        return value.name if value.name in _TEXT_UNITS else None
+    if isinstance(value, ArrayTypeIR):
+        item = _text_unit_sql_type(value.item)
+        return ArraySqlType(item=item) if item is not None else None
+    return None
+
+
+def _literal(expression: LiteralExpression) -> Any:
+    value = _thaw(expression.value)
+    canonical = _text_unit_sql_type(expression.logical_type)
+    if canonical is not None and isinstance(value, (str, list)):
+        # An array cast applies element-wise and is checked, so the items stay plain text
+        # literals and one outer cast names the type of the whole frozen value.
+        return exp.cast(
+            exp.convert(value),
+            exp.DataType.build(canonical_sql_type(canonical)),
+        )
+    return exp.convert(value)
 
 
 def _parameter(expression: OperationExpression, name: str) -> Any:
@@ -53,7 +90,7 @@ def _field(expression: FieldReferenceExpression, context: _Context) -> Any:
 
 def _render(expression, context: _Context) -> Any:
     if isinstance(expression, LiteralExpression):
-        return exp.convert(_thaw(expression.value))
+        return _literal(expression)
     if isinstance(expression, FieldReferenceExpression):
         return _field(expression, context)
     if not isinstance(expression, OperationExpression):

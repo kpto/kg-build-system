@@ -108,9 +108,9 @@ def decode_expression(value: Mapping[str, Any]) -> Expression:
     rows = _rows(value)
     kind = value.get("kind")
     if kind == "literal":
-        from .literals import literal
-        result = literal(value.get("value"), logical_type=logical_type)
-        return LiteralExpression(value=result.value, logical_type=logical_type, row_semantics=rows)
+        return LiteralExpression(
+            value=freeze_json(value.get("value")), logical_type=logical_type, row_semantics=rows,
+        )
     if kind == "field":
         traversals_value = value.get("traversals", ())
         if not isinstance(traversals_value, Sequence) or isinstance(traversals_value, (str, bytes, bytearray)):

@@ -35,6 +35,7 @@ from kg_build_system.code_generation.builtins import (
 from kg_build_system.engines.duckdb import read_declared_null_statistics
 from kg_build_system.modules import FileModule, FileModuleConfiguration, register_module
 from kg_build_system.modules.core import CoreModule
+from kg_build_system.types import Timestamp
 from kg_build_system.workflow.services import configure_framework_macros
 
 
@@ -99,6 +100,24 @@ class WrappedNode(k.Node):
     author_name: k.PropertySlot[str] = k.property()
 
 
+class PromotedReadings(k.Table):
+    """What the WP6 promotion of ``recorded_on`` declares, hand-written.
+
+    The generated form of the same declaration is asserted in
+    ``tests/test_code_generation.py``; what is under test here is the build it
+    hands to the engine, so the table is stated as an author would declare it.
+    """
+
+    options = k.TableOptions(name="promoted_readings")
+    identifier: k.Field[str] = k.field()
+    recorded_on: k.Field[Timestamp | None] = k.field()
+
+
+class PromotedReadingNode(k.Node):
+    label: k.PropertySlot[str] = k.property()
+    recorded_on: k.PropertySlot[Timestamp | None] = k.property()
+
+
 def guard_binding() -> k.Binding:
     return k.node_binding(
         target=GuardNode,
@@ -116,6 +135,17 @@ def wrapped_binding() -> k.Binding:
         build_key=WrappedTable.identifier,
         properties=WrappedNode(
             author_name=WrappedTable.authors.expand().pick(lambda value: value.name),
+        ),
+    )
+
+
+def promoted_binding() -> k.Binding:
+    return k.node_binding(
+        target=PromotedReadingNode,
+        build_key=PromotedReadings.identifier,
+        properties=PromotedReadingNode(
+            label=PromotedReadings.identifier,
+            recorded_on=PromotedReadings.recorded_on,
         ),
     )
 
@@ -185,7 +215,9 @@ class _MetadataConnection:
         pass
 
 
-def generate_with(connection, source: str, request_id: str = "truthful"):
+def generate_with(
+    connection, source: str, request_id: str = "truthful", **configuration: object,
+):
     with patch(
         "kg_build_system.code_generation.builtins.schema_inference.duckdb.connect",
         return_value=connection,
@@ -193,7 +225,9 @@ def generate_with(connection, source: str, request_id: str = "truthful"):
         return asyncio.run(InferDataContractProvider.generate(
             ProviderContext(
                 Path.cwd(), Path("__init__.py"), request_id,
-                DataContractInferenceConfig(source=source),
+                DataContractInferenceConfig(  # type: ignore[arg-type]
+                    source=source, **configuration,
+                ),
             ),
         ))
 
@@ -442,11 +476,19 @@ class ParquetDeclaredTierTests(unittest.TestCase):
 # --------------------------------------------------------------------------- #
 
 class TotalTypeMappingTests(unittest.TestCase):
-    def test_each_unmappable_type_is_rejected_by_name(self) -> None:
+    """The digest gate of DUCKDB_TYPE_ACCEPTANCE_MATRIX.md, seen through inference.
+
+    Which DuckDB types are classified into which disposition is the engine
+    table's own concern, asserted against ``duckdb_types()`` in
+    ``test_duckdb_type_digest.py``; what is asserted here is what the three
+    dispositions cost an author at generation time.
+    """
+
+    def test_each_refused_type_is_rejected_by_name(self) -> None:
         for type_name in (
-            "DECIMAL(18,2)", "DATE", "TIME", "TIME WITH TIME ZONE", "TIMESTAMP",
-            "TIMESTAMP WITH TIME ZONE", "TIMESTAMP_S", "TIMESTAMP_MS", "TIMESTAMP_NS",
-            "BLOB", "BIT", "INTERVAL", "MAP(VARCHAR, VARCHAR)",
+            "DECIMAL(18,2)", "BIGNUM", "TIME WITH TIME ZONE",
+            "TIMESTAMP WITH TIME ZONE", "BLOB", "BIT", "INTERVAL", "VARIANT",
+            "MAP(VARCHAR, VARCHAR)",
         ):
             with self.subTest(type=type_name):
                 with self.assertRaises(GenerationError) as raised:
@@ -459,6 +501,45 @@ class TotalTypeMappingTests(unittest.TestCase):
                 self.assertIn("rejected", message)
                 self.assertIn(
                     "outside a generated package", message, "the exit is named",
+                )
+
+    def test_each_declared_only_type_names_its_measured_narrowing(self) -> None:
+        cases = {
+            "TIME_NS": ("time", "rounds nanoseconds"),
+            "TIMESTAMP_NS": ("timestamp", "drops nanoseconds"),
+            "UBIGINT": ("int", "signed 64-bit"),
+            "HUGEINT": ("int", "signed 64-bit"),
+            "UHUGEINT": ("int", "signed 64-bit"),
+        }
+        for type_name, (canonical, narrowing) in cases.items():
+            with self.subTest(type=type_name):
+                with self.assertRaises(GenerationError) as raised:
+                    generate_with(
+                        _MetadataConnection([("when", type_name, "YES")]),
+                        "s3://bucket/x.json",
+                    )
+                message = str(raised.exception)
+                self.assertIn("column 'when'", message)
+                self.assertIn(narrowing, message, "the measured behaviour is told")
+                self.assertIn(
+                    "declared override", message,
+                    "what it needs is named, and it is not offered silently",
+                )
+                self.assertIn(
+                    f"promote={{'when': {canonical!r}}}", message,
+                    "and the message points at the declaration that is the override",
+                )
+                self.assertNotIn("rejected", message)
+                # The same column, once the declaration has been made.
+                package = generate_with(
+                    _MetadataConnection([("when", type_name, "YES")]),
+                    "s3://bucket/x.json",
+                    promote={"when": canonical},
+                )
+                self.assertEqual(
+                    declarations(package)["TruthfulTable"][0].value_type,
+                    GeneratedNullableType(GeneratedScalarType(canonical)),
+                    "a declared narrowing is the override the gate reserves",
                 )
 
     def test_decimal_is_no_longer_coerced_to_float(self) -> None:
@@ -474,16 +555,143 @@ class TotalTypeMappingTests(unittest.TestCase):
         nodes = [
             (source, "duckdb_schema", "REQUIRED", None, 1, None, 0),
             (source, "affiliation", "REQUIRED", None, 1, None, 1),
-            (source, "since", "REQUIRED", "INT32", None, "DATE", 2),
+            (source, "since", "REQUIRED", "BYTE_ARRAY", None, "BLOB", 2),
         ]
         with self.assertRaises(GenerationError) as raised:
             generate_with(
-                _MetadataConnection([("affiliation", "STRUCT(since DATE)", "YES")], nodes),
+                _MetadataConnection([("affiliation", "STRUCT(since BLOB)", "YES")], nodes),
                 source,
             )
         self.assertIn("affiliation.since", str(raised.exception))
 
-    def test_every_type_a_fixture_produces_is_mapped_or_rejected(self) -> None:
+    def test_a_refused_family_is_refused_where_the_footer_calls_it_a_record(self) -> None:
+        # A MAP's footer is a group of two members, so reading the shape alone
+        # would digest it as the record the matrix refuses to invent.
+        source = "s3://bucket/entries.parquet"
+        nodes = [
+            (source, "duckdb_schema", "REQUIRED", None, 1, None, 0),
+            (source, "entries", "REQUIRED", None, 2, None, 1),
+            (source, "key", "REQUIRED", "BYTE_ARRAY", None, "VARCHAR", 2),
+            (source, "value", "REQUIRED", "INT64", None, "BIGINT", 3),
+        ]
+        with self.assertRaises(GenerationError) as raised:
+            generate_with(
+                _MetadataConnection(
+                    [("entries", "MAP(VARCHAR, BIGINT)", "YES")], nodes,
+                ),
+                source,
+            )
+        self.assertIn("MAP(VARCHAR, BIGINT)", str(raised.exception))
+        self.assertIn("rejected", str(raised.exception))
+
+    def test_a_nested_shape_carries_the_item_and_member_types_reported(self) -> None:
+        # Neither flattened string nor footer may invent VARCHAR for a nested
+        # value: the item and the member carry the type their authority reports.
+        source = "s3://bucket/shapes.parquet"
+        nodes = [
+            (source, "duckdb_schema", "REQUIRED", None, 2, None, 0),
+            (source, "ids", "OPTIONAL", None, 1, None, 1),
+            (source, "list", "REPEATED", None, 1, None, 2),
+            (source, "element", "OPTIONAL", "INT64", None, "BIGINT", 3),
+            (source, "meta", "OPTIONAL", None, 1, None, 4),
+            (source, "a", "OPTIONAL", "INT32", None, "DATE", 5),
+        ]
+        package = generate_with(
+            _MetadataConnection(
+                [("ids", "BIGINT[]", "YES"), ("meta", "STRUCT(a DATE)", "YES")], nodes,
+            ),
+            source,
+        )
+        fields = {
+            field.external_name: field.value_type
+            for field in declarations(package)["TruthfulTable"]
+        }
+        self.assertEqual(
+            fields["ids"],
+            GeneratedNullableType(
+                GeneratedArrayType(GeneratedNullableType(GeneratedScalarType("int"))),
+            ),
+            "the item is BIGINT, not the text the fallback used to invent",
+        )
+        members = {
+            field.external_name: field.value_type
+            for field in declarations(package)["MetaStruct"]
+        }
+        self.assertEqual(members["a"], GeneratedNullableType(GeneratedScalarType("date")))
+
+    def test_a_fixed_size_array_is_digested_from_its_item_type(self) -> None:
+        package = generate_with(
+            _MetadataConnection([("ids", "INTEGER[3]", "YES")]), "s3://bucket/x.json",
+        )
+        self.assertEqual(
+            declarations(package)["TruthfulTable"][0].value_type,
+            GeneratedNullableType(
+                GeneratedArrayType(GeneratedNullableType(GeneratedScalarType("int"))),
+            ),
+            "a fixed length widens to a list of the item type, not to text",
+        )
+
+    def test_a_member_no_authority_types_is_reported_rather_than_called_text(self) -> None:
+        source = "s3://bucket/unnamed.parquet"
+        nodes = [
+            (source, "duckdb_schema", "REQUIRED", None, 1, None, 0),
+            (source, "meta", "OPTIONAL", None, 1, None, 1),
+            (source, "surprise", "OPTIONAL", None, None, None, 2),
+        ]
+        with self.assertRaises(GenerationError) as raised:
+            generate_with(
+                _MetadataConnection([("meta", "STRUCT(a DATE)", "YES")], nodes), source,
+            )
+        message = str(raised.exception)
+        self.assertIn("meta.surprise", message)
+        self.assertIn("do not agree", message)
+
+    def test_the_temporal_and_uuid_vocabulary_is_mapped_not_rejected(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            write_parquet(
+                root / "kinds.parquet",
+                "SELECT '2024-01-02'::DATE AS day, '10:00:00'::TIME AS morning, "
+                "'2024-01-02 10:00:00'::TIMESTAMP AS instant, "
+                "'2024-01-02 10:00:00'::TIMESTAMP_S AS second_, "
+                "'2024-01-02 10:00:00'::TIMESTAMP_MS AS milli, "
+                "uuid() AS u, '{\"k\": 1}'::JSON AS doc",
+            )
+            package = infer(root, source="kinds.parquet")
+        self.assertEqual(
+            [
+                (field.external_name, field.value_type.value.name)
+                for field in declarations(package)["KindsTable"]
+            ],
+            [
+                ("day", "date"), ("morning", "time"), ("instant", "timestamp"),
+                ("second_", "timestamp"), ("milli", "timestamp"), ("u", "uuid"),
+                ("doc", "str"),
+            ],
+        )
+
+    def test_a_canonical_scalar_renders_its_representative_type(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory) / "project"
+            (root / "data").mkdir(parents=True)
+            (root / "data" / "n.json").write_text(
+                json.dumps([{"when": "2026-08-02"}]), encoding="utf-8",
+            )
+            (root / "contracts").mkdir()
+            (root / "contracts" / "__init__.py").write_text(REQUEST, encoding="utf-8")
+            asyncio.run(generate(root))
+            generated = (root / "contracts" / "notes" / "__init__.py").read_text(
+                encoding="utf-8",
+            )
+        self.assertIn("when: Field[Date | None] = field(name='when')", generated)
+        # Decision 5: the whole representative set, whatever a file annotates.
+        self.assertIn(
+            "from kg_build_system.types import Array, Date, Time, Timestamp, Uuid",
+            generated,
+        )
+        self.assertIn("# ruff: noqa: F401", generated)
+
+    def test_every_type_a_fixture_produces_is_mapped(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)
             write_parquet(
@@ -492,9 +700,12 @@ class TotalTypeMappingTests(unittest.TestCase):
                 "4::BIGINT AS bi, 7.5::FLOAT AS f, 8.5::DOUBLE AS d, 'x' AS v, "
                 "uuid() AS u, '2024-01-02'::DATE AS day",
             )
-            with self.assertRaises(GenerationError) as raised:
-                infer(root, source="kinds.parquet")
-        self.assertIn("column 'day'", str(raised.exception))
+            package = infer(root, source="kinds.parquet")
+        self.assertEqual(
+            [field.value_type.value.name
+             for field in declarations(package)["KindsTable"]],
+            ["bool", "int", "int", "int", "int", "float", "float", "str", "uuid", "date"],
+        )
 
     def test_the_mapped_vocabulary_survives_when_nothing_is_rejected(self) -> None:
         with TemporaryDirectory() as directory:
@@ -509,6 +720,63 @@ class TotalTypeMappingTests(unittest.TestCase):
         kinds = declarations(package)["KindsTable"]
         self.assertEqual([field.python_name for field in kinds],
                          ["b", "t", "s", "i", "bi", "f", "d", "v", "u"])
+
+
+# --------------------------------------------------------------------------- #
+# A4 — a declared promotion reaches the engine as a checked cast
+# --------------------------------------------------------------------------- #
+
+class DeclaredPromotionExecutionTests(unittest.TestCase):
+    """What a promotion does to a build rather than to a declaration.
+
+    The contract states ``TIMESTAMP`` for a column the reader reports as text, so the
+    source view casts the text and the cast is checked: a value that is not a
+    timestamp fails the build instead of arriving as text or as nothing at all.
+    """
+
+    def build(self, root: Path, recorded_on: str):
+        return build_json_contract(
+            root, PromotedReadings, promoted_binding(),
+            payload=[{"identifier": "R-1", "recorded_on": recorded_on}],
+            modules=(register_module(
+                FileModule, FileModuleConfiguration("graph.jsonl"),
+            ),),
+        )
+
+    def test_a_promoted_text_column_arrives_as_a_timestamp(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = self.build(root, "2026-07-14T06:15")
+            written = (root / "out" / "graph.jsonl")
+            lines = written.read_text(encoding="utf-8").splitlines() if written.exists() else []
+
+        self.assertTrue(report.succeeded, [
+            failure.message for failure in report.unresolved_failures
+        ])
+        self.assertEqual(
+            json.loads(lines[0])["recorded_on"], "2026-07-14T06:15:00",
+            "the value reached the graph in canonical temporal form, which the "
+            "text the file holds could not have produced",
+        )
+
+    def test_a_value_the_declared_cast_cannot_hold_fails_the_build(self) -> None:
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            report = self.build(root, "not-a-date")
+            written = (root / "out" / "graph.jsonl")
+            text = written.read_text(encoding="utf-8") if written.exists() else ""
+
+        self.assertFalse(report.succeeded, "the declaration is tested, not trusted")
+        messages = [failure.message for failure in report.unresolved_failures]
+        self.assertTrue(
+            any("not-a-date" in message for message in messages),
+            f"the DuckDB conversion error is what the build reports: {messages}",
+        )
+        self.assertTrue(
+            any("recorded_on" in message for message in messages),
+            f"and it names the promoted column: {messages}",
+        )
+        self.assertEqual(text, "", "nothing is delivered from a failed conversion")
 
 
 # --------------------------------------------------------------------------- #
@@ -600,7 +868,9 @@ class NullGuardTests(unittest.TestCase):
             connection.close()
 
     def test_the_core_version_records_the_payload_change(self) -> None:
-        self.assertEqual(CoreModule.VERSION, "2")
+        # Version 3 declares each source column as a (name, canonical logical type)
+        # pair, so the source view can widen it; the shape is not readable as 2.
+        self.assertEqual(CoreModule.VERSION, "3")
 
 
 # --------------------------------------------------------------------------- #

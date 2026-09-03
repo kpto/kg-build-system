@@ -92,7 +92,7 @@ class BlueprintIRTests(unittest.TestCase):
 
     def test_blueprint_contains_complete_canonical_declarations(self) -> None:
         result = self.blueprint()
-        self.assertEqual(result.schema_version, 3)
+        self.assertEqual(result.schema_version, 4)
         self.assertEqual(tuple(item.module_id for item in result.modules), ("core",))
         self.assertEqual(tuple(item.name for item in result.structs), ("evidence",))
         self.assertEqual(tuple(item.name for item in result.tables), ("evidence",))
@@ -133,7 +133,7 @@ class BlueprintIRTests(unittest.TestCase):
         self.assertEqual(decoded, result)
         self.assertEqual(blueprint_json(decoded), encoded)
         document = json.loads(encoded)
-        self.assertEqual(document["schema_version"], 3)
+        self.assertEqual(document["schema_version"], 4)
         expression = document["projections"][0]["fields"][1]["expression"]
         self.assertNotIn("rows", json.dumps(expression))
         self.assertNotIn("traversals", json.dumps(expression))
@@ -154,9 +154,13 @@ class BlueprintIRTests(unittest.TestCase):
 
     def test_codec_rejects_other_schema_versions(self) -> None:
         raw = json.loads(blueprint_json(self.blueprint()))
-        raw["schema_version"] = 999
-        with self.assertRaisesRegex(ValueError, "unsupported blueprint schema version"):
-            decode_blueprint(raw)
+        for stale in (3, 999):
+            with self.subTest(schema_version=stale):
+                raw["schema_version"] = stale
+                with self.assertRaisesRegex(
+                    ValueError, "unsupported blueprint schema version",
+                ):
+                    decode_blueprint(raw)
 
     def test_namespace_discovery_skips_non_importable_python_paths(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

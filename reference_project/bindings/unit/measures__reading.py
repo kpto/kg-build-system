@@ -12,7 +12,7 @@ temperature_measures_binding = edge_binding(
     source_build_key=TemperatureTable.unit_ref.where_present(),
     target_build_key=TemperatureTable.reading_uid.where_present(),
     properties=MeasuresEdge(
-        as_at=TemperatureTable.recorded_on.default_to("Undated"),
+        as_at=TemperatureTable.recorded_on,
         **relation_stamps,
     ),
     debug_name="temperature_measure",
@@ -24,7 +24,7 @@ vibration_measures_binding = edge_binding(
     source_build_key=VibrationTable.unit_ref.where_present(),
     target_build_key=VibrationTable.reading_uid.where_present(),
     properties=MeasuresEdge(
-        as_at=VibrationTable.recorded_on.default_to("Undated"),
+        as_at=VibrationTable.recorded_on,
         **relation_stamps,
     ),
     debug_name="vibration_measure",

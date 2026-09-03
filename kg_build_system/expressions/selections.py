@@ -9,8 +9,8 @@ from hashlib import sha256
 from typing import Any, Generic, TypeVar, cast, overload
 
 from ..types import (
-    Array, ArrayType, CustomDataType, LogicalType, Nullable, NullableType,
-    Struct, StructType,
+    Array, ArrayType, CustomDataType, Date, LogicalType, Nullable, NullableType,
+    Struct, StructType, Time, Timestamp, Uuid,
 )
 from .base import field_reference, operation
 from .codec import encode_expression
@@ -18,7 +18,7 @@ from .models import FieldReferenceExpression, OperationExpression, RowSemantics,
 from .values import NullableAuthoringInput, ValueExpression
 
 
-type SelectionUnit = bool | int | float | str | CustomDataType
+type SelectionUnit = bool | int | float | str | Date | Time | Timestamp | Uuid | CustomDataType
 type SelectionStructured = Array[NullableDataType] | Struct
 type SelectionDataType = SelectionUnit | SelectionStructured
 type NullableDataType = SelectionDataType | Nullable[SelectionDataType]

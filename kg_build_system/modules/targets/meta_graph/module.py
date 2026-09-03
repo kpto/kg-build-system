@@ -1,7 +1,9 @@
 """Workflow module that describes the effective topology as JSON and HTML."""
 from __future__ import annotations
 
+import datetime
 import json
+import uuid
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any, ClassVar
@@ -43,6 +45,52 @@ _MODULE_ID = "meta_graph"
 # Count column for the aggregate observation query. Prefixed like core's own
 # ``_kg_binding_symbol`` so it cannot collide with an authored property name.
 _TOTAL_COLUMN = "_kg_example_count"
+
+
+def _canonical_example_value(value: Any) -> Any:
+    """The canonical text form of one observed value, as the file target writes it.
+
+    The document quotes values straight out of the graph relation, so a ``date``,
+    ``time``, ``timestamp`` or ``uuid`` column arrives as the Python object DuckDB
+    hands back. This is the same mapping the file target applies to a property
+    value: the temporals take ``isoformat()``, which keeps the ISO-8601 ``T`` that
+    ``str()`` replaces with a space, and a uuid its hyphenated text. A value
+    outside the canonical vocabulary — a ``bytes`` or ``Decimal`` the boundary
+    should have refused — has no form here and raises naming its type, rather than
+    being quietly stringified into a document that is supposed to be reproducible.
+    """
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    # A datetime is a date, so the three share one test and one canonical form.
+    if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
+        return value.isoformat()
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    if isinstance(value, dict):
+        return {key: _canonical_example_value(item) for key, item in value.items()}
+    if isinstance(value, (list, tuple)):
+        return [_canonical_example_value(item) for item in value]
+    raise TypeError(
+        f"example value of type {type(value).__qualname__} has no canonical form"
+        " in the meta-graph document"
+    )
+
+
+def _example_order_key(value: Any) -> tuple[str, str]:
+    """Order example values by canonical text form, then by ``repr`` of the value.
+
+    Ordering the values themselves is not available: an inherited list is pooled by
+    property name, so a bool can meet an int, and Python refuses to compare a str
+    with either. The primary key is therefore the JSON text the value is written
+    as — defined for every canonical value, and the text the document shows, so the
+    list reads in the order it prints. The secondary key is for the pair the text
+    cannot separate, a ``date`` and a string spelling it identically; ``repr`` of
+    the original value settles it because the canonicaliser has already rejected
+    anything whose repr is not itself stable.
+    """
+    return (
+        json.dumps(_canonical_example_value(value), sort_keys=True), repr(value),
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -90,8 +138,13 @@ def _observe(
     return _Observed(
         records=int(row[_TOTAL_COLUMN]),
         values={
-            # Sorted for a stable document; the sketch's own order is not contractual.
-            name: sorted(row.get(name) or [], key=repr)[:value_limit]
+            # Canonicalised and ordered here, so every later stage — pooling,
+            # deduplication, the written document — works on the text the
+            # document shows; the sketch's own order is not contractual.
+            name: [
+                _canonical_example_value(item)
+                for item in sorted(row.get(name) or [], key=_example_order_key)
+            ][:value_limit]
             for name in properties
         },
     )
@@ -189,9 +242,9 @@ def _inclusive_values(
         ).items():
             pooled.setdefault(name, []).extend(values)
     return {
-        # Sorted and deduplicated so an inherited list is stable regardless of
+        # Ordered and deduplicated so an inherited list is stable regardless of
         # which descendants contributed, then trimmed back to the limit.
-        name: sorted(dict.fromkeys(values), key=repr)[:limit]
+        name: sorted(dict.fromkeys(values), key=_example_order_key)[:limit]
         for name, values in pooled.items()
     }
 
@@ -383,9 +436,14 @@ class MetaGraphExecutor(ModuleExecutor):
             document["summary"]["html_location"] = str(html_path)
 
         output_path.write_text(
-            # Example values are whatever the graph holds, so a property can
-            # carry a type the JSON encoder has never seen.
-            json.dumps(document, sort_keys=True, indent=2, default=str) + "\n",
+            # Examples are canonicalised as they are observed, so nothing here
+            # should need the hook. It stays as the fail-closed last line: a value
+            # that reached the document without a canonical form is a bug, and
+            # ``default=str`` would have hidden it behind a spelling the file
+            # target never writes.
+            json.dumps(
+                document, sort_keys=True, indent=2, default=_canonical_example_value,
+            ) + "\n",
             encoding="utf-8",
         )
 

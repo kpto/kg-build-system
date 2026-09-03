@@ -4,7 +4,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from .models import ArrayType, CustomType, LogicalType, NullableType, StructType, UnitType
+from .models import (
+    ArrayType, CustomType, LogicalType, NullableType, StructType, UnitType, is_canonical_unit_name,
+)
 
 
 def encode_type(logical_type: LogicalType) -> dict[str, Any]:
@@ -39,7 +41,7 @@ def decode_type(value: Mapping[str, Any]) -> LogicalType:
     kind = value.get("kind")
     if kind == "unit":
         name = _text(value, "name")
-        if name not in {"bool", "int", "float", "str"}:
+        if not is_canonical_unit_name(name):
             raise ValueError(f"unknown unit logical type {name!r}")
         return UnitType(name)
     if kind == "custom":

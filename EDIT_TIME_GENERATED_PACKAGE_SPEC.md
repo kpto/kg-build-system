@@ -195,7 +195,8 @@ Generated structs, tables, and table groups are complete ordinary
 declarations using the public authoring API:
 
 ```python
-from kg_build_system import Array, Field, Struct, Table, TableOptions, field
+from kg_build_system import Field, Struct, Table, TableOptions, field
+from kg_build_system.types import Array, Date, Time, Timestamp, Uuid
 
 
 class InputDetailsStruct(Struct):
@@ -204,9 +205,23 @@ class InputDetailsStruct(Struct):
 
 class InputTable(Table):
     options = TableOptions(name="input")
+    observed_on: Field[Date | None] = field(name="observed_on")
     details: Field[InputDetailsStruct | None] = field(name="details")
     tags: Field[Array[str] | None] = field(name="tags")
 ```
+
+Members are annotated with **representative types**, not with canonical type
+names: a date, time, timestamp or uuid column renders as `Field[Date]`,
+`Field[Time]`, `Field[Timestamp]` or `Field[Uuid]` — aliases of the stdlib
+classes, exported by `kg_build_system.types` — while `bool`, `int`, `float` and
+`str` render as the builtins.
+
+That import line is emitted **whole and unconditionally** by every generated file
+that declares anything, rather than derived per file from the types that file
+happens to use. An un-imported annotation raises `NameError` while the class body
+executes, before any framework code runs, so importing the entire representative
+set makes the omission structurally impossible. Because the line carries names a
+file may not use, the header also emits `# ruff: noqa: F401` (§9).
 
 All logical members use unified `Field[T]`. Generated code does not use
 `StructField`, `CollectionField`, placeholder declarations, mixins, `G_`
@@ -254,8 +269,10 @@ is logically required. This has an important physical-metadata consequence:
 - nested DuckDB `STRUCT` member types do not carry independent member
   nullability through `DESCRIBE`, so generated nested members are currently
   required;
-- a JSON field containing only null values may be inferred as generic `JSON`
-  and is rejected because `JSON` is not a portable logical scalar.
+- a JSON field containing only null values may be inferred as generic `JSON`;
+  `JSON` is accepted and digested to canonical `str`, since `JSON` is a `VARCHAR`
+  spelling and the source view applies `CAST(value AS VARCHAR)`. It is not a
+  portable logical scalar in its own right and never becomes a canonical type.
 
 Authors needing richer nested nullability must use a source format/provider
 that supplies it or provide a handwritten contract. The generator must not
@@ -269,7 +286,8 @@ Python file begins with a recognizable header containing:
 - the product ownership marker;
 - request ID;
 - request fingerprint;
-- renderer format directives.
+- renderer format directives, including `# ruff: noqa: F401` for the
+  unconditional representative-type import of §7.
 
 Rendered files are deterministic for the same request, provider version,
 configuration, and dependency bytes. Generated source is parsed before it is

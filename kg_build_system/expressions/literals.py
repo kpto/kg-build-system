@@ -2,24 +2,50 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, Final, cast
 
-from .._frozen_json import freeze_json
+from .._frozen_json import FrozenJson, freeze_json
 from ..types import (
-    ArrayType, BOOL, FLOAT, INT, LogicalType, NullableType, STR, StructType, CustomType,
+    ArrayType, BOOL, CustomType, DATE, FLOAT, INT, LogicalType, NullableType, STR,
+    StructType, TIME, TIMESTAMP, UUID, Date, Time, Timestamp, UnitType, Uuid,
 )
 from .models import LiteralExpression
 
 
+# A literal is accepted as exactly one Python class: the representative type of the
+# unit, which is an alias of the value class itself. Identity is the test, so
+# Timestamp stays distinct from its Date supertype and bool from int.
+_UNITS_BY_CLASS: dict[type[Any], UnitType] = {
+    bool: BOOL, int: INT, float: FLOAT, str: STR,
+    Date: DATE, Time: TIME, Timestamp: TIMESTAMP, Uuid: UUID,
+}
+_CLASSES_BY_UNIT_NAME: dict[str, type[Any]] = {
+    unit.name: value for value, unit in _UNITS_BY_CLASS.items()
+}
+
+# Frozen values are JSON, so a literal of one of these units is stored as text and its
+# unit is carried by the node's logical type, which tells `date`, `time`, `timestamp`
+# and `uuid` apart from a `str` wherever the frozen value is read.
+_TEXT_UNITS: Final[frozenset[str]] = frozenset({"date", "time", "timestamp", "uuid"})
+
+
+def _canonical_text(value: Date | Time | Timestamp | Uuid, unit_name: str) -> str:
+    """The one text form a literal of a text-canonical unit is frozen as.
+
+    ``isoformat`` is total for the exact class each unit admits and is stable under
+    ``fromisoformat``, so the text needs no decoder to round-trip; for ``timestamp``
+    it carries the ``T`` separator that ``str()`` would replace with a space, and
+    ``uuid`` keeps its lowercase hyphenated spelling.
+    """
+    if unit_name == "uuid":
+        return str(value)
+    return cast(Date | Time | Timestamp, value).isoformat()
+
+
 def _infer(value: Any) -> LogicalType:
-    if type(value) is bool:
-        return BOOL
-    if type(value) is int:
-        return INT
-    if type(value) is float:
-        return FLOAT
-    if type(value) is str:
-        return STR
+    unit = _UNITS_BY_CLASS.get(type(value))
+    if unit is not None:
+        return unit
     if value is None:
         raise TypeError("a null literal requires an explicit nullable logical type")
     if isinstance(value, Sequence) and not isinstance(value, (str, bytes, bytearray)):
@@ -52,15 +78,30 @@ def _validate(value: Any, logical_type: LogicalType, *, context: str = "literal"
         return
     if isinstance(logical_type, (StructType, CustomType)):
         raise TypeError(f"{context} cannot embed struct or custom-type values")
-    expected = {"bool": bool, "int": int, "float": float, "str": str}[logical_type.name]
+    expected = _CLASSES_BY_UNIT_NAME.get(logical_type.name)
+    if expected is None:
+        raise TypeError(f"{context} has unsupported unit logical type {logical_type.name!r}")
     if type(value) is not expected:
         raise TypeError(f"{context} must be {logical_type.name}, not {type(value).__name__}")
+
+
+def _freeze(value: Any, logical_type: LogicalType) -> FrozenJson:
+    """Freeze a validated literal, storing a text-canonical unit as its canonical text."""
+    if isinstance(logical_type, NullableType):
+        return None if value is None else _freeze(value, logical_type.value)
+    if isinstance(logical_type, UnitType):
+        if logical_type.name in _TEXT_UNITS:
+            return _canonical_text(value, logical_type.name)
+        return freeze_json(value)
+    if isinstance(logical_type, ArrayType):
+        return tuple(_freeze(item, logical_type.item) for item in value)
+    return freeze_json(value)
 
 
 def literal(value: Any, *, logical_type: LogicalType | None = None) -> LiteralExpression:
     resolved_type = logical_type or _infer(value)
     _validate(value, resolved_type)
-    return LiteralExpression(value=freeze_json(value), logical_type=resolved_type)
+    return LiteralExpression(value=_freeze(value, resolved_type), logical_type=resolved_type)
 
 
 __all__ = ["literal"]

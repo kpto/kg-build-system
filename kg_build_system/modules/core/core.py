@@ -9,6 +9,9 @@ from ..._frozen_json import freeze_json
 from ...compile.models import BuildBlueprint
 from ...engines.duckdb import (
     PARQUET_LIST_WRAPPER_PATH,
+    ArraySqlType,
+    SqlType,
+    canonical_sql_type,
     read_declared_null_statistics,
 )
 from ...expressions.ir import (
@@ -17,7 +20,9 @@ from ...expressions.ir import (
 )
 from ...table.ir import ProjectionIR as ProjectionDefinition
 from ...table.ir import StructIR
-from ...types.ir import ArrayTypeIR, NullableTypeIR, StructTypeIR
+from ...types.ir import (
+    ArrayTypeIR, LogicalTypeIR, NullableTypeIR, StructTypeIR, UnitTypeIR,
+)
 from ...topology.ir import ComponentIR as ComponentDefinition
 from ...workflow.models import (
     ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference,
@@ -45,9 +50,9 @@ from .lowering import (
     projection_sources,
 )
 from .ir import (
-    AggregateInstructionIR, DeclaredPathIR, RelationInstructionIR,
-    SourceRelationInstructionIR, decode_core_instruction,
-    encode_core_instruction,
+    AggregateInstructionIR, DeclaredColumnIR, DeclaredPathIR,
+    RelationInstructionIR, SourceRelationInstructionIR, decode_core_instruction,
+    encode_core_instruction, encode_declared_column,
 )
 from .credentials import configure_source_credentials
 
@@ -338,7 +343,8 @@ class CoreCompiler:
                 credential_reference=source.credential_reference,
                 declaration=source.table,
                 declared_columns=tuple(
-                    field.name for field in table.fields
+                    encode_declared_column(field.name, field.logical_type)
+                    for field in table.fields
                 ) if table is not None else (),
                 declared_paths=tuple(
                     path for path in read_paths.get(source.table, ())
@@ -488,7 +494,7 @@ class CoreCompiler:
 
 class CoreModule(Module):
     ID: ClassVar[str] = "core"
-    VERSION: ClassVar[str] = "2"
+    VERSION: ClassVar[str] = "3"
     CONFIGURATION_TYPE: ClassVar[type[_CoreConfiguration]] = _CoreConfiguration
 
     @classmethod
@@ -504,8 +510,47 @@ class CoreModule(Module):
         return CoreExecutor()
 
 
+def _quote_identifier(value: str) -> str:
+    return '"' + value.replace('"', '""') + '"'
+
+
+def _sql_type(declared: LogicalTypeIR) -> SqlType | None:
+    """The SQL shape one declared column type composes to, when it composes to one.
+
+    The declared canonical type is what the relation is asked to hold, because the
+    ingest boundary only widens. Nullability is dropped: an SQL type states no
+    nullity, so ``Array[str | None]`` and ``Array[str]`` are both ``VARCHAR[]``.
+    Two declarations have no SQL type to be cast to and are passed through as the
+    file has them rather than failing the build — a custom scalar, whose values the
+    engine knows nothing of, and a struct, whose members the encoded declaration
+    names only by the struct's own identity, which no module can resolve.
+    """
+    if isinstance(declared, NullableTypeIR):
+        return _sql_type(declared.value)
+    if isinstance(declared, UnitTypeIR):
+        return declared.name
+    if isinstance(declared, ArrayTypeIR):
+        item = _sql_type(declared.item)
+        return None if item is None else ArraySqlType(item)
+    return None
+
+
+def _widened_column(column: DeclaredColumnIR) -> str:
+    """One select item of a source view: the declared column, widened in place.
+
+    The alias repeats the column's own name, so widening the type cannot rename
+    anything — ``_require_declared_columns`` and every lowered expression still
+    reach the column by the name the contract declares.
+    """
+    name = _quote_identifier(column.name)
+    sql_type = _sql_type(column.logical_type_ir)
+    if sql_type is None:
+        return name
+    return f"CAST({name} AS {canonical_sql_type(sql_type)}) AS {name}"
+
+
 def _require_declared_columns(
-    context: ExecutionContext, instruction: SourceRelationInstructionIR,
+    context: ExecutionContext, instruction: SourceRelationInstructionIR, scan: str,
 ) -> None:
     """Check the contract's declared fields against the relation, before any use.
 
@@ -514,13 +559,14 @@ def _require_declared_columns(
     match its bytes fails mid-execution in DuckDB's vocabulary. Both are framework
     facts — a declaration and a location — so both are reported here, in
     framework terms, while nothing has yet read a row.
+
+    The scan is described rather than the view built over it: a declared column the
+    file does not have would otherwise fail the widening cast's own binding, where
+    DuckDB reads it as a self-reference and blames the alias.
     """
     if not instruction.declared_columns:
         return
-    source = context.services.relations.reference(
-        RelationRef(instruction.relation)
-    )
-    query = f"DESCRIBE SELECT * FROM {source}"
+    query = f"DESCRIBE SELECT * FROM {scan}"
     try:
         columns = {
             str(row[0])
@@ -532,7 +578,10 @@ def _require_declared_columns(
             f"'{instruction.declaration}' cannot be read as the declared "
             f"'{instruction.format}' format: {error}"
         ) from error
-    missing = [name for name in instruction.declared_columns if name not in columns]
+    missing = [
+        column.name for column in instruction.declared_columns
+        if column.name not in columns
+    ]
     if missing:
         raise RuntimeError(
             f"declared field(s) {', '.join(repr(name) for name in missing)} are "
@@ -639,7 +688,20 @@ class CoreExecutor(ModuleExecutor):
             "parquet": "read_parquet",
         }[instruction.format]
         location = instruction.location.replace("'", "''")
-        sql = f"SELECT * FROM {scan_function}('{location}')"
+        scan = f"{scan_function}('{location}')"
+        # ``DESCRIBE`` reads file metadata only, so the contract's shape is checked
+        # before a view exists and before any consumer can reach this relation —
+        # every other step arrives through the role this step emits.
+        _require_declared_columns(context, instruction, scan)
+        # A multi-file scan does not widen the partitions it unions: it reports the
+        # width of one file, which can be narrower than another partition's. The
+        # widening happens here, in the per-source view, so every reader downstream
+        # — projection, binding, and the union that aggregates a component — sees
+        # one type for one declared column.
+        select = ", ".join(
+            _widened_column(column) for column in instruction.declared_columns
+        ) or "*"
+        sql = f"SELECT {select} FROM {scan}"
         try:
             relation = context.services.relations.view(instruction.relation, sql)
         except Exception as error:
@@ -651,10 +713,8 @@ class CoreExecutor(ModuleExecutor):
                 f"'{instruction.declaration}' cannot be read as the declared "
                 f"'{instruction.format}' format: {error}"
             ) from error
-        # ``CREATE VIEW`` reads nothing, so every check below issues its own
-        # metadata query. Both run before any consumer can reach this relation,
-        # because every other step arrives through the role this step emits.
-        _require_declared_columns(context, instruction)
+        # ``CREATE VIEW`` reads nothing, so the statistics pre-flight issues its own
+        # metadata query.
         found = _report_declared_null_statistics(context, instruction)
         return CoreExecutor._success(
             context, relation,

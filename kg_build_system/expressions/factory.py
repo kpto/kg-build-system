@@ -40,8 +40,16 @@ def wrap_expression(expression: ExpressionNode) -> ValueExpression[Any]:
             "int": IntExpression,
             "float": FloatExpression,
             "str": StrExpression,
+            # The temporal and identifier units carry no operations in this
+            # vocabulary, so the generic expression is their most specific family.
+            "date": ValueExpression,
+            "time": ValueExpression,
+            "timestamp": ValueExpression,
+            "uuid": ValueExpression,
         }
-        return factories[logical_type.name](expression)
+        factory = factories.get(logical_type.name)
+        if factory is not None:
+            return factory(expression)
     raise TypeError(f"unsupported expression logical type {logical_type!r}")
 
 

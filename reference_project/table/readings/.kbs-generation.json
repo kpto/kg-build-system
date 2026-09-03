@@ -1,13 +1,13 @@
 {
-  "format_version": "4",
+  "format_version": "5",
   "owned_directories": [
     "mechanical"
   ],
   "owned_file_hashes": {
-    "__init__.py": "bae43ad9cfbdeaf3142e5e1dba2fc820431d20d3b855a77ee3c48c9f87adb9bb",
-    "mechanical/__init__.py": "0bad57d424db87ef6ffedb0f7a54ecf4d9fba456284995b3e4a315c42361328a",
-    "mechanical/vibration.py": "c42d2f1db47e3fc8b49b61cbfafa1d4c768ae823396e0bd2e3779b7375b52b14",
-    "temperature.py": "fe76ddfc7ca8cd91db6f715178d71c6fbb12fedca75374bfd9ab34118e89e507"
+    "__init__.py": "3ca963d774dd9928de93fdbecf1012e64bc949e77a291fe27949592bd37ffedb",
+    "mechanical/__init__.py": "558e01d062e11244d5a25df8cc1b1c968f2bc493f374412245efb2f140cdb7dc",
+    "mechanical/vibration.py": "cd309dc5aa61ef0b7918cebb2fbd8a43206fc1251f8d2b0c61175de5367d488d",
+    "temperature.py": "ac8738dfae7ae8e80060f57ff30692d504d420f9c4046aa88d4e9dd966b0be99"
   },
   "owned_files": [
     "__init__.py",
@@ -18,7 +18,7 @@
   "provider_import": "kg_build_system.code_generation.builtins.schema_inference",
   "provider_qualname": "InferDataContractProvider",
   "provider_version": "3",
-  "request_fingerprint": "215aa1e0062798a42e2cb4dc9071265c352abd677b081c40f4f4abd914ae64e5",
+  "request_fingerprint": "68d33a69674d172cb1560f5d91ee15411a974040f2c2914233238c57b89d5a6c",
   "request_id": "readings",
   "request_source_package": "reference_project.table"
 }

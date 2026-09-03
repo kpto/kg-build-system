@@ -2,12 +2,13 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
-from typing import Any, cast
+from typing import Any
 
 from .ir import (
     ArrayTypeIR, CustomTypeIR, LogicalTypeIR, NullableTypeIR, StructTypeIR,
     UnitTypeIR,
 )
+from .models import is_canonical_unit_name
 
 
 def encode_type_ir(value: LogicalTypeIR) -> dict[str, Any]:
@@ -41,9 +42,9 @@ def decode_type_ir(value: Mapping[str, Any]) -> LogicalTypeIR:
     kind = value.get("kind")
     if kind == "unit":
         name = _text(value, "name")
-        if name not in {"bool", "int", "float", "str"}:
+        if not is_canonical_unit_name(name):
             raise ValueError(f"unknown unit type {name!r}")
-        return UnitTypeIR(cast(Any, name))
+        return UnitTypeIR(name)
     if kind == "custom":
         return CustomTypeIR(_text(value, "module"), _text(value, "qualname"))
     if kind == "struct":

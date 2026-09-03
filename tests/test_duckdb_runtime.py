@@ -4,25 +4,39 @@ import _thread
 import tempfile
 import threading
 import unittest
+from datetime import timedelta
 from pathlib import Path
+from typing import ClassVar
 from unittest.mock import MagicMock
 
 import duckdb
 
 from kg_build_system.workflow.executor import (
-    _configure_duckdb, _effective_duckdb_resources, _open_duckdb,
+    _build, _configure_duckdb, _effective_duckdb_resources,
+    _effective_duckdb_time_zone, _open_duckdb, PINNED_TIME_ZONE,
 )
 from kg_build_system.modules.core.core import CoreExecutor
 from kg_build_system.modules.core.ir import (
     RelationInstructionIR,
     encode_core_instruction,
 )
+from kg_build_system.workflow.contracts import create_workflow_contract
+from kg_build_system.workflow.interfaces import ModuleExecutor
+from kg_build_system.workflow.ir import WorkflowContractIR
+from kg_build_system.workflow.monitor import NullWorkflowMonitor
 from kg_build_system.workflow.models import (
+    Artifact,
     BuildRuntime,
+    DisruptedExecutionContext,
     ExecutionContext,
+    ExecutorFactoryContext,
     ModuleDefinition,
     ModuleReference,
     OutputSlot,
+    StepOutcome,
+    StepStatus,
+    WorkflowArtifactRoles,
+    WorkflowDefinition,
     WorkflowStep,
 )
 from kg_build_system.workflow.models import ArtifactRole
@@ -404,6 +418,168 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
             with self.assertRaisesRegex(TypeError, "must be a boolean"):
                 _configure_duckdb(connection, runtime, Path(directory))
         connection.close()
+
+
+class DuckDBSessionTimeZoneTests(unittest.TestCase):
+    """The build pins the session time zone instead of inheriting the machine's."""
+
+    def test_configuration_pins_the_session_time_zone(self) -> None:
+        connection = duckdb.connect()
+        # Stands in for a machine default: configuring must overwrite it.
+        connection.execute("SET TimeZone = ?", ["Asia/Tokyo"])
+        with tempfile.TemporaryDirectory() as directory:
+            _configure_duckdb(
+                connection, BuildRuntime(duckdb_threads=1), Path(directory),
+            )
+            self.assertEqual(
+                connection.execute(
+                    "SELECT current_setting('TimeZone') AS value"
+                ).fetchall(),
+                [(PINNED_TIME_ZONE,)],
+            )
+            self.assertEqual(
+                _effective_duckdb_time_zone(connection), PINNED_TIME_ZONE,
+            )
+            self.assertEqual(
+                dict(connection.execute(
+                    "SELECT name, value FROM duckdb_settings() "
+                    "WHERE name = 'TimeZone'"
+                ).fetchall())["TimeZone"],
+                PINNED_TIME_ZONE,
+            )
+            self.assertEqual(
+                connection.execute(
+                    "SELECT current_database() AS value"
+                ).fetchall(),
+                [("kg_build_memory",)],
+            )
+        connection.close()
+
+    def test_the_pin_reaches_a_view_created_after_configuration(self) -> None:
+        connection = duckdb.connect()
+        connection.execute("SET TimeZone = ?", ["Asia/Tokyo"])
+        with tempfile.TemporaryDirectory() as directory:
+            _configure_duckdb(connection, BuildRuntime(), Path(directory))
+            relations = DuckDBRelationService(
+                connection, checkpoint_on_step=False,
+            )
+            relations.view(
+                "instant_probe",
+                "SELECT CAST('2026-07-14 06:15:00' AS TIMESTAMPTZ) AS value",
+            )
+            instant = relations.query("SELECT value FROM instant_probe").fetchone()[0]
+            relations.finish_step()
+            relations.close()
+        # July: an unpinned session would resolve to +01:00 here, or +09:00
+        # under the zone this test starts the connection in.
+        self.assertEqual(instant.utcoffset(), timedelta(0))
+        connection.close()
+
+    def test_disk_storage_is_configured_in_the_pinned_time_zone(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            storage_directory = Path(directory)
+            runtime = BuildRuntime(duckdb_storage="disk")
+            connection = _open_duckdb(duckdb, runtime, storage_directory)
+            _configure_duckdb(connection, runtime, storage_directory)
+            self.assertEqual(
+                _effective_duckdb_time_zone(connection), PINNED_TIME_ZONE,
+            )
+            connection.close()
+
+    def test_the_pin_survives_a_relation_step(self) -> None:
+        connection = duckdb.connect()
+        with tempfile.TemporaryDirectory() as directory:
+            runtime = BuildRuntime(duckdb_compression=False)
+            _configure_duckdb(connection, runtime, Path(directory))
+            relations = DuckDBRelationService(
+                connection, checkpoint_on_step=True,
+            )
+            relations.materialize(
+                "zone_probe", "SELECT 1 AS value",
+            )
+            relations.finish_step()
+            self.assertEqual(
+                _effective_duckdb_time_zone(connection), PINNED_TIME_ZONE,
+            )
+            relations.close()
+        connection.close()
+
+
+class _ZoneProbeExecutor(ModuleExecutor):
+    def handle(self, context: ExecutionContext) -> StepOutcome:
+        output = context.step.outputs[0]
+        observed = context.services.relations.query(
+            "SELECT current_setting('TimeZone') AS value"
+        ).fetchone()[0]
+        return StepOutcome(
+            context.step.step_id, context.step.module_id, StepStatus.SUCCEEDED,
+            (Artifact(output.slot_id, output.artifact_role, observed),),
+        )
+
+    def handle_disrupted(self, context: DisruptedExecutionContext) -> StepOutcome:
+        raise NotImplementedError
+
+
+class _ZoneProbeModule:
+    ID: ClassVar[str] = "test_zone_probe"
+    VERSION: ClassVar[str] = "1"
+
+    @classmethod
+    def create_executor(cls, context: ExecutorFactoryContext) -> ModuleExecutor:
+        return _ZoneProbeExecutor()
+
+
+class DuckDBExecutionProvenanceTests(unittest.TestCase):
+    def _contract(self) -> WorkflowContractIR:
+        role = WorkflowArtifactRoles.published(_ZoneProbeModule.ID, "zone")
+        step = WorkflowStep(
+            step_id="test_zone_probe::read_zone",
+            module_id=_ZoneProbeModule.ID,
+            outputs=(OutputSlot(slot_id="test_zone_probe::read_zone.output", artifact_role=role),),
+        )
+        return create_workflow_contract(
+            WorkflowDefinition(
+                modules=(ModuleDefinition(
+                    reference=ModuleReference(
+                        module_id=_ZoneProbeModule.ID,
+                        import_module=_ZoneProbeModule.__module__,
+                        class_qualname=_ZoneProbeModule.__qualname__,
+                        implementation_version=_ZoneProbeModule.VERSION,
+                    ),
+                ),),
+                steps=(step,),
+            ),
+            provenance={"test": "duckdb_runtime"},
+        )
+
+    def test_report_provenance_records_the_pinned_time_zone(self) -> None:
+        contract = self._contract()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            temporary_directory = root / "tmp"
+            temporary_directory.mkdir()
+            report = _build(
+                contract,
+                BuildRuntime(
+                    output_directory=root / "build",
+                    working_directory=root / "_workdir",
+                    temporary_directory=temporary_directory,
+                ),
+                NullWorkflowMonitor(),
+            )
+
+        self.assertTrue(report.succeeded)
+        # The step read the session state through the build connection, so the
+        # reported value is what the lowered SQL actually ran under.
+        self.assertEqual(report.published_artifacts[0].value, PINNED_TIME_ZONE)
+        self.assertEqual(
+            report.provenance["duckdb"], {"TimeZone": PINNED_TIME_ZONE},
+        )
+        self.assertEqual(report.provenance["test"], "duckdb_runtime")
+        self.assertEqual(
+            report.provenance["workflow_fingerprint"],
+            contract.workflow_fingerprint,
+        )
 
 
 if __name__ == "__main__":

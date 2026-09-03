@@ -14,14 +14,15 @@ from ..expressions import (
     select_member, wrap_expression,
 )
 from ..types import (
-    Array, ArrayType, CustomDataType, LogicalType, Nullable, NullableType,
-    Struct, StructType, normalize_type,
+    Array, ArrayType, CustomDataType, Date, LogicalType, Nullable, NullableType, Struct,
+    StructType, Time, Timestamp, Uuid, normalize_type,
 )
 from .models import Table
 
 
 type AuthoringDataType = (
-    bool | int | float | str | CustomDataType | Struct | Array[Any] | None
+    bool | int | float | str | Date | Time | Timestamp | Uuid
+    | CustomDataType | Struct | Array[Any] | None
 )
 T = TypeVar("T", bound=AuthoringDataType)
 

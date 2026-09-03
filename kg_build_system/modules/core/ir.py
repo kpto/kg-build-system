@@ -3,7 +3,13 @@ from __future__ import annotations
 
 from typing import Annotated, Any, Literal, Mapping, TypeAlias
 
-from pydantic import BaseModel, BeforeValidator, ConfigDict, Field, TypeAdapter
+from pydantic import (
+    BaseModel, BeforeValidator, ConfigDict, Field, TypeAdapter, field_validator,
+)
+
+from ..._frozen_json import FrozenJson, freeze_json, thaw_json
+from ...types.ir import LogicalTypeIR
+from ...types.ir_codec import decode_type_ir, encode_type_ir
 
 
 def _as_tuple(value: Any) -> Any:
@@ -13,11 +19,6 @@ def _as_tuple(value: Any) -> Any:
     deserialized list a round-tripped contract carries.
     """
     return tuple(value) if isinstance(value, list) else value
-
-
-FrozenTuple = Annotated[tuple[str, ...], BeforeValidator(_as_tuple)]
-
-from ..._frozen_json import FrozenJson, freeze_json, thaw_json
 
 
 class CoreInstructionIR(BaseModel):
@@ -46,6 +47,44 @@ DeclaredPaths = Annotated[
 ]
 
 
+class DeclaredColumnIR(CoreInstructionIR):
+    """One declared top-level field of a source, with what it is declared to hold.
+
+    ``logical_type`` is the declaration in the JSON form the blueprint uses —
+    ``types.ir_codec.encode_type_ir`` out, ``decode_type_ir`` back — because a
+    module executor reads the payload and nothing else, and the source view needs
+    the declared canonical type to widen the physical column to.
+    """
+
+    name: str = Field(min_length=1)
+    logical_type: dict[str, Any]
+
+    @field_validator("logical_type")
+    @classmethod
+    def _declares_a_known_type(cls, value: dict[str, Any]) -> dict[str, Any]:
+        decode_type_ir(value)
+        return value
+
+    @property
+    def logical_type_ir(self) -> LogicalTypeIR:
+        """The declared logical type, as the compilation IR states it."""
+        return decode_type_ir(self.logical_type)
+
+
+def encode_declared_column(name: str, logical_type: LogicalTypeIR) -> DeclaredColumnIR:
+    """One declared column, carrying the logical type in its JSON form.
+
+    The codec lives here so the payload owns its own carrier: a caller states the
+    declaration and ``logical_type_ir`` reads it back.
+    """
+    return DeclaredColumnIR(name=name, logical_type=encode_type_ir(logical_type))
+
+
+DeclaredColumns = Annotated[
+    tuple[DeclaredColumnIR, ...], BeforeValidator(_as_tuple),
+]
+
+
 class SourceRelationInstructionIR(CoreInstructionIR):
     action: Literal["source_relation"] = "source_relation"
     relation: str = Field(min_length=1)
@@ -54,8 +93,9 @@ class SourceRelationInstructionIR(CoreInstructionIR):
     credential_reference: str | None = None
     #: The logical table this source feeds, named in a shape failure.
     declaration: str = ""
-    #: Every top-level field the contract declares, checked against the relation.
-    declared_columns: FrozenTuple = ()
+    #: Every top-level field the contract declares, checked against the relation
+    #: by name and widened to its declared canonical type where SQL can name it.
+    declared_columns: DeclaredColumns = ()
     #: Paths the build reads that claim non-nullability, for the statistics
     #: pre-flight. Absent statistics are reported as unknown, never as zero.
     declared_paths: DeclaredPaths = ()
@@ -92,7 +132,7 @@ def encode_core_instruction(value: CoreStepInstructionIR) -> FrozenJson:
 
 
 __all__ = [
-    "AggregateInstructionIR", "CoreStepInstructionIR", "DeclaredPathIR",
-    "RelationInstructionIR", "SourceRelationInstructionIR",
-    "decode_core_instruction", "encode_core_instruction",
+    "AggregateInstructionIR", "CoreStepInstructionIR", "DeclaredColumnIR",
+    "DeclaredPathIR", "RelationInstructionIR", "SourceRelationInstructionIR",
+    "decode_core_instruction", "encode_core_instruction", "encode_declared_column",
 ]

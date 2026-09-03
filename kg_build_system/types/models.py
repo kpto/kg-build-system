@@ -1,8 +1,10 @@
 """Canonical logical types shared by declarations, expressions, and IR."""
 from __future__ import annotations
 
+import datetime
+import uuid
 from dataclasses import dataclass
-from typing import Generic, TypeVar
+from typing import Final, Generic, Literal, TypeGuard, TypeVar
 
 
 class CustomDataType:
@@ -24,14 +26,37 @@ class Nullable(Generic[T_co]):
     """Internal marker used after author-facing ``T | None`` is normalized."""
 
 
+# Representative types: the stdlib classes an author writes in an annotation for
+# one canonical unit type. The capitalised spelling is what marks them as
+# representatives, and each aliases the value class of the unit of the same
+# lowercase canonical name, so both spellings are one and the same class.
+Date = datetime.date
+Time = datetime.time
+Timestamp = datetime.datetime
+Uuid = uuid.UUID
+
+
+type UnitTypeName = Literal["bool", "int", "float", "str", "date", "time", "timestamp", "uuid"]
+
+#: The canonical unit vocabulary; every gate on a unit name reads this set.
+CANONICAL_UNIT_NAMES: Final = frozenset({
+    "bool", "int", "float", "str", "date", "time", "timestamp", "uuid",
+})
+
+
+def is_canonical_unit_name(name: str) -> TypeGuard[UnitTypeName]:
+    """Whether ``name`` is one of the canonical unit type names."""
+    return name in CANONICAL_UNIT_NAMES
+
+
 @dataclass(frozen=True, slots=True)
 class UnitType:
     """A built-in scalar logical type."""
 
-    name: str
+    name: UnitTypeName
 
     def __post_init__(self) -> None:
-        if self.name not in {"bool", "int", "float", "str"}:
+        if not is_canonical_unit_name(self.name):
             raise ValueError(f"unknown unit logical type {self.name!r}")
 
 
@@ -81,10 +106,15 @@ BOOL = UnitType("bool")
 INT = UnitType("int")
 FLOAT = UnitType("float")
 STR = UnitType("str")
+DATE = UnitType("date")
+TIME = UnitType("time")
+TIMESTAMP = UnitType("timestamp")
+UUID = UnitType("uuid")
 
 
 __all__ = [
-    "Array", "ArrayType", "BOOL", "CustomDataType", "CustomType", "FLOAT", "INT",
-    "LogicalType", "NonNullableLogicalType", "Nullable", "NullableType", "STR", "Struct",
-    "StructType", "UnitType",
+    "Array", "ArrayType", "BOOL", "CANONICAL_UNIT_NAMES", "CustomDataType", "CustomType",
+    "DATE", "Date", "FLOAT", "INT", "LogicalType", "NonNullableLogicalType", "Nullable",
+    "NullableType", "STR", "Struct", "StructType", "TIME", "TIMESTAMP", "Time", "Timestamp",
+    "UUID", "UnitType", "UnitTypeName", "Uuid", "is_canonical_unit_name",
 ]

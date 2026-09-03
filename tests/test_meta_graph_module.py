@@ -7,8 +7,12 @@ import shutil
 import subprocess
 import tempfile
 import unittest
+from collections.abc import Iterable
+from datetime import date, datetime, time, timedelta
+from decimal import Decimal
 from html.parser import HTMLParser
 from pathlib import Path
+from uuid import UUID
 
 from kg_build_system import (
     AbstractEdge,
@@ -36,6 +40,7 @@ from kg_build_system import (
     property,
 )
 from kg_build_system.binding.ir import NodeBindingIR
+from kg_build_system.binding.models import Binding
 from kg_build_system.compile.models import BuildBlueprint
 from kg_build_system.expressions import value_expression
 from kg_build_system.expressions.mapping import expression_to_ir
@@ -52,6 +57,10 @@ from kg_build_system.modules.targets.meta_graph.ir import (
     decode_meta_graph_instruction,
     encode_meta_graph_instruction,
 )
+from kg_build_system.modules.targets.meta_graph.module import (
+    _canonical_example_value,
+    _example_order_key,
+)
 from kg_build_system.modules.targets.meta_graph.render import render
 from kg_build_system.modules.targets.meta_graph.topology import (
     component_entries,
@@ -60,7 +69,15 @@ from kg_build_system.modules.targets.meta_graph.topology import (
 )
 from kg_build_system.table.ir import FieldIR, StructIR
 from kg_build_system.topology.ir import ComponentIR, PropertyIR
-from kg_build_system.types import ArrayType, STR, normalize_type
+from kg_build_system.types import (
+    ArrayType,
+    Date,
+    STR,
+    Time,
+    Timestamp,
+    normalize_type,
+    Uuid,
+)
 from kg_build_system.types.ir import StructTypeIR
 from kg_build_system.types.mapping import type_to_ir
 
@@ -188,7 +205,7 @@ def _data_rows() -> list[dict[str, object]]:
 
 
 def _run(
-    case: unittest.TestCase, *modules: object,
+    case: unittest.TestCase, *modules: object, bindings: Iterable[Binding] = ALL_BINDINGS,
 ) -> tuple[Path, object, object, dict[str, object]]:
     """Compile and execute the fixture in a temporary directory."""
     directory = tempfile.TemporaryDirectory()
@@ -198,7 +215,7 @@ def _run(
     data.write_text(json.dumps(_data_rows()), encoding="utf-8")
     output = root / "output"
     contract = compile(
-        bindings=ALL_BINDINGS,
+        bindings=bindings,
         sources=(_source(data),),
         modules=tuple(modules),  # type: ignore[arg-type]
     )
@@ -210,6 +227,17 @@ def _run(
 
 def _by_name(document: dict[str, object], kind: str) -> dict[str, dict[str, object]]:
     return {item["name"]: item for item in document[kind]}  # type: ignore[index]
+
+
+def _document_text(output: Path) -> str:
+    """The document as written, with the run's own output path elided.
+
+    Parsing it first would let a different key order or a different text form for
+    the same value pass; the document is a committed artifact, so its bytes are
+    what a rebuild has to reproduce.
+    """
+    text = (output / "meta_graph.json").read_text(encoding="utf-8")
+    return text.replace(json.dumps(str(output))[1:-1], "<output>")
 
 
 class EffectiveTopologyTests(unittest.TestCase):
@@ -364,8 +392,13 @@ class LogicalTypeReportingTests(unittest.TestCase):
     def test_display_type_matches_the_authoring_vocabulary(self) -> None:
         self.assertEqual(
             [display_type(type_to_ir(normalize_type(unit)))
-             for unit in (bool, int, float, str, str | None)],
-            ["bool", "int", "float", "str", "str | None"],
+             for unit in (bool, int, float, str, Date, Time, Timestamp, Uuid)],
+            ["bool", "int", "float", "str", "date", "time", "timestamp", "uuid"],
+        )
+        self.assertEqual(
+            [display_type(type_to_ir(normalize_type(unit | None)))
+             for unit in (str, Timestamp, Uuid)],
+            ["str | None", "timestamp | None", "uuid | None"],
         )
         self.assertEqual(display_type(type_to_ir(ArrayType(STR))), "Array[str]")
         nested = ArrayType(normalize_type(str | None))
@@ -506,6 +539,31 @@ class ExecutionTests(unittest.TestCase):
 
         self.assertEqual(body(first), body(second))
 
+    def test_written_document_bytes_are_identical_across_two_compilations(self) -> None:
+        def written() -> str:
+            output, _contract, _report, _document = _run(
+                self, register_module(MetaGraphModule),
+            )
+            return _document_text(output)
+
+        self.assertEqual(written(), written())
+
+    def test_the_document_version_is_three(self) -> None:
+        self.assertEqual(
+            MetaGraphDocumentIR(relative_path="meta_graph.json").schema_version, 3,
+        )
+        _output, _contract, _report, document = _run(self, register_module(MetaGraphModule))
+        self.assertEqual(document["schema_version"], 3)
+        # A document written before the canonical temporal types arrived cannot be
+        # read as this one: its example values are whatever str() made of them.
+        stale = {
+            "schema_version": 2, "relative_path": "meta_graph.json",
+            "example_limit": 3, "include_html": True,
+            "html_relative_path": "meta_graph.html", "components": [],
+        }
+        with self.assertRaises(ValueError):
+            decode_meta_graph_instruction(stale)
+
     def test_payload_and_fingerprint_are_stable_for_identical_inputs(self) -> None:
         # The step payload feeds the workflow fingerprint, so it must be built
         # from sorted collections rather than iteration order.
@@ -619,6 +677,160 @@ class ExampleValueTests(unittest.TestCase):
             MetaGraphModuleConfiguration(example_limit=-1)
 
 
+class TemporalNode(Node):
+    """One property per canonical type the document has to give a text form."""
+
+    options = NodeOptions(name="temporal")
+
+    occurred_at: PropertySlot[Timestamp] = property()
+    recorded_at: PropertySlot[Timestamp | None] = property()
+    on_day: PropertySlot[Date] = property()
+    at_hour: PropertySlot[Time] = property()
+    token: PropertySlot[Uuid] = property()
+
+
+TEMPORAL_TEXT = {
+    "occurred_at": "2026-08-02T14:20:00",
+    "recorded_at": "2026-07-14T09:35:00",
+    "on_day": "2026-08-02",
+    "at_hour": "14:20:00",
+    "token": "9b8e4c2e-1a2b-3c4d-5e6f-7a8b9c0d1e2f",
+}
+
+# The nullable slot takes a non-null literal, so the document carries both the
+# ``| None`` modifier and an example value for it.
+temporal_binding = node_binding(
+    target=TemporalNode,
+    build_key=MetaInput.identifier,
+    properties=TemporalNode(
+        occurred_at=value_expression(datetime(2026, 8, 2, 14, 20)),
+        recorded_at=value_expression(datetime(2026, 7, 14, 9, 35)),
+        on_day=value_expression(date(2026, 8, 2)),
+        at_hour=value_expression(time(14, 20)),
+        token=value_expression(UUID(TEMPORAL_TEXT["token"])),
+    ),
+)
+
+
+def _temporal_document(
+    case: unittest.TestCase,
+) -> tuple[Path, dict[str, object]]:
+    output, _contract, _report, document = _run(
+        case, register_module(MetaGraphModule), bindings=(temporal_binding,),
+    )
+    return output, document
+
+
+class CanonicalTemporalPropertyTests(unittest.TestCase):
+    """A temporal property's name, family and example spelling, end to end."""
+
+    def setUp(self) -> None:
+        self.output, self.document = _temporal_document(self)
+        entry = _by_name(self.document, "nodes")["temporal"]
+        self.properties = {item["name"]: item for item in entry["properties"]}
+
+    def test_temporal_properties_are_named_in_the_canonical_vocabulary(self) -> None:
+        self.assertEqual(
+            [(item["name"], item["type"], item["nullable"])
+             for item in self.properties.values()],
+            [("occurred_at", "timestamp", False),
+             ("recorded_at", "timestamp | None", True),
+             ("on_day", "date", False), ("at_hour", "time", False),
+             ("token", "uuid", False)],
+        )
+
+    def test_examples_are_written_in_the_canonical_text_form(self) -> None:
+        # Read the file rather than the parsed document: the point of the
+        # assertion is the spelling on disk, which `default=str` got wrong.
+        written = (self.output / "meta_graph.json").read_text(encoding="utf-8")
+        for name, text in TEMPORAL_TEXT.items():
+            with self.subTest(name=name):
+                self.assertEqual(self.properties[name]["examples"], [text])
+                self.assertIn(f'"{text}"', written)
+        self.assertNotIn("2026-08-02 14:20:00", written, "a space is not ISO-8601")
+
+    def test_temporal_examples_are_written_identically_across_two_builds(self) -> None:
+        # The sketch returns an order of its own, so a temporal example is only
+        # reproducible because both the text and the order are defined here.
+        def written() -> str:
+            output, _document = _temporal_document(self)
+            return _document_text(output)
+
+        self.assertEqual(written(), written())
+
+    @unittest.skipUnless(shutil.which("node"), "node is not installed")
+    def test_the_family_of_a_temporal_type_is_its_canonical_name(self) -> None:
+        app = _APP_BLOCK.search(_html_text(self.output))
+        assert app
+        derived = _run_app_code(
+            app.group(1),
+            "console.log(JSON.stringify(Object.fromEntries("
+            "  ['timestamp','timestamp | None','date','time','uuid']"
+            "  .map(function (type) { return [type, typeFamily(type)]; }))));",
+        )
+        self.assertEqual(
+            derived,
+            {"timestamp": "timestamp", "timestamp | None": "timestamp",
+             "date": "date", "time": "time", "uuid": "uuid"},
+        )
+
+
+class CanonicalExampleValueTests(unittest.TestCase):
+    """The one text form and order an example value is written with."""
+
+    def test_each_canonical_type_takes_its_documented_text_form(self) -> None:
+        self.assertEqual(
+            _canonical_example_value(datetime(2026, 8, 2, 14, 20)),
+            "2026-08-02T14:20:00",
+        )
+        self.assertEqual(_canonical_example_value(date(2026, 8, 2)), "2026-08-02")
+        self.assertEqual(_canonical_example_value(time(14, 20)), "14:20:00")
+        self.assertEqual(
+            _canonical_example_value(UUID(TEMPORAL_TEXT["token"])),
+            TEMPORAL_TEXT["token"],
+        )
+
+    def test_the_json_scalars_pass_straight_through(self) -> None:
+        for value in (None, True, 3, 1.5, "Ada"):
+            with self.subTest(value=value):
+                self.assertIs(_canonical_example_value(value), value)
+
+    def test_containers_recurse_to_their_items(self) -> None:
+        self.assertEqual(
+            _canonical_example_value(
+                {"at": datetime(2026, 8, 2, 14, 20), "days": [date(2026, 8, 2)]},
+            ),
+            {"at": "2026-08-02T14:20:00", "days": ["2026-08-02"]},
+        )
+
+    def test_a_value_outside_the_canonical_vocabulary_raises_naming_its_type(self) -> None:
+        # Fail closed: `default=str` would have written these into a document the
+        # build claims to be able to reproduce.
+        for value in (b"bytes", Decimal("1.5"), timedelta(days=1)):
+            with self.subTest(value=value):
+                with self.assertRaisesRegex(TypeError, type(value).__name__) as caught:
+                    _canonical_example_value(value)
+                self.assertIn("no canonical form", str(caught.exception))
+
+    def test_examples_order_by_canonical_text_form(self) -> None:
+        # Not by repr, which would put the datetime first and 14:20 before 09:35.
+        # The order is the one the document prints.
+        values = [time(14, 20), datetime(2026, 8, 2, 9, 0), time(9, 35)]
+        self.assertEqual(
+            [_canonical_example_value(item)
+             for item in sorted(values, key=_example_order_key)],
+            ["09:35:00", "14:20:00", "2026-08-02T09:00:00"],
+        )
+
+    def test_the_secondary_key_separates_values_of_the_same_text_form(self) -> None:
+        # A date and a string spelling it identically are the same text, so the
+        # tie is broken by repr — deterministically, never by input order.
+        spelled = "2026-08-02"
+        keys = [_example_order_key(item) for item in (date(2026, 8, 2), spelled)]
+        self.assertEqual({item[0] for item in keys}, {json.dumps(spelled)})
+        self.assertEqual(len(set(keys)), 2)
+
+
 class NullableKeyTable(Table):
     maybe_id: Field[str | None] = field()
     detail: Field[str] = field()
@@ -688,6 +900,7 @@ _DATA_BLOCK = re.compile(
     r'<script id="meta-graph-data" type="application/json">(.*?)</script>', re.DOTALL
 )
 _APP_BLOCK = re.compile(r"/\* APP-START \*/(.*?)/\* APP-END \*/", re.DOTALL)
+_STYLE_BLOCK = re.compile(r"<style>(.*?)</style>", re.DOTALL)
 
 
 def _html_text(output: Path) -> str:
@@ -764,13 +977,19 @@ class HtmlVisualizationTests(unittest.TestCase):
                 {"name": "tags", "type": "Array[str | None] | None", "description": "d",
                  "examples": []},
                 {"name": "where", "type": "Place | None", "description": "d", "examples": []},
+                {"name": "occurred_at", "type": "timestamp | None", "description": "d",
+                 "examples": ["2026-08-02T14:20:00"]},
+                {"name": "token", "type": "uuid", "description": "d",
+                 "examples": ["9b8e4c2e-1a2b-3c4d-5e6f-7a8b9c0d1e2f"]},
             ],
         }
         derived = _run_app_code(
             app.group(1),
             "console.log(JSON.stringify({"
             " families: ['str','int','float','bool','str | None',"
-            "   'Array[str | None] | None','Place | None','Currency'].map(typeFamily),"
+            "   'Array[str | None] | None','Place | None','Currency',"
+            "   'date','time','timestamp','uuid','Decimal',"
+            "   'date | None','timestamp | None','uuid | None'].map(typeFamily),"
             " nullable: ['str','str | None','Array[str | None] | None','Array[str]']"
             "   .map(isNullable),"
             f" html: propertyList({json.dumps(component)})"
@@ -780,15 +999,24 @@ class HtmlVisualizationTests(unittest.TestCase):
         self.assertEqual(
             derived["families"],
             ["string", "number", "number", "boolean", "string", "array",
-             "composite", "composite"],
+             "composite", "composite",
+             "date", "time", "timestamp", "uuid", "composite",
+             "date", "timestamp", "uuid"],
         )
         self.assertEqual(derived["nullable"], [False, True, True, False])
 
         html = derived["html"]
-        for family in ("string", "number", "boolean", "array", "composite"):
+        for family in ("string", "number", "boolean", "array", "composite",
+                       "timestamp", "uuid"):
             self.assertIn(f'class="type {family}"', html)
-        # Nullable is a badge, so three of the five properties carry it.
-        self.assertEqual(html.count('class="nullable"'), 3)
+        # Every family the derivation can name is styled, so a new canonical type
+        # cannot arrive as an unlabelled grey badge.
+        css = _STYLE_BLOCK.search(_html_text(output))
+        assert css
+        for family in ("date", "time", "timestamp", "uuid"):
+            self.assertRegex(css.group(1), rf"\.type\.{family}\b")
+        # Nullable is a badge, so four of the seven properties carry it.
+        self.assertEqual(html.count('class="nullable"'), 4)
         self.assertIn("&lt;tag&gt; &amp; &quot;quote&quot;", html)
         self.assertNotIn("<tag>", html)
         self.assertIn("No description.", html, "a null description is still labelled")

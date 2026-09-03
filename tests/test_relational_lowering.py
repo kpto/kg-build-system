@@ -1,8 +1,11 @@
 from __future__ import annotations
 
+import datetime
 import json
 import tempfile
 import unittest
+import uuid
+from decimal import Decimal
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -11,14 +14,22 @@ from kg_build_system import (
     PropertySlot, Struct, Table, bind_source, build, compile, create_blueprint,
     field, node_binding, projection_field, property,
 )
+from kg_build_system._frozen_json import freeze_json
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration,
     MergeCompatibleFactsModule, register_module,
 )
 from kg_build_system.modules.core.credentials import configure_source_credentials
+from kg_build_system.modules.core.core import CoreArtifactRoles
+from kg_build_system.modules.targets.file import FileExecutor
 from kg_build_system.relational import lower_product
 from kg_build_system.engines.duckdb import lower_relation_sql
 from kg_build_system.workflow.ir import WorkflowContractIR
+from kg_build_system.workflow.models import (
+    Artifact, ContinuableInput, ExecutionContext, ModuleDefinition, ModuleReference,
+    OutputSlot, StepStatus, WorkflowArtifactRoles, WorkflowStep,
+)
+from kg_build_system.workflow.services import RelationRef
 
 
 class LoweringEvidence(Struct):
@@ -158,7 +169,15 @@ class RelationalLoweringTests(unittest.TestCase):
             "format": "json",
             "credential_reference": "source_credentials",
             "declaration": "lowering_input",
-            "declared_columns": ["identifier", "optional_label", "evidence"],
+            "declared_columns": [
+                {"name": "identifier", "logical_type": {"kind": "unit", "name": "str"}},
+                {"name": "optional_label", "logical_type": {
+                    "kind": "nullable", "value": {"kind": "unit", "name": "str"}}},
+                {"name": "evidence", "logical_type": {
+                    "kind": "array", "item": {
+                        "kind": "struct", "module": "test_relational_lowering",
+                        "qualname": "LoweringEvidence"}}},
+            ],
             "declared_paths": [
                 {"logical_path": "evidence", "schema_path": "evidence.list.element"},
                 {
@@ -272,6 +291,141 @@ class RelationalLoweringTests(unittest.TestCase):
         self.assertTrue(
             next(iter(file_outputs)).startswith("collapse_exact_duplicates::")
         )
+
+
+class _RecordQuery:
+    """The cursor result of ``SELECT * FROM <records>``, rows as DuckDB returns them."""
+
+    def __init__(
+        self, columns: tuple[str, ...], rows: list[tuple[object, ...]],
+    ) -> None:
+        self.description = tuple((column,) for column in columns)
+        self._rows = rows
+
+    def fetchmany(self, size: int) -> list[tuple[object, ...]]:
+        batch, self._rows = self._rows[:size], self._rows[size:]
+        return batch
+
+
+class FileTargetPropertyEncodingTests(unittest.TestCase):
+    """The file target writes the canonical text form of every property value."""
+
+    def _write(
+        self, root: Path, columns: tuple[str, ...], *rows: tuple[object, ...],
+    ) -> str:
+        services = MagicMock()
+        services.output_storage.child.side_effect = lambda relative: root / relative
+        services.relations.reference.return_value = "kg_records"
+        services.relations.query.return_value = _RecordQuery(columns, list(rows))
+        records = Artifact(
+            "core::graph.node.survey",
+            CoreArtifactRoles.graph_records("node", "survey"),
+            RelationRef("kg_records"),
+        )
+
+        FileExecutor({}).handle(ExecutionContext(
+            module=ModuleDefinition(ModuleReference(
+                module_id=FileModule.ID,
+                import_module=FileModule.__module__,
+                class_qualname=FileModule.__qualname__,
+                implementation_version=FileModule.VERSION,
+                configuration=freeze_json({"relative_path": "graph.jsonl"}),
+            )),
+            step=WorkflowStep(
+                step_id="file::write",
+                module_id=FileModule.ID,
+                outputs=(OutputSlot(
+                    "file::write.result",
+                    WorkflowArtifactRoles.published(FileModule.ID, "write_result"),
+                ),),
+            ),
+            runtime_configuration={},
+            inputs={"file::write.records": (ContinuableInput(
+                output_slot_id=records.slot_id,
+                status=StepStatus.SUCCEEDED,
+                artifact=records,
+            ),)},
+            services=services,
+        ))
+        return (root / "graph.jsonl").read_text(encoding="utf-8")
+
+    def test_scalars_are_written_exactly_as_before(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            written = self._write(
+                Path(directory),
+                ("build_key", "count", "ratio", "flag", "label", "note"),
+                ("survey::1", 3, 1.5, True, "x", None),
+            )
+        self.assertEqual(
+            written,
+            '{"build_key": "survey::1", "count": 3, "flag": true, "kind": "node",'
+            ' "label": "x", "note": null, "ratio": 1.5, "type": "survey"}\n',
+        )
+
+    def test_temporal_and_identifier_values_use_their_canonical_form(self) -> None:
+        identifier = uuid.UUID("2f9c1b6a-5d4e-4a3b-8c7d-6e5f4a3b2c1d")
+        with tempfile.TemporaryDirectory() as directory:
+            written = self._write(
+                Path(directory),
+                ("build_key", "on_day", "at", "clock", "id", "stays", "window"),
+                (
+                    "survey::1",
+                    datetime.date(2026, 8, 2),
+                    datetime.datetime(2026, 7, 14, 6, 15),
+                    datetime.time(6, 15),
+                    identifier,
+                    [datetime.date(2026, 8, 2), datetime.time(6, 15)],
+                    {"start": datetime.datetime(2026, 7, 14, 6, 15), "codes": (identifier,)},
+                ),
+            )
+        self.assertEqual(json.loads(written), {
+            "build_key": "survey::1",
+            "on_day": "2026-08-02",
+            "at": "2026-07-14T06:15:00",
+            "clock": "06:15:00",
+            "id": "2f9c1b6a-5d4e-4a3b-8c7d-6e5f4a3b2c1d",
+            "stays": ["2026-08-02", "06:15:00"],
+            "window": {
+                "start": "2026-07-14T06:15:00",
+                "codes": ["2f9c1b6a-5d4e-4a3b-8c7d-6e5f4a3b2c1d"],
+            },
+            "kind": "node",
+            "type": "survey",
+        })
+        # The str() form of a datetime separates the date from the time with a
+        # space, which is not the ISO-8601 canonical text form.
+        self.assertIn('"at": "2026-07-14T06:15:00"', written)
+        self.assertNotIn("2026-07-14 06:15:00", written)
+
+    def test_a_temporal_build_key_takes_its_canonical_text_form(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            written = self._write(
+                Path(directory),
+                ("build_key", "recorded"),
+                ("survey::1", "kept"),
+                (datetime.datetime(2026, 7, 14, 6, 15), "written"),
+            )
+        # The str build key is written with the bytes it always had; the
+        # datetime key is text in canonical form, not str()'s space separator.
+        self.assertEqual(
+            written,
+            '{"build_key": "survey::1", "kind": "node", "recorded": "kept",'
+            ' "type": "survey"}\n'
+            '{"build_key": "2026-07-14T06:15:00", "kind": "node",'
+            ' "recorded": "written", "type": "survey"}\n',
+        )
+
+    def test_a_value_without_a_canonical_form_aborts_the_write(self) -> None:
+        for refused in (b"blob", Decimal("1.5"), datetime.timedelta(days=1)):
+            with self.subTest(refused=refused), tempfile.TemporaryDirectory() as directory:
+                root = Path(directory)
+                with self.assertRaises(TypeError) as failure:
+                    self._write(root, ("build_key", "value"), ("survey::1", refused))
+                self.assertIn(type(refused).__name__, str(failure.exception))
+                self.assertEqual(
+                    (root / "graph.jsonl").read_text(encoding="utf-8"), "",
+                    "the record is refused rather than stringified",
+                )
 
 
 if __name__ == "__main__":

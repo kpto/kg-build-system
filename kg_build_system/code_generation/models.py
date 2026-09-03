@@ -25,12 +25,20 @@ class Nullability(StrEnum):
 
 
 class ScalarTypeName(StrEnum):
-    """Scalar names the public authoring surface understands."""
+    """Scalar names the public authoring surface understands.
+
+    These are the canonical unit types of ``kg_build_system.types``; a name here
+    is rendered as its representative type, which is what an author annotates.
+    """
 
     BOOL = "bool"
     INT = "int"
     FLOAT = "float"
     STR = "str"
+    DATE = "date"
+    TIME = "time"
+    TIMESTAMP = "timestamp"
+    UUID = "uuid"
 
 
 ConfigT = TypeVar("ConfigT", bound=ProviderGenerationConfig)

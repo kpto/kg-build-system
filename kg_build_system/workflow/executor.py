@@ -11,6 +11,8 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Literal, cast
 
+from pydantic import JsonValue
+
 from .ir import WorkflowContractIR
 from .mapping import workflow_from_ir
 from .models import Artifact, BuildRuntime, ContinuableInput, DisruptedExecutionContext, DisruptingInput, ExecutionContext, ExecutorFactoryContext, Failure, PublishedArtifact, StepOutcome, StepStatus, WorkflowArtifactRoles, WorkflowReport
@@ -27,6 +29,10 @@ _LOGGER = logging.getLogger("kg_build_system.workflow.execution")
 _LOGGER.addHandler(logging.NullHandler())
 _DUCKDB_BUILD_DATABASE = "kg_build_memory"
 _DUCKDB_BUILD_FILENAME = "kg_build.duckdb"
+# A TIMESTAMPTZ is handed to Python as a datetime whose tzinfo is the session
+# TimeZone rather than a property of the data, and that setting defaults to the
+# machine's zone, so a build pins it instead of inheriting it.
+PINNED_TIME_ZONE = "UTC"
 
 
 class _MonitorLogger:
@@ -181,6 +187,9 @@ def _configure_duckdb(
     # After USE, so the macro lands in the database the build works in, and
     # before any relation is defined, which is when a lowered guard resolves.
     configure_framework_macros(connection)
+    # Also before any view is created: every statement the build lowers, and
+    # every temporal value it reads back, evaluates against this session state.
+    connection.execute("SET TimeZone = ?", [PINNED_TIME_ZONE])
 
 
 def _effective_duckdb_resources(connection: Any) -> tuple[str, int]:
@@ -190,6 +199,13 @@ def _effective_duckdb_resources(connection: Any) -> tuple[str, int]:
         "WHERE name IN ('memory_limit', 'threads')"
     ).fetchall())
     return str(settings["memory_limit"]), int(settings["threads"])
+
+
+def _effective_duckdb_time_zone(connection: Any) -> str:
+    """Read the normalized session time zone the build ended up with."""
+    return str(connection.execute(
+        "SELECT current_setting('TimeZone')"
+    ).fetchone()[0])
 
 
 def _build(
@@ -218,6 +234,7 @@ def _build(
       connection = _open_duckdb(duckdb, runtime, storage_directory)
       try:
           _configure_duckdb(connection, runtime, storage_directory)
+          time_zone = _effective_duckdb_time_zone(connection)
       except BaseException:
           connection.close()
           raise
@@ -398,12 +415,14 @@ def _build(
       all_failures = tuple(
           outcome.failure for outcome in outcomes if outcome.failure is not None
       )
-      provenance = (
+      provenance: dict[str, JsonValue] = (
           dict(contract.provenance)
           if isinstance(contract.provenance, dict)
           else {"contract": contract.provenance}
       )
       provenance["workflow_fingerprint"] = contract.workflow_fingerprint
+      duckdb_provenance: dict[str, JsonValue] = {"TimeZone": time_zone}
+      provenance["duckdb"] = duckdb_provenance
       return WorkflowReport(
         published_artifacts=tuple(PublishedArtifact(role=artifact.role, value=artifact.value) for artifact in published_artifacts),
         recovered_failures=tuple(failure for failure in all_failures if failure not in unresolved),

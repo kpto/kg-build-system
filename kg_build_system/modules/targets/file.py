@@ -1,7 +1,9 @@
 """Workflow module that writes normalized graph records as JSON Lines."""
 from __future__ import annotations
 
+import datetime
 import json
+import uuid
 from dataclasses import dataclass
 from pathlib import PurePosixPath
 from typing import Any, ClassVar
@@ -31,6 +33,38 @@ from ..core import CoreArtifactRoles
 
 def _validate_relative_path(value: str) -> None:
     validate_relative_path(value, context="file output path")
+
+
+def _canonical_property_value(value: Any) -> Any:
+    """The canonical form of one property value as it reaches the graph file.
+
+    ``json.dumps`` hands this only the values it cannot encode itself, so the
+    JSON scalars are returned untouched and an existing record keeps its bytes.
+    The build key is passed here directly before taking its text, so a key that
+    is temporal or a ``uuid`` is written in canonical form too.
+    The temporal canonicals are written with ``isoformat()``, which keeps the
+    ISO-8601 ``T`` separator that ``str()`` replaces with a space, and ``uuid``
+    with its hyphenated text. A value outside the canonical vocabulary — a
+    ``bytes``, ``Decimal`` or ``timedelta`` the boundary refuses — has no form
+    here and raises rather than being quietly stringified into the graph.
+    """
+    if value is None or isinstance(value, (bool, int, float, str)):
+        return value
+    # A datetime is a date, so the three share one test and one canonical form.
+    if isinstance(value, (datetime.datetime, datetime.date, datetime.time)):
+        return value.isoformat()
+    if isinstance(value, uuid.UUID):
+        return str(value)
+    if isinstance(value, dict):
+        return {
+            key: _canonical_property_value(item) for key, item in value.items()
+        }
+    if isinstance(value, (list, tuple)):
+        return [_canonical_property_value(item) for item in value]
+    raise TypeError(
+        f"graph property of type {type(value).__qualname__} has no canonical"
+        " form in the file target"
+    )
 
 
 @dataclass(frozen=True)
@@ -162,7 +196,9 @@ class FileExecutor(ModuleExecutor):
                         for row in batch:
                             record = dict(zip(columns, row, strict=True))
                             record.update(
-                                build_key=str(record["build_key"]),
+                                build_key=str(
+                                    _canonical_property_value(record["build_key"])
+                                ),
                                 type=identity.component,
                                 kind=identity.kind,
                             )
@@ -171,7 +207,11 @@ class FileExecutor(ModuleExecutor):
                             else:
                                 edge_count += 1
                             stream.write(
-                                json.dumps(record, sort_keys=True, default=str) + "\n"
+                                json.dumps(
+                                    record,
+                                    sort_keys=True,
+                                    default=_canonical_property_value,
+                                ) + "\n"
                             )
 
         summary = {

@@ -3,14 +3,14 @@
 from kg_build_system import Edge, EdgeLabel, EdgeOptions
 
 from reference_project.topology.common import (
-    MonitoredRelationAbstractEdge, RecordedRelationEdgeTemplate,
+    MonitoredRelationAbstractEdge, TimestampedRelationEdgeTemplate,
 )
 from reference_project.topology.site import SiteNode
 from reference_project.topology.survey import SurveyVisitNode
 
 
 class SurveyedAtEdge(
-    RecordedRelationEdgeTemplate, MonitoredRelationAbstractEdge,
+    TimestampedRelationEdgeTemplate, MonitoredRelationAbstractEdge,
     Edge[SurveyVisitNode, SiteNode],
 ):
     """Relates a survey to the site it was carried out at."""
