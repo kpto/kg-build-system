@@ -38,7 +38,7 @@ upgrade which adds or renames a type fails a test rather than quietly leaving th
 | DECIMAL(10,2) | reject | decimal(p, s) | - | none | - | decimal.Decimal | decimal.Decimal | design row (no cast to verify) | deferred: needs a parameterised canonical type plus DuckDB result-width rules; DECIMAL division returns DOUBLE, so no division operator may be offered |
 | VARCHAR | accept | str | yes | identity | VARCHAR | str | str | verified |  |
 | JSON | accept | str | yes | CAST(value AS VARCHAR) | VARCHAR | str | str | verified | JSON is a VARCHAR spelling, so .id cannot distinguish the two |
-| UUID | accept | Uuid | yes | identity | UUID | uuid.UUID | uuid.UUID | verified | own canonical type: an identifier that merely has a canonical text form, carried unchanged with no cast and no conversion |
+| UUID | accept | uuid | yes | identity | UUID | uuid.UUID | uuid.UUID | verified | own canonical type: an identifier that merely has a canonical text form, carried unchanged with no cast and no conversion |
 | BIT | reject | - | - | none | - | str | str | design row (no cast to verify) | rare; a str canonical would be cheap to add |
 | BLOB | reject | binary | - | none | - | bytes | bytes | design row (no cast to verify) | deferred: no total order, so the core operators cannot merge or deduplicate it |
 | DATE | accept | date | yes | identity | DATE | datetime.date | datetime.date | verified |  |
@@ -65,9 +65,9 @@ upgrade which adds or renames a type fails a test rather than quietly leaving th
 
 ## Canonical vocabulary
 
-A canonical type is named for what it means in the framework, not for the Python builtin whose name it could have borrowed. `Uuid` is a canonical type rather than `str` because a UUID is an identifier that merely has a canonical text form, and the client already carries it as `uuid.UUID` with no cast and no conversion.
+A canonical type is named for what it means in the framework, not for the Python builtin whose name it could have borrowed. `uuid` is a canonical type rather than `str` because a UUID is an identifier that merely has a canonical text form, and the client already carries it as `uuid.UUID` with no cast and no conversion. Canonical names are uniformly lowercase; a capitalised name always marks a representative type.
 
-- Usable as a graph property or key: `bool`, `date`, `float`, `int`, `str`, `time`, `timestamp`, `Uuid`.
+- Usable as a graph property or key: `bool`, `date`, `float`, `int`, `str`, `time`, `timestamp`, `uuid`.
 - Values that must be flattened before they can become a property: `Array[int]`, `Struct{a: int}`.
 
 ### Representative types
@@ -83,7 +83,7 @@ and it must be the very class of the value the client returns, because `ValueExp
 | `date` | `Date` | `datetime.date` | `kg_build_system.types` |
 | `time` | `Time` | `datetime.time` | `kg_build_system.types` |
 | `timestamp` | `Timestamp` | `datetime.datetime` | `kg_build_system.types` |
-| `Uuid` | `Uuid` | `uuid.UUID` | `kg_build_system.types` |
+| `uuid` | `Uuid` | `uuid.UUID` | `kg_build_system.types` |
 
 The representative types are exposed by `kg_build_system.types`, alongside the `Array`, `Nullable`,
 `Struct` and `CustomDataType` markers already exported there, and are aliases of the stdlib classes
