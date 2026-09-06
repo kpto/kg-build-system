@@ -32,8 +32,8 @@ import {
   type OperationBlock,
   type Operand,
 } from "../logic/stack";
-import { blockFor, paletteFor, type PaletteEntry } from "../logic/palette";
-import { checkKey, checkSlot } from "../logic/rules";
+import { blockFor, headsFor, paletteFor, type PaletteEntry } from "../logic/palette";
+import { checkKey, checkSlot, type HeadTarget } from "../logic/rules";
 import { renderPreview } from "../logic/preview";
 import { expressionAt, stackRef, withStackExpression, withoutProperty, type StackTarget } from "../logic/edits";
 import { BlockCard } from "./BlockCard";
@@ -62,7 +62,17 @@ export function StackComposer(props: StackComposerProps) {
   const blocks = useMemo(() => blocksFromExpression(expression), [expression]);
   const seams = useMemo(() => seamsFor(ctx, blocks), [ctx, blocks]);
   const tip = seams.types[seams.types.length - 1] ?? null;
-  const palette = useMemo(() => paletteFor(ctx, operators, tip), [ctx, operators, tip]);
+  const steps = useMemo(() => paletteFor(ctx, operators, tip), [ctx, operators, tip]);
+  const headTarget = useMemo<HeadTarget>(
+    () => ({ componentName, slot, key: target.part === "property" ? null : target.part }),
+    [componentName, slot, target.part],
+  );
+  // An empty stack has no tip to filter the catalogue against, so its palette starts the
+  // stack: the heads that can fill this slot or key, ahead of the operations they unlock.
+  const palette = useMemo(
+    () => (blocks.length === 0 ? [...headsFor(ctx, headTarget), ...steps] : steps),
+    [blocks.length, ctx, headTarget, steps],
+  );
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -107,6 +117,13 @@ export function StackComposer(props: StackComposerProps) {
   }
 
   function pick(entry: PaletteEntry) {
+    // A head is only offered while the stack is empty, and the head is the whole stack;
+    // it leaves through `commit` like every other edit, so it is undoable like them too.
+    if (entry.head) {
+      commit([blockFor(entry, tip)]);
+      setMenuOpen(false);
+      return;
+    }
     // A member read off a plain field reference is folded into that reference's path,
     // because that is what the framework compiles it to. It only becomes a
     // `struct_field` block once an operation sits underneath.
@@ -277,7 +294,7 @@ export function StackComposer(props: StackComposerProps) {
         )}
 
         <div className="mt-1 pl-3">
-          <AddBlockButton onClick={() => setMenuOpen(true)} disabled={blocks.length === 0} tip={tip} />
+          <AddBlockButton onClick={() => setMenuOpen(true)} empty={blocks.length === 0} tip={tip} />
         </div>
 
         {pendingDelete !== null && (
@@ -294,6 +311,7 @@ export function StackComposer(props: StackComposerProps) {
 
       {menuOpen && (
         <AddBlockMenu
+          ctx={ctx}
           entries={palette}
           tip={tip}
           onPick={pick}

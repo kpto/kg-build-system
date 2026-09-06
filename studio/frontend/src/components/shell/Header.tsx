@@ -24,6 +24,7 @@ export interface HeaderProps {
   onUndo(): void;
   onRedo(): void;
   onDismissNotice(id: string): void;
+  onClearNotices(): void;
   inspectorOpen: boolean;
   onToggleInspector(): void;
   problemsOpen: boolean;
@@ -65,6 +66,7 @@ export const Header = forwardRef<HTMLInputElement, HeaderProps>(function Header(
     onUndo,
     onRedo,
     onDismissNotice,
+    onClearNotices,
     inspectorOpen,
     onToggleInspector,
     problemsOpen,
@@ -203,11 +205,21 @@ export const Header = forwardRef<HTMLInputElement, HeaderProps>(function Header(
           aria-live="polite"
           className="pointer-events-none fixed bottom-10 left-14 z-40 flex w-[26rem] flex-col gap-1"
         >
+          {notices.length > 1 && (
+            <div className="pointer-events-auto flex justify-end">
+              <Button size="sm" variant="ghost" onClick={onClearNotices}>
+                {`clear ${notices.length}`}
+              </Button>
+            </div>
+          )}
           {notices.map((notice) => (
             <div
               key={notice.id}
+              data-notice=""
               className={clsx(
-                "studio-card flex items-start gap-2 px-2.5 py-2 text-[12px]",
+                // The wrapper is click-through so notices never block the canvas;
+                // each card opts back in so its dismiss button is reachable.
+                "studio-card pointer-events-auto flex items-start gap-2 px-2.5 py-2 text-[12px]",
                 notice.level === "error" && "border-danger/60",
                 notice.level === "warn" && "border-warn/60",
               )}

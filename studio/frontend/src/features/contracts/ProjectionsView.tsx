@@ -40,7 +40,7 @@ import {
 import type { FeatureProps, SelectableEntry } from "@/lib/types";
 import { notify } from "@/stores/connectionStore";
 import { useSelectionStore } from "@/stores/selectionStore";
-import { chainSummary, canAddOutput, drivingSource, referrersOfProjection } from "@/features/contracts/logic";
+import { canAddOutput, chainSummary, drivingSource, outputReaders } from "@/features/contracts/logic";
 import { deleteEntity, makeProjection, patchProjection } from "@/features/contracts/edit";
 
 export function ProjectionsView({ document, index, problems, selectedRef, onSelectRef, apply }: FeatureProps) {
@@ -196,7 +196,6 @@ function ProjectionDetail({
   const ref = buildRef("projection", projection.id);
   const driving = drivingSource(projection);
   const [showAdd, setShowAdd] = useState(false);
-  const selectAndReveal = useSelectionStore((state) => state.selectAndReveal);
 
   // Selectable sources the outputs may read, filtered to the driving source once set.
   const selectable = useMemo(() => index?.selectable ?? [], [index]);
@@ -231,15 +230,29 @@ function ProjectionDetail({
       }),
     );
 
-  const consumers = referrersOfProjection(document, projection);
-
-  const goToBindings = () => {
-    // The bindings tab owns `binding:*` refs; `setArea` routes there even when no
-    // binding consumes the projection yet (the user is off to compose the first one).
-    const first = consumers[0];
-    if (first) selectAndReveal(first.ref);
-    else notify({ level: "info", text: `No binding reads ${projection.name} yet — opening the bindings tab to compose one.` });
-    useSelectionStore.getState().setArea("bindings");
+  const goToBindings = (outputName: string) => {
+    // Aim at the stack that reads *this* output: a projection is usually consumed by
+    // several properties, and any one of them would look like an arbitrary choice.
+    const reader = outputReaders(document, projection, outputName)[0] ?? null;
+    const selection = useSelectionStore.getState();
+    if (reader) {
+      selection.selectAndReveal(reader.ref);
+      selection.setArea("bindings");
+      return;
+    }
+    // Nothing reads it yet. Say so and ask the bindings tab to open its composer;
+    // leaving the selection alone would let it fall back to the first binding and
+    // present an unrelated one as if it were this output's.
+    selection.select(null);
+    selection.requestIntent("bindings", "new-binding", {
+      source: projection.name,
+      field: outputName,
+    });
+    selection.setArea("bindings");
+    notify({
+      level: "info",
+      text: `No binding reads ${projection.name}.${outputName} yet — open a composer to bind it.`,
+    });
   };
 
   return (
@@ -280,23 +293,39 @@ function ProjectionDetail({
           {(projection.fields ?? []).length === 0 && (
             <p className="rounded border border-dashed border-edge px-2 py-2 text-center text-[11px] text-faint">no outputs yet</p>
           )}
-          {(projection.fields ?? []).map((field) => (
-            <Card key={field.name}>
-              <div className="flex min-w-0 items-center gap-2">
-                <span className="shrink-0 font-mono text-[12px] text-ink">{field.name}</span>
-                <Chip tone="relation" title={expressionSummary(field.expression)}>
-                  <span className="max-w-[34rem] truncate">{chainSummary(field.expression)}</span>
-                </Chip>
-                <div className="ml-auto flex shrink-0 items-center gap-1">
-                  <Button size="sm" variant="ghost" onClick={goToBindings} title="Open the binding that consumes this projection">
-                    edit in Bindings composer
-                  </Button>
-                  <IconButton size="sm" label={`Remove output ${field.name}`} icon={<CloseIcon size={12} />} onClick={() => removeOutput(field.name)} />
+          {(projection.fields ?? []).map((field) => {
+            const readers = outputReaders(document, projection, field.name);
+            const reader = readers[0] ?? null;
+            return (
+              <Card key={field.name}>
+                <div className="flex min-w-0 items-center gap-2">
+                  <span className="shrink-0 font-mono text-[12px] text-ink">{field.name}</span>
+                  <Chip tone="relation" title={expressionSummary(field.expression)}>
+                    <span className="max-w-[34rem] truncate">{chainSummary(field.expression)}</span>
+                  </Chip>
+                  <div className="ml-auto flex shrink-0 items-center gap-1">
+                    {/* Naming the destination is what makes the jump trustworthy: a
+                        button that only says "edit" reads as a promise it keeps to
+                        the wrong binding whenever nothing consumes this output. */}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => goToBindings(field.name)}
+                      title={
+                        reader
+                          ? `Open ${reader.label}`
+                          : `No binding reads ${projection.name}.${field.name} yet — compose one`
+                      }
+                    >
+                      {reader ? `edit ${reader.label}` : "bind in composer"}
+                    </Button>
+                    <IconButton size="sm" label={`Remove output ${field.name}`} icon={<CloseIcon size={12} />} onClick={() => removeOutput(field.name)} />
+                  </div>
                 </div>
-              </div>
-              {field.description && <p className="pl-0.5 text-[11px] text-muted">{field.description}</p>}
-            </Card>
-          ))}
+                {field.description && <p className="pl-0.5 text-[11px] text-muted">{field.description}</p>}
+              </Card>
+            );
+          })}
         </div>
 
         {/* add output: pick a source + path from the derived index */}

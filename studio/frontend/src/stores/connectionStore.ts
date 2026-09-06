@@ -39,7 +39,32 @@ export interface ConnectionState {
 
 let noticeSeq = 0;
 
-export const useConnectionStore = create<ConnectionState>((set) => ({
+/** The stack is short on purpose; these are acknowledgements, not a log. */
+const NOTICE_LIMIT = 6;
+
+/**
+ * How long each level stays before it retires itself. Notices float over the canvas
+ * and swallow clicks on whatever is underneath them, so a confirmation that outlives
+ * the moment it confirms is an obstruction; an error stays until it is acknowledged
+ * because it is the only notice of the four that means "look at this".
+ */
+const NOTICE_LIFETIME: Record<Notice["level"], number | null> = {
+  info: 6_000,
+  warn: 12_000,
+  error: null,
+};
+
+const noticeTimers = new Map<string, ReturnType<typeof setTimeout>>();
+
+function clearNoticeTimer(id: string): void {
+  const timer = noticeTimers.get(id);
+  if (timer !== undefined) {
+    clearTimeout(timer);
+    noticeTimers.delete(id);
+  }
+}
+
+export const useConnectionStore = create<ConnectionState>((set, get) => ({
   socket: "off",
   reconnects: 0,
   lastEventAt: null,
@@ -83,15 +108,28 @@ export const useConnectionStore = create<ConnectionState>((set) => ({
 
   notice({ level, text }) {
     noticeSeq += 1;
-    const item: Notice = { id: `n${noticeSeq}`, level, text, at: Date.now() };
-    set((current) => ({ notices: [...current.notices, item].slice(-6) }));
+    const id = `n${noticeSeq}`;
+    const item: Notice = { id, level, text, at: Date.now() };
+    set((current) => ({ notices: [...current.notices, item].slice(-NOTICE_LIMIT) }));
+    const lifetime = NOTICE_LIFETIME[level];
+    if (lifetime !== null) {
+      noticeTimers.set(
+        id,
+        setTimeout(() => {
+          noticeTimers.delete(id);
+          get().dismissNotice(id);
+        }, lifetime),
+      );
+    }
   },
 
   dismissNotice(id) {
+    clearNoticeTimer(id);
     set((current) => ({ notices: current.notices.filter((item) => item.id !== id) }));
   },
 
   clearNotices() {
+    for (const id of noticeTimers.keys()) clearNoticeTimer(id);
     set({ notices: [] });
   },
 }));

@@ -12,12 +12,14 @@
 import { useEffect, useRef, useState } from "react";
 
 import { Chip, Tooltip } from "@/components/ui";
-import type { LogicalType } from "@/lib/ir";
+import type { JsonValue, LogicalType } from "@/lib/ir";
 import { typeLabel } from "@/lib/ir";
-import { GROUP_ORDER } from "../logic/stack";
+import type { BindingContext } from "../logic/context";
 import type { PaletteEntry } from "../logic/palette";
+import { OperandControl } from "./OperandControl";
 
 export interface AddBlockMenuProps {
+  ctx: BindingContext;
   entries: PaletteEntry[];
   tip: LogicalType | null;
   /** An entry chosen; `entry` is the palette row, which carries `concat`'s side. */
@@ -27,7 +29,7 @@ export interface AddBlockMenuProps {
   onClose(): void;
 }
 
-export function AddBlockMenu({ entries, tip, onPick, onFix, onClose }: AddBlockMenuProps) {
+export function AddBlockMenu({ ctx, entries, tip, onPick, onFix, onClose }: AddBlockMenuProps) {
   const [pending, setPending] = useState<PaletteEntry | null>(null);
   const ref = useRef<HTMLDivElement | null>(null);
 
@@ -46,10 +48,15 @@ export function AddBlockMenu({ entries, tip, onPick, onFix, onClose }: AddBlockM
     };
   }, [onClose]);
 
-  const groups = GROUP_ORDER.map((group) => ({
-    group,
-    items: entries.filter((entry) => entry.group === group),
-  })).filter((section) => section.items.length > 0);
+  // The caller's order is the menu's order: `paletteFor` sorts operations into
+  // GROUP_ORDER, and the heads that start a stack arrive ahead of them, grouped by the
+  // source each reads.
+  const groups: { group: string; items: PaletteEntry[] }[] = [];
+  for (const entry of entries) {
+    const section = groups.find((item) => item.group === entry.group);
+    if (section) section.items.push(entry);
+    else groups.push({ group: entry.group, items: [entry] });
+  }
 
   return (
     <div
@@ -74,7 +81,8 @@ export function AddBlockMenu({ entries, tip, onPick, onFix, onClose }: AddBlockM
             <ul className="flex flex-col gap-0.5">
               {section.items.map((entry) => (
                 <PaletteRow
-                  key={`${entry.operator}${entry.side ?? ""}`}
+                  key={`${entry.group}-${entry.operator}-${entry.side ?? ""}-${entry.label}`}
+                  ctx={ctx}
                   entry={entry}
                   pending={pending?.operator === entry.operator && pending?.side === entry.side}
                   onPick={onPick}
@@ -91,18 +99,24 @@ export function AddBlockMenu({ entries, tip, onPick, onFix, onClose }: AddBlockM
 }
 
 function PaletteRow({
+  ctx,
   entry,
   pending,
   onPick,
   onPending,
   onFix,
 }: {
+  ctx: BindingContext;
   entry: PaletteEntry;
   pending: boolean;
   onPick(entry: PaletteEntry): void;
   onPending(entry: PaletteEntry): void;
   onFix(entry: PaletteEntry): void;
 }) {
+  if (entry.head?.kind === "literal" && entry.enabled) {
+    return <WrittenValue ctx={ctx} entry={entry} onPick={onPick} />;
+  }
+
   if (entry.enabled) {
     return (
       <li>
@@ -159,6 +173,39 @@ function PaletteRow({
   );
 }
 
+/**
+ * A written value is the head the author types rather than points at, so the value is
+ * taken here: the stack it starts keeps the value in its head block, where the composer
+ * shows it and the operand control is the only thing that knows how to write each type.
+ */
+function WrittenValue({ ctx, entry, onPick }: { ctx: BindingContext; entry: PaletteEntry; onPick(entry: PaletteEntry): void }) {
+  const head = entry.head;
+  const [value, setValue] = useState<JsonValue | null>(null);
+  if (!head || head.kind !== "literal") return null;
+  return (
+    <li className="flex flex-col gap-1 rounded px-1.5 py-1">
+      <span className="text-[12px] text-ink">{entry.label}</span>
+      {entry.docs && <span className="text-[10px] text-faint">{entry.docs}</span>}
+      <OperandControl
+        ctx={ctx}
+        label="value"
+        required={head.type}
+        operand={value === null ? undefined : { slot: 0, kind: "literal", value, type: head.type }}
+        source={null}
+        onChange={(next) => setValue(next.kind === "literal" ? next.value : null)}
+      />
+      <button
+        type="button"
+        disabled={value === null}
+        onClick={() => onPick({ ...entry, head: { ...head, value } })}
+        className="self-start rounded border border-info/60 bg-info/15 px-1.5 py-0.5 text-[10px] text-ink hover:bg-info/25 disabled:opacity-40"
+      >
+        write this value
+      </button>
+    </li>
+  );
+}
+
 /** The two sides of `concat` shown as the two orders they are. */
 export function SideMark({ side, muted }: { side: "prepend" | "append"; muted?: boolean }) {
   const value = side === "prepend" ? "value + stack" : "stack + value";
@@ -176,18 +223,22 @@ export function SideMark({ side, muted }: { side: "prepend" | "append"; muted?: 
   );
 }
 
-/** The closed affordance, kept beside the menu so the caller renders one thing. */
-export function AddBlockButton({ onClick, disabled, tip }: { onClick(): void; disabled: boolean; tip: LogicalType | null }) {
+/**
+ * The closed affordance, kept beside the menu so the caller renders one thing.
+ *
+ * It is never disabled: with no blocks the menu holds the heads that start a stack, so
+ * there is always something the click can reach.
+ */
+export function AddBlockButton({ onClick, empty, tip }: { onClick(): void; empty: boolean; tip: LogicalType | null }) {
   return (
     <button
       type="button"
       onClick={onClick}
-      disabled={disabled}
-      title={disabled ? "pick a field to start the stack" : `add a block under ${typeLabel(tip)}`}
-      className="flex h-7 items-center gap-1.5 rounded-md border border-dashed border-edge px-2 text-[11px] text-muted hover:border-info hover:text-ink disabled:cursor-not-allowed disabled:opacity-40"
+      title={empty ? "pick the field the stack reads, or write a value" : `add a block under ${typeLabel(tip)}`}
+      className="flex h-7 items-center gap-1.5 rounded-md border border-dashed border-edge px-2 text-[11px] text-muted hover:border-info hover:text-ink"
     >
-      <span aria-hidden>+</span> add a block
-      {tip && <span className="font-mono text-[10px] text-faint">on {typeLabel(tip)}</span>}
+      <span aria-hidden>+</span> {empty ? "start the stack" : "add a block"}
+      {!empty && tip && <span className="font-mono text-[10px] text-faint">on {typeLabel(tip)}</span>}
     </button>
   );
 }

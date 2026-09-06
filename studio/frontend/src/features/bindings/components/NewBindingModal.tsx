@@ -10,14 +10,14 @@
  * `where_present` before the key is ever written.
  */
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Chip, Modal, Select, type SelectOption } from "@/components/ui";
 import { typeLabel } from "@/lib/ir";
 import type { ProjectDocument } from "@/lib/ir";
 import type { BindingContext } from "../logic/context";
 import { bindableComponents } from "../logic/rules";
-import { selectables, selectablePaths } from "../logic/context";
+import { selectables, selectableByName, selectablePaths } from "../logic/context";
 import { createBinding, type NewBindingSeed } from "../logic/edits";
 import { isNullable, unwrapNullable } from "@/lib/ir";
 
@@ -27,13 +27,35 @@ export interface NewBindingModalProps {
   onClose(): void;
   apply(mutate: (draft: ProjectDocument) => ProjectDocument): void;
   onCreated(bindingId: string): void;
+  /** What another area already knows: bind this projection/table (and, if known, the output it came from). */
+  seed?: { readonly source?: string; readonly field?: string };
 }
 
-export function NewBindingModal({ ctx, open, onClose, apply, onCreated }: NewBindingModalProps) {
+export function NewBindingModal({ ctx, open, onClose, apply, onCreated, seed }: NewBindingModalProps) {
   const components = useMemo(() => bindableComponents(ctx), [ctx]);
   const [componentId, setComponentId] = useState("");
   const [source, setSource] = useState("");
   const [path, setPath] = useState("");
+
+  // Each opening starts from the caller's knowledge, not from wherever the last one
+  // was left; a stale source here silently changes which key gets composed.
+  useEffect(() => {
+    if (!open) return;
+    // Resolved through `selectableByName` so a seed carrying either the source's name
+    // or its id lands on the same entry; a group member's two spellings differ.
+    const entry = selectableByName(ctx, seed?.source);
+    // A seeded field is only usable as the key if it is a scalar; otherwise leave the
+    // key to be picked, since a build key must not be a row or a list.
+    const seededPath =
+      entry && seed?.field
+        ? (selectablePaths(ctx, entry) ?? []).find(
+            (item) => item.path.join(".") === seed.field && unwrapNullable(item.logical_type).kind === "unit",
+          )
+        : undefined;
+    setComponentId("");
+    setSource(entry?.name ?? "");
+    setPath(seededPath ? seededPath.path.join(".") : "");
+  }, [open, seed, ctx]);
 
   const entry = selectables(ctx).find((item) => item.name === source) ?? null;
   const paths = entry ? selectablePaths(ctx, entry) : [];

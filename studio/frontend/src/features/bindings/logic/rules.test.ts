@@ -12,8 +12,7 @@
 import { describe, expect, it } from "vitest";
 
 import type { BindingContext } from "./context";
-import { compatible, resolvedSlots, structMembers } from "./context";
-import { fieldPathType } from "./typecheck";
+import { compatible, resolvedSlots, selectablePaths, selectables, structMembers } from "./context";import { fieldPathType } from "./typecheck";
 import { blockFor, matchesShape, paletteFor, spell } from "./palette";
 import {
   literalExpressionText,
@@ -42,7 +41,7 @@ import {
   type Block,
   type OperationBlock,
 } from "./stack";
-import { array, nullable, structRef, unit, type Expression, type LogicalType, type ProjectDocument, type StructType } from "@/lib/ir";
+import { array, nullable, structRef, unit, unwrapNullable, type Expression, type LogicalType, type ProjectDocument, type StructType } from "@/lib/ir";
 import { MOCK_INDEX } from "@/lib/mock";
 import { SAMPLE_DOCUMENT } from "@/lib/sampleDocument";
 import type { OperatorEntry, ResolvedProperty } from "@/lib/types";
@@ -750,5 +749,43 @@ describe("re-pointing the source block", () => {
     const { blocks: next, dropped } = reseatHead(ctx, blocks, source(["premises", "contact", "location", "room"]));
     expect(next[0]?.role).toBe("head");
     expect(dropped.length).toBeLessThan(blocks.length);
+  });
+});
+
+/* ------------------------------------------------------------------ new-binding seed */
+
+describe("seeding a new binding from another area", () => {
+  /** The scalar paths the composer would accept as the key for a seeded source. */
+  const scalarPathsOf = (name: string): string[] => {
+    const entry = selectables(ctx).find((item) => item.name === name);
+    return entry
+      ? selectablePaths(ctx, entry)
+          .filter((item) => unwrapNullable(item.logical_type).kind === "unit")
+          .map((item) => item.path.join("."))
+      : [];
+  };
+
+  it("prefills the key from a projection output that carries a single value", () => {
+    expect(scalarPathsOf("site_cities")).toContain("site_id");
+  });
+
+  it("refuses a seeded output that is a list, since a key cannot be a row", () => {
+    expect(scalarPathsOf("site_cities")).not.toContain("score");
+  });
+
+  it("offers the nested members of a seeded table, but never the record itself", () => {
+    expect(scalarPathsOf("sites")).toEqual(
+      expect.arrayContaining(["site_id", "site_name", "premises.contact.location.city"]),
+    );
+    expect(scalarPathsOf("sites")).not.toContain("premises");
+    expect(scalarPathsOf("sites")).not.toContain("priority_scores");
+  });
+
+  it("offers nothing for a source the catalogue does not list under that name", () => {
+    // The seed carries the logical name an expression stores in `source`, so a
+    // declaration id resolves to no entry and the key is left to be picked.
+    expect(scalarPathsOf("site_cities_legacy")).toEqual([]);
+    expect(selectables(ctx).some((item) => item.name === "temperature")).toBe(true);
+    expect(selectables(ctx).some((item) => item.name === "temperature_readings")).toBe(false);
   });
 });

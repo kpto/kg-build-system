@@ -1,5 +1,5 @@
 /**
- * Which blocks may follow the current stack tip.
+ * Which blocks may follow the current stack tip, and which heads may start one.
  *
  * The list is `index.operators` — never a frontend copy of the operator table —
  * filtered against the tip's logical type the way `ir/infer.py::available_operations`
@@ -27,10 +27,11 @@
 
 import type { LogicalType, NonNullableLogicalType } from "@/lib/ir";
 import type { OperatorEntry } from "@/lib/types";
-import { isNullable, nullable, unwrapNullable } from "@/lib/ir";
+import { isNullable, nullable, unit, unwrapNullable } from "@/lib/ir";
 import type { BindingContext } from "./context";
-import { structMembers } from "./context";
+import { selectablePaths, selectables, structMembers } from "./context";
 import { shapeOf } from "./typecheck";
+import { checkHead, type HeadTarget } from "./rules";
 import { GROUP_ORDER, type Block, type Operand, type OperationBlock } from "./stack";
 import type { JsonValue } from "@/lib/ir";
 
@@ -46,7 +47,14 @@ export interface PaletteEntry {
   /** Why it is unavailable, or what has to be added first. */
   readonly reason: string | null;
   readonly fix: { readonly operator: string; readonly label: string } | null;
+  /** Set on a row that starts a stack: the head it writes, in place of an operator. */
+  readonly head?: HeadEntry;
 }
+
+/** The two heads the stack model has, as a palette choice. */
+export type HeadEntry =
+  | { readonly kind: "source"; readonly source: string; readonly path: readonly string[] }
+  | { readonly kind: "literal"; readonly value: JsonValue; readonly type: LogicalType };
 
 interface Guard {
   readonly shape: string;
@@ -118,7 +126,6 @@ function refusal(
 ): { reason: string; fix: PaletteEntry["fix"] } | null {
   const guard = requiresOf(entry);
   const shown = tip == null ? "nothing yet — pick a source first" : spell(tip);
-  const unwrapFix = { operator: "where_present", label: "Keep rows where present" };
 
   if (tip == null) return { reason: "a stack starts by picking a table or projection", fix: null };
 
@@ -168,7 +175,7 @@ function refusal(
       const helps = isNullable(tip) && base.kind === "unit" && guard.units.includes(name);
       return {
         reason: `works on ${guard.units.join(" or ")}; this tip is ${shown}`,
-        fix: helps ? unwrapFix : null,
+        fix: helps ? UNWRAP_FIX : null,
       };
     }
   }
@@ -216,6 +223,9 @@ const DROP_LABEL = "Drop missing items";
 
 const UNWRAP_HINTS = "Keep rows where present (drops the empty rows) or Default to a value (keeps them)";
 
+/** The one block that turns a nullable value into the non-null one a slot or key wants. */
+const UNWRAP_FIX: NonNullable<PaletteEntry["fix"]> = { operator: "where_present", label: "Keep rows where present" };
+
 function fixFor(shape: string, tip: LogicalType | null = null): PaletteEntry["fix"] {
   if (shape === "array_of_non_null_str") {
     // Dropping item nulls only helps when the tip really is a list.
@@ -226,7 +236,7 @@ function fixFor(shape: string, tip: LogicalType | null = null): PaletteEntry["fi
   if (shape.startsWith("unit:") || shape === "non_nullable" || shape === "struct") {
     // Offer the unwrap only when nullability really is the only thing in the way.
     if (tip == null || !isNullable(tip) || !matchesShape(unwrapNullable(tip), shape)) return null;
-    return { operator: "where_present", label: "Keep rows where present" };
+    return UNWRAP_FIX;
   }
   return null;
 }
@@ -292,6 +302,65 @@ export function groupOf(entry: OperatorEntry): string {
   return raw;
 }
 
+/* ---------------------------------------------------------------------------- heads */
+
+/** A key has no declared type to write into, and the framework's keys are text. */
+const KEY_VALUE_TYPE: LogicalType = unit("str");
+
+/**
+ * The heads that can start a stack: every field the index flattens, and a written value.
+ *
+ * With no tip there is no operator to offer — `refusal` turns the whole catalogue down —
+ * so this is the other half of the palette and the only way into an empty stack. Each
+ * head is judged where the finished stack is judged (`rules.checkHead`): a column that
+ * fills its slot only once the null is gone is offered with `where_present` named as the
+ * block to add, and one that can never fill it is refused in the slot's own words. Heads
+ * are grouped by the source they read, in the order the index publishes them.
+ */
+export function headsFor(ctx: BindingContext, target: HeadTarget): PaletteEntry[] {
+  const heads: PaletteEntry[] = [];
+  for (const source of selectables(ctx)) {
+    for (const field of selectablePaths(ctx, source)) {
+      const check = checkHead(field.logical_type, target);
+      heads.push({
+        operator: "field",
+        label: field.path.join("."),
+        group: source.group ? `${source.group}.${source.name}` : source.name,
+        docs: check.unwrap ? `${spell(field.logical_type)} · needs ${UNWRAP_FIX.label.toLowerCase()}` : spell(field.logical_type),
+        arity: 0,
+        enabled: check.ok,
+        reason: check.message,
+        fix: check.unwrap ? UNWRAP_FIX : null,
+        head: { kind: "source", source: source.name, path: [...field.path] },
+      });
+    }
+  }
+  // A written value is the other head the model has; it takes the slot's own type with
+  // the null left off, which `_compatible` accepts for a nullable slot as well.
+  const valueType = unwrapNullable(target.slot?.logical_type ?? KEY_VALUE_TYPE);
+  if (writesAsLiteral(valueType)) {
+    const check = checkHead(valueType, target);
+    heads.push({
+      operator: "literal",
+      label: "Write a value",
+      group: "written value",
+      docs: check.ok ? spell(valueType) : null,
+      arity: 0,
+      enabled: check.ok,
+      reason: check.message,
+      fix: null,
+      head: { kind: "literal", value: null, type: valueType },
+    });
+  }
+  return heads;
+}
+
+/** `expressions/literals.py` will not build a literal that holds a record. */
+function writesAsLiteral(type: NonNullableLogicalType): boolean {
+  if (type.kind === "unit") return true;
+  return type.kind === "array" && unwrapNullable(type.item).kind !== "struct";
+}
+
 /* ------------------------------------------------------------------- block factory */
 
 /**
@@ -307,6 +376,13 @@ export function blockFor(
   tip: LogicalType | null,
   options: { readonly member?: string; readonly text?: string; readonly number?: number; readonly bool?: boolean } = {},
 ): Block {
+  // A head row writes a head: the choice itself is the whole block, with no operands.
+  if (entry.head) {
+    const id = `head-${entry.head.kind}-${Math.random().toString(36).slice(2, 8)}`;
+    return entry.head.kind === "source"
+      ? { id, role: "head", kind: "source", source: entry.head.source, path: [...entry.head.path] }
+      : { id, role: "head", kind: "literal", value: entry.head.value, type: entry.head.type };
+  }
   const operands: Operand[] = [];
   const parameters: Record<string, JsonValue> = {};
   const unwrapped: NonNullableLogicalType = tip ? unwrapNullable(tip) : { kind: "unit", name: "str" };

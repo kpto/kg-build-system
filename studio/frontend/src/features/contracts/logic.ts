@@ -256,6 +256,48 @@ export function referrersOfProjection(document: ProjectDocument, projection: Pro
   return out;
 }
 
+/**
+ * The binding stacks that read one specific output of a projection.
+ *
+ * `referrersOfProjection` answers "who reads this projection at all", which is enough
+ * for a delete-impact list but not for navigation: a projection with four outputs is
+ * usually consumed by four different stacks, and answering with the first of them
+ * sends the user to an unrelated property. A consumer names the output as the first
+ * path segment of a field reference (`pathway_participants.target_id`), so matching on
+ * it lands on the stack that actually uses the row the user was looking at.
+ */
+export function outputReaders(
+  document: ProjectDocument,
+  projection: Projection,
+  outputName: string,
+): Referrer[] {
+  const out: Referrer[] = [];
+  for (const [kind, id, _name, fields] of expressionBearingEntities(document)) {
+    if (kind !== "binding") continue;
+    for (const { path, expression } of fields) {
+      if (readsOutput(expression, projection.name, outputName)) {
+        // Labelled by the binding's id, not its component: two bindings may write the
+        // same component (`clinical_binding` and `preclinical_binding` both publish to
+        // `publication`), and the id is what the composer then shows as its heading.
+        out.push({ ref: buildRef(kind, id, ...path), label: `${id}.${path.join(".")}`, kind: "expression" });
+      }
+    }
+  }
+  return out;
+}
+
+/** True when `expression` contains a reference to `<source>.<outputName>`. */
+function readsOutput(expression: Expression | null | undefined, source: string, outputName: string): boolean {
+  if (!expression || typeof expression !== "object" || typeof expression.kind !== "string") return false;
+  if (expression.kind === "field") {
+    return expression.source === source && expression.path?.[0] === outputName;
+  }
+  if (expression.kind === "operation") {
+    return (expression.arguments ?? []).some((arg) => readsOutput(arg, source, outputName));
+  }
+  return false;
+}
+
 type ExpressionField = { readonly path: [string, string?]; readonly expression: Expression };
 
 function expressionBearingEntities(

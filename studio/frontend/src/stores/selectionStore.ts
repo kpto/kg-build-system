@@ -21,6 +21,12 @@ export interface SelectionState {
   local: Partial<Record<TabArea, string | null>>;
   /** True while the shell should scroll/center the selection into view. */
   revealToken: number;
+  /**
+   * A one-shot request for a tab to open a flow it owns. Jumping to a tab with no
+   * selection must not let that tab fall back to an arbitrary row and imply the row
+   * was what the user asked for; the intent says what they actually asked for.
+   */
+  pendingIntent: FeatureIntent | null;
 
   select(ref: string | null): void;
   /** Select and jump to the area that owns the ref (problem click, palette). */
@@ -28,7 +34,19 @@ export interface SelectionState {
   setArea(area: TabArea): void;
   localSelection(area: TabArea): string | null;
   setLocalSelection(area: TabArea, ref: string | null): void;
+  /** Ask `area` to start `kind`, carrying whatever the caller knows. */
+  requestIntent(area: TabArea, kind: FeatureIntentKind, seed?: Record<string, string>): void;
+  /** Read and clear the intent if it belongs to `area`; otherwise `null`. */
+  takeIntent(area: TabArea): FeatureIntent | null;
   reset(): void;
+}
+
+export type FeatureIntentKind = "new-binding";
+
+export interface FeatureIntent {
+  readonly area: TabArea;
+  readonly kind: FeatureIntentKind;
+  readonly seed: Record<string, string>;
 }
 
 /** The area that owns a ref, or `null` when the ref is unknown/unqualified. */
@@ -42,6 +60,7 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
   area: "topology",
   local: {},
   revealToken: 0,
+  pendingIntent: null,
 
   select(ref) {
     // The exact ref is kept: selecting `table:sites.field.site_id` must address the
@@ -72,8 +91,19 @@ export const useSelectionStore = create<SelectionState>((set, get) => ({
     set((state) => ({ local: { ...state.local, [area]: ref } }));
   },
 
+  requestIntent(area, kind, seed = {}) {
+    set({ pendingIntent: { area, kind, seed } });
+  },
+
+  takeIntent(area) {
+    const intent = get().pendingIntent;
+    if (!intent || intent.area !== area) return null;
+    set({ pendingIntent: null });
+    return intent;
+  },
+
   reset() {
-    set({ selectedRef: null, area: "topology", local: {} });
+    set({ selectedRef: null, area: "topology", local: {}, pendingIntent: null });
   },
 }));
 

@@ -12,7 +12,7 @@ import type { Binding, Expression, LogicalType, NonNullableLogicalType, Property
 import type { ComponentIndexEntry, ResolvedProperty } from "@/lib/types";
 import { isNullable, typeLabel, unwrapNullable } from "@/lib/ir";
 import type { BindingContext } from "./context";
-import { componentEntry, documentComponent, resolvedSlots } from "./context";
+import { compatible, componentEntry, documentComponent, resolvedSlots } from "./context";
 import { inferExpression } from "./typecheck";
 
 /* ---------------------------------------------------------------------------- keys */
@@ -123,6 +123,44 @@ export function domainRepr(type: LogicalType | NonNullableLogicalType | null | u
     default:
       return "None";
   }
+}
+
+/** Where a stack has to end up, so its head can be judged before anything is picked. */
+export interface HeadTarget {
+  readonly componentName: string;
+  /** The slot the stack fills; null for a key and for a name the component does not declare. */
+  readonly slot: ResolvedProperty | null;
+  /** The key argument the stack fills; null for a property slot. */
+  readonly key: string | null;
+}
+
+export interface HeadCheck {
+  readonly ok: boolean;
+  /** The head fills the target only once the stack unwraps it with `where_present`. */
+  readonly unwrap: boolean;
+  readonly message: string | null;
+}
+
+/**
+ * `checkSlot`/`_require_key` moved to the front of the stack: what a head may be, given
+ * where the stack has to end up. A nullable column may start a stack for a non-null slot
+ * or key because the composer unwraps it with `where_present`, so it is answered `unwrap`
+ * rather than refused; a value that can never satisfy the target is refused with the very
+ * sentence the finished stack would be refused in.
+ */
+export function checkHead(type: LogicalType, target: HeadTarget): HeadCheck {
+  if (target.key != null) {
+    const check = checkKey(target.key, type);
+    if (check.ok) return { ok: true, unwrap: false, message: null };
+    if (check.fix === "where_present") return { ok: true, unwrap: true, message: null };
+    return { ok: false, unwrap: false, message: check.message };
+  }
+  const check = checkSlot(target.componentName, target.slot, type);
+  if (check.ok) return { ok: true, unwrap: false, message: null };
+  if (target.slot && compatible(target.slot.logical_type, unwrapNullable(type))) {
+    return { ok: true, unwrap: true, message: null };
+  }
+  return { ok: false, unwrap: false, message: check.message };
 }
 
 /** The slot a property binding fills, inherited slots included. */

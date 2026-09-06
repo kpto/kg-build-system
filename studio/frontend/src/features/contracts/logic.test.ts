@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { array, emptyDocument, nullable, structRef, unit, type Expression, type ProjectDocument, type Projection, type Source, type Struct, type Table } from "@/lib/ir";
+import { array, emptyDocument, nullable, structRef, unit, type Binding, type Expression, type ProjectDocument, type Projection, type Source, type Struct, type Table } from "@/lib/ir";
 import { SAMPLE_DOCUMENT } from "@/lib/sampleDocument";
 import type { InferResponse } from "@/lib/types";
 
@@ -18,7 +18,9 @@ import {
   isTableGroup,
   memberTables,
   offlineImportPreview,
+  outputReaders,
   referrersForDeletion,
+  referrersOfProjection,
   referencedStructQualnames,
   reorderFields,
   resolveGroupSourcePaths,
@@ -85,6 +87,115 @@ describe("referrer analysis", () => {
     const referrers = referrersForDeletion(document, "projection", "site_cities");
     expect(referrers.map((item) => item.ref)).toContain("binding:city_binding.build_key");
     expect(referrersForDeletion(SAMPLE_DOCUMENT, "projection", "site_cities")).toEqual([]);
+  });
+});
+
+/* ------------------------------------------------- consumers of one projection output */
+
+describe("projection output consumers", () => {
+  const field = (source: string, path: string[]): Expression => ({
+    kind: "field",
+    source,
+    path,
+    logical_type: maybeStr,
+  });
+  const nodeBinding = (
+    id: string,
+    buildKey: Expression,
+    properties: { name: string; expression: Expression }[] = [],
+  ): Binding => ({ id, kind: "node", component: "site", build_key: buildKey, properties });
+
+  // `site_cities` carries two outputs, so the consumers of one output must never be
+  // offered as the consumers of the other.
+  const siteCities = SAMPLE_DOCUMENT.projections?.[0] as Projection;
+  const refs = (document: ProjectDocument, outputName: string) =>
+    outputReaders(document, siteCities, outputName).map((item) => item.ref);
+  const withBindings = (bindings: Binding[]): ProjectDocument => ({
+    ...SAMPLE_DOCUMENT,
+    bindings: [...(SAMPLE_DOCUMENT.bindings ?? []), ...bindings],
+  });
+
+  it("names the stack that reads the output, addressed at the stack rather than the binding", () => {
+    expect(refs(withBindings([nodeBinding("studied_in_binding", field("site_cities", ["site_id"]))]), "site_id")).toEqual([
+      "binding:studied_in_binding.build_key",
+    ]);
+    const propertyStack = nodeBinding("studied_in_binding", field("sites", ["site_id"]), [
+      { name: "city", expression: field("site_cities", ["site_id"]) },
+    ]);
+    expect(refs(withBindings([propertyStack]), "site_id")).toEqual(["binding:studied_in_binding.property.city"]);
+  });
+
+  it("keeps each output of a multi-output projection pointed at its own consumer", () => {
+    const document = withBindings([
+      nodeBinding("ids_only_binding", field("site_cities", ["site_id"])),
+      nodeBinding("scores_only_binding", field("site_cities", ["score"])),
+    ]);
+    expect(refs(document, "site_id")).toEqual(["binding:ids_only_binding.build_key"]);
+    expect(refs(document, "score")).toEqual(["binding:scores_only_binding.build_key"]);
+  });
+
+  it("ignores a source that only shares the projection's name as a prefix", () => {
+    expect(refs(withBindings([nodeBinding("lookalike_binding", field("site_cities_legacy", ["site_id"]))]), "site_id")).toEqual([]);
+  });
+
+  it("ignores an output whose name only starts with the one asked for", () => {
+    expect(refs(withBindings([nodeBinding("longer_binding", field("site_cities", ["site_id_legacy"]))]), "site_id")).toEqual([]);
+  });
+
+  it("finds the reference buried in a stack's operation arguments", () => {
+    const wrapped: Expression = {
+      kind: "operation",
+      operator: "concat",
+      arguments: [
+        { kind: "literal", value: "S-", logical_type: unit("str") },
+        {
+          kind: "operation",
+          operator: "where_present",
+          arguments: [field("site_cities", ["site_id"])],
+          parameters: {},
+          logical_type: unit("str"),
+        },
+      ],
+      parameters: {},
+      logical_type: unit("str"),
+    };
+    expect(refs(withBindings([nodeBinding("wrapped_binding", wrapped)]), "site_id")).toEqual([
+      "binding:wrapped_binding.build_key",
+    ]);
+  });
+
+  it("excludes a projection reading the projection, which the delete-impact list keeps", () => {
+    const reader: Projection = {
+      id: "site_labels",
+      declaration_name: "SiteLabelsProjection",
+      name: "site_labels",
+      fields: [{ name: "label", expression: field("site_cities", ["site_id"]) }],
+    };
+    const document: ProjectDocument = {
+      ...withBindings([nodeBinding("studied_in_binding", field("site_cities", ["site_id"]))]),
+      projections: [...(SAMPLE_DOCUMENT.projections ?? []), reader],
+    };
+    expect(refs(document, "site_id")).toEqual(["binding:studied_in_binding.build_key"]);
+    expect(referrersOfProjection(document, siteCities).map((item) => item.ref)).toContain(
+      "projection:site_labels.field.label",
+    );
+  });
+
+  it("lists every stack reading one output, in document order", () => {
+    const document = withBindings([
+      nodeBinding("zeta_binding", field("sites", ["site_id"]), [
+        { name: "city", expression: field("site_cities", ["site_id"]) },
+      ]),
+      nodeBinding("alpha_binding", field("site_cities", ["site_id"])),
+    ]);
+    expect(refs(document, "site_id")).toEqual([
+      "binding:zeta_binding.property.city",
+      "binding:alpha_binding.build_key",
+    ]);
+  });
+
+  it("reports no consumers for an output nothing reads", () => {
+    expect(outputReaders(SAMPLE_DOCUMENT, siteCities, "site_id")).toEqual([]);
   });
 });
 

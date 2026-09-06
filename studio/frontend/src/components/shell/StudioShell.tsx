@@ -51,6 +51,7 @@ export function StudioShell() {
   const socket = useConnectionStore((state) => state.socket);
   const notices = useConnectionStore((state) => state.notices);
   const dismissNotice = useConnectionStore((state) => state.dismissNotice);
+  const clearNotices = useConnectionStore((state) => state.clearNotices);
 
   const area = useSelectionStore((state) => state.area);
   const setArea = useSelectionStore((state) => state.setArea);
@@ -197,6 +198,7 @@ export function StudioShell() {
         onUndo={undo}
         onRedo={redo}
         onDismissNotice={dismissNotice}
+        onClearNotices={clearNotices}
         inspectorOpen={inspectorOpen}
         onToggleInspector={() => setInspectorOpen((value) => !value)}
         problemsOpen={problemsOpen}
