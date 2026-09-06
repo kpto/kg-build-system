@@ -1209,5 +1209,64 @@ class DatabaseSourceTests(unittest.TestCase):
                     self.assertIn("InputFormat", message)
 
 
+class DeclaredPathStructResolutionTests(unittest.TestCase):
+    """Nested struct members resolve by (module, qualname), never by name.
+
+    Generated packages may declare same-named structs in different files; the
+    pre-flight must walk each table into its own struct declaration.
+    """
+
+    def test_same_qualname_different_modules_resolves_per_reference(self) -> None:
+        from kg_build_system.modules.core.core import _declared_non_null_paths
+        from kg_build_system.engines.duckdb.parquet_metadata import (
+            PARQUET_LIST_WRAPPER_PATH,
+        )
+        from kg_build_system.table.ir import FieldIR, StructIR, TableIR
+        from kg_build_system.types.ir import (
+            ArrayTypeIR,
+            NullableTypeIR,
+            StructTypeIR,
+            UnitTypeIR,
+        )
+
+        strict = StructIR(
+            symbol_id="python:struct:pkg.alpha:ItemStruct",
+            name="item",
+            fields=(FieldIR("value", UnitTypeIR("str")),),
+        )
+        loose = StructIR(
+            symbol_id="python:struct:pkg.beta:ItemStruct",
+            name="item",
+            fields=(FieldIR("value", NullableTypeIR(UnitTypeIR("str"))),),
+        )
+        table = TableIR(
+            symbol_id="python:table:pkg.alpha:AlphaTable",
+            name="alpha",
+            fields=(
+                FieldIR(
+                    "items",
+                    ArrayTypeIR(StructTypeIR("pkg.beta", "ItemStruct")),
+                ),
+            ),
+        )
+        structs = {
+            ("pkg.alpha", "ItemStruct"): strict,
+            ("pkg.beta", "ItemStruct"): loose,
+        }
+
+        paths = _declared_non_null_paths(table, structs)
+
+        # The table references the beta struct, whose member is nullable:
+        # only the array itself is claimed, never items[].value.
+        self.assertEqual(
+            set(paths),
+            {("items",)},
+        )
+        self.assertEqual(
+            paths[("items",)],
+            ("items", *PARQUET_LIST_WRAPPER_PATH),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -9,10 +9,16 @@ from .._support.docstrings import attribute_docstring
 from .._support.naming import declaration_name, member_name
 from ..annotations import Annotation, EdgeLabel, NodeLabel, annotation_tuple
 from ..expressions import NullableAuthoringInput, ValueInput
-from ..types import CustomDataType, Date, LogicalType, Time, Timestamp, Uuid, normalize_type, require_scalar
+from ..types import CustomDataType, Date, LogicalType, NullableType, Time, Timestamp, Uuid, Array, normalize_type, require_graph_property
 
-type GraphValue = bool | int | float | str | Date | Time | Timestamp | Uuid | CustomDataType | None
-type NonNullableGraphValue = bool | int | float | str | Date | Time | Timestamp | Uuid | CustomDataType
+type GraphScalar = bool | int | float | str | Date | Time | Timestamp | Uuid | CustomDataType
+# A graph property may also be a flat, homogeneous list of non-null scalars —
+# the array-property shape Neo4j and JSON both store natively. Keys stay
+# scalar (`NonNullableGraphValue`); nullable items must be converted first
+# with ``without_nulls()``.
+type GraphArray = Array[GraphScalar]
+type GraphValue = GraphScalar | GraphArray | None
+type NonNullableGraphValue = GraphScalar
 T = TypeVar("T", bound=GraphValue)
 
 # The public slot type describes accepted values. Declaration metadata remains
@@ -28,6 +34,9 @@ class _PropertyDeclaration(Generic[T]):
     logical_type: LogicalType | None = None
     attr: str = ""
     annotations: tuple[Annotation, ...] = ()
+    # True when the declaration carried the PEP 681 null `default=`, marking
+    # the slot optional for every binding (see `property`).
+    optional: bool = False
 
     def __set_name__(self, owner: type[Any], attr: str) -> None:
         object.__setattr__(self, "attr", attr)
@@ -58,9 +67,13 @@ def properties_for(cls: type[Any]) -> dict[str, _PropertyDeclaration[Any]]:
         if len(arguments) != 1:
             raise TypeError(f"{cls.__name__}.{attribute} must be annotated as PropertySlot[T]")
         authoring_type = arguments[0]
-        logical_type = require_scalar(
+        logical_type = require_graph_property(
             normalize_type(authoring_type), context=f"{cls.__name__}.{attribute}"
         )
+        if declaration.optional and not isinstance(logical_type, NullableType):
+            raise TypeError(
+                f"{cls.__name__}.{attribute} may default to null only when nullable"
+            )
         object.__setattr__(declaration, "authoring_type", authoring_type)
         object.__setattr__(declaration, "logical_type", logical_type)
         name = declaration.name
@@ -77,13 +90,24 @@ def properties_for(cls: type[Any]) -> dict[str, _PropertyDeclaration[Any]]:
 def property[T: GraphValue](  # pyright: ignore[reportInvalidTypeVarUse]
     *, name: str | None = None, description: str | None = None,
     annotations: Sequence[Annotation] = (),
+    default: Any = ...,
 ) -> PropertySlot[T]:
-    """Declare a graph property accepting an expression of authoring type ``T``."""
+    """Declare a graph property accepting an expression of authoring type ``T``.
+
+    ``default=None`` marks the slot optional for bindings: a binding that
+    leaves it unbound carries the null, so the property stays absent from the
+    component's records. It is PEP 681's default channel, so a type checker
+    models the generated constructor parameter as optional too — exactly the
+    declaration a category uses for a property some members do not state
+    (their own declarations, and every non-null slot, stay promises). Only
+    nullable slots may carry the null default.
+    """
     if name is not None and not name:
         raise ValueError("property names must be non-empty")
     declaration = _PropertyDeclaration[T](
         name=name, description=description,
         annotations=annotation_tuple(list(annotations)),
+        optional=default is None,
     )
     return cast(PropertySlot[T], declaration)
 

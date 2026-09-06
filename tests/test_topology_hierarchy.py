@@ -538,3 +538,140 @@ class BlueprintTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+class InheritedSlotOptionalityTests(unittest.TestCase):
+    """A slot declared with the null default is optional for its bindings."""
+
+    def test_member_may_leave_the_category_slot_unbound(self) -> None:
+        class TermCategory(AbstractNode):
+            label: PropertySlot[str | None] = property(default=None)
+
+        class BareTerm(TermCategory, Node):
+            name: PropertySlot[str] = property()
+
+        class TermInput(Table):
+            identifier: Field[str] = field()
+            name: Field[str] = field()
+
+        import tempfile
+        from pathlib import Path
+
+        from kg_build_system import build, compile
+        from kg_build_system.modules import (
+            FileModule, FileModuleConfiguration, register_module,
+        )
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_path = root / "terms.json"
+            source_path.write_text(
+                json.dumps([{"identifier": "1", "name": "alpha"}]), encoding="utf-8",
+            )
+            source = bind_source(
+                target=TermInput,
+                config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
+            )
+            binding = node_binding(
+                target=BareTerm,
+                build_key=TermInput.identifier,
+                properties=BareTerm(name=TermInput.name),
+            )
+            contract = compile(
+                bindings=(binding,), sources=(source,),
+                modules=(register_module(
+                    FileModule, FileModuleConfiguration("graph.jsonl"),
+                ),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            rows = [
+                json.loads(line)
+                for line in (root / "output" / "graph.jsonl")
+                .read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertIsNone(rows[0].get("label"))
+            self.assertEqual(rows[0]["name"], "alpha")
+
+    def test_inherited_nullable_slot_without_the_default_is_required(self) -> None:
+        class QuietCategory(AbstractNode):
+            label: PropertySlot[str | None] = property()
+
+        class QuietMember(QuietCategory, Node):
+            name: PropertySlot[str] = property()
+
+        with self.assertRaisesRegex(TypeError, "label"):
+            node_binding(
+                target=QuietMember,
+                build_key=HierarchyInput.identifier,
+                properties=QuietMember(name=HierarchyInput.name),
+            )
+
+    def test_the_null_default_requires_a_nullable_slot(self) -> None:
+        with self.assertRaisesRegex(TypeError, "only when nullable"):
+            class Demanding(Node):
+                name: PropertySlot[str] = property(default=None)
+
+    def test_non_nullable_category_slot_is_still_required(self) -> None:
+        class Titled(AbstractNode):
+            title: PropertySlot[str] = property()
+
+        class TitledNode(Titled, Node):
+            name: PropertySlot[str] = property()
+
+        with self.assertRaisesRegex(TypeError, "title"):
+            node_binding(
+                target=TitledNode,
+                build_key=HierarchyInput.identifier,
+                properties=TitledNode(name=HierarchyInput.name),
+            )
+
+    def test_member_own_nullable_slot_is_still_required(self) -> None:
+        class Titled(AbstractNode):
+            label: PropertySlot[str | None] = property()
+
+        class Own(Titled, Node):
+            name: PropertySlot[str] = property()
+            note: PropertySlot[str | None] = property()
+
+        with self.assertRaisesRegex(TypeError, "note"):
+            node_binding(
+                target=Own,
+                build_key=HierarchyInput.identifier,
+                properties=Own(
+                    name=HierarchyInput.name, label=HierarchyInput.title,
+                ),
+            )
+
+    def test_shadowed_category_slot_becomes_the_member_own_promise(self) -> None:
+        class Titled(AbstractNode):
+            label: PropertySlot[str | None] = property()
+
+        class Shadowed(Titled, Node):
+            name: PropertySlot[str] = property()
+            label: PropertySlot[str | None] = property(name="label")
+
+        with self.assertRaisesRegex(TypeError, "label"):
+            node_binding(
+                target=Shadowed,
+                build_key=HierarchyInput.identifier,
+                properties=Shadowed(name=HierarchyInput.name),
+            )
+
+    def test_edge_member_may_leave_category_slot_unbound(self) -> None:
+        class Claim(AbstractEdge[Item, Plain]):
+            note: PropertySlot[str | None] = property(default=None)
+
+        class Claimed(Claim, Edge[Item, Plain]):
+            pass
+
+        binding = edge_binding(
+            target=Claimed,
+            build_key=HierarchyInput.identifier,
+            source_build_key=HierarchyInput.identifier,
+            target_build_key=HierarchyInput.code,
+            properties=Claimed(),
+        )
+        components = {
+            item.name: item for item in _blueprint((binding,)).components
+        }
+        self.assertTrue(components["claim"].abstract)

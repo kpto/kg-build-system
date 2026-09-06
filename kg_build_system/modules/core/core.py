@@ -19,7 +19,7 @@ from ...expressions.ir import (
     walk_expression_ir,
 )
 from ...table.ir import ProjectionIR as ProjectionDefinition
-from ...table.ir import StructIR
+from ...table.ir import StructIR, struct_type_key
 from ...types.ir import (
     ArrayTypeIR, LogicalTypeIR, NullableTypeIR, StructTypeIR, UnitTypeIR,
 )
@@ -161,19 +161,23 @@ class _CoreConfiguration(ModuleRegistrationConfiguration):
 
 
 def _declared_non_null_paths(
-    table, structs: Mapping[str, StructIR],
+    table, structs: Mapping[tuple[str, str], StructIR],
 ) -> dict[tuple[str, ...], tuple[str, ...]]:
     """Every path the contract claims is non-null, by logical and schema form.
 
     The contract's array markers supply Parquet's list wrappers, so the schema
     form matches what ``parquet_metadata()`` reports as ``path_in_schema`` even
     for a member several expansions deep.
+
+    Struct members are resolved by ``(module, qualname)``, not by name: two
+    modules may declare same-named structs, and a member's type names one of
+    them by its full identity.
     """
     found: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
 
     def walk(
         fields, prefix: tuple[str, ...], schema_prefix: tuple[str, ...],
-        parents: frozenset[str],
+        parents: frozenset[tuple[str, str]],
     ) -> None:
         for declared in fields:
             logical_type = declared.logical_type
@@ -188,13 +192,15 @@ def _declared_non_null_paths(
             )
             if not nullable:
                 found.append((logical_path, schema_path))
-            if isinstance(item, StructTypeIR) and item.qualname not in parents:
-                declaration = structs.get(item.qualname)
-                if declaration is not None:
-                    walk(
-                        declaration.fields, logical_path, schema_path,
-                        parents | {item.qualname},
-                    )
+            if isinstance(item, StructTypeIR):
+                key = (item.module, item.qualname)
+                if key not in parents:
+                    declaration = structs.get(key)
+                    if declaration is not None:
+                        walk(
+                            declaration.fields, logical_path, schema_path,
+                            parents | {key},
+                        )
 
     walk(table.fields, (), (), frozenset())
     return dict(found)
@@ -210,7 +216,11 @@ def _declared_read_paths(blueprint: BuildBlueprint) -> dict[str, tuple[DeclaredP
     from the contract, so a nullable path never reaches the pre-flight at all.
     """
     tables = {table.name: table for table in blueprint.tables}
-    structs = {struct.symbol_id.split(":")[-1]: struct for struct in blueprint.structs}
+    structs = {
+        key: struct
+        for struct in blueprint.structs
+        if (key := struct_type_key(struct)) is not None
+    }
     projections = {projection.name: projection for projection in blueprint.projections}
     claims = {
         name: _declared_non_null_paths(table, structs)

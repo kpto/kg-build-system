@@ -4,6 +4,7 @@ from __future__ import annotations
 from typing import Any, overload
 
 from ..expressions import ValueExpression, ValueInput, as_expression
+from ..expressions.literals import literal
 from ..topology.models import Edge, Endpoint, Node, NonNullableGraphValue, _NodeSideBase
 from ..types import NullableType, require_non_nullable, require_scalar
 from .models import BindingOptions, EdgeBinding, NodeBinding
@@ -28,13 +29,21 @@ def _require_properties[C: Node | Edge[Any, Any]](value: C, *, target: type[C]) 
     if not isinstance(value, target):
         raise TypeError(f"properties must be an instance of {target.__name__}")
     for attribute, declaration in target._properties.items():
+        expected = declaration.logical_type
         try:
             expression = as_expression(getattr(value, attribute))
         except TypeError as error:
-            raise TypeError(
-                f"{target.__name__}.{attribute} must be assigned a value selection or expression"
-            ) from error
-        expected = declaration.logical_type
+            # A slot the declaration opted out of (`property(default=None)`)
+            # carries a typed null when the binding states nothing, so the
+            # property stays absent from the records. Every other slot is a
+            # promise the binding must keep.
+            if declaration.optional and isinstance(expected, NullableType):
+                expression = ValueExpression(literal(None, logical_type=expected))
+            else:
+                raise TypeError(
+                    f"{target.__name__}.{attribute} must be assigned a "
+                    "value selection or expression"
+                ) from error
         assert expected is not None
         if not _compatible(expected, expression.logical_type):
             raise TypeError(

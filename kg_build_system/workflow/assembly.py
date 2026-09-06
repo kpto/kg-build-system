@@ -9,6 +9,12 @@ from .models import (
 )
 from .validation import validate_workflow
 
+type RoleKey = tuple[str, str]
+
+
+def _role_key(output: OutputSlot) -> RoleKey:
+    return (output.artifact_role.namespace, output.artifact_role.name)
+
 
 def assemble_workflow(
     contributions: Sequence[WorkflowContribution],
@@ -53,13 +59,6 @@ def assemble_workflow(
             pending.extend(dependencies[step_id])
         return False
 
-    def candidate_order(output: OutputSlot) -> tuple[int, int, str]:
-        return (
-            module_order[output_module[output.slot_id]],
-            output_order[output.slot_id],
-            output.slot_id,
-        )
-
     claims = sorted(
         drafts,
         key=lambda draft: (
@@ -70,6 +69,70 @@ def assemble_workflow(
             declaration_order[draft.definition.step_id],
         ),
     )
+    claim_rank = {
+        draft.definition.step_id: index for index, draft in enumerate(claims)
+    }
+
+    # A relaying step both accepts a role and re-publishes it, so it extends
+    # that role's pipeline chain (graph-record operators do exactly this).
+    # Every consumer of a chained role must then read the chain's terminal
+    # link among the steps that claimed before it — the artifact carrying
+    # every earlier operator's effect — instead of whichever producer happens
+    # to be unread, or raw pre-operator records would be exported as final.
+    publishes: dict[str, set[RoleKey]] = {
+        draft.definition.step_id: {_role_key(o) for o in draft.definition.outputs}
+        for draft in drafts
+    }
+    can_consume: dict[str, set[RoleKey]] = {}
+    for draft in drafts:
+        consumed: set[RoleKey] = set()
+        for input_slot in draft.definition.inputs:
+            predicate = draft.candidates.get(input_slot.slot_id)
+            if predicate is None:
+                continue
+            for output in outputs:
+                if output_step[output.slot_id] == draft.definition.step_id:
+                    continue
+                if predicate(input_slot, output):
+                    consumed.add(_role_key(output))
+        can_consume[draft.definition.step_id] = consumed
+    relay_roles: dict[str, set[RoleKey]] = {
+        draft.definition.step_id: (
+            publishes[draft.definition.step_id]
+            & can_consume[draft.definition.step_id]
+        )
+        for draft in drafts
+    }
+
+    def candidate_order(output: OutputSlot) -> tuple[int, int, str]:
+        return (
+            module_order[output_module[output.slot_id]],
+            output_order[output.slot_id],
+            output.slot_id,
+        )
+
+    def chain_pick(
+        role_key: RoleKey, group: list[OutputSlot], consumer_step: str,
+    ) -> OutputSlot | None:
+        """The artifact this consumer should read for a chained role."""
+        relays = [
+            output for output in group
+            if role_key in relay_roles[output_step[output.slot_id]]
+        ]
+        if not relays:
+            return None
+        rank = claim_rank[consumer_step]
+        upstream = [
+            output for output in relays
+            if claim_rank[output_step[output.slot_id]] < rank
+        ]
+        if upstream:
+            return max(upstream, key=lambda o: claim_rank[output_step[o.slot_id]])
+        raws = [output for output in group if output not in relays]
+        if raws:
+            return max(raws, key=candidate_order)
+        return max(group, key=candidate_order)
+
     connections: list[Connection] = []
     uses: dict[str, int] = {}
     for draft in claims:
@@ -89,10 +152,18 @@ def assemble_workflow(
                     raise ValueError(
                         f"input {input_slot.slot_id} has no compatible output"
                     )
-                open_candidates = [
-                    output for output in candidates if uses.get(output.slot_id, 0) == 0
-                ]
-                selected = max(open_candidates or candidates, key=candidate_order)
+                role_keys = {_role_key(output) for output in candidates}
+                selected = None
+                if len(role_keys) == 1:
+                    selected = chain_pick(
+                        next(iter(role_keys)), candidates, draft.definition.step_id,
+                    )
+                if selected is None:
+                    open_candidates = [
+                        output for output in candidates
+                        if uses.get(output.slot_id, 0) == 0
+                    ]
+                    selected = max(open_candidates or candidates, key=candidate_order)
                 connections.append(Connection(input_slot.slot_id, selected.slot_id))
                 uses[selected.slot_id] = uses.get(selected.slot_id, 0) + 1
                 dependencies[output_step[selected.slot_id]].add(
@@ -100,12 +171,17 @@ def assemble_workflow(
                 )
                 continue
 
-            by_role: dict[tuple[str, str], list[OutputSlot]] = {}
+            by_role: dict[RoleKey, list[OutputSlot]] = {}
             for output in candidates:
-                role = output.artifact_role
-                by_role.setdefault((role.namespace, role.name), []).append(output)
+                by_role.setdefault(_role_key(output), []).append(output)
             selected_outputs: list[OutputSlot] = []
-            for role_candidates in by_role.values():
+            for role_key, role_candidates in by_role.items():
+                head = chain_pick(
+                    role_key, role_candidates, draft.definition.step_id,
+                )
+                if head is not None:
+                    selected_outputs.append(head)
+                    continue
                 open_candidates = [
                     output for output in role_candidates
                     if uses.get(output.slot_id, 0) == 0

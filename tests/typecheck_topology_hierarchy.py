@@ -59,6 +59,34 @@ class ContainsMetricEdge(ContainsEdge, Edge[EntityNode, MetricNode]):
     """Descended edge; the target category narrows to MetricNode."""
 
 
+# A slot carrying the PEP 681 null default is optional for member bindings;
+# slots without it stay required promises.
+class TermCategory(AbstractNode):
+    label: PropertySlot[str | None] = property(default=None)
+
+
+class BareTerm(TermCategory, Node):
+    code: PropertySlot[str] = property()
+
+
+class NamedTerm(TermCategory, Node):
+    code: PropertySlot[str] = property()
+
+
+bare_term = node_binding(
+    target=BareTerm,
+    build_key=HierarchyTable.code,
+    properties=BareTerm(code=HierarchyTable.code),
+)
+assert_type(bare_term, NodeBinding[BareTerm])
+
+named_term = node_binding(
+    target=NamedTerm,
+    build_key=HierarchyTable.code,
+    properties=NamedTerm(code=HierarchyTable.code, label=HierarchyTable.title),
+)
+assert_type(named_term, NodeBinding[NamedTerm])
+
 record = node_binding(
     target=RecordNode,
     build_key=HierarchyTable.record_id.expression.prepend("record::"),

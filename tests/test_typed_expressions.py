@@ -143,6 +143,44 @@ class TypedExpressionTests(unittest.TestCase):
         self.assertIsInstance(value_expression("target").prepend("[").append("]"), StrExpression)
         self.assertIsInstance(value_expression(True).not_().and_(True), BoolExpression)
 
+    def test_string_equality_produces_a_boolean_predicate(self) -> None:
+        predicate = value_expression("TARGET").equals("TARGET")
+        self.assertIsInstance(predicate, BoolExpression)
+        model = predicate.model
+        self.assertIsInstance(model, OperationExpression)
+        self.assertEqual(model.operator, "equals")
+        # equals is a non-null string operation only; a literal reaches the same op.
+        self.assertIsInstance(value_expression("a").equals(value_expression("b")), BoolExpression)
+
+    def test_keep_if_filters_rows_and_retains_the_family(self) -> None:
+        kept = value_expression("target").keep_if(value_expression("a").equals("b"))
+        self.assertIsInstance(kept, StrExpression)
+        model = kept.model
+        self.assertIsInstance(model, OperationExpression)
+        self.assertEqual(model.operator, "keep_if")
+        # keep_if records a filter row effect exactly like where_present.
+        self.assertEqual(model.row_semantics.mode, "filter")
+        # A non-Boolean predicate is refused.
+        with self.assertRaisesRegex(TypeError, "Boolean"):
+            value_expression("target").keep_if(value_expression("no"))
+
+    def test_map_items_projects_an_array_member(self) -> None:
+        items = select_expression(wrap_expression(field_reference(
+            source="input", path=("details",),
+            logical_type=normalize_type(Array[DetailsStruct]),
+        )))
+        self.assertIsInstance(items, ArraySelection)
+        labels = items.map_items(lambda item: item.label)
+        self.assertIsInstance(labels, ArraySelection)
+        self.assertIsInstance(labels.expression, ArrayExpression)
+        self.assertEqual(labels.logical_type, normalize_type(Array[str]))
+        # A nullable member makes the projected items nullable.
+        scores = items.map_items(lambda item: item.maybe_score)
+        self.assertEqual(scores.logical_type, normalize_type(Array[int | None]))
+        model = labels.expression.model
+        self.assertIsInstance(model, OperationExpression)
+        self.assertEqual(model.operator, "map_items")
+
     def test_null_policy_belongs_to_selections(self) -> None:
         selection = select_expression(wrap_expression(field_reference(
             source="input", path=("score",), logical_type=NullableType(INT),

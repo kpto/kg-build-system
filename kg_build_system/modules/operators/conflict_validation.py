@@ -180,7 +180,6 @@ class RejectConflictingNonNullValuesModule(Module):
             candidates[slot.slot_id] = role_is(role)
         return WorkflowStepDraft(
             definition=step,
-            assembly_preference="deferred",
             candidates=candidates,
         )
 

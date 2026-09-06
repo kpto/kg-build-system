@@ -182,5 +182,45 @@ class BlueprintIRTests(unittest.TestCase):
         )
 
 
+class StructIdentityTests(unittest.TestCase):
+    """Same-named structs across modules are display-duplicates, not clashes."""
+
+    def test_same_struct_name_from_different_modules_is_allowed(self) -> None:
+        from kg_build_system.compile.validation import validate_blueprint
+
+        base = self.blueprint()
+        original = base.structs[0]
+        twin = replace(
+            original,
+            symbol_id="python:struct:other.module:EvidenceStruct",
+            name=original.name,
+        )
+        widened = replace(base, structs=(*base.structs, twin))
+        validate_blueprint(widened)
+
+    def test_same_struct_name_same_module_is_rejected(self) -> None:
+        from kg_build_system.compile.validation import validate_blueprint
+
+        base = self.blueprint()
+        original = base.structs[0]
+        module = original.symbol_id.partition("python:struct:")[2].partition(":")[0]
+        twin = replace(original, symbol_id=f"python:struct:{module}:OtherName")
+        with self.assertRaises(ValueError):
+            validate_blueprint(replace(base, structs=(*base.structs, twin)))
+
+    def test_codec_round_trips_cross_module_struct_name_duplicates(self) -> None:
+        base = self.blueprint()
+        original = base.structs[0]
+        twin = replace(original, symbol_id="python:struct:other.module:EvidenceStruct")
+        widened = replace(base, structs=(*base.structs, twin))
+        decoded = decode_blueprint(json.loads(blueprint_json(widened)))
+        self.assertEqual(decoded.structs, widened.structs)
+
+    def blueprint(self) -> BuildBlueprint:
+        return create_blueprint(
+            bindings=(node, edge), sources=(source,), modules=(),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

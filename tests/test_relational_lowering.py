@@ -17,8 +17,10 @@ from kg_build_system import (
 from kg_build_system._frozen_json import freeze_json
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration,
-    MergeCompatibleFactsModule, register_module,
+    MergeCompatibleFactsModule, MergeCompatibleFactsModuleConfiguration,
+    register_module,
 )
+from kg_build_system.modules.core import graph_record_components
 from kg_build_system.modules.core.credentials import configure_source_credentials
 from kg_build_system.modules.core.core import CoreArtifactRoles
 from kg_build_system.modules.targets.file import FileExecutor
@@ -54,6 +56,41 @@ class LoweringProjection(Projection):
 
 class LoweringNode(Node):
     label: PropertySlot[str] = property()
+
+
+class Keyword(Struct):
+    keyword_id: Field[str] = field()
+    keyword_type: Field[str] = field()
+
+
+class NullableKeyword(Struct):
+    keyword_id: Field[str] = field()
+    note: Field[str | None] = field()
+
+
+class KeywordInput(Table):
+    identifier: Field[str] = field()
+    keyword_type: Field[str] = field()
+    keywords: Field[Array[Keyword]] = field()
+    optional_keywords: Field[Array[Keyword] | None] = field()
+
+
+class NullableKeywordInput(Table):
+    identifier: Field[str] = field()
+    keywords: Field[Array[NullableKeyword]] = field()
+
+
+class KeywordNode(Node):
+    label: PropertySlot[str] = property()
+
+
+class KeywordCollectionNode(Node):
+    ids: PropertySlot[Array[str]] = property()
+    optional_ids: PropertySlot[Array[str] | None] = property()
+
+
+class NullableMemberNode(Node):
+    notes: PropertySlot[Array[str]] = property()
 
 
 class RelationalLoweringTests(unittest.TestCase):
@@ -292,6 +329,64 @@ class RelationalLoweringTests(unittest.TestCase):
             next(iter(file_outputs)).startswith("collapse_exact_duplicates::")
         )
 
+    def test_merge_scoping_emits_steps_only_for_named_components(self) -> None:
+        class ScopedNode(Node):
+            key: PropertySlot[str] = property()
+
+        class OtherInput(Table):
+            identifier: Field[str] = field()
+
+        source = bind_source(
+            target=LoweringInput,
+            config=DataSourceConfig("input.json", format=InputFormat.JSON),
+        )
+        other_source = bind_source(
+            target=OtherInput,
+            config=DataSourceConfig("other.json", format=InputFormat.JSON),
+        )
+        binding = node_binding(
+            target=LoweringNode,
+            build_key=LoweringProjection.identifier,
+            properties=LoweringNode(label=LoweringProjection.label),
+        )
+        other_binding = node_binding(
+            target=ScopedNode,
+            build_key=OtherInput.identifier,
+            properties=ScopedNode(key=OtherInput.identifier),
+        )
+        blueprint = create_blueprint(
+            bindings=(binding, other_binding),
+            sources=(source, other_source),
+            modules=(register_module(MergeCompatibleFactsModule),),
+        )
+        scoped_name = next(
+            component.name
+            for component in graph_record_components(blueprint)
+            if "wering" in component.name
+        )
+        contract = compile(
+            bindings=(binding, other_binding),
+            sources=(source, other_source),
+            modules=(
+                register_module(
+                    MergeCompatibleFactsModule,
+                    MergeCompatibleFactsModuleConfiguration(
+                        components=(scoped_name,)
+                    ),
+                ),
+                register_module(CollapseExactDuplicatesModule),
+                register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
+            ),
+        )
+        merge_steps = [
+            step.step_id
+            for step in contract.workflow.steps
+            if step.module_id == "merge_compatible_facts"
+        ]
+        self.assertEqual(merge_steps, [f"merge_compatible_facts::{scoped_name}"])
+        with self.assertRaises(TypeError):
+            MergeCompatibleFactsModuleConfiguration(components=("ok", ""))
+
 
 class _RecordQuery:
     """The cursor result of ``SELECT * FROM <records>``, rows as DuckDB returns them."""
@@ -426,6 +521,465 @@ class FileTargetPropertyEncodingTests(unittest.TestCase):
                     (root / "graph.jsonl").read_text(encoding="utf-8"), "",
                     "the record is refused rather than stringified",
                 )
+
+
+class ArrayPropertyTests(unittest.TestCase):
+    """A flat, non-null scalar array is a first-class graph property."""
+
+    def test_without_nulls_builds_a_neo4j_and_json_array_property(self) -> None:
+        class TaggedNode(Node):
+            codes: PropertySlot[Array[str]] = property()
+            optional_codes: PropertySlot[Array[str] | None] = property()
+
+        class Tagged(Table):
+            identifier: Field[str] = field()
+            codes: Field[Array[str | None]] = field()
+            optional_codes: Field[Array[str | None] | None] = field()
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_path = root / "tagged.json"
+            source_path.write_text(json.dumps([
+                {"identifier": "a", "codes": ["x", None, "y"],
+                 "optional_codes": None},
+                {"identifier": "b", "codes": ["z"], "optional_codes": ["p", None]},
+            ]), encoding="utf-8")
+            source = bind_source(
+                target=Tagged,
+                config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
+            )
+            binding = node_binding(
+                target=TaggedNode,
+                build_key=Tagged.identifier,
+                properties=TaggedNode(
+                    codes=Tagged.codes.without_nulls(),
+                    optional_codes=Tagged.optional_codes.without_nulls(),
+                ),
+            )
+            contract = compile(
+                bindings=(binding,), sources=(source,),
+                modules=(register_module(FileModule, FileModuleConfiguration("graph.jsonl")),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            rows = {
+                row["build_key"]: row
+                for row in (
+                    json.loads(line)
+                    for line in (root / "output" / "graph.jsonl")
+                    .read_text(encoding="utf-8").splitlines()
+                )
+            }
+            self.assertEqual(rows["a"]["codes"], ["x", "y"])
+            self.assertIsNone(rows["a"]["optional_codes"])
+            self.assertEqual(rows["b"]["codes"], ["z"])
+            self.assertEqual(rows["b"]["optional_codes"], ["p"])
+
+    def test_sorted_join_serialize_an_array_into_scalar_key_material(self) -> None:
+        class TaggedNode(Node):
+            identifier: PropertySlot[str] = property()
+            tag_text: PropertySlot[str | None] = property()
+
+        class Tagged(Table):
+            identifier: Field[str] = field()
+            tags: Field[Array[str]] = field()
+            optional_tags: Field[Array[str] | None] = field()
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_path = root / "tagged.json"
+            source_path.write_text(json.dumps([
+                {"identifier": "a", "tags": ["y", "x"], "optional_tags": ["c", "a", "b"]},
+                {"identifier": "b", "tags": ["only"], "optional_tags": None},
+            ]), encoding="utf-8")
+            source = bind_source(
+                target=Tagged,
+                config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
+            )
+            binding = node_binding(
+                target=TaggedNode,
+                build_key=(
+                    Tagged.identifier.expression.prepend("tagged::")
+                    .append("#").append(Tagged.tags.sorted().join(",").expression)
+                ),
+                properties=TaggedNode(
+                    identifier=Tagged.identifier,
+                    tag_text=Tagged.optional_tags.sorted().join("|"),
+                ),
+            )
+            contract = compile(
+                bindings=(binding,), sources=(source,),
+                modules=(register_module(FileModule, FileModuleConfiguration("graph.jsonl")),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            rows = {
+                row["build_key"]: row
+                for row in (
+                    json.loads(line)
+                    for line in (root / "output" / "graph.jsonl")
+                    .read_text(encoding="utf-8").splitlines()
+                )
+            }
+            self.assertEqual(
+                sorted(rows), ["tagged::a#x,y", "tagged::b#only"]
+            )
+            a = next(row for row in rows.values() if row["identifier"] == "a")
+            b = next(row for row in rows.values() if row["identifier"] == "b")
+            self.assertEqual(a["tag_text"], "a|b|c")
+            self.assertIsNone(b["tag_text"])
+
+    def test_join_requires_non_null_string_items(self) -> None:
+        class Tagged(Table):
+            identifier: Field[str] = field()
+            codes: Field[Array[str | None]] = field()
+
+        with self.assertRaisesRegex(TypeError, "non-null strings"):
+            Tagged.codes.join(",")
+
+        class Raw(Table):
+            identifier: Field[str] = field()
+            codes: Field[Array[int]] = field()
+
+        with self.assertRaisesRegex(TypeError, "non-null strings"):
+            Raw.codes.join(",")
+
+    def test_null_array_items_are_rejected_without_conversion(self) -> None:
+        class RawNode(Node):
+            codes: PropertySlot[Array[str]] = property()
+
+        class Raw(Table):
+            identifier: Field[str] = field()
+            codes: Field[Array[str | None]] = field()
+
+        with self.assertRaisesRegex(TypeError, "resolves to"):
+            node_binding(
+                target=RawNode,
+                build_key=Raw.identifier,
+                properties=RawNode(codes=Raw.codes),
+            )
+
+
+class NumericKeyTable(Table):
+    ordinal: Field[int] = field()
+    tag: Field[str] = field()
+
+
+class NumericKeyNode(Node):
+    tag: PropertySlot[str] = property()
+
+
+class IntTextCastTests(unittest.TestCase):
+    """``IntExpression.text()`` lets a numeric member compose a string key."""
+
+    def test_int_member_enters_the_build_key_as_decimal_text(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_path = root / "rows.json"
+            source_path.write_text(json.dumps([
+                {"ordinal": 12, "tag": "x"},
+                {"ordinal": 340, "tag": "y"},
+            ]), encoding="utf-8")
+            source = bind_source(
+                target=NumericKeyTable,
+                config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
+            )
+            binding = node_binding(
+                target=NumericKeyNode,
+                build_key=NumericKeyTable.ordinal.expression.text().prepend("class#"),
+                properties=NumericKeyNode(tag=NumericKeyTable.tag),
+            )
+            contract = compile(
+                bindings=(binding,), sources=(source,),
+                modules=(register_module(FileModule, FileModuleConfiguration("graph.jsonl")),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            rows = [
+                json.loads(line)
+                for line in (root / "output" / "graph.jsonl")
+                .read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual({row["build_key"] for row in rows},
+                             {"class#12", "class#340"})
+
+
+class BooleanPredicateTests(unittest.TestCase):
+    """A Boolean ``keep_if`` predicate drops rows one product produces."""
+
+    def test_replaced_normalizes_identifier_spaces(self) -> None:
+        class CurieNode(Node):
+            label: PropertySlot[str] = property()
+
+        class Curie(Table):
+            identifier: Field[str] = field()
+            label: Field[str] = field()
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_path = root / "curies.json"
+            source_path.write_text(json.dumps([
+                {"identifier": "HP:0000118", "label": "Migraine"},
+            ]), encoding="utf-8")
+            source = bind_source(
+                target=Curie,
+                config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
+            )
+            binding = node_binding(
+                target=CurieNode,
+                build_key=Curie.identifier.expression.replaced(":", "_"),
+                properties=CurieNode(label=Curie.label),
+            )
+            contract = compile(
+                bindings=(binding,), sources=(source,),
+                modules=(register_module(FileModule, FileModuleConfiguration("graph.jsonl")),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            rows = [
+                json.loads(line)
+                for line in (root / "output" / "graph.jsonl")
+                .read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(rows[0]["build_key"], "HP_0000118")
+
+    def test_split_operators_cut_only_at_the_first_separator(self) -> None:
+        class XrefNode(Node):
+            key: PropertySlot[str] = property()
+
+        class Xref(Table):
+            identifier: Field[str] = field()
+            reference: Field[str] = field()
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_path = root / "xrefs.json"
+            source_path.write_text(json.dumps([
+                {"identifier": "1", "reference": "Wikipedia:Neural_development#Migration"},
+                {"identifier": "2", "reference": "OMIM:123456"},
+            ]), encoding="utf-8")
+            source = bind_source(
+                target=Xref,
+                config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
+            )
+            database = Xref.reference.expression.split_before(":")
+            payload = Xref.reference.expression.split_after(":")
+            binding = node_binding(
+                target=XrefNode,
+                build_key=database.append("::").append(payload),
+                properties=XrefNode(key=database.append("|").append(payload)),
+            )
+            contract = compile(
+                bindings=(binding,), sources=(source,),
+                modules=(register_module(FileModule, FileModuleConfiguration("graph.jsonl")),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            rows = {
+                row["build_key"]: row
+                for row in (
+                    json.loads(line)
+                    for line in (root / "output" / "graph.jsonl")
+                    .read_text(encoding="utf-8").splitlines()
+                )
+            }
+            self.assertEqual(
+                set(rows),
+                {
+                    "Wikipedia::Neural_development#Migration",
+                    "OMIM::123456",
+                },
+            )
+
+    def test_distinct_projects_repeated_array_items_into_a_set(self) -> None:
+        class TagNode(Node):
+            key: PropertySlot[str] = property()
+            tags: PropertySlot[Array[str]] = property()
+
+        class Tagged(Table):
+            identifier: Field[str] = field()
+            tags: Field[Array[str | None]] = field()
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_path = root / "tagged.json"
+            source_path.write_text(json.dumps([
+                {"identifier": "1", "tags": ["b", "a", "b", None]},
+            ]), encoding="utf-8")
+            source = bind_source(
+                target=Tagged,
+                config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
+            )
+            binding = node_binding(
+                target=TagNode,
+                build_key=Tagged.identifier,
+                properties=TagNode(
+                    key=Tagged.identifier,
+                    tags=Tagged.tags.without_nulls().distinct().sorted(),
+                ),
+            )
+            contract = compile(
+                bindings=(binding,), sources=(source,),
+                modules=(register_module(FileModule, FileModuleConfiguration("graph.jsonl")),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            rows = [
+                json.loads(line)
+                for line in (root / "output" / "graph.jsonl")
+                .read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(rows[0]["tags"], ["a", "b"])
+
+    def test_keep_if_becomes_one_true_filter_in_the_where(self) -> None:
+        predicate = KeywordInput.keyword_type.expression.equals("TARGET")
+        kept = KeywordInput.identifier.expression.keep_if(predicate)
+        plan = lower_product(
+            {"first": kept.model, "second": kept.model},
+            {"keyword_input": "input_relation"},
+        )
+        # One shared keep_if produces one filter, held as the predicate with mode "true".
+        self.assertEqual([filter.mode for filter in plan.filters], ["true"])
+        self.assertEqual(plan.filters[0].expression.operator, "equals")
+        sql = lower_relation_sql(plan)
+        self.assertEqual(sql.count("WHERE"), 1)
+        self.assertIn("WHERE", sql)
+        self.assertIn('"keyword_type" = \'TARGET\'', sql)
+        self.assertNotIn("IS NULL", sql)
+
+    def test_equals_uses_value_semantics_and_can_bind_as_a_property(self) -> None:
+        # equals is a plain Boolean value, not a filter: it is not collected as
+        # a plan filter unless a keep_if turns it into one.
+        predicate = KeywordInput.keyword_type.expression.equals("TARGET")
+        plan = lower_product(
+            {"match": predicate.model}, {"keyword_input": "input_relation"},
+        )
+        self.assertEqual(plan.filters, ())
+        self.assertIn("= 'TARGET'", lower_relation_sql(plan))
+
+    def test_keep_if_drops_non_matching_rows_end_to_end(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_path = root / "keywords.json"
+            source_path.write_text(json.dumps([
+                {"identifier": "keep", "keyword_type": "TARGET",
+                 "keywords": [], "optional_keywords": []},
+                {"identifier": "drop", "keyword_type": "DISEASE",
+                 "keywords": [], "optional_keywords": []},
+            ]), encoding="utf-8")
+            source = bind_source(
+                target=KeywordInput,
+                config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
+            )
+            binding = node_binding(
+                target=KeywordNode,
+                build_key=KeywordInput.identifier.expression.keep_if(
+                    KeywordInput.keyword_type.expression.equals("TARGET")
+                ),
+                properties=KeywordNode(label=KeywordInput.identifier),
+            )
+            contract = compile(
+                bindings=(binding,), sources=(source,),
+                modules=(register_module(
+                    FileModule, FileModuleConfiguration("graph.jsonl")
+                ),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            keys = {
+                json.loads(line)["build_key"]
+                for line in (root / "output" / "graph.jsonl")
+                .read_text(encoding="utf-8").splitlines()
+            }
+            self.assertEqual(keys, {"keep"})
+
+
+class StructArrayProjectionTests(unittest.TestCase):
+    """``map_items`` projects one struct member into a list graph property."""
+
+    def test_map_items_builds_a_list_property_including_a_null_array(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_path = root / "keywords.json"
+            source_path.write_text(json.dumps([
+                {"identifier": "a", "keyword_type": "t",
+                 "keywords": [{"keyword_id": "k1", "keyword_type": "t"},
+                              {"keyword_id": "k2", "keyword_type": "t"}],
+                 "optional_keywords": None},
+                {"identifier": "b", "keyword_type": "t",
+                 "keywords": [{"keyword_id": "k3", "keyword_type": "t"}],
+                 "optional_keywords": [{"keyword_id": "k4", "keyword_type": "t"}]},
+            ]), encoding="utf-8")
+            source = bind_source(
+                target=KeywordInput,
+                config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
+            )
+            binding = node_binding(
+                target=KeywordCollectionNode,
+                build_key=KeywordInput.identifier,
+                properties=KeywordCollectionNode(
+                    ids=KeywordInput.keywords.map_items(lambda item: item.keyword_id),
+                    optional_ids=KeywordInput.optional_keywords.map_items(
+                        lambda item: item.keyword_id
+                    ),
+                ),
+            )
+            contract = compile(
+                bindings=(binding,), sources=(source,),
+                modules=(register_module(
+                    FileModule, FileModuleConfiguration("graph.jsonl")
+                ),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            rows = {
+                row["build_key"]: row
+                for row in (
+                    json.loads(line)
+                    for line in (root / "output" / "graph.jsonl")
+                    .read_text(encoding="utf-8").splitlines()
+                )
+            }
+            self.assertEqual(rows["a"]["ids"], ["k1", "k2"])
+            self.assertIsNone(rows["a"]["optional_ids"], "a null array maps to a null list")
+            self.assertEqual(rows["b"]["ids"], ["k3"])
+            self.assertEqual(rows["b"]["optional_ids"], ["k4"])
+
+    def test_map_items_of_a_null_member_yields_a_null_item_dropped_by_without_nulls(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_path = root / "notes.json"
+            source_path.write_text(json.dumps([
+                {"identifier": "a",
+                 "keywords": [{"keyword_id": "k1", "note": "keep"},
+                              {"keyword_id": "k2", "note": None}]},
+            ]), encoding="utf-8")
+            source = bind_source(
+                target=NullableKeywordInput,
+                config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
+            )
+            binding = node_binding(
+                target=NullableMemberNode,
+                build_key=NullableKeywordInput.identifier,
+                properties=NullableMemberNode(
+                    notes=NullableKeywordInput.keywords.map_items(
+                        lambda item: item.note
+                    ).without_nulls(),
+                ),
+            )
+            contract = compile(
+                bindings=(binding,), sources=(source,),
+                modules=(register_module(
+                    FileModule, FileModuleConfiguration("graph.jsonl")
+                ),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            rows = [
+                json.loads(line)
+                for line in (root / "output" / "graph.jsonl")
+                .read_text(encoding="utf-8").splitlines()
+            ]
+            self.assertEqual(rows[0]["notes"], ["keep"])
 
 
 if __name__ == "__main__":

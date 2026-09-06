@@ -26,8 +26,30 @@ from ..core import CoreArtifactRoles, graph_record_components
 
 
 @dataclass(frozen=True)
-class _Configuration(ModuleRegistrationConfiguration):
-    """The operator has no configurable behavior."""
+class MergeCompatibleFactsModuleConfiguration(ModuleRegistrationConfiguration):
+    """``components=None`` merges every record component (the default); a
+    tuple restricts the operator to those logical component names, leaving
+    every other component's records untouched by this step.
+
+    Merging folds same-key rows into one record (a ``min()`` per column), so
+    it is only sound for components whose parallel same-key rows are meant to
+    be one fact — node components re-emitted by several sources, for example.
+    Edge families that deliberately keep parallel facts must stay outside the
+    scope.
+    """
+
+    components: tuple[str, ...] | None = None
+
+    def __post_init__(self) -> None:
+        # The registration round-trips configuration through JSON, where the
+        # scope arrives as a list; the authored form is normalized back.
+        if self.components is not None:
+            values = tuple(self.components)
+            if any(not isinstance(name, str) or not name for name in values):
+                raise TypeError(
+                    "components must be None or a tuple of non-empty strings"
+                )
+            object.__setattr__(self, "components", values)
 
 
 def _quote_identifier(value: object) -> str:
@@ -36,10 +58,12 @@ def _quote_identifier(value: object) -> str:
 
 @dataclass(frozen=True)
 class MergeCompatibleFactsModule(Module):
-    configuration: _Configuration
+    configuration: MergeCompatibleFactsModuleConfiguration
     ID: ClassVar[str] = "merge_compatible_facts"
     VERSION: ClassVar[str] = "1"
-    CONFIGURATION_TYPE: ClassVar[type[_Configuration]] = _Configuration
+    CONFIGURATION_TYPE: ClassVar[type[MergeCompatibleFactsModuleConfiguration]] = (
+        MergeCompatibleFactsModuleConfiguration
+    )
 
     @classmethod
     async def create_compiler(
@@ -57,7 +81,10 @@ class MergeCompatibleFactsModule(Module):
         self, context: CompilationContext[Any],
     ) -> WorkflowContribution:
         steps: list[WorkflowStepDraft] = []
+        scope = self.configuration.components
         for component in graph_record_components(context.blueprint):
+            if scope is not None and component.name not in scope:
+                continue
             input_slot = SingleInputSlot(
                 slot_id=f"{self.ID}::{component.name}.input"
             )
@@ -98,7 +125,11 @@ class MergeCompatibleFactsModule(Module):
                 import_module=type(self).__module__,
                 class_qualname=type(self).__qualname__,
                 implementation_version=self.VERSION,
-                configuration=freeze_json({}),
+                configuration=freeze_json({
+                    "components": (
+                        None if scope is None else list(scope)
+                    ),
+                }),
             )
         )
         return WorkflowContribution(definition, tuple(steps))

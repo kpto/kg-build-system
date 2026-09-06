@@ -47,6 +47,9 @@ from kg_build_system.expressions.mapping import expression_to_ir
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule,
     MetaGraphModule,
+    Neo4jModule,
+    RejectConflictingNonNullValuesModule,
+    RejectConflictingNonNullValuesConfiguration,
     register_module,
 )
 from kg_build_system.modules.targets.meta_graph import (
@@ -75,6 +78,7 @@ from kg_build_system.types import (
     STR,
     Time,
     Timestamp,
+    UnitType,
     normalize_type,
     Uuid,
 )
@@ -316,14 +320,24 @@ class EffectiveTopologyTests(unittest.TestCase):
             [("summary", "str | None", True), ("name", "str", False)],
         )
 
-    def test_graph_properties_are_scalar_so_types_stay_bounded(self) -> None:
+    def test_graph_properties_are_scalar_or_flat_scalar_arrays(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be a scalar"):
             class StructuredNode(Node):
                 location: PropertySlot[Place | None] = property()  # type: ignore[valid-type]
 
-        with self.assertRaisesRegex(TypeError, "must be a scalar"):
-            class ArrayNode(Node):
-                codes: PropertySlot[Array[str]] = property()  # type: ignore[valid-type]
+        with self.assertRaisesRegex(TypeError, "require scalar items"):
+            class NestedArrayNode(Node):
+                codes: PropertySlot[Array[Array[str]]] = property()  # type: ignore[valid-type]
+
+        with self.assertRaisesRegex(TypeError, "require non-null items"):
+            class NullableItemNode(Node):
+                codes: PropertySlot[Array[str | None]] = property()  # type: ignore[valid-type]
+
+        class ScalarArrayNode(Node):
+            codes: PropertySlot[Array[str]] = property()
+
+        declaration = ScalarArrayNode._properties["codes"]
+        self.assertEqual(declaration.logical_type, ArrayType(UnitType("str")))
 
     def test_step_waits_on_every_effective_graph_record_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -494,6 +508,61 @@ class ExecutionTests(unittest.TestCase):
         self.assertEqual(edges["refers"]["counts"]["records"], 2)
         self.assertEqual(document["summary"]["total_nodes"], 4)
         self.assertEqual(document["summary"]["total_edges"], 4)
+
+    def test_the_full_operator_pipeline_reaches_every_consumer(self) -> None:
+        """Validation and deduplication sit ahead of the graph-record consumers.
+
+        The validator re-publishes the records it vetted and the deduplication
+        collapses them further; a consumer wired to any earlier producer of the
+        same role would see raw duplicates (the regression this pins), because
+        role candidates are shared artifacts, not one-per-consumer tokens.
+        """
+        _output, contract, _report, document = _run(
+            self,
+            register_module(
+                RejectConflictingNonNullValuesModule,
+                RejectConflictingNonNullValuesConfiguration(fail_on_error=False),
+            ),
+            register_module(CollapseExactDuplicatesModule),
+            register_module(MetaGraphModule),
+        )
+        nodes = _by_name(document, "nodes")
+        self.assertEqual(nodes["person"]["counts"]["records"], 2)
+        self.assertEqual(nodes["team"]["counts"]["records"], 2)
+        producers = {
+            connection.output_slot_id
+            for connection in contract.workflow.connections
+            if connection.input_slot_id == "meta_graph::document.records"
+        }
+        self.assertTrue(producers, "the document reads the graph artifacts")
+        self.assertFalse(
+            any(source.startswith("core::aggregate") for source in producers),
+            f"raw aggregates leaked into the document: {sorted(producers)}",
+        )
+        # The export target gets the same treatment (over the sub-graph whose
+        # endpoints are all bound, which is what the target requires).
+        export_contract = compile(
+            bindings=(ALL_BINDINGS[0], ALL_BINDINGS[1], ALL_BINDINGS[2]),
+            sources=(_source(Path("unused.json")),),  # compiled, never built
+            modules=(
+                register_module(
+                    RejectConflictingNonNullValuesModule,
+                    RejectConflictingNonNullValuesConfiguration(fail_on_error=False),
+                ),
+                register_module(CollapseExactDuplicatesModule),
+                register_module(Neo4jModule),
+            ),
+        )
+        export_sources = {
+            connection.output_slot_id
+            for connection in export_contract.workflow.connections
+            if connection.input_slot_id.startswith("neo4j::export.node.")
+        }
+        self.assertTrue(export_sources)
+        self.assertFalse(
+            any(source.startswith("core::aggregate") for source in export_sources),
+            f"raw aggregates leaked into the export: {sorted(export_sources)}",
+        )
 
     def test_document_is_written_and_published(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -1249,6 +1318,55 @@ console.log(JSON.stringify({
         for name in abstract_edges:
             self.assertNotIn(name, derived["nodes"])
         self.assertEqual(derived["isolated"], [], "every vertex must be connected")
+
+
+class ArrayExampleTable(Table):
+    identifier: Field[str] = field()
+    codes: Field[Array[str | None]] = field()
+
+
+class ArrayExampleNode(Node):
+    codes: PropertySlot[Array[str]] = property()
+
+
+array_example_binding = node_binding(
+    target=ArrayExampleNode,
+    build_key=ArrayExampleTable.identifier,
+    properties=ArrayExampleNode(codes=ArrayExampleTable.codes.without_nulls()),
+)
+
+
+class ArrayExampleTests(unittest.TestCase):
+    """Array-valued properties carry examples: list values are unhashable."""
+
+    def test_array_property_examples_survive_deduplication(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / "input.json"
+            data.write_text(json.dumps([
+                {"identifier": "a", "codes": ["x", "y"]},
+                {"identifier": "b", "codes": ["x", "y"]},
+                {"identifier": "c", "codes": ["z"]},
+            ]), encoding="utf-8")
+            output = root / "output"
+            contract = compile(
+                bindings=(array_example_binding,),
+                sources=(bind_source(
+                    target=ArrayExampleTable,
+                    config=DataSourceConfig(str(data), format=InputFormat.JSON),
+                ),),
+                modules=(register_module(MetaGraphModule),),
+            )
+            report = build(contract, output_directory=output)
+            self.assertTrue(report.succeeded)
+            document = json.loads(
+                (output / "meta_graph.json").read_text(encoding="utf-8")
+            )
+            entry = next(
+                item for item in document["nodes"]
+                if item["counts"]["records"] == 3
+            )
+            self.assertEqual(entry["properties"][0]["examples"], [["x", "y"], ["z"]])
 
 
 if __name__ == "__main__":

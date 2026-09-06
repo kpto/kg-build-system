@@ -3,9 +3,10 @@ from __future__ import annotations
 
 from typing import Generic, TypeVar
 
-from ..types import FLOAT, INT
+from ..types import FLOAT, INT, STR
 from ._coercion import expression_input
 from .base import operation
+from .text import StrExpression
 from .values import ValueExpression
 
 
@@ -39,6 +40,16 @@ class IntExpression(NumberExpression[int]):
 
     def sub(self, other: int | ValueExpression[int]) -> "IntExpression":
         return self._binary("subtract", other)
+
+    def text(self) -> StrExpression:
+        """Render the integer as its decimal text — key material's cast.
+
+        Sources that name a record with a numeric member (a class id, say)
+        can compose it into a string key without the framework inventing a
+        per-project formatting rule; the text is DuckDB's canonical cast, the
+        same digits a reader of the source would see.
+        """
+        return StrExpression(operation("text", self.model, logical_type=STR))
 
 
 class FloatExpression(NumberExpression[float]):

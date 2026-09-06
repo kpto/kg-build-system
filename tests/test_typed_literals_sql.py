@@ -91,7 +91,9 @@ class TypedLiteralSqlTests(unittest.TestCase):
             (literal(1.5), "1.5"),
             (literal(True), "TRUE"),
             (literal("text"), "'text'"),
-            (literal(None, logical_type=NullableType(TIME)), "NULL"),
+            # A null carries its declared type: a bare NULL would materialize
+            # as an integer column and misrepresent the property's schema.
+            (literal(None, logical_type=NullableType(TIME)), "CAST(NULL AS TIME)"),
             (literal("2026-08-02"), "'2026-08-02'"),
         ):
             with self.subTest(literal=expected):

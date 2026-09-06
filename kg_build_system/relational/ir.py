@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import Literal
 
 from ..expressions.ir import ExpressionIR
 
@@ -23,6 +24,7 @@ class ExpandIR:
 @dataclass(frozen=True, slots=True)
 class FilterIR:
     expression: ExpressionIR
+    mode: Literal["present", "true"] = "present"
 
 
 @dataclass(frozen=True, slots=True)

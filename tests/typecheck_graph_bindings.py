@@ -4,10 +4,12 @@ from typing import assert_type
 from uuid import UUID
 
 from kg_build_system import (
-    Edge, EdgeBinding, Field, Node, NodeBinding, PropertySlot, Table,
+    Array, ArraySelection, Edge, EdgeBinding, Field, Node, NodeBinding,
+    NullableSelection, PropertySlot, Struct, Table, ValueSelection,
     edge_binding, field, node_binding, property,
 )
-from kg_build_system.types import Date, Time, Timestamp, Uuid
+from kg_build_system.expressions import BoolExpression, StrExpression
+from kg_build_system.types import Date, Nullable, Time, Timestamp, Uuid
 
 
 class BindingTable(Table):
@@ -110,3 +112,110 @@ stdlib_event = node_binding(
     ),
 )
 assert_type(stdlib_event, NodeBinding[StdlibEventNode])
+
+
+class TagTable(Table):
+    identifier: Field[str] = field()
+    codes: Field[Array[str | None]] = field()
+    optional_codes: Field[Array[str | None] | None] = field()
+
+
+class TagNode(Node):
+    codes: PropertySlot[Array[str]] = property()
+    optional_codes: PropertySlot[Array[str] | None] = property()
+
+
+# without_nulls drops the item nullability, keeping the array's own nullability.
+assert_type(TagTable.codes, ArraySelection[Nullable[str]])
+assert_type(TagTable.codes.without_nulls(), ArraySelection[str])
+assert_type(TagTable.optional_codes.without_nulls(), NullableSelection[Array[str]])
+
+# sorted keeps the array shape; join needs non-null items and yields a string
+# whose nullability mirrors the array's.
+assert_type(TagTable.codes.without_nulls().sorted(), ArraySelection[str])
+assert_type(
+    TagTable.optional_codes.without_nulls().sorted(), NullableSelection[Array[str]]
+)
+assert_type(TagTable.codes.without_nulls().join(","), ValueSelection[str])
+assert_type(
+    TagTable.optional_codes.without_nulls().join(","), NullableSelection[str]
+)
+
+tags = node_binding(
+    target=TagNode,
+    build_key=TagTable.identifier,
+    properties=TagNode(
+        codes=TagTable.codes.without_nulls(),
+        optional_codes=TagTable.optional_codes.without_nulls(),
+    ),
+)
+assert_type(tags, NodeBinding[TagNode])
+
+tags_expression = node_binding(
+    target=TagNode,
+    build_key=TagTable.identifier.expression,
+    properties=TagNode(
+        codes=TagTable.codes.expression.without_nulls(),
+        optional_codes=TagTable.optional_codes.without_nulls(),
+    ),
+)
+assert_type(tags_expression, NodeBinding[TagNode])
+
+
+class KeywordStruct(Struct):
+    keyword_id: Field[str] = field()
+    keyword_type: Field[str | None] = field()
+
+
+class PredicateTable(Table):
+    identifier: Field[str] = field()
+    label: Field[str] = field()
+    optional_label: Field[str | None] = field()
+    keywords: Field[Array[KeywordStruct]] = field()
+    optional_keywords: Field[Array[KeywordStruct] | None] = field()
+
+
+class PredicateNode(Node):
+    label: PropertySlot[str] = property()
+
+
+# equals is a non-null string operation that yields a Boolean predicate.
+assert_type(PredicateTable.label.expression.equals("TARGET"), BoolExpression)
+# where_present narrows, then equals chains cleanly.
+assert_type(
+    PredicateTable.optional_label.where_present().expression.equals("TARGET"), BoolExpression,
+)
+
+# keep_if preserves the expression family it is applied to.
+assert_type(PredicateTable.label.expression, StrExpression)
+assert_type(
+    PredicateTable.label.expression.keep_if(
+        PredicateTable.identifier.expression.equals("TARGET")
+    ),
+    StrExpression,
+)
+
+# map_items projects an element member into an array of that member's type; a
+# nullable member yields nullable items, and a nullable array stays nullable.
+assert_type(
+    PredicateTable.keywords.map_items(lambda item: item.keyword_id), ArraySelection[str],
+)
+assert_type(
+    PredicateTable.keywords.map_items(lambda item: item.keyword_type),
+    ArraySelection[Nullable[str]],
+)
+assert_type(
+    PredicateTable.optional_keywords.map_items(lambda item: item.keyword_id),
+    NullableSelection[Array[str]],
+)
+
+# The projected array, and a keep_if-filtered key, both bind as before.
+predicated = node_binding(
+    target=PredicateNode,
+    build_key=PredicateTable.identifier.expression.keep_if(
+        PredicateTable.label.expression.equals("TARGET")
+    ),
+    properties=PredicateNode(label=PredicateTable.label),
+)
+assert_type(predicated, NodeBinding[PredicateNode])
+

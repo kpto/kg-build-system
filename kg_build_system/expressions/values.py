@@ -1,10 +1,11 @@
 """Bindable typed calculations backed by expression domain models."""
 from __future__ import annotations
 
-from typing import Generic, TypeVar
+from typing import Generic, Self, TypeVar, cast
 
-from ..types import LogicalType
-from .models import ExpressionNode
+from ..types import BOOL, LogicalType
+from .base import operation
+from .models import ExpressionNode, RowSemantics
 
 
 T_co = TypeVar("T_co", covariant=True)
@@ -33,6 +34,27 @@ class ValueExpression(Generic[T_co]):
     @property
     def logical_type(self) -> LogicalType:
         return self._model.logical_type
+
+    def keep_if(self, predicate: ValueExpression[bool]) -> Self:
+        """Keep the row only where a Boolean predicate holds, dropping the rest.
+
+        The value passes through unchanged and keeps its family; the predicate
+        records a local filter row effect, so — like ``where_present`` — a
+        projection or binding owns it and it cannot change a sibling product.
+        """
+        from .factory import wrap_expression
+
+        predicate_model = predicate.model
+        if predicate_model.logical_type != BOOL:
+            raise TypeError("keep_if requires a Boolean predicate")
+        result = operation(
+            "keep_if",
+            self.model,
+            predicate_model,
+            logical_type=self.logical_type,
+            row_semantics=RowSemantics("filter"),
+        )
+        return cast(Self, wrap_expression(result))
 
     def __repr__(self) -> str:
         return f"{type(self).__name__}({self._model!r})"

@@ -5,11 +5,15 @@ from .conflict_validation import (
     RejectConflictingNonNullValuesModule,
 )
 from .deduplication import CollapseExactDuplicatesModule
-from .merging import MergeCompatibleFactsModule
+from .merging import (
+    MergeCompatibleFactsModule,
+    MergeCompatibleFactsModuleConfiguration,
+)
 
 __all__ = [
     "CollapseExactDuplicatesModule",
     "MergeCompatibleFactsModule",
+    "MergeCompatibleFactsModuleConfiguration",
     "RejectConflictingNonNullValuesConfiguration",
     "RejectConflictingNonNullValuesModule",
 ]

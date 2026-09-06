@@ -14,6 +14,7 @@ from ..expressions.ir import (
 from ..expressions.ir_codec import encode_expression_ir as encode_expression
 from ..expressions.models import ExpressionNode as DomainExpressionNode
 from ..expressions.mapping import expression_to_ir
+from ..types.ir import UnitTypeIR
 from .ir import (
     ExpandIR as Expand, FilterIR as Filter, RelationPlanIR as RelationPlan,
     ScanIR as Scan,
@@ -111,6 +112,17 @@ def lower_product(
                 if key not in filter_keys:
                     filter_keys.add(key)
                     filters.append(Filter(operation.arguments[0]))
+            elif operation.operator == "keep_if":
+                if len(operation.arguments) != 2:
+                    raise ValueError("keep_if requires two arguments")
+                predicate = operation.arguments[1]
+                logical_type = predicate.logical_type
+                if not (isinstance(logical_type, UnitTypeIR) and logical_type.name == "bool"):
+                    raise ValueError("keep_if requires a Boolean predicate")
+                key = _key(operation)
+                if key not in filter_keys:
+                    filter_keys.add(key)
+                    filters.append(Filter(predicate, "true"))
 
     return RelationPlan(scans, tuple(expands), tuple(filters), tuple(compiled_outputs.items()))
 

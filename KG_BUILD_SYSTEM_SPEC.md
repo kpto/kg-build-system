@@ -224,15 +224,20 @@ NullableSelection[T]    default_to, where_present, nullable pick/expand
 Bindable expression families expose calculation operations only:
 
 ```text
-IntExpression            add, sub
+IntExpression            add, sub, text
 FloatExpression          add, sub
-StrExpression            prepend, append
+StrExpression            prepend, append, equals, replaced, split_before,
+                         split_after
 BoolExpression           not_, and_, or_
 CustomDataTypeExpression bindable custom scalar
-ArrayExpression          bindable array value
+ArrayExpression          bindable array value; without_nulls, map_items,
+                         sorted, distinct, join
 StructExpression         bindable struct value
 NullableExpression       bindable nullable value
 ```
+
+Every bindable expression also carries `keep_if(predicate)`, which turns a
+Boolean value into a row filter.
 
 Calculations preserve the most specific useful expression family:
 
@@ -283,6 +288,58 @@ expanding `Array[T | None]` produces a nullable item selection.
 Each `expand()` records an explicit `expand` operation with a stable scope derived from
 the logical field path. Repeated expressions with the same scope share one
 expansion. Nested scopes are planned parent-first.
+
+An array of structs can also stay one row and project a member out of every
+element with `map_items`, using the same selector shape as `pick`:
+
+```python
+keyword_ids = InputTable.keywords.map_items(lambda value: value.keyword_id)
+```
+
+`map_items` reads one declared member of the element struct and returns an array
+of it, so `Array[S]` becomes `Array[member]`. It records a `map_items` operation,
+not a row effect: no rows are added. A nullable array element or a nullable
+member makes the projected items nullable, and a null array maps to a null array.
+
+An array can be made order-independent with `sorted`, and its non-null string
+items concatenated with `join`:
+
+```python
+drug_ids = InputTable.drugs.map_items(lambda value: value.drug_id)
+key_part = drug_ids.without_nulls().sorted().join(",")
+```
+
+`sorted` records a `sorted` operation returning the same array type; `join`
+records a `join` operation and requires non-null string items, returning `str`
+(a null array joins to a null string). Together they let an array's content
+name a record regardless of the order the source listed it in. `distinct`
+records a `distinct` operation returning the same array type and keeps one
+copy per item — the projection of a repeated nested member into a set-valued
+property (combine with `sorted` for determinism).
+
+A string that pairs two identifiers under one separator — `Reactome:R-HSA-70635`
+naming a database and a reference — splits with `split_before(sep)` and
+`split_after(sep)`, each returning `str`: the segment before the first
+separator, and everything after it with later separators kept (a page title
+may itself contain the separator). A string without the separator yields the
+whole string before, and the empty string after.
+
+### Row predicates
+
+A non-null string compares with `equals`, which yields a Boolean expression. Any
+bindable expression then keeps its value but drops the row unless a predicate
+holds, with `keep_if`:
+
+```python
+InputTable.identifier.expression.keep_if(
+    InputTable.keyword_type.expression.equals("TARGET")
+)
+```
+
+Like `where_present`, `keep_if` records a local filter row effect owned by the
+projection or binding, so it never alters a sibling product. Relational planning
+collects it as a filter held to be true, whereas a `where_present` filter is a
+null-presence test; both are deduplicated and combined into one predicate.
 
 ### Null handling
 
@@ -350,6 +407,16 @@ internal node-side root to which every endpoint-category parameter is bound,
 so an edge-kind type argument is statically impossible. The hierarchy is a
 tree: one category parent, any number of matching-kind mixins, and every
 framework declaration in the MRO.
+
+A binding assigns one selection to every property slot its concrete component
+resolves, so a slot is a promise to fill it. A slot may opt out of the promise
+at declaration: `property(default=None)` — PEP 681's default channel — marks
+it optional for every binding of the component that resolves it (a category's
+members, or a concrete component whose own records sometimes state nothing).
+An optional slot left unbound carries a typed null, so the property stays
+absent from those records; a shadowing re-declaration without the default is
+a fresh promise. Only nullable slots may opt out — a non-null slot has no null
+to fall back on.
 
 Canonical base order is templates, abstract parents, terminal base last.
 Class creation enforces the same predicates order-insensitively: one direct
@@ -513,7 +580,8 @@ OperationExpression(operator, arguments, parameters)
 
 Every domain expression carries its logical type and may retain authoring-time
 `RowSemantics`, but expression IR records only the explicit expression syntax
-and normalized logical type. `expand` and `where_present` remain ordinary explicit
+and normalized logical type. `expand`, `where_present`, `keep_if` and `map_items`
+remain ordinary explicit
 operations. Relational planning derives expansion identities, ordering, and
 filters from that syntax; planner scopes and traversal hints never enter the
 blueprint. The compiler maps logical types, expressions, annotations, data
@@ -572,10 +640,10 @@ engine-specific DuckDB SQL
 
 `lower_product` plans one projection or binding. It derives its driving scan,
 deduplicates shared expansions, orders nested expansions parent-first, and
-collects `where_present` filters. Plans remain independent of SQL syntax.
+collects `where_present` and `keep_if` filters. Plans remain independent of SQL syntax.
 
 The DuckDB engine lowers scans, struct access, `UNNEST`, filters, numeric,
-string, Boolean, and coalesce operations into inspectable SQL. Every runtime
+string, Boolean, comparison, list-element projection, and coalesce operations into inspectable SQL. Every runtime
 relational artifact exposes a stable logical view. Core source, projection,
 binding, and graph-aggregation views remain lazy so DuckDB can optimize through
 the complete query chain and push projections and filters into physical scans.
@@ -616,6 +684,16 @@ aggregation-view steps. Extension modules claim artifacts by semantic
 include exact duplicate collapse, compatible-fact merging, conflicting-value
 validation, file output, meta-graph description, and Neo4j administrative-import
 output.
+
+Assembly resolves each role's producer chain deterministically. A step that
+accepts a role and re-publishes it (every graph-record operator does) extends
+that role's chain; every consumer of the role — the operators after it and the
+targets at the end — binds to the chain's terminal link among the steps that
+claimed before it, never to whichever producer happens to be unread. Chain
+membership is derived from the declared candidate predicates, not from claim
+side effects, so a consumer cannot bind to a pre-operator artifact and export
+raw records as final; pass-through operators therefore claim eagerly, like the
+operators they feed.
 
 The meta-graph module writes one JSON document describing the effective
 topology: every component a binding targets, the abstract ancestors and edge
