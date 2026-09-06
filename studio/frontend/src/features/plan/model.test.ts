@@ -85,8 +85,9 @@ describe("spacing control", () => {
     const wide = spacingFor(100);
     expect(tight.columnGap).toBeLessThan(DEFAULT_SPACING.columnGap);
     expect(wide.columnGap).toBeGreaterThan(DEFAULT_SPACING.columnGap);
-    expect(wide.laneGap).toBeGreaterThan(tight.laneGap);
     expect(wide.rowGap).toBeGreaterThan(tight.rowGap);
+    // One vertical field, so one vertical gap: no lane band to space any more.
+    expect(Object.keys(wide).sort()).toEqual(["columnGap", "rowGap"]);
   });
 
   it("clamps out-of-range slider values", () => {

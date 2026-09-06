@@ -166,14 +166,14 @@ export function FilterStrip({
           <span className="text-faint"> components{componentCount}</span>
         </p>
 
-        <label className="flex items-center gap-1 font-mono text-[10px] text-faint" title="Lane and column spacing">
+        <label className="flex items-center gap-1 font-mono text-[10px] text-faint" title="Column and row spacing">
           spacing
           <input
             type="range"
             min={0}
             max={100}
             value={spacing}
-            aria-label="Lane and column spacing"
+            aria-label="Column and row spacing"
             onChange={(event) => onSpacing(Number(event.target.value))}
             className="h-1 w-20 accent-[var(--color-info)]"
           />

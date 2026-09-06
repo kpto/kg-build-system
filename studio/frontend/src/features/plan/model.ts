@@ -87,8 +87,6 @@ export function buildPlanModel(input: PlanModelInput): PlanModel {
   const layout = layoutPlan({
     nodes: visible.nodes,
     edges: visible.edges,
-    moduleRoles: roles,
-    moduleLabels: new Map(modules.map((module) => [module.id, module.label || module.id])),
     sizes,
     spacing,
   });

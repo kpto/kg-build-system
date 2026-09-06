@@ -82,29 +82,16 @@ export interface SocketGroup {
 
 export type ModuleRole = "core" | "operator" | "target";
 
-/** A lane: one module drawn as a horizontal band, spanning its own layer range. */
-export interface Lane {
-  readonly moduleId: string;
-  readonly label: string;
-  readonly role: ModuleRole;
-  /** Left edge of the band — the grid offset of the module's shallowest layer. */
-  readonly x: number;
-  /** Top edge of the band; lanes stack downwards in `groupLanes` order. */
-  readonly y: number;
-  readonly width: number;
-  readonly height: number;
-  readonly stepCount: number;
-}
-
 /** A step placed by `layout.ts`, in canvas coordinates. */
 export interface PlacedStep {
   readonly id: string;
-  /** Global evaluation depth — comparable across every lane. */
+  /** Global evaluation depth — comparable across the whole canvas. */
   readonly x: number;
-  /** Position within the lane's band. */
+  /** Row within the one vertical field; every column starts at the same top edge. */
   readonly y: number;
   readonly width: number;
   readonly height: number;
+  /** Module id — the colour the card is painted with, never a geometric band. */
   readonly lane: string;
   readonly layer: number;
   readonly column: number;
@@ -113,15 +100,12 @@ export interface PlacedStep {
 export interface LayoutSpacing {
   /** Gap between two global columns. */
   readonly columnGap: number;
-  /** Gap between two stacked lane bands. */
-  readonly laneGap: number;
-  /** Vertical gap between two steps in one lane and column. */
+  /** Vertical gap between two steps stacked in one column. */
   readonly rowGap: number;
 }
 
 export interface PlanLayout {
   readonly placed: readonly PlacedStep[];
-  readonly lanes: readonly Lane[];
   readonly width: number;
   readonly height: number;
   readonly layers: ReadonlyMap<string, number>;

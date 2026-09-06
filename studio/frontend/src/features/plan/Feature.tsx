@@ -8,8 +8,9 @@
  *                 `projection:` refs so a node can light the entity it was compiled
  *                 from, and a table's declared-column count comes from here (the plan
  *                 projection names the payload key but does not send its value).
- *                 Lanes come from the plan's own `modules`, not `document.modules`:
- *                 a compiled contract records the modules that actually took part.
+ *                 Module colours and chips come from the plan's own `modules`, not
+ *                 `document.modules`: a compiled contract records the modules that
+ *                 actually took part.
  *   index         Unused: the DAG comes from the contract, not the index.
  *   problems      Read from the problem store by ref (not the pre-filtered list) so a
  *                 build problem on `component:site` badges the aggregate that emitted

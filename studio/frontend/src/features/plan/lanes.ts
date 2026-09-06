@@ -1,6 +1,10 @@
 /**
- * Lane identity: the role a module plays and the colour its band and title bars
- * carry.
+ * Module identity: the role a module plays and the colour its cards' border, header
+ * and swatch carry.
+ *
+ * Nothing here is geometry: with every module drawn in one vertical field, the colour
+ * is the only thing telling one module's steps from another's, so it stays the
+ * canonical key for both the canvas and the filter strip's chips.
  *
  * The plan declares `modules[].role` (`core | operator | target`); a plan from an
  * older worker may not, so the role is inferred from the module id — `core` is the

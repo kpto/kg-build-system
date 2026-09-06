@@ -14,22 +14,27 @@
  *    break on the previous index and then the id, both total orders, so two runs on
  *    the same plan produce the same picture. The best sweep seen (fewest crossings)
  *    is the one returned.
- * 3. **Lanes** — `x` is evaluation depth and comes from one column grid shared by
+ * 3. **Columns** — `x` is evaluation depth and comes from one column grid shared by
  *    the whole canvas, so two steps in the same layer get the same `x` even when
- *    neither depends on the other; lanes are horizontal bands stacked in
- *    `core → operator → target` order and carry only `y`. Numbering columns *inside*
- *    a lane instead would advance every module's depth on its own, so two modules
- *    at equal depth could never line up and an independent sibling would sit to the
- *    right of a step it does not consume — reading as a sequence that is not there.
- * 4. **Component alignment** — nodes carrying the same IR ref are pulled halfway
- *    toward their group's median slot before packing, so one component can be
- *    followed with the eye from aggregate through operator to export.
+ *    neither depends on the other. Numbering columns *inside* a module instead would
+ *    advance every module's depth on its own, so two modules at equal depth could
+ *    never line up and an independent sibling would sit to the right of a step it
+ *    does not consume — reading as a sequence that is not there.
+ * 4. **One vertical field** — every step of every module lives in the same field: a
+ *    column starts at the canvas' top padding and its steps stack downwards from
+ *    there. Offsetting a module downwards in its own band pushed that module's steps
+ *    below steps that consume them, so a pipeline that flows rightward read as a fold
+ *    downward. Which module a step belongs to is carried by its card colour, not by
+ *    geometry.
+ * 5. **Alignment** — nodes carrying the same IR ref are pulled halfway toward their
+ *    group's median slot before packing, so one component can be followed with the
+ *    eye from aggregate through operator to export; the same half-pull then runs over
+ *    each module's steps inside their own column, so a module stays one continuous run
+ *    of its own colour rather than interleaving with its neighbours.
  */
 
 import type {
-  Lane,
   LayoutSpacing,
-  ModuleRole,
   PlacedStep,
   PlanLayout,
   StepEdge,
@@ -38,14 +43,11 @@ import type {
 
 export const DEFAULT_SPACING: LayoutSpacing = {
   columnGap: 96,
-  laneGap: 64,
   rowGap: 24,
 };
 
-/** Room for the lane label plus a visual margin around the column contents. */
-export const LANE_PADDING_X = 20;
-export const LANE_PADDING_TOP = 44;
-export const LANE_PADDING_BOTTOM = 20;
+/** Margin around the field. Every column starts at this `y`, so nothing in the
+ * picture sits lower than it has to because of which module it belongs to. */
 export const CANVAS_PADDING = 32;
 
 export interface StepSize {
@@ -56,16 +58,12 @@ export interface StepSize {
 export interface LayoutInput {
   readonly nodes: readonly StepNode[];
   readonly edges: readonly StepEdge[];
-  readonly moduleRoles: ReadonlyMap<string, ModuleRole>;
-  readonly moduleLabels?: ReadonlyMap<string, string>;
   readonly sizes?: ReadonlyMap<string, StepSize>;
   readonly spacing?: Partial<LayoutSpacing>;
   readonly passes?: number;
 }
 
 const FALLBACK_SIZE: StepSize = { width: 232, height: 112 };
-
-const ROLE_RANK: Record<ModuleRole, number> = { core: 0, operator: 1, target: 2 };
 
 /** A total order that never depends on insertion order or locale. */
 function byId(a: string, b: string): number {
@@ -315,79 +313,92 @@ export function orderWithinLayers(
   return best;
 }
 
-/* -------------------------------------------------------------------- lanes */
+/* --------------------------------------------------------------- alignment */
 
-export interface LaneGroup {
-  readonly moduleId: string;
-  readonly ids: readonly string[];
-  readonly minLayer: number;
-  readonly maxLayer: number;
-}
-
-/** Steps grouped per module, lanes ordered `core → operator → target`, then by
- * their leftmost layer, then by id. */
-export function groupLanes(
+/**
+ * `group → member ids` for every group with more than one member.
+ *
+ * Members keep the order the node list hands over (the contract's declaration order),
+ * so a group's median never depends on a map's insertion order.
+ */
+function alignmentGroups(
   nodes: readonly StepNode[],
-  layerOf: ReadonlyMap<string, number>,
-  moduleRoles: ReadonlyMap<string, ModuleRole>,
-): LaneGroup[] {
-  const buckets = new Map<string, string[]>();
+  groupOf: (node: StepNode) => string | null | undefined,
+): Map<string, string[]> {
+  const groups = new Map<string, string[]>();
   for (const node of nodes) {
-    const bucket = buckets.get(node.module_id);
+    const group = groupOf(node);
+    if (!group) continue;
+    const bucket = groups.get(group);
     if (bucket) bucket.push(node.id);
-    else buckets.set(node.module_id, [node.id]);
+    else groups.set(group, [node.id]);
   }
-
-  const lanes: LaneGroup[] = [];
-  for (const [moduleId, ids] of buckets) {
-    let minLayer = Number.POSITIVE_INFINITY;
-    let maxLayer = Number.NEGATIVE_INFINITY;
-    for (const id of ids) {
-      const layer = layerOf.get(id) ?? 0;
-      minLayer = Math.min(minLayer, layer);
-      maxLayer = Math.max(maxLayer, layer);
-    }
-    lanes.push({
-      moduleId,
-      ids,
-      minLayer: Number.isFinite(minLayer) ? minLayer : 0,
-      maxLayer: Number.isFinite(maxLayer) ? maxLayer : 0,
-    });
-  }
-
-  return lanes.sort((a, b) => {
-    const roleA = ROLE_RANK[moduleRoles.get(a.moduleId) ?? "core"];
-    const roleB = ROLE_RANK[moduleRoles.get(b.moduleId) ?? "core"];
-    return roleA - roleB || a.minLayer - b.minLayer || byId(a.moduleId, b.moduleId);
-  });
+  return new Map([...groups].filter(([, ids]) => ids.length > 1));
 }
 
 /**
- * Half-pull same-component nodes toward their group's median slot.
+ * Half-pull every member of a group toward the median key of that group.
  *
- * The key it returns orders nodes *within* a column; the weight is deliberately
- * below 1 so the crossing reduction still dominates when the two disagree.
+ * The keys returned order nodes *within* a column. One pass is mild by design — it
+ * leans a group toward its median without overriding the crossing reduction — and it is
+ * monotone inside a group, so it gathers a group's steps without reordering them among
+ * themselves.
  */
+function pullToMedianKeys(
+  keys: ReadonlyMap<string, number>,
+  groups: Iterable<readonly string[]>,
+): Map<string, number> {
+  const out = new Map(keys);
+  for (const ids of groups) {
+    const anchor = median(ids.map((id) => keys.get(id) ?? 0)) ?? 0;
+    for (const id of ids) out.set(id, (keys.get(id) ?? 0) * 0.5 + anchor * 0.5);
+  }
+  return out;
+}
+
+/** Same-component affinity: the steps of one IR ref reach for one slot. */
 export function componentAlignmentKeys(
   nodes: readonly StepNode[],
   order: ReadonlyMap<string, number>,
 ): Map<string, number> {
-  const byComponent = new Map<string, string[]>();
-  for (const node of nodes) {
-    if (!node.component) continue;
-    const bucket = byComponent.get(node.component);
-    if (bucket) bucket.push(node.id);
-    else byComponent.set(node.component, [node.id]);
-  }
+  return pullToMedianKeys(order, alignmentGroups(nodes, (node) => node.component).values());
+}
 
-  const keys = new Map<string, number>();
-  for (const node of nodes) keys.set(node.id, order.get(node.id) ?? 0);
-  for (const ids of byComponent.values()) {
-    if (ids.length < 2) continue;
-    const anchor = median(ids.map((id) => order.get(id) ?? 0)) ?? 0;
-    for (const id of ids) keys.set(id, (order.get(id) ?? 0) * 0.5 + anchor * 0.5);
+/** Passes of the module pull. Each halves a block's spread, so eight leave it a 256th
+ * of its original size — small enough that two modules cannot still interleave. */
+const MODULE_PULL_PASSES = 8;
+
+/**
+ * Same-module affinity: the identical half-pull, run over each module's steps within
+ * one column, on top of the component pull.
+ *
+ * Repeated, because one pass cannot group anything: it halves a block's spread, which
+ * is wider than the gap between two blocks' medians, so the two still interleave.
+ * Column-local, because an anchor taken from a module's steps in *every* column says
+ * nothing about where that module belongs in *this* one — measured on the 60-step plan
+ * a whole-canvas anchor grouped the columns just as well but paid for it with 60 drawn
+ * crossings instead of 19, dragging blocks past the neighbours the barycentre had put
+ * beside them.
+ *
+ * The pull is monotone inside a group, so the component pull and the crossing reduction
+ * still order the steps *within* a block, and a module can only ever move its own
+ * steps. Applied last, it decides which module's block a column shows first, which is
+ * what keeps each module one continuous run of its own colour down the canvas.
+ */
+export function moduleAlignmentKeys(
+  nodes: readonly StepNode[],
+  layerOf: ReadonlyMap<string, number>,
+  keys: ReadonlyMap<string, number>,
+): Map<string, number> {
+  // One group per (column, module); the separator cannot occur in a layer number or
+  // a module id, so no two pairs can collide. Materialised, because the passes below
+  // walk it more than once.
+  const groups = [...alignmentGroups(nodes, (node) => `${layerOf.get(node.id) ?? 0}\u0000${node.module_id}`).values()];
+  let settled = new Map(keys);
+  for (let pass = 0; pass < MODULE_PULL_PASSES; pass += 1) {
+    settled = pullToMedianKeys(settled, groups);
   }
-  return keys;
+  return settled;
 }
 
 /* ------------------------------------------------------------------ columns */
@@ -441,13 +452,12 @@ export function columnGrid(
 
 /* ---------------------------------------------------------------- placement */
 
-/** Place every step on the global column grid, one horizontal band per module. */
+/** Place every step of every module in one vertical field on the global column grid. */
 export function layoutPlan(input: LayoutInput): PlanLayout {
   const spacing: LayoutSpacing = { ...DEFAULT_SPACING, ...(input.spacing ?? {}) };
   if (input.nodes.length === 0) {
     return {
       placed: [],
-      lanes: [],
       width: 0,
       height: 0,
       layers: new Map(),
@@ -468,80 +478,57 @@ export function layoutPlan(input: LayoutInput): PlanLayout {
     seed,
     input.passes,
   );
-  const alignment = componentAlignmentKeys(input.nodes, order);
-  const laneGroups = groupLanes(input.nodes, layerOf, input.moduleRoles);
-  const nodeById = new Map(input.nodes.map((node) => [node.id, node]));
+  const alignment = moduleAlignmentKeys(
+    input.nodes,
+    layerOf,
+    componentAlignmentKeys(input.nodes, order),
+  );
   const size = (id: string): StepSize => input.sizes?.get(id) ?? FALLBACK_SIZE;
 
   const grid = columnGrid(input.nodes, layerOf, size, spacing);
-  // The leftmost band starts flush with the canvas padding, so the grid it draws
-  // inside is inset by exactly one lane's horizontal padding.
-  const gridX = CANVAS_PADDING + LANE_PADDING_X;
+
+  const byLayer = new Map<number, StepNode[]>();
+  for (const node of input.nodes) {
+    const layer = layerOf.get(node.id) ?? 0;
+    const bucket = byLayer.get(layer);
+    if (bucket) bucket.push(node);
+    else byLayer.set(layer, [node]);
+  }
 
   const placed: PlacedStep[] = [];
-  const lanes: Lane[] = [];
-  let laneY = CANVAS_PADDING;
-
-  for (const group of laneGroups) {
-    const buckets = new Map<number, StepNode[]>();
-    for (const id of group.ids) {
-      const node = nodeById.get(id);
-      if (!node) continue;
-      const layer = layerOf.get(id) ?? 0;
-      const bucket = buckets.get(layer);
-      if (bucket) bucket.push(node);
-      else buckets.set(layer, [node]);
-    }
-
-    const layerNumbers = [...buckets.keys()].sort((a, b) => a - b);
-    let stackBottom = 0;
-    for (const layer of layerNumbers) {
-      const nodes = [...(buckets.get(layer) ?? [])].sort((a, b) => {
-        const keyA = alignment.get(a.id) ?? 0;
-        const keyB = alignment.get(b.id) ?? 0;
-        return keyA - keyB || byId(a.id, b.id);
-      });
-      const columnWidth = grid.widths.get(layer) ?? 0;
-      let y = LANE_PADDING_TOP;
-      for (const node of nodes) {
-        const stepSize = size(node.id);
-        placed.push({
-          id: node.id,
-          x: gridX + (grid.offsets.get(layer) ?? 0) + (columnWidth - stepSize.width) / 2,
-          y: laneY + y,
-          width: stepSize.width,
-          height: stepSize.height,
-          lane: group.moduleId,
-          layer,
-          column: grid.columns.get(layer) ?? layer,
-        });
-        y += stepSize.height + spacing.rowGap;
-      }
-      stackBottom = Math.max(stackBottom, y - spacing.rowGap);
-    }
-
-    const height = stackBottom + LANE_PADDING_TOP + LANE_PADDING_BOTTOM;
-    const left = gridX + (grid.offsets.get(group.minLayer) ?? 0) - LANE_PADDING_X;
-    const right =
-      gridX + (grid.offsets.get(group.maxLayer) ?? 0) + (grid.widths.get(group.maxLayer) ?? 0) + LANE_PADDING_X;
-    lanes.push({
-      moduleId: group.moduleId,
-      label: input.moduleLabels?.get(group.moduleId) ?? group.moduleId,
-      role: input.moduleRoles.get(group.moduleId) ?? "core",
-      x: left,
-      y: laneY,
-      width: right - left,
-      height,
-      stepCount: group.ids.length,
+  let fieldBottom = 0;
+  for (const layer of [...byLayer.keys()].sort((a, b) => a - b)) {
+    // The affinity keys order the column and `byId` closes the comparator, so the
+    // packing cannot depend on the payload's arrival order.
+    const nodes = [...(byLayer.get(layer) ?? [])].sort((a, b) => {
+      const keyA = alignment.get(a.id) ?? 0;
+      const keyB = alignment.get(b.id) ?? 0;
+      return keyA - keyB || byId(a.id, b.id);
     });
-    laneY += height + spacing.laneGap;
+    const columnWidth = grid.widths.get(layer) ?? 0;
+    // Every column starts at the same top edge: one field, no module offsets.
+    let y = CANVAS_PADDING;
+    for (const node of nodes) {
+      const stepSize = size(node.id);
+      placed.push({
+        id: node.id,
+        x: CANVAS_PADDING + (grid.offsets.get(layer) ?? 0) + (columnWidth - stepSize.width) / 2,
+        y,
+        width: stepSize.width,
+        height: stepSize.height,
+        lane: node.module_id,
+        layer,
+        column: grid.columns.get(layer) ?? layer,
+      });
+      y += stepSize.height + spacing.rowGap;
+    }
+    fieldBottom = Math.max(fieldBottom, y - spacing.rowGap);
   }
 
   return {
     placed,
-    lanes,
-    width: gridX + grid.width + LANE_PADDING_X + CANVAS_PADDING,
-    height: Math.max(0, laneY - spacing.laneGap) + CANVAS_PADDING,
+    width: CANVAS_PADDING + grid.width + CANVAS_PADDING,
+    height: fieldBottom + CANVAS_PADDING,
     layers: layerOf,
     crossings: countCrossings(layerOf, adjacency.incoming, order),
     cycleBroken: adjacency.cycleBroken,

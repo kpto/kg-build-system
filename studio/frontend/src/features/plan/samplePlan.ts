@@ -15,7 +15,7 @@
  *
  * 60 steps / 90 connections across five modules (core + one operator + three
  * targets), including the lowered SQL of 16 steps — enough volume to exercise the
- * layering, the lanes and the SQL sheet without a running backend.
+ * layering, the module colours and the SQL sheet without a running backend.
  */
 
 import type { StepPlan } from "./types";

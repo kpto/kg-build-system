@@ -1,14 +1,15 @@
 "use client";
 
 /**
- * The plan canvas: a lane band behind each module, a compositor card per step, and
- * bezier connections from socket to socket, coloured by the artifact role and
- * arrow-headed at the consumer (the data direction).
+ * The plan canvas: a compositor card per step and bezier connections from socket to
+ * socket, coloured by the artifact role and arrow-headed at the consumer (the data
+ * direction).
  *
- * Lanes are drawn inside `ViewportPortal`, so they pan and zoom with the graph
- * without becoming nodes — they must never be selectable, draggable, or counted as
- * steps. Hovering is passed in as a trace, computed by the feature so this
- * component stays a projection of the model.
+ * A module is identified by the colour its cards carry — border, header and swatch,
+ * from `laneColors()` — and by the chip in the filter strip, never by a band behind
+ * them: an offset band would sink a module's steps below steps that consume them.
+ * Hovering is passed in as a trace, computed by the feature so this component stays
+ * a projection of the model.
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -18,7 +19,6 @@ import {
   MarkerType,
   ReactFlow,
   ReactFlowProvider,
-  ViewportPortal,
   useReactFlow,
   type Edge,
   type Node,
@@ -215,37 +215,6 @@ function PlanCanvasInner({
           onPaneClick={() => onSelectRef(null)}
         >
           <Background variant={BackgroundVariant.Dots} gap={26} size={1} color={TOKEN.line} />
-          <ViewportPortal>
-            {model.layout.lanes.map((lane) => {
-              const color = model.colors.get(lane.moduleId) ?? TOKEN.lineStrong;
-              return (
-                <div
-                  key={lane.moduleId}
-                  data-lane={lane.moduleId}
-                  className="pointer-events-none absolute select-none rounded-lg"
-                  style={{
-                    left: lane.x,
-                    top: lane.y,
-                    width: lane.width,
-                    height: lane.height,
-                    background: `${color}0e`,
-                    border: `1px solid ${color}24`,
-                  }}
-                >
-                  <span
-                    className="absolute left-2 top-1.5 flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-[0.1em]"
-                    style={{ color }}
-                  >
-                    <span aria-hidden className="h-1.5 w-1.5 rounded-full" style={{ background: color }} />
-                    {lane.label}
-                    <span className="normal-case tracking-normal text-faint">
-                      {lane.stepCount} steps · {lane.role}
-                    </span>
-                  </span>
-                </div>
-              );
-            })}
-          </ViewportPortal>
         </ReactFlow>
       )}
     </div>
