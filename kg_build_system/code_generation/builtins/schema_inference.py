@@ -9,12 +9,13 @@ import keyword
 import logging
 from pathlib import Path, PurePosixPath
 import re
-from typing import Any, ClassVar, Final, Iterator, Literal, Sequence
+from typing import Any, ClassVar, Final, Iterator, Literal, Sequence, cast
 from urllib.parse import urlparse
 
 import duckdb
 import fsspec
 from fsspec import AbstractFileSystem
+from pydantic import BaseModel, ConfigDict, ValidationError, model_validator
 
 from ..models import (
     GeneratedArrayType,
@@ -161,16 +162,16 @@ def _rejected(type_name: str, path: str, reason: str) -> GenerationError:
 #: rather than a mistake a request can be corrected to avoid, so it is told rather
 #: than reported as an absent column.
 _NESTED_PROMOTION: Final = (
-    "a promotion declares the canonical type of one top-level column, and nested "
-    "promotion would need read_json(columns={...}), which replaces sniffing with a "
-    "declared schema and moves the source's nullability from defaulted to declared "
-    "— a separate decision"
+    "an override declares one whole top-level column of one relation, and a "
+    "nested declaration would need read_json(columns={...}), which replaces "
+    "sniffing with a declared schema and moves the source's nullability from "
+    "defaulted to declared — a separate decision"
 )
 
 
 def _promotion_declaration(column: str, canonical: str) -> str:
     """The request text that declares one top-level column's canonical type."""
-    return f"promote={{{column!r}: {canonical!r}}}"
+    return f'override={{"<relation>.{column}": {{"type": {canonical!r}}}}}'
 
 
 def _container_promotion(
@@ -222,53 +223,116 @@ def _promoted_type_name(
     return canonical_sql_type(canonical)
 
 
-def _declared_promotions(promote: dict[str, str]) -> dict[str, UnitTypeName]:
-    """The promotion declarations of one request, checked as far as the source-free
-    part of a decision reaches.
+def _declared_overrides(
+    override: dict[str, dict[str, Any]],
+) -> dict[str, ColumnOverride]:
+    """The request's column overrides, checked as far as the source-free part reaches.
 
-    A target has to be a canonical unit name because it becomes a declaration in the
-    contract, and a key has to name a top-level column whatever the source turns out
-    to hold. Whether such a column exists is a fact about the source, settled later.
+    A key has to be a full column path — a relation path and a whole column name —
+    because one column name can appear in many relations of a source, and an
+    override reaches exactly the relation it names. A declared type has to be a
+    canonical unit name because it becomes a declaration in the contract. Whether
+    the named column exists is a fact about the source, settled later.
     """
-    declared: dict[str, UnitTypeName] = {}
-    for column, canonical in sorted(promote.items()):
-        if not is_canonical_unit_name(canonical):
+    declared: dict[str, ColumnOverride] = {}
+    for key, value in sorted(override.items()):
+        parts = key.split(".")
+        if len(parts) < 2 or not all(parts):
             raise GenerationError(
-                f"{_promotion_declaration(column, canonical)} does not name a "
-                "canonical unit type; a promotion declares one of "
+                f"override key {key!r} is not a full column path; an override names "
+                "<relation path>.<column>, as in 'temperature.recorded_on'"
+            )
+        try:
+            entry = ColumnOverride.model_validate(value)
+        except ValidationError as error:
+            raise GenerationError(
+                f"override of {key!r} declares nothing a column override carries "
+                f"(type and/or nullable, unknown keys refused): {error}"
+            ) from error
+        if entry.type is not None and not is_canonical_unit_name(entry.type):
+            raise GenerationError(
+                f"the override of {key!r} declares {entry.type!r}, which does not "
+                "name a canonical unit type; a type override declares one of "
                 + ", ".join(repr(name) for name in sorted(CANONICAL_UNIT_NAMES))
             )
-        if "." in column:
-            raise GenerationError(
-                f"promote names {column!r}, which is a path rather than a column "
-                f"name; {_NESTED_PROMOTION}"
-            )
-        declared[column] = canonical
+        declared[key] = entry
     return declared
 
 
-def _require_promoted_columns(inference: _Inference) -> None:
-    """Settle each promotion against the columns the source actually reported.
+def _overridden_field(
+    field_: GeneratedField, nullable: bool,
+) -> GeneratedField:
+    """One finished member with the request's nullability override applied.
 
-    A key naming nothing is a typo or a request left stale by the data; a key naming
-    a member of a column is the plan's own scope limit, and is told as such instead
-    of being reported beside columns it could have named.
+    The author's word replaces the source's claim in either direction: ``True``
+    declines a non-null claim, dropping the member back to defaulted and out of
+    the statistics pre-flight; ``False`` asserts one the build guard will test.
+    Neither reads the values — an override is a declaration, and the guard is
+    what checks it against the data.
     """
-    for column in sorted(set(inference.promote) - inference.promoted):
-        if column in inference.nested_members:
+    if nullable:
+        if field_.nullability is Nullability.DEFAULTED:
+            return field_
+        value = field_.value_type
+        if not isinstance(value, GeneratedNullableType):
+            value = GeneratedNullableType(value)
+        return replace(field_, value_type=value, nullability=Nullability.DEFAULTED)
+    if field_.nullability is not Nullability.DEFAULTED:
+        return field_
+    value = field_.value_type
+    if isinstance(value, GeneratedNullableType):
+        value = value.value
+    return replace(field_, value_type=value, nullability=Nullability.DECLARED)
+
+
+def _require_overrides(inference: _Inference) -> None:
+    """Settle every override against the relations and columns actually reported.
+
+    An unmatched key is a typo or a request left stale by the data; one that
+    reaches inside a column is the scope limit, told as such instead of being
+    reported beside columns it could have named.
+    """
+    for key in sorted(set(inference.overrides) - inference.consumed):
+        parts = key.split(".")
+        relation = ""
+        for cut in range(len(parts) - 1, 0, -1):
+            if ".".join(parts[:cut]) in inference.columns:
+                relation = ".".join(parts[:cut])
+                break
+        if relation:
+            column = ".".join(parts[len(relation.split(".")):])
+            if "." in column or column in inference.nested_members:
+                raise GenerationError(
+                    f"override names {key!r}, which reaches inside column "
+                    f"{column.split('.')[0]!r} of relation {relation!r} rather than "
+                    f"naming one whole column; {_NESTED_PROMOTION}"
+                )
+            available = ", ".join(
+                repr(name) for name in sorted(inference.columns[relation])
+            ) or "no columns"
             raise GenerationError(
-                f"promote names {column!r}, which the source reports only as a "
-                f"member of a column, not as a column; {_NESTED_PROMOTION}"
+                f"override names {key!r}, which is not a column relation "
+                f"{relation!r} reports; it exposes {available}. An override has to "
+                "name a column the reader reports"
+            )
+        holders = sorted(
+            other for other, names in inference.columns.items() if parts[0] in names
+        )
+        if holders:
+            raise GenerationError(
+                f"override names {key!r}, whose first path part {parts[0]!r} is a "
+                f"column of {', '.join(repr(name) for name in holders)}, not a "
+                f"relation; an override names <relation path>.<column>, and "
+                f"reaching inside a column is its own decision: {_NESTED_PROMOTION}"
             )
         available = "; ".join(
-            f"relation {relation!r} exposes "
-            + ", ".join(repr(name) for name in sorted(names))
-            for relation, names in sorted(inference.columns.items())
+            f"relation {name!r} exposes "
+            + ", ".join(repr(column) for column in sorted(columns))
+            for name, columns in sorted(inference.columns.items())
         ) or "no relation was inferred"
         raise GenerationError(
-            f"promote names {column!r}, which is not a column the source reports; "
-            f"{available}. A promotion declares a column the reader reports, so it "
-            "has to name one of those"
+            f"override names {key!r}, whose relation part is not among those "
+            f"inferred: {available}. An override names <relation path>.<column>"
         )
 
 
@@ -425,14 +489,17 @@ class _Inference:
 
     ``used_names`` is scoped per relation rather than per pass: two tables in one
     group may legitimately have a column of the same name, while two columns of
-    one relation may not collide. The promotion state is scoped per pass instead,
-    because a request declares a promotion once for the whole of what it generates.
+    one relation may not collide. The override state is scoped per pass instead,
+    because a request declares its overrides once for the whole of what it
+    generates; the statistics pre-flight stays per relation, because a declared
+    path means a different claim in each relation that carries it.
     """
 
-    declared_paths: set[str] = field(default_factory=set)
     used_names: dict[str, str] = field(default_factory=dict)
-    promote: dict[str, UnitTypeName] = field(default_factory=dict)
-    promoted: set[str] = field(default_factory=set)
+    #: The request's overrides, keyed by full column path, and the keys the
+    #: member loops have matched to a column the reader reported.
+    overrides: dict[str, ColumnOverride] = field(default_factory=dict)
+    consumed: set[str] = field(default_factory=set)
     columns: dict[str, set[str]] = field(default_factory=dict)
     nested_members: set[str] = field(default_factory=set)
     #: Normalized schema facts, appended per relation in processing order, from
@@ -468,11 +535,9 @@ def _schema_digest(inference: _Inference) -> str:
 def _register(
     inferred: GeneratedField, paths: _Paths, inference: _Inference,
 ) -> GeneratedField:
-    """Record the paths one finished member claims, for the statistics pre-flight."""
+    """Record the paths one finished member claims, for the scope checks."""
     if len(paths.logical) > 1:
         inference.nested_members.update(paths.logical[1:])
-    if inferred.nullability is not Nullability.DEFAULTED:
-        inference.declared_paths.add(inferred.schema_path or paths.schema_text)
     return inferred
 
 
@@ -957,18 +1022,48 @@ def _logical_tables(
     )
 
 
+class ColumnOverride(BaseModel):
+    """The author's declared view of one relation's whole top-level column."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
+
+    #: The canonical unit type the column means to hold, whatever the reader
+    #: reports; the scan then applies the checked cast to it.
+    type: str | None = None
+    #: ``True`` declines a source-declared non-nullability, ``False`` asserts
+    #: one the build guard will test; absence keeps the source's own claim.
+    nullable: bool | None = None
+
+    @model_validator(mode="after")
+    def _declares_something(self) -> "ColumnOverride":
+        if self.type is None and self.nullable is None:
+            raise ValueError("an override declares at least one of type and nullable")
+        return self
+
+
 class DataContractInferenceConfig(ProviderGenerationConfig):
     source: str
     relation: str | None = None
     mode: Literal["table", "table_group"] = "table"
     layout: Literal["files", "parquet_parts", "hive_partitioned_parquet"] = "files"
     anonymous: bool = False
-    #: The canonical type an author means a TOP-LEVEL column to hold, whatever the
-    #: reader reports for it, keyed by column name. A sniffing reader leaves a
-    #: ``YYYY-MM-DDTHH:MM`` string as ``VARCHAR``, so the temporal type of such a
-    #: feed has to be declared rather than inferred; the contract carries the
-    #: declared type and the source view applies the checked cast to it.
-    promote: dict[str, str] = {}
+    #: Author declarations that replace what the reader reports for a column,
+    #: keyed by the column's FULL path — the relation path inside the source
+    #: and the column name:
+    #: ``{"temperature.recorded_on": {"type": "timestamp"},``
+    #: ``"evidence_orphanet.directionOnTarget": {"nullable": true}}``.
+    #: A bare column name is refused: the same name can appear in many
+    #: relations, and an override reaches exactly the relation it names.
+    #: ``type`` declares the canonical type a text-sniffed feed means to hold
+    #: (a sniffing reader leaves ``YYYY-MM-DDTHH:MM`` as ``VARCHAR``, so the
+    #: temporal type is a declaration, not an inference; the source view
+    #: applies the checked cast). ``nullable`` settles a nullability claim the
+    #: source gets wrong — a Parquet footer ``REQUIRED`` whose statistics
+    #: report nulls is declined with ``true``. Scope stops at whole top-level
+    #: columns of one relation. Values are static declarations — ``type``
+    #: and/or ``nullable`` — written as plain dictionaries because discovery
+    #: reads the request file without executing it.
+    override: dict[str, dict[str, Any]] = {}
 
 
 class InferDataContractProvider(Provider[DataContractInferenceConfig]):
@@ -981,7 +1076,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
     """
 
     ID: ClassVar[str] = "infer_data_contract"
-    VERSION: ClassVar[str] = "6"
+    VERSION: ClassVar[str] = "7"
     CONFIG_TYPE: ClassVar[type[ProviderGenerationConfig]] = DataContractInferenceConfig
 
     @classmethod
@@ -1048,6 +1143,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         described: tuple[tuple[str, str, Nullability], ...],
         nodes: tuple["_ParquetNode", ...],
         sources: tuple[str, ...],
+        relation_path: str,
         inference: _Inference,
     ) -> tuple[tuple[GeneratedField, tuple[GeneratedClass, ...]], ...]:
         """One finished member per DuckDB column, with the source's own shape.
@@ -1059,10 +1155,13 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         key, is ``DEFAULTED``; a node the read does not expose means the two views
         of the file disagree, which fails.
 
-        Where the request declares a canonical type for one of these columns, the
-        declaration replaces the type the read reported before either authority is
-        read for shape: it is the author's own word about what the column means, and
-        the scan's checked cast is what tests it against the values.
+        Where the request overrides one of these columns — named by its full
+        ``<relation path>.<column>`` path, because a bare name could belong to
+        any relation — the declaration replaces what the read reported: the
+        type before either authority is read for shape, the nullability once
+        the member is built. The declaration is the author's own word about
+        what the column means, and the scan's checked cast, or the build
+        guard, is what tests it against the values.
         """
         by_column = {node.name: node for node in nodes}
         unbacked = sorted(set(by_column) - {name for name, _type, _null in described})
@@ -1076,30 +1175,37 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         for name, type_name, nullability in described:
             node = by_column.get(name)
             paths = _Paths((name,), (name,))
-            declared = inference.promote.get(name)
-            if declared is not None:
-                inference.promoted.add(name)
-                if node is not None and node.children:
-                    raise _container_promotion(type_name, column=name, canonical=declared)
-                type_name = _promoted_type_name(
-                    type_name, column=name, canonical=declared,
-                )
-            if node is None:
-                members.append(_text_field(
+            key = f"{relation_path}.{name}"
+            override = inference.overrides.get(key)
+            if override is not None:
+                inference.consumed.add(key)
+                if override.type is not None:
+                    # ``_declared_overrides`` checked every declared type against
+                    # the canonical vocabulary, which is what UnitTypeName names.
+                    canonical = cast(UnitTypeName, override.type)
+                    if node is not None and node.children:
+                        raise _container_promotion(type_name, column=name, canonical=canonical)
+                    type_name = _promoted_type_name(
+                        type_name, column=name, canonical=canonical,
+                    )
+            field_, nested = (
+                _text_field(
                     name=name, type_name=type_name, nullability=nullability,
                     paths=paths, inference=inference,
-                ))
-                continue
-            members.append(_tree_field(
-                node=node, paths=paths, describe_type=type_name, inference=inference,
-            ))
+                ) if node is None else _tree_field(
+                    node=node, paths=paths, describe_type=type_name, inference=inference,
+                )
+            )
+            if override is not None and override.nullable is not None:
+                field_ = _overridden_field(field_, override.nullable)
+            members.append((field_, nested))
         return tuple(members)
 
     @classmethod
     def _table_classes(
         cls, *, connection: duckdb.DuckDBPyConnection, sources: tuple[str, ...],
-        relation: str, class_name: str, final: bool, hive_partitioned: bool = False,
-        inference: _Inference,
+        relation: str, relation_path: str, class_name: str, final: bool,
+        hive_partitioned: bool = False, inference: _Inference,
     ) -> tuple[GeneratedClass, ...]:
         fields: list[GeneratedField] = []
         supporting: list[GeneratedClass] = []
@@ -1114,7 +1220,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
             )
             for field_, nested in cls._members(
                 described=described_fields, nodes=nodes, sources=sources,
-                inference=inference,
+                relation_path=relation_path, inference=inference,
             ):
                 previous = inference.used_names.get(field_.python_name)
                 if previous is not None:
@@ -1127,7 +1233,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 supporting.extend(nested)
             if not fields:
                 raise GenerationError(f"relation {relation!r} has no columns")
-            inference.columns[relation] = {field.external_name for field in fields}
+            inference.columns[relation_path] = {field.external_name for field in fields}
             inference.schema_facts.extend(_schema_facts(
                 class_name=class_name, relation=relation, sources=sources,
                 hive_partitioned=hive_partitioned, described=described_fields,
@@ -1143,6 +1249,13 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 f"cannot generate data contract for resource {resource!r}{additional} "
                 f"relation {relation!r}: {error}"
             ) from error
+        cls._report_null_statistics(
+            connection, sources,
+            {
+                field.schema_path for field in fields
+                if field.nullability is not Nullability.DEFAULTED
+            },
+        )
         return (
             *supporting,
             GeneratedClass(
@@ -1176,12 +1289,12 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 connection=connection,
                 sources=table.sources,
                 relation=table.name,
+                relation_path=".".join((*table.group_path, table.name)),
                 class_name=table_name,
                 final=True,
                 hive_partitioned=table.hive_partitioned,
                 inference=inference,
             )
-            cls._report_null_statistics(connection, table.sources, inference)
             note = _nullability_note(
                 _tier_for_suffix(_source_suffix(table.sources[0])),
                 table.sources[0], table.sources, table.name, (table_name,),
@@ -1224,19 +1337,22 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
     @classmethod
     def _report_null_statistics(
         cls, connection: duckdb.DuckDBPyConnection, sources: tuple[str, ...],
-        inference: _Inference,
+        declared: set[str],
     ) -> None:
         """Test declared non-nullability against the file's own column statistics.
 
-        A statistic tests a claim, it never sets or enforces one, so this reports
-        and never fails. Generation is where it earns most: the author can still
-        change the request. An absent statistic is unknown and is never read as a
-        zero count.
+        The declared set is scoped to one relation: the same path is a separate
+        claim in every relation that carries it, and one relation's claim must
+        not be tested — or reported — through another's files. A statistic
+        tests a claim, it never sets or enforces one, so this reports and never
+        fails. Generation is where it earns most: the author can still change
+        the request. An absent statistic is unknown and is never read as a zero
+        count.
         """
-        if _source_suffix(sources[0]) not in _PARQUET_SUFFIXES or not inference.declared_paths:
+        if _source_suffix(sources[0]) not in _PARQUET_SUFFIXES or not declared:
             return
         report = read_declared_null_statistics(
-            _reader(connection), sources, sorted(inference.declared_paths),
+            _reader(connection), sources, sorted(declared),
         )
         for statistic in report.violations:
             _LOGGER.warning(
@@ -1271,7 +1387,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 "selects a database reader. Export the relation to Parquet, or "
                 "declare the contract outside a generated package."
             )
-        inference = _Inference(promote=_declared_promotions(context.config.promote))
+        inference = _Inference(overrides=_declared_overrides(context.config.override))
         if context.config.mode == "table_group":
             if context.config.relation is not None:
                 raise GenerationError("table-group inference does not accept relation=")
@@ -1287,7 +1403,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                     for item in table.sources:
                         _load_remote_access(connection, item)
                 package = cls._table_group_package(context, tables, connection, inference)
-                _require_promoted_columns(inference)
+                _require_overrides(inference)
                 return replace(package, source_digest=_schema_digest(inference))
             finally:
                 connection.close()
@@ -1312,10 +1428,10 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
             class_name = f"{_class_part(context.request_id)}Table"
             classes = cls._table_classes(
                 connection=connection, sources=(source,), relation=relation,
-                class_name=class_name, final=True, inference=inference,
+                relation_path=relation, class_name=class_name, final=True,
+                inference=inference,
             )
-            cls._report_null_statistics(connection, (source,), inference)
-            _require_promoted_columns(inference)
+            _require_overrides(inference)
             package = GeneratedPackage(
                 (GeneratedFile(
                     Path("__init__.py"),
@@ -1330,4 +1446,4 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         finally:
             connection.close()
 
-__all__ = ["DataContractInferenceConfig", "InferDataContractProvider"]
+__all__ = ["ColumnOverride", "DataContractInferenceConfig", "InferDataContractProvider"]

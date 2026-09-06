@@ -680,7 +680,27 @@ WP6). Three things this does **not** reopen:
 - hand-editing a generated file remains refused (§2.5). The generation fingerprint covers
   source bytes, so data that drifts away from the declaration makes the contract stale
   rather than silently wrong — which is why the gate can sit at generation and still be
-  honest.
+  honest. *(Superseded by the references-not-data record,
+  `EDIT_TIME_GENERATED_PACKAGE_SPEC.md` §19: the fingerprint covers the request, drift
+  surfaces through `--regenerate`, and runtime ingest remains the enforcement boundary.)*
+
+**Amended — the nullability exit is open at generation time.** The statistics
+pre-flight's warning promised "the request says otherwise" while no such knob
+existed; `promote:` and that promise have now merged into a single
+`DataContractInferenceConfig.override: dict[str, dict]`, keyed by the column's
+full `<relation path>.<column>` path — because a bare column name can belong
+to any relation of a group, and each relation's claim is its own. Per entry,
+`type` carries the promotion above (same rules: canonical unit name, whole
+top-level column, checked cast at the scan) and `nullable` settles a
+nullability claim: `true` declines the source's non-null declaration (a
+Parquet footer `REQUIRED` whose statistics report nulls), which renders the
+member nullable and removes it from the statistics pre-flight and the build
+guard; `false` asserts a claim the guard will test — a declaration, never an
+inference from values. Unmatched keys are refused, nested paths are told as
+beyond scope, and the declaration lives in the author-owned request file,
+never in the product. The pre-flight itself is per relation: one relation's
+declared path is no longer tested through, or reported beside, another's
+files.
 
 ### A7 — Migration, same release as A2
 

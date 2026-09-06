@@ -270,8 +270,33 @@ class DataContractInferenceConfig(ProviderGenerationConfig):
         "files", "parquet_parts", "hive_partitioned_parquet"
     ] = "files"
     anonymous: bool = False
-    promote: dict[str, str] = {}
+    override: dict[str, dict] = {}
 ```
+
+`override` replaces what the reader reports for one relation's whole
+top-level column. Keys are the column's FULL path — the relation path inside
+the source and the column name:
+
+```python
+override={
+    "temperature.recorded_on": {"type": "timestamp"},
+    "evidence_orphanet.directionOnTarget": {"nullable": True},
+}
+```
+
+A bare column name is refused: the same name can appear in many relations of
+one source, and an override reaches exactly the relation it names. `type`
+declares the canonical unit type the column means to hold (decision 9's
+promotion; the source view applies the checked cast). `nullable` settles a
+nullability claim — `true` declines a source-declared non-nullability (a
+Parquet footer `REQUIRED` whose statistics report nulls), which also drops
+the column from the statistics pre-flight and the build guard; `false`
+asserts one the guard will test; absence keeps the source's own claim.
+Values are plain dictionaries because discovery reads the request file
+without executing it; an entry must declare at least one of `type` and
+`nullable`, and scope stops at whole top-level columns — reaching inside a
+column would replace sniffing with a declared schema and is a separate
+decision, as with nested promotion.
 
 Derived `Struct` records are named from the member path alone — the
 `timeseries` column yields `TimeseriesStruct` in its table's own file, and a

@@ -545,7 +545,8 @@ class TotalTypeMappingTests(unittest.TestCase):
                     "what it needs is named, and it is not offered silently",
                 )
                 self.assertIn(
-                    f"promote={{'when': {canonical!r}}}", message,
+                    f'override={{"<relation>.when": {{"type": {canonical!r}}}}}',
+                    message,
                     "and the message points at the declaration that is the override",
                 )
                 self.assertNotIn("rejected", message)
@@ -553,7 +554,7 @@ class TotalTypeMappingTests(unittest.TestCase):
                 package = generate_with(
                     _MetadataConnection([("when", type_name, "YES")]),
                     "s3://bucket/x.json",
-                    promote={"when": canonical},
+                    override={"x.when": {"type": canonical}},
                 )
                 self.assertEqual(
                     declarations(package)["TruthfulTable"][0].value_type,
@@ -1129,6 +1130,71 @@ class ProvenanceHeaderTests(unittest.TestCase):
 # --------------------------------------------------------------------------- #
 # A8 — a database relation can be inferred but never bound
 # --------------------------------------------------------------------------- #
+
+class NullabilityOverrideTests(unittest.TestCase):
+    """The request's exit for a nullability claim the author overrules."""
+
+    SOURCE = "s3://bucket/x.parquet"
+
+    def _fixture(self, repetition: str = "REQUIRED") -> _MetadataConnection:
+        return _MetadataConnection(
+            [("studyId", "VARCHAR", "NO" if repetition == "REQUIRED" else "YES")],
+            [
+                (self.SOURCE, "duckdb_schema", "REQUIRED", None, 1, None, 0),
+                (self.SOURCE, "studyId", repetition, "BYTE_ARRAY", None, "VARCHAR", 1),
+            ],
+        )
+
+    def test_the_footer_claim_survives_inference_by_default(self) -> None:
+        package = generate_with(self._fixture(), self.SOURCE)
+        field = {f.external_name: f for f in declarations(package)["TruthfulTable"]}["studyId"]
+        self.assertIs(field.nullability, Nullability.DECLARED)
+        self.assertEqual(field.value_type, GeneratedScalarType("str"))
+
+    def test_declining_a_column_renders_it_nullable_and_drops_the_claim(self) -> None:
+        package = generate_with(
+            self._fixture(), self.SOURCE,
+            override={"x.studyId": {"nullable": True}},
+        )
+        field = {f.external_name: f for f in declarations(package)["TruthfulTable"]}["studyId"]
+        self.assertIs(field.nullability, Nullability.DEFAULTED)
+        self.assertEqual(
+            field.value_type, GeneratedNullableType(GeneratedScalarType("str")),
+        )
+
+    def test_asserting_an_optional_column_renders_it_non_null(self) -> None:
+        package = generate_with(
+            self._fixture(repetition="OPTIONAL"), self.SOURCE,
+            override={"x.studyId": {"nullable": False}},
+        )
+        field = {f.external_name: f for f in declarations(package)["TruthfulTable"]}["studyId"]
+        self.assertIs(field.nullability, Nullability.DECLARED)
+        self.assertEqual(field.value_type, GeneratedScalarType("str"))
+
+    def test_an_override_naming_no_column_names_the_columns_there_are(self) -> None:
+        with self.assertRaisesRegex(
+            GenerationError, r"override names 'x\.study_id'",
+        ):
+            generate_with(
+                self._fixture(), self.SOURCE,
+                override={"x.study_id": {"nullable": True}},
+            )
+
+    def test_an_override_reaching_inside_a_column_is_refused(self) -> None:
+        with self.assertRaisesRegex(
+            GenerationError, r"not a full column path|reaches inside column",
+        ):
+            generate_with(
+                self._fixture(), self.SOURCE,
+                override={"x.meta.x": {"nullable": True}},
+            )
+
+    def test_an_override_declaring_nothing_is_refused(self) -> None:
+        with self.assertRaisesRegex(ValueError, "at least one of type and nullable"):
+            generate_with(
+                self._fixture(), self.SOURCE, override={"x.studyId": {}},
+            )
+
 
 class DatabaseSourceTests(unittest.TestCase):
     def test_a_database_source_is_refused_with_a_reason(self) -> None:

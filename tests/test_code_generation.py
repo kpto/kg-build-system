@@ -942,7 +942,8 @@ PROMOTING_REQUEST = (
     "notes = generation(\n"
     "    InferDataContractProvider,\n"
     "    DataContractInferenceConfig(\n"
-    '        source="../data/n.json", promote={"when": "timestamp"},\n'
+    '        source="../data/n.json",\n'
+    '        override={"n.when": {"type": "timestamp"}},\n'
     "    ),\n"
     ")\n"
 )
@@ -1012,7 +1013,7 @@ class DeclaredPromotionTests(unittest.IsolatedAsyncioTestCase):
             )
             inferred = await self.infer(root, source="n.json")
             promoted = await self.infer(
-                root, source="n.json", promote={"when": "timestamp"},
+                root, source="n.json", override={"n.when": {"type": "timestamp"}},
             )
 
         self.assertEqual(
@@ -1055,7 +1056,7 @@ class DeclaredPromotionTests(unittest.IsolatedAsyncioTestCase):
                 with self.assertRaises(GenerationError) as raised:
                     await self.infer_reported(
                         [("amount", type_name, "YES")],
-                        promote={"amount": "timestamp"},
+                        override={"release.amount": {"type": "timestamp"}},
                     )
                 message = str(raised.exception)
                 self.assertIn("column 'amount'", message)
@@ -1075,11 +1076,13 @@ class DeclaredPromotionTests(unittest.IsolatedAsyncioTestCase):
                 with self.assertRaises(GenerationError) as raised:
                     await self.infer_reported([("value", type_name, "YES")])
                 self.assertIn(
-                    "promote={'value': " + repr(canonical) + "}", str(raised.exception),
+                    'override={"<relation>.value": {"type": ' + repr(canonical) + "}}",
+                    str(raised.exception),
                     "the message names the declaration that would carry it",
                 )
                 package = await self.infer_reported(
-                    [("value", type_name, "YES")], promote={"value": canonical},
+                    [("value", type_name, "YES")],
+                    override={"release.value": {"type": canonical}},
                 )
                 self.assertEqual(
                     self.shapes(package)["value"],
@@ -1093,7 +1096,8 @@ class DeclaredPromotionTests(unittest.IsolatedAsyncioTestCase):
         ):
             with self.subTest(type=type_name, canonical=canonical):
                 package = await self.infer_reported(
-                    [("value", type_name, "YES")], promote={"value": canonical},
+                    [("value", type_name, "YES")],
+                    override={"release.value": {"type": canonical}},
                 )
                 self.assertEqual(
                     self.shapes(package)["value"],
@@ -1110,17 +1114,18 @@ class DeclaredPromotionTests(unittest.IsolatedAsyncioTestCase):
             )
             with self.assertRaises(GenerationError) as raised:
                 await self.infer(
-                    root, source="n.json", promote={"recorded_on": "timestamp"},
+                    root, source="n.json",
+                    override={"n.recorded_on": {"type": "timestamp"}},
                 )
 
         message = str(raised.exception)
-        self.assertIn("promote names 'recorded_on'", message)
+        self.assertIn("override names 'n.recorded_on'", message)
         self.assertIn("'survey_id'", message, "the available columns are named")
         self.assertIn("'surveyed_on'", message)
         self.assertIn("relation 'n'", message)
 
-    async def test_a_promotion_of_a_path_is_refused_as_a_nested_promotion(self) -> None:
-        """(e) A dotted key names a member, and nested promotion is undecided."""
+    async def test_an_override_missing_its_relation_part_is_refused(self) -> None:
+        """A bare column key cannot say which relation it means."""
         with TemporaryDirectory() as directory:
             root = Path(directory)
             (root / "n.json").write_text(
@@ -1128,28 +1133,31 @@ class DeclaredPromotionTests(unittest.IsolatedAsyncioTestCase):
             )
             with self.assertRaises(GenerationError) as raised:
                 await self.infer(
-                    root, source="n.json", promote={"meta.observed_on": "timestamp"},
-                )
-
-        self.assertIn("a path rather than a column name", str(raised.exception))
-        self.assertIn("a separate decision", str(raised.exception))
-
-    async def test_a_promotion_naming_a_nested_member_is_refused_as_such(self) -> None:
-        """(e) The same limit holds when the key is spelled as one bare name."""
-        with TemporaryDirectory() as directory:
-            root = Path(directory)
-            (root / "n.json").write_text(
-                json.dumps([{"meta": {"observed_on": TEMPORAL_TEXT}}]), encoding="utf-8",
-            )
-            with self.assertRaises(GenerationError) as raised:
-                await self.infer(
-                    root, source="n.json", promote={"observed_on": "timestamp"},
+                    root, source="n.json",
+                    override={"meta.observed_on": {"type": "timestamp"}},
                 )
 
         message = str(raised.exception)
-        self.assertIn("only as a member of a column", message)
+        self.assertIn("is a column of 'n', not a relation", message)
         self.assertIn("a separate decision", message)
-        self.assertNotIn("is not a column the source reports", message)
+
+    async def test_an_override_naming_a_nested_member_is_refused_as_such(self) -> None:
+        """The same limit holds when the path names a member of one column."""
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            (root / "n.json").write_text(
+                json.dumps([{"meta": {"observed_on": TEMPORAL_TEXT}}]), encoding="utf-8",
+            )
+            with self.assertRaises(GenerationError) as raised:
+                await self.infer(
+                    root, source="n.json",
+                    override={"n.observed_on": {"type": "timestamp"}},
+                )
+
+        message = str(raised.exception)
+        self.assertIn("reaches inside column 'observed_on'", message)
+        self.assertIn("a separate decision", message)
+        self.assertNotIn("is not a column relation", message)
 
     async def test_a_promotion_of_a_container_column_has_no_type_to_declare(self) -> None:
         """The scope limit again, met by a column the reader reports as a shape."""
@@ -1162,18 +1170,20 @@ class DeclaredPromotionTests(unittest.IsolatedAsyncioTestCase):
                     )
                     with self.assertRaises(GenerationError) as raised:
                         await self.infer(
-                            root, source="n.json", promote={"meta": "timestamp"},
+                            root, source="n.json",
+                            override={"n.meta": {"type": "timestamp"}},
                         )
 
                 message = str(raised.exception)
                 self.assertIn("column 'meta'", message)
                 self.assertIn("a container whose shape is digested from the types below it", message)
 
-    async def test_a_promotion_applies_across_a_group_from_one_declaration(self) -> None:
-        """(d) at group scope: one request declares once for the source it reads.
+    async def test_an_override_reaches_only_the_relation_it_names(self) -> None:
+        """Group scope: the full path selects one relation, not every same-named column.
 
-        A table group is one source, so a key has to name a column some relation of
-        it exposes, and it promotes every relation that has that column.
+        Both relations expose ``recorded_on``; naming ``temperature.recorded_on``
+        declares one column and leaves the identically named column of the other
+        relation exactly as its source reports it.
         """
         with TemporaryDirectory() as directory:
             root = Path(directory)
@@ -1186,30 +1196,36 @@ class DeclaredPromotionTests(unittest.IsolatedAsyncioTestCase):
             )
             promoted = await self.infer(
                 root, source="data", mode="table_group",
-                promote={"recorded_on": "timestamp"},
+                override={"temperature.recorded_on": {"type": "timestamp"}},
             )
             with self.assertRaises(GenerationError) as raised:
                 await self.infer(
                     root, source="data", mode="table_group",
-                    promote={"surveyed_on": "timestamp"},
+                    override={"vibration.surveyed_on": {"type": "timestamp"}},
                 )
 
-        declared = {
-            field.external_name: field.value_type
+        shapes = {
+            (file.relative_path.as_posix(), field.external_name): field.value_type
             for file in promoted.files
             for declaration in file.declarations
             if declaration.base == "Table"
             for field in declaration.fields
         }
         self.assertEqual(
-            declared["recorded_on"],
+            shapes[("temperature.py", "recorded_on")],
             GeneratedNullableType(GeneratedScalarType("timestamp")),
-            "both partitions carry the declared type from the one declaration",
+            "the named relation carries the declared type",
+        )
+        self.assertEqual(
+            shapes[("vibration.py", "recorded_on")],
+            GeneratedNullableType(GeneratedScalarType("str")),
+            "the same-named column of the other relation keeps what was sniffed",
         )
         message = str(raised.exception)
-        self.assertIn("promote names 'surveyed_on'", message)
-        self.assertIn("relation 'temperature' exposes 'recorded_on'", message)
-        self.assertIn("'note'", message, "every relation's columns are named")
+        self.assertIn("override names 'vibration.surveyed_on'", message)
+        self.assertIn("not a column relation 'vibration' reports", message)
+        self.assertIn("'recorded_on'", message, "the relation's columns are named")
+        self.assertIn("'note'", message, "every column of the named relation")
 
     async def test_a_promotion_target_must_be_a_canonical_unit_name(self) -> None:
         with TemporaryDirectory() as directory:
@@ -1218,7 +1234,9 @@ class DeclaredPromotionTests(unittest.IsolatedAsyncioTestCase):
                 json.dumps([{"when": TEMPORAL_TEXT}]), encoding="utf-8",
             )
             with self.assertRaises(GenerationError) as raised:
-                await self.infer(root, source="n.json", promote={"when": "datetime"})
+                await self.infer(
+                    root, source="n.json", override={"n.when": {"type": "datetime"}},
+                )
 
         message = str(raised.exception)
         self.assertIn("does not name a canonical unit type", message)

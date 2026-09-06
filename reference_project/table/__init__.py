@@ -31,8 +31,9 @@ surveys = generation(
         # ``read_json_auto`` sniffs as VARCHAR rather than TIMESTAMP, so the
         # temporal type is declared here and the scan applies the checked cast.
         # That seconds-free spelling is load-bearing: writing ``14:20:00`` makes
-        # the reader report TIMESTAMP and this promotion silently does nothing.
-        promote={"surveyed_on": "timestamp"},
+        # the reader report TIMESTAMP and this declaration silently does nothing.
+        # Overrides are keyed by the column's full ``<relation>.<column>`` path.
+        override={"surveys.surveyed_on": {"type": "timestamp"}},
     ),
 )
 
@@ -44,10 +45,14 @@ readings = generation(
         layout="files",
         # Every logger family records ``recorded_on`` as ``YYYY-MM-DDTHH:MM``
         # without seconds, which ``read_json_auto`` sniffs as VARCHAR rather
-        # than TIMESTAMP, so one declaration covers each relation in the group
-        # that has the column. That seconds-free spelling is load-bearing:
-        # writing ``14:20:00`` makes the reader report TIMESTAMP and this
-        # promotion silently does nothing.
-        promote={"recorded_on": "timestamp"},
+        # than TIMESTAMP, so the type is declared per relation: the full path
+        # says which relation's column it means, and relations keep their own
+        # contracts. That seconds-free spelling is load-bearing: writing
+        # ``14:20:00`` makes the reader report TIMESTAMP and a declaration
+        # silently does nothing.
+        override={
+            "temperature.recorded_on": {"type": "timestamp"},
+            "mechanical.vibration.recorded_on": {"type": "timestamp"},
+        },
     ),
 )
