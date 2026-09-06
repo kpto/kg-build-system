@@ -2,15 +2,15 @@
   "format_version": "6",
   "owned_directories": [],
   "owned_file_hashes": {
-    "__init__.py": "a718e20c5d132bcbb6ec772056f20f3f39b21c2816509afad4e641d535ef6a16"
+    "__init__.py": "ffdc0e78de5b5fc0436524b91814a8c4688d7a6b8c956119668e41427e66826f"
   },
   "owned_files": [
     "__init__.py"
   ],
   "provider_import": "kg_build_system.code_generation.builtins.schema_inference",
   "provider_qualname": "InferDataContractProvider",
-  "provider_version": "3",
-  "request_fingerprint": "c5130522b50578d36937097fdf5ed96e5b99b964f39a9dd5110746ce2e2afdb9",
+  "provider_version": "6",
+  "request_fingerprint": "b41b5af368cae5c71f169046e2e315063e4f99e4e4296246ed5e2afb2a2f7526",
   "request_id": "surveys",
   "request_source_package": "reference_project.table",
   "source_digest": "245346c53d3f97f5ce809d79804bceb6a2e36714278e81b02f7919152c4c31c7"

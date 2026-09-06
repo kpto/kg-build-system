@@ -296,7 +296,7 @@ class TierThreeAssumesNullableTests(unittest.TestCase):
             package = infer(root, source="articles.json")
 
         fields = declarations(package)
-        authors = {field.external_name: field.value_type for field in fields["ArticlesTableAuthorsStruct"]}
+        authors = {field.external_name: field.value_type for field in fields["AuthorsStruct"]}
         self.assertEqual(authors["email"], GeneratedNullableType(GeneratedScalarType("str")))
         self.assertEqual(authors["name"], GeneratedNullableType(GeneratedScalarType("str")))
         table = {field.external_name: field.value_type for field in fields["ArticlesTable"]}
@@ -388,6 +388,25 @@ class ParquetDeclaredTierTests(unittest.TestCase):
             authors.value_type.item, GeneratedNullableType,
             "the element is OPTIONAL, so the item is nullable while the field is not",
         )
+
+    def test_nested_member_records_extend_the_path_not_the_parent_name(self) -> None:
+        source = "s3://bucket/nested.parquet"
+        nodes = [
+            (source, "duckdb_schema", "REQUIRED", None, 1, None, 0),
+            (source, "ontology", "REQUIRED", None, 1, None, 1),
+            (source, "sources", "REQUIRED", None, 1, None, 2),
+            (source, "name", "REQUIRED", "BYTE_ARRAY", None, "VARCHAR", 3),
+        ]
+        package = generate_with(
+            _MetadataConnection(
+                [("ontology", "STRUCT(sources STRUCT(name VARCHAR))", "YES")], nodes,
+            ),
+            source,
+        )
+        fields = declarations(package)
+        self.assertIn("OntologyStruct", fields)
+        self.assertIn("OntologySourcesStruct", fields)
+        self.assertNotIn("OntologyStructSourcesStruct", fields)
 
     def test_derived_record_names_follow_the_member_path(self) -> None:
         source = "s3://bucket/two.parquet"

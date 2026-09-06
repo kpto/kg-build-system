@@ -15,7 +15,7 @@ import duckdb
 
 from kg_build_system.code_generation import (
     GeneratedArrayType, GeneratedClass, GeneratedField, GeneratedFile,
-    GeneratedNullableType, GeneratedPackage, GeneratedScalarType, GeneratedStructType,
+    GeneratedNullableType, GeneratedMember, GeneratedPackage, GeneratedScalarType, GeneratedStructType,
     Generation, GenerationAction, GenerationActionKind, GenerationError, GenerationSession, GenerationStatus, Provider, ProviderContext,
     ProviderGenerationConfig, discover, discover_file, generate, generation,
 )
@@ -387,6 +387,197 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
                 observed.clear()
                 self.assertEqual((await generate(root, regenerate=True)).status, GenerationStatus.CURRENT)
                 self.assertEqual(observed, ["release"])
+
+    def _render_request(self, root: Path):
+        package = root / "contracts"
+        package.mkdir()
+        (package / "__init__.py").write_text(
+            "from kg_build_system.code_generation import generation\n"
+            "from tests.test_code_generation import FixtureConfig\n"
+            "from tests.test_code_generation import GeneratedPackageTests as T\n"
+            "release = generation(T, FixtureConfig(source='ignored'))\n",
+            encoding="utf-8",
+        )
+        from kg_build_system.code_generation.rendering import render_package
+
+        return discover(root)[0], render_package
+
+    async def test_shared_declaration_names_resolve_locally_when_rendered(self) -> None:
+        struct = GeneratedClass(
+            "TimeseriesStruct", (GeneratedField("t", "t", GeneratedScalarType("int")),),
+            base="Struct",
+        )
+        def table(name: str, member: str) -> GeneratedClass:
+            return GeneratedClass(
+                name,
+                (GeneratedField(
+                    "timeseries", "timeseries",
+                    GeneratedArrayType(GeneratedNullableType(GeneratedStructType("TimeseriesStruct"))),
+                ),),
+                base="Table", declaration_name=member,
+            )
+        group = GeneratedClass(
+            "LakeTableGroup",
+            members=(GeneratedMember("alpha", "AlphaTable"), GeneratedMember("beta", "BetaTable")),
+            base="TableGroup", declaration_name="lake",
+        )
+        with TemporaryDirectory() as directory:
+            request, render_package = self._render_request(Path(directory))
+            rendered = render_package(request, GeneratedPackage((
+                GeneratedFile(Path("alpha.py"), (struct, table("AlphaTable", "alpha")), ("AlphaTable",)),
+                GeneratedFile(Path("beta.py"), (struct, table("BetaTable", "beta")), ("BetaTable",)),
+                GeneratedFile(Path("__init__.py"), (group,), ("LakeTableGroup",)),
+            )), "fingerprint")
+
+        alpha = rendered[PurePosixPath("alpha.py")]
+        beta = rendered[PurePosixPath("beta.py")]
+        init = rendered[PurePosixPath("__init__.py")]
+        self.assertIn("class TimeseriesStruct(Struct):", alpha)
+        self.assertIn("class TimeseriesStruct(Struct):", beta)
+        self.assertNotIn("import TimeseriesStruct", alpha)
+        self.assertNotIn("import TimeseriesStruct", beta)
+        self.assertIn("from contracts.release.alpha import AlphaTable", init)
+        self.assertIn("from contracts.release.beta import BetaTable", init)
+
+    async def test_dangling_and_ambiguous_generated_references_are_refused(self) -> None:
+        def struct(name: str) -> GeneratedClass:
+            return GeneratedClass(
+                name, (GeneratedField("t", "t", GeneratedScalarType("int")),), base="Struct",
+            )
+        def table(name: str, member: str, reference: str) -> GeneratedClass:
+            return GeneratedClass(
+                name,
+                (GeneratedField("inner", "inner", GeneratedStructType(reference)),),
+                base="Table", declaration_name=member,
+            )
+        shared_in_two_files = GeneratedPackage((
+            GeneratedFile(
+                Path("alpha.py"),
+                (struct("TimeseriesStruct"), table("AlphaTable", "alpha", "TimeseriesStruct")),
+            ),
+            GeneratedFile(
+                Path("beta.py"),
+                (struct("TimeseriesStruct"), table("BetaTable", "beta", "TimeseriesStruct")),
+            ),
+            GeneratedFile(Path("gamma.py"), (table("GammaTable", "gamma", "TimeseriesStruct"),)),
+        ))
+        dangling = GeneratedPackage((
+            GeneratedFile(Path("alpha.py"), (table("AlphaTable", "alpha", "MissingStruct"),)),
+        ))
+        with TemporaryDirectory() as directory:
+            request, render_package = self._render_request(Path(directory))
+            with self.assertRaisesRegex(GenerationError, "ambiguous"):
+                render_package(request, shared_in_two_files, "fingerprint")
+            with self.assertRaisesRegex(GenerationError, "names no declaration"):
+                render_package(request, dangling, "fingerprint")
+
+    async def test_bound_references_disambiguate_shared_names(self) -> None:
+        struct = GeneratedClass(
+            "TimeseriesStruct", (GeneratedField("t", "t", GeneratedScalarType("int")),),
+            base="Struct",
+        )
+        def table(name: str, member: str, bound: PurePosixPath) -> GeneratedClass:
+            return GeneratedClass(
+                name,
+                (GeneratedField(
+                    "timeseries", "timeseries", GeneratedStructType("TimeseriesStruct", bound),
+                ),),
+                base="Table", declaration_name=member,
+            )
+        with TemporaryDirectory() as directory:
+            request, render_package = self._render_request(Path(directory))
+            rendered = render_package(request, GeneratedPackage((
+                GeneratedFile(
+                    Path("alpha.py"),
+                    (struct, table("AlphaTable", "alpha", PurePosixPath("alpha.py"))),
+                ),
+                GeneratedFile(
+                    Path("beta.py"),
+                    (struct, table("BetaTable", "beta", PurePosixPath("beta.py"))),
+                ),
+                GeneratedFile(Path("gamma.py"), (table("GammaTable", "gamma", PurePosixPath("beta.py")),)),
+            )), "fingerprint")
+        # The exact (name, file) binding is the identity: alpha and beta bind
+        # locally, gamma imports the beta record by name, and no ambiguity
+        # question ever arises between same-named declarations.
+        self.assertNotIn("import TimeseriesStruct", rendered[PurePosixPath("alpha.py")])
+        self.assertIn(
+            "from contracts.release.beta import TimeseriesStruct",
+            rendered[PurePosixPath("gamma.py")],
+        )
+        with TemporaryDirectory() as directory:
+            request, render_package = self._render_request(Path(directory))
+            with self.assertRaisesRegex(GenerationError, "bound to"):
+                render_package(request, GeneratedPackage((
+                    GeneratedFile(Path("alpha.py"), (table("AlphaTable", "alpha", PurePosixPath("nowhere.py")),)),
+                )), "fingerprint")
+        with TemporaryDirectory() as directory:
+            request, render_package = self._render_request(Path(directory))
+            greedy = GeneratedClass(
+                "GammaTable",
+                (
+                    GeneratedField("own", "own", GeneratedStructType("TimeseriesStruct", PurePosixPath("alpha.py"))),
+                    GeneratedField("theirs", "theirs", GeneratedStructType("TimeseriesStruct", PurePosixPath("beta.py"))),
+                ),
+                base="Table", declaration_name="gamma",
+            )
+            with self.assertRaisesRegex(GenerationError, "cannot bind two same-named"):
+                render_package(request, GeneratedPackage((
+                    GeneratedFile(Path("alpha.py"), (struct,)),
+                    GeneratedFile(Path("beta.py"), (struct,)),
+                    GeneratedFile(Path("gamma.py"), (greedy,)),
+                )), "fingerprint")
+
+    async def test_two_relations_may_infer_the_same_named_struct_column(self) -> None:
+        # Two part-file tables each carrying a ``timeseries`` LIST(STRUCT)
+        # column render the same record name in their own files. Rendered
+        # names are display; the reference carries its target's file, so
+        # nothing has to disambiguate them by name.
+        with TemporaryDirectory() as directory:
+            root = Path(directory)
+            lake = root / "lake"
+            writer = duckdb.connect(":memory:")
+            try:
+                for table in ("alpha", "beta"):
+                    (lake / table).mkdir(parents=True)
+                    writer.execute(
+                        "COPY (SELECT 'r-1' AS id, [{'t': 1, 'value': 2.5::DOUBLE}] AS timeseries) "
+                        f"TO '{lake / table / 'part-0.parquet'}' (FORMAT PARQUET)"
+                    )
+            finally:
+                writer.close()
+            package = root / "contracts"; package.mkdir()
+            package.joinpath("__init__.py").write_text(
+                "from kg_build_system.code_generation import generation\n"
+                "from kg_build_system.code_generation.builtins import (\n"
+                "    DataContractInferenceConfig, InferDataContractProvider,\n"
+                ")\n"
+                "lake = generation(InferDataContractProvider,\n"
+                "    DataContractInferenceConfig(source='../lake', mode='table_group',\n"
+                "        layout='parquet_parts'))\n",
+                encoding="utf-8",
+            )
+
+            result = await generate(root)
+
+            self.assertEqual(result.status, GenerationStatus.CHANGED)
+            alpha = (package / "lake" / "alpha.py").read_text(encoding="utf-8")
+            beta = (package / "lake" / "beta.py").read_text(encoding="utf-8")
+            self.assertIn("class TimeseriesStruct(Struct):", alpha)
+            self.assertIn("class TimeseriesStruct(Struct):", beta)
+            self.assertNotIn("import TimeseriesStruct", alpha)
+            self.assertNotIn("import TimeseriesStruct", beta)
+
+            sys.path.insert(0, str(root))
+            try:
+                alpha_module = importlib.import_module("contracts.lake.alpha")
+                beta_module = importlib.import_module("contracts.lake.beta")
+                self.assertIsNot(alpha_module.TimeseriesStruct, beta_module.TimeseriesStruct)
+            finally:
+                sys.path.remove(str(root))
+                for name in tuple(sys.modules):
+                    if name == "contracts" or name.startswith("contracts."):
+                        del sys.modules[name]
 
     async def test_a_source_outside_the_project_is_an_ordinary_reference(self) -> None:
         with TemporaryDirectory() as project_dir, TemporaryDirectory() as data_dir:

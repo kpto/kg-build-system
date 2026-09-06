@@ -191,11 +191,23 @@ The core rejects:
 - `..` traversal or paths escaping the product root;
 - case-normalized collisions;
 - file-versus-directory collisions;
-- duplicate declaration import identities;
+- duplicate declarations within one file, and dangling or ambiguous
+  generated references;
 - invalid public identifiers or unsupported normalized types.
 
 The complete desired package is rendered and parsed before filesystem
 mutation.
+
+Generated references carry identity, not just a name: a struct reference may
+bind to the file declaring its target, so identity is ``(name, file)`` and
+several files declaring same-named records is ordinary. An unbound reference
+resolves the way Python resolves names for a handwritten author: a
+declaration in the same file wins, and any other reference needs the name to
+be unique across the package to be imported. A name no file declares dangles
+and an unbound name several files declare is ambiguous for an import; both
+are refused rather than guessed, so an import is never bound to the wrong
+declaration. The rendered class name is display only — the built-in provider
+emits shortest-honest names that repeat freely across files (section 8).
 
 ## 7. Generated declarations
 
@@ -258,7 +270,18 @@ class DataContractInferenceConfig(ProviderGenerationConfig):
         "files", "parquet_parts", "hive_partitioned_parquet"
     ] = "files"
     anonymous: bool = False
+    promote: dict[str, str] = {}
 ```
+
+Derived `Struct` records are named from the member path alone — the
+`timeseries` column yields `TimeseriesStruct` in its table's own file, and a
+nested member extends the path (`OntologySourcesStruct`), never a parent or
+table prefix. Six relations with a `timeseries` struct column render six
+identical class names in six files, exactly as handwritten Python would:
+each table's references bind to their own file, so the names never have to be
+globally unique. Names are display, not identity — identity is the class
+object, module-qualified in the IR, and file-bound references at render time
+guarantee an import never binds the wrong declaration (section 6).
 
 Supported inputs include CSV/TSV, JSON/JSONL/NDJSON, Parquet, and supported
 DuckDB-readable database relations. Remote S3 inputs are supported through the
@@ -488,6 +511,9 @@ The implementation is required to test:
 - unified generated `Field[T]` declarations;
 - direct imports and blueprint compilation of generated finals;
 - deterministic rendering, fingerprints, and idempotence;
+- local-first and file-bound generated reference resolution, refusal of
+  dangling and ambiguous references, and shared declaration names across
+  files importing as distinct declarations;
 - format-6 manifest portability and file hashes;
 - missing, stale, altered, obsolete, and orphaned products;
 - refusal to overwrite unrecognized content;
@@ -511,7 +537,10 @@ The implementation is required to test:
 - additional schema, API, and catalog providers;
 - stronger cross-request transactional rollback for filesystem failures;
 - optional provenance linking generated declarations to source schema
-  locations without introducing machine-specific fingerprints.
+  locations without introducing machine-specific fingerprints;
+- import aliasing at namespace merges, so one file may deliberately bind two
+  same-named declarations from different modules (references currently refuse
+  such a reference as ambiguous rather than aliasing it — section 6).
 
 ## 19. Decision record — references, not data
 

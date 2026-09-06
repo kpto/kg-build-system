@@ -373,6 +373,52 @@ class _Paths:
         return ".".join(self.logical)
 
 
+def _record_name(paths: _Paths) -> str:
+    """The class name of the record derived from the members at this path.
+
+    Shortest-honest naming: the name joins the member-path parts, minus the
+    list wrappers, plus one ``Struct`` suffix. Records are named inside their
+    relation — ``TimeseriesStruct`` in each table's own file — and may repeat
+    across a package's files, because a generated reference resolves inside
+    its own file first (see the render resolution rule in the specification).
+    """
+    stem = "".join(
+        _class_part(part) for part in paths.logical if part not in _LIST_WRAPPERS
+    )
+    return f"{stem}Struct"
+
+
+def _bind_records(
+    classes: tuple[GeneratedClass, ...], in_file: PurePosixPath,
+) -> tuple[GeneratedClass, ...]:
+    """Bind every struct reference in these classes to their declaring file.
+
+    Inferred records are emitted alongside their users, so each reference can
+    name its target's file exactly: identity is ``(name, file)``, and several
+    relations may render records of the same name without the package having
+    to tell them apart by name alone.
+    """
+
+    def bind(value: GeneratedType) -> GeneratedType:
+        if isinstance(value, GeneratedStructType):
+            return replace(value, in_file=in_file)
+        if isinstance(value, GeneratedArrayType):
+            return replace(value, item=bind(value.item))
+        if isinstance(value, GeneratedNullableType):
+            return replace(value, value=bind(value.value))
+        return value
+
+    return tuple(
+        replace(
+            declaration,
+            fields=tuple(
+                replace(field, value_type=bind(field.value_type)) for field in declaration.fields
+            ),
+        )
+        for declaration in classes
+    )
+
+
 @dataclass
 class _Inference:
     """State shared by one generation pass.
@@ -592,7 +638,7 @@ def _shape_for_node(
             not node.declared,
         )
 
-    struct_name = f"{_path_prefix(paths)}{_class_part(_leaf_name(paths))}Struct"
+    struct_name = _record_name(paths)
     described = _struct_member_texts(describe_type)
     members: list[GeneratedField] = []
     nested: list[GeneratedClass] = []
@@ -676,27 +722,6 @@ def _item_of_list(
     return item_type, declarations, item_nullable
 
 
-def _leaf_name(paths: _Paths) -> str:
-    """The field a derived record is named after.
-
-    The Parquet three-level list convention names the item node ``element``, so a
-    record inside an array would otherwise be named for the convention rather
-    than for the field it belongs to.
-    """
-    parts = [part for part in paths.logical if part not in _LIST_WRAPPERS]
-    return parts[-1] if parts else "Item"
-
-
-def _path_prefix(paths: _Paths) -> str:
-    """The derived-record prefix contributed by the members above this one.
-
-    Keyed on the member path rather than the leaf name, so two unrelated structs
-    may share a member name.
-    """
-    parts = [part for part in paths.logical if part not in _LIST_WRAPPERS]
-    return "".join(_class_part(part) for part in parts[:-1])
-
-
 def _tree_field(
     *, node: _ParquetNode, paths: _Paths, describe_type: str, inference: _Inference,
 ) -> tuple[GeneratedField, tuple[GeneratedClass, ...]]:
@@ -724,7 +749,7 @@ def _level_nullability(repetition: str) -> Nullability:
 
 
 def _text_item_shape(
-    *, type_name: str, parent_class: str, paths: _Paths, inference: _Inference,
+    *, type_name: str, paths: _Paths, inference: _Inference,
 ) -> tuple[GeneratedType, tuple[GeneratedClass, ...]]:
     """Resolve the item shape carried by a flattened ``DESCRIBE`` type string.
 
@@ -736,21 +761,19 @@ def _text_item_shape(
     item = _array_item_text(normalized)
     if item is not None:
         return _text_item_shape(
-            type_name=item, parent_class=parent_class,
-            paths=paths, inference=inference,
+            type_name=item, paths=paths, inference=inference,
         )
     item_paths = paths.child("element") if paths.logical[-1] != "element" else paths
     if not _is_struct_text(normalized):
         scalar = _resolve_scalar(normalized, path=item_paths.logical_text)
         return GeneratedScalarType(scalar), ()
-    struct_name = f"{parent_class}{_class_part(paths.logical[-1])}Struct"
+    struct_name = _record_name(item_paths)
     members: list[GeneratedField] = []
     nested: list[GeneratedClass] = []
     for member_name, member_type in _struct_member_texts(normalized).items():
         field_, declarations = _text_field(
             name=member_name, type_name=member_type, nullability=Nullability.DEFAULTED,
-            parent_class=struct_name, paths=item_paths.child(member_name),
-            inference=inference,
+            paths=item_paths.child(member_name), inference=inference,
         )
         members.append(field_)
         nested.extend(declarations)
@@ -759,7 +782,7 @@ def _text_item_shape(
 
 
 def _text_field(
-    *, name: str, type_name: str, nullability: Nullability, parent_class: str,
+    *, name: str, type_name: str, nullability: Nullability,
     paths: _Paths, inference: _Inference,
 ) -> tuple[GeneratedField, tuple[GeneratedClass, ...]]:
     """One member inferred from a ``DESCRIBE`` type string, nullability included."""
@@ -767,8 +790,7 @@ def _text_field(
     declarations: tuple[GeneratedClass, ...] = ()
     if _array_item_text(normalized) is not None:
         item, declarations = _text_item_shape(
-            type_name=normalized, parent_class=parent_class, paths=paths,
-            inference=inference,
+            type_name=normalized, paths=paths, inference=inference,
         )
         # A flattened type string names no nullability at any level, so an item
         # of a schema-less array is nullable too: absence of a declaration is not
@@ -777,13 +799,13 @@ def _text_field(
             item = GeneratedNullableType(item)
         value: GeneratedType = GeneratedArrayType(item)
     elif _is_struct_text(normalized):
-        struct_name = f"{parent_class}{_class_part(name)}Struct"
+        struct_name = _record_name(paths)
         members: list[GeneratedField] = []
         nested: list[GeneratedClass] = []
         for member_name, member_type in _struct_member_texts(normalized).items():
             field_, member_declarations = _text_field(
                 name=member_name, type_name=member_type,
-                nullability=Nullability.DEFAULTED, parent_class=struct_name,
+                nullability=Nullability.DEFAULTED,
                 paths=paths.child(member_name), inference=inference,
             )
             members.append(field_)
@@ -959,7 +981,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
     """
 
     ID: ClassVar[str] = "infer_data_contract"
-    VERSION: ClassVar[str] = "3"
+    VERSION: ClassVar[str] = "6"
     CONFIG_TYPE: ClassVar[type[ProviderGenerationConfig]] = DataContractInferenceConfig
 
     @classmethod
@@ -1026,7 +1048,6 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         described: tuple[tuple[str, str, Nullability], ...],
         nodes: tuple["_ParquetNode", ...],
         sources: tuple[str, ...],
-        class_prefix: str,
         inference: _Inference,
     ) -> tuple[tuple[GeneratedField, tuple[GeneratedClass, ...]], ...]:
         """One finished member per DuckDB column, with the source's own shape.
@@ -1066,7 +1087,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
             if node is None:
                 members.append(_text_field(
                     name=name, type_name=type_name, nullability=nullability,
-                    parent_class=class_prefix, paths=paths, inference=inference,
+                    paths=paths, inference=inference,
                 ))
                 continue
             members.append(_tree_field(
@@ -1093,7 +1114,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
             )
             for field_, nested in cls._members(
                 described=described_fields, nodes=nodes, sources=sources,
-                class_prefix=class_name, inference=inference,
+                inference=inference,
             ):
                 previous = inference.used_names.get(field_.python_name)
                 if previous is not None:
@@ -1167,7 +1188,11 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
             )
             notes.setdefault(note.line, note)
             relative = Path(*table.group_path) / f"{_identifier(table.name, fallback='table')}.py"
-            files.append(GeneratedFile(relative, classes, (table_name,)))
+            files.append(GeneratedFile(
+                relative,
+                _bind_records(classes, PurePosixPath(relative.as_posix())),
+                (table_name,),
+            ))
 
         for group_path in sorted(group_paths, key=lambda value: (-len(value), value)):
             members = [
@@ -1292,7 +1317,11 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
             cls._report_null_statistics(connection, (source,), inference)
             _require_promoted_columns(inference)
             package = GeneratedPackage(
-                (GeneratedFile(Path("__init__.py"), classes, (class_name,)),),
+                (GeneratedFile(
+                    Path("__init__.py"),
+                    _bind_records(classes, PurePosixPath("__init__.py")),
+                    (class_name,),
+                ),),
                 (_nullability_note(
                     _tier_for_suffix(_source_suffix(source)), source, (source,), relation,
                 ),),

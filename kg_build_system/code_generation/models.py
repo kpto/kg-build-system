@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 from enum import StrEnum
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Generic, TypeVar
 from pydantic import BaseModel, ConfigDict
 type StaticValue = str | int | float | bool | None | list[StaticValue] | tuple[StaticValue, ...] | dict[str, StaticValue]
@@ -90,9 +90,16 @@ class GeneratedScalarType:
 
 @dataclass(frozen=True, slots=True)
 class GeneratedStructType:
-    """A reference to another declaration in the generated package."""
+    """A reference to another declaration in the generated package.
+
+    ``in_file`` binds the reference to the file that declares its target, so
+    identity is ``(name, file)`` and several files may declare same-named
+    records. An unbound reference resolves at render time by the local-first,
+    package-unique rule.
+    """
 
     declaration_name: str
+    in_file: PurePosixPath | None = None
 
 
 @dataclass(frozen=True, slots=True)

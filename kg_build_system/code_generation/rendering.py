@@ -95,9 +95,9 @@ def _type_annotation(value: GeneratedType) -> str:
     raise TypeError(f"unsupported generated type {value!r}")
 
 
-def _struct_references(value: GeneratedType) -> tuple[str, ...]:
+def _struct_references(value: GeneratedType) -> tuple[GeneratedStructType, ...]:
     if isinstance(value, GeneratedStructType):
-        return (value.declaration_name,)
+        return (value,)
     if isinstance(value, (GeneratedArrayType, GeneratedNullableType)):
         return _struct_references(value.item if isinstance(value, GeneratedArrayType) else value.value)
     return ()
@@ -134,7 +134,8 @@ def _note_belongs_to_file(
 
 def render_package(request: DiscoveredGeneration, package: GeneratedPackage, fingerprint: str) -> dict[PurePosixPath, str]:
     paths: dict[str, PurePosixPath] = {}
-    declarations: dict[str, tuple[PurePosixPath, GeneratedClass]] = {}
+    declared_here_by_file: dict[PurePosixPath, frozenset[str]] = {}
+    declared_in: dict[str, list[PurePosixPath]] = {}
     normalized_files: list[tuple[PurePosixPath, GeneratedFile | None]] = []
     for file in package.files:
         path = _safe_path(file.relative_path)
@@ -142,9 +143,48 @@ def render_package(request: DiscoveredGeneration, package: GeneratedPackage, fin
         if folded in paths: raise GenerationError(f"case-normalized generated path collision: {path}")
         paths[folded] = path
         normalized_files.append((path, file))
+        declared_here: set[str] = set()
         for declaration in file.declarations:
-            if declaration.name in declarations: raise GenerationError(f"duplicate generated declaration identity {declaration.name}")
-            declarations[declaration.name] = (path, declaration)
+            if declaration.name in declared_here:
+                raise GenerationError(f"duplicate generated declaration identity {declaration.name} in {path}")
+            declared_here.add(declaration.name)
+            declared_in.setdefault(declaration.name, []).append(path)
+        declared_here_by_file[path] = frozenset(declared_here)
+
+    def resolve(name: str, in_path: PurePosixPath, bound_in: PurePosixPath | None = None) -> PurePosixPath | None:
+        """The file one generated reference resolves to, or None when it is local.
+
+        A reference bound to a declaring file is exact: its target is that
+        file's declaration of the name, and several files sharing a name is
+        ordinary. An unbound reference resolves the way Python resolves names
+        for a handwritten author: the declaring file wins, and any other
+        reference needs the name to be unique across the package to be
+        imported. A name no file declares dangles, and an unbound name two
+        files declare is ambiguous for an import; both are refused rather
+        than guessed, so an import is never bound to the wrong declaration.
+        """
+        if bound_in is not None:
+            if name not in declared_here_by_file.get(bound_in, frozenset()):
+                raise GenerationError(
+                    f"generated reference {name!r} is bound to {path_text(bound_in)}, which declares no such declaration"
+                )
+            return None if bound_in == in_path else bound_in
+        if name in declared_here_by_file.get(in_path, frozenset()): return None
+        candidates = declared_in.get(name, [])
+        if not candidates:
+            raise GenerationError(
+                f"generated reference {name!r} in {path_text(in_path)} names no declaration in the package"
+            )
+        if len(candidates) > 1:
+            located = ", ".join(sorted(path_text(candidate) for candidate in candidates))
+            raise GenerationError(
+                f"generated reference {name!r} in {path_text(in_path)} is ambiguous across {located}; "
+                "an unbound name shared by several files resolves only inside its own file"
+            )
+        return candidates[0]
+
+    def path_text(value: PurePosixPath) -> str:
+        return f"'{value.as_posix()}'"
     # Every directory in a Python package is explicit and owned.
     required_initializers = {PurePosixPath("__init__.py")}
     for path, _file in normalized_files:
@@ -166,16 +206,26 @@ def render_package(request: DiscoveredGeneration, package: GeneratedPackage, fin
         if fields: imports.update(("Field", "field"))
         cross: dict[str, set[str]] = {}
         for declaration in classes:
-            references = [name for field in declaration.fields for name in _struct_references(field.value_type)]
-            references += [member.declaration_name for member in declaration.members]
-            for name in references:
-                target = declarations.get(name)
-                if target and target[0] != path:
-                    cross.setdefault(_module_name(request.package_import, target[0]), set()).add(name)
+            references = [reference for field in declaration.fields for reference in _struct_references(field.value_type)]
+            references += [GeneratedStructType(member.declaration_name) for member in declaration.members]
+            for reference in references:
+                target = resolve(reference.declaration_name, path, reference.in_file)
+                if target is not None:
+                    cross.setdefault(_module_name(request.package_import, target), set()).add(reference.declaration_name)
         for name in exports:
-            target = declarations.get(name)
-            if target is None: raise GenerationError(f"generated export {name!r} has no declaration")
-            if target[0] != path: cross.setdefault(_module_name(request.package_import, target[0]), set()).add(name)
+            target = resolve(name, path)
+            if target is not None: cross.setdefault(_module_name(request.package_import, target), set()).add(name)
+        # Same-named declarations are legal across files; a file that would
+        # import two of them needs an alias the model does not yet carry, so
+        # the collision is refused rather than rendered as silent shadowing.
+        imported_from: dict[str, str] = {}
+        for module, names in cross.items():
+            for name in names:
+                if imported_from.setdefault(name, module) != module:
+                    raise GenerationError(
+                        f"generated file {path_text(path)} would import {name!r} from both "
+                        f"{imported_from[name]} and {module}; a file cannot bind two same-named declarations"
+                    )
         annotation_imports: dict[str, set[str]] = {}
         for declaration in classes:
             for field in declaration.fields:
