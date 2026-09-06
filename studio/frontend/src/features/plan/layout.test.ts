@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import type { StepEdge, StepNode } from "./types";
+import type { ModuleRole, PlacedStep, StepEdge, StepNode } from "./types";
 import {
   buildAdjacency,
   componentAlignmentKeys,
@@ -12,6 +12,9 @@ import {
   orderWithinLayers,
   overlapping,
   DEFAULT_SPACING,
+  LANE_PADDING_TOP,
+  LANE_PADDING_X,
+  type StepSize,
 } from "./layout";
 import { estimateStepHeight, measureSteps, stepContent } from "./sizing";
 import { buildPlanModel } from "./model";
@@ -233,8 +236,11 @@ describe("placement", () => {
     const first = layoutPlan(input);
     const second = layoutPlan(input);
     expect(first.placed).toEqual(second.placed);
+    expect(first.lanes).toEqual(second.lanes);
+    expect([first.width, first.height]).toEqual([second.width, second.height]);
     // core, then the operator, then the three targets — targets ordered by the
-    // leftmost layer they occupy (neo4j starts one column before the file writer).
+    // leftmost *global* layer they occupy (neo4j starts two layers before the
+    // file writer).
     expect(first.lanes.map((lane) => lane.moduleId)).toEqual([
       "core",
       "collapse_exact_duplicates",
@@ -244,22 +250,31 @@ describe("placement", () => {
     ]);
   });
 
-  it("stacks lanes left to right in role order and grows them with the spacing control", () => {
-    const model = buildPlanModel({
+  it("stacks lane bands top to bottom in role order and grows with the spacing control", () => {
+    const wide = buildPlanModel({
       nodes: SAMPLE_PLAN.nodes ?? [],
       edges: SAMPLE_PLAN.edges ?? [],
       modules: SAMPLE_PLAN.modules ?? [],
       spacing: { columnGap: DEFAULT_SPACING.columnGap * 2, laneGap: 400 },
     });
-    const xs = model.layout.lanes.map((lane) => lane.x);
-    expect([...xs].sort((a, b) => a - b)).toEqual(xs);
-    expect(model.layout.width).toBeGreaterThan(
-      buildPlanModel({
-        nodes: SAMPLE_PLAN.nodes ?? [],
-        edges: SAMPLE_PLAN.edges ?? [],
-        modules: SAMPLE_PLAN.modules ?? [],
-      }).layout.width,
-    );
+    const tight = buildPlanModel({
+      nodes: SAMPLE_PLAN.nodes ?? [],
+      edges: SAMPLE_PLAN.edges ?? [],
+      modules: SAMPLE_PLAN.modules ?? [],
+    });
+
+    // Lanes are horizontal bands now, so their order is a `y` order, not an `x` one.
+    const ys = wide.layout.lanes.map((lane) => lane.y);
+    expect([...ys].sort((a, b) => a - b)).toEqual(ys);
+    expect(new Set(ys).size).toBe(ys.length);
+    // A wider column grid is wider; a taller lane stack is taller.
+    expect(wide.layout.width).toBeGreaterThan(tight.layout.width);
+    expect(wide.layout.height).toBeGreaterThan(tight.layout.height);
+    for (const [key, lane] of wide.layout.lanes.entries()) {
+      const next = wide.layout.lanes[key + 1];
+      if (!next) continue;
+      expect(next.y).toBeGreaterThanOrEqual(lane.y + lane.height);
+    }
   });
 
   it("sizes a node from its sockets, facts and badges", () => {
@@ -268,5 +283,158 @@ describe("placement", () => {
     expect(estimateStepHeight(withSql)).toBeGreaterThan(estimateStepHeight(plain));
     const sizes = measureSteps([node("a")], new Map([["a", detail()]]));
     expect(sizes.get("a")?.height).toBe(estimateStepHeight(plain));
+  });
+});
+
+/**
+ * The demo-shaped graph: a target and a meta-graph writer with identical parent
+ * sets, i.e. two sinks where neither consumes the other.
+ */
+const DEMO_NODES: StepNode[] = [
+  node("core::source", "core", null, 0),
+  node("core::project", "core", null, 1),
+  node("collapse_exact_duplicates::dedup", "collapse_exact_duplicates", null, 2),
+  node("file::write", "file", null, 3),
+  node("meta_graph::document", "meta_graph", null, 4),
+];
+
+const DEMO_EDGES: StepEdge[] = [
+  edge("core::source", "core::project"),
+  edge("core::project", "collapse_exact_duplicates::dedup"),
+  edge("collapse_exact_duplicates::dedup", "file::write"),
+  edge("collapse_exact_duplicates::dedup", "meta_graph::document"),
+];
+
+const DEMO_ROLES = new Map<string, ModuleRole>([
+  ["core", "core"],
+  ["collapse_exact_duplicates", "operator"],
+  ["file", "target"],
+  ["meta_graph", "target"],
+]);
+
+const byIdOf = (placed: readonly PlacedStep[]) => new Map(placed.map((step) => [step.id, step]));
+
+describe("global columns", () => {
+  const layout = () => layoutPlan({ nodes: DEMO_NODES, edges: DEMO_EDGES, moduleRoles: DEMO_ROLES });
+
+  it("stacks sibling steps in different lanes in one column instead of one after the other", () => {
+    // `file::write` and `meta_graph::document` share every parent and no edge, so
+    // they are at the same depth: side by side would read as a sequence that does
+    // not exist.
+    const placed = byIdOf(layout().placed);
+    const file = placed.get("file::write");
+    const meta = placed.get("meta_graph::document");
+    expect(file).toBeDefined();
+    expect(meta).toBeDefined();
+    expect(file?.layer).toBe(meta?.layer);
+    expect(file?.x).toBe(meta?.x);
+    expect(file?.y).not.toBe(meta?.y);
+  });
+
+  it("places a consumer to the right of its producer across the whole canvas, not just inside a lane", () => {
+    const result = layout();
+    const placed = byIdOf(result.placed);
+    // The two-module chain has to advance one column per hop even though each hop
+    // lands in a different lane — the property the lane-relative grid broke.
+    expect(placed.get("core::source")?.x).toBeLessThan((placed.get("collapse_exact_duplicates::dedup")?.x ?? 0));
+    expect(placed.get("collapse_exact_duplicates::dedup")?.x).toBeLessThan((placed.get("file::write")?.x ?? 0));
+    for (const link of DEMO_EDGES) {
+      expect(placed.get(link.to_step)?.x).toBeGreaterThan((placed.get(link.from_step)?.x ?? Number.POSITIVE_INFINITY));
+    }
+  });
+
+  it("monotonises x with dependency depth across lanes on the real plan", () => {
+    const model = buildPlanModel({
+      nodes: SAMPLE_PLAN.nodes ?? [],
+      edges: SAMPLE_PLAN.edges ?? [],
+      modules: SAMPLE_PLAN.modules ?? [],
+    });
+    const placed = byIdOf(model.layout.placed);
+    for (const link of SAMPLE_PLAN.edges ?? []) {
+      expect(placed.get(link.to_step)?.x).toBeGreaterThan(
+        (placed.get(link.from_step)?.x ?? Number.POSITIVE_INFINITY),
+      );
+    }
+    // The two sinks the bug was about: same column, different rows.
+    const file = placed.get("file::write");
+    const meta = placed.get("meta_graph::document");
+    expect(file?.x).toBe(meta?.x);
+    expect(file?.y).not.toBe(meta?.y);
+  });
+
+  it("stacks non-overlapping lane bands, each containing all of its own steps", () => {
+    const result = layout();
+    const lanes = [...result.lanes];
+    expect(lanes).toHaveLength(4);
+    for (const [index, lane] of lanes.entries()) {
+      for (const other of lanes.slice(index + 1)) {
+        expect(lane.y + lane.height).toBeLessThanOrEqual(other.y);
+      }
+    }
+    for (const step of result.placed) {
+      const lane = lanes.find((entry) => entry.moduleId === step.lane);
+      expect(lane).toBeDefined();
+      expect(step.x).toBeGreaterThanOrEqual((lane?.x ?? 0) + LANE_PADDING_X);
+      expect(step.x + step.width).toBeLessThanOrEqual((lane?.x ?? 0) + (lane?.width ?? 0) - LANE_PADDING_X);
+      expect(step.y).toBeGreaterThanOrEqual((lane?.y ?? 0) + LANE_PADDING_TOP);
+      expect(step.y + step.height).toBeLessThanOrEqual((lane?.y ?? 0) + (lane?.height ?? 0));
+    }
+  });
+
+  it("numbers columns globally, so a lane's band spans only the layers it occupies", () => {
+    const result = layout();
+    const lanes = new Map(result.lanes.map((lane) => [lane.moduleId, lane]));
+    // Both sinks sit in the same band column, and the core band stops where core stops.
+    expect(lanes.get("file")?.x).toBe(lanes.get("meta_graph")?.x);
+    const core = lanes.get("core");
+    const file = lanes.get("file");
+    expect(core).toBeDefined();
+    expect(file).toBeDefined();
+    const coreRight = (core?.x ?? 0) + (core?.width ?? 0);
+    const lastCore = result.placed
+      .filter((step) => step.lane === "core")
+      .reduce((right, step) => Math.max(right, step.x + step.width), 0);
+    expect(coreRight).toBeGreaterThanOrEqual(lastCore);
+    // Core owns layers 0–1 and the sinks layer 3, so its band must not run under them.
+    expect(coreRight).toBeLessThan(file?.x ?? 0);
+    // Every column the plan occupies fits inside the reported canvas.
+    const right = result.placed.reduce((max, step) => Math.max(max, step.x + step.width), 0);
+    expect(right).toBeLessThanOrEqual(result.width);
+    const bottom = result.placed.reduce((max, step) => Math.max(max, step.y + step.height), 0);
+    expect(bottom).toBeLessThanOrEqual(result.height);
+  });
+
+  it("places the demo-scale plan without overlapping boxes", () => {
+    expect(overlapping(layout().placed)).toEqual([]);
+  });
+
+  it("sizes a global column by the widest node in that layer, whichever lane holds it", () => {
+    // The wide step is the second lane's, but it still has to widen the column the
+    // first lane's narrow step sits in — that is what makes the two columns line up
+    // across lanes instead of per lane.
+    const nodes = [node("core::a", "core", null, 0), node("file::b", "file", null, 1)];
+    const sizes = new Map<string, StepSize>([
+      ["core::a", { width: 100, height: 60 }],
+      ["file::b", { width: 300, height: 60 }],
+    ]);
+    const result = layoutPlan({
+      nodes,
+      edges: [],
+      moduleRoles: new Map([["file", "target" as const]]),
+      sizes,
+    });
+    const [narrow, wide] = [byIdOf(result.placed).get("core::a"), byIdOf(result.placed).get("file::b")];
+    expect(narrow?.column).toBe(wide?.column);
+    // Centred in one 300 px column: same centre, the narrow card inset by half the
+    // difference on each side. Every real plan card is `STEP_WIDTH` wide, so equal
+    // `x` — what the canvas actually draws — is this rule with a zero inset.
+    const centre = (step: PlacedStep | undefined) => (step ? step.x + step.width / 2 : 0);
+    expect(centre(narrow)).toBe(centre(wide));
+    expect(wide?.x).toBeLessThan(narrow?.x ?? 0);
+    expect(narrow?.x).toBe((wide?.x ?? 0) + (300 - 100) / 2);
+    // The narrow card's own lane band is as wide as the shared column, not as wide
+    // as the card.
+    const core = result.lanes.find((lane) => lane.moduleId === "core");
+    expect(core?.width).toBe(300 + LANE_PADDING_X * 2);
   });
 });

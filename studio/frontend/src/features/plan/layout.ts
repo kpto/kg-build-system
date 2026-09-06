@@ -14,9 +14,13 @@
  *    break on the previous index and then the id, both total orders, so two runs on
  *    the same plan produce the same picture. The best sweep seen (fewest crossings)
  *    is the one returned.
- * 3. **Lanes** — one lane per module; columns are numbered *inside* the lane
- *    (`layer - lane.minLayer`), so every module reads left-to-right on its own and
- *    lanes are placed in `core → operator → target` order.
+ * 3. **Lanes** — `x` is evaluation depth and comes from one column grid shared by
+ *    the whole canvas, so two steps in the same layer get the same `x` even when
+ *    neither depends on the other; lanes are horizontal bands stacked in
+ *    `core → operator → target` order and carry only `y`. Numbering columns *inside*
+ *    a lane instead would advance every module's depth on its own, so two modules
+ *    at equal depth could never line up and an independent sibling would sit to the
+ *    right of a step it does not consume — reading as a sequence that is not there.
  * 4. **Component alignment** — nodes carrying the same IR ref are pulled halfway
  *    toward their group's median slot before packing, so one component can be
  *    followed with the eye from aggregate through operator to export.
@@ -386,9 +390,58 @@ export function componentAlignmentKeys(
   return keys;
 }
 
+/* ------------------------------------------------------------------ columns */
+
+export interface ColumnGrid {
+  /** `layer → left edge of its column`, relative to the grid origin. */
+  readonly offsets: ReadonlyMap<number, number>;
+  /** `layer → width of its column`, the widest node anywhere in that layer. */
+  readonly widths: ReadonlyMap<number, number>;
+  /** `layer → ordinal of its column`, so `column` counts occupied layers from 0. */
+  readonly columns: ReadonlyMap<number, number>;
+  /** Width of the whole grid: the last column's right edge, padding excluded. */
+  readonly width: number;
+}
+
+/**
+ * One column grid for the entire canvas: a layer's column is as wide as the widest
+ * node in that layer *wherever it lives*, and the offsets accumulate once. That is
+ * what makes `x` comparable across modules.
+ */
+export function columnGrid(
+  nodes: readonly StepNode[],
+  layerOf: ReadonlyMap<string, number>,
+  size: (id: string) => StepSize,
+  spacing: LayoutSpacing,
+): ColumnGrid {
+  const widths = new Map<number, number>();
+  for (const node of nodes) {
+    const layer = layerOf.get(node.id) ?? 0;
+    widths.set(layer, Math.max(widths.get(layer) ?? 0, size(node.id).width));
+  }
+
+  const offsets = new Map<number, number>();
+  const columns = new Map<number, number>();
+  let cursor = 0;
+  let ordinal = 0;
+  for (const layer of [...widths.keys()].sort((a, b) => a - b)) {
+    offsets.set(layer, cursor);
+    columns.set(layer, ordinal);
+    cursor += (widths.get(layer) ?? 0) + spacing.columnGap;
+    ordinal += 1;
+  }
+
+  return {
+    offsets,
+    widths,
+    columns,
+    width: Math.max(0, cursor - spacing.columnGap),
+  };
+}
+
 /* ---------------------------------------------------------------- placement */
 
-/** Place every step and compute the lane band behind it. */
+/** Place every step on the global column grid, one horizontal band per module. */
 export function layoutPlan(input: LayoutInput): PlanLayout {
   const spacing: LayoutSpacing = { ...DEFAULT_SPACING, ...(input.spacing ?? {}) };
   if (input.nodes.length === 0) {
@@ -420,79 +473,75 @@ export function layoutPlan(input: LayoutInput): PlanLayout {
   const nodeById = new Map(input.nodes.map((node) => [node.id, node]));
   const size = (id: string): StepSize => input.sizes?.get(id) ?? FALLBACK_SIZE;
 
+  const grid = columnGrid(input.nodes, layerOf, size, spacing);
+  // The leftmost band starts flush with the canvas padding, so the grid it draws
+  // inside is inset by exactly one lane's horizontal padding.
+  const gridX = CANVAS_PADDING + LANE_PADDING_X;
+
   const placed: PlacedStep[] = [];
   const lanes: Lane[] = [];
-  let laneX = CANVAS_PADDING;
-  let tallest = 0;
+  let laneY = CANVAS_PADDING;
 
   for (const group of laneGroups) {
-    const columns = new Map<number, StepNode[]>();
+    const buckets = new Map<number, StepNode[]>();
     for (const id of group.ids) {
       const node = nodeById.get(id);
       if (!node) continue;
-      const column = (layerOf.get(id) ?? 0) - group.minLayer;
-      const bucket = columns.get(column);
+      const layer = layerOf.get(id) ?? 0;
+      const bucket = buckets.get(layer);
       if (bucket) bucket.push(node);
-      else columns.set(column, [node]);
+      else buckets.set(layer, [node]);
     }
 
-    const columnNumbers = [...columns.keys()].sort((a, b) => a - b);
-    const widthOf = (column: number): number =>
-      (columns.get(column) ?? []).reduce((widest, node) => Math.max(widest, size(node.id).width), 0);
-
-    const offsets = new Map<number, number>();
-    let cursor = 0;
-    for (const column of columnNumbers) {
-      offsets.set(column, cursor);
-      cursor += widthOf(column) + spacing.columnGap;
-    }
-    const contentWidth = Math.max(0, cursor - spacing.columnGap);
-    const laneWidth = contentWidth + LANE_PADDING_X * 2;
-
-    let laneBottom = 0;
-    for (const column of columnNumbers) {
-      const nodes = [...(columns.get(column) ?? [])].sort((a, b) => {
+    const layerNumbers = [...buckets.keys()].sort((a, b) => a - b);
+    let stackBottom = 0;
+    for (const layer of layerNumbers) {
+      const nodes = [...(buckets.get(layer) ?? [])].sort((a, b) => {
         const keyA = alignment.get(a.id) ?? 0;
         const keyB = alignment.get(b.id) ?? 0;
         return keyA - keyB || byId(a.id, b.id);
       });
-      const columnWidth = widthOf(column);
+      const columnWidth = grid.widths.get(layer) ?? 0;
       let y = LANE_PADDING_TOP;
       for (const node of nodes) {
         const stepSize = size(node.id);
         placed.push({
           id: node.id,
-          x: laneX + LANE_PADDING_X + (columnWidth - stepSize.width) / 2 + (offsets.get(column) ?? 0),
-          y,
+          x: gridX + (grid.offsets.get(layer) ?? 0) + (columnWidth - stepSize.width) / 2,
+          y: laneY + y,
           width: stepSize.width,
           height: stepSize.height,
           lane: group.moduleId,
-          layer: layerOf.get(node.id) ?? 0,
-          column,
+          layer,
+          column: grid.columns.get(layer) ?? layer,
         });
         y += stepSize.height + spacing.rowGap;
       }
-      laneBottom = Math.max(laneBottom, y - spacing.rowGap);
+      stackBottom = Math.max(stackBottom, y - spacing.rowGap);
     }
 
+    const height = stackBottom + LANE_PADDING_TOP + LANE_PADDING_BOTTOM;
+    const left = gridX + (grid.offsets.get(group.minLayer) ?? 0) - LANE_PADDING_X;
+    const right =
+      gridX + (grid.offsets.get(group.maxLayer) ?? 0) + (grid.widths.get(group.maxLayer) ?? 0) + LANE_PADDING_X;
     lanes.push({
       moduleId: group.moduleId,
       label: input.moduleLabels?.get(group.moduleId) ?? group.moduleId,
       role: input.moduleRoles.get(group.moduleId) ?? "core",
-      x: laneX,
-      width: laneWidth,
-      height: laneBottom + LANE_PADDING_TOP + LANE_PADDING_BOTTOM,
+      x: left,
+      y: laneY,
+      width: right - left,
+      height,
       stepCount: group.ids.length,
     });
-    tallest = Math.max(tallest, laneBottom + LANE_PADDING_TOP + LANE_PADDING_BOTTOM);
-    laneX += laneWidth + spacing.laneGap;
+    laneY += height + spacing.laneGap;
   }
 
   return {
     placed,
     lanes,
-    width: Math.max(0, laneX - spacing.laneGap + CANVAS_PADDING),
-    height: tallest + CANVAS_PADDING,
+    width: gridX + grid.width + LANE_PADDING_X + CANVAS_PADDING,
+    height: Math.max(0, laneY - spacing.laneGap) + CANVAS_PADDING,
     layers: layerOf,
     crossings: countCrossings(layerOf, adjacency.incoming, order),
     cycleBroken: adjacency.cycleBroken,

@@ -11,7 +11,7 @@
  * component stays a projection of the model.
  */
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BackgroundVariant,
@@ -83,6 +83,26 @@ function PlanCanvasInner({
 }: PlanCanvasProps) {
   const { fitView } = useReactFlow();
   const [interacting, setInteracting] = useState(false);
+  const container = useRef<HTMLDivElement | null>(null);
+  const [box, setBox] = useState({ width: 0, height: 0 });
+  /** Guards a re-frame from undoing a pan or zoom the user made on purpose. */
+  const movedSinceFrame = useRef(false);
+  const lastFitToken = useRef(-1);
+  const lastLayout = useRef<PlanModel["layout"] | null>(null);
+
+  // The canvas is docked beside panels the user opens and closes, so its box changes
+  // without the plan changing. Left alone the graph keeps the zoom computed for a pane
+  // that no longer exists until something else happens to trigger a frame.
+  useEffect(() => {
+    const element = container.current;
+    if (!element) return;
+    const observer = new ResizeObserver(([entry]) => {
+      const rect = entry?.contentRect;
+      if (rect) setBox({ width: Math.round(rect.width), height: Math.round(rect.height) });
+    });
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, []);
 
   const byId = useMemo(() => new Map(model.visibleNodes.map((node) => [node.id, node])), [model.visibleNodes]);
 
@@ -138,17 +158,28 @@ function PlanCanvasInner({
     [model.visibleEdges, hovered, trace],
   );
 
-  // Fit on load, on every relayout the user asks for, and after a filter change.
+  // Fit on load, when the graph or the canvas box changes, and when the user asks.
+  // Whole-graph rather than fit-to-width on purpose: horizontal position is depth,
+  // so a view that cuts off the far columns hides exactly the ordering this canvas
+  // exists to show, however legible it makes the cards it does draw.
   useEffect(() => {
     if (model.layout.placed.length === 0) return;
+    // A new graph or an explicit request always re-frames; the canvas merely changing
+    // size does not, because that must not undo a pan or zoom made on purpose.
+    const asked = lastFitToken.current !== fitToken || lastLayout.current !== model.layout;
+    lastFitToken.current = fitToken;
+    lastLayout.current = model.layout;
+    if (!asked && movedSinceFrame.current) return;
     const frame = requestAnimationFrame(() => {
-      void fitView({ padding: 0.06, duration: interacting ? 160 : 0, maxZoom: 1.05 });
+      void fitView({ padding: 0.06, duration: interacting ? 160 : 0, maxZoom: 1.05 }).then(() => {
+        movedSinceFrame.current = false;
+      });
     });
     return () => cancelAnimationFrame(frame);
-  }, [fitToken, model.layout, fitView, interacting]);
+  }, [fitToken, model.layout, fitView, interacting, box.width, box.height]);
 
   return (
-    <div className="relative min-h-0 flex-1" data-plan-canvas="true">
+    <div ref={container} className="relative min-h-0 flex-1" data-plan-canvas="true">
       <style>{CANVAS_CSS}</style>
       {model.layout.placed.length === 0 ? (
         <EmptyState
@@ -172,7 +203,10 @@ function PlanCanvasInner({
           nodesConnectable={false}
           elementsSelectable
           onlyRenderVisibleElements
-          onMoveStart={() => setInteracting(true)}
+          onMoveStart={() => {
+            movedSinceFrame.current = true;
+            setInteracting(true);
+          }}
           onNodeClick={(_event, node) => {
             const step = byId.get(node.id);
             const ref = step ? stepRef(step) : null;
@@ -191,7 +225,7 @@ function PlanCanvasInner({
                   className="pointer-events-none absolute select-none rounded-lg"
                   style={{
                     left: lane.x,
-                    top: 0,
+                    top: lane.y,
                     width: lane.width,
                     height: lane.height,
                     background: `${color}0e`,

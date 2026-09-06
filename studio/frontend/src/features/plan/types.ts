@@ -82,12 +82,15 @@ export interface SocketGroup {
 
 export type ModuleRole = "core" | "operator" | "target";
 
-/** A lane: one module drawn as a vertical band. */
+/** A lane: one module drawn as a horizontal band, spanning its own layer range. */
 export interface Lane {
   readonly moduleId: string;
   readonly label: string;
   readonly role: ModuleRole;
+  /** Left edge of the band — the grid offset of the module's shallowest layer. */
   readonly x: number;
+  /** Top edge of the band; lanes stack downwards in `groupLanes` order. */
+  readonly y: number;
   readonly width: number;
   readonly height: number;
   readonly stepCount: number;
@@ -96,7 +99,9 @@ export interface Lane {
 /** A step placed by `layout.ts`, in canvas coordinates. */
 export interface PlacedStep {
   readonly id: string;
+  /** Global evaluation depth — comparable across every lane. */
   readonly x: number;
+  /** Position within the lane's band. */
   readonly y: number;
   readonly width: number;
   readonly height: number;
@@ -106,11 +111,11 @@ export interface PlacedStep {
 }
 
 export interface LayoutSpacing {
-  /** Gap between the columns inside one lane. */
+  /** Gap between two global columns. */
   readonly columnGap: number;
-  /** Gap between lanes. */
+  /** Gap between two stacked lane bands. */
   readonly laneGap: number;
-  /** Vertical gap between two steps in a column. */
+  /** Vertical gap between two steps in one lane and column. */
   readonly rowGap: number;
 }
 
