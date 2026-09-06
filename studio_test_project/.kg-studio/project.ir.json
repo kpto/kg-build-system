@@ -1,6 +1,6 @@
 {
   "schema_version": 1,
-  "revision": 37,
+  "revision": 50,
   "project": {
     "name": "Target pathways",
     "package": "studio_test_project",

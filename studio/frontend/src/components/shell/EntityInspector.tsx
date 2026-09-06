@@ -2,7 +2,7 @@
 
 import clsx from "clsx";
 
-import { Chip, EmptyState, ProblemBadge, SeverityMark, TypePicker } from "@/components/ui";
+import { Chip, EmptyState, ProblemBadge, RowButton, SeverityMark, TypePicker } from "@/components/ui";
 import { parseRef, refLabel } from "@/lib/ids";
 import { describeRef, SECTION_BY_KIND } from "@/lib/ir";
 import type { LogicalType, ProjectDocument } from "@/lib/ir";
@@ -48,14 +48,13 @@ export function EntityInspector({ document, ref, problems, onSelectRef, apply }:
           </div>
           <ProblemBadge problems={problems} ref={ref} />
         </div>
-        <button
-          type="button"
-          onClick={() => onSelectRef(summary.ref)}
+        <RowButton
+          onActivate={() => onSelectRef(summary.ref)}
           className="w-full truncate rounded border border-edge bg-raised px-1.5 py-1 text-left font-mono text-[10px] text-info hover:border-edge-strong"
           title={`${summary.ref}\nselect the whole entity`}
         >
           {summary.ref}
-        </button>
+        </RowButton>
         {summary.description && (
           <p className="text-[12px] leading-relaxed text-muted">{summary.description}</p>
         )}
@@ -91,10 +90,9 @@ export function EntityInspector({ document, ref, problems, onSelectRef, apply }:
               const active = child.ref === ref;
               return (
                 <li key={child.ref}>
-                  <button
-                    type="button"
-                    onClick={() => onSelectRef(child.ref)}
-                    aria-current={active ? "true" : undefined}
+                  <RowButton
+                    onActivate={() => onSelectRef(child.ref)}
+                    active={active}
                     className={clsx(
                       "flex w-full items-center gap-2 border-b border-edge/50 px-2.5 py-1 text-left hover:bg-raised",
                       active && "bg-raised",
@@ -112,7 +110,7 @@ export function EntityInspector({ document, ref, problems, onSelectRef, apply }:
                       {child.detail}
                     </span>
                     <ProblemBadge problems={childProblems} ref={child.ref} compact />
-                  </button>
+                  </RowButton>
                 </li>
               );
             })}

@@ -756,6 +756,139 @@ def test_an_optional_slot_left_unfilled_is_not_a_gap(document: ProjectDocument) 
     assert ("site", "name", "unfilled") not in gaps
 
 
+# ------------------------------------------------------ workflow module configuration
+
+
+def _replace_module_configuration(
+    document: ProjectDocument, module_id: str, configuration: Any
+) -> ProjectDocument:
+    """Re-point one module's configuration, as the UI or a hand-edit would."""
+    return document.updated(
+        modules=[
+            item.updated(configuration=configuration) if item.id == module_id else item
+            for item in document.modules
+        ]
+    )
+
+
+def test_a_module_configured_with_an_empty_object_receives_no_configuration(
+    document: ProjectDocument,
+) -> None:
+    """``configuration: {}`` registers the module bare — the argument was pure noise.
+
+    The UI seeds ``{}`` for a module whose catalogue default is an empty object, and an
+    all-defaults configuration is exactly what ``register_module`` rebuilds when the
+    argument is omitted, so the faithful rendering leaves it off and, crucially, never
+    imports the module's private ``_Configuration`` class.
+    """
+    emptied = _replace_module_configuration(document, "collapse_exact_duplicates", {})
+    build = _content(emptied, "kg_project/build.py")
+    assert "register_module(CollapseExactDuplicatesModule)" in build
+    assert "register_module(CollapseExactDuplicatesModule," not in build
+    assert "_Configuration" not in build
+    assert "operators.deduplication" not in build
+
+
+def test_a_configured_module_still_renders_its_configuration(
+    document: ProjectDocument,
+) -> None:
+    """Guard 1 must not swallow real values: ``file`` and ``meta_graph`` render verbatim."""
+    configured = document.updated(
+        modules=[
+            item.updated(
+                configuration={"relative_path": "meta_graph.json", "include_html": True}
+            )
+            if item.id == "meta_graph"
+            else item
+            for item in document.modules
+        ]
+    )
+    build = _content(configured, "kg_project/build.py")
+    assert "register_module(FileModule, FileModuleConfiguration(relative_path='graph.jsonl'))" in build
+    assert (
+        "register_module(MetaGraphModule, "
+        "MetaGraphModuleConfiguration(relative_path='meta_graph.json', include_html=True))"
+    ) in build
+    assert "import _Configuration" not in build
+
+
+def test_the_generated_and_executed_module_lists_agree_for_an_empty_configuration(
+    document: ProjectDocument, tmp_path: Path
+) -> None:
+    """``build.py`` and the studio's own compile resolve ``{}`` through the same code.
+
+    Both readings of ``document.modules`` have to produce one list; a divergence
+    between what studio writes to disk and what it executes would be worse than the
+    private import this replaces, so the imported ``_modules()`` must equal
+    :func:`module_registrations` element for element.
+    """
+    emptied = _replace_module_configuration(document, "collapse_exact_duplicates", {})
+    root = tmp_path / "agree_project"
+    write_project(emptied, root)
+    sys.path.insert(0, str(root))
+    try:
+        build = importlib.import_module(f"{PACKAGE}.build")
+        from_source = list(build._modules())
+    finally:
+        sys.path.remove(str(root))
+        _forget_package()
+    from_execution = module_registrations(emptied)
+    assert [item.module_class for item in from_source] == [
+        item.module_class for item in from_execution
+    ]
+    assert from_source == from_execution
+
+
+def test_a_private_configuration_with_values_is_refused(
+    document: ProjectDocument, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A required-but-private configuration cannot be omitted, so refuse rather than lie.
+
+    ``collapse_exact_duplicates`` has no fields, so ``{}`` is dropped (guard 1). This is
+    the other half: a module whose configuration class is private *and* is handed values
+    — omitting the argument there would silently build something other than the document
+    says, so the generator names the module and the class and stops, writing no import.
+    """
+    import dataclasses
+
+    import kg_build_system.modules as modules_package
+    from kg_build_system.modules import Module as WorkflowModule
+    from kg_build_system.modules import ModuleRegistrationConfiguration
+
+    @dataclasses.dataclass(frozen=True)
+    class _Secret(ModuleRegistrationConfiguration):
+        limit: int
+
+    class SecretModule(WorkflowModule):
+        ID = "secret"
+        VERSION = "1"
+        CONFIGURATION_TYPE = _Secret
+
+        @classmethod
+        async def create_compiler(cls, context: Any) -> Any: ...
+
+        @classmethod
+        def create_executor(cls, context: Any) -> Any: ...
+
+    monkeypatch.setattr(modules_package, "SecretModule", SecretModule, raising=False)
+    monkeypatch.setattr(
+        modules_package, "__all__", [*modules_package.__all__, "SecretModule"]
+    )
+
+    broken = document.updated(modules=[Module(id="secret", configuration={"limit": 3})])
+    with pytest.raises(GenerationError) as refused:
+        render_project(broken)
+    message = str(refused.value)
+    assert "secret" in message
+    assert "_Secret" in message
+    assert "not publicly constructible" in message
+
+    root = tmp_path / "secret_project"
+    with pytest.raises(GenerationError):
+        write_project(broken, root)
+    assert not (root / PACKAGE / "build.py").exists()
+
+
 # ------------------------------------------------------------------------ anchors
 
 

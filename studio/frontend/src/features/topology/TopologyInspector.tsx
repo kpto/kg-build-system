@@ -9,6 +9,7 @@ import {
   IconButton,
   Modal,
   ProblemBadge,
+  RowButton,
   Select,
   TextInput,
   Toggle,
@@ -92,14 +93,13 @@ function IdentityHeader({
         </div>
         <ProblemBadge problems={problems} ref={ref} />
       </div>
-      <button
-        type="button"
-        onClick={() => onSelectRef(ref)}
+      <RowButton
+        onActivate={() => onSelectRef(ref)}
         className="w-full truncate rounded border border-edge bg-raised px-1.5 py-1 text-left font-mono text-[10px] text-info hover:border-edge-strong"
         title={ref}
       >
         {ref}
-      </button>
+      </RowButton>
     </div>
   );
 }

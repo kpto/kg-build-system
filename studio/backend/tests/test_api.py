@@ -17,6 +17,7 @@ from fastapi.testclient import TestClient
 from studio_backend.api.app import create_app
 from studio_backend.ir.document import (
     DataField,
+    Module,
     Project,
     ProjectDocument,
     Source,
@@ -261,6 +262,90 @@ def test_the_catalogue_describes_the_modules_the_backend_can_run(client: TestCli
         "bool", "int", "float", "str", "date", "time", "timestamp", "uuid"
     }
     assert body["targets"] == [{"id": "sites", "label": "sites (table)", "is_group": "false"}]
+
+
+def test_a_module_with_nothing_to_configure_offers_no_default(client: TestClient) -> None:
+    """A configuration schema with no properties presents a null default, not ``{}``.
+
+    The empty object was what the add button seeded into the document, which the
+    generator then rendered as an argument-less call to the module's private
+    configuration class. With ``default_configuration`` null the frontend stores null
+    and the module registers bare; ``configuration_schema`` keeps its empty
+    ``properties`` so the UI still knows there is nothing to configure.
+    """
+    collapse = next(
+        item for item in client.get("/api/catalog").json()["modules"]
+        if item["id"] == "collapse_exact_duplicates"
+    )
+    assert collapse["default_configuration"] is None
+    schema = collapse["configuration_schema"]
+    assert schema["properties"] == {} and schema["type"] == "object"
+    # A module that does configure something still offers its defaults.
+    meta_graph = next(
+        item for item in client.get("/api/catalog").json()["modules"]
+        if item["id"] == "meta_graph"
+    )
+    assert meta_graph["default_configuration"] == {
+        "relative_path": "meta_graph.json",
+        "example_limit": 3,
+        "include_html": True,
+        "html_relative_path": "meta_graph.html",
+    }
+
+
+def test_a_refused_module_configuration_is_reported_not_raised(
+    client: TestClient, workspace: Workspace, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A configuration studio cannot render must reach the UI, not kill the pipeline.
+
+    Guard 2 raises ``GenerationError`` while rendering ``build.py``. The pipeline must
+    swallow it into ``status.generation`` exactly like every other generation failure —
+    the watcher survives and the message reaches ``GET /api/state`` — and it must not
+    leave a generated file importing the module's private configuration class.
+    """
+    import dataclasses
+
+    import kg_build_system.modules as modules_package
+    from kg_build_system.modules import Module as WorkflowModule
+    from kg_build_system.modules import ModuleRegistrationConfiguration
+
+    @dataclasses.dataclass(frozen=True)
+    class _Secret(ModuleRegistrationConfiguration):
+        limit: int
+
+    class SecretModule(WorkflowModule):
+        ID = "secret"
+        VERSION = "1"
+        CONFIGURATION_TYPE = _Secret
+
+        @classmethod
+        async def create_compiler(cls, context: Any) -> Any: ...
+
+        @classmethod
+        def create_executor(cls, context: Any) -> Any: ...
+
+    monkeypatch.setattr(modules_package, "SecretModule", SecretModule, raising=False)
+    monkeypatch.setattr(
+        modules_package, "__all__", [*modules_package.__all__, "SecretModule"]
+    )
+    # Make "secret" a known module so it clears the document tier and reaches generation.
+    monkeypatch.setattr(workspace, "known_module_ids", lambda: {"file", "secret"})
+
+    document = client.get("/api/document").json()["document"]
+    document["modules"] = [{"id": "secret", "configuration": {"limit": 3}, "enabled": True}]
+    assert _put(client, document, revision=1).status_code == 200
+
+    workspace._pipeline()  # the pipeline pass the worker thread would run; must not raise
+
+    assert workspace.status.generation["state"] == "failed"
+    assert "secret" in workspace.status.generation["error"]
+    assert "_Secret" in workspace.status.generation["error"]
+
+    body = client.get("/api/state").json()
+    assert body["status"]["generation"]["state"] == "failed"
+
+    build = workspace.project_root / "demo_project" / "build.py"
+    assert not build.exists() or "_Secret" not in build.read_text(encoding="utf-8")
 
 
 def test_the_index_flattens_nested_paths_and_lists_operators(client: TestClient) -> None:

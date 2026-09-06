@@ -150,7 +150,10 @@ def _defaults(schema: dict[str, Any] | None) -> dict[str, Any] | None:
         return None
     properties = schema.get("properties", {})
     if not properties:
-        return {}
+        # Nothing to configure: present no default rather than an empty object, so the
+        # UI stores null when the module is added and the generator never sees a
+        # configuration it would have to render as an argument-less call.
+        return None
     return {
         name: specification["default"]
         for name, specification in properties.items()
@@ -176,7 +179,11 @@ def instantiate_configuration(module_class: type[object], configuration: dict[st
     config_type = getattr(module_class, "CONFIGURATION_TYPE", None)
     if config_type is None:
         return None
-    return config_type(**(configuration or {}))
+    if not configuration:
+        # Nothing to pass: build the registration with no configuration instance so the
+        # worker omits the argument, exactly as ``build.py`` renders it.
+        return None
+    return config_type(**configuration)
 
 
 def _label(module_id: str) -> str:

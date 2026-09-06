@@ -153,6 +153,18 @@ def module_registrations(document: ProjectDocument) -> list[Any]:
 def _resolve(
     module: Module,
 ) -> tuple[type[Any], type[Any] | None, dict[str, Any]]:
+    """The module class, the configuration class to construct, and its values.
+
+    Both readings of the document — ``build.py`` as source text and the live
+    registration the studio compiles — come through here, so the two decisions below
+    apply identically to what studio writes and what studio runs:
+
+    * nothing to pass means no argument: an all-defaults configuration is exactly what
+      ``register_module`` reconstructs when the argument is omitted, so the empty case
+      is rendered without it rather than importing a class to call with no arguments;
+    * a private configuration class is never named, since no import of it would be
+      type-clean.
+    """
     module_class = _workflow_module(module.id)
     if module.configuration is None:
         return module_class, None, {}
@@ -161,7 +173,16 @@ def _resolve(
         raise GenerationError(
             f"module {module.id!r} accepts no configuration, but the document gives it one"
         )
-    return module_class, configuration, _configuration_values(configuration, module)
+    values = _configuration_values(configuration, module)
+    if not values:
+        return module_class, None, {}
+    if configuration.__name__.startswith("_"):
+        raise GenerationError(
+            f"module {module.id!r} is configured with {', '.join(sorted(values))}, but "
+            f"{configuration.__name__} in {configuration.__module__} is private, so the "
+            "module's configuration is not publicly constructible"
+        )
+    return module_class, configuration, values
 
 
 def _registration(module: Module, imports: Imports) -> str:

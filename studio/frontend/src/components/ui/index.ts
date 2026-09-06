@@ -35,5 +35,7 @@ export { Skeleton } from "./Skeleton";
 export type { SkeletonProps } from "./Skeleton";
 export { VirtualList } from "./VirtualList";
 export type { VirtualListProps } from "./VirtualList";
+export { RowButton } from "./RowButton";
+export type { RowButtonProps } from "./RowButton";
 export { Icon, Dot, SeverityMark, SearchIcon, CloseIcon, ChevronIcon, UndoIcon, RedoIcon, PlusIcon, RefreshIcon, PanelIcon, ListIcon } from "./icons";
 export type { IconName } from "./icons";

@@ -10,6 +10,11 @@ export interface VirtualListProps<T> {
   itemCount?: number;
   overscan?: number;
   className?: string;
+  /**
+   * Accessible name for the list. The `role="list"` element is the scroll container
+   * here, so the name belongs to it and the caller must not wrap this in a second list.
+   */
+  ariaLabel?: string;
   renderItem(item: T, index: number): ReactNode;
   keyOf(item: T, index: number): string;
   /** Rendered instead of the window when there is nothing to show. */
@@ -26,6 +31,7 @@ export function VirtualList<T>({
   rowHeight,
   overscan = 8,
   className,
+  ariaLabel,
   renderItem,
   keyOf,
   empty,
@@ -56,6 +62,7 @@ export function VirtualList<T>({
       }}
       className={clsx("min-h-0 flex-1 overflow-auto", className)}
       role="list"
+      aria-label={ariaLabel}
     >
       <div style={{ height: total, position: "relative" }}>
         <div style={{ transform: `translateY(${start * rowHeight}px)` }}>

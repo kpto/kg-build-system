@@ -1,9 +1,9 @@
 "use client";
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import clsx from "clsx";
 
-import { Chip, CloseIcon, EmptyState, SeverityMark, VirtualList } from "@/components/ui";
+import { Button, Chip, CloseIcon, EmptyState, RowButton, SeverityMark, VirtualList } from "@/components/ui";
 import { refLabel } from "@/lib/ids";
 import { PROBLEM_TIERS, TIER_LABEL, type Problem, type ProblemTier } from "@/lib/types";
 import { areaForProblem, useProblemStore } from "@/stores/problemStore";
@@ -106,10 +106,11 @@ export function ProblemsPanel({ open, onToggle, onClose }: ProblemsPanelProps) {
       </header>
 
       {open && (
-        <div className="flex min-h-0 flex-1 flex-col" role="list" aria-label={`${visible.length} problems`}>
+        <div className="flex min-h-0 flex-1 flex-col">
           <VirtualList
             items={visible}
             rowHeight={ROW_HEIGHT}
+            ariaLabel={`${visible.length} problems`}
             keyOf={(problem, index) => `${problem.id}-${index}`}
             empty={
               problems.length === 0 ? (
@@ -139,6 +140,10 @@ export function ProblemsPanel({ open, onToggle, onClose }: ProblemsPanelProps) {
   );
 }
 
+/**
+ * One diagnostic. `RowButton` rather than a `<button>` so the message can be
+ * drag-selected and copied out; the row still jumps on click, Enter and Space.
+ */
 function ProblemRow({
   problem,
   active,
@@ -152,38 +157,98 @@ function ProblemRow({
     ? `${problem.file.split("/").pop()}${problem.line ? `:${problem.line}` : ""}`
     : null;
   return (
-    <button
-      type="button"
-      onClick={() => onJump(problem)}
-      aria-current={active ? "true" : undefined}
+    <div
       className={clsx(
-        "flex h-full w-full items-center gap-2 border-b border-edge/50 px-2.5 text-left",
-        "hover:bg-raised",
+        "flex h-full w-full items-stretch border-b border-edge/50",
         active && "bg-raised",
       )}
-      title={problem.hint ? problem.hint : problem.message}
     >
-      <SeverityMark severity={problem.severity} />
-      <span className="w-[4.5rem] shrink-0 truncate font-mono text-[10px] uppercase text-faint">
-        {TIER_LABEL[problem.tier] ?? problem.tier}
-      </span>
-      <span className="min-w-0 flex-1 truncate text-[12px] text-ink">{problem.message}</span>
-      {problem.code && (
-        <span className="hidden shrink-0 font-mono text-[10px] text-faint lg:inline">
-          {problem.code}
-        </span>
-      )}
-      <span className="shrink-0 font-mono text-[10px] text-muted">{location ?? "no file"}</span>
-      <span
+      <RowButton
+        onActivate={() => onJump(problem)}
+        active={active}
         className={clsx(
-          "w-40 shrink-0 truncate text-right font-mono text-[10px]",
-          problem.ref ? "text-info" : "text-faint italic",
+          "flex min-w-0 flex-1 items-center gap-2 px-2.5 text-left",
+          "hover:bg-raised",
         )}
+        title={problem.hint ? problem.hint : problem.message}
       >
-        {problem.ref ? `${refLabel(problem.ref)}${problem.ref_trusted === "name" ? " ≈" : ""}` : "no ref"}
-      </span>
-    </button>
+        <SeverityMark severity={problem.severity} />
+        <span className="w-[4.5rem] shrink-0 truncate font-mono text-[10px] uppercase text-faint">
+          {TIER_LABEL[problem.tier] ?? problem.tier}
+        </span>
+        <span className="min-w-0 flex-1 truncate text-[12px] text-ink">{problem.message}</span>
+        {problem.code && (
+          <span className="hidden shrink-0 font-mono text-[10px] text-faint lg:inline">
+            {problem.code}
+          </span>
+        )}
+        <span className="shrink-0 font-mono text-[10px] text-muted">{location ?? "no file"}</span>
+        <span
+          className={clsx(
+            "w-40 shrink-0 truncate text-right font-mono text-[10px]",
+            problem.ref ? "text-info" : "text-faint italic",
+          )}
+        >
+          {problem.ref ? `${refLabel(problem.ref)}${problem.ref_trusted === "name" ? " ≈" : ""}` : "no ref"}
+        </span>
+      </RowButton>
+      <CopyMessage message={problem.message} />
+    </div>
   );
+}
+
+/**
+ * Hands over the whole message.
+ *
+ * Rows are one fixed 26 px line in a virtualised list, so the message is clipped and
+ * drag-selecting can only ever reach the visible part. Copying a diagnostic to paste
+ * into a bug report or a shell is the main reason to want the text out of this panel,
+ * so the untruncated string is offered directly. It sits beside the row rather than
+ * inside it: a `role="button"` element owns its descendants.
+ */
+function CopyMessage({ message }: { message: string }) {
+  const [outcome, setOutcome] = useState<"idle" | "copied" | "blocked">("idle");
+
+  const copy = () => {
+    void writeText(message).then((ok) => {
+      setOutcome(ok ? "copied" : "blocked");
+      window.setTimeout(() => setOutcome("idle"), 1_200);
+    });
+  };
+
+  return (
+    <Button
+      size="sm"
+      variant="ghost"
+      onClick={copy}
+      title="Copy the full message"
+      className="shrink-0 self-center px-1.5 text-faint hover:text-ink"
+    >
+      {outcome === "copied" ? "copied" : outcome === "blocked" ? "unavailable" : "copy"}
+    </Button>
+  );
+}
+
+/** Clipboard write, with a path that still works on a non-secure origin. */
+async function writeText(text: string): Promise<boolean> {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // The async clipboard needs a secure context; the dev server is reachable over a
+    // LAN address, which is not one, so fall back to a throwaway selection.
+    const field = document.createElement("textarea");
+    field.value = text;
+    field.setAttribute("readonly", "");
+    field.style.position = "fixed";
+    field.style.opacity = "0";
+    document.body.appendChild(field);
+    field.select();
+    const copied =
+      typeof document.execCommand === "function" ? document.execCommand("copy") : false;
+    field.remove();
+    return copied;
+  }
 }
 
 function Chevron({ open }: { open: boolean }) {
