@@ -23,6 +23,7 @@ from kg_build_system.code_generation.builtins import (
     DataContractInferenceConfig,
     InferDataContractProvider,
 )
+from kg_build_system.code_generation.providers import load_provider
 
 
 class FixtureConfig(ProviderGenerationConfig):
@@ -34,10 +35,6 @@ class FixtureProvider(Provider[FixtureConfig]):
     ID: ClassVar[str] = "fixture"
     VERSION: ClassVar[str] = "1"
     CONFIG_TYPE: ClassVar[type[ProviderGenerationConfig]] = FixtureConfig
-
-    @classmethod
-    async def dependencies(cls, context: ProviderContext[FixtureConfig]) -> tuple[Path, ...]:
-        return (context.resolve_path(context.config.source),)
 
     @classmethod
     async def generate(cls, context: ProviderContext[FixtureConfig]) -> GeneratedPackage:
@@ -154,10 +151,6 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
             CONFIG_TYPE: ClassVar[type[ProviderGenerationConfig]] = FixtureConfig
 
             @classmethod
-            async def dependencies(cls, context: ProviderContext[FixtureConfig]) -> tuple[Path, ...]:
-                return ()
-
-            @classmethod
             async def generate(cls, context: ProviderContext[FixtureConfig]) -> GeneratedPackage:
                 details = GeneratedClass(
                     "DetailsStruct",
@@ -218,11 +211,13 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
         self.assertIn("details: Field[DetailsStruct | None] = field(name='details')", source)
         self.assertIn("scores: Field[Array[int | None] | None] = field(name='scores')", source)
 
-    async def test_unchanged_dependency_save_is_ignored(self) -> None:
+    async def test_data_source_changes_never_trigger_generation(self) -> None:
         with TemporaryDirectory() as directory:
             root = self._project(directory)
             session = GenerationSession(root)
             await session.start()
+            (root / "schema.json").write_text('{"changed": true}', encoding="utf-8")
+
             result = await session.handle((Path("schema.json"),))
 
             self.assertEqual(result.status, GenerationStatus.CURRENT)
@@ -367,7 +362,87 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(manifest["request_source_package"], "contracts")
             self.assertTrue(all(not Path(path).is_absolute() for path in manifest["owned_files"]))
 
-    async def test_data_contract_inference_accepts_s3_urls_without_local_dependencies(self) -> None:
+    async def test_current_products_are_taken_as_current_without_observation(self) -> None:
+        observed: list[str] = []
+        with TemporaryDirectory() as directory:
+            root = self._project(directory)
+            # Patch the class the engine resolves by import path, which is what
+            # ``load_provider`` uses, not this test module's own class object.
+            provider_class = load_provider(discover(root)[0].request)[0]
+            original = provider_class.generate
+
+            async def counting(context: ProviderContext[FixtureConfig]) -> GeneratedPackage:
+                observed.append(context.request_id)
+                return await original(context)
+
+            with patch.object(provider_class, "generate", staticmethod(counting)):
+                self.assertEqual((await generate(root)).status, GenerationStatus.CHANGED)
+                self.assertEqual(observed, ["release"])
+
+                observed.clear()
+                self.assertEqual((await generate(root)).status, GenerationStatus.CURRENT)
+                self.assertEqual((await generate(root, check=True)).status, GenerationStatus.CURRENT)
+                self.assertEqual(observed, [])
+
+                observed.clear()
+                self.assertEqual((await generate(root, regenerate=True)).status, GenerationStatus.CURRENT)
+                self.assertEqual(observed, ["release"])
+
+    async def test_a_source_outside_the_project_is_an_ordinary_reference(self) -> None:
+        with TemporaryDirectory() as project_dir, TemporaryDirectory() as data_dir:
+            root = Path(project_dir)
+            source = Path(data_dir) / "sites.json"
+            source.write_text('[{"identifier": "site-1"}]', encoding="utf-8")
+            package = root / "contracts"; package.mkdir()
+            package.joinpath("__init__.py").write_text(
+                "from kg_build_system.code_generation import generation\n"
+                "from kg_build_system.code_generation.builtins import (\n"
+                "    DataContractInferenceConfig, InferDataContractProvider,\n"
+                ")\n"
+                "sites = generation(InferDataContractProvider,\n"
+                f"    DataContractInferenceConfig(source={str(source)!r}, mode='table'))\n",
+                encoding="utf-8",
+            )
+
+            result = await generate(root)
+
+            self.assertEqual(result.status, GenerationStatus.CHANGED)
+            generated = (package / "sites" / "__init__.py").read_text(encoding="utf-8")
+            self.assertIn("class SitesTable(Table):", generated)
+            self.assertIn("identifier: Field[str | None] = field(name='identifier')", generated)
+
+    async def test_the_manifest_digests_the_observed_schema_not_its_values(self) -> None:
+        with TemporaryDirectory() as project_dir, TemporaryDirectory() as data_dir:
+            root = Path(project_dir)
+            source = Path(data_dir) / "sites.json"
+            source.write_text('[{"identifier": "site-1"}]', encoding="utf-8")
+            package = root / "contracts"; package.mkdir()
+            package.joinpath("__init__.py").write_text(
+                "from kg_build_system.code_generation import generation\n"
+                "from kg_build_system.code_generation.builtins import (\n"
+                "    DataContractInferenceConfig, InferDataContractProvider,\n"
+                ")\n"
+                "sites = generation(InferDataContractProvider,\n"
+                f"    DataContractInferenceConfig(source={str(source)!r}, mode='table'))\n",
+                encoding="utf-8",
+            )
+            await generate(root)
+            manifest_path = package / "sites" / ".kbs-generation.json"
+            observed = json.loads(manifest_path.read_text(encoding="utf-8"))["source_digest"]
+            self.assertIsInstance(observed, str)
+
+            source.write_text('[{"identifier": "site-1"}, {"identifier": "site-2"}]', encoding="utf-8")
+            self.assertEqual((await generate(root, check=True)).status, GenerationStatus.CURRENT)
+            self.assertEqual(json.loads(manifest_path.read_text(encoding="utf-8"))["source_digest"], observed)
+
+            source.write_text('[{"identifier": "site-1", "name": "North"}]', encoding="utf-8")
+            self.assertEqual((await generate(root, check=True)).status, GenerationStatus.CURRENT)
+            self.assertEqual((await generate(root, regenerate=True)).status, GenerationStatus.CHANGED)
+            self.assertNotEqual(json.loads(manifest_path.read_text(encoding="utf-8"))["source_digest"], observed)
+            self.assertIn("name: Field[str | None] = field(name='name')",
+                          (package / "sites" / "__init__.py").read_text(encoding="utf-8"))
+
+    async def test_data_contract_inference_observes_s3_urls_without_local_paths(self) -> None:
         class Result:
             def __init__(self, rows: list[tuple[object, ...]]) -> None:
                 self.rows = rows
@@ -409,7 +484,6 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
                 "release",
                 DataContractInferenceConfig(source=source),
             )
-            self.assertEqual(await InferDataContractProvider.dependencies(context), ())
             connection = Connection()
             with patch(
                 "kg_build_system.code_generation.builtins.schema_inference.duckdb.connect",

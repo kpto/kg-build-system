@@ -94,6 +94,24 @@ class CliTests(unittest.TestCase):
                 result = main(("generate", "--check", "--project", directory))
         self.assertEqual(result, 1)
 
+    def test_regenerate_flag_forces_observation(self) -> None:
+        with TemporaryDirectory() as directory, patch.object(
+            code_generation_command,
+            "generate",
+            return_value=GenerationResult(GenerationStatus.CURRENT),
+        ) as generate:
+            with redirect_stdout(StringIO()):
+                result = main(("generate", "--check", "--regenerate", "--project", directory))
+        self.assertEqual(result, 0)
+        generate.assert_awaited_once_with(
+            Path(directory).resolve(), check=True, regenerate=True,
+        )
+
+    def test_regenerate_is_refused_with_watch(self) -> None:
+        with TemporaryDirectory() as directory, redirect_stdout(StringIO()):
+            with self.assertRaises(SystemExit):
+                main(("generate", "--watch", "--regenerate", "--project", directory))
+
     def test_watch_messages_include_timestamp_and_level(self) -> None:
         with TemporaryDirectory() as directory, patch.object(
             code_generation_command, "watch", return_value=_changes()
@@ -112,9 +130,9 @@ class CliTests(unittest.TestCase):
         session = MagicMock()
         session.start = AsyncMock(return_value=GenerationResult(GenerationStatus.CURRENT))
         action = GenerationAction(
-            GenerationActionKind.DEPENDENCY,
-            Path("schema.json"),
-            (Path("contracts/target.py"),),
+            GenerationActionKind.DECLARATION_CHANGED,
+            Path("contracts/__init__.py"),
+            (Path("contracts/__init__.py"),),
             "contracts.target",
         )
         result = GenerationResult(
@@ -130,7 +148,7 @@ class CliTests(unittest.TestCase):
             return result
 
         session.handle = AsyncMock(side_effect=handle)
-        changes = _changes((FileChange(FileChangeKind.MODIFIED, Path("schema.json")),))
+        changes = _changes((FileChange(FileChangeKind.MODIFIED, Path("contracts/__init__.py")),))
         with TemporaryDirectory() as directory, patch.object(
             code_generation_command, "GenerationSession", return_value=session
         ), patch.object(code_generation_command, "watch", return_value=changes):
@@ -140,9 +158,9 @@ class CliTests(unittest.TestCase):
 
         self.assertEqual(result, 0)
         rendered = output.getvalue()
-        self.assertIn("Dependency schema.json changed for generation declaration contracts.target. Processing...", rendered)
+        self.assertIn("Generation declaration changed: contracts.target. Processing...", rendered)
         self.assertIn("Created generated output contracts/target/__init__.py.", rendered)
-        self.assertNotIn("modified schema.json", rendered)
+        self.assertNotIn("modified contracts/__init__.py", rendered)
 
 
 if __name__ == "__main__":

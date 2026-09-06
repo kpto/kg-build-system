@@ -19,13 +19,15 @@ class ProviderContext[T: ProviderGenerationConfig]:
     config: T
 
     def resolve_path(self, value: str) -> Path:
-        """Resolve a provider-owned project path without assigning it semantics."""
-        path = (self.request_path.parent / value).resolve()
-        try:
-            path.relative_to(self.project_root)
-        except ValueError as error:
-            raise ValueError(f"code-generation path is outside the project: {path}") from error
-        return path
+        """Resolve a provider-owned path against the request file, without
+        assigning it any semantics.
+
+        The resolved path is an observation target, not a tracked input: it
+        may live outside the project, and nothing here watches, hashes, or
+        existence-checks it. Fidelity to the source is enforced at runtime
+        ingest, and re-observed only by an explicit regeneration pass.
+        """
+        return (self.request_path.parent / value).resolve()
 
 
 class Provider[T: ProviderGenerationConfig](ABC):
@@ -43,11 +45,16 @@ class Provider[T: ProviderGenerationConfig](ABC):
 
     @classmethod
     @abstractmethod
-    async def dependencies(cls, context: ProviderContext[T]) -> tuple[Path, ...]: ...
+    async def generate(cls, context: ProviderContext[T]) -> GeneratedPackage:
+        """Observe the configured source(s) and produce the package once.
 
-    @classmethod
-    @abstractmethod
-    async def generate(cls, context: ProviderContext[T]) -> GeneratedPackage: ...
+        The provider may read whatever it needs (schema metadata, samples,
+        remote listings); the engine tracks the request, not the observed
+        data, so this runs only when a request is created, changed, or
+        explicitly regenerated. A provider that reads a source schema should
+        stamp its digest onto ``GeneratedPackage.source_digest`` for
+        provenance.
+        """
 
 
 def _load_class(module_name: str, qualname: str) -> type[object]:

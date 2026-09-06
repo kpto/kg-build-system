@@ -1,8 +1,8 @@
 {
-  "format_version": "5",
+  "format_version": "6",
   "owned_directories": [],
   "owned_file_hashes": {
-    "__init__.py": "68568197fe6654f31b3cbf3813e2e161541437fd18f1e02b228fca8bc3c9adbf"
+    "__init__.py": "3fe7b74fab534d94d6903925565fbdf3c736dbf02a1be41ddc400f61b653a54b"
   },
   "owned_files": [
     "__init__.py"
@@ -10,7 +10,8 @@
   "provider_import": "kg_build_system.code_generation.builtins.schema_inference",
   "provider_qualname": "InferDataContractProvider",
   "provider_version": "3",
-  "request_fingerprint": "71fa83f0d206c5a4daf4131d73e76d6497664edfd8c7676748f16a1522276d28",
+  "request_fingerprint": "d395a95768204fe951d65d43e3b3454437e1ddb474e9d09ab83347b949248f09",
   "request_id": "equipment",
-  "request_source_package": "reference_project.table"
+  "request_source_package": "reference_project.table",
+  "source_digest": "ee05c21142d96c442155f27cd4d834a743eb121b0b9f5e916658def158be4748"
 }

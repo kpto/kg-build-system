@@ -174,6 +174,11 @@ class NullabilityNote:
 class GeneratedPackage:
     files: tuple[GeneratedFile, ...]
     nullability_notes: tuple[NullabilityNote, ...] = ()
+    #: An optional provider-computed digest of the observed source schema.
+    #: It is provenance recorded in the manifest, never a tracked input:
+    #: the engine does not interpret it and its change alone does not
+    #: invalidate a product without an explicit regeneration pass.
+    source_digest: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -185,6 +190,7 @@ class GenerationManifest:
     provider_qualname: str
     provider_version: str
     request_fingerprint: str
+    source_digest: str | None
     owned_files: tuple[str, ...]
     owned_directories: tuple[str, ...]
     owned_file_hashes: dict[str, str] = field(default_factory=dict)
@@ -200,7 +206,6 @@ class GenerationActionKind(StrEnum):
     DECLARATION_ADDED = "declaration_added"
     DECLARATION_CHANGED = "declaration_changed"
     DECLARATION_DELETED = "declaration_deleted"
-    DEPENDENCY = "dependency"
 
 
 @dataclass(frozen=True, slots=True)

@@ -45,6 +45,7 @@ def _load_manifest(path: Path) -> GenerationManifest:
             request_source_package=str(value["request_source_package"]), provider_import=str(value["provider_import"]),
             provider_qualname=str(value["provider_qualname"]), provider_version=str(value["provider_version"]),
             request_fingerprint=str(value["request_fingerprint"]),
+            source_digest=None if value.get("source_digest") is None else str(value["source_digest"]),
             owned_files=tuple(str(item) for item in value["owned_files"]),
             owned_directories=tuple(str(item) for item in value["owned_directories"]),
             owned_file_hashes={str(key): str(item) for key, item in value.get("owned_file_hashes", {}).items()},
@@ -105,18 +106,19 @@ def _owned_directories(files: Iterable[PurePosixPath]) -> tuple[str, ...]:
     return tuple(path.as_posix() for path in sorted(values, key=lambda p: (len(p.parts), p.as_posix())))
 
 
-async def _desired(root: Path, request: DiscoveredGeneration) -> tuple[Path, dict[Path, str], GenerationManifest, tuple[Path, ...]]:
+async def _desired(root: Path, request: DiscoveredGeneration) -> tuple[Path, dict[Path, str], GenerationManifest]:
+    """Observe one request's sources once and render its complete desired product.
+
+    The provider reads what it needs at this point only; the engine tracks the
+    request, never the observed data, so no dependency exists to hash or watch.
+    """
     provider, config = load_provider(request.request)
     context = ProviderContext(root, request.location.source_path, request.location.request_id, config)
-    dependencies = tuple(await provider.dependencies(context))
-    for dependency in dependencies:
-        try: dependency.resolve().relative_to(root)
-        except ValueError as error: raise GenerationError(f"provider dependency is outside the project: {dependency}") from error
-        if not dependency.is_file(): raise GenerationError(f"provider dependency does not exist: {dependency}")
-    fingerprint = generation_fingerprint(request, provider.VERSION, tuple(path.read_bytes() for path in dependencies))
-    first = render_package(request, await provider.generate(context), fingerprint)
-    second = render_package(request, await provider.generate(context), fingerprint)
-    if first != second: raise GenerationError(f"provider {provider.__module__}.{provider.__qualname__} is not deterministic")
+    fingerprint = generation_fingerprint(request, provider.VERSION)
+    package = await provider.generate(context)
+    first = render_package(request, package, fingerprint)
+    second = render_package(request, package, fingerprint)
+    if first != second: raise GenerationError(f"provider {provider.__module__}.{provider.__qualname__} did not render deterministically")
     rendered = first
     product = root / request.product_path
     desired = {product.joinpath(*relative.parts): content for relative, content in rendered.items()}
@@ -124,11 +126,30 @@ async def _desired(root: Path, request: DiscoveredGeneration) -> tuple[Path, dic
     manifest = GenerationManifest(
         FORMAT_VERSION, request.location.request_id, request.location.source_package,
         provider.__module__, provider.__qualname__, provider.VERSION, fingerprint,
+        package.source_digest,
         tuple(path.as_posix() for path in relative_files), _owned_directories(relative_files),
         {path.as_posix(): sha256(rendered[path].encode()).hexdigest() for path in relative_files},
     )
     desired[product / MANIFEST] = _manifest_text(manifest)
-    return product, desired, manifest, dependencies
+    return product, desired, manifest
+
+
+def _product_is_current(product: Path, manifest: GenerationManifest, fingerprint: str) -> bool:
+    """Whether a committed product still matches its manifest exactly.
+
+    The manifest records the request fingerprint and the hash of every owned
+    file, so a current product needs no provider observation at all: the
+    request has not changed, and the tracked reference is what the manifest
+    vouches for.
+    """
+    if manifest.format_version != FORMAT_VERSION: return False
+    if manifest.request_fingerprint != fingerprint: return False
+    if set(manifest.owned_file_hashes) != set(manifest.owned_files): return False
+    for relative, expected in manifest.owned_file_hashes.items():
+        path = product.joinpath(*_safe_owned(relative).parts)
+        if not path.is_file(): return False
+        if sha256(path.read_text(encoding="utf-8").encode()).hexdigest() != expected: return False
+    return True
 
 
 def _existing_manifests(root: Path) -> tuple[Path, ...]:
@@ -184,24 +205,39 @@ def _prune(product: Path, manifest: GenerationManifest, files: Iterable[Path] | 
     return removed
 
 
-async def generate(project_root: str | Path, *, check: bool = False) -> GenerationResult:
-    """Generate or validate all requests as one desired-state pass."""
+async def generate(project_root: str | Path, *, check: bool = False, regenerate: bool = False) -> GenerationResult:
+    """Generate or validate all requests as one desired-state pass.
+
+    A product whose manifest still matches its request fingerprint and file
+    hashes is taken as current without observing its sources: data is a
+    reference, not a tracked input, so nothing outside the declarations can
+    make a product stale. ``regenerate`` forces every provider to re-observe,
+    which is how a source schema change is deliberately pulled into the
+    project; combined with ``check`` it reports that drift without writing.
+    """
     root = Path(project_root).resolve()
     requests = discover(root)
-    products: list[tuple[DiscoveredGeneration, Path, dict[Path, str], GenerationManifest, tuple[Path, ...]]] = []
+    products: list[tuple[DiscoveredGeneration, Path, dict[Path, str], GenerationManifest]] = []
     desired_product_paths: set[Path] = set()
     for request in requests:
-        product, desired, manifest, dependencies = await _desired(root, request)
-        resolved = product.resolve()
-        if resolved in desired_product_paths: raise GenerationError(f"generated product collision at {product}")
+        declared_product = root / request.product_path
+        resolved = declared_product.resolve()
+        if resolved in desired_product_paths: raise GenerationError(f"generated product collision at {declared_product}")
         desired_product_paths.add(resolved)
-        products.append((request, product, desired, manifest, dependencies))
+        manifest_path = declared_product / MANIFEST
+        if not regenerate and manifest_path.is_file():
+            existing = _load_manifest(manifest_path)
+            provider, _config = load_provider(request.request)
+            if _product_is_current(resolved, existing, generation_fingerprint(request, provider.VERSION)):
+                continue
+        product, desired, manifest = await _desired(root, request)
+        products.append((request, product, desired, manifest))
 
     orphan_manifests = tuple(path for path in _existing_manifests(root) if path.parent.resolve() not in desired_product_paths)
     stale: list[Path] = []
     obsolete_by_product: list[tuple[Path, GenerationManifest, list[Path]]] = []
     try:
-        for _request, product, desired, manifest, _dependencies in products:
+        for _request, product, desired, manifest in products:
             changed, obsolete = _compare_product(product, desired, manifest)
             stale.extend(changed); stale.extend(obsolete)
             old_manifest = _load_manifest(product / MANIFEST) if (product / MANIFEST).exists() else None
@@ -231,14 +267,14 @@ async def generate(project_root: str | Path, *, check: bool = False) -> Generati
             if manifest_path.parent.joinpath(*_safe_owned(relative).parts).exists()
         )
         deleted_absolute.add(manifest_path)
-    desired_absolute = {path for _request, _product, desired, _manifest, _dependencies in products for path in desired}
+    desired_absolute = {path for _request, _product, desired, _manifest in products for path in desired}
     created_absolute = {path for path in desired_absolute if path in stale and not path.exists()}
     updated_absolute = {path for path in desired_absolute if path in stale and path.exists()}
 
     # All providers, paths, ownership, and collisions have been validated before mutation.
     for product, old, obsolete in obsolete_by_product: _prune(product, old, obsolete)
     for path in orphan_manifests: _prune(path.parent, _load_manifest(path), remove_manifest=True)
-    for _request, _product, desired, _manifest, _dependencies in products:
+    for _request, _product, desired, _manifest in products:
         _prune_bytecode(path for path, content in desired.items() if path.suffix == ".py" and path.exists() and path.read_text(encoding="utf-8") != content)
         for path, content in sorted(desired.items(), key=lambda item: (item[0].name == MANIFEST, item[0].as_posix())):
             if not path.exists() or path.read_text(encoding="utf-8") != content: _atomic_write(path, content)
@@ -255,31 +291,20 @@ async def generate(project_root: str | Path, *, check: bool = False) -> Generati
 
 
 class GenerationSession:
-    """Complete baseline and dependency index for incremental watch mode."""
+    """Complete baseline and declaration index for incremental watch mode."""
     def __init__(self, project_root: str | Path) -> None:
         self.root = Path(project_root).resolve()
         self._by_source: dict[Path, tuple[DiscoveredGeneration, ...]] = {}
-        self._by_dependency: dict[Path, set[Path]] = defaultdict(set)
-        self._dependency_fingerprints: dict[Path, str | None] = {}
         self._products: tuple[Path, ...] = ()
 
     async def _index(self) -> None:
         requests = discover(self.root)
         by_source: dict[Path, list[DiscoveredGeneration]] = defaultdict(list)
-        dependencies: dict[Path, set[Path]] = defaultdict(set)
         products: list[Path] = []
         for request in requests:
             by_source[request.location.source_path].append(request)
             products.append((self.root / request.product_path).resolve())
-            provider, config = load_provider(request.request)
-            context = ProviderContext(self.root, request.location.source_path, request.location.request_id, config)
-            for dependency in await provider.dependencies(context): dependencies[dependency.resolve()].add(request.location.source_path)
         self._by_source = {path: tuple(values) for path, values in by_source.items()}
-        self._by_dependency = dependencies
-        self._dependency_fingerprints = {
-            path: sha256(path.read_bytes()).hexdigest() if path.is_file() else None
-            for path in dependencies
-        }
         self._products = tuple(sorted(set(self._products).union(products), key=lambda path: path.as_posix()))
 
     async def start(self) -> GenerationResult:
@@ -311,17 +336,6 @@ class GenerationSession:
                         actions.append(GenerationAction(GenerationActionKind.DECLARATION_DELETED, source, (source,), old.package_import))
                     elif old != new and new is not None:
                         actions.append(GenerationAction(GenerationActionKind.DECLARATION_CHANGED, source, (source,), new.package_import))
-            elif absolute in self._by_dependency:
-                fingerprint = sha256(absolute.read_bytes()).hexdigest() if absolute.is_file() else None
-                if fingerprint != self._dependency_fingerprints.get(absolute):
-                    for source_path in sorted(self._by_dependency[absolute]):
-                        for request in self._by_source.get(source_path, ()):
-                            actions.append(GenerationAction(
-                                GenerationActionKind.DEPENDENCY,
-                                absolute.relative_to(self.root),
-                                (source_path.relative_to(self.root),),
-                                request.package_import,
-                            ))
         if not actions: return GenerationResult(GenerationStatus.CURRENT)
         if on_action is not None:
             for action in actions:

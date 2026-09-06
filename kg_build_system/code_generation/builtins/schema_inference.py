@@ -3,7 +3,8 @@
 from __future__ import annotations
 
 import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
+import hashlib
 import keyword
 import logging
 from pathlib import Path, PurePosixPath
@@ -388,6 +389,34 @@ class _Inference:
     promoted: set[str] = field(default_factory=set)
     columns: dict[str, set[str]] = field(default_factory=dict)
     nested_members: set[str] = field(default_factory=set)
+    #: Normalized schema facts, appended per relation in processing order, from
+    #: which the provider computes its source digest. They record what was
+    #: observed, so a regeneration can tell an author whether the source moved.
+    schema_facts: list[str] = field(default_factory=list)
+
+
+def _schema_facts(
+    *, class_name: str, relation: str, sources: tuple[str, ...],
+    hive_partitioned: bool,
+    described: tuple[tuple[str, str, Nullability], ...],
+    nodes: tuple["_ParquetNode", ...],
+) -> list[str]:
+    """The observed schema of one relation, in a digestible normalized form.
+
+    Only schema-bearing facts are recorded — never file bytes, names, sizes,
+    or locations — so row churn and machine layout leave the digest alone
+    while any change to columns, types, nullability, or nested shape moves it.
+    """
+    facts = [
+        f"relation {relation} class {class_name} sources {len(sources)} hive {int(hive_partitioned)}",
+    ]
+    facts.extend(f"column {name} {type_name} {nullability.value}" for name, type_name, nullability in described)
+    facts.extend(f"node {name} {repetition} {duckdb_type}" for name, repetition, duckdb_type in _node_shape(nodes))
+    return facts
+
+
+def _schema_digest(inference: _Inference) -> str:
+    return hashlib.sha256("\n".join(inference.schema_facts).encode(encoding="utf-8")).hexdigest()
 
 
 def _register(
@@ -921,29 +950,17 @@ class DataContractInferenceConfig(ProviderGenerationConfig):
 
 
 class InferDataContractProvider(Provider[DataContractInferenceConfig]):
-    """Infer portable table or table-group declarations from a data input."""
+    """Infer portable table or table-group declarations from a data input.
+
+    The configured source is observed when a request is generated or the
+    project is explicitly regenerated, never tracked: its location is a
+    reference, and the observed schema's digest rides along in the manifest
+    as provenance.
+    """
 
     ID: ClassVar[str] = "infer_data_contract"
     VERSION: ClassVar[str] = "3"
     CONFIG_TYPE: ClassVar[type[ProviderGenerationConfig]] = DataContractInferenceConfig
-
-    @classmethod
-    async def dependencies(cls, context: ProviderContext[DataContractInferenceConfig]) -> tuple[Path, ...]:
-        return await asyncio.to_thread(cls._dependencies, context)
-
-    @classmethod
-    def _dependencies(cls, context: ProviderContext[DataContractInferenceConfig]) -> tuple[Path, ...]:
-        if _remote_source(context.config.source):
-            return ()
-        source = context.resolve_path(context.config.source)
-        if source.is_dir():
-            return tuple(
-                path for path in sorted(source.rglob("*"), key=lambda item: item.as_posix())
-                if path.is_file() and path.suffix.lower() in {
-                    ".csv", ".tsv", ".json", ".jsonl", ".ndjson", ".parquet", ".pq",
-                }
-            )
-        return (source,)
 
     @classmethod
     def _relations(cls, connection: duckdb.DuckDBPyConnection, source: str) -> tuple[str, ...]:
@@ -1006,8 +1023,8 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
     def _members(
         cls,
         *,
-        connection: duckdb.DuckDBPyConnection,
         described: tuple[tuple[str, str, Nullability], ...],
+        nodes: tuple["_ParquetNode", ...],
         sources: tuple[str, ...],
         class_prefix: str,
         inference: _Inference,
@@ -1026,8 +1043,6 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         read for shape: it is the author's own word about what the column means, and
         the scan's checked cast is what tests it against the values.
         """
-        suffix = _source_suffix(sources[0])
-        nodes = _parquet_trees(connection, sources) if suffix in _PARQUET_SUFFIXES else ()
         by_column = {node.name: node for node in nodes}
         unbacked = sorted(set(by_column) - {name for name, _type, _null in described})
         if unbacked:
@@ -1072,8 +1087,12 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
             connection, sources, relation, hive_partitioned=hive_partitioned,
         )
         try:
+            nodes = (
+                _parquet_trees(connection, sources)
+                if _source_suffix(sources[0]) in _PARQUET_SUFFIXES else ()
+            )
             for field_, nested in cls._members(
-                connection=connection, described=described_fields, sources=sources,
+                described=described_fields, nodes=nodes, sources=sources,
                 class_prefix=class_name, inference=inference,
             ):
                 previous = inference.used_names.get(field_.python_name)
@@ -1088,6 +1107,11 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
             if not fields:
                 raise GenerationError(f"relation {relation!r} has no columns")
             inference.columns[relation] = {field.external_name for field in fields}
+            inference.schema_facts.extend(_schema_facts(
+                class_name=class_name, relation=relation, sources=sources,
+                hive_partitioned=hive_partitioned, described=described_fields,
+                nodes=nodes,
+            ))
         except GenerationError as error:
             resource = sources[0]
             additional = (
@@ -1239,7 +1263,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                         _load_remote_access(connection, item)
                 package = cls._table_group_package(context, tables, connection, inference)
                 _require_promoted_columns(inference)
-                return package
+                return replace(package, source_digest=_schema_digest(inference))
             finally:
                 connection.close()
         if path is not None and not path.exists():
@@ -1267,12 +1291,13 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
             )
             cls._report_null_statistics(connection, (source,), inference)
             _require_promoted_columns(inference)
-            return GeneratedPackage(
+            package = GeneratedPackage(
                 (GeneratedFile(Path("__init__.py"), classes, (class_name,)),),
                 (_nullability_note(
                     _tier_for_suffix(_source_suffix(source)), source, (source,), relation,
                 ),),
             )
+            return replace(package, source_digest=_schema_digest(inference))
         finally:
             connection.close()
 

@@ -1074,7 +1074,7 @@ class ProvenanceHeaderTests(unittest.TestCase):
             second = (root / "contracts" / "notes" / "__init__.py").read_text(encoding="utf-8")
             self.assertEqual(first, second)
 
-    def test_an_existing_product_goes_stale_once_then_current(self) -> None:
+    def test_a_source_schema_change_is_pulled_in_only_by_regeneration(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory) / "project"
             (root / "data").mkdir(parents=True)
@@ -1088,12 +1088,22 @@ class ProvenanceHeaderTests(unittest.TestCase):
             (root / "data" / "n.json").write_text(
                 json.dumps([{"id": 1, "note": "new"}]), encoding="utf-8",
             )
-            self.assertIs(
-                asyncio.run(generate(root, check=True)).status, GenerationStatus.STALE,
-            )
-            asyncio.run(generate(root))
+            # The source is a reference, not a tracked input: no data change
+            # makes a product stale until an author re-observes it.
             self.assertIs(
                 asyncio.run(generate(root, check=True)).status, GenerationStatus.CURRENT,
+            )
+            # An explicit regeneration pass sees the drift without writing it.
+            self.assertIs(
+                asyncio.run(generate(root, check=True, regenerate=True)).status,
+                GenerationStatus.STALE,
+            )
+            asyncio.run(generate(root, regenerate=True))
+            self.assertIs(
+                asyncio.run(generate(root, check=True)).status, GenerationStatus.CURRENT,
+            )
+            self.assertIn(
+                "note", (root / "contracts" / "notes" / "__init__.py").read_text(encoding="utf-8"),
             )
 
 

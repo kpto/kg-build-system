@@ -25,12 +25,6 @@ def _report_action(action: GenerationAction) -> None:
         _LOGGER.info("Generation declaration changed: %s. Processing...", declaration)
     elif action.kind is GenerationActionKind.DECLARATION_DELETED:
         _LOGGER.info("Generation declaration deleted: %s. Processing...", declaration)
-    else:
-        _LOGGER.info(
-            "Dependency %s changed for generation declaration %s. Processing...",
-            action.trigger_path.as_posix(),
-            declaration,
-        )
 
 
 def _report_outputs(result: GenerationResult) -> None:
@@ -57,9 +51,26 @@ def add_generate_command(commands: Any) -> None:
     generate = commands.add_parser("generate", help="generate edit-time declaration code")
     generate.add_argument("--watch", action="store_true", help="watch project files for changes")
     generate.add_argument("--check", action="store_true", help="check generated files without changing them")
+    generate.add_argument(
+        "--regenerate", action="store_true",
+        help="re-observe every source and regenerate every product, even current ones",
+    )
     generate.add_argument("--project", type=Path, default=Path.cwd(), help="project directory to watch")
     generate.add_argument("--debounce", type=int, default=300, help="change debounce in milliseconds")
     generate.set_defaults(command_handler=run_generate)
+
+
+async def _execute_pass(root: Path, *, check: bool, regenerate: bool = False) -> int:
+    """Run one desired-state pass and render its outcome as a CLI status."""
+    try:
+        result = await generate(root, check=check, regenerate=regenerate)
+    except (GenerationError, OSError) as error:
+        _LOGGER.error("Generation failed: %s", error)
+        return 1
+    for diagnostic in result.diagnostics:
+        _LOGGER.error("%s", diagnostic)
+    _report_outputs(result)
+    return 1 if result.status is GenerationStatus.STALE else 0
 
 
 async def run_generate(arguments: argparse.Namespace) -> int:
@@ -67,16 +78,10 @@ async def run_generate(arguments: argparse.Namespace) -> int:
     root = arguments.project.resolve()
     if arguments.watch and arguments.check:
         raise ValueError("--watch and --check cannot be combined")
+    if arguments.watch and arguments.regenerate:
+        raise ValueError("--regenerate is a single re-observation pass and cannot be combined with --watch")
     if not arguments.watch:
-        try:
-            result = await generate(root, check=arguments.check)
-        except (GenerationError, OSError) as error:
-            _LOGGER.error("Generation failed: %s", error)
-            return 1
-        for diagnostic in result.diagnostics:
-            _LOGGER.error("%s", diagnostic)
-        _report_outputs(result)
-        return 1 if result.status is GenerationStatus.STALE else 0
+        return await _execute_pass(root, check=arguments.check, regenerate=arguments.regenerate)
 
     _LOGGER.info("Running initial generation pass for %s...", root)
     session = GenerationSession(root)
