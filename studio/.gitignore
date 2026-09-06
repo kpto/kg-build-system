@@ -1,0 +1,16 @@
+# tooling artifacts
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+.npm-cache/
+
+# frontend artifacts
+frontend/node_modules/
+frontend/.next/
+frontend/out/
+frontend/tsconfig.tsbuildinfo
+
+# runtime state
+runs/
+anchors.json

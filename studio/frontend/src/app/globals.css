@@ -1,0 +1,116 @@
+@import "tailwindcss";
+
+/*
+ * One token set for the whole studio. Feature areas must use these rather than
+ * inventing colours, so the topology canvas, the binding stack and the plan view
+ * read as one tool. Hues match the generated meta_graph page, which draws the
+ * same vocabulary: blue node components, green relations, purple edge categories,
+ * grey dashed hierarchy.
+ */
+@theme {
+  --color-canvas: #0a0c11;
+  --color-surface: #10141c;
+  --color-raised: #161c26;
+  --color-overlay: #1c2430;
+  --color-edge: #232c3a;
+  --color-edge-strong: #35435a;
+  --color-ink: #e6e9ef;
+  --color-muted: #8c98ab;
+  --color-faint: #5c6779;
+
+  --color-node: #4c8dff;
+  --color-node-soft: #1b2a45;
+  --color-category: #8494ab;
+  --color-relation: #35c98d;
+  --color-relation-soft: #12312a;
+  --color-edgekind: #b57bff;
+  --color-template: #d8a657;
+
+  --color-danger: #ff6b6b;
+  --color-warn: #ffb547;
+  --color-ok: #35c98d;
+  --color-info: #4c8dff;
+
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+}
+
+html,
+body {
+  height: 100%;
+  background: var(--color-canvas);
+  color: var(--color-ink);
+}
+
+body {
+  font-family:
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    "Segoe UI",
+    sans-serif;
+  font-size: 13px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* Scrollbars stay inside the dark surface instead of flashing a light gutter. */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--color-edge-strong) transparent;
+}
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-edge-strong);
+  border-radius: 6px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+:focus-visible {
+  outline: 1px solid var(--color-info);
+  outline-offset: 1px;
+}
+
+/* React Flow chrome, retargeted at the studio palette. */
+.react-flow__attribution {
+  display: none;
+}
+.react-flow__edge-path {
+  stroke-width: 1.6;
+}
+.react-flow__handle {
+  width: 9px;
+  height: 9px;
+  border-radius: 9999px;
+  border: none;
+  background: var(--color-edge-strong);
+}
+.react-flow__handle:hover {
+  background: var(--color-info);
+}
+.react-flow__node.selected .studio-card {
+  border-color: var(--color-info);
+  box-shadow: 0 0 0 1px var(--color-info);
+}
+
+@utility studio-card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-edge);
+  border-radius: 8px;
+}
+
+@utility studio-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 1px 7px;
+  border-radius: 5px;
+  border: 1px solid var(--color-edge);
+  background: var(--color-raised);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--color-ink);
+}

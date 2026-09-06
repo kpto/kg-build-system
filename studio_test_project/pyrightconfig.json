@@ -1,0 +1,16 @@
+{
+  "include": [
+    "studio_test_project"
+  ],
+  "exclude": [
+    "studio_test_project/**/__pycache__"
+  ],
+  "typeCheckingMode": "basic",
+  "strict": [
+    "studio_test_project"
+  ],
+  "reportMissingTypeStubs": false,
+  "venvPath": "/home/paul/Repos/kg-build-system/studio/backend",
+  "venv": ".venv",
+  "pythonVersion": "3.12"
+}

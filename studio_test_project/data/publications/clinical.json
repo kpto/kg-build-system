@@ -1,0 +1,5 @@
+[
+  {"publication_id": "P-1001", "target_id": "T-0001", "phase": "III", "subjects": 412, "reported_on": "2026-03-14T09:30", "outcome": "positive"},
+  {"publication_id": "P-1002", "target_id": "T-0002", "phase": "II", "subjects": 96, "reported_on": "2026-04-02T14:05", "outcome": null},
+  {"publication_id": "P-1003", "target_id": "T-0002", "phase": null, "subjects": null, "reported_on": "2026-05-20T08:00", "outcome": "inconclusive"}
+]

@@ -1,0 +1,2475 @@
+{
+ "fingerprint": "047c1f911ccf479206fc3923f81599747c6e617d3b8d36f2e755c8fbdca74c20",
+ "modules": [
+  {
+   "id": "file",
+   "label": "File",
+   "implementation_version": "1",
+   "role": "target",
+   "runtime_fields": [
+    "relative_path"
+   ]
+  },
+  {
+   "id": "neo4j",
+   "label": "Neo4J",
+   "implementation_version": "2",
+   "role": "target",
+   "runtime_fields": [
+    "relative_directory"
+   ]
+  },
+  {
+   "id": "meta_graph",
+   "label": "Meta Graph",
+   "implementation_version": "2",
+   "role": "target",
+   "runtime_fields": []
+  },
+  {
+   "id": "collapse_exact_duplicates",
+   "label": "Collapse Exact Duplicates",
+   "implementation_version": "1",
+   "role": "operator",
+   "runtime_fields": []
+  },
+  {
+   "id": "core",
+   "label": "Core",
+   "implementation_version": "3",
+   "role": "core",
+   "runtime_fields": []
+  }
+ ],
+ "nodes": [
+  {
+   "id": "file::write",
+   "module_id": "file",
+   "label": "graph.jsonl",
+   "kind": "publish",
+   "component": null,
+   "order": 0,
+   "inputs": [
+    {
+     "slot_id": "file::write.records",
+     "role": "records"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "file::write.result",
+     "role": "workflow.publication.file.write_result"
+    }
+   ],
+   "sql": null,
+   "relation": null,
+   "action": null,
+   "notes": [],
+   "payload_keys": []
+  },
+  {
+   "id": "neo4j::export.edge.has_observation-fe573bcd",
+   "module_id": "neo4j",
+   "label": "edge:has_observation",
+   "kind": "export",
+   "component": "component:has_observation",
+   "order": 1,
+   "inputs": [
+    {
+     "slot_id": "neo4j::export.edge.has_observation-fe573bcd.records",
+     "role": "records"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "neo4j::export.edge.has_observation-fe573bcd.result",
+     "role": "neo4j.component.edge.python:edge:reference_project.topology.defect.has_observation__observation:HasObservationEdge"
+    }
+   ],
+   "sql": null,
+   "relation": null,
+   "action": "export_component",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "component"
+   ]
+  },
+  {
+   "id": "neo4j::export.edge.observed_during-c607ddca",
+   "module_id": "neo4j",
+   "label": "edge:observed_during",
+   "kind": "export",
+   "component": "component:observed_during",
+   "order": 2,
+   "inputs": [
+    {
+     "slot_id": "neo4j::export.edge.observed_during-c607ddca.records",
+     "role": "records"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "neo4j::export.edge.observed_during-c607ddca.result",
+     "role": "neo4j.component.edge.python:edge:reference_project.topology.defect.observed_during__survey_visit:ObservedDuringEdge"
+    }
+   ],
+   "sql": null,
+   "relation": null,
+   "action": "export_component",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "component"
+   ]
+  },
+  {
+   "id": "neo4j::export.edge.has_unit-fe3e5b7c",
+   "module_id": "neo4j",
+   "label": "edge:has_unit",
+   "kind": "export",
+   "component": "component:has_unit",
+   "order": 3,
+   "inputs": [
+    {
+     "slot_id": "neo4j::export.edge.has_unit-fe3e5b7c.records",
+     "role": "records"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "neo4j::export.edge.has_unit-fe3e5b7c.result",
+     "role": "neo4j.component.edge.python:edge:reference_project.topology.site.has_unit__unit:HasUnitEdge"
+    }
+   ],
+   "sql": null,
+   "relation": null,
+   "action": "export_component",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "component"
+   ]
+  },
+  {
+   "id": "neo4j::export.edge.surveyed_at-7261d3e5",
+   "module_id": "neo4j",
+   "label": "edge:surveyed_at",
+   "kind": "export",
+   "component": "component:surveyed_at",
+   "order": 4,
+   "inputs": [
+    {
+     "slot_id": "neo4j::export.edge.surveyed_at-7261d3e5.records",
+     "role": "records"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "neo4j::export.edge.surveyed_at-7261d3e5.result",
+     "role": "neo4j.component.edge.python:edge:reference_project.topology.survey.surveyed_at__site:SurveyedAtEdge"
+    }
+   ],
+   "sql": null,
+   "relation": null,
+   "action": "export_component",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "component"
+   ]
+  },
+  {
+   "id": "neo4j::export.edge.has_defect-81650e4d",
+   "module_id": "neo4j",
+   "label": "edge:has_defect",
+   "kind": "export",
+   "component": "component:has_defect",
+   "order": 5,
+   "inputs": [
+    {
+     "slot_id": "neo4j::export.edge.has_defect-81650e4d.records",
+     "role": "records"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "neo4j::export.edge.has_defect-81650e4d.result",
+     "role": "neo4j.component.edge.python:edge:reference_project.topology.unit.has_defect__defect:HasDefectEdge"
+    }
+   ],
+   "sql": null,
+   "relation": null,
+   "action": "export_component",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "component"
+   ]
+  },
+  {
+   "id": "neo4j::export.edge.measures-f9de5df0",
+   "module_id": "neo4j",
+   "label": "edge:measures",
+   "kind": "export",
+   "component": "component:measures",
+   "order": 6,
+   "inputs": [
+    {
+     "slot_id": "neo4j::export.edge.measures-f9de5df0.records",
+     "role": "records"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "neo4j::export.edge.measures-f9de5df0.result",
+     "role": "neo4j.component.edge.python:edge:reference_project.topology.unit.measures__reading:MeasuresEdge"
+    }
+   ],
+   "sql": null,
+   "relation": null,
+   "action": "export_component",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "component"
+   ]
+  },
+  {
+   "id": "neo4j::export.node.defect-57c187c4",
+   "module_id": "neo4j",
+   "label": "node:defect",
+   "kind": "export",
+   "component": "component:defect",
+   "order": 7,
+   "inputs": [
+    {
+     "slot_id": "neo4j::export.node.defect-57c187c4.records",
+     "role": "records"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "neo4j::export.node.defect-57c187c4.result",
+     "role": "neo4j.component.node.python:node:reference_project.topology.defect:DefectNode"
+    }
+   ],
+   "sql": null,
+   "relation": null,
+   "action": "export_component",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "component"
+   ]
+  },
+  {
+   "id": "neo4j::export.node.observation-732d7f86",
+   "module_id": "neo4j",
+   "label": "node:observation",
+   "kind": "export",
+   "component": "component:observation",
+   "order": 8,
+   "inputs": [
+    {
+     "slot_id": "neo4j::export.node.observation-732d7f86.records",
+     "role": "records"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "neo4j::export.node.observation-732d7f86.result",
+     "role": "neo4j.component.node.python:node:reference_project.topology.observation:ObservationNode"
+    }
+   ],
+   "sql": null,
+   "relation": null,
+   "action": "export_component",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "component"
+   ]
+  },
+  {
+   "id": "neo4j::export.node.reading-5aa1de0e",
+   "module_id": "neo4j",
+   "label": "node:reading",
+   "kind": "export",
+   "component": "component:reading",
+   "order": 9,
+   "inputs": [
+    {
+     "slot_id": "neo4j::export.node.reading-5aa1de0e.records",
+     "role": "records"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "neo4j::export.node.reading-5aa1de0e.result",
+     "role": "neo4j.component.node.python:node:reference_project.topology.reading:ReadingNode"
+    }
+   ],
+   "sql": null,
+   "relation": null,
+   "action": "export_component",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "component"
+   ]
+  },
+  {
+   "id": "neo4j::export.node.site-e29c0d4f",
+   "module_id": "neo4j",
+   "label": "node:site",
+   "kind": "export",
+   "component": "component:site",
+   "order": 10,
+   "inputs": [
+    {
+     "slot_id": "neo4j::export.node.site-e29c0d4f.records",
+     "role": "records"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "neo4j::export.node.site-e29c0d4f.result",
+     "role": "neo4j.component.node.python:node:reference_project.topology.site:SiteNode"
+    }
+   ],
+   "sql": null,
+   "relation": null,
+   "action": "export_component",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "component"
+   ]
+  },
+  {
+   "id": "neo4j::export.node.survey_visit-98907ebc",
+   "module_id": "neo4j",
+   "label": "node:survey_visit",
+   "kind": "export",
+   "component": "component:survey_visit",
+   "order": 11,
+   "inputs": [
+    {
+     "slot_id": "neo4j::export.node.survey_visit-98907ebc.records",
+     "role": "records"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "neo4j::export.node.survey_visit-98907ebc.result",
+     "role": "neo4j.component.node.python:node:reference_project.topology.survey:SurveyVisitNode"
+    }
+   ],
+   "sql": null,
+   "relation": null,
+   "action": "export_component",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "component"
+   ]
+  },
+  {
+   "id": "neo4j::export.node.unit-e89ea900",
+   "module_id": "neo4j",
+   "label": "node:unit",
+   "kind": "export",
+   "component": "component:unit",
+   "order": 12,
+   "inputs": [
+    {
+     "slot_id": "neo4j::export.node.unit-e89ea900.records",
+     "role": "records"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "neo4j::export.node.unit-e89ea900.result",
+     "role": "neo4j.component.node.python:node:reference_project.topology.unit:UnitNode"
+    }
+   ],
+   "sql": null,
+   "relation": null,
+   "action": "export_component",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "component"
+   ]
+  },
+  {
+   "id": "neo4j::script",
+   "module_id": "neo4j",
+   "label": "import script",
+   "kind": "script",
+   "component": null,
+   "order": 13,
+   "inputs": [
+    {
+     "slot_id": "neo4j::script.components",
+     "role": "components"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "neo4j::script.result",
+     "role": "workflow.publication.neo4j.import_bundle"
+    }
+   ],
+   "sql": null,
+   "relation": null,
+   "action": "write_script",
+   "notes": [
+    "12 components"
+   ],
+   "payload_keys": [
+    "action",
+    "components",
+    "default_database",
+    "script_name"
+   ]
+  },
+  {
+   "id": "meta_graph::document",
+   "module_id": "meta_graph",
+   "label": "meta graph",
+   "kind": "document",
+   "component": null,
+   "order": 14,
+   "inputs": [
+    {
+     "slot_id": "meta_graph::document.records",
+     "role": "records"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "meta_graph::document.result",
+     "role": "workflow.publication.meta_graph.meta_graph_document"
+    }
+   ],
+   "sql": null,
+   "relation": null,
+   "action": null,
+   "notes": [
+    "→ meta_graph.json",
+    "14 components"
+   ],
+   "payload_keys": [
+    "components",
+    "example_limit",
+    "html_relative_path",
+    "include_html",
+    "relative_path",
+    "schema_version"
+   ]
+  },
+  {
+   "id": "collapse_exact_duplicates::has_observation",
+   "module_id": "collapse_exact_duplicates",
+   "label": "has_observation",
+   "kind": "operator",
+   "component": "component:has_observation",
+   "order": 15,
+   "inputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::has_observation.input",
+     "role": "input"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::has_observation.output",
+     "role": "core.graph.edge.has_observation"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_distinct_has_observation",
+   "action": null,
+   "notes": [],
+   "payload_keys": [
+    "relation"
+   ]
+  },
+  {
+   "id": "collapse_exact_duplicates::observed_during",
+   "module_id": "collapse_exact_duplicates",
+   "label": "observed_during",
+   "kind": "operator",
+   "component": "component:observed_during",
+   "order": 16,
+   "inputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::observed_during.input",
+     "role": "input"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::observed_during.output",
+     "role": "core.graph.edge.observed_during"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_distinct_observed_during",
+   "action": null,
+   "notes": [],
+   "payload_keys": [
+    "relation"
+   ]
+  },
+  {
+   "id": "collapse_exact_duplicates::has_unit",
+   "module_id": "collapse_exact_duplicates",
+   "label": "has_unit",
+   "kind": "operator",
+   "component": "component:has_unit",
+   "order": 17,
+   "inputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::has_unit.input",
+     "role": "input"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::has_unit.output",
+     "role": "core.graph.edge.has_unit"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_distinct_has_unit",
+   "action": null,
+   "notes": [],
+   "payload_keys": [
+    "relation"
+   ]
+  },
+  {
+   "id": "collapse_exact_duplicates::surveyed_at",
+   "module_id": "collapse_exact_duplicates",
+   "label": "surveyed_at",
+   "kind": "operator",
+   "component": "component:surveyed_at",
+   "order": 18,
+   "inputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::surveyed_at.input",
+     "role": "input"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::surveyed_at.output",
+     "role": "core.graph.edge.surveyed_at"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_distinct_surveyed_at",
+   "action": null,
+   "notes": [],
+   "payload_keys": [
+    "relation"
+   ]
+  },
+  {
+   "id": "collapse_exact_duplicates::has_defect",
+   "module_id": "collapse_exact_duplicates",
+   "label": "has_defect",
+   "kind": "operator",
+   "component": "component:has_defect",
+   "order": 19,
+   "inputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::has_defect.input",
+     "role": "input"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::has_defect.output",
+     "role": "core.graph.edge.has_defect"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_distinct_has_defect",
+   "action": null,
+   "notes": [],
+   "payload_keys": [
+    "relation"
+   ]
+  },
+  {
+   "id": "collapse_exact_duplicates::measures",
+   "module_id": "collapse_exact_duplicates",
+   "label": "measures",
+   "kind": "operator",
+   "component": "component:measures",
+   "order": 20,
+   "inputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::measures.input",
+     "role": "input"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::measures.output",
+     "role": "core.graph.edge.measures"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_distinct_measures",
+   "action": null,
+   "notes": [],
+   "payload_keys": [
+    "relation"
+   ]
+  },
+  {
+   "id": "collapse_exact_duplicates::defect",
+   "module_id": "collapse_exact_duplicates",
+   "label": "defect",
+   "kind": "operator",
+   "component": "component:defect",
+   "order": 21,
+   "inputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::defect.input",
+     "role": "input"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::defect.output",
+     "role": "core.graph.node.defect"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_distinct_defect",
+   "action": null,
+   "notes": [],
+   "payload_keys": [
+    "relation"
+   ]
+  },
+  {
+   "id": "collapse_exact_duplicates::observation",
+   "module_id": "collapse_exact_duplicates",
+   "label": "observation",
+   "kind": "operator",
+   "component": "component:observation",
+   "order": 22,
+   "inputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::observation.input",
+     "role": "input"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::observation.output",
+     "role": "core.graph.node.observation"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_distinct_observation",
+   "action": null,
+   "notes": [],
+   "payload_keys": [
+    "relation"
+   ]
+  },
+  {
+   "id": "collapse_exact_duplicates::reading",
+   "module_id": "collapse_exact_duplicates",
+   "label": "reading",
+   "kind": "operator",
+   "component": "component:reading",
+   "order": 23,
+   "inputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::reading.input",
+     "role": "input"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::reading.output",
+     "role": "core.graph.node.reading"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_distinct_reading",
+   "action": null,
+   "notes": [],
+   "payload_keys": [
+    "relation"
+   ]
+  },
+  {
+   "id": "collapse_exact_duplicates::site",
+   "module_id": "collapse_exact_duplicates",
+   "label": "site",
+   "kind": "operator",
+   "component": "component:site",
+   "order": 24,
+   "inputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::site.input",
+     "role": "input"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::site.output",
+     "role": "core.graph.node.site"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_distinct_site",
+   "action": null,
+   "notes": [],
+   "payload_keys": [
+    "relation"
+   ]
+  },
+  {
+   "id": "collapse_exact_duplicates::survey_visit",
+   "module_id": "collapse_exact_duplicates",
+   "label": "survey_visit",
+   "kind": "operator",
+   "component": "component:survey_visit",
+   "order": 25,
+   "inputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::survey_visit.input",
+     "role": "input"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::survey_visit.output",
+     "role": "core.graph.node.survey_visit"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_distinct_survey_visit",
+   "action": null,
+   "notes": [],
+   "payload_keys": [
+    "relation"
+   ]
+  },
+  {
+   "id": "collapse_exact_duplicates::unit",
+   "module_id": "collapse_exact_duplicates",
+   "label": "unit",
+   "kind": "operator",
+   "component": "component:unit",
+   "order": 26,
+   "inputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::unit.input",
+     "role": "input"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "collapse_exact_duplicates::unit.output",
+     "role": "core.graph.node.unit"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_distinct_unit",
+   "action": null,
+   "notes": [],
+   "payload_keys": [
+    "relation"
+   ]
+  },
+  {
+   "id": "core::table.equipment",
+   "module_id": "core",
+   "label": "equipment",
+   "kind": "table",
+   "component": "table:equipment",
+   "order": 27,
+   "inputs": [],
+   "outputs": [
+    {
+     "slot_id": "core::table.equipment.output",
+     "role": "core.data.table.equipment"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_table_0",
+   "action": "source_relation",
+   "notes": [
+    "← /home/paul/Repos/kg-build-system/reference_project/data/equipment.json"
+   ],
+   "payload_keys": [
+    "action",
+    "credential_reference",
+    "declaration",
+    "declared_columns",
+    "declared_paths",
+    "format",
+    "location",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::table.sites",
+   "module_id": "core",
+   "label": "sites",
+   "kind": "table",
+   "component": "table:sites",
+   "order": 28,
+   "inputs": [],
+   "outputs": [
+    {
+     "slot_id": "core::table.sites.output",
+     "role": "core.data.table.sites"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_table_1",
+   "action": "source_relation",
+   "notes": [
+    "← /home/paul/Repos/kg-build-system/reference_project/data/sites.json"
+   ],
+   "payload_keys": [
+    "action",
+    "credential_reference",
+    "declaration",
+    "declared_columns",
+    "declared_paths",
+    "format",
+    "location",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::table.surveys",
+   "module_id": "core",
+   "label": "surveys",
+   "kind": "table",
+   "component": "table:surveys",
+   "order": 29,
+   "inputs": [],
+   "outputs": [
+    {
+     "slot_id": "core::table.surveys.output",
+     "role": "core.data.table.surveys"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_table_2",
+   "action": "source_relation",
+   "notes": [
+    "← /home/paul/Repos/kg-build-system/reference_project/data/surveys.json"
+   ],
+   "payload_keys": [
+    "action",
+    "credential_reference",
+    "declaration",
+    "declared_columns",
+    "declared_paths",
+    "format",
+    "location",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::table.temperature",
+   "module_id": "core",
+   "label": "temperature",
+   "kind": "table",
+   "component": "table:temperature",
+   "order": 30,
+   "inputs": [],
+   "outputs": [
+    {
+     "slot_id": "core::table.temperature.output",
+     "role": "core.data.table.temperature"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_table_3",
+   "action": "source_relation",
+   "notes": [
+    "← /home/paul/Repos/kg-build-system/reference_project/data/readings/temperature.json"
+   ],
+   "payload_keys": [
+    "action",
+    "credential_reference",
+    "declaration",
+    "declared_columns",
+    "declared_paths",
+    "format",
+    "location",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::table.vibration",
+   "module_id": "core",
+   "label": "vibration",
+   "kind": "table",
+   "component": "table:vibration",
+   "order": 31,
+   "inputs": [],
+   "outputs": [
+    {
+     "slot_id": "core::table.vibration.output",
+     "role": "core.data.table.vibration"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_table_4",
+   "action": "source_relation",
+   "notes": [
+    "← /home/paul/Repos/kg-build-system/reference_project/data/readings/mechanical/vibration.json"
+   ],
+   "payload_keys": [
+    "action",
+    "credential_reference",
+    "declaration",
+    "declared_columns",
+    "declared_paths",
+    "format",
+    "location",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::projection.defect",
+   "module_id": "core",
+   "label": "defect",
+   "kind": "projection",
+   "component": "projection:defect",
+   "order": 32,
+   "inputs": [
+    {
+     "slot_id": "core::projection.defect.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::projection.defect.output",
+     "role": "core.data.projection.defect"
+    }
+   ],
+   "sql": "SELECT \"t0\".\"survey_id\" AS \"survey_id\", \"t0\".\"surveyed_on\" AS \"surveyed_on\", expanded1.\"item\".\"unit_ref\" AS \"unit_ref\", expanded2.\"item\".\"defect_id\" AS \"defect_id\", expanded2.\"item\".\"title\" AS \"title\", expanded2.\"item\".\"condition_rating\" AS \"condition_rating\", expanded2.\"item\".\"observed_on\" AS \"observed_on\", expanded2.\"item\".\"observations\" AS \"observations\" FROM \"kg_table_2\" AS t0 CROSS JOIN UNNEST(\"t0\".\"areas\") AS expanded0(item) CROSS JOIN UNNEST(expanded0.\"item\".\"elements\") AS expanded1(item) CROSS JOIN UNNEST(expanded1.\"item\".\"defects\") AS expanded2(item) WHERE NOT \"t0\".\"survey_id\" IS NULL",
+   "relation": "kg_projection_0",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::projection.observation",
+   "module_id": "core",
+   "label": "observation",
+   "kind": "projection",
+   "component": "projection:observation",
+   "order": 33,
+   "inputs": [
+    {
+     "slot_id": "core::projection.observation.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::projection.observation.output",
+     "role": "core.data.projection.observation"
+    }
+   ],
+   "sql": "SELECT \"t0\".\"defect_id\" AS \"defect_id\", expanded0.\"item\".\"observation_uid\" AS \"observation_uid\", expanded0.\"item\".\"value\" AS \"value\", expanded0.\"item\".\"observed_by\" AS \"observed_by\", expanded0.\"item\".\"observed_on\" AS \"observed_on\" FROM \"kg_projection_0\" AS t0 CROSS JOIN UNNEST(\"t0\".\"observations\") AS expanded0(item)",
+   "relation": "kg_projection_1",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::binding.0",
+   "module_id": "core",
+   "label": "binding.0",
+   "kind": "binding",
+   "component": null,
+   "order": 34,
+   "inputs": [
+    {
+     "slot_id": "core::binding.0.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::binding.0.output",
+     "role": "core.binding.binding:edge:has_defect:4a773b421d54c93a3069404d"
+    }
+   ],
+   "sql": "SELECT *, 'binding:edge:has_defect:4a773b421d54c93a3069404d' AS _kg_binding_symbol FROM (WITH _kg_named AS (SELECT \"build_key\" AS \"_kg_raw_build_key\", \"source_build_key\" AS \"_kg_raw_source_build_key\", \"target_build_key\" AS \"_kg_raw_target_build_key\", \"as_at\" AS \"_kg_raw_as_at\", \"stage\" AS \"_kg_raw_stage\" FROM (SELECT \"t0\".\"defect_id\" AS \"build_key\", \"t0\".\"unit_ref\" AS \"source_build_key\", \"t0\".\"defect_id\" AS \"target_build_key\", COALESCE(\"t0\".\"observed_on\", 'Undated') AS \"as_at\", 'derived' AS \"stage\" FROM \"kg_projection_0\" AS t0 WHERE NOT \"t0\".\"defect_id\" IS NULL AND NOT \"t0\".\"unit_ref\" IS NULL) AS _kg_rows) SELECT _kg_nn(\"_kg_raw_build_key\", 'has_defect.build_key is null, but it is declared non-null') AS \"build_key\", _kg_nn(\"_kg_raw_source_build_key\", 'has_defect.source_build_key is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"source_build_key\", _kg_nn(\"_kg_raw_target_build_key\", 'has_defect.target_build_key is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"target_build_key\", _kg_nn(\"_kg_raw_as_at\", 'has_defect.as_at is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"as_at\", _kg_nn(\"_kg_raw_stage\", 'has_defect.stage is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"stage\" FROM _kg_named)",
+   "relation": "kg_binding_0",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::binding.1",
+   "module_id": "core",
+   "label": "binding.1",
+   "kind": "binding",
+   "component": null,
+   "order": 35,
+   "inputs": [
+    {
+     "slot_id": "core::binding.1.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::binding.1.output",
+     "role": "core.binding.binding:edge:has_observation:65d8bffe91b52dbbd5c2db9a"
+    }
+   ],
+   "sql": "SELECT *, 'binding:edge:has_observation:65d8bffe91b52dbbd5c2db9a' AS _kg_binding_symbol FROM (WITH _kg_named AS (SELECT \"build_key\" AS \"_kg_raw_build_key\", \"source_build_key\" AS \"_kg_raw_source_build_key\", \"target_build_key\" AS \"_kg_raw_target_build_key\", \"as_at\" AS \"_kg_raw_as_at\", \"stage\" AS \"_kg_raw_stage\" FROM (SELECT \"t0\".\"observation_uid\" AS \"build_key\", \"t0\".\"defect_id\" AS \"source_build_key\", \"t0\".\"observation_uid\" AS \"target_build_key\", COALESCE(\"t0\".\"observed_on\", 'Undated') AS \"as_at\", 'derived' AS \"stage\" FROM \"kg_projection_1\" AS t0 WHERE NOT \"t0\".\"observation_uid\" IS NULL AND NOT \"t0\".\"defect_id\" IS NULL) AS _kg_rows) SELECT _kg_nn(\"_kg_raw_build_key\", 'has_observation.build_key is null, but it is declared non-null') AS \"build_key\", _kg_nn(\"_kg_raw_source_build_key\", 'has_observation.source_build_key is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"source_build_key\", _kg_nn(\"_kg_raw_target_build_key\", 'has_observation.target_build_key is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"target_build_key\", _kg_nn(\"_kg_raw_as_at\", 'has_observation.as_at is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"as_at\", _kg_nn(\"_kg_raw_stage\", 'has_observation.stage is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"stage\" FROM _kg_named)",
+   "relation": "kg_binding_1",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::binding.2",
+   "module_id": "core",
+   "label": "binding.2",
+   "kind": "binding",
+   "component": null,
+   "order": 36,
+   "inputs": [
+    {
+     "slot_id": "core::binding.2.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::binding.2.output",
+     "role": "core.binding.binding:edge:has_unit:b2b75dbbc3e3db0f5f9e11f4"
+    }
+   ],
+   "sql": "SELECT *, 'binding:edge:has_unit:b2b75dbbc3e3db0f5f9e11f4' AS _kg_binding_symbol FROM (WITH _kg_named AS (SELECT \"build_key\" AS \"_kg_raw_build_key\", \"source_build_key\" AS \"_kg_raw_source_build_key\", \"target_build_key\" AS \"_kg_raw_target_build_key\", \"as_at\" AS \"_kg_raw_as_at\", \"stage\" AS \"_kg_raw_stage\" FROM (SELECT \"t0\".\"unit_ref\" AS \"build_key\", \"t0\".\"site_id\" AS \"source_build_key\", \"t0\".\"unit_ref\" AS \"target_build_key\", COALESCE(\"t0\".\"survey_period\", 'Unrecorded period') AS \"as_at\", 'derived' AS \"stage\" FROM \"kg_table_0\" AS t0 WHERE NOT \"t0\".\"unit_ref\" IS NULL AND NOT \"t0\".\"site_id\" IS NULL) AS _kg_rows) SELECT _kg_nn(\"_kg_raw_build_key\", 'has_unit.build_key is null, but it is declared non-null') AS \"build_key\", _kg_nn(\"_kg_raw_source_build_key\", 'has_unit.source_build_key is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"source_build_key\", _kg_nn(\"_kg_raw_target_build_key\", 'has_unit.target_build_key is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"target_build_key\", _kg_nn(\"_kg_raw_as_at\", 'has_unit.as_at is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"as_at\", _kg_nn(\"_kg_raw_stage\", 'has_unit.stage is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"stage\" FROM _kg_named)",
+   "relation": "kg_binding_2",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::binding.3",
+   "module_id": "core",
+   "label": "binding.3",
+   "kind": "binding",
+   "component": null,
+   "order": 37,
+   "inputs": [
+    {
+     "slot_id": "core::binding.3.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::binding.3.output",
+     "role": "core.binding.binding:edge:measures:776cfdaec96fba2e7cf80459"
+    }
+   ],
+   "sql": "SELECT *, 'binding:edge:measures:776cfdaec96fba2e7cf80459' AS _kg_binding_symbol FROM (WITH _kg_named AS (SELECT \"build_key\" AS \"_kg_raw_build_key\", \"source_build_key\" AS \"_kg_raw_source_build_key\", \"target_build_key\" AS \"_kg_raw_target_build_key\", \"as_at\" AS \"_kg_raw_as_at\", \"stage\" AS \"_kg_raw_stage\" FROM (SELECT \"t0\".\"reading_uid\" AS \"build_key\", \"t0\".\"unit_ref\" AS \"source_build_key\", \"t0\".\"reading_uid\" AS \"target_build_key\", \"t0\".\"recorded_on\" AS \"as_at\", 'derived' AS \"stage\" FROM \"kg_table_3\" AS t0 WHERE NOT \"t0\".\"reading_uid\" IS NULL AND NOT \"t0\".\"unit_ref\" IS NULL) AS _kg_rows) SELECT _kg_nn(\"_kg_raw_build_key\", 'measures.build_key is null, but it is declared non-null') AS \"build_key\", _kg_nn(\"_kg_raw_source_build_key\", 'measures.source_build_key is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"source_build_key\", _kg_nn(\"_kg_raw_target_build_key\", 'measures.target_build_key is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"target_build_key\", \"_kg_raw_as_at\" AS \"as_at\", _kg_nn(\"_kg_raw_stage\", 'measures.stage is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"stage\" FROM _kg_named)",
+   "relation": "kg_binding_3",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::binding.4",
+   "module_id": "core",
+   "label": "binding.4",
+   "kind": "binding",
+   "component": null,
+   "order": 38,
+   "inputs": [
+    {
+     "slot_id": "core::binding.4.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::binding.4.output",
+     "role": "core.binding.binding:edge:measures:a4a7a4e9f712c15103da699c"
+    }
+   ],
+   "sql": "SELECT *, 'binding:edge:measures:a4a7a4e9f712c15103da699c' AS _kg_binding_symbol FROM (WITH _kg_named AS (SELECT \"build_key\" AS \"_kg_raw_build_key\", \"source_build_key\" AS \"_kg_raw_source_build_key\", \"target_build_key\" AS \"_kg_raw_target_build_key\", \"as_at\" AS \"_kg_raw_as_at\", \"stage\" AS \"_kg_raw_stage\" FROM (SELECT \"t0\".\"reading_uid\" AS \"build_key\", \"t0\".\"unit_ref\" AS \"source_build_key\", \"t0\".\"reading_uid\" AS \"target_build_key\", \"t0\".\"recorded_on\" AS \"as_at\", 'derived' AS \"stage\" FROM \"kg_table_4\" AS t0 WHERE NOT \"t0\".\"reading_uid\" IS NULL AND NOT \"t0\".\"unit_ref\" IS NULL) AS _kg_rows) SELECT _kg_nn(\"_kg_raw_build_key\", 'measures.build_key is null, but it is declared non-null') AS \"build_key\", _kg_nn(\"_kg_raw_source_build_key\", 'measures.source_build_key is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"source_build_key\", _kg_nn(\"_kg_raw_target_build_key\", 'measures.target_build_key is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"target_build_key\", \"_kg_raw_as_at\" AS \"as_at\", _kg_nn(\"_kg_raw_stage\", 'measures.stage is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"stage\" FROM _kg_named)",
+   "relation": "kg_binding_4",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::binding.5",
+   "module_id": "core",
+   "label": "binding.5",
+   "kind": "binding",
+   "component": null,
+   "order": 39,
+   "inputs": [
+    {
+     "slot_id": "core::binding.5.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::binding.5.output",
+     "role": "core.binding.binding:edge:observed_during:a7593d02f4c7c943298b2bd0"
+    }
+   ],
+   "sql": "SELECT *, 'binding:edge:observed_during:a7593d02f4c7c943298b2bd0' AS _kg_binding_symbol FROM (WITH _kg_named AS (SELECT \"build_key\" AS \"_kg_raw_build_key\", \"source_build_key\" AS \"_kg_raw_source_build_key\", \"target_build_key\" AS \"_kg_raw_target_build_key\", \"as_at\" AS \"_kg_raw_as_at\", \"stage\" AS \"_kg_raw_stage\" FROM (SELECT \"t0\".\"defect_id\" AS \"build_key\", \"t0\".\"defect_id\" AS \"source_build_key\", \"t0\".\"survey_id\" AS \"target_build_key\", COALESCE(\"t0\".\"observed_on\", 'Undated') AS \"as_at\", 'derived' AS \"stage\" FROM \"kg_projection_0\" AS t0 WHERE NOT \"t0\".\"defect_id\" IS NULL) AS _kg_rows) SELECT _kg_nn(\"_kg_raw_build_key\", 'observed_during.build_key is null, but it is declared non-null') AS \"build_key\", _kg_nn(\"_kg_raw_source_build_key\", 'observed_during.source_build_key is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"source_build_key\", _kg_nn(\"_kg_raw_target_build_key\", 'observed_during.target_build_key is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"target_build_key\", _kg_nn(\"_kg_raw_as_at\", 'observed_during.as_at is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"as_at\", _kg_nn(\"_kg_raw_stage\", 'observed_during.stage is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"stage\" FROM _kg_named)",
+   "relation": "kg_binding_5",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::binding.6",
+   "module_id": "core",
+   "label": "binding.6",
+   "kind": "binding",
+   "component": null,
+   "order": 40,
+   "inputs": [
+    {
+     "slot_id": "core::binding.6.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::binding.6.output",
+     "role": "core.binding.binding:edge:surveyed_at:939a036b330c81b7c1540b0a"
+    }
+   ],
+   "sql": "SELECT *, 'binding:edge:surveyed_at:939a036b330c81b7c1540b0a' AS _kg_binding_symbol FROM (WITH _kg_named AS (SELECT \"build_key\" AS \"_kg_raw_build_key\", \"source_build_key\" AS \"_kg_raw_source_build_key\", \"target_build_key\" AS \"_kg_raw_target_build_key\", \"as_at\" AS \"_kg_raw_as_at\", \"stage\" AS \"_kg_raw_stage\" FROM (SELECT \"t0\".\"survey_id\" AS \"build_key\", \"t0\".\"survey_id\" AS \"source_build_key\", \"t0\".\"site_id\" AS \"target_build_key\", \"t0\".\"surveyed_on\" AS \"as_at\", 'derived' AS \"stage\" FROM \"kg_table_2\" AS t0 WHERE NOT \"t0\".\"survey_id\" IS NULL AND NOT \"t0\".\"site_id\" IS NULL) AS _kg_rows) SELECT _kg_nn(\"_kg_raw_build_key\", 'surveyed_at.build_key is null, but it is declared non-null') AS \"build_key\", _kg_nn(\"_kg_raw_source_build_key\", 'surveyed_at.source_build_key is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"source_build_key\", _kg_nn(\"_kg_raw_target_build_key\", 'surveyed_at.target_build_key is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"target_build_key\", \"_kg_raw_as_at\" AS \"as_at\", _kg_nn(\"_kg_raw_stage\", 'surveyed_at.stage is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"stage\" FROM _kg_named)",
+   "relation": "kg_binding_6",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::binding.7",
+   "module_id": "core",
+   "label": "binding.7",
+   "kind": "binding",
+   "component": null,
+   "order": 41,
+   "inputs": [
+    {
+     "slot_id": "core::binding.7.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::binding.7.output",
+     "role": "core.binding.binding:node:defect:0761d39dbeedb5c80e50d7f2"
+    }
+   ],
+   "sql": "SELECT *, 'binding:node:defect:0761d39dbeedb5c80e50d7f2' AS _kg_binding_symbol FROM (WITH _kg_named AS (SELECT \"build_key\" AS \"_kg_raw_build_key\", \"condition_rating\" AS \"_kg_raw_condition_rating\", \"source_version\" AS \"_kg_raw_source_version\", \"summary\" AS \"_kg_raw_summary\", \"title\" AS \"_kg_raw_title\" FROM (SELECT \"t0\".\"defect_id\" AS \"build_key\", COALESCE(\"t0\".\"condition_rating\", 'Unrated') AS \"condition_rating\", 'survey-2026-08' AS \"source_version\", COALESCE(\"t0\".\"title\", 'Untitled defect') AS \"summary\", COALESCE(\"t0\".\"title\", 'Untitled defect') AS \"title\" FROM \"kg_projection_0\" AS t0 WHERE NOT \"t0\".\"defect_id\" IS NULL) AS _kg_rows) SELECT _kg_nn(\"_kg_raw_build_key\", 'defect.build_key is null, but it is declared non-null') AS \"build_key\", _kg_nn(\"_kg_raw_condition_rating\", 'defect.condition_rating is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"condition_rating\", _kg_nn(\"_kg_raw_source_version\", 'defect.source_version is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"source_version\", _kg_nn(\"_kg_raw_summary\", 'defect.summary is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"summary\", _kg_nn(\"_kg_raw_title\", 'defect.title is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"title\" FROM _kg_named)",
+   "relation": "kg_binding_7",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::binding.8",
+   "module_id": "core",
+   "label": "binding.8",
+   "kind": "binding",
+   "component": null,
+   "order": 42,
+   "inputs": [
+    {
+     "slot_id": "core::binding.8.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::binding.8.output",
+     "role": "core.binding.binding:node:observation:1aa91d9f6db113bf9167abe2"
+    }
+   ],
+   "sql": "SELECT *, 'binding:node:observation:1aa91d9f6db113bf9167abe2' AS _kg_binding_symbol FROM (WITH _kg_named AS (SELECT \"build_key\" AS \"_kg_raw_build_key\", \"method\" AS \"_kg_raw_method\", \"observed_on\" AS \"_kg_raw_observed_on\", \"source_version\" AS \"_kg_raw_source_version\", \"summary\" AS \"_kg_raw_summary\", \"value\" AS \"_kg_raw_value\" FROM (SELECT \"t0\".\"observation_uid\" AS \"build_key\", COALESCE(\"t0\".\"observed_by\", 'Unrecorded method') AS \"method\", COALESCE(\"t0\".\"observed_on\", 'Undated') AS \"observed_on\", 'survey-2026-08' AS \"source_version\", \"t0\".\"observation_uid\" AS \"summary\", COALESCE(\"t0\".\"value\", 0.0) AS \"value\" FROM \"kg_projection_1\" AS t0 WHERE NOT \"t0\".\"observation_uid\" IS NULL) AS _kg_rows) SELECT _kg_nn(\"_kg_raw_build_key\", 'observation.build_key is null, but it is declared non-null') AS \"build_key\", _kg_nn(\"_kg_raw_method\", 'observation.method is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"method\", _kg_nn(\"_kg_raw_observed_on\", 'observation.observed_on is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"observed_on\", _kg_nn(\"_kg_raw_source_version\", 'observation.source_version is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"source_version\", _kg_nn(\"_kg_raw_summary\", 'observation.summary is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"summary\", _kg_nn(\"_kg_raw_value\", 'observation.value is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"value\" FROM _kg_named)",
+   "relation": "kg_binding_8",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::binding.9",
+   "module_id": "core",
+   "label": "binding.9",
+   "kind": "binding",
+   "component": null,
+   "order": 43,
+   "inputs": [
+    {
+     "slot_id": "core::binding.9.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::binding.9.output",
+     "role": "core.binding.binding:node:reading:294378d5639d65d9d5ec200b"
+    }
+   ],
+   "sql": "SELECT *, 'binding:node:reading:294378d5639d65d9d5ec200b' AS _kg_binding_symbol FROM (WITH _kg_named AS (SELECT \"build_key\" AS \"_kg_raw_build_key\", \"recorded_on\" AS \"_kg_raw_recorded_on\", \"source_version\" AS \"_kg_raw_source_version\", \"summary\" AS \"_kg_raw_summary\", \"unit_of_measure\" AS \"_kg_raw_unit_of_measure\", \"value\" AS \"_kg_raw_value\" FROM (SELECT \"t0\".\"reading_uid\" AS \"build_key\", \"t0\".\"recorded_on\" AS \"recorded_on\", 'survey-2026-08' AS \"source_version\", COALESCE(\"t0\".\"reading_uid\", 'Unidentified sample') AS \"summary\", 'degC' AS \"unit_of_measure\", \"t0\".\"deg_c\" AS \"value\" FROM \"kg_table_3\" AS t0 WHERE NOT \"t0\".\"reading_uid\" IS NULL) AS _kg_rows) SELECT _kg_nn(\"_kg_raw_build_key\", 'reading.build_key is null, but it is declared non-null') AS \"build_key\", \"_kg_raw_recorded_on\" AS \"recorded_on\", _kg_nn(\"_kg_raw_source_version\", 'reading.source_version is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"source_version\", _kg_nn(\"_kg_raw_summary\", 'reading.summary is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"summary\", _kg_nn(\"_kg_raw_unit_of_measure\", 'reading.unit_of_measure is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"unit_of_measure\", \"_kg_raw_value\" AS \"value\" FROM _kg_named)",
+   "relation": "kg_binding_9",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::binding.10",
+   "module_id": "core",
+   "label": "binding.10",
+   "kind": "binding",
+   "component": null,
+   "order": 44,
+   "inputs": [
+    {
+     "slot_id": "core::binding.10.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::binding.10.output",
+     "role": "core.binding.binding:node:reading:29b4c903ab896b9081983729"
+    }
+   ],
+   "sql": "SELECT *, 'binding:node:reading:29b4c903ab896b9081983729' AS _kg_binding_symbol FROM (WITH _kg_named AS (SELECT \"build_key\" AS \"_kg_raw_build_key\", \"recorded_on\" AS \"_kg_raw_recorded_on\", \"source_version\" AS \"_kg_raw_source_version\", \"summary\" AS \"_kg_raw_summary\", \"unit_of_measure\" AS \"_kg_raw_unit_of_measure\", \"value\" AS \"_kg_raw_value\" FROM (SELECT \"t0\".\"reading_uid\" AS \"build_key\", \"t0\".\"recorded_on\" AS \"recorded_on\", 'survey-2026-08' AS \"source_version\", COALESCE(\"t0\".\"reading_uid\", 'Unidentified sample') AS \"summary\", 'mm/s' AS \"unit_of_measure\", \"t0\".\"mm_s\" AS \"value\" FROM \"kg_table_4\" AS t0 WHERE NOT \"t0\".\"reading_uid\" IS NULL) AS _kg_rows) SELECT _kg_nn(\"_kg_raw_build_key\", 'reading.build_key is null, but it is declared non-null') AS \"build_key\", \"_kg_raw_recorded_on\" AS \"recorded_on\", _kg_nn(\"_kg_raw_source_version\", 'reading.source_version is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"source_version\", _kg_nn(\"_kg_raw_summary\", 'reading.summary is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"summary\", _kg_nn(\"_kg_raw_unit_of_measure\", 'reading.unit_of_measure is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"unit_of_measure\", \"_kg_raw_value\" AS \"value\" FROM _kg_named)",
+   "relation": "kg_binding_10",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::binding.11",
+   "module_id": "core",
+   "label": "binding.11",
+   "kind": "binding",
+   "component": null,
+   "order": 45,
+   "inputs": [
+    {
+     "slot_id": "core::binding.11.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::binding.11.output",
+     "role": "core.binding.binding:node:site:e17a8280f1585f3462c8e9b6"
+    }
+   ],
+   "sql": "SELECT *, 'binding:node:site:e17a8280f1585f3462c8e9b6' AS _kg_binding_symbol FROM (WITH _kg_named AS (SELECT \"build_key\" AS \"_kg_raw_build_key\", \"city\" AS \"_kg_raw_city\", \"name\" AS \"_kg_raw_name\", \"source_version\" AS \"_kg_raw_source_version\", \"summary\" AS \"_kg_raw_summary\" FROM (SELECT \"t0\".\"site_id\" AS \"build_key\", COALESCE(\"t0\".\"premises\".\"contact\".\"location\".\"city\", 'Unlisted city') AS \"city\", COALESCE(\"t0\".\"site_name\", 'Unnamed site') AS \"name\", 'survey-2026-08' AS \"source_version\", COALESCE(\"t0\".\"site_name\", 'Unnamed site') AS \"summary\" FROM \"kg_table_1\" AS t0 WHERE NOT \"t0\".\"site_id\" IS NULL) AS _kg_rows) SELECT _kg_nn(\"_kg_raw_build_key\", 'site.build_key is null, but it is declared non-null') AS \"build_key\", _kg_nn(\"_kg_raw_city\", 'site.city is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"city\", _kg_nn(\"_kg_raw_name\", 'site.name is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"name\", _kg_nn(\"_kg_raw_source_version\", 'site.source_version is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"source_version\", _kg_nn(\"_kg_raw_summary\", 'site.summary is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"summary\" FROM _kg_named)",
+   "relation": "kg_binding_11",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::binding.12",
+   "module_id": "core",
+   "label": "binding.12",
+   "kind": "binding",
+   "component": null,
+   "order": 46,
+   "inputs": [
+    {
+     "slot_id": "core::binding.12.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::binding.12.output",
+     "role": "core.binding.binding:node:survey_visit:67fa99114d7a425b85eb784c"
+    }
+   ],
+   "sql": "SELECT *, 'binding:node:survey_visit:67fa99114d7a425b85eb784c' AS _kg_binding_symbol FROM (WITH _kg_named AS (SELECT \"build_key\" AS \"_kg_raw_build_key\", \"practice\" AS \"_kg_raw_practice\", \"source_version\" AS \"_kg_raw_source_version\", \"summary\" AS \"_kg_raw_summary\", \"surveyed_on\" AS \"_kg_raw_surveyed_on\", \"surveyor\" AS \"_kg_raw_surveyor\" FROM (SELECT \"t0\".\"survey_id\" AS \"build_key\", \"t0\".\"surveyor\".\"firm\".\"name\" AS \"practice\", 'survey-2026-08' AS \"source_version\", COALESCE(\"t0\".\"survey_id\", 'Unidentified survey') AS \"summary\", \"t0\".\"surveyed_on\" AS \"surveyed_on\", COALESCE(\"t0\".\"surveyor\".\"name\", 'Unattributed') AS \"surveyor\" FROM \"kg_table_2\" AS t0 WHERE NOT \"t0\".\"survey_id\" IS NULL) AS _kg_rows) SELECT _kg_nn(\"_kg_raw_build_key\", 'survey_visit.build_key is null, but it is declared non-null') AS \"build_key\", \"_kg_raw_practice\" AS \"practice\", _kg_nn(\"_kg_raw_source_version\", 'survey_visit.source_version is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"source_version\", _kg_nn(\"_kg_raw_summary\", 'survey_visit.summary is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"summary\", \"_kg_raw_surveyed_on\" AS \"surveyed_on\", _kg_nn(\"_kg_raw_surveyor\", 'survey_visit.surveyor is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"surveyor\" FROM _kg_named)",
+   "relation": "kg_binding_12",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::binding.13",
+   "module_id": "core",
+   "label": "binding.13",
+   "kind": "binding",
+   "component": null,
+   "order": 47,
+   "inputs": [
+    {
+     "slot_id": "core::binding.13.inputs",
+     "role": "inputs"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::binding.13.output",
+     "role": "core.binding.binding:node:unit:4181b700b4b69d9709eedc1c"
+    }
+   ],
+   "sql": "SELECT *, 'binding:node:unit:4181b700b4b69d9709eedc1c' AS _kg_binding_symbol FROM (WITH _kg_named AS (SELECT \"build_key\" AS \"_kg_raw_build_key\", \"in_service\" AS \"_kg_raw_in_service\", \"name\" AS \"_kg_raw_name\", \"source_version\" AS \"_kg_raw_source_version\", \"summary\" AS \"_kg_raw_summary\", \"survey_period\" AS \"_kg_raw_survey_period\" FROM (SELECT \"t0\".\"unit_ref\" AS \"build_key\", COALESCE(\"t0\".\"in_service\", FALSE) AS \"in_service\", COALESCE(\"t0\".\"unit_name\", 'Unnamed unit') AS \"name\", 'survey-2026-08' AS \"source_version\", COALESCE(\"t0\".\"unit_name\", 'Unnamed unit') AS \"summary\", COALESCE(\"t0\".\"survey_period\", 'Unrecorded period') AS \"survey_period\" FROM \"kg_table_0\" AS t0 WHERE NOT \"t0\".\"unit_ref\" IS NULL) AS _kg_rows) SELECT _kg_nn(\"_kg_raw_build_key\", 'unit.build_key is null, but it is declared non-null') AS \"build_key\", _kg_nn(\"_kg_raw_in_service\", 'unit.in_service is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"in_service\", _kg_nn(\"_kg_raw_name\", 'unit.name is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"name\", _kg_nn(\"_kg_raw_source_version\", 'unit.source_version is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"source_version\", _kg_nn(\"_kg_raw_summary\", 'unit.summary is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"summary\", _kg_nn(\"_kg_raw_survey_period\", 'unit.survey_period is null for build_key ' || coalesce(CAST(_kg_named._kg_raw_build_key AS VARCHAR), '<null>')) AS \"survey_period\" FROM _kg_named)",
+   "relation": "kg_binding_13",
+   "action": "relation",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation",
+    "sql"
+   ]
+  },
+  {
+   "id": "core::aggregate.has_observation",
+   "module_id": "core",
+   "label": "has_observation",
+   "kind": "aggregate",
+   "component": "component:has_observation",
+   "order": 48,
+   "inputs": [
+    {
+     "slot_id": "core::aggregate.has_observation.bindings",
+     "role": "bindings"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::aggregate.has_observation.output",
+     "role": "core.graph.edge.has_observation"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_graph_has_observation",
+   "action": "aggregate",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::aggregate.observed_during",
+   "module_id": "core",
+   "label": "observed_during",
+   "kind": "aggregate",
+   "component": "component:observed_during",
+   "order": 49,
+   "inputs": [
+    {
+     "slot_id": "core::aggregate.observed_during.bindings",
+     "role": "bindings"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::aggregate.observed_during.output",
+     "role": "core.graph.edge.observed_during"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_graph_observed_during",
+   "action": "aggregate",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::aggregate.has_unit",
+   "module_id": "core",
+   "label": "has_unit",
+   "kind": "aggregate",
+   "component": "component:has_unit",
+   "order": 50,
+   "inputs": [
+    {
+     "slot_id": "core::aggregate.has_unit.bindings",
+     "role": "bindings"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::aggregate.has_unit.output",
+     "role": "core.graph.edge.has_unit"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_graph_has_unit",
+   "action": "aggregate",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::aggregate.surveyed_at",
+   "module_id": "core",
+   "label": "surveyed_at",
+   "kind": "aggregate",
+   "component": "component:surveyed_at",
+   "order": 51,
+   "inputs": [
+    {
+     "slot_id": "core::aggregate.surveyed_at.bindings",
+     "role": "bindings"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::aggregate.surveyed_at.output",
+     "role": "core.graph.edge.surveyed_at"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_graph_surveyed_at",
+   "action": "aggregate",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::aggregate.has_defect",
+   "module_id": "core",
+   "label": "has_defect",
+   "kind": "aggregate",
+   "component": "component:has_defect",
+   "order": 52,
+   "inputs": [
+    {
+     "slot_id": "core::aggregate.has_defect.bindings",
+     "role": "bindings"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::aggregate.has_defect.output",
+     "role": "core.graph.edge.has_defect"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_graph_has_defect",
+   "action": "aggregate",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::aggregate.measures",
+   "module_id": "core",
+   "label": "measures",
+   "kind": "aggregate",
+   "component": "component:measures",
+   "order": 53,
+   "inputs": [
+    {
+     "slot_id": "core::aggregate.measures.bindings",
+     "role": "bindings"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::aggregate.measures.output",
+     "role": "core.graph.edge.measures"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_graph_measures",
+   "action": "aggregate",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::aggregate.defect",
+   "module_id": "core",
+   "label": "defect",
+   "kind": "aggregate",
+   "component": "component:defect",
+   "order": 54,
+   "inputs": [
+    {
+     "slot_id": "core::aggregate.defect.bindings",
+     "role": "bindings"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::aggregate.defect.output",
+     "role": "core.graph.node.defect"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_graph_defect",
+   "action": "aggregate",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::aggregate.observation",
+   "module_id": "core",
+   "label": "observation",
+   "kind": "aggregate",
+   "component": "component:observation",
+   "order": 55,
+   "inputs": [
+    {
+     "slot_id": "core::aggregate.observation.bindings",
+     "role": "bindings"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::aggregate.observation.output",
+     "role": "core.graph.node.observation"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_graph_observation",
+   "action": "aggregate",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::aggregate.reading",
+   "module_id": "core",
+   "label": "reading",
+   "kind": "aggregate",
+   "component": "component:reading",
+   "order": 56,
+   "inputs": [
+    {
+     "slot_id": "core::aggregate.reading.bindings",
+     "role": "bindings"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::aggregate.reading.output",
+     "role": "core.graph.node.reading"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_graph_reading",
+   "action": "aggregate",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::aggregate.site",
+   "module_id": "core",
+   "label": "site",
+   "kind": "aggregate",
+   "component": "component:site",
+   "order": 57,
+   "inputs": [
+    {
+     "slot_id": "core::aggregate.site.bindings",
+     "role": "bindings"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::aggregate.site.output",
+     "role": "core.graph.node.site"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_graph_site",
+   "action": "aggregate",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::aggregate.survey_visit",
+   "module_id": "core",
+   "label": "survey_visit",
+   "kind": "aggregate",
+   "component": "component:survey_visit",
+   "order": 58,
+   "inputs": [
+    {
+     "slot_id": "core::aggregate.survey_visit.bindings",
+     "role": "bindings"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::aggregate.survey_visit.output",
+     "role": "core.graph.node.survey_visit"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_graph_survey_visit",
+   "action": "aggregate",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation"
+   ]
+  },
+  {
+   "id": "core::aggregate.unit",
+   "module_id": "core",
+   "label": "unit",
+   "kind": "aggregate",
+   "component": "component:unit",
+   "order": 59,
+   "inputs": [
+    {
+     "slot_id": "core::aggregate.unit.bindings",
+     "role": "bindings"
+    }
+   ],
+   "outputs": [
+    {
+     "slot_id": "core::aggregate.unit.output",
+     "role": "core.graph.node.unit"
+    }
+   ],
+   "sql": null,
+   "relation": "kg_graph_unit",
+   "action": "aggregate",
+   "notes": [],
+   "payload_keys": [
+    "action",
+    "relation"
+   ]
+  }
+ ],
+ "edges": [
+  {
+   "id": "core::aggregate.has_observation.output->collapse_exact_duplicates::has_observation.input",
+   "from_step": "core::aggregate.has_observation",
+   "from_slot": "core::aggregate.has_observation.output",
+   "to_step": "collapse_exact_duplicates::has_observation",
+   "to_slot": "collapse_exact_duplicates::has_observation.input",
+   "role": "core.graph.edge.has_observation"
+  },
+  {
+   "id": "core::aggregate.observed_during.output->collapse_exact_duplicates::observed_during.input",
+   "from_step": "core::aggregate.observed_during",
+   "from_slot": "core::aggregate.observed_during.output",
+   "to_step": "collapse_exact_duplicates::observed_during",
+   "to_slot": "collapse_exact_duplicates::observed_during.input",
+   "role": "core.graph.edge.observed_during"
+  },
+  {
+   "id": "core::aggregate.has_unit.output->collapse_exact_duplicates::has_unit.input",
+   "from_step": "core::aggregate.has_unit",
+   "from_slot": "core::aggregate.has_unit.output",
+   "to_step": "collapse_exact_duplicates::has_unit",
+   "to_slot": "collapse_exact_duplicates::has_unit.input",
+   "role": "core.graph.edge.has_unit"
+  },
+  {
+   "id": "core::aggregate.surveyed_at.output->collapse_exact_duplicates::surveyed_at.input",
+   "from_step": "core::aggregate.surveyed_at",
+   "from_slot": "core::aggregate.surveyed_at.output",
+   "to_step": "collapse_exact_duplicates::surveyed_at",
+   "to_slot": "collapse_exact_duplicates::surveyed_at.input",
+   "role": "core.graph.edge.surveyed_at"
+  },
+  {
+   "id": "core::aggregate.has_defect.output->collapse_exact_duplicates::has_defect.input",
+   "from_step": "core::aggregate.has_defect",
+   "from_slot": "core::aggregate.has_defect.output",
+   "to_step": "collapse_exact_duplicates::has_defect",
+   "to_slot": "collapse_exact_duplicates::has_defect.input",
+   "role": "core.graph.edge.has_defect"
+  },
+  {
+   "id": "core::aggregate.measures.output->collapse_exact_duplicates::measures.input",
+   "from_step": "core::aggregate.measures",
+   "from_slot": "core::aggregate.measures.output",
+   "to_step": "collapse_exact_duplicates::measures",
+   "to_slot": "collapse_exact_duplicates::measures.input",
+   "role": "core.graph.edge.measures"
+  },
+  {
+   "id": "core::aggregate.defect.output->collapse_exact_duplicates::defect.input",
+   "from_step": "core::aggregate.defect",
+   "from_slot": "core::aggregate.defect.output",
+   "to_step": "collapse_exact_duplicates::defect",
+   "to_slot": "collapse_exact_duplicates::defect.input",
+   "role": "core.graph.node.defect"
+  },
+  {
+   "id": "core::aggregate.observation.output->collapse_exact_duplicates::observation.input",
+   "from_step": "core::aggregate.observation",
+   "from_slot": "core::aggregate.observation.output",
+   "to_step": "collapse_exact_duplicates::observation",
+   "to_slot": "collapse_exact_duplicates::observation.input",
+   "role": "core.graph.node.observation"
+  },
+  {
+   "id": "core::aggregate.reading.output->collapse_exact_duplicates::reading.input",
+   "from_step": "core::aggregate.reading",
+   "from_slot": "core::aggregate.reading.output",
+   "to_step": "collapse_exact_duplicates::reading",
+   "to_slot": "collapse_exact_duplicates::reading.input",
+   "role": "core.graph.node.reading"
+  },
+  {
+   "id": "core::aggregate.site.output->collapse_exact_duplicates::site.input",
+   "from_step": "core::aggregate.site",
+   "from_slot": "core::aggregate.site.output",
+   "to_step": "collapse_exact_duplicates::site",
+   "to_slot": "collapse_exact_duplicates::site.input",
+   "role": "core.graph.node.site"
+  },
+  {
+   "id": "core::aggregate.survey_visit.output->collapse_exact_duplicates::survey_visit.input",
+   "from_step": "core::aggregate.survey_visit",
+   "from_slot": "core::aggregate.survey_visit.output",
+   "to_step": "collapse_exact_duplicates::survey_visit",
+   "to_slot": "collapse_exact_duplicates::survey_visit.input",
+   "role": "core.graph.node.survey_visit"
+  },
+  {
+   "id": "core::aggregate.unit.output->collapse_exact_duplicates::unit.input",
+   "from_step": "core::aggregate.unit",
+   "from_slot": "core::aggregate.unit.output",
+   "to_step": "collapse_exact_duplicates::unit",
+   "to_slot": "collapse_exact_duplicates::unit.input",
+   "role": "core.graph.node.unit"
+  },
+  {
+   "id": "core::table.surveys.output->core::projection.defect.inputs",
+   "from_step": "core::table.surveys",
+   "from_slot": "core::table.surveys.output",
+   "to_step": "core::projection.defect",
+   "to_slot": "core::projection.defect.inputs",
+   "role": "core.data.table.surveys"
+  },
+  {
+   "id": "core::projection.defect.output->core::projection.observation.inputs",
+   "from_step": "core::projection.defect",
+   "from_slot": "core::projection.defect.output",
+   "to_step": "core::projection.observation",
+   "to_slot": "core::projection.observation.inputs",
+   "role": "core.data.projection.defect"
+  },
+  {
+   "id": "core::projection.defect.output->core::binding.0.inputs",
+   "from_step": "core::projection.defect",
+   "from_slot": "core::projection.defect.output",
+   "to_step": "core::binding.0",
+   "to_slot": "core::binding.0.inputs",
+   "role": "core.data.projection.defect"
+  },
+  {
+   "id": "core::projection.observation.output->core::binding.1.inputs",
+   "from_step": "core::projection.observation",
+   "from_slot": "core::projection.observation.output",
+   "to_step": "core::binding.1",
+   "to_slot": "core::binding.1.inputs",
+   "role": "core.data.projection.observation"
+  },
+  {
+   "id": "core::table.equipment.output->core::binding.2.inputs",
+   "from_step": "core::table.equipment",
+   "from_slot": "core::table.equipment.output",
+   "to_step": "core::binding.2",
+   "to_slot": "core::binding.2.inputs",
+   "role": "core.data.table.equipment"
+  },
+  {
+   "id": "core::table.temperature.output->core::binding.3.inputs",
+   "from_step": "core::table.temperature",
+   "from_slot": "core::table.temperature.output",
+   "to_step": "core::binding.3",
+   "to_slot": "core::binding.3.inputs",
+   "role": "core.data.table.temperature"
+  },
+  {
+   "id": "core::table.vibration.output->core::binding.4.inputs",
+   "from_step": "core::table.vibration",
+   "from_slot": "core::table.vibration.output",
+   "to_step": "core::binding.4",
+   "to_slot": "core::binding.4.inputs",
+   "role": "core.data.table.vibration"
+  },
+  {
+   "id": "core::projection.defect.output->core::binding.5.inputs",
+   "from_step": "core::projection.defect",
+   "from_slot": "core::projection.defect.output",
+   "to_step": "core::binding.5",
+   "to_slot": "core::binding.5.inputs",
+   "role": "core.data.projection.defect"
+  },
+  {
+   "id": "core::table.surveys.output->core::binding.6.inputs",
+   "from_step": "core::table.surveys",
+   "from_slot": "core::table.surveys.output",
+   "to_step": "core::binding.6",
+   "to_slot": "core::binding.6.inputs",
+   "role": "core.data.table.surveys"
+  },
+  {
+   "id": "core::projection.defect.output->core::binding.7.inputs",
+   "from_step": "core::projection.defect",
+   "from_slot": "core::projection.defect.output",
+   "to_step": "core::binding.7",
+   "to_slot": "core::binding.7.inputs",
+   "role": "core.data.projection.defect"
+  },
+  {
+   "id": "core::projection.observation.output->core::binding.8.inputs",
+   "from_step": "core::projection.observation",
+   "from_slot": "core::projection.observation.output",
+   "to_step": "core::binding.8",
+   "to_slot": "core::binding.8.inputs",
+   "role": "core.data.projection.observation"
+  },
+  {
+   "id": "core::table.temperature.output->core::binding.9.inputs",
+   "from_step": "core::table.temperature",
+   "from_slot": "core::table.temperature.output",
+   "to_step": "core::binding.9",
+   "to_slot": "core::binding.9.inputs",
+   "role": "core.data.table.temperature"
+  },
+  {
+   "id": "core::table.vibration.output->core::binding.10.inputs",
+   "from_step": "core::table.vibration",
+   "from_slot": "core::table.vibration.output",
+   "to_step": "core::binding.10",
+   "to_slot": "core::binding.10.inputs",
+   "role": "core.data.table.vibration"
+  },
+  {
+   "id": "core::table.sites.output->core::binding.11.inputs",
+   "from_step": "core::table.sites",
+   "from_slot": "core::table.sites.output",
+   "to_step": "core::binding.11",
+   "to_slot": "core::binding.11.inputs",
+   "role": "core.data.table.sites"
+  },
+  {
+   "id": "core::table.surveys.output->core::binding.12.inputs",
+   "from_step": "core::table.surveys",
+   "from_slot": "core::table.surveys.output",
+   "to_step": "core::binding.12",
+   "to_slot": "core::binding.12.inputs",
+   "role": "core.data.table.surveys"
+  },
+  {
+   "id": "core::table.equipment.output->core::binding.13.inputs",
+   "from_step": "core::table.equipment",
+   "from_slot": "core::table.equipment.output",
+   "to_step": "core::binding.13",
+   "to_slot": "core::binding.13.inputs",
+   "role": "core.data.table.equipment"
+  },
+  {
+   "id": "core::binding.1.output->core::aggregate.has_observation.bindings",
+   "from_step": "core::binding.1",
+   "from_slot": "core::binding.1.output",
+   "to_step": "core::aggregate.has_observation",
+   "to_slot": "core::aggregate.has_observation.bindings",
+   "role": "core.binding.binding:edge:has_observation:65d8bffe91b52dbbd5c2db9a"
+  },
+  {
+   "id": "core::binding.5.output->core::aggregate.observed_during.bindings",
+   "from_step": "core::binding.5",
+   "from_slot": "core::binding.5.output",
+   "to_step": "core::aggregate.observed_during",
+   "to_slot": "core::aggregate.observed_during.bindings",
+   "role": "core.binding.binding:edge:observed_during:a7593d02f4c7c943298b2bd0"
+  },
+  {
+   "id": "core::binding.2.output->core::aggregate.has_unit.bindings",
+   "from_step": "core::binding.2",
+   "from_slot": "core::binding.2.output",
+   "to_step": "core::aggregate.has_unit",
+   "to_slot": "core::aggregate.has_unit.bindings",
+   "role": "core.binding.binding:edge:has_unit:b2b75dbbc3e3db0f5f9e11f4"
+  },
+  {
+   "id": "core::binding.6.output->core::aggregate.surveyed_at.bindings",
+   "from_step": "core::binding.6",
+   "from_slot": "core::binding.6.output",
+   "to_step": "core::aggregate.surveyed_at",
+   "to_slot": "core::aggregate.surveyed_at.bindings",
+   "role": "core.binding.binding:edge:surveyed_at:939a036b330c81b7c1540b0a"
+  },
+  {
+   "id": "core::binding.0.output->core::aggregate.has_defect.bindings",
+   "from_step": "core::binding.0",
+   "from_slot": "core::binding.0.output",
+   "to_step": "core::aggregate.has_defect",
+   "to_slot": "core::aggregate.has_defect.bindings",
+   "role": "core.binding.binding:edge:has_defect:4a773b421d54c93a3069404d"
+  },
+  {
+   "id": "core::binding.3.output->core::aggregate.measures.bindings",
+   "from_step": "core::binding.3",
+   "from_slot": "core::binding.3.output",
+   "to_step": "core::aggregate.measures",
+   "to_slot": "core::aggregate.measures.bindings",
+   "role": "core.binding.binding:edge:measures:776cfdaec96fba2e7cf80459"
+  },
+  {
+   "id": "core::binding.4.output->core::aggregate.measures.bindings",
+   "from_step": "core::binding.4",
+   "from_slot": "core::binding.4.output",
+   "to_step": "core::aggregate.measures",
+   "to_slot": "core::aggregate.measures.bindings",
+   "role": "core.binding.binding:edge:measures:a4a7a4e9f712c15103da699c"
+  },
+  {
+   "id": "core::binding.7.output->core::aggregate.defect.bindings",
+   "from_step": "core::binding.7",
+   "from_slot": "core::binding.7.output",
+   "to_step": "core::aggregate.defect",
+   "to_slot": "core::aggregate.defect.bindings",
+   "role": "core.binding.binding:node:defect:0761d39dbeedb5c80e50d7f2"
+  },
+  {
+   "id": "core::binding.8.output->core::aggregate.observation.bindings",
+   "from_step": "core::binding.8",
+   "from_slot": "core::binding.8.output",
+   "to_step": "core::aggregate.observation",
+   "to_slot": "core::aggregate.observation.bindings",
+   "role": "core.binding.binding:node:observation:1aa91d9f6db113bf9167abe2"
+  },
+  {
+   "id": "core::binding.9.output->core::aggregate.reading.bindings",
+   "from_step": "core::binding.9",
+   "from_slot": "core::binding.9.output",
+   "to_step": "core::aggregate.reading",
+   "to_slot": "core::aggregate.reading.bindings",
+   "role": "core.binding.binding:node:reading:294378d5639d65d9d5ec200b"
+  },
+  {
+   "id": "core::binding.10.output->core::aggregate.reading.bindings",
+   "from_step": "core::binding.10",
+   "from_slot": "core::binding.10.output",
+   "to_step": "core::aggregate.reading",
+   "to_slot": "core::aggregate.reading.bindings",
+   "role": "core.binding.binding:node:reading:29b4c903ab896b9081983729"
+  },
+  {
+   "id": "core::binding.11.output->core::aggregate.site.bindings",
+   "from_step": "core::binding.11",
+   "from_slot": "core::binding.11.output",
+   "to_step": "core::aggregate.site",
+   "to_slot": "core::aggregate.site.bindings",
+   "role": "core.binding.binding:node:site:e17a8280f1585f3462c8e9b6"
+  },
+  {
+   "id": "core::binding.12.output->core::aggregate.survey_visit.bindings",
+   "from_step": "core::binding.12",
+   "from_slot": "core::binding.12.output",
+   "to_step": "core::aggregate.survey_visit",
+   "to_slot": "core::aggregate.survey_visit.bindings",
+   "role": "core.binding.binding:node:survey_visit:67fa99114d7a425b85eb784c"
+  },
+  {
+   "id": "core::binding.13.output->core::aggregate.unit.bindings",
+   "from_step": "core::binding.13",
+   "from_slot": "core::binding.13.output",
+   "to_step": "core::aggregate.unit",
+   "to_slot": "core::aggregate.unit.bindings",
+   "role": "core.binding.binding:node:unit:4181b700b4b69d9709eedc1c"
+  },
+  {
+   "id": "collapse_exact_duplicates::has_observation.output->meta_graph::document.records",
+   "from_step": "collapse_exact_duplicates::has_observation",
+   "from_slot": "collapse_exact_duplicates::has_observation.output",
+   "to_step": "meta_graph::document",
+   "to_slot": "meta_graph::document.records",
+   "role": "core.graph.edge.has_observation"
+  },
+  {
+   "id": "collapse_exact_duplicates::observed_during.output->meta_graph::document.records",
+   "from_step": "collapse_exact_duplicates::observed_during",
+   "from_slot": "collapse_exact_duplicates::observed_during.output",
+   "to_step": "meta_graph::document",
+   "to_slot": "meta_graph::document.records",
+   "role": "core.graph.edge.observed_during"
+  },
+  {
+   "id": "collapse_exact_duplicates::has_unit.output->meta_graph::document.records",
+   "from_step": "collapse_exact_duplicates::has_unit",
+   "from_slot": "collapse_exact_duplicates::has_unit.output",
+   "to_step": "meta_graph::document",
+   "to_slot": "meta_graph::document.records",
+   "role": "core.graph.edge.has_unit"
+  },
+  {
+   "id": "collapse_exact_duplicates::surveyed_at.output->meta_graph::document.records",
+   "from_step": "collapse_exact_duplicates::surveyed_at",
+   "from_slot": "collapse_exact_duplicates::surveyed_at.output",
+   "to_step": "meta_graph::document",
+   "to_slot": "meta_graph::document.records",
+   "role": "core.graph.edge.surveyed_at"
+  },
+  {
+   "id": "collapse_exact_duplicates::has_defect.output->meta_graph::document.records",
+   "from_step": "collapse_exact_duplicates::has_defect",
+   "from_slot": "collapse_exact_duplicates::has_defect.output",
+   "to_step": "meta_graph::document",
+   "to_slot": "meta_graph::document.records",
+   "role": "core.graph.edge.has_defect"
+  },
+  {
+   "id": "collapse_exact_duplicates::measures.output->meta_graph::document.records",
+   "from_step": "collapse_exact_duplicates::measures",
+   "from_slot": "collapse_exact_duplicates::measures.output",
+   "to_step": "meta_graph::document",
+   "to_slot": "meta_graph::document.records",
+   "role": "core.graph.edge.measures"
+  },
+  {
+   "id": "collapse_exact_duplicates::defect.output->meta_graph::document.records",
+   "from_step": "collapse_exact_duplicates::defect",
+   "from_slot": "collapse_exact_duplicates::defect.output",
+   "to_step": "meta_graph::document",
+   "to_slot": "meta_graph::document.records",
+   "role": "core.graph.node.defect"
+  },
+  {
+   "id": "collapse_exact_duplicates::observation.output->meta_graph::document.records",
+   "from_step": "collapse_exact_duplicates::observation",
+   "from_slot": "collapse_exact_duplicates::observation.output",
+   "to_step": "meta_graph::document",
+   "to_slot": "meta_graph::document.records",
+   "role": "core.graph.node.observation"
+  },
+  {
+   "id": "collapse_exact_duplicates::reading.output->meta_graph::document.records",
+   "from_step": "collapse_exact_duplicates::reading",
+   "from_slot": "collapse_exact_duplicates::reading.output",
+   "to_step": "meta_graph::document",
+   "to_slot": "meta_graph::document.records",
+   "role": "core.graph.node.reading"
+  },
+  {
+   "id": "collapse_exact_duplicates::site.output->meta_graph::document.records",
+   "from_step": "collapse_exact_duplicates::site",
+   "from_slot": "collapse_exact_duplicates::site.output",
+   "to_step": "meta_graph::document",
+   "to_slot": "meta_graph::document.records",
+   "role": "core.graph.node.site"
+  },
+  {
+   "id": "collapse_exact_duplicates::survey_visit.output->meta_graph::document.records",
+   "from_step": "collapse_exact_duplicates::survey_visit",
+   "from_slot": "collapse_exact_duplicates::survey_visit.output",
+   "to_step": "meta_graph::document",
+   "to_slot": "meta_graph::document.records",
+   "role": "core.graph.node.survey_visit"
+  },
+  {
+   "id": "collapse_exact_duplicates::unit.output->meta_graph::document.records",
+   "from_step": "collapse_exact_duplicates::unit",
+   "from_slot": "collapse_exact_duplicates::unit.output",
+   "to_step": "meta_graph::document",
+   "to_slot": "meta_graph::document.records",
+   "role": "core.graph.node.unit"
+  },
+  {
+   "id": "collapse_exact_duplicates::has_observation.output->neo4j::export.edge.has_observation-fe573bcd.records",
+   "from_step": "collapse_exact_duplicates::has_observation",
+   "from_slot": "collapse_exact_duplicates::has_observation.output",
+   "to_step": "neo4j::export.edge.has_observation-fe573bcd",
+   "to_slot": "neo4j::export.edge.has_observation-fe573bcd.records",
+   "role": "core.graph.edge.has_observation"
+  },
+  {
+   "id": "collapse_exact_duplicates::observed_during.output->neo4j::export.edge.observed_during-c607ddca.records",
+   "from_step": "collapse_exact_duplicates::observed_during",
+   "from_slot": "collapse_exact_duplicates::observed_during.output",
+   "to_step": "neo4j::export.edge.observed_during-c607ddca",
+   "to_slot": "neo4j::export.edge.observed_during-c607ddca.records",
+   "role": "core.graph.edge.observed_during"
+  },
+  {
+   "id": "collapse_exact_duplicates::has_unit.output->neo4j::export.edge.has_unit-fe3e5b7c.records",
+   "from_step": "collapse_exact_duplicates::has_unit",
+   "from_slot": "collapse_exact_duplicates::has_unit.output",
+   "to_step": "neo4j::export.edge.has_unit-fe3e5b7c",
+   "to_slot": "neo4j::export.edge.has_unit-fe3e5b7c.records",
+   "role": "core.graph.edge.has_unit"
+  },
+  {
+   "id": "collapse_exact_duplicates::surveyed_at.output->neo4j::export.edge.surveyed_at-7261d3e5.records",
+   "from_step": "collapse_exact_duplicates::surveyed_at",
+   "from_slot": "collapse_exact_duplicates::surveyed_at.output",
+   "to_step": "neo4j::export.edge.surveyed_at-7261d3e5",
+   "to_slot": "neo4j::export.edge.surveyed_at-7261d3e5.records",
+   "role": "core.graph.edge.surveyed_at"
+  },
+  {
+   "id": "collapse_exact_duplicates::has_defect.output->neo4j::export.edge.has_defect-81650e4d.records",
+   "from_step": "collapse_exact_duplicates::has_defect",
+   "from_slot": "collapse_exact_duplicates::has_defect.output",
+   "to_step": "neo4j::export.edge.has_defect-81650e4d",
+   "to_slot": "neo4j::export.edge.has_defect-81650e4d.records",
+   "role": "core.graph.edge.has_defect"
+  },
+  {
+   "id": "collapse_exact_duplicates::measures.output->neo4j::export.edge.measures-f9de5df0.records",
+   "from_step": "collapse_exact_duplicates::measures",
+   "from_slot": "collapse_exact_duplicates::measures.output",
+   "to_step": "neo4j::export.edge.measures-f9de5df0",
+   "to_slot": "neo4j::export.edge.measures-f9de5df0.records",
+   "role": "core.graph.edge.measures"
+  },
+  {
+   "id": "collapse_exact_duplicates::defect.output->neo4j::export.node.defect-57c187c4.records",
+   "from_step": "collapse_exact_duplicates::defect",
+   "from_slot": "collapse_exact_duplicates::defect.output",
+   "to_step": "neo4j::export.node.defect-57c187c4",
+   "to_slot": "neo4j::export.node.defect-57c187c4.records",
+   "role": "core.graph.node.defect"
+  },
+  {
+   "id": "collapse_exact_duplicates::observation.output->neo4j::export.node.observation-732d7f86.records",
+   "from_step": "collapse_exact_duplicates::observation",
+   "from_slot": "collapse_exact_duplicates::observation.output",
+   "to_step": "neo4j::export.node.observation-732d7f86",
+   "to_slot": "neo4j::export.node.observation-732d7f86.records",
+   "role": "core.graph.node.observation"
+  },
+  {
+   "id": "collapse_exact_duplicates::reading.output->neo4j::export.node.reading-5aa1de0e.records",
+   "from_step": "collapse_exact_duplicates::reading",
+   "from_slot": "collapse_exact_duplicates::reading.output",
+   "to_step": "neo4j::export.node.reading-5aa1de0e",
+   "to_slot": "neo4j::export.node.reading-5aa1de0e.records",
+   "role": "core.graph.node.reading"
+  },
+  {
+   "id": "collapse_exact_duplicates::site.output->neo4j::export.node.site-e29c0d4f.records",
+   "from_step": "collapse_exact_duplicates::site",
+   "from_slot": "collapse_exact_duplicates::site.output",
+   "to_step": "neo4j::export.node.site-e29c0d4f",
+   "to_slot": "neo4j::export.node.site-e29c0d4f.records",
+   "role": "core.graph.node.site"
+  },
+  {
+   "id": "collapse_exact_duplicates::survey_visit.output->neo4j::export.node.survey_visit-98907ebc.records",
+   "from_step": "collapse_exact_duplicates::survey_visit",
+   "from_slot": "collapse_exact_duplicates::survey_visit.output",
+   "to_step": "neo4j::export.node.survey_visit-98907ebc",
+   "to_slot": "neo4j::export.node.survey_visit-98907ebc.records",
+   "role": "core.graph.node.survey_visit"
+  },
+  {
+   "id": "collapse_exact_duplicates::unit.output->neo4j::export.node.unit-e89ea900.records",
+   "from_step": "collapse_exact_duplicates::unit",
+   "from_slot": "collapse_exact_duplicates::unit.output",
+   "to_step": "neo4j::export.node.unit-e89ea900",
+   "to_slot": "neo4j::export.node.unit-e89ea900.records",
+   "role": "core.graph.node.unit"
+  },
+  {
+   "id": "neo4j::export.edge.has_observation-fe573bcd.result->neo4j::script.components",
+   "from_step": "neo4j::export.edge.has_observation-fe573bcd",
+   "from_slot": "neo4j::export.edge.has_observation-fe573bcd.result",
+   "to_step": "neo4j::script",
+   "to_slot": "neo4j::script.components",
+   "role": "neo4j.component.edge.python:edge:reference_project.topology.defect.has_observation__observation:HasObservationEdge"
+  },
+  {
+   "id": "neo4j::export.edge.observed_during-c607ddca.result->neo4j::script.components",
+   "from_step": "neo4j::export.edge.observed_during-c607ddca",
+   "from_slot": "neo4j::export.edge.observed_during-c607ddca.result",
+   "to_step": "neo4j::script",
+   "to_slot": "neo4j::script.components",
+   "role": "neo4j.component.edge.python:edge:reference_project.topology.defect.observed_during__survey_visit:ObservedDuringEdge"
+  },
+  {
+   "id": "neo4j::export.edge.has_unit-fe3e5b7c.result->neo4j::script.components",
+   "from_step": "neo4j::export.edge.has_unit-fe3e5b7c",
+   "from_slot": "neo4j::export.edge.has_unit-fe3e5b7c.result",
+   "to_step": "neo4j::script",
+   "to_slot": "neo4j::script.components",
+   "role": "neo4j.component.edge.python:edge:reference_project.topology.site.has_unit__unit:HasUnitEdge"
+  },
+  {
+   "id": "neo4j::export.edge.surveyed_at-7261d3e5.result->neo4j::script.components",
+   "from_step": "neo4j::export.edge.surveyed_at-7261d3e5",
+   "from_slot": "neo4j::export.edge.surveyed_at-7261d3e5.result",
+   "to_step": "neo4j::script",
+   "to_slot": "neo4j::script.components",
+   "role": "neo4j.component.edge.python:edge:reference_project.topology.survey.surveyed_at__site:SurveyedAtEdge"
+  },
+  {
+   "id": "neo4j::export.edge.has_defect-81650e4d.result->neo4j::script.components",
+   "from_step": "neo4j::export.edge.has_defect-81650e4d",
+   "from_slot": "neo4j::export.edge.has_defect-81650e4d.result",
+   "to_step": "neo4j::script",
+   "to_slot": "neo4j::script.components",
+   "role": "neo4j.component.edge.python:edge:reference_project.topology.unit.has_defect__defect:HasDefectEdge"
+  },
+  {
+   "id": "neo4j::export.edge.measures-f9de5df0.result->neo4j::script.components",
+   "from_step": "neo4j::export.edge.measures-f9de5df0",
+   "from_slot": "neo4j::export.edge.measures-f9de5df0.result",
+   "to_step": "neo4j::script",
+   "to_slot": "neo4j::script.components",
+   "role": "neo4j.component.edge.python:edge:reference_project.topology.unit.measures__reading:MeasuresEdge"
+  },
+  {
+   "id": "neo4j::export.node.defect-57c187c4.result->neo4j::script.components",
+   "from_step": "neo4j::export.node.defect-57c187c4",
+   "from_slot": "neo4j::export.node.defect-57c187c4.result",
+   "to_step": "neo4j::script",
+   "to_slot": "neo4j::script.components",
+   "role": "neo4j.component.node.python:node:reference_project.topology.defect:DefectNode"
+  },
+  {
+   "id": "neo4j::export.node.observation-732d7f86.result->neo4j::script.components",
+   "from_step": "neo4j::export.node.observation-732d7f86",
+   "from_slot": "neo4j::export.node.observation-732d7f86.result",
+   "to_step": "neo4j::script",
+   "to_slot": "neo4j::script.components",
+   "role": "neo4j.component.node.python:node:reference_project.topology.observation:ObservationNode"
+  },
+  {
+   "id": "neo4j::export.node.reading-5aa1de0e.result->neo4j::script.components",
+   "from_step": "neo4j::export.node.reading-5aa1de0e",
+   "from_slot": "neo4j::export.node.reading-5aa1de0e.result",
+   "to_step": "neo4j::script",
+   "to_slot": "neo4j::script.components",
+   "role": "neo4j.component.node.python:node:reference_project.topology.reading:ReadingNode"
+  },
+  {
+   "id": "neo4j::export.node.site-e29c0d4f.result->neo4j::script.components",
+   "from_step": "neo4j::export.node.site-e29c0d4f",
+   "from_slot": "neo4j::export.node.site-e29c0d4f.result",
+   "to_step": "neo4j::script",
+   "to_slot": "neo4j::script.components",
+   "role": "neo4j.component.node.python:node:reference_project.topology.site:SiteNode"
+  },
+  {
+   "id": "neo4j::export.node.survey_visit-98907ebc.result->neo4j::script.components",
+   "from_step": "neo4j::export.node.survey_visit-98907ebc",
+   "from_slot": "neo4j::export.node.survey_visit-98907ebc.result",
+   "to_step": "neo4j::script",
+   "to_slot": "neo4j::script.components",
+   "role": "neo4j.component.node.python:node:reference_project.topology.survey:SurveyVisitNode"
+  },
+  {
+   "id": "neo4j::export.node.unit-e89ea900.result->neo4j::script.components",
+   "from_step": "neo4j::export.node.unit-e89ea900",
+   "from_slot": "neo4j::export.node.unit-e89ea900.result",
+   "to_step": "neo4j::script",
+   "to_slot": "neo4j::script.components",
+   "role": "neo4j.component.node.python:node:reference_project.topology.unit:UnitNode"
+  },
+  {
+   "id": "collapse_exact_duplicates::has_observation.output->file::write.records",
+   "from_step": "collapse_exact_duplicates::has_observation",
+   "from_slot": "collapse_exact_duplicates::has_observation.output",
+   "to_step": "file::write",
+   "to_slot": "file::write.records",
+   "role": "core.graph.edge.has_observation"
+  },
+  {
+   "id": "collapse_exact_duplicates::observed_during.output->file::write.records",
+   "from_step": "collapse_exact_duplicates::observed_during",
+   "from_slot": "collapse_exact_duplicates::observed_during.output",
+   "to_step": "file::write",
+   "to_slot": "file::write.records",
+   "role": "core.graph.edge.observed_during"
+  },
+  {
+   "id": "collapse_exact_duplicates::has_unit.output->file::write.records",
+   "from_step": "collapse_exact_duplicates::has_unit",
+   "from_slot": "collapse_exact_duplicates::has_unit.output",
+   "to_step": "file::write",
+   "to_slot": "file::write.records",
+   "role": "core.graph.edge.has_unit"
+  },
+  {
+   "id": "collapse_exact_duplicates::surveyed_at.output->file::write.records",
+   "from_step": "collapse_exact_duplicates::surveyed_at",
+   "from_slot": "collapse_exact_duplicates::surveyed_at.output",
+   "to_step": "file::write",
+   "to_slot": "file::write.records",
+   "role": "core.graph.edge.surveyed_at"
+  },
+  {
+   "id": "collapse_exact_duplicates::has_defect.output->file::write.records",
+   "from_step": "collapse_exact_duplicates::has_defect",
+   "from_slot": "collapse_exact_duplicates::has_defect.output",
+   "to_step": "file::write",
+   "to_slot": "file::write.records",
+   "role": "core.graph.edge.has_defect"
+  },
+  {
+   "id": "collapse_exact_duplicates::measures.output->file::write.records",
+   "from_step": "collapse_exact_duplicates::measures",
+   "from_slot": "collapse_exact_duplicates::measures.output",
+   "to_step": "file::write",
+   "to_slot": "file::write.records",
+   "role": "core.graph.edge.measures"
+  },
+  {
+   "id": "collapse_exact_duplicates::defect.output->file::write.records",
+   "from_step": "collapse_exact_duplicates::defect",
+   "from_slot": "collapse_exact_duplicates::defect.output",
+   "to_step": "file::write",
+   "to_slot": "file::write.records",
+   "role": "core.graph.node.defect"
+  },
+  {
+   "id": "collapse_exact_duplicates::observation.output->file::write.records",
+   "from_step": "collapse_exact_duplicates::observation",
+   "from_slot": "collapse_exact_duplicates::observation.output",
+   "to_step": "file::write",
+   "to_slot": "file::write.records",
+   "role": "core.graph.node.observation"
+  },
+  {
+   "id": "collapse_exact_duplicates::reading.output->file::write.records",
+   "from_step": "collapse_exact_duplicates::reading",
+   "from_slot": "collapse_exact_duplicates::reading.output",
+   "to_step": "file::write",
+   "to_slot": "file::write.records",
+   "role": "core.graph.node.reading"
+  },
+  {
+   "id": "collapse_exact_duplicates::site.output->file::write.records",
+   "from_step": "collapse_exact_duplicates::site",
+   "from_slot": "collapse_exact_duplicates::site.output",
+   "to_step": "file::write",
+   "to_slot": "file::write.records",
+   "role": "core.graph.node.site"
+  },
+  {
+   "id": "collapse_exact_duplicates::survey_visit.output->file::write.records",
+   "from_step": "collapse_exact_duplicates::survey_visit",
+   "from_slot": "collapse_exact_duplicates::survey_visit.output",
+   "to_step": "file::write",
+   "to_slot": "file::write.records",
+   "role": "core.graph.node.survey_visit"
+  },
+  {
+   "id": "collapse_exact_duplicates::unit.output->file::write.records",
+   "from_step": "collapse_exact_duplicates::unit",
+   "from_slot": "collapse_exact_duplicates::unit.output",
+   "to_step": "file::write",
+   "to_slot": "file::write.records",
+   "role": "core.graph.node.unit"
+  }
+ ]
+}

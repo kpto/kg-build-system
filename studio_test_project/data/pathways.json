@@ -1,0 +1,48 @@
+[
+  {
+    "pathway_id": "R-HSA-73857",
+    "title": "RNA Polymerase II Transcription",
+    "species": "Homo sapiens",
+    "reviewed": true,
+    "steps": [
+      {
+        "step_id": "S-1",
+        "ordinal": 1,
+        "caption": "Pre-mRNA elongation",
+        "participants": [
+          {"molecule_id": "T-0001", "name": "BRCA1", "role": "regulator"},
+          {"molecule_id": "T-0002", "name": "EGFR", "role": "input"}
+        ]
+      },
+      {
+        "step_id": "S-2",
+        "ordinal": 2,
+        "caption": null,
+        "participants": [
+          {"molecule_id": "T-0002", "name": "EGFR", "role": "output"}
+        ]
+      }
+    ]
+  },
+  {
+    "pathway_id": "R-HSA-164017",
+    "title": "Cell Cycle",
+    "species": "Homo sapiens",
+    "reviewed": true,
+    "steps": [
+      {
+        "step_id": "S-9",
+        "ordinal": 1,
+        "caption": "G1/S transition",
+        "participants": []
+      }
+    ]
+  },
+  {
+    "pathway_id": "R-MMU-1",
+    "title": "Metabolism",
+    "species": "Mus musculus",
+    "reviewed": false,
+    "steps": null
+  }
+]

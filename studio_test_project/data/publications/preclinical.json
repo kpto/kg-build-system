@@ -1,0 +1,4 @@
+[
+  {"publication_id": "P-2001", "target_id": "T-0001", "assay": "binding", "potency_nm": 12.5, "cell_line": "HEK293", "reported_on": "2026-01-08T11:20"},
+  {"publication_id": "P-2002", "target_id": "T-0003", "assay": "functional", "potency_nm": null, "cell_line": null, "reported_on": "2026-02-19T16:45"}
+]

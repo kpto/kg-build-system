@@ -1,0 +1,2192 @@
+{
+  "schema_version": 1,
+  "revision": 9,
+  "project": {
+    "name": "Target pathways",
+    "package": "studio_test_project",
+    "description": "Drug targets, pathways and publications.",
+    "data_directory": "data"
+  },
+  "annotation_types": [
+    {
+      "id": "provenance",
+      "declaration_name": "Provenance",
+      "namespace": "studio_test_project",
+      "annotation_id": "provenance",
+      "description": "Records which build stage produced or tracks a component.",
+      "fields": [
+        {
+          "name": "stage",
+          "logical_type": {
+            "kind": "unit",
+            "name": "str"
+          },
+          "description": null
+        }
+      ]
+    }
+  ],
+  "structs": [
+    {
+      "id": "targets_attributes_curator_team_location_struct",
+      "declaration_name": "AttributesCuratorTeamLocationStruct",
+      "name": "attributes_curator_team_location",
+      "description": null,
+      "fields": [
+        {
+          "name": "city",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "attributes.curator.team.location.city",
+          "annotations": []
+        },
+        {
+          "name": "room",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "attributes.curator.team.location.room",
+          "annotations": []
+        }
+      ],
+      "annotations": []
+    },
+    {
+      "id": "targets_attributes_curator_team_struct",
+      "declaration_name": "AttributesCuratorTeamStruct",
+      "name": "attributes_curator_team",
+      "description": null,
+      "fields": [
+        {
+          "name": "code",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "attributes.curator.team.code",
+          "annotations": []
+        },
+        {
+          "name": "location",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "struct",
+              "module": "studio_test_project.table.targets",
+              "qualname": "AttributesCuratorTeamLocationStruct"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "attributes.curator.team.location",
+          "annotations": []
+        }
+      ],
+      "annotations": []
+    },
+    {
+      "id": "targets_attributes_curator_struct",
+      "declaration_name": "AttributesCuratorStruct",
+      "name": "attributes_curator",
+      "description": null,
+      "fields": [
+        {
+          "name": "name",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "attributes.curator.name",
+          "annotations": []
+        },
+        {
+          "name": "team",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "struct",
+              "module": "studio_test_project.table.targets",
+              "qualname": "AttributesCuratorTeamStruct"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "attributes.curator.team",
+          "annotations": []
+        }
+      ],
+      "annotations": []
+    },
+    {
+      "id": "targets_attributes_struct",
+      "declaration_name": "AttributesStruct",
+      "name": "attributes",
+      "description": null,
+      "fields": [
+        {
+          "name": "sequence_length",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "int"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "attributes.sequence_length",
+          "annotations": []
+        },
+        {
+          "name": "last_curated",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "date"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "attributes.last_curated",
+          "annotations": []
+        },
+        {
+          "name": "curator",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "struct",
+              "module": "studio_test_project.table.targets",
+              "qualname": "AttributesCuratorStruct"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "attributes.curator",
+          "annotations": []
+        }
+      ],
+      "annotations": []
+    },
+    {
+      "id": "pathways_steps_participants_struct",
+      "declaration_name": "StepsParticipantsStruct",
+      "name": "steps_participants",
+      "description": null,
+      "fields": [
+        {
+          "name": "molecule_id",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "steps.element.participants.element.molecule_id",
+          "annotations": []
+        },
+        {
+          "name": "name",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "steps.element.participants.element.name",
+          "annotations": []
+        },
+        {
+          "name": "role",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "steps.element.participants.element.role",
+          "annotations": []
+        }
+      ],
+      "annotations": []
+    },
+    {
+      "id": "pathways_steps_struct",
+      "declaration_name": "StepsStruct",
+      "name": "steps",
+      "description": null,
+      "fields": [
+        {
+          "name": "step_id",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "steps.element.step_id",
+          "annotations": []
+        },
+        {
+          "name": "ordinal",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "int"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "steps.element.ordinal",
+          "annotations": []
+        },
+        {
+          "name": "caption",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "steps.element.caption",
+          "annotations": []
+        },
+        {
+          "name": "participants",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "array",
+              "item": {
+                "kind": "nullable",
+                "value": {
+                  "kind": "struct",
+                  "module": "studio_test_project.table.pathways",
+                  "qualname": "StepsParticipantsStruct"
+                }
+              }
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "steps.element.participants",
+          "annotations": []
+        }
+      ],
+      "annotations": []
+    }
+  ],
+  "tables": [
+    {
+      "id": "targets",
+      "declaration_name": "TargetsTable",
+      "name": "targets",
+      "description": null,
+      "fields": [
+        {
+          "name": "target_id",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "target_id",
+          "annotations": []
+        },
+        {
+          "name": "symbol",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "symbol",
+          "annotations": []
+        },
+        {
+          "name": "name",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "name",
+          "annotations": []
+        },
+        {
+          "name": "organism",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "organism",
+          "annotations": []
+        },
+        {
+          "name": "reviewed",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "bool"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "reviewed",
+          "annotations": []
+        },
+        {
+          "name": "confidence",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "float"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "confidence",
+          "annotations": []
+        },
+        {
+          "name": "aliases",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "array",
+              "item": {
+                "kind": "nullable",
+                "value": {
+                  "kind": "unit",
+                  "name": "str"
+                }
+              }
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "aliases",
+          "annotations": []
+        },
+        {
+          "name": "attributes",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "struct",
+              "module": "studio_test_project.table.targets",
+              "qualname": "AttributesStruct"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "attributes",
+          "annotations": []
+        }
+      ],
+      "members": [],
+      "annotations": [],
+      "group": null
+    },
+    {
+      "id": "pathways",
+      "declaration_name": "PathwaysTable",
+      "name": "pathways",
+      "description": null,
+      "fields": [
+        {
+          "name": "pathway_id",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "pathway_id",
+          "annotations": []
+        },
+        {
+          "name": "title",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "title",
+          "annotations": []
+        },
+        {
+          "name": "species",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "species",
+          "annotations": []
+        },
+        {
+          "name": "reviewed",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "bool"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "reviewed",
+          "annotations": []
+        },
+        {
+          "name": "steps",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "array",
+              "item": {
+                "kind": "nullable",
+                "value": {
+                  "kind": "struct",
+                  "module": "studio_test_project.table.pathways",
+                  "qualname": "StepsStruct"
+                }
+              }
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "steps",
+          "annotations": []
+        }
+      ],
+      "members": [],
+      "annotations": [],
+      "group": null
+    },
+    {
+      "id": "clinical",
+      "declaration_name": "ClinicalTable",
+      "name": "clinical",
+      "description": null,
+      "fields": [
+        {
+          "name": "publication_id",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "publication_id",
+          "annotations": []
+        },
+        {
+          "name": "target_id",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "target_id",
+          "annotations": []
+        },
+        {
+          "name": "phase",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "phase",
+          "annotations": []
+        },
+        {
+          "name": "subjects",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "int"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "subjects",
+          "annotations": []
+        },
+        {
+          "name": "reported_on",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "reported_on",
+          "annotations": []
+        },
+        {
+          "name": "outcome",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "outcome",
+          "annotations": []
+        }
+      ],
+      "members": [],
+      "annotations": [],
+      "group": "publications"
+    },
+    {
+      "id": "preclinical",
+      "declaration_name": "PreclinicalTable",
+      "name": "preclinical",
+      "description": null,
+      "fields": [
+        {
+          "name": "publication_id",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "publication_id",
+          "annotations": []
+        },
+        {
+          "name": "target_id",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "target_id",
+          "annotations": []
+        },
+        {
+          "name": "assay",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "assay",
+          "annotations": []
+        },
+        {
+          "name": "potency_nm",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "float"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "potency_nm",
+          "annotations": []
+        },
+        {
+          "name": "cell_line",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "cell_line",
+          "annotations": []
+        },
+        {
+          "name": "reported_on",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "external_name": null,
+          "nullability": "defaulted",
+          "schema_path": "reported_on",
+          "annotations": []
+        }
+      ],
+      "members": [],
+      "annotations": [],
+      "group": "publications"
+    },
+    {
+      "id": "publications",
+      "declaration_name": "PublicationsTableGroup",
+      "name": "publications",
+      "description": null,
+      "fields": [],
+      "members": [
+        {
+          "python_name": "clinical",
+          "ref": "clinical"
+        },
+        {
+          "python_name": "preclinical",
+          "ref": "preclinical"
+        }
+      ],
+      "annotations": [],
+      "group": null
+    }
+  ],
+  "projections": [
+    {
+      "id": "pathway_participants",
+      "declaration_name": "PathwayParticipantProjection",
+      "name": "pathway_participants",
+      "description": "One row per target participating in one pathway.",
+      "fields": [
+        {
+          "name": "pathway_id",
+          "expression": {
+            "kind": "operation",
+            "operator": "coalesce",
+            "arguments": [
+              {
+                "kind": "field",
+                "source": "pathways",
+                "path": [
+                  "pathway_id"
+                ],
+                "logical_type": {
+                  "kind": "nullable",
+                  "value": {
+                    "kind": "unit",
+                    "name": "str"
+                  }
+                }
+              },
+              {
+                "kind": "literal",
+                "value": "(unnamed pathway)",
+                "logical_type": {
+                  "kind": "unit",
+                  "name": "str"
+                }
+              }
+            ],
+            "parameters": {},
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null
+        },
+        {
+          "name": "title",
+          "expression": {
+            "kind": "field",
+            "source": "pathways",
+            "path": [
+              "title"
+            ],
+            "logical_type": {
+              "kind": "nullable",
+              "value": {
+                "kind": "unit",
+                "name": "str"
+              }
+            }
+          },
+          "description": null
+        },
+        {
+          "name": "target_id",
+          "expression": {
+            "kind": "operation",
+            "operator": "struct_field",
+            "arguments": [
+              {
+                "kind": "operation",
+                "operator": "expand",
+                "arguments": [
+                  {
+                    "kind": "operation",
+                    "operator": "struct_field",
+                    "arguments": [
+                      {
+                        "kind": "operation",
+                        "operator": "expand",
+                        "arguments": [
+                          {
+                            "kind": "field",
+                            "source": "pathways",
+                            "path": [
+                              "steps"
+                            ],
+                            "logical_type": {
+                              "kind": "nullable",
+                              "value": {
+                                "kind": "array",
+                                "item": {
+                                  "kind": "nullable",
+                                  "value": {
+                                    "kind": "struct",
+                                    "module": "studio_test_project.table.pathways",
+                                    "qualname": "StepsStruct"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "parameters": {},
+                        "logical_type": {
+                          "kind": "nullable",
+                          "value": {
+                            "kind": "struct",
+                            "module": "studio_test_project.table.pathways",
+                            "qualname": "StepsStruct"
+                          }
+                        }
+                      }
+                    ],
+                    "parameters": {
+                      "name": "participants"
+                    },
+                    "logical_type": {
+                      "kind": "nullable",
+                      "value": {
+                        "kind": "array",
+                        "item": {
+                          "kind": "nullable",
+                          "value": {
+                            "kind": "struct",
+                            "module": "studio_test_project.table.pathways",
+                            "qualname": "StepsParticipantsStruct"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ],
+                "parameters": {},
+                "logical_type": {
+                  "kind": "nullable",
+                  "value": {
+                    "kind": "struct",
+                    "module": "studio_test_project.table.pathways",
+                    "qualname": "StepsParticipantsStruct"
+                  }
+                }
+              }
+            ],
+            "parameters": {
+              "name": "molecule_id"
+            },
+            "logical_type": {
+              "kind": "nullable",
+              "value": {
+                "kind": "unit",
+                "name": "str"
+              }
+            }
+          },
+          "description": null
+        },
+        {
+          "name": "role",
+          "expression": {
+            "kind": "operation",
+            "operator": "struct_field",
+            "arguments": [
+              {
+                "kind": "operation",
+                "operator": "expand",
+                "arguments": [
+                  {
+                    "kind": "operation",
+                    "operator": "struct_field",
+                    "arguments": [
+                      {
+                        "kind": "operation",
+                        "operator": "expand",
+                        "arguments": [
+                          {
+                            "kind": "field",
+                            "source": "pathways",
+                            "path": [
+                              "steps"
+                            ],
+                            "logical_type": {
+                              "kind": "nullable",
+                              "value": {
+                                "kind": "array",
+                                "item": {
+                                  "kind": "nullable",
+                                  "value": {
+                                    "kind": "struct",
+                                    "module": "studio_test_project.table.pathways",
+                                    "qualname": "StepsStruct"
+                                  }
+                                }
+                              }
+                            }
+                          }
+                        ],
+                        "parameters": {},
+                        "logical_type": {
+                          "kind": "nullable",
+                          "value": {
+                            "kind": "struct",
+                            "module": "studio_test_project.table.pathways",
+                            "qualname": "StepsStruct"
+                          }
+                        }
+                      }
+                    ],
+                    "parameters": {
+                      "name": "participants"
+                    },
+                    "logical_type": {
+                      "kind": "nullable",
+                      "value": {
+                        "kind": "array",
+                        "item": {
+                          "kind": "nullable",
+                          "value": {
+                            "kind": "struct",
+                            "module": "studio_test_project.table.pathways",
+                            "qualname": "StepsParticipantsStruct"
+                          }
+                        }
+                      }
+                    }
+                  }
+                ],
+                "parameters": {},
+                "logical_type": {
+                  "kind": "nullable",
+                  "value": {
+                    "kind": "struct",
+                    "module": "studio_test_project.table.pathways",
+                    "qualname": "StepsParticipantsStruct"
+                  }
+                }
+              }
+            ],
+            "parameters": {
+              "name": "role"
+            },
+            "logical_type": {
+              "kind": "nullable",
+              "value": {
+                "kind": "unit",
+                "name": "str"
+              }
+            }
+          },
+          "description": null
+        }
+      ],
+      "annotations": []
+    }
+  ],
+  "components": [
+    {
+      "id": "documented",
+      "kind": "node",
+      "tier": "category",
+      "declaration_name": "DocumentedAbstractNode",
+      "name": "documented",
+      "description": "Category: every entity that carries a human-readable summary.",
+      "label": "Documented",
+      "parent": null,
+      "mixins": [],
+      "source": null,
+      "target": null,
+      "properties": [
+        {
+          "name": "summary",
+          "logical_type": {
+            "kind": "unit",
+            "name": "str"
+          },
+          "description": null,
+          "optional": false,
+          "annotations": []
+        }
+      ],
+      "annotations": []
+    },
+    {
+      "id": "provenanced_node",
+      "kind": "node",
+      "tier": "template",
+      "declaration_name": "ProvenancedNodeTemplate",
+      "name": "provenanced_node",
+      "description": "Every node records the feed version that produced it.",
+      "label": null,
+      "parent": null,
+      "mixins": [],
+      "source": null,
+      "target": null,
+      "properties": [
+        {
+          "name": "source_version",
+          "logical_type": {
+            "kind": "unit",
+            "name": "str"
+          },
+          "description": null,
+          "optional": false,
+          "annotations": []
+        }
+      ],
+      "annotations": [
+        {
+          "annotation_type": "provenance",
+          "import_module": null,
+          "class_name": null,
+          "arguments": {
+            "stage": "built"
+          }
+        }
+      ]
+    },
+    {
+      "id": "related",
+      "kind": "edge",
+      "tier": "category",
+      "declaration_name": "RelatedAbstractEdge",
+      "name": "related",
+      "description": "Category: an assertion that two documented entities are connected.",
+      "label": "RELATED",
+      "parent": null,
+      "mixins": [],
+      "source": "documented",
+      "target": "documented",
+      "properties": [],
+      "annotations": []
+    },
+    {
+      "id": "recorded_edge",
+      "kind": "edge",
+      "tier": "template",
+      "declaration_name": "RecordedEdgeTemplate",
+      "name": "recorded_edge",
+      "description": "Every relation states which feed recorded it.",
+      "label": null,
+      "parent": null,
+      "mixins": [],
+      "source": null,
+      "target": null,
+      "properties": [
+        {
+          "name": "recorded_in",
+          "logical_type": {
+            "kind": "unit",
+            "name": "str"
+          },
+          "description": null,
+          "optional": false,
+          "annotations": []
+        }
+      ],
+      "annotations": []
+    },
+    {
+      "id": "target",
+      "kind": "node",
+      "tier": "concrete",
+      "declaration_name": "TargetNode",
+      "name": "target",
+      "description": "A draggable biological target held on the target register.",
+      "label": "Target",
+      "parent": "documented",
+      "mixins": [
+        "provenanced_node"
+      ],
+      "source": null,
+      "target": null,
+      "properties": [
+        {
+          "name": "symbol",
+          "logical_type": {
+            "kind": "unit",
+            "name": "str"
+          },
+          "description": null,
+          "optional": false,
+          "annotations": []
+        },
+        {
+          "name": "organism",
+          "logical_type": {
+            "kind": "unit",
+            "name": "str"
+          },
+          "description": null,
+          "optional": false,
+          "annotations": []
+        },
+        {
+          "name": "reviewed",
+          "logical_type": {
+            "kind": "unit",
+            "name": "bool"
+          },
+          "description": null,
+          "optional": false,
+          "annotations": []
+        },
+        {
+          "name": "curator_city",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "optional": true,
+          "annotations": []
+        }
+      ],
+      "annotations": []
+    },
+    {
+      "id": "pathway",
+      "kind": "node",
+      "tier": "concrete",
+      "declaration_name": "PathwayNode",
+      "name": "pathway",
+      "description": "A curated pathway that participates targets take part in.",
+      "label": "Pathway",
+      "parent": "documented",
+      "mixins": [
+        "provenanced_node"
+      ],
+      "source": null,
+      "target": null,
+      "properties": [
+        {
+          "name": "title",
+          "logical_type": {
+            "kind": "unit",
+            "name": "str"
+          },
+          "description": null,
+          "optional": false,
+          "annotations": []
+        },
+        {
+          "name": "species",
+          "logical_type": {
+            "kind": "unit",
+            "name": "str"
+          },
+          "description": null,
+          "optional": false,
+          "annotations": []
+        }
+      ],
+      "annotations": []
+    },
+    {
+      "id": "publication",
+      "kind": "node",
+      "tier": "concrete",
+      "declaration_name": "PublicationNode",
+      "name": "publication",
+      "description": "A study reporting an observation against a target.",
+      "label": "Publication",
+      "parent": "documented",
+      "mixins": [
+        "provenanced_node"
+      ],
+      "source": null,
+      "target": null,
+      "properties": [
+        {
+          "name": "phase",
+          "logical_type": {
+            "kind": "nullable",
+            "value": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          "description": null,
+          "optional": true,
+          "annotations": []
+        },
+        {
+          "name": "evidence_kind",
+          "logical_type": {
+            "kind": "unit",
+            "name": "str"
+          },
+          "description": null,
+          "optional": false,
+          "annotations": []
+        }
+      ],
+      "annotations": []
+    },
+    {
+      "id": "studied_in",
+      "kind": "edge",
+      "tier": "concrete",
+      "declaration_name": "StudiedInEdge",
+      "name": "studied_in",
+      "description": "A target takes part in a pathway.",
+      "label": "STUDIED_IN",
+      "parent": "related",
+      "mixins": [
+        "recorded_edge"
+      ],
+      "source": "target",
+      "target": "pathway",
+      "properties": [],
+      "annotations": []
+    },
+    {
+      "id": "reported_for",
+      "kind": "edge",
+      "tier": "concrete",
+      "declaration_name": "ReportedForEdge",
+      "name": "reported_for",
+      "description": "A study reports an observation against a target.",
+      "label": "REPORTED_FOR",
+      "parent": "related",
+      "mixins": [
+        "recorded_edge"
+      ],
+      "source": "publication",
+      "target": "documented",
+      "properties": [],
+      "annotations": []
+    }
+  ],
+  "bindings": [
+    {
+      "id": "target_binding",
+      "kind": "node",
+      "component": "target",
+      "debug_name": null,
+      "build_key": {
+        "kind": "operation",
+        "operator": "where_present",
+        "arguments": [
+          {
+            "kind": "field",
+            "source": "targets",
+            "path": [
+              "target_id"
+            ],
+            "logical_type": {
+              "kind": "nullable",
+              "value": {
+                "kind": "unit",
+                "name": "str"
+              }
+            }
+          }
+        ],
+        "parameters": {},
+        "logical_type": {
+          "kind": "unit",
+          "name": "str"
+        }
+      },
+      "source_build_key": null,
+      "target_build_key": null,
+      "source": null,
+      "target": null,
+      "properties": [
+        {
+          "name": "symbol",
+          "expression": {
+            "kind": "operation",
+            "operator": "coalesce",
+            "arguments": [
+              {
+                "kind": "field",
+                "source": "targets",
+                "path": [
+                  "symbol"
+                ],
+                "logical_type": {
+                  "kind": "nullable",
+                  "value": {
+                    "kind": "unit",
+                    "name": "str"
+                  }
+                }
+              },
+              {
+                "kind": "literal",
+                "value": "UNNAMED",
+                "logical_type": {
+                  "kind": "unit",
+                  "name": "str"
+                }
+              }
+            ],
+            "parameters": {},
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        },
+        {
+          "name": "organism",
+          "expression": {
+            "kind": "operation",
+            "operator": "coalesce",
+            "arguments": [
+              {
+                "kind": "field",
+                "source": "targets",
+                "path": [
+                  "organism"
+                ],
+                "logical_type": {
+                  "kind": "nullable",
+                  "value": {
+                    "kind": "unit",
+                    "name": "str"
+                  }
+                }
+              },
+              {
+                "kind": "literal",
+                "value": "unknown",
+                "logical_type": {
+                  "kind": "unit",
+                  "name": "str"
+                }
+              }
+            ],
+            "parameters": {},
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        },
+        {
+          "name": "reviewed",
+          "expression": {
+            "kind": "operation",
+            "operator": "coalesce",
+            "arguments": [
+              {
+                "kind": "field",
+                "source": "targets",
+                "path": [
+                  "reviewed"
+                ],
+                "logical_type": {
+                  "kind": "nullable",
+                  "value": {
+                    "kind": "unit",
+                    "name": "bool"
+                  }
+                }
+              },
+              {
+                "kind": "literal",
+                "value": false,
+                "logical_type": {
+                  "kind": "unit",
+                  "name": "bool"
+                }
+              }
+            ],
+            "parameters": {},
+            "logical_type": {
+              "kind": "unit",
+              "name": "bool"
+            }
+          }
+        },
+        {
+          "name": "summary",
+          "expression": {
+            "kind": "operation",
+            "operator": "coalesce",
+            "arguments": [
+              {
+                "kind": "field",
+                "source": "targets",
+                "path": [
+                  "name"
+                ],
+                "logical_type": {
+                  "kind": "nullable",
+                  "value": {
+                    "kind": "unit",
+                    "name": "str"
+                  }
+                }
+              },
+              {
+                "kind": "literal",
+                "value": "Unnamed target",
+                "logical_type": {
+                  "kind": "unit",
+                  "name": "str"
+                }
+              }
+            ],
+            "parameters": {},
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        },
+        {
+          "name": "source_version",
+          "expression": {
+            "kind": "literal",
+            "value": "feed-2026-09",
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        }
+      ],
+      "annotations": []
+    },
+    {
+      "id": "pathway_binding",
+      "kind": "node",
+      "component": "pathway",
+      "debug_name": null,
+      "build_key": {
+        "kind": "operation",
+        "operator": "where_present",
+        "arguments": [
+          {
+            "kind": "field",
+            "source": "pathways",
+            "path": [
+              "pathway_id"
+            ],
+            "logical_type": {
+              "kind": "nullable",
+              "value": {
+                "kind": "unit",
+                "name": "str"
+              }
+            }
+          }
+        ],
+        "parameters": {},
+        "logical_type": {
+          "kind": "unit",
+          "name": "str"
+        }
+      },
+      "source_build_key": null,
+      "target_build_key": null,
+      "source": null,
+      "target": null,
+      "properties": [
+        {
+          "name": "title",
+          "expression": {
+            "kind": "operation",
+            "operator": "coalesce",
+            "arguments": [
+              {
+                "kind": "field",
+                "source": "pathways",
+                "path": [
+                  "title"
+                ],
+                "logical_type": {
+                  "kind": "nullable",
+                  "value": {
+                    "kind": "unit",
+                    "name": "str"
+                  }
+                }
+              },
+              {
+                "kind": "literal",
+                "value": "Unnamed pathway",
+                "logical_type": {
+                  "kind": "unit",
+                  "name": "str"
+                }
+              }
+            ],
+            "parameters": {},
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        },
+        {
+          "name": "species",
+          "expression": {
+            "kind": "operation",
+            "operator": "coalesce",
+            "arguments": [
+              {
+                "kind": "field",
+                "source": "pathways",
+                "path": [
+                  "species"
+                ],
+                "logical_type": {
+                  "kind": "nullable",
+                  "value": {
+                    "kind": "unit",
+                    "name": "str"
+                  }
+                }
+              },
+              {
+                "kind": "literal",
+                "value": "unknown",
+                "logical_type": {
+                  "kind": "unit",
+                  "name": "str"
+                }
+              }
+            ],
+            "parameters": {},
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        },
+        {
+          "name": "summary",
+          "expression": {
+            "kind": "operation",
+            "operator": "coalesce",
+            "arguments": [
+              {
+                "kind": "field",
+                "source": "pathways",
+                "path": [
+                  "title"
+                ],
+                "logical_type": {
+                  "kind": "nullable",
+                  "value": {
+                    "kind": "unit",
+                    "name": "str"
+                  }
+                }
+              },
+              {
+                "kind": "literal",
+                "value": "Unnamed pathway",
+                "logical_type": {
+                  "kind": "unit",
+                  "name": "str"
+                }
+              }
+            ],
+            "parameters": {},
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        },
+        {
+          "name": "source_version",
+          "expression": {
+            "kind": "literal",
+            "value": "feed-2026-09",
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        }
+      ],
+      "annotations": []
+    },
+    {
+      "id": "clinical_binding",
+      "kind": "node",
+      "component": "publication",
+      "debug_name": "clinical_publication",
+      "build_key": {
+        "kind": "operation",
+        "operator": "where_present",
+        "arguments": [
+          {
+            "kind": "field",
+            "source": "clinical",
+            "path": [
+              "publication_id"
+            ],
+            "logical_type": {
+              "kind": "nullable",
+              "value": {
+                "kind": "unit",
+                "name": "str"
+              }
+            }
+          }
+        ],
+        "parameters": {},
+        "logical_type": {
+          "kind": "unit",
+          "name": "str"
+        }
+      },
+      "source_build_key": null,
+      "target_build_key": null,
+      "source": null,
+      "target": null,
+      "properties": [
+        {
+          "name": "phase",
+          "expression": {
+            "kind": "field",
+            "source": "clinical",
+            "path": [
+              "phase"
+            ],
+            "logical_type": {
+              "kind": "nullable",
+              "value": {
+                "kind": "unit",
+                "name": "str"
+              }
+            }
+          }
+        },
+        {
+          "name": "evidence_kind",
+          "expression": {
+            "kind": "literal",
+            "value": "clinical",
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        },
+        {
+          "name": "summary",
+          "expression": {
+            "kind": "operation",
+            "operator": "where_present",
+            "arguments": [
+              {
+                "kind": "field",
+                "source": "clinical",
+                "path": [
+                  "publication_id"
+                ],
+                "logical_type": {
+                  "kind": "nullable",
+                  "value": {
+                    "kind": "unit",
+                    "name": "str"
+                  }
+                }
+              }
+            ],
+            "parameters": {},
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        },
+        {
+          "name": "source_version",
+          "expression": {
+            "kind": "literal",
+            "value": "feed-2026-09",
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        }
+      ],
+      "annotations": []
+    },
+    {
+      "id": "preclinical_binding",
+      "kind": "node",
+      "component": "publication",
+      "debug_name": "preclinical_publication",
+      "build_key": {
+        "kind": "operation",
+        "operator": "where_present",
+        "arguments": [
+          {
+            "kind": "field",
+            "source": "preclinical",
+            "path": [
+              "publication_id"
+            ],
+            "logical_type": {
+              "kind": "nullable",
+              "value": {
+                "kind": "unit",
+                "name": "str"
+              }
+            }
+          }
+        ],
+        "parameters": {},
+        "logical_type": {
+          "kind": "unit",
+          "name": "str"
+        }
+      },
+      "source_build_key": null,
+      "target_build_key": null,
+      "source": null,
+      "target": null,
+      "properties": [
+        {
+          "name": "evidence_kind",
+          "expression": {
+            "kind": "literal",
+            "value": "preclinical",
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        },
+        {
+          "name": "summary",
+          "expression": {
+            "kind": "operation",
+            "operator": "where_present",
+            "arguments": [
+              {
+                "kind": "field",
+                "source": "preclinical",
+                "path": [
+                  "publication_id"
+                ],
+                "logical_type": {
+                  "kind": "nullable",
+                  "value": {
+                    "kind": "unit",
+                    "name": "str"
+                  }
+                }
+              }
+            ],
+            "parameters": {},
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        },
+        {
+          "name": "source_version",
+          "expression": {
+            "kind": "literal",
+            "value": "feed-2026-09",
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        }
+      ],
+      "annotations": []
+    },
+    {
+      "id": "studied_in_binding",
+      "kind": "edge",
+      "component": "studied_in",
+      "debug_name": null,
+      "build_key": {
+        "kind": "operation",
+        "operator": "concat",
+        "arguments": [
+          {
+            "kind": "operation",
+            "operator": "where_present",
+            "arguments": [
+              {
+                "kind": "field",
+                "source": "pathway_participants",
+                "path": [
+                  "target_id"
+                ],
+                "logical_type": {
+                  "kind": "nullable",
+                  "value": {
+                    "kind": "unit",
+                    "name": "str"
+                  }
+                }
+              }
+            ],
+            "parameters": {},
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          {
+            "kind": "operation",
+            "operator": "concat",
+            "arguments": [
+              {
+                "kind": "literal",
+                "value": "_",
+                "logical_type": {
+                  "kind": "unit",
+                  "name": "str"
+                }
+              },
+              {
+                "kind": "field",
+                "source": "pathway_participants",
+                "path": [
+                  "pathway_id"
+                ],
+                "logical_type": {
+                  "kind": "unit",
+                  "name": "str"
+                }
+              }
+            ],
+            "parameters": {},
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        ],
+        "parameters": {},
+        "logical_type": {
+          "kind": "unit",
+          "name": "str"
+        }
+      },
+      "source_build_key": {
+        "kind": "operation",
+        "operator": "where_present",
+        "arguments": [
+          {
+            "kind": "field",
+            "source": "pathway_participants",
+            "path": [
+              "target_id"
+            ],
+            "logical_type": {
+              "kind": "nullable",
+              "value": {
+                "kind": "unit",
+                "name": "str"
+              }
+            }
+          }
+        ],
+        "parameters": {},
+        "logical_type": {
+          "kind": "unit",
+          "name": "str"
+        }
+      },
+      "target_build_key": {
+        "kind": "field",
+        "source": "pathway_participants",
+        "path": [
+          "pathway_id"
+        ],
+        "logical_type": {
+          "kind": "unit",
+          "name": "str"
+        }
+      },
+      "source": null,
+      "target": null,
+      "properties": [
+        {
+          "name": "recorded_in",
+          "expression": {
+            "kind": "literal",
+            "value": "pathways",
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        }
+      ],
+      "annotations": []
+    },
+    {
+      "id": "reported_for_binding",
+      "kind": "edge",
+      "component": "reported_for",
+      "debug_name": null,
+      "build_key": {
+        "kind": "operation",
+        "operator": "concat",
+        "arguments": [
+          {
+            "kind": "operation",
+            "operator": "where_present",
+            "arguments": [
+              {
+                "kind": "field",
+                "source": "clinical",
+                "path": [
+                  "publication_id"
+                ],
+                "logical_type": {
+                  "kind": "nullable",
+                  "value": {
+                    "kind": "unit",
+                    "name": "str"
+                  }
+                }
+              }
+            ],
+            "parameters": {},
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          },
+          {
+            "kind": "literal",
+            "value": "_",
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        ],
+        "parameters": {},
+        "logical_type": {
+          "kind": "unit",
+          "name": "str"
+        }
+      },
+      "source_build_key": {
+        "kind": "operation",
+        "operator": "where_present",
+        "arguments": [
+          {
+            "kind": "field",
+            "source": "clinical",
+            "path": [
+              "publication_id"
+            ],
+            "logical_type": {
+              "kind": "nullable",
+              "value": {
+                "kind": "unit",
+                "name": "str"
+              }
+            }
+          }
+        ],
+        "parameters": {},
+        "logical_type": {
+          "kind": "unit",
+          "name": "str"
+        }
+      },
+      "target_build_key": {
+        "kind": "operation",
+        "operator": "where_present",
+        "arguments": [
+          {
+            "kind": "field",
+            "source": "clinical",
+            "path": [
+              "target_id"
+            ],
+            "logical_type": {
+              "kind": "nullable",
+              "value": {
+                "kind": "unit",
+                "name": "str"
+              }
+            }
+          }
+        ],
+        "parameters": {},
+        "logical_type": {
+          "kind": "unit",
+          "name": "str"
+        }
+      },
+      "source": null,
+      "target": "target",
+      "properties": [
+        {
+          "name": "recorded_in",
+          "expression": {
+            "kind": "literal",
+            "value": "clinical",
+            "logical_type": {
+              "kind": "unit",
+              "name": "str"
+            }
+          }
+        }
+      ],
+      "annotations": []
+    }
+  ],
+  "sources": [
+    {
+      "id": "targets",
+      "table": "targets",
+      "location": "data/targets.json",
+      "format": "json",
+      "layout": null,
+      "version": null,
+      "credential_reference": null,
+      "annotations": []
+    },
+    {
+      "id": "pathways",
+      "table": "pathways",
+      "location": "data/pathways.json",
+      "format": "json",
+      "layout": null,
+      "version": null,
+      "credential_reference": null,
+      "annotations": []
+    },
+    {
+      "id": "publications",
+      "table": "publications",
+      "location": "data",
+      "format": "json",
+      "layout": "{group_path}/{table_name}.json",
+      "version": null,
+      "credential_reference": null,
+      "annotations": []
+    }
+  ],
+  "modules": [
+    {
+      "id": "collapse_exact_duplicates",
+      "configuration": null,
+      "enabled": true
+    },
+    {
+      "id": "file",
+      "configuration": {
+        "relative_path": "graph.jsonl"
+      },
+      "enabled": true
+    },
+    {
+      "id": "meta_graph",
+      "configuration": {
+        "include_html": true,
+        "relative_path": "meta_graph.json"
+      },
+      "enabled": true
+    }
+  ],
+  "views": {
+    "topology": {
+      "component:documented": {
+        "x": 60.0,
+        "y": 40.0
+      },
+      "component:pathway": {
+        "x": 620.0,
+        "y": 40.0
+      },
+      "component:publication": {
+        "x": 320.0,
+        "y": 260.0
+      },
+      "component:related": {
+        "x": 60.0,
+        "y": 300.0
+      },
+      "component:reported_for": {
+        "x": 470.0,
+        "y": 200.0
+      },
+      "component:studied_in": {
+        "x": 470.0,
+        "y": 60.0
+      },
+      "component:target": {
+        "x": 320.0,
+        "y": 40.0
+      }
+    }
+  }
+}

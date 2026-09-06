@@ -1,0 +1,60 @@
+[
+  {
+    "target_id": "T-0001",
+    "symbol": "BRCA1",
+    "name": "Breast cancer type 1 susceptibility protein",
+    "organism": "Homo sapiens",
+    "reviewed": true,
+    "confidence": 0.94,
+    "aliases": ["RBRCA1", "BRCC1"],
+    "attributes": {
+      "sequence_length": 1863,
+      "last_curated": "2026-05-02",
+      "curator": {
+        "name": "Ada Lovelace",
+        "team": {"code": "cur", "location": {"city": "Hinxton", "room": "B-12"}}
+      }
+    }
+  },
+  {
+    "target_id": "T-0002",
+    "symbol": "EGFR",
+    "name": "Epidermal growth factor receptor",
+    "organism": "Homo sapiens",
+    "reviewed": true,
+    "confidence": 0.99,
+    "aliases": ["ERBB1"],
+    "attributes": {
+      "sequence_length": 1210,
+      "last_curated": "2026-06-11",
+      "curator": {
+        "name": "Grace Hopper",
+        "team": {"code": "cur", "location": {"city": "Hinxton", "room": null}}
+      }
+    }
+  },
+  {
+    "target_id": "T-0003",
+    "symbol": "APP",
+    "name": "Amyloid-beta precursor protein",
+    "organism": "Homo sapiens",
+    "reviewed": false,
+    "confidence": null,
+    "aliases": [],
+    "attributes": {
+      "sequence_length": 770,
+      "last_curated": null,
+      "curator": null
+    }
+  },
+  {
+    "target_id": "T-0004",
+    "symbol": "SNCA",
+    "name": "Synuclein alpha",
+    "organism": "Mus musculus",
+    "reviewed": null,
+    "confidence": 0.42,
+    "aliases": null,
+    "attributes": null
+  }
+]
