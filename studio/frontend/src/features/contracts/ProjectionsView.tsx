@@ -40,8 +40,9 @@ import {
 import type { FeatureProps, SelectableEntry } from "@/lib/types";
 import { notify } from "@/stores/connectionStore";
 import { useSelectionStore } from "@/stores/selectionStore";
-import { canAddOutput, chainSummary, drivingSource, outputReaders } from "@/features/contracts/logic";
+import { canAddOutput, chainSummary, drivingSource, outputReaders, referrersForDeletion, type Referrer } from "@/features/contracts/logic";
 import { deleteEntity, makeProjection, patchProjection } from "@/features/contracts/edit";
+import { DeleteButton, DeleteDialog } from "./DeleteControls";
 
 export function ProjectionsView({ document, index, problems, selectedRef, onSelectRef, apply }: FeatureProps) {
   const projections = document.projections ?? [];
@@ -64,7 +65,13 @@ export function ProjectionsView({ document, index, problems, selectedRef, onSele
         }}
       />
       {selected ? (
-        <ProjectionDetail document={document} index={index} projection={selected} apply={apply} />
+        <ProjectionDetail
+          document={document}
+          index={index}
+          projection={selected}
+          apply={apply}
+          onSelectRef={onSelectRef}
+        />
       ) : (
         <Panel title="Projection">
           <EmptyState
@@ -187,15 +194,18 @@ function ProjectionDetail({
   index,
   projection,
   apply,
+  onSelectRef,
 }: {
   document: ProjectDocument;
   index: FeatureProps["index"];
   projection: Projection;
   apply: FeatureProps["apply"];
+  onSelectRef(ref: string | null): void;
 }) {
   const ref = buildRef("projection", projection.id);
   const driving = drivingSource(projection);
   const [showAdd, setShowAdd] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Referrer[] | null>(null);
 
   // Selectable sources the outputs may read, filtered to the driving source once set.
   const selectable = useMemo(() => index?.selectable ?? [], [index]);
@@ -259,7 +269,12 @@ function ProjectionDetail({
     <Panel
       title={projection.name}
       subtitle={`${(projection.fields ?? []).length} outputs`}
-      actions={<ProblemBadge problems={[]} />}
+      actions={
+        <div className="flex items-center gap-1.5">
+          <ProblemBadge problems={[]} />
+          <DeleteButton label="projection" onClick={() => setPendingDelete(referrersForDeletion(document, "projection", projection.id))} />
+        </div>
+      }
       id="panel-projection-detail"
     >
       <div className="flex flex-col gap-2.5">
@@ -347,6 +362,15 @@ function ProjectionDetail({
           </div>
         )}
       </div>
+      <DeleteDialog
+        pending={pendingDelete}
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          apply((draft) => deleteEntity(draft, "projections", projection.id));
+          onSelectRef(null);
+          setPendingDelete(null);
+        }}
+      />
     </Panel>
   );
 }

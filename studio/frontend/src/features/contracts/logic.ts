@@ -249,7 +249,11 @@ export function referrersOfProjection(document: ProjectDocument, projection: Pro
     if (kind === "projection" && id === projection.id) continue;
     for (const { path, expression } of fields) {
       if (expressionSources(expression).includes(projection.name)) {
-        out.push({ ref: buildRef(kind, id, ...path), label: name, kind: "expression" });
+        // A binding is named by its id and the stack that reads it, not by its
+        // component: several bindings can write one component, and a delete-blocking
+        // list that repeats the same word three times tells the user nothing to fix.
+        const label = kind === "binding" ? `${id}.${path.join(".")}` : name;
+        out.push({ ref: buildRef(kind, id, ...path), label, kind: "expression" });
       }
     }
   }

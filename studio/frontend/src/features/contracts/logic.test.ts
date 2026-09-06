@@ -88,6 +88,37 @@ describe("referrer analysis", () => {
     expect(referrers.map((item) => item.ref)).toContain("binding:city_binding.build_key");
     expect(referrersForDeletion(SAMPLE_DOCUMENT, "projection", "site_cities")).toEqual([]);
   });
+
+  it("names each blocking referrer by its own stack, not by a shared component", () => {
+    // Two bindings writing one component would otherwise print the same word twice in
+    // the dialog that is supposed to say which reference to go and break.
+    const document: ProjectDocument = {
+      ...SAMPLE_DOCUMENT,
+      bindings: [
+        {
+          id: "first_binding",
+          kind: "node",
+          component: "site",
+          build_key: { kind: "field", source: "site_cities", path: ["site_id"], logical_type: maybeStr },
+          properties: [],
+        },
+        {
+          id: "second_binding",
+          kind: "node",
+          component: "site",
+          build_key: { kind: "literal", value: "x", logical_type: unit("str") },
+          properties: [
+            { name: "city", expression: { kind: "field", source: "site_cities", path: ["city"], logical_type: maybeStr } },
+          ],
+        },
+      ],
+    };
+
+    const labels = referrersForDeletion(document, "projection", "site_cities").map((item) => item.label);
+    expect(labels).toContain("first_binding.build_key");
+    expect(labels).toContain("second_binding.property.city");
+    expect(new Set(labels).size).toBe(2);
+  });
 });
 
 /* ------------------------------------------------- consumers of one projection output */
