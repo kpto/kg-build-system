@@ -120,7 +120,13 @@ export function ForceGraph({
   const [edgeDraft, setEdgeDraft] = useState<EdgeDraft | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [gesture, setGesture] = useState<Gesture | null>(null);
-  const framedForRef = useRef<string | null>(null);
+  /** What the last auto-frame was computed for, so a drag never re-frames. */
+  const framedFor = useRef<{
+    structure: string | null;
+    width: number;
+    height: number;
+    layout: Record<string, Point> | null;
+  }>({ structure: null, width: 0, height: 0, layout: null });
   /** True once the user has panned or zoomed, which the auto-framing must respect. */
   const userFraming = useRef(false);
   /** Where the dragged node stood when the drag began, in graph coordinates. */
@@ -158,7 +164,21 @@ export function ForceGraph({
     [graph],
   );
 
-  const positions = useMemo(() => {
+  /**
+   * Hand placements as recorded in the document, as a stable key. The settled layout
+   * depends on them — that is how "reset layout" reaches the screen — but deliberately not
+   * on the in-flight drag, which is overlaid afterwards.
+   */
+  const storedSignature = useMemo(() => {
+    const parts: string[] = [];
+    for (const vertex of graph.vertices) {
+      const point = positionOf(document, vertex.ref);
+      parts.push(point ? `${vertex.id}:${point.x},${point.y}` : `${vertex.id}:-`);
+    }
+    return parts.sort().join("|");
+  }, [graph, document]);
+
+  const settled = useMemo(() => {
     // `autoLayout` is a seeding heuristic, not a second visible layout. Its column
     // invariants do not survive the force settle — measured on the demo project, seeding
     // from it leaves 4 links pointing back against 7 from no seed, which is why it is
@@ -169,14 +189,19 @@ export function ForceGraph({
       const stored = positionOf(document, vertex.ref);
       if (stored) seeds[vertex.id] = stored;
     }
-    const settled = settleLayout(graph.vertices, graph.links, {
+    return settleLayout(graph.vertices, graph.links, {
       width: size.width,
       height: size.height,
       seed: seeds,
     });
-    return { ...settled, ...dragged };
+    // Deliberately not keyed on `dragged`: the simulation must not re-run while a node is
+    // being pulled, or a drag pays a full settle per mousemove.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [structure, size.width, size.height, dragged]);
+  }, [structure, storedSignature, size.width, size.height]);
+
+  // A hand placement overlays the settled picture instead of feeding back into it, so
+  // dragging one node cannot perturb any other.
+  const positions = useMemo(() => ({ ...settled, ...dragged }), [settled, dragged]);
 
   /**
    * Untangle the graph: settle from the structure alone, ignoring every hand placement,
@@ -261,15 +286,24 @@ export function ForceGraph({
   // Frame whenever the drawn structure changes, unless the user has taken the wheel:
   // a pan or zoom is a deliberate act and survives a later edit. Re-framing on a box
   // resize is right; overruling a user's own framing is not.
+  // Frame when the drawn structure changes or the host box changes — and otherwise never.
+  // This used to run on any change to `frame`'s identity, and `frame` reads the node
+  // positions, so a drag re-framed the whole picture on every mousemove: the bounding box
+  // now contained the dragged node in a new place, which panned and rescaled everything and
+  // made every other node and edge appear to shift. A pan or zoom is deliberate, so it
+  // survives both events until the user asks to fit again.
   useEffect(() => {
-    if (framedForRef.current === structure) {
-      // Same structure: only a host resize should move the viewport.
-      frame();
-      return;
-    }
-    framedForRef.current = structure;
-    if (!userFraming.current) frame();
-  }, [structure, frame]);
+    const previous = framedFor.current;
+    const structureChanged = previous.structure !== structure;
+    const boxChanged = previous.width !== size.width || previous.height !== size.height;
+    // A genuinely new settled arrangement — "reset layout", or new hand placements —
+    // deserves re-framing; a drag, which only overlays, does not.
+    const layoutChanged = previous.layout !== settled;
+    if (!structureChanged && !boxChanged && !layoutChanged) return;
+    framedFor.current = { structure, width: size.width, height: size.height, layout: settled };
+    if (userFraming.current) return;
+    frame();
+  }, [structure, settled, size.width, size.height, frame]);
 
   const centreOn = useCallback(
     (id: string) => {
