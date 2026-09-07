@@ -216,6 +216,14 @@ always composed by picking:
     *set* changes, so editing a description never moves the graph, and only a
     deliberate drag is persisted. "Reset layout" re-settles from the structure
     alone and persists the result.
+  - The dependency runs one way: **physics is never downstream of placement**.
+    The settled arrangement is a function of structure and canvas size only;
+    stored positions and the in-flight drag are overlaid afterwards. Feeding
+    placements back in as simulation seeds — the obvious design — makes a
+    non-idempotent settle re-run every time a drag is released, so putting one
+    node down relocates all the others and re-fits the viewport. Keeping them
+    separate also makes the persisted layout idempotent: a reload reproduces it
+    exactly.
 - **Bindings** — an expression is a vertical **stack** of blocks: a source block
   (table/projection + field path), then navigation blocks (`pick`, `expand`,
   `map_items`), then effect blocks (`where_present`, `keep_if`, `default_to`), then
