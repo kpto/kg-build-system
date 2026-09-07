@@ -172,8 +172,19 @@ export function AddNodeModal({ open, document, onClose, onCreate }: AddNodeModal
         )}
 
         <p className="text-[11px] leading-snug text-muted">
-          Position, property slots and description are set after creation in the inspector. To
-          relate two nodes, drag from one out-port to the other.
+          {tier === "template" ? (
+            <>
+              A template is not drawn on the graph — it reaches no build. It appears in the
+              mix-in library beside the canvas, contributes its property slots and
+              annotations to whichever components mix it in, and is marked{" "}
+              <span className="text-warn">unused</span> until one does.
+            </>
+          ) : (
+            <>
+              Position, property slots and description are set after creation in the
+              inspector. To relate two nodes, shift-drag from one onto the other.
+            </>
+          )}
         </p>
       </div>
     </Modal>
