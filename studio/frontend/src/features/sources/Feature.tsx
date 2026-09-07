@@ -11,7 +11,9 @@
  *                 problems by ref.
  *   problems      Pre-filtered problems whose ref is `source:*`.
  *   selectedRef / onSelectRef   The standard global selection.
- *   apply         Adds and edits a source; optimistic, coalesced, undoable.
+ *   apply         Adds, edits and removes a source; optimistic, coalesced, undoable.
+ *                 Removal goes through the shared delete controls, so "what still needs
+ *                 this data?" is answered the way every other declaration answers it.
  *
  * Implemented as the picker it needs to be (DESIGN.md §5): discovered data files on the
  * left (`GET /api/data/files`), the document's bindings on the right. Shape inference
@@ -41,7 +43,10 @@ import type { Source, SourceFormat } from "@/lib/ir";
 import { useDocumentStore } from "@/stores/documentStore";
 import { useProblemStore } from "@/stores/problemStore";
 import { useSelectionStore } from "@/stores/selectionStore";
+import { referrersForDeletion, type Referrer } from "@/features/contracts/logic";
+import { DeleteButton, DeleteDialog } from "@/features/contracts/DeleteControls";
 import { loadDataFiles } from "@/components/shell/useStudioSession";
+import { removeSourceCascade } from "./edit";
 
 const FORMATS: readonly SourceFormat[] = ["csv", "json", "parquet"];
 
@@ -78,6 +83,10 @@ export default function SourcesFeature({
   }, [mock]);
 
   const sources = sectionItems(document, "sources");
+  // The selected source, if the selection is one: like the projection detail panel,
+  // the delete control exists only for the declaration it acts on.
+  const target = sources.find((source) => `source:${source.id}` === selectedRef) ?? null;
+  const [pendingDelete, setPendingDelete] = useState<Referrer[] | null>(null);
   const allTables = useMemo(() => sectionItems(document, "tables"), [document]);
   const tables = useMemo(
     () => allTables.map((table) => ({ value: table.id, label: table.name })),
@@ -159,19 +168,27 @@ export default function SourcesFeature({
         subtitle={`${sources.length} bound · ${unbound.length} missing`}
         id="panel-sources"
         actions={
-          <Button
-            variant="primary"
-            icon={<PlusIcon />}
-            disabled={!picked || unbound.length === 0}
-            onClick={bind}
-            title={
-              unbound.length === 0
-                ? "Every table already has a source"
-                : `Bind to table ${unbound[0]?.label ?? ""}`
-            }
-          >
-            bind source
-          </Button>
+          <div className="flex items-center gap-1.5">
+            {target && (
+              <DeleteButton
+                label="source"
+                onClick={() => setPendingDelete(referrersForDeletion(document, "source", target.id))}
+              />
+            )}
+            <Button
+              variant="primary"
+              icon={<PlusIcon />}
+              disabled={!picked || unbound.length === 0}
+              onClick={bind}
+              title={
+                unbound.length === 0
+                  ? "Every table already has a source"
+                  : `Bind to table ${unbound[0]?.label ?? ""}`
+              }
+            >
+              bind source
+            </Button>
+          </div>
         }
       >
         {unbound.length > 0 && (
@@ -238,6 +255,15 @@ export default function SourcesFeature({
             })}
           </div>
         )}
+        <DeleteDialog
+          pending={pendingDelete}
+          onCancel={() => setPendingDelete(null)}
+          onConfirm={() => {
+            if (target) apply((draft) => removeSourceCascade(draft, target.id));
+            onSelectRef(null);
+            setPendingDelete(null);
+          }}
+        />
       </Panel>
     </div>
   );

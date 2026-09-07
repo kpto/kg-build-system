@@ -1,9 +1,17 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import clsx from "clsx";
 
-import { Button, Chip, CloseIcon, EmptyState, RowButton, SeverityMark, VirtualList } from "@/components/ui";
+import {
+  Chip,
+  CloseIcon,
+  CopyButton,
+  EmptyState,
+  RowButton,
+  SeverityMark,
+  VirtualList,
+} from "@/components/ui";
 import { refLabel } from "@/lib/ids";
 import { PROBLEM_TIERS, TIER_LABEL, type Problem, type ProblemTier } from "@/lib/types";
 import { areaForProblem, useProblemStore } from "@/stores/problemStore";
@@ -192,63 +200,9 @@ function ProblemRow({
           {problem.ref ? `${refLabel(problem.ref)}${problem.ref_trusted === "name" ? " ≈" : ""}` : "no ref"}
         </span>
       </RowButton>
-      <CopyMessage message={problem.message} />
+      <CopyButton text={problem.message} title="Copy the full message" />
     </div>
   );
-}
-
-/**
- * Hands over the whole message.
- *
- * Rows are one fixed 26 px line in a virtualised list, so the message is clipped and
- * drag-selecting can only ever reach the visible part. Copying a diagnostic to paste
- * into a bug report or a shell is the main reason to want the text out of this panel,
- * so the untruncated string is offered directly. It sits beside the row rather than
- * inside it: a `role="button"` element owns its descendants.
- */
-function CopyMessage({ message }: { message: string }) {
-  const [outcome, setOutcome] = useState<"idle" | "copied" | "blocked">("idle");
-
-  const copy = () => {
-    void writeText(message).then((ok) => {
-      setOutcome(ok ? "copied" : "blocked");
-      window.setTimeout(() => setOutcome("idle"), 1_200);
-    });
-  };
-
-  return (
-    <Button
-      size="sm"
-      variant="ghost"
-      onClick={copy}
-      title="Copy the full message"
-      className="shrink-0 self-center px-1.5 text-faint hover:text-ink"
-    >
-      {outcome === "copied" ? "copied" : outcome === "blocked" ? "unavailable" : "copy"}
-    </Button>
-  );
-}
-
-/** Clipboard write, with a path that still works on a non-secure origin. */
-async function writeText(text: string): Promise<boolean> {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    // The async clipboard needs a secure context; the dev server is reachable over a
-    // LAN address, which is not one, so fall back to a throwaway selection.
-    const field = document.createElement("textarea");
-    field.value = text;
-    field.setAttribute("readonly", "");
-    field.style.position = "fixed";
-    field.style.opacity = "0";
-    document.body.appendChild(field);
-    field.select();
-    const copied =
-      typeof document.execCommand === "function" ? document.execCommand("copy") : false;
-    field.remove();
-    return copied;
-  }
 }
 
 function Chevron({ open }: { open: boolean }) {

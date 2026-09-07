@@ -27,10 +27,18 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { Panel } from "@/components/ui";
 import { useSelectionStore } from "@/stores/selectionStore";
-import { componentsOf, createComponent, componentRef, freePosition, withPosition } from "./logic";
+import {
+  buildGraph,
+  componentsOf,
+  createComponent,
+  componentRef,
+  freePosition,
+  templateCatalogue,
+  withPosition,
+} from "./logic";
 import { AddNodeModal } from "./AddNodeModal";
 import { ScopeStrip } from "./ScopeStrip";
-import { TopologyCanvas } from "./TopologyCanvas";
+import { ForceGraph } from "./ForceGraph";
 import { registerTopologyInspector } from "./inspector";
 import type { FeatureProps } from "@/lib/types";
 import { DEFAULT_FILTERS, type TopologyFilters } from "./logic";
@@ -51,6 +59,8 @@ export default function TopologyFeature({
   useEffect(() => registerTopologyInspector(), []);
 
   const components = useMemo(() => componentsOf(document), [document]);
+  const templates = useMemo(() => templateCatalogue(document), [document]);
+  const graph = useMemo(() => buildGraph(document, filters), [document, filters]);
 
   const handleCreateNode = useCallback(
     (spec: Parameters<typeof createComponent>[1]) => {
@@ -90,22 +100,24 @@ export default function TopologyFeature({
       <ScopeStrip
         components={components}
         filters={filters}
+        templates={templates}
+        selectedRef={selectedRef}
         onFiltersChange={setFilters}
         onAddNode={() => setAddOpen(true)}
         onLocate={locate}
+        onSelect={onSelectRef}
       />
 
       <div className="relative flex min-h-0 min-w-0 flex-1 flex-col">
-        <TopologyCanvas
+        <ForceGraph
           document={document}
-          filters={filters}
+          graph={graph}
           selectedRef={selectedRef}
           revealToken={revealToken}
           revealId={revealId}
           onRevealConsumed={() => setRevealId(null)}
           onSelectRef={onSelectRef}
           apply={apply}
-          onAddNode={() => setAddOpen(true)}
         />
       </div>
 

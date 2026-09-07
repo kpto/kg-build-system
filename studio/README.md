@@ -111,3 +111,8 @@ what the studio emits.
   the framework's nullability policy exists to prevent.
 - **Custom scalar types are not authorable yet.** The document model has no `custom`
   logical type, though the framework supports one.
+- **The topology canvas does not draw templates.** A template reaches no blueprint, so
+  the metagraph the framework itself emits contains none; the canvas shows exactly what
+  the framework considers part of the topology. Templates are edited from the library
+  strip beside it, and their endpoints are not offered because the generator discards
+  them for that tier.

@@ -330,12 +330,75 @@ function expressionBearingEntities(
   return out;
 }
 
+/**
+ * The tables one source actually delivers data to.
+ *
+ * A source names a table or a whole group; a group source is a directory plus a
+ * `layout`, so it fans out to every leaf member rather than feeding the catalogue
+ * itself. The bound table is always included: a group is readable as a logical source
+ * in its own right, and a source whose table no longer exists feeds nothing.
+ */
+export function tablesFed(document: ProjectDocument, source: Source): Table[] {
+  const tables = sectionItems(document, "tables");
+  const bound = tables.find((table) => sourceBindsTable(source, table));
+  if (!bound) return [];
+  const out: Table[] = [bound];
+  if (isTableGroup(bound)) {
+    for (const { table } of resolveGroupSourcePaths(document, source)) {
+      if (!out.some((item) => item.id === table.id)) out.push(table);
+    }
+  }
+  return out;
+}
+
+/** Whether a *different* source still delivers data to this table, directly or via a group. */
+function fedByAnotherSource(document: ProjectDocument, sourceId: string, table: Table): boolean {
+  const tables = sectionItems(document, "tables");
+  const others = sectionItems(document, "sources").filter((item) => item.id !== sourceId);
+  return tableAncestry(tables, table).some((link) => others.some((other) => sourceBindsTable(other, link)));
+}
+
+/**
+ * What still needs the data behind this source.
+ *
+ * Nothing in the document names a source — the pointer runs source → table — so the
+ * question has to be asked one step further out: which tables does this source feed,
+ * and does any of them still get its data from somewhere else once it is gone? A
+ * table left unbound is the state the Sources tab already offers to repair; a binding
+ * or projection that reads a table with no feed left cannot compile at all, so those
+ * readers are what blocks the delete. They are named by id (a binding's id, never its
+ * component — two bindings can write one component) together with the table they would
+ * lose, which is the thing the user has to go repoint.
+ */
+export function referrersOfSource(document: ProjectDocument, source: Source): Referrer[] {
+  const out: Referrer[] = [];
+  for (const table of tablesFed(document, source)) {
+    if (fedByAnotherSource(document, source.id, table)) continue;
+    for (const [kind, id, _name, fields] of expressionBearingEntities(document)) {
+      for (const { path, expression } of fields) {
+        if (expressionSources(expression).includes(table.name)) {
+          out.push({
+            ref: buildRef(kind, id, ...path),
+            label: `${id}.${path.join(".")} reads ${table.id}`,
+            kind: "expression",
+          });
+        }
+      }
+    }
+  }
+  return out;
+}
+
 /** Every referrer that would dangle if `kind:id` were deleted, across all kinds. */
 export function referrersForDeletion(
   document: ProjectDocument,
-  kind: "table" | "struct" | "projection",
+  kind: "table" | "struct" | "projection" | "source",
   id: string,
 ): Referrer[] {
+  if (kind === "source") {
+    const source = sectionItems(document, "sources").find((item) => item.id === id);
+    return source ? referrersOfSource(document, source) : [];
+  }
   if (kind === "struct") {
     const struct = sectionItems(document, "structs").find((item) => item.id === id);
     return struct ? referrersOfStruct(document, struct) : [];

@@ -27,6 +27,7 @@ import {
   shapeProvenance,
   suggestDeclarationName,
   suggestId,
+  tablesFed,
   trustAllowsNonNull,
   trustTier,
 } from "./logic";
@@ -118,6 +119,137 @@ describe("referrer analysis", () => {
     expect(labels).toContain("first_binding.build_key");
     expect(labels).toContain("second_binding.property.city");
     expect(new Set(labels).size).toBe(2);
+  });
+});
+
+/* -------------------------------------------------------------- source deletion */
+
+describe("source deletion referrers", () => {
+  const field = (source: string): Expression => ({
+    kind: "field",
+    source,
+    path: [],
+    logical_type: maybeStr,
+  });
+
+  const reader = (id: string, component: string, source: string): Binding => ({
+    id,
+    kind: "node",
+    component,
+    build_key: field(source),
+    properties: [{ name: "name", expression: field(source) }],
+  });
+
+  it("blocks unbinding a source whose table a binding and a projection still read", () => {
+    const referrers = referrersForDeletion(SAMPLE_DOCUMENT, "source", "sites_source");
+
+    // Every stack that reads `sites`, field by field: the label is the binding's own id
+    // (never its component, which two bindings can share) plus the table it would lose.
+    expect(referrers.map((item) => item.ref)).toEqual([
+      "binding:site_binding.build_key",
+      "binding:site_binding.property.name",
+      "binding:site_binding.property.city",
+      "projection:site_cities.field.site_id",
+      "projection:site_cities.field.score",
+    ]);
+    expect(referrers.map((item) => item.label)).toEqual([
+      "site_binding.build_key reads sites",
+      "site_binding.property.name reads sites",
+      "site_binding.property.city reads sites",
+      "site_cities.field.site_id reads sites",
+      "site_cities.field.score reads sites",
+    ]);
+    expect(referrers.every((item) => item.kind === "expression")).toBe(true);
+  });
+
+  it("tells two bindings that write one component apart", () => {
+    // `clinical_binding` and `preclinical_binding` both publish to `publication` in the
+    // real project; here both write `site` and both read `sites`.
+    const document: ProjectDocument = {
+      ...SAMPLE_DOCUMENT,
+      bindings: [reader("registry_binding", "site", "sites"), reader("manual_binding", "site", "sites")],
+      projections: [],
+    };
+
+    const labels = referrersForDeletion(document, "source", "sites_source").map((item) => item.label);
+    expect(new Set(labels).size).toBe(labels.length);
+    expect(labels).toContain("registry_binding.build_key reads sites");
+    expect(labels).toContain("manual_binding.property.name reads sites");
+  });
+
+  it("blocks on the group leaf that loses its only feed, naming the leaf", () => {
+    // readings_source is a group bind_source: it feeds `vibration` through the readings
+    // catalogue, and a stack reading that leaf loses its data with the source.
+    const document: ProjectDocument = {
+      ...SAMPLE_DOCUMENT,
+      bindings: [reader("vibration_binding", "vibration_record", "vibration")],
+      projections: [],
+    };
+
+    const referrers = referrersForDeletion(document, "source", "readings_source");
+    expect(referrers.map((item) => item.ref)).toEqual([
+      "binding:vibration_binding.build_key",
+      "binding:vibration_binding.property.name",
+    ]);
+    // The table id, not its display name: the leaf is `vibration_readings` in a
+    // catalogue where `temperature` and `vibration` are siblings.
+    expect(referrers[0]?.label).toBe("vibration_binding.build_key reads vibration_readings");
+  });
+
+  it("leaves a leaf that another source still feeds alone", () => {
+    const document: ProjectDocument = {
+      ...SAMPLE_DOCUMENT,
+      bindings: [reader("vibration_binding", "vibration_record", "vibration")],
+      projections: [],
+      sources: [
+        ...(SAMPLE_DOCUMENT.sources ?? []),
+        {
+          id: "vibration_source",
+          table: "vibration_readings",
+          location: "data/extra/vibration.json",
+          format: "json",
+        },
+      ],
+    };
+
+    // The leaf `vibration` had the only reader, and two sources feed it: unbinding the
+    // group source leaves it covered, and unbinding its own source leaves it covered by
+    // the group. Neither delete strands a table the document reads.
+    expect(referrersForDeletion(document, "source", "readings_source")).toEqual([]);
+    expect(referrersForDeletion(document, "source", "vibration_source")).toEqual([]);
+
+    // Once the group source is gone, the leaf's own `bind_source` is all that stands
+    // between `vibration_binding` and a table with no data, so the same delete is
+    // refused from then on.
+    const groupGone: ProjectDocument = {
+      ...document,
+      sources: (document.sources ?? []).filter((item) => item.id !== "readings_source"),
+    };
+    expect(referrersForDeletion(groupGone, "source", "vibration_source").map((item) => item.ref)).toEqual([
+      "binding:vibration_binding.build_key",
+      "binding:vibration_binding.property.name",
+    ]);
+  });
+
+  it("reports a source whose tables nothing reads as clear to delete", () => {
+    // No expression names `readings` or any of its members, so unbinding the group
+    // source leaves a declared shape without data — the state the tab repairs by
+    // binding another file, not a broken build.
+    expect(referrersForDeletion(SAMPLE_DOCUMENT, "source", "readings_source")).toEqual([]);
+  });
+
+  it("lists the tables one source feeds, a group's leaves included", () => {
+    const source = (SAMPLE_DOCUMENT.sources ?? []).find((item) => item.id === "readings_source");
+    expect(source).toBeDefined();
+    expect(tablesFed(SAMPLE_DOCUMENT, source!).map((table) => table.id)).toEqual([
+      "readings",
+      "temperature_readings",
+      "vibration_readings",
+    ]);
+  });
+
+  it("reports an unknown source id as nothing to answer", () => {
+    expect(referrersForDeletion(SAMPLE_DOCUMENT, "source", "gone_source")).toEqual([]);
   });
 });
 

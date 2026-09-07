@@ -186,17 +186,36 @@ selectable text, because inspecting lowered SQL is a primary use of this view.
 
 ## 5. Frontend
 
-Next.js (app router) + TypeScript + Zustand + Tailwind, `@xyflow/react` for the
-topology editor and the plan view, `@dnd-kit` for ordered stacks.
+Next.js (app router) + TypeScript + Zustand + Tailwind. `@xyflow/react` for the
+plan view, `d3-force` for the topology graph, `@dnd-kit` for ordered stacks.
 
 Principle: **visual first**. Free text is allowed only where text *is* the value
 (names, descriptions, literal values, JSON annotation arguments). Structure is
 always composed by picking:
 
-- **Topology** — drag nodes onto a canvas, draw an edge by dragging between ports,
-  which opens the edge identity flow (predicate, destination, label, endpoints)
-  rather than a form. Property slots are typed chips; the type picker offers the
-  canonical unit vocabulary plus `Array[…]`/`Struct{…}`/nullable.
+- **Topology** — the metagraph, drawn as a force-directed node-link graph in the
+  same visual language as the `meta_graph.html` the framework itself emits, and
+  for the same reason: `d3-force` computes positions, React owns the SVG. Node
+  components are circles (filled for a concrete node, dashed ring for a
+  category), edge components are diamonds sitting *between* the two nodes they
+  join. Drawing a relationship as a node rather than a line is what makes it
+  possible to show that `studied_in` and `reported_for` are both kinds of
+  `related` — an edge drawn as a line can never be the endpoint of an is-a link,
+  so the framework's own viewer cannot show that either. Drag to place (written
+  to `views/topology`); shift-drag node→node to invent a relationship, or
+  node→relationship to wire that endpoint. Slot counts ride inside the shape,
+  problem badges beside it.
+  - Templates are deliberately **not** on this canvas. A template reaches no
+    blueprint, so the framework's own metagraph contains none; they are listed
+    in a library strip with their contributing slot count and how many
+    components mix them in, which is also how an unused one becomes visible.
+    They edit in the same inspector — except for endpoints, which the generator
+    ignores for that tier, so offering them would be a control that changes
+    nothing.
+  - The layout is a view, not data: it recomputes only when the vertex/link
+    *set* changes, so editing a description never moves the graph, and only a
+    deliberate drag is persisted. "Reset layout" re-settles from the structure
+    alone and persists the result.
 - **Bindings** — an expression is a vertical **stack** of blocks: a source block
   (table/projection + field path), then navigation blocks (`pick`, `expand`,
   `map_items`), then effect blocks (`where_present`, `keep_if`, `default_to`), then

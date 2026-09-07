@@ -37,5 +37,7 @@ export { VirtualList } from "./VirtualList";
 export type { VirtualListProps } from "./VirtualList";
 export { RowButton } from "./RowButton";
 export type { RowButtonProps } from "./RowButton";
+export { CopyButton, writeText } from "./CopyButton";
+export type { CopyButtonProps } from "./CopyButton";
 export { Icon, Dot, SeverityMark, SearchIcon, CloseIcon, ChevronIcon, UndoIcon, RedoIcon, PlusIcon, RefreshIcon, PanelIcon, ListIcon } from "./icons";
 export type { IconName } from "./icons";

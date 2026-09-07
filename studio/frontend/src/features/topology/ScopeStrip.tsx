@@ -5,40 +5,60 @@ import clsx from "clsx";
 
 import { PlusIcon, SearchIcon, TextInput } from "@/components/ui";
 import type { Component } from "@/lib/ir";
-import type { TopologyFilters } from "./logic";
+import type { TemplateEntry, TopologyFilters } from "./logic";
+import { TemplateLibrary } from "./TemplateLibrary";
 
-type TopologyGlyph = "node" | "category" | "template" | "hierarchy";
+type TopologyGlyph = "node" | "category" | "edge" | "edgecategory" | "hierarchy" | "template";
 
 export interface ScopeStripProps {
   components: readonly Component[];
   filters: TopologyFilters;
+  /** Mix-in templates, which are not vertices of the graph and so get a list here. */
+  templates: readonly TemplateEntry[];
+  selectedRef: string | null;
   onFiltersChange(filters: TopologyFilters): void;
   onAddNode(): void;
   /** Focus a component: select its ref and centre it on the canvas. */
   onLocate(ref: string, id: string): void;
+  /** Select a ref with no card to centre — a mix-in template lives off the canvas. */
+  onSelect(ref: string): void;
 }
 
 /**
- * The left scope strip: what is drawn, and a jump-to box.
+ * The left scope strip: what is drawn, a jump-to box, and the mix-in library.
  *
  * Filtering is presentation only — hiding a tier never edits the document. The search
  * selects a component and centres it, which is how you find a node in a large graph
  * without dragging the viewport around.
  */
-export function ScopeStrip({ components, filters, onFiltersChange, onAddNode, onLocate }: ScopeStripProps) {
+export function ScopeStrip({
+  components,
+  filters,
+  templates,
+  selectedRef,
+  onFiltersChange,
+  onAddNode,
+  onLocate,
+  onSelect,
+}: ScopeStripProps) {
   const [query, setQuery] = useState("");
 
   const results = useMemo(() => {
     const needle = query.trim().toLowerCase();
     if (!needle) return [];
-    return components
-      .filter(
-        (component) =>
-          component.name.toLowerCase().includes(needle) ||
-          component.declaration_name.toLowerCase().includes(needle) ||
-          (component.label ?? "").toLowerCase().includes(needle),
-      )
-      .slice(0, 12);
+    return (
+      components
+        // The search finds a card on the canvas; templates are not cards and are listed
+        // in their own section below, where an unused one is visible too.
+        .filter((component) => component.tier !== "template")
+        .filter(
+          (component) =>
+            component.name.toLowerCase().includes(needle) ||
+            component.declaration_name.toLowerCase().includes(needle) ||
+            (component.label ?? "").toLowerCase().includes(needle),
+        )
+        .slice(0, 12)
+    );
   }, [components, query]);
 
   const toggle = (key: keyof TopologyFilters) =>
@@ -57,12 +77,6 @@ export function ScopeStrip({ components, filters, onFiltersChange, onAddNode, on
 
       <div className="flex flex-col gap-1">
         <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">scope</p>
-        <FilterChip
-          label="Templates"
-          glyph="template"
-          active={filters.showTemplates}
-          onClick={() => toggle("showTemplates")}
-        />
         <FilterChip
           label="Categories"
           glyph="category"
@@ -99,7 +113,13 @@ export function ScopeStrip({ components, filters, onFiltersChange, onAddNode, on
                 }}
                 className="flex w-full items-center gap-1.5 rounded px-1.5 py-1 text-left hover:bg-raised"
               >
-                <span aria-hidden className="h-2 w-2 shrink-0 rounded-full bg-node" />
+                <span
+                  aria-hidden
+                  className={clsx(
+                    "h-2 w-2 shrink-0 rounded-full",
+                    component.kind === "edge" ? "bg-relation" : "bg-node",
+                  )}
+                />
                 <span className="min-w-0 flex-1 truncate text-[12px] text-ink">{component.name}</span>
                 <span className="shrink-0 font-mono text-[9px] uppercase text-faint">{component.tier}</span>
               </button>
@@ -110,6 +130,8 @@ export function ScopeStrip({ components, filters, onFiltersChange, onAddNode, on
           )}
         </ul>
       </div>
+
+      <TemplateLibrary entries={templates} selectedRef={selectedRef} onSelectRef={onSelect} />
 
       <Legend />
     </aside>
@@ -164,12 +186,12 @@ function Legend() {
   return (
     <div className="flex flex-col gap-0.5 border-t border-edge pt-1.5">
       <p className="text-[10px] font-semibold uppercase tracking-[0.08em] text-muted">legend</p>
-      <LegendRow className="bg-node" label="concrete node" />
-      <LegendRow className="border border-dashed border-category" label="category" />
-      <LegendRow className="bg-template" label="template" />
-      <LegendRow className="bg-relation" label="relation link" />
-      <LegendRow className="bg-edgekind" label="edge category" />
-      <LegendRow className="border-t border-dashed border-category" label="is-a hierarchy" />
+      <LegendRow className="bg-node" label="node" />
+      <LegendRow className="border border-dashed border-category" label="node category" />
+      <LegendRow className="bg-relation" label="relationship" />
+      <LegendRow className="bg-edgekind" label="relationship kind" />
+      <LegendRow className="border-t border-dashed border-category" label="is-a" />
+      <LegendRow className="rotate-45 rounded-[1px] bg-template" label="template (listed above)" />
     </div>
   );
 }

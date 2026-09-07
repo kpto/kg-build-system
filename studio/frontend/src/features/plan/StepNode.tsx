@@ -14,7 +14,7 @@ import { memo } from "react";
 import clsx from "clsx";
 import { Handle, Position, type NodeProps, type Node } from "@xyflow/react";
 
-import { Chip, ProblemBadge } from "@/components/ui";
+import { Chip, CopyButton, ProblemBadge, RowButton } from "@/components/ui";
 import type { Problem } from "@/lib/types";
 import type { StepDetail, StepNode } from "./types";
 import { TOKEN } from "./tokens";
@@ -129,18 +129,41 @@ function StepNodeView({ data }: NodeProps<StepFlowNode>) {
             {detail.kindLabel}
           </span>
           {ref && (
-            <button
-              type="button"
-              className="min-w-0 flex-1 truncate text-left font-mono text-[9px] text-faint hover:text-info"
-              title={`${ref} — select this IR ref`}
-              onClick={(event) => {
-                event.stopPropagation();
-                onSelect(selected ? null : ref);
-              }}
-              aria-current={selected ? "true" : undefined}
+            // The wrapper exists for two reasons. It stops the click, because React
+            // Flow's own node click selects the same ref and the two toggles would
+            // cancel out. And it carries `nopan`, so a drag starting on the ref
+            // selects text instead of sliding the canvas: this canvas never moves a
+            // card (`draggable: false` throughout), so the gesture a text-selection
+            // drag competes with is the pan. `nodrag` is the same documented
+            // convention, applied so the answer holds if cards ever do move.
+            <div
+              className="nopan nodrag flex min-w-0 flex-1 items-center gap-0.5"
+              onClick={(event) => event.stopPropagation()}
             >
-              {ref}
-            </button>
+              <RowButton
+                onActivate={() => onSelect(selected ? null : ref)}
+                active={selected}
+                title={`${ref} — select this IR ref`}
+                // `select-text` because React Flow's stylesheet sets
+                // `user-select: none` on `.react-flow__node`, which every child would
+                // otherwise inherit: swapping the element alone does not make the ref
+                // selectable.
+                className="select-text min-w-0 flex-1 truncate text-left font-mono text-[9px] text-faint hover:text-info"
+              >
+                {ref}
+              </RowButton>
+              {/* Beside the row, never inside it: `role="button"` owns its descendants.
+                  The ref is `truncate`d, so a drag reaches only the visible part —
+                  this hands over the whole string. */}
+              <CopyButton
+                text={ref}
+                title="Copy the whole IR ref"
+                // Sized into the card's 12 px meta line rather than the kit's 24 px
+                // default: node heights are computed before the DOM exists
+                // (`sizing.ts`), so a taller row here would overflow its box.
+                className="!h-3 !gap-0 !px-1 !text-[8px] !leading-none"
+              />
+            </div>
           )}
           <span
             aria-hidden

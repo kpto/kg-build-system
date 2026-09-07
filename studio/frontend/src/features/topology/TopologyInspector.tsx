@@ -24,6 +24,7 @@ import {
   componentById,
   componentIdFromRef,
   componentRef,
+  componentsOf,
   deleteImpact,
   emptySlot,
   patchComponent,
@@ -71,6 +72,14 @@ export function TopologyInspector({ document, ref, problems, onSelectRef, apply 
 }
 
 /* ------------------------------------------------------------------------- header */
+
+/** Endpoint pickers list the bindable node kinds first, since that is the common case. */
+const TIER_RANK: Record<Component["tier"], number> = { concrete: 0, category: 1, template: 2 };
+const TIER_GROUP: Record<Component["tier"], string> = {
+  concrete: "concrete nodes",
+  category: "node categories",
+  template: "templates (cannot be an endpoint)",
+};
 
 function IdentityHeader({
   component,
@@ -145,6 +154,32 @@ function IdentityFields({
       ? mixins.filter((existing) => existing !== mixinId)
       : [...mixins, mixinId];
     apply((draft) => patchComponent(draft, component.id, { mixins: next }));
+  };
+
+  // Only a category or concrete edge declares endpoints, and only those two tiers may
+  // edit them: the generator ignores an endpoint written on a template, so offering the
+  // field there would be a control that changes nothing.
+  const endpointTier =
+    component.kind === "edge" && component.tier !== "template" ? component.tier : null;
+  const endpointOptions = useMemo(
+    () =>
+      componentsOf(document)
+        .filter((candidate) => candidate.kind === "node")
+        .sort((left, right) => TIER_RANK[left.tier] - TIER_RANK[right.tier])
+        .map((candidate) => ({
+          value: candidate.id,
+          label: candidate.name,
+          group: TIER_GROUP[candidate.tier],
+          // A template is a mix-in, not a place a relationship can point.
+          disabled: candidate.tier === "template",
+        })),
+    [document],
+  );
+  const patchEndpoint = (side: "source" | "target", id: string) => {
+    // An empty choice would make the document unparseable rather than merely invalid,
+    // because the model requires both endpoints on a bound edge.
+    if (!id) return;
+    apply((draft) => patchComponent(draft, component.id, { [side]: id }));
   };
 
   return (
@@ -224,6 +259,40 @@ function IdentityFields({
             }
           />
         </Field>
+      )}
+
+      {endpointTier && (
+        <div className="flex flex-col gap-1">
+          <span className="text-[11px] font-medium uppercase tracking-[0.06em] text-muted">
+            endpoints
+          </span>
+          <div className="flex items-center gap-1">
+            <Select
+              aria-label="from node"
+              value={component.source ?? ""}
+              placeholder="required"
+              invalid={!component.source}
+              options={endpointOptions}
+              onChange={(event) => patchEndpoint("source", event.target.value)}
+            />
+            <span aria-hidden className="shrink-0 text-[12px] text-faint">
+              →
+            </span>
+            <Select
+              aria-label="to node"
+              value={component.target ?? ""}
+              placeholder="required"
+              invalid={!component.target}
+              options={endpointOptions}
+              onChange={(event) => patchEndpoint("target", event.target.value)}
+            />
+          </div>
+          <p className="text-[10px] text-faint">
+            {endpointTier === "category"
+              ? "a category declares the node kinds its children must join"
+              : "each endpoint names a node or a category of nodes"}
+          </p>
+        </div>
       )}
 
       {allTemplates.length > 0 && (
@@ -475,8 +544,7 @@ function ImpactList({ title, ids }: { title: string; ids: readonly string[] }) {
 
 /* ------------------------------------------------------------------------- helpers */
 
-function tierTone(tier: Component["tier"]): "node" | "category" | "template" {
-  return tier === "concrete" ? "node" : tier === "category" ? "category" : "template";
+function tierTone(tier: Component["tier"]): "node" | "category" | "template" {  return tier === "concrete" ? "node" : tier === "category" ? "category" : "template";
 }
 
 /** Struct options the slot TypePicker may point at — the document's own structs. */
