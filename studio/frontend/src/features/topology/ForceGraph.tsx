@@ -49,8 +49,15 @@ import { EdgeNamePopover, type EdgeDraft } from "./EdgeNamePopover";
 const sizeFor = (vertex: VertexView): VertexSize =>
   vertex.shape === "edge" ? { width: 96, height: 96 } : { width: 216, height: 72 };
 
-/** The arrowhead is painted this far in front of the path end, so trim that much off. */
-const ARROW_ROOM = 10;
+/** Gap left between an arrowhead's tip and the shape it points at. */
+const TIP_GAP = 2;
+/** Separation for links sharing the same pair of vertices. Nothing is bowed any more, so
+ *  two links between one pair — a self-joining edge category's in and out leg, say — would
+ *  otherwise lie exactly on top of each other pointing opposite ways. */
+const PARALLEL_GAP = 14;
+/** Arrowhead length and half-width, in graph units. */
+const ARROW_LENGTH = 9;
+const ARROW_HALF_WIDTH = 3.5;
 const MAX_ZOOM = 3;
 const MIN_ZOOM = 0.15;
 
@@ -60,10 +67,15 @@ const STROKE: Record<LinkView["kind"], string> = {
   hierarchy: "var(--color-category)",
 };
 
+/**
+ * Dash patterns. A declaration is dashed; an is-a is dotted with round caps on a
+ * near-zero dash, which draws true round dots of the stroke's own width. A longer dash
+ * (the obvious `2 6`) reads as heavy elongated ticks once the canvas is zoomed in.
+ */
 const DASH: Record<LinkView["kind"], string | undefined> = {
   relation: undefined,
   category: "7 5",
-  hierarchy: "2 6",
+  hierarchy: "0.1 5",
 };
 
 interface Transform {
@@ -447,7 +459,40 @@ export function ForceGraph({
   };
 
   const emphasised = (hover ? neighbours[hover] : null) ?? null;
-  const linkDragStart = gesture?.kind === "link" ? positions[gesture.from] : undefined;
+  const linkDragStart = gesture?.kind === "link" ? positions[gesture.from] ?? null : null;
+
+  /**
+   * Lateral offset per link. Links are drawn straight, so two of them sharing a pair of
+   * vertices — the in and out leg of a self-joining relationship, or two relationships
+   * between the same two nodes — would otherwise coincide exactly.
+   *
+   * The sign is taken against a canonical direction for the pair rather than each link's
+   * own, because a link's normal is derived from its own travel direction: a leg running
+   * `b → a` has the *opposite* normal to one running `a → b`, so assigning symmetric
+   * offsets in each link's own frame puts both legs on the same physical side and they
+   * land exactly on top of each other — which is what this originally did, at 0.15px apart.
+   */
+  const offsets = useMemo(() => {
+    const groups = new Map<string, LinkView[]>();
+    for (const link of graph.links) {
+      const key = link.source < link.target
+        ? `${link.source}|${link.target}`
+        : `${link.target}|${link.source}`;
+      const bucket = groups.get(key);
+      if (bucket) bucket.push(link);
+      else groups.set(key, [link]);
+    }
+    const out: Record<string, number> = {};
+    for (const [key, group] of groups) {
+      group.sort((left, right) => (left.id < right.id ? -1 : 1));
+      const [canonicalSource] = key.split("|");
+      group.forEach((link, index) => {
+        const spread = (index - (group.length - 1) / 2) * PARALLEL_GAP;
+        out[link.id] = link.source === canonicalSource ? spread : -spread;
+      });
+    }
+    return out;
+  }, [structure]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div
@@ -486,19 +531,30 @@ export function ForceGraph({
       <svg className="absolute inset-0 h-full w-full select-none" role="img">
         <title>{`Topology graph: ${graph.vertices.length} declarations, ${graph.links.length} links`}</title>
         <defs>
-          {(Object.keys(STROKE) as LinkView["kind"][]).map((kind) => (
+          {(
+            [
+              ...Object.keys(STROKE).map((kind) => [kind, STROKE[kind as LinkView["kind"]]]),
+              ["selected", "var(--color-info)"],
+            ] as const
+          ).map(([kind, colour]) => (
             <marker
               key={kind}
               id={`topo-arrow-${kind}`}
-              viewBox="0 -4 10 8"
-              markerWidth={10}
-              markerHeight={8}
-              refX={10}
+              viewBox={`0 ${-ARROW_HALF_WIDTH} ${ARROW_LENGTH} ${ARROW_HALF_WIDTH * 2}`}
+              markerWidth={ARROW_LENGTH}
+              markerHeight={ARROW_HALF_WIDTH * 2}
+              // The tip sits on the path end, so the head cannot drift back over the
+              // stroke or forward off the node; sizing in user units rather than stroke
+              // widths keeps emphasis from moving it.
+              refX={ARROW_LENGTH}
               refY={0}
               orient="auto"
               markerUnits="userSpaceOnUse"
             >
-              <path d="M0,-4L10,0L0,4" fill={STROKE[kind]} />
+              <path
+                d={`M0,${-ARROW_HALF_WIDTH}L${ARROW_LENGTH},0L0,${ARROW_HALF_WIDTH}`}
+                fill={colour}
+              />
             </marker>
           ))}
           <pattern id="topo-dots" width="26" height="26" patternUnits="userSpaceOnUse">
@@ -522,6 +578,9 @@ export function ForceGraph({
                 to={to}
                 fromRadius={geometry[link.source]?.radius ?? 24}
                 toRadius={geometry[link.target]?.radius ?? 24}
+                fromIsDiamond={source.shape === "edge"}
+                toIsDiamond={target.shape === "edge"}
+                offset={offsets[link.id] ?? 0}
                 dimmed={emphasised !== null && !(emphasised.has(link.source) && emphasised.has(link.target))}
                 selected={link.ref === selectedRef}
                 onSelect={() => onSelectRef(link.ref)}
@@ -652,13 +711,24 @@ export function ForceGraph({
   );
 }
 
-/** One curved link, trimmed to both shapes so the arrowhead lands on a boundary. */
+/**
+ * One straight link, trimmed so its arrowhead lands on the boundary of what it points at.
+ *
+ * The trim is geometric rather than a fixed inset, because a fixed inset is what made the
+ * heads float: a line offset to one side meets a circle on a chord, so the reachable
+ * distance is √(r² − offset²) and not r; and a relationship card is a diamond, whose
+ * boundary along a direction is r / (|ux| + |uy|), so treating it as a circle drove the
+ * line into the flat between two vertices.
+ */
 function GraphLink({
   link,
   from,
   to,
   fromRadius,
   toRadius,
+  fromIsDiamond,
+  toIsDiamond,
+  offset,
   dimmed,
   selected,
   onSelect,
@@ -668,28 +738,47 @@ function GraphLink({
   to: Point;
   fromRadius: number;
   toRadius: number;
+  fromIsDiamond: boolean;
+  toIsDiamond: boolean;
+  offset: number;
   dimmed: boolean;
   selected: boolean;
   onSelect(): void;
 }) {
   const dx = to.x - from.x;
   const dy = to.y - from.y;
-  const distance = Math.max(1, Math.hypot(dx, dy));
+  const distance = Math.hypot(dx, dy);
+  if (distance < 1) return null;
   const ux = dx / distance;
   const uy = dy / distance;
-  const start = { x: from.x + ux * (fromRadius + 2), y: from.y + uy * (fromRadius + 2) };
-  const end = { x: to.x - ux * (toRadius + ARROW_ROOM), y: to.y - uy * (toRadius + ARROW_ROOM) };
-  // A short perpendicular bow. Two links between the same pair — the in and out leg of a
-  // self-joining edge category — would otherwise lie exactly on one another.
-  const bow = link.role === "in" ? -16 : 16;
-  const control = { x: (start.x + end.x) / 2 - uy * bow, y: (start.y + end.y) / 2 + ux * bow };
-  const path = `M${start.x},${start.y} Q${control.x},${control.y} ${end.x},${end.y}`;
+  // The unit normal, along which a group of parallel links is spread.
+  const px = -uy;
+  const py = ux;
+
+  const reach = (radius: number, diamond: boolean) => {
+    const shaped = diamond
+      ? radius / Math.max(1e-6, Math.abs(ux) + Math.abs(uy))
+      : radius;
+    return Math.sqrt(Math.max(0, shaped * shaped - offset * offset));
+  };
+
+  const start = {
+    x: from.x + ux * reach(fromRadius, fromIsDiamond) + px * offset,
+    y: from.y + uy * reach(fromRadius, fromIsDiamond) + py * offset,
+  };
+  // `refX` sits on the head's tip, so the path end *is* the tip and only the visual gap is
+  // trimmed here. Subtracting the head's length as well is what left it hanging short.
+  const end = {
+    x: to.x - ux * (reach(toRadius, toIsDiamond) + TIP_GAP) + px * offset,
+    y: to.y - uy * (reach(toRadius, toIsDiamond) + TIP_GAP) + py * offset,
+  };
+  const path = `M${start.x},${start.y} L${end.x},${end.y}`;
   const stroke = selected ? "var(--color-info)" : STROKE[link.kind];
 
   return (
     <g opacity={dimmed ? 0.2 : 1} style={{ transition: "opacity 120ms" }}>
-      {/* A thin curve is hard to aim at, so a wide invisible path carries the click and
-          selects whatever the link declares — the edge for a leg, the child for an is-a. */}
+      {/* A thin straight line is hard to aim at, so a wide invisible path carries the click
+          and selects whatever the link declares — the edge for a leg, the child for an is-a. */}
       <path
         d={path}
         stroke="transparent"
@@ -704,10 +793,11 @@ function GraphLink({
       <path
         d={path}
         stroke={stroke}
-        strokeWidth={selected ? 2.6 : link.kind === "relation" ? 2 : 1.4}
+        strokeWidth={selected ? 2.4 : link.kind === "relation" ? 1.8 : 1.7}
         strokeDasharray={DASH[link.kind]}
+        strokeLinecap={link.kind === "hierarchy" ? "round" : "butt"}
         fill="none"
-        markerEnd={`url(#topo-arrow-${link.kind})`}
+        markerEnd={`url(#topo-arrow-${selected ? "selected" : link.kind})`}
       />
     </g>
   );
