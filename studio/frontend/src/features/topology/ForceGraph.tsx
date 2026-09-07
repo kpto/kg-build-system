@@ -479,7 +479,11 @@ export function ForceGraph({
         onSelectRef(null);
       }}
     >
-      <svg className="absolute inset-0 h-full w-full" role="img">
+      {/* `select-none` is load-bearing, not cosmetic: an SVG <text> is selectable by
+          default, so dragging a node across the labels around it started a native text
+          selection that fought the drag and left the canvas highlighted. Names are
+          readable here and copyable in the inspector, which is not a drag surface. */}
+      <svg className="absolute inset-0 h-full w-full select-none" role="img">
         <title>{`Topology graph: ${graph.vertices.length} declarations, ${graph.links.length} links`}</title>
         <defs>
           {(Object.keys(STROKE) as LinkView["kind"][]).map((kind) => (
