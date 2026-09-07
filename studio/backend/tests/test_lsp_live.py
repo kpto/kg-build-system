@@ -381,6 +381,64 @@ def test_pyright_publishes_the_rule_and_the_position(
     assert client.process_id is None
 
 
+def test_a_revert_to_bytes_the_server_already_cleaned_ends_clean(
+    project: Path, framework_venv: Path
+) -> None:
+    """clean → broken → back to the same clean bytes must end with nothing published.
+
+    This is the shape the UI produces when a template is applied to a component and
+    then removed: the regenerated file returns to bytes the server analysed and cleaned
+    earlier in the same session, and the type tier showed the discarded error for good
+    — only a server restart cleared it.
+
+    Honest scope: this fixture does *not* trigger that behaviour. Running it against
+    the client that closed and reopened instead of sending ``didChange`` still clears
+    here, measured on pyright 1.1.411, so the real regression guard is
+    ``test_reopen_refreshes_an_open_document_with_didchange`` in ``tests/test_lsp.py``,
+    which pins the notification. This test pins the end-to-end property through the
+    service: every owned file open, three generations, no leftover problem.
+    """
+    service = DiagnosticsService(
+        project,
+        PACKAGE,
+        framework_venv=framework_venv,
+        document_provider=lambda: DOCUMENT,
+        debounce_seconds=0.2,
+    )
+    service.start()
+    try:
+        assert service.state == "ready", service.state_message
+        assert service.files_open == len(service.owned_files()) == 8
+        binding = project / BINDING_FILE
+
+        def argument_errors() -> bool:
+            return any(item.code == "reportArgumentType" for item in service.snapshot())
+
+        # 1. clean, with all eight buffers open.
+        binding.write_text(BINDING_CLEAN, encoding="utf-8")
+        service.reopen([BINDING_FILE])
+        assert wait_for(lambda: service.state == "ready" and not argument_errors()), (
+            "the clean fixture never reached a problem-free snapshot"
+        )
+
+        # 2. a generation that breaks it: the error must arrive.
+        binding.write_text(BINDING_WITH_ERROR, encoding="utf-8")
+        service.reopen([BINDING_FILE])
+        assert wait_for(argument_errors), "the deliberate error was never published"
+
+        # 3. the next generation reverts it to the exact bytes from step 1.
+        binding.write_text(BINDING_CLEAN, encoding="utf-8")
+        service.reopen([BINDING_FILE])
+        cleared = wait_for(lambda: not argument_errors())
+        assert cleared is not None, (
+            "the error from the broken generation survived a revert to bytes the "
+            "server had already cleaned; only restarting the server clears that, "
+            "which is the stuck problem the UI showed"
+        )
+    finally:
+        service.stop(timeout=10.0)
+
+
 def test_the_service_maps_the_diagnostic_onto_its_ir_ref(
     project: Path, framework_venv: Path
 ) -> None:

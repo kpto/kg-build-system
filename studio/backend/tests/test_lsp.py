@@ -416,9 +416,19 @@ def test_versions_keep_increasing_across_reopens(
     assert [item["textDocument"]["version"] for item in opened] == [1, 2]
 
 
-def test_reopen_closes_then_opens_from_disk(
+def test_reopen_refreshes_an_open_document_with_didchange(
     client: LanguageServerClient, tmp_path: Path
 ) -> None:
+    """An already-open document is refreshed with ``didChange``, not close+open.
+
+    Measured against pyright 1.1.411: when a file returns to bytes the server has
+    already analysed in this session — what applying and then removing a UI edit
+    produces — a ``didClose``/``didOpen`` pair leaves the error from the broken
+    generation as the server's *final* published state for that file, indefinitely,
+    even though a fresh ``pyright`` process over the same bytes reports nothing. No
+    close/open schedule avoids it: not the file alone, not the file with its
+    dependency, not the whole package. ``didChange`` is re-checked and clears it.
+    """
     path = tmp_path / "pkg.py"
     path.write_text("x = 1\n", encoding="utf-8")
     client.open_file(path)
@@ -426,10 +436,44 @@ def test_reopen_closes_then_opens_from_disk(
 
     reopened = client.reopen([path])
 
-    logged = client.request("document_log", None)["documents"]
+    logged = client.request("document_log", None)
+    document_methods = [name for name in logged["methods"] if name.startswith("textDocument/")]
     assert reopened == (path_to_uri(path),)
-    assert [method for method in logged[1]] == ["textDocument"], "didClose carries no text"
-    assert logged[2]["textDocument"]["text"] == "x = 2\n"
+    assert document_methods == ["textDocument/didOpen", "textDocument/didChange"], (
+        f"reopen must not close and reopen an open document: {document_methods}"
+    )
+    change = logged["documents"][-1]
+    assert change["contentChanges"] == [{"text": "x = 2\n"}], "didChange must carry the disk text"
+    assert client._open_documents[path_to_uri(path)] == "x = 2\n"  # noqa: SLF001 - cache honesty
+
+
+def test_reopen_keeps_the_document_open_and_the_version_rising(
+    client: LanguageServerClient, tmp_path: Path
+) -> None:
+    """The refresh leaves the server holding the document, at a newer version.
+
+    A version that never rose would let the server treat a later publish as
+    unremarkable; a document left closed would drop it out of the restart replay list.
+    """
+    path = tmp_path / "pkg.py"
+    path.write_text("x = 1\n", encoding="utf-8")
+    client.open_file(path)
+    before = client._document_versions[path_to_uri(path)]  # noqa: SLF001
+
+    path.write_text("x = 2\n", encoding="utf-8")
+    client.reopen([path])
+    path.write_text("x = 3\n", encoding="utf-8")
+    client.reopen([path])
+
+    uri = path_to_uri(path)
+    assert client.open_documents == (uri,), "reopen must leave the document open"
+    assert client._document_versions[uri] > before  # noqa: SLF001
+    versions = [
+        item["textDocument"]["version"]
+        for item in client.request("document_log", None)["documents"]
+        if "version" in item["textDocument"]
+    ]
+    assert versions == sorted(versions) and len(set(versions)) == len(versions), versions
 
 
 def test_reopen_opens_a_file_the_server_never_had(client: LanguageServerClient, tmp_path: Path) -> None:
@@ -437,6 +481,25 @@ def test_reopen_opens_a_file_the_server_never_had(client: LanguageServerClient, 
     path.write_text("z = 3\n", encoding="utf-8")
     assert client.reopen([path]) == (path_to_uri(path),)
     assert client.open_documents == (path_to_uri(path),)
+
+
+def test_reopen_of_a_document_closed_underneath_still_refreshes_it(
+    client: LanguageServerClient, tmp_path: Path
+) -> None:
+    """The refresh must not raise when the buffer disappeared between the check and the send."""
+    path = tmp_path / "pkg.py"
+    path.write_text("x = 1\n", encoding="utf-8")
+    client.open_file(path)
+    uri = path_to_uri(path)
+    with client._lock:  # noqa: SLF001 - simulating the server forgetting the document
+        client._open_documents.pop(uri)
+    path.write_text("x = 2\n", encoding="utf-8")
+
+    assert client.reopen([path]) == (uri,)
+
+    assert client._open_documents[uri] == "x = 2\n"  # noqa: SLF001
+    logged = client.request("document_log", None)["documents"]
+    assert logged[-1]["textDocument"]["text"] == "x = 2\n"
 
 
 def test_opening_the_same_file_twice_is_refused(client: LanguageServerClient, tmp_path: Path) -> None:

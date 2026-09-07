@@ -6,8 +6,9 @@ Owns three things:
    rewritten on every start, so studio's view of the project is reproducible rather
    than whatever a previous tool left behind.
 2. the language server process — one per workspace, every owned Python file opened,
-   buffers closed and reopened across regenerations, restart with backoff after a
-   crash (:mod:`studio_backend.diagnostics.lsp`).
+   buffers refreshed with ``didChange`` across regenerations (never closed and
+   reopened — see DESIGN.md §3), restart with backoff after a crash
+   (:mod:`studio_backend.diagnostics.lsp`).
 3. the debounced snapshot — pyright publishes per file as it analyses, which for a
    whole regeneration is a burst; subscribers get one merged snapshot per quiet
    period instead of one event per file. :meth:`DiagnosticsService.reopen` is what
@@ -513,7 +514,7 @@ class DiagnosticsService:
         """Re-open the project after a regeneration.
 
         The buffers pyright holds are the text studio sent *before* the write, so
-        after generation every affected file is closed and reopened (DESIGN.md §3).
+        after generation every affected file is refreshed from disk (DESIGN.md §3).
         Files that disappeared are closed and dropped, or the next crash restart would
         try to replay a path that no longer exists. ``changed`` is a list of
         project-relative paths; ``None`` means "the whole package".

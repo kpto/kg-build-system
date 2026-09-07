@@ -443,20 +443,38 @@ class LanguageServerClient:
         return uri
 
     def reopen(self, paths: Iterable[Path | str]) -> tuple[str, ...]:
-        """Close then re-open documents so the server re-reads them from disk.
+        """Refresh documents the server was told about so it sees the new text.
 
-        This is the regeneration path (DESIGN.md §3): the files on disk changed, so
-        any buffer held for them is stale. Files the server never had open are
-        simply opened.
+        This is the regeneration path (DESIGN.md §3): the files on disk changed. A
+        document the server already holds open is refreshed with ``didChange``; one it
+        never saw is opened.
+
+        ``didClose`` + ``didOpen`` is *not* an acceptable substitute for the open
+        case, even though it looks equivalent. Measured against pyright 1.1.411: when
+        a file returns to bytes the server has already analysed in this session —
+        which is exactly what applying and then removing an edit produces — the close
+        and reopen leaves the error from the broken generation as the server's final
+        published state for that file, indefinitely, while a fresh ``pyright`` process
+        over the same bytes reports nothing. ``didChange`` is taken as a change to the
+        buffer and is re-checked. Guarded by
+        ``test_reopen_refreshes_an_open_document_with_didchange``.
         """
         reopened: list[str] = []
         for path in paths:
-            uri = path_to_uri(path)
+            file_path = Path(path)
+            uri = path_to_uri(file_path)
             with self._lock:
                 was_open = uri in self._open_documents
             if was_open:
-                self.close_file(path)
-            self.open_file(path)
+                try:
+                    self.change_file(file_path, file_path.read_text(encoding="utf-8"))
+                except (LspError, OSError):
+                    # Closed underneath us, or unreadable: reopening it is the same
+                    # refresh with a different notification, and it cannot be a miss.
+                    self.close_file(file_path)
+                    self.open_file(file_path)
+            else:
+                self.open_file(file_path)
             reopened.append(uri)
         return tuple(reopened)
 

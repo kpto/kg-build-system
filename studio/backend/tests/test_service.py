@@ -154,6 +154,23 @@ class StubClient(LanguageServerClient):
                 opened.add(uri)
         return closed, opened
 
+    def refreshed(self) -> set[str]:
+        """The URIs whose open buffer was refreshed with a ``didChange`` frame.
+
+        This is what a regeneration now does to a document the server already holds,
+        instead of closing and reopening it; see ``reopen`` in
+        :mod:`studio_backend.diagnostics.lsp` for why.
+        """
+        changed: set[str] = set()
+        for frame in self.frames.frames:
+            payload = json.loads(frame.split(b"\r\n\r\n", 1)[1].decode("utf-8"))
+            if payload.get("method") != "textDocument/didChange":
+                continue
+            uri = (payload.get("params") or {}).get("textDocument", {}).get("uri")
+            if uri:
+                changed.add(uri)
+        return changed
+
     @property
     def frames(self) -> FakeStdin:
         """The messages this client has written to its (imaginary) server."""
@@ -493,7 +510,7 @@ def test_every_owned_python_file_is_opened(project: Path) -> None:
         service.stop()
 
 
-def test_reopen_reopens_changed_files_and_drops_deleted_ones(project: Path) -> None:
+def test_reopen_refreshes_changed_files_and_drops_deleted_ones(project: Path) -> None:
     service = make_service(project)
     client = start_with_stub(service)
     binding = project / "kg_project" / "bindings" / "site" / "__init__.py"
@@ -505,18 +522,22 @@ def test_reopen_reopens_changed_files_and_drops_deleted_ones(project: Path) -> N
         service.reopen(["kg_project/bindings/site/__init__.py"])
 
         closed, opened = client.message_pairs()
-        # The vanished file is closed and never reopened; the changed one is closed
-        # and reopened from disk.
+        refreshed = client.refreshed()
+        # The vanished file is closed and never reopened; the changed one is refreshed
+        # in place from the text now on disk.
         assert path_to_uri(vanished) in closed
         assert path_to_uri(vanished) not in opened
-        assert path_to_uri(binding) in closed and path_to_uri(binding) in opened
+        # The changed file stays open and is refreshed in place; a file the server
+        # never had is opened, and one that vanished is closed and dropped.
+        assert path_to_uri(binding) in refreshed
+        assert path_to_uri(binding) not in closed, "an open buffer must not be churned"
         assert path_to_uri(vanished) not in client.open_documents
         assert path_to_uri(binding) in client.open_documents
     finally:
         service.stop()
 
 
-def test_reopen_without_a_file_list_reopens_the_package(project: Path) -> None:
+def test_reopen_without_a_file_list_refreshes_the_package(project: Path) -> None:
     service = make_service(project)
     client = start_with_stub(service)
     try:
@@ -524,7 +545,8 @@ def test_reopen_without_a_file_list_reopens_the_package(project: Path) -> None:
         client.frames.frames.clear()
         service.reopen()
         closed, opened = client.message_pairs()
-        assert closed == opened == owned, "every owned buffer must be closed then reopened"
+        assert client.refreshed() == owned, "every owned buffer must be refreshed"
+        assert not closed and not opened, "a refresh must not close or reopen anything"
     finally:
         service.stop()
 

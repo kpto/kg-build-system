@@ -154,8 +154,18 @@ to an IR ref by innermost containing range.
 (JSON-RPC over stdio). It is the only type checker; studio does not re-implement
 Python typing.
 
-- All owned project files are `didOpen`ed; on regeneration the affected buffers are
-  closed and reopened, so pyright re-reads from disk.
+- All owned project files are `didOpen`ed. On regeneration, a buffer the server already
+  holds is refreshed with a whole-document `didChange`; a file it never saw is
+  `didOpen`ed and one that was deleted is `didClose`d and dropped.
+- A buffer is deliberately **not** invalidated by closing and reopening it. Measured
+  against pyright 1.1.411: when a regenerated file returns to bytes the server has
+  already analysed in the session — which is what applying and then removing an edit
+  produces — the close/open pair leaves the discarded error as the server's final
+  published state for that file indefinitely, while a fresh `pyright` process over the
+  same bytes reports none. No close/open schedule avoids it: the file alone, the file
+  with its dependency, the whole package, and closing every buffer all stay stale.
+  Only `didChange` is re-checked. Restarting the server clears it too, which is the
+  symptom to look for if this ever regresses.
 - `textDocument/publishDiagnostics` is collected per file.
 - Each diagnostic is resolved through the anchor index to an IR ref, and grouped:
   per-ref for inline badges in the editors, per-file for the problems list.
