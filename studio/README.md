@@ -32,6 +32,12 @@ cd studio
 ./dev.sh /path/to/other/project
 ```
 
+```powershell
+cd studio
+.\dev.ps1                      # backend :8700, frontend :3000, project ../studio_test_project
+.\dev.ps1 C:\path\to\other\project
+```
+
 Then open <http://127.0.0.1:3000>. The first screen offers **Create project**, which
 starts an empty document; **Import data shape** in the Contracts tab infers table
 contracts from JSON/CSV/Parquet in the project's `data/` directory.
