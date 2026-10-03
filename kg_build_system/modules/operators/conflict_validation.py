@@ -4,29 +4,19 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
-from ..._frozen_json import freeze_json, thaw_json
+from ..._frozen_json import freeze_json
 from ...workflow.models import (
-    ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference,
-    OutputSlot, SingleInputSlot, WorkflowStep,
+    Artifact, ArtifactType, DisruptedExecutionContext, ExecutionContext,
+    ExecutorFactoryContext, Failure, Input, ModuleDefinition, ModuleReference,
+    Output, Publication, StepOutcome, StepStatus, WorkflowContribution,
+    WorkflowStep,
 )
 from ...compile.interfaces import CompilationContext, ModuleCompiler
 from ...modules.interfaces import Module, ModuleRegistrationConfiguration
+from ...topology.ir import ComponentIR as ComponentDefinition
+from ...workflow.identity import output_name
 from ...workflow.interfaces import ModuleExecutor
-from ...workflow.models import (
-    Artifact,
-    CandidatePredicate,
-    DisruptedExecutionContext,
-    ExecutionContext,
-    ExecutorFactoryContext,
-    Failure,
-    StepOutcome,
-    StepStatus,
-    WorkflowContribution,
-    WorkflowStepDraft,
-    WorkflowArtifactRoles,
-    role_is,
-)
-from ..core import CoreArtifactRoles, graph_record_components
+from ..core import CoreArtifactTypes, graph_record_components
 
 
 @dataclass(frozen=True)
@@ -45,6 +35,25 @@ class ConflictingNonNullValueFinding:
 @dataclass(frozen=True)
 class ConflictingNonNullValuesReport:
     findings: tuple[ConflictingNonNullValueFinding, ...]
+
+
+_RECORDS_INPUT = "records"
+"""What a findings step calls the graph records it reads."""
+
+_FINDINGS = "findings"
+"""What a findings step calls what it found, and what the report calls the collection."""
+
+_FINDINGS_PATTERN = "findings.*"
+"""The family of findings types the report takes, one port per type it matches."""
+
+_REPORT_OUTPUT = "report"
+"""The report step, and the name and type of the publication it writes."""
+
+_RECORDS_SUFFIX = ".records"
+"""The opening on the report step one component's records arrive at."""
+
+_VALIDATED_SUFFIX = ".validated"
+"""The opening on the report step that component's records leave by."""
 
 
 def _quote_identifier(value: object) -> str:
@@ -76,46 +85,35 @@ class RejectConflictingNonNullValuesModule(Module):
     async def compile(
         self, context: CompilationContext[Any],
     ) -> WorkflowContribution:
-        steps: list[WorkflowStepDraft] = []
-        for component in graph_record_components(context.blueprint):
-            graph_role = CoreArtifactRoles.graph_records(
+        steps: list[WorkflowStep] = []
+        instructions: dict[str, Any] = {}
+        components = graph_record_components(context.blueprint)
+        for component in components:
+            records_type = CoreArtifactTypes.graph_records(
                 component.kind, component.name
             )
             for prop in component.properties:
-                input_slot = SingleInputSlot(
-                    slot_id=f"{self.ID}::{component.name}.{prop.name}.input"
-                )
-                output_role = ArtifactRole(
-                    namespace=self.ID,
-                    name=f"findings.{component.name}.{prop.name}",
-                )
-                step = WorkflowStep(
-                    step_id=f"{self.ID}::{component.name}.{prop.name}",
-                    module_id=self.ID,
-                    inputs=(input_slot,),
-                    outputs=(
-                        OutputSlot(
-                            slot_id=(
-                                f"{self.ID}::{component.name}.{prop.name}.output"
-                            ),
-                            artifact_role=output_role,
-                        ),
-                    ),
-                    payload=freeze_json({
-                        "action": "findings",
-                        "component": component.name,
-                        "field": prop.name,
-                    }),
-                )
-                steps.append(
-                    WorkflowStepDraft(
-                        definition=step,
-                        candidates={input_slot.slot_id: role_is(graph_role)},
-                    )
-                )
+                name = f"{component.name}.{prop.name}"
+                steps.append(WorkflowStep(
+                    inputs=(Input(records_type, _RECORDS_INPUT),),
+                    outputs=(Output(
+                        ArtifactType(namespace=self.ID, name=f"{_FINDINGS}.{name}"),
+                        _FINDINGS,
+                    ),),
+                    name=name,
+                ))
+                instructions[name] = {
+                    "action": "findings",
+                    "component": component.name,
+                    "field": prop.name,
+                }
 
-        report_step = self._report_step(context)
-        steps.append(report_step)
+        steps.append(self._report_step(components))
+        instructions[_REPORT_OUTPUT] = {
+            "action": "report",
+            "fail_on_error": self.configuration.fail_on_error,
+        }
+
         definition = ModuleDefinition(
             reference=ModuleReference(
                 module_id=self.ID,
@@ -127,85 +125,78 @@ class RejectConflictingNonNullValuesModule(Module):
                 }),
             )
         )
-        return WorkflowContribution(definition, tuple(steps))
+        return WorkflowContribution(
+            definition, tuple(steps), freeze_json({"instructions": instructions}),
+        )
 
     def _report_step(
-        self, context: CompilationContext[Any],
-    ) -> WorkflowStepDraft:
-        finding_slot = CollectionInputSlot(
-            slot_id=f"{self.ID}::report.findings"
-        )
-        components = graph_record_components(context.blueprint)
-        record_slots = tuple(
-            SingleInputSlot(
-                slot_id=f"{self.ID}::report.{component.name}.records"
-            )
-            for component in components
-        )
-        outputs = (
-            OutputSlot(
-                slot_id=f"{self.ID}::report.output",
-                artifact_role=WorkflowArtifactRoles.published(self.ID, "report"),
+        self, components: tuple[ComponentDefinition, ...],
+    ) -> WorkflowStep:
+        """The deferred step that gathers every findings type and passes records on.
+
+        Its findings arrive through one open input, which takes one output of each type the
+        findings steps write. Each component's records arrive at an opening named for that
+        component, and leave by a matching one of their own, since the type they carry is the
+        same one the steps upstream that made them write.
+        """
+        return WorkflowStep(
+            inputs=(
+                Input(
+                    ArtifactType(namespace=self.ID, name=_FINDINGS_PATTERN),
+                    _FINDINGS,
+                ),
+                *(
+                    Input(
+                        CoreArtifactTypes.graph_records(
+                            component.kind, component.name
+                        ),
+                        f"{component.name}{_RECORDS_SUFFIX}",
+                    )
+                    for component in components
+                ),
             ),
-            *(
-                OutputSlot(
-                    slot_id=f"{self.ID}::report.{component.name}.output",
-                    artifact_role=CoreArtifactRoles.graph_records(
-                        component.kind, component.name
-                    ),
-                )
-                for component in components
+            outputs=(
+                Publication(
+                    ArtifactType(namespace=self.ID, name=_REPORT_OUTPUT),
+                    _REPORT_OUTPUT,
+                ),
+                *(
+                    Output(
+                        CoreArtifactTypes.graph_records(
+                            component.kind, component.name
+                        ),
+                        f"{component.name}{_VALIDATED_SUFFIX}",
+                    )
+                    for component in components
+                ),
             ),
-        )
-        step = WorkflowStep(
-            step_id=f"{self.ID}::report",
-            module_id=self.ID,
-            inputs=(finding_slot, *record_slots),
-            outputs=outputs,
-            payload=freeze_json({
-                "action": "report",
-                "fail_on_error": self.configuration.fail_on_error,
-            }),
-        )
-        candidates: dict[str, CandidatePredicate] = {
-            finding_slot.slot_id: lambda _input, output: (
-                output.artifact_role.namespace == self.ID
-                and output.artifact_role.name.startswith("findings.")
-            )
-        }
-        for slot, component in zip(record_slots, components, strict=True):
-            role = CoreArtifactRoles.graph_records(
-                component.kind, component.name
-            )
-            candidates[slot.slot_id] = role_is(role)
-        return WorkflowStepDraft(
-            definition=step,
+            name=_REPORT_OUTPUT,
             assembly_preference="deferred",
-            candidates=candidates,
         )
 
 
 class _Executor(ModuleExecutor):
     def handle(self, context: ExecutionContext) -> StepOutcome:
-        payload = thaw_json(context.step.payload)  # type: ignore[arg-type]
-        if not isinstance(payload, dict):
-            raise ValueError("conflict validation requires an object payload")
-        if payload.get("action") == "findings":
-            return self._findings(context, payload)
-        if payload.get("action") == "report":
-            return self._report(context, payload)
-        raise ValueError(f"unknown conflict-validation action {payload.get('action')!r}")
+        instructions = context.variables["instructions"][context.step.name]
+        if not isinstance(instructions, dict):
+            raise ValueError("conflict validation requires an object instruction")
+        if instructions.get("action") == "findings":
+            return self._findings(context, instructions)
+        if instructions.get("action") == "report":
+            return self._report(context, instructions)
+        raise ValueError(
+            f"unknown conflict-validation action {instructions.get('action')!r}"
+        )
 
     def _findings(
-        self, context: ExecutionContext, payload: dict[str, Any],
+        self, context: ExecutionContext, instructions: dict[str, Any],
     ) -> StepOutcome:
         relation = next(
             item.artifact.value
-            for contributions in context.inputs.values()
-            for item in contributions
+            for item in context.inputs[_RECORDS_INPUT]
             if item.artifact is not None
         )
-        field_name = str(payload["field"])
+        field_name = str(instructions["field"])
         field = _quote_identifier(field_name)
         source = context.services.relations.reference(relation)
         # No filter on ``build_key``: an operator looking for bad values must not
@@ -221,95 +212,77 @@ class _Executor(ModuleExecutor):
         )
         findings = tuple(
             ConflictingNonNullValueFinding(
-                component=str(payload["component"]),
+                component=str(instructions["component"]),
                 build_key=str(key),
                 property_name=field_name,
                 distinct_values=count,
             )
             for key, count in context.services.relations.query(sql).fetchall()
         )
-        output = context.step.outputs[0]
-        artifact = Artifact(output.slot_id, output.artifact_role, findings)
+        outputs = {output_name(given): given for given in context.step.outputs}
+        artifact = Artifact(_FINDINGS, outputs[_FINDINGS].type, findings)
         return StepOutcome(
-            context.step.step_id,
-            context.step.module_id,
-            StepStatus.SUCCEEDED,
-            (artifact,),
+            step_id=context.step_id,
+            module_id=context.module_id,
+            status=StepStatus.SUCCEEDED,
+            artifacts=(artifact,),
         )
 
     def _report(
-        self, context: ExecutionContext, payload: dict[str, Any],
+        self, context: ExecutionContext, instructions: dict[str, Any],
     ) -> StepOutcome:
-        findings_slot = f"{RejectConflictingNonNullValuesModule.ID}::report.findings"
         findings = tuple(
             finding
-            for item in context.inputs[findings_slot]
+            for item in context.inputs[_FINDINGS]
             if item.artifact is not None
             for finding in item.artifact.value
         )
-        record_artifacts: dict[str, Artifact] = {}
-        prefix = f"{RejectConflictingNonNullValuesModule.ID}::report."
-        suffix = ".records"
-        for slot_id, contributions in context.inputs.items():
-            if slot_id == findings_slot:
+        records: dict[ArtifactType, Any] = {}
+        for input_name, contributions in context.inputs.items():
+            if input_name == _FINDINGS:
                 continue
-            artifact = next(
-                (
-                    item.artifact
-                    for item in contributions
-                    if item.artifact is not None
-                ),
-                None,
-            )
-            if artifact is not None:
-                component = slot_id.removeprefix(prefix).removesuffix(suffix)
-                record_artifacts[component] = artifact
+            for item in contributions:
+                if item.artifact is not None:
+                    records[item.artifact.type] = item.artifact.value
 
-        forwarded: list[Artifact] = []
-        for output in context.step.outputs[1:]:
-            identity = CoreArtifactRoles.graph_record_identity(output.artifact_role)
-            if identity is None or identity.component not in record_artifacts:
-                continue
-            forwarded.append(
-                Artifact(
-                    output.slot_id,
-                    output.artifact_role,
-                    record_artifacts[identity.component].value,
-                )
-            )
+        outputs = {output_name(given): given for given in context.step.outputs}
+        forwarded = tuple(
+            Artifact(name, given.type, records[given.type])
+            for name, given in outputs.items()
+            if isinstance(given, Output) and given.type in records
+        )
         if not findings:
             return StepOutcome(
-                context.step.step_id,
-                context.step.module_id,
-                StepStatus.SUCCEEDED,
-                tuple(forwarded),
+                step_id=context.step_id,
+                module_id=context.module_id,
+                status=StepStatus.SUCCEEDED,
+                artifacts=forwarded,
             )
 
         report = ConflictingNonNullValuesReport(findings)
-        report_output = context.step.outputs[0]
         report_artifact = Artifact(
-            report_output.slot_id, report_output.artifact_role, report
+            _REPORT_OUTPUT, outputs[_REPORT_OUTPUT].type, report,
         )
-        if not payload["fail_on_error"]:
+        if not instructions["fail_on_error"]:
             return StepOutcome(
-                context.step.step_id,
-                context.step.module_id,
-                StepStatus.SUCCEEDED,
-                (report_artifact, *forwarded),
+                step_id=context.step_id,
+                module_id=context.module_id,
+                status=StepStatus.SUCCEEDED,
+                artifacts=(report_artifact, *forwarded),
             )
 
         failure = Failure(
             message=(
                 f"validation found {len(findings)} conflicting non-null value(s)"
             ),
-            module_id=context.step.module_id,
-            step_id=context.step.step_id,
+            module_id=context.module_id,
+            step_id=context.step_id,
         )
         return StepOutcome(
-            context.step.step_id,
-            context.step.module_id,
-            StepStatus.FAILED,
-            (report_artifact,),
+            step_id=context.step_id,
+            module_id=context.module_id,
+            status=StepStatus.FAILED,
+            artifacts=(report_artifact,),
             failure=failure,
         )
 

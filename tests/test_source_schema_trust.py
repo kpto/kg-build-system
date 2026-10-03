@@ -13,6 +13,7 @@ import json
 from pathlib import Path
 from tempfile import TemporaryDirectory
 import unittest
+from typing import Any, cast
 from unittest.mock import patch
 
 import duckdb
@@ -33,9 +34,12 @@ from kg_build_system.code_generation.builtins import (
     InferDataContractProvider,
 )
 from kg_build_system.engines.duckdb import read_declared_null_statistics
-from kg_build_system.modules import FileModule, FileModuleConfiguration, register_module
+from kg_build_system.modules import (
+    FileModule, FileModuleConfiguration, ModuleRegistration, register_module,
+)
 from kg_build_system.modules.core import CoreModule
 from kg_build_system.types import Timestamp
+from kg_build_system.workflow.ir import WorkflowContractIR
 from kg_build_system.workflow.services import configure_framework_macros
 
 
@@ -232,10 +236,33 @@ def generate_with(
         ))
 
 
+def core_instructions(contract: WorkflowContractIR) -> dict[str, dict[str, Any]]:
+    """The instruction core ships for each of its steps, keyed by step name.
+
+    A step carries no data of its own, so what core's executor runs for a step is
+    filed under that step's name inside core's own variables.
+    """
+    core = next(
+        item for item in contract.workflow.contributions
+        if item.reference.module_id == CoreModule.ID
+    )
+    variables = cast(dict[str, Any], core.variables)
+    return cast(dict[str, dict[str, Any]], variables["instructions"])
+
+
+def graph_target() -> tuple[ModuleRegistration[Any], ...]:
+    """The composition that reads what core writes.
+
+    Every output has to reach a reader, so no workflow assembles from core alone;
+    the file target is the terminal reader every build here needs.
+    """
+    return (register_module(FileModule, FileModuleConfiguration("graph.jsonl")),)
+
+
 def build_json_contract(
     root: Path, table: type[k.Table], binding: k.Binding, *,
     payload: object, format: k.InputFormat = k.InputFormat.JSON,
-    name: str = "in.json", modules: tuple[object, ...] = (),
+    name: str = "in.json", modules: tuple[ModuleRegistration[Any], ...] | None = None,
 ):
     (root / name).write_text(
         payload if isinstance(payload, str) else json.dumps(payload), encoding="utf-8",
@@ -245,7 +272,7 @@ def build_json_contract(
         config=k.DataSourceConfig(location=str(root / name), format=format),
     )
     contract = k.compile(
-        bindings=[binding], sources=[source], modules=modules,  # type: ignore[arg-type]
+        bindings=[binding], sources=[source], modules=modules or graph_target(),
     )
     return k.build(contract, output_directory=root / "out", monitor=False)
 
@@ -256,8 +283,8 @@ def source_declared_paths(
 ) -> dict[str, str]:
     """The pre-flight paths a compiled contract carries, logical to schema form.
 
-    Read from the contract payload rather than from a private helper: what a build
-    actually checks is what the source step ships.
+    Read from the contract rather than from a private helper: what a build actually
+    checks is what the source step ships in core's variables.
     """
     (root / "in.json").write_text(json.dumps(payload), encoding="utf-8")
     contract = k.compile(
@@ -268,15 +295,11 @@ def source_declared_paths(
                 location=str(root / "in.json"), format=k.InputFormat.JSON,
             ),
         )],
-        modules=(),
-    )
-    step = next(
-        item for item in contract.workflow.steps
-        if item.step_id == f"core::table.{table_name}"
+        modules=graph_target(),
     )
     return {
         path["logical_path"]: path["schema_path"]
-        for path in step.payload["declared_paths"]
+        for path in core_instructions(contract)[f"table.{table_name}"]["declared_paths"]
     }
 
 
@@ -816,12 +839,11 @@ class NullGuardTests(unittest.TestCase):
                     location=str(root / "in.json"), format=k.InputFormat.JSON,
                 ),
             )
-            contract = k.compile(bindings=[guard_binding()], sources=[source], modules=())
+            contract = k.compile(
+                bindings=[guard_binding()], sources=[source], modules=graph_target(),
+            )
 
-        sql = next(
-            step.payload["sql"] for step in contract.workflow.steps
-            if step.step_id == "core::binding.0"
-        )
+        sql = core_instructions(contract)["binding.0"]["sql"]
         # A guard reads the value under a private name, because DuckDB rejects a
         # select item that shadows a source column of its own list.
         self.assertIn('_kg_nn("_kg_raw_build_key"', sql)

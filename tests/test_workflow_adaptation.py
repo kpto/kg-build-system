@@ -1,31 +1,41 @@
+"""The runtime a module author's steps are run with, and the report the build writes."""
 from __future__ import annotations
 
 import tempfile
 import unittest
 from contextlib import chdir
 from dataclasses import dataclass
-from pathlib import Path
 from io import StringIO
+from pathlib import Path
 from typing import Any, ClassVar
 
 from rich.console import Console
 
-from kg_build_system._frozen_json import thaw_json
+from kg_build_system._frozen_json import freeze_json
 from kg_build_system.compile.interfaces import CompilationContext, ModuleCompiler
 from kg_build_system.modules import Module, ModuleRegistrationConfiguration
 from kg_build_system.workflow import BuildRuntime, build
+from kg_build_system.workflow.assembler import assemble_workflow
 from kg_build_system.workflow.contracts import create_workflow_contract
+from kg_build_system.workflow.identity import output_name, step_identity
 from kg_build_system.workflow.interfaces import ModuleExecutor
 from kg_build_system.workflow.ir import WorkflowContractIR
-from kg_build_system.workflow.monitor import RichWorkflowMonitor
 from kg_build_system.workflow.models import (
-    Artifact, ArtifactRole, CollectionInputSlot, Connection,
-    DisruptedExecutionContext, ExecutionContext, ExecutorFactoryContext,
-    Failure, ModuleDefinition, ModuleReference, OutputSlot, RuntimeFieldDefinition,
-    SingleInputSlot, StepOutcome, StepStatus, WorkflowArtifactRoles,
+    Artifact, ArtifactType, DisruptedExecutionContext, ExecutionContext,
+    ExecutorFactoryContext, Failure, Input, ModuleDefinition, ModuleReference,
+    Output, Publication, RuntimeFieldDefinition, StepOutcome, StepStatus,
     WorkflowContribution, WorkflowDefinition, WorkflowReport, WorkflowStep,
 )
-from kg_build_system.workflow.validation import validate_workflow
+from kg_build_system.workflow.monitor import RichWorkflowMonitor
+
+FAILED = ArtifactType("test_recovery", "failed")
+REPORT = ArtifactType("test_recovery", "report")
+
+RECORDS = "records"
+MADE_ONE = ArtifactType("test_arrival", "made.one")
+MADE_TWO = ArtifactType("test_arrival", "made.two")
+MADE_ANY = ArtifactType("test_arrival", "made.*")
+COUNTED = ArtifactType("test_arrival", "counted")
 
 
 @dataclass(frozen=True)
@@ -34,6 +44,8 @@ class RecoveryConfiguration(ModuleRegistrationConfiguration):
 
 
 class RecoveryModule(Module):
+    """A module whose first step fails and whose second absorbs the failure."""
+
     ID: ClassVar[str] = "test_recovery"
     VERSION: ClassVar[str] = "1"
     CONFIGURATION_TYPE: ClassVar[type[RecoveryConfiguration]] = RecoveryConfiguration
@@ -42,7 +54,7 @@ class RecoveryModule(Module):
     async def create_compiler(
         cls, context: CompilationContext[Any],
     ) -> ModuleCompiler:
-        return RecoveryCompiler()
+        raise NotImplementedError("these tests contribute their steps directly")
 
     @classmethod
     def create_executor(
@@ -51,82 +63,158 @@ class RecoveryModule(Module):
         return RecoveryExecutor()
 
 
-class RecoveryCompiler:
-    async def compile(
-        self, context: CompilationContext[Any],
-    ) -> WorkflowContribution:
-        raise NotImplementedError
-
-
 class RecoveryExecutor(ModuleExecutor):
+    """Told which of its steps to fail by the instruction filed under that step's name."""
+
     def handle(self, context: ExecutionContext) -> StepOutcome:
         context.services.logger.info("Handling recovery test step")
-        if thaw_json(context.step.payload) == {"action": "fail"}:  # type: ignore[arg-type]
+        if context.variables["instructions"][context.step.name] == {"action": "fail"}:
             raise RuntimeError("intentional failure")
-        return StepOutcome(
-            context.step.step_id, context.step.module_id, StepStatus.SUCCEEDED,
-        )
+        return StepOutcome(context.step_id, context.module_id, StepStatus.SUCCEEDED)
 
     def handle_disrupted(
         self, context: DisruptedExecutionContext,
     ) -> StepOutcome:
         context.services.logger.warning("Recovering disrupted input")
-        output = context.step.outputs[0]
+        published = context.step.outputs[0]
         return StepOutcome(
-            context.step.step_id,
-            context.step.module_id,
+            context.step_id,
+            context.module_id,
             StepStatus.WARNING,
-            (Artifact(output.slot_id, output.artifact_role, {"recovered": True}),),
+            (Artifact(output_name(published), published.type, {"recovered": True}),),
         )
 
 
+class ArrivalModule(Module):
+    """A module whose last step asks for a family of types with one open input."""
+
+    ID: ClassVar[str] = "test_arrival"
+    VERSION: ClassVar[str] = "1"
+    CONFIGURATION_TYPE: ClassVar[type[ModuleRegistrationConfiguration]] = (
+        ModuleRegistrationConfiguration
+    )
+
+    @classmethod
+    async def create_compiler(
+        cls, context: CompilationContext[Any],
+    ) -> ModuleCompiler:
+        raise NotImplementedError("these tests contribute their steps directly")
+
+    @classmethod
+    def create_executor(
+        cls, context: ExecutorFactoryContext,
+    ) -> ModuleExecutor:
+        return ArrivalExecutor()
+
+
+class ArrivalExecutor(ModuleExecutor):
+    def handle(self, context: ExecutionContext) -> StepOutcome:
+        given = context.step.outputs[0]
+        if RECORDS in context.inputs:
+            value: Any = [
+                item.artifact.type.name
+                for item in context.inputs[RECORDS]
+                if item.artifact is not None
+            ]
+        else:
+            value = given.type.name
+        return StepOutcome(
+            context.step_id,
+            context.module_id,
+            StepStatus.SUCCEEDED,
+            (Artifact(output_name(given), given.type, value),),
+        )
+
+    def handle_disrupted(
+        self, context: DisruptedExecutionContext,
+    ) -> StepOutcome:
+        return super().handle_disrupted(context)
+
+
 def _module_definition(
+    module: type[Module],
     *, version: str = "1",
     runtime_fields: tuple[RuntimeFieldDefinition, ...] = (),
 ) -> ModuleDefinition:
     return ModuleDefinition(
         reference=ModuleReference(
-            module_id=RecoveryModule.ID,
-            import_module=RecoveryModule.__module__,
-            class_qualname=RecoveryModule.__qualname__,
+            module_id=module.ID,
+            import_module=module.__module__,
+            class_qualname=module.__qualname__,
             implementation_version=version,
         ),
         runtime_fields=runtime_fields,
     )
 
 
-def _contract(
+def _recovery_contribution(
+    *, version: str = "1",
+    runtime_fields: tuple[RuntimeFieldDefinition, ...] = (),
+) -> WorkflowContribution:
+    """The failure and the step that reads it, with the instruction that causes it."""
+    return WorkflowContribution(
+        _module_definition(
+            RecoveryModule, version=version, runtime_fields=runtime_fields,
+        ),
+        (
+            WorkflowStep(outputs=(Output(FAILED, "failed"),), name="fail"),
+            WorkflowStep(
+                inputs=(Input(FAILED, "failed"),),
+                outputs=(Publication(REPORT, "report"),),
+                name="recover",
+            ),
+        ),
+        freeze_json({
+            "instructions": {
+                "fail": {"action": "fail"},
+                "recover": {"action": "recover"},
+            },
+        }),
+    )
+
+
+def _recovery_contract(
     *, version: str = "1",
     runtime_fields: tuple[RuntimeFieldDefinition, ...] = (),
 ) -> WorkflowContractIR:
-    private_role = ArtifactRole(namespace="test_recovery", name="failed")
-    published_role = WorkflowArtifactRoles.published(
-        RecoveryModule.ID, "report",
+    return create_workflow_contract(
+        assemble_workflow((
+            _recovery_contribution(version=version, runtime_fields=runtime_fields),
+        )),
+        provenance={"test": "workflow_adaptation"},
     )
-    failing = WorkflowStep(
-        step_id="test_recovery::fail",
-        module_id=RecoveryModule.ID,
-        outputs=(OutputSlot(slot_id="test_recovery::fail.output", artifact_role=private_role),),
-        payload={"action": "fail"},
-    )
-    recovery_input = SingleInputSlot(slot_id="test_recovery::recover.input")
-    recovering = WorkflowStep(
-        step_id="test_recovery::recover",
-        module_id=RecoveryModule.ID,
-        inputs=(recovery_input,),
-        outputs=(OutputSlot(slot_id="test_recovery::recover.output", artifact_role=published_role),),
-    )
-    workflow = WorkflowDefinition(
-        modules=(_module_definition(version=version, runtime_fields=runtime_fields),),
-        steps=(failing, recovering),
-        connections=(Connection(
-            input_slot_id=recovery_input.slot_id,
-            output_slot_id=failing.outputs[0].slot_id,
-        ),),
+
+
+def _arrival_contract() -> WorkflowContractIR:
+    """Two writers of related types and one step that asks for the family they belong to."""
+    contribution = WorkflowContribution(
+        _module_definition(ArrivalModule),
+        (
+            WorkflowStep(outputs=(Output(MADE_ONE, "one"),), name="make_one"),
+            WorkflowStep(outputs=(Output(MADE_TWO, "two"),), name="make_two"),
+            WorkflowStep(
+                inputs=(Input(MADE_ANY, RECORDS),),
+                outputs=(Publication(COUNTED, "result"),),
+                name="count",
+            ),
+        ),
     )
     return create_workflow_contract(
-        workflow,
-        provenance={"test": "workflow_adaptation"},
+        assemble_workflow((contribution,)), provenance={"test": "workflow_adaptation"},
+    )
+
+
+def _definition(*steps: WorkflowStep) -> WorkflowDefinition:
+    """The workflow a module's steps assemble into, which is what a monitor is shown."""
+    return assemble_workflow((
+        WorkflowContribution(_module_definition(RecoveryModule), steps),
+    ))
+
+
+def _published_step(name: str) -> WorkflowStep:
+    """A step a build can run on its own, since what it publishes needs no reader."""
+    return WorkflowStep(
+        outputs=(Publication(ArtifactType(RecoveryModule.ID, name), "result"),), name=name,
     )
 
 
@@ -143,8 +231,8 @@ class RecordingMonitor:
     def start(self, workflow: WorkflowDefinition) -> None:
         self.start_calls += 1
 
-    def step_started(self, step: WorkflowStep, detail: str) -> None:
-        self.started.append(step.step_id)
+    def step_started(self, step_id: str, detail: str) -> None:
+        self.started.append(step_id)
 
     def step_finished(self, outcome: StepOutcome, detail: str) -> None:
         self.finished.append((outcome.step_id, outcome.status))
@@ -164,50 +252,6 @@ class RecordingMonitor:
         self.stop_calls += 1
 
 
-class WorkflowDefinitionTests(unittest.TestCase):
-    def test_rejects_an_unconnected_collection_input(self) -> None:
-        module = _module_definition()
-        step = WorkflowStep(
-            step_id="test_recovery::consumer",
-            module_id=RecoveryModule.ID,
-            inputs=(CollectionInputSlot(slot_id="test_recovery::consumer.inputs"),),
-        )
-        workflow = WorkflowDefinition(modules=(module,), steps=(step,))
-        with self.assertRaisesRegex(ValueError, "requires at least one connection"):
-            validate_workflow(workflow)
-
-    def test_rejects_a_dependency_cycle_before_execution(self) -> None:
-        role = ArtifactRole(namespace="test_recovery", name="value")
-        first = WorkflowStep(
-            step_id="test_recovery::first",
-            module_id=RecoveryModule.ID,
-            inputs=(SingleInputSlot(slot_id="test_recovery::first.input"),),
-            outputs=(OutputSlot(slot_id="test_recovery::first.output", artifact_role=role),),
-        )
-        second = WorkflowStep(
-            step_id="test_recovery::second",
-            module_id=RecoveryModule.ID,
-            inputs=(SingleInputSlot(slot_id="test_recovery::second.input"),),
-            outputs=(OutputSlot(slot_id="test_recovery::second.output", artifact_role=role),),
-        )
-        workflow = WorkflowDefinition(
-            modules=(_module_definition(),),
-            steps=(first, second),
-            connections=(
-                Connection(
-                    input_slot_id=first.inputs[0].slot_id,
-                    output_slot_id=second.outputs[0].slot_id,
-                ),
-                Connection(
-                    input_slot_id=second.inputs[0].slot_id,
-                    output_slot_id=first.outputs[0].slot_id,
-                ),
-            ),
-        )
-        with self.assertRaisesRegex(ValueError, "contains a cycle"):
-            validate_workflow(workflow)
-
-
 class WorkflowRuntimeTests(unittest.TestCase):
     def test_runtime_working_directory_is_derived_from_its_output(self) -> None:
         output = Path("custom-output")
@@ -217,7 +261,7 @@ class WorkflowRuntimeTests(unittest.TestCase):
 
     def test_default_directories_are_explicit_and_relative_to_cwd(self) -> None:
         with tempfile.TemporaryDirectory() as directory, chdir(directory):
-            build(_contract(), monitor=False)
+            build(_recovery_contract(), monitor=False)
 
             output = Path(directory) / "build"
             self.assertTrue((output / "workflow_contract.json").is_file())
@@ -227,24 +271,37 @@ class WorkflowRuntimeTests(unittest.TestCase):
     def test_default_working_directory_follows_custom_output(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             output = Path(directory) / "custom-output"
-            build(_contract(), output_directory=output, monitor=False)
+            build(_recovery_contract(), output_directory=output, monitor=False)
 
             self.assertTrue((output / "_workdir").is_dir())
 
     def test_successful_disrupted_handler_recovers_upstream_failure(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
-            report = build(_contract(), output_directory=Path(directory))
+            report = build(_recovery_contract(), output_directory=Path(directory))
         self.assertTrue(report.succeeded)
         self.assertEqual(len(report.recovered_failures), 1)
         self.assertEqual(report.unresolved_failures, ())
+        self.assertEqual(report.published_artifacts[0].type, REPORT)
         self.assertEqual(report.published_artifacts[0].value, {"recovered": True})
+
+    def test_an_open_input_arrives_under_the_one_name_it_was_given(self) -> None:
+        """One key holds what every type the pattern matched produced."""
+        with tempfile.TemporaryDirectory() as directory:
+            report = build(_arrival_contract(), output_directory=Path(directory))
+
+        self.assertTrue(report.succeeded)
+        self.assertEqual(len(report.published_artifacts), 1)
+        self.assertEqual(report.published_artifacts[0].type, COUNTED)
+        self.assertEqual(
+            report.published_artifacts[0].value, ["made.one", "made.two"],
+        )
 
     def test_rejects_an_incompatible_runtime_module_version(self) -> None:
         monitor = RecordingMonitor()
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(RuntimeError, "does not match compiled version"):
                 build(
-                    _contract(version="2"), output_directory=Path(directory),
+                    _recovery_contract(version="2"), output_directory=Path(directory),
                     monitor=monitor,
                 )
         self.assertEqual(len(monitor.halted_messages), 1)
@@ -262,7 +319,7 @@ class WorkflowRuntimeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as directory:
             with self.assertRaisesRegex(TypeError, "invalid runtime configuration"):
                 build(
-                    _contract(runtime_fields=(runtime_field,)), runtime,
+                    _recovery_contract(runtime_fields=(runtime_field,)), runtime,
                     output_directory=Path(directory),
                 )
 
@@ -270,7 +327,7 @@ class WorkflowRuntimeTests(unittest.TestCase):
         monitor = RecordingMonitor()
         with tempfile.TemporaryDirectory() as directory:
             build(
-                _contract(), output_directory=Path(directory), monitor=monitor,
+                _recovery_contract(), output_directory=Path(directory), monitor=monitor,
             )
 
         self.assertEqual(monitor.start_calls, 1)
@@ -295,6 +352,8 @@ class WorkflowRuntimeTests(unittest.TestCase):
             for _level, message, step_id in monitor.logs
         ))
 
+
+class MonitorTests(unittest.TestCase):
     def test_rich_monitor_renders_progress_steps_and_scrolling_logs(self) -> None:
         output = StringIO()
         console = Console(
@@ -305,18 +364,16 @@ class WorkflowRuntimeTests(unittest.TestCase):
             storage="disk", compression=False,
             memory_limit="2GiB", threads=3,
         )
-        step = WorkflowStep("test_recovery::only", RecoveryModule.ID)
-        workflow = WorkflowDefinition(
-            modules=(_module_definition(),), steps=(step,),
-        )
-        monitor.start(workflow)
-        monitor.step_started(step, "Processing 0 input slot(s) → 0 output slot(s)")
-        monitor.log("INFO", "first message", step_id=step.step_id)
-        monitor.log("INFO", "second message", step_id=step.step_id)
-        monitor.log("WARNING", "latest message", step_id=step.step_id)
+        name = "only"
+        identity = step_identity(RecoveryModule.ID, name)
+        monitor.start(_definition(_published_step(name)))
+        monitor.step_started(identity, "Processing 0 input(s) → 1 output(s)")
+        monitor.log("INFO", "first message", step_id=identity)
+        monitor.log("INFO", "second message", step_id=identity)
+        monitor.log("WARNING", "latest message", step_id=identity)
         monitor.step_finished(
-            StepOutcome(step.step_id, step.module_id, StepStatus.SUCCEEDED),
-            "succeeded; 0 artifact(s)",
+            StepOutcome(identity, RecoveryModule.ID, StepStatus.SUCCEEDED),
+            "succeeded; 1 artifact(s)",
         )
         monitor.workflow_finished(WorkflowReport((), (), (), {}))
         monitor.stop()
@@ -329,7 +386,7 @@ class WorkflowRuntimeTests(unittest.TestCase):
         self.assertIn("memory 2GiB", rendered)
         self.assertIn("threads 3", rendered)
         self.assertIn("Steps", rendered)
-        self.assertIn("test_recovery::only", rendered)
+        self.assertIn(identity, rendered)
         self.assertIn("Logs", rendered)
         self.assertNotIn("first message", rendered)
         self.assertIn("second message", rendered)
@@ -341,26 +398,21 @@ class WorkflowRuntimeTests(unittest.TestCase):
             file=output, force_terminal=False, color_system=None, width=120,
         )
         monitor = RichWorkflowMonitor(console=console)
-        step = WorkflowStep("test_recovery::health", RecoveryModule.ID)
-        workflow = WorkflowDefinition(
-            modules=(_module_definition(),), steps=(step,),
-        )
-        monitor.start(workflow)
-        monitor.step_started(step, "Processing")
-        failure = Failure(
-            "failed", RecoveryModule.ID, step.step_id, "RuntimeError",
-        )
+        name = "health"
+        identity = step_identity(RecoveryModule.ID, name)
+        monitor.start(_definition(_published_step(name)))
+        monitor.step_started(identity, "Processing")
+        failure = Failure("failed", RecoveryModule.ID, identity, "RuntimeError")
         monitor.step_finished(
-            StepOutcome(
-                step.step_id, step.module_id, StepStatus.FAILED,
-                failure=failure,
-            ),
+            StepOutcome(identity, RecoveryModule.ID, StepStatus.FAILED, failure=failure),
             "failed",
         )
-        self.assertIsNotNone(monitor._bar_column)
-        self.assertEqual(monitor._bar_column.complete_style, "yellow")
+        bar_column = monitor._bar_column
+        if bar_column is None:
+            self.fail("a running monitor draws a progress bar to colour")
+        self.assertEqual(bar_column.complete_style, "yellow")
         monitor.workflow_finished(WorkflowReport((), (), (failure,), {}))
-        self.assertEqual(monitor._bar_column.complete_style, "red")
+        self.assertEqual(bar_column.complete_style, "red")
         monitor.stop()
 
         rendered = output.getvalue()
@@ -374,7 +426,7 @@ class WorkflowRuntimeTests(unittest.TestCase):
         monitor = RichWorkflowMonitor(console=console)
         with tempfile.TemporaryDirectory() as directory:
             build(
-                _contract(), output_directory=Path(directory), monitor=monitor,
+                _recovery_contract(), output_directory=Path(directory), monitor=monitor,
             )
 
         rendered = output.getvalue()
@@ -389,28 +441,24 @@ class WorkflowRuntimeTests(unittest.TestCase):
             file=output, force_terminal=False, color_system=None, width=100,
         )
         monitor = RichWorkflowMonitor(console=console, step_lines=3)
-        steps = tuple(
-            WorkflowStep(f"test_recovery::step_{index}", RecoveryModule.ID)
-            for index in range(5)
-        )
-        workflow = WorkflowDefinition(
-            modules=(_module_definition(),), steps=steps,
-        )
-        monitor.start(workflow)
-        monitor.step_started(steps[0], "Processing first")
+        names = tuple(f"step_{index}" for index in range(5))
+        steps = tuple(_published_step(name) for name in names)
+        identities = [step_identity(RecoveryModule.ID, name) for name in names]
+        monitor.start(_definition(*steps))
+        monitor.step_started(identities[0], "Processing first")
         monitor.step_finished(
-            StepOutcome(steps[0].step_id, steps[0].module_id, StepStatus.SUCCEEDED),
+            StepOutcome(identities[0], RecoveryModule.ID, StepStatus.SUCCEEDED),
             "succeeded",
         )
-        monitor.step_started(steps[1], "Processing second")
+        monitor.step_started(identities[1], "Processing second")
         monitor.stop()
 
         rendered = output.getvalue()
-        processing_position = rendered.index(steps[1].step_id)
-        recent_position = rendered.index(steps[0].step_id)
+        processing_position = rendered.index(identities[1])
+        recent_position = rendered.index(identities[0])
         self.assertLess(processing_position, recent_position)
         self.assertIn("… 3 more step(s)", rendered)
-        self.assertNotIn(steps[2].step_id, rendered)
+        self.assertNotIn(identities[2], rendered)
 
 
 if __name__ == "__main__":

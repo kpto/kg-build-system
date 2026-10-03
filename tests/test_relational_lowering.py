@@ -7,6 +7,7 @@ import unittest
 import uuid
 from decimal import Decimal
 from pathlib import Path
+from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 from kg_build_system import (
@@ -20,14 +21,17 @@ from kg_build_system.modules import (
     MergeCompatibleFactsModule, register_module,
 )
 from kg_build_system.modules.core.credentials import configure_source_credentials
-from kg_build_system.modules.core.core import CoreArtifactRoles
+from kg_build_system.modules.core.core import CoreArtifactTypes
 from kg_build_system.modules.targets.file import FileExecutor
 from kg_build_system.relational import lower_product
 from kg_build_system.engines.duckdb import lower_relation_sql
+from kg_build_system.workflow.identity import (
+    expanded_input_name, opening_identity, step_identity,
+)
 from kg_build_system.workflow.ir import WorkflowContractIR
 from kg_build_system.workflow.models import (
-    Artifact, ContinuableInput, ExecutionContext, ModuleDefinition, ModuleReference,
-    OutputSlot, StepStatus, WorkflowArtifactRoles, WorkflowStep,
+    Artifact, ArtifactType, ContinuableInput, DefinedStep, ExecutionContext,
+    ModuleDefinition, ModuleReference, Publication, StepStatus, TakenInput,
 )
 from kg_build_system.workflow.services import RelationRef
 
@@ -54,6 +58,28 @@ class LoweringProjection(Projection):
 
 class LoweringNode(Node):
     label: PropertySlot[str] = property()
+
+
+def core_instructions(contract: WorkflowContractIR) -> dict[str, dict[str, Any]]:
+    """The instruction core ships for each of its steps, keyed by step name.
+
+    A step carries no data of its own, so what core's executor runs for a step is
+    filed under that step's name inside core's own variables.
+    """
+    core = next(
+        item for item in contract.workflow.contributions
+        if item.reference.module_id == "core"
+    )
+    variables = cast(dict[str, Any], core.variables)
+    return cast(dict[str, dict[str, Any]], variables["instructions"])
+
+
+def file_records_input(component: str) -> str:
+    """The identity of the file target's opening that takes one component's records."""
+    return opening_identity(
+        step_identity(FileModule.ID, "write"),
+        expanded_input_name("records", CoreArtifactTypes.graph_records("node", component)),
+    )
 
 
 class RelationalLoweringTests(unittest.TestCase):
@@ -116,25 +142,26 @@ class RelationalLoweringTests(unittest.TestCase):
         )
         self.assertEqual(restored.workflow, contract.workflow)
         contract_document = json.loads(contract.model_dump_json())
-        self.assertEqual(contract_document["schema_version"], 1)
+        self.assertEqual(contract_document["schema_version"], 2)
         self.assertEqual(
             contract_document["provenance"]["compile"]["blueprint"]["schema_version"],
             blueprint.schema_version,
         )
         self.assertNotIn("blueprint", contract_document)
+        contributions = contract_document["workflow"]["contributions"]
         self.assertTrue(all(
-            "priority" not in module["reference"]
-            for module in contract_document["workflow"]["modules"]
+            "priority" not in contribution["reference"]
+            for contribution in contributions
         ))
         self.assertTrue(all(
             "assembly_preference" not in step
-            for step in contract_document["workflow"]["steps"]
+            for contribution in contributions
+            for step in contribution["steps"]
         ))
-        projection_step = next(
-            step for step in contract.workflow.steps
-            if step.step_id == f"core::projection.{blueprint.projections[0].name}"
-        )
-        self.assertEqual(str(projection_step.payload["sql"]).count("UNNEST"), 2)  # type: ignore[index]
+        projection_sql = core_instructions(contract)[
+            f"projection.{blueprint.projections[0].name}"
+        ]["sql"]
+        self.assertEqual(str(projection_sql).count("UNNEST"), 2)
 
     def test_source_instruction_retains_credential_reference(self) -> None:
         source = bind_source(
@@ -151,18 +178,17 @@ class RelationalLoweringTests(unittest.TestCase):
             properties=LoweringNode(label=LoweringProjection.label),
         )
         contract = compile(
-            bindings=(binding,), sources=(source,), modules=(),
-        )
-        source_step = next(
-            step for step in contract.workflow.steps
-            if step.step_id == "core::table.lowering_input"
+            bindings=(binding,), sources=(source,),
+            modules=(register_module(
+                FileModule, FileModuleConfiguration("graph.jsonl")
+            ),),
         )
         # The source step carries what the contract knows about the contract, so
         # the shape check and the null-count pre-flight can run without a
         # blueprint. Only paths the build reads that claim non-nullity are listed:
         # a read of an expanded array reaches the members below it, and a Parquet
         # path carries one pair of list wrappers per array level crossed.
-        self.assertEqual(source_step.payload, {
+        self.assertEqual(core_instructions(contract)["table.lowering_input"], {
             "action": "source_relation",
             "relation": "kg_table_0",
             "location": "s3://bucket/input.json",
@@ -283,9 +309,9 @@ class RelationalLoweringTests(unittest.TestCase):
             ),
         )
         file_outputs = {
-            connection.output_slot_id
+            connection.output_id
             for connection in contract.workflow.connections
-            if connection.input_slot_id == "file::write.records"
+            if connection.input_id == file_records_input("lowering")
         }
         self.assertEqual(len(file_outputs), 1)
         self.assertTrue(
@@ -317,11 +343,8 @@ class FileTargetPropertyEncodingTests(unittest.TestCase):
         services.output_storage.child.side_effect = lambda relative: root / relative
         services.relations.reference.return_value = "kg_records"
         services.relations.query.return_value = _RecordQuery(columns, list(rows))
-        records = Artifact(
-            "core::graph.node.survey",
-            CoreArtifactRoles.graph_records("node", "survey"),
-            RelationRef("kg_records"),
-        )
+        survey = CoreArtifactTypes.graph_records("node", "survey")
+        records = Artifact("output", survey, RelationRef("kg_records"))
 
         FileExecutor({}).handle(ExecutionContext(
             module=ModuleDefinition(ModuleReference(
@@ -331,17 +354,27 @@ class FileTargetPropertyEncodingTests(unittest.TestCase):
                 implementation_version=FileModule.VERSION,
                 configuration=freeze_json({"relative_path": "graph.jsonl"}),
             )),
-            step=WorkflowStep(
-                step_id="file::write",
-                module_id=FileModule.ID,
-                outputs=(OutputSlot(
-                    "file::write.result",
-                    WorkflowArtifactRoles.published(FileModule.ID, "write_result"),
+            step=DefinedStep(
+                name="write",
+                inputs=(TakenInput(
+                    type=survey,
+                    name=expanded_input_name("records", survey),
+                    input_name="records",
+                ),),
+                outputs=(Publication(
+                    ArtifactType(FileModule.ID, "write_result"), "result",
                 ),),
             ),
+            module_id=FileModule.ID,
+            step_id=step_identity(FileModule.ID, "write"),
+            variables={},
             runtime_configuration={},
-            inputs={"file::write.records": (ContinuableInput(
-                output_slot_id=records.slot_id,
+            # A running step receives its inputs under the input it declared,
+            # which for an open input names every port that grew from it.
+            inputs={"records": (ContinuableInput(
+                output_id=opening_identity(
+                    step_identity("core", "aggregate.survey"), "output",
+                ),
                 status=StepStatus.SUCCEEDED,
                 artifact=records,
             ),)},

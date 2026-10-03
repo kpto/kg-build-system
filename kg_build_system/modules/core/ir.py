@@ -29,7 +29,7 @@ class DeclaredPathIR(BaseModel):
     """One declared member path, in both forms the source step needs.
 
     A module executor never sees the blueprint, so what the contract knows about a
-    contract has to travel in the step payload — the same way the meta-graph
+    contract has to travel in the module's own variables — the same way the meta-graph
     module ships its static topology.
     """
 
@@ -52,7 +52,7 @@ class DeclaredColumnIR(CoreInstructionIR):
 
     ``logical_type`` is the declaration in the JSON form the blueprint uses —
     ``types.ir_codec.encode_type_ir`` out, ``decode_type_ir`` back — because a
-    module executor reads the payload and nothing else, and the source view needs
+    module executor reads those variables and nothing else, and the source view needs
     the declared canonical type to widen the physical column to.
     """
 

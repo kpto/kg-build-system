@@ -18,8 +18,9 @@ from rich.table import Table
 from rich.text import Text
 
 from .models import (
-    StepOutcome, StepStatus, WorkflowDefinition, WorkflowReport, WorkflowStep,
+    StepOutcome, StepStatus, WorkflowDefinition, WorkflowReport,
 )
+from .identity import step_identity
 
 
 class _WorkflowStatusColumn(ProgressColumn):
@@ -37,7 +38,7 @@ class WorkflowExecutionMonitor(Protocol):
 
     def start(self, workflow: WorkflowDefinition) -> None: ...
 
-    def step_started(self, step: WorkflowStep, detail: str) -> None: ...
+    def step_started(self, step_id: str, detail: str) -> None: ...
 
     def step_finished(self, outcome: StepOutcome, detail: str) -> None: ...
 
@@ -58,7 +59,7 @@ class NullWorkflowMonitor:
     def start(self, workflow: WorkflowDefinition) -> None:
         pass
 
-    def step_started(self, step: WorkflowStep, detail: str) -> None:
+    def step_started(self, step_id: str, detail: str) -> None:
         pass
 
     def step_finished(self, outcome: StepOutcome, detail: str) -> None:
@@ -143,10 +144,13 @@ class RichWorkflowMonitor:
         with self._lock:
             if self._live is not None:
                 raise RuntimeError("workflow monitor is already running")
-            self._step_order = tuple(step.step_id for step in workflow.steps)
+            steps = tuple(
+                (step_identity(module_id, step.name), module_id)
+                for module_id, step in workflow.steps_by_module
+            )
+            self._step_order = tuple(identity for identity, _module in steps)
             self._steps = {
-                step.step_id: _StepDisplay(step.module_id)
-                for step in workflow.steps
+                identity: _StepDisplay(module_id) for identity, module_id in steps
             }
             self._finish_order = []
             self._completed = 0
@@ -165,7 +169,7 @@ class RichWorkflowMonitor:
                 expand=True,
             )
             self._progress_task = self._progress.add_task(
-                "workflow", total=len(workflow.steps), completed=0,
+                "workflow", total=len(self._step_order), completed=0,
                 workflow_status="Running",
                 workflow_status_style="bold green",
             )
@@ -177,9 +181,9 @@ class RichWorkflowMonitor:
             )
             self._live.start(refresh=True)
 
-    def step_started(self, step: WorkflowStep, detail: str) -> None:
+    def step_started(self, step_id: str, detail: str) -> None:
         with self._lock:
-            display = self._steps[step.step_id]
+            display = self._steps[step_id]
             display.state = "processing"
             display.detail = detail
             self._refresh()

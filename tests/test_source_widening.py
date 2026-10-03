@@ -15,6 +15,7 @@ import unittest
 from datetime import date
 from pathlib import Path
 from tempfile import TemporaryDirectory
+from typing import Any
 from unittest.mock import patch
 
 import duckdb
@@ -31,7 +32,7 @@ from kg_build_system.engines.duckdb import (
     ArraySqlType, StructSqlType, canonical_sql_type,
 )
 from kg_build_system.modules import FileModule, FileModuleConfiguration, register_module
-from kg_build_system.modules.core import CoreArtifactRoles, CoreModule
+from kg_build_system.modules.core import CoreArtifactTypes, CoreModule
 from kg_build_system.modules.core.core import CoreExecutor
 from kg_build_system.modules.core.ir import (
     DeclaredColumnIR, SourceRelationInstructionIR, decode_core_instruction,
@@ -41,10 +42,11 @@ from kg_build_system.types import Date, Timestamp, Uuid
 from kg_build_system.types.ir import (
     ArrayTypeIR, CustomTypeIR, NullableTypeIR, StructTypeIR, UnitTypeIR,
 )
+from kg_build_system.workflow.identity import step_identity
 from kg_build_system.workflow.ir import WorkflowContractIR
 from kg_build_system.workflow.mapping import workflow_from_ir
 from kg_build_system.workflow.models import (
-    BuildRuntime, ExecutionContext, OutputSlot, WorkflowStep,
+    BuildRuntime, DefinedContribution, DefinedStep, ExecutionContext, Output,
 )
 from kg_build_system.workflow.services import (
     DuckDBRelationService, ExecutionServices, LocalTemporaryStorage,
@@ -90,7 +92,7 @@ def widened_binding() -> Binding:
 
 
 TABLE_NAME = "widened_input"
-SOURCE_STEP_ID = f"core::table.{TABLE_NAME}"
+SOURCE_STEP_NAME = f"table.{TABLE_NAME}"
 
 #: What every declared column of the fixture must arrive as, in declaration
 #: order. The Parquet fixture writes every one of them narrower, on purpose.
@@ -183,32 +185,53 @@ def write_parquet(path: Path, select: str) -> None:
 
 
 def contract_for(location: str, format: k.InputFormat) -> WorkflowContractIR:
-    """A real compiled contract for one source of the fixture table."""
+    """A real compiled contract for one source of the fixture table.
+
+    The file target composes in only so the graph records the fixture's binding
+    produces have a reader — a workflow refuses to assemble while one is missing.
+    It never runs here: these tests execute the source step on its own.
+    """
     return k.compile(
         bindings=[widened_binding()],
         sources=[k.bind_source(
             target=WidenedTable,
             config=k.DataSourceConfig(location=location, format=format),
         )],
-        modules=(),
+        modules=(register_module(FileModule, FileModuleConfiguration("graph.jsonl")),),
     )
 
 
-def executable_step(contract: WorkflowContractIR, step_id: str) -> WorkflowStep:
+def core_contribution(contract: WorkflowContractIR) -> DefinedContribution:
+    """The core module's part of a compiled contract, as its executor receives it."""
+    return next(
+        contribution for contribution in workflow_from_ir(contract.workflow).contributions
+        if contribution.module.reference.module_id == CoreModule.ID
+    )
+
+
+def source_step(contract: WorkflowContractIR) -> DefinedStep:
     """One compiled step as its executor receives it, through the contract IR."""
     return next(
-        step for step in workflow_from_ir(contract.workflow).steps
-        if step.step_id == step_id
+        step for step in core_contribution(contract).steps
+        if step.name == SOURCE_STEP_NAME
     )
+
+
+def core_variables(contract: WorkflowContractIR) -> dict[str, Any]:
+    """The instruction data the compiled core module ships for its own steps."""
+    return thaw_json(core_contribution(contract).variables)
 
 
 def source_instruction(contract: WorkflowContractIR) -> SourceRelationInstructionIR:
-    return decode_core_instruction(executable_step(contract, SOURCE_STEP_ID).payload)
+    return decode_core_instruction(
+        core_variables(contract)["instructions"][SOURCE_STEP_NAME]
+    )
 
 
 def execute_source(
     contract: WorkflowContractIR, root: Path,
-    connection: duckdb.DuckDBPyConnection, *, step: WorkflowStep | None = None,
+    connection: duckdb.DuckDBPyConnection, *, step: DefinedStep | None = None,
+    variables: dict[str, Any] | None = None,
 ) -> tuple[RelationRef, _RecordingLogger]:
     """Run one compiled source step on a real engine, naming the relation it made.
 
@@ -217,11 +240,13 @@ def execute_source(
     step gets its own cursor, which the service closes the way a build closes its
     connection; the caller's connection shares the database and stays open to ask
     ``DESCRIBE`` about the view.
+
+    A caller that replaces the step names the instruction data to go with it,
+    since that is filed under the step's name in the module's own variables.
     """
-    definition = next(
-        module for module in workflow_from_ir(contract.workflow).modules
-        if module.reference.module_id == CoreModule.ID
-    )
+    contribution = core_contribution(contract)
+    step = step or source_step(contract)
+    variables = variables if variables is not None else core_variables(contract)
     logger = _RecordingLogger()
     services = ExecutionServices(
         relations=DuckDBRelationService(
@@ -235,8 +260,11 @@ def execute_source(
     )
     try:
         outcome = CoreExecutor().handle(ExecutionContext(
-            module=definition,
-            step=step or executable_step(contract, SOURCE_STEP_ID),
+            module=contribution.module,
+            step=step,
+            module_id=CoreModule.ID,
+            step_id=step_identity(CoreModule.ID, step.name),
+            variables=variables,
             runtime_configuration={},
             inputs={},
             services=services,
@@ -433,14 +461,12 @@ class SourceWideningTests(unittest.TestCase):
                 "SELECT 'entity-1' AS identifier, 'AB-1' AS custom, "
                 "{'v': 3::INTEGER} AS shape, 1::INTEGER AS count",
             )
-            step = WorkflowStep(
-                step_id=SOURCE_STEP_ID,
-                module_id=CoreModule.ID,
-                outputs=(OutputSlot(
-                    slot_id=f"{SOURCE_STEP_ID}.output",
-                    artifact_role=CoreArtifactRoles.table(TABLE_NAME),
-                ),),
-                payload=encode_core_instruction(SourceRelationInstructionIR(
+            step = DefinedStep(
+                name=SOURCE_STEP_NAME,
+                outputs=(Output(CoreArtifactTypes.table(TABLE_NAME)),),
+            )
+            variables = {"instructions": {SOURCE_STEP_NAME: encode_core_instruction(
+                SourceRelationInstructionIR(
                     relation="kg_widened_0",
                     location=posix(location),
                     format="parquet",
@@ -465,13 +491,13 @@ class SourceWideningTests(unittest.TestCase):
                             logical_type={"kind": "unit", "name": "int"},
                         ),
                     ),
-                )),
-            )
+                ),
+            )}}
             contract = contract_for(posix(location), k.InputFormat.PARQUET)
             connection = duckdb.connect()
             try:
                 relation, logger = execute_source(
-                    contract, root, connection, step=step,
+                    contract, root, connection, step=step, variables=variables,
                 )
                 columns = describe(connection, relation)
             finally:
@@ -562,7 +588,7 @@ class DeclaredColumnPayloadTests(unittest.TestCase):
         return contract_for("parts/*.parquet", k.InputFormat.PARQUET)
 
     def test_the_compiled_source_step_declares_a_name_and_a_type_together(self) -> None:
-        payload = thaw_json(executable_step(self.compiled(), SOURCE_STEP_ID).payload)
+        payload = core_variables(self.compiled())["instructions"][SOURCE_STEP_NAME]
 
         self.assertEqual(payload["declared_columns"], [
             {"name": "identifier", "logical_type": {"kind": "unit", "name": "str"}},

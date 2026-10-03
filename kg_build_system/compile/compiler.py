@@ -41,7 +41,7 @@ from ..topology.ir import (
 from ..types import ArrayType, NullableType, StructType
 from ..types.mapping import type_to_ir
 from ..workflow.ir import BlueprintModuleIR as BlueprintModule
-from ..workflow.assembly import assemble_workflow
+from ..workflow.assembler import assemble_workflow
 from ..workflow.contracts import create_workflow_contract
 from ..workflow.ir import WorkflowContractIR
 from .interfaces import (
@@ -478,7 +478,9 @@ async def _compile_workflow(
             implementation_version=str(module_class.VERSION),
         )
         contributions.append(type(contribution)(
-            replace(contribution.module, reference=reference), contribution.steps,
+            replace(contribution.module, reference=reference),
+            contribution.steps,
+            contribution.variables,
         ))
     workflow = assemble_workflow(contributions)
     from .codec import encode_blueprint

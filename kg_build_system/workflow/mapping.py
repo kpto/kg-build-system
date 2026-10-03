@@ -1,95 +1,131 @@
 """Mappings between workflow domain models and compilation IRs."""
 from __future__ import annotations
 
-from dataclasses import asdict
-
 from .._frozen_json import freeze_json, thaw_json
 from . import ir
-from . import models
+from .identity import output_name
+from .models import (
+    ArtifactType, Connection, DefinedContribution, DefinedStep, Input, ModuleDefinition,
+    ModuleReference, Output, Publication, RuntimeFieldDefinition, TakenInput, WorkflowDefinition,
+)
 
 
-def role_to_ir(value: models.ArtifactRole) -> ir.ArtifactRoleIR:
-    return ir.ArtifactRoleIR(namespace=value.namespace, name=value.name)
+def type_to_ir(value: ArtifactType) -> ir.ArtifactTypeIR:
+    return ir.ArtifactTypeIR(namespace=value.namespace, name=value.name)
 
 
-def role_from_ir(value: ir.ArtifactRoleIR) -> models.ArtifactRole:
-    return models.ArtifactRole(namespace=value.namespace, name=value.name)
+def type_from_ir(value: ir.ArtifactTypeIR) -> ArtifactType:
+    return ArtifactType(namespace=value.namespace, name=value.name)
 
 
-def workflow_to_ir(value: models.WorkflowDefinition) -> ir.WorkflowDefinitionIR:
+def _reference_to_ir(value: ModuleReference) -> ir.ModuleReferenceIR:
+    return ir.ModuleReferenceIR(
+        module_id=value.module_id,
+        import_module=value.import_module,
+        class_qualname=value.class_qualname,
+        implementation_version=value.implementation_version,
+        configuration=thaw_json(value.configuration) if value.configuration is not None else None,
+    )
+
+
+def _reference_from_ir(value: ir.ModuleReferenceIR) -> ModuleReference:
+    return ModuleReference(
+        module_id=value.module_id,
+        import_module=value.import_module,
+        class_qualname=value.class_qualname,
+        implementation_version=value.implementation_version,
+        configuration=freeze_json(value.configuration) if value.configuration is not None else None,
+    )
+
+
+def _contribution_to_ir(value: DefinedContribution) -> ir.ContributionIR:
+    return ir.ContributionIR(
+        reference=_reference_to_ir(value.module.reference),
+        runtime_fields=tuple(
+            ir.RuntimeFieldIR(
+                key=field.key, description=field.description, required=field.required,
+                value_type=field.value_type, secret=field.secret,
+            )
+            for field in value.module.runtime_fields
+        ),
+        variables=thaw_json(value.variables) if value.variables is not None else None,
+        steps=tuple(
+            ir.StepIR(
+                name=step.name,
+                inputs=tuple(
+                    ir.InputIR(
+                        type=type_to_ir(taken.type), name=taken.name,
+                        input_name=taken.input_name,
+                    )
+                    for taken in step.inputs
+                ),
+                outputs=tuple(
+                    ir.PublicationIR(type=type_to_ir(given.type), name=output_name(given))
+                    if isinstance(given, Publication)
+                    else ir.OutputIR(type=type_to_ir(given.type), name=output_name(given))
+                    for given in step.outputs
+                ),
+            )
+            for step in value.steps
+        ),
+    )
+
+
+def _contribution_from_ir(value: ir.ContributionIR) -> DefinedContribution:
+    return DefinedContribution(
+        module=ModuleDefinition(
+            reference=_reference_from_ir(value.reference),
+            runtime_fields=tuple(
+                RuntimeFieldDefinition(
+                    key=field.key, description=field.description, required=field.required,
+                    value_type=field.value_type, secret=field.secret,
+                )
+                for field in value.runtime_fields
+            ),
+        ),
+        steps=tuple(
+            DefinedStep(
+                name=step.name,
+                inputs=tuple(
+                    TakenInput(
+                        type=type_from_ir(taken.type), name=taken.name,
+                        input_name=taken.input_name,
+                    )
+                    for taken in step.inputs
+                ),
+                outputs=tuple(
+                    Publication(type=type_from_ir(given.type), name=given.name)
+                    if isinstance(given, ir.PublicationIR)
+                    else Output(type=type_from_ir(given.type), name=given.name)
+                    for given in step.outputs
+                ),
+            )
+            for step in value.steps
+        ),
+        variables=freeze_json(value.variables) if value.variables is not None else None,
+    )
+
+
+def workflow_to_ir(value: WorkflowDefinition) -> ir.WorkflowDefinitionIR:
     return ir.WorkflowDefinitionIR(
-        modules=tuple(
-            ir.ModuleIR(
-                reference=ir.ModuleReferenceIR(
-                    module_id=module.reference.module_id,
-                    import_module=module.reference.import_module,
-                    class_qualname=module.reference.class_qualname,
-                    implementation_version=module.reference.implementation_version,
-                    configuration=thaw_json(module.reference.configuration)
-                    if module.reference.configuration is not None else None,
-                ),
-                runtime_fields=tuple(ir.RuntimeFieldIR(**asdict(field)) for field in module.runtime_fields),
+        contributions=tuple(_contribution_to_ir(item) for item in value.contributions),
+        connections=tuple(
+            ir.ConnectionIR(
+                input_id=connection.input_id, output_id=connection.output_id,
             )
-            for module in value.modules
+            for connection in value.connections
         ),
-        steps=tuple(
-            ir.WorkflowStepIR(
-                step_id=step.step_id,
-                module_id=step.module_id,
-                inputs=tuple(
-                    ir.SingleInputSlotIR(slot_id=slot.slot_id)
-                    if isinstance(slot, models.SingleInputSlot)
-                    else ir.CollectionInputSlotIR(slot_id=slot.slot_id)
-                    for slot in step.inputs
-                ),
-                outputs=tuple(
-                    ir.OutputSlotIR(slot_id=slot.slot_id, artifact_role=role_to_ir(slot.artifact_role))
-                    for slot in step.outputs
-                ),
-                payload=thaw_json(step.payload) if step.payload is not None else None,
-            )
-            for step in value.steps
-        ),
-        connections=tuple(ir.ConnectionIR(**asdict(connection)) for connection in value.connections),
     )
 
 
-def workflow_from_ir(value: ir.WorkflowDefinitionIR) -> models.WorkflowDefinition:
-    return models.WorkflowDefinition(
-        modules=tuple(
-            models.ModuleDefinition(
-                reference=models.ModuleReference(
-                    module_id=module.reference.module_id,
-                    import_module=module.reference.import_module,
-                    class_qualname=module.reference.class_qualname,
-                    implementation_version=module.reference.implementation_version,
-                    configuration=freeze_json(module.reference.configuration)
-                    if module.reference.configuration is not None else None,
-                ),
-                runtime_fields=tuple(models.RuntimeFieldDefinition(**field.model_dump()) for field in module.runtime_fields),
-            )
-            for module in value.modules
+def workflow_from_ir(value: ir.WorkflowDefinitionIR) -> WorkflowDefinition:
+    return WorkflowDefinition(
+        contributions=tuple(_contribution_from_ir(item) for item in value.contributions),
+        connections=tuple(
+            Connection(input_id=item.input_id, output_id=item.output_id)
+            for item in value.connections
         ),
-        steps=tuple(
-            models.WorkflowStep(
-                step_id=step.step_id,
-                module_id=step.module_id,
-                inputs=tuple(
-                    models.SingleInputSlot(slot_id=slot.slot_id)
-                    if isinstance(slot, ir.SingleInputSlotIR)
-                    else models.CollectionInputSlot(slot_id=slot.slot_id)
-                    for slot in step.inputs
-                ),
-                outputs=tuple(
-                    models.OutputSlot(slot_id=slot.slot_id, artifact_role=role_from_ir(slot.artifact_role))
-                    for slot in step.outputs
-                ),
-                payload=freeze_json(step.payload) if step.payload is not None else None,
-            )
-            for step in value.steps
-        ),
-        connections=tuple(models.Connection(**connection.model_dump()) for connection in value.connections),
     )
 
 
-__all__ = ["role_from_ir", "role_to_ir", "workflow_from_ir", "workflow_to_ir"]
+__all__ = ["type_from_ir", "type_to_ir", "workflow_from_ir", "workflow_to_ir"]

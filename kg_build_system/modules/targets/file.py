@@ -10,26 +10,30 @@ from typing import Any, ClassVar
 
 from ..._frozen_json import freeze_json, thaw_json
 from ...types import canonical_value_text
+from ...workflow.identity import output_name
 from ...workflow.models import (
-    CollectionInputSlot, ModuleDefinition, ModuleReference, OutputSlot,
-    RuntimeFieldDefinition, WorkflowStep,
+    Artifact,
+    ArtifactType,
+    DisruptedExecutionContext,
+    ExecutionContext,
+    ExecutorFactoryContext,
+    Input,
+    ModuleDefinition,
+    ModuleReference,
+    Publication,
+    RuntimeFieldDefinition,
+    StepOutcome,
+    StepStatus,
+    WorkflowContribution,
+    WorkflowStep,
 )
 from ...compile.interfaces import CompilationContext, ModuleCompiler
 from ...modules.interfaces import Module, ModuleRegistrationConfiguration
 from ...modules._paths import validate_relative_path
 from ...workflow.interfaces import ModuleExecutor
-from ...workflow.models import (
-    Artifact,
-    DisruptedExecutionContext,
-    ExecutionContext,
-    ExecutorFactoryContext,
-    StepOutcome,
-    StepStatus,
-    WorkflowContribution,
-    WorkflowStepDraft,
-    WorkflowArtifactRoles,
-)
-from ..core import CoreArtifactRoles
+from ..core import CoreArtifactTypes
+
+_RECORDS_INPUT = "records"
 
 
 def _validate_relative_path(value: str) -> None:
@@ -95,20 +99,13 @@ class FileModule(Module):
     async def compile(
         self, context: CompilationContext[Any],
     ) -> WorkflowContribution:
-        records = CollectionInputSlot(slot_id="file::write.records")
         step = WorkflowStep(
-            step_id="file::write",
-            module_id=self.ID,
-            inputs=(records,),
+            inputs=(Input(ArtifactType("core", "graph.*"), name=_RECORDS_INPUT),),
             outputs=(
-                OutputSlot(
-                    slot_id="file::write.result",
-                    artifact_role=WorkflowArtifactRoles.published(
-                        self.ID, "write_result"
-                    ),
-                ),
+                Publication(ArtifactType(self.ID, "write_result"), name="result"),
             ),
-            payload=freeze_json({}),
+            name="write",
+            assembly_preference="deferred",
         )
         definition = ModuleDefinition(
             reference=ModuleReference(
@@ -130,19 +127,7 @@ class FileModule(Module):
                 ),
             ),
         )
-        candidates = {
-            records.slot_id: lambda _input, output: (
-                CoreArtifactRoles.is_graph_records(output.artifact_role)
-            )
-        }
-        return WorkflowContribution(
-            definition,
-            (WorkflowStepDraft(
-                definition=step,
-                assembly_preference="deferred",
-                candidates=candidates,
-            ),),
-        )
+        return WorkflowContribution(definition, (step,))
 
 
 class FileExecutor(ModuleExecutor):
@@ -175,41 +160,40 @@ class FileExecutor(ModuleExecutor):
         node_count = 0
         edge_count = 0
         with output_path.open("w", encoding="utf-8") as stream:
-            for contributions in context.inputs.values():
-                for contribution in contributions:
-                    artifact = contribution.artifact
-                    if artifact is None:
-                        continue
-                    identity = CoreArtifactRoles.graph_record_identity(artifact.role)
-                    if identity is None:
-                        continue
+            for contribution in context.inputs.get(_RECORDS_INPUT, ()):
+                artifact = contribution.artifact
+                if artifact is None:
+                    continue
+                identity = CoreArtifactTypes.graph_record_identity(artifact.type)
+                if identity is None:
+                    continue
 
-                    relation = context.services.relations.reference(artifact.value)
-                    query = context.services.relations.query(
-                        f"SELECT * FROM {relation}"
-                    )
-                    columns = tuple(column[0] for column in query.description)
-                    while batch := query.fetchmany(1_000):
-                        for row in batch:
-                            record = dict(zip(columns, row, strict=True))
-                            record.update(
-                                build_key=str(
-                                    _canonical_property_value(record["build_key"])
-                                ),
-                                type=identity.component,
-                                kind=identity.kind,
-                            )
-                            if identity.kind == "node":
-                                node_count += 1
-                            else:
-                                edge_count += 1
-                            stream.write(
-                                json.dumps(
-                                    record,
-                                    sort_keys=True,
-                                    default=_canonical_property_value,
-                                ) + "\n"
-                            )
+                relation = context.services.relations.reference(artifact.value)
+                query = context.services.relations.query(
+                    f"SELECT * FROM {relation}"
+                )
+                columns = tuple(column[0] for column in query.description)
+                while batch := query.fetchmany(1_000):
+                    for row in batch:
+                        record = dict(zip(columns, row, strict=True))
+                        record.update(
+                            build_key=str(
+                                _canonical_property_value(record["build_key"])
+                            ),
+                            type=identity.component,
+                            kind=identity.kind,
+                        )
+                        if identity.kind == "node":
+                            node_count += 1
+                        else:
+                            edge_count += 1
+                        stream.write(
+                            json.dumps(
+                                record,
+                                sort_keys=True,
+                                default=_canonical_property_value,
+                            ) + "\n"
+                        )
 
         summary = {
             "nodes": node_count,
@@ -217,12 +201,12 @@ class FileExecutor(ModuleExecutor):
             "location": str(output_path),
         }
         output = context.step.outputs[0]
-        artifact = Artifact(output.slot_id, output.artifact_role, summary)
+        artifact = Artifact(output_name(output), output.type, summary)
         return StepOutcome(
-            context.step.step_id,
-            context.step.module_id,
-            StepStatus.SUCCEEDED,
-            (artifact,),
+            step_id=context.step_id,
+            module_id=context.module_id,
+            status=StepStatus.SUCCEEDED,
+            artifacts=(artifact,),
         )
 
     def handle_disrupted(

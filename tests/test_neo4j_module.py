@@ -8,6 +8,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from typing import cast
 
 import duckdb
 
@@ -34,19 +35,23 @@ from kg_build_system import (
 )
 from kg_build_system._frozen_json import thaw_json
 from kg_build_system.modules import (
+    FileModule,
+    FileModuleConfiguration,
     Neo4jModule,
     Neo4jModuleConfiguration,
     register_module,
 )
 from kg_build_system.modules.targets.neo4j.ir import (
     Neo4jExportInstructionIR,
+    Neo4jInstructionIR,
     Neo4jNodeImportIR,
     Neo4jScriptInstructionIR,
     decode_neo4j_instruction,
 )
 from kg_build_system.modules.targets.neo4j.module import Neo4jExecutor
 from kg_build_system.types import Date, Time, Timestamp, Uuid
-from kg_build_system.workflow.ir import WorkflowContractIR
+from kg_build_system.workflow.identity import opening_identity, step_identity
+from kg_build_system.workflow.ir import ContributionIR, StepIR, WorkflowContractIR
 
 
 class Neo4jInput(Table):
@@ -158,14 +163,63 @@ def _bound(table: type[Table], path: Path):
     )
 
 
+def _steps(contract: WorkflowContractIR) -> tuple[tuple[str, StepIR], ...]:
+    """Every step of the contract with the id of the module that contributed it."""
+    return tuple(
+        (contribution.reference.module_id, step)
+        for contribution in contract.workflow.contributions
+        for step in contribution.steps
+    )
+
+
+def _contribution(contract: WorkflowContractIR, module_id: str) -> ContributionIR:
+    """The contribution one module made to the contract."""
+    return next(
+        contribution for contribution in contract.workflow.contributions
+        if contribution.reference.module_id == module_id
+    )
+
+
+def _instructions(contribution: ContributionIR) -> dict[str, object]:
+    """The per-step data a module contributes, keyed by the step's own name."""
+    variables = cast(dict[str, dict[str, object]], contribution.variables)
+    return variables["instructions"]
+
+
+def _neo4j_instructions(contract: WorkflowContractIR) -> dict[str, Neo4jInstructionIR]:
+    """Every Neo4j step's decoded instruction, keyed by the step's own name."""
+    contribution = _contribution(contract, Neo4jModule.ID)
+    return {
+        name: decode_neo4j_instruction(instruction)
+        for name, instruction in _instructions(contribution).items()
+    }
+
+
 def _export_instructions(contract: WorkflowContractIR) -> tuple[Neo4jExportInstructionIR, ...]:
     return tuple(
-        instruction
-        for step in contract.workflow.steps
-        if step.module_id == Neo4jModule.ID
-        for instruction in (decode_neo4j_instruction(step.payload),)
+        instruction for instruction in _neo4j_instructions(contract).values()
         if isinstance(instruction, Neo4jExportInstructionIR)
     )
+
+
+def _feeding_steps(
+    contract: WorkflowContractIR, module_id: str, step: StepIR,
+) -> set[str]:
+    """The steps that feed one step, named by the identity the workflow uses."""
+    writers: dict[str, str] = {}
+    for owner, declared in _steps(contract):
+        identity = step_identity(owner, declared.name)
+        for output in declared.outputs:
+            writers[opening_identity(identity, output.name)] = identity
+    openings = {
+        opening_identity(step_identity(module_id, step.name), taken.name)
+        for taken in step.inputs
+    }
+    return {
+        writers[connection.output_id]
+        for connection in contract.workflow.connections
+        if connection.input_id in openings
+    }
 
 
 class LabelAnnotationTests(unittest.TestCase):
@@ -222,13 +276,7 @@ class LabelAnnotationTests(unittest.TestCase):
             sources=(_source(Path("input.json")),),
             modules=(register_module(Neo4jModule),),
         )
-        instructions = tuple(
-            instruction
-            for step in contract.workflow.steps
-            if step.module_id == Neo4jModule.ID
-            for instruction in (decode_neo4j_instruction(step.payload),)
-            if isinstance(instruction, Neo4jExportInstructionIR)
-        )
+        instructions = _export_instructions(contract)
         self.assertEqual(
             {
                 instruction.component.kind: instruction.component.label
@@ -257,64 +305,42 @@ class Neo4jTargetTests(unittest.TestCase):
             sources=(_source(Path("input.json")),),
             modules=(register_module(Neo4jModule),),
         )
-        neo4j_steps = tuple(
-            step for step in contract.workflow.steps
-            if step.module_id == Neo4jModule.ID
-        )
-        export_steps = tuple(
-            step for step in neo4j_steps
-            if isinstance(
-                decode_neo4j_instruction(step.payload),
-                Neo4jExportInstructionIR,
-            )
-        )
-        export_instructions = tuple(
-            instruction
-            for step in export_steps
-            for instruction in (decode_neo4j_instruction(step.payload),)
+        steps = {
+            step.name: step
+            for module_id, step in _steps(contract)
+            if module_id == Neo4jModule.ID
+        }
+        instructions = _neo4j_instructions(contract)
+        exports = {
+            name: instruction
+            for name, instruction in instructions.items()
             if isinstance(instruction, Neo4jExportInstructionIR)
-        )
-        script_step = neo4j_steps[-1]
-        script_instruction = decode_neo4j_instruction(script_step.payload)
+        }
+        script_name = "script"
 
-        self.assertEqual(len(export_steps), 2)
+        self.assertEqual(len(exports), 2)
         self.assertEqual(
             {
                 instruction.component.component
-                for instruction in export_instructions
+                for instruction in exports.values()
             },
             {"person", "knows"},
         )
-        self.assertEqual(script_step.step_id, "neo4j::script")
-        self.assertIsInstance(script_instruction, Neo4jScriptInstructionIR)
-
-        output_owner = {
-            output.slot_id: step.step_id
-            for step in contract.workflow.steps
-            for output in step.outputs
-        }
-        export_dependencies = {
-            step.step_id: {
-                output_owner[connection.output_slot_id]
-                for connection in contract.workflow.connections
-                if connection.input_slot_id == step.inputs[0].slot_id
-            }
-            for step in export_steps
-        }
-        self.assertTrue(all(
-            len(dependencies) == 1
-            and next(iter(dependencies)).startswith("core::aggregate.")
-            for dependencies in export_dependencies.values()
-        ))
-        script_input = script_step.inputs[0].slot_id
-        script_dependencies = {
-            output_owner[connection.output_slot_id]
+        self.assertEqual(list(steps)[-1], script_name, "the script is written last")
+        self.assertIsInstance(instructions[script_name], Neo4jScriptInstructionIR)
+        self.assertTrue(any(
+            connection.input_id.startswith("neo4j::script.")
             for connection in contract.workflow.connections
-            if connection.input_slot_id == script_input
-        }
+        ), "the module's script step is the workflow's neo4j::script")
+
+        for name in exports:
+            dependencies = _feeding_steps(contract, Neo4jModule.ID, steps[name])
+            self.assertEqual(len(dependencies), 1, name)
+            self.assertTrue(next(iter(dependencies)).startswith("core::aggregate."))
+
         self.assertEqual(
-            script_dependencies,
-            {step.step_id for step in export_steps},
+            _feeding_steps(contract, Neo4jModule.ID, steps[script_name]),
+            {step_identity(Neo4jModule.ID, name) for name in exports},
         )
 
     def test_writes_import_header_parquet_and_standalone_script(self) -> None:
@@ -448,12 +474,16 @@ class Neo4jTargetTests(unittest.TestCase):
         self.assertIn('"visited_on", "visited_at", "recorded"', sql)
 
     def test_uuid_property_is_a_neo4j_capability_gap(self) -> None:
-        # `uuid` is a legal graph property and the core target compiles it; only
-        # this target cannot carry it, so the gap is reported here instead of the
-        # value being coerced to a string.
+        # `uuid` is a legal graph property and a build without this target compiles
+        # it; only this target cannot carry it, so the gap is reported here instead
+        # of the value being coerced to a string.
         self.assertNotIn("uuid", Neo4jModule.PROPERTY_TYPE_CAPABILITY)
         sources = (_bound(TokenInput, Path("input.json")),)
-        compile(bindings=(credential_binding,), sources=sources, modules=())
+        compile(
+            bindings=(credential_binding,),
+            sources=sources,
+            modules=(register_module(FileModule, FileModuleConfiguration("graph.jsonl")),),
+        )
         with self.assertRaises(ValueError) as raised:
             compile(
                 bindings=(credential_binding,),

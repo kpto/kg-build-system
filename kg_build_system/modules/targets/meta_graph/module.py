@@ -13,25 +13,24 @@ from ....types import canonical_value_text
 from ....compile.interfaces import CompilationContext, ModuleCompiler
 from ....modules._paths import validate_relative_path
 from ....modules.interfaces import Module, ModuleRegistrationConfiguration
+from ....workflow.identity import output_name
 from ....workflow.interfaces import ModuleExecutor
 from ....workflow.models import (
     Artifact,
-    CandidatePredicate,
-    CollectionInputSlot,
+    ArtifactType,
     DisruptedExecutionContext,
     ExecutionContext,
     ExecutorFactoryContext,
+    Input,
     ModuleDefinition,
     ModuleReference,
-    OutputSlot,
+    Publication,
     StepOutcome,
     StepStatus,
-    WorkflowArtifactRoles,
     WorkflowContribution,
     WorkflowStep,
-    WorkflowStepDraft,
 )
-from ...core import CoreArtifactRoles
+from ...core import CoreArtifactTypes
 from .ir import (
     MetaGraphComponentIR,
     MetaGraphDocumentIR,
@@ -42,6 +41,11 @@ from .render import render
 from .topology import component_entries
 
 _MODULE_ID = "meta_graph"
+
+_RECORDS_INPUT = "records"
+
+# The step name doubles as the key its instruction is stored under in variables.
+_DOCUMENT_STEP_NAME = "document"
 
 # Count column for the aggregate observation query. Prefixed like core's own
 # ``_kg_binding_symbol`` so it cannot collide with an authored property name.
@@ -157,33 +161,32 @@ def _observed_components(
     }
     limit = instruction.example_limit
     observed: dict[tuple[str, str], _Observed] = {}
-    for contributions in context.inputs.values():
-        for contribution in contributions:
-            artifact = contribution.artifact
-            if artifact is None:
-                continue
-            identity = CoreArtifactRoles.graph_record_identity(artifact.role)
-            if identity is None:
-                continue
-            key = (identity.kind, identity.component)
-            if key in observed:
-                # A component must reach this step through exactly one
-                # artifact; summing duplicates would silently over-count.
-                raise RuntimeError(
-                    f"multiple graph-record artifacts for {identity.kind} "
-                    f"component {identity.component!r}"
-                )
-            relation = context.services.relations.reference(artifact.value)
-            if limit > 0:
-                observed[key] = _observe(
-                    relation, declared.get(key, ()), limit, context,
-                )
-            else:
-                observed[key] = _Observed(
-                    records=context.services.relations.query(
-                        f"SELECT COUNT(*) FROM {relation}"
-                    ).fetchone()[0],
-                )
+    for contribution in context.inputs.get(_RECORDS_INPUT, ()):
+        artifact = contribution.artifact
+        if artifact is None:
+            continue
+        identity = CoreArtifactTypes.graph_record_identity(artifact.type)
+        if identity is None:
+            continue
+        key = (identity.kind, identity.component)
+        if key in observed:
+            # A component must reach this step through exactly one
+            # artifact; summing duplicates would silently over-count.
+            raise RuntimeError(
+                f"multiple graph-record artifacts for {identity.kind} "
+                f"component {identity.component!r}"
+            )
+        relation = context.services.relations.reference(artifact.value)
+        if limit > 0:
+            observed[key] = _observe(
+                relation, declared.get(key, ()), limit, context,
+            )
+        else:
+            observed[key] = _Observed(
+                records=context.services.relations.query(
+                    f"SELECT COUNT(*) FROM {relation}"
+                ).fetchone()[0],
+            )
     return observed
 
 
@@ -351,13 +354,6 @@ class MetaGraphModule(Module):
         self, context: CompilationContext[Any],
     ) -> WorkflowContribution:
         entries = component_entries(context.blueprint)
-        # Abstract components are never binding targets and so never produce an
-        # artifact; only concrete components can be sampled or counted.
-        counted_roles = frozenset(
-            CoreArtifactRoles.graph_records(item.kind, item.name)
-            for item in entries if not item.abstract
-        )
-
         definition = ModuleDefinition(
             reference=ModuleReference(
                 module_id=self.ID,
@@ -369,44 +365,35 @@ class MetaGraphModule(Module):
                 }),
             ),
         )
-        inputs: tuple[CollectionInputSlot, ...] = ()
-        candidates: dict[str, CandidatePredicate] = {}
-        if counted_roles:
-            records = CollectionInputSlot(slot_id="meta_graph::document.records")
-            inputs = (records,)
-            candidates = {
-                records.slot_id: lambda _input, candidate, expected=counted_roles: (
-                    candidate.artifact_role in expected
-                ),
-            }
         step = WorkflowStep(
-            step_id="meta_graph::document",
-            module_id=self.ID,
-            inputs=inputs,
-            outputs=(OutputSlot(
-                slot_id="meta_graph::document.result",
-                artifact_role=WorkflowArtifactRoles.published(
-                    self.ID, "meta_graph_document",
+            inputs=(Input(ArtifactType("core", "graph.*"), name=_RECORDS_INPUT),),
+            outputs=(
+                Publication(
+                    ArtifactType(self.ID, "meta_graph_document"), name="result",
                 ),
-            ),),
-            payload=encode_meta_graph_instruction(MetaGraphDocumentIR(
-                relative_path=self.configuration.relative_path,
-                example_limit=self.configuration.example_limit,
-                include_html=self.configuration.include_html,
-                html_relative_path=self.configuration.html_relative_path,
-                components=entries,
-            )),
-        )
-        return WorkflowContribution(definition, (WorkflowStepDraft(
-            definition=step,
+            ),
+            name=_DOCUMENT_STEP_NAME,
             assembly_preference="deferred",
-            candidates=candidates,
-        ),))
+        )
+        instruction = encode_meta_graph_instruction(MetaGraphDocumentIR(
+            relative_path=self.configuration.relative_path,
+            example_limit=self.configuration.example_limit,
+            include_html=self.configuration.include_html,
+            html_relative_path=self.configuration.html_relative_path,
+            components=entries,
+        ))
+        return WorkflowContribution(
+            definition,
+            (step,),
+            freeze_json({"instructions": {_DOCUMENT_STEP_NAME: instruction}}),
+        )
 
 
 class MetaGraphExecutor(ModuleExecutor):
     def handle(self, context: ExecutionContext) -> StepOutcome:
-        instruction = decode_meta_graph_instruction(context.step.payload)
+        instruction = decode_meta_graph_instruction(
+            context.variables["instructions"][context.step.name],
+        )
         # The path came from a serialized contract, so re-check it cannot escape.
         validate_relative_path(
             instruction.relative_path, context="meta-graph document path",
@@ -450,11 +437,11 @@ class MetaGraphExecutor(ModuleExecutor):
 
         output = context.step.outputs[0]
         artifact = Artifact(
-            output.slot_id, output.artifact_role, dict(document["summary"]),
+            output_name(output), output.type, dict(document["summary"]),
         )
         return StepOutcome(
-            step_id=context.step.step_id,
-            module_id=context.step.module_id,
+            step_id=context.step_id,
+            module_id=context.module_id,
             status=StepStatus.SUCCEEDED,
             artifacts=(artifact,),
         )

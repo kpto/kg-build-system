@@ -20,28 +20,27 @@ from ....types.ir import (
     StructTypeIR,
     UnitTypeIR,
 )
+from ....workflow.identity import output_name
 from ....workflow.interfaces import ModuleExecutor
 from ....workflow.models import (
     Artifact,
-    ArtifactRole,
-    CollectionInputSlot,
+    ArtifactType,
     DisruptedExecutionContext,
     ExecutionContext,
     ExecutorFactoryContext,
+    Input,
     ModuleDefinition,
     ModuleReference,
-    OutputSlot,
+    Output,
+    Publication,
     RuntimeFieldDefinition,
-    SingleInputSlot,
     StepOutcome,
     StepStatus,
-    WorkflowArtifactRoles,
     WorkflowContribution,
     WorkflowStep,
-    WorkflowStepDraft,
 )
 from ....workflow.services import RelationRef
-from ...core import CoreArtifactRoles, graph_record_components
+from ...core import CoreArtifactTypes, graph_record_components
 from ..._labels import semantic_label
 from ..._paths import validate_relative_path
 from .ir import (
@@ -58,6 +57,10 @@ from .script import render_import_script
 
 _HEADER_CONTROL = frozenset(":{}\r\n")
 _MODULE_ID = "neo4j"
+_RECORDS_INPUT = "records"
+_COMPONENTS_INPUT = "components"
+# The step name doubles as the key its instruction is stored under in variables.
+_SCRIPT_STEP_NAME = "script"
 _RESERVED_PROPERTIES = frozenset({
     "build_key", "source_build_key", "target_build_key", "_kg_binding_symbol",
 })
@@ -98,10 +101,10 @@ def _id_space(component: ComponentIR) -> str:
     return f"kg_{digest}"
 
 
-def _component_export_role(
+def _component_export_type(
     specification: Neo4jComponentImportIR,
-) -> ArtifactRole:
-    return ArtifactRole(
+) -> ArtifactType:
+    return ArtifactType(
         namespace=_MODULE_ID,
         name=f"component.{specification.kind}.{specification.symbol_id}",
     )
@@ -110,6 +113,10 @@ def _component_export_role(
 def _component_step_key(specification: Neo4jComponentImportIR) -> str:
     stem = PurePosixPath(specification.relative_path).stem
     return f"{specification.kind}.{stem}"
+
+
+def _component_step_name(specification: Neo4jComponentImportIR) -> str:
+    return f"export.{_component_step_key(specification)}"
 
 
 def _annotation_label(component: ComponentIR) -> str:
@@ -245,71 +252,55 @@ class Neo4jModule(Module):
         exports = tuple(
             self._component_export_step(component) for component in components
         )
-        return WorkflowContribution(
-            definition,
-            (*exports, self._script_step(components)),
-        )
-
-    @classmethod
-    def _component_export_step(
-        cls, component: Neo4jComponentImportIR,
-    ) -> WorkflowStepDraft:
-        key = _component_step_key(component)
-        records = SingleInputSlot(slot_id=f"neo4j::export.{key}.records")
-        output = OutputSlot(
-            slot_id=f"neo4j::export.{key}.result",
-            artifact_role=_component_export_role(component),
-        )
-        step = WorkflowStep(
-            step_id=f"neo4j::export.{key}",
-            module_id=cls.ID,
-            inputs=(records,),
-            outputs=(output,),
-            payload=encode_neo4j_instruction(Neo4jExportInstructionIR(
-                component=component,
-            )),
-        )
-        expected_role = CoreArtifactRoles.graph_records(
-            component.kind, component.component,
-        )
-        return WorkflowStepDraft(
-            definition=step,
-            assembly_preference="deferred",
-            candidates={
-                records.slot_id: lambda _input, candidate, role=expected_role: (
-                    candidate.artifact_role == role
-                )
-            },
-        )
-
-    def _script_step(
-        self, components: tuple[Neo4jComponentImportIR, ...],
-    ) -> WorkflowStepDraft:
-        inputs = CollectionInputSlot(slot_id="neo4j::script.components")
-        output = OutputSlot(
-            slot_id="neo4j::script.result",
-            artifact_role=WorkflowArtifactRoles.published(self.ID, "import_bundle"),
-        )
-        step = WorkflowStep(
-            step_id="neo4j::script",
-            module_id=self.ID,
-            inputs=(inputs,),
-            outputs=(output,),
-            payload=encode_neo4j_instruction(Neo4jScriptInstructionIR(
+        instructions = {
+            _component_step_name(component): encode_neo4j_instruction(
+                Neo4jExportInstructionIR(component=component)
+            )
+            for component in components
+        }
+        instructions[_SCRIPT_STEP_NAME] = encode_neo4j_instruction(
+            Neo4jScriptInstructionIR(
                 components=components,
                 script_name=self.configuration.script_name,
                 default_database=self.configuration.default_database,
-            )),
+            ),
         )
-        roles = frozenset(_component_export_role(item) for item in components)
-        return WorkflowStepDraft(
-            definition=step,
+        return WorkflowContribution(
+            definition,
+            (*exports, self._script_step()),
+            freeze_json({"instructions": instructions}),
+        )
+
+    @staticmethod
+    def _component_export_step(
+        component: Neo4jComponentImportIR,
+    ) -> WorkflowStep:
+        return WorkflowStep(
+            inputs=(Input(
+                CoreArtifactTypes.graph_records(
+                    component.kind, component.component,
+                ),
+                name=_RECORDS_INPUT,
+            ),),
+            outputs=(Output(_component_export_type(component), name="result"),),
+            name=_component_step_name(component),
             assembly_preference="deferred",
-            candidates={
-                inputs.slot_id: lambda _input, candidate, expected=roles: (
-                    candidate.artifact_role in expected
-                )
-            },
+        )
+
+    @staticmethod
+    def _script_step() -> WorkflowStep:
+        return WorkflowStep(
+            inputs=(
+                Input(
+                    ArtifactType(_MODULE_ID, "component.*"),
+                    name=_COMPONENTS_INPUT,
+                ),
+            ),
+            outputs=(
+                Publication(ArtifactType(_MODULE_ID, "import_bundle"), name="result"),
+            ),
+            name=_SCRIPT_STEP_NAME,
+            assembly_preference="deferred",
         )
 
     @staticmethod
@@ -374,7 +365,9 @@ class Neo4jExecutor(ModuleExecutor):
         return value
 
     def handle(self, context: ExecutionContext) -> StepOutcome:
-        instruction = decode_neo4j_instruction(context.step.payload)
+        instruction = decode_neo4j_instruction(
+            context.variables["instructions"][context.step.name],
+        )
         bundle_path = context.services.output_storage.child(PurePosixPath(
             self._relative_directory(context)
         ))
@@ -392,8 +385,7 @@ class Neo4jExecutor(ModuleExecutor):
         specification = instruction.component
         artifacts = tuple(
             contribution.artifact
-            for contributions in context.inputs.values()
-            for contribution in contributions
+            for contribution in context.inputs.get(_RECORDS_INPUT, ())
             if contribution.artifact is not None
         )
         if len(artifacts) != 1:
@@ -402,7 +394,7 @@ class Neo4jExecutor(ModuleExecutor):
                 "exactly one graph-record artifact"
             )
         artifact = artifacts[0]
-        identity = CoreArtifactRoles.graph_record_identity(artifact.role)
+        identity = CoreArtifactTypes.graph_record_identity(artifact.type)
         if (
             identity is None
             or identity.kind != specification.kind
@@ -433,10 +425,10 @@ class Neo4jExecutor(ModuleExecutor):
         )
         output = context.step.outputs[0]
         return StepOutcome(
-            context.step.step_id,
-            context.step.module_id,
-            StepStatus.SUCCEEDED,
-            (Artifact(output.slot_id, output.artifact_role, result),),
+            step_id=context.step_id,
+            module_id=context.module_id,
+            status=StepStatus.SUCCEEDED,
+            artifacts=(Artifact(output_name(output), output.type, result),),
         )
 
     @staticmethod
@@ -449,22 +441,21 @@ class Neo4jExecutor(ModuleExecutor):
             (item.kind, item.component): item for item in instruction.components
         }
         exports: dict[tuple[str, str], Neo4jComponentExport] = {}
-        for contributions in context.inputs.values():
-            for contribution in contributions:
-                artifact = contribution.artifact
-                if artifact is None:
-                    continue
-                if not isinstance(artifact.value, Neo4jComponentExport):
-                    raise TypeError(
-                        "Neo4j script inputs must contain component export results"
-                    )
-                result = artifact.value
-                key = (result.kind, result.component)
-                if key not in expected or result.relative_path != expected[key].relative_path:
-                    raise RuntimeError(f"unexpected Neo4j component export {key}")
-                if key in exports:
-                    raise RuntimeError(f"duplicate Neo4j component export {key}")
-                exports[key] = result
+        for contribution in context.inputs.get(_COMPONENTS_INPUT, ()):
+            artifact = contribution.artifact
+            if artifact is None:
+                continue
+            if not isinstance(artifact.value, Neo4jComponentExport):
+                raise TypeError(
+                    "Neo4j script inputs must contain component export results"
+                )
+            result = artifact.value
+            key = (result.kind, result.component)
+            if key not in expected or result.relative_path != expected[key].relative_path:
+                raise RuntimeError(f"unexpected Neo4j component export {key}")
+            if key in exports:
+                raise RuntimeError(f"duplicate Neo4j component export {key}")
+            exports[key] = result
 
         missing = set(expected) - set(exports)
         if missing:
@@ -499,10 +490,10 @@ class Neo4jExecutor(ModuleExecutor):
         }
         output = context.step.outputs[0]
         return StepOutcome(
-            context.step.step_id,
-            context.step.module_id,
-            StepStatus.SUCCEEDED,
-            (Artifact(output.slot_id, output.artifact_role, summary),),
+            step_id=context.step_id,
+            module_id=context.module_id,
+            status=StepStatus.SUCCEEDED,
+            artifacts=(Artifact(output_name(output), output.type, summary),),
         )
 
     @staticmethod

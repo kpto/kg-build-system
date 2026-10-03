@@ -80,6 +80,13 @@ from kg_build_system.types import (
 )
 from kg_build_system.types.ir import StructTypeIR
 from kg_build_system.types.mapping import type_to_ir
+from kg_build_system.workflow.identity import opening_identity, step_identity
+from kg_build_system.workflow.ir import StepIR, WorkflowContractIR
+from kg_build_system.workflow.models import ArtifactType
+
+
+DOCUMENT_TYPE = ArtifactType(MetaGraphModule.ID, "meta_graph_document")
+"""The type the meta-graph module publishes its document as."""
 
 
 class MetaInput(Table):
@@ -229,6 +236,35 @@ def _by_name(document: dict[str, object], kind: str) -> dict[str, dict[str, obje
     return {item["name"]: item for item in document[kind]}  # type: ignore[index]
 
 
+def _steps(contract: WorkflowContractIR) -> tuple[tuple[str, StepIR], ...]:
+    """Every step of the contract with the id of the module that contributed it."""
+    return tuple(
+        (contribution.reference.module_id, step)
+        for contribution in contract.workflow.contributions
+        for step in contribution.steps
+    )
+
+
+def _feeding_steps(
+    contract: WorkflowContractIR, module_id: str, step: StepIR,
+) -> set[str]:
+    """The steps that feed one step, named by the identity the workflow uses."""
+    writers: dict[str, str] = {}
+    for owner, declared in _steps(contract):
+        identity = step_identity(owner, declared.name)
+        for output in declared.outputs:
+            writers[opening_identity(identity, output.name)] = identity
+    openings = {
+        opening_identity(step_identity(module_id, step.name), taken.name)
+        for taken in step.inputs
+    }
+    return {
+        writers[connection.output_id]
+        for connection in contract.workflow.connections
+        if connection.input_id in openings
+    }
+
+
 def _document_text(output: Path) -> str:
     """The document as written, with the run's own output path elided.
 
@@ -335,26 +371,24 @@ class EffectiveTopologyTests(unittest.TestCase):
                 sources=(_source(data),),
                 modules=(register_module(MetaGraphModule),),
             )
-            step = next(
-                item for item in contract.workflow.steps
-                if item.module_id == MetaGraphModule.ID
+            document_step = next(
+                step for module_id, step in _steps(contract)
+                if module_id == MetaGraphModule.ID
             )
-            owner = {
-                output.slot_id: producer.step_id
-                for producer in contract.workflow.steps
-                for output in producer.outputs
-            }
-            dependencies = {
-                owner[connection.output_slot_id]
-                for connection in contract.workflow.connections
-                if connection.input_slot_id == step.inputs[0].slot_id
-            }
-            self.assertEqual(dependencies, {
-                "core::aggregate.person",
-                "core::aggregate.team",
-                "core::aggregate.belongs_to",
-                "core::aggregate.refers",
-            })
+            # One declared input answers every graph-record type the build emits,
+            # one port each, so the step waits on all of them.
+            self.assertEqual(
+                {taken.input_name for taken in document_step.inputs}, {"records"},
+            )
+            self.assertEqual(
+                _feeding_steps(contract, MetaGraphModule.ID, document_step),
+                {
+                    step_identity("core", "aggregate.person"),
+                    step_identity("core", "aggregate.team"),
+                    step_identity("core", "aggregate.belongs_to"),
+                    step_identity("core", "aggregate.refers"),
+                },
+            )
 
 
 class Place(Struct):
@@ -513,11 +547,11 @@ class ExecutionTests(unittest.TestCase):
             path = output / "meta" / "topology.json"
             self.assertTrue(path.is_file())
             published = {
-                artifact.role.name: artifact.value
+                artifact.type: artifact.value
                 for artifact in report.published_artifacts
             }
-            self.assertIn("publication.meta_graph.meta_graph_document", published)
-            summary = published["publication.meta_graph.meta_graph_document"]
+            self.assertIn(DOCUMENT_TYPE, published)
+            summary = published[DOCUMENT_TYPE]
             self.assertEqual(summary["location"], str(path))
             self.assertEqual(summary["total_nodes"], 6)
 
@@ -564,25 +598,26 @@ class ExecutionTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             decode_meta_graph_instruction(stale)
 
-    def test_payload_and_fingerprint_are_stable_for_identical_inputs(self) -> None:
-        # The step payload feeds the workflow fingerprint, so it must be built
-        # from sorted collections rather than iteration order.
-        def fingerprint() -> tuple[str, object]:
+    def test_variables_and_fingerprint_are_stable_for_identical_inputs(self) -> None:
+        # The instruction data a module contributes feeds the workflow
+        # fingerprint, so it must be built from sorted collections rather than
+        # from iteration order.
+        def compiled() -> tuple[str, object]:
             contract = compile(
                 bindings=ALL_BINDINGS,
                 sources=(_source(Path("input.json")),),
                 modules=(register_module(MetaGraphModule),),
             )
-            step = next(
-                item for item in contract.workflow.steps
-                if item.module_id == MetaGraphModule.ID
+            contribution = next(
+                item for item in contract.workflow.contributions
+                if item.reference.module_id == MetaGraphModule.ID
             )
-            return contract.workflow_fingerprint, step.payload
+            return contract.workflow_fingerprint, contribution.variables
 
-        first_fingerprint, first_payload = fingerprint()
-        second_fingerprint, second_payload = fingerprint()
+        first_fingerprint, first_variables = compiled()
+        second_fingerprint, second_variables = compiled()
         self.assertEqual(first_fingerprint, second_fingerprint)
-        self.assertEqual(first_payload, second_payload)
+        self.assertEqual(first_variables, second_variables)
 
 
 class ConfigurationTests(unittest.TestCase):

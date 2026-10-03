@@ -1,11 +1,11 @@
-"""Core workflow compilation, execution, and artifact roles."""
+"""Core workflow compilation, execution, and artifact types."""
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, ClassVar, Literal, cast
 
-from ..._frozen_json import freeze_json
+from ..._frozen_json import FrozenJson, freeze_json
 from ...compile.models import BuildBlueprint
 from ...engines.duckdb import (
     PARQUET_LIST_WRAPPER_PATH,
@@ -25,23 +25,25 @@ from ...types.ir import (
 )
 from ...topology.ir import ComponentIR as ComponentDefinition
 from ...workflow.models import (
-    ArtifactRole, CollectionInputSlot, ModuleDefinition, ModuleReference,
-    OutputSlot, WorkflowStep,
-)
-from ...compile.interfaces import CompilationContext, ModuleCompiler
-from ...modules.interfaces import Module, ModuleRegistrationConfiguration
-from ...workflow.interfaces import ModuleExecutor
-from ...workflow.services import RelationRef
-from ...workflow.models import (
     Artifact,
+    ArtifactType,
     DisruptedExecutionContext,
     ExecutionContext,
     ExecutorFactoryContext,
+    Input,
+    ModuleDefinition,
+    ModuleReference,
+    Output,
     StepOutcome,
     StepStatus,
     WorkflowContribution,
-    WorkflowStepDraft,
+    WorkflowStep,
 )
+from ...compile.interfaces import CompilationContext, ModuleCompiler
+from ...modules.interfaces import Module, ModuleRegistrationConfiguration
+from ...workflow.identity import output_name
+from ...workflow.interfaces import ModuleExecutor
+from ...workflow.services import RelationRef
 from .lowering import (
     binding_outputs,
     binding_sources,
@@ -85,45 +87,45 @@ class GraphRecordArtifact:
     component: str
 
 
-class CoreArtifactRoles:
-    """Stable semantic roles produced and consumed by graph workflow modules."""
+class CoreArtifactTypes:
+    """Stable artifact types produced and consumed by graph workflow modules."""
 
     NAMESPACE = "core"
 
     @classmethod
     def graph_records(
         cls, kind: Literal["node", "edge"], component: str,
-    ) -> ArtifactRole:
-        return ArtifactRole(
+    ) -> ArtifactType:
+        return ArtifactType(
             namespace=cls.NAMESPACE,
             name=f"graph.{kind}.{component}",
         )
 
     @classmethod
-    def binding(cls, symbol_id: str) -> ArtifactRole:
-        return ArtifactRole(
+    def binding(cls, symbol_id: str) -> ArtifactType:
+        return ArtifactType(
             namespace=cls.NAMESPACE,
             name=f"binding.{symbol_id}",
         )
 
     @classmethod
-    def table(cls, name: str) -> ArtifactRole:
-        return ArtifactRole(namespace=cls.NAMESPACE, name=f"data.table.{name}")
+    def table(cls, name: str) -> ArtifactType:
+        return ArtifactType(namespace=cls.NAMESPACE, name=f"data.table.{name}")
 
     @classmethod
-    def projection(cls, name: str) -> ArtifactRole:
-        return ArtifactRole(
+    def projection(cls, name: str) -> ArtifactType:
+        return ArtifactType(
             namespace=cls.NAMESPACE,
             name=f"data.projection.{name}",
         )
 
     @classmethod
     def graph_record_identity(
-        cls, role: ArtifactRole,
+        cls, artifact_type: ArtifactType,
     ) -> GraphRecordArtifact | None:
-        if role.namespace != cls.NAMESPACE:
+        if artifact_type.namespace != cls.NAMESPACE:
             return None
-        parts = role.name.split(".", 2)
+        parts = artifact_type.name.split(".", 2)
         if (
             len(parts) != 3
             or parts[0] != "graph"
@@ -137,8 +139,8 @@ class CoreArtifactRoles:
         )
 
     @classmethod
-    def is_graph_records(cls, role: ArtifactRole) -> bool:
-        return cls.graph_record_identity(role) is not None
+    def is_graph_records(cls, artifact_type: ArtifactType) -> bool:
+        return cls.graph_record_identity(artifact_type) is not None
 
 
 def graph_record_components(
@@ -260,6 +262,29 @@ def _declared_read_paths(blueprint: BuildBlueprint) -> dict[str, tuple[DeclaredP
     }
 
 
+@dataclass(frozen=True, slots=True)
+class _AuthoredStep:
+    """One step core declares, and the instruction its executor runs for it.
+
+    The name is both the step's name among core's steps and the key its instruction is
+    filed under in the module's variables, so the two are authored together.
+    """
+
+    name: str
+    instruction: FrozenJson
+    inputs: tuple[Input, ...] = ()
+    outputs: tuple[Output, ...] = ()
+    assembly_preference: Literal["eager", "deferred"] = "eager"
+
+    def step(self) -> WorkflowStep:
+        return WorkflowStep(
+            inputs=self.inputs,
+            outputs=self.outputs,
+            name=self.name,
+            assembly_preference=self.assembly_preference,
+        )
+
+
 class CoreCompiler:
     async def compile(
         self, context: CompilationContext[Any],
@@ -288,7 +313,7 @@ class CoreCompiler:
         }
         relations = table_relations | projection_relations
 
-        drafts = [
+        authored = [
             self._source_step(
                 source,
                 table_relations[source.table],
@@ -297,7 +322,7 @@ class CoreCompiler:
             )
             for source in sources
         ]
-        drafts.extend(
+        authored.extend(
             self._projection_step(
                 context.blueprint,
                 projection,
@@ -307,7 +332,7 @@ class CoreCompiler:
             )
             for projection in projections
         )
-        drafts.extend(
+        authored.extend(
             self._binding_step(
                 context.blueprint,
                 binding,
@@ -317,26 +342,45 @@ class CoreCompiler:
             )
             for index, binding in enumerate(context.blueprint.bindings)
         )
-        drafts.extend(self._aggregation_steps(context.blueprint))
-        return WorkflowContribution(definition, tuple(drafts))
+        authored.extend(self._aggregation_steps(context.blueprint))
+        return WorkflowContribution(
+            definition,
+            tuple(item.step() for item in authored),
+            freeze_json({
+                "instructions": {item.name: item.instruction for item in authored},
+            }),
+        )
+
+    @staticmethod
+    def _read_input(
+        name: str, projection_relations: Mapping[str, str],
+    ) -> Input:
+        """One opening a projection or binding takes: a relation its SQL reads.
+
+        The sources a projection or binding reads come out of a set, so the caller
+        orders them; that order is the order these openings are declared in.
+        """
+        projection = name in projection_relations
+        return Input(
+            type=(
+                CoreArtifactTypes.projection(name) if projection
+                else CoreArtifactTypes.table(name)
+            ),
+            name=f"{'projection' if projection else 'table'}.{name}",
+        )
 
     @staticmethod
     def _source_step(
         source, relation: str, blueprint: BuildBlueprint,
         read_paths: Mapping[str, tuple[DeclaredPathIR, ...]],
-    ) -> WorkflowStepDraft:
-        output = OutputSlot(
-            slot_id=f"core::table.{source.table}.output",
-            artifact_role=CoreArtifactRoles.table(source.table),
-        )
+    ) -> _AuthoredStep:
         table = next(
             (item for item in blueprint.tables if item.name == source.table), None,
         )
-        step = WorkflowStep(
-            step_id=f"core::table.{source.table}",
-            module_id=CoreModule.ID,
-            outputs=(output,),
-            payload=encode_core_instruction(SourceRelationInstructionIR(
+        return _AuthoredStep(
+            name=f"table.{source.table}",
+            outputs=(Output(CoreArtifactTypes.table(source.table)),),
+            instruction=encode_core_instruction(SourceRelationInstructionIR(
                 relation=relation,
                 location=source.location,
                 format=source.format,
@@ -352,7 +396,6 @@ class CoreCompiler:
                 ),
             )),
         )
-        return WorkflowStepDraft(definition=step)
 
     @staticmethod
     def _projection_step(
@@ -361,39 +404,21 @@ class CoreCompiler:
         relation: str,
         relations: dict[str, str],
         projection_relations: dict[str, str],
-    ) -> WorkflowStepDraft:
-        required_sources = projection_sources(projection)
-        required_roles = tuple(
-            CoreArtifactRoles.projection(name)
-            if name in projection_relations
-            else CoreArtifactRoles.table(name)
-            for name in required_sources
-        )
-        input_slot = CollectionInputSlot(
-            slot_id=f"core::projection.{projection.name}.inputs"
-        )
-        output = OutputSlot(
-            slot_id=f"core::projection.{projection.name}.output",
-            artifact_role=CoreArtifactRoles.projection(projection.name),
-        )
-        step = WorkflowStep(
-            step_id=f"core::projection.{projection.name}",
-            module_id=CoreModule.ID,
-            inputs=(input_slot,),
-            outputs=(output,),
-            payload=encode_core_instruction(RelationInstructionIR(
+    ) -> _AuthoredStep:
+        return _AuthoredStep(
+            name=f"projection.{projection.name}",
+            inputs=tuple(
+                CoreCompiler._read_input(name, projection_relations)
+                for name in sorted(projection_sources(projection))
+            ),
+            outputs=(Output(CoreArtifactTypes.projection(projection.name)),),
+            instruction=encode_core_instruction(RelationInstructionIR(
                 relation=relation,
                 sql=lower_projection_sql(
                     blueprint, relations, projection
                 ),
             )),
         )
-        candidates = {
-            input_slot.slot_id: lambda _input, candidate, roles=required_roles: (
-                candidate.artifact_role in roles
-            )
-        }
-        return WorkflowStepDraft(definition=step, candidates=candidates)
 
     @staticmethod
     def _binding_step(
@@ -402,41 +427,18 @@ class CoreCompiler:
         index: int,
         relations: dict[str, str],
         projection_relations: dict[str, str],
-    ) -> WorkflowStepDraft:
-        required_roles = tuple(
-            CoreArtifactRoles.projection(name)
-            if name in projection_relations
-            else CoreArtifactRoles.table(name)
-            for name in binding_sources(binding)
-        )
-        inputs = ()
-        candidates = {}
-        if required_roles:
-            input_slot = CollectionInputSlot(
-                slot_id=f"core::binding.{index}.inputs"
-            )
-            inputs = (input_slot,)
-            candidates = {
-                input_slot.slot_id: (
-                    lambda _input, candidate, roles=required_roles: (
-                        candidate.artifact_role in roles
-                    )
-                )
-            }
-
-        output = OutputSlot(
-            slot_id=f"core::binding.{index}.output",
-            artifact_role=CoreArtifactRoles.binding(binding.symbol_id),
-        )
+    ) -> _AuthoredStep:
         binding_sql = lower_binding_sql(
             blueprint, relations, binding
         )
-        step = WorkflowStep(
-            step_id=f"core::binding.{index}",
-            module_id=CoreModule.ID,
-            inputs=inputs,
-            outputs=(output,),
-            payload=encode_core_instruction(RelationInstructionIR(
+        return _AuthoredStep(
+            name=f"binding.{index}",
+            inputs=tuple(
+                CoreCompiler._read_input(name, projection_relations)
+                for name in sorted(binding_sources(binding))
+            ),
+            outputs=(Output(CoreArtifactTypes.binding(binding.symbol_id)),),
+            instruction=encode_core_instruction(RelationInstructionIR(
                 relation=f"kg_binding_{index}",
                 sql=(
                     f"SELECT *, '{binding.symbol_id}' AS _kg_binding_symbol "
@@ -444,52 +446,38 @@ class CoreCompiler:
                 ),
             )),
         )
-        return WorkflowStepDraft(definition=step, candidates=candidates)
 
     @staticmethod
     def _aggregation_steps(
         blueprint: BuildBlueprint,
-    ) -> tuple[WorkflowStepDraft, ...]:
-        drafts: list[WorkflowStepDraft] = []
+    ) -> tuple[_AuthoredStep, ...]:
+        steps: list[_AuthoredStep] = []
         for component in graph_record_components(blueprint):
-            binding_roles = tuple(
-                CoreArtifactRoles.binding(binding.symbol_id)
+            symbol_ids = tuple(
+                binding.symbol_id
                 for binding in blueprint.bindings
                 if binding.component == component.name
             )
-            if not binding_roles:
+            if not symbol_ids:
                 continue
-            input_slot = CollectionInputSlot(
-                slot_id=f"core::aggregate.{component.name}.bindings"
-            )
-            output = OutputSlot(
-                slot_id=f"core::aggregate.{component.name}.output",
-                artifact_role=CoreArtifactRoles.graph_records(
-                    component.kind, component.name
+            steps.append(_AuthoredStep(
+                name=f"aggregate.{component.name}",
+                inputs=tuple(
+                    Input(
+                        type=CoreArtifactTypes.binding(symbol_id),
+                        name=f"binding.{symbol_id}",
+                    )
+                    for symbol_id in symbol_ids
                 ),
-            )
-            step = WorkflowStep(
-                step_id=f"core::aggregate.{component.name}",
-                module_id=CoreModule.ID,
-                inputs=(input_slot,),
-                outputs=(output,),
-                payload=encode_core_instruction(AggregateInstructionIR(
+                outputs=(Output(CoreArtifactTypes.graph_records(
+                    component.kind, component.name,
+                )),),
+                assembly_preference="deferred",
+                instruction=encode_core_instruction(AggregateInstructionIR(
                     relation=f"kg_graph_{component.name.lower()}",
                 )),
-            )
-            candidates = {
-                input_slot.slot_id: (
-                    lambda _input, candidate, roles=binding_roles: (
-                        candidate.artifact_role in roles
-                    )
-                )
-            }
-            drafts.append(WorkflowStepDraft(
-                definition=step,
-                assembly_preference="deferred",
-                candidates=candidates,
             ))
-        return tuple(drafts)
+        return tuple(steps)
 
 
 class CoreModule(Module):
@@ -636,7 +624,9 @@ def _report_declared_null_statistics(
 
 class CoreExecutor(ModuleExecutor):
     def handle(self, context: ExecutionContext) -> StepOutcome:
-        instruction = decode_core_instruction(context.step.payload)
+        instruction = decode_core_instruction(
+            context.variables["instructions"][context.step.name],
+        )
         if isinstance(instruction, AggregateInstructionIR):
             return self._aggregate(context, instruction)
         if isinstance(instruction, SourceRelationInstructionIR):
@@ -691,7 +681,7 @@ class CoreExecutor(ModuleExecutor):
         scan = f"{scan_function}('{location}')"
         # ``DESCRIBE`` reads file metadata only, so the contract's shape is checked
         # before a view exists and before any consumer can reach this relation —
-        # every other step arrives through the role this step emits.
+        # every other step arrives through the type this step emits.
         _require_declared_columns(context, instruction, scan)
         # A multi-file scan does not widen the partitions it unions: it reports the
         # width of one file, which can be narrower than another partition's. The
@@ -727,10 +717,10 @@ class CoreExecutor(ModuleExecutor):
         *, status: StepStatus = StepStatus.SUCCEEDED,
     ) -> StepOutcome:
         output = context.step.outputs[0]
-        artifact = Artifact(output.slot_id, output.artifact_role, relation)
+        artifact = Artifact(output_name(output), output.type, relation)
         return StepOutcome(
-            step_id=context.step.step_id,
-            module_id=context.step.module_id,
+            step_id=context.step_id,
+            module_id=context.module_id,
             status=status,
             artifacts=(artifact,),
         )

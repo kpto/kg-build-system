@@ -21,8 +21,8 @@ class ModuleExecutor(ABC):
     def handle_disrupted(self, context: DisruptedExecutionContext) -> StepOutcome:
         """Default response to failed or skipped inputs: skip this step."""
         return StepOutcome(
-            step_id=context.step.step_id,
-            module_id=context.step.module_id,
+            step_id=context.step_id,
+            module_id=context.module_id,
             status=StepStatus.SKIPPED,
         )
 

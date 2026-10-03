@@ -5,6 +5,7 @@ import importlib
 import json
 import logging
 from collections import defaultdict
+from collections.abc import Mapping
 from contextlib import ExitStack
 from dataclasses import asdict, replace
 from pathlib import Path
@@ -13,9 +14,11 @@ from typing import Any, Literal, cast
 
 from pydantic import JsonValue
 
+from .._frozen_json import thaw_json
+from .identity import opening_identity, output_name, step_identity
 from .ir import WorkflowContractIR
 from .mapping import workflow_from_ir
-from .models import Artifact, BuildRuntime, ContinuableInput, DisruptedExecutionContext, DisruptingInput, ExecutionContext, ExecutorFactoryContext, Failure, PublishedArtifact, StepOutcome, StepStatus, WorkflowArtifactRoles, WorkflowReport
+from .models import Artifact, BuildRuntime, DefinedStep, ModuleDefinition, Publication, ContinuableInput, DisruptedExecutionContext, DisruptingInput, ExecutionContext, ExecutorFactoryContext, Failure, PublishedArtifact, StepOutcome, StepStatus, WorkflowReport
 from .monitor import (
     NullWorkflowMonitor, RichWorkflowMonitor, WorkflowExecutionMonitor,
 )
@@ -262,9 +265,16 @@ def _build(
           logger=_MonitorLogger(monitor),
       )
       executors: dict[str, Any] = {}
-      definitions = {module.reference.module_id: module for module in workflow.modules}
-      for module in workflow.modules:
+      definitions: dict[str, ModuleDefinition] = {}
+      module_variables: dict[str, Mapping[str, Any]] = {}
+      for contribution in workflow.contributions:
+        module = contribution.module
         reference = module.reference
+        definitions[reference.module_id] = module
+        module_variables[reference.module_id] = (
+            dict(thaw_json(contribution.variables))
+            if contribution.variables is not None else {}
+        )
         cls = _load_class(reference.import_module, reference.class_qualname)
         if getattr(cls, "ID", None) != reference.module_id:
             raise RuntimeError(f"module import does not provide {reference.module_id!r}")
@@ -284,106 +294,153 @@ def _build(
             ),
         )
         factory_context = ExecutorFactoryContext(
-            module, configuration, module_services,
+            module, module_variables[reference.module_id], configuration, module_services,
         )
         executors[reference.module_id] = cls.create_executor(factory_context)
 
-      output_owner = {slot.slot_id: step.step_id for step in workflow.steps for slot in step.outputs}
+      steps = tuple(workflow.steps_by_module)
+      identity_of = {
+          (module_id, step.name): step_identity(module_id, step.name)
+          for module_id, step in steps
+      }
+      output_owner = {
+          opening_identity(identity_of[(module_id, step.name)], output_name(output)):
+              identity_of[(module_id, step.name)]
+          for module_id, step in steps for output in step.outputs
+      }
+      publication_ids = tuple(
+          opening_identity(identity_of[(module_id, step.name)], output_name(output))
+          for module_id, step in steps for output in step.outputs
+          if isinstance(output, Publication)
+      )
+      publishing_steps = tuple(dict.fromkeys(
+          identity_of[(module_id, step.name)]
+          for module_id, step in steps
+          if any(isinstance(output, Publication) for output in step.outputs)
+      ))
       incoming: dict[str, list[str]] = defaultdict(list)
       for workflow_connection in workflow.connections:
-        incoming[workflow_connection.input_slot_id].append(workflow_connection.output_slot_id)
+        incoming[workflow_connection.input_id].append(workflow_connection.output_id)
 
       completed: set[str] = set()
       artifacts: dict[str, Artifact] = {}
       outcomes_by_step: dict[str, StepOutcome] = {}
       active_failures_by_step: dict[str, set[Failure]] = {}
       outcomes: list[StepOutcome] = []
-      pending = list(workflow.steps)
+      pending = list(steps)
       while pending:
-        ready = [step for step in pending if all(output_owner[slot_id] in completed for input_slot in step.inputs for slot_id in incoming[input_slot.slot_id])]
+        ready = [
+            entry for entry in pending
+            if all(
+                output_owner[source] in completed
+                for taken in entry[1].inputs
+                for source in incoming[opening_identity(
+                    identity_of[(entry[0], entry[1].name)], taken.name,
+                )]
+            )
+        ]
         if not ready:
             raise RuntimeError("workflow has a dependency cycle")
-        for step in ready:
+        for module_id, step in ready:
+            identity = identity_of[(module_id, step.name)]
             detail = (
-                f"Processing {len(step.inputs)} input slot(s) → "
-                f"{len(step.outputs)} output slot(s)"
+                f"Processing {len(step.inputs)} input(s) → "
+                f"{len(step.outputs)} output(s)"
             )
-            monitor.step_started(step, detail)
+            monitor.step_started(identity, detail)
             step_services = replace(
                 services,
                 logger=_MonitorLogger(
-                    monitor, module_id=step.module_id, step_id=step.step_id,
+                    monitor, module_id=module_id, step_id=identity,
                 ),
             )
             step_services.logger.info("Started: %s", detail)
-            inputs = {}
+            gathered: dict[str, list[ContinuableInput | DisruptingInput]] = defaultdict(list)
             disruptions: list[DisruptingInput] = []
             inherited_failures: set[Failure] = set()
-            for input_slot in step.inputs:
-                contributions: list[ContinuableInput | DisruptingInput] = []
-                for output_slot_id in incoming[input_slot.slot_id]:
-                    owner = output_owner[output_slot_id]
+            for taken in step.inputs:
+                for output_id in incoming[opening_identity(identity, taken.name)]:
+                    owner = output_owner[output_id]
                     previous = outcomes_by_step[owner]
                     inherited_failures.update(active_failures_by_step[owner])
-                    artifact = artifacts.get(output_slot_id)
+                    artifact = artifacts.get(output_id)
                     if previous.status in {StepStatus.SUCCEEDED, StepStatus.WARNING}:
-                        contributions.append(ContinuableInput(
-                            output_slot_id,
+                        gathered[taken.input_name].append(ContinuableInput(
+                            output_id,
                             cast(Literal[StepStatus.SUCCEEDED, StepStatus.WARNING], previous.status),
                             artifact,
                         ))
                     else:
                         disruption = DisruptingInput(
-                            output_slot_id,
+                            output_id,
                             cast(Literal[StepStatus.FAILED, StepStatus.SKIPPED], previous.status),
                             artifact,
                             previous.failure,
                         )
-                        contributions.append(disruption)
+                        gathered[taken.input_name].append(disruption)
                         disruptions.append(disruption)
-                inputs[input_slot.slot_id] = tuple(contributions)
+            by_input = {name: tuple(values) for name, values in gathered.items()}
+            runtime_configuration = runtime.module_configuration.get(module_id, {})
             try:
                 if disruptions:
-                    context = DisruptedExecutionContext(definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), inputs, tuple(disruptions), step_services)
-                    outcome = executors[step.module_id].handle_disrupted(context)
+                    context = DisruptedExecutionContext(
+                        definitions[module_id], step, module_id, identity,
+                        module_variables[module_id], runtime_configuration, by_input,
+                        tuple(disruptions), step_services,
+                    )
+                    outcome = executors[module_id].handle_disrupted(context)
                 else:
-                    continuable_inputs = {slot_id: tuple(item for item in values if isinstance(item, ContinuableInput)) for slot_id, values in inputs.items()}
-                    context = ExecutionContext(definitions[step.module_id], step, runtime.module_configuration.get(step.module_id, {}), continuable_inputs, step_services)
-                    outcome = executors[step.module_id].handle(context)
+                    continuable_inputs = {
+                        name: tuple(
+                            item for item in values if isinstance(item, ContinuableInput)
+                        )
+                        for name, values in by_input.items()
+                    }
+                    context = ExecutionContext(
+                        definitions[module_id], step, module_id, identity,
+                        module_variables[module_id], runtime_configuration,
+                        continuable_inputs, step_services,
+                    )
+                    outcome = executors[module_id].handle(context)
                 relations.finish_step()
             except Exception as error:
                 step_services.logger.error(
                     "%s: %s", type(error).__name__, error,
                 )
                 outcome = StepOutcome(
-                    step_id=step.step_id,
-                    module_id=step.module_id,
+                    step_id=identity,
+                    module_id=module_id,
                     status=StepStatus.FAILED,
-                    failure=Failure(str(error), step.module_id, step.step_id, type(error).__name__),
+                    failure=Failure(str(error), module_id, identity, type(error).__name__),
                 )
-            if outcome.step_id != step.step_id or outcome.module_id != step.module_id:
-                raise RuntimeError(f"module returned an outcome for a different step: {step.step_id}")
+            if outcome.step_id != identity or outcome.module_id != module_id:
+                raise RuntimeError(f"module returned an outcome for a different step: {identity}")
             if outcome.status == StepStatus.FAILED and outcome.failure is None:
-                raise RuntimeError(f"failed step {step.step_id} did not provide a failure")
-            declared = {slot.slot_id: slot.artifact_role for slot in step.outputs}
-            returned = {artifact.slot_id: artifact for artifact in outcome.artifacts}
+                raise RuntimeError(f"failed step {identity} did not provide a failure")
+            declared = {output.name: output.type for output in step.outputs}
+            returned = {artifact.output_name: artifact for artifact in outcome.artifacts}
             if not set(returned) <= set(declared):
-                raise RuntimeError(f"step {step.step_id} returned an artifact for an undeclared output slot")
-            if any(artifact.role != declared[slot_id] for slot_id, artifact in returned.items()):
-                raise RuntimeError(f"step {step.step_id} returned an artifact role inconsistent with its output slot")
-            artifacts.update(returned)
-            outcomes_by_step[step.step_id] = outcome
+                raise RuntimeError(f"step {identity} returned an artifact for an undeclared output")
+            if any(artifact.type != declared[name] for name, artifact in returned.items()):
+                raise RuntimeError(
+                    f"step {identity} returned an artifact type its output does not declare"
+                )
+            artifacts.update({
+                opening_identity(identity, name): artifact
+                for name, artifact in returned.items()
+            })
+            outcomes_by_step[identity] = outcome
             if outcome.status == StepStatus.FAILED:
-                active_failures_by_step[step.step_id] = inherited_failures | {
+                active_failures_by_step[identity] = inherited_failures | {
                     outcome.failure
                 } if outcome.failure is not None else inherited_failures
             elif outcome.status == StepStatus.SKIPPED:
-                active_failures_by_step[step.step_id] = inherited_failures
+                active_failures_by_step[identity] = inherited_failures
             else:
-                active_failures_by_step[step.step_id] = set()
+                active_failures_by_step[identity] = set()
             outcomes.append(outcome)
-            completed.add(step.step_id)
-            pending.remove(step)
+            completed.add(identity)
+            pending.remove((module_id, step))
             outcome_detail = f"{outcome.status.value}; {len(outcome.artifacts)} artifact(s)"
             if outcome.failure is not None:
                 outcome_detail += f" — {outcome.failure.message}"
@@ -395,23 +452,19 @@ def _build(
             else:
                 step_services.logger.info("Finished: %s", outcome_detail)
 
-      published_artifacts = tuple(
-        artifact
-        for outcome in outcomes
-        for artifact in outcome.artifacts
-        if WorkflowArtifactRoles.is_published(artifact.role)
-    )
-      producer_steps = {
-          output_owner[connection.output_slot_id]
-          for connection in workflow.connections
-      }
-      sink_steps = {
-          step.step_id for step in workflow.steps
-          if step.step_id not in producer_steps
-      }
+      published = tuple(
+          PublishedArtifact(type=artifact.type, value=artifact.value)
+          for artifact in (
+              artifacts[output_id] for output_id in publication_ids if output_id in artifacts
+          )
+      )
       unresolved = set().union(
-          *(active_failures_by_step[step_id] for step_id in sink_steps),
-      ) if sink_steps else set()
+          *(
+              active_failures_by_step[step_id]
+              for step_id in publishing_steps
+              if step_id in active_failures_by_step
+          ),
+      ) if publishing_steps else set()
       all_failures = tuple(
           outcome.failure for outcome in outcomes if outcome.failure is not None
       )
@@ -424,7 +477,7 @@ def _build(
       duckdb_provenance: dict[str, JsonValue] = {"TimeZone": time_zone}
       provenance["duckdb"] = duckdb_provenance
       return WorkflowReport(
-        published_artifacts=tuple(PublishedArtifact(role=artifact.role, value=artifact.value) for artifact in published_artifacts),
+        published_artifacts=published,
         recovered_failures=tuple(failure for failure in all_failures if failure not in unresolved),
         unresolved_failures=tuple(failure for failure in all_failures if failure in unresolved),
         provenance=provenance,

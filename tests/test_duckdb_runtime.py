@@ -20,26 +20,29 @@ from kg_build_system.modules.core.ir import (
     RelationInstructionIR,
     encode_core_instruction,
 )
+from kg_build_system.workflow.assembler import assemble_workflow
 from kg_build_system.workflow.contracts import create_workflow_contract
+from kg_build_system.workflow.identity import output_name, step_identity
 from kg_build_system.workflow.interfaces import ModuleExecutor
 from kg_build_system.workflow.ir import WorkflowContractIR
 from kg_build_system.workflow.monitor import NullWorkflowMonitor
 from kg_build_system.workflow.models import (
     Artifact,
+    ArtifactType,
     BuildRuntime,
+    DefinedStep,
     DisruptedExecutionContext,
     ExecutionContext,
     ExecutorFactoryContext,
     ModuleDefinition,
     ModuleReference,
-    OutputSlot,
+    Output,
+    Publication,
     StepOutcome,
     StepStatus,
-    WorkflowArtifactRoles,
-    WorkflowDefinition,
+    WorkflowContribution,
     WorkflowStep,
 )
-from kg_build_system.workflow.models import ArtifactRole
 from kg_build_system.workflow.services import DuckDBRelationService, RelationRef
 
 
@@ -134,22 +137,28 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
             class_qualname="CoreModule",
             implementation_version="1",
         ))
-        step = WorkflowStep(
-            step_id="core::projection.logical_values",
-            module_id="core",
-            outputs=(OutputSlot(
-                "core::projection.logical_values.output",
-                ArtifactRole("core", "data.projection.logical_values"),
+        step_name = "projection.logical_values"
+        step = DefinedStep(
+            name=step_name,
+            outputs=(Output(
+                ArtifactType("core", "data.projection.logical_values"), "output",
             ),),
-            payload=encode_core_instruction(RelationInstructionIR(
+        )
+        # The instruction a core step runs travels in core's own variables,
+        # keyed by the step's name, which is where the executor reads it.
+        variables = {"instructions": {step_name: encode_core_instruction(
+            RelationInstructionIR(
                 relation="logical_values",
                 sql="SELECT 1 AS value",
-            )),
-        )
+            ),
+        )}}
 
         outcome = CoreExecutor().handle(ExecutionContext(
             module=module,
             step=step,
+            module_id="core",
+            step_id=step_identity("core", step_name),
+            variables=variables,
             runtime_configuration={},
             inputs={},
             services=services,
@@ -512,8 +521,8 @@ class _ZoneProbeExecutor(ModuleExecutor):
             "SELECT current_setting('TimeZone') AS value"
         ).fetchone()[0]
         return StepOutcome(
-            context.step.step_id, context.step.module_id, StepStatus.SUCCEEDED,
-            (Artifact(output.slot_id, output.artifact_role, observed),),
+            context.step_id, context.module_id, StepStatus.SUCCEEDED,
+            (Artifact(output_name(output), output.type, observed),),
         )
 
     def handle_disrupted(self, context: DisruptedExecutionContext) -> StepOutcome:
@@ -531,24 +540,20 @@ class _ZoneProbeModule:
 
 class DuckDBExecutionProvenanceTests(unittest.TestCase):
     def _contract(self) -> WorkflowContractIR:
-        role = WorkflowArtifactRoles.published(_ZoneProbeModule.ID, "zone")
+        # The zone the step reads is what the test asks the build for and no
+        # other step takes it, so the step hands it out as a publication.
         step = WorkflowStep(
-            step_id="test_zone_probe::read_zone",
-            module_id=_ZoneProbeModule.ID,
-            outputs=(OutputSlot(slot_id="test_zone_probe::read_zone.output", artifact_role=role),),
+            outputs=(Publication(ArtifactType(_ZoneProbeModule.ID, "zone"), "zone"),),
+            name="read_zone",
         )
+        module = ModuleDefinition(reference=ModuleReference(
+            module_id=_ZoneProbeModule.ID,
+            import_module=_ZoneProbeModule.__module__,
+            class_qualname=_ZoneProbeModule.__qualname__,
+            implementation_version=_ZoneProbeModule.VERSION,
+        ))
         return create_workflow_contract(
-            WorkflowDefinition(
-                modules=(ModuleDefinition(
-                    reference=ModuleReference(
-                        module_id=_ZoneProbeModule.ID,
-                        import_module=_ZoneProbeModule.__module__,
-                        class_qualname=_ZoneProbeModule.__qualname__,
-                        implementation_version=_ZoneProbeModule.VERSION,
-                    ),
-                ),),
-                steps=(step,),
-            ),
+            assemble_workflow((WorkflowContribution(module, (step,)),)),
             provenance={"test": "duckdb_runtime"},
         )
 

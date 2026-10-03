@@ -9,7 +9,9 @@ import kg_build_system
 from kg_build_system import value_expression
 from kg_build_system.expressions.ir import ExpressionIRBase
 from kg_build_system.workflow.ir import WorkflowContractIR
-from kg_build_system.workflow.models import WorkflowStep, WorkflowStepDraft
+from kg_build_system.workflow.models import (
+    DefinedStep, WorkflowContribution, WorkflowStep,
+)
 from kg_build_system.workflow.services import ExecutionServices
 
 PACKAGE = Path(kg_build_system.__file__).parent
@@ -179,12 +181,32 @@ class DomainBoundaryTests(unittest.TestCase):
             )
 
     def test_assembly_inputs_do_not_leak_into_executable_workflow_models(self) -> None:
-        self.assertNotIn(
-            "assembly_preference", {item.name for item in fields(WorkflowStep)}
+        """Eagerness places a step while assembling and is gone from the assembled workflow."""
+        self.assertIn("assembly_preference", {item.name for item in fields(WorkflowStep)})
+        self.assertNotIn("assembly_preference", {item.name for item in fields(DefinedStep)})
+
+    def test_declared_models_hold_no_reference_to_their_owner(self) -> None:
+        """Domain models are amnesic: nothing on a step or an opening names what holds it."""
+        from kg_build_system.workflow.models import Input, Output, Publication, TakenInput
+
+        forbidden = {"module_id", "step_id", "workflow", "owner", "parent"}
+        for model in (WorkflowStep, Input, Output, Publication, DefinedStep, TakenInput):
+            held = {item.name for item in fields(model)}
+            self.assertFalse(
+                held & forbidden, f"{model.__name__} reaches outside itself: {sorted(held & forbidden)}",
+            )
+
+    def test_a_declared_step_holds_its_openings_and_eagerness_only(self) -> None:
+        """A step declares what it takes, gives out and when it runs; nothing else.
+
+        Per-step data is the contributing module's own, filed in the variables beside its
+        steps, which no rule of the workflow reads.
+        """
+        self.assertEqual(
+            {item.name for item in fields(WorkflowStep)},
+            {"inputs", "outputs", "name", "assembly_preference"},
         )
-        self.assertIn(
-            "assembly_preference", {item.name for item in fields(WorkflowStepDraft)}
-        )
+        self.assertIn("variables", {item.name for item in fields(WorkflowContribution)})
 
     def test_workflow_contract_has_only_workflow_semantics_and_provenance(self) -> None:
         self.assertEqual(

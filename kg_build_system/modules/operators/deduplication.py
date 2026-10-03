@@ -4,30 +4,26 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
-from ..._frozen_json import freeze_json, thaw_json
+from ..._frozen_json import freeze_json
 from ...workflow.models import (
-    ModuleDefinition, ModuleReference, OutputSlot, SingleInputSlot, WorkflowStep,
+    Artifact, DisruptedExecutionContext, ExecutionContext,
+    ExecutorFactoryContext, Input, ModuleDefinition, ModuleReference, Output,
+    StepOutcome, StepStatus, WorkflowContribution, WorkflowStep,
 )
 from ...compile.interfaces import CompilationContext, ModuleCompiler
 from ...modules.interfaces import Module, ModuleRegistrationConfiguration
+from ...workflow.identity import output_name
 from ...workflow.interfaces import ModuleExecutor
-from ...workflow.models import (
-    Artifact,
-    DisruptedExecutionContext,
-    ExecutionContext,
-    ExecutorFactoryContext,
-    StepOutcome,
-    StepStatus,
-    WorkflowContribution,
-    WorkflowStepDraft,
-    role_is,
-)
-from ..core import CoreArtifactRoles, graph_record_components
+from ..core import CoreArtifactTypes, graph_record_components
 
 
 @dataclass(frozen=True)
 class _Configuration(ModuleRegistrationConfiguration):
     """The operator has no configurable behavior."""
+
+
+_RECORDS_INPUT = "records"
+_DISTINCT_OUTPUT = "distinct"
 
 
 @dataclass(frozen=True)
@@ -52,33 +48,20 @@ class CollapseExactDuplicatesModule(Module):
     async def compile(
         self, context: CompilationContext[Any],
     ) -> WorkflowContribution:
-        steps: list[WorkflowStepDraft] = []
+        steps: list[WorkflowStep] = []
+        instructions: dict[str, Any] = {}
         for component in graph_record_components(context.blueprint):
-            input_slot = SingleInputSlot(
-                slot_id=f"{self.ID}::{component.name}.input"
-            )
-            output_role = CoreArtifactRoles.graph_records(
+            records_type = CoreArtifactTypes.graph_records(
                 component.kind, component.name
             )
-            relation = f"kg_distinct_{component.name.lower()}"
-            step = WorkflowStep(
-                step_id=f"{self.ID}::{component.name}",
-                module_id=self.ID,
-                inputs=(input_slot,),
-                outputs=(
-                    OutputSlot(
-                        slot_id=f"{self.ID}::{component.name}.output",
-                        artifact_role=output_role,
-                    ),
-                ),
-                payload=freeze_json({"relation": relation}),
-            )
-            steps.append(
-                WorkflowStepDraft(
-                    definition=step,
-                    candidates={input_slot.slot_id: role_is(output_role)},
-                )
-            )
+            steps.append(WorkflowStep(
+                inputs=(Input(records_type, _RECORDS_INPUT),),
+                outputs=(Output(records_type, _DISTINCT_OUTPUT),),
+                name=component.name,
+            ))
+            instructions[component.name] = {
+                "relation": f"kg_distinct_{component.name.lower()}",
+            }
 
         definition = ModuleDefinition(
             reference=ModuleReference(
@@ -89,35 +72,36 @@ class CollapseExactDuplicatesModule(Module):
                 configuration=freeze_json({}),
             )
         )
-        return WorkflowContribution(definition, tuple(steps))
+        return WorkflowContribution(
+            definition, tuple(steps), freeze_json({"instructions": instructions}),
+        )
 
 
 class _Executor(ModuleExecutor):
     def handle(self, context: ExecutionContext) -> StepOutcome:
-        payload = thaw_json(context.step.payload)  # type: ignore[arg-type]
-        if not isinstance(payload, dict):
-            raise ValueError("deduplication requires an object payload")
+        instructions = context.variables["instructions"][context.step.name]
+        if not isinstance(instructions, dict):
+            raise ValueError("deduplication requires an object instruction")
 
         input_relation = next(
             item.artifact.value
-            for contributions in context.inputs.values()
-            for item in contributions
+            for item in context.inputs[_RECORDS_INPUT]
             if item.artifact is not None
         )
         source = context.services.relations.reference(input_relation)
         relation = context.services.relations.materialize(
-            str(payload["relation"]), f"SELECT DISTINCT * FROM {source}",
+            str(instructions["relation"]), f"SELECT DISTINCT * FROM {source}",
         )
 
-        output = context.step.outputs[0]
+        outputs = {output_name(given): given for given in context.step.outputs}
         artifact = Artifact(
-            output.slot_id, output.artifact_role, relation
+            _DISTINCT_OUTPUT, outputs[_DISTINCT_OUTPUT].type, relation,
         )
         return StepOutcome(
-            context.step.step_id,
-            context.step.module_id,
-            StepStatus.SUCCEEDED,
-            (artifact,),
+            step_id=context.step_id,
+            module_id=context.module_id,
+            status=StepStatus.SUCCEEDED,
+            artifacts=(artifact,),
         )
 
     def handle_disrupted(
