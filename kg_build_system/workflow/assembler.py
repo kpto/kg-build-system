@@ -89,10 +89,15 @@ class _TakesType(Enum):
 
 
 class _Role(Enum):
-    """What the step writing an output does to the type it writes."""
+    """What the step writing an output does to the type it writes.
+
+    An ``ENDOFUNCTOR`` takes the very type it writes, so it hands on a result of it; a
+    ``PRODUCER`` writes the type without taking it; ``UNKNOWN`` means the walk up the
+    dependency stopped somewhere still open, so neither answer can be given yet.
+    """
 
     PRODUCER = "producer"
-    TRANSFORMER = "transformer"
+    ENDOFUNCTOR = "endofunctor"
     UNKNOWN = "unknown"
 
 
@@ -316,7 +321,7 @@ def _role(expansion: _Expansion, wiring: _Wiring, output: _OutputPort) -> _Role:
     if remembered is not None:
         return remembered
     role = {
-        _TakesType.YES: _Role.TRANSFORMER,
+        _TakesType.YES: _Role.ENDOFUNCTOR,
         _TakesType.UNSETTLED: _Role.UNKNOWN,
         _TakesType.NO: _Role.PRODUCER,
     }[_takes_type(expansion, wiring, output.step_id, output.type)]
@@ -397,7 +402,7 @@ def _conclude(
     earlier = sorted(
         (
             output for output, role in roles.items()
-            if role is _Role.TRANSFORMER and output.rank > port.rank
+            if role is _Role.ENDOFUNCTOR and output.rank > port.rank
         ),
         key=lambda output: (output.rank, output.sequence),
     )

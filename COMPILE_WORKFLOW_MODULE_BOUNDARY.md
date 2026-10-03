@@ -2,10 +2,11 @@
 
 ## Status
 
-Implemented. Boundary tests enforce that workflow has no dependency on
-compile, compile has no dependency on concrete modules, assembly-only state is
-absent from executable workflow models, and the workflow contract exposes
-compilation detail only as opaque provenance.
+The boundary itself is what this document specifies: which subsystem may import which, and
+where compiled data stops and runtime data begins. Within that boundary the workflow
+subpackage's own contents — its model, assembly rules, contract and execution — are
+specified in [`WORKFLOW_SUBPACKAGE_SPEC.md`](WORKFLOW_SUBPACKAGE_SPEC.md), which governs
+wherever the two differ.
 
 ## High-level design
 
@@ -52,7 +53,7 @@ compile module compilers
 ordered WorkflowContribution values
         │
         v
-workflow.assemble_workflow
+workflow.assembler.assemble_workflow
         │
         v
 WorkflowDefinition
@@ -67,10 +68,11 @@ workflow executor
 module executors
 ```
 
-Compile determines the contribution order. Workflow interprets that order as
-assembly priority, resolves candidates and connections, rejects ambiguity and
-cycles, and discards priority and assembly preference from the final workflow.
-The workflow fingerprint covers executable workflow IR only. Compiler-specific
+Compile determines the contribution order. Workflow derives rank from that order,
+expands each declared opening into ports, and makes the connections its rules justify,
+refusing a wiring that leaves an input unfed, an output unread, or two producers
+indistinguishable. The assembled definition keeps neither priority nor eagerness. The
+workflow fingerprint covers the executable workflow IR only; compiler-specific
 fingerprints and metadata live in provenance.
 
 ## Implemented domain model
@@ -128,100 +130,28 @@ class CompileModuleRegistration(Protocol[ConfigT]):
 
 ### `workflow/models.py`
 
-```python
-@dataclass(frozen=True, slots=True)
-class ModuleReference:
-    module_id: str
-    import_module: str
-    class_qualname: str
-    implementation_version: str
-    configuration: FrozenJson | None = None
+> [WORKFLOW_SUBPACKAGE_SPEC.md](WORKFLOW_SUBPACKAGE_SPEC.md) §2 — the declared and assembled data.
 
+The domain models live here: what an author declares a step to take and give out, and
+what an assembled step looks like once every input is answered. They are frozen data,
+carry no Python objects, and hold no reference to the step or module that owns an
+opening. IRs never reach module executors, and domain models are never serialised
+directly.
 
-@dataclass(frozen=True, slots=True)
-class ModuleDefinition:
-    reference: ModuleReference
-    runtime_fields: tuple[RuntimeFieldDefinition, ...] = ()
+### `workflow/assembler.py`
 
+> [WORKFLOW_SUBPACKAGE_SPEC.md](WORKFLOW_SUBPACKAGE_SPEC.md) §3–5 — expansion, rank, and the two assembly passes.
 
-@dataclass(frozen=True, slots=True)
-class ArtifactRole:
-    namespace: str
-    name: str
-
-
-@dataclass(frozen=True, slots=True)
-class OutputSlot:
-    slot_id: str
-    artifact_role: ArtifactRole
-
-
-@dataclass(frozen=True, slots=True)
-class SingleInputSlot:
-    slot_id: str
-
-
-@dataclass(frozen=True, slots=True)
-class CollectionInputSlot:
-    slot_id: str
-
-
-InputSlot = SingleInputSlot | CollectionInputSlot
-CandidatePredicate = Callable[[InputSlot, OutputSlot], bool]
-
-
-@dataclass(frozen=True, slots=True)
-class WorkflowStep:
-    step_id: str
-    module_id: str
-    inputs: tuple[InputSlot, ...] = ()
-    outputs: tuple[OutputSlot, ...] = ()
-    payload: FrozenJson | None = None
-
-
-@dataclass(frozen=True, slots=True)
-class WorkflowStepDraft:
-    definition: WorkflowStep
-    assembly_preference: Literal["eager", "deferred"]
-    candidates: Mapping[str, CandidatePredicate]
-
-
-@dataclass(frozen=True, slots=True)
-class WorkflowContribution:
-    module: ModuleDefinition
-    steps: tuple[WorkflowStepDraft, ...]
-
-
-@dataclass(frozen=True, slots=True)
-class Connection:
-    input_slot_id: str
-    output_slot_id: str
-
-
-@dataclass(frozen=True, slots=True)
-class WorkflowDefinition:
-    modules: tuple[ModuleDefinition, ...]
-    steps: tuple[WorkflowStep, ...]
-    connections: tuple[Connection, ...]
-```
-
-### `workflow/assembly.py`
-
-```python
-def assemble_workflow(
-    contributions: Sequence[WorkflowContribution],
-) -> WorkflowDefinition: ...
-```
+`assemble_workflow(contributions) -> WorkflowDefinition` is the workflow-domain service
+the compiler calls. It raises `AssemblyError` naming every reason the steps could not be
+wired, and it depends on nothing in `compile`.
 
 ### `workflow/ir.py`
 
-```python
-class WorkflowContractIR(WorkflowIR):
-    schema_version: Literal[1] = 1
-    workflow: WorkflowDefinitionIR
-    workflow_fingerprint: str
-    provenance: JsonValue | None = None
-```
+> [WORKFLOW_SUBPACKAGE_SPEC.md](WORKFLOW_SUBPACKAGE_SPEC.md) §6 — the contract's serialisable form.
+
+The IR mirrors the assembled definition with pattern constraints and a discriminated
+output kind, and is what the fingerprint covers.
 
 Example compiler provenance:
 
@@ -236,28 +166,10 @@ Example compiler provenance:
 
 ### `workflow/interfaces.py`
 
-```python
-class ModuleExecutor(ABC):
-    @abstractmethod
-    def handle(self, context: ExecutionContext) -> StepOutcome: ...
+> [WORKFLOW_SUBPACKAGE_SPEC.md](WORKFLOW_SUBPACKAGE_SPEC.md) §7 — the executor protocol.
 
-    @abstractmethod
-    def handle_disrupted(
-        self,
-        context: DisruptedExecutionContext,
-    ) -> StepOutcome: ...
-
-
-class ExecutableModule(Protocol):
-    ID: ClassVar[str]
-    VERSION: ClassVar[str]
-
-    @classmethod
-    def create_executor(
-        cls,
-        context: ExecutorFactoryContext,
-    ) -> ModuleExecutor: ...
-```
+One executor per module, created once, with a handler for the all-continuable case and a
+handler for disrupted inputs whose base policy skips the step.
 
 ### `modules/interfaces.py`
 

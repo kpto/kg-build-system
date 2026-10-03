@@ -586,22 +586,25 @@ relations deserve that boundary is unresolved; see
 
 ## 12. Compilation, workflow, and execution
 
+> [WORKFLOW_SUBPACKAGE_SPEC.md](WORKFLOW_SUBPACKAGE_SPEC.md) §1–7 — the workflow data model, assembly rules, contract, and execution.
+
 The public `compile` API creates or accepts the canonical blueprint and appends
 the mandatory core module after the configured extension modules. It validates
-blueprint schema version 3 and compiles every registered module through the
+the blueprint schema version and compiles every registered module through the
 compile-time capability interface.
-The workflow domain then assembles the ordered contributions into one
-dependency-aware `WorkflowContractIR`. The compiler does not import or
-bootstrap concrete module implementations. `compile(blueprint=...)` remains
-available for advanced callers using an auxiliary prebuilt blueprint.
+The workflow domain assembles the ordered contributions into a
+dependency-aware `WorkflowDefinition`, which the compiler freezes into a
+`WorkflowContractIR`. The compiler does not import or bootstrap concrete module
+implementations. `compile(blueprint=...)` remains available for advanced callers using
+an auxiliary prebuilt blueprint, and an incomplete wiring is a build failure naming every
+input it could not feed and every output nothing reads.
 
 The workflow contract includes:
 
 - a contract schema version;
 - frozen module definitions, executable workflow steps, and resolved
   connections;
-- effective source instructions and inspectable SQL in module-owned step
-  payloads;
+- inspectable SQL and other instruction data in each module's own variables;
 - the workflow fingerprint;
 - optional opaque compilation provenance containing the blueprint and its
   fingerprint.
@@ -611,8 +614,8 @@ supplied through `BuildRuntime`. The contract never contains resolved
 credentials.
 
 The core module creates source-view, projection-view, binding-view, and graph
-aggregation-view steps. Extension modules claim artifacts by semantic
-`ArtifactRole` rather than temporary relation names. Current supplied modules
+aggregation-view steps. Extension modules take artifacts by semantic
+`ArtifactType` rather than temporary relation names. Current supplied modules
 include exact duplicate collapse, compatible-fact merging, conflicting-value
 validation, file output, meta-graph description, and Neo4j administrative-import
 output.
@@ -623,11 +626,10 @@ endpoint categories those components depend on, and nothing else. It records the
 hierarchy by logical name (`parent`, `children`, `depth`) alongside each
 component's debugging symbol ID, its effective semantic label and description,
 its properties with normalized logical types, and per-component record counts.
-Abstract categories are never binding targets and so produce no artifact of
-their own; their count is the sum over their concrete descendants. The step
-claims the graph-record artifact for each effective component, so a count
-reflects whatever stage last owned that role — after collapse, merge, or
-validation when those modules are configured.
+Abstract categories are never binding targets and so produce no artifact of their own;
+their count is the sum over their concrete descendants. The step takes the graph-record
+artifact for each effective component, so a count reflects whatever stage last owned that
+type — after collapse, merge, or validation when those modules are configured.
 
 Each property also carries example values taken from those same records: up to
 `example_limit` of the most common values per property, from DuckDB's
@@ -647,14 +649,14 @@ declared endpoints, with the is-a hierarchy drawn in a separate style — and th
 selection panel shows description, semantic label, record counts, endpoints, and
 the property table. It needs no network and no sibling files.
 
-Static topology travels in the step payload, because a module executor receives
-no blueprint.
+Static topology travels in the meta-graph module's variables, because a module
+executor receives no blueprint.
 
 `build` synchronously consumes only `WorkflowContractIR` and `BuildRuntime`. It
 imports the module classes named in the contract, validates runtime
 configuration, executes ready steps in dependency order, propagates failed or
 skipped inputs, and verifies every returned artifact against its declared
-output slot. Module executor construction and step handlers are synchronous;
+output. Module executor construction and step handlers are synchronous;
 compile-time module compilation remains a separate asynchronous lifecycle.
 
 The output directory receives published artifacts, `workflow_contract.json`, and
@@ -729,7 +731,7 @@ kg_build_system/
   relational/        # engine-neutral planning and plan IRs
   engines/duckdb/    # SQL lowering
   modules/           # core, operators, and targets
-  workflow/          # domain models, compilation IRs, mapping, execution
+  workflow/          # domain models, assembly, compilation IRs, mapping, execution
   code_generation/   # edit-time generated packages
 demo/                 # importable end-to-end example
 tests/                # runtime and static typing contracts

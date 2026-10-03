@@ -1,12 +1,13 @@
-# Workflow module specification
+# Workflow subpackage specification
 
 The `kg_build_system/workflow/` package: how a workflow is declared, assembled, frozen into a
 contract, and run.
 
 | File | Role |
 |---|---|
-| `models.py` | The data an author declares and the runtime results: steps, inputs, outputs, types, outcomes, report |
+| `models.py` | The data an author declares and the runtime results: steps, openings, types, outcomes, report |
 | `assembler.py` | Assembles the contributed steps into a workflow definition |
+| `identity.py` | The names and identities a step and its openings go by |
 | `contracts.py` | Freezes a workflow definition into a contract and fingerprints it |
 | `ir.py`, `mapping.py` | Serialisable form of the same data, and the round trip |
 | `interfaces.py` | What an executable module must provide |
@@ -88,7 +89,7 @@ scanned first and which is preferred when the rank cannot separate them.
 Expansion refuses two steps of one module with the same name, and the same name twice in one direction
 on one step, because every explanation the assembler gives names a port by those strings. A clash
 arising from expansion is refused the same way, and a step with a clash contributes nothing rather than
-half its inputs. Both refusals raise `DeclarationError`.
+half its inputs. Both refusals raise `AssemblyError`.
 
 ## 4. Rank, internal to the assembler
 
@@ -103,7 +104,7 @@ Rank is derived from position, module first, then eagerness, then order within t
 ```
 
 So a step in an early module runs before any step in a later one whatever its eagerness, and core,
-composed last, runs after every module's steps. A table-driven ranking serves the tests.
+composed last, runs after every module's steps.
 
 ## 5. Assembly
 

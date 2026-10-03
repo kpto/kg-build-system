@@ -60,7 +60,7 @@ ask for it.
 ## Options
 
 **A. Materialise on fan-out, decided at compile time.** The workflow contract
-already records every connection. An output slot consumed by two or more steps is
+already records every connection. An output read by two or more steps is
 a reuse boundary by definition, and the decision needs no runtime information.
 Core's aggregation steps would materialise whenever `len(consumers) > 1` and stay
 lazy otherwise. This is the option this document recommends.

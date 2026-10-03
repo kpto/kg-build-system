@@ -221,7 +221,7 @@ class ChoiceTests(unittest.TestCase):
             (output_id("clean", "tidy", "cleaned"), input_id("file", "write", "records")),
         })
 
-    def test_of_two_transformers_the_one_that_ran_last_is_taken(self) -> None:
+    def test_of_two_endofunctors_the_one_that_ran_last_is_taken(self) -> None:
         """A chain of steps that each take the type they write leaves the freshest on top."""
         def tidy(name: str) -> WorkflowStep:
             return WorkflowStep(
