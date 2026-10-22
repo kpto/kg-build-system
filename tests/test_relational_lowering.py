@@ -541,6 +541,36 @@ class ArrayPropertyTests(unittest.TestCase):
         declaration = TemporalItems._properties["dates"]
         self.assertEqual(declaration.logical_type, ArrayType(UnitType("date")))
 
+    def test_binding_sql_casts_properties_to_the_declared_type(self) -> None:
+        class DatedInput(Table):
+            identifier: Field[str] = field()
+            dates: Field[Array[Date] | None] = field()
+
+        class DatedNode(Node):
+            dates: PropertySlot[Array[Date] | None] = property()
+
+        binding = node_binding(
+            target=DatedNode,
+            build_key=DatedInput.identifier,
+            properties=DatedNode(dates=DatedInput.dates),
+        )
+        contract = compile(
+            bindings=(binding,),
+            sources=(bind_source(
+                target=DatedInput,
+                config=DataSourceConfig("input.json", format=InputFormat.JSON),
+            ),),
+            modules=(register_module(
+                FileModule, FileModuleConfiguration("graph.jsonl"),
+            ),),
+        )
+        instructions = core_instructions(contract)
+        binding_sql = next(
+            item["sql"] for name, item in instructions.items()
+            if name.startswith("binding.")
+        )
+        self.assertIn('CAST("dates" AS DATE[]) AS "_kg_raw_dates"', binding_sql)
+
 
 if __name__ == "__main__":
     unittest.main()

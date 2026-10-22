@@ -9,8 +9,6 @@ from ..._frozen_json import FrozenJson, freeze_json
 from ...compile.models import BuildBlueprint
 from ...engines.duckdb import (
     PARQUET_LIST_WRAPPER_PATH,
-    ArraySqlType,
-    SqlType,
     canonical_sql_type,
     read_declared_null_statistics,
 )
@@ -20,9 +18,7 @@ from ...expressions.ir import (
 )
 from ...table.ir import ProjectionIR as ProjectionDefinition
 from ...table.ir import StructIR, struct_type_key
-from ...types.ir import (
-    ArrayTypeIR, LogicalTypeIR, NullableTypeIR, StructTypeIR, UnitTypeIR,
-)
+from ...types.ir import ArrayTypeIR, NullableTypeIR, StructTypeIR
 from ...topology.ir import ComponentIR as ComponentDefinition
 from ...workflow.models import (
     Artifact,
@@ -50,6 +46,7 @@ from .lowering import (
     lower_binding_sql,
     lower_projection_sql,
     projection_sources,
+    sql_type_for,
 )
 from .ir import (
     AggregateInstructionIR, DeclaredColumnIR, DeclaredPathIR,
@@ -508,27 +505,6 @@ def _quote_identifier(value: str) -> str:
     return '"' + value.replace('"', '""') + '"'
 
 
-def _sql_type(declared: LogicalTypeIR) -> SqlType | None:
-    """The SQL shape one declared column type composes to, when it composes to one.
-
-    The declared canonical type is what the relation is asked to hold, because the
-    ingest boundary only widens. Nullability is dropped: an SQL type states no
-    nullity, so ``Array[str | None]`` and ``Array[str]`` are both ``VARCHAR[]``.
-    Two declarations have no SQL type to be cast to and are passed through as the
-    file has them rather than failing the build — a custom scalar, whose values the
-    engine knows nothing of, and a struct, whose members the encoded declaration
-    names only by the struct's own identity, which no module can resolve.
-    """
-    if isinstance(declared, NullableTypeIR):
-        return _sql_type(declared.value)
-    if isinstance(declared, UnitTypeIR):
-        return declared.name
-    if isinstance(declared, ArrayTypeIR):
-        item = _sql_type(declared.item)
-        return None if item is None else ArraySqlType(item)
-    return None
-
-
 def _widened_column(column: DeclaredColumnIR) -> str:
     """One select item of a source view: the declared column, widened in place.
 
@@ -537,7 +513,7 @@ def _widened_column(column: DeclaredColumnIR) -> str:
     reach the column by the name the contract declares.
     """
     name = _quote_identifier(column.name)
-    sql_type = _sql_type(column.logical_type_ir)
+    sql_type = sql_type_for(column.logical_type_ir)
     if sql_type is None:
         return name
     return f"CAST({name} AS {canonical_sql_type(sql_type)}) AS {name}"

@@ -40,7 +40,7 @@
 |---|---|---|---|
 | 1 | Struct identity `(module, qualname)` | — | confirm repeated struct names still occur |
 | 2 | Flat scalar-array properties | — | class creation vs target boundary for `Array[Date]` |
-| 3 | Typed null literals in SQL | — | none |
+| 3 | Topology-typed property columns | — | none |
 | 4 | Optional property slots | 3 | `default=None` vs a separate `optional=` |
 | 5 | String operations | — | none |
 | 6 | `IntExpression.text()` | — | none |
@@ -81,18 +81,23 @@
   array property through JSON and Neo4j; a Neo4j compile refusal for `Array[Date]`.
 - **Gate.** Agree that `Array[Date]` is refused by the target, not by the type declaration.
 
-## Item 3 — A null literal carries its declared type in SQL
+## Item 3 — Property columns are cast to the topology type
 
-- **Why.** A bare `NULL` materializes as an integer and misrepresents the property's schema in
-  Parquet.
-- **Touch.** `engines/duckdb/lowering.py`; `tests/test_typed_literals_sql.py`.
-- **Reference.** `git show 36bc319 -- kg_build_system/engines/duckdb/lowering.py
-  tests/test_typed_literals_sql.py`
-- **Adapt.** This tree lowers through `_text_unit_sql_type` and `canonical_sql_type`; the
-  reference uses `CANONICAL_SQL_TYPES`. Add the typed-null case to the existing mapping rather
-  than pasting the old function.
-- **Prove.** `NullableType(TIME)` becomes `CAST(NULL AS TIME)`; the array variant casts to the
-  item type.
+- **Why.** Topology is the contract. The physical column must not depend on whether an
+  expression happens to be typed or all-null. A bare `NULL` materializes as an integer; a
+  property declared `time | None` must still be a `TIME` column.
+- **Touch.** `modules/core/lowering.py` (cast each property column to the type declared on its
+  target component), `modules/core/core.py` (reuse the existing logical-type-to-SQL helper);
+  tests.
+- **Reference.** `36bc319` fixed the symptom by typing the null literal. This item fixes the
+  boundary instead: the topology declaration is the source of the physical type.
+- **Decisions.**
+  - Cast properties only; build and endpoint keys stay as they are.
+  - Reuse `canonical_sql_type` and the existing `_sql_type` mapping; no target-specific code.
+  - Leave custom and struct types uncast, as the source widening does.
+- **Prove.** An all-null `Time | None` property produces a Parquet `TIME_MICROS` column; an
+  all-null `Array[Date] | None` produces a `DATE` element; a mixed binding still unions; a
+  wrong expression type is still refused at binding creation.
 - **Gate.** None.
 
 ## Item 4 — Optional property slots via PEP 681 `default=None`

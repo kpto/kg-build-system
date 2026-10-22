@@ -521,6 +521,79 @@ class Neo4jTargetTests(unittest.TestCase):
         )
         self.assertEqual(export.component.properties, ("codes",))
 
+    def test_topology_type_survives_an_all_null_property(self) -> None:
+        class TemporalNullInput(Table):
+            identifier: Field[str] = field()
+            recorded: Field[Time | None] = field()
+
+        class TemporalNullNode(Node):
+            recorded: PropertySlot[Time | None] = property()
+
+        binding = node_binding(
+            target=TemporalNullNode,
+            build_key=TemporalNullInput.identifier,
+            properties=TemporalNullNode(recorded=TemporalNullInput.recorded),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / "input.json"
+            data.write_text(
+                json.dumps([{"identifier": "a", "recorded": None}]),
+                encoding="utf-8",
+            )
+            contract = compile(
+                bindings=(binding,),
+                sources=(_bound(TemporalNullInput, data),),
+                modules=(register_module(Neo4jModule),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            path = next((root / "output").rglob("*.parquet"))
+            rows = duckdb.connect().execute(
+                "SELECT name, logical_type, converted_type FROM parquet_schema(?)",
+                [str(path)],
+            ).fetchall()
+
+        recorded = next(row for row in rows if row[0] == "recorded")
+        self.assertIn("TimeType", str(recorded[1]))
+        self.assertEqual(recorded[2], "TIME_MICROS")
+
+    def test_topology_array_shape_survives_an_all_null_property(self) -> None:
+        class CodesNullInput(Table):
+            identifier: Field[str] = field()
+            codes: Field[Array[str] | None] = field()
+
+        class CodesNullNode(Node):
+            codes: PropertySlot[Array[str] | None] = property()
+
+        binding = node_binding(
+            target=CodesNullNode,
+            build_key=CodesNullInput.identifier,
+            properties=CodesNullNode(codes=CodesNullInput.codes),
+        )
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / "input.json"
+            data.write_text(
+                json.dumps([{"identifier": "a", "codes": None}]),
+                encoding="utf-8",
+            )
+            contract = compile(
+                bindings=(binding,),
+                sources=(_bound(CodesNullInput, data),),
+                modules=(register_module(Neo4jModule),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            path = next((root / "output").rglob("*.parquet"))
+            rows = duckdb.connect().execute(
+                "SELECT name, converted_type FROM parquet_schema(?)",
+                [str(path)],
+            ).fetchall()
+
+        self.assertIn(("codes", "LIST"), rows)
+        self.assertIn(("element", "UTF8"), rows)
+
     def test_temporal_array_items_are_refused(self) -> None:
         class DatedInput(Table):
             identifier: Field[str] = field()

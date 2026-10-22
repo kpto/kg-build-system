@@ -11,9 +11,31 @@ from ...expressions.ir import (
     walk_expression_ir,
 )
 from ...table.ir import ProjectionIR as ProjectionDefinition
-from ...types.ir import NullableTypeIR
-from ...engines.duckdb import NULL_GUARD_MACRO, lower_relation_sql
+from ...types.ir import (
+    ArrayTypeIR, LogicalTypeIR, NullableTypeIR, UnitTypeIR,
+)
+from ...engines.duckdb import (
+    NULL_GUARD_MACRO, ArraySqlType, SqlType, canonical_sql_type, lower_relation_sql,
+)
 from ...relational import lower_product
+
+
+def sql_type_for(declared: LogicalTypeIR) -> SqlType | None:
+    """The SQL shape one declared property type composes to, when it composes to one.
+
+    The topology declaration is the contract. Nullability is dropped because an
+    SQL type states no nullity, so ``Time | None`` is ``TIME`` and
+    ``Array[Date] | None`` is ``DATE[]``. A custom scalar has no canonical SQL
+    type, and a struct is not a graph property, so both pass through uncast.
+    """
+    if isinstance(declared, NullableTypeIR):
+        return sql_type_for(declared.value)
+    if isinstance(declared, UnitTypeIR):
+        return declared.name
+    if isinstance(declared, ArrayTypeIR):
+        item = sql_type_for(declared.item)
+        return None if item is None else ArraySqlType(item)
+    return None
 
 
 def expression_sources(expressions) -> set[str]:
@@ -104,12 +126,46 @@ def lower_binding_guard_projection(binding: BindingDefinition) -> str:
     return ", ".join(guarded)
 
 
-def lower_binding_rename_projection(binding: BindingDefinition) -> str:
-    """Rename each raw output to a private name the guards can read unshadowed."""
-    return ", ".join(
-        f"{_quote_identifier(name)} AS {_quote_identifier(_RAW + name)}"
-        for name in binding_outputs(binding)
+def _binding_property_types(
+    graph: BuildBlueprint, binding: BindingDefinition,
+) -> dict[str, LogicalTypeIR]:
+    """The declared types of the properties this binding fills."""
+    component = next(
+        (
+            item for item in graph.components
+            if item.name == binding.component and item.kind == binding.kind
+        ),
+        None,
     )
+    if component is None:
+        return {}
+    return {prop.name: prop.logical_type for prop in component.properties}
+
+
+def lower_binding_rename_projection(
+    binding: BindingDefinition,
+    property_types: Mapping[str, LogicalTypeIR] | None = None,
+) -> str:
+    """Cast each property to its declared type, then rename it for the guards.
+
+    The cast is where topology becomes the physical schema: a nullable property
+    whose every value is null would otherwise lower to an untyped `NULL` column
+    and be materialized as an integer. Keys are not properties and pass through.
+    """
+    declared = property_types or {}
+    items: list[str] = []
+    for name in binding_outputs(binding):
+        column = _quote_identifier(name)
+        raw = _quote_identifier(_RAW + name)
+        logical_type = declared.get(name)
+        sql_type = None if logical_type is None else sql_type_for(logical_type)
+        if sql_type is None:
+            items.append(f"{column} AS {raw}")
+        else:
+            items.append(
+                f"CAST({column} AS {canonical_sql_type(sql_type)}) AS {raw}"
+            )
+    return ", ".join(items)
 
 
 def lower_binding_sql(
@@ -122,11 +178,11 @@ def lower_binding_sql(
     one rule and one code path. An output already proven non-null by construction
     — after ``where_present`` or ``coalesce`` — simply never fires its guard.
     """
-    del graph
+    property_types = _binding_property_types(graph, binding)
     inner = lower_relation_sql(lower_product(binding_outputs(binding), relations))
     return (
         "WITH _kg_named AS ("
-        f"SELECT {lower_binding_rename_projection(binding)} "
+        f"SELECT {lower_binding_rename_projection(binding, property_types)} "
         f"FROM ({inner}) AS _kg_rows"
         ") "
         f"SELECT {lower_binding_guard_projection(binding)} FROM _kg_named"
