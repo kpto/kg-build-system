@@ -123,10 +123,14 @@ NullableType(value)
 `NullableType(T)`. Authors do not use it in declarations. Canonical nullable
 types are flattened and never wrap another `NullableType`.
 
-Graph properties and graph identity keys must be scalar, and every canonical
-scalar above — the four temporal and identifier types included — is usable as
-either. Build and endpoint keys must additionally be non-null. Arrays and
-structs remain valid expression values but cannot be graph properties or keys.
+A graph property is a scalar or a flat, homogeneous array of non-null scalars;
+every canonical scalar above is valid in either position. Build and endpoint
+keys stay non-null scalars, so an array becomes key material only through
+`sorted().join()`. Nested arrays, arrays of structs, and arrays with null items
+are refused at declaration: the first two are expanded or reified, and the third
+is converted explicitly with `without_nulls()`. A target may narrow the item
+types it can carry — Neo4j arrays hold primitives only, so temporal and uuid
+items are refused there at compile.
 
 Exact numerics, instants, durations and binary data are not canonical types:
 `decimal(p, s)`, `instant`, `interval` and `binary` are deferred with their reasons

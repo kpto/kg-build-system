@@ -75,6 +75,10 @@ _RESERVED_PROPERTIES = frozenset({
 _PROPERTY_TYPE_CAPABILITY = frozenset({
     "bool", "int", "float", "str", "date", "time", "timestamp",
 })
+# A LIST column exports as a Neo4j array property; Neo4j arrays hold primitives
+# only (Cypher Manual → "Property values": arrays of numbers, strings,
+# booleans), so temporal and uuid item types are refused.
+_ARRAY_ITEM_CAPABILITY = frozenset({"bool", "int", "float", "str"})
 
 
 def _validate_relative_path(value: str, *, context: str) -> None:
@@ -141,14 +145,24 @@ def _display_logical_type(value: LogicalTypeIR) -> str:
     raise TypeError(f"unsupported logical type {value!r}")
 
 
-def _capability_key(value: LogicalTypeIR) -> str | None:
-    """The canonical unit name a property is exported under, if it has one.
+def _supports_property(value: LogicalTypeIR) -> bool:
+    """Whether this target can export a property of the given logical type.
 
-    Nullability is not a capability question: an absent value simply produces no
-    property on the node or relationship.
+    Nullability is not a capability question: an absent value simply produces
+    no property on the node or relationship. Scalars use the canonical
+    capability set; arrays must have non-null primitive item types (Neo4j
+    arrays hold primitives only, and a null item would be an absent value the
+    array cannot represent).
     """
-    unit = value.value if isinstance(value, NullableTypeIR) else value
-    return unit.name if isinstance(unit, UnitTypeIR) else None
+    base = value.value if isinstance(value, NullableTypeIR) else value
+    if isinstance(base, ArrayTypeIR):
+        item = base.item
+        return (
+            not isinstance(item, NullableTypeIR)
+            and isinstance(item, UnitTypeIR)
+            and item.name in _ARRAY_ITEM_CAPABILITY
+        )
+    return isinstance(base, UnitTypeIR) and base.name in _PROPERTY_TYPE_CAPABILITY
 
 
 def _validate_properties(component: ComponentIR) -> tuple[str, ...]:
@@ -165,13 +179,16 @@ def _validate_properties(component: ComponentIR) -> tuple[str, ...]:
                 f"component {component.name!r} property {name!r} cannot be encoded "
                 "as an inline Neo4j import header"
             )
-        if _capability_key(declaration.logical_type) not in _PROPERTY_TYPE_CAPABILITY:
+        if not _supports_property(declaration.logical_type):
             supported = ", ".join(sorted(_PROPERTY_TYPE_CAPABILITY))
+            arrays = ", ".join(
+                f"Array[{name}]" for name in sorted(_ARRAY_ITEM_CAPABILITY)
+            )
             raise ValueError(
                 f"neo4j target cannot export {component.kind} component "
                 f"{component.name!r} property {name!r} of type "
                 f"{_display_logical_type(declaration.logical_type)!r}; it exports "
-                f"these canonical property types: {supported}"
+                f"these canonical property types: {supported}, and arrays: {arrays}"
             )
         names.append(name)
     return tuple(names)

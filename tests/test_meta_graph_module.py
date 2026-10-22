@@ -352,14 +352,24 @@ class EffectiveTopologyTests(unittest.TestCase):
             [("summary", "str | None", True), ("name", "str", False)],
         )
 
-    def test_graph_properties_are_scalar_so_types_stay_bounded(self) -> None:
+    def test_graph_properties_are_scalar_or_flat_scalar_arrays(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be a scalar"):
             class StructuredNode(Node):
                 location: PropertySlot[Place | None] = property()  # type: ignore[valid-type]
 
-        with self.assertRaisesRegex(TypeError, "must be a scalar"):
-            class ArrayNode(Node):
-                codes: PropertySlot[Array[str]] = property()  # type: ignore[valid-type]
+        with self.assertRaisesRegex(TypeError, "require scalar items"):
+            class NestedArrayNode(Node):
+                codes: PropertySlot[Array[Array[str]]] = property()  # type: ignore[valid-type]
+
+        with self.assertRaisesRegex(TypeError, "require non-null items"):
+            class NullableItemNode(Node):
+                codes: PropertySlot[Array[str | None]] = property()  # type: ignore[valid-type]
+
+        class ScalarArrayNode(Node):
+            codes: PropertySlot[Array[str]] = property()
+
+        declaration = ScalarArrayNode._properties["codes"]
+        self.assertEqual(declaration.logical_type, ArrayType(STR))
 
     def test_step_waits_on_every_effective_graph_record_artifact(self) -> None:
         with tempfile.TemporaryDirectory() as directory:

@@ -16,6 +16,7 @@ from kg_build_system import (
     field, node_binding, projection_field, property,
 )
 from kg_build_system._frozen_json import freeze_json
+from kg_build_system.types import Date
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration,
     MergeCompatibleFactsModule, register_module,
@@ -459,6 +460,86 @@ class FileTargetPropertyEncodingTests(unittest.TestCase):
                     (root / "graph.jsonl").read_text(encoding="utf-8"), "",
                     "the record is refused rather than stringified",
                 )
+
+
+class ArrayPropertyTests(unittest.TestCase):
+    """A flat, non-null scalar array is a first-class graph property."""
+
+    def test_flat_scalar_array_builds_to_a_json_property(self) -> None:
+        class TaggedNode(Node):
+            codes: PropertySlot[Array[str]] = property()
+            optional_codes: PropertySlot[Array[str] | None] = property()
+
+        class Tagged(Table):
+            identifier: Field[str] = field()
+            codes: Field[Array[str]] = field()
+            optional_codes: Field[Array[str] | None] = field()
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_path = root / "tagged.json"
+            source_path.write_text(json.dumps([
+                {"identifier": "a", "codes": ["x", "y"], "optional_codes": None},
+                {"identifier": "b", "codes": ["z"], "optional_codes": ["p", "q"]},
+            ]), encoding="utf-8")
+            source = bind_source(
+                target=Tagged,
+                config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
+            )
+            binding = node_binding(
+                target=TaggedNode,
+                build_key=Tagged.identifier,
+                properties=TaggedNode(
+                    codes=Tagged.codes,
+                    optional_codes=Tagged.optional_codes,
+                ),
+            )
+            contract = compile(
+                bindings=(binding,),
+                sources=(source,),
+                modules=(register_module(
+                    FileModule, FileModuleConfiguration("graph.jsonl"),
+                ),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            rows = {
+                row["build_key"]: row
+                for row in (
+                    json.loads(line)
+                    for line in (root / "output" / "graph.jsonl")
+                    .read_text(encoding="utf-8").splitlines()
+                )
+            }
+
+        self.assertEqual(rows["a"]["codes"], ["x", "y"])
+        self.assertIsNone(rows["a"]["optional_codes"])
+        self.assertEqual(rows["b"]["codes"], ["z"])
+        self.assertEqual(rows["b"]["optional_codes"], ["p", "q"])
+
+    def test_nested_array_property_is_refused(self) -> None:
+        with self.assertRaisesRegex(TypeError, "require scalar items"):
+            class Nested(Node):
+                codes: PropertySlot[Array[Array[str]]] = property()  # type: ignore[valid-type]
+
+    def test_struct_array_property_is_refused(self) -> None:
+        with self.assertRaisesRegex(TypeError, "require scalar items"):
+            class Structured(Node):
+                evidence: PropertySlot[Array[LoweringEvidence]] = property()
+
+    def test_nullable_array_items_are_refused(self) -> None:
+        with self.assertRaisesRegex(TypeError, "require non-null items"):
+            class NullableItems(Node):
+                codes: PropertySlot[Array[str | None]] = property()
+
+    def test_temporal_array_items_are_a_legal_declaration(self) -> None:
+        from kg_build_system.types import ArrayType, UnitType
+
+        class TemporalItems(Node):
+            dates: PropertySlot[Array[Date]] = property()
+
+        declaration = TemporalItems._properties["dates"]
+        self.assertEqual(declaration.logical_type, ArrayType(UnitType("date")))
 
 
 if __name__ == "__main__":

@@ -13,6 +13,7 @@ from typing import cast
 import duckdb
 
 from kg_build_system import (
+    Array,
     DataSourceConfig,
     Edge,
     EdgeLabel,
@@ -495,6 +496,56 @@ class Neo4jTargetTests(unittest.TestCase):
         self.assertIn("property 'token'", message)
         self.assertIn("of type 'uuid'", message)
         self.assertIn("bool, date, float, int, str, time, timestamp", message)
+
+    def test_flat_scalar_arrays_are_exported(self) -> None:
+        class CodesInput(Table):
+            identifier: Field[str] = field()
+            codes: Field[Array[str]] = field()
+
+        class CodesNode(Node):
+            codes: PropertySlot[Array[str]] = property()
+
+        binding = node_binding(
+            target=CodesNode,
+            build_key=CodesInput.identifier,
+            properties=CodesNode(codes=CodesInput.codes),
+        )
+        contract = compile(
+            bindings=(binding,),
+            sources=(_bound(CodesInput, Path("input.json")),),
+            modules=(register_module(Neo4jModule),),
+        )
+        export = next(
+            item for item in _export_instructions(contract)
+            if item.component.kind == "node"
+        )
+        self.assertEqual(export.component.properties, ("codes",))
+
+    def test_temporal_array_items_are_refused(self) -> None:
+        class DatedInput(Table):
+            identifier: Field[str] = field()
+            dates: Field[Array[Date]] = field()
+
+        class DatedNode(Node):
+            dates: PropertySlot[Array[Date]] = property()
+
+        binding = node_binding(
+            target=DatedNode,
+            build_key=DatedInput.identifier,
+            properties=DatedNode(dates=DatedInput.dates),
+        )
+        with self.assertRaises(ValueError) as raised:
+            compile(
+                bindings=(binding,),
+                sources=(_bound(DatedInput, Path("input.json")),),
+                modules=(register_module(Neo4jModule),),
+            )
+        message = str(raised.exception)
+        self.assertIn("of type 'Array[date]'", message)
+        self.assertIn(
+            "arrays: Array[bool], Array[float], Array[int], Array[str]",
+            message,
+        )
 
     def test_uuid_property_on_an_edge_names_the_edge_component(self) -> None:
         with self.assertRaises(ValueError) as raised:

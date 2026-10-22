@@ -9,10 +9,19 @@ from .._support.docstrings import attribute_docstring
 from .._support.naming import declaration_name, member_name
 from ..annotations import Annotation, EdgeLabel, NodeLabel, annotation_tuple
 from ..expressions import NullableAuthoringInput, ValueInput
-from ..types import CustomDataType, Date, LogicalType, Time, Timestamp, Uuid, normalize_type, require_scalar
+from ..types import (
+    Array, CustomDataType, Date, LogicalType, Time, Timestamp, Uuid,
+    normalize_type, require_graph_property,
+)
 
-type GraphValue = bool | int | float | str | Date | Time | Timestamp | Uuid | CustomDataType | None
-type NonNullableGraphValue = bool | int | float | str | Date | Time | Timestamp | Uuid | CustomDataType
+type GraphScalar = bool | int | float | str | Date | Time | Timestamp | Uuid | CustomDataType
+# A graph property may also be a flat, homogeneous list of non-null scalars —
+# the array-property shape JSON and Neo4j both store natively. Keys stay scalar
+# (`NonNullableGraphValue`); nullable items must be converted first with
+# ``without_nulls()``.
+type GraphArray = Array[GraphScalar]
+type GraphValue = GraphScalar | GraphArray | None
+type NonNullableGraphValue = GraphScalar
 T = TypeVar("T", bound=GraphValue)
 
 # The public slot type describes accepted values. Declaration metadata remains
@@ -58,7 +67,7 @@ def properties_for(cls: type[Any]) -> dict[str, _PropertyDeclaration[Any]]:
         if len(arguments) != 1:
             raise TypeError(f"{cls.__name__}.{attribute} must be annotated as PropertySlot[T]")
         authoring_type = arguments[0]
-        logical_type = require_scalar(
+        logical_type = require_graph_property(
             normalize_type(authoring_type), context=f"{cls.__name__}.{attribute}"
         )
         object.__setattr__(declaration, "authoring_type", authoring_type)
