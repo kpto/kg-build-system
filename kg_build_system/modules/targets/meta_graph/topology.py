@@ -6,7 +6,7 @@ from typing import Any
 
 from ....binding.ir import EdgeBindingIR
 from ....compile.models import BuildBlueprint
-from ....table.ir import StructIR
+from ....table.ir import StructIR, struct_type_key
 from ....topology.ir import ComponentIR
 from ....types.ir import (
     ArrayTypeIR,
@@ -24,21 +24,6 @@ from .ir import (
     MetaGraphEndpointIR,
     MetaGraphPropertyIR,
 )
-
-_STRUCT_SYMBOL_PREFIX = "python:struct:"
-
-
-def _struct_key(struct: StructIR) -> tuple[str, str] | None:
-    """Recover the ``(module, qualname)`` identity a struct type refers to.
-
-    A ``StructTypeIR`` names a struct by module and qualified name, and the
-    blueprint stores that same identity only inside the struct's symbol ID.
-    """
-    if not struct.symbol_id.startswith(_STRUCT_SYMBOL_PREFIX):
-        return None
-    module, _, qualname = struct.symbol_id[len(_STRUCT_SYMBOL_PREFIX):].partition(":")
-    return (module, qualname) if module and qualname else None
-
 
 def display_type(value: LogicalTypeIR) -> str:
     """Render a logical type in the author-facing declaration vocabulary."""
@@ -153,7 +138,7 @@ def component_entries(
     structs = {
         key: struct
         for struct in blueprint.structs
-        if (key := _struct_key(struct)) is not None
+        if (key := struct_type_key(struct)) is not None
     }
     by_symbol = {item.symbol_id: item for item in blueprint.components}
     name_by_symbol = {item.symbol_id: item.name for item in blueprint.components}

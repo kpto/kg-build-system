@@ -14,6 +14,7 @@ from ..types.ir import (
     StructTypeIR as StructType,
 )
 from ..binding.ir import EdgeBindingIR as EdgeBindingDefinition
+from ..table.ir import struct_type_key
 from .models import BLUEPRINT_SCHEMA_VERSION, BuildBlueprint
 
 
@@ -37,7 +38,14 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
         raise ValueError("blueprints require at least one graph binding")
 
     _unique((item.symbol_id for item in (*blueprint.structs, *blueprint.tables, *blueprint.components, *blueprint.projections, *blueprint.bindings, *blueprint.sources)), "blueprint symbol IDs")
-    _unique((item.name for item in blueprint.structs), "struct names")
+    _unique(
+        (
+            f"{key[0]}::{item.name}"
+            for item in blueprint.structs
+            if (key := struct_type_key(item)) is not None
+        ),
+        "struct names within a module",
+    )
     _unique((item.name for item in blueprint.tables), "table names")
     _unique((item.name for item in blueprint.components), "component names")
     _unique((item.name for item in blueprint.projections), "projection names")

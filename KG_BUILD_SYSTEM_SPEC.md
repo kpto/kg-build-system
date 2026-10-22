@@ -536,9 +536,11 @@ definitions for:
 - source bindings;
 - configured workflow modules.
 
-Definitions use stable symbol IDs and logical names. The blueprint contains no
-Python class objects or authoring domain objects. Its JSON codec is
-deterministic and round-trippable.
+Definitions use stable symbol IDs and logical names. Struct identity is the
+`(module, qualname)` pair that `StructType` carries; the logical name is display,
+so same-named structs from different modules are distinct declarations. The
+blueprint contains no Python class objects or authoring domain objects. Its JSON
+codec is deterministic and round-trippable.
 
 Compilation IRs live in each owning domain's `ir.py`; they are not exported
 from the root authoring API. Domain models never retain IR instances. Mapping

@@ -26,6 +26,23 @@ class StructIR:
     annotations: tuple[AnnotationIR, ...] = ()
 
 
+_STRUCT_SYMBOL_PREFIX = "python:struct:"
+
+
+def struct_type_key(struct: StructIR) -> tuple[str, str] | None:
+    """Recover the ``(module, qualname)`` identity a struct type refers to.
+
+    A ``StructTypeIR`` names a struct by module and qualified name, and the
+    blueprint stores that same identity only inside the struct's symbol ID.
+    Two modules may declare same-named structs — names are display, identity
+    is this pair — so struct declarations are never resolved by name alone.
+    """
+    if not struct.symbol_id.startswith(_STRUCT_SYMBOL_PREFIX):
+        return None
+    module, _, qualname = struct.symbol_id[len(_STRUCT_SYMBOL_PREFIX):].partition(":")
+    return (module, qualname) if module and qualname else None
+
+
 @dataclass(frozen=True, slots=True)
 class TableIR:
     symbol_id: str
@@ -70,4 +87,5 @@ __all__ = [
     "SourceIR",
     "StructIR",
     "TableIR",
+    "struct_type_key",
 ]
