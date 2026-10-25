@@ -42,7 +42,7 @@
 | 2 | Flat scalar-array properties | — | class creation vs target boundary for `Array[Date]` |
 | 3 | Topology-typed property columns | — | none |
 | 4 | String operations | — | none |
-| 5 | `IntExpression.text()` | — | none |
+| 5 | `to_string()` on the base scalar expression | — | none |
 | 6 | Array operations | 2, 3 | set semantics and `join` input rule |
 | 7 | `keep_if` row predicate | 4 | `FilterIR.mode` naming |
 | 8 | Merge-module component scope | — | default scope and the missing folding test |
@@ -114,13 +114,16 @@
   preservation, a missing occurrence, and empty-separator / non-positive-occurrence refusals.
 - **Gate.** None.
 
-## Item 5 — `IntExpression.text()`
+## Item 5 — `to_string()` on the base scalar expression
 
-- **Why.** A numeric member can compose a string key without a per-project formatting rule.
-- **Touch.** `expressions/numeric.py`; `engines/duckdb/lowering.py` (`CAST AS VARCHAR`); spec;
-  tests.
+- **Why.** Any scalar member can compose text key material without a per-project formatting
+  rule. Putting it on `ValueExpression` gives bool, int, float, str, date, time, timestamp and
+  uuid one operation; timestamp uses the framework's `T` separator, not DuckDB's space.
+- **Touch.** `expressions/values.py`; `engines/duckdb/lowering.py`; spec; tests.
 - **Reference.** `git show 36bc319 -- kg_build_system/expressions/numeric.py`
-- **Prove.** `IntTextCastTests` with `NumericKeyTable` / `NumericKeyNode`.
+  The reference puts `text()` on `IntExpression`; this tree puts `to_string()` on the base expression.
+- **Prove.** Each scalar unit stringifies; a nullable scalar returns a nullable text
+  expression; arrays and structs are refused; timestamp text matches the canonical `T` form.
 - **Gate.** None.
 
 ## Item 6 — Array operations

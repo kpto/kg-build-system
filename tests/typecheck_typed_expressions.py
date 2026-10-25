@@ -15,6 +15,8 @@ assert_type(integer.add(2).sub(1), IntExpression)
 
 text = StrExpression(literal("value"))
 assert_type(text.prepend("[").append("]"), StrExpression)
+assert_type(text.to_string(), StrExpression)
+assert_type(integer.to_string(), StrExpression)
 assert_type(text.equals("value"), BoolExpression)
 assert_type(text.replace(":", "_"), StrExpression)
 assert_type(text.before_separator(":", 2), StrExpression)
@@ -37,6 +39,9 @@ nullable_selection = cast(
 )
 assert_type(nullable_selection.default_to(0).expression.add(1), IntExpression)
 assert_type(nullable_selection.where_present().expression.sub(1), IntExpression)
+assert_type(
+    nullable_expression.to_string(), NullableExpression[str, StrExpression],
+)
 
 text_selection = select_expression(text)
 assert_type(text_selection.expression.before_separator(":"), StrExpression)

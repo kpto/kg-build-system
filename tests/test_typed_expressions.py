@@ -190,6 +190,39 @@ class TypedExpressionTests(unittest.TestCase):
         self.assertEqual(selected.expression.model.path, ("details", "label"))
 
 
+class TextOperationTests(unittest.TestCase):
+    def test_text_is_available_on_every_scalar_unit(self) -> None:
+        values = (
+            True,
+            12,
+            1.5,
+            "text",
+            date(2026, 7, 14),
+            time(6, 15),
+            datetime(2026, 7, 14, 6, 15),
+            uuid.UUID("2f8a1c6e-9b4d-4a53-8f1a-6c0d2e4b8a91"),
+        )
+        for value in values:
+            with self.subTest(value=value):
+                self.assertIsInstance(
+                    value_expression(value).to_string(), StrExpression,
+                )
+
+    def test_text_records_the_operation(self) -> None:
+        expression = value_expression(12).to_string()
+        self.assertEqual(expression.model.operator, "to_string")
+
+    def test_text_keeps_nullability(self) -> None:
+        nullable = NullableExpression(
+            literal(None, logical_type=NullableType(INT)), IntExpression,
+        )
+        self.assertIsInstance(nullable.to_string(), NullableExpression)
+
+    def test_text_refuses_non_scalar_values(self) -> None:
+        with self.assertRaisesRegex(TypeError, "scalar unit"):
+            value_expression([1, 2]).to_string()
+
+
 class StringOperationTests(unittest.TestCase):
     def test_equals_produces_a_boolean_predicate(self) -> None:
         predicate = value_expression("target").equals("target")

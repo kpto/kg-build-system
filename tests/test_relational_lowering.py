@@ -574,6 +574,21 @@ class ArrayPropertyTests(unittest.TestCase):
 
 
 class SeparatorOperationTests(unittest.TestCase):
+    def test_text_lowers_scalars_to_canonical_sql(self) -> None:
+        integer_sql = lower_relation_sql(lower_product(
+            {"value": value_expression(12).to_string().model}, {},
+        ))
+        self.assertRegex(integer_sql, r"CAST\(12 AS (TEXT|VARCHAR)\)")
+
+        timestamp_sql = lower_relation_sql(lower_product(
+            {"value": value_expression(
+                datetime.datetime(2026, 7, 14, 6, 15),
+            ).to_string().model}, {},
+        ))
+        self.assertIn("REPLACE(CAST(", timestamp_sql)
+        self.assertIn("' '", timestamp_sql)
+        self.assertIn("'T'", timestamp_sql)
+
     def test_equals_lowers_to_a_boolean_comparison(self) -> None:
         expression = value_expression("target").equals("target")
         sql = lower_relation_sql(lower_product({"value": expression.model}, {}))

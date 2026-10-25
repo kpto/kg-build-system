@@ -239,6 +239,12 @@ StructExpression         bindable struct value
 NullableExpression       bindable nullable value
 ```
 
+Every canonical scalar expression carries `to_string()`, which renders it for key
+material: bool, int, float, str, date, time, timestamp and uuid. Timestamps use
+the framework's `T` separator; the other units use DuckDB's canonical cast.
+Arrays and structs have no single text form and are refused. A nullable scalar
+yields a nullable text expression; null policy stays at the selection.
+
 The separator reader takes a separator and an optional 1-based occurrence:
 `before_separator(separator, occurrence=1)` returns the text before that
 appearance (the whole string when it does not appear), and

@@ -112,6 +112,27 @@ def _render(expression, context: _Context) -> Any:
         return exp.EQ(this=arguments[0], expression=arguments[1])
     if expression.operator == "replace":
         return exp.Anonymous(this="replace", expressions=list(arguments))
+    if expression.operator == "to_string":
+        if not arguments:
+            raise ValueError("to_string requires one argument")
+        source_type = expression.arguments[0].logical_type
+        base = (
+            source_type.value
+            if isinstance(source_type, NullableTypeIR) else source_type
+        )
+        rendered = exp.Cast(
+            this=arguments[0], to=exp.DataType.build("VARCHAR"),
+        )
+        if isinstance(base, UnitTypeIR) and base.name == "timestamp":
+            return exp.Anonymous(
+                this="replace",
+                expressions=[
+                    rendered,
+                    exp.Literal.string(" "),
+                    exp.Literal.string("T"),
+                ],
+            )
+        return rendered
     if expression.operator in {"before_separator", "after_separator"}:
         if len(arguments) != 2:
             raise ValueError(f"{expression.operator} requires two arguments")
