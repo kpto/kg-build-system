@@ -16,6 +16,7 @@ from kg_build_system import (
     field, node_binding, projection_field, property,
 )
 from kg_build_system._frozen_json import freeze_json
+from kg_build_system.expressions import value_expression
 from kg_build_system.types import Date
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration,
@@ -570,6 +571,115 @@ class ArrayPropertyTests(unittest.TestCase):
             if name.startswith("binding.")
         )
         self.assertIn('CAST("dates" AS DATE[]) AS "_kg_raw_dates"', binding_sql)
+
+
+class SeparatorOperationTests(unittest.TestCase):
+    def test_equals_lowers_to_a_boolean_comparison(self) -> None:
+        expression = value_expression("target").equals("target")
+        sql = lower_relation_sql(lower_product({"value": expression.model}, {}))
+        self.assertIn("'target' = 'target'", sql)
+
+    def test_before_and_after_take_the_nth_separator(self) -> None:
+        class XrefNode(Node):
+            label: PropertySlot[str] = property()
+
+        class Xref(Table):
+            identifier: Field[str] = field()
+            reference: Field[str] = field()
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_path = root / "xrefs.json"
+            source_path.write_text(json.dumps([
+                {"identifier": "1", "reference": "Wikipedia:Neural:Migration"},
+                {"identifier": "2", "reference": "OMIM:123456"},
+            ]), encoding="utf-8")
+            source = bind_source(
+                target=Xref,
+                config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
+            )
+            before = Xref.reference.expression.before_separator(":", 2)
+            after = Xref.reference.expression.after_separator(":", 2)
+            binding = node_binding(
+                target=XrefNode,
+                build_key=before.append("|").append(after),
+                properties=XrefNode(
+                    label=Xref.reference.expression.replace(":", "_"),
+                ),
+            )
+            contract = compile(
+                bindings=(binding,),
+                sources=(source,),
+                modules=(register_module(
+                    FileModule, FileModuleConfiguration("graph.jsonl"),
+                ),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            rows = {
+                row["build_key"]: row["label"]
+                for row in (
+                    json.loads(line)
+                    for line in (root / "output" / "graph.jsonl")
+                    .read_text(encoding="utf-8").splitlines()
+                )
+            }
+
+        self.assertEqual(
+            rows,
+            {
+                "Wikipedia:Neural|Migration": "Wikipedia_Neural_Migration",
+                "OMIM:123456|": "OMIM_123456",
+            },
+        )
+
+    def test_include_separator_preserves_the_cut_separator(self) -> None:
+        class XrefNode(Node):
+            left: PropertySlot[str] = property()
+            right: PropertySlot[str] = property()
+
+        class Xref(Table):
+            identifier: Field[str] = field()
+            reference: Field[str] = field()
+
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_path = root / "xrefs.json"
+            source_path.write_text(json.dumps([
+                {"identifier": "1", "reference": "Wikipedia:Neural:Migration"},
+            ]), encoding="utf-8")
+            source = bind_source(
+                target=Xref,
+                config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
+            )
+            binding = node_binding(
+                target=XrefNode,
+                build_key=Xref.identifier,
+                properties=XrefNode(
+                    left=Xref.reference.expression.before_separator(
+                        ":", 1, include_separator=True,
+                    ),
+                    right=Xref.reference.expression.after_separator(
+                        ":", 1, include_separator=True,
+                    ),
+                ),
+            )
+            contract = compile(
+                bindings=(binding,),
+                sources=(source,),
+                modules=(register_module(
+                    FileModule, FileModuleConfiguration("graph.jsonl"),
+                ),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            row = json.loads(
+                (root / "output" / "graph.jsonl")
+                .read_text(encoding="utf-8").splitlines()[0]
+            )
+
+        self.assertEqual(row["left"], "Wikipedia:")
+        self.assertEqual(row["right"], ":Neural:Migration")
 
 
 if __name__ == "__main__":

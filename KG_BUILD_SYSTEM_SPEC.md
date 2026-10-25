@@ -230,13 +230,23 @@ Bindable expression families expose calculation operations only:
 ```text
 IntExpression            add, sub
 FloatExpression          add, sub
-StrExpression            prepend, append
+StrExpression            prepend, append, equals, replace,
+                         before_separator, after_separator
 BoolExpression           not_, and_, or_
 CustomDataTypeExpression bindable custom scalar
 ArrayExpression          bindable array value
 StructExpression         bindable struct value
 NullableExpression       bindable nullable value
 ```
+
+The separator reader takes a separator and an optional 1-based occurrence:
+`before_separator(separator, occurrence=1)` returns the text before that
+appearance (the whole string when it does not appear), and
+`after_separator(separator, occurrence=1)` returns the text after it, keeping
+later separators (the empty string when it does not appear). The separator at
+the cut is excluded by default; `include_separator=True` keeps it on the result
+side. `equals` yields a Boolean predicate; `replace` replaces every literal
+occurrence of its search text.
 
 Calculations preserve the most specific useful expression family:
 

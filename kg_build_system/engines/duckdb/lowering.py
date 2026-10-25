@@ -108,6 +108,67 @@ def _render(expression, context: _Context) -> Any:
         return exp.Sub(this=arguments[0], expression=arguments[1])
     if expression.operator == "concat":
         return exp.Anonymous(this="concat", expressions=list(arguments))
+    if expression.operator == "equals":
+        return exp.EQ(this=arguments[0], expression=arguments[1])
+    if expression.operator == "replace":
+        return exp.Anonymous(this="replace", expressions=list(arguments))
+    if expression.operator in {"before_separator", "after_separator"}:
+        if len(arguments) != 2:
+            raise ValueError(f"{expression.operator} requires two arguments")
+        side = (
+            "before" if expression.operator == "before_separator" else "after"
+        )
+        occurrence = _parameter(expression, "occurrence")
+        include_separator = _parameter(expression, "include_separator")
+        if not isinstance(occurrence, int) or occurrence < 1:
+            raise ValueError(
+                f"{expression.operator} occurrence must be a positive integer"
+            )
+        if not isinstance(include_separator, bool):
+            raise ValueError(
+                f"{expression.operator} include_separator must be a Boolean"
+            )
+
+        def split() -> Any:
+            return exp.Anonymous(
+                this="string_split",
+                expressions=[arguments[0].copy(), arguments[1].copy()],
+            )
+
+        sliced = exp.Anonymous(
+            this="list_slice",
+            expressions=[
+                split(),
+                exp.Literal.number(1 if side == "before" else occurrence + 1),
+                exp.Literal.number(occurrence if side == "before" else -1),
+            ],
+        )
+        base = exp.Anonymous(
+            this="array_to_string",
+            expressions=[sliced, arguments[1].copy()],
+        )
+        if not include_separator:
+            return base
+        present = exp.GT(
+            this=exp.Anonymous(this="len", expressions=[split()]),
+            expression=exp.Literal.number(occurrence),
+        )
+        separator = arguments[1].copy()
+        if side == "before":
+            suffix = exp.Case(
+                ifs=[exp.If(this=present, true=separator)],
+                default=exp.Literal.string(""),
+            )
+            return exp.Anonymous(
+                this="concat", expressions=[base, suffix],
+            )
+        joined = exp.Anonymous(
+            this="concat", expressions=[separator, base],
+        )
+        return exp.Case(
+            ifs=[exp.If(this=present, true=joined)],
+            default=exp.Literal.string(""),
+        )
     if expression.operator == "coalesce":
         return exp.Coalesce(this=arguments[0], expressions=list(arguments[1:]))
     if expression.operator == "not":

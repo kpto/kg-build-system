@@ -41,13 +41,12 @@
 | 1 | Struct identity `(module, qualname)` | — | confirm repeated struct names still occur |
 | 2 | Flat scalar-array properties | — | class creation vs target boundary for `Array[Date]` |
 | 3 | Topology-typed property columns | — | none |
-| 4 | Optional property slots | 3 | `default=None` vs a separate `optional=` |
-| 5 | String operations | — | none |
-| 6 | `IntExpression.text()` | — | none |
-| 7 | Array operations | 2, 3 | set semantics and `join` input rule |
-| 8 | `keep_if` row predicate | 5 | `FilterIR.mode` naming |
-| 9 | Merge-module component scope | — | default scope and the missing folding test |
-| 10 | Meta-graph array examples | 2 | none |
+| 4 | String operations | — | none |
+| 5 | `IntExpression.text()` | — | none |
+| 6 | Array operations | 2, 3 | set semantics and `join` input rule |
+| 7 | `keep_if` row predicate | 4 | `FilterIR.mode` naming |
+| 8 | Merge-module component scope | — | default scope and the missing folding test |
+| 9 | Meta-graph array examples | 2 | none |
 
 ## Item 1 — Struct identity is `(module, qualname)`
 
@@ -100,33 +99,22 @@
   wrong expression type is still refused at binding creation.
 - **Gate.** None.
 
-## Item 4 — Optional property slots via PEP 681 `default=None`
+## Item 4 — String operations
 
-- **Why.** A binding promises every slot its component resolves. A category needs to mark a
-  property that some members legitimately do not state.
-- **Touch.** `topology/models.py` (`_PropertyDeclaration.optional`, `property(default=...)`,
-  validation), `binding/factories.py` (bind a typed null for an optional nullable slot).
-- **Reference.** `git show 36bc319 -- kg_build_system/topology/models.py
-  kg_build_system/binding/factories.py tests/test_topology_hierarchy.py
-  tests/typecheck_topology_hierarchy.py`
-- **Depends on.** Item 3.
-- **Prove.** `InheritedSlotOptionalityTests`; typecheck fixtures `TermCategory`, `BareTerm`,
-  `NamedTerm` proving the checker accepts one omission and rejects another.
-- **Gate.** Confirm `property(default=None)` is the authoring surface you want, rather than a
-  separate `optional=True`.
-
-## Item 5 — String operations
-
-- **Why.** Identifier pairs and CURIE normalization: `equals` for predicates, `replaced` for
-  `HP:`/`HP_`, `split_before`/`split_after` for `Source:id`.
+- **Why.** Identifier pairs and CURIE normalization: `equals` for predicates, `replace` for
+  `HP:`/`HP_`, and `before_separator`/`after_separator` for `Source:id`. The separator methods
+  take a 1-based occurrence, so the first, second or later separator can be the cut point; the
+  cut separator is excluded by default and `include_separator=True` keeps it.
 - **Touch.** `expressions/text.py`; `engines/duckdb/lowering.py`; spec; tests.
 - **Reference.** `git show 36bc319 -- kg_build_system/expressions/text.py
   kg_build_system/engines/duckdb/lowering.py`
-- **Prove.** `test_string_equality_produces_a_boolean_predicate`; `BooleanPredicateTests`;
-  split and replace cases.
+  The reference names are `replaced`, `split_before` and `split_after`; this tree uses
+  `replace`, `before_separator` and `after_separator`.
+- **Prove.** Boolean equality, replacement, nth-occurrence cuts on each side, separator
+  preservation, a missing occurrence, and empty-separator / non-positive-occurrence refusals.
 - **Gate.** None.
 
-## Item 6 — `IntExpression.text()`
+## Item 5 — `IntExpression.text()`
 
 - **Why.** A numeric member can compose a string key without a per-project formatting rule.
 - **Touch.** `expressions/numeric.py`; `engines/duckdb/lowering.py` (`CAST AS VARCHAR`); spec;
@@ -135,7 +123,7 @@
 - **Prove.** `IntTextCastTests` with `NumericKeyTable` / `NumericKeyNode`.
 - **Gate.** None.
 
-## Item 7 — Array operations
+## Item 6 — Array operations
 
 - **Why.** `map_items` projects a struct member without fanning out rows; `without_nulls` makes
   an item array a legal property; `sorted`, `distinct` and `join` make order-independent,
@@ -150,7 +138,7 @@
 - **Gate.** Confirm `distinct` keeps one copy per item and `join` refuses nullable/non-string
   items.
 
-## Item 8 — `keep_if(predicate)`
+## Item 7 — `keep_if(predicate)`
 
 - **Why.** A projection sometimes drops rows without altering a sibling product. `where_present`
   tests presence; `keep_if` holds a predicate true.
@@ -160,12 +148,12 @@
   kg_build_system/relational/ir.py kg_build_system/relational/planner.py`
 - **Adapt.** `RowSemantics("filter")` already exists in this tree; only the planner's filter mode
   is new.
-- **Depends on.** Item 5.
+- **Depends on.** Item 4.
 - **Prove.** `test_keep_if_filters_rows_and_retains_the_family` (family preserved, mode
   `filter`, non-Boolean refused); combined SQL with `where_present`.
 - **Gate.** Confirm `mode: Literal["present", "true"]` is the representation you want.
 
-## Item 9 — Merge module takes a component scope
+## Item 8 — Merge module takes a component scope
 
 - **Why.** Merging folds same-key rows with `min()` per column, which is only sound for
   components whose parallel rows are one fact. Edge families that keep parallel facts must stay
@@ -180,7 +168,7 @@
     duplicate keys.
 - **Gate.** Confirm the default and name the two components for the test.
 
-## Item 10 — Meta-graph examples survive array values
+## Item 9 — Meta-graph examples survive array values
 
 - **Why.** An array example is a list, so `dict.fromkeys` raises as soon as any component has an
   array property.
@@ -194,6 +182,12 @@
 
 ## Not in this rerun
 
+- **Optional property slots** (`property(default=None)`). A declaration-level optional flag and a
+  binding-level typed null produce the same graph records. The flag hides the distinction the
+  model is meant to record: whether a member lacks the property or a binding supplies a null. A
+  binding states a null explicitly with `literal(None, logical_type=...)`; a property that is not
+  part of a member's concept belongs on a `NodeTemplate` mixin. The reference's flag stops at the
+  binding factory and never reaches the blueprint or meta-graph, so it is not a recorded semantic.
 - **Reference Item 11** (`assembly_preference="deferred"` removal). It belonged to the old
   `WorkflowStepDraft` claim order. In the shipped assembler `assembly_preference` is a live
   `WorkflowStep` field and an input to `_derive_ranks`; the report step still sets it at

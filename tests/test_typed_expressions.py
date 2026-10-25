@@ -190,5 +190,48 @@ class TypedExpressionTests(unittest.TestCase):
         self.assertEqual(selected.expression.model.path, ("details", "label"))
 
 
+class StringOperationTests(unittest.TestCase):
+    def test_equals_produces_a_boolean_predicate(self) -> None:
+        predicate = value_expression("target").equals("target")
+        self.assertIsInstance(predicate, BoolExpression)
+        self.assertEqual(predicate.model.operator, "equals")
+
+    def test_replace_records_the_operation(self) -> None:
+        replaced = value_expression("HP:0000118").replace(":", "_")
+        self.assertIsInstance(replaced, StrExpression)
+        self.assertEqual(replaced.model.operator, "replace")
+
+    def test_separator_operations_record_occurrence(self) -> None:
+        before = value_expression("a:b:c").before_separator(":", 2)
+        after = value_expression("a:b:c").after_separator(":", 3)
+        kept = value_expression("a:b:c").after_separator(
+            ":", 1, include_separator=True,
+        )
+        for expression, operator, occurrence, include in (
+            (before, "before_separator", 2, False),
+            (after, "after_separator", 3, False),
+            (kept, "after_separator", 1, True),
+        ):
+            self.assertIsInstance(expression, StrExpression)
+            model = expression.model
+            self.assertEqual(model.operator, operator)
+            parameters = {
+                parameter.name: parameter.value for parameter in model.parameters
+            }
+            self.assertEqual(
+                parameters,
+                {
+                    "occurrence": occurrence,
+                    "include_separator": include,
+                },
+            )
+
+    def test_separator_arguments_are_validated(self) -> None:
+        with self.assertRaisesRegex(ValueError, "separator"):
+            value_expression("a").before_separator("", 1)
+        with self.assertRaisesRegex(ValueError, "occurrence"):
+            value_expression("a").after_separator(":", 0)
+
+
 if __name__ == "__main__":
     unittest.main()
