@@ -8,7 +8,7 @@ from .._frozen_json import freeze_json
 from ..types import decode_type, encode_type
 from .models import (
     Expression, ExpressionNode, FieldReferenceExpression, FrozenJson, FrozenObject, LiteralExpression, OperationExpression,
-    OperationParameter, RowEffect, RowSemantics, Traversal,
+    OperationParameter, RowEffect, RowSemantics, Traversal, VariableExpression,
 )
 
 
@@ -36,6 +36,8 @@ def encode_expression(expression: ExpressionNode) -> dict[str, Any]:
     }
     if isinstance(expression, LiteralExpression):
         return {"kind": "literal", "value": _thaw(expression.value), **common}
+    if isinstance(expression, VariableExpression):
+        return {"kind": "variable", "name": expression.name, **common}
     if isinstance(expression, FieldReferenceExpression):
         return {
             "kind": "field",
@@ -126,6 +128,12 @@ def decode_expression(value: Mapping[str, Any]) -> Expression:
             source=_text(value, "source"),
             path=_strings(value.get("path"), field="path"),
             traversals=traversals,
+            logical_type=logical_type,
+            row_semantics=rows,
+        )
+    if kind == "variable":
+        return VariableExpression(
+            name=_text(value, "name"),
             logical_type=logical_type,
             row_semantics=rows,
         )

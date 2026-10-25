@@ -10,8 +10,9 @@ from typing import Any, Generic, TypeVar, cast, overload
 
 from ..types import (
     Array, ArrayType, CustomDataType, Date, LogicalType, Nullable, NullableType,
-    Struct, StructType, Time, Timestamp, Uuid,
+    STR, Struct, StructType, Time, Timestamp, Uuid,
 )
+from ._coercion import expression_input
 from .base import field_reference, operation
 from .codec import encode_expression
 from .models import FieldReferenceExpression, OperationExpression, RowSemantics, Traversal
@@ -192,9 +193,179 @@ class NullableSelection(
             raise TypeError("pick requires a nullable struct selection")
         return _pick(self, selector, logical_type.value, propagate_null=True)
 
+    @overload
+    def transform_items[S: Struct, U](
+        self: "NullableSelection[Array[S]]",
+        selector: Callable[[StructSelection[S]], ValueExpression[U]],
+    ) -> "NullableSelection[Array[U]]": ...
+    @overload
+    def transform_items[U](
+        self: "NullableSelection[Array[TItem]]",
+        selector: Callable[[ValueExpression[TItem]], ValueExpression[U]],
+    ) -> "NullableSelection[Array[U]]": ...
+    @overload
+    def transform_items[S: Struct, U](
+        self: "NullableSelection[Array[Nullable[S]]]",
+        selector: Callable[[StructSelection[S]], ValueExpression[U]],
+    ) -> "NullableSelection[Array[Nullable[U]]]": ...
+    @overload
+    def transform_items[U](
+        self: "NullableSelection[Array[Nullable[TItem]]]",
+        selector: Callable[[ValueExpression[TItem]], ValueExpression[U]],
+    ) -> "NullableSelection[Array[Nullable[U]]]": ...
+    def transform_items(self, selector: Callable[[Any], ValueExpression[Any]]) -> "NullableSelection[Any]":
+        from .arrays import _transform_items
+
+        logical_type = self.logical_type
+        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
+            raise TypeError("transform_items requires a nullable array selection")
+        return cast(
+            "NullableSelection[Any]",
+            select_expression(_transform_items(self._require_expression(), selector)),
+        )
+
+    @overload
+    def drop_null_items[I: NullableDataType](
+        self: "NullableSelection[Array[Nullable[I]]]",
+    ) -> "NullableSelection[Array[I]]": ...  # pyright: ignore[reportInvalidTypeArguments]
+    @overload
+    def drop_null_items[I: NullableDataType](
+        self: "NullableSelection[Array[I]]",
+    ) -> "NullableSelection[Array[I]]": ...
+    def drop_null_items(self) -> "NullableSelection[Any]":
+        from .arrays import _drop_null_items
+
+        logical_type = self.logical_type
+        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
+            raise TypeError("drop_null_items requires a nullable array selection")
+        return cast(
+            "NullableSelection[Any]",
+            select_expression(_drop_null_items(self._require_expression())),
+        )
+
+    def sort(self) -> "NullableSelection[Any]":
+        from .arrays import _array_operation
+
+        logical_type = self.logical_type
+        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
+            raise TypeError("sort requires a nullable array selection")
+        return cast(
+            "NullableSelection[Any]",
+            select_expression(_array_operation(self._require_expression(), "sort")),
+        )
+
+    def distinct(self) -> "NullableSelection[Any]":
+        from .arrays import _array_operation
+
+        logical_type = self.logical_type
+        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
+            raise TypeError("distinct requires a nullable array selection")
+        return cast(
+            "NullableSelection[Any]",
+            select_expression(
+                _array_operation(self._require_expression(), "distinct")
+            ),
+        )
+
+    def join(self, separator: str) -> "NullableSelection[str]":
+        from .factory import wrap_expression
+
+        logical_type = self.logical_type
+        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
+            raise TypeError("join requires a nullable array selection")
+        if logical_type.value.item != STR:
+            raise TypeError("join requires an array of non-null strings")
+        result = operation(
+            "join",
+            self._require_expression().model,
+            expression_input(separator, STR),
+            logical_type=NullableType(STR),
+        )
+        return cast("NullableSelection[str]", select_expression(wrap_expression(result)))
+
 
 class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
     """Array selection supporting explicit row-producing expansion."""
+
+    @overload
+    def transform_items[S: Struct, U](
+        self: "ArraySelection[S]",
+        selector: Callable[[StructSelection[S]], ValueExpression[U]],
+    ) -> "ArraySelection[U]": ...
+    @overload
+    def transform_items[U](
+        self: "ArraySelection[TItem]",
+        selector: Callable[[ValueExpression[TItem]], ValueExpression[U]],
+    ) -> "ArraySelection[U]": ...
+    @overload
+    def transform_items[S: Struct, U](
+        self: "ArraySelection[Nullable[S]]",
+        selector: Callable[[StructSelection[S]], ValueExpression[U]],
+    ) -> "ArraySelection[Nullable[U]]": ...
+    @overload
+    def transform_items[U](
+        self: "ArraySelection[Nullable[TItem]]",
+        selector: Callable[[ValueExpression[TItem]], ValueExpression[U]],
+    ) -> "ArraySelection[Nullable[U]]": ...
+    def transform_items(self, selector: Callable[[Any], ValueExpression[Any]]) -> "ArraySelection[Any]":
+        from .arrays import ArrayExpression, _transform_items
+
+        expression = self._require_expression()
+        if not isinstance(expression, ArrayExpression):
+            raise TypeError("transform_items requires an array selection")
+        return cast(
+            "ArraySelection[Any]",
+            select_expression(_transform_items(expression, selector)),
+        )
+
+    @overload
+    def drop_null_items[I: NullableDataType](
+        self: "ArraySelection[Nullable[I]]",
+    ) -> "ArraySelection[I]": ...  # pyright: ignore[reportInvalidTypeArguments]
+    @overload
+    def drop_null_items[I: NullableDataType](
+        self: "ArraySelection[I]",
+    ) -> "ArraySelection[I]": ...
+    def drop_null_items(self) -> "ArraySelection[Any]":
+        from .arrays import ArrayExpression, _drop_null_items
+
+        expression = self._require_expression()
+        if not isinstance(expression, ArrayExpression):
+            raise TypeError("drop_null_items requires an array selection")
+        return cast(
+            "ArraySelection[Any]",
+            select_expression(_drop_null_items(expression)),
+        )
+
+    def sort(self) -> "ArraySelection[TItem]":
+        from .arrays import ArrayExpression, _array_operation
+
+        expression = self._require_expression()
+        if not isinstance(expression, ArrayExpression):
+            raise TypeError("sort requires an array selection")
+        return cast(
+            "ArraySelection[TItem]",
+            select_expression(_array_operation(expression, "sort")),
+        )
+
+    def distinct(self) -> "ArraySelection[TItem]":
+        from .arrays import ArrayExpression, _array_operation
+
+        expression = self._require_expression()
+        if not isinstance(expression, ArrayExpression):
+            raise TypeError("distinct requires an array selection")
+        return cast(
+            "ArraySelection[TItem]",
+            select_expression(_array_operation(expression, "distinct")),
+        )
+
+    def join(self, separator: str) -> ValueSelection[str]:
+        from .arrays import ArrayExpression
+
+        expression = self._require_expression()
+        if not isinstance(expression, ArrayExpression):
+            raise TypeError("join requires an array selection")
+        return select_expression(expression.join(separator))
 
     @overload
     def expand[U: SelectionUnit](self: "ArraySelection[U]") -> ValueSelection[U]: ...  # pyright: ignore[reportOverlappingOverload]

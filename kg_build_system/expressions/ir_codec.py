@@ -8,7 +8,7 @@ from .._frozen_json import FrozenJson, FrozenObject, freeze_json
 from ..types.ir_codec import decode_type_ir, encode_type_ir
 from .ir import (
     ExpressionIR, FieldReferenceExpressionIR, LiteralExpressionIR,
-    OperationExpressionIR, OperationParameterIR,
+    OperationExpressionIR, OperationParameterIR, VariableExpressionIR,
 )
 
 
@@ -24,6 +24,8 @@ def encode_expression_ir(expression: ExpressionIR) -> dict[str, Any]:
     common = {"logical_type": encode_type_ir(expression.logical_type)}
     if isinstance(expression, LiteralExpressionIR):
         return {"kind": "literal", "value": _thaw(expression.value), **common}
+    if isinstance(expression, VariableExpressionIR):
+        return {"kind": "variable", "name": expression.name, **common}
     if isinstance(expression, FieldReferenceExpressionIR):
         return {
             "kind": "field", "source": expression.source,
@@ -68,6 +70,8 @@ def decode_expression_ir(value: Mapping[str, Any]) -> ExpressionIR:
     kind = value.get("kind")
     if kind == "literal":
         return LiteralExpressionIR(value=freeze_json(value.get("value")), **common)
+    if kind == "variable":
+        return VariableExpressionIR(name=_text(value, "name"), **common)
     if kind == "field":
         return FieldReferenceExpressionIR(
             source=_text(value, "source"), path=_strings(value.get("path"), field="path"),

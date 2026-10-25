@@ -234,7 +234,8 @@ StrExpression            prepend, append, equals, replace,
                          before_separator, after_separator
 BoolExpression           not_, and_, or_
 CustomDataTypeExpression bindable custom scalar
-ArrayExpression          bindable array value
+ArrayExpression          transform_items, drop_null_items, sort,
+                         distinct, join
 StructExpression         bindable struct value
 NullableExpression       bindable nullable value
 ```
@@ -244,6 +245,14 @@ material: bool, int, float, str, date, time, timestamp and uuid. Timestamps use
 the framework's `T` separator; the other units use DuckDB's canonical cast.
 Arrays and structs have no single text form and are refused. A nullable scalar
 yields a nullable text expression; null policy stays at the selection.
+
+An array expression carries `transform_items(selector)`, which applies one
+explicit value expression to every item without expanding rows. The selector is
+a callable receiving the item view and returning a `ValueExpression`; a literal
+is `lambda _: value_expression(...)`, never a raw Python value or dictionary.
+`drop_null_items()` removes null items, `sort()` orders them, `distinct()`
+keeps one copy per item, and `join(separator)` concatenates non-null string
+items. A null array stays null through all four.
 
 The separator reader takes a separator and an optional 1-based occurrence:
 `before_separator(separator, occurrence=1)` returns the text before that

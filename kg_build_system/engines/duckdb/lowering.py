@@ -1,7 +1,7 @@
 """Render logical relational plans as inspectable DuckDB SQL."""
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any
 
 from sqlglot import exp
@@ -10,6 +10,7 @@ from ...expressions.ir import (
     FieldReferenceExpressionIR as FieldReferenceExpression,
     LiteralExpressionIR as LiteralExpression,
     OperationExpressionIR as OperationExpression,
+    VariableExpressionIR as VariableExpression,
 )
 from ..._frozen_json import FrozenObject
 from ...relational.ir import RelationPlanIR as RelationPlan
@@ -74,6 +75,7 @@ def _parameter(expression: OperationExpression, name: str) -> Any:
 class _Context:
     aliases: dict[str, str]
     expansions: dict[tuple[str, ...], Any]
+    variables: dict[str, Any] = field(default_factory=dict)
 
 
 def _field(expression: FieldReferenceExpression, context: _Context) -> Any:
@@ -89,6 +91,11 @@ def _field(expression: FieldReferenceExpression, context: _Context) -> Any:
 def _render(expression, context: _Context) -> Any:
     if isinstance(expression, LiteralExpression):
         return _literal(expression)
+    if isinstance(expression, VariableExpression):
+        variable = context.variables.get(expression.name)
+        if variable is None:
+            raise ValueError(f"unbound expression variable {expression.name!r}")
+        return variable.copy()
     if isinstance(expression, FieldReferenceExpression):
         return _field(expression, context)
     if not isinstance(expression, OperationExpression):
@@ -101,6 +108,25 @@ def _render(expression, context: _Context) -> Any:
             raise ValueError(f"expansion scope {scope!r} was not planned") from error
     if expression.operator == "where_present":
         return _render(expression.arguments[0], context)
+    if expression.operator == "transform_items":
+        if len(expression.arguments) != 2:
+            raise ValueError("transform_items requires two arguments")
+        array = _render(expression.arguments[0], context)
+        item = exp.column("_kg_item", quoted=False)
+        item_name = str(_parameter(expression, "item"))
+        body_context = _Context(
+            context.aliases,
+            context.expansions,
+            {**context.variables, item_name: item},
+        )
+        body = _render(expression.arguments[1], body_context)
+        return exp.Anonymous(
+            this="list_transform",
+            expressions=[
+                array,
+                exp.Lambda(this=body, expressions=[item.copy()]),
+            ],
+        )
     arguments = tuple(_render(argument, context) for argument in expression.arguments)
     if expression.operator == "add":
         return exp.Add(this=arguments[0], expression=arguments[1])
@@ -189,6 +215,28 @@ def _render(expression, context: _Context) -> Any:
         return exp.Case(
             ifs=[exp.If(this=present, true=joined)],
             default=exp.Literal.string(""),
+        )
+    if expression.operator == "drop_null_items":
+        item = exp.column("_kg_item", quoted=False)
+        return exp.Anonymous(
+            this="list_filter",
+            expressions=[
+                arguments[0],
+                exp.Lambda(
+                    this=exp.Not(this=exp.Is(
+                        this=item.copy(), expression=exp.null(),
+                    )),
+                    expressions=[item],
+                ),
+            ],
+        )
+    if expression.operator == "sort":
+        return exp.Anonymous(this="list_sort", expressions=[arguments[0]])
+    if expression.operator == "distinct":
+        return exp.Anonymous(this="list_distinct", expressions=[arguments[0]])
+    if expression.operator == "join":
+        return exp.Anonymous(
+            this="array_to_string", expressions=[arguments[0], arguments[1]],
         )
     if expression.operator == "coalesce":
         return exp.Coalesce(this=arguments[0], expressions=list(arguments[1:]))

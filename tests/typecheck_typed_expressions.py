@@ -7,7 +7,7 @@ from kg_build_system.expressions import (
     ValueInput, ValueSelection, as_expression, select_expression,
 )
 from kg_build_system.expressions.literals import literal
-from kg_build_system.types import Array, ArrayType, INT, Nullable, NullableType
+from kg_build_system.types import Array, ArrayType, INT, Nullable, NullableType, STR
 
 
 integer = IntExpression(literal(1))
@@ -50,6 +50,17 @@ assert_type(text_selection.expression.after_separator(":", 2), StrExpression)
 array_selection = cast(ArraySelection[int], select_expression(array_expression))
 assert_type(array_selection.expand(), ValueSelection[int])
 assert_type(array_selection.expand().expression.add(1), IntExpression)
+assert_type(
+    array_expression.transform_items(lambda item: item.to_string()),
+    ArrayExpression[str],
+)
+assert_type(array_selection.drop_null_items(), ArraySelection[int])
+assert_type(array_selection.sort(), ArraySelection[int])
+assert_type(array_selection.distinct(), ArraySelection[int])
+
+string_array = ArrayExpression[str](literal(["a"], logical_type=ArrayType(STR)))
+string_selection = cast(ArraySelection[str], select_expression(string_array))
+assert_type(string_selection.join(","), ValueSelection[str])
 
 flag = BoolExpression(literal(True))
 assert_type(flag.not_().and_(False), BoolExpression)

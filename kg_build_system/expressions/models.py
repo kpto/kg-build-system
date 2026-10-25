@@ -90,6 +90,17 @@ class Traversal:
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class VariableExpression(ExpressionNode):
+    """One bound variable inside a transform selector."""
+
+    name: str
+
+    def __post_init__(self) -> None:
+        if not self.name:
+            raise ValueError("variable expressions require a name")
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class FieldReferenceExpression(ExpressionNode):
     source: str
     path: tuple[str, ...]
@@ -134,9 +145,10 @@ class OperationExpression(ExpressionNode):
         return self if arguments == self.arguments else replace(self, arguments=arguments)
 
 
-Expression: TypeAlias = LiteralExpression | FieldReferenceExpression | OperationExpression
+Expression: TypeAlias = LiteralExpression | FieldReferenceExpression | OperationExpression | VariableExpression
 __all__ = [
     "Expression", "ExpressionNode", "FieldReferenceExpression", "FrozenJson", "FrozenObject",
     "JsonScalar", "LiteralExpression", "OperationExpression", "OperationParameter",
     "PRESERVE_ROWS", "RowEffect", "RowSemantics", "Traversal",
+    "VariableExpression",
 ]

@@ -19,6 +19,11 @@ class LiteralExpressionIR(ExpressionIRBase):
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
+class VariableExpressionIR(ExpressionIRBase):
+    name: str
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
 class FieldReferenceExpressionIR(ExpressionIRBase):
     source: str
     path: tuple[str, ...]
@@ -38,7 +43,8 @@ class OperationExpressionIR(ExpressionIRBase):
 
 
 ExpressionIR: TypeAlias = (
-    LiteralExpressionIR | FieldReferenceExpressionIR | OperationExpressionIR
+    LiteralExpressionIR | VariableExpressionIR | FieldReferenceExpressionIR
+    | OperationExpressionIR
 )
 
 
@@ -52,5 +58,5 @@ def walk_expression_ir(expression: ExpressionIR) -> Iterator[ExpressionIR]:
 __all__ = [
     "ExpressionIR", "ExpressionIRBase", "FieldReferenceExpressionIR",
     "LiteralExpressionIR", "OperationExpressionIR", "OperationParameterIR",
-    "walk_expression_ir",
+    "VariableExpressionIR", "walk_expression_ir",
 ]

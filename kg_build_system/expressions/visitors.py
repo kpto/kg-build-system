@@ -4,7 +4,10 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator
 from typing import Protocol, TypeVar
 
-from .models import Expression, ExpressionNode, FieldReferenceExpression, LiteralExpression, OperationExpression
+from .models import (
+    Expression, ExpressionNode, FieldReferenceExpression, LiteralExpression,
+    OperationExpression, VariableExpression,
+)
 
 
 T_co = TypeVar("T_co", covariant=True)
@@ -14,6 +17,7 @@ class ExpressionVisitor(Protocol[T_co]):
     def visit_literal(self, expression: LiteralExpression) -> T_co: ...
     def visit_field_reference(self, expression: FieldReferenceExpression) -> T_co: ...
     def visit_operation(self, expression: OperationExpression) -> T_co: ...
+    def visit_variable(self, expression: VariableExpression) -> T_co: ...
 
 
 def visit_expression(expression: Expression, visitor: ExpressionVisitor[T_co]) -> T_co:
@@ -23,6 +27,8 @@ def visit_expression(expression: Expression, visitor: ExpressionVisitor[T_co]) -
         return visitor.visit_field_reference(expression)
     if isinstance(expression, OperationExpression):
         return visitor.visit_operation(expression)
+    if isinstance(expression, VariableExpression):
+        return visitor.visit_variable(expression)
     raise TypeError(f"unknown expression node {expression!r}")
 
 

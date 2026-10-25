@@ -9,6 +9,8 @@ def expression_to_ir(value: models.ExpressionNode) -> ir.ExpressionIR:
     common = {"logical_type": type_to_ir(value.logical_type)}
     if isinstance(value, models.LiteralExpression):
         return ir.LiteralExpressionIR(value=value.value, **common)
+    if isinstance(value, models.VariableExpression):
+        return ir.VariableExpressionIR(name=value.name, **common)
     if isinstance(value, models.FieldReferenceExpression):
         return ir.FieldReferenceExpressionIR(
             source=value.source,

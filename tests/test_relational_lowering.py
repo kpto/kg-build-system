@@ -62,6 +62,32 @@ class LoweringNode(Node):
     label: PropertySlot[str] = property()
 
 
+class TransformInner(Struct):
+    value: Field[str] = field()
+
+
+class TransformDetail(Struct):
+    code: Field[str] = field()
+    inner: Field[TransformInner] = field()
+    tags: Field[Array[str]] = field()
+
+
+class TransformInput(Table):
+    identifier: Field[str] = field()
+    details: Field[Array[TransformDetail]] = field()
+    tags: Field[Array[str | None]] = field()
+    numbers: Field[Array[int]] = field()
+
+
+class TransformNode(Node):
+    codes: PropertySlot[Array[str]] = property()
+    labels: PropertySlot[Array[str]] = property()
+    nested: PropertySlot[Array[str]] = property()
+    numbers: PropertySlot[Array[int]] = property()
+    number_text: PropertySlot[Array[str]] = property()
+    tags: PropertySlot[str] = property()
+
+
 def core_instructions(contract: WorkflowContractIR) -> dict[str, dict[str, Any]]:
     """The instruction core ships for each of its steps, keyed by step name.
 
@@ -461,6 +487,92 @@ class FileTargetPropertyEncodingTests(unittest.TestCase):
                     (root / "graph.jsonl").read_text(encoding="utf-8"), "",
                     "the record is refused rather than stringified",
                 )
+
+
+class ArrayTransformTests(unittest.TestCase):
+    def test_transform_items_and_array_operators_build(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            source_path = root / "details.json"
+            source_path.write_text(json.dumps([{
+                "identifier": "a",
+                "details": [
+                    {"code": "x", "inner": {"value": "one"}, "tags": []},
+                    {"code": "y", "inner": {"value": "two"}, "tags": []},
+                ],
+                "tags": ["b", None, "a", "b"],
+                "numbers": [1, 2],
+            }]), encoding="utf-8")
+            source = bind_source(
+                target=TransformInput,
+                config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
+            )
+            codes = TransformInput.details.transform_items(
+                lambda item: item.pick(lambda detail: detail.code).expression
+            )
+            nested = TransformInput.details.transform_items(
+                lambda item: item.pick(lambda detail: detail.inner)
+                .pick(lambda inner: inner.value).expression
+            )
+            labels = TransformInput.details.transform_items(
+                lambda item: item.pick(lambda detail: detail.code)
+                .expression.append("!")
+            )
+            numbers = TransformInput.details.transform_items(
+                lambda _: value_expression(7)
+            )
+            number_text = TransformInput.numbers.transform_items(
+                lambda item: item.to_string()
+            )
+            tags = (
+                TransformInput.tags.drop_null_items()
+                .distinct().sort().join("|")
+            )
+            binding = node_binding(
+                target=TransformNode,
+                build_key=TransformInput.identifier,
+                properties=TransformNode(
+                    codes=codes, labels=labels, nested=nested,
+                    numbers=numbers, number_text=number_text, tags=tags,
+                ),
+            )
+            contract = compile(
+                bindings=(binding,),
+                sources=(source,),
+                modules=(register_module(
+                    FileModule, FileModuleConfiguration("graph.jsonl"),
+                ),),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            row = json.loads(
+                (root / "output" / "graph.jsonl")
+                .read_text(encoding="utf-8").splitlines()[0]
+            )
+
+        self.assertEqual(row["codes"], ["x", "y"])
+        self.assertEqual(row["labels"], ["x!", "y!"])
+        self.assertEqual(row["nested"], ["one", "two"])
+        self.assertEqual(row["numbers"], [7, 7])
+        self.assertEqual(row["number_text"], ["1", "2"])
+        self.assertEqual(row["tags"], "a|b")
+
+    def test_transform_items_rejects_a_raw_literal(self) -> None:
+        with self.assertRaisesRegex(TypeError, "value selection or value expression"):
+            TransformInput.details.transform_items(lambda _: 7)
+
+    def test_transform_items_rejects_a_row_effect(self) -> None:
+        with self.assertRaisesRegex(TypeError, "row effects"):
+            TransformInput.details.transform_items(
+                lambda item: item.pick(lambda detail: detail.tags)
+                .expand().expression
+            )
+
+    def test_join_requires_non_null_string_items(self) -> None:
+        with self.assertRaisesRegex(TypeError, "non-null strings"):
+            TransformInput.tags.expression.join("|")
+        with self.assertRaisesRegex(TypeError, "non-null strings"):
+            TransformInput.details.expression.join("|")
 
 
 class ArrayPropertyTests(unittest.TestCase):

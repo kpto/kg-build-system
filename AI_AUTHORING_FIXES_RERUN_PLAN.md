@@ -128,16 +128,23 @@
 
 ## Item 6 — Array operations
 
-- **Why.** `map_items` projects a struct member without fanning out rows; `without_nulls` makes
-  an item array a legal property; `sorted`, `distinct` and `join` make order-independent,
-  set-valued key material.
+- **Why.** `transform_items` applies one explicit value expression to every item without
+  fanning out rows; `drop_null_items` makes an item array a legal property; `sort`,
+  `distinct` and `join` make order-independent, set-valued key material.
 - **Touch.** `expressions/arrays.py`, `expressions/selections.py`,
+  `expressions/models.py`, `expressions/ir.py`, `expressions/mapping.py`,
+  `expressions/codec.py`, `expressions/ir_codec.py`, `expressions/visitors.py`,
   `engines/duckdb/lowering.py`, spec, tests.
 - **Reference.** `git show 36bc319 -- kg_build_system/expressions/arrays.py
   kg_build_system/expressions/selections.py kg_build_system/engines/duckdb/lowering.py`
+  The reference has `map_items`, `without_nulls`, `sorted` and `distinct`; this tree uses
+  `transform_items` with a bound variable, `drop_null_items`, `sort` and `distinct`.
 - **Depends on.** Items 2 and 3.
-- **Prove.** `test_map_items_projects_an_array_member` (including nullable propagation);
-  `ArrayPropertyTests`; overloads exercised in `tests/typecheck_graph_bindings.py`.
+- **Prove.** `transform_items` with a nested member, an explicit operation and a typed literal;
+  `drop_null_items`, `sort`, `distinct`, `join`; nullable propagation; a raw literal, a raw
+  dict and a row effect are refused; typecheck assertions for the selection and expression forms.
+  A typed dictionary lookup (`lookup_items`) is a separate future operation and is not part of
+  this item.
 - **Gate.** Confirm `distinct` keeps one copy per item and `join` refuses nullable/non-string
   items.
 
