@@ -18,7 +18,7 @@ type GraphScalar = bool | int | float | str | Date | Time | Timestamp | Uuid | C
 # A graph property may also be a flat, homogeneous list of non-null scalars —
 # the array-property shape JSON and Neo4j both store natively. Keys stay scalar
 # (`NonNullableGraphValue`); nullable items must be converted first with
-# ``without_nulls()``.
+# ``drop_null_items()``.
 type GraphArray = Array[GraphScalar]
 type GraphValue = GraphScalar | GraphArray | None
 type NonNullableGraphValue = GraphScalar

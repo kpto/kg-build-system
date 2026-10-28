@@ -35,7 +35,7 @@ def require_graph_property(logical_type: LogicalType, *, context: str) -> Logica
     Struct members and nested arrays stay expression-only values: a property
     must survive as a JSON/Neo4j scalar or a flat homogeneous list. Nullable
     array items are refused because no target stores them faithfully — the
-    author converts explicitly with ``without_nulls()``.
+    author converts explicitly with ``drop_null_items()``.
     """
     base = non_nullable(logical_type)
     if not isinstance(base, ArrayType):
@@ -48,7 +48,7 @@ def require_graph_property(logical_type: LogicalType, *, context: str) -> Logica
     if isinstance(base.item, NullableType):
         raise TypeError(
             f"{context} array properties require non-null items; apply "
-            "without_nulls() to drop null items"
+            "drop_null_items() to drop null items"
         )
     return logical_type
 

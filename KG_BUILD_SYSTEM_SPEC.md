@@ -126,9 +126,9 @@ types are flattened and never wrap another `NullableType`.
 A graph property is a scalar or a flat, homogeneous array of non-null scalars;
 every canonical scalar above is valid in either position. Build and endpoint
 keys stay non-null scalars, so an array becomes key material only through
-`sorted().join()`. Nested arrays, arrays of structs, and arrays with null items
+`sort().join()`. Nested arrays, arrays of structs, and arrays with null items
 are refused at declaration: the first two are expanded or reified, and the third
-is converted explicitly with `without_nulls()`. A target may narrow the item
+is converted explicitly with `drop_null_items()`. A target may narrow the item
 types it can carry — Neo4j arrays hold primitives only, so temporal and uuid
 items are refused there at compile.
 
