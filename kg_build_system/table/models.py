@@ -3,11 +3,16 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from enum import StrEnum
-from typing import Any, ClassVar, TypeAlias
+from collections.abc import Callable
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, Self, TypeAlias, TypeVar
 
 from .._support.naming import declaration_name
 from ..annotations import Annotation, annotation_tuple
-from ..types import Struct as StructDeclaration
+from ..types import Shape, Struct as StructDeclaration
+
+if TYPE_CHECKING:
+    from ..expressions import BoolExpression
+    from .rows import DerivedRowSource
 
 
 class InputFormat(StrEnum):
@@ -182,7 +187,78 @@ def _prepare_fields(
     cls._data_metadata = {"description": description} if description is not None else {}
 
 
-class Table(StructDeclaration):
+S = TypeVar("S", bound=Shape)
+
+
+class RowSource(Generic[S]):
+    """A source of rows whose shape is ``S``; class objects satisfy this by subclassing."""
+
+    shape: type[S]
+
+
+def _derive(
+    shape: type[S],
+    predicate: Callable[[type[S]], "BoolExpression"],
+    filters: tuple["BoolExpression", ...] = (),
+) -> "DerivedRowSource[S]":
+    from ..expressions import BoolExpression
+    from .rows import DerivedRowSource
+
+    if not callable(predicate):
+        raise TypeError("where requires a callable predicate")
+    result = predicate(shape)
+    if not isinstance(result, BoolExpression):
+        raise TypeError("where predicates must return a BoolExpression")
+    return DerivedRowSource(shape_view(shape), shape, (*filters, result))
+
+
+def _source_name(value: Any) -> str:
+    name = getattr(value, "_table_name", None) or getattr(value, "_projection_name", None)
+    if not isinstance(name, str) or not name:
+        raise TypeError("row sources must be a Table or Projection")
+    return name
+
+
+def _shape_fields(source: Any) -> dict[str, Any]:
+    from .projections import ProjectionField, ProjectionFieldMetadata
+
+    attrs: dict[str, Any] = {"_projection_name": _source_name(source)}
+    if hasattr(source, "_projection_fields"):
+        for attribute, field in source._projection_fields.items():
+            attrs[attribute] = ProjectionField(
+                getattr(source, attribute),
+                ProjectionFieldMetadata(
+                    name=field.metadata.name,
+                    description=field.metadata.description,
+                    annotations=field.metadata.annotations,
+                ),
+            )
+    else:
+        for attribute, field in source._fields.items():
+            attrs[attribute] = ProjectionField(
+                getattr(source, attribute),
+                ProjectionFieldMetadata(name=field.metadata.name),
+            )
+    return attrs
+
+
+def shape_view(source: Any) -> type:
+    """A shape class with the source's fields, usable as a projection base."""
+    return type(f"{source.__name__}Shape", (Shape,), _shape_fields(source))
+
+
+def projection_base(row_source: Any) -> type:
+    """A dynamic base carrying a row source plan and its inherited fields."""
+    from .models import Projection
+
+    source = getattr(row_source, "source", row_source)
+    attrs = _shape_fields(source)
+    attrs["_kg_row_source"] = row_source
+    attrs["_projection_base"] = True
+    return type(f"{source.__name__}ProjectionBase", (Projection,), attrs)
+
+
+class Table(StructDeclaration, RowSource["Table"]):
     """A final, source-bindable logical table declaration."""
 
     options: ClassVar[TableOptions] = TableOptions()
@@ -203,6 +279,17 @@ class Table(StructDeclaration):
             description=_description(cls, options.description),
             annotations=(*_template_annotations(cls), *options.annotations),
         )
+        cls.shape = cls
+
+    @classmethod
+    def where(
+        cls, predicate: Callable[[type[Self]], "BoolExpression"],
+    ) -> "DerivedRowSource[Self]":
+        return _derive(cls, predicate)
+
+    @classmethod
+    def projection_base(cls) -> type:
+        return projection_base(cls)
 
 
 class StructTemplate:
@@ -254,7 +341,7 @@ class Struct(StructDeclaration):
         )
 
 
-class Projection:
+class Projection(Shape, RowSource["Projection"]):
     """A final named logical product composed from typed expressions."""
 
     options: ClassVar[ProjectionOptions] = ProjectionOptions()
@@ -262,7 +349,11 @@ class Projection:
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        if any(vars(base).get("_data_declaration_kind") == "projection" for base in cls.__mro__[1:]):
+        is_base = bool(vars(cls).get("_projection_base", False))
+        if not is_base and any(
+            vars(base).get("_data_declaration_kind") == "projection"
+            for base in cls.__mro__[1:]
+        ):
             raise TypeError("a final Projection may not inherit from another final Projection")
         options = vars(cls).get("options", ProjectionOptions())
         _require_host_options(cls, "Projection", options, ProjectionOptions)
@@ -276,10 +367,31 @@ class Projection:
             cls.__name__, suffixes=("Projection",)
         )
         cls._projection_fields = fields
-        cls._data_declaration_kind = "projection"
+        if not is_base:
+            cls._data_declaration_kind = "projection"
         cls._data_annotations = tuple(options.annotations)
         description = _description(cls, options.description)
         cls._data_metadata = {"description": description} if description is not None else {}
+        cls.shape = shape_view(cls)
+        row_source = next(
+            (
+                vars(base).get("_kg_row_source")
+                for base in cls.__mro__
+                if "_kg_row_source" in vars(base)
+            ),
+            None,
+        )
+        cls._projection_row_source = row_source
+
+    @classmethod
+    def where(
+        cls, predicate: Callable[[type[Self]], "BoolExpression"],
+    ) -> "DerivedRowSource[Self]":
+        return _derive(cls, predicate)
+
+    @classmethod
+    def projection_base(cls) -> type:
+        return projection_base(cls)
 
 
 def is_concrete_table(cls: type[Any]) -> bool:

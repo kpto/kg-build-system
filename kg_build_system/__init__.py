@@ -1,12 +1,17 @@
 """Declarative, typed, and reproducible knowledge-graph builds."""
 
 from .annotations import Annotation, EdgeLabel, NodeLabel
-from .binding import Binding, BindingOptions, EdgeBinding, NodeBinding, edge_binding, node_binding
+from .binding import (
+    Binding, BindingOptions, EdgeBinding, EdgeValues, NodeBinding, NodeValues,
+    edge_binding, node_binding,
+)
 from .expressions import (
     ArrayExpression,
     ArraySelection,
     BoolExpression,
     CustomDataTypeExpression,
+    all_of,
+    any_of,
     FloatExpression,
     IntExpression,
     NullableExpression,
@@ -26,6 +31,9 @@ from .table import (
     BoundSource,
     BoundTable,
     BoundTableGroup,
+    DerivedRowSource,
+    RowSource,
+    Shape,
     CustomDataType,
     DataSourceConfig,
     Field,
@@ -67,6 +75,11 @@ __all__ = [
     "ArraySelection",
     "BoolExpression",
     "BoundSource",
+    "DerivedRowSource",
+    "RowSource",
+    "Shape",
+    "all_of",
+    "any_of",
     "BoundTable",
     "BoundTableGroup",
     "CustomDataType",
@@ -75,6 +88,7 @@ __all__ = [
     "Edge",
     "EdgeLabel",
     "EdgeBinding",
+    "EdgeValues",
     "EdgeOptions",
     "EdgeOptionsTemplate",
     "EdgeTemplate",
@@ -89,6 +103,7 @@ __all__ = [
     "Node",
     "NodeLabel",
     "NodeBinding",
+    "NodeValues",
     "NodeOptions",
     "NodeOptionsTemplate",
     "NodeTemplate",

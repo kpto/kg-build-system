@@ -7,10 +7,14 @@ from typing import Any, Generic, TypeVar
 
 from ..annotations import Annotation, annotation_tuple
 from ..expressions import ValueExpression
+from ..table.rows import DerivedRowSource
 from ..topology.models import Edge, Node
 
 N_co = TypeVar("N_co", bound=Node, covariant=True)
 E_co = TypeVar("E_co", bound=Edge[Any, Any], covariant=True)
+K = TypeVar("K")
+SK = TypeVar("SK")
+TK = TypeVar("TK")
 
 
 @dataclass(frozen=True)
@@ -22,12 +26,31 @@ class BindingOptions:
 
 
 @dataclass(frozen=True)
+class NodeValues(Generic[N_co, K]):
+    """The row-derived values one node binding supplies."""
+
+    build_key: Any
+    properties: N_co
+
+
+@dataclass(frozen=True)
+class EdgeValues(Generic[E_co, K, SK, TK]):
+    """The row-derived values one edge binding supplies."""
+
+    build_key: Any
+    source_build_key: Any
+    target_build_key: Any
+    properties: E_co
+
+
+@dataclass(frozen=True)
 class NodeBinding(Generic[N_co]):
     debug_name: str | None
     target: type[N_co]
     build_key: ValueExpression[Any]
     properties: N_co
     annotations: tuple[Annotation, ...] = ()
+    rows: Any = None
 
 
 @dataclass(frozen=True)
@@ -41,6 +64,7 @@ class EdgeBinding(Generic[E_co]):
     annotations: tuple[Annotation, ...] = ()
     source_node: type[Node] | None = None
     target_node: type[Node] | None = None
+    rows: Any = None
 
 
 type Binding = NodeBinding[Any] | EdgeBinding[Any]

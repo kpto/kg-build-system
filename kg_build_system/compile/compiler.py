@@ -23,6 +23,7 @@ from ..binding.ir import (
 from .._frozen_json import freeze_json
 from ..expressions import FieldReferenceExpression, ValueExpression, walk_expression
 from ..expressions.codec import encode_expression
+from ..expressions.ir_codec import encode_expression_ir
 from ..expressions.mapping import expression_to_ir
 from ..table import BoundSource, BoundTable, Projection, Struct, Table
 from ..table.declarations import resolve_bound_source
@@ -30,6 +31,7 @@ from ..table.ir import (
     FieldIR as FieldDefinition,
     ProjectionIR as ProjectionDefinition,
     ProjectionFieldIR as ProjectionFieldDefinition,
+    RowSourcePlanIR,
     SourceIR as SourceDefinition,
     StructIR as StructDefinition,
     TableIR as TableDefinition,
@@ -112,6 +114,19 @@ def _component(declaration: type[Any]) -> ComponentDefinition:
     )
 
 
+def _row_source_plan(row_source: Any) -> RowSourcePlanIR | None:
+    if row_source is None:
+        return None
+    source = getattr(row_source, "source", row_source)
+    name = getattr(source, "_table_name", None) or getattr(source, "_projection_name", None)
+    if not isinstance(name, str) or not name:
+        raise TypeError("row sources must be a Table or Projection")
+    filters = getattr(row_source, "filters", ())
+    return RowSourcePlanIR(
+        name, tuple(expression_to_ir(filter.model) for filter in filters),
+    )
+
+
 def _projection(declaration: type[Projection]) -> ProjectionDefinition:
     fields = tuple(
         ProjectionFieldDefinition(
@@ -124,6 +139,7 @@ def _projection(declaration: type[Projection]) -> ProjectionDefinition:
         _symbol("projection", declaration), declaration._projection_name, fields,
         declaration._data_metadata.get("description"),
         _annotations(declaration._data_annotations),
+        _row_source_plan(getattr(declaration, "_projection_row_source", None)),
     )
 
 
@@ -138,12 +154,17 @@ def _property_expressions(binding: Binding) -> tuple[tuple[str, Any], ...]:
 
 
 def _binding_symbol(binding: Binding) -> str:
-    payload = {
+    row_source = _row_source_plan(binding.rows)
+    payload: dict[str, Any] = {
         "kind": "edge" if isinstance(binding, EdgeBinding) else "node",
         "component": binding.target._component_name,
         "debug_name": binding.debug_name,
         "build_key": encode_expression(binding.build_key.model),
         "properties": {name: encode_expression(value) for name, value in _property_expressions(binding)},
+        "row_source": None if row_source is None else {
+            "source": row_source.source,
+            "filters": [encode_expression_ir(item) for item in row_source.filters],
+        },
     }
     if isinstance(binding, EdgeBinding):
         payload.update(
@@ -178,8 +199,11 @@ def _binding(binding: Binding) -> NodeBindingDefinition | EdgeBindingDefinition:
                 None if binding.target_node is None
                 else binding.target_node._component_name
             ),
+            row_source=_row_source_plan(binding.rows),
         )
-    return NodeBindingDefinition(*common, *rest)
+    return NodeBindingDefinition(
+        *common, *rest, row_source=_row_source_plan(binding.rows),
+    )
 
 
 def _source(source: BoundTable) -> SourceDefinition:

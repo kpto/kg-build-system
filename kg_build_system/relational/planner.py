@@ -64,7 +64,10 @@ def _operators_post_order(expression: ExpressionNode):
 
 
 def lower_product(
-    outputs: Mapping[str, ExpressionNode | DomainExpressionNode], relations: Mapping[str, str],
+    outputs: Mapping[str, ExpressionNode | DomainExpressionNode],
+    relations: Mapping[str, str],
+    *,
+    predicates: tuple[ExpressionNode, ...] = (),
 ) -> RelationPlan:
     """Plan one projection or binding without leaking its row effects elsewhere."""
     if not outputs:
@@ -77,7 +80,7 @@ def lower_product(
     }
     referenced = sorted({
         node.source
-        for expression in compiled_outputs.values()
+        for expression in (*compiled_outputs.values(), *predicates)
         for node in walk_expression(expression)
         if isinstance(node, FieldReferenceExpression)
     })
@@ -112,7 +115,12 @@ def lower_product(
                     filter_keys.add(key)
                     filters.append(Filter(operation.arguments[0]))
 
-    return RelationPlan(scans, tuple(expands), tuple(filters), tuple(compiled_outputs.items()))
+    return RelationPlan(
+        scans,
+        tuple(expands),
+        tuple(filters) + tuple(Filter(item, "true") for item in predicates),
+        tuple(compiled_outputs.items()),
+    )
 
 
 __all__ = ["expansion_scope", "lower_product"]

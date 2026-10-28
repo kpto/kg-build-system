@@ -61,12 +61,19 @@ class ProjectionFieldIR:
 
 
 @dataclass(frozen=True, slots=True)
+class RowSourcePlanIR:
+    source: str
+    filters: tuple[ExpressionIR, ...] = ()
+
+
+@dataclass(frozen=True, slots=True)
 class ProjectionIR:
     symbol_id: str
     name: str
     fields: tuple[ProjectionFieldIR, ...]
     description: str | None = None
     annotations: tuple[AnnotationIR, ...] = ()
+    row_source: RowSourcePlanIR | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -84,6 +91,7 @@ __all__ = [
     "FieldIR",
     "ProjectionIR",
     "ProjectionFieldIR",
+    "RowSourcePlanIR",
     "SourceIR",
     "StructIR",
     "TableIR",

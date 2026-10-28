@@ -101,7 +101,12 @@ def lower_projection_sql(
 ) -> str:
     del graph
     outputs = {field.name: field.expression for field in projection.fields}
-    return lower_relation_sql(lower_product(outputs, relations))
+    predicates = (
+        () if projection.row_source is None else projection.row_source.filters
+    )
+    return lower_relation_sql(
+        lower_product(outputs, relations, predicates=predicates)
+    )
 
 
 def lower_binding_guard_projection(binding: BindingDefinition) -> str:
@@ -179,7 +184,10 @@ def lower_binding_sql(
     — after ``where_present`` or ``coalesce`` — simply never fires its guard.
     """
     property_types = _binding_property_types(graph, binding)
-    inner = lower_relation_sql(lower_product(binding_outputs(binding), relations))
+    predicates = () if binding.row_source is None else binding.row_source.filters
+    inner = lower_relation_sql(
+        lower_product(binding_outputs(binding), relations, predicates=predicates)
+    )
     return (
         "WITH _kg_named AS ("
         f"SELECT {lower_binding_rename_projection(binding, property_types)} "

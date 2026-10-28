@@ -5,6 +5,7 @@ from types import NoneType, UnionType
 from typing import Any, Final, get_args, get_origin
 
 from .models import (
+    Shape,
     Array, ArrayType, BOOL, CustomDataType, CustomType, DATE, Date, FLOAT, INT, LogicalType,
     Nullable, NullableType, STR, Struct, StructType, TIME, TIMESTAMP, Time, Timestamp, UnitType,
     UUID, Uuid,
@@ -58,7 +59,7 @@ def normalize_type(annotation: Any) -> LogicalType:
 
     if isinstance(annotation, type) and issubclass(annotation, CustomDataType):
         return _declared_type(annotation, CustomType)
-    if isinstance(annotation, type) and issubclass(annotation, Struct):
+    if isinstance(annotation, type) and issubclass(annotation, Shape):
         return _declared_type(annotation, StructType)
     raise TypeError(f"unsupported logical type annotation: {annotation!r}")
 

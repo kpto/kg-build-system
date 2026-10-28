@@ -17,6 +17,7 @@ from ..table.ir import (
     FieldIR as FieldDefinition,
     ProjectionIR as ProjectionDefinition,
     ProjectionFieldIR as ProjectionFieldDefinition,
+    RowSourcePlanIR as RowSourcePlanDefinition,
     SourceIR as SourceDefinition,
     StructIR as StructDefinition,
     TableIR as TableDefinition,
@@ -93,6 +94,28 @@ def _encode_component(value: ComponentDefinition) -> dict[str, Any]:
     return result
 
 
+def _encode_row_source(value: RowSourcePlanDefinition | None) -> dict[str, Any] | None:
+    if value is None:
+        return None
+    return {
+        "source": value.source,
+        "filters": [encode_expression_ir(item) for item in value.filters],
+    }
+
+
+def _decode_row_source(value: Any) -> RowSourcePlanDefinition | None:
+    if value is None:
+        return None
+    document = _object(value, "row_source")
+    filters = document.get("filters", [])
+    if not isinstance(filters, Sequence) or isinstance(filters, (str, bytes, bytearray)):
+        raise ValueError("row source filters must be an array")
+    return RowSourcePlanDefinition(
+        _text(document, "source"),
+        tuple(decode_expression_ir(_object(item, "filter")) for item in filters),
+    )
+
+
 def _encode_projection(value: ProjectionDefinition) -> dict[str, Any]:
     fields = []
     for field in value.fields:
@@ -115,6 +138,9 @@ def _encode_projection(value: ProjectionDefinition) -> dict[str, Any]:
     }
     if value.description is not None:
         result["description"] = value.description
+    row_source = _encode_row_source(value.row_source)
+    if row_source is not None:
+        result["row_source"] = row_source
     return result
 
 
@@ -141,6 +167,9 @@ def _encode_binding(
             result["source_node"] = value.source_node
         if value.target_node is not None:
             result["target_node"] = value.target_node
+    row_source = _encode_row_source(value.row_source)
+    if row_source is not None:
+        result["row_source"] = row_source
     return result
 
 
@@ -305,6 +334,7 @@ def _decode_projection(value: Mapping[str, Any]) -> ProjectionDefinition:
         fields=_items(value, "fields", _decode_projection_field),
         description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", _decode_annotation),
+        row_source=_decode_row_source(value.get("row_source")),
     )
 
 
@@ -336,7 +366,9 @@ def _decode_binding(
     }
     kind = value.get("kind")
     if kind == "node":
-        return NodeBindingDefinition(**common)
+        return NodeBindingDefinition(
+            **common, row_source=_decode_row_source(value.get("row_source")),
+        )
     if kind == "edge":
         return EdgeBindingDefinition(
             **common,
@@ -348,6 +380,7 @@ def _decode_binding(
             ),
             source_node=_optional_text(value, "source_node"),
             target_node=_optional_text(value, "target_node"),
+            row_source=_decode_row_source(value.get("row_source")),
         )
     raise ValueError(f"unknown binding kind {kind!r}")
 

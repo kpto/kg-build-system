@@ -11,8 +11,12 @@ class CustomDataType:
     """Base for portable, application-defined scalar types."""
 
 
-class Struct:
-    """Base for portable nested-record declarations."""
+class Shape:
+    """Base for a class-level row shape."""
+
+
+class Struct(Shape):
+    """A shape that is only a nested record, never a row source."""
 
 
 T_co = TypeVar("T_co", covariant=True)
@@ -105,6 +109,10 @@ class StructType:
             raise ValueError("struct logical types require a module and qualified name")
 
 
+#: Shape identity is the same ``(module, qualname)`` pair as a struct type.
+ShapeType = StructType
+
+
 @dataclass(frozen=True, slots=True)
 class ArrayType:
     item: LogicalType
@@ -138,5 +146,5 @@ __all__ = [
     "DATE", "Date", "FLOAT", "INT", "LogicalType", "NonNullableLogicalType", "Nullable",
     "NullableType", "STR", "Struct", "StructType", "TEXT_CANONICAL_UNIT_NAMES", "TIME",
     "TIMESTAMP", "Time", "Timestamp", "UUID", "UnitType", "UnitTypeName", "Uuid",
-    "canonical_value_text", "is_canonical_unit_name",
+    "canonical_value_text", "is_canonical_unit_name", "Shape", "ShapeType",
 ]

@@ -289,9 +289,11 @@ def lower_relation_sql(plan: RelationPlan) -> str:
     if plan.filters:
         predicate = None
         for item in plan.filters:
-            current = exp.Not(
-                this=exp.Is(this=_render(item.expression, context), expression=exp.Null())
-            )
+            current = _render(item.expression, context)
+            if item.mode == "present":
+                current = exp.Not(
+                    this=exp.Is(this=current, expression=exp.Null())
+                )
             predicate = current if predicate is None else exp.And(this=predicate, expression=current)
         select = select.where(predicate)
     return select.select(*(

@@ -353,6 +353,15 @@ input list. The projection dependency graph must be acyclic. Every projection
 has one driving logical source. Additional sources require an explicit lookup
 facility; implicit cross products are rejected.
 
+A `Table` or `Projection` is both a `Shape` and a `RowSource`; `Struct` is a
+`Shape` only. `where(predicate)` on either returns a shape-preserving
+`DerivedRowSource`; `any_of`/`all_of` compose Boolean predicates. A projection
+base is declared with `projection_base()`, which carries the source plan and
+inherited fields; explicit fields shadow them. A binding may take `rows=` and a
+`bind=` callable returning `NodeValues` or `EdgeValues`; all row-derived values
+live inside that callable. The source plan's filters lower to `WHERE`, with
+`FilterIR.mode` distinguishing presence tests from held-true predicates.
+
 ## 7. Topology hierarchy and graph bindings
 
 Topology declares graph meaning independently of input data:

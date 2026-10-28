@@ -15,6 +15,8 @@ from .models import (
     LogicalType,
     NonNullableLogicalType,
     Nullable,
+    Shape,
+    ShapeType,
     NullableType,
     STR,
     Struct,
@@ -40,7 +42,7 @@ from .validation import (
 __all__ = [
     "Array", "ArrayType", "BOOL", "CANONICAL_UNIT_NAMES", "CustomDataType", "CustomType",
     "DATE", "Date", "FLOAT", "INT", "LogicalType", "NonNullableLogicalType", "Nullable",
-    "NullableType", "STR", "Struct", "StructType", "TEXT_CANONICAL_UNIT_NAMES", "TIME",
+    "NullableType", "STR", "Shape", "ShapeType", "Struct", "StructType", "TEXT_CANONICAL_UNIT_NAMES", "TIME",
     "TIMESTAMP", "Time", "Timestamp", "UNIT_BY_REPRESENTATIVE_CLASS", "UUID", "UnitType",
     "UnitTypeName", "Uuid", "array_item", "canonical_value_text", "decode_type", "encode_type",
     "is_canonical_unit_name", "is_nullable", "non_nullable", "normalize_type",

@@ -6,6 +6,7 @@ from typing import Literal, TypeAlias
 
 from ..annotations.ir import AnnotationIR
 from ..expressions.ir import ExpressionIR
+from ..table.ir import RowSourcePlanIR
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,6 +18,7 @@ class NodeBindingIR:
     debug_name: str | None = None
     annotations: tuple[AnnotationIR, ...] = ()
     kind: Literal["node"] = "node"
+    row_source: RowSourcePlanIR | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -32,6 +34,7 @@ class EdgeBindingIR:
     source_node: str | None = None
     target_node: str | None = None
     kind: Literal["edge"] = "edge"
+    row_source: RowSourcePlanIR | None = None
 
 
 BindingIR: TypeAlias = NodeBindingIR | EdgeBindingIR

@@ -41,6 +41,7 @@ include = [
     "tests/typecheck_graph_bindings.py",
     "tests/typecheck_topology_hierarchy.py",
     "tests/typecheck_typed_expressions.py",
+    "tests/typecheck_row_sources.py",
     "tests/typecheck_unified_fields.py",
 ]
 typeCheckingMode = "basic"

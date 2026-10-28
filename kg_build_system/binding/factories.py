@@ -1,12 +1,15 @@
 """Validated graph-binding factories."""
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Any, overload
 
 from ..expressions import ValueExpression, ValueInput, as_expression
+from ..table.models import RowSource
+from ..table.rows import DerivedRowSource
 from ..topology.models import Edge, Endpoint, Node, NonNullableGraphValue, _NodeSideBase
-from ..types import NullableType, require_non_nullable, require_scalar
-from .models import BindingOptions, EdgeBinding, NodeBinding
+from ..types import NullableType, Shape, require_non_nullable, require_scalar
+from .models import BindingOptions, EdgeBinding, EdgeValues, NodeBinding, NodeValues
 
 
 def _require_key(value: object, *, argument: str) -> ValueExpression[Any]:
@@ -43,6 +46,15 @@ def _require_properties[C: Node | Edge[Any, Any]](value: C, *, target: type[C]) 
             )
         setattr(value, attribute, expression)
     return value
+
+
+def _require_row_source(value: Any) -> None:
+    if isinstance(value, type):
+        if not issubclass(value, RowSource):
+            raise TypeError("rows must be a RowSource class or a DerivedRowSource")
+        return
+    if not isinstance(value, DerivedRowSource):
+        raise TypeError("rows must be a RowSource class or a DerivedRowSource")
 
 
 def _require_concrete_component(target: Any, kind: str) -> None:
@@ -89,17 +101,51 @@ def _resolve_endpoint(
     return selected
 
 
+@overload
+def node_binding[N: Node, S: Shape](
+    *, target: type[N], rows: type[S] | DerivedRowSource[S],
+    bind: Callable[[S], NodeValues[N, Any]],
+    debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+) -> NodeBinding[N]: ...
+@overload
 def node_binding[N: Node, Key: NonNullableGraphValue](
     *, target: type[N], build_key: ValueInput[Key], properties: N,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+) -> NodeBinding[N]: ...
+def node_binding[N: Node](
+    *, target: type[N], build_key: ValueInput[Any] | None = None,
+    properties: Any = None, rows: Any = None, bind: Any = None,
+    debug_name: str | None = None, options: BindingOptions = BindingOptions(),
 ) -> NodeBinding[N]:
     _require_concrete_component(target, "node")
+    if rows is not None or bind is not None:
+        if build_key is not None or properties is not None:
+            raise TypeError("node_binding takes either build_key/properties or rows/bind")
+        if rows is None or bind is None:
+            raise TypeError("rows and bind must be supplied together")
+        shape = rows.shape if isinstance(rows, DerivedRowSource) else rows
+        _require_row_source(rows)
+        values = bind(shape)
+        if not isinstance(values, NodeValues):
+            raise TypeError("node_binding bind must return NodeValues")
+        build_key, properties = values.build_key, values.properties
+    elif build_key is None or properties is None:
+        raise TypeError("node_binding requires build_key and properties, or rows and bind")
     return NodeBinding(
         debug_name, target, _require_key(build_key, argument="build_key"),
         _require_properties(properties, target=target), tuple(options.annotations),
+        rows,
     )
 
 
+@overload
+def edge_binding[E: Edge[Any, Any], S: Shape](
+    *, target: type[E], rows: type[S] | DerivedRowSource[S],
+    bind: Callable[[S], EdgeValues[E, Any, Any, Any]],
+    debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    source_node: Endpoint[Any] | None = None,
+    target_node: Endpoint[Any] | None = None,
+) -> EdgeBinding[E]: ...
 @overload
 def edge_binding[
     E: Edge[Any, Any], S: Node, D: Node, Key: NonNullableGraphValue,
@@ -145,14 +191,37 @@ def edge_binding[
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
 ) -> EdgeBinding[E]: ...
 def edge_binding(
-    *, target: type[Edge[Any, Any]], build_key: ValueInput[Any],
-    source_build_key: ValueInput[Any],
-    target_build_key: ValueInput[Any], properties: Any,
+    *, target: type[Edge[Any, Any]], build_key: ValueInput[Any] | None = None,
+    source_build_key: ValueInput[Any] | None = None,
+    target_build_key: ValueInput[Any] | None = None, properties: Any = None,
+    rows: Any = None, bind: Any = None,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
     source_node: Endpoint[Any] | None = None,
     target_node: Endpoint[Any] | None = None,
 ) -> EdgeBinding[Any]:
     _require_concrete_component(target, "edge")
+    if rows is not None or bind is not None:
+        if any(value is not None for value in (
+            build_key, source_build_key, target_build_key, properties,
+        )):
+            raise TypeError("edge_binding takes either key/properties or rows/bind")
+        if rows is None or bind is None:
+            raise TypeError("rows and bind must be supplied together")
+        shape = rows.shape if isinstance(rows, DerivedRowSource) else rows
+        _require_row_source(rows)
+        values = bind(shape)
+        if not isinstance(values, EdgeValues):
+            raise TypeError("edge_binding bind must return EdgeValues")
+        build_key, properties = values.build_key, values.properties
+        source_build_key, target_build_key = (
+            values.source_build_key, values.target_build_key,
+        )
+    elif any(value is None for value in (
+        build_key, source_build_key, target_build_key, properties,
+    )):
+        raise TypeError(
+            "edge_binding requires keys and properties, or rows and bind"
+        )
     declared_source = target._metadata["source"]
     declared_target = target._metadata["target"]
     return EdgeBinding(
@@ -163,6 +232,7 @@ def edge_binding(
         _require_properties(properties, target=target), tuple(options.annotations),
         _resolve_endpoint(source_node, declared=declared_source, side="source"),
         _resolve_endpoint(target_node, declared=declared_target, side="target"),
+        rows,
     )
 
 

@@ -1,4 +1,9 @@
 from .factories import edge_binding, node_binding
-from .models import Binding, BindingOptions, EdgeBinding, NodeBinding
+from .models import (
+    Binding, BindingOptions, EdgeBinding, EdgeValues, NodeBinding, NodeValues,
+)
 
-__all__ = ["Binding", "BindingOptions", "EdgeBinding", "NodeBinding", "edge_binding", "node_binding"]
+__all__ = [
+    "Binding", "BindingOptions", "EdgeBinding", "EdgeValues", "NodeBinding",
+    "NodeValues", "edge_binding", "node_binding",
+]

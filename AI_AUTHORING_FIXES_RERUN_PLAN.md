@@ -44,7 +44,7 @@
 | 4 | String operations | — | none |
 | 5 | `to_string()` on the base scalar expression | — | none |
 | 6 | Array operations | 2, 3 | set semantics and `join` input rule |
-| 7 | `keep_if` row predicate | 4 | `FilterIR.mode` naming |
+| 7 | Row-source model | — | see `TEMP_RELATION_MODEL_SPEC.md` |
 | 8 | Merge-module component scope | — | default scope and the missing folding test |
 | 9 | Meta-graph array examples | 2 | none |
 
@@ -148,20 +148,14 @@
 - **Gate.** Confirm `distinct` keeps one copy per item and `join` refuses nullable/non-string
   items.
 
-## Item 7 — `keep_if(predicate)`
+## Item 7 — Row-source model
 
-- **Why.** A projection sometimes drops rows without altering a sibling product. `where_present`
-  tests presence; `keep_if` holds a predicate true.
-- **Touch.** `expressions/values.py` (`keep_if`, filter row effect);
-  `relational/ir.py` (`FilterIR.mode`); `relational/planner.py`; lowering; spec; tests.
-- **Reference.** `git show 36bc319 -- kg_build_system/expressions/values.py
-  kg_build_system/relational/ir.py kg_build_system/relational/planner.py`
-- **Adapt.** `RowSemantics("filter")` already exists in this tree; only the planner's filter mode
-  is new.
-- **Depends on.** Item 4.
-- **Prove.** `test_keep_if_filters_rows_and_retains_the_family` (family preserved, mode
-  `filter`, non-Boolean refused); combined SQL with `where_present`.
-- **Gate.** Confirm `mode: Literal["present", "true"]` is the representation you want.
+`TEMP_RELATION_MODEL_SPEC.md` replaces the earlier `keep_if` item. The model is implemented
+through its binding and lowering steps: `Shape`, `RowSource`, `ShapeType`, `any_of`/`all_of`,
+`where`, `DerivedRowSource`, `projection_base()`, `rows=`/`bind` with `NodeValues`/`EdgeValues`,
+row-source plans on projections and bindings, and filtered SQL lowering. The legacy
+direct-expression bindings are retained, so no migration is required. `keep_if` and binding
+filters are excluded.
 
 ## Item 8 — Merge module takes a component scope
 

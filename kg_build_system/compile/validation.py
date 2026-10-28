@@ -136,6 +136,14 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
         _unique((field.name for field in projection.fields), f"{projection.name} projection field names")
         for field in projection.fields:
             validate_expression(field.expression, owner=projection.name)
+        if projection.row_source is not None:
+            if projection.row_source.source not in sources:
+                raise ValueError(
+                    f"projection {projection.name!r} row source "
+                    f"{projection.row_source.source!r} is unknown"
+                )
+            for filter_expression in projection.row_source.filters:
+                validate_expression(filter_expression, owner=projection.name)
 
     visiting: set[str] = set()
     visited: set[str] = set()
@@ -196,6 +204,14 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
             keys.extend((binding.source_build_key, binding.target_build_key))
         for expression in expressions:
             validate_expression(expression, owner=binding.symbol_id)
+        if binding.row_source is not None:
+            if binding.row_source.source not in sources:
+                raise ValueError(
+                    f"binding {binding.symbol_id!r} row source "
+                    f"{binding.row_source.source!r} is unknown"
+                )
+            for filter_expression in binding.row_source.filters:
+                validate_expression(filter_expression, owner=binding.symbol_id)
         expected = {prop.name: prop.logical_type for prop in component.properties}
         actual = dict(binding.properties)
         if set(actual) != set(expected):

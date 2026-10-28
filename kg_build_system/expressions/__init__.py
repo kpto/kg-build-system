@@ -2,7 +2,7 @@
 
 from .arrays import ArrayExpression
 from .base import field_reference, operation
-from .boolean import BoolExpression
+from .boolean import BoolExpression, all_of, any_of
 from .custom import CustomDataTypeExpression
 from .factory import value_expression, wrap_expression
 from .literals import literal
@@ -25,7 +25,7 @@ from .visitors import (
 )
 
 __all__ = [
-    "ArrayExpression", "ArraySelection", "BoolExpression", "CustomDataTypeExpression",
+    "ArrayExpression", "ArraySelection", "BoolExpression", "all_of", "any_of", "CustomDataTypeExpression",
     "ExpressionNode", "ExpressionVisitor", "FieldReferenceExpression", "FloatExpression",
     "IntExpression", "LiteralExpression", "NullableAuthoringInput", "NullableDataType", "NullableExpression",
     "NullableSelection", "NumberExpression", "OperationExpression", "OperationParameter",
