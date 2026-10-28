@@ -244,9 +244,17 @@ def _inclusive_values(
     return {
         # Ordered and deduplicated so an inherited list is stable regardless of
         # which descendants contributed, then trimmed back to the limit.
-        name: sorted(dict.fromkeys(values), key=_example_order_key)[:limit]
+        name: _ordered_examples(values, limit)
         for name, values in pooled.items()
     }
+
+
+def _ordered_examples(values: list[Any], limit: int) -> list[Any]:
+    """Deduplicate unhashable examples by their canonical text key, then order."""
+    by_key: dict[tuple[str, str], Any] = {}
+    for value in values:
+        by_key.setdefault(_example_order_key(value), value)
+    return sorted(by_key.values(), key=_example_order_key)[:limit]
 
 
 def _document(

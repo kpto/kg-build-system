@@ -183,7 +183,7 @@ the Open Targets workspace. `keep_if` and binding filters are excluded.
   tests/test_meta_graph_module.py`
 - **Depends on.** Item 2.
 - **Prove.** `ArrayExampleTests` with `ArrayExampleTable` / `ArrayExampleNode`.
-- **Gate.** None.
+- **Status.** Implemented and verified.
 
 ## Not in this rerun
 

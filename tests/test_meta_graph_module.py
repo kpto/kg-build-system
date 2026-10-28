@@ -1296,5 +1296,58 @@ console.log(JSON.stringify({
         self.assertEqual(derived["isolated"], [], "every vertex must be connected")
 
 
+class ArrayExampleTable(Table):
+    identifier: Field[str] = field()
+    codes: Field[Array[str | None]] = field()
+
+
+class ArrayExampleNode(Node):
+    codes: PropertySlot[Array[str]] = property()
+
+
+array_example_binding = node_binding(
+    target=ArrayExampleNode,
+    build_key=ArrayExampleTable.identifier,
+    properties=ArrayExampleNode(
+        codes=ArrayExampleTable.codes.drop_null_items(),
+    ),
+)
+
+
+class ArrayExampleTests(unittest.TestCase):
+    """Array-valued properties carry examples: list values are unhashable."""
+
+    def test_array_property_examples_survive_deduplication(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / "input.json"
+            data.write_text(json.dumps([
+                {"identifier": "a", "codes": ["x", "y"]},
+                {"identifier": "b", "codes": ["x", "y"]},
+                {"identifier": "c", "codes": ["z"]},
+            ]), encoding="utf-8")
+            output = root / "output"
+            contract = compile(
+                bindings=(array_example_binding,),
+                sources=(bind_source(
+                    target=ArrayExampleTable,
+                    config=DataSourceConfig(str(data), format=InputFormat.JSON),
+                ),),
+                modules=(register_module(MetaGraphModule),),
+            )
+            report = build(contract, output_directory=output)
+            self.assertTrue(report.succeeded)
+            document = json.loads(
+                (output / "meta_graph.json").read_text(encoding="utf-8")
+            )
+            entry = next(
+                item for item in document["nodes"]
+                if item["counts"]["records"] == 3
+            )
+            self.assertEqual(
+                entry["properties"][0]["examples"], [["x", "y"], ["z"]],
+            )
+
+
 if __name__ == "__main__":
     unittest.main()
