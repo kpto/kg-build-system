@@ -1,4 +1,4 @@
-from kg_build_system import node_binding
+from kg_build_system import NodeValues, node_binding
 
 from reference_project.bindings.common import provenance_stamps
 from reference_project.table.projections.observations import ObservationProjection
@@ -11,12 +11,15 @@ from reference_project.topology.observation import ObservationNode
 # that recorded nothing is still an observation that was taken.
 observation_binding = node_binding(
     target=ObservationNode,
-    build_key=ObservationProjection.observation_uid.where_present(),
-    properties=ObservationNode(
-        value=ObservationProjection.value.default_to(0.0),
-        method=ObservationProjection.observed_by.default_to("Unrecorded method"),
-        observed_on=ObservationProjection.observed_on.default_to("Undated"),
-        summary=ObservationProjection.observation_uid.where_present(),
-        **provenance_stamps,
+    rows=ObservationProjection,
+    bind=lambda row: NodeValues(
+        build_key=row.observation_uid.where_present(),
+        properties=ObservationNode(
+            value=row.value.default_to(0.0),
+            method=row.observed_by.default_to("Unrecorded method"),
+            observed_on=row.observed_on.default_to("Undated"),
+            summary=row.observation_uid.where_present(),
+            **provenance_stamps,
+        ),
     ),
 )

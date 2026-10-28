@@ -1,4 +1,4 @@
-from kg_build_system import edge_binding
+from kg_build_system import EdgeValues, edge_binding
 
 from reference_project.bindings.common import relation_stamps
 from reference_project.table.readings.mechanical.vibration import VibrationTable
@@ -8,24 +8,30 @@ from reference_project.topology.unit.measures__reading import MeasuresEdge
 
 temperature_measures_binding = edge_binding(
     target=MeasuresEdge,
-    build_key=TemperatureTable.reading_uid.where_present(),
-    source_build_key=TemperatureTable.unit_ref.where_present(),
-    target_build_key=TemperatureTable.reading_uid.where_present(),
-    properties=MeasuresEdge(
-        as_at=TemperatureTable.recorded_on,
-        **relation_stamps,
+    rows=TemperatureTable,
+    bind=lambda row: EdgeValues(
+        build_key=row.reading_uid.where_present(),
+        source_build_key=row.unit_ref.where_present(),
+        target_build_key=row.reading_uid.where_present(),
+        properties=MeasuresEdge(
+            as_at=row.recorded_on,
+            **relation_stamps,
+        ),
     ),
     debug_name="temperature_measure",
 )
 
 vibration_measures_binding = edge_binding(
     target=MeasuresEdge,
-    build_key=VibrationTable.reading_uid.where_present(),
-    source_build_key=VibrationTable.unit_ref.where_present(),
-    target_build_key=VibrationTable.reading_uid.where_present(),
-    properties=MeasuresEdge(
-        as_at=VibrationTable.recorded_on,
-        **relation_stamps,
+    rows=VibrationTable,
+    bind=lambda row: EdgeValues(
+        build_key=row.reading_uid.where_present(),
+        source_build_key=row.unit_ref.where_present(),
+        target_build_key=row.reading_uid.where_present(),
+        properties=MeasuresEdge(
+            as_at=row.recorded_on,
+            **relation_stamps,
+        ),
     ),
     debug_name="vibration_measure",
 )

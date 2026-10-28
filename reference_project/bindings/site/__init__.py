@@ -1,4 +1,4 @@
-from kg_build_system import StrExpression, node_binding
+from kg_build_system import NodeValues, node_binding
 
 from reference_project.bindings.common import provenance_stamps
 from reference_project.table.sites import SitesTable
@@ -7,25 +7,28 @@ from reference_project.topology.site import SiteNode
 
 # The site grain is the grain of the source, so this binding reads the contract
 # directly: no expansion, and the build key is a column.
-site_key: StrExpression = SitesTable.site_id.where_present().expression
+def build_site(row: type[SitesTable]) -> NodeValues[SiteNode, str]:
+    name = row.site_name.default_to("Unnamed site")
+    city = (
+        row.premises
+        .pick(lambda value: value.contact)
+        .pick(lambda value: value.location)
+        .pick(lambda value: value.city)
+        .default_to("Unlisted city")
+    )
+    return NodeValues(
+        build_key=row.site_id.where_present(),
+        properties=SiteNode(
+            name=name,
+            city=city,
+            summary=name,
+            **provenance_stamps,
+        ),
+    )
 
-site_name = SitesTable.site_name.default_to("Unnamed site")
-
-site_city = (
-    SitesTable.premises
-    .pick(lambda value: value.contact)
-    .pick(lambda value: value.location)
-    .pick(lambda value: value.city)
-    .default_to("Unlisted city")
-)
 
 site_binding = node_binding(
     target=SiteNode,
-    build_key=site_key,
-    properties=SiteNode(
-        name=site_name,
-        city=site_city,
-        summary=site_name,
-        **provenance_stamps,
-    ),
+    rows=SitesTable,
+    bind=build_site,
 )

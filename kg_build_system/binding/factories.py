@@ -104,7 +104,7 @@ def _resolve_endpoint(
 @overload
 def node_binding[N: Node, S: Shape](
     *, target: type[N], rows: type[S] | DerivedRowSource[S],
-    bind: Callable[[S], NodeValues[N, Any]],
+    bind: Callable[[type[S]], NodeValues[N, Any]],
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
 ) -> NodeBinding[N]: ...
 @overload
@@ -141,7 +141,7 @@ def node_binding[N: Node](
 @overload
 def edge_binding[E: Edge[Any, Any], S: Shape](
     *, target: type[E], rows: type[S] | DerivedRowSource[S],
-    bind: Callable[[S], EdgeValues[E, Any, Any, Any]],
+    bind: Callable[[type[S]], EdgeValues[E, Any, Any, Any]],
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
     source_node: Endpoint[Any] | None = None,
     target_node: Endpoint[Any] | None = None,

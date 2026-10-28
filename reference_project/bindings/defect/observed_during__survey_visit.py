@@ -1,4 +1,4 @@
-from kg_build_system import edge_binding, endpoint
+from kg_build_system import EdgeValues, edge_binding, endpoint
 
 from reference_project.bindings.common import relation_stamps
 from reference_project.table.projections.defects import DefectProjection
@@ -16,11 +16,14 @@ from reference_project.topology.survey import SurveyVisitNode
 observed_during_binding = edge_binding(
     target=ObservedDuringEdge,
     target_node=endpoint(SurveyVisitNode),
-    build_key=DefectProjection.defect_id.where_present(),
-    source_build_key=DefectProjection.defect_id.where_present(),
-    target_build_key=DefectProjection.survey_id,
-    properties=ObservedDuringEdge(
-        as_at=DefectProjection.observed_on.default_to("Undated"),
-        **relation_stamps,
+    rows=DefectProjection,
+    bind=lambda row: EdgeValues(
+        build_key=row.defect_id.where_present(),
+        source_build_key=row.defect_id.where_present(),
+        target_build_key=row.survey_id,
+        properties=ObservedDuringEdge(
+            as_at=row.observed_on.default_to("Undated"),
+            **relation_stamps,
+        ),
     ),
 )

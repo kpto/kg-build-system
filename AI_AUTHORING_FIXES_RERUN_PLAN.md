@@ -153,9 +153,9 @@
 `TEMP_RELATION_MODEL_SPEC.md` replaces the earlier `keep_if` item. The model is implemented
 through its binding and lowering steps: `Shape`, `RowSource`, `ShapeType`, `any_of`/`all_of`,
 `where`, `DerivedRowSource`, `projection_base()`, `rows=`/`bind` with `NodeValues`/`EdgeValues`,
-row-source plans on projections and bindings, and filtered SQL lowering. The legacy
-direct-expression bindings are retained, so no migration is required. `keep_if` and binding
-filters are excluded.
+row-source plans on projections and bindings, and filtered SQL lowering. The reference
+project is migrated to `rows=`/`bind`; the legacy direct-expression form remains supported for
+the Open Targets workspace. `keep_if` and binding filters are excluded.
 
 ## Item 8 — Merge module takes a component scope
 

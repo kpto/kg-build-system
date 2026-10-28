@@ -1,4 +1,4 @@
-from kg_build_system import node_binding
+from kg_build_system import NodeValues, node_binding
 
 from reference_project.bindings.common import provenance_stamps
 from reference_project.table.surveys import SurveysTable
@@ -9,18 +9,21 @@ from reference_project.topology.survey import SurveyVisitNode
 # directly off the contract even though deeper grains need projections.
 survey_visit_binding = node_binding(
     target=SurveyVisitNode,
-    build_key=SurveysTable.survey_id.where_present(),
-    properties=SurveyVisitNode(
-        # A timestamp has no honest sentinel, so an undated survey carries no
-        # date at all rather than the text a string property would have needed.
-        surveyed_on=SurveysTable.surveyed_on,
-        surveyor=SurveysTable.surveyor.pick(lambda value: value.name).default_to("Unattributed"),
-        practice=(
-            SurveysTable.surveyor
-            .pick(lambda value: value.firm)
-            .pick(lambda value: value.name)
+    rows=SurveysTable,
+    bind=lambda row: NodeValues(
+        build_key=row.survey_id.where_present(),
+        properties=SurveyVisitNode(
+            # A timestamp has no honest sentinel, so an undated survey carries
+            # no date at all rather than the text a string property would need.
+            surveyed_on=row.surveyed_on,
+            surveyor=row.surveyor.pick(lambda value: value.name).default_to("Unattributed"),
+            practice=(
+                row.surveyor
+                .pick(lambda value: value.firm)
+                .pick(lambda value: value.name)
+            ),
+            summary=row.survey_id.default_to("Unidentified survey"),
+            **provenance_stamps,
         ),
-        summary=SurveysTable.survey_id.default_to("Unidentified survey"),
-        **provenance_stamps,
     ),
 )

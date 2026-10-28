@@ -233,5 +233,5 @@ dictionaries, untyped/implicit projections. `lookup` is optional; `group_by`/`jo
   `RelationPlanIR` remains the relational-product plan.
 - `projection_base()` carries the inherited fields; `active.shape` is a generated shape view and
   can be used as the second base in the documented projection form.
-- Legacy direct-expression bindings remain supported, so the reference project and the Open
-  Targets workspace do not need migration.
+- The reference project is migrated to `rows=`/`bind`; legacy direct-expression bindings remain
+  supported for the Open Targets workspace.
