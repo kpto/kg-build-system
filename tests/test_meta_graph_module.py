@@ -840,6 +840,12 @@ class CanonicalExampleValueTests(unittest.TestCase):
             with self.subTest(value=value):
                 self.assertIs(_canonical_example_value(value), value)
 
+    def test_non_finite_floats_become_json_safe_text(self) -> None:
+        self.assertEqual(_canonical_example_value(float("nan")), "NaN")
+        self.assertEqual(_canonical_example_value(float("inf")), "Infinity")
+        self.assertEqual(_canonical_example_value(float("-inf")), "-Infinity")
+        json.dumps({"value": _canonical_example_value(float("nan"))}, allow_nan=False)
+
     def test_containers_recurse_to_their_items(self) -> None:
         self.assertEqual(
             _canonical_example_value(

@@ -117,11 +117,19 @@ def _component(declaration: type[Any]) -> ComponentDefinition:
 def _row_source_plan(row_source: Any) -> RowSourcePlanIR | None:
     if row_source is None:
         return None
-    source = getattr(row_source, "source", row_source)
+    # Only a DerivedRowSource wraps another source. A Table may declare a field
+    # named ``source`` (clinical_report does), so unwrapping by attribute name
+    # would read that field instead of the table.
+    from ..table.rows import DerivedRowSource
+    if isinstance(row_source, DerivedRowSource):
+        source = row_source.source
+        filters = row_source.filters
+    else:
+        source = row_source
+        filters = ()
     name = getattr(source, "_table_name", None) or getattr(source, "_projection_name", None)
     if not isinstance(name, str) or not name:
         raise TypeError("row sources must be a Table or Projection")
-    filters = getattr(row_source, "filters", ())
     return RowSourcePlanIR(
         name, tuple(expression_to_ir(filter.model) for filter in filters),
     )

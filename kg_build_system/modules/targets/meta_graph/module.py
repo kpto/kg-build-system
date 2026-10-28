@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import datetime
 import json
+import math
 import uuid
 from dataclasses import dataclass
 from pathlib import PurePosixPath
@@ -63,7 +64,15 @@ def _canonical_example_value(value: Any) -> Any:
     rather than being quietly stringified into a document that is supposed to be
     reproducible.
     """
-    if value is None or isinstance(value, (bool, int, float, str)):
+    if value is None or isinstance(value, (bool, int, str)):
+        return value
+    if isinstance(value, float):
+        # JSON has no NaN or infinity. A non-finite source value is shown as
+        # its source spelling rather than emitted as invalid JSON.
+        if math.isnan(value):
+            return "NaN"
+        if math.isinf(value):
+            return "Infinity" if value > 0 else "-Infinity"
         return value
     if isinstance(value, (datetime.datetime, datetime.date, datetime.time, uuid.UUID)):
         return canonical_value_text(value)
@@ -435,6 +444,7 @@ class MetaGraphExecutor(ModuleExecutor):
             # target never writes.
             json.dumps(
                 document, sort_keys=True, indent=2, default=_canonical_example_value,
+                allow_nan=False,
             ) + "\n",
             encoding="utf-8",
         )

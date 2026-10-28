@@ -687,7 +687,7 @@ def _embed(document: dict[str, Any]) -> str:
     # The module canonicalises every example value before it renders, so the
     # document is plain JSON here and a default hook would only paper over a value
     # whose spelling disagrees with the JSON file written beside this page.
-    payload = json.dumps(document, sort_keys=True, indent=2)
+    payload = json.dumps(document, sort_keys=True, indent=2, allow_nan=False)
     # A literal closing tag inside a string value would end the block early.
     return payload.replace("</", "<\\/")
 
