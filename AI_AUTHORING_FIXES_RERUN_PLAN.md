@@ -168,9 +168,10 @@ the Open Targets workspace. `keep_if` and binding filters are excluded.
   kg_build_system/modules/operators/__init__.py kg_build_system/modules/__init__.py`
 - **Decisions.**
   - `components=None` keeps today's behaviour: every record component.
-  - Add the row-folding test the reference lacks: two components, only the named one folds
-    duplicate keys.
-- **Gate.** Confirm the default and name the two components for the test.
+  - `components` holds concrete `Node`/`Edge` classes, never free strings; JSON provenance
+    stores their module and qualified name.
+  - The row-folding test uses two components; only the named one folds duplicate keys.
+- **Status.** Implemented and verified.
 
 ## Item 9 — Meta-graph examples survive array values
 

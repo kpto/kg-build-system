@@ -223,7 +223,7 @@ def _module(registration: CompileModuleRegistration[Any]) -> BlueprintModule:
         raise TypeError("workflow module classes must declare a non-empty string ID")
     if "<locals>" in cls.__qualname__:
         raise ValueError("workflow modules must be importable top-level classes")
-    return BlueprintModule(module_id, cls.__module__, cls.__qualname__, freeze_json(asdict(registration.configuration)))
+    return BlueprintModule(module_id, cls.__module__, cls.__qualname__, freeze_json(registration.configuration.to_json()))
 
 
 def _all_subclasses(cls: type[Any]) -> tuple[type[Any], ...]:

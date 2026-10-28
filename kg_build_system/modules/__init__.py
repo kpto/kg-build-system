@@ -5,6 +5,7 @@ from .interfaces import (
 from .operators import (
     CollapseExactDuplicatesModule,
     MergeCompatibleFactsModule,
+    MergeCompatibleFactsModuleConfiguration,
     RejectConflictingNonNullValuesConfiguration,
     RejectConflictingNonNullValuesModule,
 )
@@ -17,6 +18,7 @@ __all__ = [
     "FileModule",
     "FileModuleConfiguration",
     "MergeCompatibleFactsModule",
+    "MergeCompatibleFactsModuleConfiguration",
     "MetaGraphModule",
     "MetaGraphModuleConfiguration",
     "Module",

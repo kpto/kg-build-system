@@ -11,16 +11,17 @@ from typing import Any, cast
 from unittest.mock import MagicMock, patch
 
 from kg_build_system import (
-    Array, BuildRuntime, DataSourceConfig, Field, InputFormat, Node, Projection,
-    PropertySlot, Struct, Table, bind_source, build, compile, create_blueprint,
-    field, node_binding, projection_field, property,
+    Array, BuildRuntime, DataSourceConfig, Field, InputFormat, Node, NodeValues,
+    Projection, PropertySlot, Struct, Table, bind_source, build, compile,
+    create_blueprint, field, node_binding, projection_field, property,
 )
 from kg_build_system._frozen_json import freeze_json
 from kg_build_system.expressions import value_expression
 from kg_build_system.types import Date
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration,
-    MergeCompatibleFactsModule, register_module,
+    MergeCompatibleFactsModule, MergeCompatibleFactsModuleConfiguration,
+    register_module,
 )
 from kg_build_system.modules.core.credentials import configure_source_credentials
 from kg_build_system.modules.core.core import CoreArtifactTypes
@@ -60,6 +61,19 @@ class LoweringProjection(Projection):
 
 class LoweringNode(Node):
     label: PropertySlot[str] = property()
+
+
+class MergeInput(Table):
+    identifier: Field[str] = field()
+    value: Field[int] = field()
+
+
+class MergeANode(Node):
+    value: PropertySlot[int] = property()
+
+
+class MergeBNode(Node):
+    value: PropertySlot[int] = property()
 
 
 class TransformInner(Struct):
@@ -487,6 +501,74 @@ class FileTargetPropertyEncodingTests(unittest.TestCase):
                     (root / "graph.jsonl").read_text(encoding="utf-8"), "",
                     "the record is refused rather than stringified",
                 )
+
+
+class MergeScopeTests(unittest.TestCase):
+    def _binding(self, target):
+        return node_binding(
+            target=target,
+            rows=MergeInput,
+            bind=lambda row: NodeValues(
+                build_key=row.identifier,
+                properties=target(value=row.value),
+            ),
+        )
+
+    def test_configuration_takes_component_classes(self) -> None:
+        config = MergeCompatibleFactsModuleConfiguration(
+            components=(MergeANode,),
+        )
+        self.assertEqual(
+            config.to_json(),
+            {"components": [{
+                "module": MergeANode.__module__,
+                "qualname": MergeANode.__qualname__,
+            }]},
+        )
+        with self.assertRaisesRegex(TypeError, "concrete Node or Edge"):
+            MergeCompatibleFactsModuleConfiguration(
+                components=("merge_a",),  # type: ignore[arg-type]
+            )
+
+    def test_only_the_named_component_folds_duplicate_keys(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            data = root / "rows.json"
+            data.write_text(json.dumps([
+                {"identifier": "x", "value": 2},
+                {"identifier": "x", "value": 1},
+            ]), encoding="utf-8")
+            source = bind_source(
+                target=MergeInput,
+                config=DataSourceConfig(str(data), format=InputFormat.JSON),
+            )
+            contract = compile(
+                bindings=(self._binding(MergeANode), self._binding(MergeBNode)),
+                sources=(source,),
+                modules=(
+                    register_module(
+                        MergeCompatibleFactsModule,
+                        MergeCompatibleFactsModuleConfiguration(
+                            components=(MergeANode,),
+                        ),
+                    ),
+                    register_module(
+                        FileModule, FileModuleConfiguration("graph.jsonl"),
+                    ),
+                ),
+            )
+            report = build(contract, output_directory=root / "output")
+            self.assertTrue(report.succeeded)
+            rows = [
+                json.loads(line)
+                for line in (root / "output" / "graph.jsonl")
+                .read_text(encoding="utf-8").splitlines()
+            ]
+
+        a_rows = [row for row in rows if row["type"] == "merge_a"]
+        b_rows = [row for row in rows if row["type"] == "merge_b"]
+        self.assertEqual([row["value"] for row in a_rows], [1])
+        self.assertEqual(sorted(row["value"] for row in b_rows), [1, 2])
 
 
 class ArrayTransformTests(unittest.TestCase):

@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from typing import Any, ClassVar, Generic, TypeVar
 
 from ..compile.interfaces import CompilationContext, ModuleCompiler
@@ -16,6 +16,10 @@ ConfigT = TypeVar("ConfigT")
 @dataclass(frozen=True, slots=True)
 class ModuleRegistrationConfiguration:
     """Serializable, non-secret configuration declared for a module."""
+
+    def to_json(self) -> Any:
+        """The JSON-compatible form carried in module provenance."""
+        return asdict(self)
 
 
 class Module(ABC):
