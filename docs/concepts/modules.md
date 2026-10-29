@@ -74,13 +74,13 @@ step runs.
 
 ## The built-in modules
 
-### Collapse exact duplicates
+### `CollapseExactDuplicatesModule`
 
 This module removes rows that are identical in every column, including the build
 key and all properties. A repeated key whose values differ is left alone; use
 merging or fix the binding. No configuration.
 
-### Merge compatible facts
+### `MergeCompatibleFactsModule`
 
 `MergeCompatibleFactsModule` folds rows with the same build key into one row,
 keeping the minimum value for every property. That is only sound when the
@@ -112,7 +112,7 @@ named keep every row.
     edge facts are deliberately distinct, keep that family out of scope. Build
     the reduction into the binding or a projection instead.
 
-### Reject conflicting non-null values
+### `RejectConflictingNonNullValuesModule`
 
 For every property of every bound component, this module groups by build key and
 looks for more than one distinct non-null value. Nulls never create a conflict;
@@ -146,7 +146,7 @@ Each finding names the component, build key, property, and count of distinct
 values. When the module does not fail the run, it passes the records on, so later
 output modules see them.
 
-### File output
+### `FileModule`
 
 `FileModule` writes one JSON object per line. Each line contains `build_key`,
 `type` (the component's logical name), `kind` (`node` or `edge`), the
@@ -165,12 +165,20 @@ modules = (register_module(FileModule, FileModuleConfiguration("graph.jsonl")),)
 The path is relative to the build's output directory and must not escape it. The
 module publishes `file/write_result` with `nodes`, `edges`, and `location`.
 
-### Meta-graph description
+### `MetaGraphModule`
 
 `MetaGraphModule` writes a JSON description of the effective topology: every
 component a binding targets, its abstract ancestors and endpoint categories, its
-properties and logical types, and its record count. Example values come from the
-records that reached the module, so counts reflect whatever stage last owned them.
+properties and logical types, and its record count. Counts are exact for the
+records that reached the module, so they reflect whatever stage last owned them.
+A category's `inclusive_records` is the exact sum of its own and its descendants'
+records.
+
+Example values are approximate: the module reads the most common values with
+`approx_top_k`, bounded by `example_limit`, rather than scanning a sorted sample.
+The document names that method. Inherited category examples are pooled from the
+descendants and ordered canonically; they are illustrative, not a precise
+distribution.
 
 ```python
 from kg_build_system.modules import (
@@ -185,7 +193,7 @@ modules = (register_module(MetaGraphModule, MetaGraphModuleConfiguration(
 `example_limit=0` omits examples. The HTML page is self-contained and draws the
 same document. Both paths are relative to the output directory.
 
-### Neo4j import bundle
+### `Neo4jModule`
 
 `Neo4jModule` writes one Parquet file per bound node and edge component, a
 standalone `import_neo4j.py`, and a summary. Column headers are the
@@ -203,8 +211,8 @@ modules = (register_module(Neo4jModule, Neo4jModuleConfiguration(
 
 The target checks types at compile time. It exports `bool`, `int`, `float`,
 `str`, `date`, `time` and `timestamp`, plus arrays of `bool`, `int`, `float` and
-`str`. It refuses `uuid` properties, arrays of temporal or `uuid` items, and
-reserved import-field names.
+`str`. It refuses `uuid` and custom-scalar (`CustomDataType`) properties, arrays
+of temporal, `uuid` or custom-scalar items, and reserved import-field names.
 
 !!! warning "Concrete endpoints for Neo4j"
     Every edge needs both endpoint node components bound and exported. An edge
@@ -216,6 +224,12 @@ reserved import-field names.
 Modules are composed in the order registered; the core module is appended after
 them. Record-rewriting modules — collapse, merge, validation — consume graph
 records and produce graph records again. Output modules consume them.
+
+Several bindings may target one component. The core module unions their records
+into that component's single record stream, so this is an ordinary way to build
+one node type from several sources or grains; it is not two producers of a
+record type. Two *modules* writing the same artifact type are different: the
+wiring becomes ambiguous and compilation fails rather than choosing one.
 
 For predictable results, register every rewriting module first and output
 modules last. The last rewriting module before the outputs supplies the records
@@ -240,18 +254,24 @@ choosing a key, or turning an array into rows is a job for
 [expressions](expressions.md) and [projections](projections.md). Choosing which
 rows become which records is a job for [bindings](bindings.md).
 
-If a whole-graph stage is needed by more than one project, a custom module is the
-right extension point; the public `Module` and `register_module` interfaces are
-the boundary. Otherwise prefer the supplied modules and keep composition small.
+Custom module authoring is framework-internal in this release. The `Module`
+protocol is importable and `register_module` composes a supplied module, but a
+module's `create_compiler` and `create_executor` return types are not part of the
+public authoring surface (`compile.interfaces` and `workflow.interfaces` are
+private today). Write a module only inside the framework, not in a graph project;
+a project composes the supplied modules and keeps composition small.
 
 ## What to remember
 
 - A build is the core pipeline plus the modules you register.
-- Module order sets stage priority; output modules belong last. Two independent
-  producers of one record type fail compilation instead of being guessed apart.
+- Module order sets stage priority; output modules belong last.
+- Two bindings to one component are unioned. Two *modules* producing the same
+  artifact type make the wiring ambiguous and fail compilation.
 - Add a module for whole-graph work such as deduplication, merging, validation
   or writing.
 - Keep row-level choices in expressions and bindings, where the grain is known.
+- Custom module authoring is framework-internal; projects compose supplied
+  modules.
 - Output modules decide where results land; the same contract can feed several.
 
 Related pages: [Compile and build](build.md), [Outputs](outputs.md),

@@ -201,11 +201,18 @@ and names the projections involved.
 
 ## Computed structs
 
-A `ComputedStruct` is a value-record declaration: its members are declared with
-`computed_field`, and each member is typed by its expression. It is usable as a
-field type (`Field[SomeComputedStruct]`) and through `extract`, exactly like a
-source struct. It is **not** a table or a row source: it has no
-`row_source()`, cannot be bound, and cannot be a table-group member.
+A `ComputedStruct` is a value-record declaration whose members are written with
+`computed_field`. It is usable as a field type (`Field[SomeComputedStruct]`) and
+through `extract`, exactly like a source struct. It is **not** a table or a row
+source: it has no `row_source()`, cannot be bound, and cannot be a table-group
+member.
+
+When a `ComputedStruct` is used as `Field[T]`, its member expressions are **type
+witnesses**. They fix each member's logical type and nullability, but they are
+not evaluated and do not become a row plan. A filter or expansion written in a
+witness has no row effect. A read becomes a field reference on the carrier record
+— here, `SummaryTable.summary` — and the carrier's nested data supplies the
+value.
 
 ```python
 from kg_build_system import ComputedStruct, Field, Table, computed_field, field
@@ -217,8 +224,9 @@ class ReadingTable(Table):
 
 
 class ReadingSummaryStruct(ComputedStruct):
-    """The members a reading summary exposes."""
+    """The member types a summary record carries."""
 
+    # Witnesses only: these expressions fix types, not values.
     reading_uid = computed_field(ReadingTable.reading_uid.alter_rows().drop_null())
     deg_c = computed_field(ReadingTable.deg_c)
 
@@ -228,8 +236,7 @@ class SummaryTable(Table):
     summary: Field[ReadingSummaryStruct] = field()
 ```
 
-The member expression fixes the member's type. `extract` composes the
-nullability of the record that carries the struct with that member type:
+`extract` composes the presence of the carrier with the witness type:
 
 ```python
 summary = SummaryTable.summary.alter_rows().drop_null()   # StructSelection
@@ -237,9 +244,15 @@ uid = summary.extract(lambda value: value.reading_uid)    # ValueSelection[str]
 deg_c = summary.extract(lambda value: value.deg_c)        # NullableSelection[float]
 ```
 
-A present parent leaves a non-null member non-null; the same member under a
-nullable parent becomes nullable. A nullable source field that carries the
-struct reads nullable, like every other source field.
+A present carrier leaves a non-null witness non-null; the same member under a
+nullable carrier becomes nullable. The values are still whatever the carrier
+holds. A nullable source field that carries the struct reads nullable, like
+every other source field, and `extract` propagates that absence.
+
+Do not read a `ComputedStruct` member expression as a derivation. If the value
+must be calculated from another relation, declare it on a `Projection` and bind
+or extract the projection output; a `ComputedStruct` witness only describes a
+record the row already has.
 
 ## Naming and describing the relation
 
@@ -268,22 +281,57 @@ compilation. `options.description` wins over the class docstring;
 
 `computed_field` accepts `name`, `description` and `annotations`. `name` is the
 output's external name and defaults to the Python attribute in snake case.
-`description` documents it; a string written below the assignment is not read.
+`description` documents it; an explicit argument wins, otherwise a string
+written directly below the assignment is read when the class is created.
 `annotations` is a sequence of `Annotation` values carried in the blueprint. Two
 outputs in one projection may not share an external name.
 
 ## One driving source
 
 A projection has one driving source. All field expressions must read that
-source, possibly through chained expansions and struct navigation. Referencing
-two unrelated relations from one projection is not an implicit cross product;
-the build fails with `a relational product requires one driving source;
+source, possibly through chained expansions and struct navigation. A projection
+does not join implicitly: referencing two unrelated relations from one
+projection fails with `a relational product requires one driving source;
 additional sources must be introduced by an explicit lookup`.
 
-The error names an explicit lookup, but the current API has no join operation to
-create one. Combine two relations by binding each side separately, or build the
-combined value in a row source that already contains it. Do not rely on a
-projection to join them.
+The explicit lookup is the row-source algebra. Build the relation first and pin
+it to the projection:
+
+```python
+from kg_build_system import Field, Projection, Table, computed_field, field
+
+
+class EmployeeTable(Table):
+    id: Field[str] = field()
+    team: Field[str] = field()
+
+
+class DepartmentTable(Table):
+    code: Field[str] = field()
+    label: Field[str] = field()
+
+
+joined = EmployeeTable.row_source().join(
+    DepartmentTable.row_source(),
+    on=lambda employee, department: (employee.team, department.code),
+    how="left",
+)
+
+
+class EmployeeDepartmentProjection(Projection(joined)):
+    """One row per employee, with the department when it matches."""
+
+    employee_id = computed_field(
+        joined.shape.left.extract(lambda left: left.id).alter_rows().drop_null()
+    )
+    department = computed_field(
+        joined.shape.right.extract(lambda right: right.label)
+    )
+```
+
+A grouped source can be pinned the same way. `joined.projection_base()` is the
+variant that inherits the generated shape's fields; it is shown in
+[row sources](row-sources.md#projections-over-derived-sources).
 
 Name a projection when more than one declaration reads the same rows, give a
 new grain its own projection, and let nullability show through rather than
@@ -300,8 +348,9 @@ meaning, and [Bindings](bindings.md) to connect them.
 - Give a new grain a projection, and give one grain reused by several bindings a
   projection too.
 - Reading a projection field reuses its output, not the calculation behind it.
-- A `ComputedStruct` is a value record, not a row source.
-- One projection has one driving source. The current API has no join; combine
-  relations through separate bindings.
+- A `ComputedStruct` is a value record, not a row source. As a field type, its
+  member expressions are type witnesses, not evaluated values.
+- One projection has one driving source. Join, group or union in the row source
+  you pin; a projection never joins implicitly.
 
 Next: [Topology](topology.md) gives these rows graph meaning.

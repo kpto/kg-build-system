@@ -67,6 +67,105 @@ Choose the grain first, then write the binding. A node binding should read one
 row per node; an edge binding should read one row per edge. If a binding needs
 two grains, it needs two bindings or a projection between them.
 
+## Joining, grouping and unioning
+
+Use the row-source algebra when one record needs values from two relations, or
+when one record represents a group. These are plans, not bindings: write the
+plan first, pass it as `rows=`, and give it a projection when more than one
+consumer needs the same grain.
+
+```python
+from kg_build_system import (
+    Field, Node, NodeValues, PropertySlot, Table, field, node_binding, property,
+)
+
+class EmployeeTable(Table):
+    employee_id: Field[str] = field()
+    name: Field[str] = field()
+    team: Field[str] = field()
+
+class DepartmentTable(Table):
+    code: Field[str] = field()
+    label: Field[str] = field()
+
+class TeamMemberNode(Node):
+    name: PropertySlot[str] = property()
+    department: PropertySlot[str | None] = property()
+
+joined = EmployeeTable.row_source().join(
+    DepartmentTable.row_source(),
+    on=lambda employee, department: (employee.team, department.code),
+    how="left",
+)
+
+member_binding = node_binding(
+    target=TeamMemberNode,
+    rows=joined,
+    bind=lambda row: NodeValues(
+        build_key=row.left.extract(
+            lambda left: left.employee_id
+        ).alter_rows().drop_null(),
+        properties=TeamMemberNode(
+            name=row.left.extract(lambda left: left.name)
+            .default_to("Unnamed employee"),
+            department=row.right.extract(lambda right: right.label),
+        ),
+    ),
+)
+```
+
+`how="left"` makes `right` nullable, so the property accepts absence directly.
+Use the key-pair form for non-text keys. A single `equals` expression is accepted
+too, but it is text-only and needs present text on both sides.
+
+A group is one row per distinct non-null key. Its generated `by` members are
+already non-null; do not add `drop_null()` to a key read:
+
+```python
+class TeamTable(Table):
+    team: Field[str] = field()
+
+class GroupedTeamNode(Node):
+    members: PropertySlot[str] = property()
+
+by_team = TeamTable.row_source().group_by(
+    by=lambda row: {"team": row.team},
+)
+
+team_binding = node_binding(
+    target=GroupedTeamNode,
+    rows=by_team,
+    bind=lambda row: NodeValues(
+        build_key=row.by.extract(lambda key: key.team),
+        properties=GroupedTeamNode(
+            members=row.members
+            .transform_items(lambda member: member.extract(lambda item: item.team))
+            .drop_null_items()
+            .concat("|"),
+        ),
+    ),
+)
+```
+
+A union needs exactly the same shape, including external names, logical types
+and nullability:
+
+```python
+class CurrentEmployeeTable(Table):
+    employee_id: Field[str] = field()
+    name: Field[str] = field()
+
+class FormerEmployeeTable(Table):
+    employee_id: Field[str] = field()
+    name: Field[str] = field()
+
+everyone = CurrentEmployeeTable.row_source().union(FormerEmployeeTable.row_source())
+```
+
+A projection can pin any of these plans directly: `Projection(joined)`, or
+`joined.projection_base()` when it should inherit the generated fields. See
+[Row sources](../concepts/row-sources.md).
+
 ## Edge, property, or reified node
 
 A fact can often be modelled in more than one way. Use the question the graph
@@ -97,6 +196,8 @@ Use `AbstractNode` and `AbstractEdge` when several components share meaning:
 - an endpoint that may be any member of a family.
 
 ```python
+from kg_build_system import AbstractNode, Node, PropertySlot, property
+
 class DocumentedAbstractNode(AbstractNode):
     summary: PropertySlot[str] = property()
 
@@ -114,6 +215,10 @@ bound normally.
 An edge may declare a category endpoint:
 
 ```python
+from kg_build_system import (
+    AbstractEdge, Edge, EdgeValues, edge_binding, endpoint,
+)
+
 class DocumentedEdge(
     AbstractEdge[DocumentedAbstractNode, DocumentedAbstractNode]
 ): ...
@@ -128,6 +233,9 @@ edge_binding(
     bind=lambda row: EdgeValues(...),
 )
 ```
+
+`DefectProjection`, `DefectNode` and `SiteNode` are the project's own
+declarations; import them from their modules in a real graph.
 
 The `endpoint(...)` tokens name the concrete components used by this binding.
 They are required for an abstract declared side and must descend from the
@@ -259,6 +367,8 @@ and pass only `modules` to `compile`.
 - Use an edge for a relationship, a property for a fact about one thing, and a
   node when the relationship itself carries identity or facts.
 - Categories share meaning; they do not replace bindings.
+- Join, group or union in the row source, then bind the result. A group's `by`
+  keys are non-null; a union needs identical shapes.
 - Fan-out is explicit. `alter_rows().expand()` multiplies rows, so key on the
   item.
 - Add a projection when a grain is reused or genuinely new, not to tidy one

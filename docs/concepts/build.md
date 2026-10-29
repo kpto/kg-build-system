@@ -10,8 +10,9 @@ A build has three separate steps:
 
 The separation is useful. A blueprint is the complete description of what the
 graph is made from; a contract adds the ordered work that a particular module
-composition will do. You can compile once, inspect the contract, and run it many
-times.
+composition will do. An author can review and test the plan before any data is
+read, then run the same plan repeatedly or send it to several targets without
+recompiling.
 
 ```python
 from pathlib import Path
@@ -36,7 +37,17 @@ blueprint back to `compile`.
 ## Creating a blueprint
 
 `create_blueprint` needs `modules` and one declaration source. There are three
-modes.
+modes. Whatever the mode, the result must contain at least one graph component
+and at least one binding: an empty blueprint is refused with
+`blueprints require at least one graph component` or
+`blueprints require at least one graph binding`.
+
+Only reached declarations enter the blueprint. Discovery may import a package
+with many declarations, but the blueprint contains the tables and projections a
+binding reads (including through another projection), the components those
+bindings target and their ancestors and endpoints, the structs those types use,
+and the sources those tables need. An unread table, projection or category is
+not published.
 
 **This file's namespace.** When only `modules` is given, the framework imports
 the calling file's directory and discovers module-level binding and source
@@ -75,8 +86,8 @@ blueprint = create_blueprint(
 `bindings` and `sources` must be supplied together. Every table the bindings read
 must have exactly one physical source by the time you compile.
 
-The result is a frozen, portable description with stable ordering. Its
-attributes expose the tables, projections, components, bindings and sources; see
+The result is a frozen description with stable ordering. Its attributes expose
+the reached tables, projections, components, bindings and sources; see
 [Debugging](../guides/debugging.md#inspecting-a-blueprint) for how to read them.
 The environment that later compiles or runs a build must still provide the
 module implementations the description names. It is a build artifact, not a
@@ -109,13 +120,23 @@ Compilation does everything that can be checked without reading data:
 - every table has a source;
 - every module's compile-time configuration is valid.
 
-The contract is immutable and self-contained, with no resolved credentials. It
-records the frozen work each module contributed and identifies itself by
-fingerprint:
+The contract is immutable and self-contained as data, with no resolved
+credentials. It records the frozen work each module contributed and identifies
+itself by fingerprint:
 
 ```python
 print(contract.workflow_fingerprint)
 ```
+
+Its durability is bounded by the implementation that executes it. `build`
+imports every module the contract names and requires the module's current
+`VERSION` to equal the version compiled into the contract; a mismatch stops the
+build with
+`module '...' implementation version '...' does not match compiled version '...'`.
+The framework has no schema compatibility, version negotiation or migration
+path. A stored contract is reproducible only in an environment that supplies the
+same module implementations and versions; changing the framework or a module
+means compiling again.
 
 ## Running a build
 
@@ -132,7 +153,9 @@ report = build(
 ```
 
 `monitor=False` disables the progress display. On a terminal it is enabled
-automatically; `monitor=True` forces it even when output is redirected.
+automatically; `monitor=True` forces it even when output is redirected. Pass an
+object implementing `WorkflowExecutionMonitor` to observe the same lifecycle
+with your own reporter.
 
 The output directory receives everything the contract publishes. It defaults to
 `build` beneath the current working directory:
@@ -247,10 +270,14 @@ step failure, so the build returns an unsuccessful report rather than raising.
 
 - `create_blueprint` validates declarations, `compile` freezes the work, and
   `build` executes it.
+- A blueprint needs at least one component and one binding, and contains only
+  the declarations the bindings reach.
 - Compilation checks everything that does not need data.
 - Module composition belongs to compile, not build.
 - Runtime configuration supplies credentials and resources; it does not change
   the contract.
+- A contract is durable data only for the same module implementations and
+  `VERSION` values; there is no schema compatibility or migration.
 - A failed step yields a report; a failure before execution raises.
 
 The debugging guide covers the common messages and how to inspect a blueprint or

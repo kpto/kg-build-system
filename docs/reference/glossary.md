@@ -32,21 +32,24 @@ Table / Projection ──> selection / expression ──> binding ──> contra
   [Topology](../concepts/topology.md).
 
 **Computed field**
-: An expression-backed member declared with `computed_field(expression)`. It
-  appears as a `Projection` output or a `ComputedStruct` member and is typed by
-  its expression: non-null when the expression is non-null, nullable when the
-  expression is nullable.
+: A member declared with `computed_field(expression)`. As a `Projection` output
+  it is typed by its expression: non-null when the expression is non-null,
+  nullable when it is nullable. As a `ComputedStruct` member it is a type
+  witness only, and the value is read from the carrier row.
 
 **Computed struct**
 : A value-record declaration built from `computed_field` members. It is usable
   as a field type (`Field[SomeComputedStruct]`) and through `extract`, but it is
-  not a table or row source and cannot be bound. See
+  not a table or row source and cannot be bound. As a field type its member
+  expressions are type witnesses: they fix member types, are not evaluated, and
+  `extract` reads the member from the carrier row. See
   [Projections](../concepts/projections.md#computed-structs).
 
 **Contract**
-: The immutable result of `compile()`: the complete, portable description of
-  one build, including the workflow fingerprint. The same contract can be
-  stored, inspected, and built repeatedly. See [Compile and
+: The immutable, self-contained result of `compile()`: the description of one
+  build, including the workflow fingerprint. The same contract can be stored,
+  inspected, and built repeatedly while the module implementations and their
+  `VERSION` values match; there is no schema migration path. See [Compile and
   build](../concepts/build.md).
 
 **Edge**
@@ -100,8 +103,9 @@ Table / Projection ──> selection / expression ──> binding ──> contra
 **Projection**
 : A named logical row product with exactly one driving row plan. Its outputs
   are declared with `computed_field(...)`. A projection is also a row source, so
-  a binding or another projection can consume it; `Projection(source.row_source())`
-  pins it to a relation and records that source in its definition. See
+  a binding or another projection can consume it;
+  `Projection(source.row_source())` pins it to a relation and
+  `Projection(derived)` pins a joined, grouped, unioned or filtered plan. See
   [Projections](../concepts/projections.md).
 
 **Property**
@@ -118,8 +122,10 @@ Table / Projection ──> selection / expression ──> binding ──> contra
 
 **Row source**
 : Something that produces rows of a known shape. `Table.row_source()` and
-  `Projection.row_source()` return a `RelationRowSource`; `.where(...)` returns
-  a `DerivedRowSource`. A row source is a value; a declaration class is not
+  `Projection.row_source()` return a `RelationRowSource`; `where`, `union`,
+  `join`, `group_by`, `distinct` and `order_by` each return a
+  `DerivedRowSource`, so the algebra composes. A projection relation supports
+  the same algebra. A row source is a value; a declaration class is not
   accepted. A `Struct` or `ComputedStruct` is not a row source.
 
 **Selection**
@@ -141,9 +147,9 @@ Table / Projection ──> selection / expression ──> binding ──> contra
   contracts](../concepts/data-contracts.md).
 
 **Table**
-: A final logical data declaration. It is both a shape and a row source based
-  on a physical input, and it is bound to that input with `bind_source(...)`.
-  A `TableGroup` gives tables a named nested catalog structure.
+: A final logical data declaration. It is both a shape and a row source; a
+  separate `bind_source(...)` supplies its physical location. A `TableGroup`
+  gives tables a named nested catalog structure.
 
 **Table group**
 : A named hierarchy of final tables and nested table groups. Every member has a
@@ -152,8 +158,9 @@ Table / Projection ──> selection / expression ──> binding ──> contra
 
 **Template**
 : An inert mixin that shares property slots or fields and annotation flow with
-  its hosts. `NodeTemplate`, `EdgeTemplate`, and `StructTemplate` never enter
-  the contract and carry no identity. Their options are annotations-only:
+  its hosts. `StructTemplate` mixes only into `Table`, `Struct` and
+  `ComputedStruct`. `NodeTemplate`, `EdgeTemplate` and `StructTemplate` never
+  enter the contract and carry no identity. Their options are annotations-only:
   `NodeOptionsTemplate`, `EdgeOptionsTemplate`, `StructOptionsTemplate`.
 
 **Topology**
@@ -180,7 +187,7 @@ Table / Projection ──> selection / expression ──> binding ──> contra
 | --- | --- | --- |
 | Field | Property | A field describes a source member or computed output; a property is a graph value bound from an expression. |
 | Selection | Expression | A selection navigates structure and owns null policy; an expression calculates a value. |
-| Struct | ComputedStruct / Table | A source struct is source-backed; a computed struct is expression-backed; a table is also a bindable row source. |
+| Struct | ComputedStruct / Table | A source struct is source-backed and every member reads nullable; a computed struct supplies member types as witnesses and reads from its carrier; a table is also a bindable row source. |
 | Template | Category | A template is inert and never enters the contract; a category is graph-visible and may be an endpoint. |
 | Row source | Shape | A shape is a class of fields; a row source is something that yields rows of that shape. |
 | Contract | Blueprint | A contract is executable; a blueprint is the validated declaration snapshot used to create one. |
@@ -193,7 +200,8 @@ computed output with `computed_field(...)`. A struct member is reached with
 `extract`. A null is resolved with `default_to(...)` or `alter_rows().drop_null()`.
 Row effects are opt-in through `alter_rows()`. On a present array, use
 `drop_null_items()`, `sort()`, `unique()`, `concat()`, `at()`, `slice()`, and
-`transform_items()`.
+`transform_items()`. The underlying `ArrayExpression` also exposes `distinct()`
+and `join(separator)`, which are what `unique()` and `concat()` call.
 
 ## Where to go next
 

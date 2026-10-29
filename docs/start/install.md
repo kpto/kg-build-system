@@ -168,13 +168,14 @@ class PeopleTable(Table):
     city: Field[str] = field(name='city')
 ```
 
-Each generated member names its value type. CSV and JSON files do not carry
-declared nullability, so the generator records no presence claim; access is
-nullable in every case, and a Parquet declaration changes only the source claim,
-not the selection you get. Treat every generated member as "the feed may omit
-this" and handle it with `alter_rows().drop_null()` or `default_to()` rather
-than assuming a value is there. See
-[types and nullability](../concepts/types.md) for the two behaviours.
+Each generated member names only its value type. A top-level `| None` is never
+written: `field()` strips it, because source access owns presence. The file
+header records what the source declared — `required`/`optional` for Parquet, or
+"all members nullable" for CSV and JSON — and the manifest records a source
+digest. That claim is provenance, not a blueprint field type: every generated
+member still reads as a nullable selection. Handle it with
+`alter_rows().drop_null()` or `default_to()` rather than assuming a value is
+there. See [types and nullability](../concepts/types.md) for the two behaviours.
 
 !!! warning "Do not edit generated files"
     Generated packages are owned by the generator. Change the request, then run
@@ -191,6 +192,27 @@ as text, such as a timestamp. Both are shown in
     The walkthrough writes its tables by hand. If you generated `people/` above,
     use a fresh project package for it, or remove that generated package first;
     two declarations with the same logical table name must not coexist.
+
+## Watch while editing
+
+`kbs generate --watch` runs one generation pass, then watches the project and
+regenerates when a declaration or source changes:
+
+```bash
+kbs generate --project . --watch --debounce 500
+```
+
+- `--debounce` is in milliseconds and must be greater than zero; the default is
+  300. It batches a burst of file changes into one pass.
+- The watcher follows `.py`, `.json`, `.toml`, `.yaml` and `.yml` files under the
+  project, ignoring caches, virtual environments and VCS directories.
+- An invalid edit is logged and the watcher keeps running; fix the file and save
+  again.
+- `--watch` cannot be combined with `--check` (watching is not a CI check) or
+  with `--regenerate` (which is one explicit re-observation pass). The CLI
+  refuses both combinations.
+- Press Ctrl+C to stop. The initial pass and every later pass write generated
+  files in place.
 
 ## Verify the project
 

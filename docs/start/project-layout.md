@@ -54,8 +54,9 @@ namespace to scan, so every declaration module is reachable from that package.
 ## `table/` — data contracts
 
 This layer answers "what columns exist and what do they mean?" It contains
-[`Table` and `Struct`](../concepts/data-contracts.md) declarations and reusable
-`Projection` classes; it knows nothing about nodes, edges or graph properties.
+[`Table`, `Struct` and `ComputedStruct`](../concepts/data-contracts.md)
+declarations and reusable `Projection` classes; it knows nothing about nodes,
+edges or graph properties.
 
 A generated package lives at `table/<request_id>/`, with the author-owned
 generation request in `table/__init__.py`. The reference project uses that form

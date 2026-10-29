@@ -76,6 +76,40 @@ The expression's logical type must match the slot. A non-null value may satisfy 
 nullable slot; the reverse is not allowed. Convert at the expression layer rather
 than changing topology to match the input.
 
+### Join, group and union
+
+These are row-source errors, raised when the plan is built:
+
+```text
+join key expressions must have the same logical type
+join keys must be scalar expressions
+join on must return a (left key, right key) pair or one equals expression
+union row sources must have the same shape
+group_by keys must be scalar expressions
+group_by key names must be unique
+group_by key names must be Python identifiers
+```
+
+- Join keys must share a base type. Nullability may differ; null keys never
+  match. The key-pair form is general, and the `equals` form is text-only.
+- A union compares member names, logical types and nullability. Rename, cast or
+  narrow in the sources so the shapes are identical; a union never adapts them.
+- Group keys must be scalar, public Python identifiers and unique. Rows with a
+  null key are dropped before grouping, so the generated `by` members are
+  non-null — do not add `drop_null()` to a key read.
+- A projection must be pinned: `Projection(source.row_source())` for a relation,
+  `Projection(derived)` for a joined, grouped, unioned or filtered plan.
+
+### Projection is not pinned
+
+```text
+ElementProjection must be pinned to a row source: Projection(source.row_source())
+```
+
+Declare the pin at class creation. A direct `class P(Projection):` is refused,
+and so is a projection with no output fields. A derived plan is already a row
+source, so pass it directly: `Projection(joined)`.
+
 ### Unmatched endpoint
 
 For an abstract declared endpoint, the binding needs a concrete token:
@@ -156,15 +190,39 @@ Duplicate declaration names are different:
 
 ```text
 component names must be unique
+table names must be unique
+projection names must be unique
 logical source names must be unique
 module IDs must be unique
+... fields 'x' and 'y' share external name 'name'
+... properties 'x' and 'y' share external name 'name'
 ```
 
 Two classes can infer one logical name, such as `RecordNode` and
 `RecordAbstractNode`. Name one explicitly with `NodeOptions(name="record_entry")`.
+A table and a projection cannot share a logical name because both are logical
+relations; a field and its neighbour cannot share an external name even when the
+Python attributes differ.
+
+Final and structural inheritance errors are declaration errors too:
+
+```text
+a final Table may not inherit from another final Table
+a final Projection may not inherit from another final Projection
+a final TableGroup may not inherit from another final TableGroup
+... cannot inherit from concrete graph component ...
+... has more than one abstract category parent: ...
+table groups must declare at least one member
+```
+
+Use `projection_base()` to reuse a pinned plan, `StructTemplate` to share data
+fields, and a category parent plus templates to share topology. A concrete
+component is terminal; a category is the parent, not a base to instantiate.
 
 Bindings discovered from one namespace are deduplicated by identity; two
-separately written bindings are not.
+separately written bindings are not. Two bindings targeting one component are
+unioned into that component's records; only two *modules* producing one artifact
+type make the wiring ambiguous.
 
 ## Reading the messages
 
@@ -177,6 +235,14 @@ separately written bindings are not.
 | `keys must be non-null scalar expressions` | a key is nullable or composite | narrow it, or build a scalar composite |
 | `binding ... targets an incompatible component` | node and edge kinds differ | bind a node to a node |
 | `may not target abstract component` | a category is a target | target a concrete descendant |
+| `join key expressions must have the same logical type` | the two keys have different base types | align the key types, or convert before joining |
+| `join keys must be scalar expressions` | a key is an array or struct | use a scalar member |
+| `union row sources must have the same shape` | names, types or nullability differ | make both operands identical |
+| `group_by keys must be scalar expressions` | a group key is an array or struct | use a scalar member |
+| `group_by key names must be unique` | two keys share a name | rename one key |
+| `must be pinned to a row source` | a projection has no pin | use `Projection(source.row_source())` or `Projection(derived)` |
+| `share external name` | two fields, outputs or properties collide | rename one externally |
+| `a final ... may not inherit ...` | concrete declaration used as a base | share through a template or category |
 | `neo4j target cannot export ...` | unsupported property type | change the type or omit Neo4j |
 
 ## Inspecting a blueprint

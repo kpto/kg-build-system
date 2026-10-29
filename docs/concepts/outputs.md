@@ -3,7 +3,9 @@
 A build has three public calls, and each stops at a different point: `compile`
 freezes the declaration into a contract, `create_blueprint` stops one step
 earlier and hands back the validated declarations, and `build` executes a
-contract and writes files.
+contract and writes files. The split exists so an author can inspect or test the
+plan without touching data, ship the same plan to several targets, and tell a
+consumer which build produced an artifact.
 
 ```python
 from kg_build_system import build, compile, create_blueprint
@@ -30,9 +32,10 @@ explicit `bindings=` and `sources=` instead. `compile` additionally accepts
 Every call also takes `modules=`. That sequence is the complete module
 composition. Its order sets the priority of each stage: a reader takes the
 freshest rewriting result available, and output modules belong last. Two
-independent producers of the same record type would make the wiring ambiguous
-and fail compilation. The core module is appended automatically and is not
-something you register.
+*bindings* to one component are not competing producers: the core module unions
+their records into one stream. Two *modules* producing the same artifact type
+would make the wiring ambiguous and fail compilation. The core module is
+appended automatically and is not something you register.
 
 ## `compile` versus `create_blueprint`
 
@@ -44,18 +47,30 @@ something you register.
 | Writes files | No | No | Yes |
 | Safe to store and inspect | Yes | Yes | Result only |
 
-`create_blueprint` validates the declarations and returns a portable, frozen
-description of tables, projections, topology, bindings, sources and configured
-modules. It is for inspection, tooling and tests. `compile` goes further: it
-turns those declarations into the executable contract that `build` consumes.
-Normal builds call `compile` directly.
+`create_blueprint` validates the declarations and returns a frozen description
+of the reached tables, projections, topology, bindings, sources and configured
+modules. It requires at least one graph component and one binding. It is for
+inspection, tooling and tests. `compile` goes further: it turns those
+declarations into the executable contract that `build` consumes. Normal builds
+call `compile` directly.
+
+Discovery may import declarations the build never uses. The blueprint contains
+only what a binding reaches: its row source and expressions, projection
+dependencies, target components and their ancestors and endpoints, used structs,
+and the sources those tables require.
 
 !!! note "The contract is the build input"
 
-    A contract is immutable and portable. Building it again does not re-read
-    your Python declarations, so a stored contract can be executed later
-    exactly as compiled. It records module references and configuration as
-    data, not live Python module objects.
+    A contract is immutable and self-contained data. Building it again does not
+    re-read your Python declarations, so a stored contract can be executed later
+    without recompiling. It records module references and configuration as data,
+    not live Python module objects.
+
+    Its durability is tied to those implementations: `build` requires each
+    module's current `VERSION` to match the version compiled into the contract,
+    and the framework has no schema compatibility, negotiation or migration
+    path. Keep the contract with the code and module versions that produced it;
+    recompile when either changes.
 
 ## What a build writes
 
@@ -102,7 +117,10 @@ be replaced at runtime.
 Writes `meta_graph.json`, a document of the effective topology: each node and
 edge component a binding targets, its abstract ancestors, its label,
 description, properties with logical types and descriptions, record counts, and
-example property values. Abstract categories carry summed counts and inherited
+example property values. Counts are exact for the records that reached the
+module. Example values are approximate: they are the most common values reported
+by `approx_top_k`, bounded by `example_limit`, and the document names that
+method. Abstract categories carry summed exact counts and pooled inherited
 examples because they emit no rows of their own. With `include_html=True` it
 also writes a self-contained `meta_graph.html` drawing the same topology.
 
@@ -170,6 +188,10 @@ resolves that argument (default `build` under the current directory) and uses
 it for the runtime, so a value placed in `BuildRuntime.output_directory` is
 replaced when the build runs.
 
+`build(..., monitor=...)` also accepts a custom `WorkflowExecutionMonitor`
+object, in addition to `True`, `False` and the automatic terminal default. Use
+it to stream step progress into your own CI or desktop surface.
+
 ## Reading the report
 
 `build` returns a `WorkflowReport`:
@@ -221,8 +243,8 @@ versioning to state what it was built from.
 
 ## What to remember
 
-- The contract is the portable artifact; output modules decide what is
-  published.
+- The contract is the self-contained build artifact; output modules decide what
+  is published, and module versions bound its durability.
 - `FileModule` writes JSON Lines, `MetaGraphModule` describes the graph, and
   `Neo4jModule` produces an import bundle.
 - Runtime holds credentials and resources, not graph meaning.

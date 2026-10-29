@@ -126,8 +126,10 @@ or a derived source such as `source.where(...)`, `source.join(...)` or
 `Table.row_source()`. A `Struct` is a shape, not a row source.
 
 A **table** gives the grain of the source contract; a **projection** gives a
-named grain several bindings can share; a **derived row source** filters
-either. The predicate receives a symbolic shape instance and returns a Boolean
+named grain several bindings can share; a **derived row source** filters,
+joins, groups, unions, deduplicates or orders either. Every one of those
+operations returns a row source, and a projection relation accepts the same
+algebra. The predicate receives a symbolic shape instance and returns a Boolean
 expression:
 
 ```python
@@ -189,8 +191,39 @@ UnitNode(
 Values are expressions evaluated per row. A constant uses
 `value_expression("degC")`. The expression type must match the declaration; a
 non-null value may satisfy a nullable property, but a nullable value may not
-satisfy a required one. Missing and unknown properties both fail. A binding
-never aggregates: one input row produces one record. Reshape rows in a projection.
+satisfy a required one. Missing and unknown properties both fail.
+
+A binding never aggregates: one input row produces one record. Reshape rows in a
+projection. The rule is about the rows the binding receives, not the source's
+original rows: `group_by` has already collapsed each key tuple to one row, so a
+binding over `{by, members}` emits one record per group. Use `members` to carry
+the collected rows into an array property; there is no SQL aggregate, count,
+sum or `having` in the algebra.
+
+```python
+from kg_build_system import Node, PropertySlot, property
+
+class StatusNode(Node):
+    members: PropertySlot[str] = property()
+
+by_status = EquipmentTable.row_source().group_by(
+    by=lambda row: {"status": row.status},
+)
+
+status_binding = node_binding(
+    target=StatusNode,
+    rows=by_status,
+    bind=lambda row: NodeValues(
+        build_key=row.by.extract(lambda key: key.status),
+        properties=StatusNode(
+            members=row.members
+            .transform_items(lambda member: member.extract(lambda item: item.unit_ref))
+            .drop_null_items()
+            .concat("|"),
+        ),
+    ),
+)
+```
 
 ## Null handling
 

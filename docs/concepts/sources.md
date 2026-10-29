@@ -40,9 +40,17 @@ Rules enforced at declaration time:
 
 | Rule | What you see if it is broken |
 | --- | --- |
-| every table a binding reads must be bound | `no source bound for: sites` |
+| every table a binding or reached projection reads must be bound | `no source bound for: sites` |
 | a table may be bound once | `source-bound table names must be unique` |
 | a source must target a final `Table` or `TableGroup` | `sources require a final Table or TableGroup` |
+
+`Read` follows the whole reachable plan: a binding's expressions and row source,
+then every projection those reference, in turn. A table that no reached binding
+or projection reads is not required, even if it is declared or appears in a
+group source.
+
+The source binding is the physical fact, not the table declaration: the
+declaration stays the same when the location moves, and only the binding changes.
 
 ## `DataSourceConfig`
 
@@ -143,6 +151,10 @@ Further rules:
   require DataSourceConfig.layout to resolve each table`.
 - A table may appear only once in a group, two tables may not share a catalog
   path, and groups may not contain a cycle.
+- The layout must resolve every member of the group, because binding the group
+  resolves the whole family. Members that no reached binding or projection reads
+  are then dropped: they do not enter the blueprint and no source is recorded for
+  them.
 
 A group source does **not** join, merge or widen anything. It only names
 locations; each member table keeps its own rows and its own shape.
@@ -231,8 +243,10 @@ inside the other.
 
 Source-level provenance belongs on the bound source, using
 `SourceBindingOptions(annotations=...)`; it describes where the rows came from,
-not what a row means. Annotations themselves are covered on [annotations and
-descriptions](annotations.md).
+not what a row means. The compiled source entry carries the table declaration's
+own annotations first, then the source binding's annotations. A group source's
+annotations are copied to each resolved member. Annotations themselves are
+covered on [annotations and descriptions](annotations.md).
 
 ## What the build checks before reading rows
 

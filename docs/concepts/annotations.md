@@ -48,8 +48,10 @@ class is created. If the source cannot be read — for example when the class wa
 built from a string or typed into a REPL — the string yields no description; the
 argument form always works.
 
-`computed_field` is the exception: it accepts `description=` but does not read a
-string written below the assignment. See [Projections](projections.md).
+`computed_field` reads the same string form, because it returns the same `Field`
+descriptor: an explicit `description=` wins, otherwise a string written directly
+below the assignment is used when the class is created. The source-reading
+limitation is the same. See [Projections](projections.md).
 
 ## Declaring an annotation
 
@@ -178,12 +180,14 @@ class ProvenancedNodeTemplate(NodeTemplate):
     """The data release the node's facts were built from."""
 ```
 
-A component's effective annotations are every template's contribution in
-inheritance order — each template once — followed by its own
-`options.annotations`. A category parent's own annotations are not copied down:
-labels and descriptions belong to the declaration that writes them. Label
-uniqueness is checked against the complete effective set, so a template cannot
-accidentally give a component two labels.
+Each template records its own annotations as one frozen tuple when it is
+created. A host's effective annotations are those template tuples in C3 order —
+each template once, base template before derived — followed by the host's own
+`options.annotations`. The template itself is not a blueprint entry; only a
+reached declaration carries the resulting tuple. A category parent's own
+annotations are not copied down: labels and descriptions belong to the
+declaration that writes them. Label uniqueness is checked against the complete
+effective set, so a template cannot accidentally give a component two labels.
 
 Canonical class order is templates, category parents, then the terminal base:
 
@@ -212,7 +216,14 @@ own default label unless it declares one.
   and payload.
 - **The Neo4j bundle** — the effective node labels and relationship types.
 
-Read annotations from the blueprint to act; descriptions from the meta-graph to explain.
+Read annotations from the blueprint to act; descriptions from the meta-graph to
+explain.
+
+Only declarations the build reaches enter the blueprint: the tables and
+projections read by a binding, the components a binding targets and their
+ancestors and endpoints, the structs those types use, and the sources those
+tables need. An annotation on an unrelated declaration is valid Python but is
+not published, because no consumer can reach it.
 
 ## The amnesic rule
 

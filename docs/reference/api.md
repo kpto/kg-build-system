@@ -49,19 +49,20 @@ category parent, no concrete parent, matching-kind templates only. See
 ## Declare data contracts
 
 A table is a typed row shape and a bindable source; a source struct is a nested
-record; a computed struct is an expression-backed value record.
+record; a computed struct is a value record whose members act as type witnesses
+when it is carried by a row.
 
 | Name | Purpose | Key arguments |
 | --- | --- | --- |
-| `Table` / `Struct` | Final source-bindable rows / nested source record only | Subclass; `options` and `Field[T]` members |
-| `ComputedStruct` | Expression-backed value record, usable as `Field[T]`; not a row source | Subclass; `computed_field` members and `StructOptions` |
+| `Table` / `Struct` | Final bindable row shape / composable nested source record | Subclass; `options` and `Field[T]` members |
+| `ComputedStruct` | Value-record declaration usable as `Field[T]`; its `computed_field` members are type witnesses when carried by a row, not evaluated values | Subclass; `computed_field` members and `StructOptions` |
 | `TableGroup` | Named hierarchy of final tables and nested groups | Class attributes or `options.members` |
 | `Field[T]` | Typed member descriptor | Annotation names the value type |
 | `field(*, name=None, description=None, annotations=())` | Declare a source-backed member (table column or source struct member) | External `name` defaults to the attribute name |
-| `computed_field(value, *, name=None, description=None, annotations=())` | Declare an expression-backed field (projection output or computed struct member) | A selection or expression |
+| `computed_field(value, *, name=None, description=None, annotations=())` | Declare a projection output, or a computed struct member's type witness | A selection or expression |
 | `TableOptions(...)` / `StructOptions(...)` / `ProjectionOptions(...)` | Identity, description and annotations | `name`, `description`, `annotations` |
 | `TableGroupOptions(members=(), name=None, description=None, annotations=())` | Group members and metadata | `members` plus identity |
-| `StructTemplate` / `StructOptionsTemplate(annotations=())` | Reusable field-and-annotation mixin for table/struct hosts | Annotations-only template options |
+| `StructTemplate` / `StructOptionsTemplate(annotations=())` | Reusable field-and-annotation mixin for `Table`, `Struct` and `ComputedStruct` hosts | Annotations-only template options |
 
 ```python
 from kg_build_system import Field, Struct, Table, TableGroup, TableOptions, field
@@ -84,9 +85,13 @@ class SiteGroup(TableGroup):
 
 Every source field reads as a nullable selection, whatever its declaration says;
 narrow with `alter_rows().drop_null()` or `default_to(...)`. A `ComputedStruct`
-declares `computed_field` members and is never a table or row source. An
-explicit `description` wins over the documentation string below the member;
-`StructTemplate` shares members but never becomes a row source. See
+declares `computed_field` members and is never a table or row source; as
+`Field[T]` its member expressions are type witnesses, and `extract` reads the
+member from the carrier row. `Field[SomeTable]` and `Field[SomeProjection]` are
+refused; a field type must be a value record. An explicit `description` wins over
+the documentation string below the member, and `computed_field` reads that string
+too. `StructTemplate` shares members with `Table`, `Struct` and `ComputedStruct`
+but never becomes a row source. See
 [Data contracts](../concepts/data-contracts.md).
 
 ## Read and transform rows
@@ -124,7 +129,7 @@ Each method returns a selection, so a second effect needs another
 | `IntExpression` / `FloatExpression` | Numeric calculation | `add(other)`, `sub(other)` |
 | `StrExpression` | Text calculation | `prepend(value)`, `append(value)`, `equals(value)`, `replace(search, replacement)`, `before_separator(separator, occurrence=1, *, include_separator=False)`, `after_separator(...)` |
 | `BoolExpression` | Row predicate or Boolean value | `not_()`, `and_(other)`, `or_(other)` |
-| `ArrayExpression[T]` | Array calculation used through a selection | `transform_items`, `drop_null_items`, `sort` |
+| `ArrayExpression[T]` | Array calculation used through a selection | `transform_items`, `drop_null_items`, `sort`, `distinct`, `join(separator)` |
 | `StructExpression[S]` / `NullableExpression[T, E]` / `CustomDataTypeExpression[C]` | Bindable struct, nullable, and custom scalar | Struct and custom expose no value-specific operations; null policy stays on the selection |
 | `value_expression(value, *, logical_type=None)` | Build a typed literal expression | Value, optional logical type |
 | `any_of(*predicates)` / `all_of(*predicates)` | Compose Boolean predicates | Empty identities are `False` / `True` |
@@ -153,7 +158,8 @@ required properties, and array operations start from a narrowed selection.
 `where(predicate)` exists on `RelationRowSource`, `DerivedRowSource`, `Table`,
 and `Projection` and takes a callable receiving a symbolic shape instance that
 returns a `BoolExpression`; a bare expression is refused. `to_string()` renders
-canonical scalars for keys, never arrays or structs. `default_to` keeps the row
+canonical unit scalars for keys; arrays, structs and custom scalars are refused.
+`default_to` keeps the row
 while `alter_rows().drop_null()` removes it; `alter_rows().expand()` produces one
 row per item and a null array produces none. See
 [Expressions](../concepts/expressions.md).
@@ -162,7 +168,7 @@ row per item and a null array produces none. See
 
 | Name | Purpose | Key arguments |
 | --- | --- | --- |
-| `Projection` | Named logical row product with one driving plan | Subclass with at least one output; `Projection(source.row_source())` pins a source |
+| `Projection` | Named logical row product with one driving plan | Subclass with at least one output; `Projection(source.row_source())` pins a relation, `Projection(derived)` pins a derived plan |
 | `computed_field(value, *, name=None, description=None, annotations=())` | Declare one expression-backed output; reading it from the class yields a selection | A selection or expression |
 | `Table.row_source()` / `Projection.row_source()` | Relation row source for a table or projection | No arguments |
 | `.union(other, all=True)` | Concatenate two same-shape row sources | Another row source; `all=False` deduplicates |
@@ -172,6 +178,13 @@ row per item and a null array produces none. See
 | `.order_by(*keys, ascending=True)` | Order rows | Names, selections, expressions or callables |
 | `.projection_base()` | Base carrying a source's plan and inherited outputs | On `Table`, `Projection`, `RelationRowSource`, `DerivedRowSource` |
 | `.shape` | The shape class of a row source | On a table, projection, or row source |
+
+`Table.row_source()` and `Projection.row_source()` return a `RelationRowSource`.
+`where`, `union`, `join`, `group_by`, `distinct` and `order_by` each return a
+`DerivedRowSource`, so the algebra composes; a projection relation accepts the
+same operations. `join` accepts a key pair or one text `equals`, and keys share
+a base type while their nullability may differ. `group_by` keys are non-null
+and uniquely named.
 
 ```python
 from kg_build_system import Projection, computed_field
@@ -184,9 +197,11 @@ class SiteProjection(Projection(SiteTable.row_source())):
 ```
 
 `Projection(SiteTable.row_source())` pins the projection to the relation and
-records that source, with any filters, in its compiled definition. The pin does
-not copy fields; declare the outputs with `computed_field`. A projection is
-rejected at class creation if it is not pinned or declares no output. Reading
+records that source, with any filters, in its compiled definition. A joined,
+grouped, unioned or filtered derived source is passed directly, as
+`Projection(joined)`. The pin does not copy fields; declare the outputs with
+`computed_field`. A projection is rejected at class creation if it is not pinned
+or declares no output. Reading
 `SiteProjection.site_id` elsewhere refers to the materialised output, not the
 source expression. Use `.projection_base()` to publish a filtered source under a
 name and inherit its outputs. A further expansion needs another projection (see
@@ -314,15 +329,17 @@ modules = (
 )
 ```
 
-See [Modules](../concepts/modules.md).
+Registration and composition are public; authoring a new `Module` is
+framework-internal in this release because its compiler and executor protocols
+are not exported. See [Modules](../concepts/modules.md).
 
 ## Compile and build
 
 | Name | Purpose | Key arguments |
 | --- | --- | --- |
-| `create_blueprint(*, modules, namespace_path=None, bindings=None, sources=None)` | Validate declarations into an inspectable blueprint | A namespace, or explicit `bindings` + `sources` |
+| `create_blueprint(*, modules, namespace_path=None, bindings=None, sources=None)` | Validate reached declarations into an inspectable blueprint; requires at least one component and binding | A namespace, or explicit `bindings` + `sources` |
 | `compile(*, modules, namespace_path=None, bindings=None, sources=None, blueprint=None)` | Freeze the blueprint into an executable contract | Same modes, plus a prebuilt `blueprint` |
-| `build(contract, runtime=None, *, output_directory=Path("build"), working_directory=Path("_workdir"), temporary_directory=None, monitor=None)` | Execute a contract and write its outputs | Contract and runtime controls |
+| `build(contract, runtime=None, *, output_directory=Path("build"), working_directory=Path("_workdir"), temporary_directory=None, monitor=None)` | Execute a contract and write its outputs | Contract and runtime controls; `monitor` also accepts a custom `WorkflowExecutionMonitor` |
 | `BuildRuntime(credentials={}, module_configuration={}, output_directory=Path.cwd() / "build", working_directory=Path("_workdir"), temporary_directory=None, duckdb_storage="memory", duckdb_threads=None, duckdb_memory_limit=None, duckdb_compression=True)` | Credentials, module settings, directories, DuckDB controls | Every field is optional; relative working directories resolve beneath the output directory |
 | `WorkflowReport` | Result of a completed build | `published_artifacts`, `recovered_failures`, `unresolved_failures`, `provenance`, `succeeded` |
 

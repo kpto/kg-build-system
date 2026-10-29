@@ -81,9 +81,16 @@ when the declaration is `Field[T]` without `| None`, and even for arrays and
 structs. A declaration names the value type; access owns nullability, so binding
 a source value always starts by narrowing or defaulting it.
 
-`Projection.field` and a `ComputedStruct` member are different: they are
-expression-backed, so they carry their expression's type. A non-null expression
-gives a non-null selection, and a nullable expression gives a nullable one.
+`Projection.field` is different: it is expression-backed, so it carries its
+expression's type. A non-null expression gives a non-null selection, and a
+nullable expression gives a nullable one.
+
+A `ComputedStruct` member is only readable through `extract`. It is a **type
+witness**: its `computed_field` expression fixes the member's logical type and
+nullability, but the expression is not evaluated when the struct is used as a
+`Field[T]`. The read becomes a field reference on the carrier record, and the
+carrier's nested data supplies the value. See
+[projections](projections.md#computed-structs).
 
 Field access works at class level and, inside `bind`, on the symbolic shape
 instance the lambda receives. Reading a projection field returns the projection's
@@ -109,10 +116,13 @@ email = contact.extract(lambda item: item.email)   # NullableSelection[str]
 - The selector must return a field declared by the struct it was given; anything
   else fails with `struct selectors must return a declared field selection`.
 - Parent nullability propagates. A nullable parent makes every member nullable;
-  a present parent leaves a non-null computed member non-null, while a source
-  member is nullable in its own right.
+  a present parent leaves a non-null `ComputedStruct` witness non-null, while a
+  source `Struct` member is nullable in its own right.
 - Source members are nullable at every source step. `contact` is present above,
   but `email` is still nullable because it is a source field.
+- A `ComputedStruct` member is a witness type, not a calculation: `extract`
+  reads the member from the carrier record and uses the witness only to type the
+  result.
 
 `extract` is a path, not an operation: it does not change the row count and adds
 no null handling of its own.
@@ -227,7 +237,7 @@ the rest calculate a new array value.
 | --- | --- | --- | --- |
 | `alter_rows().drop_null()` | nullable array | `ArraySelection[T]` | drops rows with an absent array |
 | `alter_rows().expand()` | nullable or present array | item selection | one row per item; absent/empty → no rows |
-| `drop_null_items()` | `ArraySelection[Array[T \| None]]` | `ArraySelection[Array[T]]` | drops null items |
+| `drop_null_items()` | `ArraySelection[T \| None]` | `ArraySelection[T]` | drops null items |
 | `sort()` | present array | same array type | orders items ascending |
 | `unique()` | present array | same array type | keeps one copy per item |
 | `concat(sep)` | present `ArraySelection[str]` | `str` | empty array → `""` |
@@ -274,9 +284,12 @@ fails with `transform_items selectors must not contain row effects`. There is no
 | int, float | `add`, `sub` |
 | bool | `not_`, `and_`, `or_` |
 
-`to_string()` is the way into an identity: every canonical scalar has one text
-form, timestamps carry the `T` separator, and a nullable value yields a nullable
-string. Arrays and structs are refused with `to_string() requires a scalar unit`.
+`to_string()` is the way into an identity: every canonical unit scalar has one
+text form, timestamps carry the `T` separator, and a nullable value yields a
+nullable string. Arrays, structs and custom scalars are refused with
+`to_string() requires a scalar unit`; only the eight canonical units
+(`bool`, `int`, `float`, `str`, `date`, `time`, `timestamp`, `uuid`) have that
+form.
 
 `before_separator` and `after_separator` take a separator, an occurrence counted
 from 1, and an optional `include_separator`. When the separator does not occur
@@ -317,8 +330,13 @@ bare expression fails with `where requires a callable predicate`, a non-boolean
 with `where predicates must return a BoolExpression`.
 
 Filters chain and every filter is kept; pass the result as `rows=` to a binding,
-or as the base of a projection. Filtering is the only transformation a row source
-offers: there is no `join`, `group_by` or `union` on row sources.
+or as the base of a projection.
+
+`where` is one operation in the row-source algebra, not the whole of it.
+`Table.row_source()`, `Projection.row_source()` and every derived source also
+support `union`, `join`, `group_by`, `distinct` and `order_by`. The algebra is
+described on [row sources](row-sources.md); a projection can pin any plan it
+builds, including a joined or grouped one.
 
 ## Row effects and scope
 

@@ -48,14 +48,14 @@ properties, as described below.
 | --- | --- | --- |
 | `Array[T]` | Ordered, homogeneous collection | `Field[Array[int]]` |
 | `SomeStruct` | Nested source record declared with `Struct` | `Field[AddressStruct]` |
-| `SomeComputedStruct` | Expression-backed value record | `Field[ReadingSummaryStruct]` |
+| `SomeComputedStruct` | Value record whose member expressions are type witnesses when carried by a row | `Field[ReadingSummaryStruct]` |
 | `SomeCustomType` | Application-defined scalar declared with `CustomDataType` | `Field[Currency]` |
 
 `Array` is a portable marker, deliberately not `list[T]`, `Sequence[T]`, or a
 storage type. A source struct is a class whose fields are `Field[T]` members; a
-computed struct uses `computed_field` members. A custom scalar is a class derived
-from `CustomDataType`; it is identified by module and qualified name, so it must
-be a top-level importable class.
+computed struct uses `computed_field` members as type witnesses. A custom scalar
+is a class derived from `CustomDataType`; it is identified by module and
+qualified name, so it must be a top-level importable class.
 
 ```python
 from kg_build_system import CustomDataType, Field, Struct, Table, field
@@ -85,9 +85,11 @@ A struct is only a nested record; it is never a row source. Nesting is allowed:
 a struct may contain structs and arrays of structs.
 
 Custom scalars compose like any other scalar in data contracts, selections,
-and property slots. They expose no operations of their own, and a target may
-refuse to store them. A struct cannot be a graph property; reify what you need
-into scalar properties.
+and property slots. Identity is the `(module, qualname)` pair, so the class must
+be top-level and importable. They expose no operations of their own — no text,
+numeric, comparison or `to_string()` operation — and a target may refuse to store
+them: Neo4j refuses custom scalars and `uuid` properties. A struct cannot be a
+graph property; reify what you need into scalar properties.
 
 ## Nullability
 
@@ -103,9 +105,13 @@ tags = SiteTable.tags                    # NullableSelection[Array[str]]
 address = SiteTable.address              # NullableSelection[AddressStruct]
 ```
 
-Computed fields are different: `computed_field(expression)` is typed by its
+A `Projection` output is different: `computed_field(expression)` is typed by its
 expression. A non-null expression publishes a non-null selection, and a nullable
 expression publishes a nullable one.
+
+A `ComputedStruct` member is readable only through `extract`, and its
+`computed_field` expression is a type witness there, not an evaluated value. The
+witness fixes the member type; the read is a field reference on the carrier row.
 
 | Declaration | Value it names | Read as |
 | --- | --- | --- |
@@ -114,13 +120,18 @@ expression publishes a nullable one.
 | `Field[Array[str]]` | a list of non-null strings | `NullableSelection[Array[str]]` |
 | `Field[Array[str \| None]]` | a list whose items may be null | `NullableSelection[Array[str \| None]]` |
 | `Field[AddressStruct]` | a nested record | `NullableSelection[AddressStruct]` |
-| `computed_field(expr)` | whatever the expression calculates | a selection typed by `expr` |
+| `computed_field(expr)` | a projection output, or a `ComputedStruct` member witness | a selection typed by `expr` |
 
 The two array levels are independent. Item nullability is a fact about the value
 and stays in the declaration; array presence belongs to access. Nullability is
 flattened: a nullable value never wraps another nullable value, and
 `T | None | None` is simply `T | None`. Do not write the internal `Nullable[T]`
 marker in declarations.
+
+A generated package's source-nullability claim is not a top-level field type in
+the blueprint: `field()` strips it, and the generator records the claim in the
+file header and source digest instead. Access is nullable for every source field
+whatever that header says.
 
 Nulls pass through calculations. Selections own the policy:
 
@@ -140,10 +151,11 @@ postcode = (
 
 A source struct member is nullable at every source step: selecting `city` from
 `AddressStruct` gives `str | None`, even when the parent address is present,
-because the member is source-backed. A `ComputedStruct` member is typed by its
-expression instead, so a non-null member under a present parent stays non-null
-and the same member under a nullable parent becomes nullable. Selecting an
-already-nullable field does not add a second layer of nullability.
+because the member is source-backed. A `ComputedStruct` member uses its witness
+type instead: a non-null witness under a present carrier stays non-null, and the
+same member under a nullable carrier becomes nullable. The witness does not
+evaluate; the carrier supplies the value. Selecting an already-nullable field
+does not add a second layer of nullability.
 
 ## Graph property shape
 

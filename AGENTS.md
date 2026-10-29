@@ -11,6 +11,9 @@ rule about what the framework is belongs to the framework model.
 ### Working
 
 - Understand the current model before changing it.
+- Think from the author's and the graph consumer's perspective: why the framework
+  exists, what the author gains, and what a consumer can rely on. Do not reduce
+  the work to code mechanics.
 - Act as a product owner: challenge, remove, merge or reshape a feature when the
   model is incoherent.
 - If the model is wrong, change the model rather than building around it.
@@ -87,6 +90,14 @@ rule about what the framework is belongs to the framework model.
 ---
 
 ## Framework model
+
+### Semantics as contract
+
+- The graph's meaning is part of the delivered contract, not a comment or an
+  implementation detail.
+- A node or edge type states its meaning, direction, identity, absence and limits.
+- The build preserves those statements and publishes them for consumers.
+- A meaning that cannot be stated is recorded as a limit; it is not invented.
 
 ### Experimental
 

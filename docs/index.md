@@ -1,5 +1,16 @@
 # The kg-build-system authoring guide
 
+kg-build-system exists so that a knowledge graph's meaning survives the build.
+The node and edge types, their direction, identity, absent values and limits are
+declared beside the data mapping, checked before execution, and published to
+whoever consumes the graph. The build is reproducible, but the larger point is
+that its result can be understood without reading the pipeline that produced it.
+
+That is why the framework separates what the data looks like, what the graph
+means, and how rows become records. Each part can be reviewed, changed and
+reused on its own. Read [Why this framework](why.md) for the values behind these
+choices, or continue here for the mechanics.
+
 kg-build-system turns Python declarations into a reproducible knowledge graph.
 You describe three things separately:
 
@@ -20,8 +31,8 @@ source files ──> tables and structs ──> expressions ──> bindings ─
                     (data shape)        (row values)     (meaning)    (records)
 ```
 
-- **Tables** describe physical rows. A table is also a *shape*: a class whose
-  fields are typed.
+- **Tables** describe logical rows. A table is also a *shape*: a class whose
+  fields are typed; a source binding supplies the physical location.
 - **Expressions** read, transform and filter values row by row. They know their
   logical type, including nullability.
 - **Topology** declares graph meaning independently of any file: `SiteNode`,
@@ -33,10 +44,15 @@ source files ──> tables and structs ──> expressions ──> bindings ─
 
 ## What you get
 
-One `compile()` call produces an immutable contract: the complete, portable
+One `compile()` call produces an immutable contract: the complete, self-contained
 description of the graph build. One `build()` call executes that contract against
 the configured runtime and writes the outputs selected by the modules. The same
 contract can be built repeatedly, inspected, or stored.
+
+The contract is durable data, not a compatibility promise. `build` requires the
+same module implementations and `VERSION` values that were compiled, and the
+framework has no schema compatibility or migration path. Keep the contract with
+the code that produced it, or compile again.
 
 ## How to read this guide
 

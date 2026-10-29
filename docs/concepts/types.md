@@ -32,6 +32,12 @@ both `FLOAT` and `DOUBLE` to `float`, and `JSON` and `ENUM` to `str`. A type wit
 no meaning-preserving canonical form is refused at generation instead — see
 [unsupported types](#unsupported-types).
 
+Temporal and `uuid` values have limits. They are stored, deduplicated, merged and
+written in canonical text, but they expose no comparison or filtering operators;
+`equals` exists on text only. Use `to_string()` when a temporal or `uuid` value
+must become part of an identity. Neo4j refuses `uuid` properties because the
+target has no property type for them.
+
 ## Representative classes
 
 `Date`, `Time`, `Timestamp` and `Uuid` come from `kg_build_system.types`. They
@@ -60,6 +66,35 @@ contract. That is what makes them safe to concatenate into an identity: a
 timestamp is written with the `T` separator and a uuid in lowercase hyphenated
 form. `to_string()` is on
 [expressions](expressions.md#string-number-and-boolean-operations).
+
+## Custom scalars
+
+An application-defined scalar is a class derived from `CustomDataType`. It
+extends the vocabulary without teaching the framework what the value means:
+
+```python
+from kg_build_system import CustomDataType, Field, Table, field
+
+
+class Currency(CustomDataType):
+    """An application-defined scalar, such as a currency code."""
+
+
+class BudgetTable(Table):
+    budget: Field[Currency] = field()
+```
+
+- Identity is the `(module, qualname)` pair, not the class name, so two
+  `Currency` classes in different modules are different types.
+- The class must be declared at top level and be importable; a declaration
+  inside a function fails with `logical type declarations must be importable
+  top-level classes`.
+- A custom scalar composes as a field type, an array item, a key and a
+  `PropertySlot`. It exposes no value operations: no text, numeric or comparison
+  methods, and `to_string()` refuses it because only canonical unit scalars have
+  a canonical text form.
+- A target may refuse it. The Neo4j bundle refuses custom scalar properties,
+  just as it refuses `uuid`.
 
 ## Arrays
 
@@ -115,11 +150,14 @@ when the member is declared `Field[str]`. A nested source member is never a
 non-null selection on its own.
 
 `extract` composes the parent's nullability with the member's kind. Source
-members are already nullable, so they stay nullable under either parent.
-Expression-backed members of a `ComputedStruct` follow their expression: a
-non-null expression stays non-null under a present parent and becomes nullable
-under a nullable parent. Struct fields are not usable on their own; outside
-`extract` the framework refuses them with
+members are already nullable, so they stay nullable under either parent. A
+`ComputedStruct` used as `Field[T]` is different: its member expressions are
+**type witnesses**, not evaluated values and not a row plan, so a filter or
+expansion in a witness has no row effect. A non-null witness stays non-null
+under a present carrier and becomes nullable under a nullable carrier; the read
+is a field reference on the carrier record, so the carrier's data supplies the
+value. Struct fields are not usable on their own; outside `extract` the
+framework refuses them with
 `a struct member selection is only valid inside extract`.
 
 ## Nullability on access
@@ -129,9 +167,12 @@ declaration names the value type; the selection owns presence.
 
 - `Table.field` and a source `Struct` member yield `NullableSelection[T]`,
   including arrays and structs.
-- `Projection.field` and a `ComputedStruct` member carry the type of their
-  expression. A non-null expression yields a non-null selection; a nullable
-  expression yields `NullableSelection`.
+- `Projection.field` carries the type of its expression. A non-null expression
+  yields a non-null selection; a nullable expression yields
+  `NullableSelection`.
+- A `ComputedStruct` member is read only through `extract`; its witness
+  expression fixes the member type, so a non-null witness is non-null under a
+  present carrier.
 - A top-level `T | None` on a source field is stripped to `T`. Never rely on it
   to change access, and do not write it.
 - Array item nullability (`Array[T | None]`) remains a property of the value.
@@ -155,11 +196,18 @@ labels = SiteTable.labels.alter_rows().drop_null()  # ArraySelection[str]
 joined = labels.sort().unique().concat(",")         # ValueSelection[str]
 ```
 
-Where the nullability comes from still matters for what the data means. Generated
-contracts record what the source declares — a Parquet `required` or `optional`
-column, a relation's `NOT NULL` constraint — but access is nullable either way,
-and a JSON or CSV source says nothing about presence. Nullability is never
-inferred from the values in a sample.
+A generated package does not put a top-level source-nullability claim into the
+contract. `field()` strips a top-level `| None`, and the generator renders only
+the value type, so `Field[str]` in a generated table is the same blueprint field
+type whether the source called the column `required`, `optional` or nothing.
+The source's claim is recorded as a header comment and in the manifest's source
+digest; access is still a nullable selection.
+
+`override={"relation.column": {"nullable": False}}` overrules the source's
+nullability claim for one whole top-level column. It can assert or decline a
+claim and runs the Parquet null-statistics pre-flight, but it does not make the
+field non-null on access and does not appear in the blueprint field type.
+Nullability is never inferred from the values in a sample.
 
 ## What a graph property may hold
 
@@ -270,14 +318,20 @@ a cast.
 
 ## What to remember
 
-- Write canonical types; aliases normalise to one meaning.
+- Write canonical types; aliases normalise to one meaning. Custom scalars are
+  top-level `CustomDataType` subclasses identified by module and qualname.
 - A field declaration names a value type. Every source access is nullable, even
   when the declaration has no `| None`.
 - `| None` on a source field is stripped; item nullability (`Array[T | None]`)
   is a fact about the value.
-- A computed field is typed by its expression.
+- A generated package's source-nullability claim is a header/digest fact, not a
+  blueprint field type; access stays nullable.
+- A projection field is typed by its expression. A `ComputedStruct` member
+  expression is a type witness, not an evaluated value.
 - Keys must be present scalars. Choose `alter_rows().drop_null()` or a
   deliberate fallback, never a silent one.
+- Temporal and `uuid` values have canonical text but no comparison operators;
+  custom scalars have no value operations.
 - Properties hold scalars or flat non-null arrays; narrow the array and drop null
   items first.
 - A type error is a design message: read which side is nullable or composite,

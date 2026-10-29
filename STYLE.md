@@ -1,7 +1,11 @@
 # Writing style for this guide
 
 - Write for a competent Python developer who has never seen kg-build-system.
-  Explain the idea before the API.
+  Start from why and what for: the problem the author has, what the framework
+  promises and what changes for them. Explain the idea before the API.
+- Preserve the framework's values: semantics as contract, explicit assumptions,
+  typed authoring, reproducible builds, and separation of meaning from
+  execution.
 - Write from the author's perspective. Explain an internal mechanism only when
   it changes what the author writes or observes; do not describe internals for
   their own sake.

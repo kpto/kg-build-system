@@ -87,6 +87,11 @@ Nested arrays and structs are not graph properties; use
 [`extract()`](expressions.md) or [`alter_rows().expand()`](projections.md) to
 reach scalar values.
 
+A custom scalar (`CustomDataType`) is accepted wherever a scalar is accepted,
+including as an array item. It has no value operations of its own, so the
+binding carries it rather than comparing or composing it. A target may narrow
+what it stores: the Neo4j bundle refuses custom scalar and `uuid` properties.
+
 Null items inside an array are rejected. When the source gives you
 `Array[T | None]`, narrow the array to a present selection and apply
 [`drop_null_items()`](expressions.md) before assigning it. An empty array
@@ -156,10 +161,11 @@ Templates declare annotations with `NodeOptionsTemplate(annotations=...)` or
 `EdgeOptionsTemplate(annotations=...)`. Those are annotations-only; a template
 has no name or description of its own.
 
-A declaration may mix in any number of templates of its own kind. Canonical
-order is templates first, the abstract category parent in the middle, and the
-terminal base last: `ProvenancedNodeTemplate, DocumentedAbstractNode, Node`.
-Mixing node-side and edge-side lineage is rejected at class creation.
+A declaration may mix in any number of templates of its own kind. The base order
+is normative: every template first, the one abstract category parent in the
+middle, and the terminal base last —
+`ProvenancedNodeTemplate, DocumentedAbstractNode, Node`. Mixing node-side and
+edge-side lineage is rejected at class creation.
 
 Keep one property slot per name. If two concerns need a slot called `as_at`,
 but at different types, make them sibling templates and mix the one that
@@ -171,6 +177,12 @@ An abstract component is a graph-visible parent. It carries shared properties,
 gives its children a common parent, and lets an edge name a whole category
 instead of one concrete component. It is never a binding target and produces no
 records of its own.
+
+Only reached categories enter the blueprint. A category is reached when a bound
+concrete component names it as an ancestor, or when a bound edge declares it as
+an endpoint; the entry carries the category's own properties and annotations.
+A category family with no bound descendant is not published, because nothing in
+the graph can refer to it.
 
 ```python
 from kg_build_system import (
