@@ -31,9 +31,15 @@ rule about what the framework is belongs to the framework model.
 
 - A change that crosses a subpackage boundary is proposed as an interface change
   before it is implemented.
-- The docs under `docs/` are the review surface for proposed changes. Update the
-  docs with the change; do not add spec or plan files.
-- The interface is the review surface; implementation is not.
+- Author-facing interfaces are reviewed through the docs under `docs/`; internal
+  interfaces are reviewed through the spec MD files.
+- A spec states the interface: names, signatures, invariants, allowed
+  dependencies and the authoring surface. Implementation detail is out of scope.
+- The interface is the review surface; implementation is not. When the code and
+  the spec disagree, the spec is the decision and one of them changes.
+- A plan or a changelog is a change report, not a spec.
+- A change may update both a spec and the docs; they describe different surfaces,
+  not the same text.
 - The proposal is read in one screen:
 
 | Field | Meaning |
@@ -45,6 +51,11 @@ rule about what the framework is belongs to the framework model.
 | Deletions | Features removed or merged; no compatibility path |
 | Contract tests | The tests that now guard the interface |
 | Verification | Tests, type checker and any document build |
+
+| Surface | Reader | What it states |
+| --- | --- | --- |
+| `docs/` | graph author | what to write and what the graph does |
+| spec MD | framework reviewer | internal interface, boundaries and invariants |
 
 - If the interface delta does not explain the change, the change is not ready.
 - End every change report with the rule-promotion result: none, refined or
