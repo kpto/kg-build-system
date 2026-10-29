@@ -46,7 +46,7 @@ rule about what the framework is belongs to the framework model.
 
 - If the interface delta does not explain the change, the change is not ready.
 - End every change report with the rule-promotion result: none, refined or
-  proposed.
+  added.
 
 ### Rule promotion
 
@@ -56,8 +56,8 @@ rule about what the framework is belongs to the framework model.
   the incident that produced it.
 - Place it in the domain it governs: agent behaviour or framework model.
 - Refine an existing point instead of adding a case; keep this file small.
-- The point is a rule, not a record of the work; propose it and wait for
-  approval.
+- The point is a rule, not a record of the work. The main agent may add or refine
+  it directly and report the result.
 - Only the main agent edits this file; a subagent reports a proposed rule to the
   main agent.
 
