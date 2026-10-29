@@ -205,7 +205,10 @@ def _derive(
     if not isinstance(result, BoolExpression):
         raise TypeError("where predicates must return a BoolExpression")
     del filters  # legacy callers never supplied more than the predicate
-    return derive_row_source(shape, result, shape=shape_view(shape))
+    provider = getattr(shape, "row_source", None)
+    if not callable(provider):
+        raise TypeError("where requires a Table or Projection declaration")
+    return derive_row_source(provider(), result, shape=shape_view(shape))
 
 
 def _source_name(value: Any) -> str:
@@ -277,7 +280,7 @@ class Table(StructDeclaration, RowSource["Table"]):
 
     @classmethod
     def projection_base(cls) -> type:
-        return projection_base(cls)
+        return projection_base(cls.row_source())
 
     @classmethod
     def row_source(cls) -> "RelationRowSource[Self]":
@@ -429,7 +432,7 @@ class Projection(Shape, RowSource["Projection"], metaclass=ProjectionMeta):
 
     @classmethod
     def projection_base(cls) -> type:
-        return projection_base(cls)
+        return projection_base(cls.row_source())
 
     @classmethod
     def row_source(cls) -> "RelationRowSource[Any]":

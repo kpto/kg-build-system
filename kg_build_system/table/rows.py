@@ -508,16 +508,11 @@ def derive_row_source(
 
 
 def as_row_source(value: Any) -> "RowSource[Any]":
-    """Normalize a class object or value row source to a value row source."""
-    if isinstance(value, type) and issubclass(value, RowSource):
-        method = getattr(value, "row_source", None)
-        if not callable(method):
-            raise TypeError("row-source classes must provide row_source()")
-        return cast("RowSource[Any]", method())
+    """Require a value row source; declarations provide one via ``row_source()``."""
     if isinstance(value, RowSource) and not isinstance(value, type):
         return cast("RowSource[Any]", value)
     raise TypeError(
-        "row sources must be a Table, a Projection, or a derived row source"
+        "rows must be a row source value; use Table.row_source() or Projection.row_source()"
     )
 
 

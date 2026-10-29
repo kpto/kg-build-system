@@ -10,7 +10,7 @@ from reference_project.topology.unit import UnitNode
 # reviewed.
 unit_binding = node_binding(
     target=UnitNode,
-    rows=EquipmentTable,
+    rows=EquipmentTable.row_source(),
     bind=lambda row: NodeValues(
         build_key=row.unit_ref.alter_rows().drop_null(),
         properties=UnitNode(

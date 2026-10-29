@@ -12,7 +12,7 @@ from reference_project.topology.defect import DefectNode
 # same defect.
 defect_binding = node_binding(
     target=DefectNode,
-    rows=DefectProjection,
+    rows=DefectProjection.row_source(),
     bind=lambda row: NodeValues(
         build_key=row.defect_id.alter_rows().drop_null(),
         properties=DefectNode(

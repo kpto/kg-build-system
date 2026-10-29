@@ -15,7 +15,7 @@ class SourceNamedTable(Table):
 
 class RowSourcePlanTests(unittest.TestCase):
     def test_a_table_field_named_source_does_not_shadow_the_table(self) -> None:
-        plan = _row_source_plan(SourceNamedTable)
+        plan = _row_source_plan(SourceNamedTable.row_source())
         self.assertIsNotNone(plan)
         assert plan is not None
         self.assertEqual(plan.source, "source_named")

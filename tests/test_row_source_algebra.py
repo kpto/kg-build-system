@@ -461,7 +461,7 @@ class ProjectionAndCodecTests(unittest.TestCase):
 
         binding = node_binding(
             target=ProjectedNode,
-            rows=RenamedRows,
+            rows=RenamedRows.row_source(),
             bind=lambda row: NodeValues(
                 build_key=row.key,
                 properties=ProjectedNode(label=row.label),

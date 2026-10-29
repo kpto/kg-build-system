@@ -59,7 +59,7 @@ class RowEffectGateTests(unittest.TestCase):
     def test_drop_null_is_the_gated_presence_filter(self) -> None:
         binding = node_binding(
             target=Item,
-            rows=Source,
+            rows=Source.row_source(),
             bind=lambda row: NodeValues(
                 build_key=row.status.alter_rows().drop_null(),
                 properties=Item(label=row.kind.alter_rows().drop_null()),
@@ -71,7 +71,7 @@ class RowEffectGateTests(unittest.TestCase):
     def test_expand_is_gated_and_returns_one_row_per_element(self) -> None:
         binding = node_binding(
             target=Item,
-            rows=Source,
+            rows=Source.row_source(),
             bind=lambda row: NodeValues(
                 build_key=row.kind.alter_rows().drop_null().expression.append("::").append(
                     row.tags.alter_rows().drop_null().alter_rows().expand().expression
@@ -88,7 +88,7 @@ class RowEffectGateTests(unittest.TestCase):
     def test_drop_if_filters_by_a_value_predicate(self) -> None:
         binding = node_binding(
             target=Item,
-            rows=Source,
+            rows=Source.row_source(),
             bind=lambda row: NodeValues(
                 build_key=row.kind.alter_rows().drop_null(),
                 properties=Item(label=row.kind.alter_rows().drop_null()),
@@ -108,7 +108,7 @@ class RowEffectGateTests(unittest.TestCase):
     def test_extract_navigates_a_source_struct(self) -> None:
         binding = node_binding(
             target=Item,
-            rows=Source,
+            rows=Source.row_source(),
             bind=lambda row: NodeValues(
                 build_key=row.detail.alter_rows().drop_null().extract(lambda d: d.code).alter_rows().drop_null(),
                 properties=Item(label=row.kind.alter_rows().drop_null()),
@@ -136,7 +136,7 @@ class ArrayNavigationTests(unittest.TestCase):
     def test_at_is_zero_based_and_nullable_on_missing_index(self) -> None:
         binding = node_binding(
             target=Item,
-            rows=Source,
+            rows=Source.row_source(),
             bind=lambda row: NodeValues(
                 build_key=row.kind.alter_rows().drop_null().expression.append("::").append(
                     row.tags.alter_rows().drop_null().at(0).alter_rows().drop_null().expression
@@ -150,7 +150,7 @@ class ArrayNavigationTests(unittest.TestCase):
     def test_slice_keeps_the_array_value(self) -> None:
         binding = node_binding(
             target=Item,
-            rows=Source,
+            rows=Source.row_source(),
             bind=lambda row: NodeValues(
                 build_key=row.kind.alter_rows().drop_null().expression.append("::").append(
                     row.tags.alter_rows().drop_null().slice(0, 2).concat("|").expression

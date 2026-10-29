@@ -29,6 +29,6 @@ def build_site(row: SitesTable) -> NodeValues[SiteNode, str]:
 
 site_binding = node_binding(
     target=SiteNode,
-    rows=SitesTable,
+    rows=SitesTable.row_source(),
     bind=build_site,
 )

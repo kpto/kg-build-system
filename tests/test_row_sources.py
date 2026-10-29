@@ -143,7 +143,7 @@ class ShapeTests(unittest.TestCase):
             pass
         binding = node_binding(
             target=TargetNode,
-            rows=ActiveTargets,
+            rows=ActiveTargets.row_source(),
             bind=lambda row: NodeValues(
                 build_key=row.status.alter_rows().drop_null(),
                 properties=TargetNode(label=row.kind.alter_rows().drop_null()),
@@ -172,7 +172,7 @@ class ShapeTests(unittest.TestCase):
 
         binding = node_binding(
             target=TargetNode,
-            rows=ActiveLabels,
+            rows=ActiveLabels.row_source(),
             bind=lambda row: NodeValues(
                 build_key=row.status,
                 properties=TargetNode(label=row.kind.alter_rows().drop_null()),

@@ -7,7 +7,7 @@ from reference_project.topology.survey.surveyed_at__site import SurveyedAtEdge
 
 surveyed_at_binding = edge_binding(
     target=SurveyedAtEdge,
-    rows=SurveysTable,
+    rows=SurveysTable.row_source(),
     bind=lambda row: EdgeValues(
         build_key=row.survey_id.alter_rows().drop_null(),
         source_build_key=row.survey_id.alter_rows().drop_null(),

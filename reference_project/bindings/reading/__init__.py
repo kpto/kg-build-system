@@ -11,7 +11,7 @@ from reference_project.topology.reading import ReadingNode
 # node from two producers without either knowing about the other.
 temperature_reading_binding = node_binding(
     target=ReadingNode,
-    rows=TemperatureTable,
+    rows=TemperatureTable.row_source(),
     bind=lambda row: NodeValues(
         build_key=row.reading_uid.alter_rows().drop_null(),
         properties=ReadingNode(
@@ -29,7 +29,7 @@ temperature_reading_binding = node_binding(
 
 vibration_reading_binding = node_binding(
     target=ReadingNode,
-    rows=VibrationTable,
+    rows=VibrationTable.row_source(),
     bind=lambda row: NodeValues(
         build_key=row.reading_uid.alter_rows().drop_null(),
         properties=ReadingNode(

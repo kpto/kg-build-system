@@ -10,7 +10,7 @@ from reference_project.topology.defect.has_observation__observation import HasOb
 # key would assert relations between entities that were never distinguished.
 has_observation_binding = edge_binding(
     target=HasObservationEdge,
-    rows=ObservationProjection,
+    rows=ObservationProjection.row_source(),
     bind=lambda row: EdgeValues(
         build_key=row.observation_uid.alter_rows().drop_null(),
         source_build_key=row.defect_id.alter_rows().drop_null(),

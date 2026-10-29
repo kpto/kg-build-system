@@ -9,7 +9,7 @@ from reference_project.topology.survey import SurveyVisitNode
 # directly off the contract even though deeper grains need projections.
 survey_visit_binding = node_binding(
     target=SurveyVisitNode,
-    rows=SurveysTable,
+    rows=SurveysTable.row_source(),
     bind=lambda row: NodeValues(
         build_key=row.survey_id.alter_rows().drop_null(),
         properties=SurveyVisitNode(

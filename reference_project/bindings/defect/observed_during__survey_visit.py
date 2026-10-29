@@ -16,7 +16,7 @@ from reference_project.topology.survey import SurveyVisitNode
 observed_during_binding = edge_binding(
     target=ObservedDuringEdge,
     target_node=endpoint(SurveyVisitNode),
-    rows=DefectProjection,
+    rows=DefectProjection.row_source(),
     bind=lambda row: EdgeValues(
         build_key=row.defect_id.alter_rows().drop_null(),
         source_build_key=row.defect_id.alter_rows().drop_null(),

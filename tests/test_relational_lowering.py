@@ -506,7 +506,7 @@ class MergeScopeTests(unittest.TestCase):
     def _binding(self, target):
         return node_binding(
             target=target,
-            rows=MergeInput,
+            rows=MergeInput.row_source(),
             bind=lambda row: NodeValues(
                 build_key=row.identifier.alter_rows().drop_null(),
                 properties=target(value=row.value.alter_rows().drop_null()),

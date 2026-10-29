@@ -9,7 +9,7 @@ from reference_project.topology.unit.has_defect__defect import HasDefectEdge
 # relation, so those rows are dropped rather than joined onto a placeholder.
 has_defect_binding = edge_binding(
     target=HasDefectEdge,
-    rows=DefectProjection,
+    rows=DefectProjection.row_source(),
     bind=lambda row: EdgeValues(
         build_key=row.defect_id.alter_rows().drop_null(),
         source_build_key=row.unit_ref.alter_rows().drop_null(),

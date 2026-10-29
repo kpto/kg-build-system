@@ -9,7 +9,7 @@ from reference_project.topology.site.has_unit__unit import HasUnitEdge
 # off it with no join and no projection.
 has_unit_binding = edge_binding(
     target=HasUnitEdge,
-    rows=EquipmentTable,
+    rows=EquipmentTable.row_source(),
     bind=lambda row: EdgeValues(
         build_key=row.unit_ref.alter_rows().drop_null(),
         source_build_key=row.site_id.alter_rows().drop_null(),

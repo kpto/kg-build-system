@@ -8,7 +8,7 @@ from reference_project.topology.unit.measures__reading import MeasuresEdge
 
 temperature_measures_binding = edge_binding(
     target=MeasuresEdge,
-    rows=TemperatureTable,
+    rows=TemperatureTable.row_source(),
     bind=lambda row: EdgeValues(
         build_key=row.reading_uid.alter_rows().drop_null(),
         source_build_key=row.unit_ref.alter_rows().drop_null(),
@@ -23,7 +23,7 @@ temperature_measures_binding = edge_binding(
 
 vibration_measures_binding = edge_binding(
     target=MeasuresEdge,
-    rows=VibrationTable,
+    rows=VibrationTable.row_source(),
     bind=lambda row: EdgeValues(
         build_key=row.reading_uid.alter_rows().drop_null(),
         source_build_key=row.unit_ref.alter_rows().drop_null(),

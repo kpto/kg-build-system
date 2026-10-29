@@ -11,7 +11,7 @@ from reference_project.topology.observation import ObservationNode
 # that recorded nothing is still an observation that was taken.
 observation_binding = node_binding(
     target=ObservationNode,
-    rows=ObservationProjection,
+    rows=ObservationProjection.row_source(),
     bind=lambda row: NodeValues(
         build_key=row.observation_uid.alter_rows().drop_null(),
         properties=ObservationNode(
