@@ -2,9 +2,9 @@
 
 - Write for a competent Python developer who has never seen kg-build-system.
   Explain the idea before the API.
-- Author perspective only. Describe what the author writes and what the author
-  can observe. Do not describe compiler internals, IR classes, workflow
-  assembly, DuckDB lowering, module executors, or private helpers.
+- Write from the author's perspective. Explain an internal mechanism only when
+  it changes what the author writes or observes; do not describe internals for
+  their own sake.
 - Prefer one continuous explanation with code examples over a list of function
   signatures. A reference table is fine when the reader already understands the
   concept.
@@ -15,13 +15,16 @@
 - Use admonitions for warnings and rules:
   `!!! warning "..."`, `!!! note "..."`, `!!! tip "..."`.
 - Link to related pages with relative Markdown links.
-- Keep each page roughly 100–250 lines. Do not duplicate another page; link to it.
+- A page covers one concept. Split when it covers two; length follows the detail
+  an author needs. Do not duplicate another page; link to it.
 - Use sentence case headings. Tables for short comparisons.
 - Do not invent features. If unsure, inspect the framework source or
   `reference_project/` and omit rather than guess.
 
 ## Teach, don't just specify
 
+- Depth is welcome. Do not simplify by omitting what an author needs; make it
+  readable by structure, order and examples.
 - Write as a teacher walking beside the reader. Introduce the problem a feature
   solves before its syntax.
 - Carry one running example through a page. Return to it as each new idea is

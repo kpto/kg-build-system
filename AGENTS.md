@@ -33,13 +33,16 @@ rule about what the framework is belongs to the framework model.
   before it is implemented.
 - Author-facing interfaces are reviewed through the docs under `docs/`; internal
   interfaces are reviewed through the spec MD files.
+- Docs are author-facing, not simplified. Include anything an author might need
+  to know: semantics, edge cases, limits, examples and the reasons behind a
+  rule. Structure makes them readable, not the amount of detail.
+- Docs and specs may cover the same subject for different readers; they are not
+  alternates.
 - A spec states the interface: names, signatures, invariants, allowed
   dependencies and the authoring surface. Implementation detail is out of scope.
 - The interface is the review surface; implementation is not. When the code and
   the spec disagree, the spec is the decision and one of them changes.
 - A plan or a changelog is a change report, not a spec.
-- A change may update both a spec and the docs; they describe different surfaces,
-  not the same text.
 - The proposal is read in one screen:
 
 | Field | Meaning |
@@ -54,7 +57,7 @@ rule about what the framework is belongs to the framework model.
 
 | Surface | Reader | What it states |
 | --- | --- | --- |
-| `docs/` | graph author | what to write and what the graph does |
+| `docs/` | graph author | what to write, what the graph does, and the semantics and limits an author needs |
 | spec MD | framework reviewer | internal interface, boundaries and invariants |
 
 - If the interface delta does not explain the change, the change is not ready.
