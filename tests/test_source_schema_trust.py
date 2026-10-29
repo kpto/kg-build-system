@@ -125,9 +125,9 @@ class PromotedReadingNode(k.Node):
 def guard_binding() -> k.Binding:
     return k.node_binding(
         target=GuardNode,
-        build_key=GuardTable.identifier,
+        build_key=GuardTable.identifier.alter_rows().drop_null(),
         properties=GuardNode(
-            label=GuardTable.identifier,
+            label=GuardTable.identifier.alter_rows().drop_null(),
             optional_note=GuardTable.optional_note,
         ),
     )
@@ -136,9 +136,13 @@ def guard_binding() -> k.Binding:
 def wrapped_binding() -> k.Binding:
     return k.node_binding(
         target=WrappedNode,
-        build_key=WrappedTable.identifier,
+        build_key=WrappedTable.identifier.alter_rows().drop_null(),
         properties=WrappedNode(
-            author_name=WrappedTable.authors.expand().pick(lambda value: value.name),
+            author_name=(
+                WrappedTable.authors.alter_rows().expand()
+                .extract(lambda value: value.name)
+                .alter_rows().drop_null()
+            ),
         ),
     )
 
@@ -146,9 +150,9 @@ def wrapped_binding() -> k.Binding:
 def promoted_binding() -> k.Binding:
     return k.node_binding(
         target=PromotedReadingNode,
-        build_key=PromotedReadings.identifier,
+        build_key=PromotedReadings.identifier.alter_rows().drop_null(),
         properties=PromotedReadingNode(
-            label=PromotedReadings.identifier,
+            label=PromotedReadings.identifier.alter_rows().drop_null(),
             recorded_on=PromotedReadings.recorded_on,
         ),
     )
@@ -370,7 +374,7 @@ class TierThreeAssumesNullableTests(unittest.TestCase):
             k.node_binding(
                 target=AuthorNode,
                 build_key=NullableArticles.email,
-                properties=AuthorNode(email=NullableArticles.email.where_present()),
+                properties=AuthorNode(email=NullableArticles.email.alter_rows().drop_null()),
             )
         self.assertIn("must not be nullable", str(raised.exception))
 
@@ -726,7 +730,7 @@ class TotalTypeMappingTests(unittest.TestCase):
             generated = (root / "contracts" / "notes" / "__init__.py").read_text(
                 encoding="utf-8",
             )
-        self.assertIn("when: Field[Date | None] = field(name='when')", generated)
+        self.assertIn("when: Field[Date] = field(name='when')", generated)
         # Decision 5: the whole representative set, whatever a file annotates.
         self.assertIn(
             "from kg_build_system.types import Array, Date, Time, Timestamp, Uuid",
@@ -853,33 +857,33 @@ class NullGuardTests(unittest.TestCase):
         self.assertIn("guard.label is null for build_key", sql)
         self.assertIn("guard.build_key is null, but it is declared non-null", sql)
 
-    def test_a_violated_claim_aborts_instead_of_emitting(self) -> None:
+    def test_narrowing_a_nullable_source_drops_the_null_row(self) -> None:
         with TemporaryDirectory() as directory:
             root = Path(directory)
             report = build_json_contract(
                 root, StrictArticles,
                 k.node_binding(
                     target=AuthorNode,
-                    build_key=StrictArticles.authors.expand().pick(
+                    build_key=StrictArticles.authors.alter_rows().expand().extract(
                         lambda value: value.email
-                    ).expression.prepend("author::"),
+                    ).alter_rows().drop_null().expression.prepend("author::"),
                     properties=AuthorNode(
-                        email=StrictArticles.authors.expand().pick(
+                        email=StrictArticles.authors.alter_rows().expand().extract(
                             lambda value: value.email
-                        ),
+                        ).alter_rows().drop_null(),
                     ),
                 ),
                 payload=[{"authors": [{"email": "ra@example.org"}]}, {"authors": [{"email": None}]}],
                 modules=(register_module(FileModule, FileModuleConfiguration("graph.jsonl")),),
             )
-            self.assertFalse(report.succeeded)
-            messages = [failure.message for failure in report.unresolved_failures]
-            self.assertTrue(any("author.email is null for build_key" in m for m in messages), messages)
+            self.assertTrue(report.succeeded, [failure.message for failure in report.unresolved_failures])
             written = (root / "out" / "graph.jsonl")
             self.assertEqual(
-                written.read_text(encoding="utf-8").strip() if written.exists() else "",
-                "",
-                "the graph refuses to carry the value rather than merging entities",
+                [json.loads(line)["build_key"] for line in written.read_text(
+                    encoding="utf-8",
+                ).splitlines()],
+                ["author::ra@example.org"],
+                "the null member is dropped before the key is claimed",
             )
 
     def test_a_claim_proven_by_construction_never_fires_its_guard(self) -> None:
@@ -889,7 +893,7 @@ class NullGuardTests(unittest.TestCase):
                 root, NullableArticles,
                 k.node_binding(
                     target=AuthorNode,
-                    build_key=NullableArticles.email.where_present(),
+                    build_key=NullableArticles.email.alter_rows().drop_null(),
                     properties=AuthorNode(
                         email=NullableArticles.email.default_to("unknown"),
                     ),
@@ -965,8 +969,10 @@ class NullStatisticsTests(unittest.TestCase):
                 root, "guard_input", GuardTable, guard_binding(),
                 [{"identifier": "1", "optional_note": None}],
             )
-        self.assertIn("identifier", listed)
-        self.assertNotIn("optional_note", listed, "a nullable field claims nothing")
+        # Source fields declare a value type; nullability belongs to access. A
+        # top-level ``str | None`` is stripped, so both read members are
+        # declared non-null and both enter the pre-flight.
+        self.assertEqual(set(listed), {"identifier", "optional_note"})
 
     def test_parquet_paths_carry_the_list_wrappers_of_path_in_schema(self) -> None:
         with TemporaryDirectory() as directory:
@@ -1064,14 +1070,14 @@ class NullableOperationTests(unittest.TestCase):
 
     def test_null_policy_is_absent_from_the_expression(self) -> None:
         expression = k.as_expression(NullableArticles.email)
-        for policy in ("default_to", "where_present"):
+        for policy in ("default_to", "drop_null"):
             with self.subTest(policy=policy):
                 self.assertFalse(hasattr(expression, policy))
 
     def test_null_policy_is_present_on_the_selection_that_owns_it(self) -> None:
         selection = NullableArticles.email
         self.assertTrue(hasattr(selection, "default_to"))
-        self.assertTrue(hasattr(selection, "where_present"))
+        self.assertTrue(hasattr(selection, "drop_null"))
 
 
 # --------------------------------------------------------------------------- #

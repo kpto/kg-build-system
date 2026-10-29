@@ -2,9 +2,9 @@
 from typing import assert_type
 
 from kg_build_system import (
-    Array, ArraySelection, Field, IntExpression, NullableExpression,
-    NullableSelection, Projection, StrExpression, Struct, StructSelection,
-    Table, ValueSelection, field, projection_field,
+    Array, Field, IntExpression, NullableExpression, NullableSelection,
+    Projection, StrExpression, Struct, Table, ValueSelection, computed_field,
+    field,
 )
 
 
@@ -20,18 +20,22 @@ class InputTable(Table):
 
 
 class TypedProjection(Projection(InputTable.row_source())):
-    identifier = projection_field(InputTable.identifier)
-    label = projection_field(
-        InputTable.details.pick(lambda details: details.label).default_to("unknown")
+    identifier = computed_field(InputTable.identifier)
+    label = computed_field(
+        InputTable.details.extract(lambda details: details.label).default_to("unknown")
     )
-    score = projection_field(InputTable.details.pick(lambda details: details.score))
-    values = projection_field(InputTable.values)
+    score = computed_field(InputTable.details.extract(lambda details: details.score))
+    values = computed_field(InputTable.values)
 
 
+# A source field is nullable on access, so a projection that reproduces it is
+# nullable too; explicit narrowing makes the output typed.
 assert_type(InputTable.details, NullableSelection[DetailsStruct])
-assert_type(TypedProjection.identifier, ValueSelection[str])
-assert_type(TypedProjection.identifier.expression, StrExpression)
+assert_type(TypedProjection.identifier, NullableSelection[str])
+assert_type(
+    TypedProjection.identifier.expression, NullableExpression[str, StrExpression],
+)
 assert_type(TypedProjection.label, ValueSelection[str])
 assert_type(TypedProjection.score, NullableSelection[int])
 assert_type(TypedProjection.score.expression, NullableExpression[int, IntExpression])
-assert_type(TypedProjection.values, ArraySelection[int])
+assert_type(TypedProjection.values, NullableSelection[Array[int]])

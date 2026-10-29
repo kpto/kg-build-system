@@ -38,36 +38,38 @@ class RelatedEdge(Edge[EntityNode, EntityNode]):
 
 class GraphBindingTests(unittest.TestCase):
     def test_selections_normalize_to_expressions_at_the_binding_boundary(self) -> None:
+        label = BindingInputTable.label.alter_rows().drop_null()
         properties = EntityNode(
-            label=BindingInputTable.label,
+            label=label,
             description=BindingInputTable.optional_label,
         )
         binding = node_binding(
             target=EntityNode,
-            build_key=BindingInputTable.identifier,
+            build_key=BindingInputTable.identifier.alter_rows().drop_null(),
             properties=properties,
         )
 
-        self.assertEqual(binding.build_key.model, BindingInputTable.identifier.expression.model)
-        self.assertEqual(binding.properties.label.model, BindingInputTable.label.expression.model)
+        self.assertEqual(
+            binding.build_key.model,
+            BindingInputTable.identifier.alter_rows().drop_null().expression.model,
+        )
+        self.assertEqual(binding.properties.label.model, label.expression.model)
         self.assertEqual(
             binding.properties.description.model,
             BindingInputTable.optional_label.expression.model,
         )
 
     def test_non_null_values_may_satisfy_nullable_properties(self) -> None:
+        label = BindingInputTable.label.alter_rows().drop_null()
         binding = node_binding(
             target=EntityNode,
-            build_key=BindingInputTable.alternate_identifier,
-            properties=EntityNode(
-                label=BindingInputTable.label,
-                description=BindingInputTable.label,
-            ),
+            build_key=BindingInputTable.alternate_identifier.alter_rows().drop_null(),
+            properties=EntityNode(label=label, description=label),
         )
         self.assertEqual(binding.build_key.logical_type, INT)
 
-    def test_where_present_narrows_and_filters_the_binding_row(self) -> None:
-        narrowed = BindingInputTable.optional_label.where_present()
+    def test_drop_null_narrows_and_filters_the_binding_row(self) -> None:
+        narrowed = BindingInputTable.optional_label.alter_rows().drop_null()
         binding = node_binding(
             target=EntityNode,
             build_key=narrowed,
@@ -78,20 +80,21 @@ class GraphBindingTests(unittest.TestCase):
         self.assertIs(binding.build_key, narrowed.expression)
 
     def test_edge_inputs_are_normalized_to_expressions(self) -> None:
+        score = BindingInputTable.score.alter_rows().drop_null()
         binding = edge_binding(
             target=RelatedEdge,
-            build_key=BindingInputTable.identifier,
-            source_build_key=BindingInputTable.identifier,
-            target_build_key=BindingInputTable.alternate_identifier,
-            properties=RelatedEdge(score=BindingInputTable.score),
+            build_key=BindingInputTable.identifier.alter_rows().drop_null(),
+            source_build_key=BindingInputTable.identifier.alter_rows().drop_null(),
+            target_build_key=BindingInputTable.alternate_identifier.alter_rows().drop_null(),
+            properties=RelatedEdge(score=score),
         )
-        self.assertEqual(binding.properties.score.model, BindingInputTable.score.expression.model)
+        self.assertEqual(binding.properties.score.model, score.expression.model)
 
     def test_property_types_are_validated_at_binding_creation(self) -> None:
         with self.assertRaisesRegex(TypeError, "EntityNode.label expects"):
             node_binding(
                 target=EntityNode,
-                build_key=BindingInputTable.identifier,
+                build_key=BindingInputTable.identifier.alter_rows().drop_null(),
                 properties=EntityNode(
                     label=BindingInputTable.score,  # type: ignore[arg-type]
                     description=BindingInputTable.optional_label,
@@ -101,7 +104,7 @@ class GraphBindingTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "EntityNode.label expects"):
             node_binding(
                 target=EntityNode,
-                build_key=BindingInputTable.identifier,
+                build_key=BindingInputTable.identifier.alter_rows().drop_null(),
                 properties=EntityNode(
                     label=BindingInputTable.optional_label,  # type: ignore[arg-type]
                     description=BindingInputTable.optional_label,
@@ -110,7 +113,7 @@ class GraphBindingTests(unittest.TestCase):
 
     def test_build_keys_must_be_non_null_scalar_expressions(self) -> None:
         properties = EntityNode(
-            label=BindingInputTable.label,
+            label=BindingInputTable.label.alter_rows().drop_null(),
             description=BindingInputTable.optional_label,
         )
         with self.assertRaisesRegex(TypeError, "build_key must not be nullable"):

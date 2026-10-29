@@ -23,7 +23,7 @@ from kg_build_system import (
     TableOptions,
     bind_source,
     field,
-    projection_field,
+    computed_field,
 )
 from kg_build_system.expressions import FieldReferenceExpression, OperationExpression
 from kg_build_system.table.declarations import resolve_bound_source
@@ -62,9 +62,9 @@ class LabelProjection(Projection(EntityTable.row_source())):
     """A materialised label product."""
 
     options = ProjectionOptions(annotations=(Marker("projection"),))
-    entity_id = projection_field(EntityTable.identifier)
-    label = projection_field(
-        EntityTable.details.pick(lambda details: details.label).expression.append("!"),
+    entity_id = computed_field(EntityTable.identifier)
+    label = computed_field(
+        EntityTable.details.extract(lambda details: details.label).alter_rows().drop_null().expression.append("!"),
         name="display_label",
         description="Decorated display label",
         annotations=(Marker("output"),),
@@ -127,12 +127,12 @@ class DataDeclarationTests(unittest.TestCase):
 
         with self.assertRaisesRegex(TypeError, "final Projection"):
             class ChildProjection(LabelProjection):
-                extra = projection_field(EntityTable.category)
+                extra = computed_field(EntityTable.category)
 
         with self.assertRaisesRegex(TypeError, "share external name"):
             class DuplicateProjection(Projection(EntityTable.row_source())):
-                first = projection_field(EntityTable.identifier, name="same")
-                second = projection_field(EntityTable.category, name="same")
+                first = computed_field(EntityTable.identifier, name="same")
+                second = computed_field(EntityTable.category, name="same")
 
     def test_table_groups_expand_to_stable_catalog_paths(self) -> None:
         bound = bind_source(
@@ -224,11 +224,11 @@ class DataDeclarationTests(unittest.TestCase):
                 options = StructOptionsTemplate()
 
     def test_templates_mix_only_into_record_hosts(self) -> None:
-        with self.assertRaisesRegex(TypeError, "only Table and Struct hosts"):
+        with self.assertRaisesRegex(TypeError, "only Table, Struct and ComputedStruct hosts"):
             class TemplatedProjection(EntityTableTemplate, Projection(EntityTable.row_source())):
-                identifier = projection_field(EntityTable.identifier)
+                identifier = computed_field(EntityTable.identifier)
 
-        with self.assertRaisesRegex(TypeError, "only Table and Struct hosts"):
+        with self.assertRaisesRegex(TypeError, "only Table, Struct and ComputedStruct hosts"):
             class TemplatedGroup(EntityTableTemplate, TableGroup):
                 reference = ReferenceTable
 

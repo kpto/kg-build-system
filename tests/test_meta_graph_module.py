@@ -149,33 +149,33 @@ class RefersEdge(RelatedAbstractEdge, Edge[PersonNode, PersonRefNode]):
 
 person_binding = node_binding(
     target=PersonNode,
-    build_key=MetaInput.identifier,
-    properties=PersonNode(name=MetaInput.name, summary=MetaInput.summary),
+    build_key=MetaInput.identifier.alter_rows().drop_null(),
+    properties=PersonNode(name=MetaInput.name.alter_rows().drop_null(), summary=MetaInput.summary),
 )
 team_binding = node_binding(
     target=TeamNode,
-    build_key=MetaInput.other_identifier,
+    build_key=MetaInput.other_identifier.alter_rows().drop_null(),
     properties=TeamNode(
-        team_name=MetaInput.other_identifier, summary=MetaInput.summary,
+        team_name=MetaInput.other_identifier.alter_rows().drop_null(), summary=MetaInput.summary,
     ),
 )
 belongs_binding = edge_binding(
     target=BelongsToEdge,
-    build_key=MetaInput.identifier.expression.append("::").append(
-        MetaInput.other_identifier.expression
+    build_key=MetaInput.identifier.alter_rows().drop_null().expression.append("::").append(
+        MetaInput.other_identifier.alter_rows().drop_null().expression
     ),
-    source_build_key=MetaInput.identifier,
-    target_build_key=MetaInput.other_identifier,
-    properties=BelongsToEdge(score=MetaInput.score),
+    source_build_key=MetaInput.identifier.alter_rows().drop_null(),
+    target_build_key=MetaInput.other_identifier.alter_rows().drop_null(),
+    properties=BelongsToEdge(score=MetaInput.score.alter_rows().drop_null()),
 )
 refers_binding = edge_binding(
     target=RefersEdge,
-    build_key=MetaInput.identifier.expression.append("##").append(
-        MetaInput.other_identifier.expression
+    build_key=MetaInput.identifier.alter_rows().drop_null().expression.append("##").append(
+        MetaInput.other_identifier.alter_rows().drop_null().expression
     ),
-    source_build_key=MetaInput.identifier,
-    target_build_key=MetaInput.other_identifier,
-    properties=RefersEdge(score=MetaInput.score),
+    source_build_key=MetaInput.identifier.alter_rows().drop_null(),
+    target_build_key=MetaInput.other_identifier.alter_rows().drop_null(),
+    properties=RefersEdge(score=MetaInput.score.alter_rows().drop_null()),
 )
 
 ALL_BINDINGS = (person_binding, team_binding, belongs_binding, refers_binding)
@@ -746,7 +746,7 @@ TEMPORAL_TEXT = {
 # ``| None`` modifier and an example value for it.
 temporal_binding = node_binding(
     target=TemporalNode,
-    build_key=MetaInput.identifier,
+    build_key=MetaInput.identifier.alter_rows().drop_null(),
     properties=TemporalNode(
         occurred_at=value_expression(datetime(2026, 8, 2, 14, 20)),
         recorded_at=value_expression(datetime(2026, 7, 14, 9, 35)),
@@ -895,8 +895,8 @@ class EmptySetNode(Node):
 
 empty_set_binding = node_binding(
     target=EmptySetNode,
-    build_key=NullableKeyTable.maybe_id.where_present(),
-    properties=EmptySetNode(detail=NullableKeyTable.detail),
+    build_key=NullableKeyTable.maybe_id.alter_rows().drop_null(),
+    properties=EmptySetNode(detail=NullableKeyTable.detail.alter_rows().drop_null()),
 )
 
 
@@ -1313,9 +1313,9 @@ class ArrayExampleNode(Node):
 
 array_example_binding = node_binding(
     target=ArrayExampleNode,
-    build_key=ArrayExampleTable.identifier,
+    build_key=ArrayExampleTable.identifier.alter_rows().drop_null(),
     properties=ArrayExampleNode(
-        codes=ArrayExampleTable.codes.drop_null_items(),
+        codes=ArrayExampleTable.codes.alter_rows().drop_null().drop_null_items(),
     ),
 )
 

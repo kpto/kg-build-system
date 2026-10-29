@@ -9,7 +9,7 @@ from kg_build_system import (
     Array, DataSourceConfig, DerivedRowSource, Edge, EdgeValues, Field,
     InputFormat, Node, NodeValues, Projection, PropertySlot, RowSource, Shape,
     Struct, Table, TableGroup, TableGroupOptions, any_of, all_of, bind_source,
-    build, compile, edge_binding, field, node_binding, projection_field,
+    build, compile, edge_binding, field, node_binding, computed_field,
     property,
 )
 from kg_build_system.compile import blueprint_from_json, blueprint_json
@@ -17,7 +17,7 @@ from kg_build_system.modules import (
     FileModule, FileModuleConfiguration, register_module,
 )
 from kg_build_system.expressions import BoolExpression
-from kg_build_system.types import StructType, normalize_type
+from kg_build_system.types import normalize_type
 
 
 class Source(Table):
@@ -31,7 +31,7 @@ class Part(Struct):
 
 
 class SourceView(Projection(Source.row_source())):
-    kind = projection_field(Source.kind)
+    kind = computed_field(Source.kind)
 
 
 class Group(TableGroup):
@@ -57,16 +57,16 @@ class ShapeTests(unittest.TestCase):
         self.assertIs(Source.shape, Source)
         self.assertTrue(issubclass(SourceView.shape, Shape))
 
-    def test_shape_identity_is_the_declaration_pair(self) -> None:
-        self.assertEqual(
-            normalize_type(SourceView),
-            StructType(SourceView.__module__, SourceView.__qualname__),
-        )
+    def test_row_sources_are_not_value_types(self) -> None:
+        with self.assertRaisesRegex(TypeError, "row source"):
+            normalize_type(Source)
+        with self.assertRaisesRegex(TypeError, "row source"):
+            normalize_type(SourceView)
 
     def test_where_is_shape_preserving_and_chains(self) -> None:
         active = Source.where(lambda source: any_of(
-            source.kind.expression.equals("target"),
-            source.kind.expression.equals("disease"),
+            source.kind.alter_rows().drop_null().expression.equals("target"),
+            source.kind.alter_rows().drop_null().expression.equals("disease"),
         ))
         self.assertIsInstance(active, DerivedRowSource)
         self.assertIs(active.source, Source)
@@ -74,14 +74,14 @@ class ShapeTests(unittest.TestCase):
         self.assertEqual(len(active.filters), 1)
 
         strict = active.where(
-            lambda source: source.status.expression.equals("active")
+            lambda source: source.status.alter_rows().drop_null().expression.equals("active")
         )
         self.assertIs(strict.source, Source)
         self.assertEqual(len(strict.filters), 2)
 
     def test_projection_where_keeps_the_projection_shape(self) -> None:
         active = SourceView.where(
-            lambda projection: projection.kind.expression.equals("target")
+            lambda projection: projection.kind.alter_rows().drop_null().expression.equals("target")
         )
         self.assertIs(active.source, SourceView)
         self.assertEqual(len(active.filters), 1)
@@ -92,20 +92,20 @@ class ShapeTests(unittest.TestCase):
 
     def test_where_requires_a_callable_returning_a_boolean(self) -> None:
         with self.assertRaisesRegex(TypeError, "callable"):
-            Source.where(Source.kind.expression.equals("target"))  # type: ignore[arg-type]
+            Source.where(Source.kind.alter_rows().drop_null().expression.equals("target"))  # type: ignore[arg-type]
         with self.assertRaisesRegex(TypeError, "BoolExpression"):
-            Source.where(lambda source: source.kind.expression)  # type: ignore[arg-type]
+            Source.where(lambda source: source.kind.alter_rows().drop_null().expression)  # type: ignore[arg-type]
 
     def test_edge_rows_binding_builds(self) -> None:
-        active = Source.where(lambda source: source.kind.expression.equals("target"))
+        active = Source.where(lambda source: source.kind.alter_rows().drop_null().expression.equals("target"))
         binding = edge_binding(
             target=Rel,
             rows=active,
             bind=lambda row: EdgeValues(
-                build_key=row.status,
-                source_build_key=row.status,
-                target_build_key=row.status,
-                properties=Rel(label=row.kind),
+                build_key=row.status.alter_rows().drop_null(),
+                source_build_key=row.status.alter_rows().drop_null(),
+                target_build_key=row.status.alter_rows().drop_null(),
+                properties=Rel(label=row.kind.alter_rows().drop_null()),
             ),
         )
         with tempfile.TemporaryDirectory() as directory:
@@ -138,15 +138,15 @@ class ShapeTests(unittest.TestCase):
         self.assertEqual(rows[0]["label"], "target")
 
     def test_blueprint_round_trip_preserves_row_sources(self) -> None:
-        active = Source.where(lambda source: source.kind.expression.equals("target"))
+        active = Source.where(lambda source: source.kind.alter_rows().drop_null().expression.equals("target"))
         class ActiveTargets(active.projection_base(), active.shape):
             pass
         binding = node_binding(
             target=TargetNode,
             rows=ActiveTargets,
             bind=lambda row: NodeValues(
-                build_key=row.status,
-                properties=TargetNode(label=row.kind),
+                build_key=row.status.alter_rows().drop_null(),
+                properties=TargetNode(label=row.kind.alter_rows().drop_null()),
             ),
         )
         source = bind_source(
@@ -162,20 +162,20 @@ class ShapeTests(unittest.TestCase):
         self.assertEqual(decoded, blueprint)
 
     def test_filtered_projection_and_rows_binding_build(self) -> None:
-        active = Source.where(lambda source: source.kind.expression.equals("target"))
+        active = Source.where(lambda source: source.kind.alter_rows().drop_null().expression.equals("target"))
 
         class ActiveTargets(active.projection_base(), active.shape):
             pass
 
         class ActiveLabels(ActiveTargets.projection_base(), ActiveTargets.shape):
-            status = projection_field(ActiveTargets.status)
+            status = computed_field(ActiveTargets.status.alter_rows().drop_null())
 
         binding = node_binding(
             target=TargetNode,
             rows=ActiveLabels,
             bind=lambda row: NodeValues(
                 build_key=row.status,
-                properties=TargetNode(label=row.kind),
+                properties=TargetNode(label=row.kind.alter_rows().drop_null()),
             ),
         )
 

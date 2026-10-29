@@ -59,12 +59,12 @@ class DescribedTable(Table):
 def _blueprint():
     binding = node_binding(
         target=DescribedNode,
-        build_key=DescribedTable.ident,
+        build_key=DescribedTable.ident.alter_rows().drop_null(),
         properties=DescribedNode(
-            summary=DescribedTable.ident,
-            explicit=DescribedTable.ident,
-            blank=DescribedTable.ident,
-            title=DescribedTable.other,
+            summary=DescribedTable.ident.alter_rows().drop_null(),
+            explicit=DescribedTable.ident.alter_rows().drop_null(),
+            blank=DescribedTable.ident.alter_rows().drop_null(),
+            title=DescribedTable.other.alter_rows().drop_null(),
         ),
     )
     return create_blueprint(bindings=(binding,), sources=(), modules=())

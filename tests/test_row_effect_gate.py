@@ -62,7 +62,7 @@ class RowEffectGateTests(unittest.TestCase):
             rows=Source,
             bind=lambda row: NodeValues(
                 build_key=row.status.alter_rows().drop_null(),
-                properties=Item(label=row.kind),
+                properties=Item(label=row.kind.alter_rows().drop_null()),
             ),
         )
         rows = self._build(binding)
@@ -73,10 +73,10 @@ class RowEffectGateTests(unittest.TestCase):
             target=Item,
             rows=Source,
             bind=lambda row: NodeValues(
-                build_key=row.kind.expression.append("::").append(
+                build_key=row.kind.alter_rows().drop_null().expression.append("::").append(
                     row.tags.alter_rows().drop_null().alter_rows().expand().expression
                 ),
-                properties=Item(label=row.kind),
+                properties=Item(label=row.kind.alter_rows().drop_null()),
             ),
         )
         rows = self._build(binding)
@@ -90,8 +90,8 @@ class RowEffectGateTests(unittest.TestCase):
             target=Item,
             rows=Source,
             bind=lambda row: NodeValues(
-                build_key=row.kind,
-                properties=Item(label=row.kind),
+                build_key=row.kind.alter_rows().drop_null(),
+                properties=Item(label=row.kind.alter_rows().drop_null()),
             ),
         )
         # Replace the binding above with one whose row source carries the filter.
@@ -100,29 +100,29 @@ class RowEffectGateTests(unittest.TestCase):
             rows=Source.where(
                 lambda row: row.status.alter_rows().drop_null().expression.equals("x")
             ),
-            bind=lambda row: NodeValues(build_key=row.kind, properties=Item(label=row.kind)),
+            bind=lambda row: NodeValues(build_key=row.kind.alter_rows().drop_null(), properties=Item(label=row.kind.alter_rows().drop_null())),
         )
         rows = self._build(binding)
         self.assertEqual([row["build_key"] for row in rows], ["a"])
 
-    def test_extract_replaces_pick(self) -> None:
+    def test_extract_navigates_a_source_struct(self) -> None:
         binding = node_binding(
             target=Item,
             rows=Source,
             bind=lambda row: NodeValues(
-                build_key=row.detail.alter_rows().drop_null().extract(lambda d: d.code),
-                properties=Item(label=row.kind),
+                build_key=row.detail.alter_rows().drop_null().extract(lambda d: d.code).alter_rows().drop_null(),
+                properties=Item(label=row.kind.alter_rows().drop_null()),
             ),
         )
         rows = self._build(binding)
         self.assertEqual(sorted(row["build_key"] for row in rows), ["c1", "c2"])
 
-    def test_legacy_names_remain_aliases(self) -> None:
-        selection = Source.status
-        self.assertIs(selection.where_present.__func__, selection.drop_null.__func__)
-        self.assertIs(Source.detail.pick.__func__, Source.detail.extract.__func__)
-        self.assertIs(Source.tags.distinct.__func__, Source.tags.unique.__func__)
-        self.assertIs(Source.tags.join.__func__, Source.tags.concat.__func__)
+    def test_legacy_aliases_are_removed(self) -> None:
+        self.assertFalse(hasattr(Source.status, "where_present"))
+        self.assertFalse(hasattr(Source.detail, "pick"))
+        array = Source.tags.alter_rows().drop_null()
+        self.assertFalse(hasattr(array, "distinct"))
+        self.assertFalse(hasattr(array, "join"))
 
 
 if __name__ == "__main__":
@@ -138,10 +138,10 @@ class ArrayNavigationTests(unittest.TestCase):
             target=Item,
             rows=Source,
             bind=lambda row: NodeValues(
-                build_key=row.kind.expression.append("::").append(
+                build_key=row.kind.alter_rows().drop_null().expression.append("::").append(
                     row.tags.alter_rows().drop_null().at(0).alter_rows().drop_null().expression
                 ),
-                properties=Item(label=row.kind),
+                properties=Item(label=row.kind.alter_rows().drop_null()),
             ),
         )
         rows = self._build(binding)
@@ -152,10 +152,10 @@ class ArrayNavigationTests(unittest.TestCase):
             target=Item,
             rows=Source,
             bind=lambda row: NodeValues(
-                build_key=row.kind.expression.append("::").append(
+                build_key=row.kind.alter_rows().drop_null().expression.append("::").append(
                     row.tags.alter_rows().drop_null().slice(0, 2).concat("|").expression
                 ),
-                properties=Item(label=row.kind),
+                properties=Item(label=row.kind.alter_rows().drop_null()),
             ),
         )
         rows = self._build(binding)

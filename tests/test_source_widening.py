@@ -83,10 +83,10 @@ class WidenedNode(k.Node):
 def widened_binding() -> Binding:
     return k.node_binding(
         target=WidenedNode,
-        build_key=WidenedTable.identifier,
+        build_key=WidenedTable.identifier.alter_rows().drop_null(),
         properties=WidenedNode(
-            label=WidenedTable.identifier,
-            total=WidenedTable.count,
+            label=WidenedTable.identifier.alter_rows().drop_null(),
+            total=WidenedTable.count.alter_rows().drop_null(),
         ),
     )
 
@@ -116,7 +116,7 @@ DECLARED_TYPES: tuple[object, ...] = (
     UnitTypeIR("str"), UnitTypeIR("int"), UnitTypeIR("float"), UnitTypeIR("date"),
     UnitTypeIR("timestamp"), UnitTypeIR("uuid"), UnitTypeIR("bool"),
     ArrayTypeIR(UnitTypeIR("int")),
-    NullableTypeIR(ArrayTypeIR(StructTypeIR(Shape.__module__, Shape.__qualname__))),
+    ArrayTypeIR(StructTypeIR(Shape.__module__, Shape.__qualname__)),
 )
 
 
@@ -601,12 +601,12 @@ class DeclaredColumnPayloadTests(unittest.TestCase):
             {"name": "tags", "logical_type": {
                 "kind": "array", "item": {"kind": "unit", "name": "int"},
             }},
-            {"name": "shapes", "logical_type": {"kind": "nullable", "value": {
+            {"name": "shapes", "logical_type": {
                 "kind": "array", "item": {
                     "kind": "struct", "module": Shape.__module__,
                     "qualname": Shape.__qualname__,
                 },
-            }}},
+            }},
         ])
 
     def test_declared_columns_survive_freeze_thaw_and_the_contract_json(self) -> None:

@@ -38,7 +38,7 @@ nullable_selection = cast(
     select_expression(nullable_expression),
 )
 assert_type(nullable_selection.default_to(0).expression.add(1), IntExpression)
-assert_type(nullable_selection.where_present().expression.sub(1), IntExpression)
+assert_type(nullable_selection.alter_rows().drop_null().expression.sub(1), IntExpression)
 assert_type(
     nullable_expression.to_string(), NullableExpression[str, StrExpression],
 )
@@ -56,11 +56,11 @@ assert_type(
 )
 assert_type(array_selection.drop_null_items(), ArraySelection[int])
 assert_type(array_selection.sort(), ArraySelection[int])
-assert_type(array_selection.distinct(), ArraySelection[int])
+assert_type(array_selection.unique(), ArraySelection[int])
 
 string_array = ArrayExpression[str](literal(["a"], logical_type=ArrayType(STR)))
 string_selection = cast(ArraySelection[str], select_expression(string_array))
-assert_type(string_selection.join(","), ValueSelection[str])
+assert_type(string_selection.concat(","), ValueSelection[str])
 
 flag = BoolExpression(literal(True))
 assert_type(flag.not_().and_(False), BoolExpression)

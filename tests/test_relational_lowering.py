@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 from kg_build_system import (
     Array, BuildRuntime, DataSourceConfig, Field, InputFormat, Node, NodeValues,
     Projection, PropertySlot, Struct, Table, bind_source, build, compile,
-    create_blueprint, field, node_binding, projection_field, property,
+    create_blueprint, field, node_binding, computed_field, property,
 )
 from kg_build_system._frozen_json import freeze_json
 from kg_build_system.expressions import value_expression
@@ -50,11 +50,11 @@ class LoweringInput(Table):
 
 
 class LoweringProjection(Projection(LoweringInput.row_source())):
-    identifier = projection_field(LoweringInput.identifier)
-    label = projection_field(
-        LoweringInput.evidence.expand()
-        .pick(lambda item: item.labels)
-        .expand()
+    identifier = computed_field(LoweringInput.identifier)
+    label = computed_field(
+        LoweringInput.evidence.alter_rows().expand()
+        .extract(lambda item: item.labels)
+        .alter_rows().expand()
         .expression.append("!")
     )
 
@@ -127,16 +127,16 @@ def file_records_input(component: str) -> str:
 class RelationalLoweringTests(unittest.TestCase):
     def test_nested_expansions_are_parent_first_and_shared(self) -> None:
         first = (
-            LoweringInput.evidence.expand()
-            .pick(lambda item: item.labels)
-            .expand()
+            LoweringInput.evidence.alter_rows().expand()
+            .extract(lambda item: item.labels)
+            .alter_rows().expand()
             .expression.append("!")
         )
         plan = lower_product(
             {
                 "first": first.model,
                 "second": first.model,
-                "present": LoweringInput.optional_label.where_present().expression.model,
+                "present": LoweringInput.optional_label.alter_rows().drop_null().expression.model,
             },
             {"lowering_input": "input_relation"},
         )
@@ -160,7 +160,7 @@ class RelationalLoweringTests(unittest.TestCase):
         )
         binding = node_binding(
             target=LoweringNode,
-            build_key=LoweringProjection.identifier,
+            build_key=LoweringProjection.identifier.alter_rows().drop_null(),
             properties=LoweringNode(label=LoweringProjection.label),
         )
         blueprint = create_blueprint(
@@ -216,7 +216,7 @@ class RelationalLoweringTests(unittest.TestCase):
         )
         binding = node_binding(
             target=LoweringNode,
-            build_key=LoweringProjection.identifier,
+            build_key=LoweringProjection.identifier.alter_rows().drop_null(),
             properties=LoweringNode(label=LoweringProjection.label),
         )
         contract = compile(
@@ -239,8 +239,7 @@ class RelationalLoweringTests(unittest.TestCase):
             "declaration": "lowering_input",
             "declared_columns": [
                 {"name": "identifier", "logical_type": {"kind": "unit", "name": "str"}},
-                {"name": "optional_label", "logical_type": {
-                    "kind": "nullable", "value": {"kind": "unit", "name": "str"}}},
+                {"name": "optional_label", "logical_type": {"kind": "unit", "name": "str"}},
                 {"name": "evidence", "logical_type": {
                     "kind": "array", "item": {
                         "kind": "struct", "module": "test_relational_lowering",
@@ -293,7 +292,7 @@ class RelationalLoweringTests(unittest.TestCase):
             )
             binding = node_binding(
                 target=LoweringNode,
-                build_key=LoweringProjection.identifier,
+                build_key=LoweringProjection.identifier.alter_rows().drop_null(),
                 properties=LoweringNode(label=LoweringProjection.label),
             )
             contract = compile(
@@ -329,7 +328,7 @@ class RelationalLoweringTests(unittest.TestCase):
         )
         binding = node_binding(
             target=LoweringNode,
-            build_key=LoweringProjection.identifier,
+            build_key=LoweringProjection.identifier.alter_rows().drop_null(),
             properties=LoweringNode(label=LoweringProjection.label),
         )
         blueprint = create_blueprint(
@@ -509,8 +508,8 @@ class MergeScopeTests(unittest.TestCase):
             target=target,
             rows=MergeInput,
             bind=lambda row: NodeValues(
-                build_key=row.identifier,
-                properties=target(value=row.value),
+                build_key=row.identifier.alter_rows().drop_null(),
+                properties=target(value=row.value.alter_rows().drop_null()),
             ),
         )
 
@@ -589,30 +588,30 @@ class ArrayTransformTests(unittest.TestCase):
                 target=TransformInput,
                 config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
             )
-            codes = TransformInput.details.transform_items(
-                lambda item: item.pick(lambda detail: detail.code).expression
+            codes = TransformInput.details.alter_rows().drop_null().transform_items(
+                lambda item: item.extract(lambda detail: detail.code).default_to("").expression
             )
-            nested = TransformInput.details.transform_items(
-                lambda item: item.pick(lambda detail: detail.inner)
-                .pick(lambda inner: inner.value).expression
+            nested = TransformInput.details.alter_rows().drop_null().transform_items(
+                lambda item: item.extract(lambda detail: detail.inner)
+                .extract(lambda inner: inner.value).default_to("").expression
             )
-            labels = TransformInput.details.transform_items(
-                lambda item: item.pick(lambda detail: detail.code)
+            labels = TransformInput.details.alter_rows().drop_null().transform_items(
+                lambda item: item.extract(lambda detail: detail.code).default_to("")
                 .expression.append("!")
             )
-            numbers = TransformInput.details.transform_items(
+            numbers = TransformInput.details.alter_rows().drop_null().transform_items(
                 lambda _: value_expression(7)
             )
-            number_text = TransformInput.numbers.transform_items(
+            number_text = TransformInput.numbers.alter_rows().drop_null().transform_items(
                 lambda item: item.to_string()
             )
             tags = (
-                TransformInput.tags.drop_null_items()
-                .distinct().sort().join("|")
+                TransformInput.tags.alter_rows().drop_null().drop_null_items()
+                .unique().sort().concat("|")
             )
             binding = node_binding(
                 target=TransformNode,
-                build_key=TransformInput.identifier,
+                build_key=TransformInput.identifier.alter_rows().drop_null(),
                 properties=TransformNode(
                     codes=codes, labels=labels, nested=nested,
                     numbers=numbers, number_text=number_text, tags=tags,
@@ -641,20 +640,20 @@ class ArrayTransformTests(unittest.TestCase):
 
     def test_transform_items_rejects_a_raw_literal(self) -> None:
         with self.assertRaisesRegex(TypeError, "value selection or value expression"):
-            TransformInput.details.transform_items(lambda _: 7)
+            TransformInput.details.alter_rows().drop_null().transform_items(lambda _: 7)
 
     def test_transform_items_rejects_a_row_effect(self) -> None:
         with self.assertRaisesRegex(TypeError, "row effects"):
-            TransformInput.details.transform_items(
-                lambda item: item.pick(lambda detail: detail.tags)
-                .expand().expression
+            TransformInput.details.alter_rows().drop_null().transform_items(
+                lambda item: item.extract(lambda detail: detail.tags)
+                .alter_rows().expand().expression
             )
 
     def test_join_requires_non_null_string_items(self) -> None:
         with self.assertRaisesRegex(TypeError, "non-null strings"):
-            TransformInput.tags.expression.join("|")
+            TransformInput.tags.alter_rows().drop_null().expression.join("|")
         with self.assertRaisesRegex(TypeError, "non-null strings"):
-            TransformInput.details.expression.join("|")
+            TransformInput.details.alter_rows().drop_null().expression.join("|")
 
 
 class ArrayPropertyTests(unittest.TestCase):
@@ -683,9 +682,9 @@ class ArrayPropertyTests(unittest.TestCase):
             )
             binding = node_binding(
                 target=TaggedNode,
-                build_key=Tagged.identifier,
+                build_key=Tagged.identifier.alter_rows().drop_null(),
                 properties=TaggedNode(
-                    codes=Tagged.codes,
+                    codes=Tagged.codes.alter_rows().drop_null(),
                     optional_codes=Tagged.optional_codes,
                 ),
             )
@@ -746,7 +745,7 @@ class ArrayPropertyTests(unittest.TestCase):
 
         binding = node_binding(
             target=DatedNode,
-            build_key=DatedInput.identifier,
+            build_key=DatedInput.identifier.alter_rows().drop_null(),
             properties=DatedNode(dates=DatedInput.dates),
         )
         contract = compile(
@@ -807,13 +806,13 @@ class SeparatorOperationTests(unittest.TestCase):
                 target=Xref,
                 config=DataSourceConfig(str(source_path), format=InputFormat.JSON),
             )
-            before = Xref.reference.expression.before_separator(":", 2)
-            after = Xref.reference.expression.after_separator(":", 2)
+            before = Xref.reference.alter_rows().drop_null().expression.before_separator(":", 2)
+            after = Xref.reference.alter_rows().drop_null().expression.after_separator(":", 2)
             binding = node_binding(
                 target=XrefNode,
                 build_key=before.append("|").append(after),
                 properties=XrefNode(
-                    label=Xref.reference.expression.replace(":", "_"),
+                    label=Xref.reference.alter_rows().drop_null().expression.replace(":", "_"),
                 ),
             )
             contract = compile(
@@ -863,12 +862,12 @@ class SeparatorOperationTests(unittest.TestCase):
             )
             binding = node_binding(
                 target=XrefNode,
-                build_key=Xref.identifier,
+                build_key=Xref.identifier.alter_rows().drop_null(),
                 properties=XrefNode(
-                    left=Xref.reference.expression.before_separator(
+                    left=Xref.reference.alter_rows().drop_null().expression.before_separator(
                         ":", 1, include_separator=True,
                     ),
-                    right=Xref.reference.expression.after_separator(
+                    right=Xref.reference.alter_rows().drop_null().expression.after_separator(
                         ":", 1, include_separator=True,
                     ),
                 ),

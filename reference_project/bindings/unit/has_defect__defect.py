@@ -11,9 +11,9 @@ has_defect_binding = edge_binding(
     target=HasDefectEdge,
     rows=DefectProjection,
     bind=lambda row: EdgeValues(
-        build_key=row.defect_id.where_present(),
-        source_build_key=row.unit_ref.where_present(),
-        target_build_key=row.defect_id.where_present(),
+        build_key=row.defect_id.alter_rows().drop_null(),
+        source_build_key=row.unit_ref.alter_rows().drop_null(),
+        target_build_key=row.defect_id.alter_rows().drop_null(),
         properties=HasDefectEdge(
             as_at=row.observed_on.default_to("Undated"),
             **relation_stamps,

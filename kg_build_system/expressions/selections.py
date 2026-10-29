@@ -129,7 +129,13 @@ class ValueSelection(Generic[TType_co]):
 class NullableSelection(
     ValueSelection[Nullable[TItem]], NullableAuthoringInput[TItem | None], Generic[TItem]
 ):
-    """Nullable selection owning explicit null policy and nullable navigation."""
+    """Nullable selection owning explicit null policy and nullable navigation.
+
+    A source-backed field is always nullable on access, whatever its declared
+    value type. Row-producing array operations are deliberately absent: an
+    author who needs the array present narrows it first with
+    ``alter_rows().drop_null()``, which returns the non-null array selection.
+    """
 
     @overload
     def default_to[U: SelectionUnit](
@@ -177,83 +183,8 @@ class NullableSelection(
         )
         return select_expression(wrap_expression(result))
 
-    where_present = drop_null
-
-    @overload
-    def at[I: NullableDataType](
-        self: "NullableSelection[Array[Nullable[I]]]", index: int | ValueInput[int],
-    ) -> "NullableSelection[I]": ...
-    @overload
-    def at[I: NullableDataType](
-        self: "NullableSelection[Array[I]]", index: int | ValueInput[int],
-    ) -> "NullableSelection[I]": ...
-    def at(self, index: int | ValueInput[int]) -> ValueSelection[Any]:
-        from ._coercion import expression_input
-        from ..types import INT
-
-        logical_type = self.logical_type
-        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
-            raise TypeError("at requires a nullable array selection")
-        item = logical_type.value.item
-        result_type = item if isinstance(item, NullableType) else NullableType(item)
-        model = operation(
-            "array_at",
-            self._require_expression().model,
-            expression_input(index, INT),
-            logical_type=result_type,
-        )
-        from .factory import wrap_expression
-
-        return select_expression(wrap_expression(model))
-
-    @overload
-    def slice[I: NullableDataType](
-        self: "NullableSelection[Array[Nullable[I]]]",
-        start: int | ValueInput[int],
-        end: int | ValueInput[int],
-    ) -> "NullableSelection[Array[Nullable[I]]]": ...
-    @overload
-    def slice[I: NullableDataType](
-        self: "NullableSelection[Array[I]]",
-        start: int | ValueInput[int],
-        end: int | ValueInput[int],
-    ) -> "NullableSelection[Array[I]]": ...
-    def slice(self, start: int | ValueInput[int], end: int | ValueInput[int]) -> ValueSelection[Any]:
-        from ._coercion import expression_input
-        from ..types import INT
-
-        logical_type = self.logical_type
-        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
-            raise TypeError("slice requires a nullable array selection")
-        model = operation(
-            "array_slice",
-            self._require_expression().model,
-            expression_input(start, INT),
-            expression_input(end, INT),
-            logical_type=logical_type,
-        )
-        from .factory import wrap_expression
-
-        return select_expression(wrap_expression(model))
-
     def alter_rows(self) -> "NullableRowEffects[TItem]":
         return NullableRowEffects(self)
-
-    @overload
-    def expand[U: SelectionUnit](self: "NullableSelection[Array[U]]") -> ValueSelection[U]: ...  # pyright: ignore[reportOverlappingOverload]
-    @overload
-    def expand[U: SelectionUnit](self: "NullableSelection[Array[Nullable[U]]]") -> "NullableSelection[U]": ...
-    @overload
-    def expand[S: Struct](self: "NullableSelection[Array[S]]") -> "StructSelection[S]": ...
-    @overload
-    def expand[S: Struct](self: "NullableSelection[Array[Nullable[S]]]") -> "NullableSelection[S]": ...
-    @overload
-    def expand[I: NullableDataType](self: "NullableSelection[Array[Array[I]]]") -> "ArraySelection[I]": ...
-    def expand(self) -> ValueSelection[Any]:
-        logical_type = self.logical_type
-        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
-            raise TypeError("expand requires a nullable array selection")
-        return _expand(self._require_expression(), logical_type.value)
 
     @overload
     def extract[S: Struct, U: SelectionUnit](
@@ -276,102 +207,6 @@ class NullableSelection(
         if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, StructType):
             raise TypeError("extract requires a nullable struct selection")
         return _pick(self, selector, logical_type.value, propagate_null=True)
-
-    pick = extract
-
-    @overload
-    def transform_items[S: Struct, U](
-        self: "NullableSelection[Array[S]]",
-        selector: Callable[[StructSelection[S]], ValueExpression[U]],
-    ) -> "NullableSelection[Array[U]]": ...
-    @overload
-    def transform_items[U](
-        self: "NullableSelection[Array[TItem]]",
-        selector: Callable[[ValueExpression[TItem]], ValueExpression[U]],
-    ) -> "NullableSelection[Array[U]]": ...
-    @overload
-    def transform_items[S: Struct, U](
-        self: "NullableSelection[Array[Nullable[S]]]",
-        selector: Callable[[StructSelection[S]], ValueExpression[U]],
-    ) -> "NullableSelection[Array[Nullable[U]]]": ...
-    @overload
-    def transform_items[U](
-        self: "NullableSelection[Array[Nullable[TItem]]]",
-        selector: Callable[[ValueExpression[TItem]], ValueExpression[U]],
-    ) -> "NullableSelection[Array[Nullable[U]]]": ...
-    def transform_items(self, selector: Callable[[Any], ValueExpression[Any]]) -> "NullableSelection[Any]":
-        from .arrays import _transform_items
-
-        logical_type = self.logical_type
-        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
-            raise TypeError("transform_items requires a nullable array selection")
-        return cast(
-            "NullableSelection[Any]",
-            select_expression(_transform_items(self._require_expression(), selector)),
-        )
-
-    @overload
-    def drop_null_items[I: NullableDataType](
-        self: "NullableSelection[Array[Nullable[I]]]",
-    ) -> "NullableSelection[Array[I]]": ...  # pyright: ignore[reportInvalidTypeArguments]
-    @overload
-    def drop_null_items[I: NullableDataType](
-        self: "NullableSelection[Array[I]]",
-    ) -> "NullableSelection[Array[I]]": ...
-    def drop_null_items(self) -> "NullableSelection[Any]":
-        from .arrays import _drop_null_items
-
-        logical_type = self.logical_type
-        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
-            raise TypeError("drop_null_items requires a nullable array selection")
-        return cast(
-            "NullableSelection[Any]",
-            select_expression(_drop_null_items(self._require_expression())),
-        )
-
-    def sort(self) -> "NullableSelection[Any]":
-        from .arrays import _array_operation
-
-        logical_type = self.logical_type
-        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
-            raise TypeError("sort requires a nullable array selection")
-        return cast(
-            "NullableSelection[Any]",
-            select_expression(_array_operation(self._require_expression(), "sort")),
-        )
-
-    def unique(self) -> "NullableSelection[Any]":
-        from .arrays import _array_operation
-
-        logical_type = self.logical_type
-        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
-            raise TypeError("unique requires a nullable array selection")
-        return cast(
-            "NullableSelection[Any]",
-            select_expression(
-                _array_operation(self._require_expression(), "distinct")
-            ),
-        )
-
-    distinct = unique
-
-    def concat(self, separator: str) -> "NullableSelection[str]":
-        from .factory import wrap_expression
-
-        logical_type = self.logical_type
-        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
-            raise TypeError("concat requires a nullable array selection")
-        if logical_type.value.item != STR:
-            raise TypeError("concat requires an array of non-null strings")
-        result = operation(
-            "join",
-            self._require_expression().model,
-            expression_input(separator, STR),
-            logical_type=NullableType(STR),
-        )
-        return cast("NullableSelection[str]", select_expression(wrap_expression(result)))
-
-    join = concat
 
 
 class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
@@ -457,9 +292,6 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
             raise TypeError("concat requires an array selection")
         return select_expression(expression.join(separator))
 
-    join = concat
-    distinct = unique
-
     @overload
     def at[U: SelectionUnit](self: "ArraySelection[U]", index: int | ValueInput[int]) -> "NullableSelection[U]": ...
     @overload
@@ -544,8 +376,6 @@ class StructSelection(ValueSelection[TStruct], Generic[TStruct]):
             raise TypeError("extract requires a struct selection")
         return _pick(self, selector, logical_type, propagate_null=False)
 
-    pick = extract
-
 
 SSelection = TypeVar("SSelection", bound="ValueSelection[Any]")
 
@@ -613,8 +443,12 @@ class NullableRowEffects(RowEffects["NullableSelection[TItem]"], Generic[TItem])
     @overload
     def expand[I: NullableDataType](self: "NullableRowEffects[Array[Array[I]]]") -> ArraySelection[I]: ...
     def expand(self) -> ValueSelection[Any]:
-        """One row per element of a present array."""
-        return cast("NullableSelection[Array[Any]]", self._selection).expand()
+        """One row per element of a present array, yielding none when absent."""
+        selection = cast("NullableSelection[Array[Any]]", self._selection)
+        logical_type = selection.logical_type
+        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
+            raise TypeError("expand requires a nullable array selection")
+        return _expand(selection._require_expression(), logical_type.value)
 
 
 type ValueInput[T] = ValueSelection[T] | ValueExpression[T]

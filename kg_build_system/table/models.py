@@ -225,25 +225,22 @@ def _source_name(value: Any) -> str:
 
 
 def _shape_fields(source: Any) -> dict[str, Any]:
-    from .projections import ProjectionField, ProjectionFieldMetadata
+    from ..expressions import as_expression
+    from .fields import Field, FieldMetadata
 
-    attrs: dict[str, Any] = {"_projection_name": _source_name(source)}
-    if hasattr(source, "_projection_fields"):
-        for attribute, field in source._projection_fields.items():
-            attrs[attribute] = ProjectionField(
-                getattr(source, attribute),
-                ProjectionFieldMetadata(
-                    name=field.metadata.name,
-                    description=field.metadata.description,
-                    annotations=field.metadata.annotations,
-                ),
-            )
-    else:
-        for attribute, field in source._fields.items():
-            attrs[attribute] = ProjectionField(
-                getattr(source, attribute),
-                ProjectionFieldMetadata(name=field.metadata.name),
-            )
+    attrs: dict[str, Any] = {
+        "_projection_name": _source_name(source),
+        "_kg_shape_view": True,
+    }
+    for attribute, field in source._fields.items():
+        attrs[attribute] = Field(
+            as_expression(getattr(source, attribute)),
+            FieldMetadata(
+                name=field.metadata.name,
+                description=field.metadata.description,
+                annotations=field.metadata.annotations,
+            ),
+        )
     return attrs
 
 
@@ -264,7 +261,7 @@ def pinned_base(row_source: Any) -> type:
 
 
 def projection_base(row_source: Any) -> type:
-    """A dynamic base carrying a row source plan and its inherited fields."""
+    """A dynamic base carrying a row source plan and its inherited outputs."""
     from .models import Projection
 
     from .rows import DerivedRowSource, RelationRowSource
@@ -274,6 +271,10 @@ def projection_base(row_source: Any) -> type:
     else:
         source = row_source
     attrs = _shape_fields(source)
+    # The base itself is a projection, not a view shape: inherited outputs are
+    # expression-backed fields and their owner kind is resolved on the final
+    # projection.
+    attrs.pop("_kg_shape_view", None)
     attrs["_kg_row_source"] = row_source
     attrs["_projection_base"] = True
     return type(f"{source.__name__}ProjectionBase", (Projection,), attrs)
@@ -284,6 +285,7 @@ class Table(StructDeclaration, RowSource["Table"]):
 
     options: ClassVar[TableOptions] = TableOptions()
     _data_declaration_kind: ClassVar[str | None] = None
+    _kg_value_record: ClassVar[bool] = False
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -320,7 +322,7 @@ class Table(StructDeclaration, RowSource["Table"]):
 
 
 class StructTemplate:
-    """The data-domain template tier for both ``Table`` and ``Struct`` hosts.
+    """The data-domain template tier for ``Table``, ``Struct`` and ``ComputedStruct`` hosts.
 
     A template shares field slots and annotation flow with its hosts and
     never enters the blueprint IR; it carries no name or description.
@@ -333,13 +335,16 @@ class StructTemplate:
     options: ClassVar[Any] = StructOptionsTemplate()
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
-        super().__init_subclass__(**kwargs)
+        # Reject a non-record host before the host's own hook runs: a template
+        # carries source fields, which a computed declaration would otherwise
+        # reject with a constructor mismatch instead of the tier mismatch.
         if issubclass(cls, (Projection, TableGroup)):
             raise TypeError(
                 f"{cls.__name__} mixes StructTemplate into a non-record declaration: "
-                "the template tier serves only Table and Struct hosts"
+                "the template tier serves only Table, Struct and ComputedStruct hosts"
             )
-        if issubclass(cls, (Table, Struct)):
+        super().__init_subclass__(**kwargs)
+        if issubclass(cls, (Table, Struct, ComputedStruct)):
             return  # host declaration: the host's own hook finalizes it
         _record_template_annotations(cls, vars(cls).get("options"))
 
@@ -353,6 +358,7 @@ class Struct(StructDeclaration):
 
     options: ClassVar[StructOptions] = StructOptions()
     _data_declaration_kind: ClassVar[str | None] = None
+    _kg_value_record: ClassVar[bool] = True
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
@@ -362,6 +368,33 @@ class Struct(StructDeclaration):
         _prepare_fields(
             cls,
             kind="struct",
+            name=name,
+            description=_description(cls, options.description),
+            annotations=(*_template_annotations(cls), *options.annotations),
+        )
+
+
+class ComputedStruct(StructDeclaration):
+    """A computed nested-record declaration composed from expression-backed fields.
+
+    A computed struct is a value definition: it is usable as ``Field[T]`` and
+    navigable through ``extract``, but it is neither a row source nor a table.
+    Its members are always ``computed_field()`` expressions; source structs use
+    ``field()`` for their source-backed members.
+    """
+
+    options: ClassVar[StructOptions] = StructOptions()
+    _data_declaration_kind: ClassVar[str | None] = None
+    _kg_value_record: ClassVar[bool] = True
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        options = vars(cls).get("options", StructOptions())
+        _require_host_options(cls, "ComputedStruct", options, StructOptions)
+        name = options.name or declaration_name(cls.__name__, suffixes=("ComputedStruct",))
+        _prepare_fields(
+            cls,
+            kind="computed_struct",
             name=name,
             description=_description(cls, options.description),
             annotations=(*_template_annotations(cls), *options.annotations),
@@ -407,15 +440,15 @@ class Projection(Shape, RowSource["Projection"], metaclass=ProjectionMeta):
             )
         cls._projection_row_source = row_source
 
-        from .projections import declared_projection_fields
+        from .fields import declared_fields
 
-        fields = declared_projection_fields(cls)
+        fields = declared_fields(cls)
         if not fields and not is_base:
-            raise TypeError("projections must declare at least one projection_field")
+            raise TypeError("projections must declare at least one computed_field")
         cls._projection_name = options.name or declaration_name(
             cls.__name__, suffixes=("Projection",)
         )
-        cls._projection_fields = fields
+        cls._fields = fields
         if not is_base:
             cls._data_declaration_kind = "projection"
         cls._data_annotations = tuple(options.annotations)
@@ -498,6 +531,7 @@ __all__ = [
     "BoundSource",
     "BoundTable",
     "BoundTableGroup",
+    "ComputedStruct",
     "DataSourceConfig",
     "InputFormat",
     "Projection",

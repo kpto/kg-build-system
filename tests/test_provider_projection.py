@@ -50,7 +50,7 @@ class ProviderProjectionTests(unittest.TestCase):
         binding = node_binding(
             target=Item,
             rows=Source.row_source(),
-            bind=lambda row: NodeValues(build_key=row.id, properties=Item(label=row.kind)),
+            bind=lambda row: NodeValues(build_key=row.id.alter_rows().drop_null(), properties=Item(label=row.kind.alter_rows().drop_null())),
         )
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
@@ -76,21 +76,21 @@ class ProviderProjectionTests(unittest.TestCase):
 
         def predicate(row: Source):
             seen.append(type(row) is Source)
-            return row.kind.expression.equals("x")
+            return row.kind.alter_rows().drop_null().expression.equals("x")
 
         Source.where(predicate)
         self.assertEqual(seen, [True])
 
         def bind(row: Source):
             seen.append(type(row) is Source)
-            return NodeValues(build_key=row.id, properties=Item(label=row.kind))
+            return NodeValues(build_key=row.id.alter_rows().drop_null(), properties=Item(label=row.kind.alter_rows().drop_null()))
 
         node_binding(target=Item, rows=Source.row_source(), bind=bind)
         self.assertEqual(seen, [True, True])
 
     def test_row_source_where_preserves_shape(self) -> None:
         filtered = Source.row_source().where(
-            lambda row: row.kind.expression.equals("x")
+            lambda row: row.kind.alter_rows().drop_null().expression.equals("x")
         )
         self.assertEqual(len(filtered.filters), 1)
         self.assertIs(filtered.shape, Source)

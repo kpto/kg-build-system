@@ -13,12 +13,12 @@ observation_binding = node_binding(
     target=ObservationNode,
     rows=ObservationProjection,
     bind=lambda row: NodeValues(
-        build_key=row.observation_uid.where_present(),
+        build_key=row.observation_uid.alter_rows().drop_null(),
         properties=ObservationNode(
             value=row.value.default_to(0.0),
             method=row.observed_by.default_to("Unrecorded method"),
             observed_on=row.observed_on.default_to("Undated"),
-            summary=row.observation_uid.where_present(),
+            summary=row.observation_uid.alter_rows().drop_null(),
             **provenance_stamps,
         ),
     ),

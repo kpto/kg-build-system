@@ -73,6 +73,13 @@ def _field(owner: type[Any], declaration: Any) -> FieldDefinition:
     )
 
 
+def _field_expression(field: Any) -> ValueExpression[Any]:
+    expression = field.expression
+    if expression is None:
+        raise TypeError("computed outputs require an expression-backed Field")
+    return expression
+
+
 def _struct(declaration: type[Struct]) -> StructDefinition:
     declared: Any = declaration
     return StructDefinition(
@@ -138,10 +145,10 @@ def _row_source_plan(row_source: Any) -> RowSourcePlanIR | None:
 def _projection(declaration: type[Projection]) -> ProjectionDefinition:
     fields = tuple(
         ProjectionFieldDefinition(
-            field.metadata.name or attribute, expression_to_ir(field.expression.model),
+            field.metadata.name or attribute, expression_to_ir(_field_expression(field).model),
             field.metadata.description, _annotations(field.metadata.annotations),
         )
-        for attribute, field in declaration._projection_fields.items()
+        for attribute, field in declaration._fields.items()
     )
     return ProjectionDefinition(
         _symbol("projection", declaration), declaration._projection_name, fields,
@@ -278,7 +285,9 @@ def _resolve_declarations(bindings: tuple[Binding, ...], sources: tuple[BoundTab
         for name in pending:
             declaration = projection_registry[name]
             projections[name] = declaration
-            required.update(_expression_sources(field.expression.model for field in declaration._projection_fields.values()))
+            required.update(_expression_sources(
+                _field_expression(field).model for field in declaration._fields.values()
+            ))
     source_tables = {source.table._table_name: source.table for source in sources}
     tables: dict[str, type[Table]] = {}
     for name in required - projections.keys():
@@ -309,6 +318,10 @@ def _resolve_declarations(bindings: tuple[Binding, ...], sources: tuple[BoundTab
         declared: Any = table
         for field in declared._fields.values():
             include_type(field._logical_type(table))
+    for projection in projections.values():
+        declared: Any = projection
+        for field in declared._fields.values():
+            include_type(field._logical_type(projection))
     return tuple(tables.values()), tuple(projections.values()), tuple(structs.values())
 
 

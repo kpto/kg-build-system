@@ -4,7 +4,7 @@ from __future__ import annotations
 from dataclasses import replace
 
 from ..annotations import annotation_tuple
-from .fields import field
+from .fields import computed_field, field
 from .models import (
     BoundSource,
     BoundTable,
@@ -14,7 +14,6 @@ from .models import (
     is_concrete_table,
     is_table_group,
 )
-from .projections import computed_field, projection_field
 
 
 def group_tables(
@@ -94,8 +93,8 @@ def bind_source(
 
 __all__ = [
     "bind_source",
+    "computed_field",
     "field",
     "group_tables",
-    "projection_field",
     "resolve_bound_source",
 ]

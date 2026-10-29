@@ -13,10 +13,10 @@ from kg_build_system.types import Array, Date, Time, Timestamp, Uuid
 
 class VibrationTable(Table):
     options = TableOptions(name='vibration')
-    reading_uid: Field[str | None] = field(name='reading_uid')
-    unit_ref: Field[str | None] = field(name='unit_ref')
-    mm_s: Field[float | None] = field(name='mm_s')
-    bearing: Field[str | None] = field(name='bearing')
-    recorded_on: Field[Timestamp | None] = field(name='recorded_on')
+    reading_uid: Field[str] = field(name='reading_uid')
+    unit_ref: Field[str] = field(name='unit_ref')
+    mm_s: Field[float] = field(name='mm_s')
+    bearing: Field[str] = field(name='bearing')
+    recorded_on: Field[Timestamp] = field(name='recorded_on')
 
 __all__ = ['VibrationTable']

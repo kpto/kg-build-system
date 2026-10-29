@@ -1,12 +1,13 @@
 """Logical data-contract authoring surface."""
 
 from ..types import Array, CustomDataType, Nullable, Shape
-from .declarations import bind_source, computed_field, field, projection_field
-from .fields import AuthoringDataType, Field, FieldMetadata, declared_fields
+from .declarations import bind_source
+from .fields import AuthoringDataType, Field, FieldMetadata, computed_field, declared_fields, field
 from .models import (
     BoundSource,
     BoundTable,
     BoundTableGroup,
+    ComputedStruct,
     DataSourceConfig,
     InputFormat,
     Projection,
@@ -18,16 +19,11 @@ from .models import (
     StructTemplate,
     Table,
     TableGroup,
-    RowSource,
     TableGroupOptions,
     TableOptions,
+    RowSource,
 )
 from .rows import DerivedRowSource, RelationRowSource
-from .projections import (
-    ProjectionField,
-    ProjectionFieldMetadata,
-    declared_projection_fields,
-)
 
 __all__ = [
     "Array",
@@ -35,6 +31,7 @@ __all__ = [
     "BoundSource",
     "BoundTable",
     "BoundTableGroup",
+    "ComputedStruct",
     "CustomDataType",
     "DataSourceConfig",
     "DerivedRowSource",
@@ -44,8 +41,6 @@ __all__ = [
     "InputFormat",
     "Nullable",
     "Projection",
-    "ProjectionField",
-    "ProjectionFieldMetadata",
     "ProjectionOptions",
     "RowSource",
     "Shape",
@@ -59,9 +54,7 @@ __all__ = [
     "TableGroupOptions",
     "TableOptions",
     "bind_source",
-    "declared_fields",
     "computed_field",
-    "declared_projection_fields",
+    "declared_fields",
     "field",
-    "projection_field",
 ]

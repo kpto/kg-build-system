@@ -11,16 +11,16 @@ survey_visit_binding = node_binding(
     target=SurveyVisitNode,
     rows=SurveysTable,
     bind=lambda row: NodeValues(
-        build_key=row.survey_id.where_present(),
+        build_key=row.survey_id.alter_rows().drop_null(),
         properties=SurveyVisitNode(
             # A timestamp has no honest sentinel, so an undated survey carries
             # no date at all rather than the text a string property would need.
             surveyed_on=row.surveyed_on,
-            surveyor=row.surveyor.pick(lambda value: value.name).default_to("Unattributed"),
+            surveyor=row.surveyor.extract(lambda value: value.name).default_to("Unattributed"),
             practice=(
                 row.surveyor
-                .pick(lambda value: value.firm)
-                .pick(lambda value: value.name)
+                .extract(lambda value: value.firm)
+                .extract(lambda value: value.name)
             ),
             summary=row.survey_id.default_to("Unidentified survey"),
             **provenance_stamps,

@@ -61,11 +61,11 @@ class ContainsMetricEdge(ContainsEdge, Edge[EntityNode, MetricNode]):
 
 record = node_binding(
     target=RecordNode,
-    build_key=HierarchyTable.record_id.expression.prepend("record::"),
+    build_key=HierarchyTable.record_id.alter_rows().drop_null().expression.prepend("record::"),
     properties=RecordNode(
-        title=HierarchyTable.title,
-        city=HierarchyTable.title,
-        revision=HierarchyTable.record_id,
+        title=HierarchyTable.title.alter_rows().drop_null(),
+        city=HierarchyTable.title.alter_rows().drop_null(),
+        revision=HierarchyTable.record_id.alter_rows().drop_null(),
     ),
 )
 assert_type(record, NodeBinding[RecordNode])
@@ -75,9 +75,9 @@ both = edge_binding(
     target=RelatesEdge,
     source_node=endpoint(RecordNode),
     target_node=endpoint(MetricNode),
-    build_key=HierarchyTable.record_id,
-    source_build_key=HierarchyTable.record_id,
-    target_build_key=HierarchyTable.code,
+    build_key=HierarchyTable.record_id.alter_rows().drop_null(),
+    source_build_key=HierarchyTable.record_id.alter_rows().drop_null(),
+    target_build_key=HierarchyTable.code.alter_rows().drop_null(),
     properties=RelatesEdge(),
 )
 assert_type(both, EdgeBinding[RelatesEdge])
@@ -86,9 +86,9 @@ assert_type(both, EdgeBinding[RelatesEdge])
 descended = edge_binding(
     target=ContainsMetricEdge,
     source_node=endpoint(RecordNode),
-    build_key=HierarchyTable.record_id,
-    source_build_key=HierarchyTable.record_id,
-    target_build_key=HierarchyTable.code,
+    build_key=HierarchyTable.record_id.alter_rows().drop_null(),
+    source_build_key=HierarchyTable.record_id.alter_rows().drop_null(),
+    target_build_key=HierarchyTable.code.alter_rows().drop_null(),
     properties=ContainsMetricEdge(),
 )
 assert_type(descended, EdgeBinding[ContainsMetricEdge])
@@ -104,9 +104,9 @@ class MixedEdge(Edge[EntityNode, MetricNode]):
 
 omitted = edge_binding(
     target=DirectEdge,
-    build_key=HierarchyTable.record_id,
-    source_build_key=HierarchyTable.record_id,
-    target_build_key=HierarchyTable.code,
+    build_key=HierarchyTable.record_id.alter_rows().drop_null(),
+    source_build_key=HierarchyTable.record_id.alter_rows().drop_null(),
+    target_build_key=HierarchyTable.code.alter_rows().drop_null(),
     properties=DirectEdge(),
 )
 assert_type(omitted, EdgeBinding[DirectEdge])
@@ -115,9 +115,9 @@ explicit = edge_binding(
     target=DirectEdge,
     source_node=endpoint(RecordNode),
     target_node=endpoint(MetricNode),
-    build_key=HierarchyTable.record_id,
-    source_build_key=HierarchyTable.record_id,
-    target_build_key=HierarchyTable.code,
+    build_key=HierarchyTable.record_id.alter_rows().drop_null(),
+    source_build_key=HierarchyTable.record_id.alter_rows().drop_null(),
+    target_build_key=HierarchyTable.code.alter_rows().drop_null(),
     properties=DirectEdge(),
 )
 assert_type(explicit, EdgeBinding[DirectEdge])
@@ -125,9 +125,9 @@ assert_type(explicit, EdgeBinding[DirectEdge])
 mixed = edge_binding(
     target=MixedEdge,
     source_node=endpoint(RecordNode),
-    build_key=HierarchyTable.record_id,
-    source_build_key=HierarchyTable.record_id,
-    target_build_key=HierarchyTable.code,
+    build_key=HierarchyTable.record_id.alter_rows().drop_null(),
+    source_build_key=HierarchyTable.record_id.alter_rows().drop_null(),
+    target_build_key=HierarchyTable.code.alter_rows().drop_null(),
     properties=MixedEdge(),
 )
 assert_type(mixed, EdgeBinding[MixedEdge])

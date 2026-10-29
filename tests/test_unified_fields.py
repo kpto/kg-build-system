@@ -5,12 +5,19 @@ from dataclasses import dataclass
 
 from kg_build_system.annotations import Annotation
 from kg_build_system.expressions import (
-    ArrayExpression, ArraySelection, IntExpression, NullableSelection,
-    StrExpression, StructSelection, ValueSelection,
+    ArraySelection, IntExpression, NullableSelection, StrExpression,
+    StructSelection, ValueSelection, field_reference, select_expression,
+    value_expression, wrap_expression,
 )
-from kg_build_system.table.fields import Field, declared_fields, field
-from kg_build_system.table.models import Table, TableOptions
-from kg_build_system.types import Array, NullableType, Struct
+from kg_build_system.table.fields import (
+    Field, computed_field, declared_fields, field,
+)
+from kg_build_system.table.models import (
+    ComputedStruct, Projection, Struct, Table, TableOptions,
+)
+from kg_build_system.types import (
+    Array, ArrayType, INT, NullableType, STR, StructType, normalize_type,
+)
 
 
 @dataclass(frozen=True)
@@ -28,15 +35,15 @@ class EvidenceStruct(Struct):
 class DetailsStruct(Struct):
     label: Field[str] = field(description="Display label")
     maybe_score: Field[int | None] = field()
-    evidence: Field[EvidenceStruct | None] = field()
-    scores: Field[Array[int] | None] = field()
+    evidence: Field[EvidenceStruct] = field()
+    scores: Field[Array[int]] = field()
 
 
 class InputTable(Table):
     options = TableOptions(name="input")
     targetID: Field[str] = field(annotations=(Indexed(unique=True),))
     options_: Field[str] = field()
-    details: Field[DetailsStruct | None] = field()
+    details: Field[DetailsStruct] = field()
     scores: Field[Array[int]] = field()
     evidence: Field[Array[EvidenceStruct]] = field()
 
@@ -51,45 +58,120 @@ class ExtendedInputTable(InputShape, Table):
     renamed: Field[str] = field(name="externalName")
 
 
+class ComputedRecord(ComputedStruct):
+    label = computed_field(value_expression("ready"))
+    maybe = computed_field(InputTable.details.extract(lambda value: value.label))
+
+
+class HoldsComputed(Table):
+    record: Field[ComputedRecord] = field()
+
+
+class NullableDeclared(Table):
+    maybe: Field[str | None] = field()
+    items: Field[Array[int | None] | None] = field()
+
+
+class TypedProjection(Projection(InputTable.row_source())):
+    label = computed_field(
+        InputTable.details.extract(lambda value: value.label)
+        .alter_rows().drop_null()
+    )
+    maybe = computed_field(InputTable.details.extract(lambda value: value.label))
+    scores = computed_field(InputTable.scores.alter_rows().drop_null())
+
+
 class UnifiedFieldTests(unittest.TestCase):
-    def test_table_fields_are_shape_specialized_selections(self) -> None:
-        self.assertIsInstance(InputTable.targetID, ValueSelection)
-        self.assertIsInstance(InputTable.targetID.expression, StrExpression)
-        self.assertEqual(InputTable.targetID.expression.model.source, "input")  # type: ignore[attr-defined]
-        self.assertEqual(InputTable.targetID.expression.model.path, ("target_id",))  # type: ignore[attr-defined]
-        self.assertIsInstance(InputTable.scores, ArraySelection)
-        self.assertIsInstance(InputTable.scores.expression, ArrayExpression)
-        self.assertIsInstance(InputTable.scores.expand().expression, IntExpression)
-        self.assertIsInstance(InputTable.details, NullableSelection)
+    def test_source_fields_are_always_nullable_on_access(self) -> None:
+        for attribute in ("targetID", "details", "scores", "evidence"):
+            with self.subTest(attribute=attribute):
+                self.assertIsInstance(getattr(InputTable, attribute), NullableSelection)
 
-    def test_struct_fields_are_temporary_selections_consumed_by_pick(self) -> None:
-        label = object.__new__(DetailsStruct).label
-        score = object.__new__(DetailsStruct).maybe_score
-        self.assertIsInstance(label, ValueSelection)
-        self.assertIsInstance(score, NullableSelection)
-        self.assertIsInstance(score.logical_type, NullableType)
+        self.assertEqual(InputTable.targetID.logical_type, NullableType(STR))
+        self.assertEqual(
+            InputTable.scores.logical_type, NullableType(ArrayType(INT)),
+        )
 
-        selected = InputTable.details.pick(lambda value: value.label)
-        self.assertIsInstance(selected, NullableSelection)
-        self.assertEqual(selected.expression.model.path, ("details", "label"))  # type: ignore[attr-defined]
+    def test_nullable_array_access_requires_the_row_gate(self) -> None:
+        scores = InputTable.scores
+        self.assertIsInstance(scores, NullableSelection)
+        self.assertFalse(hasattr(scores, "expand"))
 
-        nested = InputTable.details.pick(lambda value: value.evidence)
-        self.assertIsInstance(nested, NullableSelection)
-        nested_label = nested.pick(lambda value: value.label)
-        self.assertEqual(nested_label.expression.model.path, ("details", "evidence", "label"))  # type: ignore[attr-defined]
+        expanded = scores.alter_rows().drop_null().expand()
+        self.assertIsInstance(expanded, ValueSelection)
+        self.assertIsInstance(expanded.expression, IntExpression)
 
-    def test_nested_expansion_retains_complete_row_context(self) -> None:
-        evidence = InputTable.evidence.expand()
-        self.assertIsInstance(evidence, StructSelection)
-        labels = evidence.pick(lambda value: value.labels).expand().expression.append("!")
-        effects = labels.model.row_semantics.effects
-        self.assertEqual(len(effects), 2)
-        self.assertTrue(all(effect.mode == "expand" for effect in effects))
-        self.assertEqual(effects[0].scope, ("input", "evidence"))
+    def test_drop_null_refines_a_source_selection(self) -> None:
+        narrowed = InputTable.targetID.alter_rows().drop_null()
+        self.assertIsInstance(narrowed, ValueSelection)
+        self.assertNotIsInstance(narrowed, NullableSelection)
+        self.assertEqual(narrowed.logical_type, STR)
+        self.assertIsInstance(narrowed.expression, StrExpression)
 
-    def test_struct_selector_rejects_a_field_from_another_declaration(self) -> None:
-        with self.assertRaisesRegex(TypeError, "input declaration"):
-            InputTable.details.pick(lambda _value: object.__new__(EvidenceStruct).label)
+    def test_struct_source_members_are_nullable_inside_extract(self) -> None:
+        label = InputTable.details.extract(lambda value: value.label)
+        self.assertIsInstance(label, NullableSelection)
+        self.assertEqual(label.logical_type, NullableType(STR))
+        self.assertEqual(label.expression.model.path, ("details", "label"))  # type: ignore[attr-defined]
+
+        narrowed = (
+            InputTable.details.alter_rows().drop_null()
+            .extract(lambda value: value.label)
+            .alter_rows().drop_null()
+        )
+        self.assertIsInstance(narrowed, ValueSelection)
+        self.assertIsInstance(narrowed.expression, StrExpression)
+
+    def test_nested_source_member_propagation(self) -> None:
+        evidence = InputTable.details.extract(lambda value: value.evidence)
+        self.assertIsInstance(evidence, NullableSelection)
+        nested_label = evidence.extract(lambda value: value.label)
+        self.assertIsInstance(nested_label, NullableSelection)
+        self.assertEqual(
+            nested_label.expression.model.path,  # type: ignore[attr-defined]
+            ("details", "evidence", "label"),
+        )
+
+    def test_computed_struct_members_stay_typed_and_inherit_parent_nullability(self) -> None:
+        self.assertIsInstance(ComputedRecord.label, ValueSelection)
+        self.assertNotIsInstance(ComputedRecord.label, NullableSelection)
+        self.assertIsInstance(ComputedRecord.maybe, NullableSelection)
+
+        computed_type = normalize_type(ComputedRecord)
+        self.assertEqual(
+            computed_type,
+            StructType(ComputedRecord.__module__, ComputedRecord.__qualname__),
+        )
+        present = select_expression(wrap_expression(field_reference(
+            source="input", path=("record",), logical_type=computed_type,
+        )))
+        self.assertIsInstance(present, StructSelection)
+        self.assertIsInstance(present.extract(lambda value: value.label), ValueSelection)
+        self.assertIsInstance(present.extract(lambda value: value.maybe), NullableSelection)
+
+        absent = select_expression(wrap_expression(field_reference(
+            source="input", path=("record",), logical_type=NullableType(computed_type),
+        )))
+        self.assertIsInstance(absent.extract(lambda value: value.label), NullableSelection)
+
+    def test_computed_struct_is_a_value_type_and_a_table_is_not(self) -> None:
+        self.assertIsInstance(HoldsComputed.record, NullableSelection)
+        with self.assertRaisesRegex(TypeError, "row source"):
+            normalize_type(InputTable)
+        with self.assertRaisesRegex(TypeError, "row source"):
+            normalize_type(TypedProjection)
+
+    def test_projection_fields_read_the_materialised_output(self) -> None:
+        self.assertIsInstance(TypedProjection.label, ValueSelection)
+        self.assertNotIsInstance(TypedProjection.label, NullableSelection)
+        self.assertEqual(TypedProjection.label.logical_type, STR)
+        self.assertEqual(
+            TypedProjection.label.expression.model.source,  # type: ignore[attr-defined]
+            TypedProjection._projection_name,
+        )
+        self.assertIsInstance(TypedProjection.maybe, NullableSelection)
+        self.assertIsInstance(TypedProjection.scores, ArraySelection)
+        self.assertIsNotNone(declared_fields(TypedProjection)["label"].expression)
 
     def test_metadata_naming_annotations_and_escape_are_preserved(self) -> None:
         fields = declared_fields(InputTable)
@@ -110,6 +192,36 @@ class UnifiedFieldTests(unittest.TestCase):
             class DuplicateTable(Table):
                 first: Field[str] = field(name="same")
                 second: Field[str] = field(name="same")
+
+    def test_owner_kind_validates_the_constructor(self) -> None:
+        with self.assertRaisesRegex(TypeError, "computed_field"):
+            class ComputedTable(Table):
+                value: Field[str] = computed_field(value_expression("x"))
+
+        with self.assertRaisesRegex(TypeError, "computed_field"):
+            class ComputedStructSource(Struct):
+                value: Field[str] = computed_field(value_expression("x"))
+
+        with self.assertRaisesRegex(TypeError, r"field\(\)"):
+            class DeclaredProjection(Projection(InputTable.row_source())):
+                value = field()
+
+        with self.assertRaisesRegex(TypeError, "computed_field"):
+            class DeclaredComputed(ComputedStruct):
+                value: Field[str] = field()
+
+    def test_declared_source_field_has_no_expression(self) -> None:
+        self.assertIsNone(declared_fields(InputTable)["targetID"].expression)
+
+    def test_a_top_level_nullable_declaration_is_stripped(self) -> None:
+        fields = declared_fields(NullableDeclared)
+        self.assertEqual(fields["maybe"]._logical_type(NullableDeclared), STR)
+        self.assertEqual(
+            fields["items"]._logical_type(NullableDeclared),
+            ArrayType(NullableType(INT)),
+            "only the outer nullability is stripped; item nullability is a value fact",
+        )
+        self.assertIsInstance(NullableDeclared.maybe, NullableSelection)
 
 
 if __name__ == "__main__":

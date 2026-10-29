@@ -3,7 +3,7 @@ from typing import assert_type
 
 from kg_build_system import (
     DerivedRowSource, Field, Node, NodeBinding, NodeValues, Projection,
-    PropertySlot, Table, all_of, any_of, field, node_binding, projection_field,
+    PropertySlot, Table, all_of, any_of, computed_field, field, node_binding,
     property,
 )
 from kg_build_system.expressions import BoolExpression
@@ -15,7 +15,7 @@ class Source(Table):
 
 
 class SourceView(Projection(Source.row_source())):
-    kind = projection_field(Source.kind)
+    kind = computed_field(Source.kind)
 
 
 class TargetNode(Node):
@@ -23,16 +23,18 @@ class TargetNode(Node):
 
 
 active = Source.where(lambda source: any_of(
-    source.kind.expression.equals("target"),
-    source.kind.expression.equals("disease"),
+    source.kind.alter_rows().drop_null().expression.equals("target"),
+    source.kind.alter_rows().drop_null().expression.equals("disease"),
 ))
 assert_type(active, DerivedRowSource[Source])
 
-strict = active.where(lambda source: source.status.expression.equals("active"))
+strict = active.where(
+    lambda source: source.status.alter_rows().drop_null().expression.equals("active")
+)
 assert_type(strict, DerivedRowSource[Source])
 
 projected = SourceView.where(
-    lambda projection: projection.kind.expression.equals("target"),
+    lambda projection: projection.kind.alter_rows().drop_null().expression.equals("target"),
 )
 assert_type(projected, DerivedRowSource[SourceView])
 
@@ -40,8 +42,8 @@ binding = node_binding(
     target=TargetNode,
     rows=active,
     bind=lambda row: NodeValues(
-        build_key=row.status,
-        properties=TargetNode(label=row.kind),
+        build_key=row.status.alter_rows().drop_null(),
+        properties=TargetNode(label=row.kind.alter_rows().drop_null()),
     ),
 )
 assert_type(binding, NodeBinding[TargetNode])

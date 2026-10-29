@@ -12,25 +12,25 @@ from kg_build_system.types import Array, Date, Time, Timestamp, Uuid
 
 
 class PremisesContactLocationStruct(Struct):
-    city: Field[str | None] = field(name='city')
-    room: Field[str | None] = field(name='room')
+    city: Field[str] = field(name='city')
+    room: Field[str] = field(name='room')
 
 
 class PremisesContactStruct(Struct):
-    email: Field[str | None] = field(name='email')
-    location: Field[PremisesContactLocationStruct | None] = field(name='location')
+    email: Field[str] = field(name='email')
+    location: Field[PremisesContactLocationStruct] = field(name='location')
 
 
 class PremisesStruct(Struct):
-    contact_name: Field[str | None] = field(name='contact_name')
-    contact: Field[PremisesContactStruct | None] = field(name='contact')
+    contact_name: Field[str] = field(name='contact_name')
+    contact: Field[PremisesContactStruct] = field(name='contact')
 
 
 class SitesTable(Table):
     options = TableOptions(name='sites')
-    site_id: Field[str | None] = field(name='site_id')
-    site_name: Field[str | None] = field(name='site_name')
-    premises: Field[PremisesStruct | None] = field(name='premises')
-    priority_scores: Field[Array[int | None] | None] = field(name='priority_scores')
+    site_id: Field[str] = field(name='site_id')
+    site_name: Field[str] = field(name='site_name')
+    premises: Field[PremisesStruct] = field(name='premises')
+    priority_scores: Field[Array[int | None]] = field(name='priority_scores')
 
 __all__ = ['SitesTable']

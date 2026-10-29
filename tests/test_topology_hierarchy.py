@@ -83,11 +83,11 @@ def _source():
 def _item_binding():
     return node_binding(
         target=Item,
-        build_key=HierarchyInput.identifier.expression.prepend("item::"),
+        build_key=HierarchyInput.identifier.alter_rows().drop_null().expression.prepend("item::"),
         properties=Item(
-            title=HierarchyInput.title,
-            code=HierarchyInput.code,
-            revision=HierarchyInput.revision,
+            title=HierarchyInput.title.alter_rows().drop_null(),
+            code=HierarchyInput.code.alter_rows().drop_null(),
+            revision=HierarchyInput.revision.alter_rows().drop_null(),
         ),
     )
 
@@ -95,16 +95,16 @@ def _item_binding():
 def _orphan_binding():
     return node_binding(
         target=Orphan,
-        build_key=HierarchyInput.identifier.expression.prepend("orphan::"),
-        properties=Orphan(title=HierarchyInput.title, label=HierarchyInput.label),
+        build_key=HierarchyInput.identifier.alter_rows().drop_null().expression.prepend("orphan::"),
+        properties=Orphan(title=HierarchyInput.title.alter_rows().drop_null(), label=HierarchyInput.label.alter_rows().drop_null()),
     )
 
 
 def _plain_binding():
     return node_binding(
         target=Plain,
-        build_key=HierarchyInput.name,
-        properties=Plain(name=HierarchyInput.name),
+        build_key=HierarchyInput.name.alter_rows().drop_null(),
+        properties=Plain(name=HierarchyInput.name.alter_rows().drop_null()),
     )
 
 
@@ -112,9 +112,9 @@ def _links_item_binding(source_node=None):
     return edge_binding(
         target=LinksItem,
         source_node=endpoint(Item) if source_node is None else source_node,
-        build_key=HierarchyInput.identifier.expression.prepend("links::"),
-        source_build_key=HierarchyInput.identifier.expression.prepend("item::"),
-        target_build_key=HierarchyInput.code.expression.prepend("item::"),
+        build_key=HierarchyInput.identifier.alter_rows().drop_null().expression.prepend("links::"),
+        source_build_key=HierarchyInput.identifier.alter_rows().drop_null().expression.prepend("item::"),
+        target_build_key=HierarchyInput.code.alter_rows().drop_null().expression.prepend("item::"),
         properties=LinksItem(),
     )
 
@@ -337,9 +337,9 @@ class EdgeBindingFactoryTests(unittest.TestCase):
     def test_concrete_endpoints_default_to_the_declaration(self) -> None:
         binding = edge_binding(
             target=Direct,
-            build_key=HierarchyInput.identifier,
-            source_build_key=HierarchyInput.identifier,
-            target_build_key=HierarchyInput.code,
+            build_key=HierarchyInput.identifier.alter_rows().drop_null(),
+            source_build_key=HierarchyInput.identifier.alter_rows().drop_null(),
+            target_build_key=HierarchyInput.code.alter_rows().drop_null(),
             properties=Direct(),
         )
         self.assertIsNone(binding.source_node)
@@ -350,9 +350,9 @@ class EdgeBindingFactoryTests(unittest.TestCase):
             target=Direct,
             source_node=endpoint(Item),
             target_node=endpoint(Plain),
-            build_key=HierarchyInput.identifier,
-            source_build_key=HierarchyInput.identifier,
-            target_build_key=HierarchyInput.code,
+            build_key=HierarchyInput.identifier.alter_rows().drop_null(),
+            source_build_key=HierarchyInput.identifier.alter_rows().drop_null(),
+            target_build_key=HierarchyInput.code.alter_rows().drop_null(),
             properties=Direct(),
         )
         self.assertIs(binding.source_node, Item)
@@ -367,9 +367,9 @@ class EdgeBindingFactoryTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "must name the declared endpoint category"):
             edge_binding(
                 target=LinksItem,
-                build_key=HierarchyInput.identifier,
-                source_build_key=HierarchyInput.identifier,
-                target_build_key=HierarchyInput.code,
+                build_key=HierarchyInput.identifier.alter_rows().drop_null(),
+                source_build_key=HierarchyInput.identifier.alter_rows().drop_null(),
+                target_build_key=HierarchyInput.code.alter_rows().drop_null(),
                 properties=LinksItem(),
             )
 
@@ -378,9 +378,9 @@ class EdgeBindingFactoryTests(unittest.TestCase):
             edge_binding(
                 target=LinksItem,
                 source_node=endpoint(Plain),
-                build_key=HierarchyInput.identifier,
-                source_build_key=HierarchyInput.identifier,
-                target_build_key=HierarchyInput.code,
+                build_key=HierarchyInput.identifier.alter_rows().drop_null(),
+                source_build_key=HierarchyInput.identifier.alter_rows().drop_null(),
+                target_build_key=HierarchyInput.code.alter_rows().drop_null(),
                 properties=LinksItem(),
             )
 
@@ -389,9 +389,9 @@ class EdgeBindingFactoryTests(unittest.TestCase):
             edge_binding(
                 target=LinksItem,
                 source_node=Item,  # type: ignore[arg-type]
-                build_key=HierarchyInput.identifier,
-                source_build_key=HierarchyInput.identifier,
-                target_build_key=HierarchyInput.code,
+                build_key=HierarchyInput.identifier.alter_rows().drop_null(),
+                source_build_key=HierarchyInput.identifier.alter_rows().drop_null(),
+                target_build_key=HierarchyInput.code.alter_rows().drop_null(),
                 properties=LinksItem(),
             )
 
@@ -399,15 +399,15 @@ class EdgeBindingFactoryTests(unittest.TestCase):
         with self.assertRaisesRegex(TypeError, "concrete node"):
             node_binding(
                 target=Entity,  # type: ignore[arg-type]
-                build_key=HierarchyInput.identifier,
+                build_key=HierarchyInput.identifier.alter_rows().drop_null(),
                 properties=None,  # type: ignore[arg-type]
             )
         with self.assertRaisesRegex(TypeError, "concrete edge"):
             edge_binding(
                 target=Links,  # type: ignore[arg-type]
-                build_key=HierarchyInput.identifier,
-                source_build_key=HierarchyInput.identifier,
-                target_build_key=HierarchyInput.code,
+                build_key=HierarchyInput.identifier.alter_rows().drop_null(),
+                source_build_key=HierarchyInput.identifier.alter_rows().drop_null(),
+                target_build_key=HierarchyInput.code.alter_rows().drop_null(),
                 properties=None,  # type: ignore[arg-type]
             )
 
@@ -471,9 +471,9 @@ class BlueprintTests(unittest.TestCase):
         binding = edge_binding(
             target=LeafChild,
             source_node=endpoint(Item),
-            build_key=HierarchyInput.identifier.expression.prepend("chain::"),
-            source_build_key=HierarchyInput.identifier,
-            target_build_key=HierarchyInput.code,
+            build_key=HierarchyInput.identifier.alter_rows().drop_null().expression.prepend("chain::"),
+            source_build_key=HierarchyInput.identifier.alter_rows().drop_null(),
+            target_build_key=HierarchyInput.code.alter_rows().drop_null(),
             properties=LeafChild(),
         )
         result = _blueprint((_item_binding(), binding))

@@ -208,8 +208,8 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
             "from kg_build_system.types import Array, Date, Time, Timestamp, Uuid", source,
         )
         self.assertIn("from contracts.release.details import DetailsStruct", source)
-        self.assertIn("details: Field[DetailsStruct | None] = field(name='details')", source)
-        self.assertIn("scores: Field[Array[int | None] | None] = field(name='scores')", source)
+        self.assertIn("details: Field[DetailsStruct] = field(name='details')", source)
+        self.assertIn("scores: Field[Array[int | None]] = field(name='scores')", source)
 
     async def test_data_source_changes_never_trigger_generation(self) -> None:
         with TemporaryDirectory() as directory:
@@ -600,7 +600,7 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual(result.status, GenerationStatus.CHANGED)
             generated = (package / "sites" / "__init__.py").read_text(encoding="utf-8")
             self.assertIn("class SitesTable(Table):", generated)
-            self.assertIn("identifier: Field[str | None] = field(name='identifier')", generated)
+            self.assertIn("identifier: Field[str] = field(name='identifier')", generated)
 
     async def test_the_manifest_digests_the_observed_schema_not_its_values(self) -> None:
         with TemporaryDirectory() as project_dir, TemporaryDirectory() as data_dir:
@@ -630,7 +630,7 @@ class GeneratedPackageTests(unittest.IsolatedAsyncioTestCase):
             self.assertEqual((await generate(root, check=True)).status, GenerationStatus.CURRENT)
             self.assertEqual((await generate(root, regenerate=True)).status, GenerationStatus.CHANGED)
             self.assertNotEqual(json.loads(manifest_path.read_text(encoding="utf-8"))["source_digest"], observed)
-            self.assertIn("name: Field[str | None] = field(name='name')",
+            self.assertIn("name: Field[str] = field(name='name')",
                           (package / "sites" / "__init__.py").read_text(encoding="utf-8"))
 
     async def test_data_contract_inference_observes_s3_urls_without_local_paths(self) -> None:
@@ -1043,7 +1043,7 @@ class DeclaredPromotionTests(unittest.IsolatedAsyncioTestCase):
                 encoding="utf-8",
             )
             self.assertEqual(result.status, GenerationStatus.CHANGED)
-            self.assertIn("when: Field[Timestamp | None] = field(name='when')", generated)
+            self.assertIn("when: Field[Timestamp] = field(name='when')", generated)
             self.assertIn(REPRESENTATIVE_IMPORT, generated)
             self.assertEqual(
                 (await generate(root, check=True)).status, GenerationStatus.CURRENT,

@@ -149,7 +149,7 @@ class TypedExpressionTests(unittest.TestCase):
         )))
         self.assertIsInstance(selection, NullableSelection)
         defaulted = selection.default_to(0)
-        narrowed = selection.where_present()
+        narrowed = selection.alter_rows().drop_null()
         self.assertIsInstance(defaulted, ValueSelection)
         self.assertIsInstance(defaulted.expression, IntExpression)
         self.assertIsInstance(narrowed.expression, IntExpression)
@@ -169,21 +169,22 @@ class TypedExpressionTests(unittest.TestCase):
         self.assertEqual(item.logical_type, NullableType(INT))
         self.assertEqual(item.expression.model.row_semantics.scope, ("input", "values"))
 
-    def test_struct_pick_returns_selections_and_propagates_parent_nullability(self) -> None:
+    def test_struct_extract_propagates_source_member_nullability(self) -> None:
         required = select_expression(wrap_expression(field_reference(
             source="input", path=("details",), logical_type=normalize_type(DetailsStruct),
         )))
         self.assertIsInstance(required, StructSelection)
         self.assertIsInstance(required.expression, StructExpression)
-        label = required.pick(lambda item: item.label)
-        self.assertIsInstance(label, ValueSelection)
-        self.assertIsInstance(label.expression, StrExpression)
-        self.assertIsInstance(required.pick(lambda item: item.maybe_score), NullableSelection)
+        # A source member is nullable even when its parent is present.
+        label = required.extract(lambda item: item.label)
+        self.assertIsInstance(label, NullableSelection)
+        self.assertEqual(label.logical_type, NullableType(STR))
+        self.assertIsInstance(required.extract(lambda item: item.maybe_score), NullableSelection)
 
         optional = select_expression(wrap_expression(field_reference(
             source="input", path=("details",), logical_type=normalize_type(DetailsStruct | None),
         )))
-        selected = optional.pick(lambda item: item.label)
+        selected = optional.extract(lambda item: item.label)
         self.assertIsInstance(selected, NullableSelection)
         self.assertEqual(selected.logical_type, NullableType(STR))
         self.assertIsInstance(selected.expression.model, FieldReferenceExpression)

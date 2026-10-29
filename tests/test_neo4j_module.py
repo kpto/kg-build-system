@@ -76,19 +76,19 @@ class KnowsEdge(Edge[PersonNode, PersonNode]):
 
 person_binding = node_binding(
     target=PersonNode,
-    build_key=Neo4jInput.identifier,
-    properties=PersonNode(name=Neo4jInput.name),
+    build_key=Neo4jInput.identifier.alter_rows().drop_null(),
+    properties=PersonNode(name=Neo4jInput.name.alter_rows().drop_null()),
 )
 knows_binding = edge_binding(
     target=KnowsEdge,
     build_key=(
-        Neo4jInput.identifier.expression
+        Neo4jInput.identifier.alter_rows().drop_null().expression
         .append("::")
-        .append(Neo4jInput.friend_identifier.expression)
+        .append(Neo4jInput.friend_identifier.alter_rows().drop_null().expression)
     ),
-    source_build_key=Neo4jInput.identifier,
-    target_build_key=Neo4jInput.friend_identifier,
-    properties=KnowsEdge(weight=Neo4jInput.weight),
+    source_build_key=Neo4jInput.identifier.alter_rows().drop_null(),
+    target_build_key=Neo4jInput.friend_identifier.alter_rows().drop_null(),
+    properties=KnowsEdge(weight=Neo4jInput.weight.alter_rows().drop_null()),
 )
 
 
@@ -116,10 +116,10 @@ class VisitNode(Node):
 
 visit_binding = node_binding(
     target=VisitNode,
-    build_key=TemporalInput.identifier,
+    build_key=TemporalInput.identifier.alter_rows().drop_null(),
     properties=VisitNode(
-        visited_on=TemporalInput.visited_on,
-        visited_at=TemporalInput.visited_at,
+        visited_on=TemporalInput.visited_on.alter_rows().drop_null(),
+        visited_at=TemporalInput.visited_at.alter_rows().drop_null(),
         recorded=TemporalInput.recorded,
     ),
 )
@@ -145,15 +145,15 @@ class IssuedEdge(Edge[PersonNode, PersonNode]):
 
 credential_binding = node_binding(
     target=CredentialNode,
-    build_key=TokenInput.identifier,
-    properties=CredentialNode(token=TokenInput.token),
+    build_key=TokenInput.identifier.alter_rows().drop_null(),
+    properties=CredentialNode(token=TokenInput.token.alter_rows().drop_null()),
 )
 issued_binding = edge_binding(
     target=IssuedEdge,
-    build_key=TokenInput.identifier,
-    source_build_key=TokenInput.identifier,
-    target_build_key=TokenInput.friend_identifier,
-    properties=IssuedEdge(token=TokenInput.token),
+    build_key=TokenInput.identifier.alter_rows().drop_null(),
+    source_build_key=TokenInput.identifier.alter_rows().drop_null(),
+    target_build_key=TokenInput.friend_identifier.alter_rows().drop_null(),
+    properties=IssuedEdge(token=TokenInput.token.alter_rows().drop_null()),
 )
 
 
@@ -262,15 +262,15 @@ class LabelAnnotationTests(unittest.TestCase):
 
         default_node = node_binding(
             target=DefaultNode,
-            build_key=Neo4jInput.identifier,
-            properties=DefaultNode(name=Neo4jInput.name),
+            build_key=Neo4jInput.identifier.alter_rows().drop_null(),
+            properties=DefaultNode(name=Neo4jInput.name.alter_rows().drop_null()),
         )
         default_edge = edge_binding(
             target=DefaultEdge,
-            build_key=Neo4jInput.identifier,
-            source_build_key=Neo4jInput.identifier,
-            target_build_key=Neo4jInput.friend_identifier,
-            properties=DefaultEdge(weight=Neo4jInput.weight),
+            build_key=Neo4jInput.identifier.alter_rows().drop_null(),
+            source_build_key=Neo4jInput.identifier.alter_rows().drop_null(),
+            target_build_key=Neo4jInput.friend_identifier.alter_rows().drop_null(),
+            properties=DefaultEdge(weight=Neo4jInput.weight.alter_rows().drop_null()),
         )
         contract = compile(
             bindings=(default_node, default_edge),
@@ -507,8 +507,8 @@ class Neo4jTargetTests(unittest.TestCase):
 
         binding = node_binding(
             target=CodesNode,
-            build_key=CodesInput.identifier,
-            properties=CodesNode(codes=CodesInput.codes),
+            build_key=CodesInput.identifier.alter_rows().drop_null(),
+            properties=CodesNode(codes=CodesInput.codes.alter_rows().drop_null()),
         )
         contract = compile(
             bindings=(binding,),
@@ -531,7 +531,7 @@ class Neo4jTargetTests(unittest.TestCase):
 
         binding = node_binding(
             target=TemporalNullNode,
-            build_key=TemporalNullInput.identifier,
+            build_key=TemporalNullInput.identifier.alter_rows().drop_null(),
             properties=TemporalNullNode(recorded=TemporalNullInput.recorded),
         )
         with tempfile.TemporaryDirectory() as directory:
@@ -568,7 +568,7 @@ class Neo4jTargetTests(unittest.TestCase):
 
         binding = node_binding(
             target=CodesNullNode,
-            build_key=CodesNullInput.identifier,
+            build_key=CodesNullInput.identifier.alter_rows().drop_null(),
             properties=CodesNullNode(codes=CodesNullInput.codes),
         )
         with tempfile.TemporaryDirectory() as directory:
@@ -604,8 +604,8 @@ class Neo4jTargetTests(unittest.TestCase):
 
         binding = node_binding(
             target=DatedNode,
-            build_key=DatedInput.identifier,
-            properties=DatedNode(dates=DatedInput.dates),
+            build_key=DatedInput.identifier.alter_rows().drop_null(),
+            properties=DatedNode(dates=DatedInput.dates.alter_rows().drop_null()),
         )
         with self.assertRaises(ValueError) as raised:
             compile(

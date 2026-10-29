@@ -28,28 +28,30 @@ class RelatedEdge(Edge[EntityNode, EntityNode]):
 
 node = node_binding(
     target=EntityNode,
-    build_key=BindingTable.identifier,
+    build_key=BindingTable.identifier.alter_rows().drop_null(),
     properties=EntityNode(
-        label=BindingTable.label,
+        label=BindingTable.label.alter_rows().drop_null(),
         description=BindingTable.description,
     ),
 )
 assert_type(node, NodeBinding[EntityNode])
 
-narrowed = BindingTable.description.where_present()
+narrowed = BindingTable.description.alter_rows().drop_null()
 narrowed_node = node_binding(
     target=EntityNode,
     build_key=narrowed,
-    properties=EntityNode(label=narrowed, description=BindingTable.label),
+    properties=EntityNode(label=narrowed, description=BindingTable.description),
 )
 assert_type(narrowed_node, NodeBinding[EntityNode])
 
 edge = edge_binding(
     target=RelatedEdge,
-    build_key=BindingTable.identifier.expression.prepend("edge:"),
-    source_build_key=BindingTable.identifier,
-    target_build_key=BindingTable.identifier,
-    properties=RelatedEdge(score=BindingTable.score),
+    build_key=(
+        BindingTable.identifier.alter_rows().drop_null().expression.prepend("edge:")
+    ),
+    source_build_key=BindingTable.identifier.alter_rows().drop_null(),
+    target_build_key=BindingTable.identifier.alter_rows().drop_null(),
+    properties=RelatedEdge(score=BindingTable.score.alter_rows().drop_null()),
 )
 assert_type(edge, EdgeBinding[RelatedEdge])
 
@@ -78,12 +80,12 @@ class StdlibEventNode(Node):
 
 event = node_binding(
     target=EventNode,
-    build_key=EventTable.identifier,
+    build_key=EventTable.identifier.alter_rows().drop_null(),
     properties=EventNode(
-        occurred=EventTable.occurred,
-        on=EventTable.on.where_present(),
+        occurred=EventTable.occurred.alter_rows().drop_null(),
+        on=EventTable.on,
         at=EventTable.at,
-        token=EventTable.token.expression,
+        token=EventTable.token.alter_rows().drop_null(),
     ),
 )
 assert_type(event, NodeBinding[EventNode])
@@ -91,22 +93,22 @@ assert_type(event, NodeBinding[EventNode])
 # a nullable temporal selection binds unchanged; a default keeps the unit type
 defaulted_event = node_binding(
     target=EventNode,
-    build_key=EventTable.identifier,
+    build_key=EventTable.identifier.alter_rows().drop_null(),
     properties=EventNode(
-        occurred=EventTable.occurred,
+        occurred=EventTable.occurred.alter_rows().drop_null(),
         on=EventTable.on,
         at=EventTable.at.default_to(datetime.time(9, 30)),
-        token=EventTable.token,
+        token=EventTable.token.alter_rows().drop_null(),
     ),
 )
 assert_type(defaulted_event, NodeBinding[EventNode])
 
 stdlib_event = node_binding(
     target=StdlibEventNode,
-    build_key=EventTable.identifier,
+    build_key=EventTable.identifier.alter_rows().drop_null(),
     properties=StdlibEventNode(
-        occurred=EventTable.occurred,
-        token=EventTable.token,
+        occurred=EventTable.occurred.alter_rows().drop_null(),
+        token=EventTable.token.alter_rows().drop_null(),
     ),
 )
 assert_type(stdlib_event, NodeBinding[StdlibEventNode])

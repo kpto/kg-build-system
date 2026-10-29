@@ -9,9 +9,9 @@ surveyed_at_binding = edge_binding(
     target=SurveyedAtEdge,
     rows=SurveysTable,
     bind=lambda row: EdgeValues(
-        build_key=row.survey_id.where_present(),
-        source_build_key=row.survey_id.where_present(),
-        target_build_key=row.site_id.where_present(),
+        build_key=row.survey_id.alter_rows().drop_null(),
+        source_build_key=row.survey_id.alter_rows().drop_null(),
+        target_build_key=row.site_id.alter_rows().drop_null(),
         properties=SurveyedAtEdge(
             as_at=row.surveyed_on,
             **relation_stamps,

@@ -103,8 +103,20 @@ def _struct_references(value: GeneratedType) -> tuple[GeneratedStructType, ...]:
     return ()
 
 
+def _field_annotation(value: GeneratedType) -> str:
+    """The declared value type of a source field.
+
+    A source field declares what its column holds; nullability is a fact about
+    access, not about the value type, so a top-level nullable is not rendered.
+    Array item nullability and nested member nullability remain.
+    """
+    if isinstance(value, GeneratedNullableType):
+        value = value.value
+    return _type_annotation(value)
+
+
 def _field(field: GeneratedField) -> tuple[str, str]:
-    annotation = f"Field[{_type_annotation(field.value_type)}]"
+    annotation = f"Field[{_field_annotation(field.value_type)}]"
     arguments: list[str] = [f"name={field.external_name!r}"]
     if field.description is not None: arguments.append(f"description={field.description!r}")
     if field.annotations:

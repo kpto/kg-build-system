@@ -59,8 +59,18 @@ def normalize_type(annotation: Any) -> LogicalType:
 
     if isinstance(annotation, type) and issubclass(annotation, CustomDataType):
         return _declared_type(annotation, CustomType)
-    if isinstance(annotation, type) and issubclass(annotation, Shape):
+    if isinstance(annotation, type) and issubclass(annotation, Struct):
+        if not getattr(annotation, "_kg_value_record", True):
+            raise TypeError(
+                f"{annotation.__name__} is a row source, not a value record; "
+                "field types must be Struct or ComputedStruct declarations"
+            )
         return _declared_type(annotation, StructType)
+    if isinstance(annotation, type) and issubclass(annotation, Shape):
+        raise TypeError(
+            f"{annotation.__name__} is a row source, not a value record; "
+            "field types must be Struct or ComputedStruct declarations"
+        )
     raise TypeError(f"unsupported logical type annotation: {annotation!r}")
 
 

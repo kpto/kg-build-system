@@ -10,7 +10,7 @@ from kg_build_system import (
     Annotation, Array, DataSourceConfig, Edge, Field,
     InputFormat, Node, Projection, ProjectionOptions, PropertySlot, Struct, Table,
     TableGroup, bind_source, create_blueprint, edge_binding, field, node_binding,
-    projection_field, property,
+    computed_field, property,
 )
 from kg_build_system.compile import (
     blueprint_from_json, blueprint_json, decode_blueprint, validate_blueprint,
@@ -50,9 +50,9 @@ class BlueprintTableGroup(TableGroup):
 
 class EvidenceProjection(Projection(EvidenceTable.row_source())):
     options = ProjectionOptions(name="evidence_rows")
-    identifier = projection_field(EvidenceTable.identifier)
-    label = projection_field(
-        EvidenceTable.evidence.expand().pick(lambda item: item.label)
+    identifier = computed_field(EvidenceTable.identifier)
+    label = computed_field(
+        EvidenceTable.evidence.alter_rows().expand().extract(lambda item: item.label)
     )
 
 
@@ -66,16 +66,16 @@ class RelatedEdge(Edge[EntityNode, EntityNode]):
 
 node = node_binding(
     target=EntityNode,
-    build_key=EvidenceProjection.identifier,
-    properties=EntityNode(label=EvidenceProjection.label),
+    build_key=EvidenceProjection.identifier.alter_rows().drop_null(),
+    properties=EntityNode(label=EvidenceProjection.label.alter_rows().drop_null()),
     debug_name="entity",
 )
 edge = edge_binding(
     target=RelatedEdge,
-    build_key=EvidenceProjection.identifier,
-    source_build_key=EvidenceProjection.identifier,
-    target_build_key=EvidenceProjection.identifier,
-    properties=RelatedEdge(label=EvidenceProjection.label),
+    build_key=EvidenceProjection.identifier.alter_rows().drop_null(),
+    source_build_key=EvidenceProjection.identifier.alter_rows().drop_null(),
+    target_build_key=EvidenceProjection.identifier.alter_rows().drop_null(),
+    properties=RelatedEdge(label=EvidenceProjection.label.alter_rows().drop_null()),
     debug_name="related",
 )
 source = bind_source(

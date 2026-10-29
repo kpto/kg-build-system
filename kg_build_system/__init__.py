@@ -31,6 +31,7 @@ from .table import (
     BoundSource,
     BoundTable,
     BoundTableGroup,
+    ComputedStruct,
     DerivedRowSource,
     RowSource,
     Shape,
@@ -39,7 +40,6 @@ from .table import (
     Field,
     InputFormat,
     Projection,
-    ProjectionField,
     ProjectionOptions,
     SourceBindingOptions,
     Struct,
@@ -53,7 +53,6 @@ from .table import (
     bind_source,
     field,
     computed_field,
-    projection_field,
 )
 from .types import Nullable
 from .topology import (
@@ -83,6 +82,7 @@ __all__ = [
     "any_of",
     "BoundTable",
     "BoundTableGroup",
+    "ComputedStruct",
     "CustomDataType",
     "CustomDataTypeExpression",
     "DataSourceConfig",
@@ -110,7 +110,6 @@ __all__ = [
     "NodeTemplate",
     "NumberExpression",
     "Projection",
-    "ProjectionField",
     "ProjectionOptions",
     "PropertySlot",
     "SourceBindingOptions",
@@ -139,7 +138,6 @@ __all__ = [
     "field",
     "node_binding",
     "computed_field",
-    "projection_field",
     "property",
     "value_expression",
 ]
