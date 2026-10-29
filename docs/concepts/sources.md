@@ -1,129 +1,117 @@
 # Sources
 
-A table declaration describes the shape of a row. It says nothing about where
-those rows live. A **source** supplies the location, and binding one to a table
-is the only place a path, a URI or a credential appears in an author's project.
+A source binds a table declaration to the physical place where its rows live.
 
-That separation is the point. The shape is portable truth about the data; the
-source is a deployment detail that can change without changing a single field,
-a projection or a binding.
+A table says what a row looks like; it does not say whether the rows are in a JSON
+file, a Parquet directory or an object store. Keeping the two apart is what lets a
+file move without changing a field, a projection or a binding. The source is where
+a build's location, format and credential reference appear, and it is attached
+after the row shape is declared.
 
-## Binding a source
+## Why sources are separate
 
-`bind_source` takes the declaration to bind and a `DataSourceConfig`. It returns
-a `BoundSource` — either a bound table or a bound group — which compilation
-consumes.
+The shape is durable truth about the data. The location is a deployment fact. A
+pipeline that mixes them cannot answer simple questions: does this table come from
+the production export or the test fixture? Which snapshot did the build read?
+
+A source binding gives each table one answer. It is recorded in the compiled
+contract next to the table's declared fields, so a reviewer can see what was read
+without opening the build code. A path change edits the source module only.
+
+## The model
+
+`bind_source` takes a target and a `DataSourceConfig` and returns a `BoundSource`.
+The target is a final `Table` or a `TableGroup`. The config carries five facts:
+
+- **Location**: a file, a directory, a glob or a URI.
+- **Format**: the reader to use, one of CSV, JSON or Parquet.
+- **Layout**: how to derive a path for each member of a group source.
+- **Credentials**: the name of a runtime credential entry, never the secret.
+- **Version**: a free-text label recorded with the source.
+
+The config is a frozen value. Declaring one opens no file, so a project can be
+imported and compiled without its data being present.
+
+Bind sources at module level. Discovery finds module-level `BoundSource` values in
+the project, or you can pass them explicitly when compiling. Compilation follows
+the bindings and the projections they reach; only tables that a reached binding
+or projection reads must be bound. A table that is declared but never read needs
+no source.
+
+## Example: the survey files
+
+The three survey tables have one file each:
 
 ```python
+from estate.table import DefectTable, SiteTable, UnitTable
 from kg_build_system import DataSourceConfig, InputFormat, bind_source
 
-from estate.table.sites import SitesTable
-
 sites_source = bind_source(
-    target=SitesTable,
+    target=SiteTable,
     config=DataSourceConfig(
-        location="data/sites.json",
+        location="data/survey/sites.json",
         format=InputFormat.JSON,
-        version="registry-2026-08",
+        version="survey-2026-08",
+    ),
+)
+
+units_source = bind_source(
+    target=UnitTable,
+    config=DataSourceConfig(
+        location="data/survey/units.json",
+        format=InputFormat.JSON,
+        version="survey-2026-08",
+    ),
+)
+
+defects_source = bind_source(
+    target=DefectTable,
+    config=DataSourceConfig(
+        location="data/survey/defects.json",
+        format=InputFormat.JSON,
+        version="survey-2026-08",
     ),
 )
 ```
 
-Bind at module level. Discovery finds module-level `BoundSource` values
-in the project namespace, or you can pass them explicitly with the bindings:
+The declarations did not change. The survey tables still have the same fields;
+only their physical locations were supplied.
+
+## Choosing a format
+
+`InputFormat.CSV`, `InputFormat.JSON` and `InputFormat.PARQUET` each select one
+reader. The declared format decides, not the file name. That is deliberate: a
+wrong format becomes a clear failure instead of a quiet misread. A CSV reader
+sniffs the delimiter, so a tab-separated file reads as CSV; `.jsonl` and
+`.ndjson` read as JSON; `.pq` reads as Parquet.
+
+The default is CSV. Set `format` explicitly on a JSON or Parquet source. A missing
+format compiles cleanly and fails when the source is opened, before any row is
+consumed.
+
+## When a family shares a layout
+
+A `TableGroup` names a family of concrete tables and nested groups. One group
+binding covers the whole family when the files follow one rule:
 
 ```python
-contract = compile(bindings=(site_binding,), sources=(sites_source,), modules=modules)
-```
-
-Rules enforced at declaration time:
-
-| Rule | What you see if it is broken |
-| --- | --- |
-| every table a binding or reached projection reads must be bound | `no source bound for: sites` |
-| a table may be bound once | `source-bound table names must be unique` |
-| a source must target a final `Table` or `TableGroup` | `sources require a final Table or TableGroup` |
-
-`Read` follows the whole reachable plan: a binding's expressions and row source,
-then every projection those reference, in turn. A table that no reached binding
-or projection reads is not required, even if it is declared or appears in a
-group source.
-
-The source binding is the physical fact, not the table declaration: the
-declaration stays the same when the location moves, and only the binding changes.
-
-## `DataSourceConfig`
-
-| Field | Meaning | Default |
-| --- | --- | --- |
-| `location` | a file, a directory, a glob or a URI | required |
-| `format` | which reader to use | `InputFormat.CSV` |
-| `layout` | how to derive each member's path, for a group source only | `None` |
-| `credentials` | the name of a runtime credential entry | `None` |
-| `version` | a free-text label recorded with the source | `None` |
-
-The config is a frozen value: no file is opened when you declare one, and two
-sources with equal fields are interchangeable.
-
-## Choosing the format
-
-`InputFormat` has three members, and each selects one reader: `CSV` reads
-delimited text, `JSON` reads JSON lines or arrays, and `PARQUET` reads Parquet.
-The CSV reader sniffs the delimiter. At build time the declared format decides,
-not the file name.
-
-That is deliberate: a wrong format is a loud failure rather than a quiet
-misread. Several spellings work under the right reader — `.tsv` parses as
-`CSV` because the delimiter is sniffed, `.jsonl` and `.ndjson` parse as `JSON`,
-and `.pq` parses as `PARQUET`.
-
-A location may be a single file, a glob or a directory, as far as the reader
-supports it — Parquet accepts a directory of parts, and the file readers accept
-a glob.
-
-!!! warning "The default format is CSV"
-    Omitting `format` on a JSON or Parquet source compiles cleanly and fails when
-    that source is opened. Because the check happens before any row is consumed,
-    you get a framework message naming the declaration, the location and the
-    declared format, rather than a reader error.
-
-## A single table
-
-For one table, `location` alone says what to read: it points at the table's own
-file, glob or directory, and `layout` plays no part.
-
-```python
-equipment_source = bind_source(
-    target=EquipmentTable,
-    config=DataSourceConfig(
-        location="data/equipment.json",
-        format=InputFormat.JSON,
-    ),
+from estate.table import DefectTable, SiteTable, UnitTable
+from kg_build_system import (
+    DataSourceConfig, InputFormat, TableGroup, TableGroupOptions, bind_source,
 )
-```
-
-Use this when each table has its own chosen location, or when the locations do
-not follow a rule.
-
-## A group source
-
-A table group is a hierarchy of final tables. Binding the group binds every
-member table, and `layout` says how to turn a member's place in the hierarchy
-into a path.
-
-```python
-from kg_build_system import TableGroup, TableGroupOptions
 
 
-class ReadingsTableGroup(TableGroup):
-    options = TableGroupOptions(name="readings")
-    temperature = TemperatureTable
-    mechanical = MechanicalTableGroup
-```
+class SurveyTableGroup(TableGroup):
+    """The survey relations, one file per table."""
 
-```python
-readings_source = bind_source(
-    target=ReadingsTableGroup,
+    options = TableGroupOptions(name="survey")
+    sites = SiteTable
+    units = UnitTable
+    defects = DefectTable
+
+
+survey_sources = bind_source(
+    target=SurveyTableGroup,
     config=DataSourceConfig(
         location="data",
         format=InputFormat.JSON,
@@ -132,56 +120,30 @@ readings_source = bind_source(
 )
 ```
 
-Given a `MechanicalTableGroup` named `mechanical` containing a `vibration` table,
-that one layout resolves:
+The layout resolves `data/survey/sites.json`, `data/survey/units.json` and
+`data/survey/defects.json`. `{group_path}` is the chain of group names above the
+table, and `{table_name}` is the table's own name. Those are the only
+placeholders.
 
-| Table | `{group_path}` | `{table_name}` | Location |
-| --- | --- | --- | --- |
-| `temperature` | `readings` | `temperature` | `data/readings/temperature.json` |
-| `vibration` | `readings/mechanical` | `vibration` | `data/readings/mechanical/vibration.json` |
+A group source names locations; it does not join, merge or widen the rows. Each
+member keeps its own shape and its own grain. Members that no reached binding or
+projection reads are dropped: they do not enter the blueprint. A table may appear
+only once in a group, and groups may not contain a cycle. Use a group source when
+the hierarchy already mirrors the directory tree or when one change should move
+the whole family. Use table sources when locations are chosen individually.
 
-`{group_path}` is the chain of group names above the table — each group's
-`options.name`, or its class name without `TableGroup` — joined with `/`.
-`{table_name}` is the table's own name. Those are the only placeholders: anything
-else fails with `group source layouts may use only {group_path} and {table_name}`.
+Pick one level for a family. Binding a table and the group that contains it binds
+the table twice.
 
-Further rules:
+## Credentials and versions
 
-- A group source without a layout is refused at compile with `group sources
-  require DataSourceConfig.layout to resolve each table`.
-- A table may appear only once in a group, two tables may not share a catalog
-  path, and groups may not contain a cycle.
-- The layout must resolve every member of the group, because binding the group
-  resolves the whole family. Members that no reached binding or projection reads
-  are then dropped: they do not enter the blueprint and no source is recorded for
-  them.
-
-A group source does **not** join, merge or widen anything. It only names
-locations; each member table keeps its own rows and its own shape.
-
-## One source per table, or one per group
-
-| Use a table source when | Use a group source when |
-| --- | --- |
-| each table has its own location | members share a format and a naming rule |
-| locations are chosen individually | the hierarchy already mirrors the directory tree |
-| one table is read from an unusual place | you want one change to move the whole family |
-
-Binding a table and also the group containing it is an error: the table would be
-bound twice. Pick one level per family.
-
-## Local files and object stores
-
-A local location is a path. Prefer an absolute path, or build one from
-`Path(__file__).parent`, so the build does not depend on where the process was
-started; a relative path resolves against the process's current directory.
-
-An object store is a URI with a scheme, and a private store needs a credential
-reference:
+Object stores use a URI with a scheme. The declaration carries the *name* of a
+credential, and the value is supplied to the build at runtime. The same site table
+can come from an object store instead of a local file:
 
 ```python
-lake_source = bind_source(
-    target=SitesTable,
+lake_sites_source = bind_source(
+    target=SiteTable,
     config=DataSourceConfig(
         location="s3://estate-registry/2026-08/sites.parquet",
         format=InputFormat.PARQUET,
@@ -190,89 +152,52 @@ lake_source = bind_source(
 )
 ```
 
-The declaration carries the *name* of the credential, never the secret. The
-value is supplied at build time:
+The filesystem is configured when the source is read, not when the contract is
+compiled, so the frozen contract stays free of secrets. The credential value is a
+JSON object whose `filesystem_options` are passed to the filesystem for the URI's
+scheme.
 
-```python
-from kg_build_system import BuildRuntime, build
+`version` is a label, not a pin. It records which snapshot you meant —
+`survey-2026-08`, a warehouse release tag, an export date — so the contract can be
+read later. Nothing in the build resolves it, downloads it or checks it. Pin input
+data in the pipeline that produces the files.
 
-report = build(
-    contract,
-    runtime=BuildRuntime(credentials={
-        "estate_lake": '{"filesystem_options": {"key": "...", "secret": "..."}}',
-    }),
-    output_directory="build",
-)
-```
+## Decisions you make
 
-The credential value is a JSON object whose `filesystem_options` are handed to
-the filesystem implementation for the URI's scheme; unknown keys are refused. A
-credentialed location must have a scheme, and a bare path with a credential
-fails with `credentialed source locations require a URI scheme`. The filesystem
-is configured when that source is read, not when the contract is compiled, so
-the frozen contract stays free of secrets.
+- **Choose the format explicitly.** The CSV default is a trap for JSON and
+  Parquet sources.
+- **Prefer a stable path.** Use an absolute path or build one from
+  `Path(__file__).parent`; a relative path resolves against the process's current
+  directory.
+- **Keep acquisition out of declarations.** A generated table package contains no
+  path. Generated files must not be edited; regenerate them from the request
+  instead.
+- **Name credentials, never inline them.** A credentialed location needs a URI
+  scheme, and the secret belongs in the build runtime.
+- **Put provenance on the binding.** `SourceBindingOptions(annotations=...)`
+  describes where the rows came from, not what a row means.
 
-## Versions
+## Limits
 
-`version` is a free-text label recorded verbatim in the source entry of the
-compiled contract, next to the location and the format. Nothing in the build
-interprets it: it does not select a file, pin a commit or trigger a download.
+- A source never changes a shape. It does not add, drop or rename a field; the
+  declaration does that.
+- A group source requires a layout; its single config supplies one format for
+  every member.
+- A group layout may use only `{group_path}` and `{table_name}`, and must resolve
+  every member of the group.
+- Every table a reached binding or projection reads must be bound, and each table
+  may be bound once.
+- A source can be a single file, a glob or a directory as far as its reader
+  supports it.
+- Before any row is consumed, the build checks that the declared fields exist at
+  the location and that the bytes match the declared format. A null that reaches
+  a non-null property or key fails at the point of use.
 
-Use it to name the snapshot you meant — `registry-2026-08`, a warehouse release
-tag, an export date — so whoever reads the contract can see which vintage of the
-data it described.
+## Next steps
 
-## Keeping acquisition out of declarations
+Continue with [expressions](expressions.md) to turn these typed rows into values.
 
-The two layers are separate on purpose:
+## Reference
 
-- `table/` holds table and struct declarations: fields, types, descriptions,
-  annotations. A generated table package contains no path and must not be
-  edited; regenerate it from the request instead.
-- The module that binds sources holds every location, format, credential
-  reference and version.
-
-```text
-request ──generate──> table/ (shape only) ──bind_source──> sources.py (location only)
-```
-
-Changing where a file lives edits the source binding, and no table, projection
-or binding changes. Changing a column edits the table declaration, and every
-binding that reads that column is checked against it. Neither edit can hide
-inside the other.
-
-Source-level provenance belongs on the bound source, using
-`SourceBindingOptions(annotations=...)`; it describes where the rows came from,
-not what a row means. The compiled source entry carries the table declaration's
-own annotations first, then the source binding's annotations. A group source's
-annotations are copied to each resolved member. Annotations themselves are
-covered on [annotations and descriptions](annotations.md).
-
-## What the build checks before reading rows
-
-Compilation records the declared fields alongside the location. When the build
-starts that source, before any row is consumed, it compares the two:
-
-- a field the contract declares but the source does not expose fails with
-  `declared field(s) 'opened_on' are absent from '<location>' for '<table>';
-  the source exposes ...`
-- a source whose bytes do not match the declared format fails with `the source
-  at '<location>' for '<table>' cannot be read as the declared 'json' format`
-- a null that reaches a non-null graph property or key fails at the point of
-  use, naming the property and the row key — see
-  [types](types.md#nullability-on-access).
-
-This ordering is what makes a source defect readable: by the time a binding
-runs, the table is known to have the declared columns, in the declared format.
-
-## What to remember
-
-- A source binding is the only place a location, format or credential appears.
-- Bind at module level; discovery finds `BoundSource` values in the package.
-- A group source maps a table's place in the hierarchy to a path. It does not
-  join, merge or change the rows.
-- `version` is a label, not a pin. Pin input data in your own pipeline.
-- A source defect surfaces before any row is consumed, so read the first
-  failure rather than the last.
-
-Next: [Expressions](expressions.md) turns these typed rows into values.
+For every source option, format, layout placeholder and credential detail, see
+the [sources and ingest reference](../reference/ingest.md).

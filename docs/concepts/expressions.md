@@ -1,377 +1,202 @@
 # Expressions
 
-A binding needs values, not SQL. Expressions name a field, walk into a nested
-record, fan a list out into rows, and transform what you find. Every step is an
-explicit method call on a typed object: no Python operators, no string SQL, no
-hidden conversions.
+An expression is a typed value in a row: it names a field, walks into a nested
+record, fans a list into rows, or calculates a result.
 
-Two facts make the model easy to hold: a value knows its logical type including
-nullability, and every operation says whether it changes the row. Row-changing
-operations are reached through a one-shot handle, `alter_rows()`, so their cost
-is visible where you write them.
+A binding needs values for keys and properties. Writing those as SQL strings or
+Python lambdas over dictionaries loses two things the build depends on: the type
+of the result and whether it may be absent. Expressions sit between typed rows
+and the records built from them. Every step is an explicit method call on a typed
+object, so the compiler can check what a value may become and you can see where a
+row changes.
 
 ## Selections and expressions
 
-Reading a field gives a **selection**: a typed position in a row. A selection
-navigates shape and chooses a null policy, but it does not calculate. Asking a
-selection for `.expression` gives a **bindable expression**: a calculation whose
-result is a value, with no null policy of its own.
+Two kinds of object appear in a row plan:
 
-| You want to | Use | Lives on |
-| --- | --- | --- |
-| name a field | `row.site_id` | selection |
-| decide what a null means | `alter_rows().drop_null()`, `default_to(...)` | selection |
-| walk into a struct | `extract(...)` | selection |
-| turn a list into rows | `alter_rows().expand()` | selection |
-| filter by a value | `alter_rows().drop_if(...)` | selection |
-| change a present list | `drop_null_items()`, `sort()`, `unique()`, `concat()`, `transform_items(...)` | selection |
-| calculate a value | `prepend`, `add`, `equals`, `to_string` | expression |
+- A **selection** is a typed position in a row. It navigates shape and chooses a
+  null policy, but it does not calculate.
+- An **expression** is a calculation. It has a result type and no null policy of
+  its own.
 
-The split is load-bearing: a nullable expression exposes no typed calculations
-— no `prepend`, `add` or `equals` — so narrowing is type-checked.
+Reading a field gives a selection. Asking it for `.expression` gives a bindable
+expression. This split is load-bearing: a nullable expression exposes no typed
+calculations, so narrowing happens before arithmetic or comparison.
+
+| You want to | Write |
+| --- | --- |
+| name a field | `row.site_id` |
+| decide what a null means | `alter_rows().drop_null()`, `default_to(...)` |
+| walk into a struct | `extract(...)` |
+| turn a list into rows | `alter_rows().expand()` |
+| filter rows by a value | `alter_rows().drop_if(...)` |
+| change a present list | `sort()`, `unique()`, `concat()`, `drop_null_items()` |
+| calculate a value | `prepend`, `add`, `equals`, `to_string()` |
+
+A binding and a projection output accept either a selection or an expression.
+
+## Start from nullable access
+
+A source field reads as nullable even when it is declared `Field[str]`. The
+declaration names the value type; access owns presence. The first step in most
+expressions is to narrow that value or decide what an absent one means:
 
 ```python
-from kg_build_system import (
-    Array, Field, Struct, Table, as_expression, field, value_expression,
-)
+from estate.table import DefectTable, SiteTable
 
-
-class ContactStruct(Struct):
-    email: Field[str] = field()
-
-
-class SiteTable(Table):
-    site_name: Field[str] = field()
-    kind: Field[str] = field()
-    status: Field[str] = field()
-    survey_period: Field[str] = field()
-    tags: Field[Array[str]] = field()
-    aliases: Field[Array[str | None]] = field()
-    contacts: Field[Array[ContactStruct]] = field()
-
-
-identity = SiteTable.site_name.alter_rows().drop_null()   # ValueSelection[str]
-label = identity.expression.prepend("site:")              # StrExpression
-prefixed = value_expression("kg:").append(as_expression(identity))
+key = SiteTable.site_id.alter_rows().drop_null()        # ValueSelection[str]
+name = SiteTable.name.default_to("Unnamed site")        # ValueSelection[str]
 ```
 
-Bindings accept either form, which is what `ValueInput` means in the API, and a
-projection field accepts either too.
+A projection field and a `ComputedStruct` member are different. A projection's
+`computed_field(expression)` carries the expression's type, so a non-null
+expression reads as non-null. A `ComputedStruct` member is read through `extract`;
+its expression is a type witness, and the carrier's nested data supplies the
+value.
 
-## Literals and normalisation
+## Row effects are explicit
 
-`value_expression` infers a literal's type from the Python class and checks it at
-that point: `value_expression("derived")` is a `StrExpression`,
-`value_expression(1.5)` a `FloatExpression`, `value_expression(False)` a
-`BoolExpression`.
+Some operations change which rows exist. They are reached through `alter_rows()`,
+a one-shot handle that exposes only the effects valid for that selection. Its
+methods return a selection, not another handle, so a second effect needs a second
+opt-in:
 
-A bare `None` has no type, so `value_expression(None)` fails with `a null literal
-requires an explicit nullable logical type`. A null literal is legal only when
-you pass that type explicitly; fields and selections are the usual way to carry
-an absent value.
+```python
+tag = (
+    DefectTable.tags
+    .alter_rows().drop_null()
+    .alter_rows().expand()
+)
+```
 
-`as_expression` normalises either a selection or an expression to an expression.
-Expression methods take a Python value or a `ValueExpression`, never a selection,
-so write `.expression` or `as_expression(...)` when combining, as above.
+`expand()` turns an array into its items and produces one row per item. An absent
+array and an empty array both produce no rows. A null item in a present array
+produces one row whose value is null.
 
-## Field access
+`drop_null()` removes the row when the value is absent. It acts on the whole row,
+even when the expression is used for only one property: dropping an unnamed site
+means the site produces no node, not a node with an empty name.
 
-`Table.field` reads a source column. It is always a `NullableSelection[T]`, even
-when the declaration is `Field[T]` without `| None`, and even for arrays and
-structs. A declaration names the value type; access owns nullability, so binding
-a source value always starts by narrowing or defaulting it.
+`drop_if(predicate)` keeps rows whose value satisfies a boolean predicate. The
+predicate is value-scoped and must return a `BoolExpression`; a false or null
+predicate drops the row.
 
-`Projection.field` is different: it is expression-backed, so it carries its
-expression's type. A non-null expression gives a non-null selection, and a
-nullable expression gives a nullable one.
-
-A `ComputedStruct` member is only readable through `extract`. It is a **type
-witness**: its `computed_field` expression fixes the member's logical type and
-nullability, but the expression is not evaluated when the struct is used as a
-`Field[T]`. The read becomes a field reference on the carrier record, and the
-carrier's nested data supplies the value. See
-[projections](projections.md#computed-structs).
-
-Field access works at class level and, inside `bind`, on the symbolic shape
-instance the lambda receives. Reading a projection field returns the projection's
-*materialised output*, not the calculation behind it, so a later projection
-reuses it — see [projections](projections.md).
-
-Source struct members are only valid inside `extract`. Reading
-`ContactStruct.email` outside a selector gives a member selection that refuses to
-become an expression with
-`a struct member selection is only valid inside extract`.
-
-## `extract`
-
-`extract` selects one declared member of a struct. The selector receives a
-symbolic instance of the struct shape, so the member comes back with its declared
+`default_to(value)` does not change the row. It replaces a null and returns a
+non-null selection of the same shape. The fallback must have the field's exact
 type.
 
-```python
-contact = SiteTable.contacts.alter_rows().drop_null().alter_rows().expand()
-email = contact.extract(lambda item: item.email)   # NullableSelection[str]
-```
+## Calculations keep the type
 
-- The selector must return a field declared by the struct it was given; anything
-  else fails with `struct selectors must return a declared field selection`.
-- Parent nullability propagates. A nullable parent makes every member nullable;
-  a present parent leaves a non-null `ComputedStruct` witness non-null, while a
-  source `Struct` member is nullable in its own right.
-- Source members are nullable at every source step. `contact` is present above,
-  but `email` is still nullable because it is a source field.
-- A `ComputedStruct` member is a witness type, not a calculation: `extract`
-  reads the member from the carrier record and uses the witness only to type the
-  result.
-
-`extract` is a path, not an operation: it does not change the row count and adds
-no null handling of its own.
-
-## `expand` fans out rows
-
-`expand()` turns an array into its items and produces **one row per item**. It is
-a row effect, so you reach it through `alter_rows()`. Narrow the nullable array to
-a present `ArraySelection` when you want to make that presence explicit, then
-expand:
+Once a value is non-null, expression methods calculate with it:
 
 ```python
-# One row per contact. A site with no contacts contributes no rows.
-contacts = SiteTable.contacts.alter_rows().drop_null().alter_rows().expand()
+label = name.expression.prepend("site: ")
 ```
 
-`alter_rows()` returns a one-shot handle that exposes only the row effects
-available on that selection: `drop_if` on every selection, `expand` on an array,
-and `drop_null` on a nullable selection. Each method returns a selection, not
-another handle, so a second effect needs another opt-in:
+Text has `prepend`, `append`, `replace`, `before_separator`, `after_separator`
+and `equals`. Numbers have `add` and `sub`. Booleans have `not_`, `and_` and
+`or_`. Every canonical scalar has `to_string()`, which is the way into an
+identity. Nullability propagates through a calculation: a nullable input yields a
+nullable result.
+
+Methods that combine values accept a Python literal or an expression, not a
+selection. Use `.expression` or `as_expression(...)` when a selection is one of
+the inputs.
+
+`value_expression(...)` creates a literal and infers its type from the Python
+value. A bare `None` has no type, so a null literal needs an explicit nullable
+type; fields and selections are the usual way to carry absence.
+
+## Arrays are values until you expand them
+
+A source array reads as a nullable selection. Narrow it to a present
+`ArraySelection`, then either use it as a value or expand it into rows. `expand`
+is the only row effect; the rest calculate a new array:
 
 ```python
-# Drop the absent array first, then fan out its items.
-tags = SiteTable.tags.alter_rows().drop_null().alter_rows().expand()
+tags = DefectTable.tags.alter_rows().drop_null()   # ArraySelection[str]
+tag_key = tags.sort().unique().concat("|")         # ValueSelection[str]
+first = tags.at(0)                                 # NullableSelection[str]
 ```
 
-Calling `alter_rows().expand()` on the nullable selection also works; an absent
-array contributes no rows either way. The two-step form makes the array present
-first and is the form used here.
+`sort`, `unique`, `concat`, `at`, `slice` and `transform_items` work on a present
+array. `at` and `slice` navigate without changing rows, so they do not need
+`alter_rows()`. `at` returns a nullable item because an index may be out of
+bounds. `concat` joins string items and refuses an array whose items may be null;
+call `drop_null_items()` first.
 
-This is the one operation that fans one row out into several.
-
-- An absent array and an empty array both yield **zero rows** for that input.
-- A null item in a present array yields one row whose value is null. If the item
-  type is `T | None`, the expanded selection is nullable and you still need
-  `alter_rows().drop_null()` or `default_to(...)` to bind a non-null property.
-- Expansions nest: expanding `elements` inside an expanded area yields one row
-  per element of that area, and a further `defects` expansion one row per defect
-  of that element. Expanding two unrelated arrays multiplies the two fan-outs.
-  Two uses of the same expansion share one fan-out, identified by the field path
-  it expands, and the result belongs to the product using it.
-
-!!! warning "Everything else in the row is repeated"
-    If an expanded value builds a node whose key does not depend on the item, the
-    same key is emitted several times. Deduplication is a module concern.
-
-## `drop_null`
-
-`drop_null()` removes a null by removing the row. It is a row effect, so you
-write it through `alter_rows()`:
-
-```python
-identity = SiteTable.site_name.alter_rows().drop_null()   # ValueSelection[str]
-```
-
-It is attribute-level: a nullable scalar becomes non-null, a nullable array
-becomes a present array, and a nullable struct becomes a present struct. Every
-row in the same product whose value is null disappears, even when the expression
-is used in only one property: `SiteTable.site_name.alter_rows().drop_null()` in a
-binding drops a site with no name rather than emitting a node with an empty one.
-
-Use it when an incomplete record should not exist: always for keys, and for a
-non-null property whose value you refuse to invent. Dropping the same field in
-two property expressions adds the filter once. A nullable selection also exposes
-`drop_null()` directly; the guide writes it through `alter_rows()` so the row
-change is visible.
-
-## `drop_if`
-
-`drop_if(predicate)` filters rows by this value. It is a row effect and lives on
-the `alter_rows()` handle. The predicate is **value-scoped**: it receives the
-selection itself and must return a `BoolExpression`. The row survives when the
-predicate is true.
-
-```python
-active = (
-    SiteTable.kind.alter_rows().drop_null()
-    .alter_rows().drop_if(lambda value: value.expression.equals("active"))
-)
-```
-
-The first gate drops rows with no kind; the second keeps only active kinds. A
-false or null predicate drops the row, so narrow a nullable value before
-comparing it. `drop_if` changes which rows survive, not the value's type or
-nullability.
-
-## `default_to`
-
-`default_to(value)` replaces a null and keeps the row. The result is non-null and
-has the same shape, so a nullable array becomes a present array:
-
-```python
-period = SiteTable.survey_period.default_to("Unrecorded period")
-labels = SiteTable.aliases.default_to([])   # ArraySelection[str | None]
-```
-
-The fallback must have the member's exact type: an `int` field takes `0`, not
-`"0"`, and an array field takes a list of that item type. A mismatch is raised
-while the binding is declared.
-
-Reserve it for an absence that is meaningful and a fallback that is honest. On a
-key it is almost never honest: every null gets the same key, and a later merge
-treats those records as one entity.
-
-## Array operations
-
-A source array reads as a nullable selection. Narrow it first to get a present
-`ArraySelection`, then use the array operations. `expand` is the one row effect;
-the rest calculate a new array value.
-
-| Operation | Available on | Result | Null and row behaviour |
-| --- | --- | --- | --- |
-| `alter_rows().drop_null()` | nullable array | `ArraySelection[T]` | drops rows with an absent array |
-| `alter_rows().expand()` | nullable or present array | item selection | one row per item; absent/empty → no rows |
-| `drop_null_items()` | `ArraySelection[T \| None]` | `ArraySelection[T]` | drops null items |
-| `sort()` | present array | same array type | orders items ascending |
-| `unique()` | present array | same array type | keeps one copy per item |
-| `concat(sep)` | present `ArraySelection[str]` | `str` | empty array → `""` |
-| `transform_items(fn)` | present array | array of `fn` results | item nullability preserved |
-| `at(index)` | present array | nullable item selection | 0-based; out of bounds → null |
-| `slice(start, end)` | present array | same array type | 0-based, end-exclusive |
-
-```python
-tags = SiteTable.tags.alter_rows().drop_null()   # ArraySelection[str]
-key = tags.sort().unique().concat(":")
-first = tags.at(0).alter_rows().drop_null()      # drop rows with no first tag
-window = tags.slice(0, 2)                        # ArraySelection[str]
-tag = tags.alter_rows().expand()                 # one row per tag
-```
-
-`drop_null_items()` is how a nullable-item list becomes bindable. Narrow the array
-first, then clean the items:
+`drop_null_items()` is the explicit conversion from `Array[T | None]` to
+`Array[T]`. A graph property accepts the flat array, not the nullable-item one:
 
 ```python
 aliases = SiteTable.aliases.alter_rows().drop_null().drop_null_items()
 ```
 
-`at(index)` and `slice(start, end)` are navigation, not row effects: they do not
-need `alter_rows()`. Indices are 0-based and `slice` is end-exclusive. `at`
-returns a nullable selection because an index may be out of bounds; narrow it
-with `alter_rows().drop_null()` when the element must exist.
+## Filters and group keys
 
-`concat(separator)` joins non-null string items and refuses an array whose items
-may be null; call `drop_null_items()` first.
-
-`transform_items` applies one expression to every item without changing the row
-count. A nullable item type stays nullable after the transform, and the selector
-runs for null items too, so write it to handle them. The selector may not contain
-a row effect: an `alter_rows().expand()` or `alter_rows().drop_null()` inside it
-fails with `transform_items selectors must not contain row effects`. There is no
-`map_items` method.
-
-## String, number and boolean operations
-
-| Family | Methods |
-| --- | --- |
-| any scalar | `to_string()` |
-| text | `prepend`, `append`, `replace`, `before_separator`, `after_separator`, `equals` |
-| int, float | `add`, `sub` |
-| bool | `not_`, `and_`, `or_` |
-
-`to_string()` is the way into an identity: every canonical unit scalar has one
-text form, timestamps carry the `T` separator, and a nullable value yields a
-nullable string. Arrays, structs and custom scalars are refused with
-`to_string() requires a scalar unit`; only the eight canonical units
-(`bool`, `int`, `float`, `str`, `date`, `time`, `timestamp`, `uuid`) have that
-form.
-
-`before_separator` and `after_separator` take a separator, an occurrence counted
-from 1, and an optional `include_separator`. When the separator does not occur
-that many times, `before` returns the whole string and `after` returns `""`.
-
-`equals` is the only comparison, and it exists on text only. Arithmetic is
-addition and subtraction. Numbers are not compared directly; reshape the data
-rather than stringifying it.
-
-## `any_of` and `all_of`
-
-Predicates are `BoolExpression` values. `any_of` and `all_of` combine them and
-carry the empty identities `any_of() == False` and `all_of() == True`, so a
-generated condition is safe when its list is empty.
+`row_source().where(...)` filters rows with a callable that receives a symbolic
+shape instance and returns a `BoolExpression`. `Table.where` and
+`Projection.where` are shorthand for the same filter. Filters chain, and every
+filter is kept:
 
 ```python
-from kg_build_system import any_of
-
-active_sites = SiteTable.row_source().where(lambda site: any_of(
-    site.status.alter_rows().drop_null().expression.equals("active"),
-    site.status.alter_rows().drop_null().expression.equals("pending"),
-))
+open_defects = DefectTable.row_source().where(
+    lambda row: row.status.alter_rows().drop_null().expression.equals("open"),
+)
 ```
 
-Boolean combinations follow three-valued logic: true if any predicate is true,
-false if all are false, and null otherwise. A `where` keeps only true, so a null
-predicate drops the row — which is why comparing a nullable field needs
-`alter_rows().drop_null()` first: the comparison, not the filter, refuses the
-null.
+Use `any_of` and `all_of` to combine predicates. Both have an empty identity, so
+a generated condition is safe when its list is empty.
 
-## `where` on row sources
+Group keys are scalar inputs to `group_by`. Rows whose key is null are dropped
+before grouping, so every generated key member is non-null. The join, union,
+group and order operations themselves are on [row sources](row-sources.md).
 
-`Table.row_source().where(...)` and `Projection.row_source().where(...)` return a
-filtered row source with the same shape. `Table.where` and `Projection.where` are
-shorthand for the same filter. The predicate is a callable that receives a
-symbolic shape **instance**, not the class, and must return a `BoolExpression`; a
-bare expression fails with `where requires a callable predicate`, a non-boolean
-with `where predicates must return a BoolExpression`.
+## Decisions you make
 
-Filters chain and every filter is kept; pass the result as `rows=` to a binding,
-or as the base of a projection.
+- **Narrow before you calculate.** Source access is nullable, so a key, a
+  required property or an array operation starts with `drop_null()` or
+  `default_to()`.
+- **Drop the row or keep it.** `drop_null()` means the record should not exist;
+  `default_to()` means the absence has an honest fallback. For a key, dropping is
+  almost always right, because a fallback collapses distinct records into one
+  identity.
+- **Expand only when the list is the grain.** Expanding one array multiplies the
+  row; expanding two unrelated arrays multiplies both counts. Everything else in
+  the row is repeated, so a constant key is emitted several times. Deduplication
+  is a module concern.
+- **Write one row plan per product.** A projection or binding has one row plan:
+  the filters on its source plus the effects its expressions require, each applied
+  once. Two uses of the same expanded field share one fan-out; effects never leak
+  into another product.
+- **Order expansions from the outside in.** A chain of expansions walks a nested
+  document one level at a time. Reach a struct member with `extract` before
+  expanding the array inside it.
 
-`where` is one operation in the row-source algebra, not the whole of it.
-`Table.row_source()`, `Projection.row_source()` and every derived source also
-support `union`, `join`, `group_by`, `distinct` and `order_by`. The algebra is
-described on [row sources](row-sources.md); a projection can pin any plan it
-builds, including a joined or grouped one.
+## Limits
 
-## Row effects and scope
+- There are no Python operators, no SQL strings and no implicit conversions.
+  `+` does not add, and `==` does not compare.
+- `equals` exists on text only. Numbers have `add` and `sub` but no comparison.
+  Reshape the data rather than stringifying it to compare.
+- `to_string()` exists for the eight canonical scalars only. Arrays, structs and
+  custom scalars are refused.
+- Temporal and `uuid` values expose no comparison or filtering operations.
+  Custom scalars expose no value operations at all.
+- A struct member selection is valid only inside `extract`; reading one elsewhere
+  is refused.
+- A `transform_items` selector may not contain a row effect.
+- An expansion repeats every other value in the row. Identity and deduplication
+  are handled by bindings and modules, not by `expand`.
+- Boolean filters use three-valued logic: a null predicate drops the row, so
+  narrow a nullable value before comparing it.
 
-| Operation | Row effect | Effect on nullability |
-| --- | --- | --- |
-| `alter_rows().expand()` | one row per item | item nullability preserved |
-| `alter_rows().drop_null()` | drops null rows | removes the null |
-| `alter_rows().drop_if(predicate)` | drops rows whose value fails the predicate | unchanged |
-| `where(...)` | drops non-matching rows | shape unchanged |
-| `default_to(...)` | none | removes the null |
-| array and scalar operations | none | preserved |
+## Next steps
 
-A product — one projection or one binding — has one row plan: the filters on its
-row source plus the effects its expressions require, each applied once and never
-spread to another product. `expand` nests in the order the expansions appear,
-which is how a chain of expansions walks a document from the outside in.
+Continue with [row sources and grain](row-sources.md) to filter, join, group and
+union these row plans.
 
-The practical rule: before adding `drop_null` or `expand`, ask what should happen
-to the row. If it should survive, use `default_to` or a nullable property; if it
-should not exist, filter it.
+## Reference
 
-## What to remember
-
-- Selections navigate and own null policy; expressions calculate.
-- Every source field reads as nullable, so narrow it before a key, a required
-  property, or an array operation.
-- `alter_rows()` is a one-shot opt-in. Each effect returns a selection, so a
-  second effect needs a second `alter_rows()`.
-- `expand()` is the only operation that fans one row into many; filters such as
-  `drop_null()` reduce the rows instead.
-- `drop_null()` drops the row; `default_to()` keeps it. Decide which fact you
-  mean before writing either.
-- Nullability propagates through every path, array operation and `extract`.
-- A binding or projection has one row plan. Effects do not leak between
-  products.
-
-Next: [Projections](projections.md) gives a row plan a name other declarations
-can share.
+For every selection, expression method, array operation and row effect, see the
+[expressions and selections reference](../reference/expressions.md).

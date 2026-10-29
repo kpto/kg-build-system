@@ -1,27 +1,29 @@
 # Topology
 
-Topology is the part of a build that knows nothing about files. It declares
-what kinds of things exist in the graph, what each thing is called, which
-properties it carries, and how those things relate to each other.
+Topology declares the graph's meaning: the node and edge types, their properties, their hierarchy and the direction of every relationship.
+
+Input rows say which values exist. Topology says what those values are to a graph consumer. It reads no files and holds no data. It is the contract that every binding must satisfy and the declaration the build publishes alongside the graph.
+
+## The problem: a row does not say what it means
+
+A `unit_ref` column identifies a unit, but it does not tell a consumer that a site *has* that unit, or that the unit belongs to a site rather than to a survey.
+
+Without a declaration, that meaning lives in a comment, a query or someone's memory. Topology moves it into the graph: a `SiteNode`, a `UnitNode`, and a `HAS_UNIT` edge whose source is the site and whose target is the unit.
+
+## The model
 
 You write topology as ordinary Python classes:
 
-- a **node** is a thing: a site, a unit, a defect;
-- an **edge** is a directed relationship between two nodes: a site *has* a
-  unit, a unit *has* a defect.
+- A **node** is a thing: a site, a unit, a defect.
+- An **edge** is a directed assertion between two nodes: a site *has* a unit, a unit *has* a defect.
 
-The declaration fixes meaning and shape. It stores no data. Values arrive
-later, in a [binding](bindings.md), when you assign an expression to every
-declared property.
-
-## A first node and edge
+Each declaration names the component, its properties and, for an edge, its two endpoints. The declaration stores no values. Values arrive later, in a [binding](bindings.md), when you assign an expression to every declared property.
 
 ```python
 from kg_build_system import (
     Edge, EdgeLabel, EdgeOptions, Node, NodeLabel, NodeOptions,
     PropertySlot, property,
 )
-from kg_build_system.types import Timestamp
 
 
 class SiteNode(Node):
@@ -32,8 +34,8 @@ class SiteNode(Node):
     name: PropertySlot[str] = property()
     """The site's display name."""
 
-    city: PropertySlot[str | None] = property()
-    """City the premises is located in, absent when the register omits it."""
+    region: PropertySlot[str | None] = property()
+    """Region the site belongs to, absent when the register omits it."""
 
 
 class UnitNode(Node):
@@ -42,10 +44,16 @@ class UnitNode(Node):
     options = NodeOptions(annotations=(NodeLabel("Unit"),))
 
     name: PropertySlot[str] = property()
-    """The equipment name as the register records it."""
-
     in_service: PropertySlot[bool] = property()
-    """True while the equipment is in service."""
+
+
+class DefectNode(Node):
+    """A defect recorded against a unit."""
+
+    options = NodeOptions(annotations=(NodeLabel("Defect"),))
+
+    title: PropertySlot[str] = property()
+    severity: PropertySlot[str | None] = property()
 
 
 class HasUnitEdge(Edge[SiteNode, UnitNode]):
@@ -53,273 +61,143 @@ class HasUnitEdge(Edge[SiteNode, UnitNode]):
 
     options = EdgeOptions(annotations=(EdgeLabel("HAS_UNIT"),))
 
-    installed_on: PropertySlot[Timestamp | None] = property()
-    """Date the equipment was installed, absent when the register omits it."""
+    as_at: PropertySlot[str | None] = property()
+
+
+class HasDefectEdge(Edge[UnitNode, DefectNode]):
+    """Relates a unit to a defect found on it."""
+
+    options = EdgeOptions(annotations=(EdgeLabel("HAS_DEFECT"),))
+
+    reported_on: PropertySlot[str | None] = property()
 ```
 
-The type arguments of `Edge[Source, Target]` are the endpoints, in order. The
-source is the first argument and the target is the second. An edge is always
-directed; the order is part of its meaning, not a display detail.
+The type arguments of `Edge[Source, Target]` are the endpoints, in order. An edge is always directed, and the order is part of its meaning. `Edge[SiteNode, UnitNode]` reads *site has unit*, not *unit has site*.
 
-A topology class is also the object you instantiate in a binding to assign
-property expressions, such as
-`UnitNode(name=row.unit_name.alter_rows().drop_null(), ...)`. Every declared
-property, including inherited ones, must be assigned. There are no defaults and
-no optional properties on a declaration; a property is either nullable in its
-type or required.
+## Properties
 
-## Scalar and array properties
+A `PropertySlot[T]` accepts a scalar graph value or a flat array of non-null scalars. Use `T | None` when the graph may hold no value:
 
-A `PropertySlot[T]` accepts a scalar graph value or a flat array of non-null
-scalars. Use `T | None` when the graph may hold no value:
-
-| Declaration | Meaning |
+| Declaration | Stores |
 | --- | --- |
-| `PropertySlot[str]` | Required string |
-| `PropertySlot[str \| None]` | String or no value |
-| `PropertySlot[Timestamp]` | Required timestamp |
-| `PropertySlot[Array[str]]` | Required list of strings |
-| `PropertySlot[Array[float] \| None]` | List of floats or no list |
+| `PropertySlot[str]` | A required string |
+| `PropertySlot[str \| None]` | A string or no value |
+| `PropertySlot[Array[str]]` | A required list of strings |
+| `PropertySlot[Array[float] \| None]` | A list of floats or no list |
 
-Scalars are booleans, integers, floats, strings, `Date`, `Time`, `Timestamp`,
-`Uuid`, and custom scalar types. Arrays are one level deep and homogeneous.
-Nested arrays and structs are not graph properties; use
-[`extract()`](expressions.md) or [`alter_rows().expand()`](projections.md) to
-reach scalar values.
+Arrays are one level deep and homogeneous. Null items inside an array are rejected; narrow the array and apply `drop_null_items()` before assigning it. An empty array differs from a missing array.
 
-A custom scalar (`CustomDataType`) is accepted wherever a scalar is accepted,
-including as an array item. It has no value operations of its own, so the
-binding carries it rather than comparing or composing it. A target may narrow
-what it stores: the Neo4j bundle refuses custom scalar and `uuid` properties.
+Nested arrays and structs are not graph properties. When a value is richer than a flat array, make it a node and connect it with an edge. Use [`extract()`](expressions.md) or [`alter_rows().expand()`](projections.md) to reach the scalar values a property accepts.
 
-Null items inside an array are rejected. When the source gives you
-`Array[T | None]`, narrow the array to a present selection and apply
-[`drop_null_items()`](expressions.md) before assigning it. An empty array
-differs from a missing array.
-
-Nullability is a declaration, not a hint. A required property promises that a
-value will be present; the build stops if the data breaks that promise. A
-nullable property accepts a null expression, and the null is stored as an
-absent graph value. The [bindings](bindings.md) page explains the two ways to
-turn a nullable selection into a value the graph can use.
-
-## Property metadata
-
-`property()` accepts `name`, `description` and `annotations`. A plain docstring
-immediately below the assignment is the usual form. The framework reads that
-source line when the class is created, so keep the declaration in an ordinary
-importable module:
-
-```python
-name: PropertySlot[str] = property()
-"""The site's display name."""
-```
-
-The external property name defaults to the attribute name in snake case. One
-trailing underscore is reserved as an escape for a Python collision:
-`options_` becomes the external name `options`. Two properties on one
-component may not share an external name. A property description belongs to
-the declaring class and travels with the property through inheritance.
+Nullability is a declaration, not a hint. A required property promises that a value will be present, and the build stops if the data breaks that promise. A nullable property accepts a null expression and stores no graph value. Every declared property, including inherited ones, must be bound; there are no defaults.
 
 ## Templates, categories and concrete components
 
-There are three tiers. They differ in what they contribute to the graph and
-whether a binding may target them.
+A topology class has one of three roles:
 
-| Base | Purpose | Graph-visible | Bindable |
-| --- | --- | --- | --- |
-| `NodeTemplate`, `EdgeTemplate` | Share properties and annotations | No | No |
-| `AbstractNode`, `AbstractEdge[S, D]` | Category parent and endpoint category | Yes | No |
-| `Node`, `Edge[S, D]` | Concrete component | Yes | Yes |
+| Base | Role | Receives records |
+| --- | --- | --- |
+| `NodeTemplate`, `EdgeTemplate` | Share property slots and annotations | No |
+| `AbstractNode`, `AbstractEdge` | A graph-visible category parent | No |
+| `Node`, `Edge` | A concrete component | Yes |
 
-A declaration chooses one tier by its bases. Concrete components are terminal:
-you cannot subclass a class that is already a `Node` or `Edge`.
-
-### Templates
-
-A template is an inert mixin. It shares property slots and annotation flow but
-never becomes a graph component, never receives a logical name, and may not be
-a binding target or an endpoint category.
+A template is an inert mixin. It never becomes a graph component, never receives a logical name, and cannot be a binding target or an endpoint. A category is a graph-visible parent: it carries shared properties and lets an edge name a whole family of nodes instead of one concrete component. A concrete component is the only thing a binding can target.
 
 ```python
-from kg_build_system import Node, NodeOptionsTemplate, NodeTemplate, PropertySlot, property
+from kg_build_system import (
+    AbstractEdge, AbstractNode, Edge, Node, NodeTemplate, PropertySlot, property,
+)
+
 
 class ProvenancedNodeTemplate(NodeTemplate):
     """Every node records the feed version that produced it."""
 
-    options = NodeOptionsTemplate()
     source_version: PropertySlot[str] = property()
-    """The data release the node's facts were built from."""
 
-class MeterNode(ProvenancedNodeTemplate, Node):
-    """One metering point on the estate."""
-
-    name: PropertySlot[str] = property()
-```
-
-Templates declare annotations with `NodeOptionsTemplate(annotations=...)` or
-`EdgeOptionsTemplate(annotations=...)`. Those are annotations-only; a template
-has no name or description of its own.
-
-A declaration may mix in any number of templates of its own kind. The base order
-is normative: every template first, the one abstract category parent in the
-middle, and the terminal base last —
-`ProvenancedNodeTemplate, DocumentedAbstractNode, Node`. Mixing node-side and
-edge-side lineage is rejected at class creation.
-
-Keep one property slot per name. If two concerns need a slot called `as_at`,
-but at different types, make them sibling templates and mix the one that
-matches; redeclaring an inherited slot at another type is a static type error.
-
-### Categories
-
-An abstract component is a graph-visible parent. It carries shared properties,
-gives its children a common parent, and lets an edge name a whole category
-instead of one concrete component. It is never a binding target and produces no
-records of its own.
-
-Only reached categories enter the blueprint. A category is reached when a bound
-concrete component names it as an ancestor, or when a bound edge declares it as
-an endpoint; the entry carries the category's own properties and annotations.
-A category family with no bound descendant is not published, because nothing in
-the graph can refer to it.
-
-```python
-from kg_build_system import (
-    AbstractNode, Node, NodeLabel, NodeOptions, PropertySlot, property,
-)
 
 class DocumentedAbstractNode(AbstractNode):
     """Category: every documented entity carries a human-readable summary."""
 
-    options = NodeOptions(annotations=(NodeLabel("Documented"),))
     summary: PropertySlot[str] = property()
-    """A one-line human-readable rendering of the entity."""
 
-class PlaceNode(DocumentedAbstractNode, Node):
+
+class PlaceNode(ProvenancedNodeTemplate, DocumentedAbstractNode, Node):
     """A named location on the estate."""
 
-    options = NodeOptions(annotations=(NodeLabel("Place"),))
-    name: PropertySlot[str] = property()
-
-class AssetNode(DocumentedAbstractNode, Node):
-    """A maintained object held on the asset register."""
-
-    options = NodeOptions(annotations=(NodeLabel("Asset"),))
     name: PropertySlot[str] = property()
 ```
 
-Each declaration has at most one direct category parent. Multiple parents of
-the same kind are rejected, as is a non-framework base class. A category's own
-options stay on the category; a child does not inherit its description or its
-label. Categories may chain, and a concrete component records its nearest
-parent.
+Base order is normative: templates first, one abstract category parent in the middle, and the terminal base last. A declaration may mix in several templates of its own kind, but it has at most one direct category parent. A concrete component is terminal: you cannot subclass a class that is already a `Node` or an `Edge`.
 
-## Edge endpoints and inheritance
+A category is not a shortcut for a binding. It produces no records of its own; every record comes from a concrete component. Use a category when several components genuinely share meaning. Use a template when they only share property slots or annotations.
 
-An abstract edge may declare category endpoints. A concrete edge under it may
-keep those endpoints or narrow them:
+An abstract edge may declare category endpoints, and a concrete edge under it may keep or narrow them:
 
 ```python
-from kg_build_system import AbstractEdge, Edge, EdgeLabel, EdgeOptions
+from kg_build_system import AbstractEdge, Edge
 
-class MonitoredRelationAbstractEdge(
+
+class DocumentedRelationAbstractEdge(
     AbstractEdge[DocumentedAbstractNode, DocumentedAbstractNode]
 ):
-    """Category: a relationship asserted by the monitored estate data."""
-
-    options = EdgeOptions(annotations=(EdgeLabel("MONITORED"),))
+    """Category: a relationship between documented entities."""
 
 
-class AssetAtEdge(MonitoredRelationAbstractEdge, Edge[AssetNode, PlaceNode]):
-    """Relates an asset to the place that holds it."""
-
-    options = EdgeOptions(annotations=(EdgeLabel("ASSET_AT"),))
+class PlaceAtEdge(DocumentedRelationAbstractEdge, Edge[PlaceNode, PlaceNode]):
+    """Relates one place to another."""
 ```
 
-A narrower endpoint must equal or descend from every abstract edge ancestor's
-endpoint. Widening is rejected when the class is created. A concrete edge may
-also name no endpoints and inherit its parent's pair, as in
-`class UnnarrowedAssetAtEdge(MonitoredRelationAbstractEdge, Edge)`. Endpoints
-must be declared node components, abstract or concrete; a node template, edge,
-or plain Python class cannot be an endpoint.
+A narrower endpoint must equal or descend from every abstract ancestor's endpoint. When a declared side is a category, a binding names the concrete node it uses with an [`endpoint(...)`](bindings.md#endpoint-tokens) token. Concrete declared sides need no token.
 
-When a declared side is a category, a binding must name the concrete component
-it uses for that side with an [`endpoint(...)`](bindings.md#endpoint-tokens)
-token. Concrete declared sides need no token. Prefer concrete endpoints when
-the target must understand a fixed pair; declare a category only when the
-relationship is genuinely shared across several node types.
+## Names, labels and descriptions
 
-## Labels, names and descriptions
+A component has three descriptions:
 
-A component has a logical name (`options.name` or the class name), a label
-(`NodeLabel(...)` or `EdgeLabel(...)`), and a description (`options.description`
-or the class docstring). The name is stable graph identity; the label is
-target-native type mapping; the description is prose.
+- The **logical name** is stable graph identity. It defaults to the class name with one tier suffix removed: `SiteNode` becomes `site`, `HasUnitEdge` becomes `has_unit`. An explicit `options.name` replaces the inference.
+- The **label** is the target-native type mapping. `NodeLabel("Site")` becomes the target's node label, and `EdgeLabel("HAS_UNIT")` becomes its relationship type.
+- The **description** is prose for a human. `options.description` wins; otherwise the class docstring is used.
 
-A label is an [annotation](annotations.md), not a name. A node label becomes the
-target's node label and an edge label its relationship type. At most one label
-of the matching kind may be present across the effective annotations. A
-template may contribute one, but then the concrete declaration must not add
-another.
+A label is an [annotation](semantics.md), not a name. At most one label of the matching kind may be present. Labels and descriptions are own-only: a child does not inherit a category's label or description, and a category keeps its own entry. The logical name must be unique across nodes and edges.
 
-Labels are not inherited from a category: `PlaceNode` declares its own `Place`
-label, while `DocumentedAbstractNode` keeps `Documented` for the category
-entry. A child is not automatically labelled as its parent.
-
-The description is own-only too. `options.description` wins; otherwise the
-class docstring is used; an inherited description is never copied down. Write a
-description for what the component means in the graph.
-
-Logical names default to the class name with one tier suffix removed:
-`SiteNode` → `site`, `HasUnitEdge` → `has_unit`, `DocumentedAbstractNode` →
-`documented`. An explicit `options.name` replaces the inference completely.
-Component names must be unique across nodes and edges, so name the tier in the
-class name and let the suffix be stripped.
+Name the tier in the class name and let the suffix be stripped. This keeps the source readable while giving the graph a short, stable name.
 
 ## Edge or node?
 
-Use an edge for an association that exists between two things and has no
-identity of its own beyond the pair and the assertion. Use a node when the
-relation is itself a thing that other relations can point at.
+Use an edge for an association that exists between two things and has no identity beyond the pair and the assertion. Use a node when the relationship is itself a thing that other relationships can point at.
 
-Reify a relationship as a node when it has an identity the data already uses
-(a survey visit, an observation), carries properties other facts reference,
-participates in further relationships, or has its own lifecycle. Keep it as an
-edge when it is a named association whose properties describe that
-association: a score, an `as_at` date, the stage that asserted it.
+Reify a relationship as a node when it has an identity the data already uses (a survey visit, an observation), carries properties other facts reference, participates in further relationships, or has its own lifecycle. Keep it as an edge when it is a named association whose properties describe that association: a score, an `as_at` date, the stage that asserted it.
 
-Do not store an association as a node property. A `site_id` property on a unit
-is a scalar with no graph identity; it cannot be traversed and it duplicates
-the site's key. Declare a `HAS_UNIT` edge instead. Conversely, do not invent an
-edge for a plain attribute: a unit's name belongs on the unit.
+Do not store an association as a node property. A `site_id` property on a unit is a scalar with no graph identity; it cannot be traversed and it duplicates the site's key. Declare a `HAS_UNIT` edge instead. Conversely, do not invent an edge for a plain attribute: a unit's name belongs on the unit.
 
-Direction follows the sentence the edge expresses. `Edge[SiteNode, UnitNode]`
-with the label `HAS_UNIT` reads *site has unit*. If the reverse is a different
-assertion, declare a second edge type with the endpoints swapped.
+Direction follows the sentence the edge expresses. If the reverse is a different assertion, declare a second edge type with the endpoints swapped.
 
-Topology does not declare cardinality. Multiplicity is a property of the data
-and of the key you choose in the binding: one row per ordered pair gives one
-edge per pair, while several assertions between the same pair need their own
-edge identity. A node key identifies one node within its component; an edge
-key identifies one relationship record. Choose the key that matches the
-source grain. The [modelling patterns](../guides/patterns.md) guide collects
-the recurring choices.
+## Cardinality and identity
 
-!!! note "A category is not a shortcut for a binding"
-    Abstract components and templates exist to share meaning. They never
-    receive rows. Every record comes from a concrete component targeted by a
-    binding.
+Topology does not declare cardinality. Multiplicity is a property of the data and of the key you choose in the binding.
+
+One row per ordered pair gives one edge per pair. If several assertions can exist between the same pair, give each assertion its own edge identity. A node key identifies one node within its component; an edge key identifies one relationship record. Choose the key that matches the source grain. The [modelling patterns](../how-to/patterns.md) guide collects the recurring choices.
+
+## Limits
+
+- Topology declares meaning and shape, never data or cardinality.
+- Properties are scalars or flat, homogeneous arrays of non-null scalars. Anything richer is a node.
+- Templates and categories never receive records.
+- A concrete component is terminal and cannot be subclassed.
+- Labels and descriptions are own-only; a child does not inherit its category's.
 
 ## What to remember
 
-- Topology declares meaning and shape, never data.
-- A node is a thing; an edge is a directed assertion between two concrete
-  nodes.
-- Properties are scalars or flat non-null arrays. Anything richer is a node.
-- Categories and templates share meaning and never receive rows.
-- Direction and identity are declarations; multiplicity comes from the key and
-  the source grain.
+- A node is a thing; an edge is a directed assertion between two concrete nodes.
+- Every declared property is required at binding time, and nullability is part of the declaration.
+- Templates share slots, categories share graph meaning, and only concrete components receive records.
+- Direction and identity are declarations; multiplicity comes from the key and the source grain.
+- A label is target-native metadata, not the component's logical name.
 
-Next: [Bindings](bindings.md) supplies the rows and values behind these
-declarations.
+## Next steps
+
+- [Bindings](bindings.md) supply the rows and values behind these declarations.
+- [Semantics and annotations](semantics.md) publish portable metadata alongside the topology.
+
+## Reference
+
+[Topology reference](../reference/topology.md) lists the declaration rules, property metadata, endpoint constraints and errors.

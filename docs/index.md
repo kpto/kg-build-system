@@ -1,78 +1,77 @@
-# The kg-build-system authoring guide
+# kg-build-system documentation
 
-kg-build-system exists so that a knowledge graph's meaning survives the build.
-The node and edge types, their direction, identity, absent values and limits are
-declared beside the data mapping, checked before execution, and published to
-whoever consumes the graph. The build is reproducible, but the larger point is
-that its result can be understood without reading the pipeline that produced it.
+Build a knowledge graph whose meaning survives the build.
 
-That is why the framework separates what the data looks like, what the graph
-means, and how rows become records. Each part can be reviewed, changed and
-reused on its own. Read [Why this framework](why.md) for the values behind these
-choices, or continue here for the mechanics.
+kg-build-system turns typed Python declarations into an inspectable knowledge
+graph. You describe the rows you read, declare what the graph means, and connect
+the two with bindings. The framework compiles those declarations into a frozen
+contract, executes it, and publishes the graph together with the meaning you
+declared for it.
 
-kg-build-system turns Python declarations into a reproducible knowledge graph.
-You describe three things separately:
+## Get started
 
-1. **What the data looks like** — the tables, structs and fields you read.
-2. **What the graph means** — the node and edge types, their properties and
-   their place in a hierarchy.
-3. **How rows become graph records** — bindings that connect one to the other.
+- [What is kg-build-system?](get-started/why.md) — the problem it solves and the
+  values behind the design.
+- [Install](get-started/install.md) — set up the package and verify it.
+- [Build your first graph](get-started/first-graph.md) — a complete walkthrough.
+- [Project layout](get-started/project-layout.md) — where declarations,
+  bindings and sources live.
 
-The framework compiles those declarations into a frozen build plan and then
-executes it. You do not write SQL, a mapping document, or a graph-loader script.
-You write typed Python; the framework checks the shape of every value on the way
-through.
+## How a build works
 
-## The mental model
-
+```text
+source files
+    │
+    ▼
+data contracts ──► expressions ──► row sources ──► projections
+    │                                                │
+    └──────────────► topology ◄── bindings ◄─────────┘
+                           │
+                           ▼
+                  compile ──► contract ──► build ──► graph and reports
 ```
-source files ──> tables and structs ──> expressions ──> bindings ──> graph
-                    (data shape)        (row values)     (meaning)    (records)
-```
 
-- **Tables** describe logical rows. A table is also a *shape*: a class whose
-  fields are typed; a source binding supplies the physical location.
-- **Expressions** read, transform and filter values row by row. They know their
-  logical type, including nullability.
-- **Topology** declares graph meaning independently of any file: `SiteNode`,
-  `HAS_UNIT`, the properties a site carries.
-- **Bindings** say which rows produce which nodes and edges, and what each
-  property receives.
-- **Modules** add reusable build stages (deduplication, merging, validation,
-  file/meta-graph/Neo4j output). A build composes the modules it needs.
+A build has four layers. **Data contracts** describe the rows: their fields,
+types and nested records. **Expressions and row sources** turn those rows into
+the values and the grain a record needs. **Topology** declares the graph:
+nodes, edges, properties and their meaning. **Bindings** map one row context
+onto one node or edge record.
 
-## What you get
+`compile()` checks the declarations and freezes one workflow contract.
+`build()` executes it and writes the outputs selected by the modules. The same
+contract can be reviewed before data is read, executed repeatedly, or sent to
+several targets.
 
-One `compile()` call produces an immutable contract: the complete, self-contained
-description of the graph build. One `build()` call executes that contract against
-the configured runtime and writes the outputs selected by the modules. The same
-contract can be built repeatedly, inspected, or stored.
+## Learn the model
 
-The contract is durable data, not a compatibility promise. `build` requires the
-same module implementations and `VERSION` values that were compiled, and the
-framework has no schema compatibility or migration path. Keep the contract with
-the code that produced it, or compile again.
+Read these in order for the complete story, or jump to the concept you need:
 
-## How to read this guide
+1. [Data contracts](concepts/data-contracts.md) — rows as typed Python classes.
+2. [Types and nullability](concepts/types.md) — the vocabulary every value
+   carries.
+3. [Sources](concepts/sources.md) — where the rows physically live.
+4. [Expressions](concepts/expressions.md) — reading, transforming and filtering
+   values.
+5. [Row sources and grain](concepts/row-sources.md) — what one row means.
+6. [Projections](concepts/projections.md) — naming a reusable relation.
+7. [Topology](concepts/topology.md) — the meaning of nodes and edges.
+8. [Bindings](concepts/bindings.md) — turning rows into records.
+9. [Semantics and annotations](concepts/semantics.md) — making the meaning part
+   of the delivered graph.
+10. [Modules](concepts/modules.md) — composing build stages.
+11. [Compile, build and outputs](concepts/build-and-outputs.md) — from
+    declarations to artifacts.
 
-Start with [Install](start/install.md) and [Your first graph](start/first-graph.md)
-if you want to see the whole shape first. Otherwise read the concepts in order:
+## Do a task
 
-- [Data contracts](concepts/data-contracts.md) → [Types and
-  nullability](concepts/types.md) → [Sources](concepts/sources.md)
-- [Expressions](concepts/expressions.md) → [Projections](concepts/projections.md)
-- [Topology](concepts/topology.md) → [Bindings](concepts/bindings.md)
-- [Annotations and descriptions](concepts/annotations.md)
-- [Modules](concepts/modules.md) → [Compile and build](concepts/build.md) →
-  [Outputs](concepts/outputs.md)
+- [Join, group and union](how-to/relations.md) — choose and combine grains.
+- [Write a custom module](how-to/custom-modules.md) — add a build stage.
+- [Debug a build](how-to/debug.md) — read error messages and reports.
+- [Modelling patterns](how-to/patterns.md) — recurring graph shapes.
 
-The [modelling patterns](guides/patterns.md) page collects the decisions that
-come up repeatedly in real graphs; [debugging](guides/debugging.md) explains the
-errors you are most likely to meet. The [public API](reference/api.md) is a
-lookup, not a substitute for the concepts.
+## Reference
 
-The walkthrough builds a small people graph. The deeper concept pages borrow
-their examples from the framework's monitored-estate reference project, so you
-will meet sites, units, defects and survey readings as well as people. Where an
-example imports a reference table, substitute your own; the API is unchanged.
+- [Authoring API reference](reference/index.md) — the surface you write.
+- [Types reference](reference/types.md) — canonical types, nullability and
+  limits.
+- [Glossary](reference/glossary.md) — terms used across the guide.

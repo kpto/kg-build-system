@@ -1,187 +1,106 @@
 # Projections
 
-A projection is a named relation. It fixes one row plan, gives that plan a
-logical name, and publishes a fixed set of typed output fields. The name is the
-point: other declarations refer to the projection, not to the expression tree
-that computes it. Once declared, it can feed any number of bindings and later
-projections, and each consumer receives the same rows with the same outputs.
+A projection is a named relation pinned to one row plan, publishing a fixed set of typed outputs.
 
-## What a projection is
+A row source can describe a grain, but an anonymous plan has no name and no stable output surface. When several bindings, or a later projection, need the same rows, repeating the plan in each place lets the copies drift. A projection is the name and the contract: other declarations refer to the projection, and every consumer receives the same rows with the same outputs.
 
-`Projection` is both a `Shape` and a `RowSource`. As a shape it has fields that
-selections and expressions can read; as a row source it can be passed as
-`rows=` to a binding. `Projection.row_source()` returns that row source
-explicitly as a `RelationRowSource`.
+## The problem: a grain with several consumers
 
-Reading `DefectProjection.defect_id` anywhere returns a reference to the
-projection's output field. It does not re-evaluate, copy or embed the
-expression that produced it. This is what lets projections compose without
-duplicating row plans.
+A defect sits between a unit and an observation. The defect node, the edge from its unit, and the observation grain all start from the same rows: units joined to defects.
 
-A projection is not a `Table`. It has no physical source of its own; its rows
-come from the row source it pins. [Sources](sources.md) covers the physical
-side.
+If each declaration writes that join itself, the build has three copies of one decision. Change the join key or the filter, and you must find every copy. A projection states the grain once.
 
-## Declaring a projection
+## The model
 
-Every projection is pinned to a row source at class creation time. Pass the
-source's row source to `Projection(...)`, declare at least one output with
-`computed_field(expression)`, and name the class:
+`Projection` is both a shape and a row source. As a shape it has output fields that selections and computed fields can read; as a row source it can be passed as `rows=` to a binding.
 
-!!! note "The examples use the framework's reference project"
-    `reference_project` is a small worked project in the framework repository.
-    In your project, substitute your own tables; the projection API is the same.
+Every projection is **pinned** to a row source when the class is created. Pin a table or projection relation with `Projection(source.row_source())`, or pin a derived plan with `Projection(derived)`.
+
+The pin records the source relation and its filters in the projection's definition. It does not copy fields; you declare the outputs. A direct `class DefectProjection(Projection)` is refused because it has no rows to read.
+
+Declare each output with `computed_field(expression)`. The output takes the expression's logical type and nullability:
+
+- A non-null expression publishes a non-null output.
+- A nullable expression publishes a nullable output until you narrow or default it.
+
+Reading a projection field anywhere else returns a reference to that materialised output, not a fresh evaluation of the expression behind it. This is what lets projections compose without embedding a row plan twice.
+
+## Example: one row per defect
+
+The page uses the same site, unit and defect model as [row sources](row-sources.md). A defect carries its observations as a nested array.
 
 ```python
-from kg_build_system import Projection, computed_field
-
-from reference_project.table.surveys import SurveysTable
-
-area = SurveysTable.areas.alter_rows().expand()
-element = area.extract(lambda value: value.elements).alter_rows().expand()
+from kg_build_system import Array, Field, Struct, Table, field
 
 
-class ElementProjection(Projection(SurveysTable.row_source())):
-    """One row per surveyed element."""
-
-    survey_id = computed_field(SurveysTable.survey_id.alter_rows().drop_null())
-    unit_ref = computed_field(element.extract(lambda value: value.unit_ref))
-```
-
-`class ElementProjection(Projection):` is rejected at class creation with
-`ElementProjection must be pinned to a row source:
-Projection(source.row_source())`. The pin records the source relation
-and its filters in the projection's definition; consumers of the projection see
-those rows. The pin names the row source; it does not copy fields. Declare the
-outputs explicitly.
-
-A projection's type is inferred from each expression, including nullability.
-`computed_field` is the only way to declare an output; `field()` is rejected
-because a projection has no source columns of its own. A non-null expression
-publishes a non-null field, and a nullable expression publishes a nullable field
-until you narrow it with `alter_rows().drop_null()` or `default_to(...)`; both are
-covered in [Expressions](expressions.md).
-
-!!! warning "Projections are final"
-
-    A projection class with no effective output field fails at class creation. A
-    final projection is terminal: it may not inherit from another final
-    `Projection`. Shape reuse is expressed with `projection_base()` or by pinning
-    a new source.
-
-### Row behaviour
-
-Every field in one projection shares a single row plan. An
-`alter_rows().expand()` or `alter_rows().drop_null()` written for one field
-therefore applies to the whole projection. Expanding `areas` produces one row
-per area; expanding `elements` on top produces one row per element. Expanding
-two unrelated arrays multiplies the two fan-outs. The second grain must be its
-own projection, as the reference project does.
-
-## When to create one
-
-Create a projection when at least one of these is true.
-
-- **Several consumers need the same rows.** Four bindings reading the same
-  filtered, flattened grain is one projection referenced four times. Repeating
-  the plan in four bindings means four places to change.
-- **The rows have a genuinely new grain.** An expansion changes the row count,
-  so the result cannot live in the source's own relation. The reference
-  project's `DefectProjection` flattens a survey document to one row per defect,
-  and `ObservationProjection` consumes it to reach one row per observation.
-- **You need a stable name in the build.** Diagnostics, the blueprint and other
-  projections refer to the projection's logical name. An anonymous filtered row
-  source has no such name.
-
-Do not create one merely to rename a field or filter for a single binding.
-
-## The difference from `where`
-
-`Table.row_source().where(predicate)` and
-`Projection.row_source().where(predicate)` return a `DerivedRowSource`, not a
-projection. `Table.where(predicate)` and `Projection.where(predicate)` are the
-shorthand. The result preserves the shape and filters rows;
-`DerivedRowSource.where(predicate)` chains another filter and still preserves
-the shape. It does not add outputs, change the grain, or enter the build under
-a name.
-
-```python
-from kg_build_system import Field, Table, any_of, field
+class ObservationStruct(Struct):
+    observation_uid: Field[str] = field()
+    value: Field[float] = field()
 
 
-class SiteRow(Table):
+class UnitTable(Table):
     site_id: Field[str] = field()
-    name: Field[str] = field()
-    region: Field[str] = field()
+    unit_ref: Field[str] = field()
+    unit_name: Field[str] = field()
+    in_service: Field[bool] = field()
+    status: Field[str] = field()
+    survey_period: Field[str] = field()
 
 
-north = SiteRow.row_source().where(
-    lambda site: any_of(
-        site.region.alter_rows().drop_null().expression.equals("north"),
-        site.region.alter_rows().drop_null().expression.equals("west"),
-    )
-)
+class DefectTable(Table):
+    defect_id: Field[str] = field()
+    unit_ref: Field[str] = field()
+    title: Field[str] = field()
+    severity: Field[str] = field()
+    observations: Field[Array[ObservationStruct | None]] = field()
 ```
 
-The predicate receives a symbolic shape instance and reads source fields through
-nullable selections, so comparisons narrow first. Pass `north` as `rows=` for a
-one-off binding; the binding receives the filtered rows and no named relation is
-created. The distinction is:
-
-| | `where(...)` result | Named projection |
-| --- | --- | --- |
-| Is a class you can import and reuse | No, an instance | Yes |
-| Can add outputs | No | Yes |
-| Can change the grain | No | Yes |
-| Has a logical name | No | Yes |
-| Referenced by `computed_field` elsewhere | No | Yes |
-
-Use `where` for a one-off filter. Use a projection when the filtered or
-reshaped rows are a fact other declarations depend on.
-
-## Reusing a row plan with `projection_base`
-
-`projection_base()` turns a row source into a class base that carries that
-source's plan and inherited output fields. It exists on `Table`, on `Projection`,
-on `RelationRowSource`, and on `DerivedRowSource`, so a filtered source can be
-named without repeating its predicate:
-
-```python
-class NorthernSitesProjection(north.projection_base()):
-    """The northern and western sites, under a name bindings can share."""
-```
-
-The base inherits the source's fields as computed outputs, all typed from the
-source's nullable access. Read them as nullable selections, exactly like the
-fields they came from. When the subclass declares fields of its own, declare them
-with `computed_field` as usual:
-
-```python
-class NorthernLabelsProjection(NorthernSitesProjection.projection_base()):
-    label = computed_field(
-        NorthernSitesProjection.site_id.alter_rows().drop_null()
-        .expression.prepend("site::")
-    )
-```
-
-Inherited fields keep working. A declared field with the same Python attribute
-shadows the inherited one, exactly as Python attribute shadowing works. Two
-fields with the same external name but different attributes are rejected at
-class creation. The base returned by `projection_base()` is not a final
-projection and does not itself enter the build; only the named class you finish
-does.
-
-## Projections built on projections
-
-A projection field may read another projection's output. Because that read is a
-reference to the named relation, no row plan is embedded twice:
+Join the two tables, then pin the join to a projection:
 
 ```python
 from kg_build_system import Projection, computed_field
 
-from reference_project.table.projections.defects import DefectProjection
+unit_defects = UnitTable.row_source().join(
+    DefectTable.row_source(),
+    on=lambda unit, defect: (unit.unit_ref, defect.unit_ref),
+)
 
-observation = DefectProjection.observations.alter_rows().expand()
+
+class DefectProjection(Projection(unit_defects)):
+    """One row per defect, with the unit it belongs to."""
+
+    defect_id = computed_field(
+        unit_defects.shape.right.extract(lambda defect: defect.defect_id)
+        .alter_rows().drop_null()
+    )
+    title = computed_field(
+        unit_defects.shape.right.extract(lambda defect: defect.title)
+    )
+    severity = computed_field(
+        unit_defects.shape.right.extract(lambda defect: defect.severity)
+    )
+    unit_ref = computed_field(
+        unit_defects.shape.left.extract(lambda unit: unit.unit_ref)
+    )
+    observations = computed_field(
+        unit_defects.shape.right.extract(lambda defect: defect.observations)
+    )
+```
+
+`defect_id` is non-null because the expression drops nulls before publishing it. `title`, `severity` and `unit_ref` keep the nullable access that every source field has. A binding that needs a present defect key can use `DefectProjection.defect_id` directly.
+
+The defect node binding and the unit-to-defect edge binding both pass `DefectProjection.row_source()` as `rows=`. Neither repeats the join.
+
+## A second grain
+
+One projection has one row plan, so one projection produces one grain. Expanding the observations array changes the row count from one row per defect to one row per observation. That needs its own projection:
+
+```python
+observation = (
+    DefectProjection.observations
+    .alter_rows().drop_null()
+    .alter_rows().expand()
+)
 
 
 class ObservationProjection(Projection(DefectProjection.row_source())):
@@ -189,77 +108,57 @@ class ObservationProjection(Projection(DefectProjection.row_source())):
 
     defect_id = computed_field(DefectProjection.defect_id)
     observation_uid = computed_field(
-        observation.extract(lambda value: value.observation_uid)
+        observation.extract(lambda item: item.observation_uid)
     )
+    value = computed_field(observation.extract(lambda item: item.value))
 ```
 
-`defect_id` keeps the nullability of the defect projection's output; narrow it in
-the binding if the consumer needs a present value. This is the normal way to
-change grain: build the coarser relation once, then consume its outputs at the
-next grain. Projection dependencies must be acyclic; a cycle fails compilation
-and names the projections involved.
+`ObservationProjection` pins the defect relation, expands its observations, and carries `defect_id` through. The edge from an observation back to its defect can use that output without joining the survey tables again.
 
-## Computed structs
+## One row plan, one driving source
 
-A `ComputedStruct` is a value-record declaration whose members are written with
-`computed_field`. It is usable as a field type (`Field[SomeComputedStruct]`) and
-through `extract`, exactly like a source struct. It is **not** a table or a row
-source: it has no `row_source()`, cannot be bound, and cannot be a table-group
-member.
+Every field in a projection shares a single row plan. An `alter_rows().expand()` or `alter_rows().drop_null()` written for one field applies to the whole projection, because it changes the relation rather than one value.
 
-When a `ComputedStruct` is used as `Field[T]`, its member expressions are **type
-witnesses**. They fix each member's logical type and nullability, but they are
-not evaluated and do not become a row plan. A filter or expansion written in a
-witness has no row effect. A read becomes a field reference on the carrier record
-— here, `SummaryTable.summary` — and the carrier's nested data supplies the
-value.
+Two consequences follow:
+
+- Expanding two unrelated arrays in one projection multiplies their fan-outs. Give the second grain its own projection.
+- A `drop_null()` in one field can remove rows from every field in the projection. Use it when the row cannot exist without that value, and `default_to()` when the row must survive.
+
+A projection has one driving source. All field expressions must read that source, possibly through chained expansions and struct navigation. A projection does not join implicitly: if you reference two unrelated relations, the build refuses it. Build the join, union or group in a row source and pin that result instead.
+
+## When to create one
+
+Create a projection when at least one of these is true:
+
+- **Several consumers need the same rows.** One projection referenced by several bindings is one place to change.
+- **The rows have a new grain.** An expansion changes the row count, so the result cannot live in the source relation.
+- **The grain needs a stable name.** Diagnostics, the blueprint and other projections refer to the projection's logical name.
+
+Do not create a projection merely to rename a field or to filter rows for a single binding. Use a row source for a one-off filter.
+
+## Reuse a row plan with projection_base
+
+`projection_base()` turns a row source into a class base carrying that source's plan and inherited output fields. It exists on `Table`, `Projection`, `RelationRowSource` and `DerivedRowSource`:
 
 ```python
-from kg_build_system import ComputedStruct, Field, Table, computed_field, field
+active_units = UnitTable.row_source().where(
+    lambda unit: unit.status.alter_rows().drop_null().expression.equals("active")
+)
 
 
-class ReadingTable(Table):
-    reading_uid: Field[str] = field()
-    deg_c: Field[float] = field()
-
-
-class ReadingSummaryStruct(ComputedStruct):
-    """The member types a summary record carries."""
-
-    # Witnesses only: these expressions fix types, not values.
-    reading_uid = computed_field(ReadingTable.reading_uid.alter_rows().drop_null())
-    deg_c = computed_field(ReadingTable.deg_c)
-
-
-class SummaryTable(Table):
-    reading_uid: Field[str] = field()
-    summary: Field[ReadingSummaryStruct] = field()
+class ActiveUnitProjection(active_units.projection_base()):
+    """The active units, under a name bindings can share."""
 ```
 
-`extract` composes the presence of the carrier with the witness type:
+The base inherits the source's fields as outputs, typed from the source's nullable access. A subclass can add outputs with `computed_field`; a declared field with the same attribute shadows the inherited one. The base itself is not a final projection and does not enter the build. Only the named class you finish does.
 
-```python
-summary = SummaryTable.summary.alter_rows().drop_null()   # StructSelection
-uid = summary.extract(lambda value: value.reading_uid)    # ValueSelection[str]
-deg_c = summary.extract(lambda value: value.deg_c)        # NullableSelection[float]
-```
+A final projection is terminal and may not inherit from another final `Projection`. Reuse a plan with `projection_base()` or pin a new source.
 
-A present carrier leaves a non-null witness non-null; the same member under a
-nullable carrier becomes nullable. The values are still whatever the carrier
-holds. A nullable source field that carries the struct reads nullable, like
-every other source field, and `extract` propagates that absence.
+## Names and descriptions
 
-Do not read a `ComputedStruct` member expression as a derivation. If the value
-must be calculated from another relation, declare it on a `Projection` and bind
-or extract the projection output; a `ComputedStruct` witness only describes a
-record the row already has.
+A projection's logical name is inferred from its class name: remove one trailing `Projection` and convert the rest to snake case. `DefectProjection` becomes `defect`.
 
-## Naming and describing the relation
-
-A projection's name is inferred from its class name: one trailing `Projection`
-is removed and the rest becomes snake case. `DefectProjection` becomes
-`defect`. Override it with `ProjectionOptions`, which also carries a
-description and annotations:
+`ProjectionOptions` overrides the name and carries a description and annotations:
 
 ```python
 from kg_build_system import ProjectionOptions
@@ -272,85 +171,36 @@ class SurveyDefectProjection(DefectProjection.projection_base()):
     )
 ```
 
-A projection name must be unique among projections and among table names,
-because both are logical relation names that field references resolve against.
-Naming a projection `surveys` while a table called `surveys` exists fails
-compilation. `options.description` wins over the class docstring;
-`options.annotations` attaches portable metadata, described in
-[Annotations and descriptions](annotations.md).
+A projection name must be unique among projections and table names, because both are logical relation names that field references resolve against. `options.description` wins over the class docstring; the description is own-only and is not inherited from a base.
 
-`computed_field` accepts `name`, `description` and `annotations`. `name` is the
-output's external name and defaults to the Python attribute in snake case.
-`description` documents it; an explicit argument wins, otherwise a string
-written directly below the assignment is read when the class is created.
-`annotations` is a sequence of `Annotation` values carried in the blueprint. Two
-outputs in one projection may not share an external name.
+## Computed structs
 
-## One driving source
+A `ComputedStruct` is a value-record declaration whose members are written with `computed_field`. It describes a record that a row already carries. It is not a table, a projection or a row source: it has no `row_source()`, cannot be bound, and cannot be a table-group member.
 
-A projection has one driving source. All field expressions must read that
-source, possibly through chained expansions and struct navigation. A projection
-does not join implicitly: referencing two unrelated relations from one
-projection fails with `a relational product requires one driving source;
-additional sources must be introduced by an explicit lookup`.
+When you use a `ComputedStruct` as `Field[T]`, its member expressions are **type witnesses**. They fix each member's logical type and nullability, but they are not evaluated and do not become a row plan. Read the member through `extract`; the carrier row supplies the value. If a value must be calculated from another relation, declare it on a projection instead.
 
-The explicit lookup is the row-source algebra. Build the relation first and pin
-it to the projection:
+## Limits
 
-```python
-from kg_build_system import Field, Projection, Table, computed_field, field
-
-
-class EmployeeTable(Table):
-    id: Field[str] = field()
-    team: Field[str] = field()
-
-
-class DepartmentTable(Table):
-    code: Field[str] = field()
-    label: Field[str] = field()
-
-
-joined = EmployeeTable.row_source().join(
-    DepartmentTable.row_source(),
-    on=lambda employee, department: (employee.team, department.code),
-    how="left",
-)
-
-
-class EmployeeDepartmentProjection(Projection(joined)):
-    """One row per employee, with the department when it matches."""
-
-    employee_id = computed_field(
-        joined.shape.left.extract(lambda left: left.id).alter_rows().drop_null()
-    )
-    department = computed_field(
-        joined.shape.right.extract(lambda right: right.label)
-    )
-```
-
-A grouped source can be pinned the same way. `joined.projection_base()` is the
-variant that inherits the generated shape's fields; it is shown in
-[row sources](row-sources.md#projections-over-derived-sources).
-
-Name a projection when more than one declaration reads the same rows, give a
-new grain its own projection, and let nullability show through rather than
-assuming it. Continue with [Topology](topology.md) to give these rows graph
-meaning, and [Bindings](bindings.md) to connect them.
+- A projection must be pinned to a row source and declare at least one output.
+- `computed_field` is the only way to declare an output; `field()` is refused because a projection has no source columns of its own.
+- One projection has one row plan and one driving source. A new grain needs a new projection.
+- A final projection may not inherit from another final projection.
+- Projection dependencies must be acyclic; a cycle fails compilation.
+- A `ComputedStruct` is a value record, not a row source. It cannot be pinned, bound or used as a table-group member.
 
 ## What to remember
 
-- A projection is a named relation with its own row plan and typed outputs.
-- `Projection(source.row_source())` is required; a direct `class P(Projection)`
-  is rejected.
-- Projection outputs use `computed_field`; they carry the expression's type and
-  nullability.
-- Give a new grain a projection, and give one grain reused by several bindings a
-  projection too.
-- Reading a projection field reuses its output, not the calculation behind it.
-- A `ComputedStruct` is a value record, not a row source. As a field type, its
-  member expressions are type witnesses, not evaluated values.
-- One projection has one driving source. Join, group or union in the row source
-  you pin; a projection never joins implicitly.
+- A projection is a named relation with one row plan and typed outputs.
+- Pin it with `Projection(source.row_source())` or `Projection(derived)`.
+- Reading a projection field reuses the materialised output, not the calculation.
+- All fields share the row plan, so one expansion or null drop affects the whole projection.
+- Give every grain its own projection, and name a grain when several declarations read it.
 
-Next: [Topology](topology.md) gives these rows graph meaning.
+## Next steps
+
+- [Topology](topology.md) gives the rows graph meaning.
+- [Bindings](bindings.md) connect the projection's outputs to node and edge properties.
+
+## Reference
+
+[Projections reference](../reference/projections.md) lists the pinning rules, output declaration, naming options and errors.

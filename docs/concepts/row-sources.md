@@ -1,222 +1,218 @@
 # Row sources
 
-A **row source** is the value that says which rows a binding or projection
-reads. It exists so that row grain is an explicit, typed value: the author can
-see every filter, join, grouping and expansion that produces a record, and the
-same plan can be reused or named instead of copied into each consumer.
+A row source is a value that describes one relation of rows: the shape of a row and the filters, joins, unions, groups and ordering that produce it.
 
-`Table.row_source()` and `Projection.row_source()` start it; `where`, `union`,
-`join`, `group_by`, `distinct` and `order_by` derive from it. Every derived
-operation returns another row source, so the algebra composes. A projection
-relation is a row source too: it supports the same operations as a table
-relation. A binding consumes the result directly with `rows=...`; a projection
-is only needed when the grain needs a name.
+Your data contract says what a row looks like, and a source says where the rows live. A binding still has to answer a third question: which rows become this record? A row source is that answer. It makes the grain explicit, lets one plan feed several consumers, and keeps every filter and join visible where you write it.
+
+## The grain is a decision
+
+A **grain** is what one row represents. `SiteTable` has one row per site, `UnitTable` one row per unit, and `DefectTable` one row per defect.
+
+A `DefectNode` needs the defect grain. A `HAS_DEFECT` edge needs one row per unit-and-defect pair. The same input therefore supports several grains. The choice belongs to the build, not to the input file, and a row source records it.
+
+## The model
+
+`Table.row_source()` starts from a data contract; `Projection.row_source()` starts from a named relation. Both return a row source that you pass to `rows=` or pin to a projection.
+
+A row source is a value, not a declaration class. Every operation returns another row source, so the operations compose:
+
+- `where`, `union`, `distinct` and `order_by` preserve the shape of the rows.
+- `join` and `group_by` generate a new shape because the row genuinely has new members.
+
+The same operations are available on a table relation, a projection relation and any derived source. A projection relation is not a special case.
+
+A row source's shape is the type of one row. Inside an operation you receive a **shape instance**: a symbolic object whose fields you read as attributes. It is not data and not a dictionary.
+
+!!! warning "Pass a value, not a declaration"
+    `rows=UnitTable` is rejected. Write `rows=UnitTable.row_source()`. A `Struct` is a shape, not a row source.
+
+## Start from a table
+
+The pages in this guide use the same small survey model. A site has units, and a unit has defects. A defect carries its observations as a nested array.
 
 ```python
-from kg_build_system import Node, NodeValues, node_binding
+from kg_build_system import Array, Field, Struct, Table, field
 
-active = EmployeeTable.row_source().where(
-    lambda row: row.status.alter_rows().drop_null().expression.equals("active")
-)
 
-node_binding(
-    target=EmployeeNode,
-    rows=active,
-    bind=lambda row: NodeValues(
-        build_key=row.id.alter_rows().drop_null(),
-        properties=EmployeeNode(name=row.name.default_to("unknown")),
-    ),
-)
+class ObservationStruct(Struct):
+    observation_uid: Field[str] = field()
+    value: Field[float] = field()
+
+
+class SiteTable(Table):
+    site_id: Field[str] = field()
+    name: Field[str] = field()
+    region: Field[str] = field()
+
+
+class UnitTable(Table):
+    site_id: Field[str] = field()
+    unit_ref: Field[str] = field()
+    unit_name: Field[str] = field()
+    in_service: Field[bool] = field()
+    status: Field[str] = field()
+    survey_period: Field[str] = field()
+
+
+class DefectTable(Table):
+    defect_id: Field[str] = field()
+    unit_ref: Field[str] = field()
+    title: Field[str] = field()
+    severity: Field[str] = field()
+    observations: Field[Array[ObservationStruct | None]] = field()
 ```
 
-`rows=` takes a row-source **value**. `rows=EmployeeTable` is rejected; write
-`EmployeeTable.row_source()`. A `Struct` is a shape, not a row source.
-
-## Filters and row order
-
-`where(predicate)` keeps rows whose predicate is true. The predicate receives a
-symbolic shape instance and returns a `BoolExpression`; it cannot be a bare
-expression. Source fields read as nullable, so narrow or default before
-comparing.
-
-`distinct()` removes duplicate rows. `order_by(*keys, ascending=True)` orders the
-result; a key may be a column name, a selection, an expression, or a callable
-receiving the shape. One direction applies to every key, and row order is only
-observable through later ordering or a materialised relation.
+The unit relation is the table's own grain:
 
 ```python
-recent = (
-    EmployeeTable.row_source()
-    .where(lambda row: row.active.alter_rows().drop_null().expression)
-    .distinct()
-    .order_by("team", ascending=True)
-)
+unit_rows = UnitTable.row_source()
 ```
 
-## Union
+Pass it to a binding as `rows=unit_rows`. If you need the unit grain under a name that other declarations can share, pin it to a projection; the [projections](projections.md) page covers that.
 
-`union(other, all=True)` concatenates two row sources with the **same shape**.
-`all=False` deduplicates the result. Shapes are compared structurally, member by
-member, including each member's external name and full logical type. A different
-name, type or nullability is refused with
-`union row sources must have the same shape`; a union never renames, casts or
-reorders columns.
+## Filter, deduplicate and order
+
+`where` takes a callable that receives a shape instance and returns a Boolean expression. Source fields read as nullable, so narrow or default before you compare:
 
 ```python
-everyone = EmployeeTable.row_source().union(FormerEmployeeTable.row_source())
-```
-
-## Join
-
-`join(other, on=..., how="inner")` combines two row sources on one equality.
-`on` receives one shape instance per side and returns either:
-
-- `(left_key, right_key)`, a pair of scalar inputs; or
-- one `equals` expression, which is the text-only equality operation.
-
-The pair form is the general one. Keys must resolve to the same **base** logical
-type; their nullability may differ. Arrays and structs are refused with
-`join keys must be scalar expressions`, and differing base types with
-`join key expressions must have the same logical type`. Null keys never match:
-the lowerer emits plain SQL equality, whose three-valued result leaves a null
-key unmatched in every join mode.
-
-```python
-joined = EmployeeTable.row_source().join(
-    DepartmentTable.row_source(),
-    on=lambda employee, department: (employee.team, department.code),
-    how="left",
+active_units = UnitTable.row_source().where(
+    lambda unit: unit.status.alter_rows().drop_null().expression.equals("active")
 )
 ```
 
-The `equals` form needs present text on both sides. `equals` exists only on
-`StrExpression`, so narrow or default each side first. Defaulting makes null
-keys compare equal, which is different from the pair form:
+`distinct()` removes duplicate rows without changing the shape. `order_by(*keys)` orders rows by column names, selections, expressions or callables. One `ascending` value applies to every key, and row order is only observable through a later ordering or a materialised relation.
+
+A one-off filter belongs in the binding's row source. When several bindings need the same filtered grain, name it with a projection instead.
+
+## Combine rows with union
+
+`union(other, all=True)` stacks two row sources. `all=False` removes duplicates from the result.
+
+Both sides must have the same shape: the same members, external names and full logical types, including nullability. A union never renames, casts or reorders columns. If the shapes differ, the build refuses the union rather than guessing which column you meant.
 
 ```python
-matched = EmployeeTable.row_source().join(
-    DepartmentTable.row_source(),
-    on=lambda employee, department: (
-        employee.team.default_to("").expression.equals(
-            department.code.default_to("").expression
+active = UnitTable.row_source().where(
+    lambda unit: unit.status.alter_rows().drop_null().expression.equals("active")
+)
+retired = UnitTable.row_source().where(
+    lambda unit: unit.status.alter_rows().drop_null().expression.equals("retired")
+)
+
+all_units = active.union(retired)
+```
+
+## Join two grains
+
+`join` combines two row sources on one equality. The callable receives one shape instance per side and returns a pair of keys:
+
+```python
+unit_defects = UnitTable.row_source().join(
+    DefectTable.row_source(),
+    on=lambda unit, defect: (unit.unit_ref, defect.unit_ref),
+)
+```
+
+The result has the generated shape `{on, left, right}`:
+
+- `on` is the shared key value.
+- `left` is the left input record.
+- `right` is the right input record.
+
+The records are generated structs. Read their members with `extract`, just as you would for a declared struct:
+
+```python
+defect_title = unit_defects.shape.right.extract(lambda defect: defect.title)
+```
+
+A join key must be a scalar expression, and both sides must resolve to the same base logical type. Their nullability may differ. Arrays and structs are not join keys.
+
+A null key never matches, in any join mode, because the join uses plain equality. A left row with a null key and a right row with a null key stay unmatched, even in a full join.
+
+`how` selects which unmatched rows survive:
+
+| Value | Rows kept |
+| --- | --- |
+| `inner` | Only matched pairs |
+| `left` | Every left row, matched or not |
+| `right` | Every right row, matched or not |
+| `full` | Every row from both sides |
+
+The generated records follow the join mode. `right` is nullable for a left join, `left` is nullable for a right join, and both are nullable for a full join. `on` is non-null for an inner join; for an outer join it is nullable when the key on a side that `how` can leave unmatched is nullable.
+
+### The text equality form
+
+Instead of a key pair, `on` may return one `equals` expression. `equals` exists only on `StrExpression`, so it is text-only and needs present text on both sides:
+
+```python
+matched = UnitTable.row_source().join(
+    DefectTable.row_source(),
+    on=lambda unit, defect: (
+        unit.unit_ref.default_to("").expression.equals(
+            defect.unit_ref.default_to("").expression
         )
     ),
 )
 ```
 
-The generated shape is `{on, left, right}`:
+Narrowing each side with `default_to` makes two null keys compare equal. That differs from the key-pair form, where null keys never match. Use the pair form for non-text keys and when null keys must stay distinct.
 
-- `on` is the join key. It is non-null for an inner join; for an outer join it is
-  nullable when the surviving side's key can be null.
-- `left` and `right` mirror the input rows. The side that `how` can leave
-  unmatched is nullable: `right` for `left`, `left` for `right`, both for `full`.
-  A join may consume another join or group and nest its generated records.
+A join may consume another join or group. In a second join, the first generated record becomes one side, so `row.left` can itself be a `{on, left, right}` record.
+
+## Group rows
+
+`group_by(by=...)` produces one row per distinct key. The result has the generated shape `{by, members}`:
 
 ```python
-node_binding(
-    target=EmployeeDepartmentNode,
-    rows=joined,
-    bind=lambda row: NodeValues(
-        build_key=row.on.default_to("unmatched"),
-        properties=EmployeeDepartmentNode(
-            employee=row.left.extract(lambda left: left.id),
-            department=row.right.extract(lambda right: right.label),
-        ),
-    ),
+by_severity = DefectTable.row_source().group_by(
+    by=lambda defect: {"severity": defect.severity},
 )
 ```
 
-`row.left` and `row.right` are generated records; use `extract` for their
-members, exactly as for a declared struct. A second join sees the first join as
-one side:
+`by` returns one key input, a mapping of names to inputs, or a sequence of `(name, input)` pairs. A single input is named `key`. Key names must be public Python identifiers and unique within the group, and each key must be scalar.
+
+Rows whose key tuple contains a null are dropped before grouping. Every generated key member is therefore non-null, and `row.by.extract(...)` needs no `alter_rows().drop_null()`.
+
+`members` is an array of generated records that mirror the input row. Member order is unspecified. Grouping only collects rows; the algebra has no `count`, `sum` or `having`.
+
+A binding over a grouped source emits one record per group, not one per input row, because the group has already collapsed the rows.
+
+## Generated shapes and static typing
+
+`join` and `group_by` build a shape while your module is imported. At edit time the result is a `DerivedRowSource[Any]`, so pyright does not list `on`, `left`, `right`, `by` or `members` as static members of the generated shape. The fields and their logical types exist at runtime, and your callables and computed fields are checked against them there. Input table and projection shapes stay statically typed.
+
+## Name a derived grain
+
+Pass a derived source directly to a binding for one-off use. When more than one consumer needs it, pin it to a projection:
 
 ```python
-nested = joined.join(
-    OfficeTable.row_source(),
-    on=lambda pair, office: (pair.on, office.region),
-)
-# nested.shape.left is the `{on, left, right}` record from `joined`.
+class UnitDefectProjection(unit_defects.projection_base()):
+    """One row per defect, with the unit it belongs to."""
 ```
 
-## Group
-
-`group_by(by=...)` produces `{by, members}`. `by` receives the shape instance and
-returns one key input (named `key`), a mapping of names to inputs, or
-`(name, input)` pairs:
-
-```python
-by_team = EmployeeTable.row_source().group_by(
-    by=lambda row: {"team": row.team},
-)
-```
-
-`by` is a generated record of the named keys. Key names must be public Python
-identifiers and unique within the group; keys must be scalar inputs. Rows whose
-key tuple contains a null are dropped before grouping, so **every generated key
-member is non-null**. `row.by.extract(...)` therefore needs no
-`alter_rows().drop_null()`.
-
-`members` is an array of generated record mirrors of the input row. Member order
-is unspecified, and grouping only collects members; count/sum/having aggregates
-do not exist. A binding over `by_team` emits one record per group, not one per
-input row, because `group_by` has already collapsed the rows.
-
-```python
-node_binding(
-    target=TeamNode,
-    rows=by_team,
-    bind=lambda row: NodeValues(
-        build_key=row.by.extract(lambda key: key.team),
-        properties=TeamNode(
-            members=row.members
-            .transform_items(lambda member: member.extract(lambda item: item.id))
-            .drop_null_items()
-            .concat("|"),
-        ),
-    ),
-)
-```
-
-## Projections over derived sources
-
-A projection can pin a derived plan directly. Pass the source itself to
-`Projection(...)`; a `Table` or `Projection` relation has `.row_source()`, while
-a derived source is already one:
-
-```python
-class TeamPairsProjection(Projection(joined)):
-    key = computed_field(joined.shape.on)
-    employee = computed_field(
-        joined.shape.left.extract(lambda left: left.id).alter_rows().drop_null()
-    )
-```
-
-`derived.projection_base()` gives the same grain a name and inherits its fields.
-Declare outputs with `computed_field`; the source expressions are the generated
-shape's members:
-
-```python
-class TeamPairsProjection(joined.projection_base()):
-    key = computed_field(joined.shape.on)
-    employee = computed_field(
-        joined.shape.left.extract(lambda left: left.id).alter_rows().drop_null()
-    )
-```
-
-Compilation materialises every non-scan plan as a named relation in dependency
-order. A projection or binding then reads the derived relation like any other
-row source; the algebra is not inlined into each consumer. That is why a join
-or group is computed once even when several bindings read it.
+`projection_base()` inherits the generated shape's fields as outputs. A projection pinned with `Projection(unit_defects)` starts without inherited outputs, so declare them with `computed_field`. Both pin the same plan; the [projections](projections.md) page explains the choice.
 
 ## Limits
 
-- Generated `join` and `group_by` shapes are `DerivedRowSource[Any]` at edit
-  time. Their fields are correct and typed at runtime, but pyright does not
-  expose `on`/`left`/`right`/`by`/`members` as static members of the generated
-  shape. Input shapes remain statically typed.
-- `join` keys must be scalar and share a base type; nullability may differ, and
-  null keys never match.
-- `equals` is text-only. Use the key-pair form for non-text keys.
-- `group_by` has no aggregates and no guaranteed member order. Its keys are
-  non-null, unique names; null-key rows are dropped before grouping.
-- `order_by` applies one direction to all keys.
+- `join` keys must be scalar and share a base logical type. Null keys never match.
+- `equals` is text-only. Use the key-pair form for other types.
+- `group_by` has no aggregates and no guaranteed member order. Its keys are non-null and uniquely named, and null-key rows are dropped before grouping.
+- `union` requires the same shape, member by member, including external names and nullability.
+- `order_by` applies one direction to every key.
+- A generated join or group shape is open to static tools even though its fields are typed at runtime.
+
+## What to remember
+
+- A row source is a value; a declaration class is not one.
+- The grain is the answer to "what is one row?", and the row source records it.
+- `where`, `union`, `distinct` and `order_by` preserve the shape; `join` and `group_by` generate one.
+- A null join key never matches; `equals` is text-only and needs present text.
+- Group keys are non-null, and grouping does not aggregate.
+
+## Next steps
+
+- [Projections](projections.md) give a reusable grain a name and typed outputs.
+- [Bindings](bindings.md) consume a row source and produce graph records.
+
+## Reference
+
+[Row sources reference](../reference/row-sources.md) lists every operation, its arguments, the generated shapes and the errors.

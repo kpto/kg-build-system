@@ -34,28 +34,41 @@ plugins:
   - search
 nav:
   - Home: index.md
-  - Why this framework: why.md
-  - Getting started:
-      - Install: start/install.md
-      - Project layout: start/project-layout.md
-      - Your first graph: start/first-graph.md
+  - Get started:
+      - What is kg-build-system?: get-started/why.md
+      - Install: get-started/install.md
+      - Build your first graph: get-started/first-graph.md
+      - Project layout: get-started/project-layout.md
   - Concepts:
+      - How a build works: concepts/index.md
       - Data contracts: concepts/data-contracts.md
       - Types and nullability: concepts/types.md
       - Sources: concepts/sources.md
       - Expressions: concepts/expressions.md
+      - Row sources and grain: concepts/row-sources.md
       - Projections: concepts/projections.md
-      - Row sources: concepts/row-sources.md
       - Topology: concepts/topology.md
       - Bindings: concepts/bindings.md
-      - Annotations and descriptions: concepts/annotations.md
+      - Semantics and annotations: concepts/semantics.md
       - Modules: concepts/modules.md
-      - Compile and build: concepts/build.md
-      - Outputs: concepts/outputs.md
-  - Guides:
-      - Modelling patterns: guides/patterns.md
-      - Debugging: guides/debugging.md
+      - Compile, build and outputs: concepts/build-and-outputs.md
+  - How-to guides:
+      - Join, group and union: how-to/relations.md
+      - Write a custom module: how-to/custom-modules.md
+      - Debug a build: how-to/debug.md
+      - Modelling patterns: how-to/patterns.md
   - Reference:
-      - Public API: reference/api.md
-      - Type vocabulary: reference/types.md
+      - Authoring API: reference/index.md
+      - Types: reference/types.md
+      - Declarations: reference/declarations.md
+      - Expressions and selections: reference/expressions.md
+      - Row sources: reference/row-sources.md
+      - Projections: reference/projections.md
+      - Topology: reference/topology.md
+      - Bindings: reference/bindings.md
+      - Semantics: reference/semantics.md
+      - Compile and build: reference/compile.md
+      - Modules: reference/modules.md
+      - Sources and ingest: reference/ingest.md
+      - Generation: reference/generation.md
       - Glossary: reference/glossary.md

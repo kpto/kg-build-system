@@ -149,10 +149,12 @@ not resolve them.
    limit or whether contracts need a version policy.
 ## Documentation
 
-The author-facing guide is in `docs/` and now includes a `Why this framework`
-page: semantics as contract, explicit assumptions, typed authoring, reproducible
-builds, separation of meaning and execution, honest limits and the author /
-consumer perspective.
+The author-facing guide is in `docs/` and is structured as Get started, Concepts,
+How-to guides and Reference. `get-started/why.md` carries the values: semantics
+as contract, explicit assumptions, typed authoring, reproducible builds,
+separation of meaning and execution, honest limits and the author / consumer
+perspective. `concepts/index.md` tells the end-to-end story from source rows to
+graph records; each concept page is paired with a precise reference page.
 
 The docs state the current behavior: the row-source algebra and joined/grouped
 projections, `ComputedStruct` as a type witness on a carrier, generated

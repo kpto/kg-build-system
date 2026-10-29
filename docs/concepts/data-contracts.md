@@ -1,394 +1,222 @@
 # Data contracts
 
-Data contracts are the first layer of a build. They describe rows as typed Python
-classes, before anything is known about nodes, edges or files. A contract is not
-a schema document beside the code: the class **is** the schema.
+A data contract is a Python class that describes one row of input: its fields,
+their types and the records nested inside it.
 
-## A table is a shape and a row source
+Data contracts are the first layer of a build. Source data is not under your
+control. Columns are renamed, a number arrives as text, a nested object is absent.
+A contract puts the shape you expect into the code that builds the graph, so a
+mismatch is a declaration error rather than a surprise halfway through a build.
+The class is the schema; there is no separate mapping document to keep in step
+with it.
 
-A `Table` subclass does two jobs at once. It is a **shape** whose fields type
-every value, and it is a **row source** that a binding can read:
+## Why contracts come first
 
-```python
-from kg_build_system import Field, Table, TableOptions, field
+Every later layer reads the same shape. An expression reads a field, a row source
+returns rows of that shape, and a binding maps those rows onto node and edge
+properties. If the shape is only a convention, each layer can interpret it
+differently and the build discovers the disagreement late.
 
-class PeopleTable(Table):
-    """One row per person in the directory."""
+A contract fixes the vocabulary before any of that happens. Compilation can then
+check that a field exists, that a value has the right type, and that a graph
+property can hold what the binding supplies. No row is read to find a typing
+mistake.
 
-    options = TableOptions(name="people", description="The personnel directory.")
-    person_id: Field[str] = field()
-    name: Field[str] = field()
-```
+## The model
 
-The same class provides the relation row source a binding passes as
-`rows=PeopleTable.row_source()`. The `bind` callable receives a shape instance —
-a symbolic proxy of `PeopleTable`, not data and not a dictionary. `row.name` is a
-selection over a logical field; reading it does not touch a file. Rows appear
-only when the build executes.
+Three declarations cover the data side of a build:
 
-`name` defaults to the class name with the `Table` suffix removed and converted
-to snake case, so `PeopleTable` becomes `people`. `description` defaults to the
-class docstring; an explicit option wins. `options` is class metadata, never a
-field and never a graph property.
+- A `Table` describes a relation: one class, one row shape. It is also a row
+  source, so a binding can pass `SiteTable.row_source()` as its rows.
+- A `Struct` describes a record nested inside a row or inside another struct. It
+  is a shape only and is never a row source.
+- A `Field[T]` declares one member. `T` is the value type, such as `str`, `Date`,
+  a nested `Struct`, or an `Array` of those.
 
-A table is a **logical** declaration. It says what a row holds; it says nothing
-about where the rows live. The **physical** side is a source binding, described
-on [sources](sources.md).
+`Table` and source `Struct` members are source-backed and use `field()`.
+Projection outputs and `ComputedStruct` members are expression-backed and use
+`computed_field(expression)`. The host decides which constructor is legal; mixing
+them is refused when the class is created.
 
-## Two field constructors, one descriptor
+The declaration names the value type, not whether a row supplies it. Every source
+field reads as nullable, including a declared `Field[str]`. Presence is decided
+in the binding with `alter_rows().drop_null()` or `default_to(...)`. That rule is
+covered on [types and nullability](types.md#nullability-belongs-to-access).
 
-`Field[T]` is the single member descriptor for every declaration. That keeps a
-member's name, type, description and annotations in one form whether the value
-comes from a row or is calculated. What differs is how the member is backed, and
-the host makes that difference explicit:
+## Example: one row per site
 
-| Constructor | Backs | Where it is used |
-| --- | --- | --- |
-| `field()` | a source column or source struct member | `Table` fields and `Struct` members |
-| `computed_field(expression)` | a typed expression for a projection output, or a type witness for a computed struct member | `Projection` outputs and `ComputedStruct` members |
-
-`T` is the value type: `str`, `int`, `float`, `bool`, `Date`, `Time`,
-`Timestamp`, `Uuid`, a nested `Struct` or `ComputedStruct`, an application
-`CustomDataType`, or an `Array` of one of those.
-
-The host decides the backing kind. `Table` and source `Struct` members must use
-`field()`; `Projection` outputs and `ComputedStruct` members must use
-`computed_field()`. Mixing them raises at class creation, naming the member and
-the constructor it needs.
-
-`Table`, `TableGroup` and `Projection` are final: a final declaration may not
-inherit from another final declaration of the same kind. `Struct` and
-`ComputedStruct` are composable value records and have no finality guard yet.
-Share source members through a `StructTemplate`; a computed struct's
-`computed_field` members stay on the computed struct.
-
-A field type must be a value record. `Field[SomeTable]` and
-`Field[SomeProjection]` are refused with
-`<name> is a row source, not a value record; field types must be Struct or
-ComputedStruct declarations`. Use `extract` for a record already carried by a
-field, or bind the relation separately.
+The survey project reads sites, units and defects. Each table is one grain of the
+data, and each field names the value the source holds:
 
 ```python
-from kg_build_system import Field, Table, TableOptions, field
-from kg_build_system.types import Timestamp
+from kg_build_system import Field, Struct, Table, field
+from kg_build_system.types import Array, Date
 
-class VisitTable(Table):
-    """One inspection visit."""
 
-    options = TableOptions(name="visit")
-    visit_id: Field[str] = field()
-    """Stable visit identifier."""
-    inspected_on: Field[Timestamp] = field()
-    notes: Field[str] = field()
-```
+class ContactStruct(Struct):
+    """How a site can be reached."""
 
-The declaration names the value the source holds. It does not promise that a
-row supplies one. Every one of those fields reads as a nullable selection,
-including `visit_id`:
+    email: Field[str] = field()
+    phone: Field[str] = field()
 
-```python
-visit_id = VisitTable.visit_id              # NullableSelection[str]
-present = visit_id.alter_rows().drop_null() # ValueSelection[str]
-```
 
-`Field[str | None]` is accepted and stripped to `Field[str]`; write the value
-type. Array item nullability is different, because it is a fact about the value:
-`Field[Array[str | None]]` says the array's items may be null. The binding decides
-what absence means with `alter_rows().drop_null()` or `default_to(...)`. See
-[types and nullability](types.md).
+class SiteTable(Table):
+    """One surveyed site."""
 
-## Nested structs
-
-A `Struct` is a shape only. It cannot be source-bound, placed in a table group,
-or passed as `rows=`. Its purpose is to describe a nested record inside a table
-or another struct.
-
-```python
-from kg_build_system import Field, Struct, StructOptions, Table, TableOptions, field
-from kg_build_system.types import Array
-
-class AddressStruct(Struct):
-    """A postal address."""
-
-    options = StructOptions(name="address")
-    city: Field[str] = field()
-    postcode: Field[str] = field()
-
-class CustomerTable(Table):
-    """One customer record."""
-
-    options = TableOptions(name="customer")
-    customer_id: Field[str] = field()
-    tags: Field[Array[str]] = field()
-    address: Field[AddressStruct] = field()
-    previous_addresses: Field[Array[AddressStruct | None]] = field()
-```
-
-`StructOptions` is the struct counterpart of `TableOptions`: the same `name` and
-`description` metadata, with no row-source meaning. Names default the same way,
-so `AddressStruct` becomes `address`.
-
-A source struct is nullable at every step. `address` is a nullable selection, and
-`city` is a nullable string even though it is declared `Field[str]`. Access a
-member with `extract`, which composes the parent's nullability with the member's
-kind:
-
-```python
-city = CustomerTable.address.extract(lambda value: value.city)
-# NullableSelection[str]: the address may be absent, and a source member is
-# nullable in its own right.
-```
-
-A nested struct is not itself a graph property; bind its scalar members to
-property slots.
-
-A `ComputedStruct` is the other value-record declaration. Its members use
-`computed_field`, but when it is used as a `Field[T]` those expressions are
-**type witnesses**, not evaluated values. Each expression fixes the member's
-type and nullability; `extract` reads the member from the carrier record. A
-present carrier leaves a non-null witness non-null, while a source `Struct`
-member stays nullable at every step. See
-[projections](projections.md#computed-structs).
-
-### `StructTemplate`
-
-`StructTemplate` is the data-domain template tier. It shares field slots and
-annotations with `Table`, `Struct` and `ComputedStruct` hosts, never becomes a
-declaration itself, and never enters the blueprint:
-
-```python
-from kg_build_system import (
-    Field, StructOptionsTemplate, StructTemplate, Table, TableOptions, field,
-)
-
-class ProvenancedTemplate(StructTemplate):
-    options = StructOptionsTemplate()
-    source_version: Field[str] = field()
-
-class SiteTable(ProvenancedTemplate, Table):
-    options = TableOptions(name="site")
     site_id: Field[str] = field()
+    name: Field[str] = field()
+    surveyed_on: Field[Date] = field()
+    contact: Field[ContactStruct] = field()
+    aliases: Field[Array[str | None]] = field()
+
+
+class UnitTable(Table):
+    """One asset at a site."""
+
+    unit_id: Field[str] = field()
+    site_id: Field[str] = field()
+    label: Field[str] = field()
+
+
+class DefectTable(Table):
+    """One defect found on a unit."""
+
+    defect_id: Field[str] = field()
+    unit_id: Field[str] = field()
+    title: Field[str] = field()
+    status: Field[str] = field()
+    severity: Field[int] = field()
+    tags: Field[Array[str]] = field()
 ```
 
-Templates come first in the base list, as in topology. A template's options must
-be `StructOptionsTemplate`, which carries annotations and no name or
-description. A template mixed into `Projection` or `TableGroup` is refused.
-A `ComputedStruct` host accepts a template's annotations, but source-backed
-template fields fail there because a computed host requires `computed_field`.
+The names are inferred: `SiteTable` becomes `site`, `UnitTable` becomes `unit`,
+and so on. Set `TableOptions(name=..., description=...)` when the external name or
+the description should differ from the defaults.
 
-## Arrays
+The repeated `site_id` and `unit_id` are deliberate. A row source can join the
+tables on those fields later, and a binding can build keys from them. The
+contract does not decide the grain; it only states what each row holds. Grain and
+joins are on [row sources](row-sources.md).
 
-`Array[T]` is the portable ordered collection marker. It exists so a list keeps
-its item type through declarations, expressions and the contract without naming
-a storage engine. Use it rather than `list[T]` or a storage type. A field names
-the array value; access owns whether the array is present:
+## Nested records
 
-| Declaration | Value it names |
-| --- | --- |
-| `Field[Array[str]]` | a list of non-null strings |
-| `Field[Array[str \| None]]` | a list whose items may be null |
-
-Do not write `Field[Array[str] | None]`: an outer `| None` is stripped because
-access is nullable either way. The item union stays, because a null item inside
-a present list is a different fact.
-
-Arrays expand and transform explicitly. First narrow the nullable selection to a
-present `ArraySelection`, then use the array operations:
+A nested JSON object becomes a `Struct`. Every step into it stays nullable: the
+`contact` field may be absent, and when it is present a source member such as
+`email` may still be absent in its own right. Use `extract` to read a member:
 
 ```python
-tags = CustomerTable.tags.alter_rows().drop_null()
-tag = tags.alter_rows().expand()
-
-addresses = CustomerTable.previous_addresses.alter_rows().drop_null()
-address = addresses.drop_null_items().alter_rows().expand()
-city = address.extract(lambda value: value.city)
+email = SiteTable.contact.extract(lambda contact: contact.email)
+# NullableSelection[str]
 ```
 
-A null array produces no rows when expanded; an empty array also produces no
-rows. An array with null items still produces rows, and those items remain
-nullable until `drop_null_items()` removes them. The two cases are independent,
-which is why the item union is declared. For a graph property,
-`drop_null_items()` converts a nullable-item array into the flat scalar array it
-accepts.
+A `Struct` is never bound, placed in a table group or passed as `rows=`. It only
+describes the value of a field. A nested record is also not a graph property;
+bind its scalar members to separate property slots.
 
-!!! warning "Nested collections are not graph properties"
-    A graph property is a scalar or a flat, homogeneous array of non-null
-    scalars. Arrays of structs and nested arrays are expanded into rows and bound
-    member by member. `drop_null_items()` is the explicit conversion for arrays
-    with null items; there is no implicit coercion.
+## Computed values and type witnesses
 
-## Field names and descriptions
-
-The Python attribute and the external field name are related but not identical.
-By default the external name is the attribute in snake case. `name=` overrides
-it, which is how a handwritten contract reads a differently spelled column:
+`computed_field(expression)` declares a value that comes from an expression rather
+than from a source column. A projection uses it for its typed outputs; a
+`ComputedStruct` uses it for a record that a row already carries:
 
 ```python
-class PeopleTable(Table):
-    """One row per person."""
+from kg_build_system import ComputedStruct, Field, Table, computed_field, field
 
-    options = TableOptions(name="people")
-    person_id: Field[str] = field()
-    """Stable identifier used by every downstream record."""
-    display_name: Field[str] = field(name="name")
-    """The name shown in the directory."""
+
+class SiteSummaryStruct(ComputedStruct):
+    """The member types a summary record carries."""
+
+    site_id = computed_field(SiteTable.site_id.alter_rows().drop_null())
+    name = computed_field(SiteTable.name)
+
+
+class SummaryTable(Table):
+    site_id: Field[str] = field()
+    summary: Field[SiteSummaryStruct] = field()
 ```
 
-Here `display_name` is the attribute and `name` is the field name expressions
-and the source see. A documentation string written directly below the
-declaration describes the member; an explicit `description=` argument wins.
-Descriptions resolve when the class is created, so an inherited member keeps the
-description of the class that declared it.
+When `SiteSummaryStruct` is used as a field type, its member expressions are
+**type witnesses**. They fix each member's type and nullability but are not
+evaluated and do not create a row plan. Under a present carrier, reading
+`summary.site_id` through `extract` returns the nested data from the carrier row,
+typed as a present string; reading `name` returns a nullable string. A witness
+only describes the record. To calculate a value from another relation, declare a
+projection output instead. See
+[computed structs](projections.md#computed-structs).
 
-Two fields on one declaration may not share an external name, even when their
-Python attributes differ; class creation fails with
-`... fields 'x' and 'y' share external name 'name'`. The same rule applies to a
-projection's outputs and to a component's properties.
+## Decisions you make
 
-The string form has one limitation: it is recovered by reading the declaration's
-source when the class is created. If the source cannot be read — a class built
-with `exec`, a string, or a REPL definition — the string yields no description.
-The `description=` argument always works and takes precedence.
+### Name the value, not its presence
 
-Tables and structs use their class docstring as the declaration description, and
-`TableOptions(description=...)` or `StructOptions(description=...)` overrides it.
-Write descriptions about meaning, not derivation: "the date the visit happened",
-not "the value after the join".
+Write `Field[str]`, not `Field[str | None]`. A top-level `| None` is accepted and
+stripped because source access is nullable either way; the binding owns presence.
+See [nullability on access](types.md#nullability-belongs-to-access).
 
-!!! tip "A real member named `options`"
-    `options` is reserved for declaration metadata. If the data has a column
-    named `options`, declare the attribute as `options_`; one trailing
-    underscore is dropped from the inferred external name.
+### Declare an array at two levels
 
-## Table groups
+`Field[Array[str]]` names a list of non-null strings. `Field[Array[str | None]]`
+names a list whose items may be null. That item union stays in the declaration
+because a null item inside a present list is a fact about the value. Array
+presence belongs to access, so do not write `Field[Array[str] | None]`.
 
-A `TableGroup` names a family of concrete tables and nested groups. It exists so
-one physical layout can describe a whole family without repeating a location per
-table, and so a consumer can see that the family is a catalog rather than a
-union. It is a catalog and source-binding convenience, not a shape.
+### Describe names and meaning
 
-```python
-from kg_build_system import TableGroup, TableGroupOptions
+The Python attribute and the external field name are usually the same in snake
+case. Use `field(name="...")` when the source spells a column differently. Write
+a documentation string below a field, or pass `description=`, to explain what the
+value means rather than how it is derived. A table's class docstring is its
+description unless `TableOptions` overrides it.
 
+### Share fields with a template
 
-class ReadingsTableGroup(TableGroup):
-    """One relation per logger family."""
+A `StructTemplate` shares fields and annotations with `Table`, `Struct` and
+`ComputedStruct` hosts. Put the template first in the base list and give it
+`StructOptionsTemplate`; it never becomes a declaration of its own and never
+enters the compiled blueprint. A `ComputedStruct` host accepts the template's
+annotations, but its members still need `computed_field`. Templates are the way
+to carry common provenance columns without copying members.
 
-    options = TableGroupOptions(name="readings")
-    temperature = TemperatureTable
-    mechanical = MechanicalTableGroup
-```
+### Let a group describe a family
 
-Group members can be given as class attributes or through
-`TableGroupOptions(members=(...))`. Members must be final tables or other
-groups; a table may appear only once, catalog paths must be unique, and groups
-may not contain a cycle. A group with no members is refused:
-`table groups must declare at least one member`.
+A `TableGroup` is a catalog of concrete tables and nested groups, not a shape and
+not a union. It lets one source binding describe a family whose files follow one
+layout. Each member keeps its own rows and its own shape. See
+[sources](sources.md#when-a-family-shares-a-layout).
 
-One source binding can cover the whole family when the layout names each
-member:
+### Generate a contract from a source
 
-```python
-readings_source = bind_source(
-    target=ReadingsTableGroup,
-    config=DataSourceConfig(
-        str(DATA / "readings"), format=InputFormat.JSON,
-        layout="{group_path}/{table_name}.json",
-    ),
-)
-```
+`kbs generate` writes ordinary `Table`, `Struct` and `TableGroup` classes from a
+physical source. The generated field names the value type only. If the source
+declares nullability, the generator records that claim in the file header and the
+generation manifest, not in the field type: every source field still reads as
+nullable. A nullability `override` can assert or decline a claim for the
+generator's diagnostics, but it does not change the rendered field or make access
+non-null. Change the request and regenerate; generated files are not hand-edited.
 
-The group is not a row source. A binding still targets a concrete table such as
-`TemperatureTable`, and the group source resolves that table to its physical
-path. See [sources](sources.md) for layouts and partition conventions.
+## Limits
 
-## Generated contracts
+- A field type must be a value record: a scalar, an array, a `Struct`,
+  `ComputedStruct` or custom scalar. A table or projection cannot be a field
+  type; bind that relation separately.
+- A `Struct` has no location, no row source and no group membership.
+- `Table`, `TableGroup` and `Projection` are final. Share members through a
+  `StructTemplate` instead of inheriting from another final declaration. A
+  data-domain template belongs on a table, struct or computed struct, not on a
+  projection or table group.
+- `options` is reserved for declaration metadata. If the data has a column named
+  `options`, declare the attribute as `options_`.
+- Two members of one declaration cannot share an external name.
+- A graph property is a scalar or a flat array of non-null scalars. Nested
+  structures are expanded or reified before binding; see
+  [types](types.md#what-a-value-may-become).
 
-`kbs generate` can write these declarations from a source. It exists so the
-physical schema becomes a readable, typed contract instead of a hand-copied list
-of columns. A request in `table/__init__.py` produces an owned package beside it:
+## Next steps
 
-```text
-people_graph/table/
-  __init__.py                 # author-owned requests
-  people/__init__.py          # generated PeopleTable
-```
+Continue with [types and nullability](types.md) to see how these annotations
+become checked logical types.
 
-The generated declaration names each member's value type:
+## Reference
 
-```python
-class PeopleTable(Table):
-    options = TableOptions(name='people')
-    person_id: Field[str] = field(name='person_id')
-    name: Field[str] = field(name='name')
-    city: Field[str] = field(name='city')
-```
-
-The generated annotation names only the value type. A top-level nullable is
-never written: `field()` strips it, because source access owns presence. The
-generator records the source's nullability claim as a header comment (and in the
-manifest's source digest), not as a blueprint field type.
-
-The source tiers are:
-
-| Source | Header claim |
-| --- | --- |
-| Parquet | `required`/`optional` declared by the file |
-| CSV, JSON | no declaration; all members nullable |
-
-A request can overrule the source's nullability for one whole top-level column
-with `override={"people.city": {"nullable": False}}`. `False` asserts a non-null
-claim and runs the Parquet null-statistics pre-flight; `True` declines one. The
-override affects the generator's claim and diagnostics, not the rendered field:
-a source field always reads as a nullable selection, so narrow or default it in
-the binding either way. The rendered `Field[T]` is the same whatever the override
-says.
-
-Generated contracts are ordinary `Table`, `Struct` and `TableGroup` classes and
-compile exactly like handwritten ones. They are marked "do not edit": change the
-request and regenerate instead. `mode="table_group"` generates a nested group
-for a directory of relations, and `override` can also declare a type the reader
-reports as text, such as a timestamp. The full workflow is on
-[Install](../start/install.md).
-
-## Why contracts are typed
-
-Every member's annotation is normalized to a logical type. That single fact
-drives everything downstream:
-
-- `Field[str]` reads as a nullable string selection; `Field[int]` as a nullable
-  integer selection. Narrow it and the value type decides which operations exist.
-- A projection's `computed_field` carries its expression's type, including
-  nullability; a `ComputedStruct` member uses the expression as a type witness.
-- Graph properties have their own declared types. A binding that supplies a
-  string to an integer property is rejected before any rows are read.
-- Nested structs and array items keep their types through `extract` and
-  `alter_rows().expand()`, so a mistake five levels into a JSON document is
-  still a type error.
-- The same declaration supplies the shape used by expressions and the row source
-  used by a binding, so the two cannot drift apart.
-
-That is why an author writes no SQL, no column-mapping dictionary and no separate
-schema file. The typed class is the contract; the build derives the rest.
-
-## What to remember
-
-- A `Table` is a logical shape and a row source; a source binding supplies the
-  physical location.
-- `field()` declares source backing; `computed_field(expression)` declares
-  expression backing, and the host decides which is legal.
-- A declaration names the value type. Every source field reads as nullable;
-  narrow it with `alter_rows().drop_null()` or `default_to(...)`.
-- Array item nullability is declared with `Array[T | None]`; array presence is
-  owned by access.
-- Structs are shapes only; reach their members with `extract`. A `ComputedStruct`
-  is a value-record declaration whose member expressions act as type witnesses
-  when it is used as a field; it is not a row source.
-- `StructTemplate` shares fields and annotations with `Table` and `Struct`, and
-  annotation flow with `ComputedStruct`; a template never enters the blueprint.
-- A graph property is a scalar or a flat array of non-null scalars, never a
-  nested structure.
-
-Next: [Types and nullability](types.md) turns these annotations into checked
-logical types; for row values see [expressions](expressions.md) and
-[projections](projections.md).
+For the complete declaration surface, including options, field constructors,
+templates and generated contracts, see the
+[declarations reference](../reference/declarations.md).
