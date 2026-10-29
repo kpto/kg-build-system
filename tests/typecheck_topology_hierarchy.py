@@ -8,7 +8,7 @@ from kg_build_system import (
     NodeTemplate, PropertySlot, Table, edge_binding, endpoint, field,
     node_binding, property,
 )
-from kg_build_system.annotations import Annotation
+from kg_build_system.annotations.interfaces import Annotation
 
 
 @dataclass(frozen=True)

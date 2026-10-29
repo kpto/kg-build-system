@@ -9,7 +9,7 @@ from pydantic import (
 
 from ..._frozen_json import FrozenJson, freeze_json, thaw_json
 from ...types.ir import LogicalTypeIR
-from ...types.ir_codec import decode_type_ir, encode_type_ir
+from ...types.interfaces import decode_type_ir, encode_type_ir
 
 
 def _as_tuple(value: Any) -> Any:
@@ -65,17 +65,17 @@ class DeclaredColumnIR(CoreInstructionIR):
         decode_type_ir(value)
         return value
 
-    @property
-    def logical_type_ir(self) -> LogicalTypeIR:
-        """The declared logical type, as the compilation IR states it."""
-        return decode_type_ir(self.logical_type)
+
+def declared_column_type(column: DeclaredColumnIR) -> LogicalTypeIR:
+    """The declared logical type, as the compilation IR states it."""
+    return decode_type_ir(column.logical_type)
 
 
 def encode_declared_column(name: str, logical_type: LogicalTypeIR) -> DeclaredColumnIR:
     """One declared column, carrying the logical type in its JSON form.
 
     The codec lives here so the payload owns its own carrier: a caller states the
-    declaration and ``logical_type_ir`` reads it back.
+    declaration and ``declared_column_type`` reads it back.
     """
     return DeclaredColumnIR(name=name, logical_type=encode_type_ir(logical_type))
 
@@ -134,5 +134,6 @@ def encode_core_instruction(value: CoreStepInstructionIR) -> FrozenJson:
 __all__ = [
     "AggregateInstructionIR", "CoreStepInstructionIR", "DeclaredColumnIR",
     "DeclaredPathIR", "RelationInstructionIR", "SourceRelationInstructionIR",
-    "decode_core_instruction", "encode_core_instruction", "encode_declared_column",
+    "decode_core_instruction", "declared_column_type", "encode_core_instruction",
+    "encode_declared_column",
 ]

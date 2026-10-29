@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from kg_build_system.expressions.interfaces import row_effects as row_semantics_effects
+
 import unittest
 
 from kg_build_system import (
@@ -14,8 +16,8 @@ from kg_build_system import (
     node_binding,
     property,
 )
-from kg_build_system.expressions import RowEffect
-from kg_build_system.types import INT
+from kg_build_system.expressions.interfaces import RowEffect
+from kg_build_system.types.interfaces import INT
 
 
 class BindingInputTable(Table):
@@ -76,7 +78,7 @@ class GraphBindingTests(unittest.TestCase):
             properties=EntityNode(label=narrowed, description=narrowed),
         )
 
-        self.assertEqual(narrowed.expression.model.row_semantics.effects, (RowEffect("filter"),))
+        self.assertEqual(row_semantics_effects(narrowed.expression.model.row_semantics), (RowEffect("filter"),))
         self.assertIs(binding.build_key, narrowed.expression)
 
     def test_edge_inputs_are_normalized_to_expressions(self) -> None:

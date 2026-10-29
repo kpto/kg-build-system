@@ -10,7 +10,7 @@ from kg_build_system import (
     Table, bind_source, build, compile, computed_field, field, node_binding, property,
 )
 from kg_build_system.modules import FileModule, FileModuleConfiguration, register_module
-from kg_build_system.table.rows import RelationRowSource
+from kg_build_system.table.interfaces import RelationRowSource
 
 
 class Source(Table):

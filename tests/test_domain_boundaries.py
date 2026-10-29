@@ -9,10 +9,10 @@ import kg_build_system
 from kg_build_system import value_expression
 from kg_build_system.expressions.ir import ExpressionIRBase
 from kg_build_system.workflow.ir import WorkflowContractIR
-from kg_build_system.workflow.models import (
+from kg_build_system.workflow.interfaces import (
     DefinedStep, WorkflowContribution, WorkflowStep,
 )
-from kg_build_system.workflow.services import ExecutionServices
+from kg_build_system.workflow.interfaces import ExecutionServices
 
 PACKAGE = Path(kg_build_system.__file__).parent
 
@@ -187,7 +187,7 @@ class DomainBoundaryTests(unittest.TestCase):
 
     def test_declared_models_hold_no_reference_to_their_owner(self) -> None:
         """Domain models are amnesic: nothing on a step or an opening names what holds it."""
-        from kg_build_system.workflow.models import Input, Output, Publication, TakenInput
+        from kg_build_system.workflow.interfaces import Input, Output, Publication, TakenInput
 
         forbidden = {"module_id", "step_id", "workflow", "owner", "parent"}
         for model in (WorkflowStep, Input, Output, Publication, DefinedStep, TakenInput):
@@ -211,8 +211,114 @@ class DomainBoundaryTests(unittest.TestCase):
     def test_workflow_contract_has_only_workflow_semantics_and_provenance(self) -> None:
         self.assertEqual(
             set(WorkflowContractIR.model_fields),
-            {"schema_version", "workflow", "workflow_fingerprint", "provenance"},
+            {"workflow", "workflow_fingerprint", "provenance"},
         )
+
+
+    def test_every_domain_subpackage_declares_its_three_surfaces(self) -> None:
+        """Authoring, the framework interface and IR are separate modules.
+
+        ``cli`` is an entry point, not a domain: it has an author command and no
+        internal interface or IR.
+        """
+        domains = (
+            "annotations", "binding", "code_generation", "compile", "engines",
+            "expressions", "modules", "relational", "table", "topology",
+            "types", "workflow",
+        )
+        for name in domains:
+            directory = PACKAGE / name
+            self.assertTrue(
+                (directory / "__init__.py").is_file(),
+                f"{name} has no authoring facade",
+            )
+            self.assertTrue(
+                (directory / "interfaces.py").is_file(),
+                f"{name} has no framework interface",
+            )
+            self.assertTrue(
+                (directory / "ir.py").is_file(),
+                f"{name} has no IR",
+            )
+
+    def test_cross_subpackage_imports_use_a_declared_surface(self) -> None:
+        """Only a package's facade, interface, protocols and IR are importable.
+
+        A subpackage may import another subpackage by its ``__init__`` names,
+        its ``interfaces`` names, its ``protocols`` names or its ``ir`` names.
+        Importing an implementation module makes the boundary accidental again.
+        """
+        kernel = {"_frozen_json", "_relations", "_support"}
+        declared = {"interfaces", "ir", "protocols", "__init__"}
+        for path in PACKAGE.rglob("*.py"):
+            relative = path.relative_to(PACKAGE)
+            if relative.parts[0] in kernel or len(relative.parts) < 2:
+                continue
+            own = relative.parts[0]
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ImportFrom) or node.level == 0:
+                    continue
+                base = path.parent
+                for _ in range(node.level - 1):
+                    base = base.parent
+                target = base.joinpath(*(node.module or "").split("."))
+                try:
+                    target_relative = target.relative_to(PACKAGE)
+                except ValueError:
+                    continue
+                if target_relative.parts[0] == own:
+                    continue
+                if target_relative.parts[0] in kernel:
+                    continue
+                if (target / "__init__.py").is_file():
+                    continue
+                self.assertIn(
+                    target_relative.parts[-1], declared,
+                    f"{relative} imports implementation module {target_relative}",
+                )
+
+    def test_ir_models_hold_no_instance_behavior(self) -> None:
+        """IR is frozen data: no method reads ``self`` and no property derives."""
+        for path in PACKAGE.rglob("ir.py"):
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in ast.walk(tree):
+                if not isinstance(node, ast.ClassDef):
+                    continue
+                for member in node.body:
+                    if isinstance(member, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                        arguments = {item.arg for item in member.args.args}
+                        self.assertNotIn(
+                            "self", arguments,
+                            f"{path}:{node.name}.{member.name} is behavior on IR",
+                        )
+                        self.assertFalse(
+                            any(
+                                isinstance(decorator, ast.Name)
+                                and decorator.id == "property"
+                                for decorator in member.decorator_list
+                            ),
+                            f"{path}:{node.name}.{member.name} is a derived IR property",
+                        )
+
+    def test_authoring_facades_export_no_internal_models(self) -> None:
+        forbidden = {
+            "Binding", "BuildBlueprint", "CompilationContext", "ExpressionNode",
+            "FieldMetadata", "LogicalType", "ModuleCompiler", "ModuleExecutor",
+            "Nullable", "RowSemantics", "RowSourcePlanIR", "WorkflowContractIR",
+        }
+        for name in kg_build_system.__all__:
+            self.assertNotIn(name, forbidden)
+            self.assertFalse(name.endswith("IR"))
+
+    def test_workflow_models_hold_no_execution_services(self) -> None:
+        from kg_build_system.workflow.models import (
+            DisruptedExecutionContext, ExecutionContext, ExecutorFactoryContext,
+        )
+
+        for model in (ExecutionContext, DisruptedExecutionContext, ExecutorFactoryContext):
+            held = {item.name for item in fields(model)}
+            self.assertNotIn("services", held, f"{model.__name__} carries a service")
 
 
 if __name__ == "__main__":

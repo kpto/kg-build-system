@@ -75,7 +75,6 @@ class MetaGraphDocumentIR(BaseModel):
 
     model_config = ConfigDict(frozen=True, extra="forbid")
 
-    schema_version: Literal[3] = 3
     relative_path: str = Field(min_length=1)
     example_limit: int = Field(default=3, ge=0)
     include_html: bool = True

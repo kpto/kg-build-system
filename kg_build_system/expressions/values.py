@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Generic, TypeVar, cast, overload
 
-from ..types import (
+from ..types.interfaces import (
     Date, LogicalType, Nullable, NullableType, STR, Time, Timestamp,
     UnitType, Uuid,
 )

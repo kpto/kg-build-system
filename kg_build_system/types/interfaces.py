@@ -1,0 +1,102 @@
+"""Framework-internal interface of the logical type domain.
+
+Another subpackage imports logical types, normalization and codecs here. The
+author-facing vocabulary is re-exported by :mod:`kg_build_system.types`; the
+compilation IR is :mod:`kg_build_system.types.ir`.
+"""
+from __future__ import annotations
+
+from .codec import decode_type, encode_type
+from .ir_codec import decode_type_ir, encode_type_ir
+from .mapping import type_to_ir
+from .models import (
+    BOOL,
+    CANONICAL_UNIT_NAMES,
+    DATE,
+    FLOAT,
+    INT,
+    STR,
+    TIME,
+    TIMESTAMP,
+    UUID,
+    Array,
+    ArrayType,
+    CustomDataType,
+    Date,
+    Shape,
+    Struct,
+    Time,
+    Timestamp,
+    Uuid,
+    CustomType,
+    LogicalType,
+    NonNullableLogicalType,
+    Nullable,
+    NullableType,
+    ShapeType,
+    StructType,
+    TEXT_CANONICAL_UNIT_NAMES,
+    UnitType,
+    UnitTypeName,
+    canonical_value_text,
+    is_canonical_unit_name,
+    register_shape,
+    resolve_shape,
+)
+from .normalization import UNIT_BY_REPRESENTATIVE_CLASS, normalize_type
+from .validation import (
+    array_item,
+    is_nullable,
+    non_nullable,
+    require_graph_property,
+    require_non_nullable,
+    require_scalar,
+)
+
+__all__ = [
+    "BOOL",
+    "CANONICAL_UNIT_NAMES",
+    "DATE",
+    "FLOAT",
+    "INT",
+    "STR",
+    "TIME",
+    "TIMESTAMP",
+    "UUID",
+    "Array",
+    "ArrayType",
+    "CustomDataType",
+    "Date",
+    "Shape",
+    "Struct",
+    "Time",
+    "Timestamp",
+    "Uuid",
+    "CustomType",
+    "LogicalType",
+    "NonNullableLogicalType",
+    "Nullable",
+    "NullableType",
+    "ShapeType",
+    "StructType",
+    "TEXT_CANONICAL_UNIT_NAMES",
+    "UNIT_BY_REPRESENTATIVE_CLASS",
+    "UnitType",
+    "UnitTypeName",
+    "array_item",
+    "canonical_value_text",
+    "decode_type",
+    "decode_type_ir",
+    "encode_type",
+    "encode_type_ir",
+    "is_canonical_unit_name",
+    "is_nullable",
+    "non_nullable",
+    "normalize_type",
+    "register_shape",
+    "require_graph_property",
+    "require_non_nullable",
+    "require_scalar",
+    "resolve_shape",
+    "type_to_ir",
+]

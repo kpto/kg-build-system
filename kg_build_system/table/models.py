@@ -6,13 +6,13 @@ from enum import StrEnum
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, ClassVar, Generic, Self, TypeAlias, TypeVar
 
-from .._support.naming import declaration_name
-from ..annotations import Annotation, annotation_tuple
-from ..types import Shape, Struct as StructDeclaration
+from .._support.interfaces import declaration_name
+from ..annotations.interfaces import Annotation, annotation_tuple
+from ..types.interfaces import Shape, Struct as StructDeclaration
 from .rows import RowSource, shape_context
 
 if TYPE_CHECKING:
-    from ..expressions import BoolExpression
+    from ..expressions.interfaces import BoolExpression
     from .rows import DerivedRowSource, RelationRowSource
 
 
@@ -196,7 +196,7 @@ def _derive(
     predicate: Callable[[S], "BoolExpression"],
     filters: tuple["BoolExpression", ...] = (),
 ) -> "DerivedRowSource[S]":
-    from ..expressions import BoolExpression
+    from ..expressions.interfaces import BoolExpression
     from .rows import derive_row_source
 
     if not callable(predicate):

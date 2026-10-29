@@ -90,13 +90,11 @@ Owns the graph-binding authoring values and their IR: one row context mapped ont
 
 ## Boundaries
 
-- `binding.factories` may import `expressions`, `table.rows`, `topology.models` and `types`; `binding.models` may import `annotations`, `expressions`, `table.rows` and `topology.models`.
-- `binding.ir` may import `annotations.ir`, `expressions.ir` and `table.ir`; it carries no authoring models.
-- `binding` must not import `compile`, `relational`, `engines`, `workflow`, `modules`, `code_generation`, `cli` or `api`.
-- The allowed topology dependency is the public `Node`, `Edge`, `Endpoint` and `NonNullableGraphValue` surface. The current factories also import `topology.models._NodeSideBase` only to bound the edge overloads; that private name is the current exception.
-- `binding` must not import `table.models`. The row shape is obtained through `table.rows.shape_context` and the row-source value; a `Struct` or declaration class is not a row source.
-- `compile` imports `binding` and `binding.ir`; the dependency direction is `compile -> binding`, never `binding -> compile`.
-
+- Surfaces: `kg_build_system.binding` is the author-facing factory surface; `binding.interfaces` is the internal model and factory interface; `binding.ir` is the binding IR.
+- Allowed dependencies: the `interfaces` and `ir` surfaces of `types`, `annotations`, `expressions`, `table` and `topology`.
+- `binding` never imports `compile`, `relational`, `engines`, `workflow`, `modules`, `code_generation`, `cli` or `api`.
+- `compile` imports `binding.interfaces` and `binding.ir`; the dependency direction is `compile -> binding`.
+- The topology dependency is the declared component surface, including the internal node-side base used to bound the edge overloads.
 ## Current decisions
 
 - Both forms are current; neither is deprecated. They may not be mixed.

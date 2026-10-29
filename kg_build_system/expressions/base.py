@@ -5,7 +5,8 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from .._frozen_json import freeze_json
-from ..types import LogicalType
+from ..types.interfaces import LogicalType
+from ._operations import row_effects, row_semantics
 from .models import (
     ExpressionNode, FieldReferenceExpression, OperationExpression,
     OperationParameter, PRESERVE_ROWS, RowEffect, RowSemantics, Traversal,
@@ -18,15 +19,15 @@ def compose_row_semantics(
     """Compose input and local row effects, sharing identical expansions."""
     effects: list[RowEffect] = []
     for expression in expressions:
-        for effect in expression.row_semantics.effects:
+        for effect in row_effects(expression.row_semantics):
             if effect.mode == "expand" and effect in effects:
                 continue
             effects.append(effect)
-    for effect in local.effects:
+    for effect in row_effects(local):
         if effect.mode == "expand" and effect in effects:
             continue
         effects.append(effect)
-    return RowSemantics.from_effects(tuple(effects))
+    return row_semantics(tuple(effects))
 
 
 def field_reference(

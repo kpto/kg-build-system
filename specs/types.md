@@ -34,7 +34,7 @@ The `kg_build_system.types` package owns the canonical logical-type vocabulary, 
   - `encode_type(logical_type) -> dict[str, Any]` and `decode_type(value) -> LogicalType`.
   - `encode_type_ir(value: LogicalTypeIR) -> dict[str, Any]` and `decode_type_ir(value) -> LogicalTypeIR`.
 - Compilation mapping: `type_to_ir(logical_type: LogicalType) -> LogicalTypeIR`, with `UnitTypeIR`, `CustomTypeIR`, `StructTypeIR`, `ArrayTypeIR` and `NullableTypeIR`.
-- DuckDB digest interface in `engines.duckdb.types`:
+- DuckDB digest interface in `engines.interfaces`:
   - `DIGEST_TABLE: dict[str, TypeDigest]`.
   - `TypeDigest = CanonicalDigest | DeclaredOnlyDigest | RefusedDigest`.
   - `digest_for(value: str) -> TypeDigest | None`, where `None` means the name is unknown, not refused.
@@ -45,8 +45,9 @@ The `kg_build_system.types` package owns the canonical logical-type vocabulary, 
 ## Boundaries
 
 - `types` imports nothing else from `kg_build_system`. It carries no expressions, declarations, bindings, topology, workflow or engine behaviour.
-- `types.ir` is the compilation boundary for the same vocabulary; `types.mapping` is the one-way mapping from domain types to that IR. `types.codec` and `types.ir_codec` serialise only frozen JSON-compatible values.
-- `engines.duckdb.types` may import `types`; it is an engine leaf and must not import declarations, bindings, compile or workflow. The digest gate maps physical types to canonical types; it does not materialise values or plan relations.
+- Surfaces: `kg_build_system.types` is the author-facing vocabulary; `types.interfaces` is normalization, validation, codecs and the internal `Nullable` marker; `types.ir` is the logical-type IR.
+- The mapping from a domain type to IR is one way; IR never retains a declaration class.
+- `engines` may import `types.interfaces`; it is a leaf and must not import declarations, bindings, compile or workflow. The digest gate maps physical types to canonical types; it does not materialise values or plan relations.
 - A target's capability set is not part of `types`. A target may narrow the canonical types it stores, but it may not invent a new canonical type.
 
 ## Current decisions

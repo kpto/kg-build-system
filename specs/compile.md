@@ -14,19 +14,17 @@ The `kg_build_system.compile` package owns the build blueprint aggregate, its co
   - `bindings: tuple[BindingIR, ...]`
   - `sources: tuple[SourceIR, ...] = ()`
   - `modules: tuple[BlueprintModuleIR, ...] = ()`
-  - `schema_version: Literal[4] = 4`
-- `BLUEPRINT_SCHEMA_VERSION = 4`.
-- Codec functions exported by `kg_build_system.compile`:
+- Codec functions exported by `compile.interfaces`:
   - `encode_blueprint(value: BuildBlueprint) -> dict[str, Any]`
   - `decode_blueprint(value: Mapping[str, Any]) -> BuildBlueprint`
   - `blueprint_json(value: BuildBlueprint, *, indent: int | None = None) -> str`
   - `blueprint_from_json(value: str | bytes | bytearray) -> BuildBlueprint`
   - `validate_blueprint(blueprint: BuildBlueprint) -> None`
-- Compiler functions in `compile.compiler`:
+- Compiler functions exported by `compile.interfaces`:
   - `create_blueprint(*, bindings=(), sources=(), modules=(), namespace_path=None) -> BuildBlueprint`
   - `configure_blueprint_modules(blueprint: BuildBlueprint, modules: Sequence[CompileModuleRegistration[Any]]) -> BuildBlueprint`
   - `compile_workflow(*, blueprint: BuildBlueprint) -> WorkflowContractIR`
-- Compile-time module interface in `compile.interfaces`:
+- Compile-time module protocols in `compile.interfaces`:
   - `CompilationContext[ConfigT](blueprint, module_id, configuration)`.
   - `ModuleCompiler.compile(context: CompilationContext[Any]) -> WorkflowContribution` (async).
   - `CompilableModule` with `ID: ClassVar[str]`, `VERSION: ClassVar[str]`, `CONFIGURATION_TYPE: ClassVar[type[Any]]`, and async `create_compiler(context) -> ModuleCompiler`.
@@ -43,7 +41,8 @@ The `kg_build_system.compile` package owns the build blueprint aggregate, its co
 
 ## Boundaries
 
-- Allowed package dependencies: `types`, `annotations`, `expressions`, `table`, `topology`, `binding`, `workflow`, and the private `_frozen_json` kernel.
+- Surfaces: `compile.ir` is the blueprint; `compile.interfaces` is the internal interface; the package has no author-facing surface.
+- Allowed dependencies: the `interfaces` and `ir` surfaces of `types`, `annotations`, `expressions`, `table`, `topology`, `binding` and `workflow`, plus the `_frozen_json` kernel.
 - `compile` may call workflow assembly and contract creation; `workflow` must not import `compile`.
 - Must not import `modules`, concrete module implementations, `engines`, `code_generation`, `api`, or `cli`.
 - A module compiler receives the blueprint and its own reconstructed registration configuration. It never receives authoring Python classes, a runtime connection, or executor state.
@@ -52,9 +51,9 @@ The `kg_build_system.compile` package owns the build blueprint aggregate, its co
 ## Current decisions
 
 - **The blueprint is IR, not authoring state.** Every field of `BuildBlueprint` is a frozen IR value. No declaration class, expression wrapper, binding object, connection, or module instance is stored.
-- **Validation is mandatory at both ends.** `blueprint_json` validates before encoding; `decode_blueprint` checks `schema_version` and validates after decoding. `create_blueprint`, `configure_blueprint_modules`, and `compile_workflow` validate before use.
-- **Schema versions are literal facts.** A blueprint is schema version `4`; `decode_blueprint` rejects any other value. A workflow contract is schema version `2`. There is no compatibility negotiation or migration path.
-- **Codec shape.** Encoding emits `schema_version`, `structs`, `tables`, `components`, `projections`, `bindings`, `sources`, and `modules`. JSON is sorted by key and compact unless an indent is requested. Decoding requires a mapping, non-empty strings where the schema requires text, arrays where it requires arrays, known component kinds, known binding kinds, known source formats, and a row source on every projection.
+- **Validation is mandatory at both ends.** `blueprint_json` validates before encoding; `decode_blueprint` validates after decoding. `create_blueprint`, `configure_blueprint_modules`, and `compile_workflow` validate before use.
+- **No schema version.** A blueprint is identified by its content; the decoder rejects unknown fields and never negotiates a version.
+- **Codec shape.** Encoding emits `structs`, `tables`, `components`, `projections`, `bindings`, `sources`, and `modules`. JSON is sorted by key and compact unless an indent is requested. Decoding requires a mapping, non-empty strings where the schema requires text, arrays where it requires arrays, known component kinds, known binding kinds, known source formats, and a row source on every projection.
 - **Blueprint invariants.** Validation requires at least one graph component and at least one graph binding, and enforces:
   - unique symbol IDs across structs, tables, components, projections, bindings, and sources;
   - unique struct names within a module, unique table names, unique component names, unique projection names, unique logical source names across tables and projections, and unique module IDs;

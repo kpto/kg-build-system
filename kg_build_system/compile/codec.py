@@ -5,9 +5,9 @@ import json
 from collections.abc import Callable, Mapping, Sequence
 from typing import Any, TypeVar, cast
 
-from ..expressions.ir_codec import decode_expression_ir, encode_expression_ir
+from ..expressions.interfaces import decode_expression_ir, encode_expression_ir
 from .._frozen_json import FrozenJson, FrozenObject, freeze_json
-from ..types.ir_codec import decode_type_ir, encode_type_ir
+from ..types.interfaces import decode_type_ir, encode_type_ir
 from ..annotations.ir import AnnotationIR as AnnotationDefinition
 from ..binding.ir import (
     EdgeBindingIR as EdgeBindingDefinition,
@@ -22,10 +22,10 @@ from ..table.ir import (
     StructIR as StructDefinition,
     TableIR as TableDefinition,
 )
-from ..table.ir_codec import decode_row_source_plan, encode_row_source_plan
+from ..table.interfaces import decode_row_source_plan, encode_row_source_plan
 from ..topology.ir import ComponentIR as ComponentDefinition, PropertyIR as PropertyDefinition
 from ..workflow.ir import BlueprintModuleIR as BlueprintModule
-from .models import BLUEPRINT_SCHEMA_VERSION, BuildBlueprint
+from .ir import BuildBlueprint
 from .validation import validate_blueprint
 
 T = TypeVar("T")
@@ -199,7 +199,6 @@ def _encode_module(value: BlueprintModule) -> dict[str, Any]:
 def encode_blueprint(value: BuildBlueprint) -> dict[str, Any]:
     """Encode a blueprint into its canonical JSON-compatible representation."""
     return {
-        "schema_version": BLUEPRINT_SCHEMA_VERSION,
         "structs": [_encode_data_declaration(item) for item in value.structs],
         "tables": [_encode_data_declaration(item) for item in value.tables],
         "components": [_encode_component(item) for item in value.components],
@@ -411,10 +410,6 @@ def _decode_module(value: Mapping[str, Any]) -> BlueprintModule:
 
 def decode_blueprint(value: Mapping[str, Any]) -> BuildBlueprint:
     """Decode and validate a blueprint from a JSON-compatible object."""
-    version = value.get("schema_version")
-    if version != BLUEPRINT_SCHEMA_VERSION:
-        raise ValueError(f"unsupported blueprint schema version {version!r}")
-
     result = BuildBlueprint(
         structs=_items(value, "structs", _decode_struct),
         tables=_items(value, "tables", _decode_table),

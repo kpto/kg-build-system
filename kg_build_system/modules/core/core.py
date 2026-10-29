@@ -6,25 +6,26 @@ from dataclasses import dataclass, field
 from typing import Any, ClassVar, Literal, cast
 
 from ..._frozen_json import FrozenJson, freeze_json
-from ...compile.models import BuildBlueprint
-from ...engines.duckdb import (
+from ...compile.interfaces import BuildBlueprint
+from ...engines.interfaces import (
     PARQUET_LIST_WRAPPER_PATH,
     canonical_sql_type,
     lower_row_source_sql,
     read_declared_null_statistics,
 )
-from ...expressions.ir import (
-    FieldReferenceExpressionIR,
-    walk_expression_ir,
-)
+from ...expressions.interfaces import walk_expression_ir
+from ...expressions.ir import FieldReferenceExpressionIR
 from ...table.ir import ProjectionIR as ProjectionDefinition
-from ...table.ir import RowScanIR, RowSourcePlanIR, StructIR, struct_type_key
-from ...table.rows import (
+from ...table.interfaces import (
+    struct_type_key,
     ShapeField, plan_fields, plan_inputs, plan_scan_sources, row_source_key,
 )
+from ...table.ir import RowScanIR, RowSourcePlanIR, StructIR
+from ...modules.core.ir import declared_column_type
 from ...types.ir import ArrayTypeIR, NullableTypeIR, StructTypeIR
 from ...topology.ir import ComponentIR as ComponentDefinition
-from ...workflow.models import (
+from ...workflow.interfaces import (
+    ExecutionServices,
     Artifact,
     ArtifactType,
     DisruptedExecutionContext,
@@ -41,9 +42,9 @@ from ...workflow.models import (
 )
 from ...compile.interfaces import CompilationContext, ModuleCompiler
 from ...modules.interfaces import Module, ModuleRegistrationConfiguration
-from ...workflow.identity import output_name
+from ...workflow.interfaces import output_name
 from ...workflow.interfaces import ModuleExecutor
-from ...workflow.services import RelationRef
+from ...workflow.interfaces import RelationRef
 from .lowering import (
     binding_outputs,
     binding_sources,
@@ -633,7 +634,7 @@ def _widened_column(column: DeclaredColumnIR) -> str:
     reach the column by the name the contract declares.
     """
     name = _quote_identifier(column.name)
-    sql_type = sql_type_for(column.logical_type_ir)
+    sql_type = sql_type_for(declared_column_type(column))
     if sql_type is None:
         return name
     return f"CAST({name} AS {canonical_sql_type(sql_type)}) AS {name}"
@@ -641,6 +642,7 @@ def _widened_column(column: DeclaredColumnIR) -> str:
 
 def _require_declared_columns(
     context: ExecutionContext, instruction: SourceRelationInstructionIR, scan: str,
+    services: ExecutionServices,
 ) -> None:
     """Check the contract's declared fields against the relation, before any use.
 
@@ -660,7 +662,7 @@ def _require_declared_columns(
     try:
         columns = {
             str(row[0])
-            for row in context.services.relations.query(query).fetchall()
+            for row in services.relations.query(query).fetchall()
         }
     except Exception as error:
         raise RuntimeError(
@@ -683,6 +685,7 @@ def _require_declared_columns(
 
 def _report_declared_null_statistics(
     context: ExecutionContext, instruction: SourceRelationInstructionIR,
+    services: ExecutionServices,
 ) -> bool:
     """Count nulls behind a declared non-null claim, from file footers only.
 
@@ -693,7 +696,7 @@ def _report_declared_null_statistics(
     if instruction.format != "parquet" or not instruction.declared_paths:
         return False
     def read(query: str, parameters: Sequence[object]) -> list[tuple[Any, ...]]:
-        return list(context.services.relations.query(query, parameters).fetchall())
+        return list(services.relations.query(query, parameters).fetchall())
 
     try:
         report = read_declared_null_statistics(
@@ -702,7 +705,7 @@ def _report_declared_null_statistics(
             [path.schema_path for path in instruction.declared_paths],
         )
     except Exception as error:
-        context.services.logger.warning(
+        services.logger.warning(
             "could not read null statistics from %s: %s",
             instruction.location, error,
         )
@@ -711,36 +714,39 @@ def _report_declared_null_statistics(
         path.schema_path: path.logical_path for path in instruction.declared_paths
     }
     for statistic in report.violations:
-        context.services.logger.warning(
+        services.logger.warning(
             "%s reports %d null value(s) in %d rows for the declared non-null "
             "column %r; the guard will abort the build unless the contract changes",
             instruction.location, statistic.nulls, statistic.values,
             logical.get(statistic.schema_path, statistic.schema_path),
         )
     for path in report.unknown_paths:
-        context.services.logger.debug(
+        services.logger.debug(
             "no null statistics published for %r; unknown is not zero", path,
         )
     return bool(report.violations)
 
 
 class CoreExecutor(ModuleExecutor):
-    def handle(self, context: ExecutionContext) -> StepOutcome:
+    def handle(
+        self, context: ExecutionContext, services: ExecutionServices,
+    ) -> StepOutcome:
         instruction = decode_core_instruction(
             context.variables["instructions"][context.step.name],
         )
         if isinstance(instruction, AggregateInstructionIR):
-            return self._aggregate(context, instruction)
+            return self._aggregate(context, instruction, services)
         if isinstance(instruction, SourceRelationInstructionIR):
-            return self._define_source(context, instruction)
-        return self._define_relation(context, instruction)
+            return self._define_source(context, instruction, services)
+        return self._define_relation(context, instruction, services)
 
     @staticmethod
     def _aggregate(
         context: ExecutionContext, instruction: AggregateInstructionIR,
+        services: ExecutionServices,
     ) -> StepOutcome:
         source_relations = tuple(
-            context.services.relations.reference(item.artifact.value)
+            services.relations.reference(item.artifact.value)
             for contributions in context.inputs.values()
             for item in contributions
             if item.artifact is not None
@@ -749,7 +755,7 @@ class CoreExecutor(ModuleExecutor):
             f"SELECT * FROM {source}"
             for source in source_relations
         )
-        relation = context.services.relations.view(
+        relation = services.relations.view(
             instruction.relation, union_sql,
         )
         return CoreExecutor._success(context, relation)
@@ -757,8 +763,9 @@ class CoreExecutor(ModuleExecutor):
     @staticmethod
     def _define_relation(
         context: ExecutionContext, instruction: RelationInstructionIR,
+        services: ExecutionServices,
     ) -> StepOutcome:
-        relation = context.services.relations.view(
+        relation = services.relations.view(
             instruction.relation, instruction.sql,
         )
         return CoreExecutor._success(context, relation)
@@ -766,10 +773,11 @@ class CoreExecutor(ModuleExecutor):
     @staticmethod
     def _define_source(
         context: ExecutionContext, instruction: SourceRelationInstructionIR,
+        services: ExecutionServices,
     ) -> StepOutcome:
         if instruction.credential_reference is not None:
             configure_source_credentials(
-                context.services,
+                services,
                 location=instruction.location,
                 credential_reference=instruction.credential_reference,
             )
@@ -784,7 +792,7 @@ class CoreExecutor(ModuleExecutor):
         # ``DESCRIBE`` reads file metadata only, so the contract's shape is checked
         # before a view exists and before any consumer can reach this relation —
         # every other step arrives through the type this step emits.
-        _require_declared_columns(context, instruction, scan)
+        _require_declared_columns(context, instruction, scan, services)
         # A multi-file scan does not widen the partitions it unions: it reports the
         # width of one file, which can be narrower than another partition's. The
         # widening happens here, in the per-source view, so every reader downstream
@@ -795,7 +803,7 @@ class CoreExecutor(ModuleExecutor):
         ) or "*"
         sql = f"SELECT {select} FROM {scan}"
         try:
-            relation = context.services.relations.view(instruction.relation, sql)
+            relation = services.relations.view(instruction.relation, sql)
         except Exception as error:
             # DuckDB binds a view as it is created, so a source whose declared
             # format does not match its bytes fails here — in framework terms,
@@ -807,7 +815,7 @@ class CoreExecutor(ModuleExecutor):
             ) from error
         # ``CREATE VIEW`` reads nothing, so the statistics pre-flight issues its own
         # metadata query.
-        found = _report_declared_null_statistics(context, instruction)
+        found = _report_declared_null_statistics(context, instruction, services)
         return CoreExecutor._success(
             context, relation,
             status=StepStatus.WARNING if found else StepStatus.SUCCEEDED,
@@ -828,6 +836,6 @@ class CoreExecutor(ModuleExecutor):
         )
 
     def handle_disrupted(
-        self, context: DisruptedExecutionContext,
+        self, context: DisruptedExecutionContext, services: ExecutionServices,
     ) -> StepOutcome:
-        return super().handle_disrupted(context)
+        return super().handle_disrupted(context, services)

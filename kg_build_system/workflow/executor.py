@@ -22,9 +22,10 @@ from .models import Artifact, BuildRuntime, DefinedStep, ModuleDefinition, Publi
 from .monitor import (
     NullWorkflowMonitor, RichWorkflowMonitor, WorkflowExecutionMonitor,
 )
+from ..engines.interfaces import DuckDBRelationService, configure_framework_macros
 from .services import (
-    DuckDBRelationService, ExecutionServices, LocalTemporaryStorage,
-    LocalWorkingStorage, MappingCredentialResolver, configure_framework_macros,
+    ExecutionServices, LocalTemporaryStorage,
+    LocalWorkingStorage, MappingCredentialResolver,
 )
 
 
@@ -287,14 +288,8 @@ def _build(
             )
         configuration = runtime.module_configuration.get(reference.module_id, {})
         _validate_runtime_configuration(module, configuration)
-        module_services = replace(
-            services,
-            logger=_MonitorLogger(
-                monitor, module_id=reference.module_id,
-            ),
-        )
         factory_context = ExecutorFactoryContext(
-            module, module_variables[reference.module_id], configuration, module_services,
+            module, module_variables[reference.module_id], configuration,
         )
         executors[reference.module_id] = cls.create_executor(factory_context)
 
@@ -386,9 +381,9 @@ def _build(
                     context = DisruptedExecutionContext(
                         definitions[module_id], step, module_id, identity,
                         module_variables[module_id], runtime_configuration, by_input,
-                        tuple(disruptions), step_services,
+                        tuple(disruptions),
                     )
-                    outcome = executors[module_id].handle_disrupted(context)
+                    outcome = executors[module_id].handle_disrupted(context, step_services)
                 else:
                     continuable_inputs = {
                         name: tuple(
@@ -399,9 +394,9 @@ def _build(
                     context = ExecutionContext(
                         definitions[module_id], step, module_id, identity,
                         module_variables[module_id], runtime_configuration,
-                        continuable_inputs, step_services,
+                        continuable_inputs,
                     )
-                    outcome = executors[module_id].handle(context)
+                    outcome = executors[module_id].handle(context, step_services)
                 relations.finish_step()
             except Exception as error:
                 step_services.logger.error(

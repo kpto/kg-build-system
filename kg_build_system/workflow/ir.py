@@ -95,11 +95,7 @@ class WorkflowDefinitionIR(WorkflowIR):
     connections: tuple[ConnectionIR, ...] = ()
 
 
-WORKFLOW_CONTRACT_SCHEMA_VERSION: Final = 2
-
-
 class WorkflowContractIR(WorkflowIR):
-    schema_version: Literal[2] = 2
     workflow: WorkflowDefinitionIR
     workflow_fingerprint: str = Field(min_length=1)
     provenance: JsonValue | None = None
@@ -117,7 +113,6 @@ __all__ = [
     "PublicationIR",
     "RuntimeFieldIR",
     "StepIR",
-    "WORKFLOW_CONTRACT_SCHEMA_VERSION",
     "WorkflowContractIR",
     "WorkflowDefinitionIR",
     "WorkflowIR",

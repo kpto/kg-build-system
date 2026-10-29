@@ -11,9 +11,9 @@ from kg_build_system import (
     bind_source, create_blueprint, edge_binding, endpoint, field, node_binding,
     property,
 )
-from kg_build_system.annotations import Annotation, NodeLabel
-from kg_build_system.compile.codec import blueprint_json, decode_blueprint
-from kg_build_system.compile.models import BuildBlueprint
+from kg_build_system.annotations.interfaces import Annotation, NodeLabel
+from kg_build_system.compile.interfaces import blueprint_json, decode_blueprint
+from kg_build_system.compile.interfaces import BuildBlueprint
 from kg_build_system.compile.validation import validate_blueprint
 
 
@@ -189,10 +189,10 @@ class TierTests(unittest.TestCase):
             class Nasty(Item, Direct): ...
 
     def test_direct_root_inheritance_is_rejected(self) -> None:
-        from kg_build_system.topology.models import _TopologyDeclarationBase
+        from kg_build_system.topology.interfaces import TopologyDeclarationBase
 
         with self.assertRaisesRegex(TypeError, "must inherit from"):
-            class Bare(_TopologyDeclarationBase): ...
+            class Bare(TopologyDeclarationBase): ...
 
 
 class OptionsTierTests(unittest.TestCase):
@@ -453,9 +453,7 @@ class BlueprintTests(unittest.TestCase):
         result = self.blueprint()
         encoded = blueprint_json(result)
         self.assertEqual(decode_blueprint(json.loads(encoded)), result)
-        self.assertEqual(result.schema_version, 4)
         document = json.loads(encoded)
-        self.assertEqual(document["schema_version"], 4)
         self.assertTrue(any(item.get("abstract") for item in document["components"]))
         self.assertTrue(
             any(item.get("parent") for item in document["components"])

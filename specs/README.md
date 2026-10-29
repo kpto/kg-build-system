@@ -7,6 +7,11 @@ A spec states the internal interface: responsibility, names and signatures,
 invariants, allowed dependencies and the decisions an implementer must honour. It
 does not describe implementation.
 
+Each domain subpackage exposes three surfaces: `__init__.py` for the graph
+author, `interfaces.py` for other subpackages, and `ir.py` for compilation data.
+Implementation modules are private; another subpackage imports only the three
+surfaces or the shared kernel.
+
 Read in this order:
 
 | Spec | Responsibility |

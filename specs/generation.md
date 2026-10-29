@@ -36,7 +36,7 @@
 - `Provider[T](ABC)`: class variables `ID`, `VERSION`, `CONFIG_TYPE`; classmethod `async generate(context: ProviderContext[T]) -> GeneratedPackage`.
 - `Provider.__init_subclass__` requires `CONFIG_TYPE` to be a subclass of `ProviderGenerationConfig`.
 - `ProviderContext(project_root, request_path, request_id, config)` supplies the project root, the request file, the request ID, and the validated configuration.
-- `ProviderContext.resolve_path(value: str) -> Path` resolves relative to the request file. The result is an observation target, not a tracked input: it may lie outside the project and is not watched, hashed, or existence-checked by the engine.
+- `resolve_provider_path(context, value: str) -> Path` resolves relative to the request file. The result is an observation target, not a tracked input: it may lie outside the project and is not watched, hashed or existence-checked by the engine.
 - `load_provider(request) -> tuple[type[Provider], ProviderGenerationConfig]` imports the provider, requires a non-empty `ID` and `VERSION`, requires the requested configuration class to be the provider's exact `CONFIG_TYPE`, and validates the static configuration into that type.
 - The engine does not special-case built-in providers.
 
@@ -69,13 +69,11 @@
 
 ## Boundaries
 
-- `code_generation` currently imports `types` and `engines.duckdb` for the type vocabulary and metadata reads. It must not import `compile`, `workflow`, `modules`, or `api`.
-- `engines` is a leaf. It must not import `code_generation`, `compile`, `workflow`, `modules`, `api`, or `cli`.
-- `cli` imports `code_generation` to expose `generate`; `code_generation` must not import `cli`.
-- `compile`, `workflow`, and `modules` do not import `code_generation`. Compilation and building never invoke generation.
-- `code_generation` owns no build execution. It observes sources only when a generation pass calls a provider.
-- The request file is author-owned. The engine writes only the product directory and its manifest.
-
+- Surfaces: `kg_build_system.code_generation` is the request surface; `code_generation.interfaces` is the provider extension contract; `code_generation.ir` is the generated-declaration IR.
+- `code_generation` imports `types.interfaces` and `engines.interfaces` for the type vocabulary and metadata reads. It must not import `compile`, `workflow`, `modules` or `api`.
+- `engines` is a leaf and must not import `code_generation`.
+- `cli` imports the generation command; `code_generation` must not import `cli`.
+- Compilation and building never invoke generation.
 ## Current decisions
 
 ### Requests are inert
@@ -184,7 +182,7 @@
 ### Compile boundary
 
 - `compile` and `build` operate on importable final declarations. They do not inspect request objects, load providers, read manifests, run check mode, or generate files.
-- Generated declarations and handwritten declarations pass through the same blueprint and workflow contract; the current blueprint schema version is 4.
+- Generated declarations and handwritten declarations pass through the same blueprint and workflow contract; neither carries a schema version.
 - The absence of generation at compile is what keeps source observation and provider execution out of a build.
 - A generated package is a normal Python package; importing it is the only compile-time contract.
 

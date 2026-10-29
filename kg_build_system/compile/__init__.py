@@ -1,9 +1,6 @@
-"""Compilation-domain models, codecs, and validation."""
-from .codec import blueprint_from_json, blueprint_json, decode_blueprint, encode_blueprint
-from .models import BuildBlueprint
-from .validation import validate_blueprint
+"""Compilation: blueprint, codecs, validation and workflow assembly.
 
-__all__ = [
-    "BuildBlueprint", "blueprint_from_json", "blueprint_json",
-    "decode_blueprint", "encode_blueprint", "validate_blueprint",
-]
+This subpackage has no author-facing surface. Other subpackages import
+:mod:`kg_build_system.compile.interfaces`; the compilation IR is
+:mod:`kg_build_system.compile.ir`.
+"""

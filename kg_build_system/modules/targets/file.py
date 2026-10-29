@@ -9,9 +9,10 @@ from pathlib import PurePosixPath
 from typing import Any, ClassVar
 
 from ..._frozen_json import freeze_json, thaw_json
-from ...types import canonical_value_text
-from ...workflow.identity import output_name
-from ...workflow.models import (
+from ...types.interfaces import canonical_value_text
+from ...workflow.interfaces import output_name
+from ...workflow.interfaces import (
+    ExecutionServices,
     Artifact,
     ArtifactType,
     DisruptedExecutionContext,
@@ -150,9 +151,11 @@ class FileExecutor(ModuleExecutor):
         _validate_relative_path(relative_path)
         return relative_path
 
-    def handle(self, context: ExecutionContext) -> StepOutcome:
+    def handle(
+        self, context: ExecutionContext, services: ExecutionServices,
+    ) -> StepOutcome:
         relative_path = self._relative_path(context)
-        output_path = context.services.output_storage.child(
+        output_path = services.output_storage.child(
             PurePosixPath(relative_path)
         )
         output_path.parent.mkdir(parents=True, exist_ok=True)
@@ -168,8 +171,8 @@ class FileExecutor(ModuleExecutor):
                 if identity is None:
                     continue
 
-                relation = context.services.relations.reference(artifact.value)
-                query = context.services.relations.query(
+                relation = services.relations.reference(artifact.value)
+                query = services.relations.query(
                     f"SELECT * FROM {relation}"
                 )
                 columns = tuple(column[0] for column in query.description)
@@ -210,6 +213,6 @@ class FileExecutor(ModuleExecutor):
         )
 
     def handle_disrupted(
-        self, context: DisruptedExecutionContext,
+        self, context: DisruptedExecutionContext, services: ExecutionServices,
     ) -> StepOutcome:
-        return super().handle_disrupted(context)
+        return super().handle_disrupted(context, services)

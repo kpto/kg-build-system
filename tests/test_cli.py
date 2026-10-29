@@ -9,7 +9,7 @@ import unittest
 from unittest.mock import AsyncMock, MagicMock, patch
 
 from kg_build_system.cli import main
-from kg_build_system.code_generation import (
+from kg_build_system.code_generation.interfaces import (
     FileChange,
     FileChangeKind,
     GenerationAction,

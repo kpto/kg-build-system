@@ -1,7 +1,7 @@
 """Typed text expression family."""
 from __future__ import annotations
 
-from ..types import BOOL, STR
+from ..types.interfaces import BOOL, STR
 from ._coercion import expression_input
 from .base import operation
 from .boolean import BoolExpression

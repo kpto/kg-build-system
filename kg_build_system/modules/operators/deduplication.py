@@ -5,14 +5,15 @@ from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from ..._frozen_json import freeze_json
-from ...workflow.models import (
+from ...workflow.interfaces import (
+    ExecutionServices,
     Artifact, DisruptedExecutionContext, ExecutionContext,
     ExecutorFactoryContext, Input, ModuleDefinition, ModuleReference, Output,
     StepOutcome, StepStatus, WorkflowContribution, WorkflowStep,
 )
 from ...compile.interfaces import CompilationContext, ModuleCompiler
 from ...modules.interfaces import Module, ModuleRegistrationConfiguration
-from ...workflow.identity import output_name
+from ...workflow.interfaces import output_name
 from ...workflow.interfaces import ModuleExecutor
 from ..core import CoreArtifactTypes, graph_record_components
 
@@ -78,7 +79,9 @@ class CollapseExactDuplicatesModule(Module):
 
 
 class _Executor(ModuleExecutor):
-    def handle(self, context: ExecutionContext) -> StepOutcome:
+    def handle(
+        self, context: ExecutionContext, services: ExecutionServices,
+    ) -> StepOutcome:
         instructions = context.variables["instructions"][context.step.name]
         if not isinstance(instructions, dict):
             raise ValueError("deduplication requires an object instruction")
@@ -88,8 +91,8 @@ class _Executor(ModuleExecutor):
             for item in context.inputs[_RECORDS_INPUT]
             if item.artifact is not None
         )
-        source = context.services.relations.reference(input_relation)
-        relation = context.services.relations.materialize(
+        source = services.relations.reference(input_relation)
+        relation = services.relations.materialize(
             str(instructions["relation"]), f"SELECT DISTINCT * FROM {source}",
         )
 
@@ -105,6 +108,6 @@ class _Executor(ModuleExecutor):
         )
 
     def handle_disrupted(
-        self, context: DisruptedExecutionContext,
+        self, context: DisruptedExecutionContext, services: ExecutionServices,
     ) -> StepOutcome:
-        return super().handle_disrupted(context)
+        return super().handle_disrupted(context, services)

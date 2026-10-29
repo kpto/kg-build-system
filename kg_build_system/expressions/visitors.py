@@ -4,6 +4,7 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator
 from typing import Protocol, TypeVar
 
+from ._operations import with_arguments
 from .models import (
     Expression, ExpressionNode, FieldReferenceExpression, LiteralExpression,
     OperationExpression, VariableExpression,
@@ -48,7 +49,7 @@ def rewrite_expression(
     current = expression
     if isinstance(expression, OperationExpression):
         arguments = tuple(rewrite_expression(argument, transform) for argument in expression.arguments)
-        current = expression.with_arguments(arguments)
+        current = with_arguments(expression, arguments)
     return transform(current)
 
 

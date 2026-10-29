@@ -19,7 +19,8 @@ from unittest.mock import patch
 import duckdb
 
 import kg_build_system as k
-from kg_build_system.code_generation import (
+from kg_build_system.binding.interfaces import Binding
+from kg_build_system.code_generation.interfaces import (
     GeneratedArrayType,
     GeneratedNullableType,
     GeneratedScalarType,
@@ -33,14 +34,14 @@ from kg_build_system.code_generation.builtins import (
     DataContractInferenceConfig,
     InferDataContractProvider,
 )
-from kg_build_system.engines.duckdb import read_declared_null_statistics
+from kg_build_system.engines.interfaces import read_declared_null_statistics
 from kg_build_system.modules import (
     FileModule, FileModuleConfiguration, ModuleRegistration, register_module,
 )
 from kg_build_system.modules.core import CoreModule
-from kg_build_system.types import Timestamp
+from kg_build_system.types.interfaces import Timestamp
 from kg_build_system.workflow.ir import WorkflowContractIR
-from kg_build_system.workflow.services import configure_framework_macros
+from kg_build_system.engines.interfaces import configure_framework_macros
 
 
 # --------------------------------------------------------------------------- #
@@ -122,7 +123,7 @@ class PromotedReadingNode(k.Node):
     recorded_on: k.PropertySlot[Timestamp | None] = k.property()
 
 
-def guard_binding() -> k.Binding:
+def guard_binding() -> Binding:
     return k.node_binding(
         target=GuardNode,
         build_key=GuardTable.identifier.alter_rows().drop_null(),
@@ -133,7 +134,7 @@ def guard_binding() -> k.Binding:
     )
 
 
-def wrapped_binding() -> k.Binding:
+def wrapped_binding() -> Binding:
     return k.node_binding(
         target=WrappedNode,
         build_key=WrappedTable.identifier.alter_rows().drop_null(),
@@ -147,7 +148,7 @@ def wrapped_binding() -> k.Binding:
     )
 
 
-def promoted_binding() -> k.Binding:
+def promoted_binding() -> Binding:
     return k.node_binding(
         target=PromotedReadingNode,
         build_key=PromotedReadings.identifier.alter_rows().drop_null(),
@@ -264,7 +265,7 @@ def graph_target() -> tuple[ModuleRegistration[Any], ...]:
 
 
 def build_json_contract(
-    root: Path, table: type[k.Table], binding: k.Binding, *,
+    root: Path, table: type[k.Table], binding: Binding, *,
     payload: object, format: k.InputFormat = k.InputFormat.JSON,
     name: str = "in.json", modules: tuple[ModuleRegistration[Any], ...] | None = None,
 ):
@@ -282,7 +283,7 @@ def build_json_contract(
 
 
 def source_declared_paths(
-    root: Path, table_name: str, table: type[k.Table], binding: k.Binding,
+    root: Path, table_name: str, table: type[k.Table], binding: Binding,
     payload: object,
 ) -> dict[str, str]:
     """The pre-flight paths a compiled contract carries, logical to schema form.
@@ -1039,7 +1040,7 @@ class NullableOperationTests(unittest.TestCase):
     """
 
     def calculations(self) -> set[str]:
-        from kg_build_system.expressions import (
+        from kg_build_system.expressions.interfaces import (
             ArrayExpression, BoolExpression, FloatExpression, IntExpression,
             StrExpression, StructExpression,
         )

@@ -4,12 +4,21 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Any, overload
 
-from ..expressions import ValueExpression, ValueInput, as_expression
-from ..table.rows import (
+from ..expressions.interfaces import ValueExpression, ValueInput, as_expression
+from ..table.interfaces import (
     DerivedRowSource, RelationRowSource, RowSource, as_row_source, shape_context,
 )
-from ..topology.models import Edge, Endpoint, Node, NonNullableGraphValue, _NodeSideBase
-from ..types import NullableType, Shape, require_non_nullable, require_scalar
+from ..topology.interfaces import (
+    Edge,
+    Endpoint,
+    Node,
+    NodeSideBase,
+    NonNullableGraphValue,
+    component_kind,
+    is_abstract_component,
+    properties_for,
+)
+from ..types.interfaces import NullableType, Shape, require_non_nullable, require_scalar
 from .models import BindingOptions, EdgeBinding, EdgeValues, NodeBinding, NodeValues
 
 
@@ -31,7 +40,7 @@ def _compatible(expected: object, actual: object) -> bool:
 def _require_properties[C: Node | Edge[Any, Any]](value: C, *, target: type[C]) -> C:
     if not isinstance(value, target):
         raise TypeError(f"properties must be an instance of {target.__name__}")
-    for attribute, declaration in target._properties.items():
+    for attribute, declaration in properties_for(target).items():
         try:
             expression = as_expression(getattr(value, attribute))
         except TypeError as error:
@@ -57,8 +66,8 @@ def _require_row_source(value: Any) -> None:
 def _require_concrete_component(target: Any, kind: str) -> None:
     if (
         not isinstance(target, type)
-        or vars(target).get("_component_declaration_kind") != kind
-        or vars(target).get("_component_abstract", False)
+        or component_kind(target) != kind
+        or is_abstract_component(target)
     ):
         name = getattr(target, "__name__", repr(target))
         raise TypeError(f"target must be a concrete {kind} component, not {name}")
@@ -69,7 +78,7 @@ def _resolve_endpoint(
 ) -> type[Node] | None:
     """Each endpoint token is required exactly when its declared endpoint is abstract."""
     declared_is_abstract = bool(
-        isinstance(declared, type) and vars(declared).get("_component_abstract", False)
+        isinstance(declared, type) and is_abstract_component(declared)
     )
     if token is None:
         if declared_is_abstract:
@@ -85,8 +94,8 @@ def _resolve_endpoint(
     selected = token.target
     if (
         not isinstance(selected, type)
-        or vars(selected).get("_component_declaration_kind") != "node"
-        or vars(selected).get("_component_abstract", False)
+        or component_kind(selected) != "node"
+        or is_abstract_component(selected)
     ):
         name = getattr(selected, "__name__", repr(selected))
         raise TypeError(f"{side}_node must name a concrete node component, not {name}")
@@ -155,7 +164,7 @@ def edge_binding[
 ) -> EdgeBinding[E]: ...
 @overload
 def edge_binding[
-    E: Edge[Any, Any], S: Node, DC: _NodeSideBase, Key: NonNullableGraphValue,
+    E: Edge[Any, Any], S: Node, DC: NodeSideBase, Key: NonNullableGraphValue,
     SourceKey: NonNullableGraphValue, TargetKey: NonNullableGraphValue,
 ](
     *, target: type[Edge[S, DC]], target_node: Endpoint[DC],
@@ -166,7 +175,7 @@ def edge_binding[
 ) -> EdgeBinding[E]: ...
 @overload
 def edge_binding[
-    E: Edge[Any, Any], SC: _NodeSideBase, D: Node, Key: NonNullableGraphValue,
+    E: Edge[Any, Any], SC: NodeSideBase, D: Node, Key: NonNullableGraphValue,
     SourceKey: NonNullableGraphValue, TargetKey: NonNullableGraphValue,
 ](
     *, target: type[Edge[SC, D]], source_node: Endpoint[SC],
@@ -177,7 +186,7 @@ def edge_binding[
 ) -> EdgeBinding[E]: ...
 @overload
 def edge_binding[
-    E: Edge[Any, Any], SC: _NodeSideBase, DC: _NodeSideBase,
+    E: Edge[Any, Any], SC: NodeSideBase, DC: NodeSideBase,
     Key: NonNullableGraphValue,
     SourceKey: NonNullableGraphValue, TargetKey: NonNullableGraphValue,
 ](

@@ -133,7 +133,24 @@ rule about what the framework is belongs to the framework model.
 
 - Each subpackage declares its responsibility, its interface and the subpackages
   it may import.
-- Other subpackages import the interface, never a private implementation module.
+- A domain subpackage exposes exactly three surfaces:
+  - `__init__.py` — the author-facing interface: names a graph author writes or
+    reads;
+  - `interfaces.py` — the framework-internal interface: values, protocols and
+    functions another subpackage may use;
+  - `ir.py` — the frozen compilation IR.
+- A domain subpackage may have no author-facing surface when nothing in it is
+  written by a graph author; its `__init__` states that, it does not pretend to
+  be a facade.
+- Implementation modules are private. Another subpackage imports `interfaces` or
+  `ir`, never an implementation module. A leaf entry point (`cli`) and the shared
+  kernel have no IR; that is stated, not left accidental.
+- Interface and IR values are anaemic: frozen data with no owner, no service and
+  no behaviour beyond its own invariants. Derived rules are functions beside
+  them.
+- A protocol is the internal interface of a dependency direction: a module
+  implements it, a runtime calls it. Do not carry a live service inside a data
+  model.
 - The dependency direction is one graph; a cycle or a new edge is a model change.
 - A new edge may be right, but it is proposed with its reason; the reviewer
   decides whether the model changes.

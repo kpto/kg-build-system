@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import asdict, dataclass
-from typing import Any, ClassVar
+from dataclasses import dataclass
+from typing import ClassVar
 
 
 @dataclass(frozen=True)
@@ -12,9 +12,6 @@ class Annotation:
 
     namespace: ClassVar[str]
     annotation_id: ClassVar[str]
-
-    def serialise(self) -> tuple[str, str, dict[str, Any]]:
-        return self.namespace, self.annotation_id, asdict(self)
 
 
 def annotation_tuple(values: Sequence[Annotation]) -> tuple[Annotation, ...]:

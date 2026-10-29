@@ -27,11 +27,10 @@ The `kg_build_system.topology` package owns the typed node and edge declaration 
 
 ## Boundaries
 
-- Allowed dependencies: `types`, `annotations`, `expressions`, and the private `_support` helpers.
-- Must not import `table`, `binding`, `compile`, `workflow`, `modules`, `relational`, `engines`, `code_generation`, `api`, or `cli`.
-- The package carries no engine, runtime, or workflow knowledge.
-- `topology.ir` is compilation data only; authoring declarations never retain it.
-
+- Surfaces: `kg_build_system.topology` is the author-facing declaration surface; `topology.interfaces` exposes the declaration and introspection values other subpackages may use; `topology.ir` carries `ComponentIR` and `PropertyIR`.
+- Allowed dependencies: `types.interfaces`, `annotations.interfaces`, `expressions.interfaces` and the `_support` kernel.
+- Must not import `table`, `binding`, `compile`, `workflow`, `modules`, `relational`, `engines`, `code_generation`, `api` or `cli`.
+- The package carries no engine, runtime or workflow knowledge.
 ## Current decisions
 
 - **Three tiers, one tree.** A declaration is a template, an abstract category, or a concrete component. A graph-visible declaration has at most one direct category parent of its own kind and any number of matching-kind templates. Concrete components are terminal. Node-side and edge-side lineage cannot be mixed, and every base in the MRO must descend from the framework root.

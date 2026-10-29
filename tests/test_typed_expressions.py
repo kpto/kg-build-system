@@ -8,18 +8,18 @@ from datetime import date, datetime, time
 from typing import Any
 
 from kg_build_system import Field, Struct, field
-from kg_build_system.expressions import (
+from kg_build_system.expressions.interfaces import (
     ArrayExpression, ArraySelection, BoolExpression, FloatExpression,
     IntExpression, NullableExpression, NullableSelection, StrExpression,
     StructExpression, StructSelection, ValueExpression, ValueSelection, literal,
     select_expression, value_expression, wrap_expression,
 )
-from kg_build_system.expressions.base import field_reference
-from kg_build_system.expressions.codec import decode_expression, encode_expression
-from kg_build_system.expressions.models import (
+from kg_build_system.expressions.interfaces import field_reference
+from kg_build_system.expressions.interfaces import decode_expression, encode_expression
+from kg_build_system.expressions.interfaces import (
     FieldReferenceExpression, LiteralExpression, OperationExpression,
 )
-from kg_build_system.types import (
+from kg_build_system.types.interfaces import (
     Array, DATE, INT, NullableType, STR, TIMESTAMP, TIME, UnitType, UUID,
     normalize_type,
 )

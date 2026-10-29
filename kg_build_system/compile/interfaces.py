@@ -1,49 +1,44 @@
-"""Compile-time capabilities implemented by workflow modules."""
+"""Framework-internal interface of the compilation domain.
+
+Other subpackages implement the compile-time module protocol and read the
+blueprint here. This subpackage has no author-facing surface: ``compile`` and
+``create_blueprint`` are composed by :mod:`kg_build_system.api`. The compilation
+IR is :mod:`kg_build_system.compile.ir`.
+"""
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any, ClassVar, Protocol, TypeVar
-
-from ..workflow.models import WorkflowContribution
-from .models import BuildBlueprint
-
-
-ConfigT = TypeVar("ConfigT", covariant=True)
-
-
-@dataclass(frozen=True, slots=True)
-class CompilationContext[ConfigT]:
-    blueprint: BuildBlueprint
-    module_id: str
-    configuration: ConfigT
-
-
-class ModuleCompiler(Protocol):
-    async def compile(
-        self, context: CompilationContext[Any],
-    ) -> WorkflowContribution: ...
-
-
-class CompilableModule(Protocol):
-    ID: ClassVar[str]
-    VERSION: ClassVar[str]
-    CONFIGURATION_TYPE: ClassVar[type[Any]]
-
-    @classmethod
-    async def create_compiler(
-        cls, context: CompilationContext[Any],
-    ) -> ModuleCompiler: ...
-
-
-class CompileModuleRegistration(Protocol[ConfigT]):
-    @property
-    def module_class(self) -> type[CompilableModule]: ...
-
-    @property
-    def configuration(self) -> ConfigT: ...
-
+from .codec import (
+    blueprint_from_json,
+    blueprint_json,
+    decode_blueprint,
+    encode_blueprint,
+)
+from .compiler import (
+    compile_workflow,
+    configure_blueprint_modules,
+    create_blueprint,
+)
+from .ir import BuildBlueprint
+from .protocols import (
+    CompilableModule,
+    CompilationContext,
+    CompileModuleRegistration,
+    ModuleCompiler,
+)
+from .validation import validate_blueprint
 
 __all__ = [
-    "CompilableModule", "CompilationContext", "CompileModuleRegistration",
+    "BuildBlueprint",
+    "CompilableModule",
+    "CompilationContext",
+    "CompileModuleRegistration",
     "ModuleCompiler",
+    "blueprint_from_json",
+    "blueprint_json",
+    "compile_workflow",
+    "configure_blueprint_modules",
+    "create_blueprint",
+    "decode_blueprint",
+    "encode_blueprint",
+    "validate_blueprint",
 ]

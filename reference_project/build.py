@@ -3,7 +3,7 @@
 from pathlib import Path
 
 from kg_build_system import build, compile, create_blueprint
-from kg_build_system.compile.models import BuildBlueprint
+from kg_build_system.compile.interfaces import BuildBlueprint
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule,
     FileModule,

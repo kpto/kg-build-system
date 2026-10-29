@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Any
 
-from ..types import FLOAT, LogicalType, NullableType
+from ..types.interfaces import FLOAT, LogicalType, NullableType
 from .models import ExpressionNode
 from .literals import literal
 from .values import ValueExpression

@@ -161,9 +161,9 @@ error.
 | `request_path` | The author-owned `__init__.py` |
 | `request_id` | The assignment name |
 | `config` | The validated provider configuration |
-| `resolve_path(value)` | Resolve a provider-owned path relative to the request file |
+| `resolve_provider_path(context, value)` | Resolve a provider-owned path relative to the request file |
 
-`resolve_path` returns an observation target, not a tracked input. The path may
+`resolve_provider_path(context, value)` returns an observation target, not a tracked input. The path may
 lie outside the project; the engine does not watch, hash or existence-check it.
 A provider that observes a source schema should stamp a `source_digest` onto
 `GeneratedPackage` for provenance.
@@ -176,9 +176,10 @@ before installing anything.
 from pathlib import Path
 from typing import ClassVar
 
-from kg_build_system.code_generation import (
+from kg_build_system.code_generation.interfaces import (
     GeneratedClass, GeneratedField, GeneratedFile, GeneratedPackage,
     GeneratedScalarType, Provider, ProviderContext, ProviderGenerationConfig,
+    resolve_provider_path,
 )
 
 

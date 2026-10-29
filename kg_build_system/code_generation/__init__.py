@@ -1,40 +1,36 @@
-"""Edit-time code-generation public API."""
+"""Author-facing edit-time generation requests.
 
-from .requests import generation
+A graph author declares ``generation(...)`` and runs ``kbs generate`` or
+``generate``/``watch`` here. The provider extension contract is
+:mod:`kg_build_system.code_generation.interfaces`; the generated-declaration IR
+is :mod:`kg_build_system.code_generation.ir`.
+"""
+from __future__ import annotations
+
 from .discovery import discover, discover_file
 from .engine import GenerationSession, generate
 from .models import (
-    DiscoveredGeneration,
-    GeneratedAnnotation,
-    GeneratedArrayType,
-    GeneratedClass,
-    GeneratedField,
-    GeneratedNullableType,
-    GeneratedScalarType,
-    GeneratedStructType,
-    GeneratedType,
-    GeneratedMember, GeneratedFile, GeneratedPackage, Generation,
-    GenerationAction,
-    GenerationActionKind,
+    Generation,
     GenerationError,
     GenerationRequest,
     GenerationResult,
     GenerationStatus,
-    Nullability,
-    NullabilityNote,
-    ProviderGenerationConfig,
 )
-from .providers import Provider, ProviderContext
+from .requests import generation
 from .watcher import FileChange, FileChangeKind, watch
 
 __all__ = [
-    "DiscoveredGeneration", "FileChange", "FileChangeKind",
-    "GeneratedAnnotation", "GeneratedArrayType", "GeneratedClass", "GeneratedField",
-    "GeneratedNullableType", "GeneratedScalarType", "GeneratedStructType",
-    "GeneratedType",
-    "GeneratedMember", "GeneratedFile", "GeneratedPackage", "Generation",
-    "GenerationAction", "GenerationActionKind",
-    "GenerationError", "GenerationRequest", "GenerationResult", "GenerationSession", "GenerationStatus", "Provider",
-    "ProviderContext", "ProviderGenerationConfig", "Nullability", "NullabilityNote",
-    "discover", "discover_file", "generate", "generation", "watch",
+    "FileChange",
+    "FileChangeKind",
+    "Generation",
+    "GenerationError",
+    "GenerationRequest",
+    "GenerationResult",
+    "GenerationSession",
+    "GenerationStatus",
+    "discover",
+    "discover_file",
+    "generate",
+    "generation",
+    "watch",
 ]

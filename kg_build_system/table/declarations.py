@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 
-from ..annotations import annotation_tuple
+from ..annotations.interfaces import annotation_tuple
 from .fields import computed_field, field
 from .models import (
     BoundSource,

@@ -5,8 +5,9 @@ from collections.abc import Mapping
 from typing import Any
 
 from ....binding.ir import EdgeBindingIR
-from ....compile.models import BuildBlueprint
-from ....table.ir import StructIR, struct_type_key
+from ....compile.interfaces import BuildBlueprint
+from ....table.interfaces import struct_type_key
+from ....table.ir import StructIR
 from ....topology.ir import ComponentIR
 from ....types.ir import (
     ArrayTypeIR,
@@ -16,7 +17,7 @@ from ....types.ir import (
     StructTypeIR,
     UnitTypeIR,
 )
-from ....types.ir_codec import encode_type_ir
+from ....types.interfaces import encode_type_ir
 from ..._labels import semantic_label
 from .ir import (
     MetaGraphBindingIR,

@@ -23,8 +23,8 @@ The framework turns typed Python declarations, graph bindings and physical sourc
   - `compile(*, modules, namespace_path=None, bindings=None, sources=None, blueprint=None) -> WorkflowContractIR`
   - `build(contract, runtime=None, *, output_directory="build", working_directory="_workdir", temporary_directory=None, monitor=None) -> WorkflowReport`
 - `modules` is always required and the core module is appended after the supplied modules. `bindings` and `sources` are supplied together. `blueprint` is exclusive with the other inputs. With no explicit input, the caller's file directory is the namespace path.
-- A `BuildBlueprint` is frozen compilation IR: structs, tables, components, projections, bindings, sources, configured modules and `schema_version=4`.
-- A `WorkflowContractIR` is the only value handed to execution: ordered workflow steps, resolved connections, a workflow fingerprint, optional opaque provenance and `schema_version=2`.
+- A `BuildBlueprint` is frozen compilation IR: structs, tables, components, projections, bindings, sources and configured modules.
+- A `WorkflowContractIR` is the only value handed to execution: ordered workflow steps, resolved connections, a workflow fingerprint and optional opaque provenance.
 - `WorkflowReport.succeeded` is true when no unresolved failures remain; published artifacts and recovered failures are reported separately.
 
 ```text
@@ -35,6 +35,19 @@ declarations, bindings, sources
    (or create_blueprint for an auxiliary blueprint)
 ```
 
+## Surfaces
+
+| Surface | Module | Reader | Contents |
+| --- | --- | --- | --- |
+| Authoring | `<pkg>/__init__.py` | graph author | names the author writes or reads |
+| Framework interface | `<pkg>/interfaces.py` | another subpackage | values, protocols and functions |
+| IR | `<pkg>/ir.py` | compile, modules and engines | frozen compilation data |
+
+- Implementation modules are private. Another subpackage imports only `interfaces`, `ir`, a nested package `__init__`, or the shared kernel.
+- `protocols.py` is an implementation of the internal interface where a protocol must avoid importing its own aggregate; it is still internal.
+- `cli` is a leaf entry point: it has an author command and no framework interface or IR.
+- `_frozen_json`, `_relations` and `_support` are shared kernels: no owner, no IR, no authoring surface.
+
 ## Boundaries
 
 - Dependencies form one directed graph; a cycle or a new package edge is a model change.
@@ -43,7 +56,7 @@ declarations, bindings, sources
 - `compile` does not import concrete module implementations or engines. The composition root supplies module registrations.
 - `build` receives only a workflow contract and `BuildRuntime`; module executors receive artifacts and their own configuration, never the blueprint.
 - Resolved credentials exist only at runtime; definitions and contracts carry credential references.
-- `workflow` and `code_generation` depend on `engines.duckdb`; `modules` composes the compile, workflow and engine interfaces. `_frozen_json` and `_support` are shared kernels.
+- `workflow` and `modules` reach concrete execution through `engines.interfaces`; `code_generation` uses the engine only as a schema observer. `_frozen_json`, `_relations` and `_support` are shared kernels.
 
 ```text
 types -> (none)
@@ -51,11 +64,11 @@ annotations -> _frozen_json
 expressions -> types, _frozen_json
 topology -> types, annotations, expressions, _support
 table -> types, annotations, expressions, _support
-relational -> expressions
+relational -> expressions, _relations
 binding -> types, annotations, expressions, table, topology
 compile -> types, annotations, expressions, table, topology, binding, workflow
-engines -> types, expressions, table, relational
-workflow -> engines
+engines -> types, expressions, relational, table, _relations
+workflow -> engines, _relations
 modules -> types, annotations, expressions, table, topology, binding,
             relational, engines, compile, workflow
 code_generation -> types, engines
@@ -69,7 +82,7 @@ cli -> code_generation
 - **Two build phases.** `compile` validates and freezes one contract. `build` executes that contract in dependency order, propagates failed or skipped inputs, and verifies each returned artifact against its declared output type.
 - **Three composition modes.** Namespace discovery, explicit bindings plus sources, or a prebuilt blueprint. Namespace discovery imports the namespace, collects module-level bindings and sources, and deduplicates re-exported objects by identity; it never invokes arbitrary factories.
 - **The blueprint is complete.** It carries every declaration reached by a binding, projection, row source or struct closure. It is deterministic and round-trippable.
-- **Compiled artifacts carry schema versions.** The blueprint is version 4 and the workflow contract is version 2. Decoding rejects any other value.
+- **Compiled artifacts carry no schema version.** A blueprint and a contract are content-addressed; the decoder rejects unknown fields rather than negotiating a version.
 - **The contract is executable and opaque.** Modules contribute ordered steps and resolved connections. SQL and other instructions stay in each module's own variables. Execution does not interpret provenance.
 - **One relational engine supplies the facts.** DuckDB scans, widens and returns values against the canonical type vocabulary; targets may narrow what they can store, and that narrowing fails at compile rather than coercing.
 - **Outputs are artifacts, not side effects.** Built-in modules cover the file graph, meta-graph document, Neo4j administrative import, duplicate collapse, compatible-fact merge and conflicting-value validation.

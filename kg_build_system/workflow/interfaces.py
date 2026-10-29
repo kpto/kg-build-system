@@ -1,40 +1,130 @@
-"""Runtime capabilities implemented by executable workflow modules."""
+"""Framework-internal interface of the workflow domain.
+
+Other subpackages declare workflow steps, assemble a contract, execute it and
+implement module executors here. A graph author reads ``build``,
+``BuildRuntime`` and ``WorkflowReport`` from :mod:`kg_build_system.workflow`;
+the contract IR is :mod:`kg_build_system.workflow.ir`.
+"""
 from __future__ import annotations
 
-from abc import ABC, abstractmethod
-from typing import ClassVar, Protocol
-
+from .assembler import AssemblyError, assemble_workflow
+from .contracts import create_workflow_contract
+from .ir import WorkflowContractIR
+from .identity import (
+    DEFAULT_INPUT_NAME,
+    DEFAULT_OUTPUT_NAME,
+    DEFAULT_STEP_NAME,
+    expanded_input_name,
+    input_name,
+    opening_identity,
+    output_name,
+    step_identity,
+    step_name,
+    type_text,
+)
+from .mapping import type_from_ir, type_to_ir, workflow_from_ir, workflow_to_ir
 from .models import (
-    DisruptedExecutionContext, ExecutionContext, ExecutorFactoryContext,
-    StepOutcome, StepStatus,
+    Artifact,
+    ArtifactType,
+    BuildRuntime,
+    Connection,
+    ContinuableInput,
+    DefinedContribution,
+    DefinedStep,
+    DisruptedExecutionContext,
+    DisruptingInput,
+    ExecutionContext,
+    ExecutorFactoryContext,
+    Failure,
+    Given,
+    Input,
+    ModuleDefinition,
+    ModuleReference,
+    Output,
+    Publication,
+    PublishedArtifact,
+    RuntimeFieldDefinition,
+    StepOutcome,
+    StepStatus,
+    TakenInput,
+    WorkflowContribution,
+    WorkflowDefinition,
+    WorkflowReport,
+    WorkflowStep,
+    type_matches,
+)
+from .monitor import NullWorkflowMonitor, RichWorkflowMonitor, WorkflowExecutionMonitor
+from .protocols import ExecutableModule, ModuleExecutor
+from .services import (
+    RelationQueryResult,
+    RelationRef,
+    RelationService,
+    CredentialResolver,
+    ExecutionServices,
+    LocalTemporaryStorage,
+    LocalWorkingStorage,
+    MappingCredentialResolver,
+    WorkflowLogger,
+    WorkingStorage,
 )
 
-
-class ModuleExecutor(ABC):
-    """Handles a step according to the state of its connected inputs."""
-
-    @abstractmethod
-    def handle(self, context: ExecutionContext) -> StepOutcome:
-        """Handle a step whose every input producer succeeded or warned."""
-
-    @abstractmethod
-    def handle_disrupted(self, context: DisruptedExecutionContext) -> StepOutcome:
-        """Default response to failed or skipped inputs: skip this step."""
-        return StepOutcome(
-            step_id=context.step_id,
-            module_id=context.module_id,
-            status=StepStatus.SKIPPED,
-        )
-
-
-class ExecutableModule(Protocol):
-    ID: ClassVar[str]
-    VERSION: ClassVar[str]
-
-    @classmethod
-    def create_executor(
-        cls, context: ExecutorFactoryContext,
-    ) -> ModuleExecutor: ...
-
-
-__all__ = ["ExecutableModule", "ModuleExecutor"]
+__all__ = [
+    "Artifact",
+    "ArtifactType",
+    "AssemblyError",
+    "BuildRuntime",
+    "Connection",
+    "ContinuableInput",
+    "CredentialResolver",
+    "DefinedContribution",
+    "DefinedStep",
+    "DisruptedExecutionContext",
+    "DisruptingInput",
+    "ExecutableModule",
+    "ExecutionContext",
+    "ExecutionServices",
+    "ExecutorFactoryContext",
+    "Failure",
+    "Given",
+    "Input",
+    "LocalTemporaryStorage",
+    "LocalWorkingStorage",
+    "MappingCredentialResolver",
+    "ModuleDefinition",
+    "ModuleExecutor",
+    "ModuleReference",
+    "NullWorkflowMonitor",
+    "Output",
+    "Publication",
+    "PublishedArtifact",
+    "RelationQueryResult",
+    "RelationRef",
+    "RelationService",
+    "RichWorkflowMonitor",
+    "RuntimeFieldDefinition",
+    "StepOutcome",
+    "StepStatus",
+    "TakenInput",
+    "WorkflowContribution",
+    "WorkflowContractIR",
+    "WorkflowDefinition",
+    "WorkflowExecutionMonitor",
+    "WorkflowLogger",
+    "WorkflowReport",
+    "WorkflowStep",
+    "WorkingStorage",
+    "assemble_workflow",
+    "create_workflow_contract",
+    "expanded_input_name",
+    "input_name",
+    "opening_identity",
+    "output_name",
+    "step_identity",
+    "step_name",
+    "type_from_ir",
+    "type_matches",
+    "type_text",
+    "type_to_ir",
+    "workflow_from_ir",
+    "workflow_to_ir",
+]

@@ -6,7 +6,9 @@ The `kg_build_system.workflow` package owns the workflow declaration model, step
 
 ## Public interface
 
-- Declaration models exported by `kg_build_system.workflow`:
+- Author-facing surface (`kg_build_system.workflow`): `build`, `BuildRuntime`, `WorkflowReport`.
+- Framework-internal interface (`workflow.interfaces`) exports the declaration, assembly, contract, execution, service and monitor names below.
+- Declaration models:
   - `ArtifactType(namespace, name)`; `type_matches(declared, actual) -> bool` uses `*` as a wildcard.
   - `Input(type, name=None)`; `Output(type, name=None)`; `Publication(type, name=None)`; `Given = Output | Publication`.
   - `WorkflowStep(inputs=(), outputs=(), name=None, assembly_preference="eager")`.
@@ -19,18 +21,17 @@ The `kg_build_system.workflow` package owns the workflow declaration model, step
   - `DefinedStep(name, inputs=(), outputs=())`.
   - `DefinedContribution(module, steps=(), variables=None)`.
   - `Connection(input_id, output_id)`.
-  - `WorkflowDefinition(contributions, connections=())` with `modules`, `steps_by_module`, and `variables_by_module` properties.
+  - `WorkflowDefinition(contributions, connections=())` with `modules`, `steps_by_module`, and `variables_by_module` derived properties over its own fields.
 - Assembly and contract interface:
   - `assemble_workflow(contributions: Sequence[WorkflowContribution]) -> WorkflowDefinition`.
   - `AssemblyError(ValueError)` for a workflow that cannot be completely wired.
-  - `create_workflow_contract(workflow: WorkflowDefinition, *, provenance: JsonValue | None = None) -> WorkflowContractIR` in `workflow.contracts`.
-  - `workflow_to_ir(WorkflowDefinition) -> WorkflowDefinitionIR` and `workflow_from_ir(WorkflowDefinitionIR) -> WorkflowDefinition` in `workflow.mapping`.
+  - `create_workflow_contract(workflow: WorkflowDefinition, *, provenance: JsonValue | None = None) -> WorkflowContractIR`.
+  - `workflow_to_ir(WorkflowDefinition) -> WorkflowDefinitionIR` and `workflow_from_ir(WorkflowDefinitionIR) -> WorkflowDefinition`.
 - Contract IR in `workflow.ir`:
-  - `WorkflowContractIR(schema_version: Literal[2] = 2, workflow, workflow_fingerprint, provenance=None)`.
+  - `WorkflowContractIR(workflow, workflow_fingerprint, provenance=None)`.
   - `WorkflowDefinitionIR(contributions: tuple[ContributionIR, ...], connections=())` with at least one contribution.
   - `ContributionIR(reference, runtime_fields=(), variables=None, steps)` with at least one step.
   - `ConnectionIR(input_id, output_id)`.
-  - `WORKFLOW_CONTRACT_SCHEMA_VERSION = 2`.
   - IR models are frozen pydantic with `extra="forbid"` and `strict=True`; module IDs, artifact namespaces, and runtime field keys are pattern-constrained.
 - Execution interface:
   - `build(contract: WorkflowContractIR, runtime: BuildRuntime | None = None, *, output_directory=Path("build"), working_directory=Path("_workdir"), temporary_directory=None, monitor=None) -> WorkflowReport`.
@@ -39,30 +40,32 @@ The `kg_build_system.workflow` package owns the workflow declaration model, step
   - `Failure(message, module_id, step_id, exception_type=None)`.
   - `Artifact(output_name, type, value)`; `StepOutcome(step_id, module_id, status, artifacts=(), failure=None)`.
   - `ContinuableInput(output_id, status, artifact)` and `DisruptingInput(output_id, status, artifact, failure)`.
-  - `ExecutionContext(module, step, module_id, step_id, variables, runtime_configuration, inputs, services)` where `inputs` is a mapping from declared input name to `ContinuableInput` values.
-  - `DisruptedExecutionContext(module, step, module_id, step_id, variables, runtime_configuration, inputs, disruptions, services)` where `inputs` also holds `DisruptingInput` values and `disruptions` is the tuple of them.
-  - `ExecutorFactoryContext(module, variables, runtime_configuration, services)`.
+  - `ExecutionContext(module, step, module_id, step_id, variables, runtime_configuration, inputs)` where `inputs` is a mapping from declared input name to `ContinuableInput` values. It holds no service.
+  - `DisruptedExecutionContext(module, step, module_id, step_id, variables, runtime_configuration, inputs, disruptions)` where `inputs` also holds `DisruptingInput` values and `disruptions` is the tuple of them.
+  - `ExecutorFactoryContext(module, variables, runtime_configuration)`.
   - `PublishedArtifact(type, value)`; `WorkflowReport(published_artifacts, recovered_failures, unresolved_failures, provenance)` with `succeeded` true when there are no unresolved failures.
 - Executor protocol in `workflow.interfaces`:
-  - `ModuleExecutor.handle(context: ExecutionContext) -> StepOutcome` (abstract).
-  - `ModuleExecutor.handle_disrupted(context: DisruptedExecutionContext) -> StepOutcome`; the base implementation returns `SKIPPED`.
+  - `ModuleExecutor.handle(context: ExecutionContext, services: ExecutionServices) -> StepOutcome` (abstract).
+  - `ModuleExecutor.handle_disrupted(context: DisruptedExecutionContext, services: ExecutionServices) -> StepOutcome`; the base implementation returns `SKIPPED`.
   - `ExecutableModule` with `ID`, `VERSION`, and `create_executor(context) -> ModuleExecutor`.
-- Runtime services in `workflow.services`:
-  - `RelationRef(name)`, non-empty.
+- Runtime services in `workflow.interfaces`:
+  - `RelationRef(name)`, non-empty, from the `_relations` kernel.
   - `RelationService.reference(value: object) -> str`; `view(name, query) -> RelationRef`; `materialize(name, query, parameters=()) -> RelationRef`; `query(query, parameters=()) -> RelationQueryResult`; `export_parquet(query, destination, *, compression="zstd") -> None`; `register_filesystem(filesystem) -> None`.
   - `RelationQueryResult.description`, `fetchone()`, `fetchall()`, `fetchmany(size)`.
   - `ExecutionServices(relations, output_storage, working_storage, temporary_storage, credentials, logger)`.
   - `WorkflowLogger` with `debug`, `info`, `warning`, `error`.
   - `WorkingStorage.child(relative_path: PurePosixPath) -> Path`; `CredentialResolver.resolve(reference) -> str`.
-- Monitoring in `workflow.monitor`: `WorkflowExecutionMonitor`, `NullWorkflowMonitor`, `RichWorkflowMonitor`. The protocol has `start`, `step_started`, `step_finished`, `workflow_finished`, `workflow_halted`, `log`, and `stop`.
-- Identity helpers in `workflow.identity`: `step_name`, `input_name`, `output_name`, `step_identity`, `opening_identity`, `expanded_input_name`, `type_text`. Defaults are `step{N}` (one-based position within the module), `input`, and `output`.
+- Monitoring: `WorkflowExecutionMonitor`, `NullWorkflowMonitor`, `RichWorkflowMonitor`. The protocol has `start`, `step_started`, `step_finished`, `workflow_finished`, `workflow_halted`, `log`, and `stop`.
+- Identity helpers: `step_name`, `input_name`, `output_name`, `step_identity`, `opening_identity`, `expanded_input_name`, `type_text`. Defaults are `step{N}` (one-based position within the module), `input`, and `output`.
 
 ## Boundaries
 
-- Allowed package dependency: `engines`, specifically `engines.duckdb` for the relation service and connection setup; plus the private `_frozen_json` kernel.
+- Surfaces: `workflow.ir` is the contract IR; `workflow.interfaces` is the internal interface; `kg_build_system.workflow` is the author-facing surface.
+- Allowed dependencies: `engines.interfaces` for the DuckDB relation service and connection setup, the `interfaces` and `ir` surfaces of the declarative packages, and the `_frozen_json` and `_relations` kernels.
 - Must not import `compile`, `modules`, `binding`, `table`, `topology`, `expressions`, `relational`, `code_generation`, `api`, or `cli`.
 - Workflow domain models never retain IR objects. `workflow.ir` is the serialisable form used only at the contract boundary; executors never receive IR.
 - The executor imports module classes only through the compiled `ModuleReference` import coordinates. It stores no Python class in the contract.
+- Execution context holds data only. The runtime passes `ExecutionServices` to the executor; a model never retains a live service.
 
 ## Current decisions
 
@@ -76,7 +79,7 @@ The `kg_build_system.workflow` package owns the workflow declaration model, step
 - **Cardinality.** An input takes exactly one feeder. An output may have any number of readers and at least one unless it is a publication. No connection joins a step to itself and no connection closes a cycle.
 - **Contract.** The assembled `WorkflowDefinition` is mapped to IR and frozen into a `WorkflowContractIR`. Its `workflow_fingerprint` is the SHA-256 of the serialised workflow IR, so any change to contribution order, step name, input/output name, type, module data, or connection changes the fingerprint. Provenance is opaque JSON attached by the compiler; the contract carries only workflow semantics and provenance.
 - **Execution is a wavefront.** Each round runs every pending step whose connected producers have all completed. If no pending step is ready, execution raises `RuntimeError` for a dependency cycle. A ready step's inputs are grouped by `TakenInput.input_name`; each connected artifact is classified by its producer's final status.
-- **Disruption.** If any connected producer failed or was skipped, the step receives `DisruptedExecutionContext` and `handle_disrupted`; otherwise it receives `ExecutionContext` and `handle`. The base disrupted policy skips the step. A module may recover by returning `SUCCEEDED` or `WARNING`, may emit artifacts, or may fail. An exception from either handler becomes a `FAILED` outcome carrying a `Failure`.
+- **Disruption.** If any connected producer failed or was skipped, the step receives `DisruptedExecutionContext` and `handle_disrupted(context, services)`; otherwise it receives `ExecutionContext` and `handle(context, services)`. The base disrupted policy skips the step. A module may recover by returning `SUCCEEDED` or `WARNING`, may emit artifacts, or may fail. An exception from either handler becomes a `FAILED` outcome carrying a `Failure`.
 - **Outcome checks.** An outcome must name the step and module it was asked for. A `FAILED` outcome must carry a failure. Artifacts may appear only on declared outputs or publications, and each artifact type must equal the declared type. Missing artifacts are valid; consumers must accept a connected producer that emitted nothing.
 - **Failure propagation.** A `FAILED` step's active failures are its own plus those inherited from its inputs; a `SKIPPED` step inherits without adding; a succeeded or warned step clears them. Failures still active at a step that publishes a publication are `unresolved_failures`; all other failures are `recovered_failures`. `WorkflowReport.succeeded` means no unresolved failures.
 - **Publication and reporting.** Only publication artifacts that exist at the end become `published_artifacts`. `build` writes `workflow_contract.json` before execution and `build_report.json` after, and returns the `WorkflowReport`. Report provenance is the contract provenance plus `workflow_fingerprint` and the effective DuckDB `TimeZone` (`UTC`).

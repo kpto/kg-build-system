@@ -5,7 +5,8 @@ from collections.abc import Mapping, Sequence
 from typing import Any
 
 from .._frozen_json import freeze_json
-from ..types import decode_type, encode_type
+from ..types.interfaces import decode_type, encode_type
+from ._operations import row_effects, row_semantics
 from .models import (
     Expression, ExpressionNode, FieldReferenceExpression, FrozenJson, FrozenObject, LiteralExpression, OperationExpression,
     OperationParameter, RowEffect, RowSemantics, Traversal, VariableExpression,
@@ -24,7 +25,7 @@ def _encode_rows(rows: RowSemantics) -> dict[str, Any]:
     return {
         "effects": [
             {"mode": effect.mode, **({"scope": list(effect.scope)} if effect.scope else {})}
-            for effect in rows.effects
+            for effect in row_effects(rows)
         ]
     }
 
@@ -97,7 +98,7 @@ def _rows(value: Mapping[str, Any]) -> RowSemantics:
             if mode not in {"expand", "filter"}:
                 raise ValueError(f"unknown row-effect mode {mode!r}")
             effects.append(RowEffect(mode, _strings(effect.get("scope", ()), field="scope", allow_empty=True)))
-        return RowSemantics.from_effects(tuple(effects))
+        return row_semantics(tuple(effects))
     # Accept the earlier single-effect representation during the transition.
     mode = rows.get("mode")
     if mode not in {"preserve", "expand", "filter"}:

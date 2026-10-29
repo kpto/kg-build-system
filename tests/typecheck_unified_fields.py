@@ -4,14 +4,14 @@ from typing import assert_type
 from uuid import UUID
 
 from kg_build_system import ComputedStruct, Projection, Table
-from kg_build_system.expressions import (
+from kg_build_system.expressions.interfaces import (
     ArraySelection, BoolExpression, IntExpression, NullableExpression,
     NullableSelection, StrExpression, StructSelection, ValueExpression,
     ValueSelection, value_expression,
 )
 from kg_build_system.table.fields import Field, computed_field, field
 from kg_build_system.table.models import Struct
-from kg_build_system.types import Array, Date, Nullable, Time, Timestamp, Uuid
+from kg_build_system.types.interfaces import Array, Date, Nullable, Time, Timestamp, Uuid
 
 
 class EvidenceStruct(Struct):

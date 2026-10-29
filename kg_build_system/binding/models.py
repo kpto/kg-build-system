@@ -5,10 +5,10 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, Generic, TypeVar
 
-from ..annotations import Annotation, annotation_tuple
-from ..expressions import ValueExpression
-from ..table.rows import DerivedRowSource
-from ..topology.models import Edge, Node
+from ..annotations.interfaces import Annotation, annotation_tuple
+from ..expressions.interfaces import ValueExpression
+from ..table.interfaces import DerivedRowSource
+from ..topology.interfaces import Edge, Node
 
 N_co = TypeVar("N_co", bound=Node, covariant=True)
 E_co = TypeVar("E_co", bound=Edge[Any, Any], covariant=True)

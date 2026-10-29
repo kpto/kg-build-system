@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
-from ..expressions.ir_codec import decode_expression_ir, encode_expression_ir
+from ..expressions.interfaces import decode_expression_ir, encode_expression_ir
 from .ir import (
     RowDistinctIR,
     RowFilterIR,

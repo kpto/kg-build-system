@@ -16,17 +16,18 @@ from kg_build_system.workflow.executor import (
     _effective_duckdb_time_zone, _open_duckdb, PINNED_TIME_ZONE,
 )
 from kg_build_system.modules.core.core import CoreExecutor
-from kg_build_system.modules.core.ir import (
+from kg_build_system.modules.ir import (
     RelationInstructionIR,
     encode_core_instruction,
 )
-from kg_build_system.workflow.assembler import assemble_workflow
-from kg_build_system.workflow.contracts import create_workflow_contract
-from kg_build_system.workflow.identity import output_name, step_identity
+from kg_build_system.workflow.interfaces import assemble_workflow
+from kg_build_system.workflow.interfaces import create_workflow_contract
+from kg_build_system.workflow.interfaces import output_name, step_identity
 from kg_build_system.workflow.interfaces import ModuleExecutor
 from kg_build_system.workflow.ir import WorkflowContractIR
-from kg_build_system.workflow.monitor import NullWorkflowMonitor
-from kg_build_system.workflow.models import (
+from kg_build_system.workflow.interfaces import NullWorkflowMonitor
+from kg_build_system.workflow.interfaces import (
+    ExecutionServices,
     Artifact,
     ArtifactType,
     BuildRuntime,
@@ -43,7 +44,8 @@ from kg_build_system.workflow.models import (
     WorkflowContribution,
     WorkflowStep,
 )
-from kg_build_system.workflow.services import DuckDBRelationService, RelationRef
+from kg_build_system.engines.interfaces import DuckDBRelationService
+from kg_build_system.workflow.interfaces import RelationRef
 
 
 def _materialized_backing(name: str) -> str:
@@ -161,8 +163,7 @@ class DuckDBRuntimeConfigurationTests(unittest.TestCase):
             variables=variables,
             runtime_configuration={},
             inputs={},
-            services=services,
-        ))
+        ), services)
 
         services.relations.view.assert_called_once_with(
             "logical_values", "SELECT 1 AS value"
@@ -515,9 +516,11 @@ class DuckDBSessionTimeZoneTests(unittest.TestCase):
 
 
 class _ZoneProbeExecutor(ModuleExecutor):
-    def handle(self, context: ExecutionContext) -> StepOutcome:
+    def handle(
+        self, context: ExecutionContext, services: ExecutionServices,
+    ) -> StepOutcome:
         output = context.step.outputs[0]
-        observed = context.services.relations.query(
+        observed = services.relations.query(
             "SELECT current_setting('TimeZone') AS value"
         ).fetchone()[0]
         return StepOutcome(
@@ -525,7 +528,9 @@ class _ZoneProbeExecutor(ModuleExecutor):
             (Artifact(output_name(output), output.type, observed),),
         )
 
-    def handle_disrupted(self, context: DisruptedExecutionContext) -> StepOutcome:
+    def handle_disrupted(
+        self, context: DisruptedExecutionContext, services: ExecutionServices,
+    ) -> StepOutcome:
         raise NotImplementedError
 
 

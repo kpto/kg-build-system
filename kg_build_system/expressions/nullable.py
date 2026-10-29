@@ -8,7 +8,7 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import Generic, TypeVar
 
-from ..types import Nullable, NullableType
+from ..types.interfaces import Nullable, NullableType
 from .models import ExpressionNode
 from .values import NullableAuthoringInput, ValueExpression
 

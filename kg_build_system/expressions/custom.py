@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Generic, TypeVar
 
-from ..types import CustomDataType, CustomType
+from ..types.interfaces import CustomDataType, CustomType
 from .values import ValueExpression
 
 

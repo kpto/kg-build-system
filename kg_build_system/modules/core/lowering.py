@@ -4,23 +4,23 @@ from __future__ import annotations
 from collections.abc import Mapping
 
 from ...binding.ir import BindingIR as BindingDefinition, EdgeBindingIR as EdgeBindingDefinition
-from ...compile.models import BuildBlueprint
+from ...compile.interfaces import BuildBlueprint
+from ...expressions.interfaces import walk_expression_ir
 from ...expressions.ir import (
     ExpressionIR,
     FieldReferenceExpressionIR as FieldReferenceExpression,
-    walk_expression_ir,
 )
 from ...table.ir import ProjectionIR as ProjectionDefinition, RowSourcePlanIR
-from ...table.rows import (
+from ...table.interfaces import (
     plan_scan_sources, plan_shape_source_name, retarget_expression_ir, row_source_key,
 )
 from ...types.ir import (
     ArrayTypeIR, LogicalTypeIR, NullableTypeIR, UnitTypeIR,
 )
-from ...engines.duckdb import (
+from ...engines.interfaces import (
     NULL_GUARD_MACRO, ArraySqlType, SqlType, canonical_sql_type, lower_relation_sql,
 )
-from ...relational import lower_product
+from ...relational.interfaces import lower_product
 
 
 def sql_type_for(declared: LogicalTypeIR) -> SqlType | None:

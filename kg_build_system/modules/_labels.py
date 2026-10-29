@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from .._frozen_json import thaw_json
-from ..annotations.labels import EdgeLabel, NodeLabel
+from ..annotations.interfaces import EdgeLabel, NodeLabel
 from ..topology.ir import ComponentIR
 
 

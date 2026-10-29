@@ -1,8 +1,15 @@
-"""Logical data-contract authoring surface."""
+"""Author-facing logical data-contract declarations.
 
-from ..types import Array, CustomDataType, Nullable, Shape
+A graph author writes ``Table``, ``Struct``, ``ComputedStruct``,
+``Projection``, ``TableGroup`` and their fields here. The framework-internal
+declaration and row-source interface is
+:mod:`kg_build_system.table.interfaces`; the compilation IR is
+:mod:`kg_build_system.table.ir`.
+"""
+from __future__ import annotations
+
 from .declarations import bind_source
-from .fields import AuthoringDataType, Field, FieldMetadata, computed_field, declared_fields, field
+from .fields import Field, computed_field, field
 from .models import (
     BoundSource,
     BoundTable,
@@ -21,29 +28,22 @@ from .models import (
     TableGroup,
     TableGroupOptions,
     TableOptions,
-    RowSource,
 )
-from .rows import DerivedRowSource, RelationRowSource
+from .rows import DerivedRowSource, RelationRowSource, RowSource
 
 __all__ = [
-    "Array",
-    "AuthoringDataType",
     "BoundSource",
     "BoundTable",
     "BoundTableGroup",
     "ComputedStruct",
-    "CustomDataType",
     "DataSourceConfig",
     "DerivedRowSource",
-    "RelationRowSource",
     "Field",
-    "FieldMetadata",
     "InputFormat",
-    "Nullable",
     "Projection",
     "ProjectionOptions",
+    "RelationRowSource",
     "RowSource",
-    "Shape",
     "SourceBindingOptions",
     "Struct",
     "StructOptions",
@@ -55,6 +55,5 @@ __all__ = [
     "TableOptions",
     "bind_source",
     "computed_field",
-    "declared_fields",
     "field",
 ]

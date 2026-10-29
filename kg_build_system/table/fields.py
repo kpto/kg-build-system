@@ -5,15 +5,15 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, get_args, get_origin, get_type_hints, overload
 
-from .._support.docstrings import attribute_docstring
-from .._support.naming import declaration_name, member_name
-from ..annotations import Annotation, annotation_tuple
-from ..expressions import (
+from .._support.interfaces import attribute_docstring
+from .._support.interfaces import declaration_name, member_name
+from ..annotations.interfaces import Annotation, annotation_tuple
+from ..expressions.interfaces import (
     ArraySelection, NullableDataType, NullableSelection, SelectionUnit,
     StructSelection, Traversal, ValueExpression, ValueInput, ValueSelection,
     as_expression, field_reference, select_expression, select_member, wrap_expression,
 )
-from ..types import (
+from ..types.interfaces import (
     Array, ArrayType, CustomDataType, Date, LogicalType, Nullable, NullableType,
     Struct, StructType, Time, Timestamp, Uuid, normalize_type,
 )

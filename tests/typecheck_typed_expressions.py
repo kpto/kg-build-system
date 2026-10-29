@@ -1,13 +1,13 @@
 """Static contract for bindable calculations and terminal normalization."""
 from typing import assert_type, cast
 
-from kg_build_system.expressions import (
+from kg_build_system.expressions.interfaces import (
     ArrayExpression, ArraySelection, BoolExpression, IntExpression,
     NullableExpression, NullableSelection, StrExpression, ValueExpression,
     ValueInput, ValueSelection, as_expression, select_expression,
 )
-from kg_build_system.expressions.literals import literal
-from kg_build_system.types import Array, ArrayType, INT, Nullable, NullableType, STR
+from kg_build_system.expressions.interfaces import literal
+from kg_build_system.types.interfaces import Array, ArrayType, INT, Nullable, NullableType, STR
 
 
 integer = IntExpression(literal(1))

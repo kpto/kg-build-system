@@ -18,16 +18,6 @@ class ProviderContext[T: ProviderGenerationConfig]:
     request_id: str
     config: T
 
-    def resolve_path(self, value: str) -> Path:
-        """Resolve a provider-owned path against the request file, without
-        assigning it any semantics.
-
-        The resolved path is an observation target, not a tracked input: it
-        may live outside the project, and nothing here watches, hashes, or
-        existence-checks it. Fidelity to the source is enforced at runtime
-        ingest, and re-observed only by an explicit regeneration pass.
-        """
-        return (self.request_path.parent / value).resolve()
 
 
 class Provider[T: ProviderGenerationConfig](ABC):
@@ -82,3 +72,14 @@ def load_provider(
         raise TypeError(f"provider configuration must be constructed with {expected}")
     config = provider_type.CONFIG_TYPE.model_validate(request.configuration)
     return cast(type[Provider[ProviderGenerationConfig]], provider_type), config
+
+
+def resolve_provider_path(context: ProviderContext[ProviderGenerationConfig], value: str) -> Path:
+    """Resolve a provider-owned path against the request file.
+
+    The resolved path is an observation target, not a tracked input: it may live
+    outside the project, and nothing here watches, hashes or existence-checks it.
+    Fidelity to the source is enforced at runtime ingest and re-observed only by
+    an explicit regeneration pass.
+    """
+    return (context.request_path.parent / value).resolve()

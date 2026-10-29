@@ -1,11 +1,11 @@
 """Immutable expression domain model used by the authoring DSL."""
 from __future__ import annotations
 
-from dataclasses import dataclass, replace
+from dataclasses import dataclass
 from typing import Literal, TypeAlias
 
 from .._frozen_json import FrozenJson, FrozenObject, JsonScalar
-from ..types import LogicalType
+from ..types.interfaces import LogicalType
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,17 +46,6 @@ class RowSemantics:
         if self.mode == "preserve" and self.upstream:
             raise ValueError("preserving row semantics may not have upstream effects")
 
-    @property
-    def effects(self) -> tuple[RowEffect, ...]:
-        if self.mode == "preserve":
-            return ()
-        return (*self.upstream, RowEffect(self.mode, self.scope))
-
-    @classmethod
-    def from_effects(cls, effects: tuple[RowEffect, ...]) -> "RowSemantics":
-        if not effects:
-            return cls()
-        return cls(effects[-1].mode, effects[-1].scope, effects[:-1])
 
 
 PRESERVE_ROWS = RowSemantics()
@@ -141,8 +130,6 @@ class OperationExpression(ExpressionNode):
         if names != tuple(sorted(names)):
             object.__setattr__(self, "parameters", tuple(sorted(self.parameters, key=lambda item: item.name)))
 
-    def with_arguments(self, arguments: tuple[ExpressionNode, ...]) -> "OperationExpression":
-        return self if arguments == self.arguments else replace(self, arguments=arguments)
 
 
 Expression: TypeAlias = LiteralExpression | FieldReferenceExpression | OperationExpression | VariableExpression

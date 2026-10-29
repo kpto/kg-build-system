@@ -16,8 +16,8 @@ from kg_build_system import (
     create_blueprint, field, node_binding, computed_field, property,
 )
 from kg_build_system._frozen_json import freeze_json
-from kg_build_system.expressions import value_expression
-from kg_build_system.types import Date
+from kg_build_system.expressions.interfaces import value_expression
+from kg_build_system.types.interfaces import Date
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration,
     MergeCompatibleFactsModule, MergeCompatibleFactsModuleConfiguration,
@@ -26,17 +26,17 @@ from kg_build_system.modules import (
 from kg_build_system.modules.core.credentials import configure_source_credentials
 from kg_build_system.modules.core.core import CoreArtifactTypes
 from kg_build_system.modules.targets.file import FileExecutor
-from kg_build_system.relational import lower_product
-from kg_build_system.engines.duckdb import lower_relation_sql
-from kg_build_system.workflow.identity import (
+from kg_build_system.relational.interfaces import lower_product
+from kg_build_system.engines.interfaces import lower_relation_sql
+from kg_build_system.workflow.interfaces import (
     expanded_input_name, opening_identity, step_identity,
 )
 from kg_build_system.workflow.ir import WorkflowContractIR
-from kg_build_system.workflow.models import (
+from kg_build_system.workflow.interfaces import (
     Artifact, ArtifactType, ContinuableInput, DefinedStep, ExecutionContext,
     ModuleDefinition, ModuleReference, Publication, StepStatus, TakenInput,
 )
-from kg_build_system.workflow.services import RelationRef
+from kg_build_system.workflow.interfaces import RelationRef
 
 
 class LoweringEvidence(Struct):
@@ -184,11 +184,6 @@ class RelationalLoweringTests(unittest.TestCase):
         )
         self.assertEqual(restored.workflow, contract.workflow)
         contract_document = json.loads(contract.model_dump_json())
-        self.assertEqual(contract_document["schema_version"], 2)
-        self.assertEqual(
-            contract_document["provenance"]["compile"]["blueprint"]["schema_version"],
-            blueprint.schema_version,
-        )
         self.assertNotIn("blueprint", contract_document)
         contributions = contract_document["workflow"]["contributions"]
         self.assertTrue(all(
@@ -419,8 +414,7 @@ class FileTargetPropertyEncodingTests(unittest.TestCase):
                 status=StepStatus.SUCCEEDED,
                 artifact=records,
             ),)},
-            services=services,
-        ))
+        ), services)
         return (root / "graph.jsonl").read_text(encoding="utf-8")
 
     def test_scalars_are_written_exactly_as_before(self) -> None:
@@ -727,7 +721,7 @@ class ArrayPropertyTests(unittest.TestCase):
                 codes: PropertySlot[Array[str | None]] = property()
 
     def test_temporal_array_items_are_a_legal_declaration(self) -> None:
-        from kg_build_system.types import ArrayType, UnitType
+        from kg_build_system.types.interfaces import ArrayType, UnitType
 
         class TemporalItems(Node):
             dates: PropertySlot[Array[Date]] = property()

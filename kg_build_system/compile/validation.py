@@ -3,10 +3,10 @@ from __future__ import annotations
 
 from collections.abc import Iterable
 
+from ..expressions.interfaces import walk_expression_ir as walk_expression
 from ..expressions.ir import (
     FieldReferenceExpressionIR as FieldReferenceExpression,
     OperationExpressionIR as OperationExpression,
-    walk_expression_ir as walk_expression,
 )
 from ..types.ir import (
     ArrayTypeIR as ArrayType,
@@ -23,13 +23,12 @@ from ..table.ir import (
     RowScanIR,
     RowSourcePlanIR,
     RowUnionIR,
-    struct_type_key,
 )
-from ..table.rows import (
+from ..table.interfaces import (
     ShapeField, plan_fields, plan_inputs, plan_scan_sources,
-    plan_shape_source_name, row_source_key,
+    plan_shape_source_name, row_source_key, struct_type_key,
 )
-from .models import BLUEPRINT_SCHEMA_VERSION, BuildBlueprint
+from .ir import BuildBlueprint
 
 
 def _unique(values: Iterable[str], context: str) -> None:
@@ -44,8 +43,6 @@ def _base(value):
 
 def validate_blueprint(blueprint: BuildBlueprint) -> None:
     """Validate names, references, expression sources, and binding shapes."""
-    if blueprint.schema_version != BLUEPRINT_SCHEMA_VERSION:
-        raise ValueError(f"unsupported blueprint schema version {blueprint.schema_version!r}")
     if not blueprint.components:
         raise ValueError("blueprints require at least one graph component")
     if not blueprint.bindings:

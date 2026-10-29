@@ -12,12 +12,12 @@ from kg_build_system import (
     build, compile, edge_binding, field, node_binding, computed_field,
     property,
 )
-from kg_build_system.compile import blueprint_from_json, blueprint_json
+from kg_build_system.compile.interfaces import blueprint_from_json, blueprint_json
 from kg_build_system.modules import (
     FileModule, FileModuleConfiguration, register_module,
 )
-from kg_build_system.expressions import BoolExpression
-from kg_build_system.types import normalize_type
+from kg_build_system.expressions.interfaces import BoolExpression
+from kg_build_system.types.interfaces import normalize_type
 
 
 class Source(Table):

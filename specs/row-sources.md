@@ -89,13 +89,10 @@ Owns the authoring row-source algebra and its plan IR: the row value a projectio
 
 ## Boundaries
 
-- `table.rows` may import `expressions` (authoring, `expressions.ir`, `expressions.mapping`), `types` (logical types, `types.ir`, `types.mapping`, `types.ir_codec`), and the local `table.fields`, `table.ir` and `table.ir_codec` interfaces.
-- `table.rows` must not import `binding`, `topology`, `compile`, `relational`, `engines`, `workflow`, `modules`, `code_generation`, `cli` or `api`.
-- `table.rows` must not import `table.models` at module load. `table.models` imports `table.rows`; the reverse edge is the lazy import inside `RelationRowSource.projection_base()` and `DerivedRowSource.projection_base()`.
-- `binding`, `compile`, `engines`, `modules` and `table.models` may import `table.rows`; the dependency direction is into `table`.
-- The plan IR is engine-neutral. No SQL, engine relation names, workflow artifact names or graph records appear in it.
-- From this module, the authoring surface re-exports `RowSource`, `RelationRowSource` and `DerivedRowSource`; the plan helpers and generated-shape helpers are the internal interface for consuming subpackages.
-
+- Surfaces: the row-source values are author-facing (`kg_build_system.table`); the plan helpers and generated-shape helpers are in `table.interfaces`; `table.ir` holds the plan IR.
+- Allowed dependencies: `expressions.interfaces`, `expressions.ir`, `types.interfaces`, `types.ir`, and the local declaration and plan modules.
+- A row source carries no engine, workflow or graph-record knowledge. The plan IR is engine-neutral.
+- The package-internal `table.models`/`table.rows` load direction is an implementation fact, not an interface.
 ## Current decisions
 
 - A row source is a value. A declaration class is not accepted where a row source is required; call `.row_source()`.

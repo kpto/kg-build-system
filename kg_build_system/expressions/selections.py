@@ -8,13 +8,14 @@ from dataclasses import dataclass
 from hashlib import sha256
 from typing import Any, Generic, Self, TypeVar, cast, overload
 
-from ..types import (
+from ..types.interfaces import (
     Array, ArrayType, CustomDataType, Date, LogicalType, Nullable, NullableType,
     STR, Struct, StructType, Time, Timestamp, Uuid,
 )
 from ._coercion import expression_input
 from .base import field_reference, operation
 from .codec import encode_expression
+from ._operations import row_effects
 from .models import FieldReferenceExpression, OperationExpression, RowSemantics, Traversal
 from .values import NullableAuthoringInput, ValueExpression
 
@@ -304,7 +305,7 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
     def at[I: NullableDataType](self: "ArraySelection[Array[I]]", index: int | ValueInput[int]) -> "NullableSelection[Array[I]]": ...
     def at(self, index: int | ValueInput[int]) -> ValueSelection[Any]:
         from ._coercion import expression_input
-        from ..types import INT
+        from ..types.interfaces import INT
 
         logical_type = self.logical_type
         if not isinstance(logical_type, ArrayType):
@@ -323,7 +324,7 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
 
     def slice(self, start: int | ValueInput[int], end: int | ValueInput[int]) -> "ArraySelection[TItem]":
         from ._coercion import expression_input
-        from ..types import INT
+        from ..types.interfaces import INT
 
         logical_type = self.logical_type
         if not isinstance(logical_type, ArrayType):
@@ -464,7 +465,7 @@ def as_expression[T](value: ValueInput[T]) -> ValueExpression[T]:
 
 
 def _declaration(logical_type: StructType) -> type[Struct]:
-    from ..types import resolve_shape
+    from ..types.interfaces import resolve_shape
 
     value: Any = resolve_shape(logical_type.module, logical_type.qualname)
     if value is None:
@@ -526,7 +527,7 @@ def _expansion_scope(model) -> tuple[str, ...]:
     if isinstance(model, OperationExpression) and model.operator == "struct_field":
         parent = model.arguments[0]
         if isinstance(parent, OperationExpression) and parent.operator == "expand":
-            effects = parent.row_semantics.effects
+            effects = row_effects(parent.row_semantics)
             name = next((p.value for p in model.parameters if p.name == "name"), None)
             if effects and effects[-1].mode == "expand" and isinstance(name, str) and name:
                 return (*effects[-1].scope, name)

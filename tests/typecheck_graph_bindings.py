@@ -7,7 +7,7 @@ from kg_build_system import (
     Edge, EdgeBinding, Field, Node, NodeBinding, PropertySlot, Table,
     edge_binding, field, node_binding, property,
 )
-from kg_build_system.types import Date, Time, Timestamp, Uuid
+from kg_build_system.types.interfaces import Date, Time, Timestamp, Uuid
 
 
 class BindingTable(Table):

@@ -13,20 +13,20 @@ from rich.console import Console
 
 from kg_build_system._frozen_json import freeze_json
 from kg_build_system.compile.interfaces import CompilationContext, ModuleCompiler
-from kg_build_system.modules import Module, ModuleRegistrationConfiguration
+from kg_build_system.modules.interfaces import Module, ModuleRegistrationConfiguration
 from kg_build_system.workflow import BuildRuntime, build
-from kg_build_system.workflow.assembler import assemble_workflow
-from kg_build_system.workflow.contracts import create_workflow_contract
-from kg_build_system.workflow.identity import output_name, step_identity
+from kg_build_system.workflow.interfaces import assemble_workflow
+from kg_build_system.workflow.interfaces import create_workflow_contract
+from kg_build_system.workflow.interfaces import output_name, step_identity
 from kg_build_system.workflow.interfaces import ModuleExecutor
 from kg_build_system.workflow.ir import WorkflowContractIR
-from kg_build_system.workflow.models import (
+from kg_build_system.workflow.interfaces import (
     Artifact, ArtifactType, DisruptedExecutionContext, ExecutionContext,
     ExecutorFactoryContext, Failure, Input, ModuleDefinition, ModuleReference,
     Output, Publication, RuntimeFieldDefinition, StepOutcome, StepStatus,
     WorkflowContribution, WorkflowDefinition, WorkflowReport, WorkflowStep,
 )
-from kg_build_system.workflow.monitor import RichWorkflowMonitor
+from kg_build_system.workflow.interfaces import RichWorkflowMonitor
 
 FAILED = ArtifactType("test_recovery", "failed")
 REPORT = ArtifactType("test_recovery", "report")
@@ -66,16 +66,18 @@ class RecoveryModule(Module):
 class RecoveryExecutor(ModuleExecutor):
     """Told which of its steps to fail by the instruction filed under that step's name."""
 
-    def handle(self, context: ExecutionContext) -> StepOutcome:
-        context.services.logger.info("Handling recovery test step")
+    def handle(
+        self, context: ExecutionContext, services: ExecutionServices,
+    ) -> StepOutcome:
+        services.logger.info("Handling recovery test step")
         if context.variables["instructions"][context.step.name] == {"action": "fail"}:
             raise RuntimeError("intentional failure")
         return StepOutcome(context.step_id, context.module_id, StepStatus.SUCCEEDED)
 
     def handle_disrupted(
-        self, context: DisruptedExecutionContext,
+        self, context: DisruptedExecutionContext, services: ExecutionServices,
     ) -> StepOutcome:
-        context.services.logger.warning("Recovering disrupted input")
+        services.logger.warning("Recovering disrupted input")
         published = context.step.outputs[0]
         return StepOutcome(
             context.step_id,
@@ -108,7 +110,9 @@ class ArrivalModule(Module):
 
 
 class ArrivalExecutor(ModuleExecutor):
-    def handle(self, context: ExecutionContext) -> StepOutcome:
+    def handle(
+        self, context: ExecutionContext, services: ExecutionServices,
+    ) -> StepOutcome:
         given = context.step.outputs[0]
         if RECORDS in context.inputs:
             value: Any = [
@@ -126,9 +130,9 @@ class ArrivalExecutor(ModuleExecutor):
         )
 
     def handle_disrupted(
-        self, context: DisruptedExecutionContext,
+        self, context: DisruptedExecutionContext, services: ExecutionServices,
     ) -> StepOutcome:
-        return super().handle_disrupted(context)
+        return super().handle_disrupted(context, services)
 
 
 def _module_definition(

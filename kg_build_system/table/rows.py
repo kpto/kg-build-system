@@ -35,7 +35,7 @@ from dataclasses import dataclass, replace
 from hashlib import sha256
 from typing import Any, Generic, TypeVar, cast
 
-from ..expressions import (
+from ..expressions.interfaces import (
     BoolExpression,
     OperationExpression,
     Traversal,
@@ -50,8 +50,8 @@ from ..expressions.ir import (
     FieldReferenceExpressionIR,
     OperationExpressionIR,
 )
-from ..expressions.mapping import expression_to_ir
-from ..types import (
+from ..expressions.interfaces import expression_to_ir
+from ..types.interfaces import (
     ArrayType,
     LogicalType,
     NullableType,
@@ -68,8 +68,8 @@ from ..types.ir import (
     StructTypeIR as StructTypeIRModel,
     UnitTypeIR,
 )
-from ..types.ir_codec import decode_type_ir, encode_type_ir
-from ..types.mapping import type_to_ir
+from ..types.interfaces import decode_type_ir, encode_type_ir
+from ..types.interfaces import type_to_ir
 from .ir import (
     JoinHow,
     RowDistinctIR,

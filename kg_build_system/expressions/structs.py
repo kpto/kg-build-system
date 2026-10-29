@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Generic, TypeVar
 
-from ..types import Struct, StructType
+from ..types.interfaces import Struct, StructType
 from .values import ValueExpression
 
 

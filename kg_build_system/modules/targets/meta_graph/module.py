@@ -10,13 +10,13 @@ from pathlib import PurePosixPath
 from typing import Any, ClassVar
 
 from ...._frozen_json import freeze_json
-from ....types import canonical_value_text
+from ....types.interfaces import canonical_value_text
 from ....compile.interfaces import CompilationContext, ModuleCompiler
 from ....modules._paths import validate_relative_path
 from ....modules.interfaces import Module, ModuleRegistrationConfiguration
-from ....workflow.identity import output_name
-from ....workflow.interfaces import ModuleExecutor
-from ....workflow.models import (
+from ....workflow.interfaces import output_name
+from ....workflow.interfaces import ExecutionServices, ModuleExecutor
+from ....workflow.interfaces import (
     Artifact,
     ArtifactType,
     DisruptedExecutionContext,
@@ -120,6 +120,7 @@ def _observe(
     properties: tuple[str, ...],
     value_limit: int,
     context: ExecutionContext,
+    services: ExecutionServices,
 ) -> _Observed:
     """Exact row count plus example values for ``properties``, in one pass.
 
@@ -140,7 +141,7 @@ def _observe(
         f"approx_top_k({_quote(name)}, {value_limit}) AS {_quote(name)}"
         for name in properties
     ]
-    query = context.services.relations.query(
+    query = services.relations.query(
         f"SELECT {', '.join(select)} FROM {relation}"
     )
     columns = tuple(column[0] for column in query.description)
@@ -162,6 +163,7 @@ def _observe(
 
 def _observed_components(
     context: ExecutionContext, instruction: MetaGraphDocumentIR,
+    services: ExecutionServices,
 ) -> dict[tuple[str, str], _Observed]:
     """Measure every graph-record artifact this step was given."""
     declared = {
@@ -185,14 +187,14 @@ def _observed_components(
                 f"multiple graph-record artifacts for {identity.kind} "
                 f"component {identity.component!r}"
             )
-        relation = context.services.relations.reference(artifact.value)
+        relation = services.relations.reference(artifact.value)
         if limit > 0:
             observed[key] = _observe(
-                relation, declared.get(key, ()), limit, context,
+                relation, declared.get(key, ()), limit, context, services,
             )
         else:
             observed[key] = _Observed(
-                records=context.services.relations.query(
+                records=services.relations.query(
                     f"SELECT COUNT(*) FROM {relation}"
                 ).fetchone()[0],
             )
@@ -301,7 +303,6 @@ def _document(
                 prop["examples"] = values.get(prop["name"], [])
         (nodes if component.kind == "node" else edges).append(entry)
     return {
-        "schema_version": instruction.schema_version,
         "generated_by": {
             "module_id": _MODULE_ID,
             "module_version": MetaGraphModule.VERSION,
@@ -407,7 +408,9 @@ class MetaGraphModule(Module):
 
 
 class MetaGraphExecutor(ModuleExecutor):
-    def handle(self, context: ExecutionContext) -> StepOutcome:
+    def handle(
+        self, context: ExecutionContext, services: ExecutionServices,
+    ) -> StepOutcome:
         instruction = decode_meta_graph_instruction(
             context.variables["instructions"][context.step.name],
         )
@@ -415,13 +418,13 @@ class MetaGraphExecutor(ModuleExecutor):
         validate_relative_path(
             instruction.relative_path, context="meta-graph document path",
         )
-        output_path = context.services.output_storage.child(
+        output_path = services.output_storage.child(
             PurePosixPath(instruction.relative_path),
         )
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         document = _document(
-            instruction, _observed_components(context, instruction), str(output_path),
+            instruction, _observed_components(context, instruction, services), str(output_path),
         )
 
         html_path = None
@@ -429,7 +432,7 @@ class MetaGraphExecutor(ModuleExecutor):
             validate_relative_path(
                 instruction.html_relative_path, context="meta-graph HTML path",
             )
-            html_path = context.services.output_storage.child(
+            html_path = services.output_storage.child(
                 PurePosixPath(instruction.html_relative_path),
             )
             # Recorded before either file is written, so the JSON on disk and
@@ -465,9 +468,9 @@ class MetaGraphExecutor(ModuleExecutor):
         )
 
     def handle_disrupted(
-        self, context: DisruptedExecutionContext,
+        self, context: DisruptedExecutionContext, services: ExecutionServices,
     ) -> StepOutcome:
-        return super().handle_disrupted(context)
+        return super().handle_disrupted(context, services)
 
 
 __all__ = [

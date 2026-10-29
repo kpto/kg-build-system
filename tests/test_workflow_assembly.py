@@ -3,11 +3,11 @@ from __future__ import annotations
 
 import unittest
 
-from kg_build_system.workflow.assembler import AssemblyError, assemble_workflow
-from kg_build_system.workflow.contracts import create_workflow_contract
-from kg_build_system.workflow.identity import opening_identity, step_identity
-from kg_build_system.workflow.mapping import workflow_from_ir
-from kg_build_system.workflow.models import (
+from kg_build_system.workflow.interfaces import AssemblyError, assemble_workflow
+from kg_build_system.workflow.interfaces import create_workflow_contract
+from kg_build_system.workflow.interfaces import opening_identity, step_identity
+from kg_build_system.workflow.interfaces import workflow_from_ir
+from kg_build_system.workflow.interfaces import (
     ArtifactType, Input, ModuleDefinition, ModuleReference, Output, Publication,
     WorkflowContribution, WorkflowStep,
 )

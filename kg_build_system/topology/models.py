@@ -5,11 +5,11 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 from typing import Any, ClassVar, Generic, TypeVar, cast, dataclass_transform, get_args, get_origin, get_type_hints
 
-from .._support.docstrings import attribute_docstring
-from .._support.naming import declaration_name, member_name
-from ..annotations import Annotation, EdgeLabel, NodeLabel, annotation_tuple
-from ..expressions import NullableAuthoringInput, ValueInput
-from ..types import (
+from .._support.interfaces import attribute_docstring
+from .._support.interfaces import declaration_name, member_name
+from ..annotations.interfaces import Annotation, EdgeLabel, NodeLabel, annotation_tuple
+from ..expressions.interfaces import NullableAuthoringInput, ValueInput
+from ..types.interfaces import (
     Array, CustomDataType, Date, LogicalType, Time, Timestamp, Uuid,
     normalize_type, require_graph_property,
 )
@@ -138,7 +138,7 @@ class EdgeOptionsTemplate:
 
 
 @dataclass_transform(field_specifiers=(property,), kw_only_default=True)
-class _TopologyDeclarationBase:
+class TopologyDeclarationBase:
     """Internal root of every topology declaration.
 
     The ``dataclass_transform`` scope follows the chain root, so every MRO
@@ -231,7 +231,7 @@ def _endpoint_category_error(cls: type[Any], category: Any) -> str:
             f"{cls.__name__} endpoint category {category!r} is not a node "
             "declaration — endpoints must be node components"
         )
-    if not issubclass(category, _NodeSideBase):
+    if not issubclass(category, NodeSideBase):
         return (
             f"{cls.__name__} endpoint category {category.__name__} is not "
             "node-side — endpoints must be node components"
@@ -329,14 +329,14 @@ def _prepare_topology_declaration(cls: type[Any]) -> None:
     for base in cls.__mro__[1:]:
         if base is object or base is Generic:
             continue
-        if not issubclass(base, _TopologyDeclarationBase):
+        if not issubclass(base, TopologyDeclarationBase):
             raise TypeError(
                 f"{cls.__name__} inherits non-framework base {base.__name__!r}: "
                 "every topology declaration must descend from Node, AbstractNode, "
                 "NodeTemplate, Edge, AbstractEdge, or EdgeTemplate"
             )
 
-    node_side = issubclass(cls, _NodeSideBase)
+    node_side = issubclass(cls, NodeSideBase)
     edge_side = issubclass(cls, AbstractEdge)
     node_template = issubclass(cls, NodeTemplate)
     edge_template = issubclass(cls, EdgeTemplate)
@@ -423,7 +423,7 @@ def _prepare_topology_declaration(cls: type[Any]) -> None:
         dataclass(cls, kw_only=True)
 
 
-class _NodeSideBase(_TopologyDeclarationBase):
+class NodeSideBase(TopologyDeclarationBase):
     """Internal node-side root shared by ``AbstractNode`` and ``Node``.
 
     Every endpoint-category parameter is bound to this root, so an edge-kind
@@ -433,7 +433,7 @@ class _NodeSideBase(_TopologyDeclarationBase):
     _framework_root: ClassVar[bool] = True
 
 
-class NodeTemplate(_TopologyDeclarationBase):
+class NodeTemplate(TopologyDeclarationBase):
     """Inert node-side mixin sharing property slots and annotation flow."""
 
     _framework_root: ClassVar[bool] = True
@@ -441,7 +441,7 @@ class NodeTemplate(_TopologyDeclarationBase):
     _template_annotations: ClassVar[tuple[Annotation, ...]] = ()
 
 
-class EdgeTemplate(_TopologyDeclarationBase):
+class EdgeTemplate(TopologyDeclarationBase):
     """Inert edge-side mixin sharing property slots and annotation flow."""
 
     _framework_root: ClassVar[bool] = True
@@ -451,28 +451,28 @@ class EdgeTemplate(_TopologyDeclarationBase):
 
 # Endpoint categories are node-side. Constrained typevars were measured and
 # rejected: they break binding inference and the base-consistency order guard.
-N_co = TypeVar("N_co", bound=_NodeSideBase, covariant=True)
-S_co = TypeVar("S_co", bound=_NodeSideBase, covariant=True)
-D_co = TypeVar("D_co", bound=_NodeSideBase, covariant=True)
-S = TypeVar("S", bound=_NodeSideBase)
-D = TypeVar("D", bound=_NodeSideBase)
+N_co = TypeVar("N_co", bound=NodeSideBase, covariant=True)
+S_co = TypeVar("S_co", bound=NodeSideBase, covariant=True)
+D_co = TypeVar("D_co", bound=NodeSideBase, covariant=True)
+S = TypeVar("S", bound=NodeSideBase)
+D = TypeVar("D", bound=NodeSideBase)
 
 
-class AbstractNode(_NodeSideBase):
+class AbstractNode(NodeSideBase):
     """Category node: a graph-visible parent for concrete nodes."""
 
     _framework_root: ClassVar[bool] = True
     options: ClassVar[Any] = NodeOptions()
 
 
-class Node(_NodeSideBase):
+class Node(NodeSideBase):
     """Concrete node base: bindable, terminal, and a sibling of AbstractNode."""
 
     _framework_root: ClassVar[bool] = True
     options: ClassVar[Any] = NodeOptions()
 
 
-class AbstractEdge(_TopologyDeclarationBase, Generic[S_co, D_co]):
+class AbstractEdge(TopologyDeclarationBase, Generic[S_co, D_co]):
     """Category edge; endpoint parameters are covariant so children may descend."""
 
     _framework_root: ClassVar[bool] = True

@@ -1,56 +1,13 @@
-"""The workflow API: declaring steps, assembling them into a definition, and running one."""
+"""Author-facing workflow execution.
 
-from .assembler import AssemblyError, assemble_workflow
+A graph author calls ``build`` and reads ``BuildRuntime`` and
+``WorkflowReport`` here. The framework-internal workflow model, extension
+protocols and contract codec are :mod:`kg_build_system.workflow.interfaces`; the
+contract IR is :mod:`kg_build_system.workflow.ir`.
+"""
+from __future__ import annotations
+
 from .executor import build
-from .models import (
-    Artifact, ArtifactType, BuildRuntime, Connection, ContinuableInput, DefinedContribution,
-    DefinedStep, DisruptedExecutionContext, DisruptingInput, ExecutionContext,
-    ExecutorFactoryContext, Failure, Given, Input, ModuleDefinition, ModuleReference, Output,
-    Publication, PublishedArtifact, RuntimeFieldDefinition, StepOutcome, StepStatus, TakenInput,
-    WorkflowContribution, WorkflowDefinition, WorkflowReport, WorkflowStep,
-    type_matches,
-)
-from .monitor import (
-    NullWorkflowMonitor, RichWorkflowMonitor, WorkflowExecutionMonitor,
-)
-from .services import RelationRef, RelationService
+from .models import BuildRuntime, WorkflowReport
 
-
-__all__ = [
-    "Artifact",
-    "ArtifactType",
-    "AssemblyError",
-    "BuildRuntime",
-    "Connection",
-    "ContinuableInput",
-    "DefinedContribution",
-    "DefinedStep",
-    "DisruptedExecutionContext",
-    "DisruptingInput",
-    "ExecutionContext",
-    "ExecutorFactoryContext",
-    "Failure",
-    "Given",
-    "Input",
-    "ModuleDefinition",
-    "ModuleReference",
-    "NullWorkflowMonitor",
-    "Output",
-    "Publication",
-    "PublishedArtifact",
-    "RelationRef",
-    "RelationService",
-    "RichWorkflowMonitor",
-    "RuntimeFieldDefinition",
-    "StepOutcome",
-    "StepStatus",
-    "TakenInput",
-    "WorkflowContribution",
-    "WorkflowDefinition",
-    "WorkflowExecutionMonitor",
-    "WorkflowStep",
-    "WorkflowReport",
-    "assemble_workflow",
-    "build",
-    "type_matches",
-]
+__all__ = ["BuildRuntime", "WorkflowReport", "build"]

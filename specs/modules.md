@@ -6,6 +6,7 @@ The `kg_build_system.modules` package owns the public module extension contract,
 
 ## Public interface
 
+- `Module`, the extension protocol, is in `modules.interfaces`; the author-facing package exports registration and the supplied modules.
 - `ModuleRegistrationConfiguration` is a frozen, slotted dataclass base for serialisable registration configuration. `to_json()` returns `dataclasses.asdict(self)`; a subclass may override it.
 - `Module(ABC)`:
   - `ID: ClassVar[str]`
@@ -23,8 +24,8 @@ The `kg_build_system.modules` package owns the public module extension contract,
   - `CompilableModule` with `ID`, `VERSION`, `CONFIGURATION_TYPE`, and async `create_compiler`.
   - `CompileModuleRegistration[ConfigT]` with `module_class` and `configuration`.
 - Runtime protocol in `workflow.interfaces`:
-  - `ModuleExecutor.handle(context: ExecutionContext) -> StepOutcome`.
-  - `ModuleExecutor.handle_disrupted(context: DisruptedExecutionContext) -> StepOutcome`; the base implementation skips the step.
+  - `ModuleExecutor.handle(context: ExecutionContext, services: ExecutionServices) -> StepOutcome`.
+  - `ModuleExecutor.handle_disrupted(context: DisruptedExecutionContext, services: ExecutionServices) -> StepOutcome`; the base implementation skips the step.
   - `ExecutableModule` with `ID`, `VERSION`, and `create_executor`.
 - Built-in exports from `kg_build_system.modules`:
   - `CollapseExactDuplicatesModule`
@@ -33,7 +34,7 @@ The `kg_build_system.modules` package owns the public module extension contract,
   - `FileModule`, `FileModuleConfiguration`
   - `MetaGraphModule`, `MetaGraphModuleConfiguration`
   - `Neo4jModule`, `Neo4jModuleConfiguration`
-  - `Module`, `ModuleRegistration`, `ModuleRegistrationConfiguration`, `register_module`
+  - `ModuleRegistration`, `ModuleRegistrationConfiguration`, `register_module`
 - Core workflow vocabulary is in `modules.core`: `CoreModule`, `CoreArtifactTypes`, and `graph_record_components`. These names are not re-exported from `kg_build_system.modules`; the composition root imports `CoreModule` from `modules.core`.
 - `CoreArtifactTypes` names:
   - `core/graph.<kind>.<component>` for graph records;
@@ -44,13 +45,12 @@ The `kg_build_system.modules` package owns the public module extension contract,
 
 ## Boundaries
 
-- Allowed dependencies: `types`, `annotations`, `expressions`, `table`, `topology`, `binding`, `relational`, `engines`, `compile`, `workflow`, and the private `_frozen_json` kernel.
-- The current built-ins use `engines.duckdb`, `compile.interfaces`, `workflow.models`, `workflow.identity`, `workflow.interfaces`, `workflow.services`, and `topology.ir`.
+- Surfaces: `kg_build_system.modules` is the author-facing registration and supplied-module surface; `modules.interfaces` is the module protocol and configuration interface; `modules.ir` aggregates module-produced IR.
+- Allowed dependencies: the `interfaces` and `ir` surfaces of `types`, `annotations`, `expressions`, `table`, `topology`, `binding`, `relational`, `engines`, `compile` and `workflow`, plus the `_frozen_json` kernel.
 - Must not import `api` or `cli`.
-- A module compiler may inspect the compiled blueprint and its own registration configuration. It may not receive authoring classes, a runtime connection, or executor state.
-- A module executor receives only the compiled module definition, step, variables, resolved runtime configuration, inputs, and `ExecutionServices`.
-- `compile` and `workflow` must not import a concrete module; the composition root and the `modules` package own that downward dependency.
-
+- A module compiler may inspect the compiled blueprint and its own registration configuration. It may not receive authoring classes, a runtime connection or executor state.
+- A module executor receives the compiled module definition, step, variables, resolved runtime configuration, inputs and `ExecutionServices`.
+- `compile` and `workflow` never import a concrete module; the composition root and `kg_build_system.modules` own that downward dependency.
 ## Current decisions
 
 - **One module ID, one configured instance.** A module ID is the semantic namespace for its steps, openings, artifact types, runtime configuration, and owned annotations. Module IDs, runtime field keys, and artifact namespaces are lower-case with underscores where the workflow contract validates them. A workflow contains at most one configured instance of an ID.

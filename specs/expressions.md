@@ -60,7 +60,8 @@ The `kg_build_system.expressions` package owns typed selections, bindable expres
 - Must not import `table`, `topology`, `binding`, `compile`, `workflow`, `relational`, `engines`, `modules`, `code_generation`, `api` or `cli`.
 - Authoring wrappers and the expression IR are distinct surfaces. Consumers that compile or plan bind to `expressions.ir`; the mapping from wrappers to IR is one way, and an IR value never retains a wrapper or a `RowSemantics`.
 - `table` and `binding` construct selections by reading declared fields; `relational` consumes expression IR and row semantics. `expressions` does not know about relations, declarations, graph components or SQL.
-- Row-source algebra is owned by `table.rows`; it uses expression values to build a plan but is not part of this package's interface.
+- Surfaces: `kg_build_system.expressions` is the author-facing selection surface; `expressions.interfaces` is the expression model, operations and codecs; `expressions.ir` is the expression IR.
+- Row-source algebra belongs to `table`; it uses expression values to build a plan but is not part of this package's interface.
 
 ## Current decisions
 
@@ -132,7 +133,7 @@ The `kg_build_system.expressions` package owns typed selections, bindable expres
 
 ### Expression algebra
 
-- **Nodes are immutable.** `ExpressionNode` carries a logical type and row semantics. `OperationExpression` stores its arguments and sorted, uniquely named parameters; `with_arguments` returns the same object when the arguments are unchanged.
+- **Nodes are immutable.** `ExpressionNode` carries a logical type and row semantics. `OperationExpression` stores its arguments and sorted, uniquely named parameters; the `with_arguments(expression, arguments)` function returns the same object when the arguments are unchanged.
 - **Field references carry a path.** `FieldReferenceExpression` stores the logical source, the path within it, and optional `Traversal` segments. Every traversal path is a prefix of the field path. A traversal marks a structured or array-valued segment; it is an authoring and planning fact.
 - **Operations compose argument effects.** Every operation's row semantics are the argument effects in order, followed by its own local effect. Identical `expand` effects with the same scope are shared; filtering effects remain ordered.
 - **`RowEffect`** is `("expand", scope)` or `("filter", scope)`; an expand scope must be non-empty and a filter scope must be empty.

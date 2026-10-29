@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Iterator, TypeAlias
+from typing import TypeAlias
 
 from ..types.ir import LogicalTypeIR
 from .._frozen_json import FrozenJson
@@ -48,15 +48,8 @@ ExpressionIR: TypeAlias = (
 )
 
 
-def walk_expression_ir(expression: ExpressionIR) -> Iterator[ExpressionIR]:
-    yield expression
-    if isinstance(expression, OperationExpressionIR):
-        for argument in expression.arguments:
-            yield from walk_expression_ir(argument)
-
-
 __all__ = [
     "ExpressionIR", "ExpressionIRBase", "FieldReferenceExpressionIR",
     "LiteralExpressionIR", "OperationExpressionIR", "OperationParameterIR",
-    "VariableExpressionIR", "walk_expression_ir",
+    "VariableExpressionIR",
 ]

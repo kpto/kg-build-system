@@ -4,9 +4,10 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, overload
 
-from ..types import Array, ArrayType, Nullable, NullableType, STR, Struct, StructType
+from ..types.interfaces import Array, ArrayType, Nullable, NullableType, STR, Struct, StructType
 from ._coercion import expression_input
 from .base import operation
+from ._operations import row_effects
 from .models import VariableExpression
 from .values import ValueExpression
 
@@ -48,7 +49,7 @@ def _transform_items(
         else item_expression
     )
     body = as_expression(selector(proxy))
-    if any(node.row_semantics.effects for node in walk_expression(body.model)):
+    if any(row_effects(node.row_semantics) for node in walk_expression(body.model)):
         raise TypeError(
             "transform_items selectors must not contain row effects"
         )

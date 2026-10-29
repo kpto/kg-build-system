@@ -1,13 +1,22 @@
-"""Workflow modules supplied when creating a build blueprint."""
-from .interfaces import (
-    Module, ModuleRegistration, ModuleRegistrationConfiguration, register_module,
-)
+"""Author-facing build-stage registration and the supplied modules.
+
+A graph author registers supplied modules and configures them here. The module
+extension protocols are :mod:`kg_build_system.modules.interfaces`; module IR is
+:mod:`kg_build_system.modules.ir`.
+"""
+from __future__ import annotations
+
 from .operators import (
     CollapseExactDuplicatesModule,
     MergeCompatibleFactsModule,
     MergeCompatibleFactsModuleConfiguration,
     RejectConflictingNonNullValuesConfiguration,
     RejectConflictingNonNullValuesModule,
+)
+from .protocols import (
+    ModuleRegistration,
+    ModuleRegistrationConfiguration,
+    register_module,
 )
 from .targets.file import FileModule, FileModuleConfiguration
 from .targets.meta_graph import MetaGraphModule, MetaGraphModuleConfiguration
@@ -21,7 +30,6 @@ __all__ = [
     "MergeCompatibleFactsModuleConfiguration",
     "MetaGraphModule",
     "MetaGraphModuleConfiguration",
-    "Module",
     "ModuleRegistration",
     "ModuleRegistrationConfiguration",
     "Neo4jModule",

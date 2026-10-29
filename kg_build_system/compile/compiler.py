@@ -7,25 +7,25 @@ import importlib.util
 import json
 import sys
 from collections.abc import Iterable, Sequence
-from dataclasses import asdict, replace
+from dataclasses import replace
 from hashlib import sha256
 from pathlib import Path
 from types import ModuleType
 from typing import Any, cast, overload
 
-from ..annotations import Annotation
+from ..annotations.interfaces import Annotation, annotation_payload
 from ..annotations.ir import AnnotationIR as AnnotationDefinition
-from ..binding import Binding, EdgeBinding, NodeBinding
+from ..binding.interfaces import Binding, EdgeBinding, NodeBinding
 from ..binding.ir import (
     EdgeBindingIR as EdgeBindingDefinition,
     NodeBindingIR as NodeBindingDefinition,
 )
 from .._frozen_json import freeze_json
-from ..expressions import FieldReferenceExpression, ValueExpression, walk_expression
-from ..expressions.codec import encode_expression
-from ..expressions.mapping import expression_to_ir
-from ..table import BoundSource, BoundTable, Projection, Struct, Table
-from ..table.declarations import resolve_bound_source
+from ..expressions.interfaces import FieldReferenceExpression, ValueExpression, walk_expression
+from ..expressions.interfaces import encode_expression
+from ..expressions.interfaces import expression_to_ir
+from ..table.interfaces import BoundSource, BoundTable, Projection, Struct, Table
+from ..table.interfaces import resolve_bound_source
 from ..table.ir import (
     FieldIR as FieldDefinition,
     ProjectionIR as ProjectionDefinition,
@@ -35,24 +35,24 @@ from ..table.ir import (
     StructIR as StructDefinition,
     TableIR as TableDefinition,
 )
-from ..table.ir_codec import encode_row_source_plan
-from ..table.rows import (
+from ..table.interfaces import encode_row_source_plan
+from ..table.interfaces import (
     plan_inputs, plan_scan_sources, row_source_key, row_source_plan_ir,
 )
 from ..topology.ir import (
     ComponentIR as ComponentDefinition,
     PropertyIR as PropertyDefinition,
 )
-from ..types import ArrayType, NullableType, StructType
-from ..types.mapping import type_to_ir
+from ..types.interfaces import ArrayType, NullableType, StructType
+from ..types.interfaces import type_to_ir
 from ..workflow.ir import BlueprintModuleIR as BlueprintModule
-from ..workflow.assembler import assemble_workflow
-from ..workflow.contracts import create_workflow_contract
+from ..workflow.interfaces import assemble_workflow
+from ..workflow.interfaces import create_workflow_contract
 from ..workflow.ir import WorkflowContractIR
-from .interfaces import (
+from .protocols import (
     CompilableModule, CompilationContext, CompileModuleRegistration,
 )
-from .models import BuildBlueprint
+from .ir import BuildBlueprint
 from .validation import validate_blueprint
 
 
@@ -63,7 +63,7 @@ def _symbol(kind: str, declaration: type[Any]) -> str:
 def _annotations(values: Sequence[Annotation]) -> tuple[AnnotationDefinition, ...]:
     return tuple(
         AnnotationDefinition(namespace, annotation_id, freeze_json(arguments))
-        for namespace, annotation_id, arguments in (value.serialise() for value in values)
+        for namespace, annotation_id, arguments in (annotation_payload(value) for value in values)
     )
 
 
@@ -317,7 +317,7 @@ def _resolve_declarations(bindings: tuple[Binding, ...], sources: tuple[BoundTab
         if isinstance(base, ArrayType):
             include_type(base.item)
         elif isinstance(base, StructType):
-            from ..types import resolve_shape
+            from ..types.interfaces import resolve_shape
 
             declaration: Any = resolve_shape(base.module, base.qualname)
             if declaration is None:
@@ -493,7 +493,7 @@ def _blueprint_fingerprint(blueprint: BuildBlueprint) -> str:
 
 
 def _thaw(value: Any) -> Any:
-    from ..expressions.models import FrozenObject
+    from .._frozen_json import FrozenObject
     if isinstance(value, FrozenObject):
         return {key: _thaw(item) for key, item in value.items}
     if isinstance(value, tuple):

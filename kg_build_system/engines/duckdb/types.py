@@ -30,7 +30,7 @@ from dataclasses import dataclass
 import re
 from typing import Final, Literal
 
-from ...types import UnitTypeName, is_canonical_unit_name
+from ...types.interfaces import UnitTypeName, is_canonical_unit_name
 
 __all__ = [
     "ARRAY_CANONICAL",

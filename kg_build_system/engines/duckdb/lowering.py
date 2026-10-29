@@ -15,7 +15,7 @@ from ...expressions.ir import (
 )
 from ..._frozen_json import FrozenObject
 from ...relational.ir import RelationPlanIR as RelationPlan
-from ...relational.planner import expansion_scope
+from ...relational.interfaces import expansion_scope
 from ...table.ir import (
     RowDistinctIR,
     RowFilterIR,
@@ -26,10 +26,10 @@ from ...table.ir import (
     RowSourcePlanIR,
     RowUnionIR,
 )
-from ...table.rows import (
+from ...table.interfaces import (
     ShapeField, plan_fields, row_source_key,
 )
-from ...types import TEXT_CANONICAL_UNIT_NAMES
+from ...types.interfaces import TEXT_CANONICAL_UNIT_NAMES
 from ...types.ir import ArrayTypeIR, LogicalTypeIR, NullableTypeIR, UnitTypeIR
 from .types import ArraySqlType, SqlType, canonical_sql_type
 

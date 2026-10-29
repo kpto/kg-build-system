@@ -12,12 +12,12 @@ from kg_build_system import (
     Table, bind_source, build, compile, create_blueprint, field, node_binding,
     computed_field, property,
 )
-from kg_build_system.compile import blueprint_from_json, blueprint_json
+from kg_build_system.compile.interfaces import blueprint_from_json, blueprint_json
 from kg_build_system.modules import (
     FileModule, FileModuleConfiguration, register_module,
 )
-from kg_build_system.table.rows import row_source_key
-from kg_build_system.types import (
+from kg_build_system.table.interfaces import row_source_key
+from kg_build_system.types.interfaces import (
     ArrayType, NullableType, StructType,
 )
 
@@ -551,7 +551,7 @@ class ProjectionAndCodecTests(unittest.TestCase):
         rows = Row.row_source().order_by("kind").distinct()
         plan = rows.plan_ir
         assert plan is not None
-        from kg_build_system.table.ir_codec import (
+        from kg_build_system.table.interfaces import (
             decode_row_source_plan, encode_row_source_plan,
         )
 

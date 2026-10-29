@@ -1,53 +1,51 @@
-"""Portable logical type vocabulary and canonicalization API."""
+"""Author-facing logical type vocabulary.
 
-from .codec import decode_type, encode_type
+Authors write the canonical unit constants, the representative Python classes,
+and the ``Array``/``Struct`` markers in declarations. Normalization, the
+internal ``Nullable`` marker, codecs and validation are the framework interface
+in :mod:`kg_build_system.types.interfaces`; the compilation IR is
+:mod:`kg_build_system.types.ir`.
+"""
+from __future__ import annotations
+
 from .models import (
-    Array,
-    ArrayType,
     BOOL,
-    CANONICAL_UNIT_NAMES,
-    CustomDataType,
-    CustomType,
     DATE,
-    Date,
     FLOAT,
     INT,
-    LogicalType,
-    NonNullableLogicalType,
-    Nullable,
-    Shape,
-    ShapeType,
-    NullableType,
     STR,
-    Struct,
-    StructType,
-    TEXT_CANONICAL_UNIT_NAMES,
     TIME,
     TIMESTAMP,
+    UUID,
+    Array,
+    ArrayType,
+    CustomDataType,
+    Date,
+    NullableType,
+    Shape,
+    Struct,
     Time,
     Timestamp,
-    UnitType,
-    UnitTypeName,
-    UUID,
     Uuid,
-    canonical_value_text,
-    is_canonical_unit_name,
-    register_shape,
-    resolve_shape,
-)
-from .normalization import UNIT_BY_REPRESENTATIVE_CLASS, normalize_type
-from .validation import (
-    array_item, is_nullable, non_nullable, require_graph_property,
-    require_non_nullable, require_scalar,
 )
 
 __all__ = [
-    "Array", "ArrayType", "BOOL", "CANONICAL_UNIT_NAMES", "CustomDataType", "CustomType",
-    "DATE", "Date", "FLOAT", "INT", "LogicalType", "NonNullableLogicalType", "Nullable",
-    "NullableType", "STR", "Shape", "ShapeType", "Struct", "StructType", "TEXT_CANONICAL_UNIT_NAMES", "TIME",
-    "TIMESTAMP", "Time", "Timestamp", "UNIT_BY_REPRESENTATIVE_CLASS", "UUID", "UnitType",
-    "UnitTypeName", "Uuid", "array_item", "canonical_value_text", "decode_type", "encode_type",
-    "is_canonical_unit_name", "is_nullable", "non_nullable", "normalize_type",
-    "register_shape", "require_graph_property", "require_non_nullable", "require_scalar",
-    "resolve_shape",
+    "BOOL",
+    "DATE",
+    "FLOAT",
+    "INT",
+    "STR",
+    "TIME",
+    "TIMESTAMP",
+    "UUID",
+    "Array",
+    "ArrayType",
+    "CustomDataType",
+    "Date",
+    "NullableType",
+    "Shape",
+    "Struct",
+    "Time",
+    "Timestamp",
+    "Uuid",
 ]

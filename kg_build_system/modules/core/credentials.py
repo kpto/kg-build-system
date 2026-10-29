@@ -6,7 +6,7 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, JsonValue
 
-from ...workflow.services import ExecutionServices
+from ...workflow.interfaces import ExecutionServices
 
 
 class CoreSourceCredentialOptions(BaseModel):

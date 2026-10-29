@@ -3,8 +3,8 @@ from __future__ import annotations
 import unittest
 from dataclasses import dataclass
 
-from kg_build_system.annotations import Annotation
-from kg_build_system.expressions import (
+from kg_build_system.annotations.interfaces import Annotation
+from kg_build_system.expressions.interfaces import (
     ArraySelection, IntExpression, NullableSelection, StrExpression,
     StructSelection, ValueSelection, field_reference, select_expression,
     value_expression, wrap_expression,
@@ -15,7 +15,7 @@ from kg_build_system.table.fields import (
 from kg_build_system.table.models import (
     ComputedStruct, Projection, Struct, Table, TableOptions,
 )
-from kg_build_system.types import (
+from kg_build_system.types.interfaces import (
     Array, ArrayType, INT, NullableType, STR, StructType, normalize_type,
 )
 

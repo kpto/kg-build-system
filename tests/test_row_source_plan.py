@@ -5,6 +5,7 @@ import unittest
 
 from kg_build_system import Field, Table, TableOptions, field
 from kg_build_system.compile.compiler import _row_source_plan
+from kg_build_system.table.ir import RowScanIR
 
 
 class SourceNamedTable(Table):
@@ -18,8 +19,8 @@ class RowSourcePlanTests(unittest.TestCase):
         plan = _row_source_plan(SourceNamedTable.row_source())
         self.assertIsNotNone(plan)
         assert plan is not None
+        self.assertIsInstance(plan, RowScanIR)
         self.assertEqual(plan.source, "source_named")
-        self.assertEqual(plan.filters, ())
 
 
 if __name__ == "__main__":

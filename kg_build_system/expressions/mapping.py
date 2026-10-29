@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from . import ir, models
-from ..types.mapping import type_to_ir
+from ..types.interfaces import type_to_ir
 
 
 def expression_to_ir(value: models.ExpressionNode) -> ir.ExpressionIR:

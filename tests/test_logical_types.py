@@ -5,15 +5,15 @@ import unittest
 import uuid
 from typing import Any, get_args, get_type_hints
 
-from kg_build_system.types import (
+from kg_build_system.types.interfaces import (
     Array, ArrayType, BOOL, CANONICAL_UNIT_NAMES, CustomDataType, CustomType, DATE, Date,
     FLOAT, INT, Nullable, NullableType, STR, Struct, StructType, TIME, TIMESTAMP, Time,
     Timestamp, UUID, UnitType, Uuid, array_item, decode_type, encode_type, is_nullable,
     normalize_type, require_non_nullable, require_scalar,
 )
 from kg_build_system.types.ir import UnitTypeIR
-from kg_build_system.types.ir_codec import decode_type_ir, encode_type_ir
-from kg_build_system.types.mapping import type_to_ir
+from kg_build_system.types.interfaces import decode_type_ir, encode_type_ir
+from kg_build_system.types.interfaces import type_to_ir
 
 
 _UNITS: tuple[UnitType, ...] = (BOOL, INT, FLOAT, STR, DATE, TIME, TIMESTAMP, UUID)

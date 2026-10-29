@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from kg_build_system.expressions.interfaces import row_effects as row_semantics_effects
+
 import unittest
 from dataclasses import dataclass
 
@@ -25,8 +27,8 @@ from kg_build_system import (
     field,
     computed_field,
 )
-from kg_build_system.expressions import FieldReferenceExpression, OperationExpression
-from kg_build_system.table.declarations import resolve_bound_source
+from kg_build_system.expressions.interfaces import FieldReferenceExpression, OperationExpression
+from kg_build_system.table.interfaces import resolve_bound_source
 
 
 @dataclass(frozen=True)
@@ -118,7 +120,7 @@ class DataDeclarationTests(unittest.TestCase):
         self.assertIsInstance(reference.expression.model, FieldReferenceExpression)
         self.assertEqual(reference.expression.model.source, "label")
         self.assertEqual(reference.expression.model.path, ("display_label",))
-        self.assertEqual(reference.expression.model.row_semantics.effects, ())
+        self.assertEqual(row_semantics_effects(reference.expression.model.row_semantics), ())
 
     def test_projection_declarations_are_final_and_validate_outputs(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be pinned"):

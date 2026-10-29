@@ -21,35 +21,39 @@ from unittest.mock import patch
 import duckdb
 
 import kg_build_system as k
-from kg_build_system import Array, Binding, Field, PropertySlot, Struct, field, property
+from kg_build_system import Array, Field, PropertySlot, Struct, field, property
+from kg_build_system.binding.interfaces import Binding
 from kg_build_system._frozen_json import thaw_json
-from kg_build_system.code_generation import GenerationError, ProviderContext
+from kg_build_system.code_generation.interfaces import GenerationError, ProviderContext
 from kg_build_system.code_generation.builtins import (
     DataContractInferenceConfig,
     InferDataContractProvider,
 )
-from kg_build_system.engines.duckdb import (
+from kg_build_system.engines.interfaces import (
     ArraySqlType, StructSqlType, canonical_sql_type,
 )
 from kg_build_system.modules import FileModule, FileModuleConfiguration, register_module
 from kg_build_system.modules.core import CoreArtifactTypes, CoreModule
 from kg_build_system.modules.core.core import CoreExecutor
-from kg_build_system.modules.core.ir import (
+from kg_build_system.modules.ir import (
+    declared_column_type,
     DeclaredColumnIR, SourceRelationInstructionIR, decode_core_instruction,
     encode_core_instruction, encode_declared_column,
 )
-from kg_build_system.types import Date, Timestamp, Uuid
+from kg_build_system.types.interfaces import Date, Timestamp, Uuid
 from kg_build_system.types.ir import (
     ArrayTypeIR, CustomTypeIR, NullableTypeIR, StructTypeIR, UnitTypeIR,
 )
-from kg_build_system.workflow.identity import step_identity
+from kg_build_system.workflow.interfaces import step_identity
 from kg_build_system.workflow.ir import WorkflowContractIR
-from kg_build_system.workflow.mapping import workflow_from_ir
-from kg_build_system.workflow.models import (
+from kg_build_system.workflow.interfaces import workflow_from_ir
+from kg_build_system.engines.interfaces import DuckDBRelationService
+from kg_build_system.workflow.interfaces import (
     BuildRuntime, DefinedContribution, DefinedStep, ExecutionContext, Output,
 )
-from kg_build_system.workflow.services import (
-    DuckDBRelationService, ExecutionServices, LocalTemporaryStorage,
+from kg_build_system.engines.interfaces import DuckDBRelationService
+from kg_build_system.workflow.interfaces import (
+    ExecutionServices, LocalTemporaryStorage,
     LocalWorkingStorage, MappingCredentialResolver, RelationRef,
 )
 
@@ -267,8 +271,7 @@ def execute_source(
             variables=variables,
             runtime_configuration={},
             inputs={},
-            services=services,
-        ))
+        ), services)
     finally:
         services.relations.close()  # type: ignore[attr-defined]
     return outcome.artifacts[0].value, logger
@@ -619,7 +622,7 @@ class DeclaredColumnPayloadTests(unittest.TestCase):
             [name for name, _ in CANONICAL_VIEW],
         )
         self.assertEqual(
-            [column.logical_type_ir for column in compiled.declared_columns],
+            [declared_column_type(column) for column in compiled.declared_columns],
             list(DECLARED_TYPES),
             "the decoded payload is the declaration the author wrote",
         )

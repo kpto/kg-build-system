@@ -5,7 +5,8 @@ from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from ..._frozen_json import freeze_json
-from ...workflow.models import (
+from ...workflow.interfaces import (
+    ExecutionServices,
     Artifact, ArtifactType, DisruptedExecutionContext, ExecutionContext,
     ExecutorFactoryContext, Failure, Input, ModuleDefinition, ModuleReference,
     Output, Publication, StepOutcome, StepStatus, WorkflowContribution,
@@ -14,7 +15,7 @@ from ...workflow.models import (
 from ...compile.interfaces import CompilationContext, ModuleCompiler
 from ...modules.interfaces import Module, ModuleRegistrationConfiguration
 from ...topology.ir import ComponentIR as ComponentDefinition
-from ...workflow.identity import output_name
+from ...workflow.interfaces import output_name
 from ...workflow.interfaces import ModuleExecutor
 from ..core import CoreArtifactTypes, graph_record_components
 
@@ -176,12 +177,14 @@ class RejectConflictingNonNullValuesModule(Module):
 
 
 class _Executor(ModuleExecutor):
-    def handle(self, context: ExecutionContext) -> StepOutcome:
+    def handle(
+        self, context: ExecutionContext, services: ExecutionServices,
+    ) -> StepOutcome:
         instructions = context.variables["instructions"][context.step.name]
         if not isinstance(instructions, dict):
             raise ValueError("conflict validation requires an object instruction")
         if instructions.get("action") == "findings":
-            return self._findings(context, instructions)
+            return self._findings(context, instructions, services)
         if instructions.get("action") == "report":
             return self._report(context, instructions)
         raise ValueError(
@@ -190,6 +193,7 @@ class _Executor(ModuleExecutor):
 
     def _findings(
         self, context: ExecutionContext, instructions: dict[str, Any],
+        services: ExecutionServices,
     ) -> StepOutcome:
         relation = next(
             item.artifact.value
@@ -198,7 +202,7 @@ class _Executor(ModuleExecutor):
         )
         field_name = str(instructions["field"])
         field = _quote_identifier(field_name)
-        source = context.services.relations.reference(relation)
+        source = services.relations.reference(relation)
         # No filter on ``build_key``: an operator looking for bad values must not
         # exclude the records most worth reporting. Identity guards upstream mean
         # a null key has already aborted the build; if one ever reaches here it is
@@ -217,7 +221,7 @@ class _Executor(ModuleExecutor):
                 property_name=field_name,
                 distinct_values=count,
             )
-            for key, count in context.services.relations.query(sql).fetchall()
+            for key, count in services.relations.query(sql).fetchall()
         )
         outputs = {output_name(given): given for given in context.step.outputs}
         artifact = Artifact(_FINDINGS, outputs[_FINDINGS].type, findings)
@@ -287,6 +291,6 @@ class _Executor(ModuleExecutor):
         )
 
     def handle_disrupted(
-        self, context: DisruptedExecutionContext,
+        self, context: DisruptedExecutionContext, services: ExecutionServices,
     ) -> StepOutcome:
-        return super().handle_disrupted(context)
+        return super().handle_disrupted(context, services)

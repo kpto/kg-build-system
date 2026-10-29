@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import Generic, TypeVar
 
-from ..types import FLOAT, INT
+from ..types.interfaces import FLOAT, INT
 from ._coercion import expression_input
 from .base import operation
 from .values import ValueExpression

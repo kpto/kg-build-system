@@ -6,11 +6,11 @@ from datetime import date, datetime, time, timedelta
 from decimal import Decimal
 from uuid import UUID
 
-from kg_build_system.expressions import literals
-from kg_build_system.expressions.literals import literal
+import kg_build_system.expressions.literals as literals
+from kg_build_system.expressions.interfaces import literal
 from kg_build_system.modules.targets.file import _canonical_property_value
 from kg_build_system.modules.targets.meta_graph.module import _canonical_example_value
-from kg_build_system.types import (
+from kg_build_system.types.interfaces import (
     CANONICAL_UNIT_NAMES, TEXT_CANONICAL_UNIT_NAMES, UNIT_BY_REPRESENTATIVE_CLASS,
     Date, Time, Timestamp, Uuid, canonical_value_text,
 )

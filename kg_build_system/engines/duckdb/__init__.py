@@ -2,6 +2,7 @@
 
 from .lowering import lower_relation_sql, lower_row_source_sql
 from .macros import NULL_GUARD_MACRO, NULL_GUARD_MACRO_SQL
+from .service import DuckDBRelationService, configure_framework_macros
 from .parquet_metadata import (
     PARQUET_LIST_WRAPPER_PATH,
     PARQUET_LIST_WRAPPERS,
@@ -41,6 +42,7 @@ __all__ = [
     "DIGEST_TABLE",
     "DeclaredOnlyDigest",
     "DigestDisposition",
+    "DuckDBRelationService",
     "EXTENSION_CONDITIONAL_TYPE_NAMES",
     "NULL_GUARD_MACRO",
     "NULL_GUARD_MACRO_SQL",
@@ -59,6 +61,7 @@ __all__ = [
     "TypeDigest",
     "canonical_sql_type",
     "canonical_type_name",
+    "configure_framework_macros",
     "digest_for",
     "lower_relation_sql",
     "lower_row_source_sql",

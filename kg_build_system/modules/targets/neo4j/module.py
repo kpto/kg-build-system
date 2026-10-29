@@ -20,9 +20,9 @@ from ....types.ir import (
     StructTypeIR,
     UnitTypeIR,
 )
-from ....workflow.identity import output_name
-from ....workflow.interfaces import ModuleExecutor
-from ....workflow.models import (
+from ....workflow.interfaces import output_name
+from ....workflow.interfaces import ExecutionServices, ModuleExecutor
+from ....workflow.interfaces import (
     Artifact,
     ArtifactType,
     DisruptedExecutionContext,
@@ -39,7 +39,7 @@ from ....workflow.models import (
     WorkflowContribution,
     WorkflowStep,
 )
-from ....workflow.services import RelationRef
+from ....workflow.interfaces import RelationRef
 from ...core import CoreArtifactTypes, graph_record_components
 from ..._labels import semantic_label
 from ..._paths import validate_relative_path
@@ -381,16 +381,18 @@ class Neo4jExecutor(ModuleExecutor):
         _validate_relative_path(value, context="Neo4j output directory")
         return value
 
-    def handle(self, context: ExecutionContext) -> StepOutcome:
+    def handle(
+        self, context: ExecutionContext, services: ExecutionServices,
+    ) -> StepOutcome:
         instruction = decode_neo4j_instruction(
             context.variables["instructions"][context.step.name],
         )
-        bundle_path = context.services.output_storage.child(PurePosixPath(
+        bundle_path = services.output_storage.child(PurePosixPath(
             self._relative_directory(context)
         ))
         bundle_path.mkdir(parents=True, exist_ok=True)
         if isinstance(instruction, Neo4jExportInstructionIR):
-            return self._export_component(context, bundle_path, instruction)
+            return self._export_component(context, bundle_path, instruction, services)
         return self._write_script(context, bundle_path, instruction)
 
     @staticmethod
@@ -398,6 +400,7 @@ class Neo4jExecutor(ModuleExecutor):
         context: ExecutionContext,
         bundle_path: Path,
         instruction: Neo4jExportInstructionIR,
+        services: ExecutionServices,
     ) -> StepOutcome:
         specification = instruction.component
         artifacts = tuple(
@@ -423,15 +426,15 @@ class Neo4jExecutor(ModuleExecutor):
         if not isinstance(artifact.value, RelationRef):
             raise TypeError("graph-record artifacts must contain RelationRef values")
 
-        relation_sql = context.services.relations.reference(artifact.value)
+        relation_sql = services.relations.reference(artifact.value)
         output_path = bundle_path.joinpath(
             *PurePosixPath(specification.relative_path).parts
         )
         output_path.parent.mkdir(parents=True, exist_ok=True)
-        context.services.relations.export_parquet(
+        services.relations.export_parquet(
             Neo4jExecutor._select_sql(specification, relation_sql), output_path,
         )
-        count = context.services.relations.query(
+        count = services.relations.query(
             "SELECT count(*) FROM read_parquet(?)", [str(output_path)]
         ).fetchone()[0]
         result = Neo4jComponentExport(
@@ -542,9 +545,9 @@ class Neo4jExecutor(ModuleExecutor):
         )
 
     def handle_disrupted(
-        self, context: DisruptedExecutionContext,
+        self, context: DisruptedExecutionContext, services: ExecutionServices,
     ) -> StepOutcome:
-        return super().handle_disrupted(context)
+        return super().handle_disrupted(context, services)
 
 
 __all__ = ["Neo4jModule", "Neo4jModuleConfiguration"]

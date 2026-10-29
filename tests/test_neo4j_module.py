@@ -50,8 +50,8 @@ from kg_build_system.modules.targets.neo4j.ir import (
     decode_neo4j_instruction,
 )
 from kg_build_system.modules.targets.neo4j.module import Neo4jExecutor
-from kg_build_system.types import Date, Time, Timestamp, Uuid
-from kg_build_system.workflow.identity import opening_identity, step_identity
+from kg_build_system.types.interfaces import Date, Time, Timestamp, Uuid
+from kg_build_system.workflow.interfaces import opening_identity, step_identity
 from kg_build_system.workflow.ir import ContributionIR, StepIR, WorkflowContractIR
 
 

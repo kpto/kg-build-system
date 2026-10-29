@@ -62,15 +62,10 @@ Owns the named, pinned relation declaration: its row-source pin, its computed ou
 
 ## Boundaries
 
-- Projection declarations live in `table.models` and `table.fields`, supported by `table.rows`.
-- `table.models` may import `types`, `annotations`, `_support.naming`, `expressions` and the local `table.rows` and `table.fields` interfaces.
-- `table.models` must not import `binding`, `topology`, `compile`, `relational`, `engines`, `workflow`, `modules`, `code_generation`, `cli` or `api`.
-- `table.ir` may import only `annotations.ir`, `expressions.ir` and `types.ir`; it carries no authoring or engine objects.
-- `compile.codec` and `compile.validation` may import `table.ir` and projection declarations; the dependency direction is `compile -> table`, never `table -> compile`.
-- `table.models` imports `table.rows` at module load; `table.rows` reaches `table.models` only inside `projection_base()` to preserve one load direction.
-- A projection's row source is a `table.rows` value. Projection code does not import a lowerer, relational planner or workflow module.
-- Only final projections are discoverable for the blueprint; bases and pinned bases do not enter the IR.
-
+- Surfaces: `Projection` is author-facing through `kg_build_system.table`; `table.interfaces` exposes projection declarations and row-source helpers; `table.ir` carries `ProjectionIR`.
+- Allowed dependencies: `types.interfaces`, `annotations.interfaces`, `expressions.interfaces`, and the local declaration and row-source modules.
+- `table` never imports `binding`, `topology`, `compile`, `relational`, `engines`, `workflow`, `modules`, `code_generation`, `cli` or `api`.
+- `compile` reads projection declarations and `table.ir`; the dependency direction is `compile -> table`.
 ## Current decisions
 
 - Every final projection is pinned. The pin records the row source and its plan; it does not copy fields or output expressions.

@@ -1,4 +1,9 @@
-"""Public composition API for knowledge-graph builds."""
+"""Public composition API for knowledge-graph builds.
+
+This module is the composition root. It depends on the internal interfaces of
+``binding``, ``compile``, ``modules``, ``table`` and ``workflow``, never on
+their implementation modules.
+"""
 from __future__ import annotations
 
 import inspect
@@ -6,17 +11,17 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any, overload
 
-from .binding import Binding
-from .compile.compiler import (
+from .binding.interfaces import Binding
+from .compile.interfaces import (
+    BuildBlueprint,
     compile_workflow as _compile_workflow,
     configure_blueprint_modules as _configure_blueprint_modules,
     create_blueprint as _create_blueprint,
 )
-from .compile.models import BuildBlueprint
-from .modules import ModuleRegistration, register_module
 from .modules.core import CoreModule
-from .table import BoundSource
-from .workflow.ir import WorkflowContractIR
+from .modules.interfaces import ModuleRegistration, register_module
+from .table.interfaces import BoundSource
+from .workflow.interfaces import WorkflowContractIR
 
 
 def _calling_namespace_path() -> Path:

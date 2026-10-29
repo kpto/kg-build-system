@@ -5,15 +5,17 @@ import json
 from collections.abc import Mapping
 from hashlib import sha256
 
+from ..expressions.interfaces import (
+    ExpressionNode as DomainExpressionNode,
+    encode_expression_ir as encode_expression,
+    expression_to_ir,
+    walk_expression_ir as walk_expression,
+)
 from ..expressions.ir import (
     ExpressionIR as ExpressionNode,
     FieldReferenceExpressionIR as FieldReferenceExpression,
     OperationExpressionIR as OperationExpression,
-    walk_expression_ir as walk_expression,
 )
-from ..expressions.ir_codec import encode_expression_ir as encode_expression
-from ..expressions.models import ExpressionNode as DomainExpressionNode
-from ..expressions.mapping import expression_to_ir
 from .ir import (
     ExpandIR as Expand, FilterIR as Filter, RelationPlanIR as RelationPlan,
     ScanIR as Scan,

@@ -15,7 +15,6 @@ from pathlib import Path
 from typing import Any, ClassVar, Literal, TypeAlias
 
 from .._frozen_json import FrozenJson, freeze_json
-from .services import ExecutionServices
 
 
 @dataclass(frozen=True, slots=True)
@@ -314,7 +313,6 @@ class ExecutionContext:
     variables: Mapping[str, Any]
     runtime_configuration: Mapping[str, Any]
     inputs: Mapping[str, tuple[ContinuableInput, ...]]
-    services: ExecutionServices
 
 
 @dataclass(frozen=True)
@@ -329,7 +327,6 @@ class DisruptedExecutionContext:
     runtime_configuration: Mapping[str, Any]
     inputs: Mapping[str, tuple[ContinuableInput | DisruptingInput, ...]]
     disruptions: tuple[DisruptingInput, ...]
-    services: ExecutionServices
 
 
 @dataclass(frozen=True)
@@ -339,7 +336,6 @@ class ExecutorFactoryContext:
     module: ModuleDefinition
     variables: Mapping[str, Any]
     runtime_configuration: Mapping[str, Any]
-    services: ExecutionServices
 
 
 @dataclass(frozen=True)

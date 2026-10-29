@@ -8,15 +8,15 @@ from datetime import date, datetime, time
 
 import duckdb
 
-from kg_build_system.engines.duckdb import lower_relation_sql
-from kg_build_system.expressions import select_expression, wrap_expression
-from kg_build_system.expressions.base import field_reference
-from kg_build_system.expressions.ir_codec import decode_expression_ir, encode_expression_ir
-from kg_build_system.expressions.literals import literal
-from kg_build_system.expressions.mapping import expression_to_ir
-from kg_build_system.expressions.models import ExpressionNode, LiteralExpression
-from kg_build_system.relational import lower_product
-from kg_build_system.types import Array, NullableType, TIME, normalize_type
+from kg_build_system.engines.interfaces import lower_relation_sql
+from kg_build_system.expressions.interfaces import select_expression, wrap_expression
+from kg_build_system.expressions.interfaces import field_reference
+from kg_build_system.expressions.interfaces import decode_expression_ir, encode_expression_ir
+from kg_build_system.expressions.interfaces import literal
+from kg_build_system.expressions.interfaces import expression_to_ir
+from kg_build_system.expressions.interfaces import ExpressionNode, LiteralExpression
+from kg_build_system.relational.interfaces import lower_product
+from kg_build_system.types.interfaces import Array, NullableType, TIME, normalize_type
 
 # Text is what a literal of these units stores, so only the unit on the node can name the
 # SQL type — without it the value reaches the scan as a VARCHAR.

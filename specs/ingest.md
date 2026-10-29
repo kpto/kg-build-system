@@ -51,14 +51,11 @@ The ingest boundary owns how a physical data source becomes typed contract field
 
 ## Boundaries
 
-- `engines.duckdb` is a leaf. It may import `types` and engine libraries; it must not import `code_generation`, `compile`, `workflow`, `modules`, `api`, or `cli`.
-- `code_generation` currently imports `types` and `engines.duckdb`; it must not import `compile`, `workflow`, `modules`, or `api`.
-- `code_generation` passes a `RowReader` to the engine metadata functions; it does not own a SQL execution service.
-- `table` may import `types`, `annotations`, `expressions`, and `_support`; it must not import an engine.
-- `compile` may import `table`, `topology`, `binding`, `workflow`, and `expressions`; it must not import `modules`, `code_generation`, or an engine.
-- `modules.core` may import `compile`, `workflow`, `engines.duckdb`, and the declaration IRs. It must not be imported by `code_generation`, `table`, or `engines`.
-- The source reader is DuckDB: `read_csv_auto`, `read_json_auto`, and `read_parquet`. No second reader observes file contents.
-
+- Surfaces: source bindings are author-facing through `kg_build_system.table`; `table.interfaces` exposes the bound-source and row-source values; the declaration IR is `table.ir`.
+- `engines` is a leaf. It imports `types.interfaces`, `expressions.ir`, `relational.interfaces`, `table.ir` and the `_relations` kernel, and must not import `code_generation`, `compile`, `workflow`, `modules`, `api` or `cli`.
+- `code_generation` imports `types.interfaces` and `engines.interfaces` as a schema observer; it must not import `compile`, `workflow`, `modules` or `api`.
+- `modules` may import the `interfaces` and `ir` surfaces of every layer; it must not be imported by `code_generation`, `table` or `engines`.
+- The source reader is DuckDB: `read_csv_auto`, `read_json_auto` and `read_parquet`. No second reader observes file contents.
 ## Current decisions
 
 ### Source formats and trust tiers

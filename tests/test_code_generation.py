@@ -13,7 +13,7 @@ from unittest.mock import MagicMock, patch
 
 import duckdb
 
-from kg_build_system.code_generation import (
+from kg_build_system.code_generation.interfaces import (
     GeneratedArrayType, GeneratedClass, GeneratedField, GeneratedFile,
     GeneratedNullableType, GeneratedMember, GeneratedPackage, GeneratedScalarType, GeneratedStructType,
     Generation, GenerationAction, GenerationActionKind, GenerationError, GenerationSession, GenerationStatus, Provider, ProviderContext,

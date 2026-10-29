@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from .._frozen_json import FrozenJson, freeze_json
-from ..types import (
+from ..types.interfaces import (
     ArrayType, CustomType, LogicalType, NullableType, StructType, TEXT_CANONICAL_UNIT_NAMES,
     UNIT_BY_REPRESENTATIVE_CLASS, Date, Time, Timestamp, UnitType, Uuid, canonical_value_text,
 )

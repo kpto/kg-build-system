@@ -1,8 +1,11 @@
-"""Compilation-domain models and the aggregate declaration blueprint."""
+"""Compilation IR: the frozen blueprint.
+
+The blueprint contains only IR values. It holds no authoring Python classes, no
+owner references and no derived identity; a consumer reads the facts it needs.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Final, Literal
 
 from ..binding.ir import BindingIR
 from ..table.ir import ProjectionIR, SourceIR, StructIR, TableIR
@@ -10,12 +13,9 @@ from ..topology.ir import ComponentIR
 from ..workflow.ir import BlueprintModuleIR
 
 
-BLUEPRINT_SCHEMA_VERSION: Final = 4
-
-
 @dataclass(frozen=True, slots=True)
 class BuildBlueprint:
-    """A compilation artifact containing no authoring Python classes."""
+    """The declarations and sources a compile reads."""
 
     structs: tuple[StructIR, ...]
     tables: tuple[TableIR, ...]
@@ -24,7 +24,6 @@ class BuildBlueprint:
     bindings: tuple[BindingIR, ...]
     sources: tuple[SourceIR, ...] = ()
     modules: tuple[BlueprintModuleIR, ...] = ()
-    schema_version: Literal[4] = 4
 
 
-__all__ = ["BLUEPRINT_SCHEMA_VERSION", "BuildBlueprint"]
+__all__ = ["BuildBlueprint"]

@@ -6,7 +6,7 @@ from kg_build_system import (
     PropertySlot, Table, all_of, any_of, computed_field, field, node_binding,
     property,
 )
-from kg_build_system.expressions import BoolExpression
+from kg_build_system.expressions.interfaces import BoolExpression
 
 
 class Source(Table):

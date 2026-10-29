@@ -1,11 +1,11 @@
 """Stable JSON codec for compilation expression IR."""
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Iterator, Mapping, Sequence
 from typing import Any, cast
 
 from .._frozen_json import FrozenJson, FrozenObject, freeze_json
-from ..types.ir_codec import decode_type_ir, encode_type_ir
+from ..types.interfaces import decode_type_ir, encode_type_ir
 from .ir import (
     ExpressionIR, FieldReferenceExpressionIR, LiteralExpressionIR,
     OperationExpressionIR, OperationParameterIR, VariableExpressionIR,
@@ -92,3 +92,11 @@ def decode_expression_ir(value: Mapping[str, Any]) -> ExpressionIR:
 
 
 __all__ = ["decode_expression_ir", "encode_expression_ir"]
+
+
+def walk_expression_ir(expression: ExpressionIR) -> Iterator[ExpressionIR]:
+    """Yield an expression IR tree in deterministic pre-order."""
+    yield expression
+    if isinstance(expression, OperationExpressionIR):
+        for argument in expression.arguments:
+            yield from walk_expression_ir(argument)

@@ -2,14 +2,16 @@
 
 from __future__ import annotations
 
+from kg_build_system.expressions.interfaces import row_effects as row_semantics_effects
+
 import unittest
 
-from kg_build_system.expressions.base import field_reference, operation
-from kg_build_system.expressions.codec import decode_expression, encode_expression
-from kg_build_system.expressions.models import FieldReferenceExpression, LiteralExpression, RowEffect, RowSemantics, Traversal
-from kg_build_system.expressions.literals import literal
-from kg_build_system.expressions.visitors import rewrite_expression, walk_expression
-from kg_build_system.types import ArrayType, INT, NullableType, STR
+from kg_build_system.expressions.interfaces import field_reference, operation
+from kg_build_system.expressions.interfaces import decode_expression, encode_expression
+from kg_build_system.expressions.interfaces import FieldReferenceExpression, LiteralExpression, RowEffect, RowSemantics, Traversal
+from kg_build_system.expressions.interfaces import literal
+from kg_build_system.expressions.interfaces import rewrite_expression, walk_expression
+from kg_build_system.types.interfaces import ArrayType, INT, NullableType, STR
 
 
 class ExpressionIRTests(unittest.TestCase):
@@ -80,7 +82,7 @@ class ExpressionIRTests(unittest.TestCase):
         )
         combined = operation("add", first, first, logical_type=INT)
         self.assertEqual(
-            combined.row_semantics.effects,
+            row_semantics_effects(combined.row_semantics),
             (RowEffect("expand", ("input", "values")),),
         )
         filtered = operation(
@@ -88,7 +90,7 @@ class ExpressionIRTests(unittest.TestCase):
             row_semantics=RowSemantics("filter"),
         )
         self.assertEqual(
-            filtered.row_semantics.effects,
+            row_semantics_effects(filtered.row_semantics),
             (RowEffect("expand", ("input", "values")), RowEffect("filter")),
         )
         self.assertEqual(decode_expression(encode_expression(filtered)), filtered)

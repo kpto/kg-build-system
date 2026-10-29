@@ -41,9 +41,9 @@ from kg_build_system import (
 )
 from kg_build_system.binding.ir import NodeBindingIR
 from kg_build_system.binding.models import Binding
-from kg_build_system.compile.models import BuildBlueprint
-from kg_build_system.expressions import value_expression
-from kg_build_system.expressions.mapping import expression_to_ir
+from kg_build_system.compile.interfaces import BuildBlueprint
+from kg_build_system.expressions.interfaces import value_expression
+from kg_build_system.expressions.interfaces import expression_to_ir
 from kg_build_system.modules import (
     CollapseExactDuplicatesModule,
     MetaGraphModule,
@@ -69,7 +69,7 @@ from kg_build_system.modules.targets.meta_graph.topology import (
 )
 from kg_build_system.table.ir import FieldIR, StructIR
 from kg_build_system.topology.ir import ComponentIR, PropertyIR
-from kg_build_system.types import (
+from kg_build_system.types.interfaces import (
     ArrayType,
     Date,
     STR,
@@ -79,10 +79,10 @@ from kg_build_system.types import (
     Uuid,
 )
 from kg_build_system.types.ir import StructTypeIR
-from kg_build_system.types.mapping import type_to_ir
-from kg_build_system.workflow.identity import opening_identity, step_identity
+from kg_build_system.types.interfaces import type_to_ir
+from kg_build_system.workflow.interfaces import opening_identity, step_identity
 from kg_build_system.workflow.ir import StepIR, WorkflowContractIR
-from kg_build_system.workflow.models import ArtifactType
+from kg_build_system.workflow.interfaces import ArtifactType
 
 
 DOCUMENT_TYPE = ArtifactType(MetaGraphModule.ID, "meta_graph_document")
@@ -592,21 +592,19 @@ class ExecutionTests(unittest.TestCase):
 
         self.assertEqual(written(), written())
 
-    def test_the_document_version_is_three(self) -> None:
-        self.assertEqual(
-            MetaGraphDocumentIR(relative_path="meta_graph.json").schema_version, 3,
-        )
+    def test_the_document_carries_no_schema_version(self) -> None:
+        instruction = MetaGraphDocumentIR(relative_path="meta_graph.json")
+        self.assertNotIn("schema_version", instruction.model_dump())
         _output, _contract, _report, document = _run(self, register_module(MetaGraphModule))
-        self.assertEqual(document["schema_version"], 3)
-        # A document written before the canonical temporal types arrived cannot be
-        # read as this one: its example values are whatever str() made of them.
-        stale = {
-            "schema_version": 2, "relative_path": "meta_graph.json",
-            "example_limit": 3, "include_html": True,
-            "html_relative_path": "meta_graph.html", "components": [],
-        }
+        self.assertNotIn("schema_version", document)
+        # The document is content-described rather than version-negotiated; an
+        # unknown instruction field is refused.
         with self.assertRaises(ValueError):
-            decode_meta_graph_instruction(stale)
+            decode_meta_graph_instruction({
+                "schema_version": 2, "relative_path": "meta_graph.json",
+                "example_limit": 3, "include_html": True,
+                "html_relative_path": "meta_graph.html", "components": [],
+            })
 
     def test_variables_and_fingerprint_are_stable_for_identical_inputs(self) -> None:
         # The instruction data a module contributes feeds the workflow

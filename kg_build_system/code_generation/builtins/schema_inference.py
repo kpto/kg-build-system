@@ -35,7 +35,7 @@ from ..models import (
     ScalarTypeName,
 )
 from ..providers import Provider, ProviderContext
-from ...engines.duckdb import (
+from ...engines.interfaces import (
     PARQUET_LIST_WRAPPERS as _LIST_WRAPPERS,
     DeclaredOnlyDigest,
     RefusedDigest,
@@ -44,7 +44,8 @@ from ...engines.duckdb import (
     read_declared_null_statistics,
     read_parquet_schema_rows,
 )
-from ...types import (
+from ...code_generation.interfaces import resolve_provider_path
+from ...types.interfaces import (
     CANONICAL_UNIT_NAMES,
     UnitTypeName,
     is_canonical_unit_name,
@@ -1376,7 +1377,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         cls, context: ProviderContext[DataContractInferenceConfig],
     ) -> GeneratedPackage:
         remote = _remote_source(context.config.source)
-        path = None if remote else context.resolve_path(context.config.source)
+        path = None if remote else resolve_provider_path(context, context.config.source)
         source = context.config.source if remote else str(path)
         if context.config.layout != "files" and context.config.mode != "table_group":
             raise GenerationError(f"layout={context.config.layout!r} requires mode='table_group'")

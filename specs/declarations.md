@@ -54,13 +54,10 @@ The `kg_build_system.table` package owns the logical row and record declarations
 
 ## Boundaries
 
-- Allowed dependencies: `types`, `annotations`, `expressions`, and the private `_support` helpers. Internal modules may use the package's own row-source and IR modules.
-- Must not import `topology`, `binding`, `compile`, `workflow`, `modules`, `relational`, `engines`, `code_generation`, `api` or `cli`.
-- `table` carries no engine, runtime, workflow or binding state. A declaration never retains compiled IR or a physical connection.
-- `table.rows` is the declared cross-package row-source interface: `binding`, `compile`, `engines` and `modules` consume its row-source values and plan helpers.
-- `table.ir` is the compilation boundary. `StructIR`, `TableIR`, `ProjectionIR`, `SourceIR` and the row-plan nodes contain only IR values and no authoring classes.
-- `Table` descends from the `types.Struct` marker for shape identity but is not a field value type; `normalize_type` refuses it as a row source. The distinction is authoring identity, not an engine fact.
-
+- Surfaces: `kg_build_system.table` is the author-facing declaration surface; `table.interfaces` exposes the declaration and row-source values other subpackages may consume; `table.ir` is the declaration IR.
+- Allowed dependencies: `types.interfaces`, `annotations.interfaces`, `expressions.interfaces`, and the `_support` kernel.
+- A declaration carries no engine, runtime, workflow or binding state.
+- `binding`, `compile`, `engines` and `modules` import `table.interfaces`; they never import a table implementation module.
 ## Current decisions
 
 ### Fields and backing

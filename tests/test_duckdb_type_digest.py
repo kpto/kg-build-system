@@ -15,7 +15,7 @@ import unittest
 
 import duckdb
 
-from kg_build_system.engines.duckdb import (
+from kg_build_system.engines.interfaces import (
     ARRAY_CANONICAL,
     CANONICAL_SQL_TYPES,
     DIGEST_TABLE,
@@ -29,7 +29,7 @@ from kg_build_system.engines.duckdb import (
     canonical_type_name,
     digest_for,
 )
-from kg_build_system.types import CANONICAL_UNIT_NAMES
+from kg_build_system.types.interfaces import CANONICAL_UNIT_NAMES
 
 DISPOSITIONS = ("canonical", "declared_only", "refused")
 
