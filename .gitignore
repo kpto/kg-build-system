@@ -10,3 +10,6 @@ wheels/
 .venv
 reference_project/build/
 .uv-cache/
+
+# Documentation build
+site/

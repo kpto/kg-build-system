@@ -31,6 +31,8 @@ rule about what the framework is belongs to the framework model.
 
 - A change that crosses a subpackage boundary is proposed as an interface change
   before it is implemented.
+- The docs under `docs/` are the review surface for proposed changes. Update the
+  docs with the change; do not add spec or plan files.
 - The interface is the review surface; implementation is not.
 - The proposal is read in one screen:
 
