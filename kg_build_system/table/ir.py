@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal
+from typing import Literal, TypeAlias
 
 from ..annotations.ir import AnnotationIR
 from ..expressions.ir import ExpressionIR
@@ -60,10 +60,86 @@ class ProjectionFieldIR:
     annotations: tuple[AnnotationIR, ...] = ()
 
 
+JoinHow = Literal["inner", "left", "right", "full"]
+
+
 @dataclass(frozen=True, slots=True)
-class RowSourcePlanIR:
+class RowScanIR:
+    """Read one named table or projection relation."""
+
     source: str
-    filters: tuple[ExpressionIR, ...] = ()
+
+    @property
+    def filters(self) -> tuple[ExpressionIR, ...]:
+        """A scan carries no predicates; filters are their own plan node."""
+        return ()
+
+
+@dataclass(frozen=True, slots=True)
+class RowFilterIR:
+    """Keep the rows of one plan that satisfy a predicate."""
+
+    input: "RowSourcePlanIR"
+    predicate: ExpressionIR
+
+
+@dataclass(frozen=True, slots=True)
+class RowUnionIR:
+    """Stack two same-shaped plans, optionally deduplicating rows."""
+
+    left: "RowSourcePlanIR"
+    right: "RowSourcePlanIR"
+    all: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class RowJoinIR:
+    """Equi-join two plans on one expression from each side.
+
+    Null keys never match: the lowerer emits a plain SQL equality, whose
+    three-valued result leaves a null key unmatched in every outer-join mode.
+    """
+
+    left: "RowSourcePlanIR"
+    right: "RowSourcePlanIR"
+    left_key: ExpressionIR
+    right_key: ExpressionIR
+    how: JoinHow = "inner"
+
+
+@dataclass(frozen=True, slots=True)
+class RowGroupByIR:
+    """One row per distinct non-null key tuple, with its members collected."""
+
+    input: "RowSourcePlanIR"
+    keys: tuple[tuple[str, ExpressionIR], ...]
+
+
+@dataclass(frozen=True, slots=True)
+class RowDistinctIR:
+    """Drop duplicate rows while preserving the plan's shape."""
+
+    input: "RowSourcePlanIR"
+
+
+@dataclass(frozen=True, slots=True)
+class RowOrderKeyIR:
+    expression: ExpressionIR
+    ascending: bool = True
+
+
+@dataclass(frozen=True, slots=True)
+class RowOrderByIR:
+    """Order a plan's rows without changing its shape."""
+
+    input: "RowSourcePlanIR"
+    keys: tuple[RowOrderKeyIR, ...]
+
+
+RowSourcePlanIR: TypeAlias = (
+    RowScanIR | RowFilterIR | RowUnionIR | RowJoinIR
+    | RowGroupByIR | RowDistinctIR | RowOrderByIR
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -89,9 +165,18 @@ class SourceIR:
 
 __all__ = [
     "FieldIR",
+    "JoinHow",
     "ProjectionIR",
     "ProjectionFieldIR",
+    "RowDistinctIR",
+    "RowFilterIR",
+    "RowGroupByIR",
+    "RowJoinIR",
+    "RowOrderByIR",
+    "RowOrderKeyIR",
+    "RowScanIR",
     "RowSourcePlanIR",
+    "RowUnionIR",
     "SourceIR",
     "StructIR",
     "TableIR",

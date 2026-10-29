@@ -1,6 +1,7 @@
 """Render logical relational plans as inspectable DuckDB SQL."""
 from __future__ import annotations
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -15,6 +16,19 @@ from ...expressions.ir import (
 from ..._frozen_json import FrozenObject
 from ...relational.ir import RelationPlanIR as RelationPlan
 from ...relational.planner import expansion_scope
+from ...table.ir import (
+    RowDistinctIR,
+    RowFilterIR,
+    RowGroupByIR,
+    RowJoinIR,
+    RowOrderByIR,
+    RowScanIR,
+    RowSourcePlanIR,
+    RowUnionIR,
+)
+from ...table.rows import (
+    ShapeField, plan_fields, row_source_key,
+)
 from ...types import TEXT_CANONICAL_UNIT_NAMES
 from ...types.ir import ArrayTypeIR, LogicalTypeIR, NullableTypeIR, UnitTypeIR
 from .types import ArraySqlType, SqlType, canonical_sql_type
@@ -327,4 +341,218 @@ def lower_relation_sql(plan: RelationPlan) -> str:
     ), append=False).sql(dialect="duckdb")
 
 
-__all__ = ["lower_relation_sql"]
+def _relation_table(relation: str, alias: str) -> Any:
+    return exp.Table(
+        this=_identifier(relation),
+        alias=exp.TableAlias(this=_identifier(alias, quoted=False)),
+    )
+
+
+def _struct_pack(fields: tuple[ShapeField, ...], alias: str) -> Any:
+    """A row record read through one relation alias, with its declared names."""
+    return exp.Anonymous(
+        this="struct_pack",
+        expressions=[
+            exp.PropertyEQ(
+                this=_identifier(field.name),
+                expression=exp.column(
+                    field.name, table=alias, quoted=True,
+                ),
+            )
+            for field in fields
+        ],
+    )
+
+
+def _nullable_struct(
+    fields: tuple[ShapeField, ...],
+    alias: str,
+    *,
+    nullable: bool,
+) -> Any:
+    value = _struct_pack(fields, alias)
+    if not nullable:
+        return value
+    present = exp.column("_kg_present", table=alias, quoted=True)
+    return exp.Case(
+        ifs=[exp.If(this=present, true=value)],
+        default=exp.Null(),
+    )
+
+
+def _source_alias(key: str) -> str:
+    return "_kg_src"
+
+
+def lower_row_source_sql(
+    plan: RowSourcePlanIR,
+    relations: Mapping[str, str],
+    shapes: Mapping[str, tuple[ShapeField, ...]],
+) -> str:
+    """Render one row-source plan as DuckDB SQL over already-named relations."""
+    if isinstance(plan, RowScanIR):
+        raise ValueError("a scan is supplied by its table or projection relation")
+    if isinstance(plan, RowFilterIR):
+        input_key = row_source_key(plan.input)
+        alias = _source_alias(input_key)
+        predicate = _render(plan.predicate, _Context({input_key: alias}, {}))
+        return (
+            exp.select("*")
+            .from_(_relation_table(relations[input_key], alias))
+            .where(predicate)
+            .sql(dialect="duckdb")
+        )
+    if isinstance(plan, RowUnionIR):
+        left = exp.select("*").from_(
+            exp.Table(this=_identifier(relations[row_source_key(plan.left)]))
+        )
+        right = exp.select("*").from_(
+            exp.Table(this=_identifier(relations[row_source_key(plan.right)]))
+        )
+        return exp.union(left, right, distinct=not plan.all).sql(dialect="duckdb")
+    if isinstance(plan, RowDistinctIR):
+        input_key = row_source_key(plan.input)
+        return (
+            exp.select("*")
+            .distinct()
+            .from_(exp.Table(this=_identifier(relations[input_key])))
+            .sql(dialect="duckdb")
+        )
+    if isinstance(plan, RowOrderByIR):
+        input_key = row_source_key(plan.input)
+        alias = _source_alias(input_key)
+        context = _Context({input_key: alias}, {})
+        select = exp.select("*").from_(
+            _relation_table(relations[input_key], alias)
+        )
+        return select.order_by(*(
+            exp.Ordered(this=_render(key.expression, context), desc=not key.ascending)
+            for key in plan.keys
+        )).sql(dialect="duckdb")
+    if isinstance(plan, RowJoinIR):
+        return _lower_join(plan, relations, shapes)
+    if isinstance(plan, RowGroupByIR):
+        return _lower_group_by(plan, relations, shapes)
+    raise TypeError(f"unsupported row-source plan {plan!r}")
+
+
+def _lower_join(
+    plan: RowJoinIR,
+    relations: Mapping[str, str],
+    shapes: Mapping[str, tuple[ShapeField, ...]],
+) -> str:
+    left_key = row_source_key(plan.left)
+    right_key = row_source_key(plan.right)
+    left_alias, right_alias = "_kg_left", "_kg_right"
+    left_context = _Context({left_key: left_alias}, {})
+    right_context = _Context({right_key: right_alias}, {})
+    left_expression = _render(plan.left_key, left_context)
+    right_expression = _render(plan.right_key, right_context)
+    left_fields = shapes[left_key]
+    right_fields = shapes[right_key]
+    left_relation = exp.select(
+        "*", exp.alias_(exp.true(), "_kg_present", quoted=True),
+    ).from_(
+        exp.Table(this=_identifier(relations[left_key])),
+    ).subquery(left_alias, copy=False)
+    right_relation = exp.select(
+        "*", exp.alias_(exp.true(), "_kg_present", quoted=True),
+    ).from_(
+        exp.Table(this=_identifier(relations[right_key])),
+    ).subquery(right_alias, copy=False)
+    join_type = {
+        "inner": "INNER", "left": "LEFT", "right": "RIGHT", "full": "FULL",
+    }[plan.how]
+    select = exp.select(
+        exp.alias_(
+            exp.Coalesce(
+                this=left_expression,
+                expressions=[right_expression],
+            ),
+            "on",
+            quoted=True,
+        ),
+        exp.alias_(
+            _nullable_struct(
+                left_fields, left_alias,
+                nullable=plan.how in {"right", "full"},
+            ),
+            "left",
+            quoted=True,
+        ),
+        exp.alias_(
+            _nullable_struct(
+                right_fields, right_alias,
+                nullable=plan.how in {"left", "full"},
+            ),
+            "right",
+            quoted=True,
+        ),
+    ).from_(left_relation)
+    return select.join(
+        right_relation,
+        on=exp.EQ(this=left_expression, expression=right_expression),
+        join_type=join_type,
+    ).sql(dialect="duckdb")
+
+
+def _lower_group_by(
+    plan: RowGroupByIR,
+    relations: Mapping[str, str],
+    shapes: Mapping[str, tuple[ShapeField, ...]],
+) -> str:
+    input_key = row_source_key(plan.input)
+    alias = _source_alias(input_key)
+    context = _Context({input_key: alias}, {})
+    rendered = tuple(
+        (name, _render(expression, context))
+        for name, expression in plan.keys
+    )
+    key_columns = tuple(
+        f"_kg_key_{index}" for index in range(len(rendered))
+    )
+    member = _struct_pack(shapes[input_key], alias)
+    select = exp.select(
+        *[
+            exp.alias_(expression, column, quoted=True)
+            for (_, expression), column in zip(rendered, key_columns)
+        ],
+        exp.alias_(member, "_kg_member", quoted=True),
+    ).from_(_relation_table(relations[input_key], alias))
+    predicate = None
+    for _, expression in rendered:
+        present = exp.Not(this=exp.Is(this=expression, expression=exp.Null()))
+        predicate = present if predicate is None else exp.And(
+            this=predicate, expression=present,
+        )
+    select = select.where(predicate)
+    grouped = exp.select(
+        exp.alias_(
+            exp.Anonymous(
+                this="struct_pack",
+                expressions=[
+                    exp.PropertyEQ(
+                        this=_identifier(name),
+                        expression=exp.column(column, quoted=True),
+                    )
+                    for (name, _), column in zip(rendered, key_columns)
+                ],
+            ),
+            "by",
+            quoted=True,
+        ),
+        exp.alias_(
+            exp.Anonymous(
+                this="list",
+                expressions=[exp.column("_kg_member", quoted=True)],
+            ),
+            "members",
+            quoted=True,
+        ),
+    ).from_(select.subquery("_kg_group_keys", copy=False)).group_by(*[
+        exp.column(column, quoted=True) for column in key_columns
+    ])
+    return grouped.sql(dialect="duckdb")
+
+
+__all__ = ["lower_relation_sql", "lower_row_source_sql"]

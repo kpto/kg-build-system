@@ -23,7 +23,6 @@ from ..binding.ir import (
 from .._frozen_json import freeze_json
 from ..expressions import FieldReferenceExpression, ValueExpression, walk_expression
 from ..expressions.codec import encode_expression
-from ..expressions.ir_codec import encode_expression_ir
 from ..expressions.mapping import expression_to_ir
 from ..table import BoundSource, BoundTable, Projection, Struct, Table
 from ..table.declarations import resolve_bound_source
@@ -35,6 +34,10 @@ from ..table.ir import (
     SourceIR as SourceDefinition,
     StructIR as StructDefinition,
     TableIR as TableDefinition,
+)
+from ..table.ir_codec import encode_row_source_plan
+from ..table.rows import (
+    plan_inputs, plan_scan_sources, row_source_key, row_source_plan_ir,
 )
 from ..topology.ir import (
     ComponentIR as ComponentDefinition,
@@ -117,22 +120,7 @@ def _component(declaration: type[Any]) -> ComponentDefinition:
 def _row_source_plan(row_source: Any) -> RowSourcePlanIR | None:
     if row_source is None:
         return None
-    # Only a DerivedRowSource wraps another source. A Table may declare a field
-    # named ``source`` (clinical_report does), so unwrapping by attribute name
-    # would read that field instead of the table.
-    from ..table.rows import DerivedRowSource, RelationRowSource
-    if isinstance(row_source, (DerivedRowSource, RelationRowSource)):
-        source = row_source.source
-        filters = row_source.filters
-    else:
-        source = row_source
-        filters = ()
-    name = getattr(source, "_table_name", None) or getattr(source, "_projection_name", None)
-    if not isinstance(name, str) or not name:
-        raise TypeError("row sources must be a Table or Projection")
-    return RowSourcePlanIR(
-        name, tuple(expression_to_ir(filter.model) for filter in filters),
-    )
+    return row_source_plan_ir(row_source)
 
 
 def _projection(declaration: type[Projection]) -> ProjectionDefinition:
@@ -169,10 +157,9 @@ def _binding_symbol(binding: Binding) -> str:
         "debug_name": binding.debug_name,
         "build_key": encode_expression(binding.build_key.model),
         "properties": {name: encode_expression(value) for name, value in _property_expressions(binding)},
-        "row_source": None if row_source is None else {
-            "source": row_source.source,
-            "filters": [encode_expression_ir(item) for item in row_source.filters],
-        },
+        "row_source": (
+            None if row_source is None else encode_row_source_plan(row_source)
+        ),
     }
     if isinstance(binding, EdgeBinding):
         payload.update(
@@ -270,6 +257,10 @@ def _resolve_declarations(bindings: tuple[Binding, ...], sources: tuple[BoundTab
         if vars(declaration).get("_data_declaration_kind") == "projection"
     }
     required = _expression_sources(expression for binding in bindings for expression in _binding_expressions(binding))
+    for binding in bindings:
+        plan = _row_source_plan(binding.rows)
+        if plan is not None:
+            required.update(plan_scan_sources(plan))
     projections: dict[str, type[Projection]] = {}
     while True:
         pending = sorted(required & projection_registry.keys() - projections.keys())
@@ -279,6 +270,9 @@ def _resolve_declarations(bindings: tuple[Binding, ...], sources: tuple[BoundTab
             declaration = projection_registry[name]
             projections[name] = declaration
             required.update(_expression_sources(field.expression.model for field in declaration._projection_fields.values()))
+            plan = _row_source_plan(getattr(declaration, "_projection_row_source", None))
+            if plan is not None:
+                required.update(plan_scan_sources(plan))
     source_tables = {source.table._table_name: source.table for source in sources}
     tables: dict[str, type[Table]] = {}
     for name in required - projections.keys():
@@ -286,7 +280,25 @@ def _resolve_declarations(bindings: tuple[Binding, ...], sources: tuple[BoundTab
             tables[name] = source_tables[name]
         elif name in table_registry:
             tables[name] = table_registry[name]
-    missing = required - tables.keys() - projections.keys()
+    row_source_keys: set[str] = set()
+
+    def collect_plan_keys(plan) -> None:
+        key = row_source_key(plan)
+        if key in row_source_keys:
+            return
+        row_source_keys.add(key)
+        for child in plan_inputs(plan):
+            collect_plan_keys(child)
+
+    for binding in bindings:
+        plan = _row_source_plan(binding.rows)
+        if plan is not None:
+            collect_plan_keys(plan)
+    for projection in projections.values():
+        plan = _row_source_plan(getattr(projection, "_projection_row_source", None))
+        if plan is not None:
+            collect_plan_keys(plan)
+    missing = required - tables.keys() - projections.keys() - row_source_keys
     if missing:
         raise ValueError("expressions reference undiscoverable logical sources: " + ", ".join(sorted(missing)))
 

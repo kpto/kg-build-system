@@ -10,7 +10,10 @@ from ...expressions.ir import (
     FieldReferenceExpressionIR as FieldReferenceExpression,
     walk_expression_ir,
 )
-from ...table.ir import ProjectionIR as ProjectionDefinition
+from ...table.ir import ProjectionIR as ProjectionDefinition, RowSourcePlanIR
+from ...table.rows import (
+    plan_scan_sources, plan_shape_source_name, retarget_expression_ir, row_source_key,
+)
 from ...types.ir import (
     ArrayTypeIR, LogicalTypeIR, NullableTypeIR, UnitTypeIR,
 )
@@ -47,15 +50,36 @@ def expression_sources(expressions) -> set[str]:
     }
 
 
+def _plan_sources(plan: RowSourcePlanIR | None) -> set[str]:
+    if plan is None:
+        return set()
+    return {*plan_scan_sources(plan), row_source_key(plan)}
+
+
 def projection_sources(projection: ProjectionDefinition) -> set[str]:
-    return expression_sources(field.expression for field in projection.fields)
+    return (
+        expression_sources(field.expression for field in projection.fields)
+        | _plan_sources(projection.row_source)
+    )
 
 
 def binding_sources(binding: BindingDefinition) -> set[str]:
     expressions = [binding.build_key, *(value for _, value in binding.properties)]
     if isinstance(binding, EdgeBindingDefinition):
         expressions.extend((binding.source_build_key, binding.target_build_key))
-    return expression_sources(expressions)
+    return expression_sources(expressions) | _plan_sources(binding.row_source)
+
+
+def _retarget(
+    expression, plan: RowSourcePlanIR | None,
+):
+    if plan is None:
+        return expression
+    source = plan_shape_source_name(plan)
+    key = row_source_key(plan)
+    if source == key:
+        return expression
+    return retarget_expression_ir(expression, {source: key})
 
 
 def binding_outputs(binding: BindingDefinition) -> dict[str, ExpressionIR]:
@@ -100,13 +124,11 @@ def lower_projection_sql(
     graph: BuildBlueprint, relations: Mapping[str, str], projection: ProjectionDefinition,
 ) -> str:
     del graph
-    outputs = {field.name: field.expression for field in projection.fields}
-    predicates = (
-        () if projection.row_source is None else projection.row_source.filters
-    )
-    return lower_relation_sql(
-        lower_product(outputs, relations, predicates=predicates)
-    )
+    outputs = {
+        field.name: _retarget(field.expression, projection.row_source)
+        for field in projection.fields
+    }
+    return lower_relation_sql(lower_product(outputs, relations))
 
 
 def lower_binding_guard_projection(binding: BindingDefinition) -> str:
@@ -184,10 +206,11 @@ def lower_binding_sql(
     — after ``where_present`` or ``coalesce`` — simply never fires its guard.
     """
     property_types = _binding_property_types(graph, binding)
-    predicates = () if binding.row_source is None else binding.row_source.filters
-    inner = lower_relation_sql(
-        lower_product(binding_outputs(binding), relations, predicates=predicates)
-    )
+    outputs = {
+        name: _retarget(expression, binding.row_source)
+        for name, expression in binding_outputs(binding).items()
+    }
+    inner = lower_relation_sql(lower_product(outputs, relations))
     return (
         "WITH _kg_named AS ("
         f"SELECT {lower_binding_rename_projection(binding, property_types)} "

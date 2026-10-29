@@ -10,6 +10,7 @@ from ...compile.models import BuildBlueprint
 from ...engines.duckdb import (
     PARQUET_LIST_WRAPPER_PATH,
     canonical_sql_type,
+    lower_row_source_sql,
     read_declared_null_statistics,
 )
 from ...expressions.ir import (
@@ -17,7 +18,10 @@ from ...expressions.ir import (
     walk_expression_ir,
 )
 from ...table.ir import ProjectionIR as ProjectionDefinition
-from ...table.ir import StructIR, struct_type_key
+from ...table.ir import RowScanIR, RowSourcePlanIR, StructIR, struct_type_key
+from ...table.rows import (
+    ShapeField, plan_fields, plan_inputs, plan_scan_sources, row_source_key,
+)
 from ...types.ir import ArrayTypeIR, NullableTypeIR, StructTypeIR
 from ...topology.ir import ComponentIR as ComponentDefinition
 from ...workflow.models import (
@@ -78,6 +82,33 @@ def _ordered_projections(
     return tuple(ordered)
 
 
+def _ordered_row_source_plans(
+    blueprint: BuildBlueprint,
+) -> tuple[RowSourcePlanIR, ...]:
+    """Every derived plan once, children before the plans that read them."""
+    roots = [
+        item.row_source
+        for item in (*blueprint.projections, *blueprint.bindings)
+        if item.row_source is not None
+    ]
+    ordered: list[RowSourcePlanIR] = []
+    seen: set[str] = set()
+
+    def visit(plan: RowSourcePlanIR) -> None:
+        key = row_source_key(plan)
+        if key in seen:
+            return
+        seen.add(key)
+        for child in plan_inputs(plan):
+            visit(child)
+        if not isinstance(plan, RowScanIR):
+            ordered.append(plan)
+
+    for plan in roots:
+        visit(plan)
+    return tuple(ordered)
+
+
 @dataclass(frozen=True)
 class GraphRecordArtifact:
     kind: Literal["node", "edge"]
@@ -114,6 +145,13 @@ class CoreArtifactTypes:
         return ArtifactType(
             namespace=cls.NAMESPACE,
             name=f"data.projection.{name}",
+        )
+
+    @classmethod
+    def row_source(cls, key: str) -> ArtifactType:
+        return ArtifactType(
+            namespace=cls.NAMESPACE,
+            name=f"data.row_source.{key}",
         )
 
     @classmethod
@@ -314,7 +352,34 @@ class CoreCompiler:
             projection.name: f"kg_projection_{index}"
             for index, projection in enumerate(projections)
         }
-        relations = table_relations | projection_relations
+        declaration_fields = {
+            item.name: tuple(
+                ShapeField(field.name, field.name, field.logical_type)
+                for field in item.fields
+            )
+            for item in context.blueprint.tables
+        }
+        declaration_fields.update({
+            item.name: tuple(
+                ShapeField(field.name, field.name, field.expression.logical_type)
+                for field in item.fields
+            )
+            for item in context.blueprint.projections
+        })
+        row_source_plans = _ordered_row_source_plans(context.blueprint)
+        row_source_relations = {
+            row_source_key(plan): f"kg_rowsource_{index}"
+            for index, plan in enumerate(row_source_plans)
+        }
+        row_source_fields = {
+            row_source_key(plan): plan_fields(plan, declaration_fields)
+            for plan in row_source_plans
+        }
+        for plan in row_source_plans:
+            for scan in plan_scan_sources(plan):
+                if scan in declaration_fields:
+                    row_source_fields.setdefault(scan, declaration_fields[scan])
+        relations = table_relations | projection_relations | row_source_relations
 
         authored = [
             self._source_step(
@@ -326,12 +391,24 @@ class CoreCompiler:
             for source in sources
         ]
         authored.extend(
+            self._row_source_step(
+                plan,
+                row_source_relations[row_source_key(plan)],
+                relations,
+                row_source_fields,
+                projection_relations,
+                row_source_relations,
+            )
+            for plan in row_source_plans
+        )
+        authored.extend(
             self._projection_step(
                 context.blueprint,
                 projection,
                 projection_relations[projection.name],
                 relations,
                 projection_relations,
+                row_source_relations,
             )
             for projection in projections
         )
@@ -342,6 +419,7 @@ class CoreCompiler:
                 index,
                 relations,
                 projection_relations,
+                row_source_relations,
             )
             for index, binding in enumerate(context.blueprint.bindings)
         )
@@ -356,13 +434,20 @@ class CoreCompiler:
 
     @staticmethod
     def _read_input(
-        name: str, projection_relations: Mapping[str, str],
+        name: str,
+        projection_relations: Mapping[str, str],
+        row_source_relations: Mapping[str, str] | None = None,
     ) -> Input:
         """One opening a projection or binding takes: a relation its SQL reads.
 
         The sources a projection or binding reads come out of a set, so the caller
         orders them; that order is the order these openings are declared in.
         """
+        if row_source_relations is not None and name in row_source_relations:
+            return Input(
+                type=CoreArtifactTypes.row_source(name),
+                name=f"row_source.{name}",
+            )
         projection = name in projection_relations
         return Input(
             type=(
@@ -401,17 +486,49 @@ class CoreCompiler:
         )
 
     @staticmethod
+    def _row_source_step(
+        plan: RowSourcePlanIR,
+        relation: str,
+        relations: dict[str, str],
+        shapes: Mapping[str, tuple[ShapeField, ...]],
+        projection_relations: dict[str, str],
+        row_source_relations: dict[str, str],
+    ) -> _AuthoredStep:
+        key = row_source_key(plan)
+        return _AuthoredStep(
+            name=f"rowsource.{key}",
+            inputs=tuple(
+                CoreCompiler._read_input(
+                    child_key,
+                    projection_relations,
+                    row_source_relations,
+                )
+                for child_key in dict.fromkeys(
+                    row_source_key(child) for child in plan_inputs(plan)
+                )
+            ),
+            outputs=(Output(CoreArtifactTypes.row_source(key)),),
+            instruction=encode_core_instruction(RelationInstructionIR(
+                relation=relation,
+                sql=lower_row_source_sql(plan, relations, shapes),
+            )),
+        )
+
+    @staticmethod
     def _projection_step(
         blueprint: BuildBlueprint,
         projection: ProjectionDefinition,
         relation: str,
         relations: dict[str, str],
         projection_relations: dict[str, str],
+        row_source_relations: dict[str, str],
     ) -> _AuthoredStep:
         return _AuthoredStep(
             name=f"projection.{projection.name}",
             inputs=tuple(
-                CoreCompiler._read_input(name, projection_relations)
+                CoreCompiler._read_input(
+                    name, projection_relations, row_source_relations,
+                )
                 for name in sorted(projection_sources(projection))
             ),
             outputs=(Output(CoreArtifactTypes.projection(projection.name)),),
@@ -430,6 +547,7 @@ class CoreCompiler:
         index: int,
         relations: dict[str, str],
         projection_relations: dict[str, str],
+        row_source_relations: dict[str, str],
     ) -> _AuthoredStep:
         binding_sql = lower_binding_sql(
             blueprint, relations, binding
@@ -437,7 +555,9 @@ class CoreCompiler:
         return _AuthoredStep(
             name=f"binding.{index}",
             inputs=tuple(
-                CoreCompiler._read_input(name, projection_relations)
+                CoreCompiler._read_input(
+                    name, projection_relations, row_source_relations,
+                )
                 for name in sorted(binding_sources(binding))
             ),
             outputs=(Output(CoreArtifactTypes.binding(binding.symbol_id)),),

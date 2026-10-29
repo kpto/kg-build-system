@@ -9,6 +9,7 @@ from typing import TYPE_CHECKING, Any, ClassVar, Generic, Self, TypeAlias, TypeV
 from .._support.naming import declaration_name
 from ..annotations import Annotation, annotation_tuple
 from ..types import Shape, Struct as StructDeclaration
+from .rows import RowSource, shape_context
 
 if TYPE_CHECKING:
     from ..expressions import BoolExpression
@@ -190,66 +191,34 @@ def _prepare_fields(
 S = TypeVar("S", bound=Shape)
 
 
-class RowSource(Generic[S]):
-    """A source of rows whose shape is ``S``; class objects satisfy this by subclassing."""
-
-    shape: type[S]
-
-
-def shape_context(shape: type[S]) -> S:
-    """A symbolic instance of a shape, used as the subject of authoring lambdas."""
-    return object.__new__(shape)
-
-
 def _derive(
     shape: type[S],
     predicate: Callable[[S], "BoolExpression"],
     filters: tuple["BoolExpression", ...] = (),
 ) -> "DerivedRowSource[S]":
     from ..expressions import BoolExpression
-    from .rows import DerivedRowSource
+    from .rows import derive_row_source
 
     if not callable(predicate):
         raise TypeError("where requires a callable predicate")
     result = predicate(shape_context(shape))
     if not isinstance(result, BoolExpression):
         raise TypeError("where predicates must return a BoolExpression")
-    return DerivedRowSource(shape_view(shape), shape, (*filters, result))
+    del filters  # legacy callers never supplied more than the predicate
+    return derive_row_source(shape, result, shape=shape_view(shape))
 
 
 def _source_name(value: Any) -> str:
-    name = getattr(value, "_table_name", None) or getattr(value, "_projection_name", None)
-    if not isinstance(name, str) or not name:
-        raise TypeError("row sources must be a Table or Projection")
-    return name
+    from .rows import declaration_source_name
 
-
-def _shape_fields(source: Any) -> dict[str, Any]:
-    from .projections import ProjectionField, ProjectionFieldMetadata
-
-    attrs: dict[str, Any] = {"_projection_name": _source_name(source)}
-    if hasattr(source, "_projection_fields"):
-        for attribute, field in source._projection_fields.items():
-            attrs[attribute] = ProjectionField(
-                getattr(source, attribute),
-                ProjectionFieldMetadata(
-                    name=field.metadata.name,
-                    description=field.metadata.description,
-                    annotations=field.metadata.annotations,
-                ),
-            )
-    else:
-        for attribute, field in source._fields.items():
-            attrs[attribute] = ProjectionField(
-                getattr(source, attribute),
-                ProjectionFieldMetadata(name=field.metadata.name),
-            )
-    return attrs
+    return declaration_source_name(value)
 
 
 def shape_view(source: Any) -> type:
     """A shape class with the source's fields, usable as a projection base."""
-    return type(f"{source.__name__}Shape", (Shape,), _shape_fields(source))
+    from .rows import _shape_view
+
+    return _shape_view(source)
 
 
 def pinned_base(row_source: Any) -> type:
@@ -265,18 +234,15 @@ def pinned_base(row_source: Any) -> type:
 
 def projection_base(row_source: Any) -> type:
     """A dynamic base carrying a row source plan and its inherited fields."""
-    from .models import Projection
+    from .rows import as_row_source, projection_attrs
 
-    from .rows import DerivedRowSource, RelationRowSource
-
-    if isinstance(row_source, (DerivedRowSource, RelationRowSource)):
-        source = row_source.source
-    else:
-        source = row_source
-    attrs = _shape_fields(source)
-    attrs["_kg_row_source"] = row_source
+    source = as_row_source(row_source)
+    attrs = projection_attrs(source.shape)
+    attrs["_kg_row_source"] = source
     attrs["_projection_base"] = True
-    return type(f"{source.__name__}ProjectionBase", (Projection,), attrs)
+    base_name = getattr(getattr(source, "source", None), "__name__", "RowSource")
+    name = f"{base_name}ProjectionBase"
+    return type(name, (Projection,), attrs)
 
 
 class Table(StructDeclaration, RowSource["Table"]):

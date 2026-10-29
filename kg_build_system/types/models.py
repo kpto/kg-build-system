@@ -19,6 +19,23 @@ class Struct(Shape):
     """A shape that is only a nested record, never a row source."""
 
 
+#: Shapes generated at authoring time carry a stable ``(module, qualname)``
+#: identity but are not attributes of an importable module. Resolution reports
+#: a registered class before it tries to import the name, so a generated record
+#: shape is usable as a struct type for the lifetime of the process.
+_DYNAMIC_SHAPES: dict[tuple[str, str], type[Shape]] = {}
+
+
+def register_shape(shape: type[Shape]) -> None:
+    """Register a generated shape by the identity a logical type stores."""
+    _DYNAMIC_SHAPES[(shape.__module__, shape.__qualname__)] = shape
+
+
+def resolve_shape(module: str, qualname: str) -> type[Shape] | None:
+    """The generated shape registered under one identity, if there is one."""
+    return _DYNAMIC_SHAPES.get((module, qualname))
+
+
 T_co = TypeVar("T_co", covariant=True)
 
 
@@ -147,4 +164,5 @@ __all__ = [
     "NullableType", "STR", "Struct", "StructType", "TEXT_CANONICAL_UNIT_NAMES", "TIME",
     "TIMESTAMP", "Time", "Timestamp", "UUID", "UnitType", "UnitTypeName", "Uuid",
     "canonical_value_text", "is_canonical_unit_name", "Shape", "ShapeType",
+    "register_shape", "resolve_shape",
 ]

@@ -1,5 +1,5 @@
 """Static contract for row sources, where and Boolean identities."""
-from typing import assert_type
+from typing import Any, assert_type
 
 from kg_build_system import (
     DerivedRowSource, Field, Node, NodeBinding, NodeValues, Projection,
@@ -35,6 +35,25 @@ projected = SourceView.where(
     lambda projection: projection.kind.expression.equals("target"),
 )
 assert_type(projected, DerivedRowSource[SourceView])
+
+same_rows = active.union(SourceView.row_source())
+assert_type(same_rows, DerivedRowSource[Source])
+
+deduplicated = active.distinct()
+assert_type(deduplicated, DerivedRowSource[Source])
+
+ordered = active.order_by("status")
+assert_type(ordered, DerivedRowSource[Source])
+
+grouped = active.group_by(by=lambda row: {"status": row.status})
+assert_type(grouped, DerivedRowSource[Any])
+
+joined = active.join(
+    SourceView.row_source(),
+    on=lambda left, right: (left.status, right.kind),
+    how="left",
+)
+assert_type(joined, DerivedRowSource[Any])
 
 binding = node_binding(
     target=TargetNode,
