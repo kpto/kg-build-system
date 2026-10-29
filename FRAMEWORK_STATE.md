@@ -150,7 +150,7 @@ not resolve them.
 ## Documentation
 
 The author-facing guide is in `docs/` and is structured as Get started, Concepts,
-How-to guides and Reference. `get-started/why.md` carries the values: semantics
+How-to guides and Reference. `philosophy.md` carries the values: semantics
 as contract, explicit assumptions, typed authoring, reproducible builds,
 separation of meaning and execution, honest limits and the author / consumer
 perspective. `concepts/index.md` tells the end-to-end story from source rows to

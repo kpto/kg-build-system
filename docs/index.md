@@ -8,10 +8,11 @@ the two with bindings. The framework compiles those declarations into a frozen
 contract, executes it, and publishes the graph together with the meaning you
 declared for it.
 
+Read the [philosophy](philosophy.md) for the problem the framework addresses and
+the values behind its design.
+
 ## Get started
 
-- [What is kg-build-system?](get-started/why.md) — the problem it solves and the
-  values behind the design.
 - [Install](get-started/install.md) — set up the package and verify it.
 - [Build your first graph](get-started/first-graph.md) — a complete walkthrough.
 - [Project layout](get-started/project-layout.md) — where declarations,

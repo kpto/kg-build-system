@@ -1,6 +1,10 @@
-# What is kg-build-system?
+# Philosophy
 
-kg-build-system is a Python framework that turns typed declarations into an inspectable knowledge graph whose meaning is part of the delivered build.
+This page states the problem kg-build-system addresses and the values behind
+its design.
+
+kg-build-system is a Python framework that turns typed declarations into an
+inspectable knowledge graph whose meaning is part of the delivered build.
 
 ## The problem
 
@@ -30,7 +34,7 @@ The compiled contract records the declared meaning. When you compose the meta-gr
 
 When a meaning cannot be stated faithfully, the framework records a limit instead of inventing precision. A nullable property stays nullable, an unresolved reference fails, and a target that cannot store a type refuses it.
 
-See [semantics and annotations](../concepts/semantics.md) for how descriptions, labels, and annotations become build data.
+See [semantics and annotations](concepts/semantics.md) for how descriptions, labels, and annotations become build data.
 
 ### Explicit assumptions
 
@@ -92,10 +96,10 @@ You will get the most from it when the graph is a product that changes over time
 
 ## Next steps
 
-- [Install kg-build-system](install.md) and verify the environment.
-- [Build your first graph](first-graph.md) for a complete, runnable example.
-- [Project layout](project-layout.md) for where each declaration and output belongs.
-- [Data contracts](../concepts/data-contracts.md) and [topology](../concepts/topology.md) for the two halves of the model.
-- [Compile, build and outputs](../concepts/build-and-outputs.md) for the contract and the published artifacts.
-- [Semantics and annotations](../concepts/semantics.md) for how descriptions, labels, and annotations travel with the build.
-- [Authoring API reference](../reference/index.md) for the full public surface.
+- [Install kg-build-system](get-started/install.md) and verify the environment.
+- [Build your first graph](get-started/first-graph.md) for a complete, runnable example.
+- [Project layout](get-started/project-layout.md) for where each declaration and output belongs.
+- [Data contracts](concepts/data-contracts.md) and [topology](concepts/topology.md) for the two halves of the model.
+- [Compile, build and outputs](concepts/build-and-outputs.md) for the contract and the published artifacts.
+- [Semantics and annotations](concepts/semantics.md) for how descriptions, labels, and annotations travel with the build.
+- [Authoring API reference](reference/index.md) for the full public surface.
