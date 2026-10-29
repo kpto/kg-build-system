@@ -362,6 +362,16 @@ inherited fields; explicit fields shadow them. A binding may take `rows=` and a
 live inside that callable. The source plan's filters lower to `WHERE`, with
 `FilterIR.mode` distinguishing presence tests from held-true predicates.
 
+Value row sources add `union(other, all=True)`, `join(other, on=..., how=...)`,
+`group_by(by=...)`, `distinct()` and `order_by(*keys)`. Their recursive plan IR
+has scan, filter, union, join, group-by, distinct and order nodes; core
+materialises each non-scan plan as a named relation in dependency order before
+a projection or binding reads it. `where`, `union`, `distinct` and `order_by`
+preserve the shape class; `join` generates `{on, left, right}` and `group_by`
+generates `{by, members}`, where `members` is an array of the input row shape
+and each joined side is nullable according to `how`. A null key never matches
+in a join, and group-by drops rows whose key tuple contains a null.
+
 ## 7. Topology hierarchy and graph bindings
 
 Topology declares graph meaning independently of input data:

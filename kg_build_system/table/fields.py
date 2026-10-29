@@ -127,6 +127,15 @@ class Field(Generic[T]):
             attribute=attribute,
         )
 
+    def access_type(self, owner: type[Any]) -> LogicalType:
+        """The type one read yields: source-backed fields are always nullable."""
+        logical_type = self._logical_type(owner)
+        if self._expression is not None or _owner_kind(owner) in ("computed", "view"):
+            return logical_type
+        if isinstance(logical_type, NullableType):
+            return logical_type
+        return NullableType(logical_type)
+
     def _logical_type(self, owner: type[Any]) -> LogicalType:
         if self._expression is not None:
             return self._expression.logical_type

@@ -14,7 +14,21 @@ from ..types.ir import (
     StructTypeIR as StructType,
 )
 from ..binding.ir import EdgeBindingIR as EdgeBindingDefinition
-from ..table.ir import struct_type_key
+from ..table.ir import (
+    RowDistinctIR,
+    RowFilterIR,
+    RowGroupByIR,
+    RowJoinIR,
+    RowOrderByIR,
+    RowScanIR,
+    RowSourcePlanIR,
+    RowUnionIR,
+    struct_type_key,
+)
+from ..table.rows import (
+    ShapeField, plan_fields, plan_inputs, plan_scan_sources,
+    plan_shape_source_name, row_source_key,
+)
 from .models import BLUEPRINT_SCHEMA_VERSION, BuildBlueprint
 
 
@@ -102,10 +116,25 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
             current_symbol = component_by_symbol[current_symbol].parent
 
     sources = {item.name for item in blueprint.tables} | {item.name for item in blueprint.projections}
-    source_fields = {
-        item.name: {field.name for field in item.fields}
-        for item in (*blueprint.tables, *blueprint.projections)
+    declaration_fields = {
+        item.name: tuple(
+            ShapeField(field.name, field.name, field.logical_type)
+            for field in item.fields
+        )
+        for item in blueprint.tables
     }
+    declaration_fields.update({
+        item.name: tuple(
+            ShapeField(field.name, field.name, field.expression.logical_type)
+            for field in item.fields
+        )
+        for item in blueprint.projections
+    })
+    source_fields = {
+        name: {field.name for field in fields}
+        for name, fields in declaration_fields.items()
+    }
+    identified_sources = set(sources)
     projection_by_name = {item.name: item for item in blueprint.projections}
     dependencies: dict[str, set[str]] = {name: set() for name in projection_by_name}
 
@@ -122,7 +151,7 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
                     raise ValueError(f"{owner} expand operation has an incompatible result type")
             if not isinstance(node, FieldReferenceExpression):
                 continue
-            if node.source not in sources:
+            if node.source not in identified_sources:
                 raise ValueError(f"{owner} references unknown logical source {node.source!r}")
             if node.path[0] not in source_fields[node.source]:
                 raise ValueError(
@@ -132,18 +161,73 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
             if node.source in projection_by_name and owner in dependencies:
                 dependencies[owner].add(node.source)
 
+    def validate_row_source(plan: RowSourcePlanIR, *, owner: str) -> None:
+        if isinstance(plan, RowScanIR):
+            if plan.source not in declaration_fields:
+                raise ValueError(
+                    f"{owner} row source reads unknown logical source {plan.source!r}"
+                )
+            return
+        for child in plan_inputs(plan):
+            validate_row_source(child, owner=owner)
+        if isinstance(plan, RowFilterIR):
+            validate_expression(plan.predicate, owner=owner)
+        elif isinstance(plan, RowUnionIR):
+            pass
+        elif isinstance(plan, RowJoinIR):
+            if plan.how not in {"inner", "left", "right", "full"}:
+                raise ValueError(f"{owner} join how {plan.how!r} is unknown")
+            validate_expression(plan.left_key, owner=owner)
+            validate_expression(plan.right_key, owner=owner)
+            left_key = _base(plan.left_key.logical_type)
+            right_key = _base(plan.right_key.logical_type)
+            if left_key != right_key:
+                raise ValueError(f"{owner} join keys must have the same logical type")
+            if isinstance(left_key, (ArrayType, StructType)):
+                raise ValueError(f"{owner} join keys must be scalar expressions")
+        elif isinstance(plan, RowGroupByIR):
+            if not plan.keys:
+                raise ValueError(f"{owner} group_by requires at least one key")
+            names = [name for name, _ in plan.keys]
+            if len(names) != len(set(names)):
+                raise ValueError(f"{owner} group_by key names must be unique")
+            for name, expression in plan.keys:
+                if not name.isidentifier():
+                    raise ValueError(f"{owner} group_by key names must be identifiers")
+                validate_expression(expression, owner=owner)
+                if isinstance(_base(expression.logical_type), (ArrayType, StructType)):
+                    raise ValueError(f"{owner} group_by keys must be scalar expressions")
+        elif isinstance(plan, RowOrderByIR):
+            if not plan.keys:
+                raise ValueError(f"{owner} order_by requires at least one key")
+            for key in plan.keys:
+                validate_expression(key.expression, owner=owner)
+        key = row_source_key(plan)
+        if key in declaration_fields:
+            return
+        try:
+            fields = plan_fields(plan, declaration_fields)
+        except ValueError as error:
+            raise ValueError(f"{owner} row source: {error}") from error
+        declaration_fields[key] = fields
+        source_fields[key] = {field.name for field in fields}
+        identified_sources.add(key)
+
+    for projection in blueprint.projections:
+        if projection.row_source is not None:
+            validate_row_source(projection.row_source, owner=projection.name)
+    for binding in blueprint.bindings:
+        if binding.row_source is not None:
+            validate_row_source(binding.row_source, owner=binding.symbol_id)
+
     for projection in blueprint.projections:
         _unique((field.name for field in projection.fields), f"{projection.name} projection field names")
         for field in projection.fields:
             validate_expression(field.expression, owner=projection.name)
         if projection.row_source is not None:
-            if projection.row_source.source not in sources:
-                raise ValueError(
-                    f"projection {projection.name!r} row source "
-                    f"{projection.row_source.source!r} is unknown"
-                )
-            for filter_expression in projection.row_source.filters:
-                validate_expression(filter_expression, owner=projection.name)
+            for source in plan_scan_sources(projection.row_source):
+                if source in projection_by_name:
+                    dependencies[projection.name].add(source)
 
     visiting: set[str] = set()
     visited: set[str] = set()
@@ -204,14 +288,6 @@ def validate_blueprint(blueprint: BuildBlueprint) -> None:
             keys.extend((binding.source_build_key, binding.target_build_key))
         for expression in expressions:
             validate_expression(expression, owner=binding.symbol_id)
-        if binding.row_source is not None:
-            if binding.row_source.source not in sources:
-                raise ValueError(
-                    f"binding {binding.symbol_id!r} row source "
-                    f"{binding.row_source.source!r} is unknown"
-                )
-            for filter_expression in binding.row_source.filters:
-                validate_expression(filter_expression, owner=binding.symbol_id)
         expected = {prop.name: prop.logical_type for prop in component.properties}
         actual = dict(binding.properties)
         if set(actual) != set(expected):

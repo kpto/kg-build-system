@@ -5,8 +5,9 @@ from collections.abc import Callable
 from typing import Any, overload
 
 from ..expressions import ValueExpression, ValueInput, as_expression
-from ..table.models import RowSource, shape_context
-from ..table.rows import DerivedRowSource, RelationRowSource
+from ..table.rows import (
+    DerivedRowSource, RelationRowSource, RowSource, as_row_source, shape_context,
+)
 from ..topology.models import Edge, Endpoint, Node, NonNullableGraphValue, _NodeSideBase
 from ..types import NullableType, Shape, require_non_nullable, require_scalar
 from .models import BindingOptions, EdgeBinding, EdgeValues, NodeBinding, NodeValues
@@ -51,10 +52,10 @@ def _require_properties[C: Node | Edge[Any, Any]](value: C, *, target: type[C]) 
 def _require_row_source(value: Any) -> None:
     if isinstance(value, type):
         if not issubclass(value, RowSource):
-            raise TypeError("rows must be a RowSource, a RowSource class, or a DerivedRowSource")
+            raise TypeError("rows must be a RowSource or a RowSource class")
         return
-    if not isinstance(value, (DerivedRowSource, RelationRowSource)):
-        raise TypeError("rows must be a RowSource, a RowSource class, or a DerivedRowSource")
+    if not isinstance(value, RowSource):
+        raise TypeError("rows must be a RowSource or a RowSource class")
 
 
 def _require_concrete_component(target: Any, kind: str) -> None:

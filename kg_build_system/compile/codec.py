@@ -22,6 +22,7 @@ from ..table.ir import (
     StructIR as StructDefinition,
     TableIR as TableDefinition,
 )
+from ..table.ir_codec import decode_row_source_plan, encode_row_source_plan
 from ..topology.ir import ComponentIR as ComponentDefinition, PropertyIR as PropertyDefinition
 from ..workflow.ir import BlueprintModuleIR as BlueprintModule
 from .models import BLUEPRINT_SCHEMA_VERSION, BuildBlueprint
@@ -95,12 +96,7 @@ def _encode_component(value: ComponentDefinition) -> dict[str, Any]:
 
 
 def _encode_row_source(value: RowSourcePlanDefinition | None) -> dict[str, Any] | None:
-    if value is None:
-        return None
-    return {
-        "source": value.source,
-        "filters": [encode_expression_ir(item) for item in value.filters],
-    }
+    return None if value is None else encode_row_source_plan(value)
 
 
 def _require_row_source(value: Any) -> RowSourcePlanDefinition:
@@ -113,14 +109,7 @@ def _require_row_source(value: Any) -> RowSourcePlanDefinition:
 def _decode_row_source(value: Any) -> RowSourcePlanDefinition | None:
     if value is None:
         return None
-    document = _object(value, "row_source")
-    filters = document.get("filters", [])
-    if not isinstance(filters, Sequence) or isinstance(filters, (str, bytes, bytearray)):
-        raise ValueError("row source filters must be an array")
-    return RowSourcePlanDefinition(
-        _text(document, "source"),
-        tuple(decode_expression_ir(_object(item, "filter")) for item in filters),
-    )
+    return decode_row_source_plan(_object(value, "row_source"))
 
 
 def _encode_projection(value: ProjectionDefinition) -> dict[str, Any]:

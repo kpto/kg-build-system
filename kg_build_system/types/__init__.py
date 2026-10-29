@@ -32,6 +32,8 @@ from .models import (
     Uuid,
     canonical_value_text,
     is_canonical_unit_name,
+    register_shape,
+    resolve_shape,
 )
 from .normalization import UNIT_BY_REPRESENTATIVE_CLASS, normalize_type
 from .validation import (
@@ -46,5 +48,6 @@ __all__ = [
     "TIMESTAMP", "Time", "Timestamp", "UNIT_BY_REPRESENTATIVE_CLASS", "UUID", "UnitType",
     "UnitTypeName", "Uuid", "array_item", "canonical_value_text", "decode_type", "encode_type",
     "is_canonical_unit_name", "is_nullable", "non_nullable", "normalize_type",
-    "require_graph_property", "require_non_nullable", "require_scalar",
+    "register_shape", "require_graph_property", "require_non_nullable", "require_scalar",
+    "resolve_shape",
 ]

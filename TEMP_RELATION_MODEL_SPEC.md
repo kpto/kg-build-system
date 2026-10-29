@@ -224,13 +224,16 @@ Touchpoints: `types/`, `table/`, `expressions/boolean.py`, `expressions/selectio
 
 `to_projection`, `ProjectionSource`, `as_projection_base`, `keep_if`, binding filters,
 `where_any`/`where_all`, raw `BoolExpression` to `where`, Python operators/AST in lambdas, raw
-dictionaries, untyped/implicit projections. `lookup` is optional; `group_by`/`join` are deferred.
+dictionaries, untyped/implicit projections. `lookup` remains optional.
 
 
 ## Implementation notes
 
-- `RowSourcePlanIR` stores a row source's source name and filters; the existing product
+- `RowSourcePlanIR` is a recursive plan: scan, filter, union, join, group_by, distinct and
+  order_by nodes. JSON encoding is recursive and fingerprint-stable; the existing product
   `RelationPlanIR` remains the relational-product plan.
+- Derived plans become named relations in core, created in dependency order. Projection and
+  binding expressions are retargeted from the authoring shape's source to the plan's root key.
 - `projection_base()` carries the inherited fields; `active.shape` is a generated shape view and
   can be used as the second base in the documented projection form.
 - The reference project is migrated to `rows=`/`bind`; legacy direct-expression bindings remain

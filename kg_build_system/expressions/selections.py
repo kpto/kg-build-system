@@ -464,9 +464,13 @@ def as_expression[T](value: ValueInput[T]) -> ValueExpression[T]:
 
 
 def _declaration(logical_type: StructType) -> type[Struct]:
-    value: Any = importlib.import_module(logical_type.module)
-    for part in logical_type.qualname.split("."):
-        value = getattr(value, part)
+    from ..types import resolve_shape
+
+    value: Any = resolve_shape(logical_type.module, logical_type.qualname)
+    if value is None:
+        value = importlib.import_module(logical_type.module)
+        for part in logical_type.qualname.split("."):
+            value = getattr(value, part)
     if not isinstance(value, type) or not issubclass(value, Struct):
         raise TypeError("struct logical type does not resolve to a Struct declaration")
     return value
