@@ -36,4 +36,4 @@
   leave the reader to infer when to use it.
 - End each page with a short "What to remember" list and a link to the next
   natural page.
-- Depth is welcome. Prefer a worked explanation over a shallower summary.
+- Prefer a worked explanation over a shallower summary.
