@@ -110,6 +110,29 @@ def _render(expression, context: _Context) -> Any:
         return _render(expression.arguments[0], context)
     if expression.operator == "where_if":
         return _render(expression.arguments[0], context)
+    if expression.operator == "array_at":
+        if len(expression.arguments) != 2:
+            raise ValueError("array_at requires an array and an index")
+        array = _render(expression.arguments[0], context)
+        index = _render(expression.arguments[1], context)
+        return exp.Anonymous(
+            this="list_extract",
+            expressions=[array, exp.Add(this=index, expression=exp.Literal.number(1))],
+        )
+    if expression.operator == "array_slice":
+        if len(expression.arguments) != 3:
+            raise ValueError("array_slice requires an array, a start and an end")
+        array = _render(expression.arguments[0], context)
+        start = _render(expression.arguments[1], context)
+        end = _render(expression.arguments[2], context)
+        return exp.Anonymous(
+            this="list_slice",
+            expressions=[
+                array,
+                exp.Add(this=start, expression=exp.Literal.number(1)),
+                end,
+            ],
+        )
     if expression.operator == "transform_items":
         if len(expression.arguments) != 2:
             raise ValueError("transform_items requires two arguments")

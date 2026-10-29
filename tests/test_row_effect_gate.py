@@ -127,3 +127,36 @@ class RowEffectGateTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class ArrayNavigationTests(unittest.TestCase):
+    def _build(self, binding):
+        return RowEffectGateTests()._build(binding)
+
+    def test_at_is_zero_based_and_nullable_on_missing_index(self) -> None:
+        binding = node_binding(
+            target=Item,
+            rows=Source,
+            bind=lambda row: NodeValues(
+                build_key=row.kind.expression.append("::").append(
+                    row.tags.alter_rows().drop_null().at(0).alter_rows().drop_null().expression
+                ),
+                properties=Item(label=row.kind),
+            ),
+        )
+        rows = self._build(binding)
+        self.assertEqual(sorted(row["build_key"] for row in rows), ["a::p", "c::q"])
+
+    def test_slice_keeps_the_array_value(self) -> None:
+        binding = node_binding(
+            target=Item,
+            rows=Source,
+            bind=lambda row: NodeValues(
+                build_key=row.kind.expression.append("::").append(
+                    row.tags.alter_rows().drop_null().slice(0, 2).concat("|").expression
+                ),
+                properties=Item(label=row.kind),
+            ),
+        )
+        rows = self._build(binding)
+        self.assertEqual(sorted(row["build_key"] for row in rows), ["a::p|q", "c::q"])

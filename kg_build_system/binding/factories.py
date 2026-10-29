@@ -5,7 +5,7 @@ from collections.abc import Callable
 from typing import Any, overload
 
 from ..expressions import ValueExpression, ValueInput, as_expression
-from ..table.models import RowSource
+from ..table.models import RowSource, shape_context
 from ..table.rows import DerivedRowSource, RelationRowSource
 from ..topology.models import Edge, Endpoint, Node, NonNullableGraphValue, _NodeSideBase
 from ..types import NullableType, Shape, require_non_nullable, require_scalar
@@ -103,8 +103,8 @@ def _resolve_endpoint(
 
 @overload
 def node_binding[N: Node, S: Shape](
-    *, target: type[N], rows: type[S] | DerivedRowSource[S],
-    bind: Callable[[type[S]], NodeValues[N, Any]],
+    *, target: type[N], rows: type[S] | DerivedRowSource[S] | RelationRowSource[S],
+    bind: Callable[[S], NodeValues[N, Any]],
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
 ) -> NodeBinding[N]: ...
 @overload
@@ -125,7 +125,7 @@ def node_binding[N: Node](
             raise TypeError("rows and bind must be supplied together")
         shape = rows.shape if isinstance(rows, (DerivedRowSource, RelationRowSource)) else rows
         _require_row_source(rows)
-        values = bind(shape)
+        values = bind(shape_context(shape))
         if not isinstance(values, NodeValues):
             raise TypeError("node_binding bind must return NodeValues")
         build_key, properties = values.build_key, values.properties
@@ -140,8 +140,8 @@ def node_binding[N: Node](
 
 @overload
 def edge_binding[E: Edge[Any, Any], S: Shape](
-    *, target: type[E], rows: type[S] | DerivedRowSource[S],
-    bind: Callable[[type[S]], EdgeValues[E, Any, Any, Any]],
+    *, target: type[E], rows: type[S] | DerivedRowSource[S] | RelationRowSource[S],
+    bind: Callable[[S], EdgeValues[E, Any, Any, Any]],
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
     source_node: Endpoint[Any] | None = None,
     target_node: Endpoint[Any] | None = None,
@@ -209,7 +209,7 @@ def edge_binding(
             raise TypeError("rows and bind must be supplied together")
         shape = rows.shape if isinstance(rows, (DerivedRowSource, RelationRowSource)) else rows
         _require_row_source(rows)
-        values = bind(shape)
+        values = bind(shape_context(shape))
         if not isinstance(values, EdgeValues):
             raise TypeError("edge_binding bind must return EdgeValues")
         build_key, properties = values.build_key, values.properties

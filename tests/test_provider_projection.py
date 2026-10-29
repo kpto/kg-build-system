@@ -71,6 +71,23 @@ class ProviderProjectionTests(unittest.TestCase):
             rows = [json.loads(line) for line in (root / "out" / "graph.jsonl").read_text().splitlines()]
         self.assertEqual([row["build_key"] for row in rows], ["a"])
 
+    def test_bind_and_where_receive_a_shape_instance(self) -> None:
+        seen: list[bool] = []
+
+        def predicate(row: Source):
+            seen.append(type(row) is Source)
+            return row.kind.expression.equals("x")
+
+        Source.where(predicate)
+        self.assertEqual(seen, [True])
+
+        def bind(row: Source):
+            seen.append(type(row) is Source)
+            return NodeValues(build_key=row.id, properties=Item(label=row.kind))
+
+        node_binding(target=Item, rows=Source.row_source(), bind=bind)
+        self.assertEqual(seen, [True, True])
+
     def test_row_source_where_preserves_shape(self) -> None:
         filtered = Source.row_source().where(
             lambda row: row.kind.expression.equals("x")

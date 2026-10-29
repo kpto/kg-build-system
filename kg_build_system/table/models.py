@@ -196,9 +196,14 @@ class RowSource(Generic[S]):
     shape: type[S]
 
 
+def shape_context(shape: type[S]) -> S:
+    """A symbolic instance of a shape, used as the subject of authoring lambdas."""
+    return object.__new__(shape)
+
+
 def _derive(
     shape: type[S],
-    predicate: Callable[[type[S]], "BoolExpression"],
+    predicate: Callable[[S], "BoolExpression"],
     filters: tuple["BoolExpression", ...] = (),
 ) -> "DerivedRowSource[S]":
     from ..expressions import BoolExpression
@@ -206,7 +211,7 @@ def _derive(
 
     if not callable(predicate):
         raise TypeError("where requires a callable predicate")
-    result = predicate(shape)
+    result = predicate(shape_context(shape))
     if not isinstance(result, BoolExpression):
         raise TypeError("where predicates must return a BoolExpression")
     return DerivedRowSource(shape_view(shape), shape, (*filters, result))
@@ -288,7 +293,7 @@ class Table(StructDeclaration, RowSource["Table"]):
 
     @classmethod
     def where(
-        cls, predicate: Callable[[type[Self]], "BoolExpression"],
+        cls, predicate: Callable[[Self], "BoolExpression"],
     ) -> "DerivedRowSource[Self]":
         return _derive(cls, predicate)
 
@@ -403,7 +408,7 @@ class Projection(Shape, RowSource["Projection"], metaclass=ProjectionMeta):
 
     @classmethod
     def where(
-        cls, predicate: Callable[[type[Self]], "BoolExpression"],
+        cls, predicate: Callable[[Self], "BoolExpression"],
     ) -> "DerivedRowSource[Self]":
         return _derive(cls, predicate)
 

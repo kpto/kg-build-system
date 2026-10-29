@@ -21,10 +21,12 @@ class RelationRowSource(RowSource[S], Generic[S]):
     shape: type[S]
     filters: tuple[BoolExpression, ...] = ()
 
-    def where(self, predicate: Callable[[type[S]], BoolExpression]) -> "DerivedRowSource[S]":
+    def where(self, predicate: Callable[[S], BoolExpression]) -> "DerivedRowSource[S]":
         if not callable(predicate):
             raise TypeError("where requires a callable predicate")
-        result = predicate(self.shape)
+        from .models import shape_context
+
+        result = predicate(shape_context(self.shape))
         if not isinstance(result, BoolExpression):
             raise TypeError("where predicates must return a BoolExpression")
         return DerivedRowSource(self.shape, self.source, (*self.filters, result))
@@ -43,10 +45,12 @@ class DerivedRowSource(RowSource[S], Generic[S]):
     source: type[S]
     filters: tuple[BoolExpression, ...] = ()
 
-    def where(self, predicate: Callable[[type[S]], BoolExpression]) -> "DerivedRowSource[S]":
+    def where(self, predicate: Callable[[S], BoolExpression]) -> "DerivedRowSource[S]":
         if not callable(predicate):
             raise TypeError("where requires a callable predicate")
-        result = predicate(self.shape)
+        from .models import shape_context
+
+        result = predicate(shape_context(self.shape))
         if not isinstance(result, BoolExpression):
             raise TypeError("where predicates must return a BoolExpression")
         return DerivedRowSource(self.shape, self.source, (*self.filters, result))

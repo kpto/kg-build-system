@@ -179,6 +179,63 @@ class NullableSelection(
 
     where_present = drop_null
 
+    @overload
+    def at[I: NullableDataType](
+        self: "NullableSelection[Array[Nullable[I]]]", index: int | ValueInput[int],
+    ) -> "NullableSelection[I]": ...
+    @overload
+    def at[I: NullableDataType](
+        self: "NullableSelection[Array[I]]", index: int | ValueInput[int],
+    ) -> "NullableSelection[I]": ...
+    def at(self, index: int | ValueInput[int]) -> ValueSelection[Any]:
+        from ._coercion import expression_input
+        from ..types import INT
+
+        logical_type = self.logical_type
+        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
+            raise TypeError("at requires a nullable array selection")
+        item = logical_type.value.item
+        result_type = item if isinstance(item, NullableType) else NullableType(item)
+        model = operation(
+            "array_at",
+            self._require_expression().model,
+            expression_input(index, INT),
+            logical_type=result_type,
+        )
+        from .factory import wrap_expression
+
+        return select_expression(wrap_expression(model))
+
+    @overload
+    def slice[I: NullableDataType](
+        self: "NullableSelection[Array[Nullable[I]]]",
+        start: int | ValueInput[int],
+        end: int | ValueInput[int],
+    ) -> "NullableSelection[Array[Nullable[I]]]": ...
+    @overload
+    def slice[I: NullableDataType](
+        self: "NullableSelection[Array[I]]",
+        start: int | ValueInput[int],
+        end: int | ValueInput[int],
+    ) -> "NullableSelection[Array[I]]": ...
+    def slice(self, start: int | ValueInput[int], end: int | ValueInput[int]) -> ValueSelection[Any]:
+        from ._coercion import expression_input
+        from ..types import INT
+
+        logical_type = self.logical_type
+        if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
+            raise TypeError("slice requires a nullable array selection")
+        model = operation(
+            "array_slice",
+            self._require_expression().model,
+            expression_input(start, INT),
+            expression_input(end, INT),
+            logical_type=logical_type,
+        )
+        from .factory import wrap_expression
+
+        return select_expression(wrap_expression(model))
+
     def alter_rows(self) -> "NullableRowEffects[TItem]":
         return NullableRowEffects(self)
 
@@ -402,6 +459,53 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
 
     join = concat
     distinct = unique
+
+    @overload
+    def at[U: SelectionUnit](self: "ArraySelection[U]", index: int | ValueInput[int]) -> "NullableSelection[U]": ...
+    @overload
+    def at[U: SelectionUnit](self: "ArraySelection[Nullable[U]]", index: int | ValueInput[int]) -> "NullableSelection[U]": ...
+    @overload
+    def at[S: Struct](self: "ArraySelection[S]", index: int | ValueInput[int]) -> "NullableSelection[S]": ...
+    @overload
+    def at[S: Struct](self: "ArraySelection[Nullable[S]]", index: int | ValueInput[int]) -> "NullableSelection[S]": ...
+    @overload
+    def at[I: NullableDataType](self: "ArraySelection[Array[I]]", index: int | ValueInput[int]) -> "NullableSelection[Array[I]]": ...
+    def at(self, index: int | ValueInput[int]) -> ValueSelection[Any]:
+        from ._coercion import expression_input
+        from ..types import INT
+
+        logical_type = self.logical_type
+        if not isinstance(logical_type, ArrayType):
+            raise TypeError("at requires an array selection")
+        item = logical_type.item
+        result_type = item if isinstance(item, NullableType) else NullableType(item)
+        model = operation(
+            "array_at",
+            self._require_expression().model,
+            expression_input(index, INT),
+            logical_type=result_type,
+        )
+        from .factory import wrap_expression
+
+        return select_expression(wrap_expression(model))
+
+    def slice(self, start: int | ValueInput[int], end: int | ValueInput[int]) -> "ArraySelection[TItem]":
+        from ._coercion import expression_input
+        from ..types import INT
+
+        logical_type = self.logical_type
+        if not isinstance(logical_type, ArrayType):
+            raise TypeError("slice requires an array selection")
+        model = operation(
+            "array_slice",
+            self._require_expression().model,
+            expression_input(start, INT),
+            expression_input(end, INT),
+            logical_type=logical_type,
+        )
+        from .factory import wrap_expression
+
+        return cast("ArraySelection[TItem]", select_expression(wrap_expression(model)))
 
     def alter_rows(self) -> "ArrayRowEffects[TItem]":
         return ArrayRowEffects(self)
