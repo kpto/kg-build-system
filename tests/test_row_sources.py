@@ -30,7 +30,7 @@ class Part(Struct):
     label: Field[str] = field()
 
 
-class SourceView(Projection):
+class SourceView(Projection(Source.row_source())):
     kind = projection_field(Source.kind)
 
 

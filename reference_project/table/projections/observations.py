@@ -12,7 +12,7 @@ from reference_project.table.projections.defects import DefectProjection
 observation = DefectProjection.observations.expand()
 
 
-class ObservationProjection(Projection):
+class ObservationProjection(Projection(DefectProjection.row_source())):
     """One row per observation taken against a defect."""
 
     defect_id = projection_field(DefectProjection.defect_id)

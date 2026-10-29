@@ -58,7 +58,7 @@ class EntityTable(EntityTableTemplate, Table):
     category: Field[str] = field()
 
 
-class LabelProjection(Projection):
+class LabelProjection(Projection(EntityTable.row_source())):
     """A materialised label product."""
 
     options = ProjectionOptions(annotations=(Marker("projection"),))
@@ -121,8 +121,8 @@ class DataDeclarationTests(unittest.TestCase):
         self.assertEqual(reference.expression.model.row_semantics.effects, ())
 
     def test_projection_declarations_are_final_and_validate_outputs(self) -> None:
-        with self.assertRaisesRegex(TypeError, "at least one projection_field"):
-            class EmptyProjection(Projection):
+        with self.assertRaisesRegex(TypeError, "must be pinned"):
+            class UnpinnedProjection(Projection):
                 pass
 
         with self.assertRaisesRegex(TypeError, "final Projection"):
@@ -130,7 +130,7 @@ class DataDeclarationTests(unittest.TestCase):
                 extra = projection_field(EntityTable.category)
 
         with self.assertRaisesRegex(TypeError, "share external name"):
-            class DuplicateProjection(Projection):
+            class DuplicateProjection(Projection(EntityTable.row_source())):
                 first = projection_field(EntityTable.identifier, name="same")
                 second = projection_field(EntityTable.category, name="same")
 
@@ -225,7 +225,7 @@ class DataDeclarationTests(unittest.TestCase):
 
     def test_templates_mix_only_into_record_hosts(self) -> None:
         with self.assertRaisesRegex(TypeError, "only Table and Struct hosts"):
-            class TemplatedProjection(EntityTableTemplate, Projection):
+            class TemplatedProjection(EntityTableTemplate, Projection(EntityTable.row_source())):
                 identifier = projection_field(EntityTable.identifier)
 
         with self.assertRaisesRegex(TypeError, "only Table and Struct hosts"):

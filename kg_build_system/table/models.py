@@ -252,6 +252,17 @@ def shape_view(source: Any) -> type:
     return type(f"{source.__name__}Shape", (Shape,), _shape_fields(source))
 
 
+def pinned_base(row_source: Any) -> type:
+    """A dynamic base carrying only a row source pin; fields are declared by the author."""
+    from .models import Projection
+
+    attrs: dict[str, Any] = {
+        "_kg_row_source": row_source,
+        "_projection_base": True,
+    }
+    return type("PinnedProjectionBase", (Projection,), attrs)
+
+
 def projection_base(row_source: Any) -> type:
     """A dynamic base carrying a row source plan and its inherited fields."""
     from .models import Projection
@@ -361,7 +372,7 @@ class ProjectionMeta(type):
     """Make ``Projection(source)`` return a base pinned to a row source."""
 
     def __call__[S: Shape](cls, source: "RowSource[S]") -> type["Projection"]:
-        return projection_base(source)
+        return pinned_base(source)
 
 
 class Projection(Shape, RowSource["Projection"], metaclass=ProjectionMeta):
@@ -381,10 +392,25 @@ class Projection(Shape, RowSource["Projection"], metaclass=ProjectionMeta):
         options = vars(cls).get("options", ProjectionOptions())
         _require_host_options(cls, "Projection", options, ProjectionOptions)
 
+        row_source = next(
+            (
+                vars(base).get("_kg_row_source")
+                for base in cls.__mro__
+                if "_kg_row_source" in vars(base)
+            ),
+            None,
+        )
+        if not is_base and row_source is None:
+            raise TypeError(
+                f"{cls.__name__} must be pinned to a row source: "
+                "Projection(source.row_source())"
+            )
+        cls._projection_row_source = row_source
+
         from .projections import declared_projection_fields
 
         fields = declared_projection_fields(cls)
-        if not fields:
+        if not fields and not is_base:
             raise TypeError("projections must declare at least one projection_field")
         cls._projection_name = options.name or declaration_name(
             cls.__name__, suffixes=("Projection",)
@@ -396,15 +422,6 @@ class Projection(Shape, RowSource["Projection"], metaclass=ProjectionMeta):
         description = _description(cls, options.description)
         cls._data_metadata = {"description": description} if description is not None else {}
         cls.shape = shape_view(cls)
-        row_source = next(
-            (
-                vars(base).get("_kg_row_source")
-                for base in cls.__mro__
-                if "_kg_row_source" in vars(base)
-            ),
-            None,
-        )
-        cls._projection_row_source = row_source
 
     @classmethod
     def where(

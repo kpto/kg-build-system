@@ -48,7 +48,7 @@ class BlueprintTableGroup(TableGroup):
     unused = UnusedTable
 
 
-class EvidenceProjection(Projection):
+class EvidenceProjection(Projection(EvidenceTable.row_source())):
     options = ProjectionOptions(name="evidence_rows")
     identifier = projection_field(EvidenceTable.identifier)
     label = projection_field(

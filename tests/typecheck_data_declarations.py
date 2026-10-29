@@ -19,7 +19,7 @@ class InputTable(Table):
     values: Field[Array[int]] = field()
 
 
-class TypedProjection(Projection):
+class TypedProjection(Projection(InputTable.row_source())):
     identifier = projection_field(InputTable.identifier)
     label = projection_field(
         InputTable.details.pick(lambda details: details.label).default_to("unknown")

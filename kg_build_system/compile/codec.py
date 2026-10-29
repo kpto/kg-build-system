@@ -103,6 +103,13 @@ def _encode_row_source(value: RowSourcePlanDefinition | None) -> dict[str, Any] 
     }
 
 
+def _require_row_source(value: Any) -> RowSourcePlanDefinition:
+    decoded = _decode_row_source(value)
+    if decoded is None:
+        raise ValueError("projections require a row source")
+    return decoded
+
+
 def _decode_row_source(value: Any) -> RowSourcePlanDefinition | None:
     if value is None:
         return None
@@ -139,8 +146,9 @@ def _encode_projection(value: ProjectionDefinition) -> dict[str, Any]:
     if value.description is not None:
         result["description"] = value.description
     row_source = _encode_row_source(value.row_source)
-    if row_source is not None:
-        result["row_source"] = row_source
+    if row_source is None:
+        raise ValueError("projections require a row source")
+    result["row_source"] = row_source
     return result
 
 
@@ -334,7 +342,7 @@ def _decode_projection(value: Mapping[str, Any]) -> ProjectionDefinition:
         fields=_items(value, "fields", _decode_projection_field),
         description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", _decode_annotation),
-        row_source=_decode_row_source(value.get("row_source")),
+        row_source=_require_row_source(value.get("row_source")),
     )
 
 

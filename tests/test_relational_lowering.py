@@ -49,7 +49,7 @@ class LoweringInput(Table):
     evidence: Field[Array[LoweringEvidence]] = field()
 
 
-class LoweringProjection(Projection):
+class LoweringProjection(Projection(LoweringInput.row_source())):
     identifier = projection_field(LoweringInput.identifier)
     label = projection_field(
         LoweringInput.evidence.expand()

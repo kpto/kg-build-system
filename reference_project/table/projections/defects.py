@@ -15,7 +15,7 @@ element = area.pick(lambda value: value.elements).expand()
 defect = element.pick(lambda value: value.defects).expand()
 
 
-class DefectProjection(Projection):
+class DefectProjection(Projection(SurveysTable.row_source())):
     """One row per defect, with the element and visit it came from."""
 
     survey_id = projection_field(SurveysTable.survey_id.where_present())
