@@ -6,7 +6,7 @@ import json
 from collections.abc import Callable
 from dataclasses import dataclass
 from hashlib import sha256
-from typing import Any, Generic, TypeVar, cast, overload
+from typing import Any, Generic, Self, TypeVar, cast, overload
 
 from ..types import (
     Array, ArrayType, CustomDataType, Date, LogicalType, Nullable, NullableType,
@@ -91,13 +91,35 @@ class ValueSelection(Generic[TType_co]):
         self._value = value
         self._member = member
 
+    def drop_if(self, predicate: "Callable[[Self], BoolExpression]") -> Self:
+        """Keep rows whose value satisfies a value-scoped predicate."""
+        if not callable(predicate):
+            raise TypeError("drop_if requires a callable predicate")
+        result = predicate(self)
+        if not isinstance(result, BoolExpression):
+            raise TypeError("drop_if predicates must return a BoolExpression")
+        from .factory import wrap_expression
+
+        model = operation(
+            "where_if",
+            self._require_expression().model,
+            result.model,
+            logical_type=self.logical_type,
+            row_semantics=RowSemantics("filter"),
+        )
+        return cast(Self, select_expression(wrap_expression(model)))
+
+    def alter_rows(self) -> "RowEffects[Self]":
+        """Opt in to the row-changing operations available on this selection."""
+        return RowEffects(self)
+
     @property
     def logical_type(self) -> LogicalType:
         return self._value.logical_type if self._value is not None else cast(_SelectedMember, self._member).logical_type
 
     def _require_expression(self) -> ValueExpression[Any]:
         if self._value is None:
-            raise TypeError("a struct member selection is only valid inside pick")
+            raise TypeError("a struct member selection is only valid inside extract")
         return self._value
 
     def __repr__(self) -> str:
@@ -136,15 +158,15 @@ class NullableSelection(
         return select_expression(wrap_expression(result))
 
     @overload
-    def where_present[U: SelectionUnit](self: "NullableSelection[U]") -> ValueSelection[U]: ...  # pyright: ignore[reportOverlappingOverload]
+    def drop_null[U: SelectionUnit](self: "NullableSelection[U]") -> ValueSelection[U]: ...  # pyright: ignore[reportOverlappingOverload]
     @overload
-    def where_present[I: NullableDataType](self: "NullableSelection[Array[I]]") -> "ArraySelection[I]": ...
+    def drop_null[I: NullableDataType](self: "NullableSelection[Array[I]]") -> "ArraySelection[I]": ...
     @overload
-    def where_present[S: Struct](self: "NullableSelection[S]") -> "StructSelection[S]": ...
-    def where_present(self) -> ValueSelection[Any]:
+    def drop_null[S: Struct](self: "NullableSelection[S]") -> "StructSelection[S]": ...
+    def drop_null(self) -> ValueSelection[Any]:
         logical_type = self.logical_type
         if not isinstance(logical_type, NullableType):
-            raise TypeError("where_present requires a nullable selection")
+            raise TypeError("drop_null requires a nullable selection")
         from .factory import wrap_expression
 
         result = operation(
@@ -154,6 +176,11 @@ class NullableSelection(
             row_semantics=RowSemantics("filter"),
         )
         return select_expression(wrap_expression(result))
+
+    where_present = drop_null
+
+    def alter_rows(self) -> "NullableRowEffects[TItem]":
+        return NullableRowEffects(self)
 
     @overload
     def expand[U: SelectionUnit](self: "NullableSelection[Array[U]]") -> ValueSelection[U]: ...  # pyright: ignore[reportOverlappingOverload]
@@ -172,26 +199,28 @@ class NullableSelection(
         return _expand(self._require_expression(), logical_type.value)
 
     @overload
-    def pick[S: Struct, U: SelectionUnit](
+    def extract[S: Struct, U: SelectionUnit](
         self: "NullableSelection[S]", selector: Callable[[S], ValueSelection[U]],
     ) -> "NullableSelection[U]": ...  # pyright: ignore[reportOverlappingOverload]
     @overload
-    def pick[S: Struct, D: SelectionDataType](
+    def extract[S: Struct, D: SelectionDataType](
         self: "NullableSelection[S]", selector: Callable[[S], "NullableSelection[D]"],
     ) -> "NullableSelection[D]": ...
     @overload
-    def pick[S: Struct, I: NullableDataType](
+    def extract[S: Struct, I: NullableDataType](
         self: "NullableSelection[S]", selector: Callable[[S], "ArraySelection[I]"],
     ) -> "NullableSelection[Array[I]]": ...
     @overload
-    def pick[S: Struct, Inner: Struct](
+    def extract[S: Struct, Inner: Struct](
         self: "NullableSelection[S]", selector: Callable[[S], "StructSelection[Inner]"],
     ) -> "NullableSelection[Inner]": ...
-    def pick(self, selector: Callable[[Any], ValueSelection[Any]]) -> ValueSelection[Any]:
+    def extract(self, selector: Callable[[Any], ValueSelection[Any]]) -> ValueSelection[Any]:
         logical_type = self.logical_type
         if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, StructType):
-            raise TypeError("pick requires a nullable struct selection")
+            raise TypeError("extract requires a nullable struct selection")
         return _pick(self, selector, logical_type.value, propagate_null=True)
+
+    pick = extract
 
     @overload
     def transform_items[S: Struct, U](
@@ -254,12 +283,12 @@ class NullableSelection(
             select_expression(_array_operation(self._require_expression(), "sort")),
         )
 
-    def distinct(self) -> "NullableSelection[Any]":
+    def unique(self) -> "NullableSelection[Any]":
         from .arrays import _array_operation
 
         logical_type = self.logical_type
         if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
-            raise TypeError("distinct requires a nullable array selection")
+            raise TypeError("unique requires a nullable array selection")
         return cast(
             "NullableSelection[Any]",
             select_expression(
@@ -267,14 +296,16 @@ class NullableSelection(
             ),
         )
 
-    def join(self, separator: str) -> "NullableSelection[str]":
+    distinct = unique
+
+    def concat(self, separator: str) -> "NullableSelection[str]":
         from .factory import wrap_expression
 
         logical_type = self.logical_type
         if not isinstance(logical_type, NullableType) or not isinstance(logical_type.value, ArrayType):
-            raise TypeError("join requires a nullable array selection")
+            raise TypeError("concat requires a nullable array selection")
         if logical_type.value.item != STR:
-            raise TypeError("join requires an array of non-null strings")
+            raise TypeError("concat requires an array of non-null strings")
         result = operation(
             "join",
             self._require_expression().model,
@@ -282,6 +313,8 @@ class NullableSelection(
             logical_type=NullableType(STR),
         )
         return cast("NullableSelection[str]", select_expression(wrap_expression(result)))
+
+    join = concat
 
 
 class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
@@ -348,24 +381,30 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
             select_expression(_array_operation(expression, "sort")),
         )
 
-    def distinct(self) -> "ArraySelection[TItem]":
+    def unique(self) -> "ArraySelection[TItem]":
         from .arrays import ArrayExpression, _array_operation
 
         expression = self._require_expression()
         if not isinstance(expression, ArrayExpression):
-            raise TypeError("distinct requires an array selection")
+            raise TypeError("unique requires an array selection")
         return cast(
             "ArraySelection[TItem]",
             select_expression(_array_operation(expression, "distinct")),
         )
 
-    def join(self, separator: str) -> ValueSelection[str]:
+    def concat(self, separator: str) -> ValueSelection[str]:
         from .arrays import ArrayExpression
 
         expression = self._require_expression()
         if not isinstance(expression, ArrayExpression):
-            raise TypeError("join requires an array selection")
+            raise TypeError("concat requires an array selection")
         return select_expression(expression.join(separator))
+
+    join = concat
+    distinct = unique
+
+    def alter_rows(self) -> "ArrayRowEffects[TItem]":
+        return ArrayRowEffects(self)
 
     @overload
     def expand[U: SelectionUnit](self: "ArraySelection[U]") -> ValueSelection[U]: ...  # pyright: ignore[reportOverlappingOverload]
@@ -388,18 +427,90 @@ class StructSelection(ValueSelection[TStruct], Generic[TStruct]):
     """Struct selection supporting declared-member navigation."""
 
     @overload
-    def pick[I: NullableDataType](self, selector: Callable[[TStruct], ArraySelection[I]]) -> ArraySelection[I]: ...  # pyright: ignore[reportOverlappingOverload]
+    def extract[I: NullableDataType](self, selector: Callable[[TStruct], ArraySelection[I]]) -> ArraySelection[I]: ...  # pyright: ignore[reportOverlappingOverload]
     @overload
-    def pick[Inner: Struct](self, selector: Callable[[TStruct], "StructSelection[Inner]"]) -> "StructSelection[Inner]": ...
+    def extract[Inner: Struct](self, selector: Callable[[TStruct], "StructSelection[Inner]"]) -> "StructSelection[Inner]": ...
     @overload
-    def pick[D: SelectionDataType](self, selector: Callable[[TStruct], NullableSelection[D]]) -> NullableSelection[D]: ...
+    def extract[D: SelectionDataType](self, selector: Callable[[TStruct], NullableSelection[D]]) -> NullableSelection[D]: ...
     @overload
-    def pick[U: SelectionUnit](self, selector: Callable[[TStruct], ValueSelection[U]]) -> ValueSelection[U]: ...
-    def pick(self, selector: Callable[[TStruct], ValueSelection[Any]]) -> ValueSelection[Any]:
+    def extract[U: SelectionUnit](self, selector: Callable[[TStruct], ValueSelection[U]]) -> ValueSelection[U]: ...
+    def extract(self, selector: Callable[[TStruct], ValueSelection[Any]]) -> ValueSelection[Any]:
         logical_type = self.logical_type
         if not isinstance(logical_type, StructType):
-            raise TypeError("pick requires a struct selection")
+            raise TypeError("extract requires a struct selection")
         return _pick(self, selector, logical_type, propagate_null=False)
+
+    pick = extract
+
+
+SSelection = TypeVar("SSelection", bound="ValueSelection[Any]")
+
+
+class RowEffects(Generic[SSelection]):
+    """A one-shot opt-in to the row-changing operations of one selection.
+
+    Every method consumes the permission: it returns a selection, not another
+    handle, so a second row effect must opt in again.
+    """
+
+    __slots__ = ("_selection",)
+
+    def __init__(self, selection: SSelection) -> None:
+        self._selection = selection
+
+    @property
+    def selection(self) -> SSelection:
+        return self._selection
+
+    def drop_if(self, predicate: Callable[[SSelection], "BoolExpression"]) -> SSelection:
+        """Drop rows whose value does not satisfy the predicate."""
+        return self._selection.drop_if(predicate)
+
+
+class ArrayRowEffects(RowEffects["ArraySelection[TItem]"], Generic[TItem]):
+    """Row effects available on an array selection."""
+
+    @overload
+    def expand[U: SelectionUnit](self: "ArrayRowEffects[U]") -> ValueSelection[U]: ...  # pyright: ignore[reportOverlappingOverload]
+    @overload
+    def expand[U: SelectionUnit](self: "ArrayRowEffects[Nullable[U]]") -> NullableSelection[U]: ...
+    @overload
+    def expand[S: Struct](self: "ArrayRowEffects[S]") -> StructSelection[S]: ...
+    @overload
+    def expand[S: Struct](self: "ArrayRowEffects[Nullable[S]]") -> NullableSelection[S]: ...
+    @overload
+    def expand[I: NullableDataType](self: "ArrayRowEffects[Array[I]]") -> ArraySelection[I]: ...
+    def expand(self) -> ValueSelection[Any]:
+        """One row per array element."""
+        return cast("ArraySelection[Any]", self._selection).expand()
+
+
+class NullableRowEffects(RowEffects["NullableSelection[TItem]"], Generic[TItem]):
+    """Row effects available on a nullable selection."""
+
+    @overload
+    def drop_null[U: SelectionUnit](self: "NullableRowEffects[U]") -> ValueSelection[U]: ...  # pyright: ignore[reportOverlappingOverload]
+    @overload
+    def drop_null[I: NullableDataType](self: "NullableRowEffects[Array[I]]") -> ArraySelection[I]: ...
+    @overload
+    def drop_null[S: Struct](self: "NullableRowEffects[S]") -> StructSelection[S]: ...
+    def drop_null(self) -> ValueSelection[Any]:
+        """Drop rows whose value is null."""
+        return cast("NullableSelection[Any]", self._selection).drop_null()
+
+    @overload
+    def expand[U: SelectionUnit](self: "NullableRowEffects[Array[U]]") -> ValueSelection[U]: ...  # pyright: ignore[reportOverlappingOverload]
+    @overload
+    def expand[U: SelectionUnit](self: "NullableRowEffects[Array[Nullable[U]]]") -> NullableSelection[U]: ...
+    @overload
+    def expand[S: Struct](self: "NullableRowEffects[Array[S]]") -> StructSelection[S]: ...
+    @overload
+    def expand[S: Struct](self: "NullableRowEffects[Array[Nullable[S]]]") -> NullableSelection[S]: ...
+    @overload
+    def expand[I: NullableDataType](self: "NullableRowEffects[Array[Array[I]]]") -> ArraySelection[I]: ...
+    def expand(self) -> ValueSelection[Any]:
+        """One row per element of a present array."""
+        return cast("NullableSelection[Array[Any]]", self._selection).expand()
 
 
 type ValueInput[T] = ValueSelection[T] | ValueExpression[T]
@@ -529,7 +640,8 @@ from .text import StrExpression
 
 
 __all__ = [
-    "ArraySelection", "NullableDataType", "NullableSelection", "SelectionDataType",
-    "SelectionStructured", "SelectionUnit", "StructSelection", "ValueInput",
-    "ValueSelection", "as_expression", "select_expression", "select_member",
+    "ArrayRowEffects", "ArraySelection", "NullableDataType", "NullableRowEffects",
+    "NullableSelection", "RowEffects", "SelectionDataType", "SelectionStructured",
+    "SelectionUnit", "StructSelection", "ValueInput", "ValueSelection",
+    "as_expression", "select_expression", "select_member",
 ]

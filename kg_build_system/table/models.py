@@ -12,7 +12,7 @@ from ..types import Shape, Struct as StructDeclaration
 
 if TYPE_CHECKING:
     from ..expressions import BoolExpression
-    from .rows import DerivedRowSource
+    from .rows import DerivedRowSource, RelationRowSource
 
 
 class InputFormat(StrEnum):
@@ -251,7 +251,12 @@ def projection_base(row_source: Any) -> type:
     """A dynamic base carrying a row source plan and its inherited fields."""
     from .models import Projection
 
-    source = getattr(row_source, "source", row_source)
+    from .rows import DerivedRowSource, RelationRowSource
+
+    if isinstance(row_source, (DerivedRowSource, RelationRowSource)):
+        source = row_source.source
+    else:
+        source = row_source
     attrs = _shape_fields(source)
     attrs["_kg_row_source"] = row_source
     attrs["_projection_base"] = True
@@ -290,6 +295,12 @@ class Table(StructDeclaration, RowSource["Table"]):
     @classmethod
     def projection_base(cls) -> type:
         return projection_base(cls)
+
+    @classmethod
+    def row_source(cls) -> "RelationRowSource[Self]":
+        from .rows import RelationRowSource
+
+        return RelationRowSource(cls, cls)
 
 
 class StructTemplate:
@@ -341,7 +352,14 @@ class Struct(StructDeclaration):
         )
 
 
-class Projection(Shape, RowSource["Projection"]):
+class ProjectionMeta(type):
+    """Make ``Projection(source)`` return a base pinned to a row source."""
+
+    def __call__[S: Shape](cls, source: "RowSource[S]") -> type["Projection"]:
+        return projection_base(source)
+
+
+class Projection(Shape, RowSource["Projection"], metaclass=ProjectionMeta):
     """A final named logical product composed from typed expressions."""
 
     options: ClassVar[ProjectionOptions] = ProjectionOptions()
@@ -392,6 +410,12 @@ class Projection(Shape, RowSource["Projection"]):
     @classmethod
     def projection_base(cls) -> type:
         return projection_base(cls)
+
+    @classmethod
+    def row_source(cls) -> "RelationRowSource[Any]":
+        from .rows import RelationRowSource
+
+        return RelationRowSource(cls, cls.shape)
 
 
 def is_concrete_table(cls: type[Any]) -> bool:
@@ -455,6 +479,7 @@ __all__ = [
     "DataSourceConfig",
     "InputFormat",
     "Projection",
+    "ProjectionMeta",
     "ProjectionOptions",
     "SourceBindingOptions",
     "Struct",

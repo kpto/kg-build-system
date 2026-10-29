@@ -52,6 +52,7 @@ from .table import (
     TableOptions,
     bind_source,
     field,
+    computed_field,
     projection_field,
 )
 from .types import Nullable
@@ -137,6 +138,7 @@ __all__ = [
     "endpoint",
     "field",
     "node_binding",
+    "computed_field",
     "projection_field",
     "property",
     "value_expression",

@@ -161,6 +161,9 @@ def referenced_sources(field: ProjectionField[Any]) -> frozenset[str]:
     )
 
 
+computed_field = projection_field
+
+
 __all__ = [
     "ProjectionField",
     "ProjectionFieldMetadata",

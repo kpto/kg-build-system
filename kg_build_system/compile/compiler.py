@@ -120,8 +120,8 @@ def _row_source_plan(row_source: Any) -> RowSourcePlanIR | None:
     # Only a DerivedRowSource wraps another source. A Table may declare a field
     # named ``source`` (clinical_report does), so unwrapping by attribute name
     # would read that field instead of the table.
-    from ..table.rows import DerivedRowSource
-    if isinstance(row_source, DerivedRowSource):
+    from ..table.rows import DerivedRowSource, RelationRowSource
+    if isinstance(row_source, (DerivedRowSource, RelationRowSource)):
         source = row_source.source
         filters = row_source.filters
     else:

@@ -114,6 +114,13 @@ def lower_product(
                 if key not in filter_keys:
                     filter_keys.add(key)
                     filters.append(Filter(operation.arguments[0]))
+            elif operation.operator == "where_if":
+                if len(operation.arguments) != 2:
+                    raise ValueError("where_if requires a value and a predicate")
+                key = _key(operation)
+                if key not in filter_keys:
+                    filter_keys.add(key)
+                    filters.append(Filter(operation.arguments[1], "true"))
 
     return RelationPlan(
         scans,

@@ -108,6 +108,8 @@ def _render(expression, context: _Context) -> Any:
             raise ValueError(f"expansion scope {scope!r} was not planned") from error
     if expression.operator == "where_present":
         return _render(expression.arguments[0], context)
+    if expression.operator == "where_if":
+        return _render(expression.arguments[0], context)
     if expression.operator == "transform_items":
         if len(expression.arguments) != 2:
             raise ValueError("transform_items requires two arguments")

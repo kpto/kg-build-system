@@ -6,7 +6,7 @@ from typing import Any, overload
 
 from ..expressions import ValueExpression, ValueInput, as_expression
 from ..table.models import RowSource
-from ..table.rows import DerivedRowSource
+from ..table.rows import DerivedRowSource, RelationRowSource
 from ..topology.models import Edge, Endpoint, Node, NonNullableGraphValue, _NodeSideBase
 from ..types import NullableType, Shape, require_non_nullable, require_scalar
 from .models import BindingOptions, EdgeBinding, EdgeValues, NodeBinding, NodeValues
@@ -51,10 +51,10 @@ def _require_properties[C: Node | Edge[Any, Any]](value: C, *, target: type[C]) 
 def _require_row_source(value: Any) -> None:
     if isinstance(value, type):
         if not issubclass(value, RowSource):
-            raise TypeError("rows must be a RowSource class or a DerivedRowSource")
+            raise TypeError("rows must be a RowSource, a RowSource class, or a DerivedRowSource")
         return
-    if not isinstance(value, DerivedRowSource):
-        raise TypeError("rows must be a RowSource class or a DerivedRowSource")
+    if not isinstance(value, (DerivedRowSource, RelationRowSource)):
+        raise TypeError("rows must be a RowSource, a RowSource class, or a DerivedRowSource")
 
 
 def _require_concrete_component(target: Any, kind: str) -> None:
@@ -123,7 +123,7 @@ def node_binding[N: Node](
             raise TypeError("node_binding takes either build_key/properties or rows/bind")
         if rows is None or bind is None:
             raise TypeError("rows and bind must be supplied together")
-        shape = rows.shape if isinstance(rows, DerivedRowSource) else rows
+        shape = rows.shape if isinstance(rows, (DerivedRowSource, RelationRowSource)) else rows
         _require_row_source(rows)
         values = bind(shape)
         if not isinstance(values, NodeValues):
@@ -207,7 +207,7 @@ def edge_binding(
             raise TypeError("edge_binding takes either key/properties or rows/bind")
         if rows is None or bind is None:
             raise TypeError("rows and bind must be supplied together")
-        shape = rows.shape if isinstance(rows, DerivedRowSource) else rows
+        shape = rows.shape if isinstance(rows, (DerivedRowSource, RelationRowSource)) else rows
         _require_row_source(rows)
         values = bind(shape)
         if not isinstance(values, EdgeValues):

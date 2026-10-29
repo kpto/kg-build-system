@@ -14,7 +14,7 @@ from .models import (
     is_concrete_table,
     is_table_group,
 )
-from .projections import projection_field
+from .projections import computed_field, projection_field
 
 
 def group_tables(
