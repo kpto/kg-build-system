@@ -102,7 +102,7 @@ class ShapeField:
     logical_type: Any
 
 
-_TYPE_MODULE = "kg_build_system.table.rows"
+_TYPE_MODULE = "kg_build_system.table"
 
 
 def _base(logical_type: Any) -> Any:
