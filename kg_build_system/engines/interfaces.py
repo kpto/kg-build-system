@@ -6,6 +6,14 @@ type IR is :mod:`kg_build_system.engines.ir`.
 """
 from __future__ import annotations
 
+from .protocols import (
+    ExpressionLowerer,
+    ExpressionLowering,
+    LoweringContext,
+    Operand,
+    RowSourceContext,
+    RowSourceLowerer,
+)
 from .duckdb import (
     ARRAY_CANONICAL,
     CANONICAL_SQL_TYPES,
@@ -35,6 +43,9 @@ from .duckdb import (
     canonical_sql_type,
     canonical_type_name,
     digest_for,
+    DEFAULT_LOWERING,
+    DuckDBLowering,
+    lower_expression_sql,
     lower_relation_sql,
     lower_row_source_sql,
     read_declared_null_statistics,
@@ -43,6 +54,12 @@ from .duckdb import (
 
 __all__ = [
     "ARRAY_CANONICAL",
+    "ExpressionLowerer",
+    "ExpressionLowering",
+    "LoweringContext",
+    "Operand",
+    "RowSourceContext",
+    "RowSourceLowerer",
     "CANONICAL_SQL_TYPES",
     "CanonicalDigest",
     "CanonicalTypeName",
@@ -68,6 +85,9 @@ __all__ = [
     "TypeDigest",
     "canonical_sql_type",
     "canonical_type_name",
+    "DEFAULT_LOWERING",
+    "DuckDBLowering",
+    "lower_expression_sql",
     "configure_framework_macros",
     "digest_for",
     "lower_relation_sql",

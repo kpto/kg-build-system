@@ -1,6 +1,9 @@
 """DuckDB lowering and engine-specific SQL facilities."""
 
-from .lowering import lower_relation_sql, lower_row_source_sql
+from .lowering import (
+    DEFAULT_LOWERING, DuckDBLowering, lower_expression_sql,
+    lower_relation_sql, lower_row_source_sql,
+)
 from .macros import NULL_GUARD_MACRO, NULL_GUARD_MACRO_SQL
 from .service import DuckDBRelationService, configure_framework_macros
 from .parquet_metadata import (
@@ -63,6 +66,9 @@ __all__ = [
     "canonical_type_name",
     "configure_framework_macros",
     "digest_for",
+    "DEFAULT_LOWERING",
+    "DuckDBLowering",
+    "lower_expression_sql",
     "lower_relation_sql",
     "lower_row_source_sql",
     "read_declared_null_statistics",
