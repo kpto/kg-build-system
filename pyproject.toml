@@ -37,11 +37,15 @@ dev = [
 [tool.pyright]
 include = [
     "kg_build_system",
-    "reference_project",
+    "tests/typecheck/authoring.py",
 ]
 typeCheckingMode = "basic"
-strict = ["reference_project"]
+strict = ["tests/typecheck/authoring.py"]
 reportMissingTypeStubs = false
 
 [tool.hatch.build.targets.wheel]
 packages = ["kg_build_system"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]

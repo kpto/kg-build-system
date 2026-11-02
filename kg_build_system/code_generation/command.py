@@ -1,18 +1,19 @@
 """Command-line integration for edit-time code generation."""
-
 from __future__ import annotations
 
 import argparse
 import asyncio
 import logging
-from pathlib import Path
 from collections.abc import Awaitable, Callable
+from pathlib import Path
 from typing import Any
 
 from .engine import GenerationSession, generate
-from .models import GenerationAction, GenerationActionKind, GenerationError, GenerationResult, GenerationStatus
+from .models import (
+    GenerationAction, GenerationActionKind, GenerationError, GenerationResult,
+    GenerationStatus,
+)
 from .watcher import watch
-
 
 _LOGGER = logging.getLogger("kg_build_system.code_generation")
 
@@ -104,3 +105,6 @@ async def run_generate(arguments: argparse.Namespace) -> int:
     except (asyncio.CancelledError, KeyboardInterrupt):
         _LOGGER.info("Stopped.")
     return 0
+
+
+__all__ = ["add_generate_command", "run_generate"]

@@ -1,13 +1,25 @@
-"""Typed graph-component declarations and property metadata."""
+"""Typed graph-component declarations.
+
+A graph author writes declaration classes here. Class creation resolves the
+declaration into frozen metadata once; lowering reads only that metadata. The
+authoring class never becomes a component in the IR.
+"""
 from __future__ import annotations
 
+import ast
+import inspect
+import re
+import textwrap
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, ClassVar, Generic, TypeVar, cast, dataclass_transform, get_args, get_origin, get_type_hints
+from typing import (
+    Any, ClassVar, Generic, Literal, TypeVar, cast, dataclass_transform,
+    get_args, get_origin, get_type_hints,
+)
 
-from .._support.interfaces import attribute_docstring
-from .._support.interfaces import declaration_name, member_name
-from ..annotations.interfaces import Annotation, EdgeLabel, NodeLabel, annotation_tuple
+from ..annotations.interfaces import (
+    Annotation, EdgeLabel, NodeLabel, annotation_tuple,
+)
 from ..expressions.interfaces import NullableAuthoringInput, ValueInput
 from ..types.interfaces import (
     Array, CustomDataType, Date, LogicalType, Time, Timestamp, Uuid,
@@ -15,89 +27,104 @@ from ..types.interfaces import (
 )
 
 type GraphScalar = bool | int | float | str | Date | Time | Timestamp | Uuid | CustomDataType
-# A graph property may also be a flat, homogeneous list of non-null scalars —
-# the array-property shape JSON and Neo4j both store natively. Keys stay scalar
-# (`NonNullableGraphValue`); nullable items must be converted first with
-# ``drop_null_items()``.
+# A graph property may also be a flat, homogeneous list of non-null scalars.
 type GraphArray = Array[GraphScalar]
 type GraphValue = GraphScalar | GraphArray | None
 type NonNullableGraphValue = GraphScalar
 T = TypeVar("T", bound=GraphValue)
 
-# The public slot type describes accepted values. Declaration metadata remains
-# separate so expressions do not inherit from graph-schema objects.
+
+# The public slot describes accepted authoring values; declaration metadata is
+# a separate object returned by ``property()``.
 type PropertySlot[T: GraphValue] = ValueInput[T] | NullableAuthoringInput[T]
 
 
 @dataclass(frozen=True, slots=True)
 class _PropertyDeclaration(Generic[T]):
+    """The descriptor an author assigns to a property slot."""
+
     name: str | None = None
     description: str | None = None
-    authoring_type: Any = None
-    logical_type: LogicalType | None = None
-    attr: str = ""
     annotations: tuple[Annotation, ...] = ()
+    attr: str = ""
 
     def __set_name__(self, owner: type[Any], attr: str) -> None:
         object.__setattr__(self, "attr", attr)
         if self.name is None:
             object.__setattr__(self, "name", member_name(attr))
         if self.description is None:
-            # Resolved against the declaring class, which inheritance shares
-            # rather than copies, so this runs once per declaration.
             object.__setattr__(
                 self, "description", attribute_docstring(owner, attr),
             )
 
 
-def properties_for(cls: type[Any]) -> dict[str, _PropertyDeclaration[Any]]:
-    """Resolve inherited properties with normal Python shadowing semantics."""
-    properties: dict[str, _PropertyDeclaration[Any]] = {}
-    for base in reversed(cls.__mro__):
-        for attribute, value in vars(base).items():
-            if isinstance(value, _PropertyDeclaration):
-                properties[attribute] = value
-            elif attribute in properties:
-                del properties[attribute]
+@dataclass(frozen=True, slots=True)
+class PropertyDeclaration:
+    """One property resolved against a declaring class."""
 
-    hints = get_type_hints(cls)
-    external: dict[str, str] = {}
-    for attribute, declaration in properties.items():
-        arguments = get_args(hints.get(attribute, Any))
-        if len(arguments) != 1:
-            raise TypeError(f"{cls.__name__}.{attribute} must be annotated as PropertySlot[T]")
-        authoring_type = arguments[0]
-        logical_type = require_graph_property(
-            normalize_type(authoring_type), context=f"{cls.__name__}.{attribute}"
-        )
-        object.__setattr__(declaration, "authoring_type", authoring_type)
-        object.__setattr__(declaration, "logical_type", logical_type)
-        name = declaration.name
-        assert name is not None
-        if name in external:
-            raise TypeError(
-                f"{cls.__name__} properties {external[name]!r} and {attribute!r} "
-                f"share external name {name!r}"
-            )
-        external[name] = attribute
-    return properties
+    attribute: str
+    name: str
+    logical_type: LogicalType
+    authoring_type: Any = None
+    description: str | None = None
+    annotations: tuple[Annotation, ...] = ()
+
+    @property
+    def attr(self) -> str:
+        return self.attribute
+
+
+@dataclass(frozen=True, slots=True)
+class ComponentMetadata:
+    """The declaration facts of one graph-visible component.
+
+    The object is frozen and complete before lowering; no later consumer
+    mutates the authoring class to recover metadata.
+    """
+
+    kind: Literal["node", "edge"]
+    name: str
+    properties: tuple[PropertyDeclaration, ...] = ()
+    description: str | None = None
+    source: type[Any] | None = None
+    target: type[Any] | None = None
+    annotations: tuple[Annotation, ...] = ()
+    abstract: bool = False
+    parent: type[Any] | None = None
+
+
+def properties_for(cls: type[Any]) -> dict[str, PropertyDeclaration]:
+    """Resolve inherited properties with normal Python shadowing semantics.
+
+    The resolved map is built once while the class is created. Calling this for
+    a class that did not pass through the topology root resolves it locally
+    without mutating the class.
+    """
+    resolved = vars(cls).get("_properties")
+    if isinstance(resolved, dict):
+        return resolved
+    return {
+        declaration.attribute: declaration
+        for declaration in _resolve_properties(cls)
+    }
 
 
 def property[T: GraphValue](  # pyright: ignore[reportInvalidTypeVarUse]
     *, name: str | None = None, description: str | None = None,
     annotations: Sequence[Annotation] = (),
 ) -> PropertySlot[T]:
-    """Declare a graph property accepting an expression of authoring type ``T``."""
+    """Declare a graph property accepting an authoring value of type ``T``."""
     if name is not None and not name:
         raise ValueError("property names must be non-empty")
     declaration = _PropertyDeclaration[T](
-        name=name, description=description,
+        name=name,
+        description=description,
         annotations=annotation_tuple(list(annotations)),
     )
     return cast(PropertySlot[T], declaration)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class NodeOptions:
     name: str | None = None
     description: str | None = None
@@ -107,7 +134,7 @@ class NodeOptions:
         object.__setattr__(self, "annotations", annotation_tuple(list(self.annotations)))
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class EdgeOptions:
     name: str | None = None
     description: str | None = None
@@ -117,9 +144,9 @@ class EdgeOptions:
         object.__setattr__(self, "annotations", annotation_tuple(list(self.annotations)))
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class NodeOptionsTemplate:
-    """Annotations-only options for a node-side template tier."""
+    """Annotations-only options for a node-side template."""
 
     annotations: Sequence[Annotation] = ()
 
@@ -127,9 +154,9 @@ class NodeOptionsTemplate:
         object.__setattr__(self, "annotations", annotation_tuple(list(self.annotations)))
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class EdgeOptionsTemplate:
-    """Annotations-only options for an edge-side template tier."""
+    """Annotations-only options for an edge-side template."""
 
     annotations: Sequence[Annotation] = ()
 
@@ -141,13 +168,14 @@ class EdgeOptionsTemplate:
 class TopologyDeclarationBase:
     """Internal root of every topology declaration.
 
-    The ``dataclass_transform`` scope follows the chain root, so every MRO
-    class between a declaration and ``object`` must descend from this base.
+    Every MRO class between a declaration and ``object`` descends from this
+    root. The root also gives the synthesized authoring value a minimal
+    keyword constructor without decorating the user's class as a dataclass.
     """
 
     _framework_root: ClassVar[bool] = True
     _kind: ClassVar[str] = "component"
-    _properties: ClassVar[dict[str, _PropertyDeclaration[Any]]] = {}
+    _properties: ClassVar[dict[str, PropertyDeclaration]] = {}
     _metadata: ClassVar[dict[str, Any]] = {}
     _component_declaration_kind: ClassVar[str | None] = None
     _component_abstract: ClassVar[bool] = False
@@ -155,18 +183,142 @@ class TopologyDeclarationBase:
     _component_name: ClassVar[str] = "component"
     _component_annotations: ClassVar[tuple[Annotation, ...]] = ()
     _template_annotations: ClassVar[tuple[Annotation, ...]] = ()
+    _declaration: ClassVar[ComponentMetadata | None] = None
+
+    def __init__(self, **values: Any) -> None:
+        for name, value in values.items():
+            setattr(self, name, value)
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         _prepare_topology_declaration(cls)
 
 
+# --- Naming ---------------------------------------------------------------
+
+def snake_case(value: str) -> str:
+    """Convert a Python identifier to the portable external-name convention."""
+    value = re.sub(r"([A-Z]+)([A-Z][a-z])", r"\1_\2", value)
+    value = re.sub(r"([a-z0-9])([A-Z])", r"\1_\2", value)
+    value = re.sub(r"([A-Za-z])([0-9])", r"\1_\2", value)
+    value = re.sub(r"([0-9])([A-Za-z])", r"\1_\2", value)
+    return value.lower()
+
+
+def member_name(attribute: str) -> str:
+    """Infer an external member name, reserving one trailing underscore."""
+    return snake_case(attribute[:-1] if attribute.endswith("_") else attribute)
+
+
+def declaration_name(class_name: str, *, suffixes: tuple[str, ...] = ()) -> str:
+    """Infer a declaration name, removing one matching semantic suffix."""
+    stem = class_name
+    for suffix in suffixes:
+        if stem.endswith(suffix):
+            stem = stem[:-len(suffix)]
+            break
+    if not stem:
+        raise ValueError(f"{class_name!r} has no name after removing its declaration suffix")
+    return snake_case(stem)
+
+
+# --- Attribute documentation ---------------------------------------------
+
+def _assigned_name(statement: ast.stmt) -> str | None:
+    if isinstance(statement, ast.AnnAssign) and isinstance(statement.target, ast.Name):
+        return statement.target.id
+    if isinstance(statement, ast.Assign) and len(statement.targets) == 1:
+        target = statement.targets[0]
+        if isinstance(target, ast.Name):
+            return target.id
+    return None
+
+
+def _attribute_documents(body: list[ast.stmt]) -> dict[str, str]:
+    documents: dict[str, str] = {}
+    for statement, following in zip(body, body[1:]):
+        name = _assigned_name(statement)
+        if name is None or not isinstance(following, ast.Expr):
+            continue
+        value = following.value
+        if not isinstance(value, ast.Constant) or not isinstance(value.value, str):
+            continue
+        text = inspect.cleandoc(value.value)
+        if text:
+            documents[name] = text
+    return documents
+
+
+def attribute_docstring(owner: type[Any], attribute: str) -> str | None:
+    """The documentation written directly below ``owner.attribute``, if any."""
+    try:
+        source = textwrap.dedent(inspect.getsource(owner))
+    except (OSError, TypeError, IndentationError):
+        return None
+    try:
+        tree = ast.parse(source)
+    except SyntaxError:
+        return None
+    declaration = next(
+        (node for node in tree.body if isinstance(node, ast.ClassDef)), None
+    )
+    if declaration is None:
+        return None
+    return _attribute_documents(declaration.body).get(attribute)
+
+
+# --- Class preparation ----------------------------------------------------
+
 def _is_framework_root(cls: type[Any]) -> bool:
     return vars(cls).get("_framework_root", False) is True
 
 
+def _resolve_properties(cls: type[Any]) -> tuple[PropertyDeclaration, ...]:
+    """Resolve property declarations over the MRO, once, in declaration order."""
+    declarations: dict[str, tuple[type[Any], _PropertyDeclaration[Any]]] = {}
+    for base in reversed(cls.__mro__):
+        for attribute, value in vars(base).items():
+            if isinstance(value, _PropertyDeclaration):
+                declarations[attribute] = (base, value)
+            elif attribute in declarations:
+                del declarations[attribute]
+
+    hints = get_type_hints(cls)
+    external: dict[str, str] = {}
+    resolved: list[PropertyDeclaration] = []
+    for attribute, (owner, declaration) in declarations.items():
+        arguments = get_args(hints.get(attribute, Any))
+        if len(arguments) != 1:
+            raise TypeError(f"{cls.__name__}.{attribute} must be annotated as PropertySlot[T]")
+        authoring_type = arguments[0]
+        logical_type = require_graph_property(
+            normalize_type(authoring_type), context=f"{cls.__name__}.{attribute}"
+        )
+        name = declaration.name
+        if name is None:
+            name = member_name(attribute)
+        description = declaration.description
+        if description is None:
+            description = attribute_docstring(owner, attribute)
+        if name in external:
+            raise TypeError(
+                f"{cls.__name__} properties {external[name]!r} and {attribute!r} "
+                f"share external name {name!r}"
+            )
+        external[name] = attribute
+        resolved.append(PropertyDeclaration(
+            attribute=attribute,
+            name=name,
+            logical_type=logical_type,
+            authoring_type=authoring_type,
+            description=description,
+            annotations=tuple(declaration.annotations),
+        ))
+    return tuple(resolved)
+
+
 def _record_template_annotations(cls: type[Any], kind: str, options: Any) -> None:
-    """Record the template class's own annotation contribution."""
+    """Record a template's own annotation contribution."""
     template_options = NodeOptionsTemplate if kind == "node" else EdgeOptionsTemplate
     opposite = EdgeOptionsTemplate if kind == "node" else NodeOptionsTemplate
     if options is None:
@@ -211,7 +363,9 @@ def _require_visible_options(cls: type[Any], kind: str, options: Any) -> Any:
     return options
 
 
-def _require_label_uniqueness(cls: type[Any], kind: str, annotations: tuple[Annotation, ...]) -> None:
+def _require_label_uniqueness(
+    cls: type[Any], kind: str, annotations: tuple[Annotation, ...],
+) -> None:
     """At most one label of the matching kind across the effective set."""
     label = NodeLabel if kind == "node" else EdgeLabel
     matches = tuple(
@@ -236,7 +390,7 @@ def _endpoint_category_error(cls: type[Any], category: Any) -> str:
             f"{cls.__name__} endpoint category {category.__name__} is not "
             "node-side — endpoints must be node components"
         )
-    if vars(category).get("_component_declaration_kind") != "node":
+    if component_kind(category) != "node":
         return (
             f"{cls.__name__} endpoint category {category.__name__} is not a "
             "node declaration — endpoints must be node components"
@@ -247,13 +401,13 @@ def _endpoint_category_error(cls: type[Any], category: Any) -> str:
 def _resolve_edge_endpoints(
     cls: type[Any], parent: type[Any] | None,
 ) -> tuple[type[Any], type[Any]]:
-    """R4: endpoints follow the abstract edge parent; re-declaration may narrow.
+    """Resolve an edge's declared endpoints, inheriting from its category.
 
     Only the class's own ``__orig_bases__`` reveal a re-declaration — the
     attribute is inherited through the MRO. A re-declared endpoint must equal
-    or descend from every abstract edge ancestor's; a class that re-declares
-    nothing inherits its parent's endpoints. An edge with neither has no
-    endpoints and fails at class creation.
+    or descend from every abstract edge ancestor's pair; a class that
+    re-declares nothing inherits its parent's endpoints. An edge with neither
+    has no endpoints and fails at class creation.
     """
 
     def concrete(args: tuple[object, ...]) -> bool:
@@ -264,10 +418,6 @@ def _resolve_edge_endpoints(
 
     def walk(klass: type[Any], depth: int) -> None:
         nonlocal own
-        # Only the class's own dict may reveal its declarations —
-        # __orig_bases__ is inherited through the MRO. A class with no
-        # generic alias among its bases records none, so traversal falls
-        # back to that class's real __bases__.
         for base in klass.__dict__.get("__orig_bases__", ()) or klass.__bases__:
             origin = get_origin(base)
             if origin in (AbstractEdge, Edge):
@@ -295,7 +445,10 @@ def _resolve_edge_endpoints(
                 )
         return cast(tuple[type[Any], type[Any]], own)
     if parent is not None:
-        return parent._metadata["source"], parent._metadata["target"]
+        metadata = _metadata_for(parent)
+        assert metadata is not None
+        assert metadata.source is not None and metadata.target is not None
+        return metadata.source, metadata.target
     raise TypeError(
         f"{cls.__name__} must declare its edge endpoints, for example "
         "`Edge[SourceNode, TargetNode]`, or inherit them from an abstract edge"
@@ -303,15 +456,7 @@ def _resolve_edge_endpoints(
 
 
 def _inferred_component_name(cls: type[Any], kind: str, tier: str) -> str:
-    """Infer a logical name from the class name, stripping its tier suffix.
-
-    Authoring convention carries the tier in the class name
-    (``RecordNode``, ``DocumentedAbstractNode``, ``DerivedRelationAbstractEdge``)
-    and the matching tier suffix is removed. Concrete components strip one
-    trailing ``Node``/``Edge``; abstract components additionally strip
-    ``AbstractNode``/``AbstractEdge`` first, so an explicit ``...AbstractNode``
-    name does not degrade to ``..._abstract``.
-    """
+    """Infer a logical name from the class name, stripping its tier suffix."""
     kind_suffix = "Node" if kind == "node" else "Edge"
     suffixes: tuple[str, ...]
     if tier == "abstract":
@@ -321,8 +466,14 @@ def _inferred_component_name(cls: type[Any], kind: str, tier: str) -> str:
     return declaration_name(cls.__name__, suffixes=suffixes)
 
 
+def _metadata_for(cls: type[Any]) -> ComponentMetadata | None:
+    """The frozen declaration metadata owned by ``cls``, if any."""
+    value = vars(cls).get("_declaration")
+    return value if isinstance(value, ComponentMetadata) else None
+
+
 def _prepare_topology_declaration(cls: type[Any]) -> None:
-    """One pass at class creation: lineage, tiers, options, endpoints."""
+    """One pass at class creation: lineage, tier, options, properties, endpoints."""
     if _is_framework_root(cls):
         return
 
@@ -352,35 +503,31 @@ def _prepare_topology_declaration(cls: type[Any]) -> None:
             f"{cls.__name__} must inherit from Node, AbstractNode, NodeTemplate, "
             "Edge, AbstractEdge, or EdgeTemplate"
         )
-    kind = "node" if node_lineage else "edge"
+    kind: Literal["node", "edge"] = "node" if node_lineage else "edge"
 
     # Property slots must validate even on inert templates.
-    properties_for(cls)
-
+    resolved_properties = _resolve_properties(cls)
     own_options = vars(cls).get("options")
     if not node_side and not edge_side:
         _record_template_annotations(cls, kind, own_options)
+        cls._properties = {item.attribute: item for item in resolved_properties}
         return
 
     tier = "concrete" if issubclass(cls, Node if kind == "node" else Edge) else "abstract"
     own_options = _require_visible_options(cls, kind, own_options)
 
-    # R1: one direct category parent; concrete components stay terminal.
+    # One direct category parent; concrete components stay terminal.
     parents = [
         base for base in cls.__bases__
-        if vars(base).get("_component_declaration_kind") == kind
-        and not _is_framework_root(base)
+        if component_kind(base) == kind and not _is_framework_root(base)
     ]
     for base in cls.__mro__[1:]:
-        if (
-            vars(base).get("_component_declaration_kind") == kind
-            and not _is_framework_root(base)
-            and not vars(base).get("_component_abstract", False)
-        ):
-            raise TypeError(
-                f"{cls.__name__} cannot inherit from concrete graph component "
-                f"{base.__name__}"
-            )
+        if component_kind(base) == kind and not _is_framework_root(base):
+            if not is_abstract_component(base):
+                raise TypeError(
+                    f"{cls.__name__} cannot inherit from concrete graph component "
+                    f"{base.__name__}"
+                )
     if len(parents) > 1:
         names = ", ".join(base.__name__ for base in parents)
         raise TypeError(
@@ -396,31 +543,70 @@ def _prepare_topology_declaration(cls: type[Any]) -> None:
     effective_annotations = template_annotations + own_annotations
     _require_label_uniqueness(cls, kind, effective_annotations)
 
-    description = own_options.description if own_options is not None and own_options.description is not None else (vars(cls).get("__doc__") or None)
-    name = (own_options.name if own_options is not None else None) or _inferred_component_name(cls, kind, tier)
+    description = (
+        own_options.description
+        if own_options is not None and own_options.description is not None
+        else (vars(cls).get("__doc__") or None)
+    )
+    name = (
+        (own_options.name if own_options is not None else None)
+        or _inferred_component_name(cls, kind, tier)
+    )
 
-    metadata: dict[str, Any] = {"description": description} if description is not None else {}
+    source: type[Any] | None = None
+    target: type[Any] | None = None
     if kind == "edge":
         source, target = _resolve_edge_endpoints(cls, parents[0] if parents else None)
-        metadata["source"] = source
-        metadata["target"] = target
 
+    metadata = ComponentMetadata(
+        kind=kind,
+        name=name,
+        properties=resolved_properties,
+        description=description,
+        source=source,
+        target=target,
+        annotations=effective_annotations,
+        abstract=tier == "abstract",
+        parent=parents[0] if parents else None,
+    )
+
+    # Compatibility aliases for consumers written against the declaration
+    # surface. The package itself reads only ``_declaration``.
     cls._kind = kind
-    cls._properties = properties_for(cls)
-    annotations_map = dict(vars(cls).get("__annotations__", {}))
-    hints = get_type_hints(cls)
-    for attribute in cls._properties:
-        annotations_map.setdefault(attribute, hints[attribute])
-    cls.__annotations__ = annotations_map
-    cls._metadata = metadata
+    cls._properties = {item.attribute: item for item in resolved_properties}
+    cls._metadata = {
+        key: value
+        for key, value in (
+            ("description", description),
+            ("source", source),
+            ("target", target),
+        )
+        if value is not None
+    }
     cls._component_declaration_kind = kind
-    cls._component_abstract = tier == "abstract"
-    cls._component_parent_class = parents[0] if parents else None
-    cls._component_annotations = effective_annotations
-    cls._component_name = name
+    cls._component_abstract = metadata.abstract
+    cls._component_parent_class = metadata.parent
+    cls._component_name = metadata.name
+    cls._component_annotations = metadata.annotations
+    cls._declaration = metadata
 
-    if tier == "concrete":
-        dataclass(cls, kw_only=True)
+
+def component_kind(cls: type[Any]) -> str | None:
+    """``"node"`` or ``"edge"`` when the class declares a component."""
+    metadata = _metadata_for(cls)
+    return metadata.kind if metadata is not None else None
+
+
+def is_abstract_component(cls: type[Any]) -> bool:
+    """Whether the class declares an abstract category."""
+    metadata = _metadata_for(cls)
+    return metadata.abstract if metadata is not None else False
+
+
+def is_concrete_component(cls: type[Any]) -> bool:
+    """Whether the class declares a concrete node or edge."""
+    metadata = _metadata_for(cls)
+    return metadata is not None and not metadata.abstract
 
 
 class NodeSideBase(TopologyDeclarationBase):
@@ -487,7 +673,7 @@ class Edge(AbstractEdge[S, D], Generic[S, D]):
     _framework_root: ClassVar[bool] = True
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class Endpoint(Generic[N_co]):
     """A graph-identity reference to one concrete node component."""
 
@@ -498,18 +684,18 @@ def endpoint[N: Node](target: type[N]) -> Endpoint[N]:
     """Name a concrete node component as an edge-binding endpoint."""
     if not isinstance(target, type):
         raise TypeError(f"{target!r} is not a concrete node")
-    if (
-        vars(target).get("_component_declaration_kind") != "node"
-        or vars(target).get("_component_abstract", False)
-    ):
+    if component_kind(target) != "node" or is_abstract_component(target):
         raise TypeError(f"'{target.__name__}' is not a concrete node")
     return Endpoint(target)
 
 
 __all__ = [
-    "AbstractEdge", "AbstractNode", "D", "D_co", "Edge", "EdgeOptions",
-    "EdgeOptionsTemplate", "EdgeTemplate", "Endpoint", "GraphValue",
-    "N_co", "Node", "NodeOptions", "NodeOptionsTemplate", "NodeTemplate",
-    "NonNullableGraphValue", "PropertySlot", "S", "S_co", "endpoint",
-    "properties_for", "property",
+    "AbstractEdge", "AbstractNode", "ComponentMetadata", "D", "D_co", "Edge",
+    "EdgeOptions", "EdgeOptionsTemplate", "EdgeTemplate", "Endpoint",
+    "GraphScalar", "GraphValue", "N_co", "Node", "NodeOptions",
+    "NodeOptionsTemplate", "NodeSideBase", "NodeTemplate",
+    "NonNullableGraphValue", "PropertyDeclaration", "PropertySlot",
+    "S", "S_co", "TopologyDeclarationBase", "component_kind", "endpoint",
+    "is_abstract_component", "is_concrete_component", "properties_for",
+    "property",
 ]

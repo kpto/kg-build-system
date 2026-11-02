@@ -2,9 +2,9 @@
 from __future__ import annotations
 
 from ..types.interfaces import BOOL
-from .literals import literal
+from ._apply import apply_operation
 from ._coercion import expression_input
-from .base import operation
+from ._literals import literal
 from .values import ValueExpression
 
 
@@ -15,16 +15,16 @@ class BoolExpression(ValueExpression[bool]):
         super().__init__(expression)
 
     def not_(self) -> "BoolExpression":
-        return BoolExpression(operation("not", self.model, logical_type=BOOL))
+        return BoolExpression(apply_operation("not", self.model).model)
 
     def and_(self, other: bool | ValueExpression[bool]) -> "BoolExpression":
         return BoolExpression(
-            operation("and", self.model, expression_input(other, BOOL), logical_type=BOOL)
+            apply_operation("and", self.model, expression_input(other, BOOL)).model
         )
 
     def or_(self, other: bool | ValueExpression[bool]) -> "BoolExpression":
         return BoolExpression(
-            operation("or", self.model, expression_input(other, BOOL), logical_type=BOOL)
+            apply_operation("or", self.model, expression_input(other, BOOL)).model
         )
 
 

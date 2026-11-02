@@ -1,15 +1,17 @@
 """Static discovery of generation assignments without importing authored modules."""
-
 from __future__ import annotations
 
+import keyword
 from pathlib import Path
 from typing import Any, cast
-import keyword
 
 import libcst as cst
 from libcst.metadata import MetadataWrapper, ParentNodeProvider, PositionProvider
 
-from .models import DiscoveredGeneration, GenerationError, GenerationLocation, GenerationRequest, StaticValue
+from .ir import StaticValue
+from .models import (
+    DiscoveredGeneration, GenerationError, GenerationLocation, GenerationRequest,
+)
 
 _CANONICAL = {
     "kg_build_system.generation",
@@ -32,8 +34,10 @@ def _static(node: cst.BaseExpression) -> StaticValue:
         value = node.evaluated_value
         if isinstance(value, str):
             return value
-    if isinstance(node, cst.Integer): return int(node.value.replace("_", ""), 0)
-    if isinstance(node, cst.Float): return float(node.value.replace("_", ""))
+    if isinstance(node, cst.Integer):
+        return int(node.value.replace("_", ""), 0)
+    if isinstance(node, cst.Float):
+        return float(node.value.replace("_", ""))
     if isinstance(node, cst.Name) and node.value in {"True", "False", "None"}:
         return {"True": True, "False": False, "None": None}[node.value]
     if isinstance(node, (cst.List, cst.Tuple)):
@@ -66,31 +70,45 @@ class _Visitor(cst.CSTVisitor):
 
     def visit_ImportFrom(self, node: cst.ImportFrom) -> None:
         module = _dotted(node.module)
-        if module is None or node.relative or isinstance(node.names, cst.ImportStar): return
+        if module is None or node.relative or isinstance(node.names, cst.ImportStar):
+            return
         for alias in node.names:
             name = _dotted(alias.name)
             local = _dotted(alias.asname.name) if alias.asname else name
-            if name and local: self.direct[local] = f"{module}.{name}"
+            if name and local:
+                self.direct[local] = f"{module}.{name}"
 
     def visit_Import(self, node: cst.Import) -> None:
         for alias in node.names:
             module = _dotted(alias.name)
-            if not module: continue
+            if not module:
+                continue
             local = _dotted(alias.asname.name) if alias.asname else module.split(".")[0]
-            if local: self.modules[local] = module if alias.asname else module.split(".")[0]
+            if local:
+                self.modules[local] = module if alias.asname else module.split(".")[0]
 
     def _resolve(self, expression: cst.BaseExpression) -> str | None:
         dotted = _dotted(expression)
-        if not dotted: return None
+        if not dotted:
+            return None
         parts = dotted.split(".")
-        if parts[0] in self.direct: return ".".join((self.direct[parts[0]], *parts[1:]))
-        if parts[0] in self.modules: return ".".join((self.modules[parts[0]], *parts[1:]))
+        if parts[0] in self.direct:
+            return ".".join((self.direct[parts[0]], *parts[1:]))
+        if parts[0] in self.modules:
+            return ".".join((self.modules[parts[0]], *parts[1:]))
         return None
 
-    def visit_FunctionDef(self, _node: cst.FunctionDef) -> None: self.depth += 1
-    def leave_FunctionDef(self, _node: cst.FunctionDef) -> None: self.depth -= 1
-    def visit_ClassDef(self, _node: cst.ClassDef) -> None: self.depth += 1
-    def leave_ClassDef(self, _node: cst.ClassDef) -> None: self.depth -= 1
+    def visit_FunctionDef(self, _node: cst.FunctionDef) -> None:
+        self.depth += 1
+
+    def leave_FunctionDef(self, _node: cst.FunctionDef) -> None:
+        self.depth -= 1
+
+    def visit_ClassDef(self, _node: cst.ClassDef) -> None:
+        self.depth += 1
+
+    def leave_ClassDef(self, _node: cst.ClassDef) -> None:
+        self.depth -= 1
 
     def visit_Expr(self, node: cst.Expr) -> None:
         if not isinstance(node.value, cst.Call) or self._resolve(node.value.func) not in _CANONICAL:
@@ -106,7 +124,8 @@ class _Visitor(cst.CSTVisitor):
             return
         position = cast(Any, self.get_metadata(PositionProvider, node)).start
         prefix = f"{self.path.as_posix()}:{position.line}"
-        if self.path.name != "__init__.py": raise GenerationError(f"{prefix}: generation requests must be in __init__.py")
+        if self.path.name != "__init__.py":
+            raise GenerationError(f"{prefix}: generation requests must be in __init__.py")
         parent = self.get_metadata(ParentNodeProvider, node)
         grandparent = self.get_metadata(ParentNodeProvider, cast(cst.CSTNode, parent))
         if self.depth or not isinstance(parent, cst.SimpleStatementLine) or not isinstance(grandparent, cst.Module):
@@ -121,20 +140,26 @@ class _Visitor(cst.CSTVisitor):
             raise GenerationError(f"{prefix}: generation requires a provider type and inline configuration")
         provider = self._resolve(args[0].value)
         config_call = args[1].value
-        if provider is None: raise GenerationError(f"{prefix}: provider type must be statically imported")
-        if not isinstance(config_call, cst.Call): raise GenerationError(f"{prefix}: configuration must be constructed inline")
+        if provider is None:
+            raise GenerationError(f"{prefix}: provider type must be statically imported")
+        if not isinstance(config_call, cst.Call):
+            raise GenerationError(f"{prefix}: configuration must be constructed inline")
         config = self._resolve(config_call.func)
-        if config is None: raise GenerationError(f"{prefix}: configuration type must be statically imported")
+        if config is None:
+            raise GenerationError(f"{prefix}: configuration type must be statically imported")
         values: dict[str, StaticValue] = {}
         for arg in config_call.args:
-            if arg.keyword is None or arg.star: raise GenerationError(f"{prefix}: provider configuration accepts keyword arguments only")
+            if arg.keyword is None or arg.star:
+                raise GenerationError(f"{prefix}: provider configuration accepts keyword arguments only")
             key = arg.keyword.value
-            if key in values: raise GenerationError(f"{prefix}: duplicate configuration argument {key!r}")
+            if key in values:
+                raise GenerationError(f"{prefix}: duplicate configuration argument {key!r}")
             values[key] = _static(arg.value)
         provider_module, provider_qualname = provider.rsplit(".", 1)
         config_module, config_qualname = config.rsplit(".", 1)
         relative_parent = self.path.relative_to(self.root).parent
-        package_parts = relative_parent.parts
+        prefix = (self.root.name,) if (self.root / "__init__.py").is_file() else ()
+        package_parts = (*prefix, *relative_parent.parts)
         source_package = ".".join(package_parts)
         package_import = ".".join((*package_parts, request_id))
         self.results.append(DiscoveredGeneration(
@@ -151,32 +176,45 @@ class _Visitor(cst.CSTVisitor):
 
 
 def discover_file(project_root: str | Path, source_path: str | Path) -> tuple[DiscoveredGeneration, ...]:
+    """Discover the requests declared by one source file."""
     root, path = Path(project_root).resolve(), Path(source_path).resolve()
-    try: path.relative_to(root)
-    except ValueError as error: raise ValueError(f"source file is outside the project: {path}") from error
+    try:
+        path.relative_to(root)
+    except ValueError as error:
+        raise ValueError(f"source file is outside the project: {path}") from error
     if path.name != "__init__.py":
         text = path.read_text(encoding="utf-8")
-        if "generation" not in text: return ()
-    try: module = cst.parse_module(path.read_text(encoding="utf-8"))
-    except (OSError, cst.ParserSyntaxError) as error: raise GenerationError(f"{path}: cannot parse Python source: {error}") from error
+        if "generation" not in text:
+            return ()
+    try:
+        module = cst.parse_module(path.read_text(encoding="utf-8"))
+    except (OSError, cst.ParserSyntaxError) as error:
+        raise GenerationError(f"{path}: cannot parse Python source: {error}") from error
     visitor = _Visitor(root, path)
     MetadataWrapper(module).visit(visitor)
     return tuple(visitor.results)
 
 
 def discover(project_root: str | Path) -> tuple[DiscoveredGeneration, ...]:
+    """Discover every request beneath a project root."""
     root = Path(project_root).resolve()
-    if not root.is_dir(): raise ValueError(f"generation project is not a directory: {root}")
+    if not root.is_dir():
+        raise ValueError(f"generation project is not a directory: {root}")
     paths: list[Path] = []
     for directory, directory_names, file_names in root.walk(top_down=True):
         directory_names[:] = sorted(n for n in directory_names if not n.startswith(".") and n not in {"__pycache__"})
         if "__init__.py" in file_names:
             path = directory / "__init__.py"
-            if "generation" in path.read_text(encoding="utf-8"): paths.append(path)
+            if "generation" in path.read_text(encoding="utf-8"):
+                paths.append(path)
     results = tuple(request for path in paths for request in discover_file(root, path))
     identities: set[Path] = set()
     for request in results:
         normalized = Path(str(request.product_path).casefold())
-        if normalized in identities: raise GenerationError(f"generated product collision for {request.product_path}")
+        if normalized in identities:
+            raise GenerationError(f"generated product collision for {request.product_path}")
         identities.add(normalized)
     return results
+
+
+__all__ = ["discover", "discover_file"]

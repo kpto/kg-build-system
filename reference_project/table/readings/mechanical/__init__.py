@@ -5,6 +5,7 @@
 # isort: skip_file
 # ruff: noqa: F401
 # pyright: reportUnusedImport=false
+# pyright: reportUnknownVariableType=false
 
 from kg_build_system import TableGroup, TableGroupOptions
 from kg_build_system.types import Array, Date, Time, Timestamp, Uuid

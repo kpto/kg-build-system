@@ -9,6 +9,7 @@ from ....compile.interfaces import BuildBlueprint
 from ....table.interfaces import struct_type_key
 from ....table.ir import StructIR
 from ....topology.ir import ComponentIR
+from ....types.interfaces import encode_type_ir
 from ....types.ir import (
     ArrayTypeIR,
     CustomTypeIR,
@@ -17,7 +18,6 @@ from ....types.ir import (
     StructTypeIR,
     UnitTypeIR,
 )
-from ....types.interfaces import encode_type_ir
 from ..._labels import semantic_label
 from .ir import (
     MetaGraphBindingIR,
@@ -25,6 +25,7 @@ from .ir import (
     MetaGraphEndpointIR,
     MetaGraphPropertyIR,
 )
+
 
 def display_type(value: LogicalTypeIR) -> str:
     """Render a logical type in the author-facing declaration vocabulary."""
@@ -67,8 +68,10 @@ def expand_type(
             return encoded
         encoded["declaration_name"] = struct.name
         encoded["members"] = [
-            _typed_member(field.name, field.logical_type, field.description,
-                          structs, visiting | {key})
+            _typed_member(
+                field.name, field.logical_type, field.description,
+                structs, visiting | {key},
+            )
             for field in struct.fields
         ]
     return encoded
@@ -126,8 +129,9 @@ def effective_components(blueprint: BuildBlueprint) -> tuple[ComponentIR, ...]:
 
     return tuple(
         kept[symbol_id]
-        for symbol_id in sorted(kept, key=lambda symbol_id: (
-            by_symbol[symbol_id].kind, symbol_id))
+        for symbol_id in sorted(
+            kept, key=lambda symbol_id: (by_symbol[symbol_id].kind, symbol_id),
+        )
     )
 
 

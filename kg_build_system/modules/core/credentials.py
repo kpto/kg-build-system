@@ -6,8 +6,6 @@ from urllib.parse import urlsplit
 
 from pydantic import BaseModel, ConfigDict, JsonValue
 
-from ...workflow.interfaces import ExecutionServices
-
 
 class CoreSourceCredentialOptions(BaseModel):
     """Secret runtime options understood only by the core source reader."""
@@ -18,7 +16,7 @@ class CoreSourceCredentialOptions(BaseModel):
 
 
 def configure_source_credentials(
-    services: ExecutionServices,
+    services: Any,
     *,
     location: str,
     credential_reference: str,

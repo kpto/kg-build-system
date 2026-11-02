@@ -1,4 +1,4 @@
-"""Annotation domain models used by the authoring API."""
+"""Portable annotations attached to declarations."""
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -8,8 +8,6 @@ from typing import ClassVar
 
 @dataclass(frozen=True)
 class Annotation:
-    """Portable metadata attached to authoring declarations."""
-
     namespace: ClassVar[str]
     annotation_id: ClassVar[str]
 

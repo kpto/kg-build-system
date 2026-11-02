@@ -8,16 +8,18 @@ registration.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any, Generic, Protocol, TypeVar
+from typing import Any, Protocol, TypeVar
 
 from ..expressions.ir import ExpressionIR, OperationExpressionIR
 from ..types.ir import LogicalTypeIR
 
 
 NodeT = TypeVar("NodeT")
+NodeT_co = TypeVar("NodeT_co", covariant=True)
+NodeT_contra = TypeVar("NodeT_contra", contravariant=True)
 
 
-class Operand(Protocol[NodeT]):
+class Operand(Protocol[NodeT_co]):
     """One argument of an operation, lowered on demand.
 
     Lazy access is what lets an operator such as ``transform_items`` build a
@@ -31,7 +33,7 @@ class Operand(Protocol[NodeT]):
     @property
     def logical_type(self) -> LogicalTypeIR: ...
 
-    def sql(self) -> NodeT: ...
+    def sql(self) -> NodeT_co: ...
 
 
 class LoweringContext(Protocol[NodeT]):
@@ -62,7 +64,7 @@ class ExpressionLowerer(Protocol[NodeT]):
     ) -> NodeT: ...
 
 
-class RowSourceContext(Protocol[NodeT]):
+class RowSourceContext(Protocol[NodeT_co]):
     """What one row-source lowerer may ask of its surroundings."""
 
     def relation_for(self, plan: Any) -> str: ...
@@ -73,16 +75,16 @@ class RowSourceContext(Protocol[NodeT]):
 
     def lower_expression(
         self, expression: ExpressionIR, aliases: Mapping[str, str],
-    ) -> NodeT: ...
+    ) -> NodeT_co: ...
 
 
-class RowSourceLowerer(Protocol[NodeT]):
+class RowSourceLowerer(Protocol[NodeT_contra]):
     """One row-source plan node, rendered as a relation expression."""
 
     @property
     def node_type(self) -> type[Any]: ...
 
-    def lower(self, plan: Any, context: RowSourceContext[NodeT]) -> str: ...
+    def lower(self, plan: Any, context: RowSourceContext[NodeT_contra]) -> str: ...
 
 
 class ExpressionLowering(Protocol[NodeT]):
@@ -97,6 +99,8 @@ __all__ = [
     "ExpressionLowering",
     "LoweringContext",
     "NodeT",
+    "NodeT_co",
+    "NodeT_contra",
     "Operand",
     "RowSourceContext",
     "RowSourceLowerer",

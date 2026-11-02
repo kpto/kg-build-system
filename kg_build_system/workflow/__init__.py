@@ -1,7 +1,7 @@
 """Author-facing workflow execution.
 
-A graph author calls ``build`` and reads ``BuildRuntime`` and
-``WorkflowReport`` here. The framework-internal workflow model, extension
+A graph author calls :func:`build` and reads :class:`BuildRuntime` and
+:class:`WorkflowReport` here. The framework-internal workflow model, extension
 protocols and contract codec are :mod:`kg_build_system.workflow.interfaces`; the
 contract IR is :mod:`kg_build_system.workflow.ir`.
 """

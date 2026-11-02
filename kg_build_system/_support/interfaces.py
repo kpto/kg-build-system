@@ -1,4 +1,4 @@
-"""Framework-internal shared kernel: naming and source-docstring helpers."""
+"""Shared naming and source-docstring helpers."""
 from __future__ import annotations
 
 from .docstrings import attribute_docstring

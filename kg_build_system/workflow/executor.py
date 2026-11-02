@@ -1,13 +1,20 @@
-"""Execute frozen workflow contracts through importable workflow modules."""
+"""Execute frozen workflow contracts through importable workflow modules.
+
+Execution is decomposed into named stages: the build lays out its directories,
+opens one engine session, imports and validates the module registry, derives a
+schedule from the resolved connections, executes the schedule, classifies the
+outcomes, and builds the report. A step handler receives its data context and
+reads the runtime services from ``context.services``.
+"""
 from __future__ import annotations
 
 import importlib
 import json
 import logging
 from collections import defaultdict
-from collections.abc import Mapping
-from contextlib import ExitStack
-from dataclasses import asdict, replace
+from collections.abc import Iterator, Mapping, Sequence
+from contextlib import ExitStack, contextmanager
+from dataclasses import asdict, dataclass, field, replace
 from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any, Literal, cast
@@ -15,17 +22,41 @@ from typing import Any, Literal, cast
 from pydantic import JsonValue
 
 from .._frozen_json import thaw_json
+from ..engines.interfaces import DuckDBRelationService, configure_framework_macros
+from ..kernel.contract import (
+    Artifact,
+    ContinuableInput,
+    DisruptedExecutionContext,
+    DisruptingInput,
+    ExecutionContext,
+    ExecutorFactoryContext,
+    Failure,
+    ModuleDefinition,
+    Publication,
+    PublishedArtifact,
+    StepOutcome,
+    StepStatus,
+)
 from .identity import opening_identity, output_name, step_identity
 from .ir import WorkflowContractIR
 from .mapping import workflow_from_ir
-from .models import Artifact, BuildRuntime, DefinedStep, ModuleDefinition, Publication, ContinuableInput, DisruptedExecutionContext, DisruptingInput, ExecutionContext, ExecutorFactoryContext, Failure, PublishedArtifact, StepOutcome, StepStatus, WorkflowReport
-from .monitor import (
-    NullWorkflowMonitor, RichWorkflowMonitor, WorkflowExecutionMonitor,
+from .models import (
+    BuildRuntime,
+    DefinedStep,
+    WorkflowDefinition,
+    WorkflowReport,
 )
-from ..engines.interfaces import DuckDBRelationService, configure_framework_macros
+from .monitor import (
+    NullWorkflowMonitor,
+    RichWorkflowMonitor,
+    WorkflowExecutionMonitor,
+)
 from .services import (
-    ExecutionServices, LocalTemporaryStorage,
-    LocalWorkingStorage, MappingCredentialResolver,
+    ExecutionServices,
+    LocalTemporaryStorage,
+    LocalWorkingStorage,
+    MappingCredentialResolver,
+    WorkflowLogger,
 )
 
 
@@ -113,13 +144,14 @@ def _runtime_value_matches(value: Any, value_type: str) -> bool:
 
 
 def _validate_runtime_configuration(
-    module: Any, configuration: dict[str, Any],
+    module: ModuleDefinition, configuration: dict[str, Any],
 ) -> None:
     fields = {field.key: field for field in module.runtime_fields}
+    module_id = module.reference.module_id
     unknown = sorted(set(configuration) - set(fields))
     if unknown:
         raise ValueError(
-            f"unknown runtime configuration for {module.reference.module_id}: "
+            f"unknown runtime configuration for {module_id}: "
             + ", ".join(unknown)
         )
     missing = sorted(
@@ -128,7 +160,7 @@ def _validate_runtime_configuration(
     )
     if missing:
         raise ValueError(
-            f"missing runtime configuration for {module.reference.module_id}: "
+            f"missing runtime configuration for {module_id}: "
             + ", ".join(missing)
         )
     invalid = sorted(
@@ -137,9 +169,50 @@ def _validate_runtime_configuration(
     )
     if invalid:
         raise TypeError(
-            f"invalid runtime configuration for {module.reference.module_id}: "
+            f"invalid runtime configuration for {module_id}: "
             + ", ".join(invalid)
         )
+
+
+@dataclass(frozen=True, slots=True)
+class _Layout:
+    """Directories one execution owns for its lifetime."""
+
+    working_directory: Path
+    temporary_directory: Path
+    storage_directory: Path
+
+
+@contextmanager
+def _layout(runtime: BuildRuntime) -> Iterator[_Layout]:
+    """Create the temporary roots, including the private DuckDB disk location."""
+    with TemporaryDirectory(dir=runtime.temporary_directory) as temporary:
+        temporary_directory = Path(temporary)
+        if runtime.duckdb_storage == "disk":
+            with TemporaryDirectory(
+                prefix=".kg-build-duckdb-", dir=runtime.working_directory,
+            ) as storage:
+                yield _Layout(
+                    runtime.working_directory,
+                    temporary_directory,
+                    Path(storage),
+                )
+        else:
+            yield _Layout(
+                runtime.working_directory,
+                temporary_directory,
+                temporary_directory,
+            )
+
+
+@dataclass(frozen=True, slots=True)
+class _EngineSession:
+    """The opened engine behind one build, with its effective settings."""
+
+    relations: DuckDBRelationService
+    time_zone: str
+    memory_limit: str | None
+    threads: int | None
 
 
 def _open_duckdb(
@@ -212,73 +285,82 @@ def _effective_duckdb_time_zone(connection: Any) -> str:
     ).fetchone()[0])
 
 
-def _build(
-    contract: WorkflowContractIR, runtime: BuildRuntime,
-    monitor: WorkflowExecutionMonitor,
-) -> WorkflowReport:
+@contextmanager
+def _engine_session(
+    runtime: BuildRuntime, layout: _Layout,
+) -> Iterator[_EngineSession]:
+    """Open, configure and close the one relational engine a build uses."""
     try:
         import duckdb
     except ImportError as error:
         raise RuntimeError("DuckDB is required to execute builds") from error
-    workflow = workflow_from_ir(contract.workflow)
-
-    working_directory = runtime.working_directory
     with ExitStack() as resources:
-      temporary_directory = resources.enter_context(
-          TemporaryDirectory(dir=runtime.temporary_directory)
-      )
-      if runtime.duckdb_storage == "disk":
-          storage_directory = Path(resources.enter_context(
-              TemporaryDirectory(
-                  prefix=".kg-build-duckdb-", dir=working_directory,
-              )
-          ))
-      else:
-          storage_directory = Path(temporary_directory)
-      connection = _open_duckdb(duckdb, runtime, storage_directory)
-      try:
-          _configure_duckdb(connection, runtime, storage_directory)
-          time_zone = _effective_duckdb_time_zone(connection)
-      except BaseException:
-          connection.close()
-          raise
-      if isinstance(monitor, RichWorkflowMonitor):
-          memory_limit, threads = _effective_duckdb_resources(connection)
-          monitor.set_duckdb_settings(
-              storage=runtime.duckdb_storage,
-              compression=runtime.duckdb_compression,
-              memory_limit=memory_limit,
-              threads=threads,
-          )
-      relations = DuckDBRelationService(
-          connection,
-          checkpoint_on_step=(
-              runtime.duckdb_compression or runtime.duckdb_storage == "disk"
-          ),
-      )
-      resources.callback(relations.close)
-      services = ExecutionServices(
-          relations=relations,
-          output_storage=LocalWorkingStorage(runtime.output_directory),
-          working_storage=LocalWorkingStorage(working_directory),
-          temporary_storage=LocalTemporaryStorage(Path(temporary_directory)),
-          credentials=MappingCredentialResolver(runtime.credentials),
-          logger=_MonitorLogger(monitor),
-      )
-      executors: dict[str, Any] = {}
-      definitions: dict[str, ModuleDefinition] = {}
-      module_variables: dict[str, Mapping[str, Any]] = {}
-      for contribution in workflow.contributions:
+        connection = _open_duckdb(duckdb, runtime, layout.storage_directory)
+        try:
+            _configure_duckdb(connection, runtime, layout.storage_directory)
+            time_zone = _effective_duckdb_time_zone(connection)
+            memory_limit, threads = _effective_duckdb_resources(connection)
+        except BaseException:
+            connection.close()
+            raise
+        relations = DuckDBRelationService(
+            connection,
+            checkpoint_on_step=(
+                runtime.duckdb_compression or runtime.duckdb_storage == "disk"
+            ),
+        )
+        resources.callback(relations.close)
+        yield _EngineSession(
+            relations=relations,
+            time_zone=time_zone,
+            memory_limit=memory_limit,
+            threads=threads,
+        )
+
+
+def _show_engine_settings(
+    monitor: WorkflowExecutionMonitor,
+    runtime: BuildRuntime,
+    engine: _EngineSession,
+) -> None:
+    if isinstance(monitor, RichWorkflowMonitor):
+        monitor.set_duckdb_settings(
+            storage=runtime.duckdb_storage,
+            compression=runtime.duckdb_compression,
+            memory_limit=engine.memory_limit,
+            threads=engine.threads,
+        )
+
+
+@dataclass(frozen=True, slots=True)
+class _ModuleRegistry:
+    """Importable executors and the data each contribution supplied."""
+
+    definitions: Mapping[str, ModuleDefinition]
+    variables: Mapping[str, Mapping[str, Any]]
+    executors: Mapping[str, Any]
+
+
+def _module_registry(
+    workflow: WorkflowDefinition, runtime: BuildRuntime,
+) -> _ModuleRegistry:
+    """Import every module and validate its version and runtime configuration."""
+    definitions: dict[str, ModuleDefinition] = {}
+    variables: dict[str, Mapping[str, Any]] = {}
+    executors: dict[str, Any] = {}
+    for contribution in workflow.contributions:
         module = contribution.module
         reference = module.reference
         definitions[reference.module_id] = module
-        module_variables[reference.module_id] = (
+        variables[reference.module_id] = (
             dict(thaw_json(contribution.variables))
             if contribution.variables is not None else {}
         )
         cls = _load_class(reference.import_module, reference.class_qualname)
         if getattr(cls, "ID", None) != reference.module_id:
-            raise RuntimeError(f"module import does not provide {reference.module_id!r}")
+            raise RuntimeError(
+                f"module import does not provide {reference.module_id!r}"
+            )
         runtime_version = getattr(cls, "VERSION", None)
         if str(runtime_version) != reference.implementation_version:
             raise RuntimeError(
@@ -289,198 +371,482 @@ def _build(
         configuration = runtime.module_configuration.get(reference.module_id, {})
         _validate_runtime_configuration(module, configuration)
         factory_context = ExecutorFactoryContext(
-            module, module_variables[reference.module_id], configuration,
+            module, variables[reference.module_id], configuration,
         )
         executors[reference.module_id] = cls.create_executor(factory_context)
+    return _ModuleRegistry(
+        definitions=definitions,
+        variables=variables,
+        executors=executors,
+    )
 
-      steps = tuple(workflow.steps_by_module)
-      identity_of = {
-          (module_id, step.name): step_identity(module_id, step.name)
-          for module_id, step in steps
-      }
-      output_owner = {
-          opening_identity(identity_of[(module_id, step.name)], output_name(output)):
-              identity_of[(module_id, step.name)]
-          for module_id, step in steps for output in step.outputs
-      }
-      publication_ids = tuple(
-          opening_identity(identity_of[(module_id, step.name)], output_name(output))
-          for module_id, step in steps for output in step.outputs
-          if isinstance(output, Publication)
-      )
-      publishing_steps = tuple(dict.fromkeys(
-          identity_of[(module_id, step.name)]
-          for module_id, step in steps
-          if any(isinstance(output, Publication) for output in step.outputs)
-      ))
-      incoming: dict[str, list[str]] = defaultdict(list)
-      for workflow_connection in workflow.connections:
-        incoming[workflow_connection.input_id].append(workflow_connection.output_id)
 
-      completed: set[str] = set()
-      artifacts: dict[str, Artifact] = {}
-      outcomes_by_step: dict[str, StepOutcome] = {}
-      active_failures_by_step: dict[str, set[Failure]] = {}
-      outcomes: list[StepOutcome] = []
-      pending = list(steps)
-      while pending:
+@dataclass(frozen=True, slots=True)
+class _Schedule:
+    """The static execution graph implied by the frozen connections."""
+
+    steps: tuple[tuple[str, DefinedStep], ...]
+    identity_of: Mapping[tuple[str, str], str]
+    output_owner: Mapping[str, str]
+    publication_ids: tuple[str, ...]
+    publishing_steps: tuple[str, ...]
+    incoming: Mapping[str, tuple[str, ...]]
+
+    def identity(self, module_id: str, step: DefinedStep) -> str:
+        return self.identity_of[(module_id, step.name)]
+
+    def sources(self, step_id: str, taken_name: str) -> tuple[str, ...]:
+        return self.incoming.get(opening_identity(step_id, taken_name), ())
+
+    def is_ready(
+        self, entry: tuple[str, DefinedStep], completed: set[str],
+    ) -> bool:
+        module_id, step = entry
+        identity = self.identity(module_id, step)
+        return all(
+            self.output_owner[source] in completed
+            for taken in step.inputs
+            for source in self.sources(identity, taken.name)
+        )
+
+
+def _schedule(workflow: WorkflowDefinition) -> _Schedule:
+    """Index the assembled workflow by generated identities."""
+    steps = tuple(workflow.steps_by_module)
+    identity_of = {
+        (module_id, step.name): step_identity(module_id, step.name)
+        for module_id, step in steps
+    }
+    output_owner = {
+        opening_identity(identity_of[(module_id, step.name)], output_name(output)):
+            identity_of[(module_id, step.name)]
+        for module_id, step in steps for output in step.outputs
+    }
+    publication_ids = tuple(
+        opening_identity(identity_of[(module_id, step.name)], output_name(output))
+        for module_id, step in steps for output in step.outputs
+        if isinstance(output, Publication)
+    )
+    publishing_steps = tuple(dict.fromkeys(
+        identity_of[(module_id, step.name)]
+        for module_id, step in steps
+        if any(isinstance(output, Publication) for output in step.outputs)
+    ))
+    incoming: dict[str, list[str]] = defaultdict(list)
+    for connection in workflow.connections:
+        incoming[connection.input_id].append(connection.output_id)
+    return _Schedule(
+        steps=steps,
+        identity_of=identity_of,
+        output_owner=output_owner,
+        publication_ids=publication_ids,
+        publishing_steps=publishing_steps,
+        incoming={key: tuple(value) for key, value in incoming.items()},
+    )
+
+
+@dataclass(slots=True)
+class _ExecutionState:
+    completed: set[str] = field(default_factory=set)
+    artifacts: dict[str, Artifact] = field(default_factory=dict)
+    outcomes_by_step: dict[str, StepOutcome] = field(default_factory=dict)
+    active_failures_by_step: dict[str, set[Failure]] = field(
+        default_factory=dict,
+    )
+    outcomes: list[StepOutcome] = field(default_factory=list)
+
+
+@dataclass(frozen=True, slots=True)
+class _StepRun:
+    outcome: StepOutcome
+    inherited_failures: frozenset[Failure]
+    returned_artifacts: Mapping[str, Artifact]
+
+
+def _step_services(
+    services: ExecutionServices,
+    monitor: WorkflowExecutionMonitor,
+    module_id: str,
+    identity: str,
+) -> ExecutionServices:
+    return replace(
+        services,
+        logger=_MonitorLogger(
+            monitor, module_id=module_id, step_id=identity,
+        ),
+    )
+
+
+def _gather_inputs(
+    step: DefinedStep,
+    identity: str,
+    schedule: _Schedule,
+    state: _ExecutionState,
+) -> tuple[
+    dict[str, tuple[ContinuableInput | DisruptingInput, ...]],
+    tuple[DisruptingInput, ...],
+    frozenset[Failure],
+]:
+    """Classify every connected artifact by its producer's final status."""
+    gathered: dict[str, list[ContinuableInput | DisruptingInput]] = defaultdict(list)
+    disruptions: list[DisruptingInput] = []
+    inherited_failures: set[Failure] = set()
+    for taken in step.inputs:
+        for output_id in schedule.sources(identity, taken.name):
+            owner = schedule.output_owner[output_id]
+            previous = state.outcomes_by_step[owner]
+            inherited_failures.update(state.active_failures_by_step[owner])
+            artifact = state.artifacts.get(output_id)
+            if previous.status in {StepStatus.SUCCEEDED, StepStatus.WARNING}:
+                gathered[taken.input_name].append(ContinuableInput(
+                    output_id,
+                    cast(
+                        Literal[StepStatus.SUCCEEDED, StepStatus.WARNING],
+                        previous.status,
+                    ),
+                    artifact,
+                ))
+            else:
+                disruption = DisruptingInput(
+                    output_id,
+                    cast(
+                        Literal[StepStatus.FAILED, StepStatus.SKIPPED],
+                        previous.status,
+                    ),
+                    artifact,
+                    previous.failure,
+                )
+                gathered[taken.input_name].append(disruption)
+                disruptions.append(disruption)
+    return (
+        {name: tuple(values) for name, values in gathered.items()},
+        tuple(disruptions),
+        frozenset(inherited_failures),
+    )
+
+
+def _validate_outcome(
+    outcome: StepOutcome,
+    identity: str,
+    module_id: str,
+    step: DefinedStep,
+) -> Mapping[str, Artifact]:
+    """Check an outcome against what the schedule asked of this step."""
+    if outcome.step_id != identity or outcome.module_id != module_id:
+        raise RuntimeError(
+            f"module returned an outcome for a different step: {identity}"
+        )
+    if outcome.status == StepStatus.FAILED and outcome.failure is None:
+        raise RuntimeError(f"failed step {identity} did not provide a failure")
+    declared = {output_name(output): output.type for output in step.outputs}
+    returned = {
+        artifact.output_name: artifact for artifact in outcome.artifacts
+    }
+    if not set(returned) <= set(declared):
+        raise RuntimeError(
+            f"step {identity} returned an artifact for an undeclared output"
+        )
+    if any(
+        artifact.type != declared[name] for name, artifact in returned.items()
+    ):
+        raise RuntimeError(
+            f"step {identity} returned an artifact type its output does not declare"
+        )
+    return returned
+
+
+def _execute_step(
+    module_id: str,
+    step: DefinedStep,
+    *,
+    schedule: _Schedule,
+    registry: _ModuleRegistry,
+    state: _ExecutionState,
+    services: ExecutionServices,
+    runtime: BuildRuntime,
+    monitor: WorkflowExecutionMonitor,
+    engine: _EngineSession,
+) -> _StepRun:
+    """Run one ready step and return the outcome it produced."""
+    identity = schedule.identity(module_id, step)
+    detail = (
+        f"Processing {len(step.inputs)} input(s) → "
+        f"{len(step.outputs)} output(s)"
+    )
+    monitor.step_started(identity, detail)
+    step_services = _step_services(services, monitor, module_id, identity)
+    step_services.logger.info("Started: %s", detail)
+    by_input, disruptions, inherited_failures = _gather_inputs(
+        step, identity, schedule, state,
+    )
+    runtime_configuration = runtime.module_configuration.get(module_id, {})
+    try:
+        if disruptions:
+            context = DisruptedExecutionContext(
+                registry.definitions[module_id],
+                step,
+                module_id,
+                identity,
+                registry.variables[module_id],
+                runtime_configuration,
+                by_input,
+                tuple(disruptions),
+                step_services,
+            )
+            outcome = registry.executors[module_id].handle_disrupted(context)
+        else:
+            continuable_inputs = {
+                name: tuple(
+                    item for item in values if isinstance(item, ContinuableInput)
+                )
+                for name, values in by_input.items()
+            }
+            context = ExecutionContext(
+                registry.definitions[module_id],
+                step,
+                module_id,
+                identity,
+                registry.variables[module_id],
+                runtime_configuration,
+                continuable_inputs,
+                step_services,
+            )
+            outcome = registry.executors[module_id].handle(context)
+        engine.relations.finish_step()
+    except Exception as error:
+        step_services.logger.error(
+            "%s: %s", type(error).__name__, error,
+        )
+        outcome = StepOutcome(
+            step_id=identity,
+            module_id=module_id,
+            status=StepStatus.FAILED,
+            failure=Failure(
+                str(error), module_id, identity, type(error).__name__,
+            ),
+        )
+    returned = _validate_outcome(outcome, identity, module_id, step)
+    return _StepRun(
+        outcome=outcome,
+        inherited_failures=inherited_failures,
+        returned_artifacts=returned,
+    )
+
+
+def _record_step(
+    entry: tuple[str, DefinedStep],
+    run: _StepRun,
+    state: _ExecutionState,
+    pending: list[tuple[str, DefinedStep]],
+) -> None:
+    """Record one outcome, its artifacts and the failures it keeps active."""
+    outcome = run.outcome
+    state.artifacts.update({
+        opening_identity(outcome.step_id, name): artifact
+        for name, artifact in run.returned_artifacts.items()
+    })
+    state.outcomes_by_step[outcome.step_id] = outcome
+    if outcome.status == StepStatus.FAILED and outcome.failure is not None:
+        state.active_failures_by_step[outcome.step_id] = (
+            set(run.inherited_failures) | {outcome.failure}
+        )
+    elif outcome.status == StepStatus.SKIPPED:
+        state.active_failures_by_step[outcome.step_id] = set(
+            run.inherited_failures
+        )
+    else:
+        state.active_failures_by_step[outcome.step_id] = set()
+    state.outcomes.append(outcome)
+    state.completed.add(outcome.step_id)
+    pending.remove(entry)
+
+
+def _outcome_detail(outcome: StepOutcome) -> str:
+    detail = f"{outcome.status.value}; {len(outcome.artifacts)} artifact(s)"
+    if outcome.failure is not None:
+        detail += f" — {outcome.failure.message}"
+    return detail
+
+
+def _log_outcome(
+    logger: WorkflowLogger, outcome: StepOutcome, detail: str,
+) -> None:
+    if outcome.status == StepStatus.FAILED:
+        logger.error("Finished: %s", detail)
+    elif outcome.status == StepStatus.WARNING:
+        logger.warning("Finished: %s", detail)
+    else:
+        logger.info("Finished: %s", detail)
+
+
+def _execute(
+    schedule: _Schedule,
+    registry: _ModuleRegistry,
+    services: ExecutionServices,
+    runtime: BuildRuntime,
+    monitor: WorkflowExecutionMonitor,
+    engine: _EngineSession,
+) -> _ExecutionState:
+    """Run every step in waves whose producers have all completed."""
+    state = _ExecutionState()
+    pending = list(schedule.steps)
+    while pending:
         ready = [
             entry for entry in pending
-            if all(
-                output_owner[source] in completed
-                for taken in entry[1].inputs
-                for source in incoming[opening_identity(
-                    identity_of[(entry[0], entry[1].name)], taken.name,
-                )]
-            )
+            if schedule.is_ready(entry, state.completed)
         ]
         if not ready:
             raise RuntimeError("workflow has a dependency cycle")
-        for module_id, step in ready:
-            identity = identity_of[(module_id, step.name)]
-            detail = (
-                f"Processing {len(step.inputs)} input(s) → "
-                f"{len(step.outputs)} output(s)"
+        for entry in ready:
+            module_id, step = entry
+            run = _execute_step(
+                module_id,
+                step,
+                schedule=schedule,
+                registry=registry,
+                state=state,
+                services=services,
+                runtime=runtime,
+                monitor=monitor,
+                engine=engine,
             )
-            monitor.step_started(identity, detail)
-            step_services = replace(
-                services,
-                logger=_MonitorLogger(
-                    monitor, module_id=module_id, step_id=identity,
-                ),
-            )
-            step_services.logger.info("Started: %s", detail)
-            gathered: dict[str, list[ContinuableInput | DisruptingInput]] = defaultdict(list)
-            disruptions: list[DisruptingInput] = []
-            inherited_failures: set[Failure] = set()
-            for taken in step.inputs:
-                for output_id in incoming[opening_identity(identity, taken.name)]:
-                    owner = output_owner[output_id]
-                    previous = outcomes_by_step[owner]
-                    inherited_failures.update(active_failures_by_step[owner])
-                    artifact = artifacts.get(output_id)
-                    if previous.status in {StepStatus.SUCCEEDED, StepStatus.WARNING}:
-                        gathered[taken.input_name].append(ContinuableInput(
-                            output_id,
-                            cast(Literal[StepStatus.SUCCEEDED, StepStatus.WARNING], previous.status),
-                            artifact,
-                        ))
-                    else:
-                        disruption = DisruptingInput(
-                            output_id,
-                            cast(Literal[StepStatus.FAILED, StepStatus.SKIPPED], previous.status),
-                            artifact,
-                            previous.failure,
-                        )
-                        gathered[taken.input_name].append(disruption)
-                        disruptions.append(disruption)
-            by_input = {name: tuple(values) for name, values in gathered.items()}
-            runtime_configuration = runtime.module_configuration.get(module_id, {})
-            try:
-                if disruptions:
-                    context = DisruptedExecutionContext(
-                        definitions[module_id], step, module_id, identity,
-                        module_variables[module_id], runtime_configuration, by_input,
-                        tuple(disruptions),
-                    )
-                    outcome = executors[module_id].handle_disrupted(context, step_services)
-                else:
-                    continuable_inputs = {
-                        name: tuple(
-                            item for item in values if isinstance(item, ContinuableInput)
-                        )
-                        for name, values in by_input.items()
-                    }
-                    context = ExecutionContext(
-                        definitions[module_id], step, module_id, identity,
-                        module_variables[module_id], runtime_configuration,
-                        continuable_inputs,
-                    )
-                    outcome = executors[module_id].handle(context, step_services)
-                relations.finish_step()
-            except Exception as error:
-                step_services.logger.error(
-                    "%s: %s", type(error).__name__, error,
-                )
-                outcome = StepOutcome(
-                    step_id=identity,
+            _record_step(entry, run, state, pending)
+            detail = _outcome_detail(run.outcome)
+            monitor.step_finished(run.outcome, detail)
+            _log_outcome(
+                _MonitorLogger(
+                    monitor,
                     module_id=module_id,
-                    status=StepStatus.FAILED,
-                    failure=Failure(str(error), module_id, identity, type(error).__name__),
-                )
-            if outcome.step_id != identity or outcome.module_id != module_id:
-                raise RuntimeError(f"module returned an outcome for a different step: {identity}")
-            if outcome.status == StepStatus.FAILED and outcome.failure is None:
-                raise RuntimeError(f"failed step {identity} did not provide a failure")
-            declared = {output.name: output.type for output in step.outputs}
-            returned = {artifact.output_name: artifact for artifact in outcome.artifacts}
-            if not set(returned) <= set(declared):
-                raise RuntimeError(f"step {identity} returned an artifact for an undeclared output")
-            if any(artifact.type != declared[name] for name, artifact in returned.items()):
-                raise RuntimeError(
-                    f"step {identity} returned an artifact type its output does not declare"
-                )
-            artifacts.update({
-                opening_identity(identity, name): artifact
-                for name, artifact in returned.items()
-            })
-            outcomes_by_step[identity] = outcome
-            if outcome.status == StepStatus.FAILED:
-                active_failures_by_step[identity] = inherited_failures | {
-                    outcome.failure
-                } if outcome.failure is not None else inherited_failures
-            elif outcome.status == StepStatus.SKIPPED:
-                active_failures_by_step[identity] = inherited_failures
-            else:
-                active_failures_by_step[identity] = set()
-            outcomes.append(outcome)
-            completed.add(identity)
-            pending.remove((module_id, step))
-            outcome_detail = f"{outcome.status.value}; {len(outcome.artifacts)} artifact(s)"
-            if outcome.failure is not None:
-                outcome_detail += f" — {outcome.failure.message}"
-            monitor.step_finished(outcome, outcome_detail)
-            if outcome.status == StepStatus.FAILED:
-                step_services.logger.error("Finished: %s", outcome_detail)
-            elif outcome.status == StepStatus.WARNING:
-                step_services.logger.warning("Finished: %s", outcome_detail)
-            else:
-                step_services.logger.info("Finished: %s", outcome_detail)
+                    step_id=run.outcome.step_id,
+                ),
+                run.outcome,
+                detail,
+            )
+    return state
 
-      published = tuple(
-          PublishedArtifact(type=artifact.type, value=artifact.value)
-          for artifact in (
-              artifacts[output_id] for output_id in publication_ids if output_id in artifacts
-          )
-      )
-      unresolved = set().union(
-          *(
-              active_failures_by_step[step_id]
-              for step_id in publishing_steps
-              if step_id in active_failures_by_step
-          ),
-      ) if publishing_steps else set()
-      all_failures = tuple(
-          outcome.failure for outcome in outcomes if outcome.failure is not None
-      )
-      provenance: dict[str, JsonValue] = (
-          dict(contract.provenance)
-          if isinstance(contract.provenance, dict)
-          else {"contract": contract.provenance}
-      )
-      provenance["workflow_fingerprint"] = contract.workflow_fingerprint
-      duckdb_provenance: dict[str, JsonValue] = {"TimeZone": time_zone}
-      provenance["duckdb"] = duckdb_provenance
-      return WorkflowReport(
+
+def _published_artifacts(
+    schedule: _Schedule, state: _ExecutionState,
+) -> tuple[PublishedArtifact, ...]:
+    return tuple(
+        PublishedArtifact(type=artifact.type, value=artifact.value)
+        for artifact in (
+            state.artifacts[output_id]
+            for output_id in schedule.publication_ids
+            if output_id in state.artifacts
+        )
+    )
+
+
+def _classify_failures(
+    schedule: _Schedule, state: _ExecutionState,
+) -> tuple[tuple[Failure, ...], tuple[Failure, ...]]:
+    """Split failures into those still active at a publisher and recovered ones."""
+    unresolved_set = (
+        set().union(*(
+            state.active_failures_by_step[step_id]
+            for step_id in schedule.publishing_steps
+            if step_id in state.active_failures_by_step
+        ))
+        if schedule.publishing_steps else set()
+    )
+    all_failures = tuple(
+        outcome.failure for outcome in state.outcomes
+        if outcome.failure is not None
+    )
+    return (
+        tuple(
+            failure for failure in all_failures
+            if failure not in unresolved_set
+        ),
+        tuple(
+            failure for failure in all_failures
+            if failure in unresolved_set
+        ),
+    )
+
+
+def _classify(
+    schedule: _Schedule, state: _ExecutionState,
+) -> tuple[
+    tuple[PublishedArtifact, ...],
+    tuple[Failure, ...],
+    tuple[Failure, ...],
+]:
+    """Split the finished execution into publications and the two failure sets."""
+    recovered, unresolved = _classify_failures(schedule, state)
+    return _published_artifacts(schedule, state), recovered, unresolved
+
+
+def _report(
+    contract: WorkflowContractIR,
+    *,
+    time_zone: str,
+    published: tuple[PublishedArtifact, ...],
+    recovered: tuple[Failure, ...],
+    unresolved: tuple[Failure, ...],
+) -> WorkflowReport:
+    provenance: dict[str, JsonValue] = (
+        dict(contract.provenance)
+        if isinstance(contract.provenance, dict)
+        else {"contract": contract.provenance}
+    )
+    provenance["workflow_fingerprint"] = contract.workflow_fingerprint
+    provenance["duckdb"] = {"TimeZone": time_zone}
+    return WorkflowReport(
         published_artifacts=published,
-        recovered_failures=tuple(failure for failure in all_failures if failure not in unresolved),
-        unresolved_failures=tuple(failure for failure in all_failures if failure in unresolved),
+        recovered_failures=recovered,
+        unresolved_failures=unresolved,
         provenance=provenance,
     )
 
 
+def _services(
+    runtime: BuildRuntime,
+    layout: _Layout,
+    engine: _EngineSession,
+    monitor: WorkflowExecutionMonitor,
+) -> ExecutionServices:
+    return ExecutionServices(
+        relations=engine.relations,
+        output_storage=LocalWorkingStorage(runtime.output_directory),
+        working_storage=LocalWorkingStorage(layout.working_directory),
+        temporary_storage=LocalTemporaryStorage(layout.temporary_directory),
+        credentials=MappingCredentialResolver(runtime.credentials),
+        logger=_MonitorLogger(monitor),
+    )
+
+
+def _build(
+    contract: WorkflowContractIR,
+    runtime: BuildRuntime,
+    monitor: WorkflowExecutionMonitor,
+) -> WorkflowReport:
+    """Run one frozen contract through its named stages."""
+    workflow = workflow_from_ir(contract.workflow)
+    with _layout(runtime) as layout:
+        with _engine_session(runtime, layout) as engine:
+            _show_engine_settings(monitor, runtime, engine)
+            services = _services(runtime, layout, engine, monitor)
+            registry = _module_registry(workflow, runtime)
+            schedule = _schedule(workflow)
+            state = _execute(
+                schedule, registry, services, runtime, monitor, engine,
+            )
+            published, recovered, unresolved = _classify(schedule, state)
+            return _report(
+                contract,
+                time_zone=engine.time_zone,
+                published=published,
+                recovered=recovered,
+                unresolved=unresolved,
+            )
+
+
 def build(
-    contract: WorkflowContractIR, runtime: BuildRuntime | None = None, *,
+    contract: WorkflowContractIR,
+    runtime: BuildRuntime | None = None,
+    *,
     output_directory: str | Path = Path("build"),
     working_directory: str | Path = Path("_workdir"),
     temporary_directory: str | Path | None = None,
@@ -500,7 +866,11 @@ def build(
         if requested_working.is_absolute()
         else resolved_output / requested_working
     )
-    resolved_temporary = Path(temporary_directory) if temporary_directory is not None else configured.temporary_directory
+    resolved_temporary = (
+        Path(temporary_directory)
+        if temporary_directory is not None
+        else configured.temporary_directory
+    )
     configured = replace(
         configured,
         output_directory=resolved_output,
@@ -522,7 +892,8 @@ def build(
     except Exception as error:
         execution_monitor.workflow_halted(str(error))
         execution_monitor.log(
-            "ERROR", f"Workflow execution stopped: {type(error).__name__}: {error}",
+            "ERROR",
+            f"Workflow execution stopped: {type(error).__name__}: {error}",
         )
         raise
     else:
@@ -531,9 +902,17 @@ def build(
         execution_monitor.stop()
     (configured.output_directory / "build_report.json").write_text(
         json.dumps(
-            asdict(report), indent=2, sort_keys=True,
-            default=lambda item: item.model_dump(mode="json") if hasattr(item, "model_dump") else str(item),
+            asdict(report),
+            indent=2,
+            sort_keys=True,
+            default=lambda item: (
+                item.model_dump(mode="json")
+                if hasattr(item, "model_dump") else str(item)
+            ),
         ),
         encoding="utf-8",
     )
     return report
+
+
+__all__ = ["PINNED_TIME_ZONE", "build"]

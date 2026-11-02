@@ -1,24 +1,22 @@
-"""Workflow module that writes normalized graph records as JSON Lines."""
+"""Target that writes normalized graph records as JSON Lines."""
 from __future__ import annotations
 
 import datetime
 import json
 import uuid
 from dataclasses import dataclass
-from pathlib import PurePosixPath
 from typing import Any, ClassVar
 
-from ..._frozen_json import freeze_json, thaw_json
-from ...types.interfaces import canonical_value_text
-from ...workflow.interfaces import output_name
-from ...workflow.interfaces import (
-    ExecutionServices,
+from ..._frozen_json import freeze_json
+from ...kernel import (
     Artifact,
     ArtifactType,
+    CompilationContext,
     DisruptedExecutionContext,
     ExecutionContext,
     ExecutorFactoryContext,
     Input,
+    ModuleCompiler,
     ModuleDefinition,
     ModuleReference,
     Publication,
@@ -28,11 +26,14 @@ from ...workflow.interfaces import (
     WorkflowContribution,
     WorkflowStep,
 )
-from ...compile.interfaces import CompilationContext, ModuleCompiler
-from ...modules.interfaces import Module, ModuleRegistrationConfiguration
-from ...modules._paths import validate_relative_path
-from ...workflow.interfaces import ModuleExecutor
+from ...types.interfaces import canonical_value_text
 from ..core import CoreArtifactTypes
+from ..interfaces import Module, ModuleRegistrationConfiguration
+from .._paths import validate_relative_path
+from .._runtime import as_mapping, execution_services, output_name, skipped
+from ._relations import (
+    artifact_of, input_values, output_path, query, reference,
+)
 
 _RECORDS_INPUT = "records"
 
@@ -49,9 +50,9 @@ def _canonical_property_value(value: Any) -> Any:
     The build key is passed here directly before taking its text, so a key that
     is temporal or a ``uuid`` is written in canonical form too. A scalar with a
     canonical text form takes it from the shared mapping; a value outside the
-    canonical vocabulary — a ``bytes``, ``Decimal`` or ``timedelta`` the boundary
-    refuses — has no form here and raises rather than being quietly stringified
-    into the graph.
+    canonical vocabulary — a ``bytes``, ``Decimal`` or ``timedelta`` the
+    boundary refuses — has no form here and raises rather than being quietly
+    stringified into the graph.
     """
     if value is None or isinstance(value, (bool, int, float, str)):
         return value
@@ -71,10 +72,12 @@ def _canonical_property_value(value: Any) -> Any:
 
 @dataclass(frozen=True)
 class FileModuleConfiguration(ModuleRegistrationConfiguration):
+    """Where the graph file is written, beneath the build output directory."""
+
     relative_path: str
 
     def __post_init__(self) -> None:
-        _validate_relative_path(self.relative_path)
+        validate_relative_path(self.relative_path, context="file output path")
 
 
 @dataclass(frozen=True)
@@ -83,7 +86,9 @@ class FileModule(Module):
 
     ID: ClassVar[str] = "file"
     VERSION: ClassVar[str] = "1"
-    CONFIGURATION_TYPE: ClassVar[type[FileModuleConfiguration]] = FileModuleConfiguration
+    CONFIGURATION_TYPE: ClassVar[type[FileModuleConfiguration]] = (
+        FileModuleConfiguration
+    )
 
     @classmethod
     async def create_compiler(
@@ -92,10 +97,10 @@ class FileModule(Module):
         return cls(context.configuration)
 
     @classmethod
-    def create_executor(
-        cls, context: ExecutorFactoryContext,
-    ) -> ModuleExecutor:
-        return FileExecutor(dict(context.runtime_configuration))
+    def create_executor(cls, context: ExecutorFactoryContext) -> Any:
+        return FileExecutor(as_mapping(
+            context.runtime_configuration, context="file runtime configuration",
+        ))
 
     async def compile(
         self, context: CompilationContext[Any],
@@ -131,52 +136,52 @@ class FileModule(Module):
         return WorkflowContribution(definition, (step,))
 
 
-class FileExecutor(ModuleExecutor):
-    def __init__(self, configuration: dict[str, Any]) -> None:
-        self._configuration = configuration
+class FileExecutor:
+    """Write every graph-record relation the step receives, in one pass."""
+
+    def __init__(self, configuration: Any) -> None:
+        self._configuration = dict(as_mapping(
+            configuration, context="file runtime configuration",
+        ))
 
     def _relative_path(self, context: ExecutionContext) -> str:
-        compiled = thaw_json(  # type: ignore[arg-type]
-            context.module.reference.configuration
+        compiled = as_mapping(
+            context.module.reference.configuration,
+            context="file compiled configuration",
         )
-        if not isinstance(compiled, dict):
-            raise RuntimeError("file module requires an object configuration")
         configured_path = compiled.get("relative_path")
         if not isinstance(configured_path, str):
-            raise RuntimeError("file module requires a compiled relative output path")
+            raise RuntimeError(
+                "file module requires a compiled relative output path"
+            )
         runtime_path = self._configuration.get("relative_path")
         relative_path = runtime_path if runtime_path is not None else configured_path
         if not isinstance(relative_path, str):
             raise TypeError("runtime file output path must be a string")
-        _validate_relative_path(relative_path)
+        validate_relative_path(relative_path, context="file output path")
         return relative_path
 
-    def handle(
-        self, context: ExecutionContext, services: ExecutionServices,
-    ) -> StepOutcome:
+    def handle(self, context: ExecutionContext, services: Any = None) -> StepOutcome:
+        services = execution_services(context, services)
         relative_path = self._relative_path(context)
-        output_path = services.output_storage.child(
-            PurePosixPath(relative_path)
-        )
-        output_path.parent.mkdir(parents=True, exist_ok=True)
+        path = output_path(services, relative_path)
+        path.parent.mkdir(parents=True, exist_ok=True)
 
         node_count = 0
         edge_count = 0
-        with output_path.open("w", encoding="utf-8") as stream:
-            for contribution in context.inputs.get(_RECORDS_INPUT, ()):
-                artifact = contribution.artifact
+        with path.open("w", encoding="utf-8") as stream:
+            for contribution in input_values(context, _RECORDS_INPUT):
+                artifact = artifact_of(contribution)
                 if artifact is None:
                     continue
                 identity = CoreArtifactTypes.graph_record_identity(artifact.type)
                 if identity is None:
                     continue
 
-                relation = services.relations.reference(artifact.value)
-                query = services.relations.query(
-                    f"SELECT * FROM {relation}"
-                )
-                columns = tuple(column[0] for column in query.description)
-                while batch := query.fetchmany(1_000):
+                relation = reference(services, artifact.value)
+                result = query(services, f"SELECT * FROM {relation}")
+                columns = tuple(column[0] for column in result.description)
+                while batch := result.fetchmany(1_000):
                     for row in batch:
                         record = dict(zip(columns, row, strict=True))
                         record.update(
@@ -201,7 +206,7 @@ class FileExecutor(ModuleExecutor):
         summary = {
             "nodes": node_count,
             "edges": edge_count,
-            "location": str(output_path),
+            "location": str(path),
         }
         output = context.step.outputs[0]
         artifact = Artifact(output_name(output), output.type, summary)
@@ -213,6 +218,11 @@ class FileExecutor(ModuleExecutor):
         )
 
     def handle_disrupted(
-        self, context: DisruptedExecutionContext, services: ExecutionServices,
+        self, context: DisruptedExecutionContext, services: Any = None,
     ) -> StepOutcome:
-        return super().handle_disrupted(context, services)
+        return skipped(context)
+
+
+__all__ = [
+    "FileExecutor", "FileModule", "FileModuleConfiguration",
+]

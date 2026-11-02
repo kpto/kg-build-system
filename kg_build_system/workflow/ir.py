@@ -1,23 +1,16 @@
-"""Compilation-only IR for a frozen workflow definition.
+"""Compilation IR for a frozen workflow definition.
 
-These types are not re-exported by :mod:`kg_build_system.workflow`; workflow authoring and
-runtime APIs use their own models and interfaces.
+These values are the serialisable form used at the contract boundary. They are
+not re-exported by :mod:`kg_build_system.workflow`; execution converts them back
+to the workflow models before any module handler sees them.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Annotated, Final, Literal
+import json
+from collections.abc import Mapping
+from typing import Annotated, Any, Literal
 
-from .._frozen_json import FrozenJson
 from pydantic import BaseModel, ConfigDict, Field, JsonValue
-
-
-@dataclass(frozen=True, slots=True)
-class BlueprintModuleIR:
-    module_id: str
-    module_import: str
-    module_qualname: str
-    configuration: FrozenJson | None = None
 
 
 class WorkflowIR(BaseModel):
@@ -48,8 +41,9 @@ class ArtifactTypeIR(WorkflowIR):
 class InputIR(WorkflowIR):
     """One answered opening of an assembled step.
 
-    ``name`` identifies the opening, which an open input shares nothing of with its siblings, and
-    ``input_name`` is the declared input it came from, which they all share.
+    ``name`` identifies the opening, which an open input shares nothing of with
+    its siblings, and ``input_name`` is the declared input it came from, which
+    they all share.
     """
 
     type: ArtifactTypeIR
@@ -101,11 +95,36 @@ class WorkflowContractIR(WorkflowIR):
     provenance: JsonValue | None = None
 
 
+def encode_workflow_contract(value: WorkflowContractIR) -> dict[str, Any]:
+    """Encode a contract into its canonical JSON-compatible representation."""
+    return value.model_dump(mode="json")
+
+
+def decode_workflow_contract(value: Mapping[str, Any]) -> WorkflowContractIR:
+    """Decode a contract from its canonical JSON-compatible representation."""
+    return WorkflowContractIR.model_validate_json(json.dumps(value))
+
+
+def workflow_contract_json(
+    value: WorkflowContractIR, *, indent: int | None = None,
+) -> str:
+    """Render a contract as JSON text, the form written beside a build."""
+    return value.model_dump_json(indent=indent)
+
+
+def workflow_contract_from_json(value: str | bytes) -> WorkflowContractIR:
+    """Read a contract from the JSON text written by an earlier build."""
+    return WorkflowContractIR.model_validate_json(value)
+
+
+workflow_contract_to_json = workflow_contract_json
+"""Alias for :func:`workflow_contract_json`."""
+
+
 __all__ = [
     "ArtifactTypeIR",
-    "BlueprintModuleIR",
-    "ContributionIR",
     "ConnectionIR",
+    "ContributionIR",
     "GivenIR",
     "InputIR",
     "ModuleReferenceIR",
@@ -116,4 +135,9 @@ __all__ = [
     "WorkflowContractIR",
     "WorkflowDefinitionIR",
     "WorkflowIR",
+    "decode_workflow_contract",
+    "encode_workflow_contract",
+    "workflow_contract_from_json",
+    "workflow_contract_json",
+    "workflow_contract_to_json",
 ]

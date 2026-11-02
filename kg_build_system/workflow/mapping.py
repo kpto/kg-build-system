@@ -1,12 +1,21 @@
-"""Mappings between workflow domain models and compilation IRs."""
+"""Mappings between workflow domain models and their compilation IR."""
 from __future__ import annotations
 
 from .._frozen_json import freeze_json, thaw_json
 from . import ir
 from .identity import output_name
 from .models import (
-    ArtifactType, Connection, DefinedContribution, DefinedStep, Input, ModuleDefinition,
-    ModuleReference, Output, Publication, RuntimeFieldDefinition, TakenInput, WorkflowDefinition,
+    ArtifactType,
+    Connection,
+    DefinedContribution,
+    DefinedStep,
+    ModuleDefinition,
+    ModuleReference,
+    Output,
+    Publication,
+    RuntimeFieldDefinition,
+    TakenInput,
+    WorkflowDefinition,
 )
 
 
@@ -24,7 +33,10 @@ def _reference_to_ir(value: ModuleReference) -> ir.ModuleReferenceIR:
         import_module=value.import_module,
         class_qualname=value.class_qualname,
         implementation_version=value.implementation_version,
-        configuration=thaw_json(value.configuration) if value.configuration is not None else None,
+        configuration=(
+            thaw_json(value.configuration)
+            if value.configuration is not None else None
+        ),
     )
 
 
@@ -34,7 +46,10 @@ def _reference_from_ir(value: ir.ModuleReferenceIR) -> ModuleReference:
         import_module=value.import_module,
         class_qualname=value.class_qualname,
         implementation_version=value.implementation_version,
-        configuration=freeze_json(value.configuration) if value.configuration is not None else None,
+        configuration=(
+            freeze_json(value.configuration)
+            if value.configuration is not None else None
+        ),
     )
 
 
@@ -43,8 +58,11 @@ def _contribution_to_ir(value: DefinedContribution) -> ir.ContributionIR:
         reference=_reference_to_ir(value.module.reference),
         runtime_fields=tuple(
             ir.RuntimeFieldIR(
-                key=field.key, description=field.description, required=field.required,
-                value_type=field.value_type, secret=field.secret,
+                key=field.key,
+                description=field.description,
+                required=field.required,
+                value_type=field.value_type,
+                secret=field.secret,
             )
             for field in value.module.runtime_fields
         ),
@@ -54,7 +72,8 @@ def _contribution_to_ir(value: DefinedContribution) -> ir.ContributionIR:
                 name=step.name,
                 inputs=tuple(
                     ir.InputIR(
-                        type=type_to_ir(taken.type), name=taken.name,
+                        type=type_to_ir(taken.type),
+                        name=taken.name,
                         input_name=taken.input_name,
                     )
                     for taken in step.inputs
@@ -77,8 +96,11 @@ def _contribution_from_ir(value: ir.ContributionIR) -> DefinedContribution:
             reference=_reference_from_ir(value.reference),
             runtime_fields=tuple(
                 RuntimeFieldDefinition(
-                    key=field.key, description=field.description, required=field.required,
-                    value_type=field.value_type, secret=field.secret,
+                    key=field.key,
+                    description=field.description,
+                    required=field.required,
+                    value_type=field.value_type,
+                    secret=field.secret,
                 )
                 for field in value.runtime_fields
             ),
@@ -88,7 +110,8 @@ def _contribution_from_ir(value: ir.ContributionIR) -> DefinedContribution:
                 name=step.name,
                 inputs=tuple(
                     TakenInput(
-                        type=type_from_ir(taken.type), name=taken.name,
+                        type=type_from_ir(taken.type),
+                        name=taken.name,
                         input_name=taken.input_name,
                     )
                     for taken in step.inputs
@@ -111,7 +134,8 @@ def workflow_to_ir(value: WorkflowDefinition) -> ir.WorkflowDefinitionIR:
         contributions=tuple(_contribution_to_ir(item) for item in value.contributions),
         connections=tuple(
             ir.ConnectionIR(
-                input_id=connection.input_id, output_id=connection.output_id,
+                input_id=connection.input_id,
+                output_id=connection.output_id,
             )
             for connection in value.connections
         ),

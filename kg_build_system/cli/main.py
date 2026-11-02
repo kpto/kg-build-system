@@ -1,5 +1,4 @@
 """The ``kbs`` command-line interface."""
-
 from __future__ import annotations
 
 import argparse
@@ -47,3 +46,6 @@ def main(argv: Sequence[str] | None = None) -> int:
         return 0
     except ValueError as error:
         parser.error(str(error))
+
+
+__all__ = ["main"]

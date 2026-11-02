@@ -1,9 +1,10 @@
-"""Compose expression row semantics into an engine-neutral relational plan."""
+"""Compose expression row effects into an engine-neutral relation plan."""
 from __future__ import annotations
 
 import json
 from collections.abc import Mapping
 from hashlib import sha256
+from typing import Any
 
 from ..expressions.interfaces import (
     ExpressionNode as DomainExpressionNode,
@@ -20,6 +21,11 @@ from .ir import (
     ExpandIR as Expand, FilterIR as Filter, RelationPlanIR as RelationPlan,
     ScanIR as Scan,
 )
+
+try:  # The operation registry is the preferred source of row-effect semantics.
+    from ..expressions.interfaces import DEFAULT_OPERATIONS
+except ImportError:  # pragma: no cover - compatibility with the older surface
+    DEFAULT_OPERATIONS = None
 
 
 def _key(expression: ExpressionNode) -> str:
@@ -65,6 +71,83 @@ def _operators_post_order(expression: ExpressionNode):
     yield expression
 
 
+def _spec_for(name: str) -> Any:
+    """Look one operation up across the registry shapes the interface offers."""
+    registry: Any = DEFAULT_OPERATIONS
+    if registry is None:
+        return None
+    specs = getattr(registry, "specs", None)
+    if isinstance(specs, Mapping):
+        return specs.get(name)
+    by_name = getattr(registry, "by_name", None)
+    if isinstance(by_name, Mapping):
+        return by_name.get(name)
+    if isinstance(specs, (tuple, list)):
+        for spec in specs:
+            if getattr(spec, "name", None) == name:
+                return spec
+    get = getattr(registry, "get", None)
+    if callable(get):
+        try:
+            return get(name)
+        except (KeyError, ValueError):
+            return None
+    if isinstance(registry, Mapping):
+        return registry.get(name)
+    return None
+
+
+def _predicate_index(operation: OperationExpression, spec: Any) -> int:
+    """The argument that carries a filter's predicate.
+
+    A row-effect spec names it explicitly where the interface can. The built-in
+    value-scoped filter is the only operation with a non-leading predicate.
+    """
+    effect = getattr(spec, "row_effect", None)
+    index = getattr(effect, "predicate_index", None)
+    if isinstance(index, int):
+        return index
+    if operation.operator == "where_if":
+        return 1
+    return 0
+
+
+def _row_effect(
+    operation: OperationExpression,
+) -> tuple[str, int | None] | None:
+    """The planned row effect of one operation, or ``None`` when it preserves rows.
+
+    The expression package owns the operation's meaning. The fallback names keep
+    the older interface usable without making the planner test operator names in
+    the normal path.
+    """
+    spec = _spec_for(operation.operator)
+    if spec is not None:
+        effect = getattr(spec, "row_effect", None)
+        kind = getattr(effect, "kind", None)
+        if kind is not None:
+            value = getattr(kind, "value", kind)
+            if value == "expand":
+                return "expand", None
+            if value == "filter":
+                return "filter", getattr(effect, "predicate_index", None)
+    # The built-in names fix the meaning the row-semantics value alone cannot:
+    # ``where_present`` filters on its value, ``where_if`` on its second argument.
+    if operation.operator == "expand":
+        return "expand", None
+    if operation.operator == "where_present":
+        return "filter", None
+    if operation.operator == "where_if":
+        return "filter", 1
+    if spec is not None:
+        mode = getattr(effect, "mode", None)
+        if mode == "expand":
+            return "expand", None
+        if mode == "filter":
+            return "filter", _predicate_index(operation, spec)
+    return None
+
+
 def lower_product(
     outputs: Mapping[str, ExpressionNode | DomainExpressionNode],
     relations: Mapping[str, str],
@@ -94,35 +177,45 @@ def lower_product(
             "a relational product requires one driving source; additional sources "
             "must be introduced by an explicit lookup"
         )
-    scans = tuple(Scan(source, relations[source], f"t{index}") for index, source in enumerate(referenced))
+    scans = tuple(
+        Scan(source, relations[source], f"t{index}")
+        for index, source in enumerate(referenced)
+    )
 
     expands: list[Expand] = []
     filters: list[Filter] = []
     expansion_scopes: set[tuple[str, ...]] = set()
     filter_keys: set[str] = set()
-    for expression in compiled_outputs.values():
+    for expression in (*compiled_outputs.values(), *predicates):
         for operation in _operators_post_order(expression):
-            if operation.operator == "expand":
+            effect = _row_effect(operation)
+            if effect is None:
+                continue
+            kind, predicate_index = effect
+            if kind == "expand":
                 if len(operation.arguments) != 1:
-                    raise ValueError("expand requires one argument")
+                    raise ValueError(f"{operation.operator} requires one argument")
                 scope = expansion_scope(operation)
                 if scope not in expansion_scopes:
                     expansion_scopes.add(scope)
-                    expands.append(Expand(scope, operation.arguments[0], f"expanded{len(expands)}"))
-            elif operation.operator == "where_present":
+                    expands.append(Expand(
+                        scope, operation.arguments[0], f"expanded{len(expands)}",
+                    ))
+                continue
+            if predicate_index is None:
                 if len(operation.arguments) != 1:
-                    raise ValueError("where_present requires one argument")
-                key = _key(operation)
-                if key not in filter_keys:
-                    filter_keys.add(key)
-                    filters.append(Filter(operation.arguments[0]))
-            elif operation.operator == "where_if":
-                if len(operation.arguments) != 2:
-                    raise ValueError("where_if requires a value and a predicate")
-                key = _key(operation)
-                if key not in filter_keys:
-                    filter_keys.add(key)
-                    filters.append(Filter(operation.arguments[1], "true"))
+                    raise ValueError(f"{operation.operator} requires one argument")
+                predicate = operation.arguments[0]
+                mode = "present"
+            else:
+                if len(operation.arguments) <= predicate_index:
+                    raise ValueError(f"{operation.operator} requires a predicate")
+                predicate = operation.arguments[predicate_index]
+                mode = "true"
+            key = _key(operation)
+            if key not in filter_keys:
+                filter_keys.add(key)
+                filters.append(Filter(predicate, mode))
 
     return RelationPlan(
         scans,

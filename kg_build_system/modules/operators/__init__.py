@@ -1,4 +1,5 @@
 """Workflow operators: artifact transformations and validation."""
+from __future__ import annotations
 
 from .conflict_validation import (
     RejectConflictingNonNullValuesConfiguration,
@@ -6,7 +7,8 @@ from .conflict_validation import (
 )
 from .deduplication import CollapseExactDuplicatesModule
 from .merging import (
-    MergeCompatibleFactsModule, MergeCompatibleFactsModuleConfiguration,
+    MergeCompatibleFactsModule,
+    MergeCompatibleFactsModuleConfiguration,
 )
 
 __all__ = [

@@ -1,4 +1,4 @@
-"""Compilation-only IR for normalized logical types."""
+"""Compilation IR for logical types."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -37,7 +37,6 @@ LogicalTypeIR: TypeAlias = NonNullableLogicalTypeIR | NullableTypeIR
 
 
 __all__ = [
-    "ArrayTypeIR", "CustomTypeIR", "LogicalTypeIR",
-    "NonNullableLogicalTypeIR", "NullableTypeIR", "StructTypeIR",
-    "UnitTypeIR",
+    "ArrayTypeIR", "CustomTypeIR", "LogicalTypeIR", "NonNullableLogicalTypeIR",
+    "NullableTypeIR", "StructTypeIR", "UnitTypeIR",
 ]

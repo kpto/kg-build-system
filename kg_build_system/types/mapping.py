@@ -1,25 +1,25 @@
-"""Mappings from logical-type domain models to compilation IRs."""
+"""Domain logical type to compilation IR."""
 from __future__ import annotations
 
-from . import ir
-from . import models
+from .ir import (
+    ArrayTypeIR, CustomTypeIR, LogicalTypeIR, NullableTypeIR, StructTypeIR,
+    UnitTypeIR,
+)
+from .models import ArrayType, CustomType, LogicalType, NullableType, StructType, UnitType
 
 
-def type_to_ir(value: models.LogicalType) -> ir.LogicalTypeIR:
-    if isinstance(value, models.UnitType):
-        return ir.UnitTypeIR(value.name)
-    if isinstance(value, models.CustomType):
-        return ir.CustomTypeIR(value.module, value.qualname)
-    if isinstance(value, models.StructType):
-        return ir.StructTypeIR(value.module, value.qualname)
-    if isinstance(value, models.ArrayType):
-        return ir.ArrayTypeIR(type_to_ir(value.item))
-    if isinstance(value, models.NullableType):
-        inner = type_to_ir(value.value)
-        if isinstance(inner, ir.NullableTypeIR):
-            raise ValueError("nullable type IRs may not be nested")
-        return ir.NullableTypeIR(inner)
-    raise TypeError(f"unsupported logical type domain model {value!r}")
+def type_to_ir(value: LogicalType) -> LogicalTypeIR:
+    if isinstance(value, UnitType):
+        return UnitTypeIR(value.name)
+    if isinstance(value, CustomType):
+        return CustomTypeIR(value.module, value.qualname)
+    if isinstance(value, StructType):
+        return StructTypeIR(value.module, value.qualname)
+    if isinstance(value, ArrayType):
+        return ArrayTypeIR(type_to_ir(value.item))
+    if isinstance(value, NullableType):
+        return NullableTypeIR(type_to_ir(value.value))  # type: ignore[arg-type]
+    raise TypeError(f"unsupported logical type {value!r}")
 
 
 __all__ = ["type_to_ir"]

@@ -2,12 +2,12 @@
   "format_version": "6",
   "owned_directories": [],
   "owned_file_hashes": {
-    "__init__.py": "2099eef0caf4779966617ed5ac67dba27e30321c2f549aad7ad1bf972e750df0"
+    "__init__.py": "a80cf9eb5f232d0205716ff500d57746cee9314d72843bba31b733cd76fb9386"
   },
   "owned_files": [
     "__init__.py"
   ],
-  "provider_import": "kg_build_system.code_generation.builtins.schema_inference",
+  "provider_import": "kg_build_system.code_generation.builtins.provider",
   "provider_qualname": "InferDataContractProvider",
   "provider_version": "7",
   "request_fingerprint": "9b04a2d64bca39cc7388a088494b94f0dc4fd2477c444e3b6c39e6a37d5bf5bf",

@@ -1,4 +1,4 @@
-"""Portable authoring annotations."""
+"""Portable annotations."""
 from __future__ import annotations
 
 from .labels import EdgeLabel, NodeLabel

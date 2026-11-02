@@ -11,16 +11,19 @@ from rich.console import Console, Group, RenderableType
 from rich.live import Live
 from rich.panel import Panel
 from rich.progress import (
-    BarColumn, Progress, ProgressColumn, Task, TaskID, TaskProgressColumn,
+    BarColumn,
+    Progress,
+    ProgressColumn,
+    Task,
+    TaskID,
+    TaskProgressColumn,
 )
 from rich.spinner import Spinner
 from rich.table import Table
 from rich.text import Text
 
-from .models import (
-    StepOutcome, StepStatus, WorkflowDefinition, WorkflowReport,
-)
 from .identity import step_identity
+from .models import StepOutcome, StepStatus, WorkflowDefinition, WorkflowReport
 
 
 class _WorkflowStatusColumn(ProgressColumn):

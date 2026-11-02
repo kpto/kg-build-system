@@ -4,11 +4,13 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, overload
 
-from ..types.interfaces import Array, ArrayType, Nullable, NullableType, STR, Struct, StructType
+from ..types.interfaces import (
+    Array, ArrayType, Nullable, NullableType, STR, Struct, StructType,
+)
+from ._apply import apply_operation
 from ._coercion import expression_input
-from .base import operation
-from ._operations import row_effects
-from .models import VariableExpression
+from ._semantics import row_effects
+from ._model import VariableExpression
 from .values import ValueExpression
 
 if TYPE_CHECKING:
@@ -27,9 +29,9 @@ def _transform_items(
     selector: Callable[[Any], ValueExpression[Any]],
 ) -> ValueExpression[Any]:
     """Apply one typed selector to every element of an array."""
+    from ._visitors import walk_expression
     from .factory import wrap_expression
     from .selections import as_expression, select_expression
-    from .visitors import walk_expression
 
     logical_type = expression.logical_type
     array_nullable = isinstance(logical_type, NullableType)
@@ -40,9 +42,9 @@ def _transform_items(
     element_nullable = isinstance(element, NullableType)
     element_base = element.value if element_nullable else element
 
-    item_expression = wrap_expression(VariableExpression(
-        name="item", logical_type=element_base,
-    ))
+    item_expression = wrap_expression(
+        VariableExpression(name="item", logical_type=element_base)
+    )
     proxy = (
         select_expression(item_expression)
         if isinstance(element_base, StructType)
@@ -50,53 +52,33 @@ def _transform_items(
     )
     body = as_expression(selector(proxy))
     if any(row_effects(node.row_semantics) for node in walk_expression(body.model)):
-        raise TypeError(
-            "transform_items selectors must not contain row effects"
-        )
+        raise TypeError("transform_items selectors must not contain row effects")
 
-    item_type = body.logical_type
-    if element_nullable and not isinstance(item_type, NullableType):
-        item_type = NullableType(item_type)
-    result_type: Any = ArrayType(item_type)
-    if array_nullable:
-        result_type = NullableType(result_type)
-    return wrap_expression(operation(
+    return apply_operation(
         "transform_items",
         expression.model,
         body.model,
-        logical_type=result_type,
-        parameters={"item": "item"},
-    ))
+        item="item",
+    )
 
 
 def _drop_null_items(expression: ValueExpression[Any]) -> ValueExpression[Any]:
     """Drop null items while keeping the array itself present or absent."""
-    from .factory import wrap_expression
-
     logical_type = expression.logical_type
-    array_nullable = isinstance(logical_type, NullableType)
-    array_base = logical_type.value if array_nullable else logical_type
+    array_base = (
+        logical_type.value if isinstance(logical_type, NullableType) else logical_type
+    )
     if not isinstance(array_base, ArrayType):
         raise TypeError("drop_null_items requires an array expression")
-    item = array_base.item
-    if not isinstance(item, NullableType):
+    if not isinstance(array_base.item, NullableType):
         return expression
-    result_type: Any = ArrayType(item.value)
-    if array_nullable:
-        result_type = NullableType(result_type)
-    return wrap_expression(operation(
-        "drop_null_items", expression.model, logical_type=result_type,
-    ))
+    return apply_operation("drop_null_items", expression.model)
 
 
 def _array_operation(
     expression: ValueExpression[Any], operator: str,
 ) -> ValueExpression[Any]:
-    from .factory import wrap_expression
-
-    return wrap_expression(operation(
-        operator, expression.model, logical_type=expression.logical_type,
-    ))
+    return apply_operation(operator, expression.model)
 
 
 class ArrayExpression(ValueExpression[Array[TItem]], Generic[TItem]):
@@ -145,9 +127,7 @@ class ArrayExpression(ValueExpression[Array[TItem]], Generic[TItem]):
 
     def distinct(self) -> "ArrayExpression[TItem]":
         """Keep one copy per item; a null array stays null."""
-        return cast(
-            "ArrayExpression[TItem]", _array_operation(self, "distinct"),
-        )
+        return cast("ArrayExpression[TItem]", _array_operation(self, "distinct"))
 
     def join(self, separator: str) -> "StrExpression":
         """Concatenate non-null string items with ``separator``."""
@@ -157,10 +137,11 @@ class ArrayExpression(ValueExpression[Array[TItem]], Generic[TItem]):
         assert isinstance(logical_type, ArrayType)
         if logical_type.item != STR:
             raise TypeError("join requires an array of non-null strings")
-        return StrExpression(operation(
-            "join", self.model, expression_input(separator, STR),
-            logical_type=STR,
-        ))
+        return StrExpression(
+            apply_operation(
+                "join", self.model, expression_input(separator, STR)
+            ).model
+        )
 
 
 __all__ = ["ArrayExpression"]

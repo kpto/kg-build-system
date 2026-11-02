@@ -1,19 +1,47 @@
-"""Factories and source resolution for logical data declarations."""
+"""Source binding and table-group expansion."""
 from __future__ import annotations
 
 from dataclasses import replace
+from string import Formatter
 
 from ..annotations.interfaces import annotation_tuple
-from .fields import computed_field, field
 from .models import (
-    BoundSource,
-    BoundTable,
-    BoundTableGroup,
-    DataSourceConfig,
-    SourceBindingOptions,
-    is_concrete_table,
-    is_table_group,
+    BoundSource, BoundTable, BoundTableGroup, DataSourceConfig, DeclarationSpec,
+    SourceBindingOptions, is_concrete_table, is_table_group,
 )
+
+
+def _declaration_spec(value: type) -> DeclarationSpec | None:
+    spec = vars(value).get("_kg_declaration_spec")
+    return spec if isinstance(spec, DeclarationSpec) else None
+
+
+def _group_name(group: type) -> str:
+    spec = _declaration_spec(group)
+    name = spec.name if spec is not None else None
+    if name is None:
+        name = getattr(group, "_table_group_name", None)
+    if not isinstance(name, str) or not name:
+        raise TypeError("table groups require a logical name")
+    return name
+
+
+def _group_members(group: type) -> tuple[type, ...]:
+    spec = _declaration_spec(group)
+    members = spec.members if spec is not None else ()
+    if not members:
+        members = tuple(getattr(group, "_table_group_entries", ()))
+    return members
+
+
+def _table_name(table: type) -> str:
+    spec = _declaration_spec(table)
+    name = spec.name if spec is not None else None
+    if name is None:
+        name = getattr(table, "_table_name", None)
+    if not isinstance(name, str) or not name:
+        raise TypeError("tables require a logical name")
+    return name
 
 
 def group_tables(
@@ -24,11 +52,11 @@ def group_tables(
     """Flatten a group into concrete tables and canonical catalog paths."""
     if group in visited:
         raise TypeError("table groups may not contain a cycle")
-    path = (*prefix, group._table_group_name)
+    path = (*prefix, _group_name(group))
     result: list[tuple[type, tuple[str, ...]]] = []
-    for target in group._table_group_entries:
+    for target in _group_members(group):
         if is_concrete_table(target):
-            result.append((target, (*path, target._table_name)))
+            result.append((target, (*path, _table_name(target))))
         else:
             result.extend(group_tables(target, path, (*visited, group)))
     tables = tuple(table for table, _ in result)
@@ -40,6 +68,14 @@ def group_tables(
     return tuple(result)
 
 
+def _layout_fields(layout: str) -> tuple[str, ...]:
+    fields: list[str] = []
+    for _, name, _, _ in Formatter().parse(layout):
+        if name is not None:
+            fields.append(name)
+    return tuple(fields)
+
+
 def _location_for(
     config: DataSourceConfig,
     group_path: tuple[str, ...],
@@ -49,11 +85,16 @@ def _location_for(
         raise ValueError(
             "group sources require DataSourceConfig.layout to resolve each table"
         )
+    allowed = {"group_path", "table_name"}
+    if any(name not in allowed for name in _layout_fields(config.layout)):
+        raise ValueError(
+            "group source layouts may use only {group_path} and {table_name}"
+        )
     try:
         relative = config.layout.format(
             group_path="/".join(group_path), table_name=table_name
         )
-    except (IndexError, KeyError) as error:
+    except (IndexError, KeyError, ValueError) as error:
         raise ValueError(
             "group source layouts may use only {group_path} and {table_name}"
         ) from error
@@ -61,6 +102,7 @@ def _location_for(
 
 
 def resolve_bound_source(source: BoundSource) -> tuple[BoundTable, ...]:
+    """Expand a source binding into one bound table per concrete table."""
     if isinstance(source, BoundTable):
         return (source,)
     return tuple(
@@ -83,6 +125,7 @@ def bind_source(
     config: DataSourceConfig,
     options: SourceBindingOptions = SourceBindingOptions(),
 ) -> BoundSource:
+    """Bind a final table or table group to its physical source."""
     annotations = annotation_tuple(options.annotations)
     if is_concrete_table(target):
         return BoundTable(target, config, annotations)
@@ -92,9 +135,5 @@ def bind_source(
 
 
 __all__ = [
-    "bind_source",
-    "computed_field",
-    "field",
-    "group_tables",
-    "resolve_bound_source",
+    "bind_source", "group_tables", "resolve_bound_source",
 ]

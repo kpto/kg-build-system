@@ -2,22 +2,39 @@
 from __future__ import annotations
 
 import importlib
+from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from ..._frozen_json import freeze_json
-from ...workflow.interfaces import (
-    ExecutionServices,
-    Artifact, DisruptedExecutionContext, ExecutionContext,
-    ExecutorFactoryContext, Input, ModuleDefinition, ModuleReference, Output,
-    StepOutcome, StepStatus, WorkflowContribution, WorkflowStep,
+from ...compile.interfaces import ModuleCompiler
+from ...kernel import (
+    Artifact,
+    CompilationContext,
+    DisruptedExecutionContext,
+    ExecutionContext,
+    ExecutorFactoryContext,
+    Input,
+    ModuleDefinition,
+    ModuleReference,
+    Output,
+    StepOutcome,
+    StepStatus,
+    WorkflowContribution,
+    WorkflowStep,
 )
-from ...compile.interfaces import CompilationContext, ModuleCompiler
-from ...modules.interfaces import Module, ModuleRegistrationConfiguration
-from ...topology.interfaces import Edge, Node
-from ...workflow.interfaces import output_name
-from ...workflow.interfaces import ModuleExecutor
+from ...topology.interfaces import component_kind, is_abstract_component
+from .._runtime import (
+    as_mapping,
+    execution_services,
+    instruction_payload,
+    output_name,
+    skipped,
+    thaw_object,
+)
 from ..core import CoreArtifactTypes, graph_record_components
+from ..core.plan import blueprint_from_context
+from ..interfaces import Module, ModuleRegistrationConfiguration
 
 
 @dataclass(frozen=True)
@@ -32,7 +49,7 @@ class MergeCompatibleFactsModuleConfiguration(ModuleRegistrationConfiguration):
     scope.
     """
 
-    components: tuple[type[Node] | type[Edge[Any, Any]], ...] | None = None
+    components: tuple[type[Any], ...] | None = None
 
     def __post_init__(self) -> None:
         if self.components is not None:
@@ -40,11 +57,10 @@ class MergeCompatibleFactsModuleConfiguration(ModuleRegistrationConfiguration):
                 _resolve_component(component) for component in self.components
             )
             for component in values:
-                kind = getattr(component, "_component_declaration_kind", None)
                 if (
                     not isinstance(component, type)
-                    or kind not in {"node", "edge"}
-                    or getattr(component, "_component_abstract", False)
+                    or component_kind(component) not in {"node", "edge"}
+                    or is_abstract_component(component)
                 ):
                     raise TypeError(
                         "components must be concrete Node or Edge classes"
@@ -69,13 +85,21 @@ class MergeCompatibleFactsModuleConfiguration(ModuleRegistrationConfiguration):
 def _resolve_component(value: Any) -> Any:
     if isinstance(value, type):
         return value
-    if isinstance(value, dict):
+    value = thaw_object(value)
+    if isinstance(value, Mapping):
         module = importlib.import_module(str(value["module"]))
         component: Any = module
         for part in str(value["qualname"]).split("."):
             component = getattr(component, part)
         return component
     raise TypeError("components must be concrete Node or Edge classes")
+
+
+def _component_name(component: type[Any]) -> str:
+    name = getattr(component, "_component_name", None)
+    if not isinstance(name, str) or not name:
+        raise TypeError("components must name a declared node or edge")
+    return name
 
 
 _RECORDS_INPUT = "records"
@@ -89,6 +113,7 @@ def _quote_identifier(value: object) -> str:
 @dataclass(frozen=True)
 class MergeCompatibleFactsModule(Module):
     configuration: MergeCompatibleFactsModuleConfiguration
+
     ID: ClassVar[str] = "merge_compatible_facts"
     VERSION: ClassVar[str] = "1"
     CONFIGURATION_TYPE: ClassVar[type[MergeCompatibleFactsModuleConfiguration]] = (
@@ -102,25 +127,21 @@ class MergeCompatibleFactsModule(Module):
         return cls(context.configuration)
 
     @classmethod
-    def create_executor(
-        cls, context: ExecutorFactoryContext,
-    ) -> ModuleExecutor:
+    def create_executor(cls, context: ExecutorFactoryContext) -> Any:
         return _Executor()
 
-    async def compile(
-        self, context: CompilationContext[Any],
-    ) -> WorkflowContribution:
+    async def compile(self, context: CompilationContext[Any]) -> WorkflowContribution:
         steps: list[WorkflowStep] = []
         instructions: dict[str, Any] = {}
         scope = self.configuration.components
         scope_names = None if scope is None else {
-            component._component_name for component in scope
+            _component_name(component) for component in scope
         }
-        for component in graph_record_components(context.blueprint):
+        for component in graph_record_components(blueprint_from_context(context)):
             if scope_names is not None and component.name not in scope_names:
                 continue
             records_type = CoreArtifactTypes.graph_records(
-                component.kind, component.name
+                component.kind, component.name,
             )
             fields = [prop.name for prop in component.properties]
             if component.kind == "edge":
@@ -154,14 +175,15 @@ class MergeCompatibleFactsModule(Module):
         )
 
 
-class _Executor(ModuleExecutor):
+class _Executor:
     def handle(
-        self, context: ExecutionContext, services: ExecutionServices,
+        self, context: ExecutionContext, services: Any = None,
     ) -> StepOutcome:
-        instructions = context.variables["instructions"][context.step.name]
-        if not isinstance(instructions, dict):
-            raise ValueError("fact merging requires an object instruction")
-
+        services = execution_services(context, services)
+        instructions = as_mapping(
+            instruction_payload(context),
+            context="fact merging instruction",
+        )
         input_relation = next(
             (
                 item.artifact.value
@@ -182,7 +204,6 @@ class _Executor(ModuleExecutor):
             str(instructions["relation"]),
             f'SELECT {instructions["select"]} FROM {source} GROUP BY "build_key"',
         )
-
         outputs = {output_name(given): given for given in context.step.outputs}
         artifact = Artifact(
             _MERGED_OUTPUT, outputs[_MERGED_OUTPUT].type, relation,
@@ -195,6 +216,11 @@ class _Executor(ModuleExecutor):
         )
 
     def handle_disrupted(
-        self, context: DisruptedExecutionContext, services: ExecutionServices,
+        self, context: DisruptedExecutionContext, services: Any = None,
     ) -> StepOutcome:
-        return super().handle_disrupted(context, services)
+        return skipped(context)
+
+
+__all__ = [
+    "MergeCompatibleFactsModule", "MergeCompatibleFactsModuleConfiguration",
+]

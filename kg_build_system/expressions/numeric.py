@@ -4,8 +4,8 @@ from __future__ import annotations
 from typing import Generic, TypeVar
 
 from ..types.interfaces import FLOAT, INT
+from ._apply import apply_operation
 from ._coercion import expression_input
-from .base import operation
 from .values import ValueExpression
 
 
@@ -17,9 +17,7 @@ class NumberExpression(ValueExpression[TNumber], Generic[TNumber]):
 
     def _binary(self, operator: str, other: TNumber | ValueExpression[TNumber]):
         right = expression_input(other, self.logical_type)
-        return type(self)(
-            operation(operator, self.model, right, logical_type=self.logical_type)
-        )
+        return type(self)(apply_operation(operator, self.model, right).model)
 
     def add(self, other: TNumber | ValueExpression[TNumber]) -> "NumberExpression[TNumber]":
         return self._binary("add", other)

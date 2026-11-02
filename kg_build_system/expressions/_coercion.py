@@ -4,12 +4,13 @@ from __future__ import annotations
 from typing import Any
 
 from ..types.interfaces import FLOAT, LogicalType, NullableType
-from .models import ExpressionNode
-from .literals import literal
+from ._literals import literal
+from ._model import ExpressionNode
 from .values import ValueExpression
 
 
 def expression_input(value: Any, expected: LogicalType) -> ExpressionNode:
+    """Normalize a literal or typed expression and check its logical type."""
     if isinstance(value, ValueExpression):
         result = value.model
     else:

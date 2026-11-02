@@ -1,8 +1,12 @@
-from .file import FileModule, FileModuleConfiguration
-from .meta_graph import MetaGraphModule, MetaGraphModuleConfiguration
-from .neo4j import Neo4jModule, Neo4jModuleConfiguration
+"""Output targets: files, the meta-graph description and Neo4j import bundles."""
+from .file import FileExecutor, FileModule, FileModuleConfiguration
+from .meta_graph import (
+    MetaGraphExecutor, MetaGraphModule, MetaGraphModuleConfiguration,
+)
+from .neo4j import Neo4jExecutor, Neo4jModule, Neo4jModuleConfiguration
 
 __all__ = [
-    "FileModule", "FileModuleConfiguration", "MetaGraphModule",
-    "MetaGraphModuleConfiguration", "Neo4jModule", "Neo4jModuleConfiguration",
+    "FileExecutor", "FileModule", "FileModuleConfiguration",
+    "MetaGraphExecutor", "MetaGraphModule", "MetaGraphModuleConfiguration",
+    "Neo4jExecutor", "Neo4jModule", "Neo4jModuleConfiguration",
 ]

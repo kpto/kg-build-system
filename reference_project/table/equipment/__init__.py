@@ -6,6 +6,7 @@
 # isort: skip_file
 # ruff: noqa: F401
 # pyright: reportUnusedImport=false
+# pyright: reportUnknownVariableType=false
 
 from kg_build_system import Field, Table, TableOptions, field
 from kg_build_system.types import Array, Date, Time, Timestamp, Uuid
@@ -13,10 +14,10 @@ from kg_build_system.types import Array, Date, Time, Timestamp, Uuid
 
 class EquipmentTable(Table):
     options = TableOptions(name='equipment')
-    unit_ref: Field[str] = field(name='unit_ref')
-    unit_name: Field[str] = field(name='unit_name')
-    site_id: Field[str] = field(name='site_id')
-    in_service: Field[bool] = field(name='in_service')
-    survey_period: Field[str] = field(name='survey_period')
+    unit_ref: Field[str | None] = field(name='unit_ref')
+    unit_name: Field[str | None] = field(name='unit_name')
+    site_id: Field[str | None] = field(name='site_id')
+    in_service: Field[bool | None] = field(name='in_service')
+    survey_period: Field[str | None] = field(name='survey_period')
 
 __all__ = ['EquipmentTable']

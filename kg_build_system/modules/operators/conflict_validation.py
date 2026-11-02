@@ -5,19 +5,35 @@ from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from ..._frozen_json import freeze_json
-from ...workflow.interfaces import (
-    ExecutionServices,
-    Artifact, ArtifactType, DisruptedExecutionContext, ExecutionContext,
-    ExecutorFactoryContext, Failure, Input, ModuleDefinition, ModuleReference,
-    Output, Publication, StepOutcome, StepStatus, WorkflowContribution,
+from ...compile.interfaces import ModuleCompiler
+from ...kernel import (
+    Artifact,
+    ArtifactType,
+    CompilationContext,
+    DisruptedExecutionContext,
+    ExecutionContext,
+    ExecutorFactoryContext,
+    Failure,
+    Input,
+    ModuleDefinition,
+    ModuleReference,
+    Output,
+    Publication,
+    StepOutcome,
+    StepStatus,
+    WorkflowContribution,
     WorkflowStep,
 )
-from ...compile.interfaces import CompilationContext, ModuleCompiler
-from ...modules.interfaces import Module, ModuleRegistrationConfiguration
-from ...topology.ir import ComponentIR as ComponentDefinition
-from ...workflow.interfaces import output_name
-from ...workflow.interfaces import ModuleExecutor
+from .._runtime import (
+    as_mapping,
+    execution_services,
+    instruction_payload,
+    output_name,
+    skipped,
+)
 from ..core import CoreArtifactTypes, graph_record_components
+from ..core.plan import blueprint_from_context
+from ..interfaces import Module, ModuleRegistrationConfiguration
 
 
 @dataclass(frozen=True)
@@ -39,22 +55,16 @@ class ConflictingNonNullValuesReport:
 
 
 _RECORDS_INPUT = "records"
-"""What a findings step calls the graph records it reads."""
 
 _FINDINGS = "findings"
-"""What a findings step calls what it found, and what the report calls the collection."""
 
 _FINDINGS_PATTERN = "findings.*"
-"""The family of findings types the report takes, one port per type it matches."""
 
 _REPORT_OUTPUT = "report"
-"""The report step, and the name and type of the publication it writes."""
 
 _RECORDS_SUFFIX = ".records"
-"""The opening on the report step one component's records arrive at."""
 
 _VALIDATED_SUFFIX = ".validated"
-"""The opening on the report step that component's records leave by."""
 
 
 def _quote_identifier(value: object) -> str:
@@ -78,20 +88,16 @@ class RejectConflictingNonNullValuesModule(Module):
         return cls(context.configuration)
 
     @classmethod
-    def create_executor(
-        cls, context: ExecutorFactoryContext,
-    ) -> ModuleExecutor:
+    def create_executor(cls, context: ExecutorFactoryContext) -> Any:
         return _Executor()
 
-    async def compile(
-        self, context: CompilationContext[Any],
-    ) -> WorkflowContribution:
+    async def compile(self, context: CompilationContext[Any]) -> WorkflowContribution:
         steps: list[WorkflowStep] = []
         instructions: dict[str, Any] = {}
-        components = graph_record_components(context.blueprint)
+        components = graph_record_components(blueprint_from_context(context))
         for component in components:
             records_type = CoreArtifactTypes.graph_records(
-                component.kind, component.name
+                component.kind, component.name,
             )
             for prop in component.properties:
                 name = f"{component.name}.{prop.name}"
@@ -130,15 +136,13 @@ class RejectConflictingNonNullValuesModule(Module):
             definition, tuple(steps), freeze_json({"instructions": instructions}),
         )
 
-    def _report_step(
-        self, components: tuple[ComponentDefinition, ...],
-    ) -> WorkflowStep:
+    def _report_step(self, components) -> WorkflowStep:
         """The deferred step that gathers every findings type and passes records on.
 
-        Its findings arrive through one open input, which takes one output of each type the
-        findings steps write. Each component's records arrive at an opening named for that
-        component, and leave by a matching one of their own, since the type they carry is the
-        same one the steps upstream that made them write.
+        Its findings arrive through one open input, which takes one output of each
+        type the findings steps write. Each component's records arrive at an
+        opening named for that component, and leave by a matching one of their own,
+        since the type they carry is the same one the steps upstream made them write.
         """
         return WorkflowStep(
             inputs=(
@@ -149,7 +153,7 @@ class RejectConflictingNonNullValuesModule(Module):
                 *(
                     Input(
                         CoreArtifactTypes.graph_records(
-                            component.kind, component.name
+                            component.kind, component.name,
                         ),
                         f"{component.name}{_RECORDS_SUFFIX}",
                     )
@@ -164,7 +168,7 @@ class RejectConflictingNonNullValuesModule(Module):
                 *(
                     Output(
                         CoreArtifactTypes.graph_records(
-                            component.kind, component.name
+                            component.kind, component.name,
                         ),
                         f"{component.name}{_VALIDATED_SUFFIX}",
                     )
@@ -176,13 +180,15 @@ class RejectConflictingNonNullValuesModule(Module):
         )
 
 
-class _Executor(ModuleExecutor):
+class _Executor:
     def handle(
-        self, context: ExecutionContext, services: ExecutionServices,
+        self, context: ExecutionContext, services: Any = None,
     ) -> StepOutcome:
-        instructions = context.variables["instructions"][context.step.name]
-        if not isinstance(instructions, dict):
-            raise ValueError("conflict validation requires an object instruction")
+        services = execution_services(context, services)
+        instructions = as_mapping(
+            instruction_payload(context),
+            context="conflict validation instruction",
+        )
         if instructions.get("action") == "findings":
             return self._findings(context, instructions, services)
         if instructions.get("action") == "report":
@@ -192,8 +198,10 @@ class _Executor(ModuleExecutor):
         )
 
     def _findings(
-        self, context: ExecutionContext, instructions: dict[str, Any],
-        services: ExecutionServices,
+        self,
+        context: ExecutionContext,
+        instructions: Any,
+        services: Any,
     ) -> StepOutcome:
         relation = next(
             item.artifact.value
@@ -233,7 +241,7 @@ class _Executor(ModuleExecutor):
         )
 
     def _report(
-        self, context: ExecutionContext, instructions: dict[str, Any],
+        self, context: ExecutionContext, instructions: Any,
     ) -> StepOutcome:
         findings = tuple(
             finding
@@ -291,6 +299,14 @@ class _Executor(ModuleExecutor):
         )
 
     def handle_disrupted(
-        self, context: DisruptedExecutionContext, services: ExecutionServices,
+        self, context: DisruptedExecutionContext, services: Any = None,
     ) -> StepOutcome:
-        return super().handle_disrupted(context, services)
+        return skipped(context)
+
+
+__all__ = [
+    "ConflictingNonNullValueFinding",
+    "ConflictingNonNullValuesReport",
+    "RejectConflictingNonNullValuesConfiguration",
+    "RejectConflictingNonNullValuesModule",
+]

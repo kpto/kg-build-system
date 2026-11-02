@@ -6,55 +6,56 @@
 # isort: skip_file
 # ruff: noqa: F401
 # pyright: reportUnusedImport=false
+# pyright: reportUnknownVariableType=false
 
 from kg_build_system import Field, Struct, Table, TableOptions, field
 from kg_build_system.types import Array, Date, Time, Timestamp, Uuid
 
 
 class SurveyorFirmStruct(Struct):
-    name: Field[str] = field(name='name')
-    accreditation: Field[str] = field(name='accreditation')
+    name: Field[str | None] = field(name='name')
+    accreditation: Field[str | None] = field(name='accreditation')
 
 
 class SurveyorStruct(Struct):
-    name: Field[str] = field(name='name')
-    firm: Field[SurveyorFirmStruct] = field(name='firm')
+    name: Field[str | None] = field(name='name')
+    firm: Field[SurveyorFirmStruct | None] = field(name='firm')
 
 
 class AreasElementsDefectsObservationsStruct(Struct):
-    observation_uid: Field[str] = field(name='observation_uid')
-    value: Field[float] = field(name='value')
-    observed_by: Field[str] = field(name='observed_by')
-    observed_on: Field[str] = field(name='observed_on')
+    observation_uid: Field[str | None] = field(name='observation_uid')
+    value: Field[float | None] = field(name='value')
+    observed_by: Field[str | None] = field(name='observed_by')
+    observed_on: Field[str | None] = field(name='observed_on')
 
 
 class AreasElementsDefectsStruct(Struct):
-    defect_id: Field[str] = field(name='defect_id')
-    title: Field[str] = field(name='title')
-    condition_rating: Field[str] = field(name='condition_rating')
-    observed_by: Field[str] = field(name='observed_by')
-    observed_on: Field[str] = field(name='observed_on')
-    observations: Field[Array[AreasElementsDefectsObservationsStruct | None]] = field(name='observations')
+    defect_id: Field[str | None] = field(name='defect_id')
+    title: Field[str | None] = field(name='title')
+    condition_rating: Field[str | None] = field(name='condition_rating')
+    observed_by: Field[str | None] = field(name='observed_by')
+    observed_on: Field[str | None] = field(name='observed_on')
+    observations: Field[Array[AreasElementsDefectsObservationsStruct | None] | None] = field(name='observations')
 
 
 class AreasElementsStruct(Struct):
-    element_ref: Field[str] = field(name='element_ref')
-    unit_ref: Field[str] = field(name='unit_ref')
-    defects: Field[Array[AreasElementsDefectsStruct | None]] = field(name='defects')
+    element_ref: Field[str | None] = field(name='element_ref')
+    unit_ref: Field[str | None] = field(name='unit_ref')
+    defects: Field[Array[AreasElementsDefectsStruct | None] | None] = field(name='defects')
 
 
 class AreasStruct(Struct):
-    area_code: Field[str] = field(name='area_code')
-    area_name: Field[str] = field(name='area_name')
-    elements: Field[Array[AreasElementsStruct | None]] = field(name='elements')
+    area_code: Field[str | None] = field(name='area_code')
+    area_name: Field[str | None] = field(name='area_name')
+    elements: Field[Array[AreasElementsStruct | None] | None] = field(name='elements')
 
 
 class SurveysTable(Table):
     options = TableOptions(name='surveys')
-    survey_id: Field[str] = field(name='survey_id')
-    site_id: Field[str] = field(name='site_id')
-    surveyed_on: Field[Timestamp] = field(name='surveyed_on')
-    surveyor: Field[SurveyorStruct] = field(name='surveyor')
-    areas: Field[Array[AreasStruct | None]] = field(name='areas')
+    survey_id: Field[str | None] = field(name='survey_id')
+    site_id: Field[str | None] = field(name='site_id')
+    surveyed_on: Field[Timestamp | None] = field(name='surveyed_on')
+    surveyor: Field[SurveyorStruct | None] = field(name='surveyor')
+    areas: Field[Array[AreasStruct | None] | None] = field(name='areas')
 
 __all__ = ['SurveysTable']

@@ -1,13 +1,20 @@
 """How an assembled workflow names the steps and openings it was given.
 
-Names belong to the thing that holds them: a step is named among the steps of its module, an
-input or output among the openings of its step. Identity is what the whole workflow uses, and
-:func:`step_identity` and :func:`opening_identity` form it from the names. Nothing here is
-stored on the data it describes.
+Names belong to the thing that holds them: a step is named among the steps of
+its module, and an input or output among the openings of its step. Identity is
+what the whole workflow uses, and :func:`step_identity` and
+:func:`opening_identity` form it from those names. Nothing here is stored on the
+data it describes.
 """
 from __future__ import annotations
 
-from .models import ArtifactType, Input, Output, Publication, WorkflowStep
+from ..kernel.contract import (
+    ArtifactType,
+    Input,
+    Output,
+    Publication,
+    WorkflowStep,
+)
 
 DEFAULT_STEP_NAME: str = "step"
 """The word an unnamed step is counted from, when a module gives it no name."""
@@ -20,7 +27,7 @@ DEFAULT_OUTPUT_NAME = "output"
 
 
 def step_name(step: WorkflowStep, position: int) -> str:
-    """The name a step goes by within its module: its own, or its counting position."""
+    """The name a step goes by within its module: its own, or its position."""
     return step.name if step.name is not None else f"{DEFAULT_STEP_NAME}{position + 1}"
 
 
@@ -35,7 +42,7 @@ def output_name(given: Output | Publication) -> str:
 
 
 def type_text(artifact_type: ArtifactType) -> str:
-    """One artifact type written as a single name, as it appears inside an identity."""
+    """One artifact type written as a single name, as it appears in an identity."""
     return f"{artifact_type.namespace}.{artifact_type.name}"
 
 

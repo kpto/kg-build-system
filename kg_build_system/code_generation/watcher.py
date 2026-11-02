@@ -1,5 +1,4 @@
-"""Project file watching for the code-generation PoC."""
-
+"""Project file watching for edit-time generation."""
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Iterable
@@ -23,10 +22,10 @@ class FileChange:
     path: Path
 
 
-_IGNORED_DIRECTORIES = frozenset(
-    {".git", ".hg", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".tox", ".venv", "__pycache__"}
-)
-
+_IGNORED_DIRECTORIES = frozenset({
+    ".git", ".hg", ".mypy_cache", ".pytest_cache", ".ruff_cache", ".tox",
+    ".venv", "__pycache__",
+})
 
 _CHANGE_KINDS = {
     Change.added: FileChangeKind.CREATED,
@@ -56,7 +55,9 @@ async def watch(
     if debounce <= 0 or step <= 0:
         raise ValueError("watch debounce and step must be greater than zero")
 
-    watched_suffixes = frozenset(suffix if suffix.startswith(".") else f".{suffix}" for suffix in suffixes)
+    watched_suffixes = frozenset(
+        suffix if suffix.startswith(".") else f".{suffix}" for suffix in suffixes
+    )
 
     def relevant(_change: Change, changed_path: str) -> bool:
         path = Path(changed_path)
@@ -89,3 +90,6 @@ async def watch(
         )
         if changes:
             yield changes
+
+
+__all__ = ["FileChange", "FileChangeKind", "watch"]

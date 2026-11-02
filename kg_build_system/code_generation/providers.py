@@ -1,5 +1,4 @@
 """Typed provider implementation contract and loading."""
-
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -8,7 +7,15 @@ import importlib
 from pathlib import Path
 from typing import ClassVar, cast
 
-from .models import GeneratedPackage, GenerationRequest, ProviderGenerationConfig
+from pydantic import BaseModel, ConfigDict
+
+from .ir import GeneratedPackage
+
+
+class ProviderGenerationConfig(BaseModel):
+    """Immutable, keyword-only configuration owned by a generation provider."""
+
+    model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
 
 @dataclass(frozen=True, slots=True)
@@ -17,7 +24,6 @@ class ProviderContext[T: ProviderGenerationConfig]:
     request_path: Path
     request_id: str
     config: T
-
 
 
 class Provider[T: ProviderGenerationConfig](ABC):
@@ -39,11 +45,10 @@ class Provider[T: ProviderGenerationConfig](ABC):
         """Observe the configured source(s) and produce the package once.
 
         The provider may read whatever it needs (schema metadata, samples,
-        remote listings); the engine tracks the request, not the observed
-        data, so this runs only when a request is created, changed, or
-        explicitly regenerated. A provider that reads a source schema should
-        stamp its digest onto ``GeneratedPackage.source_digest`` for
-        provenance.
+        remote listings); the engine tracks the request, not the observed data,
+        so this runs only when a request is created, changed, or explicitly
+        regenerated. A provider that reads a source schema should stamp its
+        digest onto ``GeneratedPackage.source_digest`` for provenance.
         """
 
 
@@ -57,8 +62,17 @@ def _load_class(module_name: str, qualname: str) -> type[object]:
 
 
 def load_provider(
-    request: GenerationRequest,
+    request: object,
 ) -> tuple[type[Provider[ProviderGenerationConfig]], ProviderGenerationConfig]:
+    """Import and validate the provider and its static configuration.
+
+    ``request`` is duck-typed on the generation-request fields so this module
+    does not depend on the ownership models.
+    """
+    from .models import GenerationRequest
+
+    if not isinstance(request, GenerationRequest):
+        raise TypeError("load_provider requires a GenerationRequest")
     provider_type = _load_class(request.provider_module, request.provider_qualname)
     if not issubclass(provider_type, Provider):
         raise TypeError(
@@ -74,7 +88,7 @@ def load_provider(
     return cast(type[Provider[ProviderGenerationConfig]], provider_type), config
 
 
-def resolve_provider_path(context: ProviderContext[ProviderGenerationConfig], value: str) -> Path:
+def resolve_provider_path[T: ProviderGenerationConfig](context: ProviderContext[T], value: str) -> Path:
     """Resolve a provider-owned path against the request file.
 
     The resolved path is an observation target, not a tracked input: it may live
@@ -83,3 +97,9 @@ def resolve_provider_path(context: ProviderContext[ProviderGenerationConfig], va
     an explicit regeneration pass.
     """
     return (context.request_path.parent / value).resolve()
+
+
+__all__ = [
+    "Provider", "ProviderContext", "ProviderGenerationConfig", "load_provider",
+    "resolve_provider_path",
+]

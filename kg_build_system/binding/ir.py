@@ -1,4 +1,4 @@
-"""Compilation-only IR for graph bindings."""
+"""Compilation IR for graph bindings."""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -11,6 +11,8 @@ from ..table.ir import RowSourcePlanIR
 
 @dataclass(frozen=True, slots=True)
 class NodeBindingIR:
+    """One node component bound from one row context."""
+
     symbol_id: str
     component: str
     build_key: ExpressionIR
@@ -23,6 +25,8 @@ class NodeBindingIR:
 
 @dataclass(frozen=True, slots=True)
 class EdgeBindingIR:
+    """One edge component bound from one row context and two endpoint keys."""
+
     symbol_id: str
     component: str
     build_key: ExpressionIR
@@ -38,5 +42,6 @@ class EdgeBindingIR:
 
 
 BindingIR: TypeAlias = NodeBindingIR | EdgeBindingIR
+
 
 __all__ = ["BindingIR", "EdgeBindingIR", "NodeBindingIR"]

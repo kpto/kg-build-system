@@ -1,13 +1,14 @@
-"""Bindable typed calculations backed by expression domain models."""
+"""Bindable typed calculations backed by canonical expression nodes."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Generic, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Generic, Self, TypeVar, cast, overload
 
 from ..types.interfaces import (
-    Date, LogicalType, Nullable, NullableType, STR, Time, Timestamp,
-    UnitType, Uuid,
+    Date, LogicalType, Nullable, NullableType, STR, Time, Timestamp, UnitType,
+    Uuid,
 )
-from .models import ExpressionNode
+from ._apply import apply_operation
+from ._model import ExpressionNode
 
 if TYPE_CHECKING:
     from .nullable import NullableExpression
@@ -24,7 +25,7 @@ class NullableAuthoringInput(Generic[T_co]):
 
 
 class ValueExpression(Generic[T_co]):
-    """Bindable calculation backed by one immutable expression model.
+    """Bindable calculation backed by one immutable expression node.
 
     This base deliberately exposes no value-specific operations. Concrete
     expression families add only the operations valid for their logical type.
@@ -38,6 +39,11 @@ class ValueExpression(Generic[T_co]):
     @property
     def model(self) -> ExpressionNode:
         return self._model
+
+    @property
+    def expression(self) -> Self:
+        """The bindable expression itself, for a uniform ``.expression`` spelling."""
+        return self
 
     @property
     def logical_type(self) -> LogicalType:
@@ -54,25 +60,23 @@ class ValueExpression(Generic[T_co]):
 
         Bool, int, float, str, date, time, timestamp and uuid are accepted.
         Timestamps carry the `T` separator the framework's canonical text uses;
-        every other unit uses DuckDB's canonical cast. Arrays and structs have
-        no single text form and are refused.
+        every other unit uses DuckDB's canonical cast. Arrays, structs and custom
+        scalars have no single text form and are refused.
         """
         logical_type = self.logical_type
         base = (
             logical_type.value
-            if isinstance(logical_type, NullableType) else logical_type
+            if isinstance(logical_type, NullableType)
+            else logical_type
         )
         if not isinstance(base, UnitType):
             raise TypeError(
                 f"to_string() requires a scalar unit, not {logical_type!r}"
             )
-        from .base import operation
-        from .factory import wrap_expression
-
-        result_type = NullableType(STR) if isinstance(logical_type, NullableType) else STR
+        result = apply_operation("to_string", self._model)
         return cast(
             "StrExpression | NullableExpression[str, StrExpression]",
-            wrap_expression(operation("to_string", self._model, logical_type=result_type)),
+            result,
         )
 
     def __repr__(self) -> str:

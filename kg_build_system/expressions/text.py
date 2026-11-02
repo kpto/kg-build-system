@@ -2,8 +2,8 @@
 from __future__ import annotations
 
 from ..types.interfaces import BOOL, STR
+from ._apply import apply_operation
 from ._coercion import expression_input
-from .base import operation
 from .boolean import BoolExpression
 from .values import ValueExpression
 
@@ -16,30 +16,29 @@ class StrExpression(ValueExpression[str]):
 
     def prepend(self, value: str | ValueExpression[str]) -> "StrExpression":
         return StrExpression(
-            operation("concat", expression_input(value, STR), self.model, logical_type=STR)
+            apply_operation("concat", expression_input(value, STR), self.model, result_type=STR).model
         )
 
     def append(self, value: str | ValueExpression[str]) -> "StrExpression":
         return StrExpression(
-            operation("concat", self.model, expression_input(value, STR), logical_type=STR)
+            apply_operation("concat", self.model, expression_input(value, STR), result_type=STR).model
         )
 
     def equals(self, value: str | ValueExpression[str]) -> "BoolExpression":
         """Test this string for equality, producing a Boolean row predicate."""
         return BoolExpression(
-            operation(
-                "equals", self.model, expression_input(value, STR), logical_type=BOOL,
-            )
+            apply_operation("equals", self.model, expression_input(value, STR)).model
         )
 
     def replace(self, search: str, replacement: str) -> "StrExpression":
         """Replace every occurrence of ``search`` with ``replacement``."""
         return StrExpression(
-            operation(
-                "replace", self.model,
-                expression_input(search, STR), expression_input(replacement, STR),
-                logical_type=STR,
-            )
+            apply_operation(
+                "replace",
+                self.model,
+                expression_input(search, STR),
+                expression_input(replacement, STR),
+            ).model
         )
 
     def _separator_cut(
@@ -59,14 +58,13 @@ class StrExpression(ValueExpression[str]):
             "after": "after_separator",
         }[side]
         return StrExpression(
-            operation(
-                operator, self.model, expression_input(separator, STR),
-                logical_type=STR,
-                parameters={
-                    "occurrence": occurrence,
-                    "include_separator": include_separator,
-                },
-            )
+            apply_operation(
+                operator,
+                self.model,
+                expression_input(separator, STR),
+                occurrence=occurrence,
+                include_separator=include_separator,
+            ).model
         )
 
     def before_separator(
@@ -82,7 +80,9 @@ class StrExpression(ValueExpression[str]):
         the separator does not appear that many times.
         """
         return self._separator_cut(
-            separator, occurrence, "before",
+            separator,
+            occurrence,
+            "before",
             include_separator=include_separator,
         )
 
@@ -100,7 +100,9 @@ class StrExpression(ValueExpression[str]):
         many times.
         """
         return self._separator_cut(
-            separator, occurrence, "after",
+            separator,
+            occurrence,
+            "after",
             include_separator=include_separator,
         )
 

@@ -10,10 +10,7 @@ from __future__ import annotations
 from .discovery import discover, discover_file
 from .engine import GenerationSession, generate
 from .models import (
-    Generation,
-    GenerationError,
-    GenerationRequest,
-    GenerationResult,
+    Generation, GenerationError, GenerationRequest, GenerationResult,
     GenerationStatus,
 )
 from .requests import generation

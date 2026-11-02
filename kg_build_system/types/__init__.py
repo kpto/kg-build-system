@@ -1,51 +1,14 @@
-"""Author-facing logical type vocabulary.
-
-Authors write the canonical unit constants, the representative Python classes,
-and the ``Array``/``Struct`` markers in declarations. Normalization, the
-internal ``Nullable`` marker, codecs and validation are the framework interface
-in :mod:`kg_build_system.types.interfaces`; the compilation IR is
-:mod:`kg_build_system.types.ir`.
-"""
+"""Logical type vocabulary."""
 from __future__ import annotations
 
 from .models import (
-    BOOL,
-    DATE,
-    FLOAT,
-    INT,
-    STR,
-    TIME,
-    TIMESTAMP,
-    UUID,
-    Array,
-    ArrayType,
-    CustomDataType,
-    Date,
-    NullableType,
-    Shape,
-    Struct,
-    Time,
-    Timestamp,
+    Array, ArrayType, BOOL, CustomDataType, DATE, Date, FLOAT, INT, Nullable,
+    NullableType, STR, Shape, Struct, TIME, TIMESTAMP, Time, Timestamp, UUID,
     Uuid,
 )
 
 __all__ = [
-    "BOOL",
-    "DATE",
-    "FLOAT",
-    "INT",
-    "STR",
-    "TIME",
-    "TIMESTAMP",
-    "UUID",
-    "Array",
-    "ArrayType",
-    "CustomDataType",
-    "Date",
-    "NullableType",
-    "Shape",
-    "Struct",
-    "Time",
-    "Timestamp",
-    "Uuid",
+    "Array", "ArrayType", "BOOL", "CustomDataType", "DATE", "Date", "FLOAT",
+    "INT", "Nullable", "NullableType", "STR", "Shape", "Struct", "TIME",
+    "TIMESTAMP", "Time", "Timestamp", "UUID", "Uuid",
 ]

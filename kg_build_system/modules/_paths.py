@@ -10,7 +10,9 @@ def validate_relative_path(value: str, *, context: str) -> None:
         raise ValueError(f"{context} must be a non-empty relative path")
     path = Path(value)
     if path.is_absolute() or ".." in path.parts:
-        raise ValueError(f"{context} must be relative to the build output directory")
+        raise ValueError(
+            f"{context} must be relative to the build output directory"
+        )
 
 
 __all__ = ["validate_relative_path"]

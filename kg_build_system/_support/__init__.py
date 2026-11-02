@@ -1,1 +1,1 @@
-"""Private support code shared by otherwise independent subsystems."""
+"""Private shared helpers."""

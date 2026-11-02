@@ -5,17 +5,32 @@ from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from ..._frozen_json import freeze_json
-from ...workflow.interfaces import (
-    ExecutionServices,
-    Artifact, DisruptedExecutionContext, ExecutionContext,
-    ExecutorFactoryContext, Input, ModuleDefinition, ModuleReference, Output,
-    StepOutcome, StepStatus, WorkflowContribution, WorkflowStep,
+from ...compile.interfaces import ModuleCompiler
+from ...kernel import (
+    Artifact,
+    CompilationContext,
+    DisruptedExecutionContext,
+    ExecutionContext,
+    ExecutorFactoryContext,
+    Input,
+    ModuleDefinition,
+    ModuleReference,
+    Output,
+    StepOutcome,
+    StepStatus,
+    WorkflowContribution,
+    WorkflowStep,
 )
-from ...compile.interfaces import CompilationContext, ModuleCompiler
-from ...modules.interfaces import Module, ModuleRegistrationConfiguration
-from ...workflow.interfaces import output_name
-from ...workflow.interfaces import ModuleExecutor
+from .._runtime import (
+    as_mapping,
+    execution_services,
+    instruction_payload,
+    output_name,
+    skipped,
+)
 from ..core import CoreArtifactTypes, graph_record_components
+from ..core.plan import blueprint_from_context
+from ..interfaces import Module, ModuleRegistrationConfiguration
 
 
 @dataclass(frozen=True)
@@ -30,6 +45,7 @@ _DISTINCT_OUTPUT = "distinct"
 @dataclass(frozen=True)
 class CollapseExactDuplicatesModule(Module):
     configuration: _Configuration
+
     ID: ClassVar[str] = "collapse_exact_duplicates"
     VERSION: ClassVar[str] = "1"
     CONFIGURATION_TYPE: ClassVar[type[_Configuration]] = _Configuration
@@ -41,19 +57,15 @@ class CollapseExactDuplicatesModule(Module):
         return cls(context.configuration)
 
     @classmethod
-    def create_executor(
-        cls, context: ExecutorFactoryContext,
-    ) -> ModuleExecutor:
+    def create_executor(cls, context: ExecutorFactoryContext) -> Any:
         return _Executor()
 
-    async def compile(
-        self, context: CompilationContext[Any],
-    ) -> WorkflowContribution:
+    async def compile(self, context: CompilationContext[Any]) -> WorkflowContribution:
         steps: list[WorkflowStep] = []
         instructions: dict[str, Any] = {}
-        for component in graph_record_components(context.blueprint):
+        for component in graph_record_components(blueprint_from_context(context)):
             records_type = CoreArtifactTypes.graph_records(
-                component.kind, component.name
+                component.kind, component.name,
             )
             steps.append(WorkflowStep(
                 inputs=(Input(records_type, _RECORDS_INPUT),),
@@ -78,14 +90,15 @@ class CollapseExactDuplicatesModule(Module):
         )
 
 
-class _Executor(ModuleExecutor):
+class _Executor:
     def handle(
-        self, context: ExecutionContext, services: ExecutionServices,
+        self, context: ExecutionContext, services: Any = None,
     ) -> StepOutcome:
-        instructions = context.variables["instructions"][context.step.name]
-        if not isinstance(instructions, dict):
-            raise ValueError("deduplication requires an object instruction")
-
+        services = execution_services(context, services)
+        instructions = as_mapping(
+            instruction_payload(context),
+            context="deduplication instruction",
+        )
         input_relation = next(
             item.artifact.value
             for item in context.inputs[_RECORDS_INPUT]
@@ -95,7 +108,6 @@ class _Executor(ModuleExecutor):
         relation = services.relations.materialize(
             str(instructions["relation"]), f"SELECT DISTINCT * FROM {source}",
         )
-
         outputs = {output_name(given): given for given in context.step.outputs}
         artifact = Artifact(
             _DISTINCT_OUTPUT, outputs[_DISTINCT_OUTPUT].type, relation,
@@ -108,6 +120,9 @@ class _Executor(ModuleExecutor):
         )
 
     def handle_disrupted(
-        self, context: DisruptedExecutionContext, services: ExecutionServices,
+        self, context: DisruptedExecutionContext, services: Any = None,
     ) -> StepOutcome:
-        return super().handle_disrupted(context, services)
+        return skipped(context)
+
+
+__all__ = ["CollapseExactDuplicatesModule"]

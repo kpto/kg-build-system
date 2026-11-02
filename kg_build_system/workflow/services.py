@@ -1,9 +1,10 @@
 """Typed runtime capabilities shared by every workflow module.
 
-The data models that a module reads are in :mod:`kg_build_system.workflow.models`;
-this module states the services the runtime provides and their in-process
-implementations. The DuckDB relation service belongs to the engine, in
-:mod:`kg_build_system.engines.interfaces`.
+The data a module reads is the module contract in
+:mod:`kg_build_system.kernel.contract`, re-exported for compatibility from
+:mod:`kg_build_system.workflow.models`. This module states the services the
+runtime provides and their in-process implementations. The DuckDB relation
+service itself belongs to the engine, in :mod:`kg_build_system.engines.interfaces`.
 """
 from __future__ import annotations
 
@@ -33,7 +34,7 @@ class WorkingStorage(Protocol):
     def child(self, relative_path: PurePosixPath) -> Path: ...
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LocalWorkingStorage:
     root: Path
 
@@ -41,7 +42,7 @@ class LocalWorkingStorage:
         return self.root.joinpath(*relative_path.parts)
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class LocalTemporaryStorage:
     root: Path
 
@@ -50,7 +51,7 @@ class CredentialResolver(Protocol):
     def resolve(self, reference: str) -> str: ...
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class MappingCredentialResolver:
     credentials: Mapping[str, str]
 
@@ -58,7 +59,7 @@ class MappingCredentialResolver:
         return self.credentials[reference]
 
 
-@dataclass(frozen=True)
+@dataclass(frozen=True, slots=True)
 class ExecutionServices:
     """Runtime facilities shared by every module."""
 

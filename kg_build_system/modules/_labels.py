@@ -1,9 +1,13 @@
 """Shared reading of the target-neutral label carried by a graph component."""
 from __future__ import annotations
 
-from .._frozen_json import thaw_json
+from .._frozen_json import FrozenObject, thaw_json
 from ..annotations.interfaces import EdgeLabel, NodeLabel
 from ..topology.ir import ComponentIR
+
+
+def _arguments(value: object) -> object:
+    return thaw_json(value) if isinstance(value, FrozenObject) else value
 
 
 def semantic_label(component: ComponentIR) -> str:
@@ -40,7 +44,7 @@ def semantic_label(component: ComponentIR) -> str:
         )
     if not matches:
         return component.name
-    arguments = thaw_json(matches[0].arguments)
+    arguments = _arguments(matches[0].arguments)
     if not isinstance(arguments, dict) or set(arguments) != {"label"}:
         raise ValueError(f"{expected.__name__} has invalid serialized arguments")
     label = arguments["label"]

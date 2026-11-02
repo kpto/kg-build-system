@@ -1,25 +1,31 @@
 """Construct the most specific bindable expression family for a model."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any, overload
 
 from ..types.interfaces import (
     ArrayType, CustomType, LogicalType, NullableType, StructType, UnitType,
 )
-from .arrays import ArrayExpression
-from .boolean import BoolExpression
-from .custom import CustomDataTypeExpression
-from .models import ExpressionNode
-from .literals import literal
-from .nullable import NullableExpression
-from .numeric import FloatExpression, IntExpression
-from .structs import StructExpression
-from .text import StrExpression
+from ._literals import literal
+from ._model import ExpressionNode
 from .values import ValueExpression
+
+if TYPE_CHECKING:
+    from .boolean import BoolExpression
+    from .numeric import FloatExpression, IntExpression
+    from .text import StrExpression
 
 
 def wrap_expression(expression: ExpressionNode) -> ValueExpression[Any]:
-    """Wrap canonical IR in the most specific runtime authoring family."""
+    """Wrap canonical data in the most specific runtime authoring family."""
+    from .arrays import ArrayExpression
+    from .boolean import BoolExpression
+    from .custom import CustomDataTypeExpression
+    from .nullable import NullableExpression
+    from .numeric import FloatExpression, IntExpression
+    from .structs import StructExpression
+    from .text import StrExpression
+
     logical_type = expression.logical_type
     if isinstance(logical_type, NullableType):
         inner = logical_type.value
@@ -40,8 +46,8 @@ def wrap_expression(expression: ExpressionNode) -> ValueExpression[Any]:
             "int": IntExpression,
             "float": FloatExpression,
             "str": StrExpression,
-            # The temporal and identifier units carry no operations in this
-            # vocabulary, so the generic expression is their most specific family.
+            # Temporal and identifier units carry no typed operations in this
+            # vocabulary, so the generic expression is their family.
             "date": ValueExpression,
             "time": ValueExpression,
             "timestamp": ValueExpression,
@@ -51,6 +57,18 @@ def wrap_expression(expression: ExpressionNode) -> ValueExpression[Any]:
         if factory is not None:
             return factory(expression)
     raise TypeError(f"unsupported expression logical type {logical_type!r}")
+
+
+@overload
+def value_expression(value: bool, *, logical_type: None = None) -> "BoolExpression": ...
+@overload
+def value_expression(value: int, *, logical_type: None = None) -> "IntExpression": ...
+@overload
+def value_expression(value: float, *, logical_type: None = None) -> "FloatExpression": ...
+@overload
+def value_expression(value: str, *, logical_type: None = None) -> "StrExpression": ...
+@overload
+def value_expression(value: Any, *, logical_type: LogicalType | None = None) -> ValueExpression[Any]: ...
 
 
 def value_expression(

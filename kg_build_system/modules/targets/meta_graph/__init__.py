@@ -1,4 +1,8 @@
 """Meta-graph target: an inspectable description of the effective topology."""
-from .module import MetaGraphModule, MetaGraphModuleConfiguration
+from .module import (
+    MetaGraphExecutor, MetaGraphModule, MetaGraphModuleConfiguration,
+)
 
-__all__ = ["MetaGraphModule", "MetaGraphModuleConfiguration"]
+__all__ = [
+    "MetaGraphExecutor", "MetaGraphModule", "MetaGraphModuleConfiguration",
+]

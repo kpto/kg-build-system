@@ -1,4 +1,8 @@
-"""Compilation-only IR for graph topology."""
+"""Compilation-only IR for graph topology.
+
+The declaration classes are authoring syntax. Everything a compiler or a target
+module reads is a frozen value in this module.
+"""
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -10,6 +14,8 @@ from ..types.ir import LogicalTypeIR
 
 @dataclass(frozen=True, slots=True)
 class PropertyIR:
+    """One declared graph property lowered to its logical type."""
+
     name: str
     logical_type: LogicalTypeIR
     description: str | None = None
@@ -18,6 +24,8 @@ class PropertyIR:
 
 @dataclass(frozen=True, slots=True)
 class ComponentIR:
+    """One graph-visible node or edge component."""
+
     symbol_id: str
     name: str
     kind: Literal["node", "edge"]

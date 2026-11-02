@@ -1,17 +1,16 @@
 """Framework-internal interface of the graph-topology domain.
 
-Other subpackages import the declaration types they must inspect, the property
-and endpoint declarations, and the declaration helpers here. A graph author
-writes the names re-exported by :mod:`kg_build_system.topology`; the compilation
-IR is :mod:`kg_build_system.topology.ir`.
+Another subpackage reads declaration facts with the helpers here and lowers a
+build through :class:`TopologyLanguage`. A graph author writes the names in
+:mod:`kg_build_system.topology`; the compilation IR is
+:mod:`kg_build_system.topology.ir`.
 """
 from __future__ import annotations
 
-from .declarations import (
-    component_kind,
-    is_abstract_component,
-    is_concrete_component,
-    property,
+from .ir import ComponentIR, PropertyIR
+from .language import (
+    TopologyLanguage, component_ir, decode_component, decode_topology_part,
+    effective_components, encode_component, encode_topology_part, symbol_id,
 )
 from .models import (
     D,
@@ -21,11 +20,13 @@ from .models import (
     S_co,
     AbstractEdge,
     AbstractNode,
+    ComponentMetadata,
     Edge,
     EdgeOptions,
     EdgeOptionsTemplate,
     EdgeTemplate,
     Endpoint,
+    GraphScalar,
     GraphValue,
     Node,
     NodeOptions,
@@ -33,38 +34,26 @@ from .models import (
     NodeSideBase,
     NodeTemplate,
     NonNullableGraphValue,
+    PropertyDeclaration,
     PropertySlot,
     TopologyDeclarationBase,
+    component_kind,
     endpoint,
+    is_abstract_component,
+    is_concrete_component,
     properties_for,
+    property,
 )
 
 __all__ = [
-    "AbstractEdge",
-    "AbstractNode",
-    "D",
-    "D_co",
-    "Edge",
-    "EdgeOptions",
-    "EdgeOptionsTemplate",
-    "EdgeTemplate",
-    "Endpoint",
-    "GraphValue",
-    "N_co",
-    "Node",
-    "NodeOptions",
-    "NodeOptionsTemplate",
-    "NodeSideBase",
-    "NodeTemplate",
-    "NonNullableGraphValue",
-    "PropertySlot",
-    "TopologyDeclarationBase",
-    "S",
-    "S_co",
-    "component_kind",
-    "endpoint",
-    "is_abstract_component",
-    "is_concrete_component",
-    "properties_for",
-    "property",
+    "AbstractEdge", "AbstractNode", "ComponentIR", "ComponentMetadata",
+    "D", "D_co", "Edge", "EdgeOptions", "EdgeOptionsTemplate", "EdgeTemplate",
+    "Endpoint", "GraphScalar", "GraphValue", "N_co", "Node", "NodeOptions",
+    "NodeOptionsTemplate", "NodeSideBase", "NodeTemplate",
+    "NonNullableGraphValue", "PropertyDeclaration", "PropertyIR",
+    "PropertySlot", "S", "S_co", "TopologyDeclarationBase", "TopologyLanguage",
+    "component_ir", "component_kind", "decode_component",
+    "decode_topology_part", "effective_components", "encode_component",
+    "encode_topology_part", "endpoint", "is_abstract_component",
+    "is_concrete_component", "properties_for", "property", "symbol_id",
 ]
