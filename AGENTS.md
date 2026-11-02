@@ -28,6 +28,10 @@ rule about what the framework is belongs to the framework model.
   specifications; they leave the subagent to decide the interface.
 - Write the acceptance test first and include it in the brief. If the brief
   cannot name what the test asserts, the interface is not decided yet.
+- Reuse the subagent session for corrections. Send the same session a follow-up
+  with the named defect and the acceptance command; do not spawn a new agent for
+  the same component or take the edit over from the main agent. The session
+  already holds the package context and the original brief.
 
 ### Writing
 
