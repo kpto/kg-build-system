@@ -1,8 +1,5 @@
-"""Meta-graph target: an inspectable description of the effective topology."""
-from .module import (
-    MetaGraphExecutor, MetaGraphModule, MetaGraphModuleConfiguration,
-)
+"""Compatibility shim for the target implementation."""
+from __future__ import annotations
 
-__all__ = [
-    "MetaGraphExecutor", "MetaGraphModule", "MetaGraphModuleConfiguration",
-]
+from ..._private.targets.meta_graph import *
+from ..._private.targets.meta_graph import __all__

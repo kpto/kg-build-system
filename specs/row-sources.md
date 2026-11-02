@@ -6,6 +6,8 @@ The `table` package owns the authoring row-source algebra and its engine-neutral
 
 ## Public API
 
+Names are defined in `table.public`; `kg_build_system.table` exposes only that package.
+
 ### Entry points
 
 - `Table.row_source() -> RelationRowSource[Table]`: shape is the `Table` class; source is the table.
@@ -73,9 +75,9 @@ The `table` package owns the authoring row-source algebra and its engine-neutral
 
 ## Internal interface
 
-`table.interfaces` re-exports the row-source values and plan helpers another subpackage may use:
+`table.internal` re-exports the row-source helpers another subpackage may use; the row-source value classes `RowSource`, `RelationRowSource` and `DerivedRowSource` are defined in `table.public`.
 
-- Values: `RowSource`, `RelationRowSource`, `DerivedRowSource`, `as_row_source`, `derive_row_source`, `declaration_source_name`, `shape_context`, `shape_view`.
+- Values and helpers: `as_row_source`, `derive_row_source`, `declaration_source_name`, `shape_context`, `shape_view`.
 - Shapes: `ShapeField`, `shape_fields`, `shape_source_name`, `make_row_shape`, `record_shape`, `record_shape_type`, `union_shape_fields`, `projection_attrs`.
 - Plans: `row_source_plan_ir`, `row_source_key`, `plan_shape_source_name`, `plan_inputs`, `plan_scan_sources`, `plan_expressions`, `plan_fields`, `retarget_expression_ir`, `encode_row_source_plan`, `decode_row_source_plan`.
 
@@ -91,6 +93,8 @@ Invariants:
 - `plan_fields(plan, declarations)` derives a shape from IR alone; a scan must name a known source, union operands must agree, and join keys must agree.
 
 ## IR
+
+`table.internal.ir` owns the row-source plan IR.
 
 - `RowSourcePlanIR = RowScanIR | RowFilterIR | RowUnionIR | RowJoinIR | RowGroupByIR | RowDistinctIR | RowOrderByIR`.
 - `RowScanIR(source)`: reads one table or projection logical name.
@@ -108,10 +112,10 @@ Invariants:
 
 ## Boundaries
 
-- Surfaces: row-source values and their helpers are author-facing through `kg_build_system.table`; the plan helpers are in `table.interfaces`; `table.ir` holds the plan IR.
-- Allowed dependencies: `expressions.interfaces`, `expressions.ir`, `types.interfaces`, `types.ir`, `_frozen_json` and the local declaration modules.
+- Surfaces: row-source values and their helpers are defined in `table.public` and exposed by `kg_build_system.table`; the plan helpers are in `table.internal`; `table.internal.ir` holds the plan IR.
+- Allowed dependencies: `expressions.internal`, `expressions.internal.ir`, `types.internal`, `types.internal.ir`, `_frozen_json` and the local declaration modules.
 - A row source carries no engine, workflow, binding or graph-record knowledge. The plan IR is engine-neutral.
-- `relational` consumes expression IR and plan IR; `binding` stores a plan for a rows-form binding; `modules.core` lowers plans through `engines.interfaces`; `engines` owns SQL rendering. Those consumers never import a row-source implementation module.
+- `relational` consumes expression IR and plan IR; `binding` stores a plan for a rows-form binding; the core module (`modules.internal.adapters.core_module`) lowers plans through `engines.internal`; `engines` owns SQL rendering. Those consumers never import a row-source implementation module.
 
 ## Current decisions
 

@@ -6,6 +6,8 @@ The `kg_build_system.types` package owns the canonical logical-type vocabulary, 
 
 ## Public API
 
+Names are defined in `types.public`; `kg_build_system.types` exposes only that package.
+
 - Canonical type model used by the public marker surface and the internal interface:
   - `UnitType(name: UnitTypeName)` where `UnitTypeName = Literal["bool", "int", "float", "str", "date", "time", "timestamp", "uuid"]` (internal).
   - `CustomType(module: str, qualname: str)` for an application-defined scalar (internal).
@@ -23,7 +25,7 @@ The `kg_build_system.types` package owns the canonical logical-type vocabulary, 
 
 ## Internal interface
 
-`types.interfaces` exposes the canonical names a declaration layer needs:
+`types.internal` exposes the canonical names a declaration layer needs:
 
 - `CustomType`, `StructType`, `UnitType`, `UnitTypeName`, `LogicalType`, `NonNullableLogicalType`.
 - `CANONICAL_UNIT_NAMES` and `TEXT_CANONICAL_UNIT_NAMES`.
@@ -46,6 +48,8 @@ Invariants:
 
 ## IR
 
+`types.internal.ir` owns the logical-type IR; the root `types.ir` module is a compatibility shim only.
+
 - `UnitTypeIR(name)`, `CustomTypeIR(module, qualname)`, `StructTypeIR(module, qualname)`, `ArrayTypeIR(item)`, `NullableTypeIR(value)`.
 - `NonNullableLogicalTypeIR = UnitTypeIR | CustomTypeIR | StructTypeIR | ArrayTypeIR`; `LogicalTypeIR = NonNullableLogicalTypeIR | NullableTypeIR`.
 - `type_to_ir` is one way and never retains a declaration class.
@@ -55,9 +59,9 @@ Invariants:
 ## Boundaries
 
 - `types` imports nothing else from `kg_build_system`.
-- Surfaces: `kg_build_system.types` is the author-facing vocabulary; `types.interfaces` is normalization, validation and codecs; `types.ir` is the logical-type IR.
-- `expressions`, `table`, `topology`, `binding`, `relational`, `engines`, `modules` and `code_generation` import `types.interfaces` or `types.ir`. They never import a `types` implementation module.
-- DuckDB type acceptance, the digest table, SQL type composition and Parquet metadata live in `engines.interfaces`; `types` owns no physical type mapping.
+- Surfaces: `kg_build_system.types` exposes only `types.public`; `types.public` is the author-facing vocabulary; `types.internal` is normalization, validation and codecs; `types.internal.ir` is the logical-type IR. The root `types.ir` module is a compatibility shim.
+- `expressions`, `table`, `topology`, `binding`, `relational`, `engines`, `modules` and `code_generation` import `types.internal` or `types.internal.ir`. They never import a `types` implementation module.
+- DuckDB type acceptance, the digest table, SQL type composition and Parquet metadata live in `engines.internal`; `types` owns no physical type mapping.
 - A target may narrow the canonical types it stores, but it may not invent a canonical type.
 
 ## Current decisions

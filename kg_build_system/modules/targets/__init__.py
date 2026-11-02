@@ -1,12 +1,5 @@
-"""Output targets: files, the meta-graph description and Neo4j import bundles."""
-from .file import FileExecutor, FileModule, FileModuleConfiguration
-from .meta_graph import (
-    MetaGraphExecutor, MetaGraphModule, MetaGraphModuleConfiguration,
-)
-from .neo4j import Neo4jExecutor, Neo4jModule, Neo4jModuleConfiguration
+"""Compatibility shim for the target implementation."""
+from __future__ import annotations
 
-__all__ = [
-    "FileExecutor", "FileModule", "FileModuleConfiguration",
-    "MetaGraphExecutor", "MetaGraphModule", "MetaGraphModuleConfiguration",
-    "Neo4jExecutor", "Neo4jModule", "Neo4jModuleConfiguration",
-]
+from .._private.targets import *
+from .._private.targets import __all__

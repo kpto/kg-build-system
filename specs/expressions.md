@@ -6,6 +6,8 @@ The `expressions` package owns typed selections, bindable expression families, t
 
 ## Public API
 
+Names are defined in `expressions.public`; `kg_build_system.expressions` exposes only that package.
+
 - Selection types:
   - `ValueSelection[T]`: a typed position in a row. It exposes `.model`, `.logical_type`, `.expression`, `.where_present()`, `.default_to(value)`, `.drop_if(predicate)` and `.alter_rows()`.
   - `NullableSelection[T]`: owns explicit null policy. It exposes `.default_to(value)`, `.where_present()`, `.drop_null()`, `.pick(selector)`, `.extract(selector)`, `.expand()`, the nullable array operations and `.alter_rows()`.
@@ -36,7 +38,7 @@ The `expressions` package owns typed selections, bindable expression families, t
 
 ## Internal interface
 
-`expressions.interfaces` exposes:
+`expressions.internal` exposes:
 
 - Domain model: `ExpressionNode`, `LiteralExpression`, `FieldReferenceExpression`, `OperationExpression`, `VariableExpression`, `Expression`, `Traversal`, `OperationParameter`, `RowEffect`, `RowSemantics`, `PRESERVE_ROWS`.
 - Semantics and algebra: `compose_row_semantics`, `row_effects`, `row_semantics`, `field_reference`, `operation`, `with_arguments`.
@@ -58,6 +60,8 @@ Invariants:
 
 ## IR
 
+`expressions.internal.ir` owns the expression IR.
+
 - `ExpressionIRBase(logical_type)`.
 - `LiteralExpressionIR(value)`.
 - `VariableExpressionIR(name)`.
@@ -72,10 +76,10 @@ Invariants:
 
 ## Boundaries
 
-- Allowed dependencies: `types.interfaces`, `types.ir` and `_frozen_json`.
+- Allowed dependencies: `types.internal`, `types.internal.ir` and `_frozen_json`.
 - Must not import `table`, `topology`, `binding`, `relational`, `compile`, `engines`, `workflow`, `modules`, `code_generation`, `api` or `cli`.
 - `table` and `binding` construct selections by reading declared fields; `relational` consumes expression IR and derives relation effects; `engines` lowers expression IR to SQL. Those consumers never import an expression implementation module.
-- Surfaces: `kg_build_system.expressions` is the author-facing selection and expression surface; `expressions.interfaces` is the model, operations and codecs; `expressions.ir` is the expression IR.
+- Surfaces: `kg_build_system.expressions` exposes only `expressions.public`; `expressions.public` is the author-facing selection and expression surface; `expressions.internal` is the model, operations and codecs; `expressions.internal.ir` is the expression IR; mechanisms are in `expressions._private`.
 - Row-source algebra belongs to `table`; relation planning belongs to `relational`.
 
 ## Current decisions
@@ -148,7 +152,7 @@ Invariants:
 
 ### Operations and planning boundary
 
-- **One file per operation.** Each operation has one `expressions/operations/<name>.py` module with one `OperationSpec`; the default registry composes those specs and rejects duplicate names. Adding a built-in operation is one spec file plus one registry entry, not a dispatcher branch.
+- **One file per operation.** Each operation has one `expressions/internal/operations/<name>.py` module with one `OperationSpec`; the default registry composes those specs and rejects duplicate names. Adding a built-in operation is one spec file plus one registry entry, not a dispatcher branch.
 - `OperationSpec.apply` validates arity, parameters and argument types, resolves the result type, composes row semantics and returns the matching authoring expression family.
 - **One driving source per product.** `relational.lower_product` collects the logical sources referenced by outputs and predicates, requires one materialised relation for each and rejects more than one. Additional sources must already be present in the row source; there is no implicit cross product.
 - **Plans are engine-neutral.** `RelationPlanIR` records scans, explicit expansions, presence or held-true filters and named outputs. SQL lowering is an engine concern.

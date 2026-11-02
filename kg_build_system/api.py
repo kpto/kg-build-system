@@ -30,7 +30,7 @@ def _calling_namespace_path() -> Path:
 
 def _composed_modules(modules: Sequence[Any]) -> tuple[Any, ...]:
     from .modules import register_module
-    from .modules.core import CoreModule
+    from .modules.internal.adapters.core_module import CoreModule
 
     return (*modules, register_module(CoreModule))
 

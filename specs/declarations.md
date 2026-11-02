@@ -6,6 +6,8 @@ The `table` package owns the logical row and record declarations an author write
 
 ## Public API
 
+Names are defined in `table.public`; `kg_build_system.table` exposes only that package.
+
 - `Field[T]` is the one member descriptor. It carries:
   - `expression: ValueExpression[T] | None` — the computed expression; `None` for a source-backed field;
   - `metadata: FieldMetadata(name, description, annotations, attribute)`;
@@ -38,12 +40,12 @@ The `table` package owns the logical row and record declarations an author write
 
 ## Internal interface
 
-`table.interfaces` exposes:
+`table.internal` exposes the framework-internal declaration and source interface:
 
-- Declaration values and helpers: `Table`, `Struct`, `ComputedStruct`, `Projection`, `TableGroup`, `StructTemplate`, options, `Field`, `FieldMetadata`, `FieldSpec`, `AuthoringDataType`, `declared_fields`, `resolve_field_specs`, `projection_base`, `projection_row_source`, `is_concrete_table`, `is_table_group`, `ProjectionMeta`, `DeclarationSpec`.
-- Source helpers: `bind_source`, `group_tables`, `resolve_bound_source`, `BoundSource`, `BoundTable`, `BoundTableGroup`, `DataSourceConfig`, `InputFormat`, `SourceBindingOptions`.
-- Row-source values and plan helpers, re-exported from [row-sources](row-sources.md).
-- The `data` language: `TableLanguage`.
+- Metadata and helpers: `DeclarationSpec`, `FieldSpec`, `FieldMetadata`, `AuthoringDataType`, `declared_fields`, `resolve_field_specs`, `projection_base`, `projection_row_source`, `is_concrete_table`, `is_table_group`, `struct_type_key`.
+- Source helpers: `group_tables`, `resolve_bound_source`; the authoring source values `DataSourceConfig`, `InputFormat`, `SourceBindingOptions`, `BoundSource`, `BoundTable`, `BoundTableGroup` and `bind_source` are defined in `table.public`.
+- Row-source helpers and plan IR, re-exported from [row-sources](row-sources.md).
+- The `data` language: `TableLanguage` in `table.internal.adapters.kernel_language`.
 - The data IR codec: `encode_data_part`, `decode_data_part`, `encode_row_source_plan`, `decode_row_source_plan`.
 - `struct_type_key(struct: StructIR) -> tuple[str, str] | None`, recovering the `(module, qualname)` identity of a struct-typed symbol.
 
@@ -55,6 +57,8 @@ Invariants:
 - Only final declarations enter the IR: a table, struct, computed struct or projection with `DeclarationSpec.final` is lowered; templates, pinned projection bases and unused declarations are not.
 
 ## IR
+
+`table.internal.ir` owns the declaration IR.
 
 - `DataIR(structs, tables, projections, sources)` is the frozen `data` part.
 - `FieldIR(name, logical_type, description=None, annotations=())`.
@@ -69,10 +73,10 @@ Invariants:
 
 ## Boundaries
 
-- Surfaces: `kg_build_system.table` is the author-facing declaration surface; `table.interfaces` exposes declaration and source values plus the `data` language; `table.ir` is the declaration IR.
-- Allowed dependencies: `types.interfaces`, `annotations.interfaces`, `expressions.interfaces`, `_support.interfaces`, `_frozen_json` and `kernel`.
+- Surfaces: `kg_build_system.table` exposes only `table.public`; `table.public` is the author-facing declaration surface; `table.internal` exposes declaration and source values plus the `data` language; `table.internal.ir` is the declaration IR; mechanisms are in `table._private`.
+- Allowed dependencies: `types.internal`, `annotations.internal`, `expressions.internal`, `_support.interfaces`, `_frozen_json` and `kernel`.
 - `table` never imports `binding`, `topology`, `relational`, `compile`, `engines`, `workflow`, `modules`, `code_generation`, `cli` or `api`.
-- `binding`, `relational`, `compile`, `engines` and `modules` import `table.interfaces` or `table.ir`; they never import a table implementation module.
+- `binding`, `relational`, `compile`, `engines` and `modules` import `table.internal` or `table.internal.ir`; they never import a table implementation module.
 
 ## Current decisions
 

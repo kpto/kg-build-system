@@ -40,3 +40,13 @@ conflict and the choice made for compatibility.
 | 28 | The target package and `modules.targets._relations` duplicate relation/storage adapters. | Kept local to targets; it is a compatibility boundary, not a shared model. |
 | 29 | `code_generation` intentionally duplicates the DuckDB digest/metadata reads instead of importing `engines`. | Edit-time generation is a separate lane; the duplication keeps the generation path independent of the runtime engine. |
 | 30 | Strict pyright over the generated/handwritten reference project reports unknown lambda types in `extract` calls. | The public typecheck fixture is strict; the reference project is an example tested by compile/build, not the typing gate. |
+
+## Findings from the four-part layout
+
+| # | Finding | Decision |
+| --- | --- | --- |
+| 31 | The public domain and the cross-package interface both need the same frozen declaration classes. | Public is the definition site; internal may import its own public data, and another package may import public type vocabulary. Behaviour stays in internal. |
+| 32 | Table's internal language adapter must inspect the authoring classes to collect and lower them. | The adapter is the declared bridge in `internal/adapters/kernel_language.py`; it may read public declarations, and all other internal modules stay below public. |
+| 33 | Several root modules (`interfaces.py`, `ir.py`, `models.py`) were the old interface, and Open Targets imports them. | They are thin compatibility shims only. New framework code imports `pkg`, `pkg.internal` or `pkg.internal.ir`. |
+| 34 | `relational` and `engines` have no author-facing names, but every subpackage uses the four-part layout. | Their `public/__init__.py` states that there is no authoring surface; an empty directory is honest, an invented facade is not. |
+| 35 | `compile` is both a public callable and a package exposing `BuildBlueprint`. | The package is callable; `compile.public` is the composition surface and `compile.internal.ir` holds the blueprint. |

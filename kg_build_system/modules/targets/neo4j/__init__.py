@@ -1,4 +1,5 @@
-"""Neo4j administrative-import target."""
-from .module import Neo4jExecutor, Neo4jModule, Neo4jModuleConfiguration
+"""Compatibility shim for the target implementation."""
+from __future__ import annotations
 
-__all__ = ["Neo4jExecutor", "Neo4jModule", "Neo4jModuleConfiguration"]
+from ..._private.targets.neo4j import *
+from ..._private.targets.neo4j import __all__

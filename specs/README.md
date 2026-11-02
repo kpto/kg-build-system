@@ -8,18 +8,51 @@ package may import, the frozen IR, the allowed package edges and the decisions a
 implementer must honour. It describes the current code, not a target design.
 Implementation walkthroughs, private helpers and line numbers are out of scope.
 
-Every domain subpackage exposes three surfaces:
+Every framework subpackage uses the four-part layout:
 
-| Surface | Reader |
-| --- | --- |
-| `__init__.py` | graph author: names written or read |
-| `interfaces.py` | another subpackage: values, protocols, functions |
-| `ir.py` | compiler: frozen DTOs and codecs |
+```text
+pkg/
+  __init__.py          # facade; re-exports only pkg.public
+  public/              # definition site for author-facing names
+  internal/            # cross-package interface; ir.py (or ir/) and adapters/<protocol>.py
+  _private/            # mechanisms; imported only inside the package
+```
+
+| Surface | Reader | Rule |
+| --- | --- | --- |
+| `__init__.py` | graph author | exposes only `pkg.public` |
+| `public/` | graph author | definition site for authoring classes, values and wrapper functions/methods with user docstrings and `Example:` blocks |
+| `internal/` | another subpackage | cross-package interface; holds the IR in `ir.py` or `ir/` |
+| `_private/` | the package itself | mechanisms; never imported from another package |
+
+- `pkg/public` functions and methods are thin wrappers over `pkg._private` or
+  `pkg.internal`; the mechanism never lives in `public`.
+- Another subpackage imports `pkg`, `pkg.internal` and `pkg.internal.ir`. It does
+  not import `pkg._private`; `_private` may import `pkg.internal`,
+  `pkg.internal.ir` and its own public data classes.
+- `pkg/internal/adapters/<protocol>.py` is the explicit file that implements a
+  foreign protocol:
+  - `table/internal/adapters/kernel_language.py`,
+    `topology/internal/adapters/kernel_language.py` and
+    `binding/internal/adapters/kernel_language.py` implement the kernel
+    `Language` protocol;
+  - `modules/internal/adapters/core_module.py` implements the kernel `Module`
+    protocol;
+  - `engines/internal/adapters/engine.py` implements the neutral engine
+    protocol;
+  - `code_generation/internal/adapters/provider.py` implements provider loading.
+- Public docstrings are user-facing and carry runnable `Example:` blocks.
+  Internal and private docstrings are developer-only and need no example.
+- `kernel` is the domain-agnostic package. `relational` and `engines` have an
+  empty `public/` stating that they have no authoring surface. `cli` is a leaf
+  entry point and keeps its simple layout.
+- Root `interfaces.py`, `ir.py` and `models.py` files are compatibility shims
+  for the Open Targets project only. They are not the interface.
 
 `kernel` is the only domain-agnostic package. `table`, `topology` and `binding`
-are languages. `modules.core` is a module. `engines` own SQL and code
-generation. Implementation modules are private; another package imports only
-`interfaces`, `ir`, a nested package `__init__`, or the shared kernel.
+are languages. The core module is one module, not a domain package. `engines`
+own SQL and code generation. Implementation modules are private; another package
+imports only `pkg`, `pkg.internal`, `pkg.internal.ir` or the shared kernel.
 
 Read in this order:
 

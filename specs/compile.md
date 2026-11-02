@@ -6,6 +6,8 @@ The `compile` package owns the build-blueprint aggregate, its codecs and validat
 
 ## Public API
 
+Names are defined in `compile.public`; `kg_build_system.compile` exposes that package and remains callable.
+
 - `BuildBlueprint` is a frozen, slotted compatibility aggregate:
   - `structs: tuple[Any, ...]`
   - `tables: tuple[Any, ...]`
@@ -22,15 +24,15 @@ The `compile` package owns the build-blueprint aggregate, its codecs and validat
   - `compile_build(*, build, modules=(), engine=None) -> WorkflowContractIR`
   - `compile_workflow(*, blueprint, engine=None) -> WorkflowContractIR`
   - `validate_blueprint(blueprint) -> None`
-- The importable package `kg_build_system.compile` is callable through a module subclass: `kg_build_system.compile(...)` delegates to `api.compile`. `compile.models` re-exports `BuildBlueprint` and `BlueprintModule` for compatibility; their module is `kg_build_system.compile.ir`.
+- The importable package `kg_build_system.compile` is callable through a module subclass: `kg_build_system.compile(...)` delegates to `api.compile`. `compile.models` re-exports `BuildBlueprint` and `BlueprintModule` for compatibility; their module is `kg_build_system.compile.internal.ir`.
 - The composition root `api.compile` and `api.create_blueprint` are the public authoring entry points. They append `CoreModule` after the supplied modules.
 
 ## Internal interface
 
-`compile.interfaces` exposes:
+`compile.internal` exposes:
 
 - `BuildBlueprint`, `BlueprintModule`.
-- `CompilationContext` (re-exported from `kernel.contract`): `build`, `module_id`, `configuration`, `blueprint=None`, `engine=None`.
+- `CompilationContext` (re-exported from `kernel.public.contract`): `build`, `module_id`, `configuration`, `blueprint=None`, `engine=None`.
 - `ModuleCompiler` protocol: async `compile(context) -> Any`.
 - `CompilableModule` protocol: `ID`, `VERSION`, `CONFIGURATION_TYPE`, async classmethod `create_compiler(context) -> ModuleCompiler`.
 - `encode_blueprint(value) -> dict[str, Any]`.
@@ -48,9 +50,10 @@ Invariants:
 
 ## IR
 
-- `compile.ir` owns `BuildBlueprint` and `BlueprintModule`.
+`compile.internal.ir` owns `BuildBlueprint` and `BlueprintModule`; `compile.models` is a compatibility shim only.
+
 - The blueprint codec shape is:
-  - `data`: the `table.ir` data part (`structs`, `tables`, `projections`, `sources`);
+  - `data`: the `table.internal.ir` data part (`structs`, `tables`, `projections`, `sources`);
   - `topology`: the topology part sequence;
   - `binding`: the binding part sequence;
   - `modules`: a list of `{module_id, module_import, module_qualname, configuration}`.
@@ -60,8 +63,8 @@ Invariants:
 
 ## Boundaries
 
-- Surfaces: `compile.ir` is the blueprint; `compile.interfaces` is the internal interface; the package has no author-facing surface of its own beyond the compatibility callable and `compile.models`.
-- Allowed dependencies: `kernel`, and the `interfaces` and `ir` surfaces of `table`, `topology`, `binding` and `workflow`.
+- Surfaces: `kg_build_system.compile` exposes only `compile.public` and remains callable; `compile.public` is the composition surface; `compile.internal` is the internal interface; `compile.internal.ir` is the blueprint IR; mechanisms are in `compile._private`. `compile.models` and `compile.interfaces` are compatibility shims only.
+- Allowed dependencies: `kernel`, and the `internal` and `internal.ir` surfaces of `table`, `topology`, `binding` and `workflow`.
 - `compile` may call workflow assembly and contract creation; `workflow` must not import `compile`.
 - Must not import concrete module implementations, `engines`, `code_generation`, `api` or `cli`.
 - A module compiler receives `CompilationContext` and its own reconstructed registration configuration. It never receives authoring classes, a runtime connection or executor state.

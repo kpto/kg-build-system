@@ -15,7 +15,7 @@ class PublicApiTests(unittest.TestCase):
         self.assertTrue(callable(kg_build_system.compile))
         from kg_build_system.compile.models import BuildBlueprint
 
-        self.assertEqual(BuildBlueprint.__module__, "kg_build_system.compile.ir")
+        self.assertEqual(BuildBlueprint.__module__, "kg_build_system.compile.internal.ir")
 
 
 if __name__ == "__main__":

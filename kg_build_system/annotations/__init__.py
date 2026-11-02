@@ -1,13 +1,15 @@
-"""Portable annotations."""
+"""Author-facing annotation base and single-label annotation types.
+
+Example:
+    ```python
+    from kg_build_system.annotations import Annotation, EdgeLabel, NodeLabel
+
+    NodeLabel("Sensor")
+    EdgeLabel("MEASURES")
+    ```
+"""
 from __future__ import annotations
 
-from .interfaces import (
-    annotation_irs, annotation_payload, annotation_tuple,
-)
-from .labels import EdgeLabel, NodeLabel
-from .models import Annotation
+from .public import Annotation, EdgeLabel, NodeLabel
 
-__all__ = [
-    "Annotation", "EdgeLabel", "NodeLabel", "annotation_irs",
-    "annotation_payload", "annotation_tuple",
-]
+__all__ = ["Annotation", "EdgeLabel", "NodeLabel"]

@@ -6,6 +6,8 @@ The `table` package owns the named projection declaration: its row-source pin or
 
 ## Public API
 
+Names are defined in `table.public`; `kg_build_system.table` exposes only that package.
+
 ### Declaration
 
 - `Projection` is a `Shape` and a `RowSource["Projection"]`, with metaclass `ProjectionMeta`.
@@ -51,7 +53,7 @@ The `table` package owns the named projection declaration: its row-source pin or
 
 ## Internal interface
 
-`table.interfaces` exposes `Projection`, `ProjectionMeta`, `ProjectionOptions`, `projection_base`, `projection_row_source`, `ProjectionFieldIR`, `ProjectionIR` and the projection codec through `encode_data_part`/`decode_data_part`.
+`table.internal` exposes the framework-internal projection helpers `projection_base`, `projection_row_source`, `ProjectionFieldIR`, `ProjectionIR` and the projection codec through `encode_data_part`/`decode_data_part`. The authoring `Projection`, `ProjectionMeta` and `ProjectionOptions` are defined in `table.public`.
 
 Invariants:
 
@@ -62,7 +64,9 @@ Invariants:
 
 ## IR
 
-- `ProjectionIR(symbol_id, name, fields, description=None, annotations=(), row_source=None)` in `table.ir`.
+`table.internal.ir` owns `ProjectionIR` and `ProjectionFieldIR`.
+
+- `ProjectionIR(symbol_id, name, fields, description=None, annotations=(), row_source=None)` in `table.internal.ir`.
 - `ProjectionFieldIR(name, expression, description=None, annotations=())`; `expression` is an `ExpressionIR`, never an authoring selection.
 - The IR stores one row-source plan per projection in `row_source`. A final projection requires a non-null plan; `encode_data_part` and `decode_data_part` raise `ValueError("projections require a row source")` if it is absent.
 - Field references in projection expressions use logical source names: a table name, a projection name or a generated row-source key. Projection outputs are referenced by the projection's logical name.
@@ -71,10 +75,10 @@ Invariants:
 
 ## Boundaries
 
-- Surfaces: `Projection` is author-facing through `kg_build_system.table`; `table.interfaces` exposes projection declarations and helpers; `table.ir` carries `ProjectionIR`.
-- Allowed dependencies: `types.interfaces`, `annotations.interfaces`, `expressions.interfaces`, `_support.interfaces`, `_frozen_json`, `kernel` and the local declaration and row-source modules.
+- Surfaces: `Projection` is defined in `table.public` and exposed by `kg_build_system.table`; `table.internal` exposes projection declarations and helpers; `table.internal.ir` carries `ProjectionIR`.
+- Allowed dependencies: `types.internal`, `annotations.internal`, `expressions.internal`, `_support.interfaces`, `_frozen_json`, `kernel` and the local declaration and row-source modules.
 - `table` never imports `binding`, `topology`, `relational`, `compile`, `engines`, `workflow`, `modules`, `code_generation`, `cli` or `api`.
-- `compile` reads projection IR; `modules.core` orders and lowers projections; the dependency direction is `compile -> table` and `modules -> table`.
+- `compile` reads projection IR; the core module (`modules.internal.adapters.core_module`) orders and lowers projections; the dependency direction is `compile -> table` and `modules -> table`.
 
 ## Current decisions
 

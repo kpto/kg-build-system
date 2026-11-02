@@ -145,18 +145,22 @@ rule about what the framework is belongs to the framework model.
 
 - Each subpackage declares its responsibility, its interface and the subpackages
   it may import.
-- A domain subpackage exposes exactly three surfaces:
-  - `__init__.py` — the author-facing interface: names a graph author writes or
-    reads;
-  - `interfaces.py` — the framework-internal interface: values, protocols and
-    functions another subpackage may use;
-  - `ir.py` — the frozen compilation IR.
-- A domain subpackage may have no author-facing surface when nothing in it is
-  written by a graph author; its `__init__` states that, it does not pretend to
-  be a facade.
-- Implementation modules are private. Another subpackage imports `interfaces` or
-  `ir`, never an implementation module. A leaf entry point (`cli`) and the shared
-  kernel have no IR; that is stated, not left accidental.
+- Every framework subpackage uses the same four-part layout:
+  - `__init__.py` — the public facade; it imports only from `.public`;
+  - `public/` — the public domain: names a graph author writes or reads;
+  - `internal/` — the framework-internal interface, `ir.py` and adapters;
+  - `_private/` — mechanisms imported only inside the package.
+- `public` is the definition site for author-facing names. A public function or
+  method is a thin wrapper over `_private` or `internal`; the mechanism is not in
+  `public`.
+- Another subpackage imports `pkg`, `pkg.internal` or `pkg.internal.ir`. It never
+  imports `pkg._private`. Importing `pkg.public` directly is limited to frozen
+  type vocabulary; a behaviour belongs in `internal`.
+- A subpackage may have no author-facing surface when nothing in it is written by
+  a graph author; its `public/` states that, it does not pretend to be a facade.
+- Implementing another package's protocol is a separate file under
+  `internal/adapters/<protocol>.py`. The file names the protocol and delegates to
+  `_private`; it is not buried in a model or factory.
 - Interface and IR values are anaemic: frozen data with no owner, no service and
   no behaviour beyond its own invariants. Derived rules are functions beside
   them.

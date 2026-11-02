@@ -1,23 +1,19 @@
-"""Logical type vocabulary and its normalization, validation and codecs."""
+"""Author-facing logical type vocabulary.
+
+A graph author writes the markers and unit constants here; normalization,
+validation and type codecs are the framework-internal interface.
+
+Example:
+    ```python
+    from kg_build_system.types import Array, INT, Nullable
+
+    Array[INT]
+    Nullable[INT]
+    ```
+"""
 from __future__ import annotations
 
-from .interfaces import (
-    array_item,
-    canonical_value_text,
-    decode_type,
-    decode_type_ir,
-    encode_type,
-    encode_type_ir,
-    is_canonical_unit_name,
-    is_nullable,
-    non_nullable,
-    normalize_type,
-    require_graph_property,
-    require_non_nullable,
-    require_scalar,
-    type_to_ir,
-)
-from .models import (
+from .public import (
     Array, ArrayType, BOOL, CustomDataType, DATE, Date, FLOAT, INT, Nullable,
     NullableType, STR, Shape, Struct, TIME, TIMESTAMP, Time, Timestamp, UUID,
     Uuid,
@@ -26,9 +22,5 @@ from .models import (
 __all__ = [
     "Array", "ArrayType", "BOOL", "CustomDataType", "DATE", "Date", "FLOAT",
     "INT", "Nullable", "NullableType", "STR", "Shape", "Struct", "TIME",
-    "TIMESTAMP", "Time", "Timestamp", "UUID", "Uuid", "array_item",
-    "canonical_value_text", "decode_type", "decode_type_ir", "encode_type",
-    "encode_type_ir", "is_canonical_unit_name", "is_nullable", "non_nullable",
-    "normalize_type", "require_graph_property", "require_non_nullable",
-    "require_scalar", "type_to_ir",
+    "TIMESTAMP", "Time", "Timestamp", "UUID", "Uuid",
 ]

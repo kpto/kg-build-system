@@ -2,8 +2,8 @@
 
 A graph author declares ``generation(...)`` and runs ``kbs generate`` or
 ``generate``/``watch`` here. The provider extension contract is
-:mod:`kg_build_system.code_generation.interfaces`; the generated-declaration IR
-is :mod:`kg_build_system.code_generation.ir`.
+:mod:`kg_build_system.code_generation.internal`; the generated-declaration IR
+is :mod:`kg_build_system.code_generation.internal.ir`.
 """
 from __future__ import annotations
 
@@ -12,18 +12,15 @@ from pathlib import Path
 from threading import Event
 from typing import TYPE_CHECKING
 
-from .discovery import discover as _discover, discover_file as _discover_file
-from .engine import GenerationSession, generate as _generate
-from .models import (
-    Generation, GenerationError, GenerationRequest, GenerationResult,
-    GenerationStatus,
+from . import public as _public
+from .public import (
+    FileChange, FileChangeKind, Generation, GenerationError, GenerationRequest,
+    GenerationResult, GenerationSession, GenerationStatus,
 )
-from .requests import generation as _generation
-from .watcher import FileChange, FileChangeKind, watch as _watch
 
 if TYPE_CHECKING:
-    from .models import DiscoveredGeneration
-    from .providers import Provider, ProviderGenerationConfig
+    from .public import DiscoveredGeneration
+    from .public import Provider, ProviderGenerationConfig
 
 __all__ = [
     "FileChange",
@@ -55,7 +52,7 @@ def discover(project_root: str | Path) -> tuple[DiscoveredGeneration, ...]:
         requests = discover(".")
         ```
     """
-    return _discover(project_root)
+    return _public.discover(project_root)
 
 
 def discover_file(
@@ -74,7 +71,7 @@ def discover_file(
         requests = discover_file(".", "contracts/__init__.py")
         ```
     """
-    return _discover_file(project_root, source_path)
+    return _public.discover_file(project_root, source_path)
 
 
 async def generate(
@@ -97,7 +94,9 @@ async def generate(
         result.status
         ```
     """
-    return await _generate(project_root, check=check, regenerate=regenerate)
+    return await _public.generate(
+        project_root, check=check, regenerate=regenerate,
+    )
 
 
 def generation[T: ProviderGenerationConfig](
@@ -124,7 +123,7 @@ def generation[T: ProviderGenerationConfig](
         )
         ```
     """
-    return _generation(provider, configuration)
+    return _public.generation(provider, configuration)
 
 
 async def watch(
@@ -154,7 +153,7 @@ async def watch(
         asyncio.run(print_changes())
         ```
     """
-    async for batch in _watch(
+    async for batch in _public.watch(
         root, debounce=debounce, step=step, suffixes=suffixes,
         stop_event=stop_event,
     ):

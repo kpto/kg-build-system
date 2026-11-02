@@ -6,6 +6,8 @@ The framework turns typed Python declarations, graph bindings and physical sourc
 
 ## Public API
 
+- Each framework subpackage exposes only its `public` package; the root
+  `kg_build_system` lazily re-exports the authoring vocabulary below.
 - `kg_build_system` lazily exports the authoring vocabulary:
   - declarations: `Table`, `Struct`, `ComputedStruct`, `Projection`, `TableGroup`, `Field`, `field`, `computed_field`, `projection_field`, `bind_source`, `DataSourceConfig`, `InputFormat`;
   - expressions and selections: `value_expression`, `ValueSelection`, `NullableSelection`, `ArraySelection`, `StructSelection`, the typed expression families and `all_of`/`any_of`;
@@ -22,7 +24,7 @@ The framework turns typed Python declarations, graph bindings and physical sourc
 
 ## Internal interface
 
-- `kernel` is the shared root and has no `interfaces.py` or `ir.py`; `kernel.__init__` is its internal interface:
+- `kernel` is the shared, domain-agnostic root. It has no IR; `kernel.__init__` exposes only `kernel.public`, the shared contract used by framework packages and module authors (`kernel.internal` is empty):
   - `Language(name, requires)` with `collect(namespace)`, `lower(declarations, context)`, `validate(ir)`, `encode(ir)`, `decode(value)`;
   - `Namespace.values()` and `LanguageContext.part(name)`;
   - `Module(ID, VERSION, CONFIGURATION_TYPE)` with async `create_compiler(context)` and `create_executor(context)`; `ModuleCompiler.compile(context)` and `ModuleExecutor.handle(context)`/`handle_disrupted(context)`;
@@ -31,21 +33,28 @@ The framework turns typed Python declarations, graph bindings and physical sourc
   - `CompilationContext(build, module_id, configuration, blueprint=None, engine=None)`;
   - contract values: `ArtifactType`, `Input`, `Output`, `Publication`, `WorkflowStep`, `ModuleReference`, `RuntimeFieldDefinition`, `ModuleDefinition`, `WorkflowContribution`, `TakenInput`, `StepStatus`, `Failure`, `Artifact`, `StepOutcome`, continuable/disrupting inputs, defined steps and contributions, `Connection`, execution contexts, `PublishedArtifact`, `type_matches`.
 - Languages contributed by domain packages:
-  - `data` (`TableLanguage`): tables, structs, projections and bound sources;
-  - `topology` (`TopologyLanguage`): node and edge components;
-  - `binding` (`BindingLanguage`): node and edge bindings; it requires `data` and `topology`.
+  - `data` (`TableLanguage` in `table.internal.adapters.kernel_language`): tables, structs, projections and bound sources;
+  - `topology` (`TopologyLanguage` in `topology.internal.adapters.kernel_language`): node and edge components;
+  - `binding` (`BindingLanguage` in `binding.internal.adapters.kernel_language`): node and edge bindings; it requires `data` and `topology`.
 - `expressions` contributes operation specifications to expression construction; it is not a language.
-- `modules.core` is a module, not a domain package: it compiles the blueprint into source, row-source, projection, binding and aggregation steps, and executes their instructions.
-- `engines` owns lowering from engine-neutral plans to SQL and owns the DuckDB relation service. `code_generation` uses the same engine metadata as an observer only.
+- The core module is `modules.internal.adapters.core_module.CoreModule`; its compiler, executor and plan are private in `modules._private.core`. It compiles the blueprint into source, row-source, projection, binding and aggregation steps, and executes their instructions.
+- `engines` owns lowering from engine-neutral plans to SQL and owns the DuckDB relation service; the neutral engine protocol is implemented by `engines.internal.adapters.engine`. `code_generation` uses the same engine metadata as an observer only.
 
 ## IR
 
 - `BuildIR` is an immutable mapping of language name to one lowered part. The default parts are `data` (`DataIR`), `topology` (`tuple[ComponentIR, ...]`) and `binding` (`tuple[BindingIR, ...]`).
 - `BuildBlueprint` is the compatibility aggregate assembled from the three parts: structs, tables, components, projections, bindings, sources and module references.
 - `WorkflowContractIR` is the executable contract: workflow IR, `workflow_fingerprint` and optional provenance. It carries no schema version.
-- Each domain package owns its IR slice: `types.ir`, `annotations.ir`, `expressions.ir`, `table.ir`, `topology.ir`, `binding.ir`, `relational.ir`, `workflow.ir`, `compile.ir`, `modules.ir`, `code_generation.ir`, `engines.ir`.
+- Each domain package owns its IR slice: `types.internal.ir`, `annotations.internal.ir`, `expressions.internal.ir`, `table.internal.ir`, `topology.internal.ir`, `binding.internal.ir`, `relational.internal.ir`, `workflow.internal.ir`, `compile.internal.ir`, `modules.internal.ir`, `code_generation.internal.ir`, `engines.internal.ir`. Root `ir.py`, `interfaces.py` and `models.py` files are compatibility shims only.
 
 ## Boundaries
+
+Every framework subpackage follows the four-part layout: `__init__` exposes only
+`public`; `public` is the definition site for authoring names; `internal` is the
+cross-package interface and holds the IR; `_private` holds mechanisms and is
+never imported from another package. `relational` and `engines` have an empty
+`public/` stating that they have no authoring surface. `cli` is a leaf entry
+point and keeps its simple layout.
 
 Allowed package edges:
 
@@ -68,7 +77,7 @@ kernel -> (none)
 ```
 
 - `_frozen_json`, `_relations` and `_support` are shared kernel modules with no owner, no IR and no authoring surface.
-- Another package imports a declared interface surface, never a private implementation module. Nested package `__init__` files are the exception for the `modules.core` vocabulary used by the composition root.
+- Another package imports `pkg`, `pkg.internal` or `pkg.internal.ir`, never `pkg._private`. The composition root imports `CoreModule` from `modules.internal.adapters.core_module`; that adapter is the explicit foreign-protocol file.
 - `workflow` never imports `compile`; the dependency is `compile -> workflow`. `compile` never imports concrete modules or engines. `code_generation` never imports `compile`, `workflow`, `modules` or `api`. `cli` imports only `code_generation`.
 - IR values contain no declaration classes, expression wrappers, binding values, connections, module instances or live services.
 
@@ -79,8 +88,8 @@ kernel -> (none)
 - **Three composition modes.** Namespace discovery, explicit bindings plus sources, or a prebuilt blueprint. `api.create_blueprint` and `api.compile` compose the core module last.
 - **The kernel is domain-agnostic.** It knows languages, parts, modules, steps, artifacts and connections. It knows no table, topology, expression, graph or SQL vocabulary.
 - **The languages lower once.** Each language turns declarations into one named part; the registry orders languages by `requires`; the blueprint is assembled from the parts, not from authoring state.
-- **One file per operation.** Each expression operation has one `expressions/operations/<name>.py` specification and one `engines/duckdb/operators/<name>.py` lowering. Adding a custom operation is one spec plus one lowerer; no dispatcher branch is edited.
+- **One file per operation.** Each expression operation has one `expressions/internal/operations/<name>.py` specification and one `engines/_private/duckdb/operators/<name>.py` lowering. Adding a custom operation is one spec plus one lowerer; no dispatcher branch is edited.
 - **The core module is mandatory.** It materialises source, row-source, projection and binding relations and aggregates graph records. Supplied target and operator modules consume those artifacts.
 - **One relational engine supplies the facts.** DuckDB scans, widens and returns values against the canonical type vocabulary; targets may narrow what they store and refuse at compile rather than coerce.
-- **Compatibility is explicit.** The effective API also supports unpinned `Projection` with `projection_field`, `where_present`, `rows=TableClass`, `compile.models`, `workflow.models` and `modules.interfaces`. These are compatibility obligations; where they conflict with the clean model the conflict is recorded in `../DESIGN_ISSUES.md`.
+- **Compatibility is explicit.** The effective API also supports unpinned `Projection` with `projection_field`, `where_present`, `rows=TableClass`, and the root compatibility shims (`compile.models`, `workflow.models`, `modules.interfaces`, `compile.interfaces` and the root `*.ir` modules). These are compatibility obligations; where they conflict with the clean model the conflict is recorded in `../DESIGN_ISSUES.md`.
 - **Two review surfaces.** Author-facing semantics live in `../docs/`; internal interfaces live here. They may cover the same subject for different readers.

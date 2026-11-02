@@ -6,7 +6,9 @@ The `workflow` package owns workflow declaration values, step assembly, the froz
 
 ## Public API
 
-- Author-facing surface (`kg_build_system.workflow`): `build`, `BuildRuntime`, `WorkflowReport`.
+Names are defined in `workflow.public`; `kg_build_system.workflow` exposes only that package.
+
+- Author-facing surface: `build`, `BuildRuntime`, `WorkflowReport`.
 - `build(contract: WorkflowContractIR, runtime: BuildRuntime | None = None, *, output_directory="build", working_directory="_workdir", temporary_directory=None, monitor=None) -> WorkflowReport`.
 - `BuildRuntime(credentials={}, module_configuration={}, output_directory=Path.cwd()/"build", working_directory=Path("_workdir"), temporary_directory=None, duckdb_storage="memory", duckdb_threads=None, duckdb_memory_limit=None, duckdb_compression=True)`.
   - A relative `working_directory` is resolved beneath `output_directory`.
@@ -15,17 +17,15 @@ The `workflow` package owns workflow declaration values, step assembly, the froz
 
 ## Internal interface
 
-`workflow.interfaces` exposes:
+`workflow.internal` exposes:
 
 - Declaration and assembled models: `ArtifactType`, `Input`, `Output`, `Publication`, `Given`, `WorkflowStep`, `WorkflowContribution`, `ModuleReference`, `RuntimeFieldDefinition`, `ModuleDefinition`, `TakenInput`, `DefinedStep`, `DefinedContribution`, `Connection`, `WorkflowDefinition`.
 - Kernel contract values re-exported for module authors: `Artifact`, `ArtifactType`, `CompilationContext`, `ContinuableInput`, `DisruptedExecutionContext`, `DisruptingInput`, `ExecutionContext`, `ExecutorFactoryContext`, `Failure`, `PublishedArtifact`, `StepOutcome`, `StepStatus`, `type_matches`.
 - Assembly and contract: `assemble_workflow`, `AssemblyError`, `create_workflow_contract`.
-- Mapping: `workflow_to_ir`, `workflow_from_ir`, `type_to_ir`, `type_from_ir`.
-- Identity: `step_name`, `input_name`, `output_name`, `step_identity`, `opening_identity`, `expanded_input_name`, `type_text` and the default-name constants.
 - Execution protocols: `ModuleExecutor` (ABC with `handle(context)` and `handle_disrupted(context)`), `ExecutableModule` (`ID`, `VERSION`, `create_executor(context)`).
 - Services: `RelationRef`, `RelationQueryResult`, `RelationService`, `ExecutionServices`, `WorkflowLogger`, `WorkingStorage`, `CredentialResolver`, with in-process implementations `LocalWorkingStorage`, `LocalTemporaryStorage`, `MappingCredentialResolver`.
-- Monitoring: `WorkflowExecutionMonitor`, `NullWorkflowMonitor`, `RichWorkflowMonitor`.
 - Contract IR and codecs: `WorkflowContractIR`, `encode_workflow_contract`, `decode_workflow_contract`, `workflow_contract_json`, `workflow_contract_from_json`, `workflow_contract_to_json`.
+- Identity (`step_name`, `input_name`, `output_name`, `step_identity`, `opening_identity`, `expanded_input_name`, `type_text`), workflow/type mapping (`workflow_to_ir`, `workflow_from_ir`, `type_to_ir`, `type_from_ir`) and monitoring (`WorkflowExecutionMonitor`, `NullWorkflowMonitor`, `RichWorkflowMonitor`) are private mechanisms in `workflow._private`; the root `workflow.interfaces` shim re-exports them for existing modules.
 
 Invariants:
 
@@ -37,7 +37,9 @@ Invariants:
 
 ## IR
 
-- `workflow.ir` uses frozen pydantic models with `extra="forbid"` and `strict=True`.
+`workflow.internal.ir` owns the contract IR; the root `workflow.ir` module is a compatibility shim only.
+
+- `workflow.internal.ir` uses frozen pydantic models with `extra="forbid"` and `strict=True`.
 - `WorkflowContractIR(workflow, workflow_fingerprint, provenance=None)`.
 - `WorkflowDefinitionIR(contributions, connections=())`; at least one contribution.
 - `ContributionIR(reference, runtime_fields=(), variables=None, steps)`; at least one step.
@@ -48,10 +50,10 @@ Invariants:
 
 ## Boundaries
 
-- Surfaces: `workflow.ir` is the contract IR; `workflow.interfaces` is the internal interface; `kg_build_system.workflow` is the author-facing surface.
-- Allowed dependencies: `kernel`, `engines.interfaces`, `_relations` and `_frozen_json`.
+- Surfaces: `kg_build_system.workflow` exposes only `workflow.public`; `workflow.public` is the author-facing surface; `workflow.internal` is the cross-package interface; `workflow.internal.ir` is the contract IR; mechanisms are in `workflow._private`. `workflow.ir`, `workflow.models` and `workflow.interfaces` are compatibility shims only.
+- Allowed dependencies: `kernel`, `engines.internal`, `_relations` and `_frozen_json`.
 - Must not import `compile`, `modules`, `binding`, `table`, `topology`, `expressions`, `relational`, `code_generation`, `api` or `cli`.
-- Workflow domain models never retain IR objects. `workflow.ir` is the serialisable form used only at the contract boundary; executors receive workflow models.
+- Workflow domain models never retain IR objects. `workflow.internal.ir` is the serialisable form used only at the contract boundary; executors receive workflow models.
 - The executor imports module classes only through the compiled `ModuleReference` import coordinates. The contract stores no Python class.
 - Execution context holds data; the runtime passes `ExecutionServices` on the context for compatibility.
 

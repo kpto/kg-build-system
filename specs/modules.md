@@ -6,7 +6,9 @@ The `modules` package owns the public module extension contract, module registra
 
 ## Public API
 
-- `Module` is the extension base (`modules.interfaces`); `modules` exports registration and the supplied modules.
+Names are defined in `modules.public`; `kg_build_system.modules` exposes only that package.
+
+- `Module` is the extension base (`modules.internal`); `modules` exports registration and the supplied modules.
 - `ModuleRegistrationConfiguration` is a frozen, slotted dataclass base for serialisable registration configuration. `to_json()` returns `dataclasses.asdict(self)`; a subclass may override it.
 - `Module(ABC)`:
   - `ID: ClassVar[str]`
@@ -26,17 +28,18 @@ The `modules` package owns the public module extension contract, module registra
   - `Neo4jModule`, `Neo4jModuleConfiguration`
   - `ModuleRegistration`, `ModuleRegistrationConfiguration`, `register_module`
 - Target classes are loaded lazily on first attribute access, so importing `kg_build_system.modules` does not import DuckDB or a target.
-- Core vocabulary is in `modules.core`: `CoreModule`, `CoreConfiguration`, `CoreArtifactTypes`, `graph_record_components`, `CoreCompiler`, `CoreExecutor`. The composition root imports `CoreModule` from this nested package.
+- Core module: `CoreModule` and `CoreConfiguration` are in `modules.internal.adapters.core_module`; `CoreArtifactTypes`, `graph_record_components`, `CoreCompiler` and `CoreExecutor` are private in `modules._private.core`. The composition root imports `CoreModule` from the adapter.
 
 ## Internal interface
 
-`modules.interfaces` exposes:
+`modules.internal` exposes:
 
 - `Module`, `ModuleRegistration`, `ModuleRegistrationConfiguration`, `register_module`, `module_configuration_json`.
-- `ModuleCompiler` through the `compile.interfaces` protocol.
+- `ModuleCompiler` through the `compile.internal` protocol.
 - `CompilationContext`, `ExecutorFactoryContext`, `ModuleExecutor` through the kernel contract.
+- The kernel `Module` protocol is implemented by `modules.internal.adapters.core_module`; the core compiler, executor and plan stay private in `modules._private.core`.
 
-`modules.ir` aggregates module-produced instruction IR:
+`modules.internal.ir` aggregates module-produced instruction IR:
 
 - Core instructions: `CoreInstructionIR`, `CoreStepInstructionIR`, `SourceRelationInstructionIR`, `RelationInstructionIR`, `AggregateInstructionIR`, `DeclaredColumnIR`, `DeclaredPathIR`; `encode_core_instruction`, `decode_core_instruction`, `encode_declared_column`, `declared_column_type`.
 - Target instructions are re-exported lazily: Neo4j and meta-graph IR values and codecs.
@@ -52,19 +55,20 @@ Invariants:
 
 ## IR
 
-- `modules.ir` is the aggregate module-instruction surface.
+`modules.internal.ir` owns the aggregate module-instruction surface.
+
 - `SourceRelationInstructionIR(relation, location, format, credential_reference=None, declaration="", declared_columns=(), declared_paths=())`.
 - `RelationInstructionIR(relation, sql)`.
 - `AggregateInstructionIR(relation)`.
 - `DeclaredColumnIR(name, logical_type)` stores the logical type in JSON form; `DeclaredPathIR(schema_path, logical_path)`.
 - `encode_core_instruction` returns a frozen JSON value; `decode_core_instruction` returns the typed instruction.
-- Target instruction IR is owned by the target package and re-exported through `modules.ir`.
+- Target instruction IR is owned by its target implementation in `modules._private.targets` and re-exported through `modules.internal.ir`.
 - Module IR carries no schema version; unknown fields are refused.
 
 ## Boundaries
 
-- Surfaces: `kg_build_system.modules` is the author-facing registration and supplied-module surface; `modules.interfaces` is the module protocol and configuration interface; `modules.ir` aggregates module-produced IR.
-- Allowed dependencies: `kernel`, and the `interfaces` and `ir` surfaces of `types`, `annotations`, `expressions`, `table`, `topology`, `binding`, `relational`, `engines`, `compile` and `workflow`, plus `_frozen_json`.
+- Surfaces: `kg_build_system.modules` exposes only `modules.public`; `modules.public` is the author-facing registration and supplied-module surface; `modules.internal` is the module protocol and configuration interface; `modules.internal.ir` aggregates module-produced IR; mechanisms are in `modules._private`. `modules.interfaces` is a compatibility shim.
+- Allowed dependencies: `kernel`, and the `internal` and `internal.ir` surfaces of `types`, `annotations`, `expressions`, `table`, `topology`, `binding`, `relational`, `engines`, `compile` and `workflow`, plus `_frozen_json`.
 - Must not import `api` or `cli`.
 - A module compiler may inspect the build/blueprint and its own registration configuration. It may not receive authoring classes, a runtime connection or executor state.
 - A module executor receives the compiled module definition, step, variables, resolved runtime configuration, inputs and `ExecutionServices` through the context.

@@ -9,7 +9,7 @@ from kg_build_system.kernel import (
     Artifact, ArtifactType, ModuleDefinition, ModuleReference, Publication,
     StepOutcome, StepStatus, WorkflowStep, WorkflowContribution,
 )
-from kg_build_system.modules.interfaces import (
+from kg_build_system.modules.internal import (
     ModuleRegistrationConfiguration, register_module,
 )
 

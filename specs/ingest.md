@@ -6,6 +6,8 @@ The ingest boundary owns how a physical data source becomes typed contract field
 
 ## Public API
 
+Author-facing names below are defined in `table.public`; engine, module and generation names come from their owning package's `internal` surface.
+
 ### Declarations and source bindings
 
 - `InputFormat`: `CSV = "csv"`, `JSON = "json"`, `PARQUET = "parquet"`.
@@ -50,10 +52,10 @@ The ingest boundary owns how a physical data source becomes typed contract field
 
 ## Internal interface
 
-- `table.interfaces` exposes `DataSourceConfig`, `InputFormat`, `SourceBindingOptions`, `BoundSource`, `BoundTable`, `BoundTableGroup`, `bind_source`, `resolve_bound_source`, `group_tables`, `SourceIR` and the data-part codec.
-- `engines.interfaces` exposes the digest gate, SQL type composition, Parquet metadata readers, the null-guard macro and the DuckDB relation service.
-- `modules.core.ir` and `modules.ir` expose `SourceRelationInstructionIR`, `DeclaredColumnIR`, `DeclaredPathIR` and their codecs.
-- `code_generation.interfaces` and `code_generation.builtins` expose the provider contract and `InferDataContractProvider`.
+- `table.public` defines `DataSourceConfig`, `InputFormat`, `SourceBindingOptions`, `BoundSource`, `BoundTable`, `BoundTableGroup` and `bind_source`; `table.internal` exposes `group_tables`, `resolve_bound_source`, `SourceIR` and the data-part codec.
+- `engines.internal` exposes the digest gate, SQL type composition, Parquet metadata readers, the null-guard macro and the DuckDB relation service.
+- `modules.internal.ir` exposes `SourceRelationInstructionIR`, `DeclaredColumnIR`, `DeclaredPathIR` and their codecs.
+- `code_generation.internal` exposes the provider contract; `code_generation.internal.adapters.provider` loads a provider from its request coordinates. `code_generation.builtins` re-exports `InferDataContractProvider` from the private built-in provider as a compatibility shim.
 
 Invariants:
 
@@ -65,18 +67,19 @@ Invariants:
 
 ## IR
 
+- `table.internal.ir` owns `SourceIR`; `modules.internal.ir` owns the core source-step instruction IR and re-exports the target instruction IR.
 - `SourceIR(symbol_id, table, location, format, credential_reference=None, version=None, annotations=())` is the `data`-language source entry.
 - `SourceRelationInstructionIR` is the core source-step instruction. It carries declared top-level columns and declared non-null paths.
 - `DeclaredColumnIR` stores the logical type in JSON form; `DeclaredPathIR` stores both schema and logical forms.
-- Generation's generated-declaration IR is in `code_generation.ir`; its nullability values are `Nullability.DECLARED`, `ENFORCED` and `DEFAULTED`.
+- Generation's generated-declaration IR is in `code_generation.internal.ir`; its nullability values are `Nullability.DECLARED`, `ENFORCED` and `DEFAULTED`.
 - No ingest artifact carries a schema version. A source's `version` is opaque metadata.
 
 ## Boundaries
 
-- Surfaces: source bindings are author-facing through `kg_build_system.table`; `table.interfaces` exposes bound-source values; the source IR is `table.ir`.
-- `engines` imports `types.interfaces`, `expressions.ir`, `relational.interfaces`, `table.ir` and `_relations`; it must not import `code_generation`, `compile`, `workflow`, `modules`, `api` or `cli`.
-- `code_generation` imports `types.interfaces` and `engines.interfaces` as a schema observer; it must not import `compile`, `workflow`, `modules` or `api`.
-- `modules` may import the interfaces and IR of every layer; it must not be imported by `code_generation`, `table` or `engines`.
+- Surfaces: source bindings are defined in `table.public` and exposed by `kg_build_system.table`; `table.internal` exposes the bound-source expansion helper and the source IR is `table.internal.ir`.
+- `engines` imports `types.internal`, `expressions.internal.ir`, `relational.internal`, `table.internal.ir` and `_relations`; it must not import `code_generation`, `compile`, `workflow`, `modules`, `api` or `cli`.
+- `code_generation` imports `types.internal` and `engines.internal` as a schema observer; it must not import `compile`, `workflow`, `modules` or `api`.
+- `modules` may import the `internal` and `internal.ir` surfaces of every layer; it must not be imported by `code_generation`, `table` or `engines`.
 - The source reader is DuckDB: `read_csv_auto`, `read_json_auto` and `read_parquet`. No second reader observes file contents.
 
 ## Current decisions

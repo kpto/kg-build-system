@@ -11,10 +11,8 @@ from kg_build_system import (
 )
 from kg_build_system._frozen_json import thaw_json
 from kg_build_system.compile import create_blueprint
-from kg_build_system.engines.duckdb.operators.base import require_arity
-from kg_build_system.engines.interfaces import DuckDBEngine
-from kg_build_system.expressions.interfaces import ArgumentSpec, OperationSpec
-from kg_build_system.expressions.operations._predicates import is_unit
+from kg_build_system.engines.internal import DuckDBEngine, require_arity
+from kg_build_system.expressions.internal import ArgumentSpec, OperationSpec, is_unit
 from kg_build_system.modules import FileModule, FileModuleConfiguration, register_module
 from kg_build_system.types import INT
 

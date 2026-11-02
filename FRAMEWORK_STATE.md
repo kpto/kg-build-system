@@ -11,11 +11,15 @@ at `legacy/kg_build_system` (ignored, untracked) and its tests are archived at
   or engine package.
 - `table`, `topology` and `binding` are languages. `core` is a module. `engines`
   owns code generation. `workflow` owns contract assembly and execution.
-- Every operation has one file in `expressions/operations/` and one lowering file
-  in `engines/duckdb/operators/`.
+- Every subpackage has `public/`, `internal/` and `_private/`; `__init__.py` is a
+  facade over `public`.
+- Every public function or method is a thin wrapper over a private
+  implementation, with a user docstring and an `Example:` block.
+- Every operation has one spec file in `expressions/internal/operations/` and one
+  lowering file in `engines/_private/duckdb/operators/`.
 - A custom operation is one `OperationSpec` plus one engine lowerer. A custom
   language and module compile and execute without the default distribution.
-- Verification: **18 tests**, pyright **0 errors**, Open Targets KG **6 tests**,
+- Verification: **27 tests**, pyright **0 errors**, Open Targets KG **6 tests**,
   and the reference project compiles and builds with file, meta-graph and Neo4j
   outputs.
 
@@ -37,8 +41,9 @@ modules -> languages, compile, workflow, engines
 code_generation -> types, engines (observer only)
 ```
 
-Each domain package exposes `__init__.py`, `interfaces.py` and `ir.py` where an
-IR exists. `kernel` and `engines` have no authoring surface.
+Each domain package exposes `__init__.py`, `public/`, `internal/` (with `ir.py`)
+and `_private/`. Protocol implementations live in `internal/adapters/`.
+`relational` and `engines` have an empty `public/`; `cli` is a leaf entry point.
 
 ## Compatibility
 

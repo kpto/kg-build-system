@@ -6,6 +6,8 @@ The `topology` package owns typed node and edge declarations: tiers, category pa
 
 ## Public API
 
+Names are defined in `topology.public`; `kg_build_system.topology` exposes only that package.
+
 - Declaration bases and helpers re-exported by `kg_build_system.topology`:
   - `NodeTemplate`, `EdgeTemplate` — inert node-side and edge-side mixins.
   - `AbstractNode`, `AbstractEdge` — graph-visible categories.
@@ -26,11 +28,10 @@ The `topology` package owns typed node and edge declarations: tiers, category pa
 
 ## Internal interface
 
-`topology.interfaces` exposes:
+`topology.internal` exposes the framework-internal component metadata, introspection, language and IR. The authoring declarations, templates, options, `Endpoint`, `PropertySlot`, `property` and `endpoint` are defined in `topology.public`.
 
-- Declaration values: `Node`, `Edge`, `AbstractNode`, `AbstractEdge`, the templates and options, `Endpoint`, `PropertySlot`, `PropertyDeclaration`, `ComponentMetadata`, `NodeSideBase`, `TopologyDeclarationBase`, `GraphScalar`, `GraphValue`, `NonNullableGraphValue`, `S`, `D`, `S_co`, `D_co`, `N_co`.
-- Introspection: `property`, `endpoint`, `component_kind`, `is_abstract_component`, `is_concrete_component`, `properties_for`.
-- The `topology` language: `TopologyLanguage`, `symbol_id`, `component_ir`.
+- Metadata and introspection: `ComponentMetadata`, `PropertyDeclaration`, `component_kind`, `is_abstract_component`, `is_concrete_component`, `properties_for`.
+- The `topology` language: `TopologyLanguage`, `symbol_id`, `component_ir` in `topology.internal.adapters.kernel_language`.
 - Component codecs: `encode_topology_part`, `decode_topology_part`, `encode_component`, `decode_component`.
 - IR values: `ComponentIR`, `PropertyIR`.
 
@@ -45,6 +46,8 @@ Invariants:
 
 ## IR
 
+`topology.internal.ir` owns the component IR; the root `topology.ir` module is a compatibility shim only.
+
 - `PropertyIR(name, logical_type, description=None, annotations=())`.
 - `ComponentIR(symbol_id, name, kind, properties=(), description=None, source=None, target=None, annotations=(), abstract=False, parent=None)`.
   - `kind` is `"node"` or `"edge"`.
@@ -56,8 +59,8 @@ Invariants:
 
 ## Boundaries
 
-- Surfaces: `kg_build_system.topology` is the author-facing declaration surface; `topology.interfaces` exposes declaration and introspection values plus the `topology` language; `topology.ir` carries `ComponentIR` and `PropertyIR`.
-- Allowed dependencies: `types.interfaces`, `annotations.interfaces`, `expressions.interfaces`, `_frozen_json` and `kernel`.
+- Surfaces: `kg_build_system.topology` exposes only `topology.public`; `topology.public` is the author-facing declaration surface; `topology.internal` exposes component metadata and introspection values plus the `topology` language; `topology.internal.ir` carries `ComponentIR` and `PropertyIR`; mechanisms are in `topology._private`. The root `topology.ir` module is a compatibility shim.
+- Allowed dependencies: `types.internal`, `annotations.internal`, `expressions.internal`, `_frozen_json` and `kernel`.
 - Must not import `table`, `binding`, `relational`, `compile`, `engines`, `workflow`, `modules`, `code_generation`, `api` or `cli`.
 - The package carries no engine, runtime or workflow knowledge.
 

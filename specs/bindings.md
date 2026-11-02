@@ -6,6 +6,8 @@ The `binding` package owns the graph-binding authoring values and their IR: one 
 
 ## Public API
 
+Names are defined in `binding.public`; `kg_build_system.binding` exposes only that package.
+
 ### Factories
 
 - `node_binding(...) -> NodeBinding[N]` has two forms:
@@ -81,10 +83,10 @@ The `binding` package owns the graph-binding authoring values and their IR: one 
 
 ## Internal interface
 
-`binding.interfaces` exposes:
+`binding.internal` exposes the framework-internal binding model, language and IR. The authoring factories `node_binding` and `edge_binding` are defined in `binding.public` and wrap `binding._private.factories`.
 
-- Factories and values: `node_binding`, `edge_binding`, `Binding`, `BindingOptions`, `NodeBinding`, `EdgeBinding`, `NodeValues`, `EdgeValues`, `PropertyValues`.
-- The `binding` language: `BindingLanguage`.
+- Values: `Binding`, `BindingOptions`, `NodeBinding`, `EdgeBinding`, `NodeValues`, `EdgeValues`, `PropertyValues`.
+- The `binding` language: `BindingLanguage` in `binding.internal.adapters.kernel_language`.
 - Binding codecs: `encode_binding`, `decode_binding`, `encode_binding_part`, `decode_binding_part`.
 - IR values: `BindingIR`, `NodeBindingIR`, `EdgeBindingIR`.
 
@@ -98,6 +100,8 @@ Invariants:
 
 ## IR
 
+`binding.internal.ir` owns the binding IR; the root `binding.ir` module is a compatibility shim only.
+
 - `NodeBindingIR(symbol_id, component, build_key, properties, debug_name=None, annotations=(), kind="node", row_source=None)`.
 - `EdgeBindingIR` adds `source_build_key`, `target_build_key`, `source_node=None` and `target_node=None`.
 - `BindingIR = NodeBindingIR | EdgeBindingIR`.
@@ -108,10 +112,10 @@ Invariants:
 
 ## Boundaries
 
-- Surfaces: `kg_build_system.binding` is the author-facing factory surface; `binding.interfaces` is the internal model, factory and language interface; `binding.ir` is the binding IR.
-- Allowed dependencies: `types.interfaces`, `annotations.interfaces`, `expressions.interfaces`, `table.interfaces`, `topology.interfaces` and `_frozen_json`.
+- Surfaces: `kg_build_system.binding` exposes only `binding.public`; `binding.public` is the author-facing factory surface; `binding.internal` is the internal model, factory and language interface; `binding.internal.ir` is the binding IR; mechanisms are in `binding._private`. The root `binding.ir` module is a compatibility shim.
+- Allowed dependencies: `types.internal`, `annotations.internal`, `expressions.internal`, `table.internal`, `topology.internal` and `_frozen_json`.
 - `binding` never imports `relational`, `compile`, `engines`, `workflow`, `modules`, `code_generation`, `cli` or `api`.
-- `compile` imports `binding.interfaces` and `binding.ir`; `modules.core` consumes binding IR. The dependency direction is `compile -> binding`, `modules -> binding`.
+- `compile` imports `binding.internal` and `binding.internal.ir`; the core module (`modules.internal.adapters.core_module`) consumes binding IR. The dependency direction is `compile -> binding`, `modules -> binding`.
 - The topology dependency is the declared component and endpoint surface.
 
 ## Current decisions

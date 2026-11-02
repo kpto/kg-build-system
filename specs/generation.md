@@ -6,6 +6,8 @@
 
 ## Public API
 
+Names are defined in `code_generation.public`; `kg_build_system.code_generation` exposes only that package.
+
 ### Requests
 
 - `generation(provider: type[Provider[T]], configuration: T, /) -> Generation[T]`.
@@ -68,7 +70,7 @@
 
 ## Internal interface
 
-`code_generation.interfaces` exposes the public request, discovery, provider, IR, engine, manifest, watcher and command names. `code_generation.ir` owns the generated-declaration DTOs:
+`code_generation.internal` exposes the request models, provider contract, result models, generated-declaration IR and the generation command hook; discovery, rendering, ownership maintenance, watching and the command implementation are private in `code_generation._private`. `code_generation.internal.adapters.provider` is the explicit adapter that imports and validates a provider from its request coordinates. `code_generation.internal.ir` owns the generated-declaration DTOs:
 
 - `GeneratedAnnotation`, `GeneratedArrayType`, `GeneratedClass`, `GeneratedField`, `GeneratedFile`, `GeneratedMember`, `GeneratedNullableType`, `GeneratedPackage`, `GeneratedScalarType`, `GeneratedStructType`, `GeneratedType`, `Nullability`, `NullabilityNote`, `ScalarTypeName`, `StaticValue`.
 - `StaticValue` is a JSON-compatible recursive value.
@@ -85,6 +87,8 @@ Invariants:
 
 ## IR
 
+`code_generation.internal.ir` owns the generated-declaration tree.
+
 - `GeneratedPackage` is the root of the generated-declaration tree.
 - `GeneratedFile` contains declarations and exports.
 - `GeneratedClass` carries fields, members, description, base and optional logical declaration name.
@@ -96,8 +100,8 @@ Invariants:
 
 ## Boundaries
 
-- Surfaces: `kg_build_system.code_generation` is the request and run surface; `code_generation.interfaces` is the provider extension contract; `code_generation.ir` is the generated-declaration IR.
-- `code_generation` imports `types.interfaces` and `engines.interfaces` for the type vocabulary and schema observation. It must not import `compile`, `workflow`, `modules` or `api`.
+- Surfaces: `kg_build_system.code_generation` exposes only `code_generation.public`; `code_generation.public` is the request and run surface; `code_generation.internal` is the provider extension contract; `code_generation.internal.ir` is the generated-declaration IR; mechanisms are in `code_generation._private`.
+- `code_generation` imports `types.internal` and `engines.internal` for the type vocabulary and schema observation. It must not import `compile`, `workflow`, `modules` or `api`.
 - `engines` is a leaf and must not import `code_generation`.
 - `cli` imports the generation command; `code_generation` must not import `cli`.
 - Compilation and building never invoke generation.

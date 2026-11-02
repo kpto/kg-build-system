@@ -1,15 +1,13 @@
 """Author-facing typed node and edge declarations.
 
 A graph author writes ``Node``, ``Edge``, their abstract categories and
-templates, ``property()`` and ``endpoint()`` here. The framework-internal
-declaration helpers and the ``topology`` language are in
-:mod:`kg_build_system.topology.interfaces`; the compilation IR is
-:mod:`kg_build_system.topology.ir`.
+templates, ``property()`` and ``endpoint()`` here. The public declarations and
+options live in :mod:`kg_build_system.topology.public`; the internal model and
+language live in :mod:`kg_build_system.topology.internal`.
 """
 from __future__ import annotations
 
-from .interfaces import endpoint, property
-from .models import (
+from .public import (
     AbstractEdge,
     AbstractNode,
     Edge,
@@ -22,6 +20,8 @@ from .models import (
     NodeOptionsTemplate,
     NodeTemplate,
     PropertySlot,
+    endpoint,
+    property,
 )
 
 __all__ = [

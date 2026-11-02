@@ -1,0 +1,110 @@
+"""Validate, order and compose languages into a frozen build.
+
+A registry is the only entry point for lowering a declaration namespace. It
+rejects duplicate names, unknown dependencies and dependency cycles, then lowers
+one part per language in dependency order and freezes the result as a
+``BuildIR``.
+"""
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from dataclasses import dataclass
+from typing import Any
+
+from .._private.ordering import order_languages
+from .._private.pipeline import compose
+from .build import BuildIR
+from .language import Language, Namespace
+
+
+@dataclass(frozen=True, slots=True)
+class Registry:
+    """An ordered set of languages that lowers a namespace into a build.
+
+    Language names must be unique and every name in ``requires`` must be
+    present. The stored languages are replaced by a dependency order; the input
+    sequence is not modified.
+
+    Example:
+    ```python
+    from kg_build_system.kernel import Registry
+
+    class EchoLanguage:
+        name = "echo"
+        requires = ()
+
+        def collect(self, namespace):
+            return namespace.values()
+
+        def lower(self, declarations, context):
+            return tuple(declarations)
+
+        def validate(self, ir):
+            pass
+
+        def encode(self, ir):
+            return list(ir)
+
+        def decode(self, value):
+            return tuple(value)
+
+    class Namespace:
+        def values(self):
+            return (1, 2)
+
+    build = Registry((EchoLanguage(),)).build(Namespace())
+    assert build.part("echo") == (1, 2)
+    ```
+    """
+
+    languages: Sequence[Language]
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "languages", order_languages(self.languages))
+
+    def build(
+        self,
+        namespace: Namespace,
+        declarations: Mapping[str, Sequence[object]] | None = None,
+    ) -> BuildIR:
+        """Lower ``namespace`` into one frozen part per language.
+
+        ``declarations`` overrides collection for the named languages; other
+        languages still call ``collect(namespace)``. Each part is validated
+        before it is stored, so a language cannot return an invalid part.
+
+        Example:
+        ```python
+        from kg_build_system.kernel import Registry
+
+        class EchoLanguage:
+            name = "echo"
+            requires = ()
+
+            def collect(self, namespace):
+                return namespace.values()
+
+            def lower(self, declarations, context):
+                return tuple(declarations)
+
+            def validate(self, ir):
+                pass
+
+            def encode(self, ir):
+                return list(ir)
+
+            def decode(self, value):
+                return tuple(value)
+
+        class Namespace:
+            def values(self):
+                return (1, 2)
+
+        build = Registry((EchoLanguage(),)).build(Namespace())
+        assert build.part("echo") == (1, 2)
+        ```
+        """
+        return compose(self.languages, namespace, declarations)
+
+
+__all__ = ["Registry"]

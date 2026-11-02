@@ -1,7 +1,7 @@
 # Architecture
 
-This is the implementation contract for the clean reimplementation. The legacy
-tree is at `legacy/kg_build_system`; it is reference only.
+This is the implementation contract for the framework. The legacy tree is at
+`legacy/kg_build_system`; it is reference only.
 
 ## Kernel
 
@@ -20,37 +20,73 @@ other framework package.
 
 The kernel owns no table, topology, expression, SQL or graph knowledge.
 
-## Surfaces
+## Package layout
 
-Every package states three surfaces:
+Every framework subpackage uses the same four-part layout:
 
-- `__init__.py` — public API: domain model, authoring names, methods.
-- `interfaces.py` — internal API: domain values, protocols, functions.
-- `ir.py` — IR: DTOs and their serialise/deserialise functions.
+```text
+pkg/
+  __init__.py      public facade; imports only from .public
+  public/          public domain: names a graph author writes or reads
+  internal/        framework-internal interface; ir.py and adapters/
+  _private/        mechanisms; imported only inside the package
+```
 
-Models are frozen data. Behaviour lives in functions or services beside them.
-No model holds a live process, connection or engine.
+| Zone | Reader | May be imported by |
+| --- | --- | --- |
+| `pkg` | graph author | any package |
+| `pkg.public` | graph author; type vocabulary | any package, for frozen data types |
+| `pkg.internal` | framework code | any package |
+| `pkg.internal.ir` | compiler code | any package |
+| `pkg._private` | its own package | no other package |
 
-A public or interface method is a thin wrapper over a private implementation.
-It states its contract and a runnable example in its docstring; it is never a
-bare re-export of an implementation function.
+- `public` is the definition site for author-facing names. Its functions and
+  methods are thin wrappers over `_private` or `internal`; the mechanism is not
+  in `public`.
+- `internal` is the cross-package contract: frozen models, protocols, helpers
+  and the compilation IR. It does not import another package's `_private`.
+- `_private` is a mechanism. A cross-package import of `_private` is a boundary
+  error.
+- `relational` and `engines` have no authoring surface; their `public/` states
+  that. `cli` is a leaf entry point and keeps the simple entry-point layout.
+- A public function or class method carries a user-facing docstring with a
+  runnable `Example:`. Internal and private functions carry only a developer
+  docstring.
+
+## Protocol adapters
+
+Implementing another package's protocol is a separate, named file under
+`internal/adapters/`:
+
+| Adapter | Protocol |
+| --- | --- |
+| `table/internal/adapters/kernel_language.py` | `kernel.Language` |
+| `topology/internal/adapters/kernel_language.py` | `kernel.Language` |
+| `binding/internal/adapters/kernel_language.py` | `kernel.Language` |
+| `modules/internal/adapters/core_module.py` | `kernel.Module` |
+| `engines/internal/adapters/engine.py` | `engines.internal.Engine` |
+| `code_generation/internal/adapters/provider.py` | `code_generation.internal.Provider` |
+
+The adapter file names the protocol, imports the foreign protocol, and delegates
+to `_private`. A protocol implementation buried in a model or factory file is a
+boundary error.
 
 ## Packages
 
-| Package | Public | Internal | IR |
+| Package | Public | Internal | Private |
 | --- | --- | --- | --- |
-| `kernel` | protocols, build pipeline | contract values | contract IR where needed |
-| `types` | markers, units, representative classes | logical type algebra, normalization | type DTOs + codec |
-| `expressions` | expression and selection API | operation specs, selection primitives | expression DTOs + codec |
-| `table` | `Table`, `Struct`, `Projection`, `Field`, sources | declaration access, row-source algebra | data DTOs + row-source plan |
-| `topology` | `Node`, `Edge`, categories, templates, properties | declaration access, endpoint rules | component DTOs |
-| `binding` | `node_binding`, `edge_binding`, values | binding model, validation | binding DTOs |
-| `relational` | none | engine-neutral plans, planner | relation plan DTOs |
-| `engines` | none | engine protocol | engine type DTOs |
-| `compile` | compatibility surface | pipeline, blueprint assembly | `BuildBlueprint` |
-| `workflow` | `build`, runtime, report | contract assembly, executor, services | workflow contract IR |
-| `modules` | registration, supplied modules | module protocol | module instruction DTOs |
-| `code_generation` | request/run surface | provider contract | generated declaration DTOs |
+| `kernel` | protocols, build pipeline, contract | no separate internal surface | ordering and composition |
+| `types` | markers, unit constants, representative classes | logical type algebra, normalization, codecs | normalization, validation, codec, mapping |
+| `expressions` | expression and selection API | model, operation specs, codecs, visitors, IR | coercion, literals, semantics, dispatch |
+| `table` | `Table`, `Struct`, `Projection`, `Field`, sources | declaration access, row-source plans, data IR | descriptors, class creation, shape and plan algebra |
+| `topology` | `Node`, `Edge`, categories, templates, properties | metadata, endpoint rules, component IR | class creation and property mechanics |
+| `binding` | `node_binding`, `edge_binding`, values | binding model, validation, binding IR | factory mechanics |
+| `relational` | none | engine-neutral plans, planner | planner implementation |
+| `engines` | none | engine protocol, type IR | DuckDB lowering and service |
+| `compile` | composition functions | blueprint aggregate, protocols, codecs | discovery, lowering, pipeline |
+| `workflow` | `build`, runtime, report | contract assembly, executor, services, IR | identity, mapping, monitor |
+| `modules` | registration, supplied modules | module protocol, registration, instruction IR | core, operators, targets |
+| `code_generation` | request/run surface | provider contract, generated IR | engine, discovery, rendering, builtins |
 
 ## Languages
 
@@ -66,11 +102,12 @@ bare re-export of an implementation function.
 
 ## Operations
 
-Each operation has one file in `expressions/operations/` and one lowering file in
-the engine. An operation spec states name, arity, parameters, result type and row
-effect. The expression IR stores only name, arguments, parameters and logical
-type. The engine registry is keyed by the same name. A custom operation is one
-spec plus one lowerer; no dispatcher edits.
+Each operation has one spec file under `expressions/internal/operations/` and
+one lowering file under `engines/_private/duckdb/operators/`. A spec states name,
+arity, parameters, result type and row effect. The expression IR stores only
+name, arguments, parameters and logical type. The engine registry is keyed by
+the same name. A custom operation is one spec plus one lowerer; no dispatcher
+edits.
 
 ## Compatibility (Open Targets KG)
 
@@ -84,5 +121,12 @@ The effective API includes the older authoring forms:
 - `workflow.models` and `modules.interfaces` module contract names.
 - `code_generation.generation` and `code_generation.builtins`.
 
-These are compatibility obligations, not the preferred model. Where they conflict
-with the cleaner model, the conflict is recorded in `DESIGN_ISSUES.md`.
+The package-root `interfaces.py`, `ir.py`, `models.py`, `language.py`,
+`factories.py`, `compile/models.py`, `compile/interfaces.py`,
+`workflow/{identity,interfaces,ir,models}.py`, `modules/{interfaces,_paths}.py`
+and `modules/targets/...` files are compatibility shims for the Open Targets
+project. They re-export the migrated zones; new framework code imports `pkg`,
+`pkg.internal` or `pkg.internal.ir`.
+
+These obligations are not the preferred model. Where they conflict with the
+cleaner model, the conflict is recorded in `DESIGN_ISSUES.md`.
