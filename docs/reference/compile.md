@@ -21,6 +21,9 @@ contract = compile(modules=modules)
 report = build(contract, output_directory=Path("build"), monitor=False)
 ```
 
+Import `compile` from `kg_build_system`; `kg_build_system.compile` is also the
+package that exposes `BuildBlueprint`.
+
 | Call | Inputs | Returns | Reads data | Writes files |
 | --- | --- | --- | --- | --- |
 | `create_blueprint` | `modules` and one declaration mode | Frozen blueprint | No | No |

@@ -275,7 +275,8 @@ inherited. `options.annotations` attaches portable metadata. An explicit
 
 ## What to remember
 
-- A projection is pinned at class creation with `Projection(source)`.
+- Prefer pinning a projection at class creation with `Projection(source)`; the
+  unpinned `projection_field` form is a compatibility spelling.
 - Outputs use `computed_field`; they carry the expression's type and
   nullability.
 - Reading a projection field returns its materialised output, not the

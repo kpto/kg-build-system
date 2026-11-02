@@ -35,14 +35,16 @@ the rules; it does not repeat the explanation of why the model works that way.
   the error tables on each page give the message and the trigger.
 - `Value` means a row-source value such as `SiteTable.row_source()`, not the
   declaration class `SiteTable`.
-- A source field read is nullable unless a page states otherwise. The reference
-  says when an operation removes or preserves that null.
+- A source field read follows its declaration: `Field[T]` is present and
+  `Field[T | None]` is nullable. The reference says when an operation removes or
+  preserves that null.
 
 ## Import paths
 
 | Surface | Import from |
 | --- | --- |
 | Declarations, selections, expressions, row sources and projections | `kg_build_system` |
+| `compile`, `create_blueprint` and `build` | `kg_build_system` |
 | Representative types and canonical logical types | `kg_build_system.types` |
 | Supplied modules and `register_module` | `kg_build_system.modules` |
 

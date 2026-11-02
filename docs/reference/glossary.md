@@ -39,8 +39,8 @@ field access ──selection──> projection ──binding──> contract ─
 **Field**
 : The typed member of a record, written `Field[T]`. `field()` declares a
   source-backed field: a table column or a source struct member. A field
-  declaration names the value type, never a presence guarantee; every source
-  field access returns `NullableSelection[T]`. See [Data
+  declaration names the value type and its presence: `Field[T]` reads a present
+  selection and `Field[T | None]` reads a nullable one. See [Data
   contracts](../concepts/data-contracts.md).
 
 **Generated package**
@@ -51,8 +51,9 @@ field access ──selection──> projection ──binding──> contract ─
 
 **Struct**
 : A nested-record shape. It is only a shape, never a row source, and is used
-  inside a `Field[SomeStruct]`. Every source member is nullable at every source
-  step. Its identity is its `(module, qualname)` pair. See [Data
+  inside a `Field[SomeStruct]`. A source member reads its own declaration; a
+  nullable carrier makes its members nullable. Its identity is its
+  `(module, qualname)` pair. See [Data
   contracts](../concepts/data-contracts.md#nested-records).
 
 **Table**
@@ -114,14 +115,16 @@ field access ──selection──> projection ──binding──> contract ─
 **Key**
 : The build key: the non-null scalar expression that identifies one node or edge
   record. An edge binding also has source and target node keys. A source field
-  reads as nullable, so a key starts from `alter_rows().drop_null()` or a
-  deliberate `default_to`. See [Types](types.md#keys).
+  declared `Field[T | None]` must be narrowed for a key; `Field[T]` is already
+  present. See [Types](types.md#keys).
 
 **Nullability**
-: Whether a selection may hold an absent value. Source field access is always
-  nullable; `default_to(...)` replaces an absence and `alter_rows().drop_null()`
-  removes the row. A computed field follows its expression; a computed-struct
-  member follows its witness. See [Types](types.md#nullability).
+: Whether a selection may hold an absent value. Source field access follows the
+  declaration: `Field[T]` is present and `Field[T | None]` is nullable.
+  `default_to(...)` replaces an absence and `alter_rows().drop_null()` removes
+  the row; both are no-ops on a present value. A computed field follows its
+  expression; a computed-struct member follows its witness. See
+  [Types](types.md#nullability).
 
 **Pre-flight**
 : The Parquet footer statistics check behind a declared non-null claim. At
@@ -225,12 +228,14 @@ field access ──selection──> projection ──binding──> contract ─
 : Something that produces rows of a known shape. `Table.row_source()` and
   `Projection.row_source()` return a `RelationRowSource`; `where`, `union`,
   `join`, `group_by`, `distinct` and `order_by` return a `DerivedRowSource`. A
-  row source is a value; a declaration class is not accepted. See [Row sources
+  row source is a value; the algebra requires it. A binding accepts a `Table` or
+  `Projection` class as a compatibility shorthand. See [Row sources
   and grain](../concepts/row-sources.md).
 
 **Selection**
-: A typed, structural view of a field or value in a row. A source field gives a
-  `NullableSelection`; narrowing gives a `ValueSelection`, `ArraySelection` or
+: A typed, structural view of a field or value in a row. A source field gives the
+  selection its declaration names: present for `Field[T]`, nullable for
+  `Field[T | None]`. Narrowing gives a `ValueSelection`, `ArraySelection` or
   `StructSelection`. A selection owns `extract`, `alter_rows`, `default_to` and
   the present-array operations; `.expression` reaches the calculation. See
   [Expressions](../concepts/expressions.md).
@@ -337,7 +342,7 @@ field access ──selection──> projection ──binding──> contract ─
 | --- | --- | --- |
 | Field | Property | A field describes a source member or computed output; a property is a graph value bound from an expression. |
 | Selection | Expression | A selection navigates structure and owns null policy; an expression calculates a value. |
-| Struct | ComputedStruct / Table | A source struct is source-backed and every member reads nullable; a computed struct supplies member types as witnesses and reads from its carrier; a table is also a bindable row source. |
+| Struct | ComputedStruct / Table | A source struct is source-backed and each member reads its declaration; a computed struct supplies member types as witnesses and reads from its carrier; a table is also a bindable row source. |
 | Template | Category | A template is inert and never enters the contract; a category is graph-visible and may be an endpoint. |
 | Row source | Shape | A shape is a class of fields; a row source is something that yields rows of that shape. |
 | Contract | Blueprint | A contract is executable; a blueprint is the validated declaration snapshot used to create one. |
