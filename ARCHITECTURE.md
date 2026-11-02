@@ -31,6 +31,10 @@ Every package states three surfaces:
 Models are frozen data. Behaviour lives in functions or services beside them.
 No model holds a live process, connection or engine.
 
+A public or interface method is a thin wrapper over a private implementation.
+It states its contract and a runnable example in its docstring; it is never a
+bare re-export of an implementation function.
+
 ## Packages
 
 | Package | Public | Internal | IR |

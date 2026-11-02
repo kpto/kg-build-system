@@ -174,6 +174,8 @@ rule about what the framework is belongs to the framework model.
 
 - The **authoring API** is what a graph author writes; it is the product model,
   not a convenience layer over internals.
+- A public API method is a thin wrapper over an internal implementation, with a
+  docstring and a runnable example. It is not a bare re-export.
 - It makes the intended use easy and the wrong use impossible.
 - It exposes only what an author may write; internal types stay internal.
 - A feature that cannot be expressed cleanly through it is probably wrong.
