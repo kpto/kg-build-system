@@ -174,7 +174,7 @@ constructor names the backing.
 
 | Host | Declaration | Read result |
 | --- | --- | --- |
-| `Table` or source `Struct` | `Field[T]` | The present selection for the value shape: `ValueSelection`, `ArraySelection`, `StructSelection` or a custom-scalar selection |
+| `Table` or source `Struct` | `Field[T]` | The present selection for the value: `ValueSelection[T]` for a scalar, `ArraySelection` for an array, `StructSelection` for a struct |
 | `Table` or source `Struct` | `Field[T \| None]` | `NullableSelection[T]` |
 | `Projection` | `computed_field(expression)` | Selection typed by the field expression |
 | `ComputedStruct` | `computed_field(expression)` | Read only through `extract`; the witness type composed with the carrier's presence |
@@ -266,10 +266,11 @@ class ContactStruct(Struct):
     phone: Field[str] = field()
 ```
 
-A nested member keeps the nullability its declaration states: selecting `city`
-from a present `AddressStruct` yields `ValueSelection[str]` for `Field[str]` and
-`NullableSelection[str]` for `Field[str | None]`. Reach members with `extract`;
-see [Expressions and selections](expressions.md#extract).
+A nested member keeps the nullability its declaration states: selecting `email`
+from a present `ContactStruct` yields `ValueSelection[str]` for `Field[str]` and
+`NullableSelection[str]` for `Field[str | None]`. A nullable carrier makes the
+member nullable too. Reach members with `extract`; see
+[Expressions and selections](expressions.md#extract).
 
 | Error | Trigger |
 | --- | --- |

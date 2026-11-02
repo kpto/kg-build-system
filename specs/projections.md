@@ -48,7 +48,6 @@ The `table` package owns the named projection declaration: its row-source pin or
 - A base does not enter the blueprint and is not a final projection. Only a named subclass with a final declaration spec enters the IR.
 - Fields supplied by a base and fields declared in a subclass are merged by Python MRO; a duplicate external name is rejected at class creation with `TypeError`.
 - `shape_view(source) -> type[Shape]` returns the generated shape used for a projection's `shape`.
-- `pinned_base(row_source) -> type[Projection]` returns a fieldless pinned base; the author declares every output.
 
 ## Internal interface
 

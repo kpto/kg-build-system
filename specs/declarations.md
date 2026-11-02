@@ -14,7 +14,6 @@ The `table` package owns the logical row and record declarations an author write
   - `field[T](*, name=None, description=None, annotations=()) -> Field[T]` declares source backing.
   - `computed_field[T](value: ValueInput[T], *, name=None, description=None, annotations=()) -> Field[T]` declares expression backing.
   - `projection_field[T](value, *, name=None, description=None, annotations=()) -> Field[T]` is the compatibility spelling of `computed_field`; see `../DESIGN_ISSUES.md` item 3.
-- `declared_fields(owner: type) -> dict[str, Field[Any]]` returns the resolved member set.
 - Declaration bases and options:
   - `Table` with `TableOptions(name=None, description=None, annotations=())`.
   - `Struct` with `StructOptions(name=None, description=None, annotations=())`.

@@ -369,8 +369,9 @@ Rendering rules:
   rather than silently shadowing one.
 - Every package directory receives an explicit `__init__.py`, and every rendered
   file is parsed before installation.
-- A defaulted source renders `T | None`; an enforced or declared non-null source
-  renders `T`. Array-item and nested-member nullability stay in the value type.
+- A `DEFAULTED` source renders `Field[T | None]`; an `ENFORCED` or `DECLARED`
+  non-null source renders `Field[T]`. Array-item and nested-member nullability
+  stay in the value type.
 - Canonical `date`, `time`, `timestamp` and `uuid` render as `Date`, `Time`,
   `Timestamp` and `Uuid`; the builtin scalars use their Python names. Every file
   that declares anything imports the whole representative set.

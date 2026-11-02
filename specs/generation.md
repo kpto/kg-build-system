@@ -64,7 +64,6 @@
 - `GenerationAction(kind, trigger_path, source_paths, declaration_id=None)`; `GenerationActionKind`: `DECLARATION_ADDED`, `DECLARATION_CHANGED`, `DECLARATION_DELETED`.
 - `watch(root, *, debounce=300, step=50, suffixes=(".py", ".json", ".toml", ".yaml", ".yml"), stop_event=None) -> AsyncIterator[tuple[FileChange, ...]]`.
 - `FileChange(kind, path)`; `FileChangeKind`: `CREATED`, `MODIFIED`, `DELETED`.
-- `GenerationManifest(format_version, request_id, request_source_package, provider_import, provider_qualname, provider_version, request_fingerprint, source_digest, owned_files, owned_directories, owned_file_hashes)`.
 - The CLI is `kbs generate [--check] [--regenerate] [--watch] [--project PATH] [--debounce MS]`.
 
 ## Internal interface
@@ -75,6 +74,7 @@
 - `StaticValue` is a JSON-compatible recursive value.
 - `GeneratedFile.relative_path` is a relative `.py` path.
 - `GeneratedStructType.in_file` binds a reference to the file that declares its target.
+- `GenerationManifest(format_version, request_id, request_source_package, provider_import, provider_qualname, provider_version, request_fingerprint, source_digest, owned_files, owned_directories, owned_file_hashes)` is the ownership record.
 
 Invariants:
 

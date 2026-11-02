@@ -77,4 +77,4 @@ Invariants:
 - **Component IR.** A `ComponentIR` carries the logical name, kind, declared properties, own description, effective annotations, `abstract` and `parent`. The topology language includes every component reachable from a binding target, an edge endpoint or a parent chain, even when a category is not itself bound.
 - **Effective topology.** `effective_components(blueprint)` keeps bound components, their abstract ancestors and the endpoint categories of kept edges. Unbound concrete components and categories with nothing effective beneath them are dropped for the published topology.
 - **IR order is deterministic.** A compiled part sorts components by symbol ID. Property order follows resolved declaration order.
-- **Metadata is frozen.** Lowering reads the frozen `ComponentMetadata`; the declaration's legacy class dictionaries (`_kind`, `_properties`, `_metadata`, `_component_*`) remain compatibility aliases.
+- **Metadata is frozen.** Lowering reads the frozen `ComponentMetadata`; the declaration's compatibility class dictionaries (`_kind`, `_properties`, `_metadata`, `_component_*`) remain aliases.
