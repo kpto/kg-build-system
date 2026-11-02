@@ -44,8 +44,8 @@ pkg/
 - Public docstrings are user-facing and carry runnable `Example:` blocks.
   Internal and private docstrings are developer-only and need no example.
 - `kernel` is the domain-agnostic package. `relational` and `engines` have an
-  empty `public/` stating that they have no authoring surface. `cli` is a leaf
-  entry point and keeps its simple layout.
+  empty `public/` stating that they have no authoring surface. `cli` exposes `main` through `public/` and keeps argument
+  parsing in `_private/`.
 - Root `interfaces.py`, `ir.py` and `models.py` files are compatibility shims
   for the Open Targets project only. They are not the interface.
 

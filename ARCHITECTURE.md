@@ -48,7 +48,8 @@ pkg/
 - `_private` is a mechanism. A cross-package import of `_private` is a boundary
   error.
 - `relational` and `engines` have no authoring surface; their `public/` states
-  that. `cli` is a leaf entry point and keeps the simple entry-point layout.
+  that. `cli` exposes the `kbs` entry point through `public/` and keeps its
+  implementation in `_private/`.
 - A public function or class method carries a user-facing docstring with a
   runnable `Example:`. Internal and private functions carry only a developer
   docstring.
@@ -87,6 +88,7 @@ boundary error.
 | `workflow` | `build`, runtime, report | contract assembly, executor, services, IR | identity, mapping, monitor |
 | `modules` | registration, supplied modules | module protocol, registration, instruction IR | core, operators, targets |
 | `code_generation` | request/run surface | provider contract, generated IR | engine, discovery, rendering, builtins |
+| `cli` | `main` entry point | none | argument parsing and command dispatch |
 
 ## Languages
 

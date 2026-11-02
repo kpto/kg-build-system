@@ -21,6 +21,7 @@ PACKAGES = (
     "kg_build_system.workflow",
     "kg_build_system.modules",
     "kg_build_system.code_generation",
+    "kg_build_system.cli",
 )
 
 

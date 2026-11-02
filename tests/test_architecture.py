@@ -21,6 +21,7 @@ PACKAGES = (
     "workflow",
     "modules",
     "code_generation",
+    "cli",
 )
 ZONES = {"", "public", "internal", "_private"}
 SHARED = {"_frozen_json", "_relations", "_support"}
