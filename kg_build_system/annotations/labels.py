@@ -8,6 +8,16 @@ from .models import Annotation
 
 @dataclass(frozen=True)
 class NodeLabel(Annotation):
+    """A portable semantic label for a node component.
+
+    Example:
+        ```python
+        from kg_build_system.annotations import NodeLabel
+
+        NodeLabel("Sensor")
+        ```
+    """
+
     namespace = "kg_build_system.topology"
     annotation_id = "node_label"
 
@@ -20,6 +30,16 @@ class NodeLabel(Annotation):
 
 @dataclass(frozen=True)
 class EdgeLabel(Annotation):
+    """A portable semantic label for an edge component.
+
+    Example:
+        ```python
+        from kg_build_system.annotations import EdgeLabel
+
+        EdgeLabel("MEASURES")
+        ```
+    """
+
     namespace = "kg_build_system.topology"
     annotation_id = "edge_label"
 

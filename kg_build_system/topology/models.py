@@ -126,6 +126,28 @@ def property[T: GraphValue](  # pyright: ignore[reportInvalidTypeVarUse]
 
 @dataclass(frozen=True, slots=True)
 class NodeOptions:
+    """Identity and annotations for a concrete or abstract node.
+
+    Assign an instance to a declaration's ``options`` class variable. ``name``
+    is the logical graph name, ``description`` overrides the class docstring and
+    ``annotations`` carries portable metadata such as a node label.
+
+    Example:
+        ```python
+        from kg_build_system import (
+            Node, NodeLabel, NodeOptions, PropertySlot, property,
+        )
+
+        class SiteNode(Node):
+            options = NodeOptions(
+                name="site",
+                description="A monitored site.",
+                annotations=(NodeLabel("Site"),),
+            )
+            name: PropertySlot[str] = property()
+        ```
+    """
+
     name: str | None = None
     description: str | None = None
     annotations: Sequence[Annotation] = ()
@@ -136,6 +158,29 @@ class NodeOptions:
 
 @dataclass(frozen=True, slots=True)
 class EdgeOptions:
+    """Identity and annotations for a concrete or abstract edge.
+
+    Assign an instance to a declaration's ``options`` class variable. ``name``
+    is the logical graph name, ``description`` overrides the class docstring and
+    ``annotations`` carries portable metadata such as an edge label.
+
+    Example:
+        ```python
+        from kg_build_system import (
+            Edge, EdgeLabel, EdgeOptions, Node,
+        )
+
+        class SiteNode(Node):
+            ...
+
+        class HasUnitEdge(Edge[SiteNode, SiteNode]):
+            options = EdgeOptions(
+                name="has_unit",
+                annotations=(EdgeLabel("HAS_UNIT"),),
+            )
+        ```
+    """
+
     name: str | None = None
     description: str | None = None
     annotations: Sequence[Annotation] = ()
@@ -146,7 +191,23 @@ class EdgeOptions:
 
 @dataclass(frozen=True, slots=True)
 class NodeOptionsTemplate:
-    """Annotations-only options for a node-side template."""
+    """Annotations-only options for a node-side template.
+
+    A node template's ``options`` must be this type. It has no name or
+    description because a template has no graph identity.
+
+    Example:
+        ```python
+        from kg_build_system import (
+            NodeLabel, NodeOptionsTemplate, NodeTemplate,
+        )
+
+        class ProvenancedNodeTemplate(NodeTemplate):
+            options = NodeOptionsTemplate(
+                annotations=(NodeLabel("Provenanced"),),
+            )
+        ```
+    """
 
     annotations: Sequence[Annotation] = ()
 
@@ -156,7 +217,23 @@ class NodeOptionsTemplate:
 
 @dataclass(frozen=True, slots=True)
 class EdgeOptionsTemplate:
-    """Annotations-only options for an edge-side template."""
+    """Annotations-only options for an edge-side template.
+
+    An edge template's ``options`` must be this type. It has no name or
+    description because a template has no graph identity.
+
+    Example:
+        ```python
+        from kg_build_system import (
+            EdgeLabel, EdgeOptionsTemplate, EdgeTemplate,
+        )
+
+        class ProvenancedEdgeTemplate(EdgeTemplate):
+            options = EdgeOptionsTemplate(
+                annotations=(EdgeLabel("PROVENANCED"),),
+            )
+        ```
+    """
 
     annotations: Sequence[Annotation] = ()
 
@@ -620,7 +697,25 @@ class NodeSideBase(TopologyDeclarationBase):
 
 
 class NodeTemplate(TopologyDeclarationBase):
-    """Inert node-side mixin sharing property slots and annotation flow."""
+    """Inert node-side mixin sharing property slots and annotation flow.
+
+    A node template contributes properties and annotations to its host but
+    never becomes a graph component, receives a name, or becomes a binding
+    target. Use ``NodeOptionsTemplate`` for its options.
+
+    Example:
+        ```python
+        from kg_build_system import (
+            Node, NodeTemplate, PropertySlot, property,
+        )
+
+        class ProvenancedNodeTemplate(NodeTemplate):
+            source_version: PropertySlot[str] = property()
+
+        class SiteNode(ProvenancedNodeTemplate, Node):
+            name: PropertySlot[str] = property()
+        ```
+    """
 
     _framework_root: ClassVar[bool] = True
     options: ClassVar[Any] = NodeOptionsTemplate()
@@ -628,7 +723,28 @@ class NodeTemplate(TopologyDeclarationBase):
 
 
 class EdgeTemplate(TopologyDeclarationBase):
-    """Inert edge-side mixin sharing property slots and annotation flow."""
+    """Inert edge-side mixin sharing property slots and annotation flow.
+
+    An edge template contributes properties and annotations to its host but
+    never becomes a graph component, receives a name, or becomes a binding
+    target. Use ``EdgeOptionsTemplate`` for its options.
+
+    Example:
+        ```python
+        from kg_build_system import (
+            Edge, EdgeTemplate, Node, PropertySlot, property,
+        )
+
+        class SiteNode(Node):
+            ...
+
+        class ProvenancedEdgeTemplate(EdgeTemplate):
+            source_version: PropertySlot[str] = property()
+
+        class LinkedEdge(ProvenancedEdgeTemplate, Edge[SiteNode, SiteNode]):
+            ...
+        ```
+    """
 
     _framework_root: ClassVar[bool] = True
     options: ClassVar[Any] = EdgeOptionsTemplate()
@@ -645,21 +761,69 @@ D = TypeVar("D", bound=NodeSideBase)
 
 
 class AbstractNode(NodeSideBase):
-    """Category node: a graph-visible parent for concrete nodes."""
+    """Category node: a graph-visible parent for concrete nodes.
+
+    A category carries shared properties and can be an edge endpoint, but it is
+    never a binding target and produces no records of its own. Declare a
+    concrete child by mixing the category into a ``Node``.
+
+    Example:
+        ```python
+        from kg_build_system import AbstractNode, Node, PropertySlot, property
+
+        class AssetNode(AbstractNode):
+            summary: PropertySlot[str] = property()
+
+        class SiteNode(AssetNode, Node):
+            name: PropertySlot[str] = property()
+        ```
+    """
 
     _framework_root: ClassVar[bool] = True
     options: ClassVar[Any] = NodeOptions()
 
 
 class Node(NodeSideBase):
-    """Concrete node base: bindable, terminal, and a sibling of AbstractNode."""
+    """Concrete node base: bindable, terminal, and a sibling of AbstractNode.
+
+    Declare a node by subclassing ``Node`` and assigning ``PropertySlot``
+    attributes. A concrete node is the only kind a ``node_binding`` can target,
+    and it cannot be subclassed.
+
+    Example:
+        ```python
+        from kg_build_system import Node, PropertySlot, property
+
+        class SiteNode(Node):
+            name: PropertySlot[str] = property()
+            region: PropertySlot[str | None] = property()
+        ```
+    """
 
     _framework_root: ClassVar[bool] = True
     options: ClassVar[Any] = NodeOptions()
 
 
 class AbstractEdge(TopologyDeclarationBase, Generic[S_co, D_co]):
-    """Category edge; endpoint parameters are covariant so children may descend."""
+    """Category edge; endpoint parameters are covariant so children may descend.
+
+    An abstract edge declares a relationship family. A concrete child may keep
+    or narrow its endpoint pair, and the pair is part of the edge's meaning.
+
+    Example:
+        ```python
+        from kg_build_system import AbstractEdge, Edge, Node
+
+        class SiteNode(Node):
+            ...
+
+        class LinkedAbstractEdge(AbstractEdge[SiteNode, SiteNode]):
+            ...
+
+        class SiteLinkedEdge(LinkedAbstractEdge, Edge[SiteNode, SiteNode]):
+            ...
+        ```
+    """
 
     _framework_root: ClassVar[bool] = True
     options: ClassVar[Any] = EdgeOptions()
@@ -668,14 +832,49 @@ class AbstractEdge(TopologyDeclarationBase, Generic[S_co, D_co]):
 class Edge(AbstractEdge[S, D], Generic[S, D]):
     """Concrete edge base; endpoint parameters stay invariant, as the
     binding matrix requires, while the covariant ``AbstractEdge`` parent
-    makes endpoint descent through the terminal base checkable."""
+    makes endpoint descent through the terminal base checkable.
+
+    Declare a directed relationship by subclassing ``Edge[Source, Target]``.
+    Both parameters are node-side declarations; a concrete edge is terminal and
+    is the only edge kind an ``edge_binding`` can target.
+
+    Example:
+        ```python
+        from kg_build_system import Edge, Node, PropertySlot, property
+
+        class SiteNode(Node):
+            ...
+
+        class UnitNode(Node):
+            ...
+
+        class HasUnitEdge(Edge[SiteNode, UnitNode]):
+            since: PropertySlot[str | None] = property()
+        ```
+    """
 
     _framework_root: ClassVar[bool] = True
 
 
 @dataclass(frozen=True, slots=True)
 class Endpoint(Generic[N_co]):
-    """A graph-identity reference to one concrete node component."""
+    """A graph-identity reference to one concrete node component.
+
+    Use :func:`endpoint` to create the value; constructing it directly skips
+    the concrete-node check.
+
+    Example:
+        ```python
+        from kg_build_system import Endpoint, Node, endpoint
+
+        class SiteNode(Node):
+            ...
+
+        site = endpoint(SiteNode)
+        assert isinstance(site, Endpoint)
+        assert site.target is SiteNode
+        ```
+    """
 
     target: type[N_co]
 

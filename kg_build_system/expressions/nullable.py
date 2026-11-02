@@ -56,18 +56,54 @@ class NullableExpression(
     # nullable source read (``row.id.expression.append(...)``). The result is
     # still nullable: these methods preserve absence rather than hiding it.
     def append(self, value: str | ValueExpression[str]) -> "NullableExpression[str, StrExpression]":
+        """Place another string after this one; absence is preserved.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Table, field
+
+            class Row(Table):
+                name: Field[str | None] = field(name="name")
+
+            assert Row.name.expression.append("!").model.operator == "concat"
+            ```
+        """
         return cast(
             "NullableExpression[str, StrExpression]",
             apply_operation("concat", self.model, expression_input(value, STR)),
         )
 
     def prepend(self, value: str | ValueExpression[str]) -> "NullableExpression[str, StrExpression]":
+        """Place another string in front of this one; absence is preserved.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Table, field
+
+            class Row(Table):
+                name: Field[str | None] = field(name="name")
+
+            assert Row.name.expression.prepend("kg:").model.operator == "concat"
+            ```
+        """
         return cast(
             "NullableExpression[str, StrExpression]",
             apply_operation("concat", expression_input(value, STR), self.model),
         )
 
     def replace(self, search: str, replacement: str) -> "NullableExpression[str, StrExpression]":
+        """Replace every occurrence of ``search``; absence is preserved.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Table, field
+
+            class Row(Table):
+                name: Field[str | None] = field(name="name")
+
+            assert Row.name.expression.replace("-", "_").model.operator == "replace"
+            ```
+        """
         return cast(
             "NullableExpression[str, StrExpression]",
             apply_operation(
@@ -79,6 +115,18 @@ class NullableExpression(
         )
 
     def equals(self, value: str | ValueExpression[str]) -> "NullableExpression[bool, BoolExpression]":
+        """Test this string for equality; a null value stays null.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Table, field
+
+            class Row(Table):
+                name: Field[str | None] = field(name="name")
+
+            assert Row.name.expression.equals("Depot").model.operator == "equals"
+            ```
+        """
         return cast(
             "NullableExpression[bool, BoolExpression]",
             apply_operation("equals", self.model, expression_input(value, STR)),
@@ -91,6 +139,19 @@ class NullableExpression(
         *,
         include_separator: bool = False,
     ) -> "NullableExpression[str, StrExpression]":
+        """The text before the nth separator; absence is preserved.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Table, field
+
+            class Row(Table):
+                name: Field[str | None] = field(name="name")
+
+            selected = Row.name.expression.before_separator("::")
+            assert selected.model.operator == "before_separator"
+            ```
+        """
         if not separator:
             raise ValueError("separator must be non-empty")
         if occurrence < 1:
@@ -113,6 +174,19 @@ class NullableExpression(
         *,
         include_separator: bool = False,
     ) -> "NullableExpression[str, StrExpression]":
+        """The text after the nth separator; absence is preserved.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Table, field
+
+            class Row(Table):
+                name: Field[str | None] = field(name="name")
+
+            selected = Row.name.expression.after_separator("::")
+            assert selected.model.operator == "after_separator"
+            ```
+        """
         if not separator:
             raise ValueError("separator must be non-empty")
         if occurrence < 1:

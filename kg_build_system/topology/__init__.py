@@ -8,6 +8,7 @@ declaration helpers and the ``topology`` language are in
 """
 from __future__ import annotations
 
+from .interfaces import endpoint, property
 from .models import (
     AbstractEdge,
     AbstractNode,
@@ -21,8 +22,6 @@ from .models import (
     NodeOptionsTemplate,
     NodeTemplate,
     PropertySlot,
-    endpoint,
-    property,
 )
 
 __all__ = [

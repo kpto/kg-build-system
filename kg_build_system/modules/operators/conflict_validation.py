@@ -38,6 +38,27 @@ from ..interfaces import Module, ModuleRegistrationConfiguration
 
 @dataclass(frozen=True)
 class RejectConflictingNonNullValuesConfiguration(ModuleRegistrationConfiguration):
+    """Choose whether a conflicting non-null value fails the build or is reported.
+
+    With ``fail_on_error=True`` (the default), any finding fails the run. With
+    ``False``, the records continue to later modules and a report is published.
+
+    Example:
+        ```python
+        from kg_build_system.modules import (
+            RejectConflictingNonNullValuesConfiguration,
+            RejectConflictingNonNullValuesModule, register_module,
+        )
+
+        modules = (
+            register_module(
+                RejectConflictingNonNullValuesModule,
+                RejectConflictingNonNullValuesConfiguration(fail_on_error=False),
+            ),
+        )
+        ```
+    """
+
     fail_on_error: bool = True
 
 
@@ -73,6 +94,21 @@ def _quote_identifier(value: object) -> str:
 
 @dataclass(frozen=True)
 class RejectConflictingNonNullValuesModule(Module):
+    """Reject more than one distinct non-null value per key and property.
+
+    Nulls never create a conflict. ``RejectConflictingNonNullValuesConfiguration``
+    chooses whether findings fail the run or are published as a report.
+
+    Example:
+        ```python
+        from kg_build_system.modules import (
+            RejectConflictingNonNullValuesModule, register_module,
+        )
+
+        modules = (register_module(RejectConflictingNonNullValuesModule),)
+        ```
+    """
+
     configuration: RejectConflictingNonNullValuesConfiguration
 
     ID: ClassVar[str] = "reject_conflicting_non_null_values"
@@ -92,6 +128,13 @@ class RejectConflictingNonNullValuesModule(Module):
         return _Executor()
 
     async def compile(self, context: CompilationContext[Any]) -> WorkflowContribution:
+        """Compile this module's stages into a workflow contribution.
+
+        Example:
+            ```python
+            contribution = await module.compile(context)
+            ```
+        """
         steps: list[WorkflowStep] = []
         instructions: dict[str, Any] = {}
         components = graph_record_components(blueprint_from_context(context))

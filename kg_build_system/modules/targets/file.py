@@ -72,7 +72,24 @@ def _canonical_property_value(value: Any) -> Any:
 
 @dataclass(frozen=True)
 class FileModuleConfiguration(ModuleRegistrationConfiguration):
-    """Where the graph file is written, beneath the build output directory."""
+    """Where the graph file is written, beneath the build output directory.
+
+    ``relative_path`` must stay inside the output directory. The runtime field
+    ``relative_path`` may replace it for one build.
+
+    Example:
+        ```python
+        from kg_build_system.modules import (
+            FileModule, FileModuleConfiguration, register_module,
+        )
+
+        modules = (
+            register_module(
+                FileModule, FileModuleConfiguration("graph.jsonl"),
+            ),
+        )
+        ```
+    """
 
     relative_path: str
 
@@ -82,6 +99,25 @@ class FileModuleConfiguration(ModuleRegistrationConfiguration):
 
 @dataclass(frozen=True)
 class FileModule(Module):
+    """Write graph records as sorted JSON Lines.
+
+    Registers no publication beyond ``file/write_result``; the file is the
+    product. ``FileModuleConfiguration`` names its location.
+
+    Example:
+        ```python
+        from kg_build_system.modules import (
+            FileModule, FileModuleConfiguration, register_module,
+        )
+
+        modules = (
+            register_module(
+                FileModule, FileModuleConfiguration("graph.jsonl"),
+            ),
+        )
+        ```
+    """
+
     configuration: FileModuleConfiguration
 
     ID: ClassVar[str] = "file"
@@ -105,6 +141,13 @@ class FileModule(Module):
     async def compile(
         self, context: CompilationContext[Any],
     ) -> WorkflowContribution:
+        """Compile this module's stages into a workflow contribution.
+
+        Example:
+            ```python
+            contribution = await module.compile(context)
+            ```
+        """
         step = WorkflowStep(
             inputs=(Input(ArtifactType("core", "graph.*"), name=_RECORDS_INPUT),),
             outputs=(

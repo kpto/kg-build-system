@@ -4,6 +4,17 @@ A graph author registers supplied modules and configures them here. The module
 extension protocols are :mod:`kg_build_system.modules.interfaces`; module IR is
 :mod:`kg_build_system.modules.ir`. Target modules are loaded on first use so the
 core package does not import an engine or a target it does not need.
+
+Example:
+    ```python
+    from kg_build_system.modules import (
+        FileModule, FileModuleConfiguration, register_module,
+    )
+
+    modules = (
+        register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
+    )
+    ```
 """
 from __future__ import annotations
 

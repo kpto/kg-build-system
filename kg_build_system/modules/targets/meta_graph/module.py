@@ -73,7 +73,26 @@ def _document(
 
 @dataclass(frozen=True)
 class MetaGraphModuleConfiguration(ModuleRegistrationConfiguration):
-    """Where the document lands, and how much of the data it may quote."""
+    """Where the document lands, and how much of the data it may quote.
+
+    ``example_limit`` bounds the example values quoted per property;
+    ``include_html`` also writes a self-contained page at
+    ``html_relative_path``. Both paths stay beneath the build output directory.
+
+    Example:
+        ```python
+        from kg_build_system.modules import (
+            MetaGraphModule, MetaGraphModuleConfiguration, register_module,
+        )
+
+        modules = (
+            register_module(
+                MetaGraphModule,
+                MetaGraphModuleConfiguration(example_limit=5),
+            ),
+        )
+        ```
+    """
 
     relative_path: str = "meta_graph.json"
     example_limit: int = 3
@@ -93,6 +112,26 @@ class MetaGraphModuleConfiguration(ModuleRegistrationConfiguration):
 
 @dataclass(frozen=True)
 class MetaGraphModule(Module):
+    """Write the effective-topology document and optional HTML page.
+
+    The document quotes at most ``example_limit`` values per property;
+    ``MetaGraphModuleConfiguration`` controls both output paths and the page.
+
+    Example:
+        ```python
+        from kg_build_system.modules import (
+            MetaGraphModule, MetaGraphModuleConfiguration, register_module,
+        )
+
+        modules = (
+            register_module(
+                MetaGraphModule,
+                MetaGraphModuleConfiguration(example_limit=3),
+            ),
+        )
+        ```
+    """
+
     configuration: MetaGraphModuleConfiguration
 
     ID: ClassVar[str] = _MODULE_ID
@@ -114,6 +153,13 @@ class MetaGraphModule(Module):
     async def compile(
         self, context: CompilationContext[Any],
     ) -> WorkflowContribution:
+        """Compile this module's stages into a workflow contribution.
+
+        Example:
+            ```python
+            contribution = await module.compile(context)
+            ```
+        """
         entries = component_entries(blueprint_from_context(context))
         definition = ModuleDefinition(
             reference=ModuleReference(

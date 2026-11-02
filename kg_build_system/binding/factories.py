@@ -210,6 +210,23 @@ def node_binding[N: Node](
     properties: Any = None, rows: Any = None, bind: Any = None,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
 ) -> NodeBinding[N]:
+    """Validate a node declaration into a frozen :class:`NodeBinding`.
+
+    Accepts either the direct form (``build_key`` and ``properties``) or the
+    row-derived form (``rows`` and ``bind``). This is the implementation behind
+    :func:`kg_build_system.binding.interfaces.node_binding`.
+
+    Example:
+    ```python
+    from kg_build_system import node_binding
+
+    binding = node_binding(
+        target=UnitNode,
+        build_key=UnitTable.unit_ref,
+        properties=UnitNode(name=UnitTable.unit_name),
+    )
+    ```
+    """
     _require_concrete_component(target, "node")
     if rows is not None or bind is not None:
         if build_key is not None or properties is not None:
@@ -307,6 +324,26 @@ def edge_binding(
     source_node: Endpoint[Any] | None = None,
     target_node: Endpoint[Any] | None = None,
 ) -> EdgeBinding[Any]:
+    """Validate an edge declaration into a frozen :class:`EdgeBinding`.
+
+    Accepts either the direct form (the three keys and ``properties``) or the
+    row-derived form (``rows`` and ``bind``). ``source_node`` and ``target_node``
+    are endpoint tokens. This is the implementation behind
+    :func:`kg_build_system.binding.interfaces.edge_binding`.
+
+    Example:
+    ```python
+    from kg_build_system import edge_binding
+
+    binding = edge_binding(
+        target=HasUnitEdge,
+        build_key=UnitTable.unit_ref,
+        source_build_key=UnitTable.site_id,
+        target_build_key=UnitTable.unit_ref,
+        properties=HasUnitEdge(as_at=UnitTable.as_at),
+    )
+    ```
+    """
     _require_concrete_component(target, "edge")
     if rows is not None or bind is not None:
         if any(value is not None for value in (

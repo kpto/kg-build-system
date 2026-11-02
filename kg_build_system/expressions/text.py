@@ -15,23 +15,60 @@ class StrExpression(ValueExpression[str]):
         super().__init__(expression)
 
     def prepend(self, value: str | ValueExpression[str]) -> "StrExpression":
+        """Place another string in front of this one.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+
+            text = value_expression("graph")
+            assert text.prepend("kg:").model.operator == "concat"
+            ```
+        """
         return StrExpression(
             apply_operation("concat", expression_input(value, STR), self.model, result_type=STR).model
         )
 
     def append(self, value: str | ValueExpression[str]) -> "StrExpression":
+        """Place another string after this one.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+
+            text = value_expression("kg:")
+            assert text.append("graph").model.operator == "concat"
+            ```
+        """
         return StrExpression(
             apply_operation("concat", self.model, expression_input(value, STR), result_type=STR).model
         )
 
     def equals(self, value: str | ValueExpression[str]) -> "BoolExpression":
-        """Test this string for equality, producing a Boolean row predicate."""
+        """Test this string for equality, producing a Boolean row predicate.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+
+            assert value_expression("a").equals("b").model.operator == "equals"
+            ```
+        """
         return BoolExpression(
             apply_operation("equals", self.model, expression_input(value, STR)).model
         )
 
     def replace(self, search: str, replacement: str) -> "StrExpression":
-        """Replace every occurrence of ``search`` with ``replacement``."""
+        """Replace every occurrence of ``search`` with ``replacement``.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+
+            text = value_expression("a-b")
+            assert text.replace("-", "_").model.operator == "replace"
+            ```
+        """
         return StrExpression(
             apply_operation(
                 "replace",
@@ -78,6 +115,14 @@ class StrExpression(ValueExpression[str]):
 
         The separator at the cut is excluded by default. The whole string when
         the separator does not appear that many times.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+
+            text = value_expression("site::depot")
+            assert text.before_separator("::").model.operator == "before_separator"
+            ```
         """
         return self._separator_cut(
             separator,
@@ -98,6 +143,14 @@ class StrExpression(ValueExpression[str]):
         The separator at the cut is excluded by default; later separators stay
         in the result. The empty string when the separator does not appear that
         many times.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+
+            text = value_expression("site::depot")
+            assert text.after_separator("::").model.operator == "after_separator"
+            ```
         """
         return self._separator_cut(
             separator,

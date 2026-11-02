@@ -84,13 +84,34 @@ class RowSource(Generic[S]):
     shape: type[S]
 
     def where(self, predicate: Callable[[S], BoolExpression]) -> "DerivedRowSource[S]":
+        """Keep rows whose predicate is true.
+
+        The predicate receives a symbolic shape instance and must return a
+        ``BoolExpression``.
+
+        Example:
+            ```python
+            active = SiteTable.row_source().where(
+                lambda site: site.name.alter_rows().drop_null()
+                .expression.equals("Depot")
+            )
+            ```
+        """
         from .plans import derive_row_source
 
         result = _evaluate_predicate(self.shape, predicate)
         return cast("DerivedRowSource[S]", derive_row_source(self, result))
 
     def union(self, other: Any, *, all: bool = True) -> "DerivedRowSource[S]":
-        """Stack two same-shaped sources; ``all=False`` removes duplicates."""
+        """Stack two same-shaped sources; ``all=False`` removes duplicates.
+
+        Example:
+            ```python
+            everyone = SiteTable.row_source().union(
+                ArchivedSiteTable.row_source()
+            )
+            ```
+        """
         from .plans import as_row_source
 
         right = as_row_source(other)
@@ -110,6 +131,15 @@ class RowSource(Generic[S]):
 
         ``on`` receives one shape instance per side and returns the two key
         selections. A null key never matches in any join mode.
+
+        Example:
+            ```python
+            site_readings = SiteTable.row_source().join(
+                ReadingTable.row_source(),
+                on=lambda site, reading: (site.site_id, reading.site_id),
+                how="left",
+            )
+            ```
         """
         from .plans import as_row_source
 
@@ -159,7 +189,15 @@ class RowSource(Generic[S]):
         )
 
     def group_by(self, *, by: Callable[[S], Any]) -> "DerivedRowSource[Any]":
-        """Group rows by named key expressions; null keys are dropped."""
+        """Group rows by named key expressions; null keys are dropped.
+
+        Example:
+            ```python
+            by_region = SiteTable.row_source().group_by(
+                by=lambda site: {"region": site.region},
+            )
+            ```
+        """
         if not callable(by):
             raise TypeError("group_by by must be a callable")
         selected = by(shape_context(self.shape))
@@ -213,14 +251,26 @@ class RowSource(Generic[S]):
         )
 
     def distinct(self) -> "DerivedRowSource[S]":
-        """Drop duplicate rows without changing the shape."""
+        """Drop duplicate rows without changing the shape.
+
+        Example:
+            ```python
+            unique_sites = SiteTable.row_source().distinct()
+            ```
+        """
         plan = RowDistinctIR(row_source_plan_ir(self))
         return DerivedRowSource(
             shape=self.shape, source=_root_source(self), plan_ir=plan,
         )
 
     def order_by(self, *keys: Any, ascending: bool = True) -> "DerivedRowSource[S]":
-        """Order rows by expressions, selections, or column names."""
+        """Order rows by expressions, selections, or column names.
+
+        Example:
+            ```python
+            ordered = SiteTable.row_source().order_by("region", "name")
+            ```
+        """
         if not keys:
             raise ValueError("order_by requires at least one key")
         input_plan = row_source_plan_ir(self)
@@ -278,9 +328,22 @@ class RelationRowSource(RowSource[S], Generic[S]):
 
     @property
     def plan_ir(self) -> RowScanIR:
+        """The scan plan this relation reads."""
         return RowScanIR(declaration_source_name(self.source))
 
     def projection_base(self) -> type:
+        """Return a projection base over this relation.
+
+        Example:
+            ```python
+            from kg_build_system import computed_field
+
+            base = SiteTable.row_source().projection_base()
+
+            class SiteLabels(base):
+                label = computed_field(SiteTable.name)
+            ```
+        """
         from ..models import projection_base
 
         return projection_base(self)
@@ -296,6 +359,22 @@ class DerivedRowSource(RowSource[S], Generic[S]):
     plan_ir: RowSourcePlanIR | None = None
 
     def projection_base(self) -> type:
+        """Return a projection base over this derived row source.
+
+        Example:
+            ```python
+            from kg_build_system import computed_field
+
+            active = SiteTable.row_source().where(
+                lambda site: site.name.alter_rows().drop_null()
+                .expression.equals("Depot")
+            )
+            base = active.projection_base()
+
+            class ActiveSiteLabels(base):
+                label = computed_field(SiteTable.name)
+            ```
+        """
         from ..models import projection_base
 
         return projection_base(self)

@@ -7,11 +7,19 @@ writes; the domain model, operation specs and codecs are in
 """
 from __future__ import annotations
 
-from ._literals import literal
 from .arrays import ArrayExpression
-from .boolean import BoolExpression, all_of, any_of
+from .boolean import BoolExpression
 from .custom import CustomDataTypeExpression
-from .factory import value_expression, wrap_expression
+from .interfaces import (
+    all_of,
+    any_of,
+    as_expression,
+    literal,
+    select_expression,
+    select_member,
+    value_expression,
+    wrap_expression,
+)
 from .nullable import NullableExpression
 from .numeric import FloatExpression, IntExpression, NumberExpression
 from .selections import (
@@ -27,9 +35,6 @@ from .selections import (
     StructSelection,
     ValueInput,
     ValueSelection,
-    as_expression,
-    select_expression,
-    select_member,
 )
 from .structs import StructExpression
 from .text import StrExpression

@@ -45,6 +45,21 @@ class NullableSelection(
         self: "NullableSelection[S]", value: S | ValueExpression[S],
     ) -> "StructSelection[S]": ...
     def default_to(self, value: Any) -> ValueSelection[Any]:
+        """Replace a null value with a fallback while keeping the row.
+
+        The fallback must have the nullable value's own logical type. The
+        result is present; nullness is not propagated to it.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Table, field
+
+            class Row(Table):
+                name: Field[str | None] = field(name="name")
+
+            assert Row.name.default_to("unknown").logical_type.name == "str"
+            ```
+        """
         logical_type = self.logical_type
         if not isinstance(logical_type, NullableType):
             raise TypeError("default_to requires a nullable selection")
@@ -66,7 +81,18 @@ class NullableSelection(
     @overload
     def where_present[S: Struct](self: "NullableSelection[S]") -> "StructSelection[S]": ...
     def where_present(self) -> ValueSelection[Any]:
-        """Legacy spelling of the presence filter; see ``alter_rows().drop_null()``."""
+        """Legacy spelling of the presence filter; see ``alter_rows().drop_null()``.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Table, field
+
+            class Row(Table):
+                name: Field[str | None] = field(name="name")
+
+            assert Row.name.where_present().logical_type.name == "str"
+            ```
+        """
         return self._drop_null()
 
     def _drop_null(self) -> ValueSelection[Any]:
@@ -84,7 +110,18 @@ class NullableSelection(
     @overload
     def drop_null[S: Struct](self: "NullableSelection[S]") -> "StructSelection[S]": ...
     def drop_null(self) -> ValueSelection[Any]:
-        """Drop the row when this value is null."""
+        """Drop the row when this value is null.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Table, field
+
+            class Row(Table):
+                name: Field[str | None] = field(name="name")
+
+            assert Row.name.drop_null().logical_type.name == "str"
+            ```
+        """
         return self._drop_null()
 
     @overload
@@ -98,6 +135,21 @@ class NullableSelection(
     @overload
     def expand[I: NullableDataType](self: "NullableSelection[Array[Array[I]]]") -> "ArraySelection[I]": ...
     def expand(self) -> ValueSelection[Any]:
+        """One row per element of a present array; an absent array yields none.
+
+        The item type determines the result; a nullable item keeps its own
+        nullable selection.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str] | None] = field(name="names")
+
+            assert Row.names.expand().logical_type.name == "str"
+            ```
+        """
         logical_type = self.logical_type
         if not isinstance(logical_type, NullableType) or not isinstance(
             logical_type.value, ArrayType
@@ -122,6 +174,25 @@ class NullableSelection(
         self: "NullableSelection[S]", selector: Callable[[S], "StructSelection[Inner]"],
     ) -> "NullableSelection[Inner]": ...
     def pick(self, selector: Callable[[Any], ValueSelection[Any]]) -> ValueSelection[Any]:
+        """Read one declared member of this nullable struct.
+
+        The legacy spelling of ``extract``. The member inherits the parent
+        struct's nullness.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Struct, Table, field
+
+            class Detail(Struct):
+                label: Field[str] = field(name="label")
+
+            class Row(Table):
+                detail: Field[Detail | None] = field(name="detail")
+
+            selected = Row.detail.pick(lambda detail: detail.label)
+            assert selected.logical_type.value.name == "str"
+            ```
+        """
         logical_type = self.logical_type
         if not isinstance(logical_type, NullableType) or not isinstance(
             logical_type.value, StructType
@@ -146,7 +217,22 @@ class NullableSelection(
         self: "NullableSelection[S]", selector: Callable[[S], "StructSelection[Inner]"],
     ) -> "NullableSelection[Inner]": ...
     def extract(self, selector: Callable[[Any], ValueSelection[Any]]) -> ValueSelection[Any]:
-        """Read one declared member of this nullable struct."""
+        """Read one declared member of this nullable struct.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Struct, Table, field
+
+            class Detail(Struct):
+                label: Field[str] = field(name="label")
+
+            class Row(Table):
+                detail: Field[Detail | None] = field(name="detail")
+
+            selected = Row.detail.extract(lambda detail: detail.label)
+            assert selected.logical_type.value.name == "str"
+            ```
+        """
         logical_type = self.logical_type
         if not isinstance(logical_type, NullableType) or not isinstance(
             logical_type.value, StructType
@@ -168,6 +254,19 @@ class NullableSelection(
         selector: Callable[[ValueExpression[TItem]], ValueExpression[U]],
     ) -> "NullableSelection[Array[U]]": ...
     def transform_items(self, selector: Callable[[Any], ValueExpression[Any]]) -> "NullableSelection[Any]":
+        """Apply a selector to every item, keeping the array's own presence.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str] | None] = field(name="names")
+
+            selected = Row.names.transform_items(lambda item: item.append("!"))
+            assert selected.model.operator == "transform_items"
+            ```
+        """
         from ..arrays import _transform_items
 
         logical_type = self.logical_type
@@ -189,6 +288,19 @@ class NullableSelection(
         self: "NullableSelection[Array[I]]",
     ) -> "NullableSelection[Array[I]]": ...
     def drop_null_items(self) -> "NullableSelection[Any]":
+        """Remove null items, keeping the array's own presence.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str | None] | None] = field(name="names")
+
+            selected = Row.names.drop_null_items()
+            assert selected.model.operator == "drop_null_items"
+            ```
+        """
         from ..arrays import _drop_null_items
 
         logical_type = self.logical_type
@@ -202,6 +314,18 @@ class NullableSelection(
         )
 
     def sort(self) -> "NullableSelection[Any]":
+        """Sort the items of a present array in ascending order.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str] | None] = field(name="names")
+
+            assert Row.names.sort().model.operator == "sort"
+            ```
+        """
         from ..arrays import _array_operation
 
         logical_type = self.logical_type
@@ -215,6 +339,18 @@ class NullableSelection(
         )
 
     def distinct(self) -> "NullableSelection[Any]":
+        """Keep one copy of each item of a present array.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str] | None] = field(name="names")
+
+            assert Row.names.distinct().model.operator == "distinct"
+            ```
+        """
         from ..arrays import _array_operation
 
         logical_type = self.logical_type
@@ -230,10 +366,37 @@ class NullableSelection(
         )
 
     def unique(self) -> "NullableSelection[Any]":
-        """Keep one copy per item; the legacy spelling of ``distinct``."""
+        """Keep one copy per item; the legacy spelling of ``distinct``.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str] | None] = field(name="names")
+
+            assert Row.names.unique().model.operator == "distinct"
+            ```
+        """
         return self.distinct()
 
     def join(self, separator: str) -> "NullableSelection[str]":
+        """Join non-null string items with ``separator``.
+
+        Requires an array of non-null strings. The result is null when the
+        array is null.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str] | None] = field(name="names")
+
+            joined = Row.names.join(", ")
+            assert joined.logical_type.value.name == "str"
+            ```
+        """
         logical_type = self.logical_type
         if not isinstance(logical_type, NullableType) or not isinstance(
             logical_type.value, ArrayType
@@ -247,11 +410,35 @@ class NullableSelection(
         return cast("NullableSelection[str]", select_expression(result))
 
     def concat(self, separator: str) -> "NullableSelection[str]":
-        """Join non-null string items; the legacy spelling of ``join``."""
+        """Join non-null string items; the legacy spelling of ``join``.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str] | None] = field(name="names")
+
+            joined = Row.names.concat(", ")
+            assert joined.logical_type.value.name == "str"
+            ```
+        """
         return self.join(separator)
 
     def at(self, index: int | ValueInput[int]) -> ValueSelection[Any]:
-        """The nullable item at a 0-based index."""
+        """The nullable item at a 0-based index.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str] | None] = field(name="names")
+
+            selected = Row.names.at(0)
+            assert selected.logical_type.value.name == "str"
+            ```
+        """
         logical_type = self.logical_type
         if not isinstance(logical_type, NullableType) or not isinstance(
             logical_type.value, ArrayType
@@ -268,7 +455,18 @@ class NullableSelection(
     def slice(
         self, start: int | ValueInput[int], end: int | ValueInput[int],
     ) -> "NullableSelection[Any]":
-        """The nullable array between a 0-based start and an end-exclusive end."""
+        """The nullable array between a 0-based start and an end-exclusive end.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str] | None] = field(name="names")
+
+            assert Row.names.slice(0, 1).model.operator == "array_slice"
+            ```
+        """
         logical_type = self.logical_type
         if not isinstance(logical_type, NullableType) or not isinstance(
             logical_type.value, ArrayType
@@ -287,6 +485,19 @@ class NullableSelection(
         )
 
     def alter_rows(self) -> "NullableRowEffects[TItem]":
+        """Opt in to the row-changing operations of this nullable selection.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+            from kg_build_system.expressions import NullableRowEffects
+
+            class Row(Table):
+                names: Field[Array[str] | None] = field(name="names")
+
+            assert isinstance(Row.names.alter_rows(), NullableRowEffects)
+            ```
+        """
         from .effects import NullableRowEffects
 
         return NullableRowEffects(self)

@@ -257,6 +257,7 @@ class Field(Generic[T]):
 
     @property
     def metadata(self) -> FieldMetadata:
+        """The name, description and annotations declared on this field."""
         return self._metadata
 
     def __set_name__(self, owner: type[Any], attribute: str) -> None:
@@ -273,7 +274,16 @@ class Field(Generic[T]):
         )
 
     def access_type(self, owner: type[Any]) -> LogicalType:
-        """The type one read yields: source-backed fields are always nullable."""
+        """The type one read yields for ``owner``.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Table, field
+            class Row(Table):
+                text: Field[str] = field()
+            Row.__dict__["text"].access_type(Row)
+            ```
+        """
         spec = _field_spec(owner, self)
         if spec is not None:
             return spec.access_type

@@ -45,6 +45,19 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
         selector: Callable[[ValueExpression[TItem]], ValueExpression[U]],
     ) -> "ArraySelection[Nullable[U]]": ...
     def transform_items(self, selector: Callable[[Any], ValueExpression[Any]]) -> "ArraySelection[Any]":
+        """Apply a selector to every item, preserving the array's item count.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str]] = field(name="names")
+
+            selected = Row.names.transform_items(lambda item: item.append("!"))
+            assert selected.model.operator == "transform_items"
+            ```
+        """
         from ..arrays import _transform_items
 
         expression = self._require_expression()
@@ -64,6 +77,19 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
         self: "ArraySelection[I]",
     ) -> "ArraySelection[I]": ...
     def drop_null_items(self) -> "ArraySelection[Any]":
+        """Remove null items from a nullable item array.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str | None]] = field(name="names")
+
+            selected = Row.names.drop_null_items()
+            assert selected.model.operator == "drop_null_items"
+            ```
+        """
         from ..arrays import _drop_null_items
 
         expression = self._require_expression()
@@ -75,6 +101,18 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
         )
 
     def sort(self) -> "ArraySelection[TItem]":
+        """Sort the items of the array in ascending order.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str]] = field(name="names")
+
+            assert Row.names.sort().model.operator == "sort"
+            ```
+        """
         from ..arrays import _array_operation
 
         expression = self._require_expression()
@@ -86,6 +124,18 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
         )
 
     def distinct(self) -> "ArraySelection[TItem]":
+        """Keep one copy of each item in the array.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str]] = field(name="names")
+
+            assert Row.names.distinct().model.operator == "distinct"
+            ```
+        """
         from ..arrays import _array_operation
 
         expression = self._require_expression()
@@ -97,10 +147,33 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
         )
 
     def unique(self) -> "ArraySelection[TItem]":
-        """Keep one copy per item; the selection spelling of ``distinct``."""
+        """Keep one copy per item; the selection spelling of ``distinct``.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str]] = field(name="names")
+
+            assert Row.names.unique().model.operator == "distinct"
+            ```
+        """
         return self.distinct()
 
     def join(self, separator: str) -> ValueSelection[str]:
+        """Join the array's non-null string items with ``separator``.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str]] = field(name="names")
+
+            assert Row.names.join(", ").logical_type.name == "str"
+            ```
+        """
         expression = self._require_expression()
         if not isinstance(self.logical_type, ArrayType):
             raise TypeError("join requires an array selection")
@@ -111,7 +184,18 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
         )
 
     def concat(self, separator: str) -> ValueSelection[str]:
-        """Join non-null string items; the selection spelling of ``join``."""
+        """Join non-null string items; the selection spelling of ``join``.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str]] = field(name="names")
+
+            assert Row.names.concat(", ").logical_type.name == "str"
+            ```
+        """
         return self.join(separator)
 
     @overload
@@ -123,6 +207,19 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
     @overload
     def at[I: NullableDataType](self: "ArraySelection[Array[I]]", index: int | ValueInput[int]) -> "NullableSelection[Array[I]]": ...
     def at(self, index: int | ValueInput[int]) -> ValueSelection[Any]:
+        """The nullable item at a 0-based index.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str]] = field(name="names")
+
+            selected = Row.names.at(0)
+            assert selected.logical_type.value.name == "str"
+            ```
+        """
         if not isinstance(self.logical_type, ArrayType):
             raise TypeError("at requires an array selection")
         result = apply_operation(
@@ -133,6 +230,18 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
         return select_expression(result)
 
     def slice(self, start: int | ValueInput[int], end: int | ValueInput[int]) -> "ArraySelection[TItem]":
+        """The array between a 0-based start and an end-exclusive end.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str]] = field(name="names")
+
+            assert Row.names.slice(0, 1).model.operator == "array_slice"
+            ```
+        """
         if not isinstance(self.logical_type, ArrayType):
             raise TypeError("slice requires an array selection")
         result = apply_operation(
@@ -144,6 +253,19 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
         return cast("ArraySelection[TItem]", select_expression(result))
 
     def alter_rows(self) -> "ArrayRowEffects[TItem]":
+        """Opt in to the row-changing operations of this array selection.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+            from kg_build_system.expressions import ArrayRowEffects
+
+            class Row(Table):
+                names: Field[Array[str]] = field(name="names")
+
+            assert isinstance(Row.names.alter_rows(), ArrayRowEffects)
+            ```
+        """
         from .effects import ArrayRowEffects
 
         return ArrayRowEffects(self)
@@ -159,6 +281,21 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
     @overload
     def expand[I: NullableDataType](self: "ArraySelection[Array[I]]") -> "ArraySelection[I]": ...
     def expand(self) -> ValueSelection[Any]:
+        """One row per array element.
+
+        The item type determines the result; a nullable item keeps its own
+        nullable selection.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str]] = field(name="names")
+
+            assert Row.names.expand().logical_type.name == "str"
+            ```
+        """
         logical_type = self.logical_type
         if not isinstance(logical_type, ArrayType):
             raise TypeError("expand requires an array selection")

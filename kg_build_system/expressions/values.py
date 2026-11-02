@@ -62,6 +62,13 @@ class ValueExpression(Generic[T_co]):
         Timestamps carry the `T` separator the framework's canonical text uses;
         every other unit uses DuckDB's canonical cast. Arrays, structs and custom
         scalars have no single text form and are refused.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+
+            assert value_expression(1).to_string().logical_type.name == "str"
+            ```
         """
         logical_type = self.logical_type
         base = (

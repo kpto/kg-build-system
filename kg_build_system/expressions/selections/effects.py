@@ -35,15 +35,57 @@ class RowEffects(Generic[SSelection]):
         return self._selection
 
     def drop_null(self) -> SSelection:
-        """A non-null selection has no null row; the old spelling is a no-op."""
+        """A non-null selection has no null row; the old spelling is a no-op.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Table, field
+
+            class Row(Table):
+                name: Field[str] = field(name="name")
+
+            selection = Row.name
+            assert selection.alter_rows().drop_null() is selection
+            ```
+        """
         return self._selection
 
     def expand(self) -> SSelection:
-        """Only array selections expand; the base spelling is refused at runtime."""
+        """Only array selections expand; the base spelling is refused at runtime.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Table, field
+
+            class Row(Table):
+                name: Field[str] = field(name="name")
+
+            try:
+                Row.name.alter_rows().expand()
+            except TypeError as error:
+                assert str(error) == "expand requires an array selection"
+            else:
+                raise AssertionError("expand requires an array selection")
+            ```
+        """
         raise TypeError("expand requires an array selection")
 
     def drop_if(self, predicate: Callable[[SSelection], "BoolExpression"]) -> SSelection:
-        """Drop rows whose value does not satisfy the predicate."""
+        """Drop rows whose value does not satisfy the predicate.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Table, field
+
+            class Row(Table):
+                name: Field[str] = field(name="name")
+
+            selected = Row.name.alter_rows().drop_if(
+                lambda name: name.expression.equals("Depot")
+            )
+            assert selected.model.operator == "where_if"
+            ```
+        """
         return self._selection.drop_if(predicate)
 
 
@@ -59,7 +101,19 @@ class ArrayRowEffects(RowEffects["ArraySelection[TItem]"], Generic[TItem]):
     @overload
     def expand[I: NullableDataType](self: "ArrayRowEffects[Array[I]]") -> "ArraySelection[I]": ...
     def expand(self):
-        """One row per array element."""
+        """One row per array element.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str]] = field(name="names")
+
+            selected = Row.names.alter_rows().expand()
+            assert selected.logical_type.name == "str"
+            ```
+        """
         return cast("ArraySelection[Any]", self._selection).expand()
 
 
@@ -73,7 +127,19 @@ class NullableRowEffects(RowEffects["NullableSelection[TItem]"], Generic[TItem])
     @overload
     def drop_null[S: Any](self: "NullableRowEffects[S]") -> Any: ...
     def drop_null(self):
-        """Drop rows whose value is null."""
+        """Drop rows whose value is null.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Table, field
+
+            class Row(Table):
+                name: Field[str | None] = field(name="name")
+
+            selected = Row.name.alter_rows().drop_null()
+            assert selected.logical_type.name == "str"
+            ```
+        """
         return cast("NullableSelection[Any]", self._selection).drop_null()
 
     @overload
@@ -85,7 +151,19 @@ class NullableRowEffects(RowEffects["NullableSelection[TItem]"], Generic[TItem])
     @overload
     def expand[I: NullableDataType](self: "NullableRowEffects[Array[Array[I]]]") -> "ArraySelection[I]": ...
     def expand(self):
-        """One row per element of a present array, yielding none when absent."""
+        """One row per element of a present array, yielding none when absent.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                names: Field[Array[str] | None] = field(name="names")
+
+            selected = Row.names.alter_rows().expand()
+            assert selected.logical_type.name == "str"
+            ```
+        """
         return cast("NullableSelection[Any]", self._selection).expand()
 
 

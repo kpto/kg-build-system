@@ -263,7 +263,18 @@ def pinned_base(row_source: Any) -> type["Projection"]:
 
 
 def projection_base(row_source: Any) -> type["Projection"]:
-    """A dynamic base carrying a row source plan and its inherited fields."""
+    """A dynamic base carrying a row source plan and its inherited fields.
+
+    The base is not a final projection; finish it with a named subclass.
+
+    Example:
+        ```python
+        from kg_build_system import computed_field
+
+        class SiteLabels(SiteTable.projection_base()):
+            label = computed_field(SiteTable.name)
+        ```
+    """
     from .row_sources import as_row_source, projection_attrs
 
     source = as_row_source(row_source)
@@ -344,14 +355,43 @@ class Table(StructDeclaration, RowSource["Table"]):
     def where(
         cls, predicate: Callable[[Self], "BoolExpression"],
     ) -> "DerivedRowSource[Self]":
+        """Keep the rows of this table that satisfy ``predicate``.
+
+        The predicate receives a symbolic instance of the table and must return
+        a ``BoolExpression``.
+
+        Example:
+            ```python
+            active = SiteTable.where(
+                lambda site: site.name.alter_rows().drop_null().expression.equals("Depot")
+            )
+            ```
+        """
         return _derive(cls, predicate)
 
     @classmethod
     def projection_base(cls) -> type:
+        """Return a projection base pinned to this table's relation.
+
+        Example:
+            ```python
+            from kg_build_system import computed_field
+
+            class SiteLabels(SiteTable.projection_base()):
+                label = computed_field(SiteTable.name)
+            ```
+        """
         return projection_base(cls.row_source())
 
     @classmethod
     def row_source(cls) -> "RelationRowSource[Self]":
+        """Return the relation row source for this table.
+
+        Example:
+            ```python
+            sites = SiteTable.row_source()
+            ```
+        """
         from .row_sources import RelationRowSource
 
         return RelationRowSource(cls, cls)
@@ -475,14 +515,44 @@ class Projection(Shape, RowSource["Projection"], metaclass=ProjectionMeta):
     def where(
         cls, predicate: Callable[[Self], "BoolExpression"],
     ) -> "DerivedRowSource[Self]":
+        """Keep the rows of this projection that satisfy ``predicate``.
+
+        The predicate receives a symbolic instance of the projection and must
+        return a ``BoolExpression``.
+
+        Example:
+            ```python
+            active = SiteProjection.where(
+                lambda projection: projection.label.alter_rows().drop_null()
+                .expression.equals("Depot")
+            )
+            ```
+        """
         return _derive(cls, predicate)
 
     @classmethod
     def projection_base(cls) -> type:
+        """Return a projection base pinned to this projection's relation.
+
+        Example:
+            ```python
+            from kg_build_system import computed_field
+
+            class SiteLabels(SiteProjection.projection_base()):
+                display = computed_field(SiteProjection.label)
+            ```
+        """
         return projection_base(cls.row_source())
 
     @classmethod
     def row_source(cls) -> "RelationRowSource[Any]":
+        """Return the relation row source for this projection.
+
+        Example:
+            ```python
+            rows = SiteProjection.row_source()
+            ```
+        """
         from .row_sources import RelationRowSource
 
         return RelationRowSource(cls, cls.shape)
@@ -499,7 +569,29 @@ def is_table_group(cls: type[Any]) -> bool:
 
 
 class TableGroup:
-    """A final named catalog of concrete tables and nested table groups."""
+    """A final named catalog of concrete tables and nested table groups.
+
+    A group is not a shape and not a row source. ``bind_source`` binds a group
+    when its ``DataSourceConfig`` carries a layout for its members.
+
+    Example:
+        ```python
+        from kg_build_system import (
+            Field, Table, TableGroup, TableGroupOptions, field,
+        )
+
+        class Site(Table):
+            site_id: Field[str] = field()
+
+        class Reading(Table):
+            reading_id: Field[str] = field()
+
+        class Estate(TableGroup):
+            options = TableGroupOptions(name="estate")
+            sites = Site
+            readings = Reading
+        ```
+    """
 
     options: ClassVar[TableGroupOptions] = TableGroupOptions()
 

@@ -44,6 +44,21 @@ _DISTINCT_OUTPUT = "distinct"
 
 @dataclass(frozen=True)
 class CollapseExactDuplicatesModule(Module):
+    """Drop rows identical in every graph-record column.
+
+    A repeated build key whose values differ is left alone. There is no
+    configuration, so registration needs no configuration value.
+
+    Example:
+        ```python
+        from kg_build_system.modules import (
+            CollapseExactDuplicatesModule, register_module,
+        )
+
+        modules = (register_module(CollapseExactDuplicatesModule),)
+        ```
+    """
+
     configuration: _Configuration
 
     ID: ClassVar[str] = "collapse_exact_duplicates"
@@ -61,6 +76,13 @@ class CollapseExactDuplicatesModule(Module):
         return _Executor()
 
     async def compile(self, context: CompilationContext[Any]) -> WorkflowContribution:
+        """Compile this module's stages into a workflow contribution.
+
+        Example:
+            ```python
+            contribution = await module.compile(context)
+            ```
+        """
         steps: list[WorkflowStep] = []
         instructions: dict[str, Any] = {}
         for component in graph_record_components(blueprint_from_context(context)):

@@ -62,6 +62,28 @@ def _validate_relative_path(value: str, *, context: str) -> None:
 
 @dataclass(frozen=True)
 class Neo4jModuleConfiguration(ModuleRegistrationConfiguration):
+    """Where the Neo4j import bundle lands and how the script connects.
+
+    ``relative_directory`` is the bundle directory beneath the build output
+    directory, ``script_name`` a Python filename inside it, and
+    ``default_database`` the database named by the generated script. The runtime
+    field ``relative_directory`` may replace the directory for one build.
+
+    Example:
+        ```python
+        from kg_build_system.modules import (
+            Neo4jModule, Neo4jModuleConfiguration, register_module,
+        )
+
+        modules = (
+            register_module(
+                Neo4jModule,
+                Neo4jModuleConfiguration(relative_directory="neo4j-import"),
+            ),
+        )
+        ```
+    """
+
     relative_directory: str = "neo4j-import"
     script_name: str = "import_neo4j.py"
     default_database: str = "neo4j"
@@ -82,6 +104,26 @@ class Neo4jModuleConfiguration(ModuleRegistrationConfiguration):
 
 @dataclass(frozen=True)
 class Neo4jModule(Module):
+    """Export one Parquet file per component and a Neo4j import script.
+
+    The module refuses property types its import format cannot represent and
+    edges whose endpoints are not bound concrete nodes. The bundle is published
+    as ``neo4j/import_bundle`` and configured by ``Neo4jModuleConfiguration``.
+
+    Example:
+        ```python
+        from kg_build_system.modules import (
+            Neo4jModule, Neo4jModuleConfiguration, register_module,
+        )
+
+        modules = (
+            register_module(
+                Neo4jModule, Neo4jModuleConfiguration(),
+            ),
+        )
+        ```
+    """
+
     configuration: Neo4jModuleConfiguration
 
     ID: ClassVar[str] = _MODULE_ID
@@ -107,6 +149,13 @@ class Neo4jModule(Module):
     async def compile(
         self, context: CompilationContext[Any],
     ) -> WorkflowContribution:
+        """Compile this module's stages into a workflow contribution.
+
+        Example:
+            ```python
+            contribution = await module.compile(context)
+            ```
+        """
         components = self._component_imports(context)
         definition = ModuleDefinition(
             reference=ModuleReference(

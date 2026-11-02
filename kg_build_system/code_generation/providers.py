@@ -20,6 +20,30 @@ class ProviderGenerationConfig(BaseModel):
 
 @dataclass(frozen=True, slots=True)
 class ProviderContext[T: ProviderGenerationConfig]:
+    """The values a provider receives for one request.
+
+    ``project_root`` and ``request_path`` locate the author-owned project and
+    its ``__init__.py``; ``request_id`` is the assignment name, and ``config``
+    is the validated provider configuration.
+
+    Example:
+        ```python
+        from pathlib import Path
+
+        from kg_build_system.code_generation.interfaces import (
+            ProviderContext, ProviderGenerationConfig,
+        )
+
+        class Config(ProviderGenerationConfig):
+            source: str
+
+        context = ProviderContext(
+            Path("."), Path("contracts/__init__.py"), "people",
+            Config(source="../data/people.csv"),
+        )
+        ```
+    """
+
     project_root: Path
     request_path: Path
     request_id: str
@@ -49,6 +73,28 @@ class Provider[T: ProviderGenerationConfig](ABC):
         so this runs only when a request is created, changed, or explicitly
         regenerated. A provider that reads a source schema should stamp its
         digest onto ``GeneratedPackage.source_digest`` for provenance.
+
+        Example:
+            ```python
+            from kg_build_system.code_generation.interfaces import (
+                GeneratedPackage, Provider, ProviderContext,
+                ProviderGenerationConfig,
+            )
+
+            class Config(ProviderGenerationConfig):
+                source: str
+
+            class ContractProvider(Provider[Config]):
+                ID = "contract"
+                VERSION = "1"
+                CONFIG_TYPE = Config
+
+                @classmethod
+                async def generate(
+                    cls, context: ProviderContext[Config],
+                ) -> GeneratedPackage:
+                    return GeneratedPackage(())
+            ```
         """
 
 

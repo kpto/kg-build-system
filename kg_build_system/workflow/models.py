@@ -83,7 +83,33 @@ class WorkflowDefinition:
 
 @dataclass(frozen=True, slots=True)
 class BuildRuntime:
-    """How a build runs: where it writes, and the settings it is given."""
+    """How a build runs: where it writes, and the settings it is given.
+
+    Attributes:
+        credentials: Resolved credential values by reference.
+        module_configuration: Per-module runtime overrides by module ID.
+        output_directory: Where publications and reports are written.
+        working_directory: Working storage; a relative path resolves beneath
+            ``output_directory``.
+        temporary_directory: Temporary storage, or ``None`` for the system
+            temporary directory.
+        duckdb_storage: Keep the engine database in ``"memory"`` or on
+            ``"disk"``.
+        duckdb_threads: Query parallelism, or the platform default.
+        duckdb_memory_limit: A size such as ``"4GiB"``, or the platform default.
+        duckdb_compression: Whether the engine compresses its columns.
+
+    Example:
+    ```python
+    from kg_build_system import BuildRuntime
+
+    runtime = BuildRuntime(
+        duckdb_storage="disk",
+        duckdb_threads=4,
+        module_configuration={"file": {"relative_path": "graph/current.jsonl"}},
+    )
+    ```
+    """
 
     credentials: dict[str, str] = field(default_factory=dict)
     module_configuration: dict[str, dict[str, Any]] = field(default_factory=dict)
@@ -106,7 +132,23 @@ class BuildRuntime:
 
 @dataclass(frozen=True, slots=True)
 class WorkflowReport:
-    """The user-facing result of a completed workflow."""
+    """The user-facing result of a completed workflow.
+
+    Attributes:
+        published_artifacts: One entry per publication, with its type and value.
+        recovered_failures: Failures that a later step handled.
+        unresolved_failures: Failures that blocked a publication.
+        provenance: The workflow fingerprint, compile provenance and pinned time
+            zone needed to identify the run.
+
+    Example:
+    ```python
+    from kg_build_system import build
+
+    report = build(contract, monitor=False)
+    print(report.succeeded, len(report.published_artifacts))
+    ```
+    """
 
     published_artifacts: tuple[PublishedArtifact, ...]
     recovered_failures: tuple[Failure, ...]
@@ -115,6 +157,7 @@ class WorkflowReport:
 
     @property
     def succeeded(self) -> bool:
+        """Whether no failure blocked a publication."""
         return not self.unresolved_failures
 
 

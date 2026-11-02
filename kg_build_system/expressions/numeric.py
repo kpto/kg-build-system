@@ -20,9 +20,31 @@ class NumberExpression(ValueExpression[TNumber], Generic[TNumber]):
         return type(self)(apply_operation(operator, self.model, right).model)
 
     def add(self, other: TNumber | ValueExpression[TNumber]) -> "NumberExpression[TNumber]":
+        """Add another number of the same logical type.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+            from kg_build_system.expressions import NumberExpression
+
+            number = NumberExpression(value_expression(1).model)
+            assert number.add(2).model.operator == "add"
+            ```
+        """
         return self._binary("add", other)
 
     def sub(self, other: TNumber | ValueExpression[TNumber]) -> "NumberExpression[TNumber]":
+        """Subtract another number of the same logical type.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+            from kg_build_system.expressions import NumberExpression
+
+            number = NumberExpression(value_expression(1).model)
+            assert number.sub(2).model.operator == "subtract"
+            ```
+        """
         return self._binary("subtract", other)
 
 
@@ -33,9 +55,27 @@ class IntExpression(NumberExpression[int]):
         super().__init__(expression)
 
     def add(self, other: int | ValueExpression[int]) -> "IntExpression":
+        """Add another integer or integer expression.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+
+            assert value_expression(1).add(2).model.operator == "add"
+            ```
+        """
         return self._binary("add", other)
 
     def sub(self, other: int | ValueExpression[int]) -> "IntExpression":
+        """Subtract another integer or integer expression.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+
+            assert value_expression(1).sub(2).model.operator == "subtract"
+            ```
+        """
         return self._binary("subtract", other)
 
 
@@ -46,9 +86,27 @@ class FloatExpression(NumberExpression[float]):
         super().__init__(expression)
 
     def add(self, other: float | ValueExpression[float]) -> "FloatExpression":
+        """Add another float or float expression.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+
+            assert value_expression(1.5).add(0.5).model.operator == "add"
+            ```
+        """
         return self._binary("add", other)
 
     def sub(self, other: float | ValueExpression[float]) -> "FloatExpression":
+        """Subtract another float or float expression.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+
+            assert value_expression(1.5).sub(0.5).model.operator == "subtract"
+            ```
+        """
         return self._binary("subtract", other)
 
 

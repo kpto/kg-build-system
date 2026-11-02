@@ -12,10 +12,32 @@ from .executor import CoreExecutor
 
 @dataclass(frozen=True)
 class CoreConfiguration(ModuleRegistrationConfiguration):
-    """The mandatory core module has no author-configurable behaviour."""
+    """The mandatory core module has no author-configurable behaviour.
+
+    Example:
+        ```python
+        from kg_build_system.modules.core import CoreConfiguration
+
+        CoreConfiguration().to_json()
+        ```
+    """
 
 
 class CoreModule(Module):
+    """Materialise sources, projections, bindings and graph records.
+
+    The composition root appends the core module after the supplied modules; a
+    graph author never has to register it by hand. It has no configuration.
+
+    Example:
+        ```python
+        from kg_build_system.modules import register_module
+        from kg_build_system.modules.core import CoreModule
+
+        modules = (register_module(CoreModule),)
+        ```
+    """
+
     ID: ClassVar[str] = "core"
     VERSION: ClassVar[str] = "3"
     CONFIGURATION_TYPE: ClassVar[type[CoreConfiguration]] = CoreConfiguration

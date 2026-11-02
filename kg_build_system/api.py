@@ -42,6 +42,18 @@ def create_blueprint(
     bindings: Iterable[Binding] | None = None,
     sources: Sequence[BoundSource] | None = None,
 ) -> BuildBlueprint:
+    """Create a blueprint from one namespace or explicit declarations.
+
+    Example:
+        ```python
+        from kg_build_system import create_blueprint
+        from kg_build_system.modules import FileModule, FileModuleConfiguration, register_module
+
+        blueprint = create_blueprint(
+            modules=(register_module(FileModule, FileModuleConfiguration("graph.jsonl")),),
+        )
+        ```
+    """
     composed = _composed_modules(modules)
     if namespace_path is not None:
         if bindings is not None or sources is not None:
@@ -63,6 +75,18 @@ def compile(
     blueprint: BuildBlueprint | None = None,
     engine: Any = None,
 ) -> Any:
+    """Compile declarations into an executable workflow contract.
+
+    Example:
+        ```python
+        from kg_build_system import compile
+        from kg_build_system.modules import FileModule, FileModuleConfiguration, register_module
+
+        contract = compile(
+            modules=(register_module(FileModule, FileModuleConfiguration("graph.jsonl")),),
+        )
+        ```
+    """
     composed = _composed_modules(modules)
     if blueprint is not None:
         if namespace_path is not None or bindings is not None or sources is not None:

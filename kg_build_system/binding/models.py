@@ -27,7 +27,15 @@ type PropertyValues = tuple[tuple[str, ValueExpression[Any]], ...]
 
 @dataclass(frozen=True)
 class BindingOptions:
-    """Portable metadata attached to one graph binding."""
+    """Portable metadata attached to one graph binding.
+
+    Example:
+    ```python
+    from kg_build_system import BindingOptions
+
+    options = BindingOptions()
+    ```
+    """
 
     annotations: Sequence[Annotation] = ()
 
@@ -39,7 +47,22 @@ class BindingOptions:
 
 @dataclass(frozen=True)
 class NodeValues(Generic[N_co, K]):
-    """The row-derived values one node binding supplies."""
+    """The row-derived values one node binding supplies.
+
+    Example:
+    ```python
+    from kg_build_system import NodeValues, node_binding
+
+    binding = node_binding(
+        target=UnitNode,
+        rows=UnitTable.row_source(),
+        bind=lambda row: NodeValues(
+            build_key=row.unit_ref,
+            properties=UnitNode(name=row.unit_name),
+        ),
+    )
+    ```
+    """
 
     build_key: ValueInput[K]
     properties: N_co
@@ -52,6 +75,22 @@ class EdgeValues(Generic[E_co, K, SK, TK]):
     The four parameters keep each key distinct: the edge key, the source node
     key and the target node key. Collapsing them into three would lose the
     static distinction between the two endpoint keys.
+
+    Example:
+    ```python
+    from kg_build_system import EdgeValues, edge_binding
+
+    binding = edge_binding(
+        target=HasUnitEdge,
+        rows=UnitTable.row_source(),
+        bind=lambda row: EdgeValues(
+            build_key=row.unit_ref,
+            source_build_key=row.site_id,
+            target_build_key=row.unit_ref,
+            properties=HasUnitEdge(as_at=row.as_at),
+        ),
+    )
+    ```
     """
 
     build_key: ValueInput[K]
@@ -62,7 +101,19 @@ class EdgeValues(Generic[E_co, K, SK, TK]):
 
 @dataclass(frozen=True)
 class NodeBinding(Generic[N_co]):
-    """One row context mapped onto one concrete node component."""
+    """One row context mapped onto one concrete node component.
+
+    Example:
+    ```python
+    from kg_build_system import NodeBinding, node_binding
+
+    binding: NodeBinding[UnitNode] = node_binding(
+        target=UnitNode,
+        build_key=UnitTable.unit_ref,
+        properties=UnitNode(name=UnitTable.unit_name),
+    )
+    ```
+    """
 
     debug_name: str | None
     target: type[N_co]
@@ -74,7 +125,21 @@ class NodeBinding(Generic[N_co]):
 
 @dataclass(frozen=True)
 class EdgeBinding(Generic[E_co]):
-    """One row context mapped onto one concrete edge component."""
+    """One row context mapped onto one concrete edge component.
+
+    Example:
+    ```python
+    from kg_build_system import EdgeBinding, edge_binding
+
+    binding: EdgeBinding[HasUnitEdge] = edge_binding(
+        target=HasUnitEdge,
+        build_key=UnitTable.unit_ref,
+        source_build_key=UnitTable.site_id,
+        target_build_key=UnitTable.unit_ref,
+        properties=HasUnitEdge(as_at=UnitTable.as_at),
+    )
+    ```
+    """
 
     debug_name: str | None
     target: type[E_co]

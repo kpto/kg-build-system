@@ -15,14 +15,43 @@ class BoolExpression(ValueExpression[bool]):
         super().__init__(expression)
 
     def not_(self) -> "BoolExpression":
+        """Negate this Boolean expression.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+
+            assert value_expression(True).not_().model.operator == "not"
+            ```
+        """
         return BoolExpression(apply_operation("not", self.model).model)
 
     def and_(self, other: bool | ValueExpression[bool]) -> "BoolExpression":
+        """Combine this predicate with another using logical and.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+
+            predicate = value_expression(True).and_(value_expression(False))
+            assert predicate.model.operator == "and"
+            ```
+        """
         return BoolExpression(
             apply_operation("and", self.model, expression_input(other, BOOL)).model
         )
 
     def or_(self, other: bool | ValueExpression[bool]) -> "BoolExpression":
+        """Combine this predicate with another using logical or.
+
+        Example:
+            ```python
+            from kg_build_system import value_expression
+
+            predicate = value_expression(False).or_(value_expression(True))
+            assert predicate.model.operator == "or"
+            ```
+        """
         return BoolExpression(
             apply_operation("or", self.model, expression_input(other, BOOL)).model
         )

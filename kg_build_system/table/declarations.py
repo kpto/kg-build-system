@@ -125,7 +125,20 @@ def bind_source(
     config: DataSourceConfig,
     options: SourceBindingOptions = SourceBindingOptions(),
 ) -> BoundSource:
-    """Bind a final table or table group to its physical source."""
+    """Bind a final table or table group to its physical source.
+
+    Example:
+        ```python
+        from kg_build_system import DataSourceConfig, InputFormat, bind_source
+
+        source = bind_source(
+            target=SiteTable,
+            config=DataSourceConfig(
+                location="data/sites.json", format=InputFormat.JSON,
+            ),
+        )
+        ```
+    """
     annotations = annotation_tuple(options.annotations)
     if is_concrete_table(target):
         return BoundTable(target, config, annotations)

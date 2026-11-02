@@ -47,6 +47,21 @@ class MergeCompatibleFactsModuleConfiguration(ModuleRegistrationConfiguration):
     is only sound for components whose parallel same-key rows are meant to be one
     fact. Edge families that deliberately keep parallel facts stay outside the
     scope.
+
+    Example:
+        ```python
+        from kg_build_system.modules import (
+            MergeCompatibleFactsModule,
+            MergeCompatibleFactsModuleConfiguration, register_module,
+        )
+
+        modules = (
+            register_module(
+                MergeCompatibleFactsModule,
+                MergeCompatibleFactsModuleConfiguration(),
+            ),
+        )
+        ```
     """
 
     components: tuple[type[Any], ...] | None = None
@@ -112,6 +127,27 @@ def _quote_identifier(value: object) -> str:
 
 @dataclass(frozen=True)
 class MergeCompatibleFactsModule(Module):
+    """Fold same-key graph records into one, keeping the minimum value.
+
+    The operator is only sound when parallel same-key rows express one fact.
+    ``MergeCompatibleFactsModuleConfiguration`` selects the components.
+
+    Example:
+        ```python
+        from kg_build_system.modules import (
+            MergeCompatibleFactsModule,
+            MergeCompatibleFactsModuleConfiguration, register_module,
+        )
+
+        modules = (
+            register_module(
+                MergeCompatibleFactsModule,
+                MergeCompatibleFactsModuleConfiguration(),
+            ),
+        )
+        ```
+    """
+
     configuration: MergeCompatibleFactsModuleConfiguration
 
     ID: ClassVar[str] = "merge_compatible_facts"
@@ -131,6 +167,13 @@ class MergeCompatibleFactsModule(Module):
         return _Executor()
 
     async def compile(self, context: CompilationContext[Any]) -> WorkflowContribution:
+        """Compile this module's stages into a workflow contribution.
+
+        Example:
+            ```python
+            contribution = await module.compile(context)
+            ```
+        """
         steps: list[WorkflowStep] = []
         instructions: dict[str, Any] = {}
         scope = self.configuration.components
