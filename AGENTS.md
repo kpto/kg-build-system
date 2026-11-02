@@ -200,6 +200,9 @@ rule about what the framework is belongs to the framework model.
   docstring and a runnable example. It is not a bare re-export.
 - It makes the intended use easy and the wrong use impossible.
 - It exposes only what an author may write; internal types stay internal.
+- A type in a public signature is a public type. If the value is internal IR, the
+  public function returns either an opaque token or a public view of it; it does
+  not expose the IR under an internal name.
 - A feature that cannot be expressed cleanly through it is probably wrong.
 - Typecheck fixtures exercise the public surface and guard it.
 
