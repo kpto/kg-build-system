@@ -30,7 +30,7 @@ The `topology` package owns typed node and edge declarations: tiers, category pa
 
 - Declaration values: `Node`, `Edge`, `AbstractNode`, `AbstractEdge`, the templates and options, `Endpoint`, `PropertySlot`, `PropertyDeclaration`, `ComponentMetadata`, `NodeSideBase`, `TopologyDeclarationBase`, `GraphScalar`, `GraphValue`, `NonNullableGraphValue`, `S`, `D`, `S_co`, `D_co`, `N_co`.
 - Introspection: `property`, `endpoint`, `component_kind`, `is_abstract_component`, `is_concrete_component`, `properties_for`.
-- The `topology` language: `TopologyLanguage`, `symbol_id`, `component_ir`, `effective_components`.
+- The `topology` language: `TopologyLanguage`, `symbol_id`, `component_ir`.
 - Component codecs: `encode_topology_part`, `decode_topology_part`, `encode_component`, `decode_component`.
 - IR values: `ComponentIR`, `PropertyIR`.
 
@@ -75,6 +75,6 @@ Invariants:
 - **Endpoint tokens.** `endpoint()` accepts only a concrete node component. A token names the graph identity used for one side of one binding; it does not synthesise a component or create a cross product.
 - **Abstract categories are not data producers.** A category is graph-visible and may carry properties, but it is never a binding target and produces no records of its own.
 - **Component IR.** A `ComponentIR` carries the logical name, kind, declared properties, own description, effective annotations, `abstract` and `parent`. The topology language includes every component reachable from a binding target, an edge endpoint or a parent chain, even when a category is not itself bound.
-- **Effective topology.** `effective_components(blueprint)` keeps bound components, their abstract ancestors and the endpoint categories of kept edges. Unbound concrete components and categories with nothing effective beneath them are dropped for the published topology.
+- **Effective topology.** The meta-graph target decides which bound components, ancestors and endpoint categories it publishes; the topology language itself does not expose a pruning rule.
 - **IR order is deterministic.** A compiled part sorts components by symbol ID. Property order follows resolved declaration order.
 - **Metadata is frozen.** Lowering reads the frozen `ComponentMetadata`; the declaration's compatibility class dictionaries (`_kind`, `_properties`, `_metadata`, `_component_*`) remain aliases.

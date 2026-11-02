@@ -21,7 +21,6 @@ from .language import (
     component_ir as _component_ir,
     decode_component as _decode_component,
     decode_topology_part as _decode_topology_part,
-    effective_components as _effective_components,
     encode_component as _encode_component,
     encode_topology_part as _encode_topology_part,
     symbol_id as _symbol_id,
@@ -236,26 +235,6 @@ def symbol_id(kind: str, declaration: type[Any]) -> str:
     return _symbol_id(kind, declaration)
 
 
-def effective_components(blueprint: Any) -> tuple[ComponentIR, ...]:
-    """The components a build actually uses, pruning the unused ones.
-
-    A component is kept when a binding targets it, when it is an abstract
-    ancestor of a kept component, or when a kept edge names it as an endpoint
-    category. Unbound concrete components and unreachable categories are
-    dropped.
-
-    Example:
-        ```python
-        from kg_build_system import create_blueprint
-        from kg_build_system.topology.interfaces import effective_components
-
-        # ``blueprint`` is created from the project's modules and bindings.
-        blueprint = create_blueprint(modules=())
-        kept = effective_components(blueprint)
-        assert all(component.name for component in kept)
-        ```
-    """
-    return _effective_components(blueprint)
 
 
 def encode_component(value: ComponentIR) -> dict[str, Any]:
@@ -355,7 +334,7 @@ __all__ = [
     "NonNullableGraphValue", "PropertyDeclaration", "PropertyIR",
     "PropertySlot", "S", "S_co", "TopologyDeclarationBase", "TopologyLanguage",
     "component_ir", "component_kind", "decode_component",
-    "decode_topology_part", "effective_components", "encode_component",
+    "decode_topology_part", "encode_component",
     "encode_topology_part", "endpoint", "is_abstract_component",
     "is_concrete_component", "properties_for", "property", "symbol_id",
 ]

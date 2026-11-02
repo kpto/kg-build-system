@@ -362,53 +362,10 @@ def decode_topology_part(value: list[dict[str, Any]]) -> tuple[ComponentIR, ...]
     return tuple(decode_component(_object(item, "component")) for item in value)
 
 
-# --- Effective components -------------------------------------------------
-
-def effective_components(blueprint: Any) -> tuple[ComponentIR, ...]:
-    """The components a build actually uses, pruning the unused ones.
-
-    A component is effective when a binding targets it, or when it is a kept
-    component's abstract ancestor, or when a kept edge declares it as an
-    endpoint category. Unbound concrete components and categories with nothing
-    effective beneath them carry no graph meaning for this build and are
-    dropped.
-    """
-    components = tuple(blueprint.components)
-    by_symbol = {item.symbol_id: item for item in components}
-    by_name = {item.name: item for item in components}
-    bound = {binding.component for binding in blueprint.bindings}
-    kept: dict[str, ComponentIR] = {}
-
-    def keep_with_ancestors(component: ComponentIR) -> None:
-        current: ComponentIR | None = component
-        while current is not None and current.symbol_id not in kept:
-            kept[current.symbol_id] = current
-            current = by_symbol.get(current.parent) if current.parent else None
-
-    for component in components:
-        if component.name in bound:
-            keep_with_ancestors(component)
-
-    # Endpoints are always node-side, so this cannot admit further edges and
-    # two passes already reach a fixed point.
-    for component in tuple(kept.values()):
-        if component.kind != "edge":
-            continue
-        for endpoint_name in (component.source, component.target):
-            endpoint = by_name.get(endpoint_name) if endpoint_name else None
-            if endpoint is not None:
-                keep_with_ancestors(endpoint)
-
-    return tuple(
-        kept[item]
-        for item in sorted(
-            kept, key=lambda item: (by_symbol[item].kind, item),
-        )
-    )
 
 
 __all__ = [
     "TopologyLanguage", "component_ir", "decode_component",
-    "decode_topology_part", "effective_components", "encode_component",
+    "decode_topology_part", "encode_component",
     "encode_topology_part", "symbol_id",
 ]
