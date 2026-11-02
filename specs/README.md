@@ -3,10 +3,10 @@
 These specs are for the framework reviewer. Author-facing documentation is in
 `../docs/`; it is not duplicated here.
 
-A spec states one responsibility, the names another package may import, the
-frozen IR, the allowed package edges and the decisions an implementer must
-honour. It describes the current code, not a target design. Implementation walkthroughs,
-private helpers and line numbers are out of scope.
+A spec states one responsibility, the author-visible names, the names another
+package may import, the frozen IR, the allowed package edges and the decisions an
+implementer must honour. It describes the current code, not a target design.
+Implementation walkthroughs, private helpers and line numbers are out of scope.
 
 Every domain subpackage exposes three surfaces:
 

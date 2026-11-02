@@ -215,9 +215,11 @@ def _fingerprint(blueprint: BuildBlueprint) -> str:
 
     from .interfaces import encode_blueprint
 
+    document = encode_blueprint(blueprint)
+    for item in document.get("binding", ()):
+        item.pop("debug_name", None)
     payload = json.dumps(
-        encode_blueprint(blueprint), sort_keys=True, separators=(",", ":"),
-        default=str,
+        document, sort_keys=True, separators=(",", ":"), default=str,
     ).encode()
     return sha256(payload).hexdigest()
 
