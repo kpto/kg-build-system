@@ -32,6 +32,9 @@ rule about what the framework is belongs to the framework model.
   with the named defect and the acceptance command; do not spawn a new agent for
   the same component or take the edit over from the main agent. The session
   already holds the package context and the original brief.
+- The reason is not agent management: a follow-up forces the correction to be
+  stated as a decision. If the same session cannot apply it unambiguously, the
+  decision is not precise enough.
 
 ### Writing
 
