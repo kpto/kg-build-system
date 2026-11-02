@@ -84,13 +84,29 @@ class Module(ABC):
     @abstractmethod
     async def create_compiler(
         cls, context: CompilationContext[Any],
-    ) -> ModuleCompiler: ...
+    ) -> ModuleCompiler:
+        """Create the compiler for this module version.
+
+        Example:
+            ```python
+            compiler = await MyModule.create_compiler(context)
+            ```
+        """
+        ...
 
     @classmethod
     @abstractmethod
     def create_executor(
         cls, context: ExecutorFactoryContext,
-    ) -> ModuleExecutor: ...
+    ) -> ModuleExecutor:
+        """Create the executor for this module version.
+
+        Example:
+            ```python
+            executor = MyModule.create_executor(context)
+            ```
+        """
+        ...
 
 
 @dataclass(frozen=True, slots=True)

@@ -81,6 +81,28 @@ class PublicDocstringTests(unittest.TestCase):
                         f"{surface}.{name} comes from {value.__module__}",
                     )
 
+    def test_every_public_class_method_has_an_example(self) -> None:
+        for surface in SURFACES:
+            if surface.endswith(".interfaces"):
+                continue
+            module = import_module(surface)
+            for class_name in getattr(module, "__all__", ()):
+                cls = getattr(module, class_name)
+                if not inspect.isclass(cls) or not cls.__module__.startswith("kg_build_system"):
+                    continue
+                for name, value in vars(cls).items():
+                    if name.startswith("_") or name == "__init__":
+                        continue
+                    if isinstance(value, (classmethod, staticmethod)):
+                        value = value.__func__
+                    if not inspect.isfunction(value):
+                        continue
+                    with self.subTest(surface=surface, name=f"{class_name}.{name}"):
+                        self.assertIn(
+                            "Example", inspect.getdoc(value) or "",
+                            f"{surface}.{class_name}.{name} has no example",
+                        )
+
     def test_top_level_functions_are_callable_wrappers(self) -> None:
         for name in kg_build_system.__all__:
             value = getattr(kg_build_system, name)

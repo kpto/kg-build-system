@@ -137,10 +137,24 @@ class Neo4jModule(Module):
     async def create_compiler(
         cls, context: CompilationContext[Any],
     ) -> ModuleCompiler:
+        """Create the compiler for this module version.
+
+        Example:
+            ```python
+            compiler = await MyModule.create_compiler(context)
+            ```
+        """
         return cls(context.configuration)
 
     @classmethod
     def create_executor(cls, context: ExecutorFactoryContext) -> Any:
+        """Create the executor for this module version.
+
+        Example:
+            ```python
+            executor = MyModule.create_executor(context)
+            ```
+        """
         return Neo4jExecutor(as_mapping(
             context.runtime_configuration,
             context="Neo4j runtime configuration",

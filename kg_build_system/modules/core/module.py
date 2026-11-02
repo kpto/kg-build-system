@@ -46,6 +46,13 @@ class CoreModule(Module):
     async def create_compiler(
         cls, context: CompilationContext[Any],
     ) -> ModuleCompiler:
+        """Create the compiler for this module version.
+
+        Example:
+            ```python
+            compiler = await MyModule.create_compiler(context)
+            ```
+        """
         from .compiler import CoreCompiler
 
         return CoreCompiler()
@@ -54,6 +61,13 @@ class CoreModule(Module):
     def create_executor(
         cls, context: ExecutorFactoryContext,
     ) -> CoreExecutor:
+        """Create the executor for this module version.
+
+        Example:
+            ```python
+            executor = MyModule.create_executor(context)
+            ```
+        """
         return CoreExecutor()
 
 
