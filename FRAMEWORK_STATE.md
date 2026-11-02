@@ -15,7 +15,7 @@ at `legacy/kg_build_system` (ignored, untracked) and its tests are archived at
   in `engines/duckdb/operators/`.
 - A custom operation is one `OperationSpec` plus one engine lowerer. A custom
   language/module can compile without the default distribution.
-- Verification: **15 tests**, pyright **0 errors**, Open Targets KG **6 tests**,
+- Verification: **16 tests**, pyright **0 errors**, Open Targets KG **6 tests**,
   and the reference project compiles and builds with file, meta-graph and Neo4j
   outputs.
 
