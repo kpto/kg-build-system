@@ -17,12 +17,12 @@ input; a `Struct` describes a nested record inside it.
 ```python
 class SiteTable(Table):
     site_id: Field[str] = field()
-    name: Field[str] = field()
+    name: Field[str | None] = field()
     surveyed_on: Field[Date] = field()
 ```
 
 The declaration is the schema. There is no separate mapping document. Every
-field also carries a [type](types.md), so the compiler can check what a value
+field also carries a [type](types.md), so compilation can check what a value
 may become.
 
 ## 2. Give the rows a source
@@ -48,8 +48,9 @@ effects such as expanding an array or dropping a null row are explicit.
 site_name = SiteTable.name.alter_rows().drop_null()
 ```
 
-A source field reads as nullable, because the source may not provide it. The
-author decides whether to drop the row, default the value, or keep it nullable.
+A source field reads the presence its declaration names. `Field[T]` is present;
+`Field[T | None]` is nullable. The author decides whether to drop the row,
+default the value, or keep it nullable.
 
 ## 4. Choose the grain
 

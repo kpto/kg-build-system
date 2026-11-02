@@ -2,196 +2,73 @@
 
 ## Responsibility
 
-`code_generation` owns edit-time generation of declaration packages from typed requests: static discovery, provider execution, normalized rendering, ownership, and desired-state maintenance.
+`code_generation` owns edit-time generation of declaration packages from typed
+requests: static discovery, provider execution, deterministic rendering,
+ownership and desired-state maintenance.
 
-## Public interface
+## Public API
 
-### Requests
+- `generation(provider, configuration)` is an inert request. The assignment name
+  is the request identity; the product is the sibling package of the request
+  file.
+- `Generation`, `GenerationRequest`, `GenerationResult`, `GenerationSession`,
+  `GenerationError`, `GenerationStatus`.
+- `discover`, `discover_file`, `generate`, `watch`, `FileChange`,
+  `FileChangeKind`.
+- `kbs generate` (with `--check`, `--regenerate`, `--watch`, `--debounce`).
+- `code_generation.builtins`: `DataContractInferenceConfig`,
+  `InferDataContractProvider`, `ColumnOverride`.
 
-- `generation(provider: type[Provider[T]], configuration: T, /) -> Generation[T]`.
-- `Generation(provider: type[object], configuration: ConfigT)` is a frozen, slotted value.
-- `ProviderGenerationConfig` is a frozen, strict Pydantic base model; unknown fields are refused.
-- The assignment name is the request identity. For `release = generation(...)` in `contracts/__init__.py`, the product is the sibling directory `contracts/release/` and the package import is `contracts.release`.
-- `DiscoveredGeneration(request, location, product_path, package_import)` is one discovered request.
-- `GenerationRequest(provider_module, provider_qualname, config_module, config_qualname, configuration)` holds the statically resolved provider and configuration.
-- `GenerationLocation(project_root, source_path, line, column, request_id, source_package)` locates the assignment.
+## Internal interface
 
-### Discovery
+`code_generation.interfaces` exposes the provider contract:
+`Provider`, `ProviderContext`, `ProviderGenerationConfig`,
+`resolve_provider_path`, `load_provider`, `DiscoveredGeneration`,
+`GenerationAction`, `GenerationActionKind`, `Nullability`.
 
-- `discover(project_root: str | Path) -> tuple[DiscoveredGeneration, ...]`.
-- `discover_file(project_root: str | Path, source_path: str | Path) -> tuple[DiscoveredGeneration, ...]`.
-- `GenerationError` is raised for an invalid request; it extends `ValueError`.
-- Discovery uses LibCST and does not import the author-owned project module.
-- Requests are valid only in `__init__.py`, at module level, as a simple assignment with one plain identifier target.
-- The call must be the canonical `generation`, with exactly two positional arguments: a statically resolved provider class and an inline construction of its configuration.
-- Provider and configuration names may be reached through direct, qualified, or aliased imports. Star imports and relative imports do not supply a resolvable identity.
-- Configuration arguments must be keyword arguments; duplicate keywords, starred arguments, and unpacking are refused.
-- Supported configuration values are JSON-like literals: strings, integers, floats, booleans, `None`, lists, tuples, and dictionaries with string keys.
-- Request IDs must be valid Python identifiers, must not start with `_`, and must not be keywords.
-- Multiple requests may appear in one author-owned `__init__.py`, provided their product paths do not collide under case folding.
-- A call outside an assignment, an annotated assignment, a tuple or attribute target, a request outside `__init__.py`, and a dynamically constructed configuration are refused.
+A provider declares `ID`, `VERSION`, `CONFIG_TYPE` and async
+`generate(context) -> GeneratedPackage`. A provider is loaded by dotted import
+coordinates from the request; it needs no engine edit. `resolve_provider_path`
+resolves an observation path relative to the request file; it is not a tracked
+input.
 
-### Provider contract
+## IR
 
-- `Provider[T](ABC)`: class variables `ID`, `VERSION`, `CONFIG_TYPE`; classmethod `async generate(context: ProviderContext[T]) -> GeneratedPackage`.
-- `Provider.__init_subclass__` requires `CONFIG_TYPE` to be a subclass of `ProviderGenerationConfig`.
-- `ProviderContext(project_root, request_path, request_id, config)` supplies the project root, the request file, the request ID, and the validated configuration.
-- `resolve_provider_path(context, value: str) -> Path` resolves relative to the request file. The result is an observation target, not a tracked input: it may lie outside the project and is not watched, hashed or existence-checked by the engine.
-- `load_provider(request) -> tuple[type[Provider], ProviderGenerationConfig]` imports the provider, requires a non-empty `ID` and `VERSION`, requires the requested configuration class to be the provider's exact `CONFIG_TYPE`, and validates the static configuration into that type.
-- The engine does not special-case built-in providers.
-
-### Output model
-
-- `GeneratedPackage(files: tuple[GeneratedFile, ...], nullability_notes=(), source_digest: str | None = None)`.
-- `GeneratedFile(relative_path: Path, declarations: tuple[GeneratedClass, ...] = (), exports: tuple[str, ...] = ())`.
-- `GeneratedClass(name: str, fields=(), members=(), description=None, base=None, declaration_name=None)`.
-- `GeneratedField(python_name, external_name, value_type, description=None, annotations=(), nullability=Nullability.DEFAULTED, schema_path="", logical_path="")`.
-- `GeneratedMember(python_name, declaration_name)`.
-- `GeneratedAnnotation(import_module, class_name, arguments={})`.
-- `GeneratedType` is `GeneratedScalarType | GeneratedStructType | GeneratedArrayType | GeneratedNullableType`.
-- `GeneratedStructType(declaration_name, in_file: PurePosixPath | None = None)` binds a reference to a declaring file when `in_file` is set.
-- `GeneratedPackage.nullability_notes` carries the `NullabilityNote` provenance lines; `source_digest` is optional provider-computed provenance.
-- `render_package(request, package, fingerprint) -> dict[PurePosixPath, str]` validates and renders the complete desired package.
-- `generation_fingerprint(request, provider_version) -> str`.
-- `FORMAT_VERSION = "6"`; `HEADER = "# Generated by kg-build-system. Do not edit manually."`.
-
-### Engine and result surface
-
-- `generate(project_root: str | Path, *, check: bool = False, regenerate: bool = False) -> GenerationResult`.
-- `GenerationStatus`: `CURRENT`, `CHANGED`, `STALE`.
-- `GenerationResult(status, changed_paths=(), created_paths=(), updated_paths=(), deleted_paths=(), diagnostics=(), actions=())`.
-- `GenerationSession(project_root)`; `async start() -> GenerationResult`; `async handle(changed_paths, *, on_action=None) -> GenerationResult`.
-- `GenerationAction(kind, trigger_path, source_paths, declaration_id=None)`; `GenerationActionKind`: `DECLARATION_ADDED`, `DECLARATION_CHANGED`, `DECLARATION_DELETED`.
-- `watch(root, *, debounce=300, step=50, suffixes=(".py", ".json", ".toml", ".yaml", ".yml"), stop_event=None) -> AsyncIterator[tuple[FileChange, ...]]`.
-- `FileChange(kind, path)`; `FileChangeKind`: `CREATED`, `MODIFIED`, `DELETED`.
-- `GenerationManifest(format_version, request_id, request_source_package, provider_import, provider_qualname, provider_version, request_fingerprint, source_digest, owned_files, owned_directories, owned_file_hashes)` is the ownership record.
-- The CLI is `kbs generate [--check] [--regenerate] [--watch] [--project PATH] [--debounce MS]`.
+`code_generation.ir` holds the frozen generated-declaration DTOs:
+`GeneratedPackage`, `GeneratedFile`, `GeneratedClass`, `GeneratedField`,
+`GeneratedMember`, `GeneratedAnnotation`, the `Generated*Type` tree and
+`NullabilityNote`. Rendering owns the text; the IR states only what to render.
 
 ## Boundaries
 
-- Surfaces: `kg_build_system.code_generation` is the request surface; `code_generation.interfaces` is the provider extension contract; `code_generation.ir` is the generated-declaration IR.
-- `code_generation` imports `types.interfaces` and `engines.interfaces` for the type vocabulary and metadata reads. It must not import `compile`, `workflow`, `modules` or `api`.
-- `engines` is a leaf and must not import `code_generation`.
+- `code_generation` imports `types.interfaces` and `engines.interfaces` as an
+  observer for type vocabulary and Parquet metadata.
+- It must not import `compile`, `workflow`, `modules` or `api`; generation is an
+  edit-time lane and never runs at compile or build.
+- `engines` must not import `code_generation`.
 - `cli` imports the generation command; `code_generation` must not import `cli`.
-- Compilation and building never invoke generation.
+- The request file is author-owned; the engine writes only the product directory
+  and its manifest.
+
 ## Current decisions
 
-### Requests are inert
-
-- Calling `generation(...)` validates the provider/configuration pair and constructs a frozen value.
-- It does not observe a source, load data, invoke a provider, or write a file.
-- The provider's configuration is validated only when the engine loads the request.
-
-### Static discovery
-
-- Discovery parses `__init__.py` files; it never imports the project to find requests.
-- The following are refused with a `GenerationError`:
-  - `generation(...)` outside `__init__.py`;
-  - a call that is not assigned to one name;
-  - a target that is not a plain identifier;
-  - a request inside a function or class;
-  - a dynamically constructed configuration;
-  - a provider or configuration that is not statically imported;
-  - an invalid or private request ID;
-  - a product path collision.
-- A file is parsed only when it is `__init__.py`, or when another source file contains the text `generation`.
-- Directories beginning with `.` and `__pycache__` are skipped while discovering.
-- A request assignment outside the project root is refused by `discover_file`.
-- Request location, request ID, and the containing package establish identity; no `name`, output path, or adjacent sidecar is an author argument.
-
-### Naming and output location
-
-- The request assignment name is the request identity, the product directory name, the package suffix, and the built-in provider's default class-name basis.
-- The product directory is always a sibling of the author-owned `__init__.py`. Absolute paths, traversal, and adjacent sidecar files are not configurable.
-- The built-in inference provider derives a table class as `<RequestId>Table`, struct classes from their member paths, and group classes from their group paths.
-- Logical declaration names are emitted explicitly in `TableOptions` or `TableGroupOptions` where the generated declaration needs them.
-- The generated package may re-export declarations through `__all__`; the author-owned request is never rewritten.
-
-### Provider normalization and validation
-
-- A provider returns declarations, not arbitrary Python source.
-- The core validates the complete desired package before any filesystem mutation:
-  - paths must be relative `.py` files, with no `..` and no absolute path;
-  - case-normalized path collisions are refused;
-  - a file may not declare the same class twice;
-  - generated references must resolve, and unbound references must be unambiguous;
-  - normalized types must be renderable, and each annotation names an import module and a class.
-- A generated reference is identified by `(name, file)` when `in_file` is set. Without a binding it resolves local-first; another file must declare the name uniquely. A dangling name and an unbound name declared in several files are refused.
-- A generated file that would import two different declarations under the same name is refused rather than silently shadowing one.
-- Generated references do not depend on display names being globally unique. The built-in provider deliberately repeats a struct name in separate files.
-
-### Generated declarations
-
-- Generated declarations are ordinary public authoring declarations: `Field[T]`, `field()`, `Table`, `Struct`, `TableGroup`, `TableOptions`, `TableGroupOptions`.
-- A generated member is `Field[T]`; the value type is normalized, not a string of Python source written by the provider.
-- A generated field renders as `Field[T] = field(name=..., description=..., annotations=...)`; a top-level nullable value is stripped from the annotation because source access is nullable anyway. Array-item and nested-member nullability stay in `T`.
-- Canonical `date`, `time`, `timestamp`, and `uuid` render as representative types `Date`, `Time`, `Timestamp`, and `Uuid`; `bool`, `int`, `float`, and `str` use builtins.
-- Every generated file that declares anything imports the whole representative set unconditionally: `from kg_build_system.types import Array, Date, Time, Timestamp, Uuid`.
-- Every generated file carries the ownership header, request ID, fingerprint, format directives, and the nullability notes that belong to its declarations.
-- Format directives are `# fmt: off`, `# isort: skip_file`, `# ruff: noqa: F401`, and `# pyright: reportUnusedImport=false`.
-- Every package directory has an explicit generated `__init__.py`.
-- The renderer parses every rendered file before installation.
-- Generated code has no generation-specific compilation path: it is imported by `compile` exactly like handwritten declarations.
-
-### Ownership
-
-- Every product contains `.kbs-generation.json`.
-- Format 6 records `format_version`, `request_id`, `request_source_package`, `provider_import`, `provider_qualname`, `provider_version`, `request_fingerprint`, `source_digest`, `owned_files`, `owned_directories`, and `owned_file_hashes`.
-- `request_fingerprint` covers the request configuration, configuration type, format version, provider identity and version, request ID, and source package. It contains no source content or source-content digest.
-- `source_digest` is provenance only. The engine stores and replaces it without interpretation; its change alone does not make a product stale.
-- Ownership is proved by a validated manifest, a relative path, the ownership header, and the expected file hash. A filename or directory name alone proves nothing.
-- An owned generated file that was modified is a conflict; it is never accepted as a new source of truth.
-- Content not recorded in the manifest is never overwritten or deleted. A desired path colliding with unrecognized content fails the pass.
-- Obsolete owned files are verified before pruning; owned directories are removed only when empty. A request deletion or rename removes its verified product and preserves unrecognized content. Owned Python bytecode is pruned with its source.
-- Manifest paths are normalized relative POSIX paths; machine-specific absolute paths do not enter manifests or fingerprints.
-
-### Desired-state generation
-
-- `kbs generate` processes all discovered requests as one desired-state pass.
-- A product whose manifest still matches its request fingerprint and owned-file hashes is current and is not observed. A changed request, a missing or non-current product, or `--regenerate` causes provider execution; a malformed manifest cannot be current and is surfaced as an error or stale state.
-- The pass validates requests, providers, paths, ownership, and collisions before mutation; renders and parses the desired package; and installs the desired state.
-- The pass proves idempotence by checking that the installed state is current.
-- Rendered output is deterministic for the same request, provider version, configuration, and observation. Rendering the same observation twice must produce identical text.
-- Source data is a reference, not a tracked input. A row-level or schema-level data change does not make a product stale; a source change enters the project only through `--regenerate` or a request edit.
-- A short-circuit current product requires no source observation at all, including in `--check`.
-
-### Check and regenerate
-
-- `kbs generate --check` performs the complete comparison without mutation.
-- It returns `CURRENT` only when every product and manifest matches its request and owned-file hashes.
-- It returns `STALE`, with diagnostics, for missing or changed generated files, altered owned files, obsolete owned files, missing manifests, orphaned manifests, and unrecognized collisions with desired output.
-- Request discovery failures and provider failures are errors, not a `STALE` result.
-- `--check` does not re-observe sources; it proves products match requests and manifests, not that contracts match the current shape of a source.
-- `--regenerate` forces every provider to observe its source again. With `--check`, it reports schema drift as `STALE` without writing.
-- `--check` never writes; `--regenerate` alone writes the re-observed result.
-- `kbs generate` exits 0 for `CURRENT` and `CHANGED`; it exits 1 for `STALE` or a generation failure.
-- `--watch` cannot be combined with `--check` or `--regenerate`.
-
-### Watch
-
-- `kbs generate --watch` runs an initial complete pass, indexes the requests, and then watches project files.
-- A change to an author-owned `__init__.py` is rescanned. The session compares discovered requests and emits `DECLARATION_ADDED`, `DECLARATION_CHANGED`, or `DECLARATION_DELETED` with the source path and package import before regenerating.
-- An unchanged save of a request file produces no action. A change that does not alter the discovered request set produces no regeneration.
-- Changes under a generated product are ignored.
-- Data source changes trigger nothing: sources are references, not tracked inputs.
-- Unrelated files, ignored directories, and paths outside the project trigger nothing.
-- After actions, the session runs one complete desired-state pass. Generation errors are reported and watching continues.
-- Watch diagnostics describe declaration actions, not raw filesystem events.
-- `watch` accepts a debounce interval, a step interval, an optional suffix set, and an optional stop event; its defaults cover Python, JSON, TOML, and YAML files.
-
-### Compile boundary
-
-- `compile` and `build` operate on importable final declarations. They do not inspect request objects, load providers, read manifests, run check mode, or generate files.
-- Generated declarations and handwritten declarations pass through the same blueprint and workflow contract; neither carries a schema version.
-- The absence of generation at compile is what keeps source observation and provider execution out of a build.
-- A generated package is a normal Python package; importing it is the only compile-time contract.
-
-### Override contract
-
-- `override` is a request-time declaration for the built-in inference provider. It is carried in `DataContractInferenceConfig`, not in a generated file and not as a runtime option in the compiled contract.
-- Keys are the full `<relation path>.<column>` path. The relation path includes nested group paths for a table group.
-- Each entry declares at least one of `type` and `nullable`; unknown keys are refused.
-- `type` must name a canonical unit type and applies to one whole top-level column. Containers cannot be promoted; a refused type stays refused; a declared-only type becomes digestible by the declaration and is cast at the scan.
-- `nullable: true` declines a source non-null claim and makes the field nullable. `nullable: false` asserts non-nullability and makes the field non-null. Absence keeps the source's claim.
-- An override never reads values to decide a claim. The build guard or the checked scan cast tests the declaration against the data.
-- An unmatched key, a bare column name, a path that reaches inside a column, and a key whose first part is a column rather than a relation are refused with the available relation and column names.
+- **Requests are inert.** Constructing a request validates the provider/config
+  pair and freezes the value. It does not observe a source, invoke a provider or
+  write a file.
+- **Static discovery.** Requests are found by parsing `__init__.py` without
+  importing the author's package. A request must be a module-level assignment
+  with an inline provider/config construction.
+- **Output identity.** Request id + product path + package import are derived
+  from the request file. The product directory owns a manifest; generated files
+  carry an ownership header and are not hand-edited.
+- **Determinism.** Rendering the same observation twice must produce identical
+  bytes. The engine compares the rendered product before installing anything.
+- **Desired state.** `generate` classifies current/stale, checks ownership,
+  prunes files the manifest no longer owns, writes changed files atomically and
+  writes the manifest last. `--check` reports without writing. `--regenerate`
+  re-observes every provider.
+- **Nullability.** The provider records the source tier. Rendering emits
+  `Field[T | None]` for defaulted sources and `Field[T]` for enforced/declared
+  sources. An override changes the claim; it does not silently change access.
+- **No compile coupling.** Compilation and building never invoke generation;
+  generated declarations are ordinary authoring declarations.

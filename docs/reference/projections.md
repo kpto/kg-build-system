@@ -1,7 +1,7 @@
 # Projections
 
-A projection pins one row source under a name and publishes typed outputs
-computed from that row.
+A projection names one row plan and publishes typed outputs computed from that
+row.
 
 `Projection` is both a shape and a row source. The model and the choice of
 grain are on [Projections](../concepts/projections.md); the source algebra is
@@ -66,6 +66,12 @@ the compiled definition. A filtered, joined, grouped or unioned source is passed
 directly: `Projection(joined)`. The pin does not copy fields; declare the outputs
 explicitly.
 
+The compatibility form declares the class without a pin and marks outputs with
+`projection_field(...)`. Its plan is derived from the one source its outputs
+read; prefer the pinned form because it states the grain directly. The
+constructor is documented once on
+[Declarations](declarations.md#projection_field).
+
 A projection is final and terminal. It may not inherit from another final
 `Projection`; reuse a shape with `projection_base()` or pin a new source.
 
@@ -77,7 +83,7 @@ A projection is final and terminal. It may not inherit from another final
 
 | Error | Trigger |
 | --- | --- |
-| `<Class> must be pinned to a row source: Projection(source.row_source())` | `class P(Projection)` has no pinned source |
+| `projections require a row source` | An unpinned projection's outputs do not resolve to one driving source, at compile |
 | `projections must declare at least one computed_field` | The projection has no effective output |
 | `a final Projection may not inherit from another final Projection` | A final projection inherits another final projection |
 
@@ -161,8 +167,9 @@ class NorthernLabelsProjection(NorthernSitesProjection.projection_base()):
     )
 ```
 
-Inherited fields are typed from the source's access, so a table field arrives as
-a nullable selection. Declare additional outputs with `computed_field` as usual.
+Inherited fields are typed from the fields' declared access, so a `Field[str]`
+arrives present and a `Field[str | None]` arrives nullable. Declare additional
+outputs with `computed_field` as usual.
 A declared field with the same Python attribute shadows the inherited one, as
 normal Python attribute shadowing works; two fields with the same external name
 but different attributes are rejected at class creation.

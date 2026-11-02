@@ -16,10 +16,10 @@ policy; it does not calculate.
 
 | Selection | Holds | Produced by |
 | --- | --- | --- |
-| `ValueSelection[T]` | One present value | `alter_rows().drop_null()`, a non-null projection output, `default_to(...)` |
-| `NullableSelection[T]` | One value or null | Every `Table` or source `Struct` field read; a nullable projection output; `at(index)` |
-| `ArraySelection[T]` | One present array | Narrowing a nullable array; `slice(start, end)`; `default_to([])` |
-| `StructSelection[S]` | One present struct | Narrowing a nullable struct; a non-null struct expression |
+| `ValueSelection[T]` | One present value | A source field declared `Field[T]`; `alter_rows().drop_null()` on a nullable value; a non-null projection output; `default_to(...)` |
+| `NullableSelection[T]` | One value or null | A source field declared `Field[T \| None]`; a nullable projection output; `at(index)` |
+| `ArraySelection[T]` | One present array | A source field declared `Field[Array[T]]`; narrowing a nullable array; `slice(start, end)`; `default_to([])` |
+| `StructSelection[S]` | One present struct | A source field declared `Field[S]`; narrowing a nullable struct; a non-null struct expression |
 
 Every selection exposes `.logical_type`, the canonical logical type of the value.
 A selection with a bindable value also exposes `.expression`, the calculation
@@ -31,23 +31,24 @@ from kg_build_system.types import Array
 
 
 class ContactStruct(Struct):
-    email: Field[str] = field()
+    email: Field[str | None] = field()
 
 
 class SiteTable(Table):
     options = TableOptions(name="sites")
     site_id: Field[str] = field()
     name: Field[str] = field()
+    parent_site: Field[str | None] = field()
     survey_period: Field[str] = field()
     tags: Field[Array[str]] = field()
     aliases: Field[Array[str | None]] = field()
-    contact: Field[ContactStruct] = field()
+    contact: Field[ContactStruct | None] = field()
 
 
-site_id = SiteTable.site_id              # NullableSelection[str]
-identifier = site_id.alter_rows().drop_null()   # ValueSelection[str]
-tags = SiteTable.tags                    # NullableSelection[Array[str]]
-present_tags = tags.alter_rows().drop_null()    # ArraySelection[str]
+site_id = SiteTable.site_id              # ValueSelection[str]
+identifier = SiteTable.parent_site.alter_rows().drop_null()  # ValueSelection[str]
+tags = SiteTable.tags                    # ArraySelection[str]
+aliases = SiteTable.aliases              # ArraySelection[str | None]
 ```
 
 ## Expressions
@@ -100,8 +101,9 @@ the row count.
 
 | Carrier | Member | Result |
 | --- | --- | --- |
-| `NullableSelection[S]` | Source `Struct` member | `NullableSelection[U]` |
-| `StructSelection[S]` | Source `Struct` member | `NullableSelection[U]` |
+| `StructSelection[S]` | Source `Struct` member declared `Field[U]` | `ValueSelection[U]`, or the matching structured selection |
+| `StructSelection[S]` | Source `Struct` member declared `Field[U \| None]` | `NullableSelection[U]` |
+| `NullableSelection[S]` | Any source `Struct` member | `NullableSelection[U]`; the nullable carrier wins |
 | `StructSelection[S]` | Non-null `ComputedStruct` witness | `ValueSelection[U]` |
 | `NullableSelection[S]` | Non-null `ComputedStruct` witness | `NullableSelection[U]` |
 | Any struct selection | Nested struct or array member | The matching structured selection, with parent nullability applied |
@@ -138,7 +140,10 @@ NullableSelection.default_to(value: T | ValueExpression[T]) -> ValueSelection[T]
 
 Replaces a null with `value` and keeps the row. The result is present. A nullable
 array becomes an `ArraySelection`; a nullable struct becomes a
-`StructSelection`.
+`StructSelection`. On a present `ValueSelection`, `default_to()` is a no-op and
+returns the same selection. `where_present()` is the compatibility spelling of
+the presence filter: it is a no-op on a present selection and equivalent to
+`drop_null()` on a nullable one.
 
 ```python
 period = SiteTable.survey_period.default_to("Unrecorded period")
@@ -166,7 +171,7 @@ effect needs a second `alter_rows()`.
 | Effect | Available on | Returns | Row behaviour |
 | --- | --- | --- | --- |
 | `drop_if(predicate)` | Every selection | The same selection type | Keeps rows whose predicate is true |
-| `drop_null()` | `NullableSelection` | `ValueSelection`, `ArraySelection` or `StructSelection` | Drops rows whose value is null |
+| `drop_null()` | Every selection; meaningful on a nullable one | A present selection | Drops rows whose value is null; a no-op on a non-null selection |
 | `expand()` | `ArraySelection` or `NullableSelection[Array[T]]` | The item selection | One row per item; absent or empty array produces no rows |
 
 `drop_if(predicate)` receives the selection itself and must return a
@@ -195,15 +200,17 @@ The row effects differ in what happens to the row:
 
 | Operation | Row effect |
 | --- | --- |
-| `default_to(value)` | None; the row survives with a present value |
-| `alter_rows().drop_null()` | Drops the row when the value is null |
+| `default_to(value)` | None; the row survives with a present value. No-op on a present selection |
+| `where_present()` | Compatibility spelling of the presence filter; no-op on a present selection |
+| `alter_rows().drop_null()` | Drops the row when the value is null; no-op on a non-null selection |
 | `alter_rows().drop_if(...)` | Drops the row when the predicate is false or null |
 | `alter_rows().expand()` | Produces one row per array item; absent and empty arrays produce none |
 
 ## Array operations
 
-A source array reads as a nullable selection. Narrow it to an `ArraySelection`
-before using the value operations.
+A source array reads the type it declares. `Field[Array[T]]` is already an
+`ArraySelection`; `Field[Array[T] | None]` is nullable, so narrow it before using
+the value operations.
 
 | Method | Available on | Returns | Notes |
 | --- | --- | --- | --- |
@@ -216,7 +223,7 @@ before using the value operations.
 | `transform_items(selector)` | `ArraySelection` | `ArraySelection` of the selector result | Applies one expression to every item without changing rows |
 
 ```python
-tags = SiteTable.tags.alter_rows().drop_null()   # ArraySelection[str]
+tags = SiteTable.tags                            # ArraySelection[str] for Field[Array[str]]
 key = tags.sort().unique().concat(":")
 first = tags.at(0).alter_rows().drop_null()
 window = tags.slice(0, 2)
@@ -363,7 +370,7 @@ Each argument must be a `BoolExpression`. A null predicate is not true, so a
 
 | Rule | Consequence |
 | --- | --- |
-| Every source field read is nullable | Narrow or default before a key, a required property or a typed operation |
+| A source read follows the declaration | A `Field[T \| None]` must be narrowed or defaulted before a key, a required property or a typed operation; `Field[T]` is already present |
 | A projection output follows its expression | A non-null expression publishes a non-null selection; a nullable expression publishes a nullable one |
 | A nullable expression exposes only `to_string()` | `prepend`, `add`, `equals` and other family operations require a present selection |
 | Operations take a Python value or a `ValueExpression` | Pass `.expression` or `as_expression(...)`, not a selection |
@@ -377,8 +384,9 @@ Each argument must be a `BoolExpression`. A null predicate is not true, so a
 ## What to remember
 
 - A selection navigates and owns null policy; an expression calculates.
-- Every source field reads as nullable. Narrow it with
-  `alter_rows().drop_null()` or replace it with `default_to(...)`.
+- A `Field[T | None]` reads as nullable; `Field[T]` reads non-null. Narrow a
+  nullable field with `alter_rows().drop_null()` or replace it with
+  `default_to(...)`; both are no-ops on a present value.
 - `alter_rows()` is a one-shot opt-in, and each effect returns a selection.
 - `expand()` produces one row per item; `drop_null()` and `drop_if()` reduce the
   rows; `default_to()` keeps the row.

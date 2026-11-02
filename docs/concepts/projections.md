@@ -1,6 +1,6 @@
 # Projections
 
-A projection is a named relation pinned to one row plan, publishing a fixed set of typed outputs.
+A projection is a named relation with one row plan, publishing a fixed set of typed outputs.
 
 A row source can describe a grain, but an anonymous plan has no name and no stable output surface. When several bindings, or a later projection, need the same rows, repeating the plan in each place lets the copies drift. A projection is the name and the contract: other declarations refer to the projection, and every consumer receives the same rows with the same outputs.
 
@@ -14,11 +14,18 @@ If each declaration writes that join itself, the build has three copies of one d
 
 `Projection` is both a shape and a row source. As a shape it has output fields that selections and computed fields can read; as a row source it can be passed as `rows=` to a binding.
 
-Every projection is **pinned** to a row source when the class is created. Pin a table or projection relation with `Projection(source.row_source())`, or pin a derived plan with `Projection(derived)`.
+A projection is normally **pinned** to a row source when the class is created. Pin a table or projection relation with `Projection(source.row_source())`, or pin a derived plan with `Projection(derived)`.
 
-The pin records the source relation and its filters in the projection's definition. It does not copy fields; you declare the outputs. A direct `class DefectProjection(Projection)` is refused because it has no rows to read.
+The compatibility spelling `class DefectProjection(Projection)` with
+`projection_field(...)` outputs also works. Its row plan is derived from the one
+logical source those outputs read; if they read no source or several unrelated
+sources, compilation fails with `projections require a row source`. It is
+supported for existing projects; a new projection should state its pin.
 
-Declare each output with `computed_field(expression)`. The output takes the expression's logical type and nullability:
+Declare each output with `computed_field(expression)`, or with
+`projection_field(...)` in the unpinned compatibility form; the latter is the
+older spelling of the same constructor. The output takes the expression's logical
+type and nullability:
 
 - A non-null expression publishes a non-null output.
 - A nullable expression publishes a nullable output until you narrow or default it.
@@ -87,7 +94,7 @@ class DefectProjection(Projection(unit_defects)):
     )
 ```
 
-`defect_id` is non-null because the expression drops nulls before publishing it. `title`, `severity` and `unit_ref` keep the nullable access that every source field has. A binding that needs a present defect key can use `DefectProjection.defect_id` directly.
+`defect_id` is non-null because the expression drops nulls before publishing it. `title`, `severity` and `unit_ref` keep the nullability their source declarations carry. A binding that needs a present defect key can use `DefectProjection.defect_id` directly.
 
 The defect node binding and the unit-to-defect edge binding both pass `DefectProjection.row_source()` as `rows=`. Neither repeats the join.
 
@@ -150,7 +157,7 @@ class ActiveUnitProjection(active_units.projection_base()):
     """The active units, under a name bindings can share."""
 ```
 
-The base inherits the source's fields as outputs, typed from the source's nullable access. A subclass can add outputs with `computed_field`; a declared field with the same attribute shadows the inherited one. The base itself is not a final projection and does not enter the build. Only the named class you finish does.
+The base inherits the source's fields as outputs, typed from the fields' declared access. A subclass can add outputs with `computed_field`; a declared field with the same attribute shadows the inherited one. The base itself is not a final projection and does not enter the build. Only the named class you finish does.
 
 A final projection is terminal and may not inherit from another final `Projection`. Reuse a plan with `projection_base()` or pin a new source.
 
@@ -181,8 +188,8 @@ When you use a `ComputedStruct` as `Field[T]`, its member expressions are **type
 
 ## Limits
 
-- A projection must be pinned to a row source and declare at least one output.
-- `computed_field` is the only way to declare an output; `field()` is refused because a projection has no source columns of its own.
+- A projection declares at least one output. Prefer a pinned projection; the unpinned `projection_field` form is a compatibility spelling.
+- `computed_field` declares an output. `projection_field` is the compatibility spelling; `field()` is refused because a projection has no source columns of its own.
 - One projection has one row plan and one driving source. A new grain needs a new projection.
 - A final projection may not inherit from another final projection.
 - Projection dependencies must be acyclic; a cycle fails compilation.
@@ -191,7 +198,9 @@ When you use a `ComputedStruct` as `Field[T]`, its member expressions are **type
 ## What to remember
 
 - A projection is a named relation with one row plan and typed outputs.
-- Pin it with `Projection(source.row_source())` or `Projection(derived)`.
+- Prefer pinning it with `Projection(source.row_source())` or
+  `Projection(derived)`; the unpinned `projection_field` form is a compatibility
+  spelling.
 - Reading a projection field reuses the materialised output, not the calculation.
 - All fields share the row plan, so one expansion or null drop affects the whole projection.
 - Give every grain its own projection, and name a grain when several declarations read it.

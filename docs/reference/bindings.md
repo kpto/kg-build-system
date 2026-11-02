@@ -57,7 +57,7 @@ edge_binding(
 | Argument | Meaning |
 | --- | --- |
 | `target` | A concrete `Node` or `Edge` class; categories and templates are refused |
-| `rows` | A row-source value: `Table.row_source()`, `Projection.row_source()`, or a derived source |
+| `rows` | A row-source value: `Table.row_source()`, `Projection.row_source()`, or a derived source; a `Table` or `Projection` class is accepted as a compatibility shorthand |
 | `bind` | A callable receiving a symbolic shape instance and returning `NodeValues` or `EdgeValues` |
 | `build_key` | The non-null scalar expression identifying one node or edge record |
 | `properties` | An instance of the target with one expression per declared property |
@@ -159,7 +159,10 @@ has_unit_binding = edge_binding(
 | `NodeValues(build_key, properties)` | The node key and the component instance |
 | `EdgeValues(build_key, source_build_key, target_build_key, properties)` | The edge key, the two endpoint keys and the component instance |
 
-`rows` accepts a row-source value. A declaration class is refused; write `EquipmentTable.row_source()`. A `Struct` is a shape, not a row source. A filter belongs in the row source:
+`rows` accepts a row-source value. It also accepts a `Table` or `Projection`
+declaration as a compatibility shorthand and converts it with `row_source()`;
+prefer the explicit value. A `Struct` is a shape, not a row source. A filter
+belongs in the row source:
 
 ```python
 active_units = EquipmentTable.row_source().where(
@@ -191,9 +194,13 @@ Every key follows the same rule:
 | A nullable selection or nullable expression | Refused |
 | An array or struct expression | Refused |
 | A Python literal | Refused; wrap it in `value_expression(...)` |
-| A source column | Narrow with `alter_rows().drop_null()`, or deliberately use `default_to(...)` |
+| A source column declared `Field[T \| None]` | Narrow with `alter_rows().drop_null()`, or deliberately use `default_to(...)` |
+| A source column declared `Field[T]` | Accepted directly |
 
-Keys may use any scalar type. A key written from a source column needs `alter_rows().drop_null()` because every source field reads as nullable. `default_to()` is legal on a key but gives every missing identifier the same identity; use it only when one shared sentinel is genuinely correct.
+Keys may use any scalar type. A key written from a nullable source column needs
+`alter_rows().drop_null()`; a `Field[T]` key is already present. `default_to()` is
+legal on a key but gives every missing identifier the same identity; use it only
+when one shared sentinel is genuinely correct.
 
 Keys may overlap between producers. Two bindings can emit the same key independently; register a deduplication module when exact duplicates must disappear. See [Modules](modules.md).
 
@@ -212,7 +219,7 @@ UnitNode(
 | --- | --- |
 | Every declared property is present | Required |
 | A non-null expression for a nullable property | Accepted |
-| A nullable expression for a required property | Refused |
+| A nullable expression for a required property | Accepted for compatibility; narrow or default it to carry the non-null claim |
 | A literal value | Refused; use `value_expression(...)` |
 | An unknown or extra property | Refused |
 | A property declared as `Array[T]` | Requires a present array with non-null items |
@@ -311,7 +318,7 @@ Two bindings targeting the same component, from the same row context, with the s
 | Direct and `rows=` arguments are mixed | `TypeError: node_binding takes either build_key/properties or rows/bind`; the edge message names keys and properties |
 | Only one of `rows` and `bind` is supplied | `TypeError: rows and bind must be supplied together` |
 | Neither form is complete | `TypeError: node_binding requires build_key and properties, or rows and bind`; the edge form says `edge_binding requires keys and properties, or rows and bind` |
-| `rows` is a table declaration class | `TypeError: rows must be a row source value; use Table.row_source()` |
+| `rows` is not a row source or a `Table`/`Projection` declaration | `TypeError: rows must be a row source value or a Table/Projection declaration; use Table.row_source()` |
 | `bind` returns the wrong values type | `TypeError: node_binding bind must return NodeValues` or `edge_binding bind must return EdgeValues` |
 | A property is missing | A `TypeError` from the target's constructor, or the compile-time property-map error below |
 | A property is assigned a bare value | `TypeError: <Target>.<property> must be assigned a value selection or expression` |
@@ -350,10 +357,11 @@ Bindings are discovered only as module-level values. A binding created inside a 
 
 - One binding maps one row context to one concrete component.
 - Use either the direct form or `rows=`/`bind=`, never both.
-- Every key is a present scalar expression; narrow source columns.
+- Every key is a present scalar expression; narrow a nullable source column.
 - Every declared property, including inherited ones, is assigned exactly once.
 - An abstract edge side needs an `endpoint(...)` token.
-- `alter_rows().drop_null()` drops the whole row; `default_to()` keeps it.
+- `alter_rows().drop_null()` drops the whole row when a nullable value is null;
+  `default_to()` keeps it. Both are no-ops on a present value.
 - Use `debug_name` when one component has several producers.
 
 Related: [Bindings](../concepts/bindings.md), [Topology](topology.md), [Semantics](semantics.md), [Compile](compile.md), [Modules](modules.md), [Reference index](index.md).

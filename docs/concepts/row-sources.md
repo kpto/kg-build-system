@@ -23,8 +23,11 @@ The same operations are available on a table relation, a projection relation and
 
 A row source's shape is the type of one row. Inside an operation you receive a **shape instance**: a symbolic object whose fields you read as attributes. It is not data and not a dictionary.
 
-!!! warning "Pass a value, not a declaration"
-    `rows=UnitTable` is rejected. Write `rows=UnitTable.row_source()`. A `Struct` is a shape, not a row source.
+!!! warning "Prefer a row-source value"
+    Row-source operations take a value, so write `UnitTable.row_source()`. A
+    binding also accepts `rows=UnitTable` and converts it to `row_source()` for
+    compatibility, but the explicit value states the plan. A `Struct` is a shape,
+    not a row source.
 
 ## Start from a table
 
@@ -72,7 +75,9 @@ Pass it to a binding as `rows=unit_rows`. If you need the unit grain under a nam
 
 ## Filter, deduplicate and order
 
-`where` takes a callable that receives a shape instance and returns a Boolean expression. Source fields read as nullable, so narrow or default before you compare:
+`where` takes a callable that receives a shape instance and returns a Boolean
+expression. A field declared nullable, or a nullable expression, must be narrowed
+or defaulted before comparison; a `Field[str]` is already present:
 
 ```python
 active_units = UnitTable.row_source().where(

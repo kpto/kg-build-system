@@ -340,7 +340,9 @@ written.
 
 `GeneratedField` also carries optional `schema_path` and `logical_path` values
 for source-path provenance; an ordinary provider leaves them empty. `nullability`
-records the source claim; it does not change how the field is read at build time.
+records the source claim and decides the rendered field: `DEFAULTED` renders
+`Field[T | None]`, while `DECLARED` or `ENFORCED` renders `Field[T]`. The
+rendered declaration therefore decides how the field reads.
 
 A value type is one of:
 
@@ -367,9 +369,8 @@ Rendering rules:
   rather than silently shadowing one.
 - Every package directory receives an explicit `__init__.py`, and every rendered
   file is parsed before installation.
-- A top-level nullable value is stripped from the annotation because source
-  access is nullable anyway. Array-item and nested-member nullability stay in
-  the value type.
+- A defaulted source renders `T | None`; an enforced or declared non-null source
+  renders `T`. Array-item and nested-member nullability stay in the value type.
 - Canonical `date`, `time`, `timestamp` and `uuid` render as `Date`, `Time`,
   `Timestamp` and `Uuid`; the builtin scalars use their Python names. Every file
   that declares anything imports the whole representative set.
@@ -472,9 +473,12 @@ Rules:
 - A declared-only physical type becomes digestible when `type` declares it; the
   scan then applies a checked cast, which aborts on a value that does not fit.
 - `nullable: true` declines a source non-null claim and makes the field
-  `DEFAULTED`; it leaves the Parquet null-statistics pre-flight.
+  `DEFAULTED`; it leaves the Parquet null-statistics pre-flight and renders
+  `Field[T | None]`.
 - `nullable: false` asserts non-nullability and makes the field `DECLARED`; it
-  enters the pre-flight. Top-level source access remains nullable either way.
+  enters the pre-flight and renders a non-null `Field[T]`.
+- The claim decides the rendered field: `DEFAULTED` renders
+  `Field[T | None]`; `DECLARED` or `ENFORCED` renders `Field[T]`.
 - An absent `nullable` keeps the source's own claim. An absent `type` keeps the
   reader's reported type.
 - An override never reads values to decide a claim. The build guard or the
@@ -496,8 +500,8 @@ turn `DECIMAL` into `float` or otherwise lift a refusal.
   `--watch` regenerates on declaration changes and ignores data changes.
 - Generated declarations are ordinary `Table`, `Struct` and `TableGroup`
   classes.
-- An override is a whole-column declaration in the request; it never changes
-  source access to non-null.
+- An override is a whole-column declaration in the request. `nullable: true`
+  renders `Field[T | None]`; `nullable: false` renders `Field[T]`.
 
 See [sources and ingest](ingest.md) for physical rules, [types](types.md) for
 the vocabulary, and the [Glossary](glossary.md) for terms.

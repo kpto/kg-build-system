@@ -91,6 +91,18 @@ rule about what the framework is belongs to the framework model.
 
 ## Framework model
 
+### Kernel and distribution
+
+- `kg_build_system.kernel` is domain-agnostic: language, module, build IR,
+  registry and the module contract. It imports no table, topology, expression,
+  engine or workflow package.
+- `table`, `topology` and `binding` are languages; `expressions` contributes
+  operations; `core` is a module; engines own code generation.
+- An operation is one specification plus one engine lowerer. Adding one does not
+  edit a dispatcher.
+- A custom language and module compile and execute without the default
+  distribution; a graph build is one distribution, not the kernel.
+
 ### Semantics as contract
 
 - The graph's meaning is part of the delivered contract, not a comment or an

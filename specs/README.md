@@ -3,32 +3,41 @@
 These specs are for the framework reviewer. Author-facing documentation is in
 `../docs/`; it is not duplicated here.
 
-A spec states the internal interface: responsibility, names and signatures,
-invariants, allowed dependencies and the decisions an implementer must honour. It
-does not describe implementation.
+A spec states one responsibility, the names another package may import, the
+frozen IR, the allowed package edges and the decisions an implementer must
+honour. It describes the current code, not a target design. Implementation walkthroughs,
+private helpers and line numbers are out of scope.
 
-Each domain subpackage exposes three surfaces: `__init__.py` for the graph
-author, `interfaces.py` for other subpackages, and `ir.py` for compilation data.
-Implementation modules are private; another subpackage imports only the three
-surfaces or the shared kernel.
+Every domain subpackage exposes three surfaces:
+
+| Surface | Reader |
+| --- | --- |
+| `__init__.py` | graph author: names written or read |
+| `interfaces.py` | another subpackage: values, protocols, functions |
+| `ir.py` | compiler: frozen DTOs and codecs |
+
+`kernel` is the only domain-agnostic package. `table`, `topology` and `binding`
+are languages. `modules.core` is a module. `engines` own SQL and code
+generation. Implementation modules are private; another package imports only
+`interfaces`, `ir`, a nested package `__init__`, or the shared kernel.
 
 Read in this order:
 
 | Spec | Responsibility |
 | --- | --- |
-| [overview](overview.md) | purpose, pipeline and package map |
-| [types](types.md) | logical types, nullability and DuckDB acceptance |
-| [declarations](declarations.md) | Table, Struct, ComputedStruct, Projection, TableGroup, fields and templates |
-| [expressions](expressions.md) | selections, value operations, `alter_rows` and row semantics |
-| [row-sources](row-sources.md) | relation values and the row-source algebra |
-| [projections](projections.md) | pinned projections and computed outputs |
-| [topology](topology.md) | node/edge hierarchy, properties and endpoints |
-| [bindings](bindings.md) | node/edge binding authoring |
-| [compile](compile.md) | blueprint, IR boundary and compilation |
-| [workflow](workflow.md) | workflow model, assembly and execution |
-| [modules](modules.md) | module extension interface and built-ins |
-| [ingest](ingest.md) | sources, trust, nullability and guards |
-| [generation](generation.md) | edit-time generated declaration packages |
+| [overview](overview.md) | purpose, kernel, languages, build pipeline and package map |
+| [types](types.md) | logical types, normalization, validation and type codecs |
+| [declarations](declarations.md) | Table, Struct, ComputedStruct, Projection, TableGroup, fields and sources |
+| [expressions](expressions.md) | selections, expression families, operations and row semantics |
+| [row-sources](row-sources.md) | row-source values, generated shapes and plan IR |
+| [projections](projections.md) | pinned and unpinned named projections and computed outputs |
+| [topology](topology.md) | node and edge declarations, properties, endpoints and components |
+| [bindings](bindings.md) | node and edge bindings, keys, properties and endpoints |
+| [compile](compile.md) | blueprint aggregate, codecs, validation and the compile pipeline |
+| [workflow](workflow.md) | assembly, contract, execution, services and reporting |
+| [modules](modules.md) | module extension contract, core and supplied modules |
+| [ingest](ingest.md) | physical sources, declared nullability, guards and DuckDB acceptance |
+| [generation](generation.md) | edit-time generation requests, providers, rendering and ownership |
 
-`../FRAMEWORK_STATE.md` is the reviewer briefing: the current state, the known
-interface conflicts and the decisions that need attention.
+`../FRAMEWORK_STATE.md` is the reviewer briefing. `../DESIGN_ISSUES.md` records
+where the clean model and the effective compatibility surface conflict.

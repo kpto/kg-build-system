@@ -373,7 +373,7 @@ alongside the records. See
 | `group_by key names must be unique` | Rename one key in the `by` mapping. |
 | `group_by key names must be Python identifiers` | Use a public name such as `meter_id`, not a display label. |
 | A grouped row is missing | Its key tuple contained a null and was dropped. Default the key before grouping if a placeholder group is correct. |
-| `... must be pinned to a row source` | Pass the plan itself: `Projection(joined)` or `Projection(grouped)`. |
+| `projections require a row source` | Pin the plan: `Projection(joined)` or `Projection(grouped)`. An unpinned projection must have outputs that read exactly one source. |
 | Duplicate build keys after a join | The join matched more than one row on one side. Decide the grain and move the many side to its own projection or binding. |
 | Duplicate build keys after a union | `all=False` removes identical rows, not repeated keys. Fix the key or add a deduplication or merge module. |
 

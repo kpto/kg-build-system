@@ -41,14 +41,15 @@ class ReadingTable(Table):
 sites = SiteTable.row_source()       # RelationRowSource[SiteTable]
 ```
 
-`rows=` on a binding takes a row-source **value**. `rows=SiteTable` is refused;
-write `SiteTable.row_source()`. A `Struct` or `ComputedStruct` is not a row
-source.
+`rows=` on a binding takes a row-source **value**. It also accepts a `Table` or
+`Projection` declaration as a compatibility shorthand and converts it with
+`row_source()`; prefer the explicit value. A `Struct` or `ComputedStruct` is not
+a row source.
 
 | Error | Trigger |
 | --- | --- |
 | `rows must be a row source value; use Table.row_source() or Projection.row_source()` | A row-source operation receives a declaration class or other non-value |
-| `rows must be a row source value; use Table.row_source()` | A binding factory receives a declaration class |
+| `rows must be a row source value or a Table/Projection declaration; use Table.row_source()` | A binding factory receives a non-row-source value |
 
 ## The algebra
 
@@ -88,8 +89,9 @@ depots = SiteTable.row_source().where(
 )
 ```
 
-A source field is nullable, so narrow or default it before comparing. A null
-predicate is not true, so its row is dropped.
+A field declared nullable is narrowed or defaulted before comparing; a
+`Field[str]` is already present. A null predicate is not true, so its row is
+dropped.
 
 | Error | Trigger |
 | --- | --- |
@@ -317,7 +319,8 @@ source's plan and fields. See [Projections](projections.md#projection_base).
 
 ## What to remember
 
-- `row_source()` starts the algebra; a declaration class is not a row source.
+- `row_source()` starts the algebra; the algebra requires a value. A binding
+  accepts a declaration class only as a compatibility shorthand.
 - `where`, `union`, `distinct` and `order_by` preserve shape; `join` and
   `group_by` generate a shape.
 - Join keys are scalar and share a base type. Null keys never match.

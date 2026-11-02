@@ -68,23 +68,28 @@ a property slot, but it exposes no value operations: no text, numeric or
 comparison methods, and no `to_string()`. A target may refuse to store it, as
 Neo4j does.
 
-## Nullability belongs to access
+## Nullability belongs to the declaration
 
-A declaration names the value type. Reading a source field always produces a
-nullable selection, whatever the declaration says:
+A source field reads the type its annotation declares. The declaration is the
+presence claim; reading it does not add nullability:
 
 | You read | You get |
 | --- | --- |
-| `Field[str]` | `NullableSelection[str]` |
+| `Field[str]` | `ValueSelection[str]` |
 | `Field[str \| None]` | `NullableSelection[str]` |
-| `Field[Array[str \| None]]` | `NullableSelection[Array[str \| None]]` |
+| `Field[Array[str]]` | `ArraySelection[str]` |
+| `Field[Array[str \| None]]` | `ArraySelection[str \| None]` |
+| `Field[Array[str] \| None]` | `NullableSelection[Array[str]]` |
+| `Field[SomeStruct]` | `StructSelection[SomeStruct]` |
+| `Field[SomeStruct \| None]` | `NullableSelection[SomeStruct]` |
 | a projection's `computed_field(expression)` | a selection typed by the expression |
 | a `ComputedStruct` member through `extract` | the witness type, composed with the carrier's presence |
 
-This is the rule authors most often encounter. It is deliberate: a source may omit
-a field, so reading it must allow for absence. A top-level `| None` is stripped
-and adds nothing; write the value type instead. Item nullability is different
-because it describes a present list, so `Array[str | None]` stays.
+This is the rule authors most often encounter. A source may omit a value, so
+declare it nullable when that is true. Do not add `| None` to a field the source
+always supplies: it makes every read nullable and forces needless narrowing. Item
+nullability is a separate decision, because it describes a present list, so
+`Array[str | None]` stays.
 
 A `ComputedStruct` used as a field type describes a record the row already
 carries. Its member expressions are type witnesses: they fix each member's type
@@ -97,26 +102,24 @@ The binding or expression decides what absence means:
 ```python
 from estate.table import SiteTable
 
-site_id = SiteTable.site_id                        # NullableSelection[str]
-key = site_id.alter_rows().drop_null()             # ValueSelection[str]
-name = SiteTable.name.default_to("Unnamed site")   # ValueSelection[str]
-tags = (
-    SiteTable.aliases
-    .alter_rows().drop_null()
-    .drop_null_items()
-)                                                  # ArraySelection[str]
+site_id = SiteTable.site_id                        # ValueSelection[str]
+key = site_id                                      # already a present scalar
+name = SiteTable.name                              # ValueSelection[str]
+tags = SiteTable.aliases.drop_null_items()         # ArraySelection[str]
 ```
 
-`drop_null()` removes the row. `default_to()` keeps it and replaces the null. For
-a key, dropping is the honest choice: a fallback makes every unidentified row
-share one graph identity. A nullable graph property can also carry the absence
-through, which is often the right answer for a value that is genuinely unknown.
+When a field is declared `Field[str | None]`, `alter_rows().drop_null()`
+narrows it and removes unidentified rows, while `default_to()` keeps the row and
+replaces the null. Both are no-ops on a present selection. For a key, dropping is
+the honest choice: a fallback makes every unidentified row share one graph
+identity. A nullable graph property can also carry the absence through, which is
+often the right answer for a value that is genuinely unknown.
 
-Generated tables follow the same rule. The source's `required` or `optional`
-claim is recorded in the generated header and the generation manifest, not in the
-field type, and it never makes access non-null. A nullability `override` changes
-the claim and its diagnostics only. Nullability is not inferred from sample
-values.
+Generated tables follow the same rule. An `ENFORCED` or `DECLARED` source claim
+renders `Field[T]`; a `DEFAULTED` claim renders `Field[T | None]`. The generator
+records the tier in the header and manifest as provenance, and the rendered field
+decides how the access reads. A nullability `override` changes the claim and the
+rendered field. Nullability is not inferred from sample values.
 
 ## What a value may become
 
@@ -161,23 +164,24 @@ site_binding = node_binding(
         properties=SiteNode(
             name=row.name.default_to("Unnamed site"),
             surveyed_on=row.surveyed_on,
-            labels=row.aliases.default_to([]).drop_null_items(),
+            labels=row.aliases.drop_null_items(),
         ),
     ),
 )
 ```
 
-The key is narrowed because identity cannot be absent. `surveyed_on` is declared
-nullable on the property, so the source's null passes through. `aliases` is
-declared `Array[str | None]`; the binding makes the list present and removes null
-items so it matches the flat `Array[str]` property. Array presence and item
-nullability are separate decisions, explained on
+The key must be present; a `Field[str | None]` declaration would be narrowed with
+`drop_null()`, while a `Field[str]` key is already present. `surveyed_on` is
+nullable on the property, so it can carry an absent value when the source
+declaration allows one. `aliases` is declared `Array[str | None]`; the binding
+removes its null items so it matches the flat `Array[str]` property. Array
+presence and item nullability are separate decisions, explained on
 [expressions](expressions.md#arrays-are-values-until-you-expand-them).
 
 ## Decisions you make
 
-- **Write the value type, not its presence.** Source access is nullable, and a
-  top-level `| None` adds nothing.
+- **Write the presence the source promises.** `Field[str]` reads present;
+  `Field[str | None]` reads nullable. The declaration decides access.
 - **Choose a null policy deliberately.** Drop the row, supply a fallback, or let
   a nullable property carry the absence. A key is always narrowed.
 - **Convert at the boundary.** A value must be the class its type names; convert

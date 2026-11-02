@@ -226,8 +226,9 @@ scheme`.
 
 ## Generated nullability
 
-A generated package records the source's nullability claim as provenance. It
-does not put a top-level nullable type into the blueprint field.
+A generated package records the source's nullability claim in the rendered field
+and in provenance. A `DEFAULTED` field is nullable; a `DECLARED` or `ENFORCED`
+field is non-null.
 
 ### Trust tiers
 
@@ -250,11 +251,9 @@ still exists for a provider that can observe an enforced catalog.
 
 ### What is rendered
 
-- The generated annotation names the value type. A top-level `| None` is never
-  written, because `field()` strips it and source access owns presence.
+- A `DEFAULTED` field renders `Field[T | None]` and reads as nullable.
+- A `DECLARED` or `ENFORCED` field renders `Field[T]` and reads as non-null.
 - Nested member and array-item nullability stay in the value type.
-- Every source field still reads as a nullable selection, whatever the header
-  or manifest says.
 - The header records one note per source, or per relation in a group:
 
 | Tier | Header line |
@@ -293,8 +292,8 @@ readings = generation(
 | Override entry | Effect |
 | --- | --- |
 | `{"type": "<canonical unit>"}` | Declares the whole column's canonical type; the scan applies a checked cast |
-| `{"nullable": True}` | Declines a source non-null claim; the field records `DEFAULTED` and leaves the pre-flight |
-| `{"nullable": False}` | Asserts a non-null claim; the field records `DECLARED` and enters the pre-flight |
+| `{"nullable": True}` | Declines a source non-null claim; the field records `DEFAULTED`, renders `Field[T \| None]`, and leaves the pre-flight |
+| `{"nullable": False}` | Asserts a non-null claim; the field records `DECLARED`, renders `Field[T]`, and enters the pre-flight |
 | Absent `nullable` | Keeps the source's own claim |
 | Absent `type` | Keeps the reader's reported type |
 
@@ -452,8 +451,8 @@ property or key then fails at the guard, naming the property and the row key.
 - A group source resolves paths; it never changes rows.
 - The digest gate widens canonical types, requires an override for a
   declared-only type, and refuses a type with no canonical meaning.
-- Generated nullability is a source claim recorded in the header and digest, not
-  a non-null blueprint field.
+- Generated nullability decides the field type: `DEFAULTED` renders
+  `Field[T | None]`; `DECLARED` or `ENFORCED` renders `Field[T]`.
 - A Parquet pre-flight reports nulls; the guard enforces non-nullability at the
   point of use.
 - A source defect surfaces before any row is consumed.

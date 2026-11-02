@@ -35,18 +35,22 @@ calculations, so narrowing happens before arithmetic or comparison.
 
 A binding and a projection output accept either a selection or an expression.
 
-## Start from nullable access
+## Start from the declared access
 
-A source field reads as nullable even when it is declared `Field[str]`. The
-declaration names the value type; access owns presence. The first step in most
-expressions is to narrow that value or decide what an absent one means:
+A source field reads the type it declares. `Field[str]` reads as a present
+`ValueSelection[str]`; `Field[str | None]` reads as a nullable
+`NullableSelection[str]`. The declaration owns presence. Narrow or default a
+nullable value before using it, and leave a present value alone:
 
 ```python
 from estate.table import DefectTable, SiteTable
 
-key = SiteTable.site_id.alter_rows().drop_null()        # ValueSelection[str]
-name = SiteTable.name.default_to("Unnamed site")        # ValueSelection[str]
+key = SiteTable.site_id.alter_rows().drop_null()        # no-op when declared Field[str]
+name = SiteTable.name.default_to("Unnamed site")        # no-op when declared Field[str]
 ```
+
+When a field is declared `Field[str | None]`, `drop_null()` removes the row and
+`default_to()` supplies a fallback.
 
 A projection field and a `ComputedStruct` member are different. A projection's
 `computed_field(expression)` carries the expression's type, so a non-null
@@ -73,17 +77,18 @@ tag = (
 array and an empty array both produce no rows. A null item in a present array
 produces one row whose value is null.
 
-`drop_null()` removes the row when the value is absent. It acts on the whole row,
-even when the expression is used for only one property: dropping an unnamed site
-means the site produces no node, not a node with an empty name.
+`drop_null()` removes the row when a nullable value is absent. It acts on the
+whole row, even when the expression is used for only one property: dropping an
+unnamed site means the site produces no node, not a node with an empty name. On a
+present selection it is a no-op.
 
 `drop_if(predicate)` keeps rows whose value satisfies a boolean predicate. The
 predicate is value-scoped and must return a `BoolExpression`; a false or null
 predicate drops the row.
 
 `default_to(value)` does not change the row. It replaces a null and returns a
-non-null selection of the same shape. The fallback must have the field's exact
-type.
+non-null selection of the same shape. On a present selection it is a no-op. The
+fallback must have the field's exact type.
 
 ## Calculations keep the type
 
@@ -109,12 +114,13 @@ type; fields and selections are the usual way to carry absence.
 
 ## Arrays are values until you expand them
 
-A source array reads as a nullable selection. Narrow it to a present
-`ArraySelection`, then either use it as a value or expand it into rows. `expand`
-is the only row effect; the rest calculate a new array:
+A source array reads the type it declares. `Field[Array[str]]` reads as a present
+`ArraySelection`; `Field[Array[str] | None]` reads as nullable, so narrow it
+first. Then either use the array as a value or expand it into rows. `expand` is
+the only row effect; the rest calculate a new array:
 
 ```python
-tags = DefectTable.tags.alter_rows().drop_null()   # ArraySelection[str]
+tags = DefectTable.tags.alter_rows().drop_null()   # ArraySelection[str]; no-op if present
 tag_key = tags.sort().unique().concat("|")         # ValueSelection[str]
 first = tags.at(0)                                 # NullableSelection[str]
 ```
@@ -154,9 +160,9 @@ group and order operations themselves are on [row sources](row-sources.md).
 
 ## Decisions you make
 
-- **Narrow before you calculate.** Source access is nullable, so a key, a
-  required property or an array operation starts with `drop_null()` or
-  `default_to()`.
+- **Narrow when the declaration is nullable.** A key, a required property or an
+  array operation starts with `drop_null()` or `default_to()` when its source
+  field is declared `T | None`; both calls are no-ops on a present value.
 - **Drop the row or keep it.** `drop_null()` means the record should not exist;
   `default_to()` means the absence has an honest fallback. For a key, dropping is
   almost always right, because a fallback collapses distinct records into one

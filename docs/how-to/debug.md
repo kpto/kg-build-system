@@ -98,7 +98,7 @@ expected, inspect the key column for nulls; choose an outer join, default the ke
 deliberately, or filter the row. A null group key drops the row before grouping.
 Default the key before `group_by` when a placeholder group is correct.
 
-A projection must be pinned at class creation:
+A projection has one row plan. Prefer pinning it at class creation:
 
 ```python
 class ReadingGrainProjection(Projection(reading_rows)):
@@ -111,8 +111,11 @@ class ReadingGrainProjection(Projection(reading_rows)):
 
 `Projection(source.row_source())` pins a relation. A joined, grouped, unioned or
 filtered plan is already a row source, so pass it directly, as
-`Projection(reading_rows)`. A projection with no effective output also fails;
-declare at least one `computed_field`. A projection that reads two unrelated
+`Projection(reading_rows)`. The compatibility form leaves the class unpinned and
+declares outputs with `projection_field(...)`; its plan is derived from the one
+source those outputs read. If no single source is derivable, compilation fails
+with `projections require a row source`. A projection with no effective output
+also fails; declare at least one output. A projection that reads two unrelated
 relations fails with `a relational product requires one driving source`; build
 the join in the row source and pin the result.
 

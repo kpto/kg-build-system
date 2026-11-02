@@ -81,9 +81,11 @@ site_binding = node_binding(
 )
 ```
 
-`alter_rows().drop_null()` both narrows the key and drops rows whose identifier
-is absent. Use `default_to(...)` only when a shared placeholder identity is
-genuinely correct; every absent identifier then becomes the same record.
+When the identifier is declared `Field[str | None]`, `alter_rows().drop_null()`
+both narrows the key and drops rows whose identifier is absent. A `Field[str]`
+key is already present, so the same call is a no-op. Use `default_to(...)` only
+when a shared placeholder identity is genuinely correct; every absent identifier
+then becomes the same record.
 
 When no single field identifies the record, compose one deterministically. Add a
 namespace when identifiers from different systems could collide. Inside a
@@ -202,19 +204,20 @@ property means "this record may not have this value"; the node or edge still
 exists. A required property is a claim the build enforces.
 
 `SiteNode` above declares `name` required and `closed_on` nullable. A nullable
-property accepts a null expression directly. Every source field reads as
-nullable, so it can take one unchanged. For a required property, choose
-explicitly:
+property accepts a nullable expression directly. A field declared
+`Field[str | None]` can be passed unchanged; a `Field[str]` is already present.
+For a required property, choose explicitly:
 
 ```python
 name = row.name.default_to("Unnamed site")        # keep the row
 build_key = row.site_id.alter_rows().drop_null()  # drop rows without a key
 ```
 
-`default_to` preserves the record; `alter_rows().drop_null()` adds a filter to
-the binding's row source. The choice is visible in the record count, so make it
-deliberately. Never use `drop_null` merely to satisfy a type: it can silently
-remove nodes and the edges that depended on them.
+On a nullable value, `default_to` preserves the record and
+`alter_rows().drop_null()` adds a filter to the binding's row source. The choice
+is visible in the record count, so make it deliberately. Both calls are no-ops on
+a present value. Never use `drop_null` merely as a ritual: when the value is
+nullable it can silently remove nodes and the edges that depended on them.
 
 An empty array and an absent array are different values. Narrow the array before
 assigning a non-null array property, and drop null items when the declared item

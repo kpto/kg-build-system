@@ -138,20 +138,50 @@ class SiteSummaryStruct(ComputedStruct):
 | `<Class>.<attribute> is a source field and must be declared with field(), not computed_field()` | `computed_field(...)` used in a `Table` or `Struct` |
 | `<Class> fields 'x' and 'y' share external name 'name'` | Two outputs or members resolve to the same external name |
 
+## `projection_field()`
+
+```python
+def projection_field(
+    value: ValueInput[T],
+    *,
+    name: str | None = None,
+    description: str | None = None,
+    annotations: Sequence[Annotation] = (),
+) -> Field[T]: ...
+```
+
+`projection_field()` is the compatibility spelling of `computed_field()` for an
+unpinned `Projection`. Its arguments, backing expression and resolved type are
+identical; only the constructor name differs. New code should declare outputs
+with `computed_field()` on a pinned projection. The older form still derives its
+row plan from the output expressions:
+
+```python
+from kg_build_system import Projection, projection_field
+
+
+class OldSiteProjection(Projection):
+    site_id = projection_field(SiteTable.site_id)
+```
+
+The class is valid only when its outputs resolve to one driving source;
+otherwise compilation fails with `projections require a row source`.
+
 ## `Field[T]`
 
 `Field[T]` is the member descriptor. The annotation names the value type; the
 constructor names the backing.
 
-| Host | Read result | Nullability |
+| Host | Declaration | Read result |
 | --- | --- | --- |
-| `Table` or source `Struct` | `NullableSelection[T]` | Always nullable on access |
-| `Projection` | Selection typed by the field expression | The expression's nullability |
-| `ComputedStruct` | Declaration is readable only through `extract` | The witness type, composed with the carrier's presence |
+| `Table` or source `Struct` | `Field[T]` | The present selection for the value shape: `ValueSelection`, `ArraySelection`, `StructSelection` or a custom-scalar selection |
+| `Table` or source `Struct` | `Field[T \| None]` | `NullableSelection[T]` |
+| `Projection` | `computed_field(expression)` | Selection typed by the field expression |
+| `ComputedStruct` | `computed_field(expression)` | Read only through `extract`; the witness type composed with the carrier's presence |
 
-A source declaration names the value type, not a presence guarantee.
-`Field[str | None]` is stripped to `Field[str]`; array item nullability remains
-in the declaration as `Field[Array[str | None]]`. See [Types](types.md).
+A source read follows the declaration: `Field[str]` reads non-null and
+`Field[str | None]` reads nullable. Array item and nested member nullability stay
+in the type, as in `Field[Array[str | None]]`. See [Types](types.md).
 
 ## `Table`
 
@@ -199,8 +229,8 @@ class SiteTable(Table):
     region: Field[str] = field()
 ```
 
-`SiteTable.site_id` is a `NullableSelection[str]`;
-`SiteTable.row_source()` is the relation a binding reads. See
+`SiteTable.site_id` is a `ValueSelection[str]` because it is declared
+`Field[str]`; `SiteTable.row_source()` is the relation a binding reads. See
 [Row sources](row-sources.md) for the algebra and [Projections](projections.md)
 for `projection_base()`.
 
@@ -236,9 +266,10 @@ class ContactStruct(Struct):
     phone: Field[str] = field()
 ```
 
-Every source member is nullable at every source step: selecting `city` from a
-present `AddressStruct` still yields `NullableSelection[str]`. Reach members
-with `extract`; see [Expressions and selections](expressions.md#extract).
+A nested member keeps the nullability its declaration states: selecting `city`
+from a present `AddressStruct` yields `ValueSelection[str]` for `Field[str]` and
+`NullableSelection[str]` for `Field[str | None]`. Reach members with `extract`;
+see [Expressions and selections](expressions.md#extract).
 
 | Error | Trigger |
 | --- | --- |
@@ -298,6 +329,11 @@ the class a name and declare at least one output with `computed_field`. A
 projection is a shape and a row source, but it is not a `Table` and has no
 physical source of its own.
 
+An unpinned `class P(Projection)` with `projection_field(...)` outputs is the
+compatibility form. Its plan is derived from the one logical source those
+outputs read; the pinned form is preferred because it states the grain directly.
+See [`projection_field()`](#projection_field).
+
 ```python
 from kg_build_system import Projection, ProjectionOptions, computed_field
 
@@ -312,7 +348,7 @@ class SiteProjection(Projection(SiteTable.row_source())):
 
 | Error | Trigger |
 | --- | --- |
-| `<Class> must be pinned to a row source: Projection(source.row_source())` | `class P(Projection)` has no pinned source |
+| `projections require a row source` | An unpinned projection's outputs do not resolve to one driving source, at compile |
 | `projections must declare at least one computed_field` | The projection has no output |
 | `a final Projection may not inherit from another final Projection` | A final projection inherits another final projection |
 | `projection names must be non-empty` | `ProjectionOptions(name="")` |
@@ -508,8 +544,8 @@ table's own name. The layout must resolve every member of the group.
 
 - `field()` declares source backing; `computed_field()` declares expression
   backing. The host decides which is legal.
-- `Field[T]` names a value type. A source read is nullable whatever the
-  annotation says.
+- `Field[T]` names a value type. A source read follows the declaration: `Field[T]`
+  is non-null and `Field[T | None]` is nullable.
 - `Table`, `TableGroup` and `Projection` are final. `Struct` and
   `ComputedStruct` are value records, not row sources.
 - `bind_source()` is the only place a location, format or credential reference
