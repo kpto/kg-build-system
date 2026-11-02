@@ -78,9 +78,9 @@ field access ──selection──> projection ──binding──> contract ─
 
 **Array**
 : The portable ordered-collection marker `Array[T]`. It is not `list[T]`,
-  `Sequence[T]` or a storage type. Array presence belongs to access; item
-  nullability stays in the declaration as `Array[T | None]`. See
-  [Types](types.md#arrays).
+  `Sequence[T]` or a storage type. Array presence is declared: `Field[Array[T]]`
+  is present and `Field[Array[T] | None]` is nullable. Item nullability stays in
+  the declaration as `Array[T | None]`. See [Types](types.md#arrays).
 
 **Canonical type**
 : The normalized logical type of a value: one of the eight lowercase scalars,

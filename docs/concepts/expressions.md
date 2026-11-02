@@ -7,7 +7,7 @@ A binding needs values for keys and properties. Writing those as SQL strings or
 Python lambdas over dictionaries loses two things the build depends on: the type
 of the result and whether it may be absent. Expressions sit between typed rows
 and the records built from them. Every step is an explicit method call on a typed
-object, so the compiler can check what a value may become and you can see where a
+object, so compilation can check what a value may become and you can see where a
 row changes.
 
 ## Selections and expressions

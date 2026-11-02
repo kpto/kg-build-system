@@ -14,7 +14,9 @@ If each declaration writes that join itself, the build has three copies of one d
 
 `Projection` is both a shape and a row source. As a shape it has output fields that selections and computed fields can read; as a row source it can be passed as `rows=` to a binding.
 
-A projection is normally **pinned** to a row source when the class is created. Pin a table or projection relation with `Projection(source.row_source())`, or pin a derived plan with `Projection(derived)`.
+The preferred form **pins** a projection to a row source when the class is
+created. Pin a table or projection relation with `Projection(source.row_source())`,
+or pin a derived plan with `Projection(derived)`.
 
 The compatibility spelling `class DefectProjection(Projection)` with
 `projection_field(...)` outputs also works. Its row plan is derived from the one

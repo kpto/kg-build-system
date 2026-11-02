@@ -38,7 +38,7 @@ See [semantics and annotations](concepts/semantics.md) for how descriptions, lab
 
 ### Explicit assumptions
 
-Nullability, row grain, keys, joins, unions, groupings, and expansions are written where you make the decision. Source fields read as nullable and are narrowed deliberately. A join states its keys and mode. A group states its keys. An expansion is visible at the point where it changes the row count.
+Nullability, row grain, keys, joins, unions, groupings, and expansions are written where you make the decision. A source field reads the presence its declaration names; a nullable field is narrowed deliberately. A join states its keys and mode. A group states its keys. An expansion is visible at the point where it changes the row count.
 
 Nothing important is inferred from a sample of the data. A value that happens to be present in the first thousand rows does not become a promise about the rest.
 
@@ -66,7 +66,9 @@ That separation lets a feed move without changing the graph, a node type be reus
 
 The framework states what it does not do, so you can design around it and a consumer does not mistake a limit for a guarantee:
 
-- A source field reads as nullable even when the source calls it required.
+- A source field reads the presence the declaration names. A generated
+  `DEFAULTED` source renders a nullable field; an enforced or declared source
+  renders a non-null field, and a null there is a data failure.
 - Grouping collects members but has no count, sum, or `having` aggregate.
 - Generated join and group shapes are typed at runtime but are not exposed to the static type checker.
 - Custom scalars have no value operations, and a target may refuse them. Neo4j refuses `uuid` and custom scalar properties.

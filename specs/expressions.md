@@ -42,7 +42,7 @@ The `expressions` package owns typed selections, bindable expression families, t
 - Semantics and algebra: `compose_row_semantics`, `row_effects`, `row_semantics`, `field_reference`, `operation`, `with_arguments`.
 - Visitors: `ExpressionVisitor`, `visit_expression`, `walk_expression`, `rewrite_expression`.
 - Operation interface: `ArgumentSpec`, `ParameterSpec`, `RowEffectSpec`, `OperationSpec`, `OperationRegistry`, `DEFAULT_OPERATIONS`.
-- Selection interface: `ValueSelection`, `NullableSelection`, `ArraySelection`, `StructSelection`, `ValueInput`, `ValueInput` helpers, `as_expression`, `select_expression`, `select_member`.
+- Selection interface: `ValueSelection`, `NullableSelection`, `ArraySelection`, `StructSelection`, `ValueInput`, `as_expression`, `select_expression`, `select_member`.
 - Typed families, literal construction, `value_expression`, `wrap_expression`, `expression_input`.
 - Codecs and mapping: `encode_expression`/`decode_expression` for the domain model, `encode_expression_ir`/`decode_expression_ir` for IR, `expression_to_ir`.
 

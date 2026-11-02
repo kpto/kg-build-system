@@ -183,7 +183,7 @@ presence and item nullability are separate decisions, explained on
 - **Write the presence the source promises.** `Field[str]` reads present;
   `Field[str | None]` reads nullable. The declaration decides access.
 - **Choose a null policy deliberately.** Drop the row, supply a fallback, or let
-  a nullable property carry the absence. A key is always narrowed.
+  a nullable property carry the absence. A nullable key is always narrowed.
 - **Convert at the boundary.** A value must be the class its type names; convert
   at the source rather than relying on a cast.
 - **Stay within the target's property types.** A flat array of non-null scalars is

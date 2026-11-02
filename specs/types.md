@@ -6,12 +6,11 @@ The `kg_build_system.types` package owns the canonical logical-type vocabulary, 
 
 ## Public API
 
-- Canonical type model:
-  - `UnitType(name: UnitTypeName)` where `UnitTypeName = Literal["bool", "int", "float", "str", "date", "time", "timestamp", "uuid"]`.
-  - `CustomType(module: str, qualname: str)` for an application-defined scalar.
-  - `StructType(module: str, qualname: str)` for a declared `Struct` or `ComputedStruct`.
-  - `ArrayType(item: LogicalType)`.
-  - `NullableType(value: NonNullableLogicalType)`.
+- Canonical type model used by the public marker surface and the internal interface:
+  - `UnitType(name: UnitTypeName)` where `UnitTypeName = Literal["bool", "int", "float", "str", "date", "time", "timestamp", "uuid"]` (internal).
+  - `CustomType(module: str, qualname: str)` for an application-defined scalar (internal).
+  - `StructType(module: str, qualname: str)` for a declared `Struct` or `ComputedStruct` (internal).
+  - `ArrayType(item: LogicalType)` and `NullableType(value: NonNullableLogicalType)` (public).
   - `NonNullableLogicalType = UnitType | CustomType | StructType | ArrayType`; `LogicalType = NonNullableLogicalType | NullableType`.
 - Unit constants: `BOOL`, `INT`, `FLOAT`, `STR`, `DATE`, `TIME`, `TIMESTAMP`, `UUID`.
 - Authoring markers:
@@ -21,24 +20,18 @@ The `kg_build_system.types` package owns the canonical logical-type vocabulary, 
   - `Shape` and `Struct` as declaration markers; a `Struct` is a value record, not a row source.
 - Representative aliases: `Date = datetime.date`, `Time = datetime.time`, `Timestamp = datetime.datetime`, `Uuid = uuid.UUID`.
 - Public constructors and aliases re-exported by `kg_build_system.types`: `Array`, `ArrayType`, `Nullable`, `NullableType`, `Shape`, `Struct`, `CustomDataType`, the unit constants and the representative aliases.
-- `normalize_type(annotation: Any) -> LogicalType` converts one authoring annotation to canonical form.
-- Validation functions:
-  - `is_nullable(value: LogicalType) -> bool`
-  - `non_nullable(value: LogicalType) -> LogicalType`
-  - `array_item(value: LogicalType) -> LogicalType`; raises `TypeError` when the value is not an array.
-  - `require_non_nullable(value, *, context: str) -> LogicalType`
-  - `require_scalar(value, *, context: str) -> LogicalType`; accepts a unit, custom or struct type, not an array.
-  - `require_graph_property(value, *, context: str) -> LogicalType`
-- `canonical_value_text(value: Date | Time | Timestamp | Uuid) -> str` is the one text form for a text-canonical unit.
-- `is_canonical_unit_name(name: str) -> TypeGuard[UnitTypeName]`.
 
 ## Internal interface
 
-`types.interfaces` additionally exposes the canonical names a declaration layer needs:
+`types.interfaces` exposes the canonical names a declaration layer needs:
 
 - `CustomType`, `StructType`, `UnitType`, `UnitTypeName`, `LogicalType`, `NonNullableLogicalType`.
 - `CANONICAL_UNIT_NAMES` and `TEXT_CANONICAL_UNIT_NAMES`.
-- `normalize_type`, the validation functions, `canonical_value_text`, `is_canonical_unit_name`.
+- `normalize_type(annotation: Any) -> LogicalType`.
+- `is_nullable(value) -> bool`, `non_nullable(value) -> LogicalType`.
+- `array_item(value) -> LogicalType`; raises `TypeError` when the value is not an array.
+- `require_non_nullable(value, *, context)`, `require_scalar(value, *, context)`, `require_graph_property(value, *, context)`.
+- `canonical_value_text(value) -> str` and `is_canonical_unit_name(name) -> TypeGuard[UnitTypeName]`.
 - `type_to_ir(logical_type) -> LogicalTypeIR`.
 - `encode_type`/`decode_type` for the domain logical type; `encode_type_ir`/`decode_type_ir` for the IR type.
 
