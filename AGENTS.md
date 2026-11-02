@@ -18,6 +18,17 @@ rule about what the framework is belongs to the framework model.
   model is incoherent.
 - If the model is wrong, change the model rather than building around it.
 
+### Delegation
+
+- A subagent brief is an interface specification, not a task description.
+- It names the exact exported and non-exported symbols, the allowed import
+  edges, the compatibility shims that must remain, the wrapper shape and the
+  command that judges the result.
+- "Move the public material", "keep old paths" and "preserve behaviour" are not
+  specifications; they leave the subagent to decide the interface.
+- Write the acceptance test first and include it in the brief. If the brief
+  cannot name what the test asserts, the interface is not decided yet.
+
 ### Writing
 
 - A document states the current model as if it were the only one.
