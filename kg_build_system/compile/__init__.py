@@ -8,12 +8,14 @@ from .interfaces import (
     BlueprintModule, BuildBlueprint, validate_blueprint,
 )
 from .pipeline import (
-    compile_workflow, configure_blueprint_modules, create_blueprint,
+    compile_build, compile_workflow, configure_blueprint_modules,
+    create_blueprint, create_build,
 )
 
 __all__ = [
-    "BlueprintModule", "BuildBlueprint", "compile_workflow",
-    "configure_blueprint_modules", "create_blueprint", "validate_blueprint",
+    "BlueprintModule", "BuildBlueprint", "compile_build", "compile_workflow",
+    "configure_blueprint_modules", "create_blueprint", "create_build",
+    "validate_blueprint",
 ]
 
 

@@ -25,3 +25,18 @@ conflict and the choice made for compatibility.
 | 18 | The old workflow assembler is a stateful mutable algorithm; the clean model is a fold of rules. | Preserve the algorithm's behavior while extracting values and rule functions. |
 | 19 | The old module executor builds `StepOutcome` by hand in every module. | Keep the shape; allow a shared result helper without changing the contract. |
 | 20 | Schema versions were removed from the effective model, but old artifacts may exist. | There is no migration path; compile again. |
+
+## Findings from the clean reimplementation
+
+| # | Finding | Decision |
+| --- | --- | --- |
+| 21 | The Open Targets declarations read `Field[str]` as non-null, while generated JSON contracts mark every member nullable in a header only. A single access rule cannot satisfy both by declaration alone. | Source access follows the declared type. Generated JSON contracts now render `Field[T | None]` for the `DEFAULTED` tier; the reference project was regenerated. |
+| 22 | The author-facing `compile` function and the `kg_build_system.compile` package collide in Python's import machinery. | The package is callable (`__call__` delegates to `api.compile`) so both `from kg_build_system import compile` and `from kg_build_system.compile.models import ...` work. |
+| 23 | `from kg_build_system import compile` may resolve to the package when the submodule was imported first. | `api._calling_namespace_path` skips frames inside the framework package, so the callable package still finds the author's file. |
+| 24 | `PropertySlot` must be a runtime declaration object for class creation but an authoring-input union for typing. | It is a type alias `ValueInput[T] | NullableAuthoringInput[T]`; `property()` casts its declaration object to that alias. |
+| 25 | `RowEffects.drop_null()` is meaningful only on nullable selections, but the effective API calls it on declared non-null fields. | Base `RowEffects` has no-op `drop_null()`/`expand()` spellings; concrete handles override them. |
+| 26 | A custom operation needs an engine lowerer at compile time, but the engine is not a serialized contract fact. | `api.compile(..., engine=...)` passes the engine bundle through `CompilationContext`; the compiled SQL is the artifact. |
+| 27 | `create_build`/`compile_build` prove the kernel, but build execution still routes through the workflow runtime, not the kernel. | The kernel owns protocols and IR; workflow owns contract assembly and execution. This is the minimal split, not a second pipeline. |
+| 28 | The target package and `modules.targets._relations` duplicate relation/storage adapters. | Kept local to targets; it is a compatibility boundary, not a shared model. |
+| 29 | `code_generation` intentionally duplicates the DuckDB digest/metadata reads instead of importing `engines`. | Edit-time generation is a separate lane; the duplication keeps the generation path independent of the runtime engine. |
+| 30 | Strict pyright over the generated/handwritten reference project reports unknown lambda types in `extract` calls. | The public typecheck fixture is strict; the reference project is an example tested by compile/build, not the typing gate. |

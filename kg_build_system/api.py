@@ -12,15 +12,18 @@ from .binding import Binding
 
 
 def _calling_namespace_path() -> Path:
+    package_root = Path(__file__).resolve().parent
     frame = inspect.currentframe()
     try:
-        caller = frame.f_back.f_back if frame is not None and frame.f_back is not None else None
-        if caller is None:
-            raise RuntimeError("cannot determine the calling file")
-        filename = caller.f_code.co_filename
-        if filename.startswith("<"):
-            raise RuntimeError("the calling code does not have a filesystem namespace")
-        return Path(filename).resolve().parent
+        frame = frame.f_back if frame is not None else None
+        while frame is not None:
+            filename = frame.f_code.co_filename
+            if not filename.startswith("<"):
+                path = Path(filename).resolve()
+                if not path.is_relative_to(package_root):
+                    return path.parent
+            frame = frame.f_back
+        raise RuntimeError("cannot determine the calling file")
     finally:
         del frame
 

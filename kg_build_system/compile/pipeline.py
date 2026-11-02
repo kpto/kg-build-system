@@ -133,10 +133,15 @@ def _load_module(reference: BlueprintModule) -> type[CompilableModule]:
 
 
 async def _compile_modules(
-    blueprint: BuildBlueprint, build: BuildIR, engine: Any,
+    blueprint: BuildBlueprint | None, build: BuildIR, engine: Any,
+    modules: Sequence[Any] = (),
 ) -> tuple[Any, ...]:
     contributions = []
-    for reference in blueprint.modules:
+    references = (
+        blueprint.modules if blueprint is not None
+        else _modules_from_registrations(modules)
+    )
+    for reference in references:
         cls = _load_module(reference)
         configuration = cls.CONFIGURATION_TYPE(**(reference.configuration or {}))
         context = CompilationContext(
@@ -156,6 +161,24 @@ async def _compile_modules(
             module=replace(contribution.module, reference=definition),
         ))
     return tuple(contributions)
+
+
+def create_build(
+    *, languages: Sequence[Any], namespace: Any,
+) -> BuildIR:
+    """Lower a custom language registry into a build, without a blueprint."""
+    return Registry(languages).build(namespace)
+
+
+def compile_build(
+    *, build: BuildIR, modules: Sequence[Any] = (), engine: Any = None,
+) -> Any:
+    """Compile a custom build with modules that read its language parts."""
+    from ..workflow.interfaces import assemble_workflow, create_workflow_contract
+
+    contributions = asyncio.run(_compile_modules(None, build, engine, modules))
+    workflow = assemble_workflow(contributions)
+    return create_workflow_contract(workflow, provenance=None)
 
 
 def compile_workflow(
@@ -200,6 +223,6 @@ def _fingerprint(blueprint: BuildBlueprint) -> str:
 
 
 __all__ = [
-    "compile_workflow", "configure_blueprint_modules", "create_blueprint",
-    "default_languages",
+    "compile_build", "compile_workflow", "configure_blueprint_modules",
+    "create_blueprint", "create_build", "default_languages",
 ]
