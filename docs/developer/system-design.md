@@ -239,7 +239,8 @@ Every leaf uses the same four-part layout.
 | `service/` | transcription, rendering, planning and other transformations |
 | `adapters/` | implementations of a foreign protocol |
 
-A public function or method is a thin wrapper over `_private` or `internal`, with
+Neither `public` nor `internal` defines a single-underscore helper; dunder protocol
+methods remain. A public function or method is a thin wrapper over `_private` or `internal`, with
 a user-facing docstring and a runnable `Example:`. The mechanism is not in
 `public`. Internal and private functions carry developer docstrings and need no
 example.
