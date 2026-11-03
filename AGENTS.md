@@ -244,6 +244,9 @@ rule about what the framework is belongs to the framework model.
   blueprint to a workflow contract; the engine **emits** SQL from a plan; source
   generation **renders** a DTO to authoring source. Do not use `lower` for any
   of them.
+- A language transcribes declarations to its DTO and renders its DTO back to
+  authoring source. `transcribe` and `render` are the two directions of the same
+  language.
 - A language does not encode or decode. Serialisation belongs to the DTO codec,
   which names its artifact: `to_document` / `from_document`. The blueprint codec
   composes the layer codecs.
