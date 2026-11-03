@@ -196,24 +196,28 @@ rule about what the framework is belongs to the framework model.
 
 - Each subpackage declares its responsibility, its interface and the subpackages
   it may import.
-- Every framework subpackage uses the same four-part layout:
-  - `__init__.py` — the public facade; it imports only from `.public`;
-  - `public/` — the public domain: names a graph author writes or reads;
-  - `internal/` — the framework-internal interface: `dto/`, `model/`,
-    `service/` and `adapters/`;
-  - `_private/` — mechanisms imported only inside the package.
-- `public` is the definition site for author-facing names. A public function or
-  method is a thin wrapper over `_private` or `internal`; the mechanism is not in
-  `public`.
-- Another subpackage imports `pkg`, `pkg.internal`, `pkg.internal.dto` or
-  `pkg.internal.model`. It never imports `pkg._private`. Importing `pkg.public`
-  directly is limited to frozen type vocabulary; a behaviour belongs in
-  `internal`.
+- Every framework subpackage uses the same model/service layout:
+  - `__init__.py` — the facade; it imports only `model.public` and
+    `service.public`;
+  - `model/public/` — authoring models, returned values and public DTOs;
+  - `model/internal/` — cross-package data: `dto/` and `model/`;
+  - `model/_private/` — private plans, render models and SQL types;
+  - `service/public/` — author-facing methods; thin wrappers;
+  - `service/internal/` — service interfaces, codec/assembly wrappers and
+    `adapters/`;
+  - `service/_private/` — codecs, transcription, rendering, validation,
+    assembly, planning, engines and runtime.
+- `model.public` and `service.public` are the definition sites for author-facing
+  names. A public function or method is a thin wrapper over `service._private` or
+  `service.internal`; the mechanism is not in `service.public`.
+- Another subpackage imports `pkg.model.public`, `pkg.model.internal`,
+  `pkg.service.public` or `pkg.service.internal`. It never imports `_private`.
 - A subpackage may have no author-facing surface when nothing in it is written by
-  a graph author; its `public/` states that, it does not pretend to be a facade.
+  a graph author; `model/public/` or `service/public/` states that, it does not
+  pretend to be a facade.
 - Implementing another package's protocol is a separate file under
-  `internal/adapters/<protocol>.py`. The file names the protocol and delegates to
-  `_private`; it is not buried in a model or factory.
+  `service/internal/adapters/<protocol>.py`. The file names the protocol and
+  delegates to `service._private`; it is not buried in a model or factory.
 - DTO and model values are anaemic: frozen data with no owner, no service and no
   behaviour beyond its own invariants. Derived rules are functions beside them.
 - A protocol is the internal interface of a dependency direction: a module
@@ -266,25 +270,27 @@ rule about what the framework is belongs to the framework model.
   instruction kind; a Python instruction is a stable reference, not a live
   callable.
 - A leading underscore means module-private or package-private. A private helper
-  inside one `internal` module is allowed; a private name exported from
-  `public/__init__.py` or `internal/__init__.py`, or imported across packages, is
-  not. Shared mechanisms belong in `_private`.
+  inside one service module is allowed; a private name exported from
+  `model/public/`, `model/internal/`, `service/public/` or `service/internal/`,
+  or imported across packages, is not. Shared mechanisms belong in `_private`.
 - A private helper stays beside its caller. Move it to `_private` only when it is
   shared by several modules or is independently replaceable; otherwise the move
   splits one decision and adds an import edge.
-- `public` and `internal` contain no mechanism: data, protocols, adapters and
-  thin delegations only. Codecs, transcription, rendering, validation, assembly
-  and planning live in `_private`.
-- Consequently, a well-executed `public` or `internal` defines no single-underscore
-  helper. Dunder protocol methods are not private helpers and remain.
+- `model.public`, `model.internal`, `service.public` and `service.internal`
+  contain no mechanism: data, protocols, adapters and thin delegations only.
+  Codecs, transcription, rendering, validation, assembly and planning live in
+  `_private`.
+- Consequently, these four zones define no single-underscore helper. Dunder
+  protocol methods are not private helpers and remain.
 - A codec is private to its layer. Another package calls the layer's codec
   interface; it never imports the codec implementation.
-- Data is the lowest layer inside a package. `_private` may import
-  `internal.dto`, `internal.model` and public model data. It may not import public
-  service behaviour. Public model imports no service and no `_private`.
-  `internal.service` delegates to `_private` with a function-local import.
-  `internal/__init__.py` does not eagerly import a service that imports
-  `_private`.
+- Data is the lowest layer inside a package. `model._private` may import
+  `model.public` and `model.internal`; `service._private` may also import
+  `model.public` and `model.internal`. `_private` may use public model data but
+  not public service behaviour. `model.public` and `model.internal` import no
+  service and no `_private`. `service.internal` delegates to `service._private`
+  with a function-local import. `service/internal/__init__.py` does not eagerly
+  import a service that imports `_private`.
 - A language does not encode or decode. Serialisation belongs to the DTO codec,
   which names its artifact: `to_document` / `from_document`. The blueprint codec
   composes the layer codecs.
