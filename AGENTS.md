@@ -135,6 +135,10 @@ rule about what the framework is belongs to the framework model.
 - A DTO is a member of the blueprint or the workflow contract. A value outside
   those two artifacts is in-memory: a lowered model, a plan, a render input or
   a build result. It is not a DTO and is not expected to deserialise.
+- A layer DTO does not know the blueprint. It knows only the DTOs of the layers
+  it depends on. The blueprint package assembles the layer DTOs into one
+  semantic model; `compile` reads that blueprint and produces the workflow
+  contract.
 - The blueprint must regenerate equivalent authoring source. The round trip
   `blueprint -> generated source -> blueprint` is a contract test, not a
   convenience.
@@ -227,11 +231,6 @@ rule about what the framework is belongs to the framework model.
   `BindingDTO`.
 - A model that is not serialised is not a DTO: name it a lowered `model` or an
   engine-neutral `plan`. A DTO whose artifact cannot be named is not a DTO.
-- A layer's semantics DTO is named for its semantic artifact, not the layer:
-  `graph_dto.py`, `relation_dto.py`, `binding_dto.py`, `expression_dto.py`,
-  `type_dto.py`, `annotation_dto.py`.
-- A layer DTO imports only the layer DTOs it depends on. No layer imports
-  `compile`; only `compile` assembles the blueprint.
 
 ### Models are anaemic and amnesic
 
