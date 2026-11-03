@@ -284,6 +284,9 @@ rule about what the framework is belongs to the framework model.
   protocol methods are not private helpers and remain.
 - A codec is private to its layer. Another package calls the layer's codec
   interface; it never imports the codec implementation.
+- A shared artifact package owns its model and, at most, its document codec. It
+  does not own the algorithm that assembles it; the producing system owns
+  assembly. A contract package is not a compiler.
 - Data is the lowest layer inside a package. `model._private` may import
   `model.public` and `model.internal`; `service._private` may also import
   `model.public` and `model.internal`. `_private` may use public model data but
