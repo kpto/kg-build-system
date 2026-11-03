@@ -210,11 +210,13 @@ rule about what the framework is belongs to the framework model.
 
 - `IR` is not a synonym for internal data. Do not use it as a module or class
   suffix.
-- Name the artifact by what it is: a lowered `model`, an engine-neutral `plan`,
-  a published `contract`, the graph `blueprint`, or execution `instructions`.
-- An `IR`, if the word is used in prose, is a lowered model of one layer that
-  round-trips through its codec. If it has no codec, it is a model or a plan,
-  not an IR.
+- A serialisable model is a DTO, and its module names the artifact it belongs
+  to: `blueprint_dto.py`, `contract_dto.py`, `instruction_dto.py`,
+  `render_dto.py`.
+- A type in a DTO module carries the `DTO` suffix: `ComponentDTO`,
+  `BindingDTO`.
+- A model that is not serialised is not a DTO: name it a lowered `model` or an
+  engine-neutral `plan`. A DTO whose artifact cannot be named is not a DTO.
 
 ### Models are anaemic and amnesic
 
