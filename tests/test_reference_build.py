@@ -4,14 +4,27 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from reference_project.build import compile_reference_build
+from kg_build_system.declaration.blueprint import GraphBlueprint
+from kg_build_system.pipeline.build import build
+from kg_build_system.pipeline.contract import WorkflowContractDTO
+from reference_project.build import (
+    compile_reference_build,
+    create_reference_blueprint,
+)
 
 
 class ReferenceBuildTests(unittest.TestCase):
-    def test_the_reference_project_compiles_and_builds(self) -> None:
-        from kg_build_system import build
+    def test_the_reference_blueprint_is_a_graph_blueprint(self) -> None:
+        blueprint = create_reference_blueprint()
 
+        self.assertIsInstance(blueprint, GraphBlueprint)
+        self.assertTrue(blueprint.graph.nodes)
+        self.assertTrue(blueprint.bindings)
+        self.assertTrue(blueprint.sources)
+
+    def test_the_reference_project_compiles_and_builds(self) -> None:
         contract = compile_reference_build()
+        self.assertIsInstance(contract, WorkflowContractDTO)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             report = build(contract, output_directory=root)

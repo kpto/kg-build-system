@@ -6,8 +6,8 @@ family writes its own partition; the generated catalog follows the directory
 layout under ``data/readings``.
 """
 
-from kg_build_system.code_generation import generation
-from kg_build_system.code_generation.builtins import (
+from kg_build_system.generation.code_generation import generation
+from kg_build_system.generation.code_generation.builtins import (
     DataContractInferenceConfig,
     InferDataContractProvider,
 )

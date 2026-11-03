@@ -55,8 +55,8 @@ It raises `TypeError` when the configuration is not an instance of
 `GenerationError`s raised by discovery, not by this call.
 
 ```python
-from kg_build_system.code_generation import generation
-from kg_build_system.code_generation.builtins import (
+from kg_build_system.generation.code_generation import generation
+from kg_build_system.generation.code_generation.builtins import (
     DataContractInferenceConfig,
     InferDataContractProvider,
 )
@@ -176,7 +176,7 @@ before installing anything.
 from pathlib import Path
 from typing import ClassVar
 
-from kg_build_system.code_generation.interfaces import (
+from kg_build_system.generation.code_generation.internal import (
     GeneratedClass, GeneratedField, GeneratedFile, GeneratedPackage,
     GeneratedScalarType, Provider, ProviderContext, ProviderGenerationConfig,
     resolve_provider_path,
@@ -302,7 +302,7 @@ watches project files.
 ```python
 import asyncio
 
-from kg_build_system.code_generation import GenerationStatus, generate
+from kg_build_system.generation.code_generation import GenerationStatus, generate
 
 result = asyncio.run(generate(".", check=True))
 if result.status is GenerationStatus.STALE:
@@ -433,8 +433,8 @@ is carried in `DataContractInferenceConfig`, not in a generated file and not as
 a runtime option in the compiled contract.
 
 ```python
-from kg_build_system.code_generation import generation
-from kg_build_system.code_generation.builtins import (
+from kg_build_system.generation.code_generation import generation
+from kg_build_system.generation.code_generation.builtins import (
     DataContractInferenceConfig,
     InferDataContractProvider,
 )

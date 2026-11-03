@@ -5,7 +5,7 @@
 Modules do whole-graph work. They do not describe graph meaning and do not own a binding. The core module always reads sources and assembles records; registered modules consume or publish what it produced. See [Modules](../concepts/modules.md).
 
 ```python
-from kg_build_system.modules import (
+from kg_build_system.distribution import (
     CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration,
     MetaGraphModule, MetaGraphModuleConfiguration, register_module,
 )
@@ -32,7 +32,7 @@ register_module(
 | `configuration` | An instance of that configuration type; omitted, the class is called with no arguments |
 
 ```python
-from kg_build_system.modules import (
+from kg_build_system.distribution import (
     FileModule, FileModuleConfiguration, register_module,
 )
 
@@ -71,14 +71,14 @@ A frozen dataclass base for serialisable, non-secret module configuration:
 ```python
 from dataclasses import dataclass
 
-from kg_build_system.modules import ModuleRegistrationConfiguration
+from kg_build_system.distribution import ModuleRegistrationConfiguration
 
 @dataclass(frozen=True)
 class ExportConfiguration(ModuleRegistrationConfiguration):
     relative_path: str = "graph.jsonl"
 ```
 
-`to_json()` returns the JSON-compatible form carried in module provenance. Configuration is compile-time: changing it changes the contract and its fingerprint. Do not put credentials in it.
+`to_json()` returns the JSON-compatible form carried in module provenance. Configuration is compile-time: changing it changes the contract. Do not put credentials in it.
 
 ### `Module`
 
@@ -89,10 +89,16 @@ The module protocol names the identity and the two factories:
 | `ID` | Stable module identifier; unique in a composition |
 | `VERSION` | Implementation version recorded in the contract |
 | `CONFIGURATION_TYPE` | The class `register_module` validates against |
-| `create_compiler(...)` | Builds the compile-time contribution |
-| `create_executor(...)` | Builds the runtime executor |
+| `compiler(configuration)` | Classmethod factory for the compile-time compiler |
+| `executor(context)` | Classmethod factory for the runtime executor |
 
-Custom module authoring is framework-internal in this release. `Module` is importable and `register_module` composes a supplied module, but `create_compiler` and `create_executor` and their context and return types are not part of the public authoring surface. Write modules inside the framework, not in a graph project; a project composes the supplied modules.
+Custom module authoring is framework-internal in this release. `Module` is
+importable and `register_module` composes a supplied module. A supplied module
+implements `compiler(configuration)` and `executor(context)`; the compiler
+receives the validated configuration, and the executor receives an
+`ExecutorFactoryContext`. Those factories and their return types are not part of
+the public authoring surface. Write modules inside the framework, not in a graph
+project; a project composes the supplied modules.
 
 ## Supplied modules
 
@@ -121,7 +127,7 @@ Folds rows with the same build key into one row, keeping the minimum value for e
 
 ```python
 from kg_build_system import Node
-from kg_build_system.modules import (
+from kg_build_system.distribution import (
     MergeCompatibleFactsModule, MergeCompatibleFactsModuleConfiguration,
     register_module,
 )
@@ -253,7 +259,7 @@ The registration tuple is the composition order. The core module is appended aft
 | Output modules last | They consume the final rewriting result |
 
 ```python
-from kg_build_system.modules import (
+from kg_build_system.distribution import (
     CollapseExactDuplicatesModule, FileModule, FileModuleConfiguration,
     RejectConflictingNonNullValuesModule, register_module,
 )
@@ -304,7 +310,7 @@ runtime = BuildRuntime(
 | A value has the wrong type | `TypeError: invalid runtime configuration for <id>: ...` |
 | The module implementation version differs from the compiled one | `RuntimeError: module '<id>' implementation version ... does not match compiled version ...` |
 
-Runtime configuration is validated before any step runs. It is not part of the contract or its fingerprint.
+Runtime configuration is validated before any step runs. It is not part of the contract.
 
 ## What to remember
 

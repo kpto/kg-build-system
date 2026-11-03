@@ -2,11 +2,19 @@ from __future__ import annotations
 
 import unittest
 
-from kg_build_system import Field, Struct, Table, field, projection_field, Projection
-from kg_build_system.expressions import (
-    ArraySelection, NullableSelection, StructSelection, ValueSelection,
+from kg_build_system.declaration.foundations.expressions import (
+    NullableSelection,
+    ValueSelection,
 )
-from kg_build_system.types import Array
+from kg_build_system.declaration.languages.table import (
+    Field,
+    Projection,
+    Struct,
+    Table,
+    field,
+    projection_field,
+)
+from kg_build_system.kernel import Array
 
 
 class Detail(Struct):
@@ -38,7 +46,10 @@ class OldAuthoringTests(unittest.TestCase):
             .where_present()
         )
         self.assertIsInstance(selected, ValueSelection)
-        self.assertEqual(selected.expression.model.operator, "where_present")
+        self.assertEqual(
+            getattr(selected.expression.model, "operator", None),
+            "where_present",
+        )
 
     def test_an_unpinned_projection_uses_projection_field(self) -> None:
         self.assertEqual(OldProjection.ident.logical_type, Source.id.logical_type)

@@ -3,12 +3,29 @@ from __future__ import annotations
 
 from typing import assert_type
 
-from kg_build_system import (
-    Field, Node, NodeBinding, NodeOptions, NodeValues, PropertySlot, Table, TableOptions,
-    field, node_binding, property, value_expression,
+from kg_build_system.declaration.foundations.expressions import (
+    IntExpression,
+    NullableSelection,
+    StrExpression,
+    ValueSelection,
+    value_expression,
 )
-from kg_build_system.expressions import (
-    IntExpression, NullableSelection, StrExpression, ValueSelection,
+from kg_build_system.declaration.languages.binding import (
+    NodeBinding,
+    NodeValues,
+    node_binding,
+)
+from kg_build_system.declaration.languages.table import (
+    Field,
+    Table,
+    TableOptions,
+    field,
+)
+from kg_build_system.declaration.languages.topology import (
+    Node,
+    NodeOptions,
+    PropertySlot,
+    property,
 )
 
 

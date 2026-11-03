@@ -50,9 +50,9 @@ A type error names the declaration and both sides of the mismatch, so you can se
 
 ### Reproducible builds
 
-`compile()` turns the declarations and module composition into an immutable contract with a workflow fingerprint. `build()` executes that contract and returns a report. The contract and report are written in the output directory beside the graph.
+`compile()` turns the declarations and module composition into an immutable contract. `build()` executes that contract and returns a report. The contract and report are written in the output directory beside the graph.
 
-The fingerprint identifies the plan, not the input bytes. The same declarations and module configuration produce the same plan, and a source file can change without changing the plan. Use the fingerprint to say what was built and your own data versioning to say what it was built from.
+The contract describes the plan, not the input bytes. The same declarations and module configuration produce the same plan, and a source file can change without changing the plan. Use your own data versioning to say what the build read.
 
 The contract is durable data, not a compatibility promise. It can be stored and built again while the same module implementations and versions are available. The framework has no schema compatibility or migration path, so a changed module or framework means compiling again.
 

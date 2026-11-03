@@ -1,9 +1,9 @@
 """Validate, order and compose languages into a frozen build.
 
-A registry is the only entry point for lowering a declaration namespace. It
-rejects duplicate names, unknown dependencies and dependency cycles, then lowers
-one part per language in dependency order and freezes the result as a
-``BuildIR``.
+A registry is the only entry point for transcribing a declaration namespace. It
+rejects duplicate names, unknown dependencies and dependency cycles, then
+transcribes one part per language in dependency order and freezes the result as
+a ``Build``.
 """
 from __future__ import annotations
 
@@ -13,13 +13,13 @@ from typing import Any
 
 from .._private.ordering import order_languages
 from .._private.pipeline import compose
-from .build import BuildIR
+from .build import Build
 from .language import Language, Namespace
 
 
 @dataclass(frozen=True, slots=True)
 class Registry:
-    """An ordered set of languages that lowers a namespace into a build.
+    """An ordered set of languages that transcribes a namespace into a build.
 
     Language names must be unique and every name in ``requires`` must be
     present. The stored languages are replaced by a dependency order; the input
@@ -36,17 +36,14 @@ class Registry:
         def collect(self, namespace):
             return namespace.values()
 
-        def lower(self, declarations, context):
+        def transcribe(self, declarations, context):
             return tuple(declarations)
 
-        def validate(self, ir):
+        def validate(self, dto):
             pass
 
-        def encode(self, ir):
-            return list(ir)
-
-        def decode(self, value):
-            return tuple(value)
+        def render(self, dto, context):
+            return SourceFragment("inline", repr(dto))
 
     class Namespace:
         def values(self):
@@ -66,8 +63,8 @@ class Registry:
         self,
         namespace: Namespace,
         declarations: Mapping[str, Sequence[object]] | None = None,
-    ) -> BuildIR:
-        """Lower ``namespace`` into one frozen part per language.
+    ) -> Build:
+        """Transcribe ``namespace`` into one frozen part per language.
 
         ``declarations`` overrides collection for the named languages; other
         languages still call ``collect(namespace)``. Each part is validated
@@ -84,17 +81,14 @@ class Registry:
             def collect(self, namespace):
                 return namespace.values()
 
-            def lower(self, declarations, context):
+            def transcribe(self, declarations, context):
                 return tuple(declarations)
 
-            def validate(self, ir):
+            def validate(self, dto):
                 pass
 
-            def encode(self, ir):
-                return list(ir)
-
-            def decode(self, value):
-                return tuple(value)
+            def render(self, dto, context):
+                return SourceFragment("inline", repr(dto))
 
         class Namespace:
             def values(self):

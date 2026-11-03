@@ -20,7 +20,7 @@ You compose modules as a tuple and pass it to `compile`:
 
 ```python
 from kg_build_system import compile
-from kg_build_system.modules import (
+from kg_build_system.distribution import (
     CollapseExactDuplicatesModule,
     FileModule,
     FileModuleConfiguration,
@@ -37,7 +37,7 @@ modules = (
 contract = compile(modules=modules)
 ```
 
-This survey build removes exact duplicate records, writes JSON Lines, and describes the effective topology. The tuple is the whole composition. The same tuple can create a blueprint, and `build` later receives the compiled contract rather than the tuple. The bindings and sources are discovered from the calling file, so the example shows only the module tuple.
+This survey build removes exact duplicate records, writes JSON Lines, and describes the effective topology. The tuple is the whole module composition. `compile` creates the blueprint internally and returns the contract; `build` later receives the compiled contract rather than the tuple. The bindings and sources are discovered from the calling file, so the example shows only the module tuple.
 
 `register_module` chooses a module class and, when needed, its frozen configuration. A module with defaults can be registered without one. `FileModule` has no default path, so it requires a path.
 
@@ -62,7 +62,7 @@ This module groups records by build key and keeps the minimum value for every pr
 By default it applies to every bound component. Restrict it to the components whose parallel rows are compatible. In the survey example that is `SiteNode`:
 
 ```python
-from kg_build_system.modules import (
+from kg_build_system.distribution import (
     MergeCompatibleFactsModule,
     MergeCompatibleFactsModuleConfiguration,
     register_module,
@@ -138,7 +138,7 @@ Two *bindings* to one component are different: core unions them. They are not tw
 
 ## Configuration and runtime
 
-Module configuration is compile-time. It is carried in the contract, so changing it changes what is compiled and fingerprinted. Credentials are not module configuration.
+Module configuration is compile-time. It is carried in the contract, so changing it changes what is compiled. Credentials are not module configuration.
 
 A module may also declare runtime fields that a later build can replace without recompiling. The supplied modules expose the output path of `FileModule` and the output directory of `Neo4jModule` this way. Runtime values are supplied through `BuildRuntime.module_configuration`. An unknown field, a missing required field, or a value of the wrong type stops the build before any step runs.
 
@@ -148,7 +148,11 @@ A module works on the whole graph, not on one row. At compile time it may inspec
 
 A module may not make binding-level choices. Reading a nested value, choosing a key, or turning an array into rows belongs to [expressions](expressions.md) and [projections](projections.md); choosing which rows become which records belongs to [bindings](bindings.md). A module also does not carry credentials or receive the raw database connection.
 
-Module authoring is framework work in this release. The `Module` protocol is importable and `register_module` composes a supplied module, but a project's job is composition: use the supplied modules and keep the tuple small.
+Module authoring is framework work in this release. A supplied module class
+declares `ID`, `VERSION` and `CONFIGURATION_TYPE` and provides classmethod
+factories `compiler(configuration)` and `executor(context)`. The `Module`
+protocol is importable and `register_module` composes a supplied module, but a
+project's job is composition: use the supplied modules and keep the tuple small.
 
 ## Limits
 

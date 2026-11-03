@@ -15,7 +15,7 @@
     "mechanical/vibration.py",
     "temperature.py"
   ],
-  "provider_import": "kg_build_system.code_generation.builtins.provider",
+  "provider_import": "kg_build_system.generation.code_generation.builtins.provider",
   "provider_qualname": "InferDataContractProvider",
   "provider_version": "7",
   "request_fingerprint": "66ab7034cd38fc3549ca53e89dd0450d88d59004635a36f081a6ca1e96dd194a",

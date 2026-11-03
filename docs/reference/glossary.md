@@ -259,8 +259,8 @@ field access ──selection──> projection ──binding──> contract ─
 
 **Blueprint**
 : The immutable, validated declaration snapshot produced by
-  `create_blueprint`. It contains only the tables, projections, components,
-  bindings and sources that a reached binding needs. See [Compile, build and
+  `create_blueprint`. It contains the graph topology, data declarations, bindings
+  and sources that a reached binding needs. See [Compile, build and
   outputs](../concepts/build-and-outputs.md).
 
 **Build**
@@ -275,11 +275,11 @@ field access ──selection──> projection ──binding──> contract ─
   outputs](../concepts/build-and-outputs.md).
 
 **Contract**
-: The immutable, self-contained result of `compile()`: the description of one
-  build, including the workflow fingerprint. The same contract can be stored,
-  inspected and built repeatedly while the module implementations and their
-  `VERSION` values match; there is no schema migration path. See [Compile, build
-  and outputs](../concepts/build-and-outputs.md).
+: The immutable, self-contained result of `compile()` or
+  `compile_blueprint()`: the description of one build. The same contract can be
+  stored, inspected and built repeatedly while the module implementations and
+  their `VERSION` values match; there is no schema migration path. See [Compile,
+  build and outputs](../concepts/build-and-outputs.md).
 
 **Module**
 : A composable build stage registered with `register_module(...)`. Supplied

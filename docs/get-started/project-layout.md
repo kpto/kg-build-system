@@ -132,7 +132,7 @@ Bind at module level so discovery can find the source. A table may be bound once
 from pathlib import Path
 
 from kg_build_system import build, compile
-from kg_build_system.modules import FileModule, FileModuleConfiguration, register_module
+from kg_build_system.distribution import FileModule, FileModuleConfiguration, register_module
 
 
 def main() -> None:
@@ -158,7 +158,7 @@ Build artifacts are inspectable development material: the graph records, the bui
 
 | Artifact | Written by | Contents |
 | --- | --- | --- |
-| `workflow_contract.json` | `build()` | The frozen contract and its workflow fingerprint |
+| `workflow_contract.json` | `build()` | The frozen contract that was executed |
 | `build_report.json` | `build()` | Published artifacts, failures, and provenance |
 | `graph.jsonl` | `FileModule` | One JSON object per graph record |
 

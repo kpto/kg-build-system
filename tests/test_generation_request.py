@@ -2,9 +2,10 @@ from __future__ import annotations
 
 import unittest
 
-from kg_build_system.code_generation import generation
-from kg_build_system.code_generation.builtins import (
-    DataContractInferenceConfig, InferDataContractProvider,
+from kg_build_system.generation.code_generation import generation
+from kg_build_system.generation.code_generation.builtins import (
+    DataContractInferenceConfig,
+    InferDataContractProvider,
 )
 
 

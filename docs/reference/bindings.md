@@ -349,7 +349,7 @@ A binding becomes one frozen blueprint entry containing:
 
 The entry's identity is derived from the target, kind, `debug_name`, keys, property expressions, endpoint components and row-source plan. Annotations are carried but do not distinguish otherwise identical bindings.
 
-Binding annotations are part of the blueprint and its fingerprint. They do not change the executable workflow fingerprint. A record written by `FileModule` carries `_kg_binding_symbol`, the binding's identity, until a merging stage removes it.
+Binding annotations are part of the blueprint. They do not change the compiled workflow. A record written by `FileModule` carries `_kg_binding_symbol`, the binding's identity, until a merging stage removes it.
 
 Bindings are discovered only as module-level values. A binding created inside a function or stored only in a container is not discovered; re-exported values are deduplicated by object identity. See [Compile](compile.md).
 

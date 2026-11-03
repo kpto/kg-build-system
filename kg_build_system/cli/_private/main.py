@@ -9,7 +9,7 @@ import sys
 from collections.abc import Coroutine
 from typing import Any, Sequence, cast
 
-from ...code_generation.internal import add_generate_command
+from ...generation.code_generation.internal import add_generate_command
 
 
 def _configure_logging() -> None:

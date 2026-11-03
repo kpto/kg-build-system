@@ -21,15 +21,15 @@ A normal investigation starts with these calls:
 from pathlib import Path
 
 from kg_build_system import build, compile, create_blueprint
-from kg_build_system.modules import (
+from kg_build_system.distribution import (
     FileModule, FileModuleConfiguration, register_module,
 )
 
 modules = (
     register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
 )
-blueprint = create_blueprint(modules=modules)
-contract = compile(modules=modules)
+blueprint = create_blueprint()
+contract = compile(blueprint=blueprint, modules=modules)
 report = build(contract, output_directory=Path("build"), monitor=False)
 ```
 
@@ -230,19 +230,19 @@ really are one fact.
 | `build/workflow_contract.json` | the modules, steps and configuration that ran |
 | `build/graph.jsonl` | node and edge records, build keys and endpoint keys |
 | `build/meta_graph.json` | effective topology, exact record counts and example values |
-| `contract.workflow_fingerprint` | identity of the executable plan |
-| `contract.provenance["compile"]["blueprint_fingerprint"]` | identity of the declarations |
-| `blueprint.components` and `blueprint.bindings` | what the build will target and read |
+| `contract.contributions` and `contract.connections` | the compiled steps and their wiring |
+| `blueprint.graph.nodes`, `blueprint.graph.edges` and `blueprint.bindings` | what the build will target and read |
 
 Inspect the blueprint when a component or binding is missing:
 
 ```python
-print([(component.name, component.abstract) for component in blueprint.components])
-print([(binding.component, binding.debug_name) for binding in blueprint.bindings])
+print([(node.name, node.abstract) for node in blueprint.graph.nodes])
+print([(node.name, node.abstract) for node in blueprint.graph.edges])
+print([(binding.component, getattr(binding, "debug_name", None)) for binding in blueprint.bindings])
 
 for binding in blueprint.bindings:
     if binding.component == "reading":
-        print(binding.row_source, binding.build_key)
+        print(binding.identity, binding.rows)
 ```
 
 The blueprint can be passed back to `compile(blueprint=..., modules=...)`;
@@ -253,8 +253,8 @@ supply the modules again because they define the work.
 After a fix, run the three calls again:
 
 ```python
-blueprint = create_blueprint(modules=modules)
-contract = compile(modules=modules)
+blueprint = create_blueprint()
+contract = compile(blueprint=blueprint, modules=modules)
 report = build(contract, output_directory=Path("build"), monitor=False)
 ```
 

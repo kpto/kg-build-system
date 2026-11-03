@@ -1,0 +1,63 @@
+"""Selection construction, struct navigation and authoring normalization."""
+from __future__ import annotations
+
+from typing import TYPE_CHECKING, Any
+
+from ..._private.selections import as_expression as _as_expression
+from ..._private.selections import select_expression as _select_expression
+from ..._private.selections import select_member as _select_member
+
+if TYPE_CHECKING:
+    from ......kernel.internal.types import LogicalType, StructType
+    from ..model.selections.value import ValueInput, ValueSelection
+    from ..model.values import ValueExpression
+
+
+def select_expression[T](expression: ValueExpression[T]) -> ValueSelection[T]:
+    """Wrap a bindable expression in the selection matching its logical shape.
+
+    Example:
+        ```python
+        from kg_build_system import ValueSelection, value_expression
+        from kg_build_system.declaration.foundations.expressions.public import select_expression
+
+        assert isinstance(select_expression(value_expression(1)), ValueSelection)
+        ```
+    """
+    return _select_expression(expression)
+
+
+def select_member(
+    name: str, logical_type: LogicalType, declaration: StructType,
+) -> ValueSelection[Any]:
+    """Create the temporary selection returned by a field on a struct proxy.
+
+    Example:
+        ```python
+        from kg_build_system.declaration.foundations.expressions.public import select_member
+        from kg_build_system.types import STR
+        from kg_build_system.kernel.internal.types import StructType
+
+        declaration = StructType("models", "Site")
+        member = select_member("name", STR, declaration)
+        assert member.logical_type == STR
+        ```
+    """
+    return _select_member(name, logical_type, declaration)
+
+
+def as_expression[T](value: ValueInput[T]) -> ValueExpression[T]:
+    """Normalize a terminal authoring input to its bindable expression.
+
+    Example:
+        ```python
+        from kg_build_system import as_expression, value_expression
+
+        expression = value_expression("site::")
+        assert as_expression(expression) is expression
+        ```
+    """
+    return _as_expression(value)
+
+
+__all__ = ["as_expression", "select_expression", "select_member"]

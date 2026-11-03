@@ -1,73 +1,14 @@
 # Framework state
 
-This is the reviewer briefing for the clean reimplementation. The legacy tree is
-at `legacy/kg_build_system` (ignored, untracked) and its tests are archived at
-`/tmp/opencode/legacy-tests`.
+This is the reviewer briefing. The target tree is the implementation; the old
+top-level packages are deleted.
 
-## At a glance
+## Verification
 
-- The kernel is domain-agnostic: `Language`, `Module`, `BuildIR`, `Registry`,
-  contract values. Importing `kg_build_system.kernel` loads no language, workflow
-  or engine package.
-- `table`, `topology` and `binding` are languages. `core` is a module. `engines`
-  owns code generation. `workflow` owns contract assembly and execution.
-- Every subpackage has `public/`, `internal/` and `_private/`; `__init__.py` is a
-  facade over `public`.
-- Every public function or method is a thin wrapper over a private
-  implementation, with a user docstring and an `Example:` block.
-- Every operation has one spec file in `expressions/internal/operations/` and one
-  lowering file in `engines/_private/duckdb/operators/`.
-- A custom operation is one `OperationSpec` plus one engine lowerer. A custom
-  language and module compile and execute without the default distribution.
-- Verification: **27 tests**, pyright **0 errors**, Open Targets KG **6 tests**,
-  and the reference project compiles and builds with file, meta-graph and Neo4j
-  outputs.
-
-## Architecture
-
-```text
-kernel
-  language.py     Language, LanguageContext, Namespace
-  module.py       Module, ModuleCompiler, ModuleExecutor
-  build.py        BuildIR, Build
-  registry.py     Registry, language ordering
-  contract.py     steps, contributions, executions, outcomes
-
-types -> expressions -> relational -> engines
-                    \-> table / topology -> binding
-compile -> languages + modules + workflow
-workflow -> kernel.contract, engines.interfaces, _relations
-modules -> languages, compile, workflow, engines
-code_generation -> types, engines (observer only)
-```
-
-Each domain package exposes `__init__.py`, `public/`, `internal/` (with `ir.py`)
-and `_private/`. Protocol implementations live in `internal/adapters/`.
-`relational` and `engines` have an empty `public/`; `cli` is a leaf entry point.
-
-## Compatibility
-
-The effective Open Targets KG API works unchanged: old projection spelling,
-`where_present`/`pick`/`drop_null_items`/`expand`, `rows=TableClass`,
-`value_expression`, `BuildBlueprint` at `compile.models`, `workflow.models`
-module contract and the custom semantics module.
-
-The reference project used the newer spelling and was regenerated so source
-nullability is declared: `Field[T | None]` for defaulted sources, `Field[T]` for
-required/declared sources.
-
-## Design issues
-
-See `DESIGN_ISSUES.md`. The material ones:
-
-- `ExecutionContext.services` remains for module compatibility.
-- The contract still stores rendered SQL; a neutral plan is the cleaner model.
-- `compile` is both a public function and a package; the package is callable.
-- Source access follows the declaration, not a global nullable rule.
-- Strict pyright covers the framework and the public authoring fixture, not the
-  generated reference project.
-
-## Verification commands
+- **61 tests**, **306 subtests**.
+- Pyright: **0 errors**.
+- `uv run mkdocs build --strict`: passes.
+- Open Targets KG: **6 tests** pass.
 
 ```console
 uv run pytest -q
@@ -75,3 +16,70 @@ uv run pyright
 uv run mkdocs build --strict
 cd ~/Repos/opentargets-kg && uv run pytest -q
 ```
+
+## Current tree
+
+```text
+kg_build_system/
+  kernel/
+    public/types/
+    internal/types/
+    internal/json.py
+  declaration/
+    foundations/
+      annotations/
+      expressions/
+    languages/
+      table/
+      topology/
+      binding/
+    blueprint/
+  pipeline/
+    contract/
+    compilation/
+    build/
+  distribution/
+    modules/
+  generation/
+    code_generation/
+  types/                 # authoring alias for kernel.public.types
+  api.py
+  cli/
+```
+
+## Pipeline
+
+- `create_blueprint` lives in `declaration/blueprint` and returns
+  `GraphBlueprint`.
+- `compile_blueprint` lives in `pipeline/compilation` and returns
+  `WorkflowContractDTO`.
+- `compile` is the composition-root shortcut: it creates a blueprint and then
+  compiles it.
+- `build` lives in `pipeline/build` and dispatches on `step.instruction.kind`.
+- Supplied modules and `register_module` live in `distribution`.
+- Source generation is per layer; `blueprint_to_source` delegates to the table,
+  topology and binding renderers.
+- The contract owns contributions, connections and provenance. A step owns its
+  `InstructionDTO`.
+
+## Remaining temporary adapters and limits
+
+- Capability modules are deferred. `Capability` exists, but `Module` does not
+  declare `requires`/`provides` and composition does not enforce them.
+- DuckDB is the default emitter. `DuckDbSqlEmitter` is a library, not a
+  capability module.
+- A Python binding stores a reference: `PythonRefDTO(module, qualname,
+  signature)`, not the callable body.
+- Some target executors still read `variables["instructions"]`; the build target
+  adapter copies the step instruction payload into `variables`.
+- Public `GraphBlueprint` fields reference internal layer DTOs. The handle is
+  public; those layer DTOs are not exported public names.
+- `pipeline/build` and `distribution/modules` reference each other through
+  target adapters and core engine helpers.
+
+## Documentation
+
+- `docs/developer/` is the canonical developer guide.
+- `ARCHITECTURE.md` is the short implementation map.
+- `DESIGN_ISSUES.md` states the remaining design limits.
+- `specs/README.md` points at the developer docs and states the boundaries.

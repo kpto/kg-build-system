@@ -70,6 +70,11 @@ Read these in order for the complete story, or jump to the concept you need:
 - [Debug a build](how-to/debug.md) — read error messages and reports.
 - [Modelling patterns](how-to/patterns.md) — recurring graph shapes.
 
+## For framework developers
+
+- [Developer guide](developer/index.md) — internal model, target architecture,
+  data and expressions, and the contract tests that guard each interface.
+
 ## Reference
 
 - [Authoring API reference](reference/index.md) — the surface you write.

@@ -1,14 +1,30 @@
-"""Composition root for knowledge-graph builds."""
+"""Composition root for knowledge-graph builds.
+
+The canonical flow hides the blueprint handle:
+
+```python
+contract = compile(modules=modules)
+```
+
+An advanced caller can create and inspect the blueprint explicitly:
+
+```python
+blueprint = create_blueprint(namespace_path=ROOT)
+contract = compile_blueprint(blueprint, modules=modules)
+```
+"""
 from __future__ import annotations
 
 import inspect
 from collections.abc import Iterable, Sequence
 from pathlib import Path
-from typing import Any, overload
+from typing import Any
 
-from .compile import BuildBlueprint, compile_workflow, configure_blueprint_modules, create_blueprint as _create_blueprint
-from .table import BoundSource
-from .binding import Binding
+from .declaration.blueprint import GraphBlueprint, create_blueprint as _create_blueprint
+from .declaration.languages.binding import Binding
+from .declaration.languages.table import BoundSource
+from .pipeline.build import build
+from .pipeline.compilation import compile_blueprint
 
 
 def _calling_namespace_path() -> Path:
@@ -28,81 +44,89 @@ def _calling_namespace_path() -> Path:
         del frame
 
 
-def _composed_modules(modules: Sequence[Any]) -> tuple[Any, ...]:
-    from .modules import register_module
-    from .modules.internal.adapters.core_module import CoreModule
+def _with_core(modules: Sequence[Any]) -> tuple[Any, ...]:
+    from .distribution import CoreModule, register_module
 
+    ids = {getattr(item.module_class, "ID", None) for item in modules}
+    if CoreModule.ID in ids:
+        return tuple(modules)
     return (*modules, register_module(CoreModule))
 
 
 def create_blueprint(
     *,
-    modules: Sequence[Any],
     namespace_path: str | Path | None = None,
-    bindings: Iterable[Binding] | None = None,
-    sources: Sequence[BoundSource] | None = None,
-) -> BuildBlueprint:
-    """Create a blueprint from one namespace or explicit declarations.
+    bindings: Iterable[Binding] = (),
+    sources: Sequence[BoundSource] = (),
+    languages: Sequence[Any] | None = None,
+) -> GraphBlueprint:
+    """Create the semantic blueprint for one declaration namespace.
 
     Example:
         ```python
+        from pathlib import Path
         from kg_build_system import create_blueprint
-        from kg_build_system.modules import FileModule, FileModuleConfiguration, register_module
 
-        blueprint = create_blueprint(
-            modules=(register_module(FileModule, FileModuleConfiguration("graph.jsonl")),),
-        )
+        blueprint = create_blueprint(namespace_path=Path("my_project"))
         ```
     """
-    composed = _composed_modules(modules)
-    if namespace_path is not None:
-        if bindings is not None or sources is not None:
-            raise ValueError("namespace_path cannot be combined with bindings or sources")
-        return _create_blueprint(namespace_path=namespace_path, modules=composed)
-    if bindings is not None or sources is not None:
-        if bindings is None or sources is None:
-            raise ValueError("bindings and sources must be supplied together")
-        return _create_blueprint(bindings=bindings, sources=sources, modules=composed)
-    return _create_blueprint(namespace_path=_calling_namespace_path(), modules=composed)
+    binding_values = tuple(bindings)
+    if binding_values or sources:
+        if namespace_path is not None:
+            raise ValueError(
+                "namespace_path cannot be combined with bindings or sources"
+            )
+        return _create_blueprint(
+            bindings=binding_values, sources=sources, languages=languages,
+        )
+    if namespace_path is None:
+        namespace_path = _calling_namespace_path()
+    return _create_blueprint(namespace_path=namespace_path, languages=languages)
 
 
 def compile(
     *,
-    modules: Sequence[Any],
+    modules: Sequence[Any] = (),
     namespace_path: str | Path | None = None,
     bindings: Iterable[Binding] | None = None,
     sources: Sequence[BoundSource] | None = None,
-    blueprint: BuildBlueprint | None = None,
+    blueprint: GraphBlueprint | None = None,
     engine: Any = None,
 ) -> Any:
-    """Compile declarations into an executable workflow contract.
+    """Compile a blueprint into a workflow contract.
+
+    This is the canonical shortcut: it creates the blueprint when one is not
+    supplied and then compiles it. `compile_blueprint` is the explicit form.
 
     Example:
         ```python
         from kg_build_system import compile
-        from kg_build_system.modules import FileModule, FileModuleConfiguration, register_module
+        from kg_build_system.distribution import (
+            FileModule, FileModuleConfiguration, register_module,
+        )
 
         contract = compile(
-            modules=(register_module(FileModule, FileModuleConfiguration("graph.jsonl")),),
+            modules=(
+                register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
+            ),
         )
         ```
     """
-    composed = _composed_modules(modules)
     if blueprint is not None:
         if namespace_path is not None or bindings is not None or sources is not None:
-            raise ValueError("blueprint cannot be combined with namespace_path, bindings, or sources")
-        configured = configure_blueprint_modules(blueprint, composed)
-    elif namespace_path is not None:
-        if bindings is not None or sources is not None:
-            raise ValueError("namespace_path cannot be combined with bindings or sources")
-        configured = _create_blueprint(namespace_path=namespace_path, modules=composed)
-    elif bindings is not None or sources is not None:
-        if bindings is None or sources is None:
-            raise ValueError("bindings and sources must be supplied together")
-        configured = _create_blueprint(bindings=bindings, sources=sources, modules=composed)
+            raise ValueError(
+                "blueprint cannot be combined with namespace_path, bindings, or sources"
+            )
+        prepared = blueprint
     else:
-        configured = _create_blueprint(namespace_path=_calling_namespace_path(), modules=composed)
-    return compile_workflow(blueprint=configured, engine=engine)
+        prepared = create_blueprint(
+            namespace_path=namespace_path,
+            bindings=() if bindings is None else bindings,
+            sources=() if sources is None else sources,
+        )
+    return compile_blueprint(prepared, modules=_with_core(modules), engine=engine)
 
 
-__all__ = ["compile", "create_blueprint"]
+__all__ = [
+    "GraphBlueprint", "build", "compile", "compile_blueprint", "create_blueprint",
+]

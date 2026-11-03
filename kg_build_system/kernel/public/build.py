@@ -1,33 +1,33 @@
-"""The frozen build: one named IR part per language.
+"""The frozen build: one named part per language.
 
-A build is the kernel's boundary between lowering and compilation. Languages
-lower declarations into named parts, the registry freezes those parts into a
-``BuildIR``, and a module compiler reads them by name. A build carries only
-frozen data: it has no language, module or engine attached.
+A build is the kernel's boundary between transcription and compilation.
+Languages transcribe declarations into named parts, the registry freezes those
+parts into a ``Build``, and a module compiler reads them by name. A build
+carries only frozen data: it has no language, module or engine attached.
 """
 from __future__ import annotations
 
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from types import MappingProxyType
-from typing import Any, Generic, TypeVar
+from typing import Any, TypeVar
 
 
 T = TypeVar("T")
 
 
 @dataclass(frozen=True, slots=True)
-class BuildIR:
-    """An immutable mapping from language name to that language's lowered part.
+class Build:
+    """An immutable mapping from language name to that language's transcribed part.
 
     The mapping is copied and wrapped in a read-only proxy. ``part`` fails with
     ``KeyError`` for an unknown name; ``part_as`` also checks the runtime type.
 
     Example:
     ```python
-    from kg_build_system.kernel import BuildIR
+    from kg_build_system.kernel import Build
 
-    build = BuildIR({"data": ("table",)})
+    build = Build({"data": ("table",)})
     assert build.part("data") == ("table",)
     assert "data" in build
     ```
@@ -43,9 +43,9 @@ class BuildIR:
 
         Example:
         ```python
-        from kg_build_system.kernel import BuildIR
+        from kg_build_system.kernel import Build
 
-        build = BuildIR({"data": ("table",)})
+        build = Build({"data": ("table",)})
         assert build.part("data") == ("table",)
         ```
         """
@@ -59,9 +59,9 @@ class BuildIR:
 
         Example:
         ```python
-        from kg_build_system.kernel import BuildIR
+        from kg_build_system.kernel import Build
 
-        build = BuildIR({"data": ("table",)})
+        build = Build({"data": ("table",)})
         assert build.part_as("data", tuple) == ("table",)
         ```
         """
@@ -77,36 +77,4 @@ class BuildIR:
         return name in self.parts
 
 
-@dataclass(frozen=True, slots=True)
-class Build:
-    """A frozen build together with the modules that will consume it.
-
-    The value is a thin holder: ``part`` delegates to the wrapped ``BuildIR``.
-    Composition of the parts belongs to ``Registry``; compilation belongs to the
-    module compilers.
-
-    Example:
-    ```python
-    from kg_build_system.kernel import Build, BuildIR
-
-    build = Build(BuildIR({"data": ("table",)}))
-    assert build.part("data") == ("table",)
-    ```
-    """
-
-    ir: BuildIR
-
-    def part(self, name: str) -> Any:
-        """Return the part named ``name`` from the wrapped build.
-
-        Example:
-            ```python
-            from kg_build_system.kernel import Build, BuildIR
-
-            assert Build(BuildIR({"data": ()})).part("data") == ()
-            ```
-        """
-        return self.ir.part(name)
-
-
-__all__ = ["Build", "BuildIR"]
+__all__ = ["Build"]

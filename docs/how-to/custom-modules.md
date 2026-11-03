@@ -15,14 +15,16 @@ composition lifecycle.
 !!! warning "Module authoring is framework-internal"
 
     The `Module` protocol is importable and `register_module` composes a
-    supplied module, but a module's `create_compiler` and `create_executor`
+    supplied module. A supplied module class declares `ID`, `VERSION` and
+    `CONFIGURATION_TYPE`, and provides classmethod factories
+    `compiler(configuration)` and `executor(context)`. Those factories and their
     return types are not part of the public authoring surface. Write a module
     inside the framework, not in a graph project. A project composes the
     supplied modules and keeps composition small.
 
-The internal contract is `specs/modules.md` in
-the framework repository. It is a reviewer-facing interface document, not an
-authoring guide.
+The internal contract is [system design](../developer/system-design.md) in the
+framework repository. It is a developer-facing model document, not an authoring
+guide.
 
 ## Steps
 
@@ -48,7 +50,7 @@ the mandatory core module is appended after your modules.
 
 ```python
 from kg_build_system import build, compile
-from kg_build_system.modules import (
+from kg_build_system.distribution import (
     CollapseExactDuplicatesModule,
     FileModule,
     FileModuleConfiguration,
@@ -77,7 +79,7 @@ Configuration is compile-time and carried in the contract. A module with a
 required configuration field needs its configuration dataclass:
 
 ```python
-from kg_build_system.modules import (
+from kg_build_system.distribution import (
     FileModule,
     FileModuleConfiguration,
     Neo4jModule,
@@ -141,7 +143,7 @@ the build report rather than the module source:
 from kg_build_system import compile
 
 contract = compile(modules=modules)
-print(contract.workflow_fingerprint)
+print(contract.contributions)
 ```
 
 `build/workflow_contract.json` records the modules and steps that will run.
@@ -170,7 +172,8 @@ for artifact in report.published_artifacts:
 - `report.recovered_failures` names failures that a later stage handled.
 - `report.published_artifacts` lists what the output modules published.
 
-Compile the same declarations twice and compare `workflow_fingerprint` when you
+The contract exposes contributions, connections and provenance. There is no
+public workflow-fingerprint field in this API; compare the contributions when you
 need to confirm that composition and configuration are unchanged.
 
 ## Troubleshoot
@@ -197,5 +200,5 @@ need to confirm that composition and configuration are unchanged.
   surface and configurations.
 - The [compile and build reference](../reference/compile.md) lists the contract
   and report fields.
-- The internal `specs/modules.md` states the internal
-  compiler and executor contract for framework reviewers.
+- The [system design](../developer/system-design.md) states the internal
+  compiler and executor model for framework developers.

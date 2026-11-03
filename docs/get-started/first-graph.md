@@ -251,7 +251,7 @@ Create `people_graph/build.py`:
 from pathlib import Path
 
 from kg_build_system import build, compile
-from kg_build_system.modules import FileModule, FileModuleConfiguration, register_module
+from kg_build_system.distribution import FileModule, FileModuleConfiguration, register_module
 
 
 def main() -> None:
@@ -307,7 +307,7 @@ Each record carries:
 - `source_build_key` and `target_build_key` on an edge.
 - `_kg_binding_symbol`: the binding that produced the record.
 
-The contract in `workflow_contract.json` is the frozen plan, including the workflow fingerprint. `build_report.json` records the published artifacts, any failures, and provenance. Both are build artifacts; do not edit them by hand. See [compile, build and outputs](../concepts/build-and-outputs.md) and the [compile reference](../reference/compile.md).
+The contract in `workflow_contract.json` is the frozen plan. `build_report.json` records the published artifacts, any failures, and provenance. Both are build artifacts; do not edit them by hand. See [compile, build and outputs](../concepts/build-and-outputs.md) and the [compile reference](../reference/compile.md).
 
 ## Verify
 

@@ -9,13 +9,13 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from ..public.build import BuildIR
+from ..public.build import Build
 from ..public.language import Language, Namespace
 
 
 @dataclass(frozen=True, slots=True)
 class PartContext:
-    """Expose already-lowered parts to a language during lowering."""
+    """Expose already-transcribed parts to a language during transcription."""
 
     parts: Mapping[str, Any]
 
@@ -27,8 +27,8 @@ def compose(
     languages: Sequence[Language],
     namespace: Namespace,
     declarations: Mapping[str, Sequence[object]] | None = None,
-) -> BuildIR:
-    """Collect, lower and validate one part per language, then freeze them."""
+) -> Build:
+    """Collect, transcribe and validate one part per language, then freeze them."""
     parts: dict[str, Any] = {}
     context = PartContext(parts)
     for language in languages:
@@ -37,10 +37,10 @@ def compose(
             if declarations is not None and language.name in declarations
             else language.collect(namespace)
         )
-        value = language.lower(chosen, context)
+        value = language.transcribe(chosen, context)
         language.validate(value)
         parts[language.name] = value
-    return BuildIR(parts)
+    return Build(parts)
 
 
 __all__ = ["PartContext", "compose"]

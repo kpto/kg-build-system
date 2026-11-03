@@ -7,25 +7,37 @@ from pathlib import Path
 import kg_build_system
 
 ROOT = Path(kg_build_system.__file__).parent
-PACKAGES = (
+GROUPS = (
     "kernel",
-    "types",
-    "annotations",
-    "expressions",
-    "table",
-    "topology",
-    "binding",
-    "relational",
-    "engines",
-    "compile",
-    "workflow",
-    "modules",
-    "code_generation",
+    "declaration",
+    "pipeline",
+    "distribution",
+    "generation",
     "cli",
 )
-ZONES = {"", "public", "internal", "_private"}
-SHARED = {"_frozen_json", "_relations", "_support"}
-ALLOWED_CROSS_PACKAGE_ENTRY = {"_frozen_json", "_relations", "_support"}
+LEAVES = (
+    "kernel",
+    "declaration/foundations/annotations",
+    "declaration/foundations/expressions",
+    "declaration/languages/table",
+    "declaration/languages/topology",
+    "declaration/languages/binding",
+    "declaration/blueprint",
+    "pipeline/contract",
+    "pipeline/compilation",
+    "pipeline/build",
+    "generation/code_generation",
+    "cli",
+)
+SHARED: set[str] = set()
+ZONES = {"public", "internal", "_private"}
+ADAPTERS = {
+    "declaration/languages/table": "kernel_language.py",
+    "declaration/languages/topology": "kernel_language.py",
+    "declaration/languages/binding": "kernel_language.py",
+    "distribution": "kernel_module.py",
+    "generation/code_generation": "provider.py",
+}
 
 
 def _parts(path: Path, node: ast.ImportFrom) -> list[str] | None:
@@ -61,101 +73,122 @@ def _imports(path: Path) -> list[tuple[list[str], int]]:
     return found
 
 
-def _own_package(path: Path) -> tuple[str, str] | None:
-    relative = path.relative_to(ROOT)
-    if len(relative.parts) < 2:
+def _source_files(directory: Path):
+    for path in directory.rglob("*.py"):
+        if "__pycache__" not in path.parts:
+            yield path
+
+
+def _owner(path: Path) -> tuple[str, ...] | None:
+    """The leaf package that owns ``path``, found by its declared zones."""
+    relative = path.relative_to(ROOT).parts[:-1]
+    for index in range(len(relative), 0, -1):
+        candidate = ROOT.joinpath(*relative[:index])
+        if any((candidate / zone).is_dir() for zone in ZONES):
+            return tuple(relative[:index])
+    return None
+
+
+def _private_import_owner(parts: list[str]) -> tuple[str, ...] | None:
+    if "_private" not in parts:
         return None
-    package = relative.parts[0]
-    if package not in PACKAGES:
-        return None
-    zone = relative.parts[1] if len(relative.parts) > 2 else ""
-    return package, zone
+    return tuple(parts[: parts.index("_private")])
 
 
 class ArchitectureTests(unittest.TestCase):
-    def test_every_subpackage_has_the_four_part_layout(self) -> None:
-        for package in PACKAGES:
-            root = ROOT / package
-            with self.subTest(package=package):
+    def test_top_level_groups_and_entry_points_exist(self) -> None:
+        for group in GROUPS:
+            with self.subTest(group=group):
+                self.assertTrue((ROOT / group / "__init__.py").is_file())
+        for entry_point in ("__init__.py", "api.py", "cli/__main__.py"):
+            with self.subTest(entry_point=entry_point):
+                self.assertTrue((ROOT / entry_point).is_file())
+        for name in ("create_blueprint", "compile", "build"):
+            with self.subTest(entry_point=name):
+                self.assertIn(name, kg_build_system.__all__)
+                self.assertTrue(callable(getattr(kg_build_system, name)))
+
+    def test_each_declared_leaf_has_its_public_and_internal_zones(self) -> None:
+        for leaf in LEAVES:
+            root = ROOT / leaf
+            with self.subTest(leaf=leaf):
                 self.assertTrue((root / "__init__.py").is_file())
-                for zone in ("public", "internal", "_private"):
+                for zone in ("public", "internal"):
                     self.assertTrue(
                         (root / zone / "__init__.py").is_file(),
-                        f"{package} has no {zone}/__init__.py",
+                        f"{leaf} has no {zone}/__init__.py",
                     )
 
-    def test_the_kernel_imports_no_domain_package(self) -> None:
-        for path in (ROOT / "kernel").rglob("*.py"):
+    def test_the_kernel_imports_no_system_package(self) -> None:
+        for path in _source_files(ROOT / "kernel"):
             for parts, line in _imports(path):
-                if parts[0] == "kernel" or parts[0] in ALLOWED_CROSS_PACKAGE_ENTRY:
+                if parts[0] == "kernel" or parts[0] in SHARED:
                     continue
                 self.fail(f"{path}:{line} imports {'.'.join(parts)}")
 
-    def test_a_package_facade_imports_only_its_public_zone(self) -> None:
-        for package in PACKAGES:
-            path = ROOT / package / "__init__.py"
+    def test_the_declaration_system_does_not_import_the_pipeline(self) -> None:
+        for path in _source_files(ROOT / "declaration"):
             for parts, line in _imports(path):
-                if parts[0] != package:
+                if parts[0] == "pipeline":
+                    self.fail(f"{path}:{line} imports {'.'.join(parts)}")
+
+    def test_declaration_languages_do_not_import_the_blueprint(self) -> None:
+        for path in _source_files(ROOT / "declaration" / "languages"):
+            for parts, line in _imports(path):
+                if parts[:2] == ["declaration", "blueprint"]:
+                    self.fail(f"{path}:{line} imports {'.'.join(parts)}")
+
+    def test_only_blueprint_and_compilation_read_the_blueprint(self) -> None:
+        allowed = (
+            ROOT / "declaration" / "blueprint",
+            ROOT / "pipeline" / "compilation",
+        )
+        roots = (
+            ROOT / "declaration",
+            ROOT / "pipeline",
+        )
+        for root in roots:
+            for path in _source_files(root):
+                if any(path.is_relative_to(directory) for directory in allowed):
                     continue
-                zone = parts[1] if len(parts) > 1 else ""
-                self.assertIn(
-                    zone, {"", "public"},
-                    f"{path}:{line} imports {'.'.join(parts)} outside public",
-                )
+                for parts, line in _imports(path):
+                    if parts[:2] == ["declaration", "blueprint"]:
+                        self.fail(f"{path}:{line} imports {'.'.join(parts)}")
+
+    def test_compilation_does_not_import_build(self) -> None:
+        for path in _source_files(ROOT / "pipeline" / "compilation"):
+            for parts, line in _imports(path):
+                if parts[:2] == ["pipeline", "build"]:
+                    self.fail(f"{path}:{line} imports {'.'.join(parts)}")
+
+    def test_build_does_not_import_compilation_or_declaration(self) -> None:
+        for path in _source_files(ROOT / "pipeline" / "build"):
+            for parts, line in _imports(path):
+                if parts[:2] == ["pipeline", "compilation"]:
+                    self.fail(f"{path}:{line} imports {'.'.join(parts)}")
+                if parts[0] == "declaration":
+                    self.fail(f"{path}:{line} imports {'.'.join(parts)}")
 
     def test_no_package_imports_another_packages_private_zone(self) -> None:
-        for path in ROOT.rglob("*.py"):
-            if "__pycache__" in path.parts:
-                continue
-            owner = _own_package(path)
-            if owner is None:
-                continue
-            package = owner[0]
-            for parts, line in _imports(path):
-                if parts[0] == package or parts[0] in ALLOWED_CROSS_PACKAGE_ENTRY:
+        for group in GROUPS:
+            for path in _source_files(ROOT / group):
+                owner = _owner(path)
+                if owner is None:
                     continue
-                if parts[0] not in PACKAGES:
-                    continue
-                zone = parts[1] if len(parts) > 1 else ""
-                self.assertNotEqual(
-                    zone,
-                    "_private",
-                    f"{path}:{line} imports another package's private zone",
-                )
-
-    def test_cross_package_imports_use_a_declared_zone(self) -> None:
-        for path in ROOT.rglob("*.py"):
-            if "__pycache__" in path.parts:
-                continue
-            owner = _own_package(path)
-            if owner is None:
-                continue
-            package = owner[0]
-            for parts, line in _imports(path):
-                if parts[0] == package or parts[0] in ALLOWED_CROSS_PACKAGE_ENTRY:
-                    continue
-                if parts[0] not in PACKAGES:
-                    continue
-                zone = parts[1] if len(parts) > 1 else ""
-                self.assertIn(
-                    zone, ZONES,
-                    f"{path}:{line} imports {'.'.join(parts)} through no declared zone",
-                )
+                for parts, line in _imports(path):
+                    imported_owner = _private_import_owner(parts)
+                    if imported_owner is not None and imported_owner != owner:
+                        self.fail(
+                            f"{path}:{line} imports another package's private "
+                            f"zone: {'.'.join(parts)}"
+                        )
 
     def test_foreign_protocols_have_an_explicit_adapter(self) -> None:
-        expected = {
-            "table": "kernel_language.py",
-            "topology": "kernel_language.py",
-            "binding": "kernel_language.py",
-            "modules": "core_module.py",
-            "engines": "engine.py",
-            "code_generation": "provider.py",
-        }
-        for package, filename in expected.items():
-            with self.subTest(package=package):
+        for leaf, filename in ADAPTERS.items():
+            with self.subTest(leaf=leaf):
                 self.assertTrue(
-                    (ROOT / package / "internal" / "adapters" / filename).is_file(),
-                    f"{package} has no internal/adapters/{filename}",
+                    (ROOT / leaf / "internal" / "adapters" / filename).is_file(),
+                    f"{leaf} has no internal/adapters/{filename}",
                 )
 
 

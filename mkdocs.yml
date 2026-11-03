@@ -57,6 +57,12 @@ nav:
       - Write a custom module: how-to/custom-modules.md
       - Debug a build: how-to/debug.md
       - Modelling patterns: how-to/patterns.md
+  - Developer:
+      - Developer guide: developer/index.md
+      - Framework philosophy: developer/philosophy.md
+      - System design: developer/system-design.md
+      - Data and expressions: developer/data-and-expressions.md
+      - Testing: developer/testing.md
   - Reference:
       - Authoring API: reference/index.md
       - Types: reference/types.md

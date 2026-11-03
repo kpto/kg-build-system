@@ -292,7 +292,7 @@ from collections import Counter
 from pathlib import Path
 
 from kg_build_system import build, compile
-from kg_build_system.modules import (
+from kg_build_system.distribution import (
     FileModule, FileModuleConfiguration, register_module,
 )
 

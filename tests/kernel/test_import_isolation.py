@@ -12,8 +12,8 @@ class ImportIsolationTests(unittest.TestCase):
     def test_importing_the_kernel_does_not_load_a_language(self) -> None:
         code = (
             "import sys; import kg_build_system.kernel; "
-            "assert 'kg_build_system.table' not in sys.modules; "
-            "assert 'kg_build_system.workflow' not in sys.modules; "
+            "assert 'kg_build_system.declaration.languages.table' not in sys.modules; "
+            "assert 'kg_build_system.pipeline.build' not in sys.modules; "
             "print('ok')"
         )
         result = subprocess.run(

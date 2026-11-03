@@ -142,10 +142,15 @@ When you compile, every reached declaration contributes its annotations to the b
 
 - A component description is local prose. It is not inherited from a category parent, and it is not created from an annotation.
 - An annotation is frozen data, not behaviour. It cannot read the graph, resolve a reference or change a record without a module that interprets it.
-- The payload must be JSON-compatible and stable because it is part of the blueprint and therefore of the blueprint fingerprint. Keep it small, and do not encode the owner, the component name or the binding name; the attachment already says what it belongs to.
-- Only annotations on reached declarations are published. An annotation elsewhere in the module is not delivered.
-- One component carries at most one matching label. Labels of the wrong kind fail when a target reads them.
-- A new annotation or description on a reached declaration changes the blueprint fingerprint even when it does not change the executable workflow.
+- The payload must be JSON-compatible and stable because it is part of the
+  blueprint. Keep it small, and do not encode the owner, the component name or
+  the binding name; the attachment already says what it belongs to.
+- Only annotations on reached declarations are published. An annotation elsewhere
+  in the module is not delivered.
+- One component carries at most one matching label. Labels of the wrong kind fail
+  when a target reads them.
+- An annotation or description on a reached declaration changes the blueprint
+  even when it does not change the executable workflow.
 
 ## Next steps
 

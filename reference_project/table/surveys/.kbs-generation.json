@@ -7,7 +7,7 @@
   "owned_files": [
     "__init__.py"
   ],
-  "provider_import": "kg_build_system.code_generation.builtins.provider",
+  "provider_import": "kg_build_system.generation.code_generation.builtins.provider",
   "provider_qualname": "InferDataContractProvider",
   "provider_version": "7",
   "request_fingerprint": "6efe542497df6914a59f7b8047ce60e2c64507d6b46a8f1c150ea0b77331d5a3",

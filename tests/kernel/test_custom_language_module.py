@@ -1,21 +1,41 @@
 from __future__ import annotations
 
+import tempfile
 import unittest
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any, cast
 
-from kg_build_system._frozen_json import freeze_json, thaw_json
-from kg_build_system.compile import compile_build, create_build
-from kg_build_system.kernel import (
-    Artifact, ArtifactType, ModuleDefinition, ModuleReference, Publication,
-    StepOutcome, StepStatus, WorkflowStep, WorkflowContribution,
+from kg_build_system.declaration.blueprint import GraphBlueprint
+from kg_build_system.declaration.languages.table.internal.dto import DataPartDTO
+from kg_build_system.declaration.languages.topology.internal.dto import GraphPartDTO
+from kg_build_system.distribution import (
+    ModuleRegistrationConfiguration,
+    register_module,
 )
-from kg_build_system.modules.internal import (
-    ModuleRegistrationConfiguration, register_module,
+from kg_build_system.kernel import (
+    Artifact,
+    ArtifactType,
+    Registry,
+    SourceFragment,
+    StepOutcome,
+    StepStatus,
+)
+from kg_build_system.pipeline.build import build
+from kg_build_system.pipeline.compilation import compile_blueprint
+from kg_build_system.pipeline.contract import (
+    ArtifactTypeDTO,
+    ContributionDTO,
+    InstructionDTO,
+    ModuleDefinitionDTO,
+    ModuleReferenceDTO,
+    PublicationDTO,
+    StepDTO,
 )
 
 
 @dataclass(frozen=True)
-class EchoIR:
+class EchoMessage:
     text: str
 
 
@@ -23,56 +43,75 @@ class EchoLanguage:
     name = "echo"
     requires = ()
 
-    def __init__(self) -> None:
-        self._values: tuple[object, ...] = ()
-
     def collect(self, namespace):
-        self._values = tuple(namespace.values())
-        return self._values
+        return tuple(namespace.values())
 
-    def lower(self, declarations, context):
-        return EchoIR(" ".join(str(item) for item in declarations))
+    def transcribe(self, declarations, context):
+        return EchoMessage(" ".join(str(item) for item in declarations))
 
-    def validate(self, ir):
-        assert isinstance(ir, EchoIR)
+    def validate(self, dto):
+        assert isinstance(dto, EchoMessage)
 
-    def encode(self, ir):
-        return {"text": ir.text}
-
-    def decode(self, value):
-        return EchoIR(value["text"])
+    def render(self, dto, context):
+        return SourceFragment("inline", repr(dto.text))
 
 
+@dataclass(frozen=True)
 class EchoConfiguration(ModuleRegistrationConfiguration):
     text: str = ""
 
 
 class EchoCompiler:
-    async def compile(self, context):
-        definition = ModuleDefinition(ModuleReference(
-            "echo", EchoModule.__module__, EchoModule.__qualname__, EchoModule.VERSION, None,
-        ))
-        return WorkflowContribution(
+    def __init__(self, configuration: EchoConfiguration) -> None:
+        self.configuration = configuration
+
+    async def compile(self, context) -> ContributionDTO:
+        definition = ModuleDefinitionDTO(
+            reference=ModuleReferenceDTO(
+                module_id=EchoModule.ID,
+                import_module=EchoModule.__module__,
+                class_qualname=EchoModule.__qualname__,
+                implementation_version=EchoModule.VERSION,
+                configuration={"text": self.configuration.text},
+            ),
+        )
+        return ContributionDTO(
             definition,
-            (WorkflowStep(
-                outputs=(Publication(ArtifactType("echo", "text"), "value"),),
-                name="echo",
-            ),),
-            freeze_json({"text": context.build.part("echo").text}),
+            (
+                StepDTO(
+                    name="echo",
+                    inputs=(),
+                    outputs=(
+                        PublicationDTO(ArtifactTypeDTO("echo", "text"), "value"),
+                    ),
+                    instruction=InstructionDTO("module", None),
+                ),
+            ),
         )
 
 
 class EchoExecutor:
     def handle(self, context):
         output = context.step.outputs[0]
+        configuration = context.module.reference.configuration or {}
         return StepOutcome(
-            context.step_id, context.module_id, StepStatus.SUCCEEDED,
-            (Artifact("value", output.type, thaw_json(context.variables)["text"]),),
+            context.step_id,
+            context.module_id,
+            StepStatus.SUCCEEDED,
+            (
+                Artifact(
+                    "value",
+                    ArtifactType(output.type.namespace, output.type.name),
+                    configuration.get("text", ""),
+                ),
+            ),
         )
 
     def handle_disrupted(self, context):
         return StepOutcome(
-            context.step_id, context.module_id, StepStatus.SKIPPED,
+            context.step_id,
+            context.module_id,
+            StepStatus.SKIPPED,
         )
 
 
@@ -82,11 +121,15 @@ class EchoModule:
     CONFIGURATION_TYPE = EchoConfiguration
 
     @classmethod
-    async def create_compiler(cls, context):
-        return EchoCompiler()
+    def compiler(cls, configuration: Any) -> Any:
+        return EchoCompiler(configuration)
 
     @classmethod
-    def create_executor(cls, context):
+    async def create_compiler(cls, context: Any) -> Any:
+        return EchoCompiler(context.configuration)
+
+    @classmethod
+    def create_executor(cls, context: Any) -> Any:
         return EchoExecutor()
 
 
@@ -98,33 +141,45 @@ class Namespace:
         return self._values
 
 
+def _empty_blueprint() -> GraphBlueprint:
+    return GraphBlueprint(
+        graph=GraphPartDTO(),
+        data=DataPartDTO(
+            structs=(),
+            relations=(),
+            projections=(),
+            sources=(),
+        ),
+        bindings=(),
+        sources=(),
+    )
+
+
 class CustomLanguageModuleTests(unittest.TestCase):
-    def test_a_custom_language_and_module_compile_without_the_defaults(self) -> None:
-        build = create_build(
-            languages=(EchoLanguage(),), namespace=Namespace("hello", "world"),
-        )
-        self.assertEqual(build.part("echo"), EchoIR("hello world"))
-        contract = compile_build(
-            build=build,
-            modules=(register_module(EchoModule, EchoConfiguration()),),
+    def test_a_custom_language_transcribes_without_the_defaults(self) -> None:
+        build = Registry((EchoLanguage(),)).build(Namespace("hello", "world"))
+
+        self.assertEqual(build.part("echo"), EchoMessage("hello world"))
+
+    def test_a_custom_module_compiles_and_builds_without_the_distribution(self) -> None:
+        contract = compile_blueprint(
+            _empty_blueprint(),
+            modules=(register_module(cast(Any, EchoModule), EchoConfiguration("hello")),),
         )
         self.assertEqual(
-            [item.reference.module_id for item in contract.workflow.contributions],
+            [item.module.reference.module_id for item in contract.contributions],
             ["echo"],
         )
-        self.assertEqual(
-            contract.workflow.contributions[0].steps[0].name, "echo",
-        )
-        from kg_build_system import build
-        import tempfile
-        from pathlib import Path
+        self.assertEqual(contract.contributions[0].steps[0].name, "echo")
 
         with tempfile.TemporaryDirectory() as directory:
-            report = build(contract, output_directory=Path(directory))
-        self.assertTrue(report.succeeded, [f.message for f in report.unresolved_failures])
-        self.assertEqual(
-            report.published_artifacts[0].value, "hello world",
+            report = build(contract, output_directory=Path(directory), monitor=False)
+
+        self.assertTrue(
+            report.succeeded,
+            [failure.message for failure in report.unresolved_failures],
         )
+        self.assertEqual(report.published_artifacts[0].value, "hello")
 
 
 if __name__ == "__main__":

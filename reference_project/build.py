@@ -3,8 +3,8 @@
 from pathlib import Path
 
 from kg_build_system import build, compile, create_blueprint
-from kg_build_system.compile.interfaces import BuildBlueprint
-from kg_build_system.modules import (
+from kg_build_system.declaration.blueprint import GraphBlueprint
+from kg_build_system.distribution import (
     CollapseExactDuplicatesModule,
     FileModule,
     FileModuleConfiguration,
@@ -12,7 +12,10 @@ from kg_build_system.modules import (
     Neo4jModule,
     register_module,
 )
-from kg_build_system.workflow.ir import WorkflowContractIR
+from kg_build_system.pipeline.contract import WorkflowContractDTO
+
+
+PROJECT_ROOT = Path(__file__).parent
 
 
 def _modules():
@@ -24,17 +27,17 @@ def _modules():
     )
 
 
-def create_reference_blueprint() -> BuildBlueprint:
-    return create_blueprint(modules=_modules())
+def create_reference_blueprint() -> GraphBlueprint:
+    return create_blueprint(namespace_path=PROJECT_ROOT)
 
 
-def compile_reference_build() -> WorkflowContractIR:
-    return compile(modules=_modules())
+def compile_reference_build() -> WorkflowContractDTO:
+    return compile(blueprint=create_reference_blueprint(), modules=_modules())
 
 
 def run_reference_build() -> None:
     """Write the graph and compilation artifacts to ``reference_project/build``."""
-    output_dir = Path(__file__).parent / "build"
+    output_dir = PROJECT_ROOT / "build"
     output_dir.mkdir(exist_ok=True)
 
     contract = compile_reference_build()

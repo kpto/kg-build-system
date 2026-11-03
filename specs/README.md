@@ -1,76 +1,55 @@
-# Internal interface specs
+# Developer specs
 
-These specs are for the framework reviewer. Author-facing documentation is in
-`../docs/`; it is not duplicated here.
+The canonical developer documentation is [docs/developer/](../docs/developer/).
+It states the current model, interfaces, source regeneration and contract tests.
+This directory does not duplicate it.
 
-A spec states one responsibility, the author-visible names, the names another
-package may import, the frozen IR, the allowed package edges and the decisions an
-implementer must honour. It describes the current code, not a target design.
-Implementation walkthroughs, private helpers and line numbers are out of scope.
+- [ARCHITECTURE.md](../ARCHITECTURE.md) is the short implementation map.
+- [FRAMEWORK_STATE.md](../FRAMEWORK_STATE.md) is the reviewer briefing.
+- [DESIGN_ISSUES.md](../DESIGN_ISSUES.md) records the remaining design limits.
 
-Every framework subpackage uses the four-part layout:
+## Public and internal boundaries
+
+| Package | Public surface | Internal surface |
+| --- | --- | --- |
+| `kernel` | `Language`, `Module`, `Capability`, canonical types, build and contract values | canonical type DTOs and codecs |
+| `declaration/foundations/annotations` | `Annotation`, `NodeLabel`, `EdgeLabel` | annotation DTO and source rendering |
+| `declaration/foundations/expressions` | expressions, selections and expression families | expression DTOs, operation specifications and source rendering |
+| `declaration/languages/table` | `Table`, `Struct`, `Projection`, fields and sources | data DTOs, transcription, row-source plans and source rendering |
+| `declaration/languages/topology` | `Node`, `Edge`, properties and templates | graph DTOs, transcription and source rendering |
+| `declaration/languages/binding` | `node_binding`, `edge_binding`, values and options | binding DTOs, transcription and source rendering |
+| `declaration/blueprint` | `GraphBlueprint`, `create_blueprint` | assembly, validation, codec and blueprint source |
+| `pipeline/contract` | `WorkflowContractDTO` and its DTOs | assembly and codec |
+| `pipeline/compilation` | `compile_blueprint` | module compilers, relational plans and instruction emitters |
+| `pipeline/build` | `build`, `BuildRuntime`, `WorkflowReport` | runtime, engine, targets, storage and relations |
+| `distribution` | supplied modules and `register_module` | module model and registration service |
+| `generation/code_generation` | generation requests and commands | discovery, providers, rendering and ownership |
+| `api.py` | `create_blueprint`, `compile_blueprint`, `compile`, `build` | composition only |
+| `cli` | `kbs` entry point | argument parsing and command dispatch |
+
+## Zones
+
+Every leaf uses:
 
 ```text
 pkg/
-  __init__.py          # facade; re-exports only pkg.public
-  public/              # definition site for author-facing names
-  internal/            # cross-package interface; ir.py (or ir/) and adapters/<protocol>.py
-  _private/            # mechanisms; imported only inside the package
+  __init__.py      facade; imports only from .public
+  public/          author-facing names and thin wrappers
+  internal/        cross-package DTOs, models, services and adapters
+  _private/        mechanisms; imported only inside the package
 ```
 
-| Surface | Reader | Rule |
-| --- | --- | --- |
-| `__init__.py` | graph author | exposes only `pkg.public` |
-| `public/` | graph author | definition site for authoring classes, values and wrapper functions/methods with user docstrings and `Example:` blocks |
-| `internal/` | another subpackage | cross-package interface; holds the IR in `ir.py` or `ir/` |
-| `_private/` | the package itself | mechanisms; never imported from another package |
+Another package imports `pkg`, `pkg.internal` or a declared internal interface.
+It never imports `pkg._private`. A foreign protocol is implemented in
+`pkg/internal/adapters/<protocol>.py`.
 
-- `pkg/public` functions and methods are thin wrappers over `pkg._private` or
-  `pkg.internal`; the mechanism never lives in `public`.
-- Another subpackage imports `pkg`, `pkg.internal` and `pkg.internal.ir`. It does
-  not import `pkg._private`; `_private` may import `pkg.internal`,
-  `pkg.internal.ir` and its own public data classes.
-- `pkg/internal/adapters/<protocol>.py` is the explicit file that implements a
-  foreign protocol:
-  - `table/internal/adapters/kernel_language.py`,
-    `topology/internal/adapters/kernel_language.py` and
-    `binding/internal/adapters/kernel_language.py` implement the kernel
-    `Language` protocol;
-  - `modules/internal/adapters/core_module.py` implements the kernel `Module`
-    protocol;
-  - `engines/internal/adapters/engine.py` implements the neutral engine
-    protocol;
-  - `code_generation/internal/adapters/provider.py` implements provider loading.
-- Public docstrings are user-facing and carry runnable `Example:` blocks.
-  Internal and private docstrings are developer-only and need no example.
-- `kernel` is the domain-agnostic package. `relational` and `engines` have an
-  empty `public/` stating that they have no authoring surface. `cli` exposes `main` through `public/` and keeps argument
-  parsing in `_private/`.
-- Root `interfaces.py`, `ir.py` and `models.py` files are compatibility shims
-  for the Open Targets project only. They are not the interface.
+## Dependency spine
 
-`kernel` is the only domain-agnostic package. `table`, `topology` and `binding`
-are languages. The core module is one module, not a domain package. `engines`
-own SQL and code generation. Implementation modules are private; another package
-imports only `pkg`, `pkg.internal`, `pkg.internal.ir` or the shared kernel.
+`declaration` depends on `kernel`. `pipeline/compilation` depends on declaration
+and the shared contract; `pipeline/build` depends on the shared contract. They do
+not import each other.
+`distribution` supplies modules. `generation` is upstream. `api.py` and `cli`
+compose the systems.
 
-Read in this order:
-
-| Spec | Responsibility |
-| --- | --- |
-| [overview](overview.md) | purpose, kernel, languages, build pipeline and package map |
-| [types](types.md) | logical types, normalization, validation and type codecs |
-| [declarations](declarations.md) | Table, Struct, ComputedStruct, Projection, TableGroup, fields and sources |
-| [expressions](expressions.md) | selections, expression families, operations and row semantics |
-| [row-sources](row-sources.md) | row-source values, generated shapes and plan IR |
-| [projections](projections.md) | pinned and unpinned named projections and computed outputs |
-| [topology](topology.md) | node and edge declarations, properties, endpoints and components |
-| [bindings](bindings.md) | node and edge bindings, keys, properties and endpoints |
-| [compile](compile.md) | blueprint aggregate, codecs, validation and the compile pipeline |
-| [workflow](workflow.md) | assembly, contract, execution, services and reporting |
-| [modules](modules.md) | module extension contract, core and supplied modules |
-| [ingest](ingest.md) | physical sources, declared nullability, guards and DuckDB acceptance |
-| [generation](generation.md) | edit-time generation requests, providers, rendering and ownership |
-
-`../FRAMEWORK_STATE.md` is the reviewer briefing. `../DESIGN_ISSUES.md` records
-where the clean model and the effective compatibility surface conflict.
+See [system design](../docs/developer/system-design.md) for the full package
+tree and dependency table.

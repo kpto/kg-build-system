@@ -9,45 +9,47 @@ from importlib import import_module
 from typing import TYPE_CHECKING, Any
 
 if TYPE_CHECKING:
-    from .annotations import Annotation, EdgeLabel, NodeLabel
     from .api import compile, create_blueprint
-    from .binding import (
-        BindingOptions, EdgeBinding, EdgeValues, NodeBinding, NodeValues,
-        edge_binding, node_binding,
+    from .declaration.foundations.annotations import (
+        Annotation, EdgeLabel, NodeLabel,
     )
-    from .expressions import (
+    from .declaration.foundations.expressions import (
         ArrayExpression, ArraySelection, BoolExpression, CustomDataTypeExpression,
         FloatExpression, IntExpression, NullableExpression, NullableSelection,
         StrExpression, StructExpression, StructSelection, ValueExpression,
         ValueInput, ValueSelection, all_of, any_of, as_expression,
         value_expression,
     )
-    from .table import (
+    from .declaration.languages.binding import (
+        BindingOptions, EdgeBinding, EdgeValues, NodeBinding, NodeValues,
+        edge_binding, node_binding,
+    )
+    from .declaration.languages.table import (
         BoundSource, BoundTable, BoundTableGroup, ComputedStruct, DataSourceConfig,
         DerivedRowSource, Field, InputFormat, Projection, ProjectionOptions,
         RelationRowSource, RowSource, SourceBindingOptions, Struct, StructOptions,
         StructOptionsTemplate, StructTemplate, Table, TableGroup, TableGroupOptions,
         TableOptions, bind_source, computed_field, field, projection_field,
     )
-    from .topology import (
+    from .declaration.languages.topology import (
         AbstractEdge, AbstractNode, Edge, EdgeOptions, EdgeOptionsTemplate,
         EdgeTemplate, Endpoint, Node, NodeOptions, NodeOptionsTemplate,
         NodeTemplate, PropertySlot, endpoint, property,
     )
+    from .pipeline.build import BuildRuntime, WorkflowReport, build
     from .types import (
         Array, ArrayType, CustomDataType, Date, Nullable, NullableType, Shape,
         Time, Timestamp, Uuid,
     )
-    from .workflow import BuildRuntime, WorkflowReport, build
 
 _GROUPS: dict[str, tuple[str, ...]] = {
-    "annotations": ("Annotation", "EdgeLabel", "NodeLabel"),
+    "declaration.foundations.annotations": ("Annotation", "EdgeLabel", "NodeLabel"),
     "api": ("compile", "create_blueprint"),
-    "binding": (
+    "declaration.languages.binding": (
         "BindingOptions", "EdgeBinding", "EdgeValues", "NodeBinding",
         "NodeValues", "edge_binding", "node_binding",
     ),
-    "expressions": (
+    "declaration.foundations.expressions": (
         "ArrayExpression", "ArraySelection", "BoolExpression",
         "CustomDataTypeExpression", "FloatExpression", "IntExpression",
         "NullableExpression", "NullableSelection", "StrExpression",
@@ -55,7 +57,7 @@ _GROUPS: dict[str, tuple[str, ...]] = {
         "ValueSelection", "all_of", "any_of", "as_expression",
         "value_expression",
     ),
-    "table": (
+    "declaration.languages.table": (
         "BoundSource", "BoundTable", "BoundTableGroup", "ComputedStruct",
         "DataSourceConfig", "DerivedRowSource", "Field", "InputFormat",
         "Projection", "ProjectionOptions", "RelationRowSource", "RowSource",
@@ -64,7 +66,7 @@ _GROUPS: dict[str, tuple[str, ...]] = {
         "TableOptions", "bind_source", "computed_field", "field",
         "projection_field",
     ),
-    "topology": (
+    "declaration.languages.topology": (
         "AbstractEdge", "AbstractNode", "Edge", "EdgeOptions",
         "EdgeOptionsTemplate", "EdgeTemplate", "Endpoint", "Node", "NodeOptions",
         "NodeOptionsTemplate", "NodeTemplate", "PropertySlot", "endpoint",
@@ -74,7 +76,7 @@ _GROUPS: dict[str, tuple[str, ...]] = {
         "Array", "ArrayType", "CustomDataType", "Date", "Nullable",
         "NullableType", "Shape", "Time", "Timestamp", "Uuid",
     ),
-    "workflow": ("BuildRuntime", "WorkflowReport", "build"),
+    "pipeline.build": ("BuildRuntime", "WorkflowReport", "build"),
 }
 
 __all__ = [name for names in _GROUPS.values() for name in names]

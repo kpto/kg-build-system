@@ -14,7 +14,7 @@ class ModuleCompiler(Protocol):
     """Compile a module against a build into a workflow contribution.
 
     ``context`` is a ``CompilationContext``. Compilation is async because a
-    module may read external metadata or lower through an engine.
+    module may read external metadata or use an engine.
 
     Example:
     ```python

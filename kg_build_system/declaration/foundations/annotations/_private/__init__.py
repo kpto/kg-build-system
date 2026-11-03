@@ -1,0 +1,1 @@
+"""Private annotation payload mechanics."""

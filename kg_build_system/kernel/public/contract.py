@@ -365,6 +365,10 @@ class DisruptingInput:
 class DefinedStep:
     """A workflow step after inputs and outputs have been resolved.
 
+    ``instruction`` is the step's opaque instruction value, kept intact from the
+    contract. An executor reads its ``kind`` and ``payload``; the kernel does not
+    interpret either.
+
     Example:
     ```python
     from kg_build_system.kernel import DefinedStep
@@ -376,6 +380,7 @@ class DefinedStep:
     name: str
     inputs: tuple[TakenInput, ...] = ()
     outputs: tuple[Given, ...] = ()
+    instruction: Any = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -540,16 +545,16 @@ class PublishedArtifact:
 class CompilationContext(Generic[ConfigT]):
     """The frozen context a module compiler receives.
 
-    ``build`` is the lowered build, ``configuration`` is an instance of the
+    ``build`` is the transcribed build, ``configuration`` is an instance of the
     module's ``CONFIGURATION_TYPE``, and ``blueprint``/``engine`` are optional
     compatibility views supplied by the composition layer.
 
     Example:
     ```python
-    from kg_build_system.kernel import BuildIR, CompilationContext
+    from kg_build_system.kernel import Build, CompilationContext
 
     context = CompilationContext(
-        build=BuildIR({"echo": ("hello",)}),
+        build=Build({"echo": ("hello",)}),
         module_id="echo",
         configuration=None,
     )

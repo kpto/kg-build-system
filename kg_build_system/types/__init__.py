@@ -1,7 +1,8 @@
-"""Author-facing logical type vocabulary.
+"""Authoring alias for the kernel's canonical logical types.
 
-A graph author writes the markers and unit constants here; normalization,
-validation and type codecs are the framework-internal interface.
+An author imports the type vocabulary from here; every layer, the blueprint and
+the contract use the same canonical type ontology. The definitions live in
+:mod:`kg_build_system.kernel.public.types`.
 
 Example:
     ```python
@@ -13,14 +14,19 @@ Example:
 """
 from __future__ import annotations
 
-from .public import (
-    Array, ArrayType, BOOL, CustomDataType, DATE, Date, FLOAT, INT, Nullable,
-    NullableType, STR, Shape, Struct, TIME, TIMESTAMP, Time, Timestamp, UUID,
-    Uuid,
+from ..kernel.public.types import (
+    Array, ArrayType, BOOL, CANONICAL_UNIT_NAMES, CustomDataType, CustomType,
+    DATE, Date, FLOAT, INT, LogicalType, NonNullableLogicalType, Nullable,
+    NullableType, STR, Shape, Struct, StructType, TEXT_CANONICAL_UNIT_NAMES,
+    TIME, TIMESTAMP, Time, Timestamp, UUID, UnitType, UnitTypeName, Uuid,
+    is_canonical_unit_name,
 )
 
 __all__ = [
-    "Array", "ArrayType", "BOOL", "CustomDataType", "DATE", "Date", "FLOAT",
-    "INT", "Nullable", "NullableType", "STR", "Shape", "Struct", "TIME",
-    "TIMESTAMP", "Time", "Timestamp", "UUID", "Uuid",
+    "Array", "ArrayType", "BOOL", "CANONICAL_UNIT_NAMES", "CustomDataType",
+    "CustomType", "DATE", "Date", "FLOAT", "INT", "LogicalType",
+    "NonNullableLogicalType", "Nullable", "NullableType", "STR", "Shape",
+    "Struct", "StructType", "TEXT_CANONICAL_UNIT_NAMES", "TIME", "TIMESTAMP",
+    "Time", "Timestamp", "UUID", "UnitType", "UnitTypeName", "Uuid",
+    "is_canonical_unit_name",
 ]

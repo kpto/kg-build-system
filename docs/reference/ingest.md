@@ -272,10 +272,10 @@ is request-time configuration, not a generated declaration and not a runtime
 option in the compiled contract.
 
 ```python
-from kg_build_system.code_generation.builtins import (
+from kg_build_system.generation.code_generation.builtins import (
     DataContractInferenceConfig, InferDataContractProvider,
 )
-from kg_build_system.code_generation import generation
+from kg_build_system.generation.code_generation import generation
 
 readings = generation(
     InferDataContractProvider,

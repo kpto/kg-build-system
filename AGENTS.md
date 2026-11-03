@@ -52,17 +52,17 @@ rule about what the framework is belongs to the framework model.
 
 - A change that crosses a subpackage boundary is proposed as an interface change
   before it is implemented.
-- Author-facing interfaces are reviewed through the docs under `docs/`; internal
-  interfaces are reviewed through the spec MD files.
+- Author-facing interfaces are reviewed through `docs/`; internal interfaces are
+  reviewed through `docs/developer/`.
 - Docs are author-facing, not simplified. Include anything an author might need
   to know: semantics, edge cases, limits, examples and the reasons behind a
   rule. Structure makes them readable, not the amount of detail.
-- Docs and specs may cover the same subject for different readers; they are not
-  alternates.
-- A spec states the interface: names, signatures, invariants, allowed
+- Author docs and developer docs may cover the same subject for different
+  readers; they are not alternates.
+- A developer doc states the interface: names, signatures, invariants, allowed
   dependencies and the authoring surface. Implementation detail is out of scope.
 - The interface is the review surface; implementation is not. When the code and
-  the spec disagree, the spec is the decision and one of them changes.
+  the developer doc disagree, the doc is the decision and one of them changes.
 - A plan or a changelog is a change report, not a spec.
 - The proposal is read in one screen:
 
@@ -79,7 +79,7 @@ rule about what the framework is belongs to the framework model.
 | Surface | Reader | What it states |
 | --- | --- | --- |
 | `docs/` | graph author | what to write, what the graph does, and the semantics and limits an author needs |
-| spec MD | framework reviewer | internal interface, boundaries and invariants |
+| `docs/developer/` | framework reviewer | internal interface, boundaries and invariants |
 
 - If the interface delta does not explain the change, the change is not ready.
 - End every change report with the rule-promotion result: none, refined or
@@ -111,7 +111,7 @@ rule about what the framework is belongs to the framework model.
 
 ### Kernel and distribution
 
-- `kg_build_system.kernel` is domain-agnostic: language, module, build IR,
+- `kg_build_system.kernel` is domain-agnostic: language, module, build value,
   registry and the module contract. It imports no table, topology, expression,
   engine or workflow package.
 - The kernel holds what is inseparable from the framework: protocols, build
@@ -126,9 +126,9 @@ rule about what the framework is belongs to the framework model.
   interface is the root of its consumer cluster. A tree cannot encode every
   edge; the dependency tests enforce the rest.
 - `table`, `topology` and `binding` are languages; `expressions` contributes
-  operations; `core` is a module; engines own code generation.
-- An operation is one specification plus one engine lowerer. Adding one does not
-  edit a dispatcher.
+  operations; `core` is a module; instruction emitters emit SQL or Python.
+- An operation is one specification plus one instruction emitter. Adding one
+  does not edit a dispatcher.
 - A custom language and module compile and execute without the default
   distribution; a graph build is one distribution, not the kernel.
 
@@ -144,7 +144,7 @@ rule about what the framework is belongs to the framework model.
   endpoints and properties; it does not carry Python paths, declaration
   expressions or symbol IDs.
 - A DTO is a member of the blueprint or the workflow contract. A value outside
-  those two artifacts is in-memory: a lowered model, a plan, a render input or
+  those two artifacts is in-memory: a model, a plan, a render input or
   a build result. It is not a DTO and is not expected to deserialise.
 - A layer DTO does not know the blueprint. It knows only the DTOs of the layers
   it depends on. The blueprint package assembles the layer DTOs into one
@@ -199,22 +199,23 @@ rule about what the framework is belongs to the framework model.
 - Every framework subpackage uses the same four-part layout:
   - `__init__.py` — the public facade; it imports only from `.public`;
   - `public/` — the public domain: names a graph author writes or reads;
-  - `internal/` — the framework-internal interface, `ir.py` and adapters;
+  - `internal/` — the framework-internal interface: `dto/`, `model/`,
+    `service/` and `adapters/`;
   - `_private/` — mechanisms imported only inside the package.
 - `public` is the definition site for author-facing names. A public function or
   method is a thin wrapper over `_private` or `internal`; the mechanism is not in
   `public`.
-- Another subpackage imports `pkg`, `pkg.internal` or `pkg.internal.ir`. It never
-  imports `pkg._private`. Importing `pkg.public` directly is limited to frozen
-  type vocabulary; a behaviour belongs in `internal`.
+- Another subpackage imports `pkg`, `pkg.internal`, `pkg.internal.dto` or
+  `pkg.internal.model`. It never imports `pkg._private`. Importing `pkg.public`
+  directly is limited to frozen type vocabulary; a behaviour belongs in
+  `internal`.
 - A subpackage may have no author-facing surface when nothing in it is written by
   a graph author; its `public/` states that, it does not pretend to be a facade.
 - Implementing another package's protocol is a separate file under
   `internal/adapters/<protocol>.py`. The file names the protocol and delegates to
   `_private`; it is not buried in a model or factory.
-- Interface and IR values are anaemic: frozen data with no owner, no service and
-  no behaviour beyond its own invariants. Derived rules are functions beside
-  them.
+- DTO and model values are anaemic: frozen data with no owner, no service and no
+  behaviour beyond its own invariants. Derived rules are functions beside them.
 - A protocol is the internal interface of a dependency direction: a module
   implements it, a runtime calls it. Do not carry a live service inside a data
   model.
@@ -233,9 +234,9 @@ rule about what the framework is belongs to the framework model.
   docstring and a runnable example. It is not a bare re-export.
 - It makes the intended use easy and the wrong use impossible.
 - It exposes only what an author may write; internal types stay internal.
-- A type in a public signature is a public type. If the value is internal IR, the
+- A type in a public signature is a public type. If the value is an internal model, the
   public function returns either an opaque token or a public view of it; it does
-  not expose the IR under an internal name.
+  not expose the model under an internal name.
 - A feature that cannot be expressed cleanly through it is probably wrong.
 - Typecheck fixtures exercise the public surface and guard it.
 
