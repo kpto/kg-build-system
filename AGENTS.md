@@ -119,6 +119,9 @@ rule about what the framework is belongs to the framework model.
   be omitted or replaced is not kernel.
 - Canonical types are a kernel assumption. Every layer, the blueprint and the
   contract use the same type ontology; no layer defines its own.
+- A package shared only inside one system belongs to that system. It does not
+  become a `foundation` package just because several layers use it. Only a
+  package every system needs, and cannot replace, moves to the kernel.
 - `table`, `topology` and `binding` are languages; `expressions` contributes
   operations; `core` is a module; engines own code generation.
 - An operation is one specification plus one engine lowerer. Adding one does not
