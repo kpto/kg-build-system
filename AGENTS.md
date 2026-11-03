@@ -144,10 +144,6 @@ rule about what the framework is belongs to the framework model.
 - The blueprint is public: a user may obtain a blueprint handle. The layer DTOs
   it references are not exported public names. The canonical flow is the
   compile shortcut that creates and consumes the blueprint without exposing it.
-- Lowering is local to one layer: it turns that layer's authoring declarations
-  into its DTO, using only its dependency layers' DTOs. It does not know the
-  blueprint. Cross-layer resolution and validation belong to blueprint
-  assembly.
 - Source generation is the responsibility of the layer that owns the DTO. A
   layer renders its own DTO using its dependency layers' renderers; the
   blueprint layer only delegates to each layer and assembles the fragments.
@@ -243,6 +239,11 @@ rule about what the framework is belongs to the framework model.
   `BindingDTO`.
 - A model that is not serialised is not a DTO: name it a lowered `model` or an
   engine-neutral `plan`. A DTO whose artifact cannot be named is not a DTO.
+- Use one verb per transformation. A language **transcribes** declarations to
+  its DTO; the blueprint **assembles** layer DTOs; compile **compiles** a
+  blueprint to a workflow contract; the engine **emits** SQL from a plan; source
+  generation **renders** a DTO to authoring source. Do not use `lower` for any
+  of them.
 
 ### Models are anaemic and amnesic
 
