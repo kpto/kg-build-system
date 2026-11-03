@@ -280,9 +280,11 @@ rule about what the framework is belongs to the framework model.
 - A codec is private to its layer. Another package calls the layer's codec
   interface; it never imports the codec implementation.
 - Data is the lowest layer inside a package. `_private` may import
-  `internal.dto` and `internal.model`; `internal.service` delegates to `_private`
-  with a function-local import. `internal/__init__.py` does not eagerly import a
-  service that imports `_private`.
+  `internal.dto`, `internal.model` and public model data. It may not import public
+  service behaviour. Public model imports no service and no `_private`.
+  `internal.service` delegates to `_private` with a function-local import.
+  `internal/__init__.py` does not eagerly import a service that imports
+  `_private`.
 - A language does not encode or decode. Serialisation belongs to the DTO codec,
   which names its artifact: `to_document` / `from_document`. The blueprint codec
   composes the layer codecs.
