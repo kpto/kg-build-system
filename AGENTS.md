@@ -237,8 +237,8 @@ rule about what the framework is belongs to the framework model.
   `render_dto.py`.
 - A type in a DTO module carries the `DTO` suffix: `ComponentDTO`,
   `BindingDTO`.
-- A model that is not serialised is not a DTO: name it a lowered `model` or an
-  engine-neutral `plan`. A DTO whose artifact cannot be named is not a DTO.
+- A model that is not serialised is not a DTO: name it an in-memory `model` or
+  an engine-neutral `plan`. A DTO whose artifact cannot be named is not a DTO.
 - Use one verb per transformation. A language **transcribes** declarations to
   its DTO; the blueprint **assembles** layer DTOs; compile **compiles** a
   blueprint to a workflow contract; the engine **emits** SQL from a plan; source
