@@ -20,7 +20,7 @@ from kg_build_system import (
     Edge, EdgeValues, Field, Node, NodeValues, Projection, PropertySlot, Table,
     computed_field, edge_binding, endpoint, field, node_binding, property,
 )
-from kg_build_system.types import Array
+from kg_build_system import Array
 
 
 class SiteTable(Table):

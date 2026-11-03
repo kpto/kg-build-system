@@ -8,7 +8,7 @@
 # pyright: reportUnknownVariableType=false
 
 from kg_build_system import TableGroup, TableGroupOptions
-from kg_build_system.types import Array, Date, Time, Timestamp, Uuid
+from kg_build_system import Array, Date, Time, Timestamp, Uuid
 from reference_project.table.readings.mechanical import MechanicalTableGroup
 from reference_project.table.readings.temperature import TemperatureTable
 

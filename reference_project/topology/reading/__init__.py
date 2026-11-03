@@ -1,5 +1,5 @@
 from kg_build_system import Node, NodeLabel, NodeOptions, PropertySlot, property
-from kg_build_system.types import Timestamp
+from kg_build_system import Timestamp
 
 from reference_project.topology.common import (
     DocumentedAbstractNode, ProvenancedNodeTemplate,

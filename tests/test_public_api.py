@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import importlib
 import inspect
 import unittest
 
@@ -21,6 +22,17 @@ class PublicApiTests(unittest.TestCase):
         self.assertTrue(callable(kg_build_system.compile))
         self.assertFalse(inspect.ismodule(kg_build_system.compile))
         self.assertEqual(kg_build_system.compile.__module__, "kg_build_system.api")
+
+    def test_the_type_vocabulary_is_exported_at_the_root(self) -> None:
+        from kg_build_system.kernel.model.public.types import Array
+
+        self.assertIs(kg_build_system.Array, Array)
+        self.assertTrue(hasattr(kg_build_system, "BOOL"))
+        self.assertTrue(hasattr(kg_build_system, "Timestamp"))
+
+    def test_the_removed_types_alias_package_does_not_import(self) -> None:
+        with self.assertRaises(ModuleNotFoundError):
+            importlib.import_module("kg_build_system.types")
 
     def test_the_canonical_entry_points_are_distinct(self) -> None:
         self.assertTrue(callable(kg_build_system.create_blueprint))

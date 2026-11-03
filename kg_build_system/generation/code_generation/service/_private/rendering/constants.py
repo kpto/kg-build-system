@@ -22,7 +22,7 @@ REPRESENTATIVE_TYPES: Final = {
 }
 
 REPRESENTATIVE_IMPORT: Final = (
-    f"from kg_build_system.types import Array, {', '.join(sorted(set(REPRESENTATIVE_TYPES.values())))}"
+    f"from kg_build_system import Array, {', '.join(sorted(set(REPRESENTATIVE_TYPES.values())))}"
 )
 
 

@@ -36,7 +36,6 @@ kg_build_system/
     build/
   distribution/
   generation/code_generation/
-  types/                 # authoring alias for kernel.model.public.types
   api.py
   cli/
 ```
@@ -98,9 +97,9 @@ whose service interface uses `to_document` and `from_document`.
 
 ### Canonical types
 
-Canonical types live in `kernel/model/public/types/`. The authoring alias is
-`kg_build_system.types`; an author imports that name, while every layer, the
-blueprint and the contract use the same type ontology.
+Canonical types live in `kernel/model/public/types/`. The authoring vocabulary is
+re-exported by `kg_build_system`; an author imports that name, while every layer,
+the blueprint and the contract use the same type ontology.
 
 A layer does not define its own type vocabulary. A table field, a topology
 property, an expression result and a contract artifact all refer to the same

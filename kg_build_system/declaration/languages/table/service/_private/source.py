@@ -25,7 +25,7 @@ def _type_source(
     if isinstance(value, NullableTypeDTO):
         return f"{_type_source(value.value, imports, type_names)} | None"
     if isinstance(value, ArrayTypeDTO):
-        imports.add("from kg_build_system.types import Array")
+        imports.add("from kg_build_system import Array")
         return f"Array[{_type_source(value.item, imports, type_names)}]"
     if isinstance(value, StructTypeDTO):
         return type_names.get(

@@ -9,7 +9,7 @@ representative type, not a second type. The concepts behind these rules are on
 [sources and ingest](ingest.md).
 
 ```python
-from kg_build_system.types import Array, Date, Time, Timestamp, Uuid
+from kg_build_system import Array, Date, Time, Timestamp, Uuid
 ```
 
 ## Canonical scalars
@@ -47,7 +47,7 @@ and the alias and the stdlib spelling are the same annotation.
 
 ```python
 from kg_build_system import Field, Table, field
-from kg_build_system.types import Timestamp, Uuid
+from kg_build_system import Timestamp, Uuid
 
 
 class RegisterTable(Table):
@@ -122,7 +122,7 @@ same name in different modules are distinct.
 
 ```python
 from kg_build_system import Field, Struct, Table, field
-from kg_build_system.types import Array
+from kg_build_system import Array
 
 
 class AddressStruct(Struct):
@@ -215,7 +215,7 @@ expression of `T`.
 
 ```python
 from kg_build_system import Node, PropertySlot, property
-from kg_build_system.types import Array
+from kg_build_system import Array
 
 
 class SiteNode(Node):
@@ -333,7 +333,7 @@ property shape and target capability are separate checks.
 
 !!! note "`logical_type` takes a canonical type"
     `NullableType`, `ArrayType`, `STR` and `INT` come from
-    `kg_build_system.types`. A Python annotation such as `str | None` is not a
+    `kg_build_system`. A Python annotation such as `str | None` is not a
     canonical type and is refused here.
 
 !!! note "Refusal is not coercion"
@@ -365,7 +365,7 @@ property shape and target capability are separate checks.
 from kg_build_system import (
     Field, Node, NodeValues, PropertySlot, Table, field, node_binding, property,
 )
-from kg_build_system.types import Array, Timestamp
+from kg_build_system import Array, Timestamp
 
 
 class ReadingTable(Table):

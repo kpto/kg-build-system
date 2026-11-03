@@ -12,7 +12,7 @@ The examples use these declarations:
 
 ```python
 from kg_build_system import Field, Struct, Table, TableOptions, field
-from kg_build_system.types import Array
+from kg_build_system import Array
 
 
 class ContactStruct(Struct):

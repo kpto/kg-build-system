@@ -33,7 +33,6 @@ kg_build_system/
   distribution/
   generation/
     code_generation/
-  types/                 # authoring alias for kernel.model.public.types
   api.py
   cli/
 ```

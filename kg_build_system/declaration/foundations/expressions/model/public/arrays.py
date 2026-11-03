@@ -3,7 +3,7 @@
 Example:
     ```python
     from kg_build_system import value_expression
-    from kg_build_system.types import ArrayType, INT
+    from kg_build_system import ArrayType, INT
 
     numbers = value_expression([2, 1], logical_type=ArrayType(INT))
     assert numbers.sort().model.operator == "sort"
@@ -59,7 +59,7 @@ class ArrayExpression(ValueExpression[Array[TItem]], Generic[TItem]):
         Example:
             ```python
             from kg_build_system import value_expression
-            from kg_build_system.types import ArrayType, INT
+            from kg_build_system import ArrayType, INT
 
             numbers = value_expression([1, 2], logical_type=ArrayType(INT))
             selected = numbers.transform_items(lambda item: item.add(1))
@@ -80,7 +80,7 @@ class ArrayExpression(ValueExpression[Array[TItem]], Generic[TItem]):
         Example:
             ```python
             from kg_build_system import value_expression
-            from kg_build_system.types import ArrayType, INT, NullableType
+            from kg_build_system import ArrayType, INT, NullableType
 
             values = value_expression(
                 [1, None], logical_type=ArrayType(NullableType(INT))
@@ -98,7 +98,7 @@ class ArrayExpression(ValueExpression[Array[TItem]], Generic[TItem]):
         Example:
             ```python
             from kg_build_system import value_expression
-            from kg_build_system.types import ArrayType, INT
+            from kg_build_system import ArrayType, INT
 
             numbers = value_expression([2, 1], logical_type=ArrayType(INT))
             assert numbers.sort().model.operator == "sort"
@@ -114,7 +114,7 @@ class ArrayExpression(ValueExpression[Array[TItem]], Generic[TItem]):
         Example:
             ```python
             from kg_build_system import value_expression
-            from kg_build_system.types import ArrayType, INT
+            from kg_build_system import ArrayType, INT
 
             numbers = value_expression([1, 1], logical_type=ArrayType(INT))
             assert numbers.distinct().model.operator == "distinct"
@@ -130,7 +130,7 @@ class ArrayExpression(ValueExpression[Array[TItem]], Generic[TItem]):
         Example:
             ```python
             from kg_build_system import value_expression
-            from kg_build_system.types import ArrayType, STR
+            from kg_build_system import ArrayType, STR
 
             names = value_expression(["a", "b"], logical_type=ArrayType(STR))
             assert names.join(", ").model.operator == "join"

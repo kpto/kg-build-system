@@ -87,10 +87,11 @@ def render_expression_source(dto: ExpressionDTO) -> SourceFragment:
             "from kg_build_system import value_expression",
             "from kg_build_system.declaration.foundations.expressions.service.internal import "
             "field_reference, operation",
-            "from kg_build_system.types import "
+            "from kg_build_system import "
             "ArrayType, NullableType, "
             "BOOL, DATE, FLOAT, INT, STR, TIME, TIMESTAMP, UUID",
-            "from kg_build_system.types import CustomType, StructType",
+            "from kg_build_system.kernel.model.public.types import "
+            "CustomType, StructType",
         ),
     )
 

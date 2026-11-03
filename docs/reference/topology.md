@@ -118,7 +118,7 @@ class UnitNode(Node):
 A property description belongs to the declaring class. An inherited property keeps its description and its declaration; a subclass does not replace it by writing a new docstring over the inherited slot.
 
 ```python
-from kg_build_system.types import Array, Timestamp
+from kg_build_system import Array, Timestamp
 
 class ReadingNode(Node):
     recorded_on: PropertySlot[Timestamp] = property(

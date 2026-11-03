@@ -47,7 +47,7 @@ the rules; it does not repeat the explanation of why the model works that way.
 | `compile`, `create_blueprint` and `build` | `kg_build_system` |
 | `compile_blueprint` | `kg_build_system.pipeline.compilation` |
 | `BuildRuntime` and `WorkflowReport` | `kg_build_system.pipeline.build` |
-| Representative types and canonical logical types | `kg_build_system.types` |
+| Representative types and canonical logical types | `kg_build_system` |
 | Supplied modules and `register_module` | `kg_build_system.distribution` |
 | Generation requests and commands | `kg_build_system.generation.code_generation` |
 

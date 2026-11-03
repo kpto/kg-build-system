@@ -9,7 +9,7 @@
 # pyright: reportUnknownVariableType=false
 
 from kg_build_system import Field, Struct, Table, TableOptions, field
-from kg_build_system.types import Array, Date, Time, Timestamp, Uuid
+from kg_build_system import Array, Date, Time, Timestamp, Uuid
 
 
 class SurveyorFirmStruct(Struct):

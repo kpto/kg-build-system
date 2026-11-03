@@ -51,7 +51,7 @@ data, and each field names the value the source holds:
 
 ```python
 from kg_build_system import Field, Struct, Table, field
-from kg_build_system.types import Array, Date
+from kg_build_system import Array, Date
 
 
 class ContactStruct(Struct):

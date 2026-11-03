@@ -110,13 +110,13 @@ def render_logical_type(
         alias = _UNIT_SOURCE[value.name]
         if value.name in _UNIT_IMPORTS:
             imports.add(
-                f"from kg_build_system.types import {_UNIT_IMPORTS[value.name]}"
+                f"from kg_build_system import {_UNIT_IMPORTS[value.name]}"
             )
         return alias
     if isinstance(value, NullableTypeDTO):
         return f"{render_logical_type(value.value, imports)} | None"
     if isinstance(value, ArrayTypeDTO):
-        imports.add("from kg_build_system.types import Array")
+        imports.add("from kg_build_system import Array")
         return f"Array[{render_logical_type(value.item, imports)}]"
     if isinstance(value, (CustomTypeDTO, StructTypeDTO)):
         if value.module and value.module != "builtins" and value.module != "__main__":

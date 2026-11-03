@@ -36,11 +36,12 @@ if TYPE_CHECKING:
         EdgeTemplate, Endpoint, Node, NodeOptions, NodeOptionsTemplate,
         NodeTemplate, PropertySlot, endpoint, property,
     )
-    from .pipeline.build import BuildRuntime, WorkflowReport, build
-    from .types import (
-        Array, ArrayType, CustomDataType, Date, Nullable, NullableType, Shape,
-        Time, Timestamp, Uuid,
+    from .kernel.model.public.types import (
+        Array, ArrayType, BOOL, CustomDataType, DATE, Date, FLOAT, INT,
+        Nullable, NullableType, Shape, STR, TIME, TIMESTAMP, Time, Timestamp,
+        UUID, Uuid,
     )
+    from .pipeline.build import BuildRuntime, WorkflowReport, build
 
 _GROUPS: dict[str, tuple[str, ...]] = {
     "declaration.foundations.annotations": ("Annotation", "EdgeLabel", "NodeLabel"),
@@ -72,9 +73,10 @@ _GROUPS: dict[str, tuple[str, ...]] = {
         "NodeOptionsTemplate", "NodeTemplate", "PropertySlot", "endpoint",
         "property",
     ),
-    "types": (
+    "kernel.model.public.types": (
         "Array", "ArrayType", "CustomDataType", "Date", "Nullable",
         "NullableType", "Shape", "Time", "Timestamp", "Uuid",
+        "BOOL", "INT", "FLOAT", "STR", "DATE", "TIME", "TIMESTAMP", "UUID",
     ),
     "pipeline.build": ("BuildRuntime", "WorkflowReport", "build"),
 }

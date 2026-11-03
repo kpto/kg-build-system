@@ -216,8 +216,8 @@ The data model is implemented:
 - `pipeline/build` dispatches on `step.instruction.kind`; SQL is one instruction
   kind.
 
-The canonical type DTOs live in `kernel/model/internal/types`; `kg_build_system.types`
-is the authoring alias.
+The canonical type DTOs live in `kernel/model/internal/types`; the package root
+re-exports the authoring type vocabulary.
 
 The remaining limits in this area are:
 

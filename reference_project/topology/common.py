@@ -13,7 +13,7 @@ from kg_build_system import (
     EdgeOptionsTemplate, EdgeTemplate, NodeLabel, NodeOptions,
     NodeOptionsTemplate, NodeTemplate, PropertySlot, property,
 )
-from kg_build_system.types import Timestamp
+from kg_build_system import Timestamp
 
 
 @dataclass(frozen=True)

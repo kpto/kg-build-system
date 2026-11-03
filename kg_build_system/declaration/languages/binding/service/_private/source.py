@@ -53,12 +53,12 @@ _UNIT_NAMES = {
 }
 
 _TYPE_IMPORT = (
-    "from kg_build_system.types import "
+    "from kg_build_system import "
     "ArrayType, NullableType, "
     "BOOL, DATE, FLOAT, INT, STR, TIME, TIMESTAMP, UUID"
 )
 _TYPE_INTERNAL_IMPORT = (
-    "from kg_build_system.types import CustomType, StructType"
+    "from kg_build_system.kernel.model.public.types import CustomType, StructType"
 )
 _BIND_REFERENCE_IMPORT = (
     "from kg_build_system.declaration.languages.binding.service.internal.source "

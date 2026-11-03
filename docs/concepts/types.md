@@ -29,7 +29,7 @@ portable vocabulary rather than mirroring the type system of a source:
 | `SomeCustomDataType` | an application-defined scalar |
 
 `Date`, `Time`, `Timestamp` and `Uuid` are representative names from
-`kg_build_system.types`. They are aliases of the standard-library classes, not
+`kg_build_system`. They are aliases of the standard-library classes, not
 subclasses, so `Field[Uuid]` and `Field[uuid.UUID]` are the same annotation.
 Choose one spelling for a declaration and keep it.
 
@@ -147,7 +147,7 @@ The survey graph makes the property shape concrete:
 ```python
 from estate.table import SiteTable
 from kg_build_system import Node, NodeValues, PropertySlot, node_binding, property
-from kg_build_system.types import Array, Date
+from kg_build_system import Array, Date
 
 
 class SiteNode(Node):

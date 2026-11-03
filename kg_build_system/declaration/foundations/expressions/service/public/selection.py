@@ -35,7 +35,7 @@ def select_member(
     Example:
         ```python
         from kg_build_system.declaration.foundations.expressions.service.public import select_member
-        from kg_build_system.types import STR
+        from kg_build_system import STR
         from kg_build_system.kernel.model.public.types import StructType
 
         declaration = StructType("models", "Site")

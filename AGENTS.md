@@ -287,6 +287,9 @@ rule about what the framework is belongs to the framework model.
 - A shared artifact package owns its model and, at most, its document codec. It
   does not own the algorithm that assembles it; the producing system owns
   assembly. A contract package is not a compiler.
+- A package that only re-exports another package's model is not a package. Expose
+  the names from the top-level facade or import the definition site; do not add a
+  package with no model or service of its own.
 - Data is the lowest layer inside a package. `model._private` may import
   `model.public` and `model.internal`; `service._private` may also import
   `model.public` and `model.internal`. `_private` may use public model data but

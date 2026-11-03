@@ -4,7 +4,7 @@ Declarations state the shape of one row, the shape of a nested record, the name
 of a relation, a table catalog and the physical source those rows come from.
 
 The declaration names come from `kg_build_system`; the representative and
-canonical types come from `kg_build_system.types`. The meaning of each
+canonical types come from `kg_build_system`. The meaning of each
 declaration is on [Data contracts](../concepts/data-contracts.md); the physical
 side is on [Sources](../concepts/sources.md). Expressions are on
 [Expressions and selections](expressions.md), row plans on
@@ -52,7 +52,7 @@ constructors decide the backing kind.
 
 ```python
 from kg_build_system import Field, Table, TableOptions, field
-from kg_build_system.types import Timestamp
+from kg_build_system import Timestamp
 
 
 class VisitTable(Table):

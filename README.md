@@ -20,7 +20,7 @@ contract and publishes the graph with the meaning declared for it.
 | `api.py` | the composition root: `create_blueprint`, `compile_blueprint`, `compile` and `build` |
 | `cli/` | the `kbs` entry point |
 
-`kg_build_system.types` is the authoring alias for the canonical types in
+`kg_build_system` re-exports the authoring vocabulary for the canonical types in
 `kernel/model/public/types`.
 
 Every framework leaf uses the model/service layout:

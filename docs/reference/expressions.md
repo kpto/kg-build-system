@@ -4,7 +4,7 @@ A selection names one typed value in a row and owns its null policy, while an
 expression is the bindable calculation behind it.
 
 The names on this page come from `kg_build_system`; canonical types such as
-`STR`, `INT`, `NullableType` and `ArrayType` come from `kg_build_system.types`.
+`STR`, `INT`, `NullableType` and `ArrayType` come from `kg_build_system`.
 The model is explained on [Expressions](../concepts/expressions.md); declared
 value types are on [Types](types.md); the row plan that carries a selection is
 on [Row sources](row-sources.md).
@@ -27,7 +27,7 @@ without null policy.
 
 ```python
 from kg_build_system import Field, Struct, Table, TableOptions, field
-from kg_build_system.types import Array
+from kg_build_system import Array
 
 
 class ContactStruct(Struct):
@@ -314,7 +314,7 @@ that point. `as_expression()` normalises a selection or expression; see
 
 ```python
 from kg_build_system import value_expression
-from kg_build_system.types import ArrayType, INT, NullableType, STR
+from kg_build_system import ArrayType, INT, NullableType, STR
 
 
 prefix = value_expression("site::")

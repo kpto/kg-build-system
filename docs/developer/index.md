@@ -30,9 +30,10 @@ framework model, the package boundaries and the contract tests.
 ## Current state
 
 The implemented tree is `kernel`, `declaration`, `pipeline/{contract,
-compilation, build}`, `distribution`, `generation`, `api.py` and `cli`, plus
-`types` as the kernel type alias. Every leaf uses `model/` and `service/`;
-shared mechanisms live in the package that consumes them, for example JSON
+compilation, build}`, `distribution`, `generation`, `api.py` and `cli`. The
+kernel type vocabulary is re-exported by the package root. Every leaf uses
+`model/` and `service/`; shared mechanisms live in the package that consumes
+them, for example JSON
 freezing in `kernel/model/internal/json.py`, relation protocols in
 `pipeline/build/service/internal/relations/protocols.py`, and table naming and
 docstring helpers in `declaration/languages/table/service/_private/`.

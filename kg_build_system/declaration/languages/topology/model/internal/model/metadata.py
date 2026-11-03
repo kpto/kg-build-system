@@ -24,7 +24,7 @@ class PropertyDeclaration:
         from kg_build_system.declaration.languages.topology.model.internal.model import (
             PropertyDeclaration,
         )
-        from kg_build_system.types import STR
+        from kg_build_system import STR
 
         declaration = PropertyDeclaration("name", "name", STR)
         ```

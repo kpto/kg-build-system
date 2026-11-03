@@ -3,7 +3,7 @@
 Example:
     ```python
     from kg_build_system import Field, Table, field
-    from kg_build_system.types import Array
+    from kg_build_system import Array
 
     class Row(Table):
         tags: Field[Array[str]] = field(name="tags")

@@ -4,7 +4,7 @@ Example:
     ```python
     from kg_build_system import value_expression
     from kg_build_system.declaration.foundations.expressions.service.public import literal
-    from kg_build_system.types import INT
+    from kg_build_system import INT
 
     assert value_expression(1).logical_type.name == "int"
     assert literal(1, logical_type=INT).logical_type == INT
@@ -84,7 +84,7 @@ def literal(
     Example:
         ```python
         from kg_build_system.declaration.foundations.expressions.service.public import literal
-        from kg_build_system.types import INT
+        from kg_build_system import INT
 
         assert literal(1, logical_type=INT).logical_type == INT
         ```
