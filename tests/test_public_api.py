@@ -5,11 +5,15 @@ import inspect
 import unittest
 
 import kg_build_system
-from kg_build_system import create_blueprint
-from kg_build_system.declaration.blueprint import GraphBlueprint
-from kg_build_system.pipeline.execution import BuildRuntime, WorkflowReport, execute
-from kg_build_system.pipeline.compile import compile_blueprint
-from kg_build_system.pipeline.contract import WorkflowContractDTO
+from kg_build_system import (
+    BuildRuntime,
+    GraphBlueprint,
+    WorkflowPlan,
+    WorkflowReport,
+    compile,
+    create_blueprint,
+    execute,
+)
 
 
 class PublicApiTests(unittest.TestCase):
@@ -42,34 +46,48 @@ class PublicApiTests(unittest.TestCase):
         self.assertTrue(callable(kg_build_system.create_blueprint))
         self.assertTrue(callable(kg_build_system.compile))
         self.assertTrue(callable(kg_build_system.execute))
-        self.assertIsNot(kg_build_system.compile, compile_blueprint)
+        self.assertIsNot(kg_build_system.compile, kg_build_system.execute)
+
+    def test_the_removed_layers_do_not_import(self) -> None:
+        for removed in ("declaration", "pipeline"):
+            name = f"kg_build_system.{removed}"
+            with self.subTest(name=name):
+                with self.assertRaises(ModuleNotFoundError):
+                    importlib.import_module(name)
 
     def test_the_public_handles_name_their_artifacts(self) -> None:
         self.assertEqual(
             GraphBlueprint.__module__,
-            "kg_build_system.declaration.blueprint.model.public.graph_blueprint",
+            "kg_build_system.distribution.interpreter.model.public.graph_blueprint",
         )
         self.assertEqual(
-            WorkflowContractDTO.__module__,
-            "kg_build_system.pipeline.contract.model.public.dto.contract",
-        )
-        self.assertEqual(
-            BuildRuntime.__module__,
-            "kg_build_system.pipeline.execution.model.public.runtime",
+            WorkflowPlan.__module__,
+            "kg_build_system.kernel.model.public.workflow",
         )
         self.assertEqual(
             WorkflowReport.__module__,
-            "kg_build_system.pipeline.execution.model.public.runtime",
+            "kg_build_system.kernel.model.public.runtime",
+        )
+        self.assertEqual(
+            BuildRuntime.__module__,
+            "kg_build_system.distribution.model.public.runtime",
         )
         self.assertEqual(create_blueprint.__module__, "kg_build_system.api")
-        self.assertEqual(
-            compile_blueprint.__module__,
-            "kg_build_system.pipeline.compile.service.public.compile",
-        )
-        self.assertEqual(
-            execute.__module__,
-            "kg_build_system.pipeline.execution.service.public.execute",
-        )
+        self.assertEqual(compile.__module__, "kg_build_system.api")
+        self.assertEqual(execute.__module__, "kg_build_system.api")
+
+    def test_the_root_exports_the_workflow_handles(self) -> None:
+        for name in (
+            "compile",
+            "execute",
+            "create_blueprint",
+            "WorkflowPlan",
+            "WorkflowReport",
+            "BuildRuntime",
+            "GraphBlueprint",
+        ):
+            with self.subTest(name=name):
+                self.assertIn(name, kg_build_system.__all__)
 
 
 if __name__ == "__main__":

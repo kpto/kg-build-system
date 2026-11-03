@@ -7,7 +7,7 @@ Install kg-build-system into a Python 3.12 or newer environment and verify that 
 - Install Python 3.12 or newer. The package declares `requires-python = ">=3.12"`.
 - Have a checkout of the kg-build-system repository. This guide describes the API in that checkout.
 - Have `pip` available in the environment, or use `uv`.
-- No database server is required for the first build. The file output module writes JSON Lines.
+- No database server is required for the first build. The file output planner writes JSON Lines.
 
 !!! note "Use one environment"
     Install kg-build-system into the environment that runs your project. Keep the framework and the project's own dependencies together so `kbs` and `python` refer to the same installation.

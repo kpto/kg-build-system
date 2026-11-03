@@ -9,24 +9,32 @@ import kg_build_system
 ROOT = Path(kg_build_system.__file__).parent
 GROUPS = (
     "kernel",
-    "declaration",
-    "pipeline",
     "distribution",
     "generation",
     "cli",
 )
 LEAVES = (
     "kernel",
-    "declaration/foundations/annotations",
-    "declaration/foundations/expressions",
-    "declaration/languages/table",
-    "declaration/languages/topology",
-    "declaration/languages/binding",
-    "declaration/blueprint",
-    "pipeline/contract",
-    "pipeline/compile",
-    "pipeline/execution",
     "distribution",
+    "distribution/languages/annotations",
+    "distribution/languages/expressions",
+    "distribution/languages/table",
+    "distribution/languages/topology",
+    "distribution/languages/binding",
+    "distribution/interpreter",
+    "distribution/planners",
+    "distribution/planners/core",
+    "distribution/planners/deduplication",
+    "distribution/planners/merging",
+    "distribution/planners/conflict_validation",
+    "distribution/executors",
+    "distribution/executors/runtime",
+    "distribution/executors/duckdb",
+    "distribution/executors/python",
+    "distribution/executors/file",
+    "distribution/executors/meta_graph",
+    "distribution/executors/neo4j",
+    "distribution/executors/conflict_validation",
     "generation/code_generation",
     "cli",
 )
@@ -187,6 +195,30 @@ class NamingTests(unittest.TestCase):
                     f"{path}:{line} imports private names "
                     f"{module_names + imported_names} from {'.'.join(parts)}",
                 )
+
+    def test_an_instruction_kind_is_a_tuple_of_strings(self) -> None:
+        from kg_build_system.kernel import Instruction
+
+        instruction = Instruction(("sql", "duckdb"), None)
+        self.assertIsInstance(instruction.kind, tuple)
+        self.assertTrue(instruction.kind)
+        self.assertTrue(all(isinstance(part, str) for part in instruction.kind))
+
+    def test_no_public_module_keeps_the_removed_contract_or_module_name(
+        self,
+    ) -> None:
+        for path in (ROOT / "kernel").rglob("*.py"):
+            self.assertNotEqual(path.name, "contract_dto.py", str(path))
+            self.assertFalse(
+                path.parent.name == "public" and path.name == "module.py",
+                str(path),
+            )
+        for path in (ROOT / "distribution").rglob("*.py"):
+            self.assertNotEqual(path.name, "contract_dto.py", str(path))
+            self.assertFalse(
+                path.parent.name == "public" and path.name == "module.py",
+                str(path),
+            )
 
 
 if __name__ == "__main__":

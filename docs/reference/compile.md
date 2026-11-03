@@ -1,57 +1,51 @@
 # Compile and execute
 
-`create_blueprint` collects declarations into a `GraphBlueprint`.
-`compile_blueprint` compiles a blueprint and a module composition into a
-`WorkflowContractDTO`. `compile` is the shortcut that creates the blueprint and
-compiles it. `execute` executes the contract and writes its outputs.
+`create_blueprint` collects declarations into a `GraphBlueprint`. `compile`
+compiles a blueprint with a planner composition into a `WorkflowPlan`. `execute`
+runs the plan and writes its outputs.
 
 The calls separate inspection from execution. A blueprint describes the graph
-model; a contract describes the ordered work of one module composition. Neither
-reads data. See [Compile, build and outputs](../concepts/build-and-outputs.md).
+model; a workflow plan describes the ordered work of one planner composition.
+Neither reads data. See
+[Compile, execute and outputs](../concepts/build-and-outputs.md).
 
 ```python
 from pathlib import Path
 
-from kg_build_system import compile, execute, create_blueprint
-from kg_build_system.distribution import (
-    FileModule, FileModuleConfiguration, register_module,
-)
-from kg_build_system.pipeline.compile import compile_blueprint
+from kg_build_system import compile, create_blueprint, execute
+from kg_build_system.distribution import FileConfiguration, FilePlanner
 
-modules = (
-    register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
-)
+planners = (FilePlanner(FileConfiguration("graph.jsonl")),)
 
 blueprint = create_blueprint(namespace_path=Path("graph_pipeline"))
-contract = compile_blueprint(blueprint, modules=modules)
+plan = compile(blueprint=blueprint, planners=planners)
 
 # The shortcut creates the blueprint and compiles it:
-contract = compile(namespace_path=Path("graph_pipeline"), modules=modules)
+plan = compile(namespace_path=Path("graph_pipeline"), planners=planners)
 
-report = execute(contract, output_directory=Path("build"), monitor=False)
+report = execute(plan, output_directory=Path("build"))
 ```
 
 | Call | Inputs | Returns | Reads data | Writes files |
 | --- | --- | --- | --- | --- |
 | `create_blueprint` | One declaration mode and optional languages | `GraphBlueprint` | No | No |
-| `compile_blueprint` | A `GraphBlueprint` and `modules` | `WorkflowContractDTO` | No | No |
-| `compile` | One declaration mode or a blueprint, plus `modules` | `WorkflowContractDTO` | No | No |
-| `execute` | A contract and an output directory | `WorkflowReport` | Yes | Yes |
+| `compile` | One declaration mode or a blueprint, plus planners or a toolchain | `WorkflowPlan` | No | No |
+| `execute` | A plan, an output directory and an optional runtime or toolchain | `WorkflowReport` | Yes | Yes |
 
 ## `create_blueprint`
 
 ```python
 create_blueprint(
     *,
-    namespace_path=None,
-    bindings=(),
-    sources=(),
-    languages=None,
+    namespace_path: str | Path | None = None,
+    bindings: Iterable[Binding] = (),
+    sources: Sequence[BoundSource] = (),
+    languages: Sequence[Language] | None = None,
 ) -> GraphBlueprint
 ```
 
-`create_blueprint` takes no modules. It collects declarations through the
-selected languages, assembles the layer DTOs and validates the result.
+`create_blueprint` takes no planners. It collects declarations through the
+selected languages, links the layers and validates the result.
 
 | Argument | Meaning |
 | --- | --- |
@@ -90,27 +84,35 @@ structs those types use, and the sources those tables need.
 | `bindings` | `NodeBindingDTO` and `EdgeBindingDTO` values |
 | `sources` | `SourceDTO` values for physical source bindings |
 
-The layer DTOs are internal to the declaration packages. `GraphBlueprint` is the
+The layer DTOs are internal to the language packages. `GraphBlueprint` is the
 public handle; `graph`, `data`, `bindings` and `sources` reference internal layer
 DTOs.
 
-## `compile_blueprint`
+## `compile`
 
 ```python
-compile_blueprint(
-    blueprint: GraphBlueprint,
+compile(
     *,
-    modules,
-    engine=None,
-) -> WorkflowContractDTO
+    blueprint: GraphBlueprint | None = None,
+    namespace_path: str | Path | None = None,
+    bindings: Iterable[Binding] | None = None,
+    sources: Sequence[BoundSource] | None = None,
+    planners: Sequence[Planner] = (),
+    toolchain: Toolchain[GraphBlueprint] | None = None,
+    engine: DuckDbSqlEmitter | None = None,
+) -> WorkflowPlan
 ```
 
-`compile_blueprint` reads the blueprint exactly as given. It never creates a
-blueprint. It compiles the modules you pass; the `compile` shortcut appends the
-core module when it is absent.
+`compile` reads the blueprint exactly as given, or creates one from the
+declaration mode. It never reads data.
+
+When `toolchain` is omitted, `compile` uses `default_toolchain`, adding the core
+planner unless a supplied planner already reports `component_id == "core"`, then
+appends the planners you pass. When `toolchain` is supplied, it appends the
+`planners` argument to that toolchain's planners.
 
 ```python
-contract = compile_blueprint(blueprint, modules=modules)
+plan = compile(blueprint=blueprint, planners=planners)
 ```
 
 Compilation checks everything that does not need data:
@@ -121,96 +123,66 @@ Compilation checks everything that does not need data:
 - keys are non-null scalars;
 - edge endpoints exist, are concrete and descend from the declared categories;
 - every reached table has a source;
-- each module's compile-time configuration is valid;
-- the module wiring can feed every input and read every output.
+- each planner's compile-time configuration is valid;
+- the step wiring can feed every input and read every ordinary output.
 
-`WorkflowContractDTO` owns the workflow structure:
+`WorkflowPlan` owns the workflow structure:
 
 | Field | Content |
 | --- | --- |
-| `contributions` | One contribution per module, with its steps |
+| `components` | One component per planner, with its id, version and runtime fields |
+| `steps` | The scheduled instructions with typed inputs and outputs |
 | `connections` | Resolved connections between step openings |
 | `provenance` | Opaque JSON recorded by compilation |
 
-A `StepDTO` owns its inputs, outputs, `assembly_preference` and one
-`InstructionDTO(kind, payload)`. SQL is one instruction kind, not a contract
-field. The contract DTO has no separate public workflow-fingerprint field.
-
-## `compile`
-
-```python
-compile(
-    *,
-    modules=(),
-    namespace_path=None,
-    bindings=None,
-    sources=None,
-    blueprint=None,
-    engine=None,
-) -> WorkflowContractDTO
-```
-
-`compile` accepts the same declaration modes as `create_blueprint`, or an
-existing blueprint:
-
-```python
-contract = compile(blueprint=blueprint, modules=modules)
-```
-
-`blueprint` cannot be combined with `namespace_path`, `bindings` or `sources`.
-When a blueprint is supplied, `modules` is the composition compiled against it.
-The shortcut appends the core module when it is absent.
-
-Compilation never opens a source or reads a row.
+A `Step` owns its inputs, outputs, `assembly_preference` and one
+`Instruction(kind, payload)`. Step identity is `f"{component}.{name}"`; an
+opening identity is `f"{step_id}.{opening_name}"`. SQL is one instruction kind,
+not a plan field.
 
 ## `execute`
 
 ```python
 execute(
-    contract,
+    plan: WorkflowPlan,
     *,
     output_directory: str | Path,
-    working_directory: str | Path | None = None,
-    temporary_directory: str | Path | None = None,
     runtime: BuildRuntime | None = None,
-    monitor=None,
+    toolchain: Toolchain[GraphBlueprint] | None = None,
 ) -> WorkflowReport
 ```
 
 | Argument | Meaning |
 | --- | --- |
-| `contract` | The `WorkflowContractDTO` returned by `compile_blueprint` or `compile` |
-| `output_directory` | Where publications, `workflow_contract.json` and `build_report.json` land |
-| `working_directory` | Working storage; a relative path resolves beneath the output directory |
-| `temporary_directory` | Temporary storage; `None` uses the runtime value or the system directory |
-| `runtime` | Credentials, module runtime overrides and engine settings |
-| `monitor` | Progress display: automatic, forced, disabled or a custom monitor object |
+| `plan` | The `WorkflowPlan` returned by `compile` |
+| `output_directory` | Where publications, `workflow_plan.json` and `build_report.json` land |
+| `runtime` | Credentials, component runtime overrides and engine settings |
+| `toolchain` | The executors, resources and runtime; defaults to `DEFAULT_TOOLCHAIN` |
 
-`execute` dispatches each step by `step.instruction.kind`. A kind the build does not
-implement is refused.
+`execute` writes the plan before execution starts and the report after it
+finishes. It dispatches each step by the exact tuple `step.instruction.kind`. A
+kind the toolchain does not implement is refused before any step runs.
 
 ```python
 report = execute(
-    contract,
+    plan,
     output_directory=Path("out"),
-    monitor=False,
 )
 
 if not report.succeeded:
     for failure in report.unresolved_failures:
-        print(failure.module_id, failure.step_id, failure.message)
+        print(failure.step_id, failure.message)
 ```
 
-`workflow_contract.json` is written before execution starts. `build_report.json`
-is written after execution finishes. A failure before execution raises; a
-failure inside a step becomes a report entry.
+A failure before execution raises. A failure inside a step becomes a report
+entry.
 
 ## `BuildRuntime`
 
 ```python
 BuildRuntime(
     credentials: dict[str, str] = {},
-    module_configuration: dict[str, dict[str, Any]] = {},
+    component_configuration: dict[str, dict[str, Any]] = {},
     output_directory: Path = Path.cwd() / "build",
     working_directory: Path = Path("_workdir"),
     temporary_directory: Path | None = None,
@@ -221,9 +193,14 @@ BuildRuntime(
 )
 ```
 
-`BuildRuntime` supplies credentials, per-module runtime overrides and engine
-settings. Runtime values are not part of the contract. A relative working
-directory resolves beneath the output directory.
+`BuildRuntime` supplies credentials, per-component runtime overrides and engine
+settings. Runtime values are not part of the plan. A relative working directory
+resolves beneath the output directory. `to_configuration()` returns the kernel
+`RuntimeConfiguration` that execution reads.
+
+The engine settings are published under the `duckdb` component id, so an
+executor reads them from the same per-component map as every other component's
+values.
 
 ## `WorkflowReport`
 
@@ -232,29 +209,34 @@ directory resolves beneath the output directory.
 | `published_artifacts` | One entry per publication, with its type and value |
 | `recovered_failures` | Failures that a later step handled |
 | `unresolved_failures` | Failures that blocked a publication |
-| `provenance` | Contract provenance plus execution facts |
+| `provenance` | The plan provenance |
 | `succeeded` | True when `unresolved_failures` is empty |
 
-Each failure exposes `message`, `module_id`, `step_id` and `exception_type`.
+Each failure exposes `message`, `step_id` and `exception_type`.
 
 ## Required inputs
 
 | Requirement | Enforced by |
 | --- | --- |
 | Exactly one declaration mode | `create_blueprint` / `compile` argument checks |
-| A source for every reached table | `compile_blueprint` |
-| Valid compile-time configuration for every module | `compile_blueprint` |
-| A wireable module composition | `compile_blueprint` |
+| A source for every reached table | the blueprint validation inside `compile` |
+| Valid compile-time configuration for every planner | each planner's `plan` |
+| A wireable planner composition | kernel assembly |
 | An output directory for execution | `execute` |
-| Matching module `VERSION` values at execution | `execute` |
+| An executor for every instruction kind | `Toolchain.execute` |
+| Matching plans and executors at execution | `execute` |
 
 ## What to remember
 
-- `create_blueprint` takes no modules and returns `GraphBlueprint`.
-- `compile_blueprint` reads a blueprint and takes the module composition.
-- `compile` is the shortcut: it creates the blueprint and compiles it.
-- A step owns its `InstructionDTO`; SQL is one instruction kind.
-- `execute` executes the contract and dispatches by `step.instruction.kind`.
+- `create_blueprint` takes no planners and returns `GraphBlueprint`.
+- `compile` reads a blueprint and takes planners or a toolchain; it returns a
+  `WorkflowPlan`.
+- `execute` runs the plan, dispatches by `step.instruction.kind` and returns a
+  `WorkflowReport`.
+- A step owns its `Instruction`; SQL is one instruction kind.
+- `execute` writes `workflow_plan.json` before the run and `build_report.json`
+  after it.
 
-Related: [Compile, build and outputs](../concepts/build-and-outputs.md),
-[Modules](modules.md), [Bindings](bindings.md), [Reference index](index.md).
+Related: [Compile, execute and outputs](../concepts/build-and-outputs.md),
+[Planners and executors](planners-and-executors.md), [Bindings](bindings.md),
+[Reference index](index.md).

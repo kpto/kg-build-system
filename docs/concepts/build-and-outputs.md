@@ -1,8 +1,8 @@
-# Compile, build and outputs
+# Compile, execute and outputs
 
-A build turns declarations into a `GraphBlueprint`, compiles that and a module
-composition into a `WorkflowContractDTO`, executes the contract, and writes
-outputs and a report.
+A build turns declarations into a `GraphBlueprint`, compiles that with a planner
+composition into a `WorkflowPlan`, executes the plan, and writes outputs and a
+report.
 
 The three steps keep separate questions separate: what the graph is made from,
 what this build will do, and what actually happened. The first two do not read
@@ -13,34 +13,33 @@ data.
 | Step | Result | Reads data? | Use it to |
 | --- | --- | --- | --- |
 | `create_blueprint` | a `GraphBlueprint` | no | inspect, store or test the declarations |
-| `compile_blueprint` | a `WorkflowContractDTO` | no | compile one module composition against a blueprint |
+| `compile` | a `WorkflowPlan` | no | plan one planner composition against a blueprint |
 | `execute` | a `WorkflowReport` and files | yes | execute the plan and publish outputs |
 
 ```python
-from kg_build_system import compile, execute, create_blueprint
+from kg_build_system import compile, create_blueprint, execute
 from kg_build_system.distribution import (
-    FileModule,
-    FileModuleConfiguration,
-    MetaGraphModule,
-    register_module,
+    FileConfiguration,
+    FilePlanner,
+    MetaGraphPlanner,
 )
 
-modules = (
-    register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
-    register_module(MetaGraphModule),
+planners = (
+    FilePlanner(FileConfiguration("graph.jsonl")),
+    MetaGraphPlanner(),
 )
 
 blueprint = create_blueprint()
-contract = compile(blueprint=blueprint, modules=modules)
-report = execute(contract, output_directory="build")
+plan = compile(blueprint=blueprint, planners=planners)
+report = execute(plan, output_directory="build")
 ```
 
 `create_blueprint` is useful when you want to inspect or store the
 declaration-level description. A normal build calls `compile` directly:
 
 ```python
-contract = compile(modules=modules)
-report = execute(contract, output_directory="build")
+plan = compile(planners=planners)
+report = execute(plan, output_directory="build")
 ```
 
 ## From declarations to a blueprint
@@ -60,7 +59,7 @@ compilation.
 | `bindings` | node and edge binding DTOs |
 | `sources` | physical source bindings |
 
-The layer DTOs are internal to the declaration packages. `GraphBlueprint` is the
+The layer DTOs are internal to the language packages. `GraphBlueprint` is the
 public handle.
 
 You can create one in three ways:
@@ -76,18 +75,30 @@ Only reached declarations enter the blueprint. Discovery may import a package
 with many declarations, but an unread table, projection or category is not
 published.
 
-## From blueprint to a contract
+## From blueprint to a workflow plan
 
-`compile_blueprint` reads an existing blueprint and the module composition:
+`compile` reads an existing blueprint and a planner composition:
 
 ```python
-from kg_build_system.pipeline.compile import compile_blueprint
+from kg_build_system import compile
+from kg_build_system.distribution import (
+    DeduplicationPlanner,
+    FileConfiguration,
+    FilePlanner,
+)
 
-contract = compile_blueprint(blueprint, modules=modules)
+plan = compile(
+    blueprint=blueprint,
+    planners=(
+        DeduplicationPlanner(),
+        FilePlanner(FileConfiguration("graph.jsonl")),
+    ),
+)
 ```
 
-`compile` is the shortcut. It creates the blueprint when it is not supplied and
-then compiles it. It appends the core module when it is absent.
+`compile` is also the shortcut. It creates the blueprint when it is not supplied,
+adds the core planner when it is absent, and appends the planners you pass. It
+returns a `WorkflowPlan`.
 
 Compilation checks everything that can be checked without reading data:
 
@@ -97,96 +108,103 @@ Compilation checks everything that can be checked without reading data:
 - build keys are non-null scalars;
 - edge endpoints exist, are concrete and descend from the declared categories;
 - every table has a source;
-- every module's compile-time configuration is valid;
-- the module wiring can feed every input and read every output.
+- every planner's compile-time configuration is valid;
+- the step wiring can feed every input and read every ordinary output.
 
-`WorkflowContractDTO` owns contributions, connections and provenance. A `StepDTO`
-owns its inputs, outputs, assembly preference and one `InstructionDTO`. SQL is
-one instruction kind, not a contract field. The contract DTO has no separate
-public workflow-fingerprint field in this API.
+`WorkflowPlan` owns the workflow structure:
+
+| Field | Content |
+| --- | --- |
+| `components` | One component per planner, with its id, version and runtime fields |
+| `steps` | The scheduled instructions with typed inputs and outputs |
+| `connections` | Resolved connections between step openings |
+| `provenance` | Opaque JSON recorded by compilation |
+
+A `Step` owns its inputs, outputs, `assembly_preference` and one
+`Instruction(kind, payload)`. SQL is one instruction kind, not a plan field. Step
+identity is `f"{component}.{name}"`.
 
 ## Running a build
 
-`execute` consumes the contract and writes everything the contract publishes to an
-output directory:
+`execute` consumes the plan and writes everything the plan publishes to an output
+directory:
 
 ```python
 from kg_build_system import BuildRuntime, execute
 
 runtime = BuildRuntime(duckdb_storage="disk", duckdb_threads=4)
-report = execute(contract, runtime=runtime, output_directory="build")
+report = execute(plan, runtime=runtime, output_directory="build")
 ```
 
-`output_directory` is required. A relative module output path is resolved beneath
-it and must not escape it.
+`output_directory` is required. A relative planner output path is resolved
+beneath it and must not escape it.
 
 `BuildRuntime` carries settings about how the build runs, not what the graph
 means:
 
 - `credentials` maps a credential reference to its value. A source binding stores
-  the reference; secrets do not enter the contract or the report.
-- `module_configuration` supplies runtime values for fields a module declared.
-  Unknown fields, missing required fields and values of the wrong type stop the
-  build before any step runs.
+  the reference; secrets do not enter the plan or the report.
+- `component_configuration` supplies runtime values for fields a component
+  declared. Unknown fields, missing required fields and values of the wrong type
+  stop the run before any step executes.
 - `duckdb_storage` chooses `"memory"` or `"disk"`; `duckdb_compression`,
   `duckdb_memory_limit` and `duckdb_threads` tune execution.
 
-`execute` dispatches each step by `step.instruction.kind`. A kind the build does not
-implement is refused.
+`execute` dispatches each step by the exact tuple `step.instruction.kind`. A kind
+the toolchain does not register is refused before any step runs.
 
-## Durability and module versions
+## Durability and implementation versions
 
-A contract is durable data only in the environment that can execute it. It names
-each module by import coordinates and records the implementation version that
-compiled it. When `execute` starts, it imports every module the contract names and
-requires the module's current `VERSION` to equal the version compiled into the
-contract. A mismatch stops the build.
+A workflow plan is durable data only in the environment that has executors for
+every instruction kind it contains. A plan names each component id and version,
+and each step carries an exact instruction kind. When `execute` starts, it builds
+the kind map and refuses an unregistered kind.
 
 The framework has no schema compatibility, version negotiation or migration path.
-A stored contract is reproducible only where the same module implementations and
-`VERSION` values are available. Changing the framework or a module means
-compiling again.
+A stored plan is reproducible only where the same executors and instruction
+payload readers are available. Changing a planner, an executor or the framework
+means compiling again.
 
 ## What a build writes
 
 | Path | Written by | Contents |
 | --- | --- | --- |
-| `workflow_contract.json` | `execute` | the contract that was executed |
+| `workflow_plan.json` | `execute` | the plan that was executed |
 | `build_report.json` | `execute` | published artifacts, failures and provenance |
-| the configured `FileModule` path | `FileModule` | one JSON object per graph record |
-| `meta_graph.json` | `MetaGraphModule` | the effective topology with counts and example values |
-| `meta_graph.html` | `MetaGraphModule` | a self-contained diagram of the same document, when enabled |
-| `neo4j-import/` | `Neo4jModule` | Parquet files and a standalone import script |
+| the configured `FilePlanner` path | `FileExecutor` | one JSON object per graph record |
+| `meta_graph.json` | `MetaGraphExecutor` | the effective topology with counts and example values |
+| `meta_graph.html` | `MetaGraphExecutor` | a self-contained diagram of the same document, when enabled |
+| `neo4j-import/` | `Neo4jExecutor` | Parquet files and a standalone import script |
 | `_workdir/` | the runtime | working storage, normally empty after a build |
 
-`workflow_contract.json` is written before execution starts, so it exists even
-when the run fails. `build_report.json` is written after a completed run.
+`workflow_plan.json` is written before execution starts, so it exists even when
+the run fails. `build_report.json` is written after a completed run.
 
-Only registered modules publish files. Core's graph records are ordinary outputs,
-so a composition must include a stage that reads them; otherwise assembly fails
-rather than silently writing nothing.
+Only the planners you compose publish files. Core's graph records are ordinary
+outputs, so a composition must include a planner that reads them; otherwise
+assembly fails rather than silently writing nothing.
 
 ### The graph file
 
-`FileModule` writes one JSON object per line. Each line contains `build_key`,
+`FileExecutor` writes one JSON object per line. Each line contains `build_key`,
 `type` (the component's logical name), `kind` (`node` or `edge`) and the
 component's properties. An edge also carries `source_build_key` and
-`target_build_key`. A record that has not passed through a merging stage carries
+`target_build_key`. A record that has not passed through a merging step carries
 `_kg_binding_symbol`, the binding that produced it.
 
 ### The meta-graph
 
-`MetaGraphModule` writes a document of the effective topology: every component a
-binding targets, its abstract ancestors and endpoint categories, its label,
+`MetaGraphExecutor` writes a document of the effective topology: every component
+a binding targets, its abstract ancestors and endpoint categories, its label,
 description, properties with logical types and descriptions, record counts and
-example values. Counts are exact for the records that reached the module.
-Examples are approximate: the module uses `approx_top_k`, bounded by
+example values. Counts are exact for the records that reached the executor.
+Examples are approximate: the executor uses `approx_top_k`, bounded by
 `example_limit`.
 
 ### The Neo4j bundle
 
-`Neo4jModule` writes one Parquet file per bound node under `nodes/`, one per bound
-edge under `relationships/`, and `import_neo4j.py`. The script invokes
+`Neo4jExecutor` writes one Parquet file per bound node under `nodes/`, one per
+bound edge under `relationships/`, and `import_neo4j.py`. The script invokes
 `neo4j-admin database import` and needs neither this package nor a network at run
 time.
 
@@ -197,41 +215,41 @@ time.
 ```python
 if not report.succeeded:
     for failure in report.unresolved_failures:
-        print(failure.module_id, failure.message)
+        print(failure.step_id, failure.message)
 ```
 
 - `succeeded` is true when `unresolved_failures` is empty.
 - `unresolved_failures` lists failures that blocked a publication.
 - `recovered_failures` lists failures that a later step handled.
 - `published_artifacts` lists one entry per published value.
-- `provenance` records the contract provenance and execution facts.
+- `provenance` records the plan provenance.
 
-A problem inside a step becomes a failure in the report. A failure before
-execution raises.
+Each failure exposes `message`, `step_id` and `exception_type`. A problem inside
+a step becomes a failure in the report. A failure before execution raises.
 
 ## Limits
 
-- A contract is durable only for the exact module implementations and `VERSION`
-  values that compiled it. There is no migration path.
-- A contract is one module composition. Different module compositions need a
-  different contract.
-- The contract DTO has no public workflow-fingerprint field.
-- Meta-graph counts reflect the records that reached the module.
-- Only registered modules publish. There is no implicit graph file.
-- Module output paths are relative to the output directory and must not escape it.
+- A plan is durable only for the exact instruction kinds and executors it names.
+  There is no migration path.
+- A plan is one planner composition. A different composition needs a different
+  plan.
+- Meta-graph counts reflect the records that reached the executor.
+- Only composed output planners publish. There is no implicit graph file.
+- Planner output paths are relative to the output directory and must not escape
+  it.
 - Compilation catches declaration and composition problems; source and step
   failures appear in the report.
 
 ## Next steps
 
-- [Modules](modules.md) explains how to choose and order the stages that produce
-  these outputs.
+- [Planners and executors](planners-and-executors.md) explains how to choose and order the stages
+  that produce these outputs.
 - [Semantics and annotations](semantics.md) explains what the meta-graph
   publishes about meaning.
 
 ## Reference
 
-- [Compile and execution reference](../reference/compile.md) lists the entry points,
-  contract fields, runtime settings and error messages.
-- [Modules reference](../reference/modules.md) lists each supplied module, its
-  configuration and the artifacts it publishes.
+- [Compile and execution reference](../reference/compile.md) lists the entry
+  points, plan fields, runtime settings and error messages.
+- [Planners and executors reference](../reference/planners-and-executors.md) lists each supplied
+  planner and executor, its configuration and the artifacts it publishes.

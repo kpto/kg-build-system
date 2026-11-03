@@ -50,11 +50,11 @@ nav:
       - Topology: concepts/topology.md
       - Bindings: concepts/bindings.md
       - Semantics and annotations: concepts/semantics.md
-      - Modules: concepts/modules.md
-      - Compile, build and outputs: concepts/build-and-outputs.md
+      - Planners and executors: concepts/planners-and-executors.md
+      - Compile, execute and outputs: concepts/build-and-outputs.md
   - How-to guides:
       - Join, group and union: how-to/relations.md
-      - Write a custom module: how-to/custom-modules.md
+      - Write an extension: how-to/custom-extensions.md
       - Debug a build: how-to/debug.md
       - Modelling patterns: how-to/patterns.md
   - Developer:
@@ -73,8 +73,8 @@ nav:
       - Topology: reference/topology.md
       - Bindings: reference/bindings.md
       - Semantics: reference/semantics.md
-      - Compile and build: reference/compile.md
-      - Modules: reference/modules.md
+      - Compile and execute: reference/compile.md
+      - Planners and executors: reference/planners-and-executors.md
       - Sources and ingest: reference/ingest.md
       - Generation: reference/generation.md
       - Glossary: reference/glossary.md

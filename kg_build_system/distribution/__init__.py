@@ -1,60 +1,87 @@
-"""The default distribution: supplied modules and their registration.
+"""The default KG distribution: blueprint, planners, executors and toolchain.
 
-A graph author registers supplied modules and configures them here. The module
-protocol is :mod:`kg_build_system.distribution.model.internal`; module classes
-and registration live in :mod:`kg_build_system.distribution.service.public`.
+The distribution owns domain vocabulary: graph, blueprint, node, edge, binding,
+projection, table, core, meta-graph, Neo4j, DuckDB and Python. The kernel owns
+the toolchain vocabulary those values plug into.
 
 Example:
     ```python
     from kg_build_system.distribution import (
-        FileModule, FileModuleConfiguration, register_module,
+        FileConfiguration, FilePlanner, GraphBlueprint, create_blueprint,
     )
 
-    modules = (
-        register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
-    )
+    blueprint = create_blueprint()
+    plan = compile(blueprint, planners=(FilePlanner(FileConfiguration("graph.jsonl")),))
     ```
 """
 from __future__ import annotations
 
-from .model.public import (
-    CoreConfiguration,
-    FileModuleConfiguration,
-    MergeCompatibleFactsModuleConfiguration,
-    MetaGraphModuleConfiguration,
-    ModuleRegistration,
-    ModuleRegistrationConfiguration,
-    Neo4jModuleConfiguration,
-    RejectConflictingNonNullValuesConfiguration,
+from .default import DEFAULT_TOOLCHAIN, default_toolchain
+from .executors.conflict_validation import (
+    ConflictingNonNullValueFinding,
+    ConflictingNonNullValuesReport,
+    ConflictReportExecutor,
 )
-from .service.public import (
-    CollapseExactDuplicatesModule,
-    CoreModule,
-    FileModule,
-    MergeCompatibleFactsModule,
-    MetaGraphModule,
-    Neo4jModule,
-    RejectConflictingNonNullValuesModule,
-    module_configuration_json,
-    register_module,
+from .executors.duckdb import (
+    DuckDbExecutor,
+    DuckDbInstructionEmitter,
+    DuckDbResourceProvider,
+    DuckDbSqlEmitter,
+)
+from .executors.file import (
+    FileConfiguration,
+    FileExecutor,
+    FilePlanner,
+)
+from .executors.meta_graph import (
+    MetaGraphConfiguration,
+    MetaGraphExecutor,
+    MetaGraphPlanner,
+)
+from .executors.neo4j import (
+    Neo4jConfiguration,
+    Neo4jExecutor,
+    Neo4jPlanner,
+)
+from .executors.python import PythonExecutor
+from .interpreter import GraphBlueprint, create_blueprint
+from .model.public import BuildRuntime
+from .planners import (
+    ConflictValidationConfiguration,
+    ConflictValidationPlanner,
+    CorePlanner,
+    DeduplicationPlanner,
+    MergingConfiguration,
+    MergingPlanner,
 )
 
 __all__ = [
-    "CollapseExactDuplicatesModule",
-    "CoreConfiguration",
-    "CoreModule",
-    "FileModule",
-    "FileModuleConfiguration",
-    "MergeCompatibleFactsModule",
-    "MergeCompatibleFactsModuleConfiguration",
-    "MetaGraphModule",
-    "MetaGraphModuleConfiguration",
-    "ModuleRegistration",
-    "ModuleRegistrationConfiguration",
-    "Neo4jModule",
-    "Neo4jModuleConfiguration",
-    "RejectConflictingNonNullValuesConfiguration",
-    "RejectConflictingNonNullValuesModule",
-    "module_configuration_json",
-    "register_module",
+    "BuildRuntime",
+    "ConflictReportExecutor",
+    "ConflictValidationConfiguration",
+    "ConflictValidationPlanner",
+    "ConflictingNonNullValueFinding",
+    "ConflictingNonNullValuesReport",
+    "CorePlanner",
+    "DEFAULT_TOOLCHAIN",
+    "DeduplicationPlanner",
+    "DuckDbExecutor",
+    "DuckDbInstructionEmitter",
+    "DuckDbResourceProvider",
+    "DuckDbSqlEmitter",
+    "FileConfiguration",
+    "FileExecutor",
+    "FilePlanner",
+    "GraphBlueprint",
+    "MetaGraphConfiguration",
+    "MetaGraphExecutor",
+    "MetaGraphPlanner",
+    "MergingConfiguration",
+    "MergingPlanner",
+    "Neo4jConfiguration",
+    "Neo4jExecutor",
+    "Neo4jPlanner",
+    "PythonExecutor",
+    "create_blueprint",
+    "default_toolchain",
 ]

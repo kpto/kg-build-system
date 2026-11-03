@@ -114,22 +114,22 @@ data. A description explains a component to a human; an annotation is a typed
 payload a tool can read. Both survive compilation and can be published with the
 graph, so a consumer does not have to read the pipeline.
 
-## 8. Compose the build stages
+## 8. Compose the planners and executors
 
-[Modules](modules.md) are the stages applied to the whole graph after the
-bindings. The core module materialises rows and records; file, meta-graph and
-Neo4j modules publish the result; deduplication, merging and validation modules
-change which records survive.
+[Planners and executors](planners-and-executors.md) are the stages applied to the whole graph
+after the bindings. The core planner materialises rows and records; file,
+meta-graph and Neo4j planners publish the result; deduplication, merging and
+validation planners change which records survive.
 
 ## 9. Compile and run
 
-[Compile, build and outputs](build-and-outputs.md) turns the declarations and
-modules into an immutable contract, executes it, and writes the selected
-outputs. The contract and report make the build inspectable.
+[Compile, execute and outputs](build-and-outputs.md) turns the declarations and
+planners into a `WorkflowPlan`, executes it, and writes the selected outputs. The
+plan and report make the build inspectable.
 
 ```python
-contract = compile(modules=modules)
-report = execute(contract, output_directory="build")
+plan = compile(planners=planners)
+report = execute(plan, output_directory="build")
 ```
 
 ## The whole pipeline
@@ -143,7 +143,7 @@ data contracts ──► expressions ──► row sources ──► projections
     └──────────────► topology ◄── bindings ◄─────────┘
                            │
                            ▼
-                  compile ──► contract ──► build ──► graph and reports
+                  compile ──► WorkflowPlan ──► execute ──► graph and reports
 ```
 
 Each layer has one job. The next page takes the first step:

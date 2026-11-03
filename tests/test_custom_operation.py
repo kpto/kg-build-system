@@ -16,29 +16,27 @@ from kg_build_system import (
     Table,
     TableOptions,
     bind_source,
+    compile,
     field,
     node_binding,
     property,
 )
-from kg_build_system.declaration.blueprint import create_blueprint
-from kg_build_system.declaration.foundations.expressions.service.internal import (
+from kg_build_system.distribution.executors.duckdb import (
+    DuckDbInstructionEmitter,
+    DuckDbSqlEmitter,
+)
+from kg_build_system.distribution.executors.file import (
+    FileConfiguration,
+    FilePlanner,
+)
+from kg_build_system.distribution.interpreter import create_blueprint
+from kg_build_system.distribution.languages.expressions.service.internal import (
     ArgumentSpec,
     OperationSpec,
     expression_dto,
     is_unit,
 )
-from kg_build_system.distribution import (
-    CoreModule,
-    FileModule,
-    FileModuleConfiguration,
-    register_module,
-)
 from kg_build_system.kernel import INT
-from kg_build_system.pipeline.compile import compile_blueprint
-from kg_build_system.pipeline.compile.service.internal.instruction.duckdb import (
-    DuckDbInstructionEmitter,
-    DuckDbSqlEmitter,
-)
 
 
 DOUBLE = OperationSpec(
@@ -107,27 +105,18 @@ class CustomOperationTests(unittest.TestCase):
                 ),
             )
 
-            contract = compile_blueprint(
-                blueprint,
-                modules=(
-                    register_module(CoreModule),
-                    register_module(
-                        FileModule, FileModuleConfiguration("out.jsonl"),
-                    ),
-                ),
+            plan = compile(
+                blueprint=blueprint,
+                planners=(FilePlanner(FileConfiguration("out.jsonl")),),
                 engine=emitter,
             )
 
         sql = "\n".join(
-            inner["sql"]
-            for contribution in contract.contributions
-            for step in contribution.steps
-            if isinstance(step.instruction.payload, dict)
-            and isinstance(
-                (inner := step.instruction.payload.get("instruction")), dict,
-            )
-            and isinstance((inner := inner.get("payload")), dict)
-            and isinstance(inner.get("sql"), str)
+            payload["sql"]
+            for step in plan.steps
+            if step.instruction.kind == ("sql", "duckdb")
+            and isinstance(payload := step.instruction.payload, dict)
+            and isinstance(payload.get("sql"), str)
         )
         self.assertIn("* 2", sql)
 

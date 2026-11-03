@@ -38,7 +38,7 @@ people-graph/
     build/
       graph.jsonl
       build_report.json
-      workflow_contract.json
+      workflow_plan.json
 ```
 
 The `table/`, `topology/`, `bindings/`, and `data/` directories are siblings inside the package, not inside each other. `sources.py` and `build.py` sit at the package root. Every directory that holds Python modules needs an `__init__.py` file; `data/` and `build/` do not.
@@ -126,20 +126,20 @@ Bind at module level so discovery can find the source. A table may be bound once
 
 ### 6. Compose the build in `build.py`
 
-`build.py` chooses the modules whose outputs this build produces and the directory to write. It contains no declarations.
+`build.py` chooses the planners and executors whose outputs this build produces and the directory to write. It contains no declarations.
 
 ```python
 from pathlib import Path
 
 from kg_build_system import compile, execute
-from kg_build_system.distribution import FileModule, FileModuleConfiguration, register_module
+from kg_build_system.distribution import FileConfiguration, FilePlanner
 
 
 def main() -> None:
-    contract = compile(modules=[
-        register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
+    plan = compile(planners=[
+        FilePlanner(FileConfiguration("graph.jsonl")),
     ])
-    execute(contract, output_directory=Path(__file__).parent / "build")
+    execute(plan, output_directory=Path(__file__).parent / "build")
 
 
 if __name__ == "__main__":
@@ -148,19 +148,19 @@ if __name__ == "__main__":
 
 `compile()` scans the package around `build.py`, so the declarations and bindings do not need an import list. Keep the `if __name__ == "__main__":` guard so discovery's import of `build.py` does not run a build.
 
-Choose modules here, not in the layers below. A file-only build, a deduplication pass, a meta-graph, or a Neo4j import are composition choices. See [modules](../concepts/modules.md), the [modules reference](../reference/modules.md), and [compile, build and outputs](../concepts/build-and-outputs.md).
+Choose planners here, not in the layers below. A file-only build, a deduplication pass, a meta-graph, or a Neo4j import are composition choices. See [planners and executors](../concepts/planners-and-executors.md), the [planners and executors reference](../reference/planners-and-executors.md), and [compile, execute and outputs](../concepts/build-and-outputs.md).
 
 ### 7. Keep inputs in `data/` and outputs in `build/`
 
 Put input files under `data/` and generated artifacts under `build/`. Keeping both inside the package makes paths resolve relative to the project and the example self-contained.
 
-Build artifacts are inspectable development material: the graph records, the build report, the frozen workflow contract, and any module-specific output. Do not edit them by hand and do not import them from the project. Rebuild instead.
+Build artifacts are inspectable development material: the graph records, the build report, the frozen workflow plan, and any planner-specific output. Do not edit them by hand and do not import them from the project. Rebuild instead.
 
 | Artifact | Written by | Contents |
 | --- | --- | --- |
-| `workflow_contract.json` | `execute()` | The frozen contract that was executed |
+| `workflow_plan.json` | `execute()` | The frozen workflow plan that was executed |
 | `build_report.json` | `execute()` | Published artifacts, failures, and provenance |
-| `graph.jsonl` | `FileModule` | One JSON object per graph record |
+| `graph.jsonl` | `FileExecutor` | One JSON object per graph record |
 
 ## Where each layer lives
 
@@ -171,7 +171,7 @@ Build artifacts are inspectable development material: the graph records, the bui
 | `topology/` | Node and edge types, properties | The graph model changes |
 | `sources.py` | Location, format, version | A feed moves or changes format |
 | `bindings/` | Which rows make which records | A mapping decision changes |
-| `build.py` | Module composition and output path | A build target changes |
+| `build.py` | Planner and executor composition and output path | A build target changes |
 
 ## Dependency direction
 
@@ -212,5 +212,5 @@ To verify the whole example, run `python -m people_graph.build` and check the no
 - [Build your first graph](first-graph.md) for the complete runnable version of this layout.
 - [Data contracts](../concepts/data-contracts.md) and [topology](../concepts/topology.md) for the declarations in each layer.
 - [Bindings](../concepts/bindings.md) and [sources](../concepts/sources.md) for the mapping and physical location.
-- [Compile, build and outputs](../concepts/build-and-outputs.md) for the contract and artifacts.
+- [Compile, execute and outputs](../concepts/build-and-outputs.md) for the workflow plan and artifacts.
 - [Authoring API reference](../reference/index.md) for the public names used in these files.

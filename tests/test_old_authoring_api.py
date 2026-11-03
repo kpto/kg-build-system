@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import unittest
 
-from kg_build_system.declaration.foundations.expressions import (
+from kg_build_system.distribution.languages.expressions import (
     NullableSelection,
     ValueSelection,
 )
-from kg_build_system.declaration.languages.table import (
+from kg_build_system.distribution.languages.table import (
     Field,
     Projection,
     Struct,

@@ -3,25 +3,30 @@
 Declarative, typed, reproducible knowledge-graph builds.
 
 The framework turns typed Python declarations into an inspectable knowledge
-graph. It compiles declarations into a frozen workflow contract, executes the
-contract and publishes the graph with the meaning declared for it.
+graph. It compiles declarations into a `WorkflowPlan`, executes the plan and
+publishes the graph with the meaning declared for it.
 
 ## Package groups
 
 | Group | Responsibility |
 | --- | --- |
-| `kernel/` | domain-agnostic protocols, canonical types, build values and contract vocabulary |
-| `declaration/` | annotation and expression foundations, the `table`, `topology` and `binding` languages, and `GraphBlueprint` |
-| `pipeline/contract/` | the `WorkflowContractDTO`, assembly and codec |
-| `pipeline/compile/` | `compile_blueprint`, module compilers, relational plans and instruction emitters |
-| `pipeline/execution/` | contract execution, runtime, engine, storage and relations |
-| `distribution/` | supplied modules and `register_module` |
+| `kernel/` | domain-agnostic toolchain: language, linker, planner, executor, runtime, workflow plan and canonical types |
+| `distribution/languages/` | the annotation, expression, table, topology and binding languages |
+| `distribution/interpreter/` | `GraphBlueprint`, `BlueprintLinker` and `create_blueprint` |
+| `distribution/planners/` | core, deduplication, merging and conflict-validation planners |
+| `distribution/executors/` | DuckDB, Python, file, meta-graph, Neo4j and conflict-report executors |
+| `distribution/default.py` | `DEFAULT_TOOLCHAIN` and `default_toolchain` |
 | `generation/` | edit-time code generation |
-| `api.py` | the composition root: `create_blueprint`, `compile_blueprint`, `compile` and `execute` |
+| `api.py` | the composition root: `create_blueprint`, `compile` and `execute` |
 | `cli/` | the `kbs` entry point |
 
 `kg_build_system` re-exports the authoring vocabulary for the canonical types in
 `kernel/model/public/types`.
+
+The kernel vocabulary is toolchain vocabulary: language, layer, definition,
+linker, planner, workflow plan, runtime, executor and toolchain. The
+distribution vocabulary is domain vocabulary: graph, blueprint, node, edge,
+binding, projection, table, core, meta-graph, Neo4j, DuckDB and Python.
 
 Every framework leaf uses the model/service layout:
 
@@ -56,6 +61,8 @@ uv run pytest -q
 uv run pyright
 uv run mkdocs build --strict
 ```
+
+Current verification: 115 tests passed, 604 subtests; pyright 0 errors.
 
 The framework is experimental; the guide describes the current model, not a
 compatibility promise.

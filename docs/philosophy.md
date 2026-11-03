@@ -22,7 +22,11 @@ You write three kinds of declaration.
 
 A **data contract** describes the rows you read: their fields, types, and nested records. A **topology declaration** states what a node or edge means, including its properties and, for an edge, its direction. A **binding** connects one row shape to one graph record and supplies the values.
 
-The framework compiles those declarations into a frozen contract, checks what can be checked before a row is read, and executes the contract. A build writes the contract and a report; the output modules write the graph. The product is not the Python and not the loader; it is a graph whose meaning survives the build.
+The framework compiles those declarations into a `WorkflowPlan`, checks what can
+be checked before a row is read, and executes the plan. A build writes the plan
+and a report; the output planners and executors write the graph. The product is
+not the Python and not the loader; it is a graph whose meaning survives the
+build.
 
 ## Values
 
@@ -30,7 +34,10 @@ The framework compiles those declarations into a frozen contract, checks what ca
 
 A node or edge type states what it means, which properties it carries, which values may be absent, and, for an edge, which direction it points. The binding adds which rows produce records and which non-null value identifies each record. Together, those statements are declared and published, not left in a comment or an implementation detail.
 
-The compiled contract records the declared meaning. When you compose the meta-graph module, the published meta-graph states the effective topology: labels, descriptions, properties, and counts. A consumer can read the model from the artifact instead of reconstructing it from the pipeline that produced it.
+The compiled workflow plan records the declared meaning. When you compose the
+meta-graph planner, the published meta-graph states the effective topology:
+labels, descriptions, properties, and counts. A consumer can read the model from
+the artifact instead of reconstructing it from the pipeline that produced it.
 
 When a meaning cannot be stated faithfully, the framework records a limit instead of inventing precision. A nullable property stays nullable, an unresolved reference fails, and a target that cannot store a type refuses it.
 
@@ -50,15 +57,22 @@ A type error names the declaration and both sides of the mismatch, so you can se
 
 ### Reproducible builds
 
-`compile()` turns the declarations and module composition into an immutable contract. `execute()` executes that contract and returns a report. The contract and report are written in the output directory beside the graph.
+`compile()` turns the declarations and planner composition into an immutable
+`WorkflowPlan`. `execute()` runs that plan and returns a report. The plan and
+report are written in the output directory beside the graph.
 
-The contract describes the plan, not the input bytes. The same declarations and module configuration produce the same plan, and a source file can change without changing the plan. Use your own data versioning to say what the build read.
+The plan describes the work, not the input bytes. The same declarations and
+planner configuration produce the same plan, and a source file can change without
+changing the plan. Use your own data versioning to say what the build read.
 
-The contract is durable data, not a compatibility promise. It can be stored and built again while the same module implementations and versions are available. The framework has no schema compatibility or migration path, so a changed module or framework means compiling again.
+The plan is durable data, not a compatibility promise. It can be stored and run
+again while an executor exists for every instruction kind it names. The framework
+has no schema compatibility or migration path, so a changed planner, executor or
+framework means compiling again.
 
 ### Separation of meaning and execution
 
-The graph model is independent of where rows come from and of the engine that runs the build. Topology declares nodes, edges, and properties without importing a table or a target. Tables describe logical rows. A source binding supplies the physical location. Bindings are the only layer that imports both sides. Output modules decide whether the result becomes JSON Lines, a meta-graph, a Neo4j bundle, or something else.
+The graph model is independent of where rows come from and of the engine that runs the build. Topology declares nodes, edges, and properties without importing a table or a target. Tables describe logical rows. A source binding supplies the physical location. Bindings are the only layer that imports both sides. Output planners and executors decide whether the result becomes JSON Lines, a meta-graph, a Neo4j bundle, or something else.
 
 That separation lets a feed move without changing the graph, a node type be reused across feeds, or an output target change without rewriting the mapping. The same compiled plan can feed several targets.
 
@@ -72,7 +86,7 @@ The framework states what it does not do, so you can design around it and a cons
 - Grouping collects members but has no count, sum, or `having` aggregate.
 - Generated join and group shapes are typed at runtime but are not exposed to the static type checker.
 - Custom scalars have no value operations, and a target may refuse them. Neo4j refuses `uuid` and custom scalar properties.
-- Meta-graph counts are exact for the records that reached the module; example values are approximate.
+- Meta-graph counts are exact for the records that reached the executor; example values are approximate.
 - There is no schema version, compatibility negotiation, or migration path.
 
 ## Who it is for
@@ -85,7 +99,7 @@ You will get the most from it when the graph is a product that changes over time
 
 - It is not an orchestrator or a scheduler. It runs one compiled build; another system decides when to run it.
 - It is not a graph database or a query service. It produces artifacts for a target.
-- It is not a schema migration tool. There is no schema version or compatibility path; compile again when a declaration or module changes.
+- It is not a schema migration tool. There is no schema version or compatibility path; compile again when a declaration, planner or executor changes.
 - It is not a substitute for source data quality. If a key is missing, your binding must drop the row or fail; the framework does not invent an identity.
 - It is not a stable public API. The API is experimental, and breaking changes are expected. Treat this guide and the code as the current model, not as a compatibility contract.
 
@@ -102,6 +116,6 @@ You will get the most from it when the graph is a product that changes over time
 - [Build your first graph](get-started/first-graph.md) for a complete, runnable example.
 - [Project layout](get-started/project-layout.md) for where each declaration and output belongs.
 - [Data contracts](concepts/data-contracts.md) and [topology](concepts/topology.md) for the two halves of the model.
-- [Compile, build and outputs](concepts/build-and-outputs.md) for the contract and the published artifacts.
+- [Compile, execute and outputs](concepts/build-and-outputs.md) for the workflow plan and the published artifacts.
 - [Semantics and annotations](concepts/semantics.md) for how descriptions, labels, and annotations travel with the build.
 - [Authoring API reference](reference/index.md) for the full public surface.

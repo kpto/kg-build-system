@@ -153,7 +153,7 @@ genuinely correct. On a present value both calls are no-ops.
 
 A constant is not an expression: wrap it in `value_expression(...)`.
 
-If a relation is unique per ordered pair, derive its key from the endpoints. If several assertions can occur, derive the key from whatever distinguishes them. Two producers may emit the same key; their records are independent, so an overlapping key can appear more than once. Compose a deduplication module when exact duplicates are not wanted; see [modules](modules.md).
+If a relation is unique per ordered pair, derive its key from the endpoints. If several assertions can occur, derive the key from whatever distinguishes them. Two producers may emit the same key; their records are independent, so an overlapping key can appear more than once. Compose a deduplication planner when exact duplicates are not wanted; see [planners and executors](planners-and-executors.md).
 
 ## Properties: a value for every declaration
 
@@ -210,7 +210,7 @@ A binding maps one row context onto one component. If one context feeds two comp
 
 Give each producer a distinct `debug_name` when a component has more than one. The name is reported by the meta-graph output and keeps the producers distinct in binding identity. Two bindings targeting the same component from the same row context with the same values and no distinguishing name describe the same binding and collide on identity.
 
-Bindings are ordinary module-level values. The default `compile(modules=...)` discovers them by importing the calling file's namespace recursively. Re-exported objects are deduplicated by identity. Bindings created inside functions or stored in a container are not discovered. You can also pass bindings and sources explicitly to `compile`; see [compile and build](build-and-outputs.md).
+Bindings are ordinary module-level values. The default `compile()` discovers them by importing the calling file's namespace recursively. Re-exported objects are deduplicated by identity. Bindings created inside functions or stored in a container are not discovered. You can also pass bindings and sources explicitly to `compile`; see [compile and build](build-and-outputs.md).
 
 Use `BindingOptions(annotations=...)` to carry portable metadata; see [semantics and annotations](semantics.md).
 
@@ -236,7 +236,7 @@ Use `BindingOptions(annotations=...)` to carry portable metadata; see [semantics
 ## Next steps
 
 - [Semantics and annotations](semantics.md) make these records explainable to consumers.
-- [Modules](modules.md) add whole-graph stages after the bindings.
+- [Planners and executors](planners-and-executors.md) add whole-graph stages after the bindings.
 
 ## Reference
 

@@ -419,7 +419,7 @@ Rules:
   partition directories are removed from the logical path.
 - `anonymous=True` applies only to S3.
 - A database input is refused: no `InputFormat` selects a database reader, so a
-  contract derived from it could never be bound. Export the relation to Parquet
+  table derived from it could never be bound. Export the relation to Parquet
   or declare the table outside a generated package.
 - An unsupported suffix, a directory with no supported relations, and a source
   that does not exist fail generation.
@@ -435,7 +435,7 @@ ingest](ingest.md#digest-gate).
 
 `override` is a request-time declaration for the built-in inference provider. It
 is carried in `DataContractInferenceConfig`, not in a generated file and not as
-a runtime option in the compiled contract.
+a runtime option in the compiled workflow plan.
 
 ```python
 from kg_build_system.generation.code_generation import generation

@@ -185,11 +185,11 @@ row per tag is the intended grain.
 Diagnose fan-out by counting records by build key. If the count is greater than
 one, decide what the duplicates mean:
 
-- **Exact duplicates.** Add `CollapseExactDuplicatesModule`. It removes rows
-  where every column matches.
-- **Compatible facts with one correct value.** Add
-  `MergeCompatibleFactsModule` with the affected components in scope. It folds
-  same-key rows and keeps the minimum per property.
+- **Exact duplicates.** Add `DeduplicationPlanner`. It removes rows where every
+  column matches.
+- **Compatible facts with one correct value.** Add `MergingPlanner` with the
+  affected components in scope. It folds same-key rows and keeps the minimum per
+  property.
 - **Different facts that need separate identity.** Fix the key so each fact gets
   its own. Do not hide the problem with deduplication.
 - **The wrong grain.** Move the expansion into a separate projection and bind
@@ -292,14 +292,11 @@ from collections import Counter
 from pathlib import Path
 
 from kg_build_system import compile, execute
-from kg_build_system.distribution import (
-    FileModule, FileModuleConfiguration, register_module,
-)
+from kg_build_system.distribution import FileConfiguration, FilePlanner
 
-modules = (
-    register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
-)
-report = execute(compile(modules=modules), output_directory=Path("build"))
+planners = (FilePlanner(FileConfiguration("graph.jsonl")),)
+plan = compile(planners=planners)
+report = execute(plan, output_directory=Path("build"))
 print(report.succeeded, report.unresolved_failures)
 
 rows = [
@@ -336,15 +333,15 @@ Check that:
   edge names.
 - A category has no records of its own; its descendants carry them.
 
-Add `MetaGraphModule` when you want exact counts per component and category. See
-[Compile, build and outputs](../concepts/build-and-outputs.md).
+Add `MetaGraphPlanner` when you want exact counts per component and category. See
+[Compile, execute and outputs](../concepts/build-and-outputs.md).
 
 ## Troubleshoot
 
 | Symptom | What to change |
 | --- | --- |
 | `build_key must not be nullable` | Narrow with `alter_rows().drop_null()`, or default deliberately. |
-| A component has duplicate build keys | The grain is wrong or the key is not unique. Fix the key, split the grain into a projection, or add a deduplication or merge module. |
+| A component has duplicate build keys | The grain is wrong or the key is not unique. Fix the key, split the grain into a projection, or add a deduplication or merging planner. |
 | A node is missing and an edge points nowhere | The node row was dropped by a `drop_null`, or the endpoint key expression differs from the node key. |
 | A required property is null at run time | Default it, make the property nullable, or drop the row deliberately. |
 | `may not target abstract component` | Bind a concrete descendant, not the category. |

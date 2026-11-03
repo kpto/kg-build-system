@@ -330,14 +330,11 @@ from collections import Counter
 from pathlib import Path
 
 from kg_build_system import compile, execute
-from kg_build_system.distribution import (
-    FileModule, FileModuleConfiguration, register_module,
-)
+from kg_build_system.distribution import FileConfiguration, FilePlanner
 
-modules = (
-    register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
-)
-report = execute(compile(modules=modules), output_directory=Path("build"))
+planners = (FilePlanner(FileConfiguration("graph.jsonl")),)
+plan = compile(planners=planners)
+report = execute(plan, output_directory=Path("build"))
 print(report.succeeded, report.unresolved_failures)
 
 rows = [
@@ -356,9 +353,9 @@ Check four things:
   nulls where nothing matched.
 - A union produced the combined rows, not two separate source shapes.
 
-Add `MetaGraphModule` when you want exact counts per component and category
+Add `MetaGraphPlanner` when you want exact counts per component and category
 alongside the records. See
-[Compile, build and outputs](../concepts/build-and-outputs.md).
+[Compile, execute and outputs](../concepts/build-and-outputs.md).
 
 ## Troubleshoot
 
@@ -375,7 +372,7 @@ alongside the records. See
 | A grouped row is missing | Its key tuple contained a null and was dropped. Default the key before grouping if a placeholder group is correct. |
 | `projections require a row source` | Pin the plan: `Projection(joined)` or `Projection(grouped)`. An unpinned projection must have outputs that read exactly one source. |
 | Duplicate build keys after a join | The join matched more than one row on one side. Decide the grain and move the many side to its own projection or binding. |
-| Duplicate build keys after a union | `all=False` removes identical rows, not repeated keys. Fix the key or add a deduplication or merge module. |
+| Duplicate build keys after a union | `all=False` removes identical rows, not repeated keys. Fix the key or add a deduplication or merging planner. |
 
 ## Next steps
 

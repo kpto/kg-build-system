@@ -6,31 +6,27 @@ composition or input that caused it.
 ## Before you begin
 
 - Run `create_blueprint` and `compile` before `execute`. They check declarations
-  and module wiring without reading data.
+  and step wiring without reading data.
 - Know where the build writes its outputs.
-  [Compile, build and outputs](../concepts/build-and-outputs.md) covers the
+  [Compile, execute and outputs](../concepts/build-and-outputs.md) covers the
   lifecycle and the output files.
 - Keep [Bindings](../concepts/bindings.md),
   [Row sources](../concepts/row-sources.md),
   [Projections](../concepts/projections.md) and
-  [Modules](../concepts/modules.md) open while you work.
+  [Planners and executors](../concepts/planners-and-executors.md) open while you work.
 
 A normal investigation starts with these calls:
 
 ```python
 from pathlib import Path
 
-from kg_build_system import compile, execute, create_blueprint
-from kg_build_system.distribution import (
-    FileModule, FileModuleConfiguration, register_module,
-)
+from kg_build_system import compile, create_blueprint, execute
+from kg_build_system.distribution import FileConfiguration, FilePlanner
 
-modules = (
-    register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
-)
+planners = (FilePlanner(FileConfiguration("graph.jsonl")),)
 blueprint = create_blueprint()
-contract = compile(blueprint=blueprint, modules=modules)
-report = execute(contract, output_directory=Path("build"), monitor=False)
+plan = compile(blueprint=blueprint, planners=planners)
+report = execute(plan, output_directory=Path("build"))
 ```
 
 If `create_blueprint` or `compile` raises, fix that error before running
@@ -48,10 +44,10 @@ provenance:
 print(report.succeeded)
 
 for failure in report.unresolved_failures:
-    print(failure.module_id, failure.step_id, failure.message)
+    print(failure.step_id, failure.message)
 
 for failure in report.recovered_failures:
-    print("recovered:", failure.module_id, failure.message)
+    print("recovered:", failure.step_id, failure.message)
 
 for artifact in report.published_artifacts:
     print(artifact.type.namespace, artifact.type.name)
@@ -59,11 +55,11 @@ for artifact in report.published_artifacts:
 
 - `succeeded` is true when `unresolved_failures` is empty.
 - `unresolved_failures` are the failures that stopped an output.
-- `recovered_failures` are failures a later stage handled.
-- `published_artifacts` lists what the output modules published.
+- `recovered_failures` are failures a later step handled.
+- `published_artifacts` lists what the output planners and executors published.
 
-The same report is written to `build/build_report.json`. The contract is written
-to `build/workflow_contract.json` before execution starts, so it exists even
+The same report is written to `build/build_report.json`. The workflow plan is
+written to `build/workflow_plan.json` before execution starts, so it exists even
 when the run fails.
 
 ### Step 2: Find the stage
@@ -72,12 +68,12 @@ when the run fails.
 | --- | --- | --- |
 | writing a binding, projection or row source | `TypeError` | a declaration value is malformed |
 | `create_blueprint` | `ValueError` | declarations, names or sources disagree |
-| `compile` | `ValueError` or a workflow assembly error | module composition cannot be wired |
-| `execute` | an unsuccessful report | data, runtime configuration or a module check failed |
+| `compile` | `ValueError` or an assembly error | the planner composition cannot be wired |
+| `execute` | an unsuccessful report | data, runtime configuration or an executor check failed |
 
-A successful `compile` means the declarations are structurally sound. The
-remaining problem is input data, runtime configuration or a check inside a
-module.
+A successful `compile` means the declarations and step wiring are structurally
+sound. The remaining problem is input data, runtime configuration or a check
+inside an executor.
 
 ### Step 3: Fix row-source and projection errors
 
@@ -128,7 +124,7 @@ component names must be unique
 table names must be unique
 projection names must be unique
 logical source names must be unique
-module IDs must be unique
+workflow component IDs must be unique
 ... fields 'x' and 'y' share external name 'name'
 ... properties 'x' and 'y' share external name 'name'
 ```
@@ -137,7 +133,8 @@ Give the declaration an explicit name with `NodeOptions(name=...)`,
 `EdgeOptions(name=...)`, `TableOptions(name=...)` or
 `ProjectionOptions(name=...)`. Rename a field or property with its `name=`
 argument. A table and a projection cannot share a logical name because both are
-logical relations. Register a module once.
+logical relations. Compose a planner once; two planners may not share a
+`component_id`.
 
 **Missing sources and fields.** These are reference errors:
 
@@ -175,8 +172,8 @@ written or compiled:
 | `source_node must name the declared endpoint category ...` | Pass `endpoint(ConcreteNode)` for the abstract side. |
 | `... must equal or descend from the declared endpoint category` | Name a concrete node that descends from the category. |
 | `edge component '...' requires bound source and target node components` | Bind and export both endpoint node components for the target. |
-| `workflow cannot be assembled` or `no candidate producer` | A step reads an artifact no module writes. Remove a module registered for an unbound component, or fix the binding that should produce it. |
-| `nothing reads ...` | A rewriting module is after the output modules. Move it before them or remove it. |
+| `workflow cannot be assembled` or `no executor for instruction kind(s)` | A step reads an artifact no planner writes, or a planner emits a kind no executor claims. Fix the input pattern or register the executor. |
+| `nothing reads ...` | A rewriting planner is after the output planners, or an ordinary output has no consumer. Move it before them, make it a publication, or remove it. |
 
 An edge key that matches no node key is not checked at build time. The edge is
 written anyway and fails when a graph database imports it. Use the same
@@ -218,19 +215,18 @@ missing source, or the wrong namespace.
 Fan-out has no single message. Look for an `alter_rows().expand()` before the
 binding, a join that matched more than one row, or several bindings targeting
 one component. Move the repeated grain into its own projection or binding. Use
-`CollapseExactDuplicatesModule` for identical rows and
-`MergeCompatibleFactsModule` for compatible same-key facts only when the rows
-really are one fact.
+`DeduplicationPlanner` for identical rows and `MergingPlanner` for compatible
+same-key facts only when the rows really are one fact.
 
 ### Where to look
 
 | File or value | What it tells you |
 | --- | --- |
 | `build/build_report.json` | the same failures, artifacts and provenance as the returned report |
-| `build/workflow_contract.json` | the modules, steps and configuration that ran |
+| `build/workflow_plan.json` | the components, steps, instruction kinds and connections that ran |
 | `build/graph.jsonl` | node and edge records, build keys and endpoint keys |
 | `build/meta_graph.json` | effective topology, exact record counts and example values |
-| `contract.contributions` and `contract.connections` | the compiled steps and their wiring |
+| `plan.components` and `plan.connections` | the compiled steps and their wiring |
 | `blueprint.graph.nodes`, `blueprint.graph.edges` and `blueprint.bindings` | what the build will target and read |
 
 Inspect the blueprint when a component or binding is missing:
@@ -245,8 +241,8 @@ for binding in blueprint.bindings:
         print(binding.identity, binding.rows)
 ```
 
-The blueprint can be passed back to `compile(blueprint=..., modules=...)`;
-supply the modules again because they define the work.
+The blueprint can be passed back to `compile(blueprint=..., planners=...)`;
+supply the planners again because they define the work.
 
 ## Verify
 
@@ -254,8 +250,8 @@ After a fix, run the three calls again:
 
 ```python
 blueprint = create_blueprint()
-contract = compile(blueprint=blueprint, modules=modules)
-report = execute(contract, output_directory=Path("build"), monitor=False)
+plan = compile(blueprint=blueprint, planners=planners)
+report = execute(plan, output_directory=Path("build"))
 ```
 
 Check that:
@@ -266,22 +262,22 @@ Check that:
 - No build key repeats more often than one record should.
 - Every edge endpoint key exists in the target component's records.
 
-For a focused check, run a smoke build with `FileModule` only, then add the
-other output modules after the counts are correct. See
-[Compile, build and outputs](../concepts/build-and-outputs.md).
+For a focused check, run a smoke build with `FilePlanner` only, then add the
+other output planners after the counts are correct. See
+[Compile, execute and outputs](../concepts/build-and-outputs.md).
 
 ## Troubleshoot
 
 | Symptom | What to do |
 | --- | --- |
 | The same exception appears before any data is read | Fix the declaration or expression. `execute` cannot repair a compile error. |
-| The report is unsuccessful but no file appears | Read `unresolved_failures` and `workflow_contract.json`. The failure names the module and step. |
-| The graph file is missing | The output module is not registered, its path is relative to the output directory, or its step failed. Check `published_artifacts`. |
+| The report is unsuccessful but no file appears | Read `unresolved_failures` and `workflow_plan.json`. The failure names the step. |
+| The graph file is missing | The output planner is not composed, its path is relative to the output directory, or its step failed. Check `published_artifacts`. |
 | The record count is an exact multiple | Find the expansion or many-side join that multiplied the rows. Move it to its own grain. |
 | The record count is zero | Check `no source bound for`, the source path, a `drop_null` in a key or property, and the discovered namespace. |
 | An edge points at a missing node | The endpoint key expression differs from the node binding, or the node row was filtered out. |
 | A required property is null at run time | Default it, make the property nullable, or drop the row deliberately. |
-| A validation module reports findings without failing | Inspect the published findings report, fix the data or the binding, then turn `fail_on_error` on. |
+| The conflict-validation planner reports findings without failing | Inspect the published findings report, fix the data or the binding, then turn `fail_on_error` on. |
 
 ## Next steps
 
@@ -289,9 +285,10 @@ other output modules after the counts are correct. See
   named grains.
 - [Modelling patterns](patterns.md) covers identity, fan-out and edge endpoints.
 - [Bindings](../concepts/bindings.md) explains key and property null handling.
-- [Modules](../concepts/modules.md) explains composition and ordering.
+- [Planners and executors](../concepts/planners-and-executors.md) explains composition and
+  ordering.
 - The [compile and build reference](../reference/compile.md) lists the public
   calls and report fields.
-- The [bindings reference](../reference/bindings.md) and
-  [modules reference](../reference/modules.md) list the declaration and
-  composition surfaces behind the messages.
+- The [bindings reference](../reference/bindings.md) and the
+  [planners and executors reference](../reference/planners-and-executors.md) list the
+  declaration and composition surfaces behind the messages.

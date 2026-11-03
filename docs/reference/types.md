@@ -2,7 +2,7 @@
 
 This page lists the canonical logical types an author writes and the rules that decide how a value is stored, bound and exported.
 
-Every annotation normalizes to one logical type before it reaches the contract.
+Every annotation normalizes to one logical type before it reaches the workflow plan.
 The canonical name is lowercase; a capitalised name such as `Date` is a
 representative type, not a second type. The concepts behind these rules are on
 [types and nullability](../concepts/types.md); the physical ingest side is on

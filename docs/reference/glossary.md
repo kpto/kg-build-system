@@ -10,7 +10,7 @@ generation request ──kbs generate──> Table / Struct / TableGroup
                                           │
 DataSourceConfig ──bind_source────────────┘
                                           │
-field access ──selection──> projection ──binding──> contract ──build──> target
+field access ──selection──> projection ──binding──> WorkflowPlan ──execute──> target
 ```
 
 ## Data declarations
@@ -71,7 +71,7 @@ field access ──selection──> projection ──binding──> contract ─
 : An inert mixin that shares property slots or fields and annotation flow with
   its hosts. `StructTemplate` mixes only into `Table`, `Struct` and
   `ComputedStruct`. `NodeTemplate`, `EdgeTemplate` and `StructTemplate` never
-  enter the contract and carry no identity. See
+  enter the workflow plan and carry no identity. See
   [Semantics and annotations](../concepts/semantics.md).
 
 ## Types and values
@@ -85,7 +85,7 @@ field access ──selection──> projection ──binding──> contract ─
 **Canonical type**
 : The normalized logical type of a value: one of the eight lowercase scalars,
   a custom scalar, a struct identity, an `Array`, or a nullable wrapper. The
-  canonical name is what the contract and every error message use. See
+  canonical name is what the workflow plan and every error message use. See
   [Types](types.md#canonical-scalars).
 
 **Custom scalar**
@@ -242,7 +242,7 @@ field access ──selection──> projection ──binding──> contract ─
 
 **Semantics**
 : The descriptions, labels and annotations that state what a component means and
-  travel with it into the contract and its outputs. See [Semantics and
+  travel with it into the workflow plan and its outputs. See [Semantics and
   annotations](../concepts/semantics.md).
 
 **Shape**
@@ -255,7 +255,7 @@ field access ──selection──> projection ──binding──> contract ─
   hierarchy, independent of any input file or output target. See
   [Topology](../concepts/topology.md).
 
-## Build and outputs
+## Compile, execute and outputs
 
 **Blueprint**
 : The immutable, validated declaration snapshot produced by
@@ -264,38 +264,44 @@ field access ──selection──> projection ──binding──> contract ─
   outputs](../concepts/build-and-outputs.md).
 
 **Build**
-: The act of executing a compiled contract with a `BuildRuntime`. It writes
-  published artifacts, `workflow_contract.json` and `build_report.json`, and
-  returns a `WorkflowReport`. See [Compile, build and
-  outputs](../concepts/build-and-outputs.md).
+: The act of running `build` to link a model, `compile` to plan it, and
+  `execute` to run the plan. `execute` writes published artifacts,
+  `workflow_plan.json` and `build_report.json`, and returns a `WorkflowReport`.
+  See [Compile, execute and outputs](../concepts/build-and-outputs.md).
 
 **Compile**
-: The call `compile()` that validates a blueprint and freezes it into a
-  contract. It reads declarations but no data. See [Compile, build and
+: The call `compile()` that reads a blueprint and produces a `WorkflowPlan`. It
+  reads declarations but no data. See [Compile, build and
   outputs](../concepts/build-and-outputs.md).
 
-**Contract**
-: The immutable, self-contained result of `compile()` or
-  `compile_blueprint()`: the description of one build. The same contract can be
-  stored, inspected and built repeatedly while the module implementations and
-  their `VERSION` values match; there is no schema migration path. See [Compile,
-  build and outputs](../concepts/build-and-outputs.md).
+**Workflow plan**
+: The immutable result of `compile()`: the components, steps, connections and
+  provenance of one planner composition. The same plan can be stored, inspected
+  and executed repeatedly where an executor exists for every instruction kind;
+  there is no schema migration path. See [Compile, build and
+  outputs](../concepts/build-and-outputs.md).
 
-**Module**
-: A composable build stage registered with `register_module(...)`. Supplied
-  modules deduplicate, merge, validate or write output. The core module is always
-  appended. See [Modules](../concepts/modules.md).
+**Planner**
+: A component that reads the linked model and emits `Step`s. Supplied planners
+  deduplicate, merge, validate or produce graph records. The core planner is
+  always added. See [Planners and executors](../concepts/planners-and-executors.md).
+
+**Executor**
+: A component that owns one exact instruction kind and executes its steps. The
+  DuckDB, Python, file, meta-graph and Neo4j executors are supplied. See
+  [Planners and executors](../concepts/planners-and-executors.md).
 
 **Output**
-: A value published by an output module during a build, such as `graph.jsonl`,
-  `meta_graph.json` or the Neo4j import directory. The report lists each
-  published artifact and any failure. See [Compile, build and
+: A value published by an output planner's executor during a build, such as
+  `graph.jsonl`, `meta_graph.json` or the Neo4j import directory. The report
+  lists each published artifact and any failure. See [Compile, build and
   outputs](../concepts/build-and-outputs.md).
 
 **Target**
-: Two related senses. A *target module* is an output backend such as the file,
-  meta-graph or Neo4j module. A *binding target* is the concrete component named
-  by `target=...` in a binding. See [Modules](../concepts/modules.md).
+: Two related senses. A *target planner* is an output backend such as the file,
+  meta-graph or Neo4j planner and its executor. A *binding target* is the
+  concrete component named by `target=...` in a binding. See
+  [Planners and executors](../concepts/planners-and-executors.md).
 
 ## Generation
 
@@ -343,12 +349,12 @@ field access ──selection──> projection ──binding──> contract ─
 | Field | Property | A field describes a source member or computed output; a property is a graph value bound from an expression. |
 | Selection | Expression | A selection navigates structure and owns null policy; an expression calculates a value. |
 | Struct | ComputedStruct / Table | A source struct is source-backed and each member reads its declaration; a computed struct supplies member types as witnesses and reads from its carrier; a table is also a bindable row source. |
-| Template | Category | A template is inert and never enters the contract; a category is graph-visible and may be an endpoint. |
+| Template | Category | A template is inert and never enters the workflow plan; a category is graph-visible and may be an endpoint. |
 | Row source | Shape | A shape is a class of fields; a row source is something that yields rows of that shape. |
-| Contract | Blueprint | A contract is executable; a blueprint is the validated declaration snapshot used to create one. |
-| Binding target | Output target | The binding target is a component; the output target is a module that writes results. |
+| Workflow plan | Blueprint | A workflow plan is executable; a blueprint is the validated declaration snapshot used to create one. |
+| Binding target | Output target | The binding target is a component; the output target is a planner/executor pair that writes results. |
 | Source binding | Data contract | A data contract says what a row is; a source binding says where the rows live. |
-| Canonical type | Representative type | A canonical type is the lowercase logical type used by the contract; a representative type is the Python alias an author may write. |
+| Canonical type | Representative type | A canonical type is the lowercase logical type used by the workflow plan; a representative type is the Python alias an author may write. |
 | Guard | Pre-flight | A guard aborts at the point a non-null value is read; a pre-flight only reports null counts from Parquet footers. |
 | Check | Regenerate | Check compares generated files with their requests; regenerate re-observes the source schema. |
 | Generation request | Generated package | The request is author-owned and inert; the package is generator-owned output. |
@@ -375,6 +381,6 @@ Generation uses `generation(...)` in an author-owned `__init__.py` and the
 - [Generation](generation.md) — requests, providers and generated packages.
 - [Data contracts](../concepts/data-contracts.md) and
   [Bindings](../concepts/bindings.md) — the two halves of a build.
-- [Compile, build and outputs](../concepts/build-and-outputs.md) — the contract,
-  execution and artifacts.
+- [Compile, execute and outputs](../concepts/build-and-outputs.md) — the workflow
+  plan, execution and artifacts.
 - [Install](../get-started/install.md) — the generation workflow end to end.

@@ -1,8 +1,31 @@
 # System design
 
-The framework is organised around three systems and a shared kernel. Every
-framework leaf uses the same model/service layout; the tree below states which
-package owns which decision.
+The framework has a domain-agnostic **kernel** and one **distribution**. The
+kernel is a toolchain: it orders languages, links their layers into an opaque
+model, compiles that model into a workflow plan and executes the plan through
+exact instruction-kind executors. The distribution supplies the graph domain:
+the blueprint, the planners and the executors that know what a node, an edge,
+DuckDB or Neo4j means.
+
+The kernel vocabulary is toolchain vocabulary:
+
+| Kernel name | Meaning |
+| --- | --- |
+| `Language` | frontend library: declarations -> `Layer` |
+| `Layer` | object file: one language's value plus named `Definition`s |
+| `Definition` | symbol: a named unit another language may reference |
+| `Linker[ModelT]` | links ordered layers into one opaque model |
+| `Planner[ModelT]` | compiles the model into workflow `Step`s |
+| `WorkflowPlan` | one assembled instruction DAG |
+| `Step` | one scheduled instruction with typed inputs and outputs |
+| `StepExecutor` | executes one exact instruction kind |
+| `Runtime` | schedules steps and dispatches instructions |
+| `ResourceProvider` | creates and closes execution services |
+| `Toolchain` | languages + linker + planners + executors + resources + runtime |
+| `Extension` | a named bundle of languages, planners and executors |
+
+The distribution vocabulary is domain vocabulary: graph, blueprint, node, edge,
+binding, projection, table, core, meta-graph, Neo4j, DuckDB, Python.
 
 ## The package tree
 
@@ -10,37 +33,86 @@ package owns which decision.
 kg_build_system/
   kernel/
     model/
-      public/types/
-      internal/types/
-      internal/json.py
-      _private/
-    service/
-      public/language.py
-      public/module.py
-      public/capability.py
-      public/build.py
-      public/contract.py
-      public/registry.py
+      public/
+        language.py      Definition, Layer, Language, Namespace,
+                         LanguageContext, RenderContext, SourceFragment
+        workflow.py      InstructionKind, Instruction, ArtifactType, Input,
+                         Output, Publication, Step, Connection, Component,
+                         RuntimeField, WorkflowPlan
+        runtime.py       StepStatus, Failure, Artifact, StepOutcome,
+                         ContinuableInput, DisruptingInput, PublishedArtifact,
+                         WorkflowReport, ExecutionContext,
+                         DisruptedExecutionContext, RuntimeConfiguration
+        types/           canonical types
       internal/
+        json.py
+        types/dto.py
       _private/
-  declaration/
-    foundations/annotations/
-    foundations/expressions/
-    languages/table/
-    languages/topology/
-    languages/binding/
-    blueprint/
-  pipeline/
-    contract/
-    compile/
-    execution/
+        types/
+    service/
+      public/
+        pipeline.py      Linker, Planner, StepExecutor, Runtime,
+                         ResourceProvider, Toolchain, Extension, PlanContext
+        runtime.py       WorkflowRuntime
+      internal/
+        pipeline.py      thin wrappers only
+        workflow_codec.py
+      _private/
+        ordering.py      language ordering
+        pipeline.py      transcribe -> link -> plan -> run
+        assembly.py      step and connection assembly
+        runtime.py       scheduler and step lifecycle
+        workflow_codec.py
   distribution/
-  generation/code_generation/
-  api.py
+    model/
+      public/
+        paths.py         relative-path rule
+        runtime.py       BuildRuntime
+      internal/
+    languages/
+      annotations/
+      expressions/
+      table/
+      topology/
+      binding/
+    interpreter/
+      model/public/graph_blueprint.py
+      service/public/create.py
+      service/internal/adapters/kernel_linker.py
+      service/_private/{create,assembly,validation,codec,source,discovery}.py
+    planners/
+      core/
+      deduplication/
+      merging/
+      conflict_validation/
+    executors/
+      model/
+        public/      no author-facing model
+        internal/
+      service/
+        public/
+        internal/
+        _private/
+      runtime/
+      duckdb/
+      python/
+      file/
+      meta_graph/
+      neo4j/
+      conflict_validation/
+    service/             the distribution leaf's service zone
+      public/create.py
+      internal/rendering.py
+      _private/rendering.py
+    default.py           DEFAULT_TOOLCHAIN / default_toolchain
+  generation/
+    code_generation/
+  api.py                 create_blueprint, compile, execute
   cli/
 ```
 
-Every leaf contains `model/` and `service/`:
+Every leaf keeps the same layout, including the leaf under `planners/` and
+`executors/`:
 
 ```text
 pkg/
@@ -50,142 +122,455 @@ pkg/
     internal/          cross-package data: dto/, model/
     _private/          private plans, render models, SQL types
   service/
-    public/            authoring methods; thin wrappers
+    public/            author-facing methods; thin wrappers
     internal/          service interfaces, codec/assembly wrappers, adapters/
     _private/          codecs, transcription, rendering, validation, assembly,
                        planning, engines, runtime
 ```
 
-A leaf with no author-facing names still states that in its public model and
-service surfaces; it does not invent a facade.
+`distribution/executors` is also a leaf. Its `model/public` package is empty: it
+states that the leaf has no author-facing model of its own rather than inventing
+a facade. `distribution/executors/python` states the same absence and exports
+only `PythonExecutor` from `service.public`. `distribution/service` is not a
+leaf: it is the `distribution` leaf's service zone, holding the shared blueprint
+creator and rendering interface.
 
-## Kernel
+## The three verbs
 
-`kg_build_system.kernel` is the only domain-agnostic package. It imports no
-other framework package.
+`kg_build_system.kernel.service.public.pipeline.Toolchain` is the kernel's
+composition surface. It has three verbs and they do not overlap.
 
-The kernel holds what every system needs and cannot replace:
+### `build(namespace) -> ModelT`
 
-- the `Language` and `Module` protocols in `kernel/service/public`;
-- canonical types in `kernel/model/public/types`;
-- build values and the language registry mechanism;
-- contract vocabulary: artifact types, inputs, outputs, steps, connections,
-  execution contexts and outcomes;
-- capability declarations.
+1. Order languages by `requires`. A duplicate name, an unknown dependency or a
+   cycle raises `ValueError`.
+2. Call `language.collect(namespace)` for each language in order.
+3. Call `language.transcribe(declarations, context)`. The context exposes only
+   the layers already transcribed. A language that returns a non-`Layer`, or a
+   layer whose `language` differs from the language's `name`, is refused.
+4. Call `language.validate(layer)`.
+5. Call `linker.link(layers)`. The linker's `requires` must name layers that
+   exist; the kernel never inspects the returned model.
+
+`build` is the only verb that reads declarations. It does not plan or execute.
+
+### `compile(model) -> WorkflowPlan`
+
+1. Call every planner in order with the same linked model and one
+   `PlanContext`.
+2. Assign each returned step the planner's `component_id`, overriding whatever
+   component the planner wrote on the step.
+3. Refuse a duplicate component id or duplicate step id
+   `f"{component}.{name}"`.
+4. Assemble open inputs to outputs, publications to the report, and return one
+   `WorkflowPlan`. A wiring with no producer or with a cycle is refused.
+
+`compile` does not call `build` and does not read data. The composition root
+(`api.compile`) may call `create_blueprint` and then `compile`; the kernel
+method never does.
+
+### `execute(plan, *, output_directory, configuration=None, monitor=None) -> WorkflowReport`
+
+1. Build an exact-kind map from every `executor.kinds`. A duplicate kind raises
+   `ValueError`.
+2. Refuse an instruction kind in the plan that has no executor, before any step
+   runs.
+3. Build a `RuntimeConfiguration` when none is supplied.
+4. Call `resources.services(plan, configuration)`.
+5. Call `runtime.execute(plan, executors, services=..., configuration=..., monitor=...)`.
+6. Call `resources.close(services)` exactly once, including when execution
+   raises.
+
+The scheduler classifies each upstream result as continuable (`SUCCEEDED`,
+`WARNING`) or disrupting (`FAILED`, `SKIPPED`). A normal step receives an
+`ExecutionContext`; a disrupted step receives a `DisruptedExecutionContext` and
+normally returns a `SKIPPED` outcome. An executor owns any engine bookkeeping.
+
+## Kernel interfaces
 
 ```python
+# kernel/model/public/language.py
+@dataclass(frozen=True, slots=True)
+class Definition:
+    id: str
+    kind: str
+    value: Any
+
+@dataclass(frozen=True, slots=True)
+class Layer:
+    language: str
+    value: Any
+    definitions: Mapping[str, Definition] = field(default_factory=dict)
+
 class Language(Protocol):
     name: str
     requires: tuple[str, ...]
     def collect(self, namespace: Namespace) -> Sequence[object]: ...
-    def transcribe(self, declarations, context) -> Any: ...
-    def validate(self, dto) -> None: ...
-    def render(self, dto, context) -> SourceFragment: ...
+    def transcribe(
+        self, declarations: Sequence[object], context: LanguageContext,
+    ) -> Layer: ...
+    def validate(self, layer: Layer) -> None: ...
+    def render(self, layer: Layer, context: RenderContext) -> SourceFragment: ...
 
-class Module(Protocol):
-    ID: str
-    VERSION: str
-    CONFIGURATION_TYPE: type
-    @classmethod
-    async def create_compiler(cls, context) -> Compiler | None: ...
-    @classmethod
-    def create_executor(cls, context) -> Executor | None: ...
+class LanguageContext(Protocol):
+    def layer(self, name: str) -> Layer: ...
+
+class Namespace(Protocol):
+    def values(self) -> Sequence[object]: ...
 ```
 
-`Language` has no `encode`/`decode`. Serialisation belongs to the DTO codec,
-whose service interface uses `to_document` and `from_document`.
+`Layer.value` is the language's own frozen DTO. `Layer.definitions` is the
+symbol index other languages may read; `Layer.__post_init__` copies it and wraps
+it in a read-only proxy. A language may publish one definition per declaration;
+publishing only the layer value is allowed and is recorded as a limit.
 
-### Canonical types
+```python
+# kernel/model/public/workflow.py
+type InstructionKind = tuple[str, ...]
 
-Canonical types live in `kernel/model/public/types/`. The authoring vocabulary is
-re-exported by `kg_build_system`; an author imports that name, while every layer,
-the blueprint and the contract use the same type ontology.
+@dataclass(frozen=True, slots=True)
+class Instruction:
+    kind: InstructionKind
+    payload: JsonValue
 
-A layer does not define its own type vocabulary. A table field, a topology
-property, an expression result and a contract artifact all refer to the same
-canonical types.
+@dataclass(frozen=True, slots=True)
+class ArtifactType:
+    namespace: str
+    name: str
 
-### Capability versus library
+@dataclass(frozen=True, slots=True)
+class Input:
+    type: ArtifactType
+    name: str | None
+    input_name: str
 
-A **capability** is a contract declaration. The policy is that a module states
-the capabilities it requires and provides, and composition checks that the
-required capabilities are available. A capability names an ability, not an
-implementation, a class or a live service.
+@dataclass(frozen=True, slots=True)
+class Output:
+    type: ArtifactType
+    name: str | None = None
 
-The kernel defines `Capability`, but the current `Module` protocol does not
-expose `requires`/`provides`; module composition does not enforce capabilities.
-Capability modules are deferred.
+@dataclass(frozen=True, slots=True)
+class Publication:
+    type: ArtifactType
+    name: str | None = None
 
-A **library** is a replaceable implementation. The DuckDB engine, the code
-generation providers and the supplied target modules are libraries. They are
-selected by composition, not baked into the kernel.
+@dataclass(frozen=True, slots=True)
+class Step:
+    component: str
+    name: str
+    inputs: tuple[Input, ...]
+    outputs: tuple[Output | Publication, ...]
+    instruction: Instruction
+    assembly_preference: Literal["eager", "deferred"] = "eager"
 
-The policy follows from that distinction:
+@dataclass(frozen=True, slots=True)
+class Connection:
+    input_id: str
+    output_id: str
 
-- a package moves to the kernel only when every system needs it and cannot
-  replace it;
-- a package shared only inside one system stays in that system;
-- a library is not a kernel package merely because several layers use it.
+@dataclass(frozen=True, slots=True)
+class RuntimeField:
+    key: str
+    description: str
+    required: bool = True
+    value_type: Literal["string", "integer", "number", "boolean", "json"] = "string"
+    secret: bool = False
 
-## Declaration
+@dataclass(frozen=True, slots=True)
+class Component:
+    id: str
+    version: str
+    runtime_fields: tuple[RuntimeField, ...] = ()
 
-`declaration/` turns authoring declarations into one semantic blueprint.
+@dataclass(frozen=True, slots=True)
+class WorkflowPlan:
+    components: tuple[Component, ...]
+    steps: tuple[Step, ...]
+    connections: tuple[Connection, ...] = ()
+    provenance: JsonValue | None = None
+```
 
-| Leaf | Model | Service |
-| --- | --- | --- |
-| `foundations/annotations` | annotation values; `model/internal/dto` | codec and source rendering |
-| `foundations/expressions` | expression and selection values; expression DTOs | construction, operation specifications, codec and source rendering |
-| `languages/table` | tables, structs, projections, row sources; data DTO | field and source wrappers, transcription, codec and source rendering |
-| `languages/topology` | nodes, edges, properties; graph DTO | property and endpoint wrappers, transcription, codec and source rendering |
-| `languages/binding` | binding values; binding DTO | `node_binding`/`edge_binding`, transcription, codec and source rendering |
-| `blueprint` | `GraphBlueprint` | `create_blueprint`, assembly, validation, codec and blueprint source |
+An `ArtifactType` on an `Input` is a pattern matched with `fnmatchcase`; an
+`ArtifactType` on an output or publication is one concrete type. Step identity is
+`f"{component}.{name}"`; an opening identity is
+`f"{step_id}.{opening_name}"`. `assembly_preference="deferred"` tells the
+assembler to keep the step as one unit when it shares or reorganises work.
 
-A language collects its declarations, transcribes them to its DTO and renders
-that DTO back to source. `expressions` contributes operation specifications and
-expression DTOs; it is not a language and does not own a build part.
+```python
+# kernel/model/public/runtime.py
+class StepStatus(StrEnum):
+    SUCCEEDED = "succeeded"
+    WARNING = "warning"
+    FAILED = "failed"
+    SKIPPED = "skipped"
 
-The blueprint service owns the assembly decision, not the layer decisions. It
-delegates transcription and rendering to each language, then combines the
-results.
+@dataclass(frozen=True, slots=True)
+class Failure:
+    message: str
+    step_id: str
+    exception_type: str | None = None
 
-## Pipeline
+@dataclass(frozen=True, slots=True)
+class Artifact:
+    output_name: str
+    type: ArtifactType
+    value: Any
 
-`pipeline/` groups the three systems that share the contract.
+@dataclass(frozen=True, slots=True)
+class StepOutcome:
+    step_id: str
+    status: StepStatus
+    artifacts: tuple[Artifact, ...] = ()
+    failure: Failure | None = None
 
-| System | Leaf | Responsibility |
-| --- | --- | --- |
-| Contract | `pipeline/contract` | `WorkflowContractDTO` in `model/public`; assembly and codec in `service/internal` and `service/_private` |
-| Compile | `pipeline/compile` | relation plans and instruction kinds in `model/internal`; `compile_blueprint` in `service/public`; compilers and instruction emitters in `service/internal` and `service/_private` |
-| Execution | `pipeline/execution` | `BuildRuntime` and `WorkflowReport` in `model/public`; `execute` in `service/public`; runtime, engine, storage and relations in `service/_private` |
+@dataclass(frozen=True, slots=True)
+class ContinuableInput:
+    output_id: str
+    status: Literal[StepStatus.SUCCEEDED, StepStatus.WARNING]
+    artifact: Artifact | None
 
-Compilation reads a blueprint and produces a contract. Build reads a contract
-and executes it. They share the contract and must not import each other.
+@dataclass(frozen=True, slots=True)
+class DisruptingInput:
+    output_id: str
+    status: Literal[StepStatus.FAILED, StepStatus.SKIPPED]
+    artifact: Artifact | None
+    failure: Failure | None
 
-The contract owns structure: steps, inputs, outputs, connections and provenance.
-A step owns its instruction. SQL is one instruction kind, not a contract field.
+@dataclass(frozen=True, slots=True)
+class ExecutionContext:
+    step: Step
+    step_id: str
+    component: str
+    runtime_configuration: Mapping[str, Any]
+    inputs: Mapping[str, tuple[ContinuableInput, ...]]
+    services: Any
+
+@dataclass(frozen=True, slots=True)
+class DisruptedExecutionContext:
+    step: Step
+    step_id: str
+    component: str
+    runtime_configuration: Mapping[str, Any]
+    inputs: Mapping[str, tuple[ContinuableInput | DisruptingInput, ...]]
+    disruptions: tuple[DisruptingInput, ...]
+    services: Any
+
+@dataclass(frozen=True, slots=True)
+class PublishedArtifact:
+    type: ArtifactType
+    value: Any
+
+@dataclass(frozen=True, slots=True)
+class WorkflowReport:
+    published_artifacts: tuple[PublishedArtifact, ...]
+    recovered_failures: tuple[Failure, ...]
+    unresolved_failures: tuple[Failure, ...]
+    provenance: dict[str, Any]
+
+    @property
+    def succeeded(self) -> bool: ...
+
+@dataclass(frozen=True, slots=True)
+class RuntimeConfiguration:
+    output_directory: Path
+    working_directory: Path
+    temporary_directory: Path | None = None
+    credentials: Mapping[str, str] = field(default_factory=dict)
+    component_configuration: Mapping[str, Mapping[str, Any]] = field(
+        default_factory=dict,
+    )
+```
+
+`RuntimeConfiguration.component_configuration` is keyed by component id.
+`BuildRuntime` in the distribution is a public authoring value that converts to
+this kernel value with `to_configuration()`.
+
+```python
+# kernel/service/public/pipeline.py
+class Linker(Protocol[ModelT]):
+    requires: tuple[str, ...]
+    def link(self, layers: Mapping[str, Layer]) -> ModelT: ...
+
+@dataclass(frozen=True, slots=True)
+class PlanContext:
+    runtime_configuration: Mapping[str, Mapping[str, Any]] = field(
+        default_factory=dict,
+    )
+
+class Planner(Protocol[ModelT]):
+    component_id: str
+    version: str
+    runtime_fields: tuple[RuntimeField, ...]
+    def plan(self, model: ModelT, context: PlanContext) -> Sequence[Step]: ...
+
+class StepExecutor(Protocol):
+    kinds: tuple[InstructionKind, ...]
+    def execute(
+        self,
+        context: ExecutionContext | DisruptedExecutionContext,
+        instruction: Instruction,
+    ) -> StepOutcome: ...
+
+class ResourceProvider(Protocol):
+    def services(
+        self, plan: WorkflowPlan, configuration: RuntimeConfiguration,
+    ) -> Any: ...
+    def close(self, services: Any) -> None: ...
+
+class Runtime(Protocol):
+    def execute(
+        self,
+        plan: WorkflowPlan,
+        executors: Mapping[InstructionKind, StepExecutor],
+        *,
+        services: Any,
+        configuration: RuntimeConfiguration,
+        monitor: Any = None,
+    ) -> WorkflowReport: ...
+
+@dataclass(frozen=True, slots=True)
+class Extension:
+    name: str
+    languages: tuple[Language, ...] = ()
+    planners: tuple[Any, ...] = ()
+    executors: tuple[StepExecutor, ...] = ()
+
+@dataclass(frozen=True, slots=True)
+class Toolchain(Generic[ModelT]):
+    languages: Sequence[Language]
+    linker: Linker[ModelT]
+    planners: Sequence[Planner[ModelT]] = ()
+    executors: Sequence[StepExecutor] = ()
+    resources: ResourceProvider | None = None
+    runtime: Runtime | None = None
+
+    def build(self, namespace: Namespace) -> ModelT: ...
+    def compile(self, model: ModelT) -> WorkflowPlan: ...
+    def execute(
+        self,
+        plan: WorkflowPlan,
+        *,
+        output_directory: Path,
+        configuration: RuntimeConfiguration | None = None,
+        monitor: Any = None,
+    ) -> WorkflowReport: ...
+    def with_planners(
+        self, planners: Sequence[Planner[ModelT]],
+    ) -> Toolchain[ModelT]: ...
+    def with_executors(
+        self, executors: Sequence[StepExecutor],
+    ) -> Toolchain[ModelT]: ...
+```
+
+`Toolchain.execute` raises `RuntimeError` when `resources` or `runtime` is
+`None`. `with_planners` and `with_executors` replace the sequence; they do not
+append. The distribution's `default_toolchain` is what adds the core planner and
+the supplied executors.
+
+An extension contributes a language, a planner and/or an executor. A language
+that introduces a new model also supplies its linker when the caller composes
+the `Toolchain`; `Extension` itself bundles languages, planners and executors.
+
+`WorkflowRuntime` in `kernel.service.public.runtime` is the kernel's default
+scheduler. It is transport-agnostic: services and instruction payloads are
+opaque to it.
+
+## Providers and engines
+
+`ResourceProvider` and `Runtime` are the only kernel interfaces a distribution
+must supply to execute. Planners and executors are opt-in: a toolchain with no
+planner produces an empty plan, and a toolchain with no executor refuses a plan
+instruction whose kind is not registered.
+
+A `StepExecutor` is selected by an exact instruction-kind tuple. There is no
+prefix matching, no dispatcher table inside the kernel and no engine import in
+the kernel. `kinds` is the executor's declaration of every kind it owns; the
+toolchain builds the map before the first step runs.
+
+## Instruction kinds
+
+Kinds are exact tuples. A custom planner may emit a new kind and register its
+own executor.
+
+| Kind | Payload |
+| --- | --- |
+| `("source_relation", "duckdb")` | `{relation, location, format, credential_reference, declaration, declared_columns, declared_paths}` |
+| `("sql", "duckdb")` | `{relation, sql}` |
+| `("aggregate", "duckdb")` | `{relation}` |
+| `("deduplication", "duckdb")` | `{relation}` |
+| `("merging", "duckdb")` | `{relation, select}` |
+| `("conflict_findings", "duckdb")` | `{component, field}` |
+| `("conflict_report", "default")` | `{fail_on_error}` |
+| `("python", "cpython")` | `{module, qualname}` |
+| `("file", "default")` | `{relative_path}` |
+| `("meta_graph", "default")` | `{relative_path, example_limit, include_html, html_relative_path, components}` |
+| `("neo4j", "default")` | `{kind: "export_component" | "write_script", ...}` |
+
+`("source_relation", "duckdb")`, `("sql", "duckdb")` and `("aggregate",
+"duckdb")` are emitted by the core planner and owned by the DuckDB executor.
+`DeduplicationPlanner`, `MergingPlanner` and `ConflictValidationPlanner` emit the
+other DuckDB kinds.
+
+## Planner and executor ownership
+
+Planner classes are public names under
+`kg_build_system.distribution.planners.<name>`. A target that needs both a
+planning decision and a side effect owns a planner and an executor under
+`kg_build_system.distribution.executors.<name>`.
+
+| Component | Class | Package | Responsibility |
+| --- | --- | --- | --- |
+| `core` | `CorePlanner` | `planners.core` | source, row-source, projection, binding and aggregate steps |
+| `deduplication` | `DeduplicationPlanner` | `planners.deduplication` | one distinct step per bound record component |
+| `merging` | `MergingPlanner` | `planners.merging` | one merge step per component in the configured scope |
+| `conflict_validation` | `ConflictValidationPlanner` | `planners.conflict_validation` | findings steps and one deferred report step |
+| `file` | `FilePlanner` / `FileExecutor` | `executors.file` | JSON Lines target |
+| `meta_graph` | `MetaGraphPlanner` / `MetaGraphExecutor` | `executors.meta_graph` | topology document and optional HTML |
+| `neo4j` | `Neo4jPlanner` / `Neo4jExecutor` | `executors.neo4j` | component exports and import script |
+| `conflict_validation` | `ConflictReportExecutor` | `executors.conflict_validation` | report publication |
+| — | `DuckDbExecutor` | `executors.duckdb` | `source_relation`, `sql`, `aggregate`, `deduplication`, `merging`, `conflict_findings` |
+| — | `DuckDbResourceProvider` | `executors.duckdb` | relations, working storage, temporary storage, credentials, engine session |
+| — | `PythonExecutor` | `executors.python` | `("python", "cpython")` |
+
+A target planner declares its input as an artifact pattern such as
+`ArtifactType("core", "graph.*")` and its side effect as a kind its executor
+owns. The planner never writes a file; the executor never changes the plan.
+
+Planner configuration is compile-time and carried in the instruction payload.
+Runtime fields describe values an operator may replace at execution time, keyed
+by component id in `RuntimeConfiguration.component_configuration`. The supplied
+`FilePlanner` and `Neo4jPlanner` each expose one optional runtime field.
 
 ## Distribution
 
-`distribution/` contains the supplied modules and their registration.
+`distribution/` is one system and one toolchain. Its primary edges are:
 
-| Surface | Contents |
+| Package | Contents |
 | --- | --- |
-| `model/public` | module configurations and supplied module declarations |
-| `model/internal` | module model and instruction DTOs |
-| `service/public` | supplied module classes and `register_module` |
-| `service/internal` | registration and module service interfaces |
-| `service/_private` | compilers, executors and module mechanisms |
+| `languages/{annotations,expressions,table,topology,binding}` | the graph declaration languages and their DTOs |
+| `interpreter` | `GraphBlueprint`, `BlueprintLinker`, `create_blueprint`, validation and source rendering |
+| `planners/*` | graph-aware planners that emit steps |
+| `executors/*` | instruction executors and execution services |
+| `model/public` | `BuildRuntime`, path validation |
+| `service/public` | the shared `create_blueprint` shortcut |
+| `default.py` | `DEFAULT_TOOLCHAIN` and `default_toolchain` |
 
-A module owns a compiler and an executor. The core module is a module, not a
-domain package. Registration records a module class and its frozen configuration;
-it does not import the implementation at registration time and does not hold a
-live service. The composition root appends the core module after the supplied
-modules.
+`interpreter/service/internal/adapters/kernel_linker.py` is the adapter that
+implements the kernel `Linker` protocol for `BlueprintLinker`. The adapter file
+names the protocol, delegates to `service._private` and is not buried in the
+blueprint model.
+
+`api.py` is the composition root. `create_blueprint` uses the default
+languages and `BlueprintLinker`. `compile` creates a blueprint unless one is
+supplied, then uses `DEFAULT_TOOLCHAIN` or the supplied toolchain; it appends
+the core planner unless a planner already reports `component_id == "core"`, then
+appends the caller's planners. `execute` writes `workflow_plan.json` before the
+run and `build_report.json` after it.
 
 ## Generation
 
-`generation/code_generation/` is the edit-time lane. It turns typed requests into
-declarations before declaration runs. It is upstream of the blueprint.
+`generation/code_generation/` is the edit-time lane. It turns typed requests
+into declarations before the blueprint runs. It is upstream of the blueprint.
 
 | Surface | Contents |
 | --- | --- |
@@ -196,42 +581,41 @@ declarations before declaration runs. It is upstream of the blueprint.
 | `service/internal` | provider loading and provider adapters |
 | `service/_private` | discovery, rendering, ownership, watcher and engine |
 
-Generation and compile are separate lanes:
+Generation and the toolchain are separate lanes:
 
 - generation observes a source, runs a provider and renders declarations;
-- compile imports the resulting declarations and never invokes generation;
-- execution never invokes generation.
+- `build` imports the resulting declarations and never invokes generation;
+- `compile` and `execute` never invoke generation.
 
-A generated declaration and a handwritten declaration enter the same blueprint
-and contract path. There is no generation-specific compile path.
+A generated declaration and a handwritten declaration enter the same language,
+blueprint, plan and execution path. There is no generation-specific plan path.
 
 ## Dependency spine
 
 The tree shows the primary dependency spine. A tree cannot encode every edge;
-the dependency tests enforce the rest. The spine runs outward from the kernel:
-declaration depends on the kernel, pipeline depends on declaration and shares the
-contract, distribution depends on pipeline, and `api.py`/`cli` compose them.
-Generation is upstream and does not sit on the execution spine.
+the dependency tests enforce the rest.
 
 | Package | May import |
 | --- | --- |
 | `kernel` | no framework package |
-| `declaration/foundations/*` | `kernel` |
-| `declaration/languages/table` | `declaration/foundations`, `kernel` |
-| `declaration/languages/topology` | `declaration/foundations`, `kernel` |
-| `declaration/languages/binding` | `declaration/languages/table`, `declaration/languages/topology`, `declaration/foundations`, `kernel` |
-| `declaration/blueprint` | every declaration language and foundation, `kernel` |
-| `pipeline/contract` | `kernel` |
-| `pipeline/compile` | `declaration` (blueprint and DTOs), `pipeline/contract`, `kernel` |
-| `pipeline/execution` | `pipeline/contract`, `kernel` |
-| `distribution` | `kernel`, `declaration`, `pipeline/contract`, `pipeline/compile`, `pipeline/execution` |
+| `distribution/languages/annotations` | `kernel` |
+| `distribution/languages/expressions` | `kernel` |
+| `distribution/languages/table` | `kernel`, annotations, expressions |
+| `distribution/languages/topology` | `kernel`, annotations, expressions |
+| `distribution/languages/binding` | `kernel`, annotations, table, topology |
+| `distribution/interpreter` | `kernel`, every graph language |
+| `distribution/planners/*` | `kernel`, `distribution/interpreter`, distribution languages; the core planner also uses the DuckDB SQL emitter |
+| `distribution/executors/*` | `kernel`, distribution model, distribution languages; the conflict-report executor reuses the planner's report values |
+| `distribution/default.py` | `kernel`, interpreters, planners, executors |
+| `distribution/service` | `kernel`, distribution languages and interpreter |
 | `generation/code_generation` | `kernel`; engine observation is read-only |
-| `api.py` | declaration, pipeline, distribution |
+| `api.py` | `kernel`, `distribution` |
 | `cli` | `generation`, `api.py` |
 
 Two rules apply to every row:
 
-- compile and execution do not import each other;
+- the kernel imports no graph, table, topology, binding, SQL, DuckDB or Python
+  package;
 - no package imports another package's private zones.
 
 The exact edge set is a model decision. A new edge is proposed with its reason,
@@ -262,8 +646,8 @@ The import matrix is part of the layout:
 
 Another package imports `pkg.model.public`, `pkg.model.internal`,
 `pkg.service.public` or `pkg.service.internal`. It never imports
-`pkg.model._private` or `pkg.service._private`.
-`_private` may use public model data but not public service behaviour.
+`pkg.model._private` or `pkg.service._private`. `_private` may use public model
+data but not public service behaviour.
 
 A public function or method is a thin wrapper over `service.internal` or
 `service._private`, with a user-facing docstring and a runnable `Example:`. The
@@ -273,7 +657,8 @@ developer docstrings and need no example.
 A protocol implementation is a separate file under
 `service/internal/adapters/<protocol>.py`. The file names the protocol, imports
 the foreign protocol and delegates to `service._private`. It is not buried in a
-model or factory.
+model or factory. `BlueprintLinker` is implemented this way for the kernel
+`Linker` protocol.
 
 No `model.public`, `model.internal`, `service.public` or `service.internal`
 module defines a single-underscore helper; dunder protocol methods remain. A
@@ -281,100 +666,49 @@ codec is a service: interface in `service.internal`, implementation in
 `service._private`. A DTO is a model: `model.internal/dto`, or `model.public` for
 a public artifact.
 
-## Blueprint and compile are separate
+## What the kernel must never import
 
-`create_blueprint` takes no modules:
+The kernel is domain-agnostic. Its dependency tests refuse an import of:
 
-```python
-blueprint = create_blueprint(
-    namespace_path=None,
-    bindings=(),
-    sources=(),
-    languages=None,
-)
-```
+- `distribution.languages.*` (graph, table, topology, binding, annotations,
+  expressions);
+- `distribution.interpreter` (blueprint);
+- `distribution.planners.*` and `distribution.executors.*`;
+- `duckdb`, `pyarrow` or another engine client;
+- SQL text or a SQL AST;
+- `generation`.
 
-`compile_blueprint` reads that blueprint and a module composition:
-
-```python
-contract = compile_blueprint(blueprint, modules=modules, engine=None)
-```
-
-`create_blueprint` returns a `GraphBlueprint`. It collects declarations, runs the
-languages, assembles the layer DTOs and validates the result.
-
-`compile_blueprint` reads a `GraphBlueprint` and returns a
-`WorkflowContractDTO`. It does not assemble a blueprint and does not call the
-blueprint package.
-
-`compile(...)` is the canonical shortcut. It creates the blueprint, appends the
-core module and calls `compile_blueprint`; the caller never sees the blueprint
-unless they ask for it.
-
-The separation matters because the blueprint is inspectable and reusable. A
-caller may store it, render it back to source or compile it with a different
-module composition. The compile stage is one consumer of the blueprint, not its owner.
-
-## Contract, step and instruction
-
-The workflow contract is the only value handed from compile to execution.
-
-```python
-@dataclass(frozen=True)
-class InstructionDTO:
-    kind: str
-    payload: JsonValue
-
-@dataclass(frozen=True)
-class StepDTO:
-    name: str
-    inputs: tuple[InputDTO, ...]
-    outputs: tuple[GivenDTO, ...]
-    instruction: InstructionDTO
-    assembly_preference: Literal["eager", "deferred"] = "eager"
-```
-
-- The contract owns contributions, steps, connections and provenance.
-- A step owns its instruction.
-- `InstructionDTO.kind` selects the executor; `payload` is opaque to the contract.
-- SQL is one instruction kind. A Python instruction is a stable reference, not a
-  live callable.
-- A module compiler emits instructions through an `InstructionEmitter`; adding an
-  instruction kind does not edit a contract field.
-
-Compilation decomposes the blueprint into an in-memory build, runs module
-compilers, emits instructions and assembles the contract. Build dispatches on
-`instruction.kind` and executes steps.
+The kernel also must not read an instruction payload or an artifact value. The
+executor registered for a kind reads the payload; the distribution owns the
+value.
 
 ## Current state and limits
 
 The tree above is the implementation.
 
-- 69 tests passed, 484 subtests.
+- 115 tests passed, 604 subtests.
 - Pyright: 0 errors.
-- Open Targets: 6 tests passed.
+- Open Targets: the migrated project builds against the new API; 7 tests pass.
 
 The remaining limits are:
 
 | Limit | Current choice |
 | --- | --- |
-| Capability modules are deferred. | `Capability` exists in `kernel`, but `Module` does not declare `requires`/`provides`; composition does not enforce capabilities. |
-| DuckDB is the default SQL emitter. | `DuckDbSqlEmitter` is the default SQL library; another engine supplies another emitter. |
-| A Python binding source is a reference. | The blueprint stores `PythonRefDTO(module, qualname, signature)`, not the callable body. |
-| Some target executors still adapt instructions into `variables`. | The build target adapter copies the step's instruction payload into `variables["instructions"]` before calling those executors. |
+| A toolchain is the only composition unit. | There is no registry. A caller composes a `Toolchain` or uses `default_toolchain`. |
+| DuckDB is the default SQL emitter. | `DuckDbSqlEmitter` is the core planner's SQL library; another engine supplies another emitter. |
+| A Python instruction is a reference. | `("python", "cpython")` carries `{module, qualname}`, not a live callable. |
 | Public `GraphBlueprint` fields reference internal layer DTOs. | `GraphBlueprint` is public; its `graph`, `data`, `bindings` and `sources` fields are typed by layer DTOs that are not exported public names. |
+| A language may publish only its layer value. | Publishing one `Definition` per declaration is allowed; publishing only the value is recorded as a limit. |
 
 See [data and expressions](data-and-expressions.md) for the DTO shapes and the
 source round trip.
 
 ## What to remember
 
-- The kernel is domain-agnostic and holds only what cannot be replaced.
-- Every leaf has a model side and a service side; public surfaces are
-  `model.public` and `service.public`.
-- Declaration produces the blueprint; compile consumes it; execution consumes
-  the contract.
-- Compile and execution share the contract and never import each other.
+- The kernel is domain-agnostic and owns the toolchain vocabulary.
+- `build` reads declarations, `compile` plans, `execute` runs.
+- A planner emits steps; an executor owns one exact instruction kind.
+- The distribution supplies the graph blueprint, planners and executors.
 - A service adapter is an explicit file under `service/internal/adapters`.
 - A step owns its instruction; SQL is one instruction kind.
 

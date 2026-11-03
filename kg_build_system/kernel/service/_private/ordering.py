@@ -1,7 +1,7 @@
-"""Registry ordering and validation.
+"""Language ordering and validation.
 
-Private implementation behind ``Registry``. Not an import surface for another
-package.
+Private implementation behind the toolchain and the temporary registry. Not an
+import surface for another package.
 """
 from __future__ import annotations
 
@@ -10,7 +10,10 @@ from typing import Any
 
 
 def order_languages(languages: Sequence[Any]) -> tuple[Any, ...]:
-    """Validate names and dependencies, then return a dependency order."""
+    """Validate names and dependencies, then return a dependency order.
+
+    Duplicate names, unknown dependencies and cycles raise ``ValueError``.
+    """
     names = tuple(language.name for language in languages)
     if len(names) != len(set(names)):
         raise ValueError("language names must be unique")

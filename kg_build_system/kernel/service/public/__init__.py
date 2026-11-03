@@ -1,20 +1,17 @@
-"""The kernel's public service: language, module and capability protocols.
+"""The kernel's public service: languages, toolchain and runtime.
 
-The registry is the one author-facing service in the kernel. It delegates its
-ordering and composition to ``service.internal``; the mechanism lives in
-``service._private``.
+The toolchain is the kernel's build/compile/execute surface. Mechanisms live in
+``service._private``; this module holds protocols and thin wrappers only.
 """
 from __future__ import annotations
 
-from .capability import Capability
-from .language import (
-    Language, LanguageContext, Namespace, RenderContext, SourceFragment,
+from .pipeline import (
+    Extension, Linker, PlanContext, Planner, ResourceProvider, Runtime,
+    StepExecutor, Toolchain,
 )
-from .module import Module, ModuleCompiler, ModuleExecutor
-from .registry import Registry
+from .runtime import WorkflowRuntime
 
 __all__ = [
-    "Capability", "Language", "LanguageContext", "Module", "ModuleCompiler",
-    "ModuleExecutor", "Namespace", "Registry", "RenderContext",
-    "SourceFragment",
+    "Extension", "Linker", "PlanContext", "Planner", "ResourceProvider",
+    "Runtime", "StepExecutor", "Toolchain", "WorkflowRuntime",
 ]

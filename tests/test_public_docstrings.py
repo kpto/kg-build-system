@@ -9,16 +9,26 @@ import kg_build_system
 
 PACKAGES = (
     "kg_build_system.kernel",
-    "kg_build_system.declaration.foundations.annotations",
-    "kg_build_system.declaration.foundations.expressions",
-    "kg_build_system.declaration.languages.table",
-    "kg_build_system.declaration.languages.topology",
-    "kg_build_system.declaration.languages.binding",
-    "kg_build_system.declaration.blueprint",
-    "kg_build_system.pipeline.contract",
-    "kg_build_system.pipeline.compile",
-    "kg_build_system.pipeline.execution",
     "kg_build_system.distribution",
+    "kg_build_system.distribution.languages.annotations",
+    "kg_build_system.distribution.languages.expressions",
+    "kg_build_system.distribution.languages.table",
+    "kg_build_system.distribution.languages.topology",
+    "kg_build_system.distribution.languages.binding",
+    "kg_build_system.distribution.interpreter",
+    "kg_build_system.distribution.planners",
+    "kg_build_system.distribution.planners.core",
+    "kg_build_system.distribution.planners.deduplication",
+    "kg_build_system.distribution.planners.merging",
+    "kg_build_system.distribution.planners.conflict_validation",
+    "kg_build_system.distribution.executors",
+    "kg_build_system.distribution.executors.runtime",
+    "kg_build_system.distribution.executors.duckdb",
+    "kg_build_system.distribution.executors.python",
+    "kg_build_system.distribution.executors.file",
+    "kg_build_system.distribution.executors.meta_graph",
+    "kg_build_system.distribution.executors.neo4j",
+    "kg_build_system.distribution.executors.conflict_validation",
     "kg_build_system.generation.code_generation",
     "kg_build_system.cli",
 )
@@ -29,61 +39,103 @@ INTERNAL_SURFACES = ("model.internal", "service.internal")
 # the check for every public function.
 KNOWN_MISSING_FUNCTION_EXAMPLES = {
     (
-        "kg_build_system.declaration.languages.table.model.public.declarations",
+        "kg_build_system.distribution.languages.table.model.public.declarations",
         "is_concrete_table",
     ),
     (
-        "kg_build_system.declaration.languages.table.model.public.declarations",
+        "kg_build_system.distribution.languages.table.model.public.declarations",
         "is_table_group",
-    ),
-    ("kg_build_system.distribution.model.public.artifacts", "component_kind"),
-    ("kg_build_system.distribution.model.public.artifacts", "graph_components"),
-    (
-        "kg_build_system.distribution.model.public.artifacts",
-        "graph_record_components",
     ),
 }
 # Public class methods still missing examples. These are reported as framework
 # defects; the exception names the exact method rather than the whole class.
 KNOWN_MISSING_METHOD_EXAMPLES = {
     (
-        "kg_build_system.declaration.foundations.expressions.model.public.selections.value",
+        "kg_build_system.distribution.languages.expressions.model.public.selections.value",
         "ValueSelection",
         "require_expression",
     ),
     *{
         (
-            "kg_build_system.distribution.model.public.artifacts",
-            "CoreArtifactTypes",
+            "kg_build_system.distribution.executors.duckdb.model.public.relations",
+            class_name,
             method,
         )
-        for method in (
-            "graph_records",
-            "binding",
-            "table",
-            "projection",
-            "row_source",
-            "graph_record_identity",
-            "is_graph_records",
+        for class_name, methods in (
+            ("RelationQueryResult", ("fetchone", "fetchall", "fetchmany")),
+            (
+                "RelationService",
+                (
+                    "reference", "view", "materialize", "query",
+                    "export_parquet", "register_filesystem",
+                ),
+            ),
         )
+        for method in methods
     },
     *{
         (
-            f"kg_build_system.distribution.service.public.modules.{module}",
-            module_class,
+            "kg_build_system.distribution.executors.duckdb.service._private.emitters.emitter",
+            "DuckDbInstructionEmitter",
             method,
         )
-        for module, module_class in (
-            ("conflict_validation", "RejectConflictingNonNullValuesModule"),
-            ("core", "CoreModule"),
-            ("deduplication", "CollapseExactDuplicatesModule"),
-            ("file", "FileModule"),
-            ("merging", "MergeCompatibleFactsModule"),
-            ("meta_graph", "MetaGraphModule"),
-            ("neo4j", "Neo4jModule"),
+        for method in (
+            "with_operators", "with_row_sources", "emit_expression",
+            "expression_sql", "relation_sql", "emit_row_source",
+            "row_source_sql",
         )
-        for method in ("compiler", "executor")
     },
+    (
+        "kg_build_system.distribution.executors.duckdb.service._private.emitters.instruction",
+        "DuckDbSqlEmitter",
+        "emit",
+    ),
+    *{
+        (
+            "kg_build_system.distribution.executors.duckdb.service._private.emitters.protocols",
+            class_name,
+            method,
+        )
+        for class_name, methods in (
+            (
+                "EmissionContext",
+                ("emit", "parameter", "alias_for", "expansion", "with_variable"),
+            ),
+            ("ExpressionEmitter", ("emit",)),
+            ("Operand", ("sql",)),
+        )
+        for method in methods
+    },
+    *{
+        (
+            "kg_build_system.distribution.executors.runtime.model.public.services",
+            class_name,
+            method,
+        )
+        for class_name, methods in (
+            ("CredentialResolver", ("resolve",)),
+            (
+                "NullWorkflowLogger",
+                ("debug", "info", "warning", "error"),
+            ),
+            (
+                "WorkflowLogger",
+                ("debug", "info", "warning", "error"),
+            ),
+            ("WorkingStorage", ("child",)),
+        )
+        for method in methods
+    },
+    (
+        "kg_build_system.distribution.executors.runtime.service._private.storage.credentials",
+        "MappingCredentialResolver",
+        "resolve",
+    ),
+    (
+        "kg_build_system.distribution.executors.runtime.service._private.storage.working",
+        "LocalWorkingStorage",
+        "child",
+    ),
 }
 
 
@@ -98,6 +150,12 @@ def _accepted_owner(value: object, package: str) -> bool:
     owner = getattr(value, "__module__", "")
     if not isinstance(owner, str):
         return False
+    if package == "kg_build_system.distribution":
+        return owner == package or (
+            owner.startswith(f"{package}.")
+            and "._private" not in owner
+            and ".internal" not in owner
+        )
     return (
         owner == package
         or owner.startswith(f"{package}.model.public")
@@ -211,7 +269,7 @@ class PublicDocstringTests(unittest.TestCase):
         expected = {
             "create_blueprint": "kg_build_system.api",
             "compile": "kg_build_system.api",
-            "execute": "kg_build_system.pipeline.execution.service.public.execute",
+            "execute": "kg_build_system.api",
         }
         for name, module in expected.items():
             with self.subTest(name=name):

@@ -40,7 +40,7 @@ become `str`. Anything with no meaning-preserving form is refused rather than
 guessed. Refusal is listed under [limits](#limits).
 
 Temporal and `uuid` values have a canonical text form, so they survive the
-contract, deduplication and output unchanged. They have no comparison or
+workflow plan, deduplication and output unchanged. They have no comparison or
 filtering operators; call `to_string()` when one must become part of an identity.
 A target may still narrow what it stores: Neo4j refuses `uuid` properties because
 it has no property type for them.

@@ -4,9 +4,9 @@ Build a knowledge graph whose meaning survives the build.
 
 kg-build-system turns typed Python declarations into an inspectable knowledge
 graph. You describe the rows you read, declare what the graph means, and connect
-the two with bindings. The framework compiles those declarations into a frozen
-contract, executes it, and publishes the graph together with the meaning you
-declared for it.
+the two with bindings. The framework compiles those declarations into a
+`WorkflowPlan`, executes it, and publishes the graph together with the meaning
+you declared for it.
 
 Read the [philosophy](philosophy.md) for the problem the framework addresses and
 the values behind its design.
@@ -29,7 +29,7 @@ data contracts ──► expressions ──► row sources ──► projections
     └──────────────► topology ◄── bindings ◄─────────┘
                            │
                            ▼
-                  compile ──► contract ──► build ──► graph and reports
+                  compile ──► WorkflowPlan ──► execute ──► graph and reports
 ```
 
 A build has four layers. **Data contracts** describe the rows: their fields,
@@ -38,10 +38,9 @@ the values and the grain a record needs. **Topology** declares the graph:
 nodes, edges, properties and their meaning. **Bindings** map one row context
 onto one node or edge record.
 
-`compile()` checks the declarations and freezes one workflow contract.
-`execute()` executes it and writes the outputs selected by the modules. The same
-contract can be reviewed before data is read, executed repeatedly, or sent to
-several targets.
+`compile()` checks the declarations and produces one `WorkflowPlan`. `execute()`
+runs it and writes the outputs selected by the planners. The same plan can be
+reviewed before data is read, executed repeatedly, or sent to several targets.
 
 ## Learn the model
 
@@ -59,20 +58,20 @@ Read these in order for the complete story, or jump to the concept you need:
 8. [Bindings](concepts/bindings.md) — turning rows into records.
 9. [Semantics and annotations](concepts/semantics.md) — making the meaning part
    of the delivered graph.
-10. [Modules](concepts/modules.md) — composing build stages.
-11. [Compile, build and outputs](concepts/build-and-outputs.md) — from
+10. [Planners and executors](concepts/planners-and-executors.md) — composing build stages.
+11. [Compile, execute and outputs](concepts/build-and-outputs.md) — from
     declarations to artifacts.
 
 ## Do a task
 
 - [Join, group and union](how-to/relations.md) — choose and combine grains.
-- [Write a custom module](how-to/custom-modules.md) — add a build stage.
+- [Write an extension](how-to/custom-extensions.md) — add a planner or executor.
 - [Debug a build](how-to/debug.md) — read error messages and reports.
 - [Modelling patterns](how-to/patterns.md) — recurring graph shapes.
 
 ## For framework developers
 
-- [Developer guide](developer/index.md) — internal model, target architecture,
+- [Developer guide](developer/index.md) — internal model, toolchain design,
   data and expressions, and the contract tests that guard each interface.
 
 ## Reference

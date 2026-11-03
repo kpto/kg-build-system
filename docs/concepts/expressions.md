@@ -170,7 +170,7 @@ group and order operations themselves are on [row sources](row-sources.md).
 - **Expand only when the list is the grain.** Expanding one array multiplies the
   row; expanding two unrelated arrays multiplies both counts. Everything else in
   the row is repeated, so a constant key is emitted several times. Deduplication
-  is a module concern.
+  is a planner concern.
 - **Write one row plan per product.** A projection or binding has one row plan:
   the filters on its source plus the effects its expressions require, each applied
   once. Two uses of the same expanded field share one fan-out; effects never leak
@@ -193,7 +193,7 @@ group and order operations themselves are on [row sources](row-sources.md).
   is refused.
 - A `transform_items` selector may not contain a row effect.
 - An expansion repeats every other value in the row. Identity and deduplication
-  are handled by bindings and modules, not by `expand`.
+  are handled by bindings and planners, not by `expand`.
 - Boolean filters use three-valued logic: a null predicate drops the row, so
   narrow a nullable value before comparing it.
 

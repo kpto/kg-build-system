@@ -11,6 +11,8 @@ rule about what the framework is belongs to the framework model.
 ### Working
 
 - Understand the current model before changing it.
+- An additive wave copies the code it needs and adapts its imports; the new
+  package must not import the package it will replace.
 - Think from the author's and the graph consumer's perspective: why the framework
   exists, what the author gains, and what a consumer can rely on. Do not reduce
   the work to code mechanics.
@@ -111,14 +113,14 @@ rule about what the framework is belongs to the framework model.
 
 ### Kernel and distribution
 
-- `kg_build_system.kernel` is domain-agnostic: language, module, build value,
-  registry and the module contract. It imports no table, topology, expression,
-  engine or workflow package.
-- The kernel holds what is inseparable from the framework: protocols, build
-  values, contract vocabulary and the canonical type system. A package that can
-  be omitted or replaced is not kernel.
+- `kg_build_system.kernel` is domain-agnostic: language, layer, definition,
+  linker, planner, workflow plan, runtime, executor and toolchain. It imports no
+  table, topology, expression, engine or graph package.
+- The kernel holds what is inseparable from the framework: protocols, workflow
+  values, plan vocabulary and the canonical type system. A package that can be
+  omitted or replaced is not kernel.
 - Canonical types are a kernel assumption. Every layer, the blueprint and the
-  contract use the same type ontology; no layer defines its own.
+  workflow plan use the same type ontology; no layer defines its own.
 - The kernel uses toolchain vocabulary: language, layer, definition, linker,
   planner, workflow plan, runtime and executor. The distribution uses domain
   vocabulary: graph, blueprint, node, edge, binding and projection. The kernel
@@ -129,12 +131,22 @@ rule about what the framework is belongs to the framework model.
 - The package tree shows the primary dependency spine. A shared artifact or
   interface is the root of its consumer cluster. A tree cannot encode every
   edge; the dependency tests enforce the rest.
-- `table`, `topology` and `binding` are languages; `expressions` contributes
-  operations; `core` is a module; instruction emitters emit SQL or Python.
+- `annotations`, `expressions`, `table`, `topology` and `binding` are
+  distribution languages; `core`, `deduplication`, `merging` and
+  `conflict_validation` are distribution planners; DuckDB, Python, file,
+  meta-graph and Neo4j are distribution executors.
 - An operation is one specification plus one instruction emitter. Adding one
   does not edit a dispatcher.
-- A custom language and module compile and execute without the default
-  distribution; a graph build is one distribution, not the kernel.
+- A planner emits steps; it does not execute them. An executor executes one
+  exact instruction kind; it does not plan. A component that needs both is two
+  objects.
+- An extension declares the surfaces it extends: a language, a linker, a
+  planner and/or an executor. It does not implement one module interface.
+- Instruction kinds are exact namespaced tuples such as `("sql", "duckdb")`.
+  There is no prefix matching and no shared `"sql"` kind.
+- A custom language and a custom planner and executor compile and execute
+  without the default distribution; a graph build is one distribution, not the
+  kernel.
 
 ### Semantics as contract
 
@@ -147,18 +159,18 @@ rule about what the framework is belongs to the framework model.
   declarations that produced it. Topology reads as nodes, edges, labels,
   endpoints and properties; it does not carry Python paths, declaration
   expressions or symbol IDs.
-- A DTO is a member of the blueprint or the workflow contract. A value outside
-  those two artifacts is in-memory: a model, a plan, a render input or
-  a build result. It is not a DTO and is not expected to deserialise.
-- A layer DTO does not know the blueprint. It knows only the DTOs of the layers
-  it depends on. The blueprint package assembles the layer DTOs into one
-  semantic model.
-- The pipeline has two stages: `pipeline/compile` (blueprint -> workflow
-  contract) and `pipeline/execution` (contract -> artifacts). The public verbs are
-  `compile` and `execute`.
-- `compile` reads a blueprint and produces the workflow contract. It does not
-  assemble a blueprint and does not call the blueprint package. The composition
-  root calls `create_blueprint` and then `compile`.
+- A DTO is a member of the blueprint or the workflow plan. A value outside those
+  two artifacts is in-memory: a model, a plan, a render input or a build result.
+  It is not a DTO and is not expected to deserialise.
+- A layer DTO does not know the blueprint. It knows only the layers it depends
+  on. The interpreter links the layers into one semantic model.
+- The kernel has three stages: `build` (languages -> layers -> linked model),
+  `compile` (model -> workflow plan) and `execute` (plan -> artifacts). The
+  public verbs are `compile` and `execute`; `create_blueprint` is the
+  distribution's build shortcut.
+- `compile` reads a linked model and runs planners to produce a `WorkflowPlan`.
+  It does not assemble a blueprint and does not call the blueprint package. The
+  composition root calls `create_blueprint` and then `compile`.
 - The blueprint is public: a user may obtain a blueprint handle. The layer DTOs
   it references are not exported public names. The canonical flow is the
   compile shortcut that creates and consumes the blueprint without exposing it.
@@ -192,7 +204,7 @@ rule about what the framework is belongs to the framework model.
 - One module owns one decision; its path and name tell the reviewer which one.
 - If the purpose needs "and", it is more than one module.
 - The test is local change: a join-semantics change lives in the row-source
-  algebra and does not require editing table declarations, the compiler and the
+  algebra and does not require editing table declarations, the planner and the
   authoring API.
 - A small feature that forces edits across several subpackages means the boundary
   is wrong; fix the boundary, not the call sites.
@@ -233,8 +245,8 @@ rule about what the framework is belongs to the framework model.
 - The dependency direction is one graph; a cycle or a new edge is a model change.
 - A new edge may be right, but it is proposed with its reason; the reviewer
   decides whether the model changes.
-- A join change belongs to the row-source package. If the compiler needs a
-  generated join shape, the row-source interface exposes that shape; the compiler
+- A join change belongs to the row-source package. If a planner needs a
+  generated join shape, the row-source interface exposes that shape; the planner
   does not import a private module to find it.
 
 ### The authoring API is the guard
@@ -256,26 +268,26 @@ rule about what the framework is belongs to the framework model.
 - `IR` is not a synonym for internal data. Do not use it as a module or class
   suffix.
 - A serialisable model is a DTO, and its module names the artifact it belongs
-  to: `blueprint_dto.py`, `contract_dto.py`, `instruction_dto.py`,
+  to: `blueprint_dto.py`, `workflow_dto.py`, `instruction_dto.py`,
   `render_dto.py`.
 - A type in a DTO module carries the `DTO` suffix: `ComponentDTO`,
   `BindingDTO`.
 - A model that is not serialised is not a DTO: name it an in-memory `model` or
   an engine-neutral `plan`. A DTO whose artifact cannot be named is not a DTO.
 - Use one verb per transformation. A language **transcribes** declarations to
-  its DTO; the blueprint **assembles** layer DTOs; compile **compiles** a
-  blueprint to a workflow contract; the engine **emits** SQL from a plan; source
-  generation **renders** a DTO to authoring source. Do not use `lower` for any
-  of them.
-- A language transcribes declarations to its DTO and renders its DTO back to
-  authoring source. `transcribe` and `render` are the two directions of the same
-  language.
-- The workflow contract owns structure: steps, inputs, outputs, connections and
+  its `Layer`; the linker **links** layers into a model; a planner **plans** a
+  model into `Step`s; the runtime **executes** a `WorkflowPlan`; an engine
+  **emits** SQL from a plan; source generation **renders** a DTO to authoring
+  source. Do not use `lower` for any of them.
+- A language transcribes declarations to its `Layer` and renders that layer's
+  value back to authoring source. `transcribe` and `render` are the two
+  directions of the same language.
+- The workflow plan owns structure: steps, inputs, outputs, connections and
   provenance. A step owns its instruction. SQL is one instruction kind, not a
-  contract field.
-- Core emits instructions through an instruction emitter. SQL is the default
-  instruction kind; a Python instruction is a stable reference, not a live
-  callable.
+  plan field.
+- A planner emits steps and an executor executes one exact instruction kind. SQL
+  and Python are instruction kinds; a Python instruction is a stable reference,
+  not a live callable.
 - A leading underscore means module-private or package-private. A private helper
   inside one service module is allowed; a private name exported from
   `model/public/`, `model/internal/`, `service/public/` or `service/internal/`,
@@ -292,8 +304,8 @@ rule about what the framework is belongs to the framework model.
 - A codec is private to its layer. Another package calls the layer's codec
   interface; it never imports the codec implementation.
 - A shared artifact package owns its model and, at most, its document codec. It
-  does not own the algorithm that assembles it; the producing system owns
-  assembly. A contract package is not a compiler.
+  does not own the algorithm that produces it; the producing system owns the
+  planner. A workflow package is not a planner.
 - A package that only re-exports another package's model is not a package. Expose
   the names from the top-level facade or import the definition site; do not add a
   package with no model or service of its own.

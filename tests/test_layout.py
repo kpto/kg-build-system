@@ -9,16 +9,26 @@ import kg_build_system
 ROOT = Path(kg_build_system.__file__).parent
 LEAVES = (
     "kernel",
-    "declaration/foundations/annotations",
-    "declaration/foundations/expressions",
-    "declaration/languages/table",
-    "declaration/languages/topology",
-    "declaration/languages/binding",
-    "declaration/blueprint",
-    "pipeline/contract",
-    "pipeline/compile",
-    "pipeline/execution",
     "distribution",
+    "distribution/languages/annotations",
+    "distribution/languages/expressions",
+    "distribution/languages/table",
+    "distribution/languages/topology",
+    "distribution/languages/binding",
+    "distribution/interpreter",
+    "distribution/planners",
+    "distribution/planners/core",
+    "distribution/planners/deduplication",
+    "distribution/planners/merging",
+    "distribution/planners/conflict_validation",
+    "distribution/executors",
+    "distribution/executors/runtime",
+    "distribution/executors/duckdb",
+    "distribution/executors/python",
+    "distribution/executors/file",
+    "distribution/executors/meta_graph",
+    "distribution/executors/neo4j",
+    "distribution/executors/conflict_validation",
     "generation/code_generation",
     "cli",
 )
@@ -35,7 +45,7 @@ SERVICE_DIRECTORIES = (
 REQUIRED_DIRECTORIES = MODEL_DIRECTORIES + SERVICE_DIRECTORIES
 # A shared artifact package may own only its model; it owns no service when the
 # producing system owns the codec, assembly and other behaviour.
-MODEL_ONLY_LEAVES = {"pipeline/contract"}
+MODEL_ONLY_LEAVES: set[str] = set()
 KNOWN_MISSING_DIRECTORIES: set[tuple[str, str]] = set()
 KNOWN_PRIVATE_PUBLIC_SERVICE_IMPORTS: set[tuple[str, str]] = set()
 

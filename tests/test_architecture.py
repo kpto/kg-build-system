@@ -9,39 +9,47 @@ import kg_build_system
 ROOT = Path(kg_build_system.__file__).parent
 GROUPS = (
     "kernel",
-    "declaration",
-    "pipeline",
     "distribution",
     "generation",
     "cli",
 )
 LEAVES = (
     "kernel",
-    "declaration/foundations/annotations",
-    "declaration/foundations/expressions",
-    "declaration/languages/table",
-    "declaration/languages/topology",
-    "declaration/languages/binding",
-    "declaration/blueprint",
-    "pipeline/contract",
-    "pipeline/compile",
-    "pipeline/execution",
     "distribution",
+    "distribution/languages/annotations",
+    "distribution/languages/expressions",
+    "distribution/languages/table",
+    "distribution/languages/topology",
+    "distribution/languages/binding",
+    "distribution/interpreter",
+    "distribution/planners",
+    "distribution/planners/core",
+    "distribution/planners/deduplication",
+    "distribution/planners/merging",
+    "distribution/planners/conflict_validation",
+    "distribution/executors",
+    "distribution/executors/runtime",
+    "distribution/executors/duckdb",
+    "distribution/executors/python",
+    "distribution/executors/file",
+    "distribution/executors/meta_graph",
+    "distribution/executors/neo4j",
+    "distribution/executors/conflict_validation",
     "generation/code_generation",
     "cli",
 )
 LEAF_PARTS = {tuple(leaf.split("/")): leaf for leaf in LEAVES}
 ADAPTERS = {
-    "declaration/languages/table": "kernel_language.py",
-    "declaration/languages/topology": "kernel_language.py",
-    "declaration/languages/binding": "kernel_language.py",
-    "distribution": "kernel_module.py",
+    "distribution/languages/table": "kernel_language.py",
+    "distribution/languages/topology": "kernel_language.py",
+    "distribution/languages/binding": "kernel_language.py",
+    "distribution/interpreter": "kernel_linker.py",
     "generation/code_generation": "provider.py",
 }
 PUBLIC_SURFACES = {"model.public", "service.public"}
 MODEL_SURFACES = {"model.public", "model.internal"}
 PRIVATE_SURFACES = {"model._private", "service._private"}
-MODEL_ONLY_LEAVES = {"pipeline/contract"}
+MODEL_ONLY_LEAVES: set[str] = set()
 KNOWN_MODEL_SERVICE_IMPORTS: set[tuple[str, str]] = set()
 
 
@@ -149,7 +157,9 @@ class ArchitectureTests(unittest.TestCase):
                 self.assertIn(name, kg_build_system.__all__)
                 self.assertTrue(callable(getattr(kg_build_system, name)))
 
-    def test_every_facade_imports_only_model_public_and_service_public(self) -> None:
+    def test_every_facade_imports_only_public_surfaces_or_a_sibling_facade(
+        self,
+    ) -> None:
         for leaf in LEAVES:
             path = ROOT / leaf / "__init__.py"
             for parts, line in _module_imports(path):
@@ -157,12 +167,25 @@ class ArchitectureTests(unittest.TestCase):
                 if target is None:
                     continue
                 with self.subTest(leaf=leaf, line=line):
-                    self.assertEqual(target, leaf, f"{path}:{line} imports {parts}")
-                    self.assertIn(
-                        _surface(tail),
-                        PUBLIC_SURFACES,
-                        f"{path}:{line} imports {'.'.join(parts)}",
-                    )
+                    if target != leaf:
+                        self.assertEqual(
+                            tail,
+                            [],
+                            f"{path}:{line} imports {'.'.join(parts)}",
+                        )
+                        continue
+                    surface = _surface(tail)
+                    if surface is not None:
+                        self.assertIn(
+                            surface,
+                            PUBLIC_SURFACES,
+                            f"{path}:{line} imports {'.'.join(parts)}",
+                        )
+                    else:
+                        self.assertFalse(
+                            any(part.startswith("_") for part in tail),
+                            f"{path}:{line} imports {'.'.join(parts)}",
+                        )
 
     def test_no_package_imports_another_packages_private_zone(self) -> None:
         for leaf in LEAVES:
@@ -258,44 +281,39 @@ class ArchitectureTests(unittest.TestCase):
                 if target is not None and target != "kernel":
                     self.fail(f"{path}:{line} imports {'.'.join(parts)}")
 
-    def test_the_declaration_system_does_not_import_the_pipeline(self) -> None:
-        for path in _source_files(ROOT / "declaration"):
+    def test_the_language_system_does_not_import_a_removed_layer(self) -> None:
+        for root in (
+            ROOT / "distribution" / "languages",
+            ROOT / "distribution" / "interpreter",
+        ):
+            for path in _source_files(root):
+                for parts, line in _all_imports(path):
+                    if parts[0] in {"pipeline", "declaration"}:
+                        self.fail(f"{path}:{line} imports {'.'.join(parts)}")
+
+    def test_languages_do_not_import_the_interpreter(self) -> None:
+        for path in _source_files(ROOT / "distribution" / "languages"):
             for parts, line in _all_imports(path):
-                if parts[0] == "pipeline":
+                if parts[:2] == ["distribution", "interpreter"]:
                     self.fail(f"{path}:{line} imports {'.'.join(parts)}")
 
-    def test_declaration_languages_do_not_import_the_blueprint(self) -> None:
-        for path in _source_files(ROOT / "declaration" / "languages"):
-            for parts, line in _all_imports(path):
-                if parts[:2] == ["declaration", "blueprint"]:
-                    self.fail(f"{path}:{line} imports {'.'.join(parts)}")
-
-    def test_only_blueprint_and_compilation_read_the_blueprint(self) -> None:
+    def test_only_interpreter_and_planners_read_the_blueprint(self) -> None:
         allowed = (
-            ROOT / "declaration" / "blueprint",
-            ROOT / "pipeline" / "compile",
+            ROOT / "distribution" / "interpreter",
+            ROOT / "distribution" / "planners",
+            ROOT / "distribution" / "executors" / "meta_graph",
+            ROOT / "distribution" / "executors" / "neo4j",
         )
-        for root in (ROOT / "declaration", ROOT / "pipeline"):
+        for root in (
+            ROOT / "distribution" / "languages",
+            ROOT / "distribution" / "executors",
+        ):
             for path in _source_files(root):
                 if any(path.is_relative_to(directory) for directory in allowed):
                     continue
                 for parts, line in _all_imports(path):
-                    if parts[:2] == ["declaration", "blueprint"]:
+                    if parts[:2] == ["distribution", "interpreter"]:
                         self.fail(f"{path}:{line} imports {'.'.join(parts)}")
-
-    def test_compile_does_not_import_execution(self) -> None:
-        for path in _source_files(ROOT / "pipeline" / "compile"):
-            for parts, line in _all_imports(path):
-                if parts[:2] == ["pipeline", "execution"]:
-                    self.fail(f"{path}:{line} imports {'.'.join(parts)}")
-
-    def test_execution_does_not_import_compile_or_declaration(self) -> None:
-        for path in _source_files(ROOT / "pipeline" / "execution"):
-            for parts, line in _all_imports(path):
-                if parts[:2] == ["pipeline", "compile"]:
-                    self.fail(f"{path}:{line} imports {'.'.join(parts)}")
-                if parts[0] == "declaration":
-                    self.fail(f"{path}:{line} imports {'.'.join(parts)}")
 
     def test_foreign_protocols_have_an_explicit_adapter(self) -> None:
         for leaf, filename in ADAPTERS.items():

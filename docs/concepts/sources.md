@@ -152,14 +152,14 @@ lake_sites_source = bind_source(
 )
 ```
 
-The filesystem is configured when the source is read, not when the contract is
-compiled, so the frozen contract stays free of secrets. The credential value is a
+The filesystem is configured when the source is read, not when the workflow plan
+is compiled, so the frozen plan stays free of secrets. The credential value is a
 JSON object whose `filesystem_options` are passed to the filesystem for the URI's
 scheme.
 
 `version` is a label, not a pin. It records which snapshot you meant —
-`survey-2026-08`, a warehouse release tag, an export date — so the contract can be
-read later. Nothing in the build resolves it, downloads it or checks it. Pin input
+`survey-2026-08`, a warehouse release tag, an export date — so the workflow plan
+can be read later. Nothing in the build resolves it, downloads it or checks it. Pin input
 data in the pipeline that produces the files.
 
 ## Decisions you make

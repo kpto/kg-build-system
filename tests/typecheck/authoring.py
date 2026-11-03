@@ -3,34 +3,34 @@ from __future__ import annotations
 
 from typing import assert_type
 
-from kg_build_system.declaration.foundations.expressions.model.public import (
+from kg_build_system.distribution.languages.expressions.model.public import (
     IntExpression,
     NullableSelection,
     StrExpression,
     ValueSelection,
 )
-from kg_build_system.declaration.foundations.expressions.service.public import (
+from kg_build_system.distribution.languages.expressions.service.public import (
     value_expression,
 )
-from kg_build_system.declaration.languages.binding.model.public import (
+from kg_build_system.distribution.languages.binding.model.public import (
     NodeBinding,
     NodeValues,
 )
-from kg_build_system.declaration.languages.binding.service.public import (
+from kg_build_system.distribution.languages.binding.service.public import (
     node_binding,
 )
-from kg_build_system.declaration.languages.table.model.public import (
+from kg_build_system.distribution.languages.table.model.public import (
     Field,
     Table,
     TableOptions,
 )
-from kg_build_system.declaration.languages.table.service.public import field
-from kg_build_system.declaration.languages.topology.model.public import (
+from kg_build_system.distribution.languages.table.service.public import field
+from kg_build_system.distribution.languages.topology.model.public import (
     Node,
     NodeOptions,
     PropertySlot,
 )
-from kg_build_system.declaration.languages.topology.service.public import property
+from kg_build_system.distribution.languages.topology.service.public import property
 
 
 class Row(Table):

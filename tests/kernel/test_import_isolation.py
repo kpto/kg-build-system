@@ -9,12 +9,18 @@ ROOT = Path(__file__).resolve().parents[2]
 
 
 class ImportIsolationTests(unittest.TestCase):
-    def test_importing_the_kernel_does_not_load_a_language(self) -> None:
+    def test_importing_the_kernel_does_not_load_a_domain_package(self) -> None:
         code = (
-            "import sys; import kg_build_system.kernel; "
-            "assert 'kg_build_system.declaration.languages.table' not in sys.modules; "
-            "assert 'kg_build_system.pipeline.execution' not in sys.modules; "
-            "print('ok')"
+            "import sys\n"
+            "import kg_build_system.kernel\n"
+            "removed = 'kg_build_system.' + 'pipeline'\n"
+            "for prefix in ('kg_build_system.distribution', removed):\n"
+            "    assert not any(\n"
+            "        name == prefix or name.startswith(prefix + '.')\n"
+            "        for name in sys.modules\n"
+            "    ), prefix\n"
+            "assert 'duckdb' not in sys.modules\n"
+            "print('ok')\n"
         )
         result = subprocess.run(
             [sys.executable, "-c", code], cwd=ROOT, capture_output=True, text=True,

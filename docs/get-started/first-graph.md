@@ -241,9 +241,9 @@ The edge key combines the two endpoint keys, so each introduction is identifiabl
 
 Every declared property must receive exactly one value. The framework reports a missing or mistyped property before any data is read. See [bindings](../concepts/bindings.md) and the [bindings reference](../reference/bindings.md).
 
-### 6. Compile the contract
+### 6. Compile the plan
 
-`compile()` reads the package around the calling module, checks the bindings against their declarations, and returns an immutable contract. It does not read the CSV files.
+`compile()` reads the package around the calling module, checks the bindings against their declarations, and returns an immutable `WorkflowPlan`. It does not read the CSV files.
 
 Create `people_graph/build.py`:
 
@@ -251,14 +251,14 @@ Create `people_graph/build.py`:
 from pathlib import Path
 
 from kg_build_system import compile, execute
-from kg_build_system.distribution import FileModule, FileModuleConfiguration, register_module
+from kg_build_system.distribution import FileConfiguration, FilePlanner
 
 
 def main() -> None:
-    contract = compile(modules=[
-        register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
+    plan = compile(planners=[
+        FilePlanner(FileConfiguration("graph.jsonl")),
     ])
-    report = execute(contract, output_directory=Path(__file__).parent / "build")
+    report = execute(plan, output_directory=Path(__file__).parent / "build")
     for artifact in report.published_artifacts:
         print(artifact.value)
 
@@ -267,7 +267,7 @@ if __name__ == "__main__":
     main()
 ```
 
-`compile()` scans the package that contains `build.py`, so the declarations and bindings do not need an import list. `FileModule` writes the graph records as JSON Lines, and its configured path is relative to the output directory. The core module, which materialises the records, is supplied automatically.
+`compile()` scans the package that contains `build.py`, so the declarations and bindings do not need an import list. `FilePlanner` emits the JSON Lines step and `FileExecutor` writes the records; the configured path is relative to the output directory. The core planner, which materialises the records, is supplied automatically.
 
 The `__main__` guard matters: discovery imports `build.py`, and without the guard that import would run the build.
 
@@ -279,13 +279,13 @@ Run the entry point from the project root:
 python -m people_graph.build
 ```
 
-`execute()` executes the frozen contract. The configured `FileModule` writes the graph and publishes a summary, which the loop prints:
+`execute()` runs the workflow plan. The configured `FileExecutor` writes the graph and publishes a summary, which the loop prints:
 
 ```text
 {'nodes': 3, 'edges': 2, 'location': '.../people-graph/people_graph/build/graph.jsonl'}
 ```
 
-Your absolute location will differ. The build also writes `workflow_contract.json` before execution and `build_report.json` after it finishes.
+Your absolute location will differ. The build also writes `workflow_plan.json` before execution and `build_report.json` after it finishes.
 
 ### 8. Inspect the output
 
@@ -307,7 +307,7 @@ Each record carries:
 - `source_build_key` and `target_build_key` on an edge.
 - `_kg_binding_symbol`: the binding that produced the record.
 
-The contract in `workflow_contract.json` is the frozen plan. `build_report.json` records the published artifacts, any failures, and provenance. Both are build artifacts; do not edit them by hand. See [compile, build and outputs](../concepts/build-and-outputs.md) and the [compile reference](../reference/compile.md).
+The plan in `workflow_plan.json` is the frozen work. `build_report.json` records the published artifacts, any failures, and provenance. Both are build artifacts; do not edit them by hand. See [compile, execute and outputs](../concepts/build-and-outputs.md) and the [compile reference](../reference/compile.md).
 
 ## Verify
 
@@ -318,7 +318,7 @@ grep -c '"kind": "node"' people_graph/build/graph.jsonl
 grep -c '"kind": "edge"' people_graph/build/graph.jsonl
 ```
 
-The first command prints `3`, and the second prints `2`. Also check that `people_graph/build/workflow_contract.json` and `people_graph/build/build_report.json` exist.
+The first command prints `3`, and the second prints `2`. Also check that `people_graph/build/workflow_plan.json` and `people_graph/build/build_report.json` exist.
 
 If the counts differ, inspect the input keys and the `drop_null()` calls first. A missing or null key removes a row from the graph.
 
@@ -335,5 +335,5 @@ If the counts differ, inspect the input keys and the `drop_null()` calls first. 
 - [Project layout](project-layout.md) explains where to put a larger project.
 - [Data contracts](../concepts/data-contracts.md) covers nested structs, table groups, and generated contracts.
 - [Topology](../concepts/topology.md) and [bindings](../concepts/bindings.md) cover categories, endpoints, and inheritance.
-- [Compile, build and outputs](../concepts/build-and-outputs.md) covers the contract and the build report in detail.
+- [Compile, execute and outputs](../concepts/build-and-outputs.md) covers the workflow plan and the build report in detail.
 - [Authoring API reference](../reference/index.md) lists the names used in this walkthrough.

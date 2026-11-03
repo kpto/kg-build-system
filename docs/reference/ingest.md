@@ -106,10 +106,10 @@ Bind at module level. Discovery finds module-level `BoundSource` values in the
 project namespace, or pass the values explicitly:
 
 ```python
-contract = compile(
+plan = compile(
     bindings=(site_binding,),
     sources=(sites_source,),
-    modules=modules,
+    planners=planners,
 )
 ```
 
@@ -218,8 +218,8 @@ lake_source = bind_source(
 ```
 
 The declaration carries the credential name, never the value. Supply the value
-through `BuildRuntime(credentials=...)`; the contract and the report contain no
-secret. The value is a JSON object whose `filesystem_options` are handed to the
+through `BuildRuntime(credentials=...)`; the workflow plan and the report contain
+no secret. The value is a JSON object whose `filesystem_options` are handed to the
 filesystem for the URI's scheme. Unknown keys are refused, and a credentialed
 location without a scheme fails with `credentialed source locations require a URI
 scheme`.
@@ -245,7 +245,7 @@ field records `DEFAULTED`; a Parquet `REQUIRED` field records `DECLARED`; an
 enforced catalog constraint records `ENFORCED`.
 
 The built-in provider refuses database inputs because no `InputFormat` selects a
-database reader: a generated contract could never be bound. Export the relation
+database reader: a generated table could never be bound. Export the relation
 to Parquet, or declare the table outside a generated package. The enforced tier
 still exists for a provider that can observe an enforced catalog.
 
@@ -269,7 +269,7 @@ tracked input, and a change to it alone does not make a generated product stale.
 
 An override settles a source's claim or type for one whole top-level column. It
 is request-time configuration, not a generated declaration and not a runtime
-option in the compiled contract.
+option in the compiled workflow plan.
 
 ```python
 from kg_build_system.generation.code_generation.builtins import (
@@ -324,7 +324,7 @@ type with one of three dispositions:
   value that does not fit aborts the build.
 - A declared-only nested member has no override route, because an override
   reaches top-level columns only. Export it in a mappable type or handwrite the
-  contract.
+  table.
 - `refused` examples are `DECIMAL`, `BIGNUM`, `BIT`, `BLOB`, `TIME WITH TIME
   ZONE`, `TIMESTAMP WITH TIME ZONE`, `INTERVAL`, `MAP`, `UNION`, `VARIANT`,
   `ROW`, untyped `NULL`, `TYPE`, `GEOMETRY` and `GEOGRAPHY`. No override lifts a
@@ -430,7 +430,7 @@ property or key then fails at the guard, naming the property and the row key.
 
 - `version` is a label, not a pin. Pin input data in your own pipeline.
 - A source binding stores a credential reference; the secret is runtime input
-  and never enters the contract or report.
+  and never enters the workflow plan or report.
 - A group source maps hierarchy to paths. It does not join, merge, widen or
   change rows.
 - A group layout may use only two placeholders, `{group_path}` and

@@ -22,7 +22,7 @@ This makes meaning part of the build artifact, not a convention around it. The s
 | Label | What is this component called in a target? | `NodeLabel` or `EdgeLabel` | `meta_graph.json` and the Neo4j bundle |
 | Annotation | What fact should a tool read? | a frozen `Annotation` subclass | the blueprint |
 
-Descriptions and annotations are independent. A description never becomes an annotation, and a custom annotation does not appear in the meta-graph unless a module interprets it. A label is an annotation with a framework-defined meaning.
+Descriptions and annotations are independent. A description never becomes an annotation, and a custom annotation does not appear in the meta-graph unless a planner or executor interprets it. A label is an annotation with a framework-defined meaning.
 
 ## A node with all three
 
@@ -114,13 +114,13 @@ Without a label, a component's label is its logical name. `SiteNode` defaults to
 
 An annotation is a frozen dataclass with a stable namespace, a stable identifier and a JSON-compatible payload. Its class is a declaration of the fact; an instance carries the values.
 
-Attach an annotation through the options of any declaration that accepts them, or through a field or property helper. The blueprint stores only the namespace, the identifier and the payload. It never stores the annotation class itself. A downstream module matches on namespace and identifier and reads the payload; an annotation it does not recognise is preserved and ignored.
+Attach an annotation through the options of any declaration that accepts them, or through a field or property helper. The blueprint stores only the namespace, the identifier and the payload. It never stores the annotation class itself. A downstream planner or executor matches on namespace and identifier and reads the payload; an annotation it does not recognise is preserved and ignored.
 
-An annotation has no owner field. The attachment on the declaration says what it belongs to, and the rules that read it live in functions and modules beside the data.
+An annotation has no owner field. The attachment on the declaration says what it belongs to, and the rules that read it live in functions and planners beside the data.
 
-!!! note "A module decides what an annotation means"
+!!! note "A planner or executor decides what an annotation means"
 
-    The framework has no central annotation policy. A module may interpret the annotations it supports, such as a label, and ignore the rest. Putting a fact in an annotation does not change the graph by itself.
+    The framework has no central annotation policy. A planner or executor may interpret the annotations it supports, such as a label, and ignore the rest. Putting a fact in an annotation does not change the graph by itself.
 
 ## How annotations flow
 
@@ -136,12 +136,12 @@ When you compile, every reached declaration contributes its annotations to the b
 
 !!! note "What the meta-graph guarantees"
 
-    Record counts are exact for the records that reached the module, so they reflect the last stage that owned those records. Example values are illustrative: the module uses `approx_top_k`, bounded by `example_limit`, and the document names that method. An abstract category carries inclusive counts and pooled examples from its descendants because it emits no records of its own.
+    Record counts are exact for the records that reached the executor, so they reflect the last stage that owned those records. Example values are illustrative: the executor uses `approx_top_k`, bounded by `example_limit`, and the document names that method. An abstract category carries inclusive counts and pooled examples from its descendants because it emits no records of its own.
 
 ## Limits
 
 - A component description is local prose. It is not inherited from a category parent, and it is not created from an annotation.
-- An annotation is frozen data, not behaviour. It cannot read the graph, resolve a reference or change a record without a module that interprets it.
+- An annotation is frozen data, not behaviour. It cannot read the graph, resolve a reference or change a record without a planner or executor that interprets it.
 - The payload must be JSON-compatible and stable because it is part of the
   blueprint. Keep it small, and do not encode the owner, the component name or
   the binding name; the attachment already says what it belongs to.
@@ -150,12 +150,12 @@ When you compile, every reached declaration contributes its annotations to the b
 - One component carries at most one matching label. Labels of the wrong kind fail
   when a target reads them.
 - An annotation or description on a reached declaration changes the blueprint
-  even when it does not change the executable workflow.
+  even when it does not change the workflow plan.
 
 ## Next steps
 
-- [Modules](modules.md) explains how a build stage can read and act on what a declaration publishes.
-- [Compile, build and outputs](build-and-outputs.md) follows the blueprint, contract, build and output files.
+- [Planners and executors](planners-and-executors.md) explains how a build stage can read and act on what a declaration publishes.
+- [Compile, execute and outputs](build-and-outputs.md) follows the blueprint, workflow plan and output files.
 
 ## Reference
 

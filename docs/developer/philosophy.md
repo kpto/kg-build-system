@@ -28,9 +28,9 @@ The framework also makes models amnesic:
 `GraphBlueprint` is a blueprint DTO: it holds graph names, data names, bindings
 and sources. It does not hold the declaration classes, a symbol ID or the
 expression objects that produced those names. A Python binding carries only a
-stable `PythonRefDTO`. A `StepDTO` holds its name, ports and instruction; it does
-not hold the module object that contributed it. A relation plan holds scans,
-expressions and outputs; it does not hold the engine that will execute it.
+stable `PythonRefDTO`. A `Step` holds its ports and instruction; it does not hold
+the planner that contributed it. A `WorkflowPlan` holds components, steps and
+connections; it does not hold the engine that will execute it.
 
 Derived rules live beside the model. Identity functions, codecs, planners,
 renderers and emitters take a model as an argument. They are not methods that
@@ -50,12 +50,13 @@ and a target that cannot store a type refuses it.
 
 The blueprint is the semantic model of the graph. Topology reads as nodes,
 edges, labels, endpoints and properties. It does not read as Python paths,
-declaration expressions or symbol IDs. The workflow contract then carries the
-structure needed to execute the graph: steps, inputs, outputs, connections and
-provenance.
+declaration expressions or symbol IDs. The workflow plan then carries the
+structure needed to execute the graph: components, steps, inputs, outputs,
+connections and provenance.
 
-This is why the blueprint and the contract are the only two DTO artifacts. They
-are the two points where meaning leaves one system and enters another.
+This is why the blueprint and the workflow plan are the two serialisable
+artifacts. They are the two points where meaning leaves one system and enters
+another.
 
 ## Explicit boundaries
 
@@ -97,59 +98,61 @@ pkg/
   packages, is proposed with its reason.
 
 Boundaries make local change possible. A join-semantics change belongs to the
-row-source package; it does not require editing table declarations, the compiler
+row-source package; it does not require editing table declarations, the planner
 and the authoring API. If a small feature forces edits across several
 subpackages, the boundary is wrong; fix the boundary, not the call sites.
 
-## The three systems
+## The toolchain
 
-The framework has three systems and two supporting lanes.
+The framework has one kernel and one distribution. The kernel is a toolchain
+with three verbs:
 
-| System | Input | Output |
+| Verb | Input | Output |
 | --- | --- | --- |
-| Declaration | declarations | `GraphBlueprint` |
-| Compilation | blueprint | `WorkflowContractDTO` |
-| Build | contract | artifacts |
+| `build` | a `Namespace` of declarations | one opaque model |
+| `compile` | the linked model | `WorkflowPlan` |
+| `execute` | the workflow plan and an output directory | `WorkflowReport` |
 
-The **kernel** is shared by all three. It holds the protocols, canonical types,
-build values, contract vocabulary and capability declarations that cannot be
-omitted or replaced.
+The **kernel** is shared by every system. It holds the protocols, canonical
+types, workflow values, runtime values and the scheduler that cannot be omitted
+or replaced.
 
 **Generation** is upstream. It produces declarations from typed requests before
-declaration runs. Compile and execution never invoke generation.
+`build` runs. `build`, `compile` and `execute` never invoke generation.
 
-**Distribution** supplies modules. A module is a compiler and an executor with a
-stable identity; the default distribution supplies the core module and the
-target modules. A custom language and module compile and execute without the
-default distribution.
+**Distribution** supplies the graph domain. It owns the languages that read
+declarations, the `BlueprintLinker` that assembles a `GraphBlueprint`, the
+planners that emit graph, file, meta-graph and Neo4j steps, and the executors
+that run them. A custom language, linker, planner and executor compile and
+execute without the default distribution.
 
-`pipeline/` groups contract, compile and execution because compile and execution
-share the contract and must not import each other. Each system has one job and
-one handoff value.
+A custom toolchain is one `Toolchain` value. Extensions contribute languages,
+planners and executors; a new linked model supplies its own `Linker`. There is
+no registry and no single framework interface to implement.
 
 ## DTO versus in-memory
 
-A DTO is a member of the blueprint or the workflow contract. A value outside
-those two artifacts is in-memory: a transcribed model, a plan, a render input or
-a build result. It is not a DTO and is not expected to deserialise.
+A DTO is a member of the blueprint or the workflow plan. A value outside those
+two artifacts is in-memory: a transcribed layer, a render input or an execution
+result. It is not a DTO and is not expected to deserialise.
 
 | Kind | Example | Serialised | Owner |
 | --- | --- | --- | --- |
-| Blueprint DTO | `GraphBlueprint`, `DataPartDTO`, `RowJoinDTO` | yes | `declaration` |
-| Contract DTO | `WorkflowContractDTO`, `StepDTO`, `InstructionDTO` | yes | `pipeline/contract` |
-| In-memory model | a transcribe input, a build value, a render input | no | the consuming service |
-| In-memory plan | `RelationPlan`, an engine-neutral join plan | no | `pipeline/compile` |
-| In-memory result | a build report, an executor outcome | no | `pipeline/execution` |
+| Blueprint DTO | `GraphBlueprint`, `DataPartDTO`, `RowJoinDTO` | yes | `distribution/interpreter` and the graph languages |
+| Plan DTO | `WorkflowPlan`, `Step`, `Instruction` | yes | `kernel/model/public/workflow.py` |
+| In-memory model | a linked blueprint, a layer value, a render input | no | the consuming service |
+| In-memory plan | a relation plan, an engine-neutral join plan | no | a planner |
+| In-memory result | a workflow report, an executor outcome | no | the runtime |
 
 A layer DTO does not know the blueprint. It knows only the DTOs of the layers it
-depends on. The blueprint package assembles the layer DTOs into one semantic
-model.
+depends on. The interpreter assembles the layer DTOs into one semantic model.
 
 Naming follows the artifact:
 
 - a serialisable model is a DTO, and its module names the artifact:
-  `blueprint_dto.py`, `contract_dto.py`, `instruction_dto.py`;
-- a type in a DTO module carries the `DTO` suffix;
+  `blueprint_dto.py`, `workflow.py`;
+- a type in a DTO module carries the `DTO` suffix, while the kernel's public
+  workflow values keep their toolchain names (`Step`, `WorkflowPlan`);
 - a model that is not serialised is an in-memory `model` or an engine-neutral
   `plan`, not a DTO.
 
@@ -158,7 +161,7 @@ the framework model.
 
 ## Source regeneration
 
-A language transcribes declarations to its DTO and renders its DTO back to
+A language transcribes declarations to its layer and renders that layer back to
 authoring source. `transcribe` and `render` are the two directions of the same
 language.
 
@@ -192,33 +195,35 @@ or a class.
 
 | Verb | Input | Output | Owner |
 | --- | --- | --- | --- |
-| transcribe | declarations | layer DTO | language |
-| assemble | layer DTOs | `GraphBlueprint` | blueprint |
-| compile | blueprint | `WorkflowContractDTO` | compilation |
-| emit | plan | `InstructionDTO` | instruction emitter |
-| render | DTO | authoring source | language |
-| execute | contract | artifacts | build |
+| collect | namespace | declarations | language |
+| transcribe | declarations | `Layer` | language |
+| link | layers | opaque model | linker |
+| plan | model | `Step`s | planner |
+| assemble | planned steps | `WorkflowPlan` | kernel |
+| emit | plan | instruction payload | instruction emitter |
+| render | layer | authoring source | language |
+| execute | workflow plan | artifacts and `WorkflowReport` | runtime and executors |
 
-Do not use `lower` for any of them. The framework uses `transcribe`, `render`,
-`emit`, `compile` and `execute` for the transformations above.
+Do not use `lower` for any of them. The framework uses `collect`, `transcribe`,
+`link`, `plan`, `assemble`, `emit`, `render` and `execute`.
 
 ## Current state and limits
 
-The framework is implemented: declaration produces `GraphBlueprint`, compilation
-produces `WorkflowContractDTO`, build executes the contract, source generation is
-per layer and modules are supplied through `distribution`.
+The framework is implemented: the toolchain builds a `GraphBlueprint`, compiles
+it into a `WorkflowPlan`, and executes it with the supplied planners and
+executors. Source generation is per layer.
 
 The remaining limits are:
 
-- capability modules are deferred: `Capability` exists, but `Module` does not
-  declare `requires`/`provides`;
+- a language may publish only its layer value instead of per-declaration
+  definitions;
 - DuckDB is the default SQL emitter;
-- a Python binding source is a reference, not the callable body;
-- target executors still receive instruction payloads through `variables`;
-- public `GraphBlueprint` fields reference internal layer DTOs.
+- a Python instruction is a reference, not the callable body;
+- public `GraphBlueprint` fields reference internal layer DTOs;
+- the core planner depends on the DuckDB SQL emitter.
 
-Verification: 69 tests passed, 484 subtests; pyright 0 errors; Open Targets 6
-tests passed.
+Verification: 115 tests passed, 604 subtests; pyright 0 errors; the Open Targets
+project passes 7 tests against the new API.
 
 See [system design](system-design.md) for the layout and [testing](testing.md)
 for the contract tests.
@@ -228,7 +233,7 @@ for the contract tests.
 - A model is frozen data; behaviour is a function beside it.
 - Meaning is part of the delivered contract, not a comment.
 - Every dependency edge is a design decision.
-- Only the blueprint and the workflow contract are DTOs.
+- Only the blueprint and the workflow plan are serialisable artifacts.
 - A language transcribes and renders; it does not encode or decode.
 - The blueprint must round-trip through generated authoring source.
 

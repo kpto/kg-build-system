@@ -202,7 +202,7 @@ Keys may use any scalar type. A key written from a nullable source column needs
 legal on a key but gives every missing identifier the same identity; use it only
 when one shared sentinel is genuinely correct.
 
-Keys may overlap between producers. Two bindings can emit the same key independently; register a deduplication module when exact duplicates must disappear. See [Modules](modules.md).
+Keys may overlap between producers. Two bindings can emit the same key independently; compose a deduplication planner when exact duplicates must disappear. See [Planners and executors](planners-and-executors.md).
 
 ## Properties
 
@@ -349,7 +349,7 @@ A binding becomes one frozen blueprint entry containing:
 
 The entry's identity is derived from the target, kind, `debug_name`, keys, property expressions, endpoint components and row-source plan. Annotations are carried but do not distinguish otherwise identical bindings.
 
-Binding annotations are part of the blueprint. They do not change the compiled workflow. A record written by `FileModule` carries `_kg_binding_symbol`, the binding's identity, until a merging stage removes it.
+Binding annotations are part of the blueprint. They do not change the workflow plan. A record written by `FileExecutor` carries `_kg_binding_symbol`, the binding's identity, until a merging step removes it.
 
 Bindings are discovered only as module-level values. A binding created inside a function or stored only in a container is not discovered; re-exported values are deduplicated by object identity. See [Compile](compile.md).
 
@@ -364,4 +364,4 @@ Bindings are discovered only as module-level values. A binding created inside a 
   `default_to()` keeps it. Both are no-ops on a present value.
 - Use `debug_name` when one component has several producers.
 
-Related: [Bindings](../concepts/bindings.md), [Topology](topology.md), [Semantics](semantics.md), [Compile](compile.md), [Modules](modules.md), [Reference index](index.md).
+Related: [Bindings](../concepts/bindings.md), [Topology](topology.md), [Semantics](semantics.md), [Compile](compile.md), [Planners and executors](planners-and-executors.md), [Reference index](index.md).

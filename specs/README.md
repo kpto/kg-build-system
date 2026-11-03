@@ -12,19 +12,19 @@ This directory does not duplicate it.
 
 | Package | Model surface | Service surface |
 | --- | --- | --- |
-| `kernel` | canonical types, build and contract values | `Language`, `Module`, `Capability`, registry |
-| `declaration/foundations/annotations` | annotation values and labels | codec and source rendering |
-| `declaration/foundations/expressions` | expression and selection values; expression DTOs | construction, operation specifications and source rendering |
-| `declaration/languages/table` | `Table`, `Struct`, `Projection`, fields and sources; data DTOs | field and source wrappers, transcription and source rendering |
-| `declaration/languages/topology` | `Node`, `Edge`, properties and templates; graph DTOs | property and endpoint wrappers, transcription and source rendering |
-| `declaration/languages/binding` | binding values; binding DTOs | `node_binding`, `edge_binding`, transcription and source rendering |
-| `declaration/blueprint` | `GraphBlueprint` | `create_blueprint`, assembly, validation, codec and source |
-| `pipeline/contract` | `WorkflowContractDTO` and step DTOs | assembly and codec |
-| `pipeline/compile` | relation plans and instruction kinds | `compile_blueprint`, compilers and instruction emitters |
-| `pipeline/execution` | `BuildRuntime`, `WorkflowReport` | `execute`, runtime, engine, storage and dispatch |
-| `distribution` | module configurations and instruction DTOs | module classes, registration and compiler/executor factories |
+| `kernel` | canonical types; language, workflow and runtime values | `Language`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `ResourceProvider`, `Toolchain`, `Extension`, `WorkflowRuntime` |
+| `distribution/languages/annotations` | annotation values and labels | codec and source rendering |
+| `distribution/languages/expressions` | expression and selection values; expression DTOs | construction, operation specifications and source rendering |
+| `distribution/languages/table` | `Table`, `Struct`, `Projection`, fields and sources; data DTOs | field and source wrappers, transcription and source rendering |
+| `distribution/languages/topology` | `Node`, `Edge`, properties and templates; graph DTOs | property and endpoint wrappers, transcription and source rendering |
+| `distribution/languages/binding` | binding values; binding DTOs | `node_binding`, `edge_binding`, transcription and source rendering |
+| `distribution/interpreter` | `GraphBlueprint` | `create_blueprint`, `BlueprintLinker`, assembly, validation, codec and source |
+| `distribution/planners/*` | planner configuration and report values | supplied planners |
+| `distribution/executors/*` | executor configuration, report values and execution services | supplied executors and resource providers |
+| `distribution/model/public` | `BuildRuntime` and path rules | none |
+| `distribution/default.py` | none | `DEFAULT_TOOLCHAIN`, `default_toolchain` |
 | `generation/code_generation` | generation requests, results and provider contract | generation, discovery, rendering and ownership |
-| `api.py` | none | `create_blueprint`, `compile_blueprint`, `compile`, `execute` |
+| `api.py` | none | `create_blueprint`, `compile`, `execute` |
 | `cli` | none | `kbs` entry point |
 
 ## Zones
@@ -61,10 +61,15 @@ The import matrix:
 
 ## Dependency spine
 
-`declaration` depends on `kernel`. `pipeline/compile` and `pipeline/execution`
-depend on declaration and the shared contract, and do not import each other.
-`distribution` supplies modules. `generation` is upstream. `api.py` and `cli`
-compose the systems.
+`distribution/languages` depends on `kernel`. `distribution/interpreter` depends
+on the languages and the kernel. `distribution/planners` and
+`distribution/executors` depend on the interpreter, the languages and the
+kernel; the core planner uses the DuckDB SQL emitter, and the conflict-report
+executor reuses the planner's report values. `distribution/default` composes
+them. `generation` is upstream. `api.py` and `cli` compose the systems.
+
+The kernel imports no graph, table, topology, binding, SQL, DuckDB or Python
+package.
 
 See [system design](../docs/developer/system-design.md) for the full package
 tree and dependency table.
