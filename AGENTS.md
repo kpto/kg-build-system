@@ -114,6 +114,11 @@ rule about what the framework is belongs to the framework model.
 - `kg_build_system.kernel` is domain-agnostic: language, module, build IR,
   registry and the module contract. It imports no table, topology, expression,
   engine or workflow package.
+- The kernel holds what is inseparable from the framework: protocols, build
+  values, contract vocabulary and the canonical type system. A package that can
+  be omitted or replaced is not kernel.
+- Canonical types are a kernel assumption. Every layer, the blueprint and the
+  contract use the same type ontology; no layer defines its own.
 - `table`, `topology` and `binding` are languages; `expressions` contributes
   operations; `core` is a module; engines own code generation.
 - An operation is one specification plus one engine lowerer. Adding one does not
