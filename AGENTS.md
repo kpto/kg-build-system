@@ -269,6 +269,9 @@ rule about what the framework is belongs to the framework model.
   inside one `internal` module is allowed; a private name exported from
   `public/__init__.py` or `internal/__init__.py`, or imported across packages, is
   not. Shared mechanisms belong in `_private`.
+- A private helper stays beside its caller. Move it to `_private` only when it is
+  shared by several modules or is independently replaceable; otherwise the move
+  splits one decision and adds an import edge.
 - A language does not encode or decode. Serialisation belongs to the DTO codec,
   which names its artifact: `to_document` / `from_document`. The blueprint codec
   composes the layer codecs.
