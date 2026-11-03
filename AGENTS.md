@@ -139,6 +139,12 @@ rule about what the framework is belongs to the framework model.
   it depends on. The blueprint package assembles the layer DTOs into one
   semantic model; `compile` reads that blueprint and produces the workflow
   contract.
+- The blueprint DTO is public. The layer DTOs it is assembled from are internal
+  and are not re-exported through it. A public blueprint field has a public
+  blueprint type, not an internal layer DTO.
+- The canonical flow hides the blueprint: create, compile and build are one
+  shortcut. The explicit `create_blueprint` path returns the handle when a user
+  asks for it.
 - The blueprint must regenerate equivalent authoring source. The round trip
   `blueprint -> generated source -> blueprint` is a contract test, not a
   convenience.
