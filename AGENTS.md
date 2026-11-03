@@ -206,6 +206,16 @@ rule about what the framework is belongs to the framework model.
 - A feature that cannot be expressed cleanly through it is probably wrong.
 - Typecheck fixtures exercise the public surface and guard it.
 
+### Names state the role
+
+- `IR` is not a synonym for internal data. Do not use it as a module or class
+  suffix.
+- Name the artifact by what it is: a lowered `model`, an engine-neutral `plan`,
+  a published `contract`, the graph `blueprint`, or execution `instructions`.
+- An `IR`, if the word is used in prose, is a lowered model of one layer that
+  round-trips through its codec. If it has no codec, it is a model or a plan,
+  not an IR.
+
 ### Models are anaemic and amnesic
 
 - The framework uses anaemic models deliberately: a model is frozen data holding
