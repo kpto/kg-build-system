@@ -26,11 +26,11 @@ LEAVES = (
     "pipeline/contract",
     "pipeline/compilation",
     "pipeline/build",
+    "distribution",
     "generation/code_generation",
     "cli",
 )
-SHARED: set[str] = set()
-ZONES = {"public", "internal", "_private"}
+LEAF_PARTS = {tuple(leaf.split("/")): leaf for leaf in LEAVES}
 ADAPTERS = {
     "declaration/languages/table": "kernel_language.py",
     "declaration/languages/topology": "kernel_language.py",
@@ -38,32 +38,35 @@ ADAPTERS = {
     "distribution": "kernel_module.py",
     "generation/code_generation": "provider.py",
 }
+PUBLIC_SURFACES = {"model.public", "service.public"}
+MODEL_SURFACES = {"model.public", "model.internal"}
+PRIVATE_SURFACES = {"model._private", "service._private"}
+KNOWN_MODEL_SERVICE_IMPORTS: set[tuple[str, str]] = set()
 
 
-def _parts(path: Path, node: ast.ImportFrom) -> list[str] | None:
-    base = path.parent
-    for _ in range(node.level - 1):
-        base = base.parent
-    try:
-        parts = list(base.relative_to(ROOT).parts)
-    except ValueError:
+def _resolve_from(path: Path, node: ast.ImportFrom) -> list[str] | None:
+    if node.level:
+        base = path.parent
+        for _ in range(node.level - 1):
+            base = base.parent
+        try:
+            relative = list(base.relative_to(ROOT).parts)
+        except ValueError:
+            return None
+        parts = relative + (node.module.split(".") if node.module else [])
+    elif node.module and node.module.startswith("kg_build_system."):
+        parts = node.module.split(".")[1:]
+    else:
         return None
-    if node.module:
-        parts += node.module.split(".")
     return parts or None
 
 
-def _imports(path: Path) -> list[tuple[list[str], int]]:
+def _all_imports(path: Path) -> list[tuple[list[str], int]]:
     tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
     found: list[tuple[list[str], int]] = []
     for node in ast.walk(tree):
         if isinstance(node, ast.ImportFrom):
-            if node.level:
-                parts = _parts(path, node)
-            elif node.module and node.module.startswith("kg_build_system."):
-                parts = node.module.split(".")[1:]
-            else:
-                parts = None
+            parts = _resolve_from(path, node)
             if parts:
                 found.append((parts, node.lineno))
         elif isinstance(node, ast.Import):
@@ -73,26 +76,63 @@ def _imports(path: Path) -> list[tuple[list[str], int]]:
     return found
 
 
+class _ModuleImportVisitor(ast.NodeVisitor):
+    """Collect imports executed at module import time, not inside functions."""
+
+    def __init__(self, path: Path) -> None:
+        self.path = path
+        self.found: list[tuple[list[str], int]] = []
+
+    def visit_FunctionDef(self, node: ast.FunctionDef) -> None:
+        return None
+
+    def visit_AsyncFunctionDef(self, node: ast.AsyncFunctionDef) -> None:
+        return None
+
+    def visit_ImportFrom(self, node: ast.ImportFrom) -> None:
+        parts = _resolve_from(self.path, node)
+        if parts:
+            self.found.append((parts, node.lineno))
+
+    def visit_Import(self, node: ast.Import) -> None:
+        for alias in node.names:
+            if alias.name.startswith("kg_build_system."):
+                self.found.append((alias.name.split(".")[1:], node.lineno))
+
+
+def _module_imports(path: Path) -> list[tuple[list[str], int]]:
+    visitor = _ModuleImportVisitor(path)
+    visitor.visit(ast.parse(path.read_text(encoding="utf-8"), filename=str(path)))
+    return visitor.found
+
+
 def _source_files(directory: Path):
     for path in directory.rglob("*.py"):
         if "__pycache__" not in path.parts:
             yield path
 
 
-def _owner(path: Path) -> tuple[str, ...] | None:
-    """The leaf package that owns ``path``, found by its declared zones."""
-    relative = path.relative_to(ROOT).parts[:-1]
-    for index in range(len(relative), 0, -1):
-        candidate = ROOT.joinpath(*relative[:index])
-        if any((candidate / zone).is_dir() for zone in ZONES):
-            return tuple(relative[:index])
+def _leaf(parts: list[str]) -> tuple[str | None, list[str]]:
+    for leaf_parts in sorted(LEAF_PARTS, key=len, reverse=True):
+        if tuple(parts[: len(leaf_parts)]) == leaf_parts:
+            return LEAF_PARTS[leaf_parts], parts[len(leaf_parts) :]
+    return None, parts
+
+
+def _owner(path: Path) -> tuple[str | None, list[str]]:
+    relative = list(path.relative_to(ROOT).parts)
+    return _leaf(relative)
+
+
+def _surface(tail: list[str]) -> str | None:
+    if len(tail) >= 2 and tail[0] in {"model", "service"}:
+        if tail[1] in {"public", "internal", "_private"}:
+            return f"{tail[0]}.{tail[1]}"
     return None
 
 
-def _private_import_owner(parts: list[str]) -> tuple[str, ...] | None:
-    if "_private" not in parts:
-        return None
-    return tuple(parts[: parts.index("_private")])
+def _private(parts: list[str]) -> bool:
+    return "_private" in parts
 
 
 class ArchitectureTests(unittest.TestCase):
@@ -108,33 +148,121 @@ class ArchitectureTests(unittest.TestCase):
                 self.assertIn(name, kg_build_system.__all__)
                 self.assertTrue(callable(getattr(kg_build_system, name)))
 
-    def test_each_declared_leaf_has_its_public_and_internal_zones(self) -> None:
+    def test_every_facade_imports_only_model_public_and_service_public(self) -> None:
         for leaf in LEAVES:
-            root = ROOT / leaf
-            with self.subTest(leaf=leaf):
-                self.assertTrue((root / "__init__.py").is_file())
-                for zone in ("public", "internal"):
-                    self.assertTrue(
-                        (root / zone / "__init__.py").is_file(),
-                        f"{leaf} has no {zone}/__init__.py",
+            path = ROOT / leaf / "__init__.py"
+            for parts, line in _module_imports(path):
+                target, tail = _leaf(parts)
+                if target is None:
+                    continue
+                with self.subTest(leaf=leaf, line=line):
+                    self.assertEqual(target, leaf, f"{path}:{line} imports {parts}")
+                    self.assertIn(
+                        _surface(tail),
+                        PUBLIC_SURFACES,
+                        f"{path}:{line} imports {'.'.join(parts)}",
                     )
 
-    def test_the_kernel_imports_no_system_package(self) -> None:
-        for path in _source_files(ROOT / "kernel"):
-            for parts, line in _imports(path):
-                if parts[0] == "kernel" or parts[0] in SHARED:
+    def test_no_package_imports_another_packages_private_zone(self) -> None:
+        for leaf in LEAVES:
+            for path in _source_files(ROOT / leaf):
+                owner, _ = _owner(path)
+                for parts, line in _all_imports(path):
+                    target, tail = _leaf(parts)
+                    if target is None or target == owner:
+                        continue
+                    if _surface(tail) in PRIVATE_SURFACES or _private(parts):
+                        self.fail(
+                            f"{path}:{line} imports another package's private "
+                            f"zone: {'.'.join(parts)}"
+                        )
+
+    def test_model_public_and_internal_import_no_service_or_private(self) -> None:
+        for leaf in LEAVES:
+            for path in _source_files(ROOT / leaf):
+                owner, tail = _owner(path)
+                surface = _surface(tail)
+                if surface not in MODEL_SURFACES:
                     continue
-                self.fail(f"{path}:{line} imports {'.'.join(parts)}")
+                for parts, line in _module_imports(path):
+                    target, target_tail = _leaf(parts)
+                    target_surface = _surface(target_tail)
+                    if target is None:
+                        if _private(parts):
+                            self.fail(f"{path}:{line} imports {'.'.join(parts)}")
+                        continue
+                    if target != owner:
+                        continue
+                    relative = path.relative_to(ROOT).as_posix()
+                    if (
+                        target_surface is not None
+                        and target_surface.startswith("service")
+                        and (relative, target_surface) not in KNOWN_MODEL_SERVICE_IMPORTS
+                    ):
+                        self.fail(
+                            f"{path}:{line} model imports service "
+                            f"{'.'.join(parts)}"
+                        )
+                    if _private(parts):
+                        self.fail(f"{path}:{line} model imports private {parts}")
+
+    def test_model_private_may_read_model_but_not_service_public(self) -> None:
+        for leaf in LEAVES:
+            for path in _source_files(ROOT / leaf):
+                _, tail = _owner(path)
+                if _surface(tail) != "model._private":
+                    continue
+                for parts, line in _module_imports(path):
+                    _, target_tail = _leaf(parts)
+                    if _surface(target_tail) == "service.public":
+                        self.fail(
+                            f"{path}:{line} model private imports public service "
+                            f"{'.'.join(parts)}"
+                        )
+
+    def test_service_public_does_not_import_private(self) -> None:
+        for leaf in LEAVES:
+            for path in _source_files(ROOT / leaf):
+                _, tail = _owner(path)
+                if _surface(tail) != "service.public":
+                    continue
+                for parts, line in _module_imports(path):
+                    _, target_tail = _leaf(parts)
+                    if _surface(target_tail) in PRIVATE_SURFACES or _private(parts):
+                        self.fail(
+                            f"{path}:{line} public service imports private "
+                            f"{'.'.join(parts)}"
+                        )
+
+    def test_service_internal_interface_has_no_eager_private_import(self) -> None:
+        for leaf in LEAVES:
+            path = ROOT / leaf / "service" / "internal" / "__init__.py"
+            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+            for node in tree.body:
+                if isinstance(node, ast.If) and "TYPE_CHECKING" in ast.unparse(node.test):
+                    continue
+                if not isinstance(node, ast.ImportFrom):
+                    continue
+                parts = _resolve_from(path, node)
+                if parts and _private(parts):
+                    self.fail(f"{path}:{node.lineno} eagerly imports {parts}")
+
+    def test_the_kernel_imports_no_domain_package(self) -> None:
+        for path in _source_files(ROOT / "kernel"):
+            for parts, line in _all_imports(path):
+                target, _ = _leaf(parts)
+                if target is not None and target != "kernel":
+                    self.fail(f"{path}:{line} imports {'.'.join(parts)}")
 
     def test_the_declaration_system_does_not_import_the_pipeline(self) -> None:
         for path in _source_files(ROOT / "declaration"):
-            for parts, line in _imports(path):
+            for parts, line in _all_imports(path):
                 if parts[0] == "pipeline":
                     self.fail(f"{path}:{line} imports {'.'.join(parts)}")
 
     def test_declaration_languages_do_not_import_the_blueprint(self) -> None:
         for path in _source_files(ROOT / "declaration" / "languages"):
-            for parts, line in _imports(path):
+            for parts, line in _all_imports(path):
                 if parts[:2] == ["declaration", "blueprint"]:
                     self.fail(f"{path}:{line} imports {'.'.join(parts)}")
 
@@ -143,52 +271,36 @@ class ArchitectureTests(unittest.TestCase):
             ROOT / "declaration" / "blueprint",
             ROOT / "pipeline" / "compilation",
         )
-        roots = (
-            ROOT / "declaration",
-            ROOT / "pipeline",
-        )
-        for root in roots:
+        for root in (ROOT / "declaration", ROOT / "pipeline"):
             for path in _source_files(root):
                 if any(path.is_relative_to(directory) for directory in allowed):
                     continue
-                for parts, line in _imports(path):
+                for parts, line in _all_imports(path):
                     if parts[:2] == ["declaration", "blueprint"]:
                         self.fail(f"{path}:{line} imports {'.'.join(parts)}")
 
     def test_compilation_does_not_import_build(self) -> None:
         for path in _source_files(ROOT / "pipeline" / "compilation"):
-            for parts, line in _imports(path):
+            for parts, line in _all_imports(path):
                 if parts[:2] == ["pipeline", "build"]:
                     self.fail(f"{path}:{line} imports {'.'.join(parts)}")
 
     def test_build_does_not_import_compilation_or_declaration(self) -> None:
         for path in _source_files(ROOT / "pipeline" / "build"):
-            for parts, line in _imports(path):
+            for parts, line in _all_imports(path):
                 if parts[:2] == ["pipeline", "compilation"]:
                     self.fail(f"{path}:{line} imports {'.'.join(parts)}")
                 if parts[0] == "declaration":
                     self.fail(f"{path}:{line} imports {'.'.join(parts)}")
 
-    def test_no_package_imports_another_packages_private_zone(self) -> None:
-        for group in GROUPS:
-            for path in _source_files(ROOT / group):
-                owner = _owner(path)
-                if owner is None:
-                    continue
-                for parts, line in _imports(path):
-                    imported_owner = _private_import_owner(parts)
-                    if imported_owner is not None and imported_owner != owner:
-                        self.fail(
-                            f"{path}:{line} imports another package's private "
-                            f"zone: {'.'.join(parts)}"
-                        )
-
     def test_foreign_protocols_have_an_explicit_adapter(self) -> None:
         for leaf, filename in ADAPTERS.items():
             with self.subTest(leaf=leaf):
                 self.assertTrue(
-                    (ROOT / leaf / "internal" / "adapters" / filename).is_file(),
-                    f"{leaf} has no internal/adapters/{filename}",
+                    (
+                        ROOT / leaf / "service" / "internal" / "adapters" / filename
+                    ).is_file(),
+                    f"{leaf} has no service/internal/adapters/{filename}",
                 )
 
 

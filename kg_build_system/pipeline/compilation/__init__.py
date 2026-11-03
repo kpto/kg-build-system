@@ -5,6 +5,6 @@ engine-neutral plans and the instruction emitters are framework-internal.
 """
 from __future__ import annotations
 
-from .public import compile_blueprint
+from .service.public import compile_blueprint
 
 __all__ = ["compile_blueprint"]

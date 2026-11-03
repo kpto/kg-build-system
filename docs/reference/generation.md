@@ -176,9 +176,14 @@ before installing anything.
 from pathlib import Path
 from typing import ClassVar
 
-from kg_build_system.generation.code_generation.internal import (
+from kg_build_system.generation.code_generation.model.internal import (
+    Provider, ProviderContext, ProviderGenerationConfig,
+)
+from kg_build_system.generation.code_generation.model._private.generated import (
     GeneratedClass, GeneratedField, GeneratedFile, GeneratedPackage,
-    GeneratedScalarType, Provider, ProviderContext, ProviderGenerationConfig,
+    GeneratedScalarType,
+)
+from kg_build_system.generation.code_generation.service.internal import (
     resolve_provider_path,
 )
 

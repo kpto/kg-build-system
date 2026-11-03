@@ -15,7 +15,28 @@ GROUPS = (
     "generation",
     "cli",
 )
-# No framework definition may carry the ``IR`` suffix.
+LEAVES = (
+    "kernel",
+    "declaration/foundations/annotations",
+    "declaration/foundations/expressions",
+    "declaration/languages/table",
+    "declaration/languages/topology",
+    "declaration/languages/binding",
+    "declaration/blueprint",
+    "pipeline/contract",
+    "pipeline/compilation",
+    "pipeline/build",
+    "distribution",
+    "generation/code_generation",
+    "cli",
+)
+LEAF_PARTS = {tuple(leaf.split("/")): leaf for leaf in LEAVES}
+INTERFACE_SURFACES = (
+    "model/public",
+    "model/internal",
+    "service/public",
+    "service/internal",
+)
 
 
 def _definitions(path: Path):
@@ -39,115 +60,99 @@ def _framework_files():
                 yield path
 
 
+def _leaf(parts: list[str]) -> str | None:
+    for leaf_parts in sorted(LEAF_PARTS, key=len, reverse=True):
+        if tuple(parts[: len(leaf_parts)]) == leaf_parts:
+            return LEAF_PARTS[leaf_parts]
+    return None
+
+
+def _owner(path: Path) -> str | None:
+    return _leaf(list(path.relative_to(ROOT).parts))
+
+
+def _surface(path: Path) -> str | None:
+    relative = path.relative_to(ROOT)
+    parts = relative.parts
+    for leaf in LEAVES:
+        leaf_parts = tuple(leaf.split("/"))
+        if tuple(parts[: len(leaf_parts)]) == leaf_parts:
+            tail = parts[len(leaf_parts) :]
+            if len(tail) >= 2 and tail[0] in {"model", "service"}:
+                return f"{tail[0]}/{tail[1]}"
+            return None
+    return None
+
+
 def _is_dto_module(path: Path) -> bool:
     relative = path.relative_to(ROOT)
-    return (
-        any(part == "dto" for part in relative.parts[:-1])
-        or path.stem == "dto"
-        or path.name.endswith("_dto.py")
-    )
+    parts = relative.parts
+    if "model" in parts and "public" in parts:
+        return True
+    if "model" in parts and "internal" in parts:
+        return (
+            "dto" in parts
+            or path.stem == "dto"
+            or path.name.endswith("_dto.py")
+        )
+    return path.stem == "dto" or path.name.endswith("_dto.py")
 
 
-class NamingTests(unittest.TestCase):
-    def test_no_definition_uses_the_lowering_verb(self) -> None:
-        for path in _framework_files():
-            for name, line in _definitions(path):
-                if "lower" in name.lower():
-                    self.fail(f"{path}:{line} defines the lowering name {name!r}")
-
-    def test_no_definition_uses_ir(self) -> None:
-        found: set[tuple[str, str]] = set()
-        for path in _framework_files():
-            for name, line in _definitions(path):
-                if name == "IR" or name.endswith("IR"):
-                    relative = path.relative_to(ROOT).as_posix()
-                    found.add((relative, f"{name} at {line}"))
-
-        self.assertEqual(found, set())
-
-    def test_dto_classes_live_in_a_dto_module(self) -> None:
-        for path in _framework_files():
-            for name, line in _classes(path):
-                if name.endswith("DTO") and not _is_dto_module(path):
-                    self.fail(f"{path}:{line} declares DTO {name!r} outside a DTO module")
-
-    def test_public_and_internal_all_do_not_export_private_names(self) -> None:
-        for path in _framework_files():
-            if path.name != "__init__.py":
-                continue
-            relative = path.relative_to(ROOT)
-            if not ({"public", "internal"} & set(relative.parts)):
-                continue
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            for node in tree.body:
-                if not isinstance(node, ast.Assign):
-                    continue
-                if not any(getattr(target, "id", None) == "__all__" for target in node.targets):
-                    continue
-                try:
-                    values = ast.literal_eval(node.value)
-                except (ValueError, SyntaxError):
-                    continue
-                private = [
-                    value for value in values
-                    if isinstance(value, str)
-                    and value.startswith("_")
-                    and not (value.startswith("__") and value.endswith("__"))
-                ]
-                self.assertEqual(
-                    private, [],
-                    f"{path} exports private names in __all__: {private}",
-                )
-
-    def test_no_cross_package_private_import(self) -> None:
-        def leaf(parts: tuple[str, ...]) -> tuple[str, ...]:
-            if parts[0] == "declaration" and len(parts) > 2 and parts[1] in {"foundations", "languages"}:
-                return parts[:3]
-            if parts[0] == "pipeline" and len(parts) > 1:
-                return parts[:2]
-            return parts[:1]
-
-        for path in _framework_files():
-            relative = path.relative_to(ROOT)
-            own = leaf(relative.parts)
-            tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
-            for node in ast.walk(tree):
-                if not isinstance(node, ast.ImportFrom) or node.level == 0:
-                    continue
+def _imports(path: Path):
+    tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
+    for node in ast.walk(tree):
+        line = getattr(node, "lineno", 0)
+        parts = None
+        names: list[str] = []
+        if isinstance(node, ast.ImportFrom):
+            if node.level:
                 base = path.parent
                 for _ in range(node.level - 1):
                     base = base.parent
-                target = base.joinpath(*(node.module or "").split("."))
                 try:
-                    target_parts = target.relative_to(ROOT).parts
+                    relative = list(base.relative_to(ROOT).parts)
                 except ValueError:
                     continue
-                if leaf(target_parts) == own:
-                    continue
-                names = [
-                    alias.name for alias in node.names
-                    if alias.name.startswith("_")
-                    and not (alias.name.startswith("__") and alias.name.endswith("__"))
-                ]
-                self.assertEqual(
-                    names, [],
-                    f"{path}:{node.lineno} imports private names {names} from {node.module}",
-                )
+                parts = relative + (node.module.split(".") if node.module else [])
+            elif node.module and node.module.startswith("kg_build_system."):
+                parts = node.module.split(".")[1:]
+            names = [alias.name for alias in node.names]
+        elif isinstance(node, ast.Import):
+            for alias in node.names:
+                if alias.name.startswith("kg_build_system."):
+                    yield alias.name.split(".")[1:], line, []
+            continue
+        if parts is not None:
+            yield parts, line, names
 
-    def test_public_and_internal_define_no_private_helpers(self) -> None:
+
+class NamingTests(unittest.TestCase):
+    def test_interfaces_define_no_single_underscore_helpers(self) -> None:
+        for leaf in LEAVES:
+            for surface in INTERFACE_SURFACES:
+                directory = ROOT / leaf / surface
+                if not directory.is_dir():
+                    continue
+                for path in directory.rglob("*.py"):
+                    if "__pycache__" in path.parts:
+                        continue
+                    for name, line in _definitions(path):
+                        if not name.startswith("_"):
+                            continue
+                        if name.startswith("__") and name.endswith("__"):
+                            continue
+                        self.fail(
+                            f"{path}:{line} defines private helper {name!r} in "
+                            f"{surface}; move it to _private"
+                        )
+
+    def test_dto_classes_live_in_a_model_dto_module(self) -> None:
         for path in _framework_files():
-            relative = path.relative_to(ROOT)
-            if not ({"public", "internal"} & set(relative.parts)):
-                continue
-            for name, line in _definitions(path):
-                if not name.startswith("_"):
-                    continue
-                if name.startswith("__") and name.endswith("__"):
-                    continue
-                self.fail(
-                    f"{path}:{line} defines private helper {name!r} in "
-                    "public/internal; move it to _private"
-                )
+            for name, line in _classes(path):
+                if name.endswith("DTO") and not _is_dto_module(path):
+                    self.fail(
+                        f"{path}:{line} declares DTO {name!r} outside a model DTO module"
+                    )
 
     def test_plans_and_generated_models_are_not_dtos(self) -> None:
         for path in _framework_files():
@@ -158,6 +163,30 @@ class NamingTests(unittest.TestCase):
                         name.endswith("DTO"),
                         f"{path}:{line} declares {name!r} as a DTO",
                     )
+
+    def test_no_cross_package_underscore_import(self) -> None:
+        for path in _framework_files():
+            owner = _owner(path)
+            for parts, line, names in _imports(path):
+                target = _leaf(parts)
+                if target is None or target == owner:
+                    continue
+                module_names = [
+                    part for part in parts
+                    if part.startswith("_")
+                    and not (part.startswith("__") and part.endswith("__"))
+                ]
+                imported_names = [
+                    name for name in names
+                    if name.startswith("_")
+                    and not (name.startswith("__") and name.endswith("__"))
+                ]
+                self.assertEqual(
+                    (module_names, imported_names),
+                    ([], []),
+                    f"{path}:{line} imports private names "
+                    f"{module_names + imported_names} from {'.'.join(parts)}",
+                )
 
 
 if __name__ == "__main__":

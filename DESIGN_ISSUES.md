@@ -1,6 +1,6 @@
 # Design limits
 
-The target model is implemented. These are the remaining limits, not
+The model/service layout is implemented. These are the remaining limits, not
 compatibility promises.
 
 | Limit | Current choice |

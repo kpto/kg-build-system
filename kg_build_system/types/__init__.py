@@ -2,7 +2,7 @@
 
 An author imports the type vocabulary from here; every layer, the blueprint and
 the contract use the same canonical type ontology. The definitions live in
-:mod:`kg_build_system.kernel.public.types`.
+:mod:`kg_build_system.kernel.model.public.types`.
 
 Example:
     ```python
@@ -14,7 +14,7 @@ Example:
 """
 from __future__ import annotations
 
-from ..kernel.public.types import (
+from kg_build_system.kernel.model.public.types import (
     Array, ArrayType, BOOL, CANONICAL_UNIT_NAMES, CustomDataType, CustomType,
     DATE, Date, FLOAT, INT, LogicalType, NonNullableLogicalType, Nullable,
     NullableType, STR, Shape, Struct, StructType, TEXT_CANONICAL_UNIT_NAMES,

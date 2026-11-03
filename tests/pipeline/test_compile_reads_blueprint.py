@@ -4,8 +4,8 @@ import unittest
 from unittest.mock import patch
 
 from kg_build_system.declaration.blueprint import GraphBlueprint
-from kg_build_system.declaration.languages.table.internal.dto import DataPartDTO
-from kg_build_system.declaration.languages.topology.internal.dto import GraphPartDTO
+from kg_build_system.declaration.languages.table.model.internal import DataPartDTO
+from kg_build_system.declaration.languages.topology.model.internal import GraphPartDTO
 from kg_build_system.pipeline.compilation import compile_blueprint
 from kg_build_system.pipeline.contract import WorkflowContractDTO
 
@@ -36,7 +36,7 @@ class CompileReadsBlueprintTests(unittest.TestCase):
                 side_effect=refuse,
             ),
             patch(
-                "kg_build_system.declaration.blueprint.public.service.create.create_blueprint",
+                "kg_build_system.declaration.blueprint.service.public.create.create_blueprint",
                 side_effect=refuse,
             ),
         ):

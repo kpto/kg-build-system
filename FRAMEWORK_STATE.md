@@ -1,11 +1,11 @@
 # Framework state
 
-This is the reviewer briefing. The target tree is the implementation; the old
-top-level packages are deleted.
+This is the reviewer briefing. The model/service tree is the implementation; the
+old top-level packages are deleted.
 
 ## Verification
 
-- **61 tests**, **306 subtests**.
+- **69 tests**, **484 subtests**.
 - Pyright: **0 errors**.
 - `uv run mkdocs build --strict`: passes.
 - Open Targets KG: **6 tests** pass.
@@ -22,9 +22,15 @@ cd ~/Repos/opentargets-kg && uv run pytest -q
 ```text
 kg_build_system/
   kernel/
-    public/types/
-    internal/types/
-    internal/json.py
+    model/
+      public/types/
+      internal/types/
+      internal/json.py
+      _private/
+    service/
+      public/
+      internal/
+      _private/
   declaration/
     foundations/
       annotations/
@@ -39,13 +45,16 @@ kg_build_system/
     compilation/
     build/
   distribution/
-    modules/
   generation/
     code_generation/
-  types/                 # authoring alias for kernel.public.types
+  types/                 # authoring alias for kernel.model.public.types
   api.py
   cli/
 ```
+
+Every leaf uses `model/public`, `model/internal`, `model/_private`,
+`service/public`, `service/internal` and `service/_private`. `__init__.py`
+imports only `model.public` and `service.public`.
 
 ## Pipeline
 
@@ -74,12 +83,11 @@ kg_build_system/
   adapter copies the step instruction payload into `variables`.
 - Public `GraphBlueprint` fields reference internal layer DTOs. The handle is
   public; those layer DTOs are not exported public names.
-- `pipeline/build` and `distribution/modules` reference each other through
-  target adapters and core engine helpers.
 
 ## Documentation
 
 - `docs/developer/` is the canonical developer guide.
 - `ARCHITECTURE.md` is the short implementation map.
 - `DESIGN_ISSUES.md` states the remaining design limits.
-- `specs/README.md` points at the developer docs and states the boundaries.
+- `specs/README.md` points at the developer docs and states the model/service
+  boundaries.

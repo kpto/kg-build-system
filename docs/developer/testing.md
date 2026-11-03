@@ -7,26 +7,31 @@ function returns the expected value is not a contract test.
 The contract tests below define the interface checks. Some checks exist in the
 current suite; the sections state what is covered and what remains a gap.
 
-## Dependency spine
+## Layout and dependency spine
 
-**Asserts:** every subpackage has the four-part layout; a facade imports only its
-`public` zone; no package imports another package's `_private`; the kernel imports
-no domain package; every foreign protocol has an explicit adapter.
+**Asserts:** every leaf has `model/public`, `model/internal`,
+`service/public`, `service/internal` and `service/_private`; a facade imports
+only `model.public` and `service.public`; model public/internal import no service
+or private code; service public imports no private code; service internal has no
+eager private import; cross-package imports never enter a private zone; the
+kernel imports no domain package; every foreign protocol has an explicit adapter.
 
-The test walks the package tree and the import graph. It does not inspect
+The tests walk the package tree and the import graph. They do not inspect
 implementation behaviour.
 
 Current coverage:
 
-- `tests/test_architecture.py` checks the four-part layout, facade imports,
-  cross-package `_private` imports and adapter files across the framework roots
+- `tests/test_layout.py` checks the model/service directories, facade imports and
+  the private/public-service import rule.
+- `tests/test_architecture.py` checks the package tree, facade surfaces, private
+  zones, model/service import matrix and adapter files across the framework roots
   `kernel`, `declaration`, `pipeline`, `distribution`, `generation` and `cli`.
+- `tests/test_naming.py` checks the interface naming rules.
 - `tests/kernel/test_import_isolation.py` checks that importing the kernel does
   not load a language or workflow package.
 
-The framework roots are covered by the architecture test. The assertions are the
-same: zones are declared, the spine is one direction, and private mechanisms stay
-private.
+The framework roots are covered by the layout tests. Zones are declared, the
+spine is one direction, and private mechanisms stay private.
 
 ## DTO scope
 
@@ -72,7 +77,7 @@ The test also asserts that the blueprint is frozen and that its identity is
 derived from content. A rename of a display-only field does not change the
 semantic identity; a change to a type, endpoint, row source or binding does.
 
-Current coverage: `declaration/blueprint/internal/service/validation.py` checks
+Current coverage: `declaration/blueprint/service/_private/validation.py` checks
 component, endpoint, parent, binding and source names.
 `tests/declaration/test_blueprint_dto.py` checks the layer DTO fields, graph-name
 endpoints and parents, and the public blueprint references. There is no separate
@@ -153,15 +158,15 @@ referenced object through the import coordinates. It refuses a contract that
 contains a callable.
 
 Current status:
-`pipeline.compilation.internal.instruction.PythonInstructionEmitter` emits a
-`python` instruction with module, qualified name and signature, and the contract
-codec round-trips it. A Python binding in the blueprint uses
+`pipeline.compilation.service._private.instructions.python.PythonInstructionEmitter`
+emits a `python` instruction with module, qualified name and signature, and the
+contract codec round-trips it. A Python binding in the blueprint uses
 `PythonRefDTO(module, qualname, signature)`; neither DTO holds a callable. The
 dedicated test that refuses a callable in a contract is not present yet.
 
 ## Verification
 
-- 61 tests passed, 306 subtests.
+- 69 tests passed, 484 subtests.
 - Pyright: 0 errors.
 - Open Targets: 6 tests passed.
 - `uv run mkdocs build --strict`: passes.

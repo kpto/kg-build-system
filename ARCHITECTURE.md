@@ -8,9 +8,15 @@ are in [docs/developer/system-design.md](docs/developer/system-design.md).
 ```text
 kg_build_system/
   kernel/
-    public/types/
-    internal/types/
-    internal/json.py
+    model/
+      public/types/
+      internal/types/
+      internal/json.py
+      _private/
+    service/
+      public/
+      internal/
+      _private/
   declaration/
     foundations/
       annotations/
@@ -25,16 +31,34 @@ kg_build_system/
     compilation/
     build/
   distribution/
-    modules/
   generation/
     code_generation/
-  types/                 # authoring alias for kernel.public.types
+  types/                 # authoring alias for kernel.model.public.types
   api.py
   cli/
 ```
 
-Every leaf uses `public/`, `internal/` and `_private/`; `__init__.py` exposes the
-public facade.
+Every leaf uses `model/` and `service/`:
+
+```text
+pkg/
+  __init__.py          imports only model.public and service.public
+  model/
+    public/            authoring models, returned values, public DTOs
+    internal/          cross-package data: dto/, model/
+    _private/          private plans, render models, SQL types
+  service/
+    public/            authoring methods; thin wrappers
+    internal/          service interfaces, codec/assembly wrappers, adapters/
+    _private/          codecs, transcription, rendering, validation, assembly,
+                       planning, engines, runtime
+```
+
+`model.public` and `model.internal` import no service or private code.
+`service.public` imports `model.public` and `service.internal`.
+`service.internal` imports model data and uses function-local imports for
+`service._private`. `service._private` may read model data and other private
+service code, but not `service.public`.
 
 ## Dependency spine
 
@@ -45,7 +69,7 @@ declaration -> kernel
 pipeline/contract -> kernel
 pipeline/compilation -> declaration, pipeline/contract, kernel
 pipeline/build -> pipeline/contract, kernel
-distribution/modules -> kernel, declaration, pipeline/contract, pipeline/compilation, pipeline/build
+distribution -> kernel, declaration, pipeline/contract, pipeline/compilation, pipeline/build
 generation/code_generation -> kernel
 api.py -> declaration, pipeline, distribution
 cli -> generation, api.py
@@ -64,12 +88,11 @@ The primary edges are:
 | `pipeline/contract` | `kernel` |
 | `pipeline/compilation` | `declaration`, `pipeline/contract`, `kernel` |
 | `pipeline/build` | `pipeline/contract`, `kernel` |
-| `distribution/modules` | `kernel`, `declaration`, `pipeline/contract`, `pipeline/compilation`, `pipeline/build` |
+| `distribution` | `kernel`, `declaration`, `pipeline/contract`, `pipeline/compilation`, `pipeline/build` |
 | `generation/code_generation` | `kernel` |
 | `api.py` | `declaration`, `pipeline`, `distribution` |
 | `cli` | `generation`, `api.py` |
 
 `pipeline/compilation` and `pipeline/build` share the contract but do not import
-each other. `distribution/modules` may import the build engine for execution
-constants; `pipeline/build` resolves module executors dynamically from the
-contract and does not import `distribution`.
+each other. Another package imports a leaf's `model.public`, `model.internal`,
+`service.public` or `service.internal`; it never imports a private zone.

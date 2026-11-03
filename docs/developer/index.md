@@ -31,25 +31,26 @@ framework model, the package boundaries and the contract tests.
 
 The implemented tree is `kernel`, `declaration`, `pipeline/{contract,
 compilation, build}`, `distribution`, `generation`, `api.py` and `cli`, plus
-`types` as the kernel type alias. Shared mechanisms live in the package that
-consumes them: JSON freezing in `kernel/internal/json.py`, relation protocols in
-`pipeline/build/internal/relations/protocols.py`, and table naming and docstring
-helpers in `declaration/languages/table/_private/`.
+`types` as the kernel type alias. Every leaf uses `model/` and `service/`;
+shared mechanisms live in the package that consumes them, for example JSON
+freezing in `kernel/model/internal/json.py`, relation protocols in
+`pipeline/build/service/internal/relations/protocols.py`, and table naming and
+docstring helpers in `declaration/languages/table/service/_private/`.
 
 | Area | Implementation | Remaining limit |
 | --- | --- | --- |
-| Kernel | Domain-agnostic protocols, canonical types under `kernel/public/types`, `Capability`, build and contract values | Capability modules are deferred; `Module` does not declare `requires`/`provides` |
-| Languages | `collect`, `transcribe`, `validate`, `render` in the table, topology and binding languages | None |
+| Kernel | Domain-agnostic protocols in `kernel/service/public`, canonical types in `kernel/model/public/types`, `Capability`, build and contract values | Capability modules are deferred; `Module` does not declare `requires`/`provides` |
+| Languages | `collect`, `transcribe`, `validate`, `render` in the table, topology and binding services | None |
 | Blueprint and compilation | `create_blueprint(...) -> GraphBlueprint`; `compile_blueprint(blueprint, *, modules, engine=None) -> WorkflowContractDTO`; `compile(...)` is the canonical shortcut | Public `GraphBlueprint` fields reference internal layer DTOs |
 | Contract and build | `WorkflowContractDTO` owns contributions, connections and provenance; `StepDTO` owns its `InstructionDTO`; `pipeline.build.build` dispatches on `step.instruction.kind` | Some target executors still receive instruction payloads through `variables` |
 | DTO names | `*DTO` names; graph node and edge identities carry graph names, not `symbol_id` | None |
 | Source regeneration | Each language renders its own DTO; `blueprint_to_source` delegates to the three layer renderers | Python binding source is a reference, not the callable body |
-| Distribution | `distribution` exports the supplied modules and `register_module` | None |
-| SQL emission | `pipeline/compilation/instruction` emits instructions; `pipeline/build/engine` owns the engine boundary | DuckDB is the default SQL emitter |
+| Distribution | `distribution.service.public` exports the supplied modules and `register_module` | None |
+| SQL emission | `pipeline/compilation/service/internal/instruction` emits instructions; `pipeline/build/service/internal/engine` owns the engine boundary | DuckDB is the default SQL emitter |
 
 ## Verification
 
-- 61 tests passed, 306 subtests.
+- 69 tests passed, 484 subtests.
 - Pyright: 0 errors.
 - Open Targets: 6 tests passed.
 - `uv run mkdocs build --strict`: passes.

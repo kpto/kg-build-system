@@ -8,18 +8,19 @@ must prove.
 
 | Concept | Owner | What it is |
 | --- | --- | --- |
-| Canonical types | `kernel/public/types` | the one type ontology every layer uses |
+| Canonical types | `kernel/model/public/types` | the one type ontology every layer uses |
 | Annotations | `declaration/foundations/annotations` | annotation values and DTOs |
-| Selections | `declaration/foundations/expressions/public` | typed reads over a row shape |
-| Operation specifications | `declaration/foundations/expressions/internal/service/operations` | one specification per operation |
+| Selections | `declaration/foundations/expressions/model/public` | typed reads over a row shape |
+| Operation specifications | `declaration/foundations/expressions/service/internal/operations` | one specification per operation |
 | Row sources | `declaration/languages/table` | the row value a projection or binding reads |
 | Joins, unions, filters, groups, distinct, order | `declaration/languages/table` | row-source operations and their plan DTOs |
 | Projections | `declaration/languages/table` | a named relation with output expressions and a row source |
-| Data DTO | `declaration/languages/table/internal/dto/blueprint_dto.py` | the frozen data part of the blueprint |
+| Data DTO | `declaration/languages/table/model/internal/dto/blueprint_dto.py` | the frozen data part of the blueprint |
 | Blueprint | `declaration/blueprint` | assembles the layer DTOs |
-| Relational plan | `pipeline/compilation/relational` | engine-neutral relation plans |
-| Instruction emission | `pipeline/compilation/instruction` | turns a plan into an `InstructionDTO` |
-| Engine emitter | `pipeline/build/engine` | turns an expression or row-source plan into SQL |
+| Relational plan | `pipeline/compilation/model/internal` | engine-neutral relation plans |
+| Instruction emission | `pipeline/compilation/service/internal/instruction` | turns a plan into an `InstructionDTO` |
+| SQL emitter | `pipeline/compilation/service/_private/instructions/duckdb` | emits DuckDB SQL for an instruction |
+| Engine boundary | `pipeline/build/service/internal/engine` | opens and runs the build engine |
 
 `table` is the `data` language. `expressions` contributes operations and
 expression DTOs; it is not a language and does not own a build part.
@@ -99,26 +100,26 @@ Only the blueprint and the workflow contract are DTO artifacts. The blueprint's
 data layer uses these DTOs:
 
 ```text
-declaration/foundations/annotations/internal/dto/blueprint_dto.py
+declaration/foundations/annotations/model/internal/dto/blueprint_dto.py
     AnnotationDTO(namespace, id, arguments)
 
-declaration/foundations/expressions/internal/dto/blueprint_dto.py
+declaration/foundations/expressions/model/internal/dto/blueprint_dto.py
     LiteralExpressionDTO, FieldReferenceDTO, OperationExpressionDTO
 
-declaration/languages/table/internal/dto/blueprint_dto.py
+declaration/languages/table/model/internal/dto/blueprint_dto.py
     DataPartDTO
     StructDTO, RelationDTO, ColumnDTO
     ProjectionDTO, SourceDTO
     RowScanDTO, RowFilterDTO, RowUnionDTO, RowJoinDTO,
     RowGroupByDTO, RowDistinctDTO, RowOrderByDTO
 
-declaration/languages/topology/internal/dto/blueprint_dto.py
+declaration/languages/topology/model/internal/dto/blueprint_dto.py
     GraphPartDTO, NodeDTO, EdgeDTO, PropertyDTO
 
-declaration/languages/binding/internal/dto/blueprint_dto.py
+declaration/languages/binding/model/internal/dto/blueprint_dto.py
     NodeBindingDTO, EdgeBindingDTO
 
-declaration/blueprint/public/dto/graph_blueprint.py
+declaration/blueprint/model/public/graph_blueprint.py
     GraphBlueprint(graph, data, bindings, sources)
 ```
 
@@ -163,8 +164,8 @@ engine's live objects.
 
 A language has two directions:
 
-- `internal/service/transcription.py`: declarations -> DTO;
-- `internal/service/source.py`: DTO -> `SourceFragment`.
+- `service/_private/transcription.py`: declarations -> DTO;
+- `service/_private/source.py`: DTO -> `SourceFragment`.
 
 A layer renders its own DTO using its dependency layers' renderers. The blueprint
 source service delegates to each layer and assembles the fragments; it does not
@@ -194,27 +195,28 @@ The round trip proves three things:
 
 The data model is implemented:
 
-- `declaration/languages/table/internal/dto/blueprint_dto.py` defines
+- `declaration/languages/table/model/internal/dto/blueprint_dto.py` defines
   `DataPartDTO`, `StructDTO`, `RelationDTO`, `ColumnDTO`, `ProjectionDTO`,
   `SourceDTO` and the `Row*DTO` plans. They carry graph names and no
   `symbol_id`.
 - `declaration/languages/table`, `topology` and `binding` each provide a
   transcription service and a source service. Their languages implement
   `collect`, `transcribe`, `validate` and `render`.
-- `declaration/foundations/expressions/internal/dto/blueprint_dto.py` defines
+- `declaration/foundations/expressions/model/internal/dto/blueprint_dto.py` defines
   `LiteralExpressionDTO`, `FieldReferenceDTO`, `VariableExpressionDTO` and
   `OperationExpressionDTO`.
 - `declaration/blueprint` defines `GraphBlueprint(graph, data, bindings,
   sources)`, a composing codec and a source service. `blueprint_to_source`
   delegates to the table, topology and binding renderers and assembles their
   fragments.
-- `pipeline/compilation/internal/relational` owns the engine-neutral plan and
-  `pipeline/compilation/internal/instruction` owns the Python and DuckDB
-  instruction emitters.
+- `pipeline/compilation/model/internal` owns the engine-neutral relation plans and
+  instruction kinds. `pipeline/compilation/service/internal/instruction` owns the
+  emitter interfaces, and `pipeline/compilation/service/_private/instructions`
+  holds the Python and DuckDB emitters.
 - `pipeline/build` dispatches on `step.instruction.kind`; SQL is one instruction
   kind.
 
-The canonical type DTOs live in `kernel/internal/types`; `kg_build_system.types`
+The canonical type DTOs live in `kernel/model/internal/types`; `kg_build_system.types`
 is the authoring alias.
 
 The remaining limits in this area are:

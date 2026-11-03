@@ -6,7 +6,7 @@ import unittest
 import kg_build_system
 from kg_build_system import create_blueprint
 from kg_build_system.declaration.blueprint import GraphBlueprint
-from kg_build_system.pipeline.build import build
+from kg_build_system.pipeline.build import BuildRuntime, WorkflowReport, build
 from kg_build_system.pipeline.compilation import compile_blueprint
 from kg_build_system.pipeline.contract import WorkflowContractDTO
 
@@ -31,15 +31,29 @@ class PublicApiTests(unittest.TestCase):
     def test_the_public_handles_name_their_artifacts(self) -> None:
         self.assertEqual(
             GraphBlueprint.__module__,
-            "kg_build_system.declaration.blueprint.public.dto.graph_blueprint",
+            "kg_build_system.declaration.blueprint.model.public.graph_blueprint",
         )
         self.assertEqual(
             WorkflowContractDTO.__module__,
-            "kg_build_system.pipeline.contract.public.dto.contract",
+            "kg_build_system.pipeline.contract.model.public.dto.contract",
+        )
+        self.assertEqual(
+            BuildRuntime.__module__,
+            "kg_build_system.pipeline.build.model.public.runtime",
+        )
+        self.assertEqual(
+            WorkflowReport.__module__,
+            "kg_build_system.pipeline.build.model.public.runtime",
         )
         self.assertEqual(create_blueprint.__module__, "kg_build_system.api")
-        self.assertEqual(compile_blueprint.__module__, "kg_build_system.pipeline.compilation.public.service.compile")
-        self.assertEqual(build.__module__, "kg_build_system.pipeline.build.public.service.build")
+        self.assertEqual(
+            compile_blueprint.__module__,
+            "kg_build_system.pipeline.compilation.service.public.compile",
+        )
+        self.assertEqual(
+            build.__module__,
+            "kg_build_system.pipeline.build.service.public.build",
+        )
 
 
 if __name__ == "__main__":

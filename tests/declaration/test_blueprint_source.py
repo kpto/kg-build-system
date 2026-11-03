@@ -14,7 +14,7 @@ try:
     from kg_build_system.declaration.blueprint import (
         GraphBlueprint, create_blueprint,
     )
-    from kg_build_system.declaration.blueprint.internal import (
+    from kg_build_system.declaration.blueprint.service.internal import (
         blueprint_to_document, blueprint_to_source,
     )
     from kg_build_system.declaration.languages.binding import node_binding

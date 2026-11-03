@@ -1,9 +1,8 @@
 """The default distribution: supplied modules and their registration.
 
 A graph author registers supplied modules and configures them here. The module
-extension protocol is :mod:`kg_build_system.distribution.internal`; each supplied
-module keeps its compiler and executor together under
-:mod:`kg_build_system.distribution.modules`.
+protocol is :mod:`kg_build_system.distribution.model.internal`; module classes
+and registration live in :mod:`kg_build_system.distribution.service.public`.
 
 Example:
     ```python
@@ -18,21 +17,23 @@ Example:
 """
 from __future__ import annotations
 
-from .public import (
-    CollapseExactDuplicatesModule,
+from .model.public import (
     CoreConfiguration,
-    CoreModule,
-    FileModule,
     FileModuleConfiguration,
-    MergeCompatibleFactsModule,
     MergeCompatibleFactsModuleConfiguration,
-    MetaGraphModule,
     MetaGraphModuleConfiguration,
     ModuleRegistration,
     ModuleRegistrationConfiguration,
-    Neo4jModule,
     Neo4jModuleConfiguration,
     RejectConflictingNonNullValuesConfiguration,
+)
+from .service.public import (
+    CollapseExactDuplicatesModule,
+    CoreModule,
+    FileModule,
+    MergeCompatibleFactsModule,
+    MetaGraphModule,
+    Neo4jModule,
     RejectConflictingNonNullValuesModule,
     module_configuration_json,
     register_module,

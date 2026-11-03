@@ -7,8 +7,8 @@ from pathlib import Path
 from typing import Any, cast
 
 from kg_build_system.declaration.blueprint import GraphBlueprint
-from kg_build_system.declaration.languages.table.internal.dto import DataPartDTO
-from kg_build_system.declaration.languages.topology.internal.dto import GraphPartDTO
+from kg_build_system.declaration.languages.table.model.internal import DataPartDTO
+from kg_build_system.declaration.languages.topology.model.internal import GraphPartDTO
 from kg_build_system.distribution import (
     ModuleRegistrationConfiguration,
     register_module,

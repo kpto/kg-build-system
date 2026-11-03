@@ -1,18 +1,18 @@
 """Author-facing typed node and edge declarations.
 
-A graph author writes ``Node``, ``Edge``, their abstract categories and
-templates, ``property()`` and ``endpoint()`` here. The public declarations and
-options live in :mod:`kg_build_system.declaration.languages.topology.public`;
-the internal model, DTO and language live in
-:mod:`kg_build_system.declaration.languages.topology.internal`.
+The authoring model lives in
+:mod:`kg_build_system.declaration.languages.topology.model.public`; the
+authoring functions live in
+:mod:`kg_build_system.declaration.languages.topology.service.public`.
 """
 from __future__ import annotations
 
-from .public import (
+from .model.public import (
     AbstractEdge, AbstractNode, Edge, EdgeOptions, EdgeOptionsTemplate,
-    EdgeTemplate, Endpoint, Node, NodeOptions, NodeOptionsTemplate,
-    NodeTemplate, PropertySlot, endpoint, property,
+    EdgeTemplate, Endpoint, Node, NodeOptions, NodeOptionsTemplate, NodeTemplate,
+    PropertySlot,
 )
+from .service.public import endpoint, property
 
 __all__ = [
     "AbstractEdge",

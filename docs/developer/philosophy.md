@@ -63,24 +63,36 @@ A subpackage owns one responsibility. Its interface is the set of names another
 subpackage may use: types, protocols, functions, errors and their invariants. The
 interface is not `__all__`; it is the surface designed to be depended on.
 
-Every framework subpackage uses the same four-part layout:
+Every framework subpackage uses the same model/service layout:
 
 ```text
 pkg/
-  __init__.py      public facade; imports only from .public
-  public/          names a graph author writes or reads
-  internal/        cross-package interface; DTOs, models, services, adapters
-  _private/        mechanisms; imported only inside the package
+  __init__.py          imports only model.public and service.public
+  model/
+    public/            authoring models, returned values, public DTOs
+    internal/          cross-package data: dto/, model/
+    _private/          private plans, render models, SQL types
+  service/
+    public/            authoring methods; thin wrappers
+    internal/          service interfaces, codec/assembly wrappers, adapters/
+    _private/          codecs, transcription, rendering, validation, assembly,
+                       planning, engines, runtime
 ```
 
-- Another subpackage imports `pkg`, `pkg.internal` or the DTO/model interface the
-  package declares. It never imports `pkg._private`.
-- `public` is the definition site for author-facing names. A public function or
-  method is a thin wrapper over `_private` or `internal`; the mechanism is not in
-  `public`.
+- Another subpackage imports `pkg.model.public`, `pkg.model.internal`,
+  `pkg.service.public` or `pkg.service.internal`. It never imports a private zone.
+- `model.public` and `model.internal` import no service or private code.
+  `model._private` may read model data.
+- `service.public` imports `model.public` and `service.internal`.
+  `service.internal` imports model data and uses function-local imports for
+  `service._private`.
+- `service._private` may read model data and other private service code; it does
+  not import `service.public`.
 - A protocol implemented for another package is a separate file under
-  `internal/adapters/<protocol>.py`. The file names the protocol, imports the
-  foreign protocol and delegates to `_private`.
+  `service/internal/adapters/<protocol>.py`. The file names the protocol, imports
+  the foreign protocol and delegates to `service._private`.
+- `model.public`, `model.internal`, `service.public` and `service.internal`
+  define no single-underscore helpers; dunder protocol methods remain.
 - A dependency edge is part of the model. A cycle, or a new edge between
   packages, is proposed with its reason.
 
@@ -204,6 +216,9 @@ The remaining limits are:
 - a Python binding source is a reference, not the callable body;
 - target executors still receive instruction payloads through `variables`;
 - public `GraphBlueprint` fields reference internal layer DTOs.
+
+Verification: 69 tests passed, 484 subtests; pyright 0 errors; Open Targets 6
+tests passed.
 
 See [system design](system-design.md) for the layout and [testing](testing.md)
 for the contract tests.

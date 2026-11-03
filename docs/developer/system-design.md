@@ -1,54 +1,64 @@
 # System design
 
-The framework is organised around three systems and a shared kernel. The tree
-below is the implemented layout; it states which package owns which decision.
+The framework is organised around three systems and a shared kernel. Every
+framework leaf uses the same model/service layout; the tree below states which
+package owns which decision.
 
 ## The package tree
 
 ```text
 kg_build_system/
   kernel/
-    public/types/
-    public/language.py
-    public/module.py
-    public/capability.py
-    public/build.py
-    public/contract.py
-    internal/types/
-    internal/json.py
-    _private/
+    model/
+      public/types/
+      internal/types/
+      internal/json.py
+      _private/
+    service/
+      public/language.py
+      public/module.py
+      public/capability.py
+      public/build.py
+      public/contract.py
+      public/registry.py
+      internal/
+      _private/
   declaration/
-    foundations/
-      annotations/
-      expressions/
-    languages/
-      table/
-      topology/
-      binding/
+    foundations/annotations/
+    foundations/expressions/
+    languages/table/
+    languages/topology/
+    languages/binding/
     blueprint/
   pipeline/
     contract/
     compilation/
-      compiler/
-      relational/
-      instruction/
     build/
-      runtime/
-      engine/
-      targets/
-      storage/
-      relations/
   distribution/
-    modules/
-  generation/
-    code_generation/
+  generation/code_generation/
+  types/                 # authoring alias for kernel.model.public.types
   api.py
   cli/
 ```
 
-Every leaf has `__init__.py`, `public/`, `internal/` and `_private/`. A leaf with
-nothing author-facing still has a `public/` that states that; it does not invent a
-facade.
+Every leaf contains `model/` and `service/`:
+
+```text
+pkg/
+  __init__.py          imports only model.public and service.public
+  model/
+    public/            authoring models, returned values, public DTOs
+    internal/          cross-package data: dto/, model/
+    _private/          private plans, render models, SQL types
+  service/
+    public/            authoring methods; thin wrappers
+    internal/          service interfaces, codec/assembly wrappers, adapters/
+    _private/          codecs, transcription, rendering, validation, assembly,
+                       planning, engines, runtime
+```
+
+A leaf with no author-facing names still states that in its public model and
+service surfaces; it does not invent a facade.
 
 ## Kernel
 
@@ -57,8 +67,8 @@ other framework package.
 
 The kernel holds what every system needs and cannot replace:
 
-- the `Language` and `Module` protocols;
-- canonical types;
+- the `Language` and `Module` protocols in `kernel/service/public`;
+- canonical types in `kernel/model/public/types`;
 - build values and the language registry mechanism;
 - contract vocabulary: artifact types, inputs, outputs, steps, connections,
   execution contexts and outcomes;
@@ -83,12 +93,12 @@ class Module(Protocol):
     def create_executor(cls, context) -> Executor | None: ...
 ```
 
-`Language` has no `encode`/`decode`. Serialisation belongs to the DTO codec, which
-names its artifact with `to_document` and `from_document`.
+`Language` has no `encode`/`decode`. Serialisation belongs to the DTO codec,
+whose service interface uses `to_document` and `from_document`.
 
 ### Canonical types
 
-Canonical types live in `kernel/public/types/`. The authoring alias is
+Canonical types live in `kernel/model/public/types/`. The authoring alias is
 `kg_build_system.types`; an author imports that name, while every layer, the
 blueprint and the contract use the same type ontology.
 
@@ -122,20 +132,20 @@ The policy follows from that distinction:
 
 `declaration/` turns authoring declarations into one semantic blueprint.
 
-| Leaf | Responsibility |
-| --- | --- |
-| `foundations/annotations` | annotation values and annotation DTOs |
-| `foundations/expressions` | expression and selection authoring, operation specifications and expression DTOs |
-| `languages/table` | tables, structs, projections, row sources and the data DTO |
-| `languages/topology` | nodes, edges, properties and the graph DTO |
-| `languages/binding` | node and edge bindings and the binding DTO |
-| `blueprint` | assembles layer DTOs into `GraphBlueprint` and renders blueprint source |
+| Leaf | Model | Service |
+| --- | --- | --- |
+| `foundations/annotations` | annotation values; `model/internal/dto` | codec and source rendering |
+| `foundations/expressions` | expression and selection values; expression DTOs | construction, operation specifications, codec and source rendering |
+| `languages/table` | tables, structs, projections, row sources; data DTO | field and source wrappers, transcription, codec and source rendering |
+| `languages/topology` | nodes, edges, properties; graph DTO | property and endpoint wrappers, transcription, codec and source rendering |
+| `languages/binding` | binding values; binding DTO | `node_binding`/`edge_binding`, transcription, codec and source rendering |
+| `blueprint` | `GraphBlueprint` | `create_blueprint`, assembly, validation, codec and blueprint source |
 
 A language collects its declarations, transcribes them to its DTO and renders
 that DTO back to source. `expressions` contributes operation specifications and
 expression DTOs; it is not a language and does not own a build part.
 
-The blueprint package owns the assembly decision, not the layer decisions. It
+The blueprint service owns the assembly decision, not the layer decisions. It
 delegates transcription and rendering to each language, then combines the
 results.
 
@@ -145,15 +155,9 @@ results.
 
 | System | Leaf | Responsibility |
 | --- | --- | --- |
-| Contract | `pipeline/contract` | the `WorkflowContractDTO`, steps, instructions, connections and provenance |
-| Compilation | `pipeline/compilation/compiler` | module compilers and blueprint decomposition |
-| Compilation | `pipeline/compilation/relational` | engine-neutral relation plans |
-| Compilation | `pipeline/compilation/instruction` | instruction emission |
-| Build | `pipeline/build/runtime` | step execution and failure propagation |
-| Build | `pipeline/build/engine` | SQL and engine-specific emission |
-| Build | `pipeline/build/targets` | target outputs |
-| Build | `pipeline/build/storage` | working and output storage |
-| Build | `pipeline/build/relations` | relation services |
+| Contract | `pipeline/contract` | `WorkflowContractDTO` in `model/public`; assembly and codec in `service/internal` and `service/_private` |
+| Compilation | `pipeline/compilation` | relation plans and instruction kinds in `model/internal`; `compile_blueprint` in `service/public`; compilers and instruction emitters in `service/internal` and `service/_private` |
+| Build | `pipeline/build` | `BuildRuntime` and `WorkflowReport` in `model/public`; `build` in `service/public`; runtime, engine, storage and relations in `service/_private` |
 
 Compilation reads a blueprint and produces a contract. Build reads a contract
 and executes it. They share the contract and must not import each other.
@@ -163,19 +167,35 @@ A step owns its instruction. SQL is one instruction kind, not a contract field.
 
 ## Distribution
 
-`distribution/modules/` contains the supplied modules and their registration.
-`kg_build_system.distribution` exports the supplied module classes and
-`register_module`. A module owns a compiler and an executor. The core module is a
-module, not a domain package.
+`distribution/` contains the supplied modules and their registration.
 
-Registration records a module class and its frozen configuration. It does not
-import the implementation at registration time and does not hold a live service.
-The composition root appends the core module after the supplied modules.
+| Surface | Contents |
+| --- | --- |
+| `model/public` | module configurations and supplied module declarations |
+| `model/internal` | module model and instruction DTOs |
+| `service/public` | supplied module classes and `register_module` |
+| `service/internal` | registration and module service interfaces |
+| `service/_private` | compilers, executors and module mechanisms |
+
+A module owns a compiler and an executor. The core module is a module, not a
+domain package. Registration records a module class and its frozen configuration;
+it does not import the implementation at registration time and does not hold a
+live service. The composition root appends the core module after the supplied
+modules.
 
 ## Generation
 
 `generation/code_generation/` is the edit-time lane. It turns typed requests into
 declarations before declaration runs. It is upstream of the blueprint.
+
+| Surface | Contents |
+| --- | --- |
+| `model/public` | generation requests and result models |
+| `model/internal` | provider contract and discovery models |
+| `model/_private` | generated render model |
+| `service/public` | `generation`, `generate`, `discover`, `watch` |
+| `service/internal` | provider loading and provider adapters |
+| `service/_private` | discovery, rendering, ownership, watcher and engine |
 
 Generation and compilation are separate lanes:
 
@@ -205,7 +225,7 @@ Generation is upstream and does not sit on the execution spine.
 | `pipeline/contract` | `kernel` |
 | `pipeline/compilation` | `declaration` (blueprint and DTOs), `pipeline/contract`, `kernel` |
 | `pipeline/build` | `pipeline/contract`, `kernel` |
-| `distribution/modules` | `kernel`, `declaration`, `pipeline/contract`, `pipeline/compilation`, `pipeline/build` |
+| `distribution` | `kernel`, `declaration`, `pipeline/contract`, `pipeline/compilation`, `pipeline/build` |
 | `generation/code_generation` | `kernel`; engine observation is read-only |
 | `api.py` | declaration, pipeline, distribution |
 | `cli` | `generation`, `api.py` |
@@ -213,41 +233,54 @@ Generation is upstream and does not sit on the execution spine.
 Two rules apply to every row:
 
 - compilation and build do not import each other;
-- no package imports another package's `_private`.
+- no package imports another package's private zones.
 
 The exact edge set is a model decision. A new edge is proposed with its reason,
 not added because a call site needs it.
 
-## Leaf layout
-
-Every leaf uses the same four-part layout.
+## Leaf layout and import matrix
 
 | Zone | Reader | May be imported by | Holds |
 | --- | --- | --- | --- |
-| `pkg` | graph author | any package | facade over `public` |
-| `pkg.public` | graph author | any package for authoring names and frozen type vocabulary | declarations, values and thin wrappers |
-| `pkg.internal` | framework code | any package | DTOs, models, services and cross-package protocols |
-| `pkg.internal.adapters` | framework code | the package that owns the protocol | one file per foreign protocol |
-| `pkg._private` | its own package | no other package | mechanisms |
+| `pkg` | graph author | any package | facade over `model.public` and `service.public` |
+| `pkg.model.public` | graph author | any package for authoring names and frozen type vocabulary | authoring models, returned values and public DTOs |
+| `pkg.model.internal` | framework code | any package for cross-package data | `dto/` and `model/` data |
+| `pkg.model._private` | its own package | no other package | private plans, render models and SQL types |
+| `pkg.service.public` | graph author | any package for service interfaces | authoring methods and thin wrappers |
+| `pkg.service.internal` | framework code | any package for service interfaces | codec and assembly wrappers, adapters |
+| `pkg.service._private` | its own package | no other package | codecs, transcription, rendering, validation, assembly, planning, engines and runtime |
 
-`internal/` contains these sub-zones where applicable:
+The import matrix is part of the layout:
 
-| Sub-zone | Contents |
-| --- | --- |
-| `dto/` | serialisable members of the blueprint or contract |
-| `model/` | in-memory frozen models |
-| `service/` | transcription, rendering, planning and other transformations |
-| `adapters/` | implementations of a foreign protocol |
+| Source | May import | Must not import |
+| --- | --- | --- |
+| `model.public` | model data | any service or `_private` |
+| `model.internal` | model data | any service or `_private` |
+| `model._private` | `model.public`, `model.internal` | service |
+| `service.public` | `model.public`, `service.internal` | `_private` |
+| `service.internal` | model data; `service._private` with function-local imports | `service.public` |
+| `service._private` | `model.public`, `model.internal`, `model._private`, `service._private` | `service.public` |
 
-Neither `public` nor `internal` defines a single-underscore helper; dunder protocol
-methods remain. A public function or method is a thin wrapper over `_private` or `internal`, with
-a user-facing docstring and a runnable `Example:`. The mechanism is not in
-`public`. Internal and private functions carry developer docstrings and need no
-example.
+Another package imports `pkg.model.public`, `pkg.model.internal`,
+`pkg.service.public` or `pkg.service.internal`. It never imports
+`pkg.model._private` or `pkg.service._private`.
+`_private` may use public model data but not public service behaviour.
 
-A protocol implementation is a separate file under `internal/adapters/<protocol>.py`.
-The file names the protocol, imports the foreign protocol and delegates to
-`_private`. It is not buried in a model or factory.
+A public function or method is a thin wrapper over `service.internal` or
+`service._private`, with a user-facing docstring and a runnable `Example:`. The
+mechanism is not in `service.public`. Internal and private functions carry
+developer docstrings and need no example.
+
+A protocol implementation is a separate file under
+`service/internal/adapters/<protocol>.py`. The file names the protocol, imports
+the foreign protocol and delegates to `service._private`. It is not buried in a
+model or factory.
+
+No `model.public`, `model.internal`, `service.public` or `service.internal`
+module defines a single-underscore helper; dunder protocol methods remain. A
+codec is a service: interface in `service.internal`, implementation in
+`service._private`. A DTO is a model: `model.internal/dto`, or `model.public` for
+a public artifact.
 
 ## Blueprint and compile are separate
 
@@ -318,7 +351,7 @@ compilers, emits instructions and assembles the contract. Build dispatches on
 
 The tree above is the implementation.
 
-- 61 tests passed, 306 subtests.
+- 69 tests passed, 484 subtests.
 - Pyright: 0 errors.
 - Open Targets: 6 tests passed.
 
@@ -338,11 +371,12 @@ source round trip.
 ## What to remember
 
 - The kernel is domain-agnostic and holds only what cannot be replaced.
+- Every leaf has a model side and a service side; public surfaces are
+  `model.public` and `service.public`.
 - Declaration produces the blueprint; compilation consumes it; build consumes
   the contract.
 - Compilation and build share the contract and never import each other.
-- A leaf has `public`, `internal` and `_private`; a foreign protocol has an
-  explicit adapter.
+- A service adapter is an explicit file under `service/internal/adapters`.
 - A step owns its instruction; SQL is one instruction kind.
 
 Next: [Data and expressions](data-and-expressions.md).

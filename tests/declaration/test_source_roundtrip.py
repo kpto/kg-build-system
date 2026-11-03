@@ -7,12 +7,12 @@ import unittest
 from pathlib import Path
 
 from kg_build_system.declaration.blueprint import GraphBlueprint, create_blueprint
-from kg_build_system.declaration.blueprint.internal import (
+from kg_build_system.declaration.blueprint.service.internal import (
     blueprint_to_document,
     blueprint_to_source,
 )
 from kg_build_system.declaration.languages.binding import node_binding
-from kg_build_system.declaration.languages.binding.internal import BindingLanguage
+from kg_build_system.declaration.languages.binding.service.internal import BindingLanguage
 from kg_build_system.declaration.languages.table import (
     DataSourceConfig,
     Field,
@@ -20,13 +20,13 @@ from kg_build_system.declaration.languages.table import (
     bind_source,
     field,
 )
-from kg_build_system.declaration.languages.table.internal import TableLanguage
+from kg_build_system.declaration.languages.table.service.internal.adapters.kernel_language import TableLanguage
 from kg_build_system.declaration.languages.topology import (
     Node,
     PropertySlot,
     property,
 )
-from kg_build_system.declaration.languages.topology.internal import TopologyLanguage
+from kg_build_system.declaration.languages.topology.service.internal import TopologyLanguage
 
 
 class SiteTable(Table):

@@ -4,14 +4,14 @@ import unittest
 from dataclasses import fields
 from typing import get_args, get_origin, get_type_hints
 
-from kg_build_system.declaration.blueprint import GraphBlueprint
-from kg_build_system.declaration.languages.binding.internal.dto import (
+from kg_build_system.declaration.blueprint.model.public import GraphBlueprint
+from kg_build_system.declaration.languages.binding.model.internal import (
     BindingDTO,
     EdgeBindingDTO,
     NodeBindingDTO,
     PythonRefDTO,
 )
-from kg_build_system.declaration.languages.table.internal.dto import (
+from kg_build_system.declaration.languages.table.model.internal import (
     ColumnDTO,
     DataPartDTO,
     ProjectionDTO,
@@ -26,13 +26,13 @@ from kg_build_system.declaration.languages.table.internal.dto import (
     SourceDTO,
     StructDTO,
 )
-from kg_build_system.declaration.languages.topology.internal.dto import (
+from kg_build_system.declaration.languages.topology.model.internal import (
     EdgeDTO,
     GraphPartDTO,
     NodeDTO,
     PropertyDTO,
 )
-from kg_build_system.kernel.internal.types import UnitTypeDTO
+from kg_build_system.kernel.model.internal import UnitTypeDTO
 
 
 DTO_TYPES = (

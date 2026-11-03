@@ -8,24 +8,24 @@ This directory does not duplicate it.
 - [FRAMEWORK_STATE.md](../FRAMEWORK_STATE.md) is the reviewer briefing.
 - [DESIGN_ISSUES.md](../DESIGN_ISSUES.md) records the remaining design limits.
 
-## Public and internal boundaries
+## Model and service boundaries
 
-| Package | Public surface | Internal surface |
+| Package | Model surface | Service surface |
 | --- | --- | --- |
-| `kernel` | `Language`, `Module`, `Capability`, canonical types, build and contract values | canonical type DTOs and codecs |
-| `declaration/foundations/annotations` | `Annotation`, `NodeLabel`, `EdgeLabel` | annotation DTO and source rendering |
-| `declaration/foundations/expressions` | expressions, selections and expression families | expression DTOs, operation specifications and source rendering |
-| `declaration/languages/table` | `Table`, `Struct`, `Projection`, fields and sources | data DTOs, transcription, row-source plans and source rendering |
-| `declaration/languages/topology` | `Node`, `Edge`, properties and templates | graph DTOs, transcription and source rendering |
-| `declaration/languages/binding` | `node_binding`, `edge_binding`, values and options | binding DTOs, transcription and source rendering |
-| `declaration/blueprint` | `GraphBlueprint`, `create_blueprint` | assembly, validation, codec and blueprint source |
-| `pipeline/contract` | `WorkflowContractDTO` and its DTOs | assembly and codec |
-| `pipeline/compilation` | `compile_blueprint` | module compilers, relational plans and instruction emitters |
-| `pipeline/build` | `build`, `BuildRuntime`, `WorkflowReport` | runtime, engine, targets, storage and relations |
-| `distribution` | supplied modules and `register_module` | module model and registration service |
-| `generation/code_generation` | generation requests and commands | discovery, providers, rendering and ownership |
-| `api.py` | `create_blueprint`, `compile_blueprint`, `compile`, `build` | composition only |
-| `cli` | `kbs` entry point | argument parsing and command dispatch |
+| `kernel` | canonical types, build and contract values | `Language`, `Module`, `Capability`, registry |
+| `declaration/foundations/annotations` | annotation values and labels | codec and source rendering |
+| `declaration/foundations/expressions` | expression and selection values; expression DTOs | construction, operation specifications and source rendering |
+| `declaration/languages/table` | `Table`, `Struct`, `Projection`, fields and sources; data DTOs | field and source wrappers, transcription and source rendering |
+| `declaration/languages/topology` | `Node`, `Edge`, properties and templates; graph DTOs | property and endpoint wrappers, transcription and source rendering |
+| `declaration/languages/binding` | binding values; binding DTOs | `node_binding`, `edge_binding`, transcription and source rendering |
+| `declaration/blueprint` | `GraphBlueprint` | `create_blueprint`, assembly, validation, codec and source |
+| `pipeline/contract` | `WorkflowContractDTO` and step DTOs | assembly and codec |
+| `pipeline/compilation` | relation plans and instruction kinds | `compile_blueprint`, compilers and instruction emitters |
+| `pipeline/build` | `BuildRuntime`, `WorkflowReport` | `build`, runtime, engine, storage and dispatch |
+| `distribution` | module configurations and instruction DTOs | module classes, registration and compiler/executor factories |
+| `generation/code_generation` | generation requests, results and provider contract | generation, discovery, rendering and ownership |
+| `api.py` | none | `create_blueprint`, `compile_blueprint`, `compile`, `build` |
+| `cli` | none | `kbs` entry point |
 
 ## Zones
 
@@ -33,21 +33,36 @@ Every leaf uses:
 
 ```text
 pkg/
-  __init__.py      facade; imports only from .public
-  public/          author-facing names and thin wrappers
-  internal/        cross-package DTOs, models, services and adapters
-  _private/        mechanisms; imported only inside the package
+  __init__.py          imports only model.public and service.public
+  model/
+    public/            authoring models, returned values, public DTOs
+    internal/          cross-package data: dto/, model/
+    _private/          private plans, render models, SQL types
+  service/
+    public/            authoring methods; thin wrappers
+    internal/          service interfaces, codec/assembly wrappers, adapters/
+    _private/          codecs, transcription, rendering, validation, assembly,
+                       planning, engines, runtime
 ```
 
-Another package imports `pkg`, `pkg.internal` or a declared internal interface.
-It never imports `pkg._private`. A foreign protocol is implemented in
-`pkg/internal/adapters/<protocol>.py`.
+The import matrix:
+
+- `model.public` and `model.internal` import no service or private code.
+- `model._private` may import `model.public` and `model.internal`.
+- `service.public` imports `model.public` and `service.internal`.
+- `service.internal` imports model data and uses function-local imports for
+  `service._private`.
+- `service._private` may import model data and other private service code; it
+  does not import `service.public`.
+- Another package imports `pkg.model.public`, `pkg.model.internal`,
+  `pkg.service.public` or `pkg.service.internal`. It never imports a private
+  zone.
+- A foreign protocol is implemented in `service/internal/adapters/<protocol>.py`.
 
 ## Dependency spine
 
-`declaration` depends on `kernel`. `pipeline/compilation` depends on declaration
-and the shared contract; `pipeline/build` depends on the shared contract. They do
-not import each other.
+`declaration` depends on `kernel`. `pipeline/compilation` and `pipeline/build`
+depend on declaration and the shared contract, and do not import each other.
 `distribution` supplies modules. `generation` is upstream. `api.py` and `cli`
 compose the systems.
 

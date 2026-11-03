@@ -1,11 +1,11 @@
 """Domain-agnostic kernel: languages, modules, build composition.
 
 This is the import surface for other framework packages and for module
-implementations. It re-exports :mod:`kg_build_system.kernel.public` unchanged.
+implementations. It re-exports the public model and the public service only.
 """
 from __future__ import annotations
 
-from .public import (
+from .model.public import (
     BOOL,
     CANONICAL_UNIT_NAMES,
     DATE,
@@ -21,7 +21,6 @@ from .public import (
     Artifact,
     ArtifactType,
     Build,
-    Capability,
     CompilationContext,
     Connection,
     ContinuableInput,
@@ -37,26 +36,17 @@ from .public import (
     Failure,
     Given,
     Input,
-    Language,
-    LanguageContext,
     LogicalType,
-    Module,
-    ModuleCompiler,
     ModuleDefinition,
-    ModuleExecutor,
     ModuleReference,
-    Namespace,
     NonNullableLogicalType,
     Nullable,
     NullableType,
     Output,
     Publication,
     PublishedArtifact,
-    Registry,
-    RenderContext,
     RuntimeFieldDefinition,
     Shape,
-    SourceFragment,
     StepOutcome,
     StepStatus,
     Struct,
@@ -71,6 +61,18 @@ from .public import (
     WorkflowStep,
     is_canonical_unit_name,
     type_matches,
+)
+from .service.public import (
+    Capability,
+    Language,
+    LanguageContext,
+    Module,
+    ModuleCompiler,
+    ModuleExecutor,
+    Namespace,
+    Registry,
+    RenderContext,
+    SourceFragment,
 )
 
 __all__ = [

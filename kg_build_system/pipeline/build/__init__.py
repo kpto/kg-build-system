@@ -1,6 +1,7 @@
 """Author-facing build entry point."""
 from __future__ import annotations
 
-from .public import BuildRuntime, WorkflowReport, build
+from .model.public import BuildRuntime, WorkflowReport
+from .service.public import build
 
 __all__ = ["BuildRuntime", "WorkflowReport", "build"]

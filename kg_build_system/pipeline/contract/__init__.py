@@ -6,7 +6,7 @@ owns its opaque instruction.
 """
 from __future__ import annotations
 
-from .public import (
+from .model.public import (
     ArtifactTypeDTO,
     ConnectionDTO,
     ContributionDTO,

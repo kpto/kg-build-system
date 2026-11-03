@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import unittest
 
-from kg_build_system.pipeline.contract.internal.service.codec import (
+from kg_build_system.pipeline.contract.service.internal import (
     contract_from_document,
     contract_to_document,
 )
-from kg_build_system.pipeline.contract.public import (
+from kg_build_system.pipeline.contract.model.public import (
     ArtifactTypeDTO,
     ConnectionDTO,
     ContributionDTO,
