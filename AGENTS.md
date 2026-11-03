@@ -137,14 +137,13 @@ rule about what the framework is belongs to the framework model.
   a build result. It is not a DTO and is not expected to deserialise.
 - A layer DTO does not know the blueprint. It knows only the DTOs of the layers
   it depends on. The blueprint package assembles the layer DTOs into one
-  semantic model; `compile` reads that blueprint and produces the workflow
-  contract.
-- The blueprint DTO is public: a user may create and inspect one explicitly.
-  The layer DTOs it is assembled from stay internal; the blueprint exposes its
-  own public view, not those DTOs.
-- `compile` consumes a blueprint and never assembles one or calls a blueprint
-  service. The canonical composition root may create the blueprint and pass it
-  to `compile`, hiding the blueprint from the normal path.
+  semantic model.
+- `compile` reads a blueprint and produces the workflow contract. It does not
+  assemble a blueprint and does not call the blueprint package. The composition
+  root calls `create_blueprint` and then `compile`.
+- The blueprint is public: a user may obtain a blueprint handle. The layer DTOs
+  it references are not exported public names. The canonical flow is the
+  compile shortcut that creates and consumes the blueprint without exposing it.
 - The blueprint must regenerate equivalent authoring source. The round trip
   `blueprint -> generated source -> blueprint` is a contract test, not a
   convenience.
