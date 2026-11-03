@@ -119,6 +119,10 @@ rule about what the framework is belongs to the framework model.
   be omitted or replaced is not kernel.
 - Canonical types are a kernel assumption. Every layer, the blueprint and the
   contract use the same type ontology; no layer defines its own.
+- The kernel uses toolchain vocabulary: language, layer, definition, linker,
+  planner, workflow plan, runtime and executor. The distribution uses domain
+  vocabulary: graph, blueprint, node, edge, binding and projection. The kernel
+  model is opaque; the distribution implements it.
 - A package shared only inside one system belongs to that system. It does not
   become a `foundation` package just because several layers use it. Only a
   package every system needs, and cannot replace, moves to the kernel.
