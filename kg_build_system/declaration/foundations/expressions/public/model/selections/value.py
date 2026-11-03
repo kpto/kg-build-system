@@ -214,4 +214,4 @@ class ValueSelection(Generic[TType_co]):
 type ValueInput[T] = ValueSelection[T] | ValueExpression[T]
 
 
-__all__ = ["ValueInput", "ValueSelection", "_SelectedMember"]
+__all__ = ["ValueInput", "ValueSelection"]

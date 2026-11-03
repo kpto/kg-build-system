@@ -265,6 +265,10 @@ rule about what the framework is belongs to the framework model.
 - Core emits instructions through an instruction emitter. SQL is the default
   instruction kind; a Python instruction is a stable reference, not a live
   callable.
+- A leading underscore means module-private or package-private. A private helper
+  inside one `internal` module is allowed; a private name exported from
+  `public/__init__.py` or `internal/__init__.py`, or imported across packages, is
+  not. Shared mechanisms belong in `_private`.
 - A language does not encode or decode. Serialisation belongs to the DTO codec,
   which names its artifact: `to_document` / `from_document`. The blueprint codec
   composes the layer codecs.
