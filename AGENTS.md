@@ -135,6 +135,12 @@ rule about what the framework is belongs to the framework model.
 - A DTO is a member of the blueprint or the workflow contract. A value outside
   those two artifacts is in-memory: a lowered model, a plan, a render input or
   a build result. It is not a DTO and is not expected to deserialise.
+- Each language lowers to its own semantics DTO. A language does not know the
+  blueprint or the compilation package.
+- A layer DTO imports only the DTOs of the layers it depends on. The dependency
+  direction is the language graph, not the blueprint.
+- The blueprint is owned by compilation. It combines the layer DTOs and adds no
+  layer semantics of its own. Only compilation knows the blueprint.
 - The blueprint must regenerate equivalent authoring source. The round trip
   `blueprint -> generated source -> blueprint` is a contract test, not a
   convenience.
