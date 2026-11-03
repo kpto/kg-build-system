@@ -205,6 +205,9 @@ rule about what the framework is belongs to the framework model.
 - `public` is the definition site for author-facing names. A public function or
   method is a thin wrapper over `_private` or `internal`; the mechanism is not in
   `public`.
+- `public` and `internal` are interface-first, not abstract-only. A declaration
+  class may keep a class-creation hook that delegates to `_private`; a DTO may
+  keep its own invariant. A mechanism is not an interface.
 - Another subpackage imports `pkg`, `pkg.internal`, `pkg.internal.dto` or
   `pkg.internal.model`. It never imports `pkg._private`. Importing `pkg.public`
   directly is limited to frozen type vocabulary; a behaviour belongs in
