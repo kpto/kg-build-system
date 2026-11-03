@@ -88,7 +88,10 @@ KNOWN_MISSING_METHOD_EXAMPLES = {
 
 
 def _module(package: str, surface: str):
-    return import_module(f"{package}.{surface}")
+    try:
+        return import_module(f"{package}.{surface}")
+    except ModuleNotFoundError:
+        return None
 
 
 def _accepted_owner(value: object, package: str) -> bool:
@@ -105,6 +108,8 @@ def _accepted_owner(value: object, package: str) -> bool:
 def _public_functions(package: str):
     for surface in PUBLIC_SURFACES:
         module = _module(package, surface)
+        if module is None:
+            continue
         for name in getattr(module, "__all__", ()):
             value = getattr(module, name)
             if not inspect.isfunction(value):
@@ -117,6 +122,8 @@ def _public_functions(package: str):
 def _public_classes(package: str):
     for surface in PUBLIC_SURFACES:
         module = _module(package, surface)
+        if module is None:
+            continue
         for name in getattr(module, "__all__", ()):
             value = getattr(module, name)
             if not inspect.isclass(value):
