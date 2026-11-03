@@ -7,7 +7,7 @@ from typing import Any
 from kg_build_system.declaration.blueprint.model.public import GraphBlueprint
 from kg_build_system.declaration.languages.table.model.internal import ProjectionDTO, RelationDTO, RowSourcePlanDTO
 from kg_build_system.declaration.languages.table.service.internal import plan_inputs, row_source_key
-from kg_build_system.pipeline.compile.service.internal.instruction.duckdb import row_source_sql
+from kg_build_system.pipeline.compile.service.internal.instruction.duckdb import DuckDbSqlEmitter
 from kg_build_system.pipeline.contract.model.public import InputDTO, OutputDTO, StepDTO
 from .....model.internal.dto.instruction_dto import (
     AggregateInstructionDTO,
@@ -27,6 +27,7 @@ from .relations import (
     binding_sql,
     projection_sources,
     projection_sql,
+    row_source_sql,
 )
 
 
@@ -106,6 +107,8 @@ def row_source_step(
     shapes: Mapping[str, tuple[Any, ...]],
     projection_relations: dict[str, str],
     row_source_relations: dict[str, str],
+    *,
+    engine: DuckDbSqlEmitter | None = None,
 ) -> StepDTO:
     key = row_source_key(plan)
     return StepDTO(
@@ -125,7 +128,7 @@ def row_source_step(
             f"rowsource.{key}",
             RelationInstructionDTO(
                 relation=relation,
-                sql=row_source_sql(plan, relations, shapes),
+                sql=row_source_sql(plan, relations, shapes, engine=engine),
             ),
         ),
     )
@@ -138,6 +141,8 @@ def projection_step(
     relations: dict[str, str],
     projection_relations: dict[str, str],
     row_source_relations: dict[str, str],
+    *,
+    engine: DuckDbSqlEmitter | None = None,
 ) -> StepDTO:
     return StepDTO(
         name=f"projection.{projection.name}",
@@ -150,7 +155,9 @@ def projection_step(
             f"projection.{projection.name}",
             RelationInstructionDTO(
                 relation=relation,
-                sql=projection_sql(blueprint, relations, projection),
+                sql=projection_sql(
+                    blueprint, relations, projection, engine=engine,
+                ),
             ),
         ),
     )
@@ -168,9 +175,13 @@ def binding_step(
     relations: dict[str, str],
     projection_relations: dict[str, str],
     row_source_relations: dict[str, str],
+    *,
+    engine: DuckDbSqlEmitter | None = None,
 ) -> StepDTO:
     identity = binding_identity(binding, index)
-    binding_sql_text = binding_sql(blueprint, relations, binding)
+    binding_sql_text = binding_sql(
+        blueprint, relations, binding, engine=engine,
+    )
     return StepDTO(
         name=f"binding.{index}",
         inputs=tuple(

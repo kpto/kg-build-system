@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import Any
 
 from kg_build_system.declaration.blueprint.model.public import GraphBlueprint
 from kg_build_system.declaration.foundations.expressions.model.internal import ExpressionDTO, FieldReferenceDTO
@@ -10,7 +11,14 @@ from kg_build_system.declaration.languages.binding.model.internal.dto import Bin
 from kg_build_system.declaration.languages.table.model.internal import ProjectionDTO, RowSourcePlanDTO
 from kg_build_system.declaration.languages.table.service.internal import plan_scan_sources, plan_shape_source_name, retarget_expression_dto, row_source_key
 from ......pipeline.execution.service.internal.engine.duckdb import NULL_GUARD_MACRO
-from kg_build_system.pipeline.compile.service.internal.instruction.duckdb import ArraySqlType, DuckDbSqlEmitter, SqlType, canonical_sql_type
+from kg_build_system.pipeline.compile.service.internal.instruction.duckdb import (
+    ArraySqlType,
+    DuckDbInstructionEmitter,
+    DuckDbSqlEmitter,
+    SqlType,
+    canonical_sql_type,
+    row_source_sql as emit_row_source_sql,
+)
 from kg_build_system.pipeline.compile.service.internal import plan_product
 from kg_build_system.kernel.model.internal.types.dto import ArrayTypeDTO, LogicalTypeDTO, NullableTypeDTO, UnitTypeDTO
 
@@ -103,11 +111,37 @@ def _claim_message(binding: BindingDTO, name: str) -> str:
     )
 
 
+def _sql_emitter(engine: DuckDbSqlEmitter | None) -> DuckDbSqlEmitter:
+    return engine if engine is not None else DuckDbSqlEmitter()
+
+
+def _instruction_emitter(
+    engine: DuckDbSqlEmitter | None,
+) -> DuckDbInstructionEmitter:
+    emitter = _sql_emitter(engine).instruction_emitter
+    return emitter if emitter is not None else DuckDbInstructionEmitter()
+
+
+def row_source_sql(
+    plan: RowSourcePlanDTO,
+    relations: Mapping[str, str],
+    shapes: Mapping[str, Any],
+    *,
+    engine: DuckDbSqlEmitter | None = None,
+) -> str:
+    """Render one row-source plan with the supplied SQL emitter."""
+    return emit_row_source_sql(
+        plan, relations, shapes, emitter=_instruction_emitter(engine),
+    )
+
+
 def _product_sql(
     outputs: Mapping[str, ExpressionDTO],
     relations: Mapping[str, str],
+    *,
+    engine: DuckDbSqlEmitter | None = None,
 ) -> str:
-    instruction = DuckDbSqlEmitter().emit(plan_product(outputs, relations))
+    instruction = _sql_emitter(engine).emit(plan_product(outputs, relations))
     payload = instruction.payload
     if not isinstance(payload, Mapping):
         raise ValueError("SQL emission requires an object payload")
@@ -122,15 +156,15 @@ def projection_sql(
     relations: Mapping[str, str],
     projection: ProjectionDTO,
     *,
-    engine: object = None,
+    engine: DuckDbSqlEmitter | None = None,
 ) -> str:
-    del graph, engine
+    del graph
     outputs = {
         column.name: _retarget(column.expression, projection.row_source)
         for column in projection.columns
         if column.expression is not None
     }
-    return _product_sql(outputs, relations)
+    return _product_sql(outputs, relations, engine=engine)
 
 
 def binding_guard_projection(binding: BindingDTO) -> str:
@@ -190,16 +224,15 @@ def binding_sql(
     relations: Mapping[str, str],
     binding: BindingDTO,
     *,
-    engine: object = None,
+    engine: DuckDbSqlEmitter | None = None,
 ) -> str:
     """Emit one binding as the SQL of its graph records, guards included."""
-    del engine
     property_types = _binding_property_types(graph, binding)
     outputs = {
         name: _retarget(expression, binding.rows)
         for name, expression in binding_outputs(binding).items()
     }
-    inner = _product_sql(outputs, relations)
+    inner = _product_sql(outputs, relations, engine=engine)
     return (
         "WITH _kg_named AS ("
         f"SELECT {binding_rename_projection(binding, property_types)} "
@@ -218,5 +251,6 @@ __all__ = [
     "binding_sql",
     "projection_sources",
     "projection_sql",
+    "row_source_sql",
     "sql_type_for",
 ]

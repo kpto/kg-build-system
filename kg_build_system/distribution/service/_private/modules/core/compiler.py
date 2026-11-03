@@ -37,6 +37,7 @@ class CoreCompiler(ModuleCompiler):
         self, context: CompilationContext[Any],
     ) -> ContributionDTO:
         blueprint: GraphBlueprint = blueprint_from_context(context)
+        engine = context.engine
         definition = ModuleDefinitionDTO(
             reference=ModuleReferenceDTO(
                 module_id=self.module_class.ID,
@@ -96,6 +97,7 @@ class CoreCompiler(ModuleCompiler):
                 row_source_fields,
                 projection_relations,
                 row_source_relations,
+                engine=engine,
             )
             for plan in plans
         )
@@ -107,6 +109,7 @@ class CoreCompiler(ModuleCompiler):
                 relations,
                 projection_relations,
                 row_source_relations,
+                engine=engine,
             )
             for projection in projections
         )
@@ -118,6 +121,7 @@ class CoreCompiler(ModuleCompiler):
                 relations,
                 projection_relations,
                 row_source_relations,
+                engine=engine,
             )
             for index, binding in enumerate(blueprint.bindings)
         )

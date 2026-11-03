@@ -7,6 +7,7 @@ wrapper is :class:`DuckDbSqlEmitter`; the registry-backed implementation is
 """
 from __future__ import annotations
 
+from .protocols import EmissionContext, ExpressionEmitter, Operand
 from .emitter import (
     DEFAULT_EMITTER,
     DuckDbInstructionEmitter,
@@ -50,6 +51,9 @@ __all__ = [
     "DigestDisposition",
     "DuckDbInstructionEmitter",
     "DuckDbSqlEmitter",
+    "EmissionContext",
+    "ExpressionEmitter",
+    "Operand",
     "EXTENSION_CONDITIONAL_TYPE_NAMES",
     "RefusedDigest",
     "STRUCT_CANONICAL",
