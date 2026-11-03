@@ -111,9 +111,12 @@ rule about what the framework is belongs to the framework model.
 
 ### Kernel and distribution
 
-- `kg_build_system.kernel` is domain-agnostic: language, module, build IR,
+- `kg_build_system.kernel` is domain-agnostic: language, module, build value,
   registry and the module contract. It imports no table, topology, expression,
   engine or workflow package.
+- A default implementation belongs to the distribution, not the kernel. Do not
+  promote a library to a capability module without a second implementation or a
+  runtime configuration that selects it.
 - `table`, `topology` and `binding` are languages; `expressions` contributes
   operations; `core` is a module; engines own code generation.
 - An operation is one specification plus one engine lowerer. Adding one does not
