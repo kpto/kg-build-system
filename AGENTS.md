@@ -111,12 +111,9 @@ rule about what the framework is belongs to the framework model.
 
 ### Kernel and distribution
 
-- `kg_build_system.kernel` is domain-agnostic: language, module, build value,
+- `kg_build_system.kernel` is domain-agnostic: language, module, build IR,
   registry and the module contract. It imports no table, topology, expression,
   engine or workflow package.
-- A default implementation belongs to the distribution, not the kernel. Do not
-  promote a library to a capability module without a second implementation or a
-  runtime configuration that selects it.
 - `table`, `topology` and `binding` are languages; `expressions` contributes
   operations; `core` is a module; engines own code generation.
 - An operation is one specification plus one engine lowerer. Adding one does not
@@ -153,6 +150,12 @@ rule about what the framework is belongs to the framework model.
 - The blueprint must regenerate equivalent authoring source. The round trip
   `blueprint -> generated source -> blueprint` is a contract test, not a
   convenience.
+- The workflow contract is a step graph, not a module-variable store. A step
+  owns its instruction; the contract treats the instruction as an opaque
+  `kind` and payload. SQL is one instruction kind, not a contract field.
+- An emitter turns a step plan into an instruction; the executor registered for
+  the instruction kind interprets it. A Python executor is a compatibility mode
+  for the same step graph, not a second contract.
 
 ### Experimental
 
