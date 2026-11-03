@@ -66,9 +66,9 @@ An arrow means "may import".
 ```text
 declaration -> kernel
 pipeline/contract -> kernel
-pipeline/compilation -> declaration, pipeline/contract, kernel
-pipeline/build -> pipeline/contract, kernel
-distribution -> kernel, declaration, pipeline/contract, pipeline/compilation, pipeline/build
+pipeline/compile -> declaration, pipeline/contract, kernel
+pipeline/execution -> pipeline/contract, kernel
+distribution -> kernel, declaration, pipeline/contract, pipeline/compile, pipeline/execution
 generation/code_generation -> kernel
 api.py -> declaration, pipeline, distribution
 cli -> generation, api.py
@@ -85,13 +85,13 @@ The primary edges are:
 | `declaration/languages/binding` | `declaration/languages/table`, `declaration/languages/topology`, `declaration/foundations`, `kernel` |
 | `declaration/blueprint` | declaration languages and foundations, `kernel` |
 | `pipeline/contract` | `kernel` |
-| `pipeline/compilation` | `declaration`, `pipeline/contract`, `kernel` |
-| `pipeline/build` | `pipeline/contract`, `kernel` |
-| `distribution` | `kernel`, `declaration`, `pipeline/contract`, `pipeline/compilation`, `pipeline/build` |
+| `pipeline/compile` | `declaration`, `pipeline/contract`, `kernel` |
+| `pipeline/execution` | `pipeline/contract`, `kernel` |
+| `distribution` | `kernel`, `declaration`, `pipeline/contract`, `pipeline/compile`, `pipeline/execution` |
 | `generation/code_generation` | `kernel` |
 | `api.py` | `declaration`, `pipeline`, `distribution` |
 | `cli` | `generation`, `api.py` |
 
-`pipeline/compilation` and `pipeline/build` share the contract but do not import
+`pipeline/compile` and `pipeline/execution` share the contract but do not import
 each other. Another package imports a leaf's `model.public`, `model.internal`,
 `service.public` or `service.internal`; it never imports a private zone.

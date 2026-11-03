@@ -329,7 +329,7 @@ import json
 from collections import Counter
 from pathlib import Path
 
-from kg_build_system import build, compile
+from kg_build_system import compile, execute
 from kg_build_system.distribution import (
     FileModule, FileModuleConfiguration, register_module,
 )
@@ -337,7 +337,7 @@ from kg_build_system.distribution import (
 modules = (
     register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
 )
-report = build(compile(modules=modules), output_directory=Path("build"))
+report = execute(compile(modules=modules), output_directory=Path("build"))
 print(report.succeeded, report.unresolved_failures)
 
 rows = [

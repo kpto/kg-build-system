@@ -14,10 +14,10 @@ data.
 | --- | --- | --- | --- |
 | `create_blueprint` | a `GraphBlueprint` | no | inspect, store or test the declarations |
 | `compile_blueprint` | a `WorkflowContractDTO` | no | compile one module composition against a blueprint |
-| `build` | a `WorkflowReport` and files | yes | execute the plan and publish outputs |
+| `execute` | a `WorkflowReport` and files | yes | execute the plan and publish outputs |
 
 ```python
-from kg_build_system import build, compile, create_blueprint
+from kg_build_system import compile, execute, create_blueprint
 from kg_build_system.distribution import (
     FileModule,
     FileModuleConfiguration,
@@ -32,7 +32,7 @@ modules = (
 
 blueprint = create_blueprint()
 contract = compile(blueprint=blueprint, modules=modules)
-report = build(contract, output_directory="build")
+report = execute(contract, output_directory="build")
 ```
 
 `create_blueprint` is useful when you want to inspect or store the
@@ -40,7 +40,7 @@ declaration-level description. A normal build calls `compile` directly:
 
 ```python
 contract = compile(modules=modules)
-report = build(contract, output_directory="build")
+report = execute(contract, output_directory="build")
 ```
 
 ## From declarations to a blueprint
@@ -81,7 +81,7 @@ published.
 `compile_blueprint` reads an existing blueprint and the module composition:
 
 ```python
-from kg_build_system.pipeline.compilation import compile_blueprint
+from kg_build_system.pipeline.compile import compile_blueprint
 
 contract = compile_blueprint(blueprint, modules=modules)
 ```
@@ -107,14 +107,14 @@ public workflow-fingerprint field in this API.
 
 ## Running a build
 
-`build` consumes the contract and writes everything the contract publishes to an
+`execute` consumes the contract and writes everything the contract publishes to an
 output directory:
 
 ```python
-from kg_build_system import BuildRuntime, build
+from kg_build_system import BuildRuntime, execute
 
 runtime = BuildRuntime(duckdb_storage="disk", duckdb_threads=4)
-report = build(contract, runtime=runtime, output_directory="build")
+report = execute(contract, runtime=runtime, output_directory="build")
 ```
 
 `output_directory` is required. A relative module output path is resolved beneath
@@ -131,14 +131,14 @@ means:
 - `duckdb_storage` chooses `"memory"` or `"disk"`; `duckdb_compression`,
   `duckdb_memory_limit` and `duckdb_threads` tune execution.
 
-`build` dispatches each step by `step.instruction.kind`. A kind the build does not
+`execute` dispatches each step by `step.instruction.kind`. A kind the build does not
 implement is refused.
 
 ## Durability and module versions
 
 A contract is durable data only in the environment that can execute it. It names
 each module by import coordinates and records the implementation version that
-compiled it. When `build` starts, it imports every module the contract names and
+compiled it. When `execute` starts, it imports every module the contract names and
 requires the module's current `VERSION` to equal the version compiled into the
 contract. A mismatch stops the build.
 
@@ -151,8 +151,8 @@ compiling again.
 
 | Path | Written by | Contents |
 | --- | --- | --- |
-| `workflow_contract.json` | `build` | the contract that was executed |
-| `build_report.json` | `build` | published artifacts, failures and provenance |
+| `workflow_contract.json` | `execute` | the contract that was executed |
+| `build_report.json` | `execute` | published artifacts, failures and provenance |
 | the configured `FileModule` path | `FileModule` | one JSON object per graph record |
 | `meta_graph.json` | `MetaGraphModule` | the effective topology with counts and example values |
 | `meta_graph.html` | `MetaGraphModule` | a self-contained diagram of the same document, when enabled |
@@ -192,7 +192,7 @@ time.
 
 ## The report
 
-`build` returns a `WorkflowReport`:
+`execute` returns a `WorkflowReport`:
 
 ```python
 if not report.succeeded:
@@ -231,7 +231,7 @@ execution raises.
 
 ## Reference
 
-- [Compile and build reference](../reference/compile.md) lists the entry points,
+- [Compile and execution reference](../reference/compile.md) lists the entry points,
   contract fields, runtime settings and error messages.
 - [Modules reference](../reference/modules.md) lists each supplied module, its
   configuration and the artifacts it publishes.

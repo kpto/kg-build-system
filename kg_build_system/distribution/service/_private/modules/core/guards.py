@@ -9,10 +9,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from ......pipeline.build.service.internal.engine.duckdb import (
+from ......pipeline.execution.service.internal.engine.duckdb import (
     read_declared_null_statistics,
 )
-from kg_build_system.pipeline.compilation.service.internal.instruction.duckdb import canonical_sql_type
+from kg_build_system.pipeline.compile.service.internal.instruction.duckdb import canonical_sql_type
 from .....model.internal.dto.instruction_dto import (
     DeclaredColumnDTO,
     SourceRelationInstructionDTO,

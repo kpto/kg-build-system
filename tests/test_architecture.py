@@ -24,8 +24,8 @@ LEAVES = (
     "declaration/languages/binding",
     "declaration/blueprint",
     "pipeline/contract",
-    "pipeline/compilation",
-    "pipeline/build",
+    "pipeline/compile",
+    "pipeline/execution",
     "distribution",
     "generation/code_generation",
     "cli",
@@ -41,6 +41,7 @@ ADAPTERS = {
 PUBLIC_SURFACES = {"model.public", "service.public"}
 MODEL_SURFACES = {"model.public", "model.internal"}
 PRIVATE_SURFACES = {"model._private", "service._private"}
+MODEL_ONLY_LEAVES = {"pipeline/contract"}
 KNOWN_MODEL_SERVICE_IMPORTS: set[tuple[str, str]] = set()
 
 
@@ -143,7 +144,7 @@ class ArchitectureTests(unittest.TestCase):
         for entry_point in ("__init__.py", "api.py", "cli/__main__.py"):
             with self.subTest(entry_point=entry_point):
                 self.assertTrue((ROOT / entry_point).is_file())
-        for name in ("create_blueprint", "compile", "build"):
+        for name in ("create_blueprint", "compile", "execute"):
             with self.subTest(entry_point=name):
                 self.assertIn(name, kg_build_system.__all__)
                 self.assertTrue(callable(getattr(kg_build_system, name)))
@@ -237,6 +238,9 @@ class ArchitectureTests(unittest.TestCase):
     def test_service_internal_interface_has_no_eager_private_import(self) -> None:
         for leaf in LEAVES:
             path = ROOT / leaf / "service" / "internal" / "__init__.py"
+            if not path.is_file():
+                self.assertIn(leaf, MODEL_ONLY_LEAVES)
+                continue
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for node in tree.body:
                 if isinstance(node, ast.If) and "TYPE_CHECKING" in ast.unparse(node.test):
@@ -269,7 +273,7 @@ class ArchitectureTests(unittest.TestCase):
     def test_only_blueprint_and_compilation_read_the_blueprint(self) -> None:
         allowed = (
             ROOT / "declaration" / "blueprint",
-            ROOT / "pipeline" / "compilation",
+            ROOT / "pipeline" / "compile",
         )
         for root in (ROOT / "declaration", ROOT / "pipeline"):
             for path in _source_files(root):
@@ -279,16 +283,16 @@ class ArchitectureTests(unittest.TestCase):
                     if parts[:2] == ["declaration", "blueprint"]:
                         self.fail(f"{path}:{line} imports {'.'.join(parts)}")
 
-    def test_compilation_does_not_import_build(self) -> None:
-        for path in _source_files(ROOT / "pipeline" / "compilation"):
+    def test_compile_does_not_import_execution(self) -> None:
+        for path in _source_files(ROOT / "pipeline" / "compile"):
             for parts, line in _all_imports(path):
-                if parts[:2] == ["pipeline", "build"]:
+                if parts[:2] == ["pipeline", "execution"]:
                     self.fail(f"{path}:{line} imports {'.'.join(parts)}")
 
-    def test_build_does_not_import_compilation_or_declaration(self) -> None:
-        for path in _source_files(ROOT / "pipeline" / "build"):
+    def test_execution_does_not_import_compile_or_declaration(self) -> None:
+        for path in _source_files(ROOT / "pipeline" / "execution"):
             for parts, line in _all_imports(path):
-                if parts[:2] == ["pipeline", "compilation"]:
+                if parts[:2] == ["pipeline", "compile"]:
                     self.fail(f"{path}:{line} imports {'.'.join(parts)}")
                 if parts[0] == "declaration":
                     self.fail(f"{path}:{line} imports {'.'.join(parts)}")

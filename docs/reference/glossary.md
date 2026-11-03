@@ -365,7 +365,7 @@ present array, use `drop_null_items()`, `sort()`, `unique()`, `concat()`, `at()`
 Generation uses `generation(...)` in an author-owned `__init__.py` and the
 `kbs generate` command. Sources use `bind_source(...)`. Graph records use
 `node_binding(...)` and `edge_binding(...)`. A build uses `compile()` and
-`build()`.
+`execute()`.
 
 ## Where to go next
 

@@ -7,8 +7,8 @@ import unittest
 import kg_build_system
 from kg_build_system import create_blueprint
 from kg_build_system.declaration.blueprint import GraphBlueprint
-from kg_build_system.pipeline.build import BuildRuntime, WorkflowReport, build
-from kg_build_system.pipeline.compilation import compile_blueprint
+from kg_build_system.pipeline.execution import BuildRuntime, WorkflowReport, execute
+from kg_build_system.pipeline.compile import compile_blueprint
 from kg_build_system.pipeline.contract import WorkflowContractDTO
 
 
@@ -34,10 +34,14 @@ class PublicApiTests(unittest.TestCase):
         with self.assertRaises(ModuleNotFoundError):
             importlib.import_module("kg_build_system.types")
 
+    def test_execute_replaces_the_old_build_name(self) -> None:
+        self.assertTrue(callable(kg_build_system.execute))
+        self.assertFalse(hasattr(kg_build_system, "build"))
+
     def test_the_canonical_entry_points_are_distinct(self) -> None:
         self.assertTrue(callable(kg_build_system.create_blueprint))
         self.assertTrue(callable(kg_build_system.compile))
-        self.assertTrue(callable(kg_build_system.build))
+        self.assertTrue(callable(kg_build_system.execute))
         self.assertIsNot(kg_build_system.compile, compile_blueprint)
 
     def test_the_public_handles_name_their_artifacts(self) -> None:
@@ -51,20 +55,20 @@ class PublicApiTests(unittest.TestCase):
         )
         self.assertEqual(
             BuildRuntime.__module__,
-            "kg_build_system.pipeline.build.model.public.runtime",
+            "kg_build_system.pipeline.execution.model.public.runtime",
         )
         self.assertEqual(
             WorkflowReport.__module__,
-            "kg_build_system.pipeline.build.model.public.runtime",
+            "kg_build_system.pipeline.execution.model.public.runtime",
         )
         self.assertEqual(create_blueprint.__module__, "kg_build_system.api")
         self.assertEqual(
             compile_blueprint.__module__,
-            "kg_build_system.pipeline.compilation.service.public.compile",
+            "kg_build_system.pipeline.compile.service.public.compile",
         )
         self.assertEqual(
-            build.__module__,
-            "kg_build_system.pipeline.build.service.public.build",
+            execute.__module__,
+            "kg_build_system.pipeline.execution.service.public.execute",
         )
 
 

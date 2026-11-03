@@ -50,7 +50,7 @@ A type error names the declaration and both sides of the mismatch, so you can se
 
 ### Reproducible builds
 
-`compile()` turns the declarations and module composition into an immutable contract. `build()` executes that contract and returns a report. The contract and report are written in the output directory beside the graph.
+`compile()` turns the declarations and module composition into an immutable contract. `execute()` executes that contract and returns a report. The contract and report are written in the output directory beside the graph.
 
 The contract describes the plan, not the input bytes. The same declarations and module configuration produce the same plan, and a source file can change without changing the plan. Use your own data versioning to say what the build read.
 
@@ -93,7 +93,7 @@ You will get the most from it when the graph is a product that changes over time
 
 - The product is a graph whose meaning survives the build.
 - You declare rows, graph meaning, and mappings separately.
-- `compile()` checks declarations before data is read; `build()` executes the plan and writes outputs.
+- `compile()` checks declarations before data is read; `execute()` executes the plan and writes outputs.
 - A stated limit is part of the model, not a hidden gap.
 
 ## Next steps

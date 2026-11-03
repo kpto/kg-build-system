@@ -49,7 +49,7 @@ Register every module the build needs. Registration order is composition order;
 the mandatory core module is appended after your modules.
 
 ```python
-from kg_build_system import build, compile
+from kg_build_system import compile, execute
 from kg_build_system.distribution import (
     CollapseExactDuplicatesModule,
     FileModule,
@@ -65,7 +65,7 @@ modules = (
 )
 
 contract = compile(modules=modules)
-report = build(contract, output_directory="build")
+report = execute(contract, output_directory="build")
 ```
 
 Put record-rewriting modules first and output modules last. A rewriting module
@@ -103,12 +103,12 @@ A module may expose runtime fields that a build can override without
 recompiling. Supply them through `BuildRuntime.module_configuration`:
 
 ```python
-from kg_build_system import BuildRuntime, build
+from kg_build_system import BuildRuntime, execute
 
 runtime = BuildRuntime(module_configuration={
     "file": {"relative_path": "graph/current.jsonl"},
 })
-report = build(contract, runtime=runtime, output_directory="build")
+report = execute(contract, runtime=runtime, output_directory="build")
 ```
 
 Configuration is not a place for credentials. Credentials are resolved at build
@@ -155,9 +155,9 @@ Both are outputs; do not edit them and expect a build to accept the change.
 Build the graph and check that the composition succeeded:
 
 ```python
-from kg_build_system import build
+from kg_build_system import execute
 
-report = build(contract, output_directory="build")
+report = execute(contract, output_directory="build")
 print(report.succeeded)
 
 for failure in report.unresolved_failures:

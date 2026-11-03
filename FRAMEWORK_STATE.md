@@ -59,11 +59,11 @@ imports only `model.public` and `service.public`.
 
 - `create_blueprint` lives in `declaration/blueprint` and returns
   `GraphBlueprint`.
-- `compile_blueprint` lives in `pipeline/compilation` and returns
+- `compile_blueprint` lives in `pipeline/compile` and returns
   `WorkflowContractDTO`.
 - `compile` is the composition-root shortcut: it creates a blueprint and then
   compiles it.
-- `build` lives in `pipeline/build` and dispatches on `step.instruction.kind`.
+- `execute` lives in `pipeline/execution` and dispatches on `step.instruction.kind`.
 - Supplied modules and `register_module` live in `distribution`.
 - Source generation is per layer; `blueprint_to_source` delegates to the table,
   topology and binding renderers.

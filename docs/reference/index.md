@@ -21,7 +21,7 @@ the rules; it does not repeat the explanation of why the model works that way.
 | [Types](types.md) | Canonical types, nullability, property shapes and key rules | [Types and nullability](../concepts/types.md) |
 | [Sources and ingest](ingest.md) | `DataSourceConfig`, `bind_source`, source checks and trust rules | [Sources](../concepts/sources.md) |
 | [Generation](generation.md) | Requests, generated packages and source nullability claims | [Data contracts](../concepts/data-contracts.md) |
-| [Compile and build](compile.md) | `create_blueprint`, `compile_blueprint`, `compile`, `build`, runtime and report | [Compile, build and outputs](../concepts/build-and-outputs.md) |
+| [Compile and execute](compile.md) | `create_blueprint`, `compile_blueprint`, `compile`, `execute`, runtime and report | [Compile, build and outputs](../concepts/build-and-outputs.md) |
 | [Modules](modules.md) | `register_module`, supplied modules and composition | [Modules](../concepts/modules.md) |
 | [Glossary](glossary.md) | The vocabulary used across the guide | [How a build works](../concepts/index.md) |
 
@@ -44,9 +44,9 @@ the rules; it does not repeat the explanation of why the model works that way.
 | Surface | Import from |
 | --- | --- |
 | Declarations, selections, expressions, row sources and projections | `kg_build_system` |
-| `compile`, `create_blueprint` and `build` | `kg_build_system` |
-| `compile_blueprint` | `kg_build_system.pipeline.compilation` |
-| `BuildRuntime` and `WorkflowReport` | `kg_build_system.pipeline.build` |
+| `compile`, `create_blueprint` and `execute` | `kg_build_system` |
+| `compile_blueprint` | `kg_build_system.pipeline.compile` |
+| `BuildRuntime` and `WorkflowReport` | `kg_build_system.pipeline.execution` |
 | Representative types and canonical logical types | `kg_build_system` |
 | Supplied modules and `register_module` | `kg_build_system.distribution` |
 | Generation requests and commands | `kg_build_system.generation.code_generation` |

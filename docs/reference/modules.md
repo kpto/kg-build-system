@@ -160,9 +160,9 @@ For every property of every bound component, groups by build key and looks for m
 With `fail_on_error=True` (the default), any finding fails the run. With `fail_on_error=False`, the build continues, forwards the records to later modules, and publishes a report:
 
 ```python
-from kg_build_system import build
+from kg_build_system import execute
 
-report = build(contract)
+report = execute(contract)
 for artifact in report.published_artifacts:
     if artifact.type.namespace == "reject_conflicting_non_null_values":
         print(artifact.value.findings)

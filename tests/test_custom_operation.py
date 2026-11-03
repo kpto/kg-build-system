@@ -11,7 +11,7 @@ from kg_build_system.declaration.foundations.expressions.service.internal import
     is_unit,
 )
 from kg_build_system.kernel import INT
-from kg_build_system.pipeline.compilation.service._private.instructions.duckdb import (
+from kg_build_system.pipeline.compile.service._private.instructions.duckdb import (
     DuckDbInstructionEmitter,
 )
 

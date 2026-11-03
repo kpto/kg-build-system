@@ -16,20 +16,26 @@ LEAVES = (
     "declaration/languages/binding",
     "declaration/blueprint",
     "pipeline/contract",
-    "pipeline/compilation",
-    "pipeline/build",
+    "pipeline/compile",
+    "pipeline/execution",
     "distribution",
     "generation/code_generation",
     "cli",
 )
 LEAF_PARTS = {tuple(leaf.split("/")): leaf for leaf in LEAVES}
-REQUIRED_DIRECTORIES = (
+MODEL_DIRECTORIES = (
     "model/public",
     "model/internal",
+)
+SERVICE_DIRECTORIES = (
     "service/public",
     "service/internal",
     "service/_private",
 )
+REQUIRED_DIRECTORIES = MODEL_DIRECTORIES + SERVICE_DIRECTORIES
+# A shared artifact package may own only its model; it owns no service when the
+# producing system owns the codec, assembly and other behaviour.
+MODEL_ONLY_LEAVES = {"pipeline/contract"}
 KNOWN_MISSING_DIRECTORIES: set[tuple[str, str]] = set()
 KNOWN_PRIVATE_PUBLIC_SERVICE_IMPORTS: set[tuple[str, str]] = set()
 
@@ -92,7 +98,12 @@ class LayoutTests(unittest.TestCase):
             root = ROOT / leaf
             with self.subTest(leaf=leaf):
                 self.assertTrue((root / "__init__.py").is_file())
-                for directory in REQUIRED_DIRECTORIES:
+                required = (
+                    MODEL_DIRECTORIES
+                    if leaf in MODEL_ONLY_LEAVES
+                    else REQUIRED_DIRECTORIES
+                )
+                for directory in required:
                     if (leaf, directory) in KNOWN_MISSING_DIRECTORIES:
                         continue
                     self.assertTrue(

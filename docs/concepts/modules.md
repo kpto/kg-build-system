@@ -37,7 +37,7 @@ modules = (
 contract = compile(modules=modules)
 ```
 
-This survey build removes exact duplicate records, writes JSON Lines, and describes the effective topology. The tuple is the whole module composition. `compile` creates the blueprint internally and returns the contract; `build` later receives the compiled contract rather than the tuple. The bindings and sources are discovered from the calling file, so the example shows only the module tuple.
+This survey build removes exact duplicate records, writes JSON Lines, and describes the effective topology. The tuple is the whole module composition. `compile` creates the blueprint internally and returns the contract; `execute` later receives the compiled contract rather than the tuple. The bindings and sources are discovered from the calling file, so the example shows only the module tuple.
 
 `register_module` chooses a module class and, when needed, its frozen configuration. A module with defaults can be registered without one. `FileModule` has no default path, so it requires a path.
 
@@ -171,4 +171,4 @@ project's job is composition: use the supplied modules and keep the tuple small.
 ## Reference
 
 - [Modules reference](../reference/modules.md) lists every supplied module, its configuration, runtime fields and artifact types.
-- [Compile and build reference](../reference/compile.md) specifies registration, composition and module references.
+- [Compile and execution reference](../reference/compile.md) specifies registration, composition and module references.

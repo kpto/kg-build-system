@@ -16,8 +16,8 @@ PACKAGES = (
     "kg_build_system.declaration.languages.binding",
     "kg_build_system.declaration.blueprint",
     "kg_build_system.pipeline.contract",
-    "kg_build_system.pipeline.compilation",
-    "kg_build_system.pipeline.build",
+    "kg_build_system.pipeline.compile",
+    "kg_build_system.pipeline.execution",
     "kg_build_system.distribution",
     "kg_build_system.generation.code_generation",
     "kg_build_system.cli",
@@ -204,7 +204,7 @@ class PublicDocstringTests(unittest.TestCase):
         expected = {
             "create_blueprint": "kg_build_system.api",
             "compile": "kg_build_system.api",
-            "build": "kg_build_system.pipeline.build.service.public.build",
+            "execute": "kg_build_system.pipeline.execution.service.public.execute",
         }
         for name, module in expected.items():
             with self.subTest(name=name):

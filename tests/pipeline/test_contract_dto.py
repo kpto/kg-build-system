@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from kg_build_system.pipeline.contract.service.internal import (
+from kg_build_system.pipeline.execution.service.internal.contract_codec import (
     contract_from_document,
     contract_to_document,
 )

@@ -1,9 +1,9 @@
-# Compile and build
+# Compile and execute
 
 `create_blueprint` collects declarations into a `GraphBlueprint`.
 `compile_blueprint` compiles a blueprint and a module composition into a
 `WorkflowContractDTO`. `compile` is the shortcut that creates the blueprint and
-compiles it. `build` executes the contract and writes its outputs.
+compiles it. `execute` executes the contract and writes its outputs.
 
 The calls separate inspection from execution. A blueprint describes the graph
 model; a contract describes the ordered work of one module composition. Neither
@@ -12,11 +12,11 @@ reads data. See [Compile, build and outputs](../concepts/build-and-outputs.md).
 ```python
 from pathlib import Path
 
-from kg_build_system import build, compile, create_blueprint
+from kg_build_system import compile, execute, create_blueprint
 from kg_build_system.distribution import (
     FileModule, FileModuleConfiguration, register_module,
 )
-from kg_build_system.pipeline.compilation import compile_blueprint
+from kg_build_system.pipeline.compile import compile_blueprint
 
 modules = (
     register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
@@ -28,7 +28,7 @@ contract = compile_blueprint(blueprint, modules=modules)
 # The shortcut creates the blueprint and compiles it:
 contract = compile(namespace_path=Path("graph_pipeline"), modules=modules)
 
-report = build(contract, output_directory=Path("build"), monitor=False)
+report = execute(contract, output_directory=Path("build"), monitor=False)
 ```
 
 | Call | Inputs | Returns | Reads data | Writes files |
@@ -36,7 +36,7 @@ report = build(contract, output_directory=Path("build"), monitor=False)
 | `create_blueprint` | One declaration mode and optional languages | `GraphBlueprint` | No | No |
 | `compile_blueprint` | A `GraphBlueprint` and `modules` | `WorkflowContractDTO` | No | No |
 | `compile` | One declaration mode or a blueprint, plus `modules` | `WorkflowContractDTO` | No | No |
-| `build` | A contract and an output directory | `WorkflowReport` | Yes | Yes |
+| `execute` | A contract and an output directory | `WorkflowReport` | Yes | Yes |
 
 ## `create_blueprint`
 
@@ -163,10 +163,10 @@ The shortcut appends the core module when it is absent.
 
 Compilation never opens a source or reads a row.
 
-## `build`
+## `execute`
 
 ```python
-build(
+execute(
     contract,
     *,
     output_directory: str | Path,
@@ -186,11 +186,11 @@ build(
 | `runtime` | Credentials, module runtime overrides and engine settings |
 | `monitor` | Progress display: automatic, forced, disabled or a custom monitor object |
 
-`build` dispatches each step by `step.instruction.kind`. A kind the build does not
+`execute` dispatches each step by `step.instruction.kind`. A kind the build does not
 implement is refused.
 
 ```python
-report = build(
+report = execute(
     contract,
     output_directory=Path("out"),
     monitor=False,
@@ -245,8 +245,8 @@ Each failure exposes `message`, `module_id`, `step_id` and `exception_type`.
 | A source for every reached table | `compile_blueprint` |
 | Valid compile-time configuration for every module | `compile_blueprint` |
 | A wireable module composition | `compile_blueprint` |
-| An output directory for execution | `build` |
-| Matching module `VERSION` values at execution | `build` |
+| An output directory for execution | `execute` |
+| Matching module `VERSION` values at execution | `execute` |
 
 ## What to remember
 
@@ -254,7 +254,7 @@ Each failure exposes `message`, `module_id`, `step_id` and `exception_type`.
 - `compile_blueprint` reads a blueprint and takes the module composition.
 - `compile` is the shortcut: it creates the blueprint and compiles it.
 - A step owns its `InstructionDTO`; SQL is one instruction kind.
-- `build` executes the contract and dispatches by `step.instruction.kind`.
+- `execute` executes the contract and dispatches by `step.instruction.kind`.
 
 Related: [Compile, build and outputs](../concepts/build-and-outputs.md),
 [Modules](modules.md), [Bindings](bindings.md), [Reference index](index.md).

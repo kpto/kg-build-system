@@ -129,7 +129,7 @@ outputs. The contract and report make the build inspectable.
 
 ```python
 contract = compile(modules=modules)
-report = build(contract, output_directory="build")
+report = execute(contract, output_directory="build")
 ```
 
 ## The whole pipeline

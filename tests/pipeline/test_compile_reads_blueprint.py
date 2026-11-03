@@ -6,7 +6,7 @@ from unittest.mock import patch
 from kg_build_system.declaration.blueprint import GraphBlueprint
 from kg_build_system.declaration.languages.table.model.internal import DataPartDTO
 from kg_build_system.declaration.languages.topology.model.internal import GraphPartDTO
-from kg_build_system.pipeline.compilation import compile_blueprint
+from kg_build_system.pipeline.compile import compile_blueprint
 from kg_build_system.pipeline.contract import WorkflowContractDTO
 
 

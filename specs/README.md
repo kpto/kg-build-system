@@ -20,11 +20,11 @@ This directory does not duplicate it.
 | `declaration/languages/binding` | binding values; binding DTOs | `node_binding`, `edge_binding`, transcription and source rendering |
 | `declaration/blueprint` | `GraphBlueprint` | `create_blueprint`, assembly, validation, codec and source |
 | `pipeline/contract` | `WorkflowContractDTO` and step DTOs | assembly and codec |
-| `pipeline/compilation` | relation plans and instruction kinds | `compile_blueprint`, compilers and instruction emitters |
-| `pipeline/build` | `BuildRuntime`, `WorkflowReport` | `build`, runtime, engine, storage and dispatch |
+| `pipeline/compile` | relation plans and instruction kinds | `compile_blueprint`, compilers and instruction emitters |
+| `pipeline/execution` | `BuildRuntime`, `WorkflowReport` | `execute`, runtime, engine, storage and dispatch |
 | `distribution` | module configurations and instruction DTOs | module classes, registration and compiler/executor factories |
 | `generation/code_generation` | generation requests, results and provider contract | generation, discovery, rendering and ownership |
-| `api.py` | none | `create_blueprint`, `compile_blueprint`, `compile`, `build` |
+| `api.py` | none | `create_blueprint`, `compile_blueprint`, `compile`, `execute` |
 | `cli` | none | `kbs` entry point |
 
 ## Zones
@@ -61,7 +61,7 @@ The import matrix:
 
 ## Dependency spine
 
-`declaration` depends on `kernel`. `pipeline/compilation` and `pipeline/build`
+`declaration` depends on `kernel`. `pipeline/compile` and `pipeline/execution`
 depend on declaration and the shared contract, and do not import each other.
 `distribution` supplies modules. `generation` is upstream. `api.py` and `cli`
 compose the systems.

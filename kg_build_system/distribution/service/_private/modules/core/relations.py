@@ -9,9 +9,9 @@ from kg_build_system.declaration.foundations.expressions.service.internal import
 from kg_build_system.declaration.languages.binding.model.internal.dto import BindingDTO, EdgeBindingDTO
 from kg_build_system.declaration.languages.table.model.internal import ProjectionDTO, RowSourcePlanDTO
 from kg_build_system.declaration.languages.table.service.internal import plan_scan_sources, plan_shape_source_name, retarget_expression_dto, row_source_key
-from ......pipeline.build.service.internal.engine.duckdb import NULL_GUARD_MACRO
-from kg_build_system.pipeline.compilation.service.internal.instruction.duckdb import ArraySqlType, DuckDbSqlEmitter, SqlType, canonical_sql_type
-from kg_build_system.pipeline.compilation.service.internal import plan_product
+from ......pipeline.execution.service.internal.engine.duckdb import NULL_GUARD_MACRO
+from kg_build_system.pipeline.compile.service.internal.instruction.duckdb import ArraySqlType, DuckDbSqlEmitter, SqlType, canonical_sql_type
+from kg_build_system.pipeline.compile.service.internal import plan_product
 from kg_build_system.kernel.model.internal.types.dto import ArrayTypeDTO, LogicalTypeDTO, NullableTypeDTO, UnitTypeDTO
 
 

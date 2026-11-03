@@ -7,7 +7,7 @@ from typing import Any
 from kg_build_system.declaration.blueprint.model.public import GraphBlueprint
 from kg_build_system.declaration.languages.table.model.internal import ProjectionDTO, RelationDTO, RowSourcePlanDTO
 from kg_build_system.declaration.languages.table.service.internal import plan_inputs, row_source_key
-from kg_build_system.pipeline.compilation.service.internal.instruction.duckdb import row_source_sql
+from kg_build_system.pipeline.compile.service.internal.instruction.duckdb import row_source_sql
 from kg_build_system.pipeline.contract.model.public import InputDTO, OutputDTO, StepDTO
 from .....model.internal.dto.instruction_dto import (
     AggregateInstructionDTO,

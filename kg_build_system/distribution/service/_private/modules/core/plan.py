@@ -15,7 +15,7 @@ from kg_build_system.declaration.foundations.expressions.service.internal import
 from kg_build_system.declaration.languages.table.model.internal import ColumnDTO, ProjectionDTO, RelationDTO, RowScanDTO, RowSourcePlanDTO, StructDTO
 from kg_build_system.declaration.languages.table.service.internal import plan_inputs, plan_scan_sources, row_source_key
 from kg_build_system.declaration.languages.table.model.public.shapes import ShapeField
-from ......pipeline.build.service.internal.engine.duckdb import PARQUET_LIST_WRAPPER_PATH
+from ......pipeline.execution.service.internal.engine.duckdb import PARQUET_LIST_WRAPPER_PATH
 from kg_build_system.kernel.model.internal.types.dto import ArrayTypeDTO, NullableTypeDTO, StructTypeDTO
 from .....model.internal.dto.instruction_dto import DeclaredPathDTO
 from .relations import binding_outputs, projection_sources

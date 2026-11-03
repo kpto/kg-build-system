@@ -116,14 +116,14 @@ build values, contract vocabulary and capability declarations that cannot be
 omitted or replaced.
 
 **Generation** is upstream. It produces declarations from typed requests before
-declaration runs. Compilation and build never invoke generation.
+declaration runs. Compile and execution never invoke generation.
 
 **Distribution** supplies modules. A module is a compiler and an executor with a
 stable identity; the default distribution supplies the core module and the
 target modules. A custom language and module compile and execute without the
 default distribution.
 
-`pipeline/` groups contract, compilation and build because compilation and build
+`pipeline/` groups contract, compile and execution because compile and execution
 share the contract and must not import each other. Each system has one job and
 one handoff value.
 
@@ -138,8 +138,8 @@ a build result. It is not a DTO and is not expected to deserialise.
 | Blueprint DTO | `GraphBlueprint`, `DataPartDTO`, `RowJoinDTO` | yes | `declaration` |
 | Contract DTO | `WorkflowContractDTO`, `StepDTO`, `InstructionDTO` | yes | `pipeline/contract` |
 | In-memory model | a transcribe input, a build value, a render input | no | the consuming service |
-| In-memory plan | `RelationPlan`, an engine-neutral join plan | no | `pipeline/compilation` |
-| In-memory result | a build report, an executor outcome | no | `pipeline/build` |
+| In-memory plan | `RelationPlan`, an engine-neutral join plan | no | `pipeline/compile` |
+| In-memory result | a build report, an executor outcome | no | `pipeline/execution` |
 
 A layer DTO does not know the blueprint. It knows only the DTOs of the layers it
 depends on. The blueprint package assembles the layer DTOs into one semantic

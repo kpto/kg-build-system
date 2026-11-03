@@ -5,7 +5,7 @@ import unittest
 from pathlib import Path
 
 from kg_build_system.declaration.blueprint import GraphBlueprint
-from kg_build_system.pipeline.build import build
+from kg_build_system.pipeline.execution import execute
 from kg_build_system.pipeline.contract import WorkflowContractDTO
 from reference_project.build import (
     compile_reference_build,
@@ -27,7 +27,7 @@ class ReferenceBuildTests(unittest.TestCase):
         self.assertIsInstance(contract, WorkflowContractDTO)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            report = build(contract, output_directory=root)
+            report = execute(contract, output_directory=root)
             self.assertTrue(
                 report.succeeded,
                 [failure.message for failure in report.unresolved_failures],

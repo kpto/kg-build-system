@@ -32,8 +32,8 @@ kg_build_system/
     blueprint/
   pipeline/
     contract/
-    compilation/
-    build/
+    compile/
+    execution/
   distribution/
   generation/code_generation/
   api.py
@@ -155,8 +155,8 @@ results.
 | System | Leaf | Responsibility |
 | --- | --- | --- |
 | Contract | `pipeline/contract` | `WorkflowContractDTO` in `model/public`; assembly and codec in `service/internal` and `service/_private` |
-| Compilation | `pipeline/compilation` | relation plans and instruction kinds in `model/internal`; `compile_blueprint` in `service/public`; compilers and instruction emitters in `service/internal` and `service/_private` |
-| Build | `pipeline/build` | `BuildRuntime` and `WorkflowReport` in `model/public`; `build` in `service/public`; runtime, engine, storage and relations in `service/_private` |
+| Compile | `pipeline/compile` | relation plans and instruction kinds in `model/internal`; `compile_blueprint` in `service/public`; compilers and instruction emitters in `service/internal` and `service/_private` |
+| Execution | `pipeline/execution` | `BuildRuntime` and `WorkflowReport` in `model/public`; `execute` in `service/public`; runtime, engine, storage and relations in `service/_private` |
 
 Compilation reads a blueprint and produces a contract. Build reads a contract
 and executes it. They share the contract and must not import each other.
@@ -196,14 +196,14 @@ declarations before declaration runs. It is upstream of the blueprint.
 | `service/internal` | provider loading and provider adapters |
 | `service/_private` | discovery, rendering, ownership, watcher and engine |
 
-Generation and compilation are separate lanes:
+Generation and compile are separate lanes:
 
 - generation observes a source, runs a provider and renders declarations;
-- compilation imports the resulting declarations and never invokes generation;
-- build never invokes generation.
+- compile imports the resulting declarations and never invokes generation;
+- execution never invokes generation.
 
 A generated declaration and a handwritten declaration enter the same blueprint
-and contract path. There is no generation-specific compilation path.
+and contract path. There is no generation-specific compile path.
 
 ## Dependency spine
 
@@ -222,16 +222,16 @@ Generation is upstream and does not sit on the execution spine.
 | `declaration/languages/binding` | `declaration/languages/table`, `declaration/languages/topology`, `declaration/foundations`, `kernel` |
 | `declaration/blueprint` | every declaration language and foundation, `kernel` |
 | `pipeline/contract` | `kernel` |
-| `pipeline/compilation` | `declaration` (blueprint and DTOs), `pipeline/contract`, `kernel` |
-| `pipeline/build` | `pipeline/contract`, `kernel` |
-| `distribution` | `kernel`, `declaration`, `pipeline/contract`, `pipeline/compilation`, `pipeline/build` |
+| `pipeline/compile` | `declaration` (blueprint and DTOs), `pipeline/contract`, `kernel` |
+| `pipeline/execution` | `pipeline/contract`, `kernel` |
+| `distribution` | `kernel`, `declaration`, `pipeline/contract`, `pipeline/compile`, `pipeline/execution` |
 | `generation/code_generation` | `kernel`; engine observation is read-only |
 | `api.py` | declaration, pipeline, distribution |
 | `cli` | `generation`, `api.py` |
 
 Two rules apply to every row:
 
-- compilation and build do not import each other;
+- compile and execution do not import each other;
 - no package imports another package's private zones.
 
 The exact edge set is a model decision. A new edge is proposed with its reason,
@@ -313,11 +313,11 @@ unless they ask for it.
 
 The separation matters because the blueprint is inspectable and reusable. A
 caller may store it, render it back to source or compile it with a different
-module composition. Compilation is one consumer of the blueprint, not its owner.
+module composition. The compile stage is one consumer of the blueprint, not its owner.
 
 ## Contract, step and instruction
 
-The workflow contract is the only value handed from compilation to execution.
+The workflow contract is the only value handed from compile to execution.
 
 ```python
 @dataclass(frozen=True)
@@ -372,9 +372,9 @@ source round trip.
 - The kernel is domain-agnostic and holds only what cannot be replaced.
 - Every leaf has a model side and a service side; public surfaces are
   `model.public` and `service.public`.
-- Declaration produces the blueprint; compilation consumes it; build consumes
+- Declaration produces the blueprint; compile consumes it; execution consumes
   the contract.
-- Compilation and build share the contract and never import each other.
+- Compile and execution share the contract and never import each other.
 - A service adapter is an explicit file under `service/internal/adapters`.
 - A step owns its instruction; SQL is one instruction kind.
 

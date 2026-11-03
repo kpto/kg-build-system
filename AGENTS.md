@@ -149,6 +149,9 @@ rule about what the framework is belongs to the framework model.
 - A layer DTO does not know the blueprint. It knows only the DTOs of the layers
   it depends on. The blueprint package assembles the layer DTOs into one
   semantic model.
+- The pipeline has two stages: `pipeline/compile` (blueprint -> workflow
+  contract) and `pipeline/execution` (contract -> artifacts). The public verbs are
+  `compile` and `execute`.
 - `compile` reads a blueprint and produces the workflow contract. It does not
   assemble a blueprint and does not call the blueprint package. The composition
   root calls `create_blueprint` and then `compile`.

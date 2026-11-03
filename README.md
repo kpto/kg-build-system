@@ -13,11 +13,11 @@ contract and publishes the graph with the meaning declared for it.
 | `kernel/` | domain-agnostic protocols, canonical types, build values and contract vocabulary |
 | `declaration/` | annotation and expression foundations, the `table`, `topology` and `binding` languages, and `GraphBlueprint` |
 | `pipeline/contract/` | the `WorkflowContractDTO`, assembly and codec |
-| `pipeline/compilation/` | `compile_blueprint`, module compilers, relational plans and instruction emitters |
-| `pipeline/build/` | contract execution, runtime, engine, storage and relations |
+| `pipeline/compile/` | `compile_blueprint`, module compilers, relational plans and instruction emitters |
+| `pipeline/execution/` | contract execution, runtime, engine, storage and relations |
 | `distribution/` | supplied modules and `register_module` |
 | `generation/` | edit-time code generation |
-| `api.py` | the composition root: `create_blueprint`, `compile_blueprint`, `compile` and `build` |
+| `api.py` | the composition root: `create_blueprint`, `compile_blueprint`, `compile` and `execute` |
 | `cli/` | the `kbs` entry point |
 
 `kg_build_system` re-exports the authoring vocabulary for the canonical types in

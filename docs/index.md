@@ -39,7 +39,7 @@ nodes, edges, properties and their meaning. **Bindings** map one row context
 onto one node or edge record.
 
 `compile()` checks the declarations and freezes one workflow contract.
-`build()` executes it and writes the outputs selected by the modules. The same
+`execute()` executes it and writes the outputs selected by the modules. The same
 contract can be reviewed before data is read, executed repeatedly, or sent to
 several targets.
 

@@ -125,7 +125,7 @@ The test can inspect the import graph of the compilation package and can replace
 Either form proves the dependency direction.
 
 Current status: `tests/pipeline/test_compile_reads_blueprint.py` passes. It
-proves `pipeline.compilation.compile_blueprint` does not call `create_blueprint`
+proves `pipeline.compile.compile_blueprint` does not call `create_blueprint`
 and accepts an existing blueprint. The public `compile(...)` shortcut creates a
 blueprint and then calls `compile_blueprint`; that is its contract.
 
@@ -158,7 +158,7 @@ referenced object through the import coordinates. It refuses a contract that
 contains a callable.
 
 Current status:
-`pipeline.compilation.service._private.instructions.python.PythonInstructionEmitter`
+`pipeline.compile.service._private.instructions.python.PythonInstructionEmitter`
 emits a `python` instruction with module, qualified name and signature, and the
 contract codec round-trips it. A Python binding in the blueprint uses
 `PythonRefDTO(module, qualname, signature)`; neither DTO holds a callable. The

@@ -64,7 +64,7 @@ The framework is experimental. Install the checkout that matches the guide you a
 Check that the public names import:
 
 ```bash
-python -c "from kg_build_system import Table, compile, build; print('kg-build-system ready')"
+python -c "from kg_build_system import Table, compile, execute; print('kg-build-system ready')"
 ```
 
 You should see:
@@ -79,7 +79,7 @@ Check that the command-line tool is on the same PATH:
 kbs --help
 ```
 
-The output lists the `generate` command. The CLI creates and maintains generated data contracts; compilation and builds are calls from your Python entry point, not CLI commands.
+The output lists the `generate` command. The CLI creates and maintains generated data contracts; compile and execute are calls from your Python entry point, not CLI commands.
 
 !!! tip "Command not found?"
     If `python` or `kbs` is not found, activate the virtual environment again and repeat the check. Do not install a second copy into another environment.
@@ -88,7 +88,7 @@ The output lists the `generate` command. The CLI creates and maintains generated
 
 - Use Python 3.12 or newer.
 - Install the framework and your project into one environment.
-- `kbs` is for generated contracts. Use `compile()` and `build()` in Python for a build.
+- `kbs` is for generated contracts. Use `compile()` and `execute()` in Python for a build.
 - Verify the import and the CLI before you create a project.
 
 ## Next steps

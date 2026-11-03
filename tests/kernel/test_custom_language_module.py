@@ -21,8 +21,8 @@ from kg_build_system.kernel import (
     StepOutcome,
     StepStatus,
 )
-from kg_build_system.pipeline.build import build
-from kg_build_system.pipeline.compilation import compile_blueprint
+from kg_build_system.pipeline.execution import execute
+from kg_build_system.pipeline.compile import compile_blueprint
 from kg_build_system.pipeline.contract import (
     ArtifactTypeDTO,
     ContributionDTO,
@@ -173,7 +173,7 @@ class CustomLanguageModuleTests(unittest.TestCase):
         self.assertEqual(contract.contributions[0].steps[0].name, "echo")
 
         with tempfile.TemporaryDirectory() as directory:
-            report = build(contract, output_directory=Path(directory), monitor=False)
+            report = execute(contract, output_directory=Path(directory), monitor=False)
 
         self.assertTrue(
             report.succeeded,

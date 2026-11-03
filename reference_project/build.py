@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from kg_build_system import build, compile, create_blueprint
+from kg_build_system import compile, create_blueprint, execute
 from kg_build_system.declaration.blueprint import GraphBlueprint
 from kg_build_system.distribution import (
     CollapseExactDuplicatesModule,
@@ -41,7 +41,7 @@ def run_reference_build() -> None:
     output_dir.mkdir(exist_ok=True)
 
     contract = compile_reference_build()
-    build(contract, output_directory=output_dir)
+    execute(contract, output_directory=output_dir)
 
 
 if __name__ == "__main__":

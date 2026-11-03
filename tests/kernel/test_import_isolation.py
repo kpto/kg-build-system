@@ -13,7 +13,7 @@ class ImportIsolationTests(unittest.TestCase):
         code = (
             "import sys; import kg_build_system.kernel; "
             "assert 'kg_build_system.declaration.languages.table' not in sys.modules; "
-            "assert 'kg_build_system.pipeline.build' not in sys.modules; "
+            "assert 'kg_build_system.pipeline.execution' not in sys.modules; "
             "print('ok')"
         )
         result = subprocess.run(

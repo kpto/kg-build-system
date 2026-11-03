@@ -5,7 +5,7 @@ composition or input that caused it.
 
 ## Before you begin
 
-- Run `create_blueprint` and `compile` before `build`. They check declarations
+- Run `create_blueprint` and `compile` before `execute`. They check declarations
   and module wiring without reading data.
 - Know where the build writes its outputs.
   [Compile, build and outputs](../concepts/build-and-outputs.md) covers the
@@ -20,7 +20,7 @@ A normal investigation starts with these calls:
 ```python
 from pathlib import Path
 
-from kg_build_system import build, compile, create_blueprint
+from kg_build_system import compile, execute, create_blueprint
 from kg_build_system.distribution import (
     FileModule, FileModuleConfiguration, register_module,
 )
@@ -30,18 +30,18 @@ modules = (
 )
 blueprint = create_blueprint()
 contract = compile(blueprint=blueprint, modules=modules)
-report = build(contract, output_directory=Path("build"), monitor=False)
+report = execute(contract, output_directory=Path("build"), monitor=False)
 ```
 
 If `create_blueprint` or `compile` raises, fix that error before running
-`build`. A compile failure is a declaration or composition problem, not a data
+`execute`. A compile failure is a declaration or composition problem, not a data
 problem.
 
 ## Steps
 
 ### Step 1: Read the report first
 
-`build` returns a `WorkflowReport`. It records failures, published artifacts and
+`execute` returns a `WorkflowReport`. It records failures, published artifacts and
 provenance:
 
 ```python
@@ -73,7 +73,7 @@ when the run fails.
 | writing a binding, projection or row source | `TypeError` | a declaration value is malformed |
 | `create_blueprint` | `ValueError` | declarations, names or sources disagree |
 | `compile` | `ValueError` or a workflow assembly error | module composition cannot be wired |
-| `build` | an unsuccessful report | data, runtime configuration or a module check failed |
+| `execute` | an unsuccessful report | data, runtime configuration or a module check failed |
 
 A successful `compile` means the declarations are structurally sound. The
 remaining problem is input data, runtime configuration or a check inside a
@@ -255,7 +255,7 @@ After a fix, run the three calls again:
 ```python
 blueprint = create_blueprint()
 contract = compile(blueprint=blueprint, modules=modules)
-report = build(contract, output_directory=Path("build"), monitor=False)
+report = execute(contract, output_directory=Path("build"), monitor=False)
 ```
 
 Check that:
@@ -274,7 +274,7 @@ other output modules after the counts are correct. See
 
 | Symptom | What to do |
 | --- | --- |
-| The same exception appears before any data is read | Fix the declaration or expression. `build` cannot repair a compile error. |
+| The same exception appears before any data is read | Fix the declaration or expression. `execute` cannot repair a compile error. |
 | The report is unsuccessful but no file appears | Read `unresolved_failures` and `workflow_contract.json`. The failure names the module and step. |
 | The graph file is missing | The output module is not registered, its path is relative to the output directory, or its step failed. Check `published_artifacts`. |
 | The record count is an exact multiple | Find the expansion or many-side join that multiplied the rows. Move it to its own grain. |

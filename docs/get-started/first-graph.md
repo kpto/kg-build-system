@@ -250,7 +250,7 @@ Create `people_graph/build.py`:
 ```python
 from pathlib import Path
 
-from kg_build_system import build, compile
+from kg_build_system import compile, execute
 from kg_build_system.distribution import FileModule, FileModuleConfiguration, register_module
 
 
@@ -258,7 +258,7 @@ def main() -> None:
     contract = compile(modules=[
         register_module(FileModule, FileModuleConfiguration("graph.jsonl")),
     ])
-    report = build(contract, output_directory=Path(__file__).parent / "build")
+    report = execute(contract, output_directory=Path(__file__).parent / "build")
     for artifact in report.published_artifacts:
         print(artifact.value)
 
@@ -279,7 +279,7 @@ Run the entry point from the project root:
 python -m people_graph.build
 ```
 
-`build()` executes the frozen contract. The configured `FileModule` writes the graph and publishes a summary, which the loop prints:
+`execute()` executes the frozen contract. The configured `FileModule` writes the graph and publishes a summary, which the loop prints:
 
 ```text
 {'nodes': 3, 'edges': 2, 'location': '.../people-graph/people_graph/build/graph.jsonl'}
@@ -327,7 +327,7 @@ If the counts differ, inspect the input keys and the `drop_null()` calls first. 
 - The order is shape, source, meaning, binding: declare the table, bind its source, declare the node or edge, then bind the rows.
 - The `bind` callable receives a symbolic row instance; `row.name` is a typed selection, not a Python value.
 - A `Field[T | None]` reads as nullable; `Field[T]` reads non-null. A key must be a present scalar, so narrow it with `alter_rows().drop_null()` rather than inventing an identity.
-- `compile()` checks the declarations; `build()` reads data and writes outputs.
+- `compile()` checks the declarations; `execute()` reads data and writes outputs.
 - Read the JSON Lines file and confirm the counts before adding more components.
 
 ## Next steps

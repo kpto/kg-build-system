@@ -17,10 +17,10 @@ must prove.
 | Projections | `declaration/languages/table` | a named relation with output expressions and a row source |
 | Data DTO | `declaration/languages/table/model/internal/dto/blueprint_dto.py` | the frozen data part of the blueprint |
 | Blueprint | `declaration/blueprint` | assembles the layer DTOs |
-| Relational plan | `pipeline/compilation/model/internal` | engine-neutral relation plans |
-| Instruction emission | `pipeline/compilation/service/internal/instruction` | turns a plan into an `InstructionDTO` |
-| SQL emitter | `pipeline/compilation/service/_private/instructions/duckdb` | emits DuckDB SQL for an instruction |
-| Engine boundary | `pipeline/build/service/internal/engine` | opens and runs the build engine |
+| Relational plan | `pipeline/compile/model/internal` | engine-neutral relation plans |
+| Instruction emission | `pipeline/compile/service/internal/instruction` | turns a plan into an `InstructionDTO` |
+| SQL emitter | `pipeline/compile/service/_private/instructions/duckdb` | emits DuckDB SQL for an instruction |
+| Engine boundary | `pipeline/execution/service/internal/engine` | opens and runs the build engine |
 
 `table` is the `data` language. `expressions` contributes operations and
 expression DTOs; it is not a language and does not own a build part.
@@ -209,11 +209,11 @@ The data model is implemented:
   sources)`, a composing codec and a source service. `blueprint_to_source`
   delegates to the table, topology and binding renderers and assembles their
   fragments.
-- `pipeline/compilation/model/internal` owns the engine-neutral relation plans and
-  instruction kinds. `pipeline/compilation/service/internal/instruction` owns the
-  emitter interfaces, and `pipeline/compilation/service/_private/instructions`
+- `pipeline/compile/model/internal` owns the engine-neutral relation plans and
+  instruction kinds. `pipeline/compile/service/internal/instruction` owns the
+  emitter interfaces, and `pipeline/compile/service/_private/instructions`
   holds the Python and DuckDB emitters.
-- `pipeline/build` dispatches on `step.instruction.kind`; SQL is one instruction
+- `pipeline/execution` dispatches on `step.instruction.kind`; SQL is one instruction
   kind.
 
 The canonical type DTOs live in `kernel/model/internal/types`; the package root

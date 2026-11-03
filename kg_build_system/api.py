@@ -23,8 +23,8 @@ from typing import Any
 from .declaration.blueprint import GraphBlueprint, create_blueprint as _create_blueprint
 from .declaration.languages.binding import Binding
 from .declaration.languages.table import BoundSource
-from .pipeline.build import build
-from .pipeline.compilation import compile_blueprint
+from .pipeline.compile import compile_blueprint
+from .pipeline.execution import execute
 
 
 def _calling_namespace_path() -> Path:
@@ -128,5 +128,6 @@ def compile(
 
 
 __all__ = [
-    "GraphBlueprint", "build", "compile", "compile_blueprint", "create_blueprint",
+    "GraphBlueprint", "compile", "compile_blueprint", "create_blueprint",
+    "execute",
 ]

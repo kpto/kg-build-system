@@ -41,7 +41,7 @@ if TYPE_CHECKING:
         Nullable, NullableType, Shape, STR, TIME, TIMESTAMP, Time, Timestamp,
         UUID, Uuid,
     )
-    from .pipeline.build import BuildRuntime, WorkflowReport, build
+    from .pipeline.execution import BuildRuntime, WorkflowReport, execute
 
 _GROUPS: dict[str, tuple[str, ...]] = {
     "declaration.foundations.annotations": ("Annotation", "EdgeLabel", "NodeLabel"),
@@ -78,7 +78,7 @@ _GROUPS: dict[str, tuple[str, ...]] = {
         "NullableType", "Shape", "Time", "Timestamp", "Uuid",
         "BOOL", "INT", "FLOAT", "STR", "DATE", "TIME", "TIMESTAMP", "UUID",
     ),
-    "pipeline.build": ("BuildRuntime", "WorkflowReport", "build"),
+    "pipeline.execution": ("BuildRuntime", "WorkflowReport", "execute"),
 }
 
 __all__ = [name for names in _GROUPS.values() for name in names]
