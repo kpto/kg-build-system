@@ -122,6 +122,9 @@ rule about what the framework is belongs to the framework model.
 - A package shared only inside one system belongs to that system. It does not
   become a `foundation` package just because several layers use it. Only a
   package every system needs, and cannot replace, moves to the kernel.
+- The package tree shows the primary dependency spine. A shared artifact or
+  interface is the root of its consumer cluster. A tree cannot encode every
+  edge; the dependency tests enforce the rest.
 - `table`, `topology` and `binding` are languages; `expressions` contributes
   operations; `core` is a module; engines own code generation.
 - An operation is one specification plus one engine lowerer. Adding one does not
