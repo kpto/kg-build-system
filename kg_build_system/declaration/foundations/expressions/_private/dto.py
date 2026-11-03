@@ -1,6 +1,8 @@
 """Map the authoring expression model to the expression blueprint DTO."""
 from __future__ import annotations
 
+from collections.abc import Iterator
+
 from kg_build_system.kernel.internal.types import type_to_dto
 
 from ..internal.dto.blueprint_dto import (
@@ -39,4 +41,12 @@ def expression_dto(value: ExpressionNode) -> ExpressionDTO:
     raise TypeError(f"unsupported expression model {value!r}")
 
 
-__all__ = ["expression_dto"]
+def walk_expression_dto(expression: ExpressionDTO) -> Iterator[ExpressionDTO]:
+    """Yield an expression DTO tree in deterministic pre-order."""
+    yield expression
+    if isinstance(expression, OperationExpressionDTO):
+        for argument in expression.arguments:
+            yield from walk_expression_dto(argument)
+
+
+__all__ = ["expression_dto", "walk_expression_dto"]

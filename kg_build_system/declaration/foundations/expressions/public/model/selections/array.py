@@ -20,8 +20,8 @@ from .......kernel.internal.types import Array, ArrayType, INT, Nullable, STR
 from ...._private.apply import apply_operation
 from ...._private.coercion import expression_input
 from ..values import ValueExpression
-from ...._private.selections import _expand, select_expression
-from ._types import NullableDataType, SelectionUnit
+from ...._private.selections import _expand as expand_selection, require_expression, select_expression
+from .types import NullableDataType, SelectionUnit
 from .value import ValueInput, ValueSelection
 
 if TYPE_CHECKING:
@@ -70,14 +70,14 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
             assert selected.model.operator == "transform_items"
             ```
         """
-        from ...._private.arrays import _transform_items
+        from ...._private.arrays import _transform_items as transform_items
 
-        expression = self._require_expression()
+        expression = require_expression(self)
         if not isinstance(self.logical_type, ArrayType):
             raise TypeError("transform_items requires an array selection")
         return cast(
             "ArraySelection[Any]",
-            select_expression(_transform_items(expression, selector)),
+            select_expression(transform_items(expression, selector)),
         )
 
     @overload
@@ -102,14 +102,14 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
             assert selected.model.operator == "drop_null_items"
             ```
         """
-        from ...._private.arrays import _drop_null_items
+        from ...._private.arrays import _drop_null_items as drop_null_items
 
-        expression = self._require_expression()
+        expression = require_expression(self)
         if not isinstance(self.logical_type, ArrayType):
             raise TypeError("drop_null_items requires an array selection")
         return cast(
             "ArraySelection[Any]",
-            select_expression(_drop_null_items(expression)),
+            select_expression(drop_null_items(expression)),
         )
 
     def sort(self) -> "ArraySelection[TItem]":
@@ -125,14 +125,14 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
             assert Row.names.sort().model.operator == "sort"
             ```
         """
-        from ...._private.arrays import _array_operation
+        from ...._private.arrays import _array_operation as array_operation
 
-        expression = self._require_expression()
+        expression = require_expression(self)
         if not isinstance(self.logical_type, ArrayType):
             raise TypeError("sort requires an array selection")
         return cast(
             "ArraySelection[TItem]",
-            select_expression(_array_operation(expression, "sort")),
+            select_expression(array_operation(expression, "sort")),
         )
 
     def distinct(self) -> "ArraySelection[TItem]":
@@ -148,14 +148,14 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
             assert Row.names.distinct().model.operator == "distinct"
             ```
         """
-        from ...._private.arrays import _array_operation
+        from ...._private.arrays import _array_operation as array_operation
 
-        expression = self._require_expression()
+        expression = require_expression(self)
         if not isinstance(self.logical_type, ArrayType):
             raise TypeError("distinct requires an array selection")
         return cast(
             "ArraySelection[TItem]",
-            select_expression(_array_operation(expression, "distinct")),
+            select_expression(array_operation(expression, "distinct")),
         )
 
     def unique(self) -> "ArraySelection[TItem]":
@@ -186,7 +186,7 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
             assert Row.names.join(", ").logical_type.name == "str"
             ```
         """
-        expression = self._require_expression()
+        expression = require_expression(self)
         if not isinstance(self.logical_type, ArrayType):
             raise TypeError("join requires an array selection")
         return select_expression(
@@ -236,7 +236,7 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
             raise TypeError("at requires an array selection")
         result = apply_operation(
             "array_at",
-            self._require_expression(),
+            require_expression(self),
             expression_input(index, INT),
         )
         return select_expression(result)
@@ -258,7 +258,7 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
             raise TypeError("slice requires an array selection")
         result = apply_operation(
             "array_slice",
-            self._require_expression(),
+            require_expression(self),
             expression_input(start, INT),
             expression_input(end, INT),
         )
@@ -311,7 +311,7 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
         logical_type = self.logical_type
         if not isinstance(logical_type, ArrayType):
             raise TypeError("expand requires an array selection")
-        return _expand(self._require_expression())
+        return expand_selection(require_expression(self))
 
 
 __all__ = ["ArraySelection"]

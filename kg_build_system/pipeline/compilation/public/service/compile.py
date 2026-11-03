@@ -4,8 +4,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from ...internal.compiler import GraphBlueprint, compile_blueprint as _compile
+from .....declaration.blueprint.public import GraphBlueprint
 from ....contract.public import WorkflowContractDTO
+from ..._private.compiler.pipeline import compile_blueprint as _compile
 
 
 def compile_blueprint(

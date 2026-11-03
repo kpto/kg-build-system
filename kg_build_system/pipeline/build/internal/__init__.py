@@ -1,32 +1,12 @@
 """Framework-internal interface of the build package.
 
-The contract reader, instruction dispatch, engine and runtime are internal. The
-author-facing surface is :mod:`kg_build_system.pipeline.build.public`.
+The relation-service protocols are the data and protocol names another package
+may depend on. Build execution, instruction dispatch, the engine and storage are
+private mechanisms. The author-facing surface is
+:mod:`kg_build_system.pipeline.build.public`.
 """
 from __future__ import annotations
 
-from .contract import (
-    BuildContract,
-    ContractStep,
-    ContractWorkflow,
-    Instruction,
-    read_contract,
-)
-from .instructions import (
-    InstructionDispatcher,
-    InstructionExecutor,
-    UnknownInstructionKind,
-    instruction_payload,
-)
+from .relations import RelationQueryResult, RelationRef, RelationService
 
-__all__ = [
-    "BuildContract",
-    "ContractStep",
-    "ContractWorkflow",
-    "Instruction",
-    "InstructionDispatcher",
-    "InstructionExecutor",
-    "UnknownInstructionKind",
-    "instruction_payload",
-    "read_contract",
-]
+__all__ = ["RelationQueryResult", "RelationRef", "RelationService"]

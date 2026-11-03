@@ -1,8 +1,8 @@
 """Framework-internal interface of the compilation package.
 
-It exposes the module compilation pipeline, the engine-neutral relation plans,
-the instruction emitters and the shared contract vocabulary. Callers outside the
-framework use :func:`compile_blueprint`.
+It exposes the engine-neutral relation plan data, the instruction protocol and
+kind names, and the shared contract vocabulary. Compilation services and
+mechanisms live in ``public`` and ``_private``.
 """
 from __future__ import annotations
 
@@ -21,55 +21,36 @@ from ...contract.public import (
     StepDTO,
     WorkflowContractDTO,
 )
-from .compiler import (
-    GraphBlueprint,
-    assemble_contract,
-    compile_blueprint,
-    decompose,
-)
-from .instruction import (
-    DuckDbSqlEmitter,
-    InstructionEmitter,
-    PythonInstructionEmitter,
+from .instruction.model import (
+    PYTHON_INSTRUCTION_KIND,
+    SQL_INSTRUCTION_KIND,
     PythonReference,
     SqlEmissionContext,
 )
-from .relational import (
-    Expand,
-    Filter,
-    RelationPlan,
-    Scan,
-    expansion_scope,
-    plan_product,
-)
+from .instruction.protocol import InstructionEmitter
+from .model import Expand, Filter, RelationPlan, Scan
 
 __all__ = [
     "ArtifactTypeDTO",
     "ConnectionDTO",
     "ContributionDTO",
-    "DuckDbSqlEmitter",
     "Expand",
     "Filter",
     "GivenDTO",
-    "GraphBlueprint",
     "InputDTO",
     "InstructionDTO",
     "InstructionEmitter",
     "ModuleDefinitionDTO",
     "ModuleReferenceDTO",
     "OutputDTO",
+    "PYTHON_INSTRUCTION_KIND",
     "PublicationDTO",
-    "PythonInstructionEmitter",
     "PythonReference",
     "RelationPlan",
     "RuntimeFieldDTO",
+    "SQL_INSTRUCTION_KIND",
     "Scan",
     "SqlEmissionContext",
     "StepDTO",
     "WorkflowContractDTO",
-    "assemble_contract",
-    "compile_blueprint",
-    "decompose",
-    "expansion_scope",
-    "plan_product",
 ]

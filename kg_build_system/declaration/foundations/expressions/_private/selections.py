@@ -2,16 +2,30 @@
 from __future__ import annotations
 
 import importlib
+from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, cast
 
 from .....kernel.internal.types import ArrayType, LogicalType, NullableType, StructType
-from ..internal.service.build import field_reference
 from ..internal.model import Traversal
 from .apply import apply_operation
+from .build import field_reference
 
 if TYPE_CHECKING:
     from ..public.model.selections.value import ValueInput, ValueSelection
     from ..public.model.values import ValueExpression
+
+
+@dataclass(frozen=True, slots=True)
+class SelectedMember:
+    name: str
+    logical_type: LogicalType
+    declaration: Any
+
+
+def require_expression(selection: ValueSelection[Any]) -> ValueExpression[Any]:
+    if selection._value is None:
+        raise TypeError("a struct member selection is only valid inside extract")
+    return selection._value
 
 
 def _declaration(logical_type: StructType):
@@ -47,7 +61,7 @@ def _pick(
     result_type = member.logical_type
     if propagate_null and not isinstance(result_type, NullableType):
         result_type = NullableType(result_type)
-    parent_model = parent._require_expression().model
+    parent_model = require_expression(parent).model
 
     if isinstance(parent_model, FieldReferenceExpression):
         path = (*parent_model.path, member.name)
@@ -83,6 +97,15 @@ def _expand(expression: ValueExpression[Any]):
     return select_expression_from_node(apply_operation("expand", expression.model))
 
 
+def drop_null_selection(selection: ValueSelection[Any]):
+    logical_type = selection.logical_type
+    if not isinstance(logical_type, NullableType):
+        raise TypeError("where_present requires a nullable selection")
+    return select_expression(
+        apply_operation("where_present", require_expression(selection))
+    )
+
+
 def select_expression_from_node(expression):
     from ..public.model.selections.array import ArraySelection
     from ..public.model.selections.nullable import NullableSelection
@@ -115,9 +138,9 @@ def select_member(
     from ..public.model.selections.array import ArraySelection
     from ..public.model.selections.nullable import NullableSelection
     from ..public.model.selections.struct import StructSelection
-    from ..public.model.selections.value import _SelectedMember, ValueSelection
+    from ..public.model.selections.value import ValueSelection
 
-    member = _SelectedMember(name, logical_type, declaration)
+    member = SelectedMember(name, logical_type, declaration)
     base = logical_type.value if isinstance(logical_type, NullableType) else logical_type
     if isinstance(logical_type, NullableType):
         return NullableSelection(member=member)
@@ -134,13 +157,13 @@ def as_expression[T](value: ValueInput[T]) -> ValueExpression[T]:
     from ..public.model.values import ValueExpression
 
     if isinstance(value, ValueSelection):
-        return cast("ValueExpression[T]", value._require_expression())
+        return cast("ValueExpression[T]", require_expression(value))
     if isinstance(value, ValueExpression):
         return value
     raise TypeError("expected a value selection or value expression")
 
 
 __all__ = [
-    "as_expression", "select_expression", "select_expression_from_node",
-    "select_member",
+    "SelectedMember", "as_expression", "drop_null_selection", "require_expression",
+    "select_expression", "select_expression_from_node", "select_member",
 ]

@@ -4,8 +4,10 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from ..service.source import SourceFragment, render_data
-from ..service.transcription import (
+from kg_build_system.declaration.internal import SourceFragment
+
+from ..._private.source import render_data
+from ..._private.transcription import (
     collect_values, transcribe_data, validate_data,
 )
 from ..dto.blueprint_dto import DataPartDTO

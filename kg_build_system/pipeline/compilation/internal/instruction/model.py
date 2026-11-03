@@ -1,7 +1,10 @@
-"""Instruction-emitter plans and shared emission values."""
+"""Instruction-emitter plans, shared emission values and instruction kinds."""
 from __future__ import annotations
 
 from dataclasses import dataclass
+
+SQL_INSTRUCTION_KIND = "sql"
+PYTHON_INSTRUCTION_KIND = "python"
 
 
 @dataclass(frozen=True, slots=True)
@@ -20,4 +23,9 @@ class SqlEmissionContext:
     relation: str | None = None
 
 
-__all__ = ["PythonReference", "SqlEmissionContext"]
+__all__ = [
+    "PYTHON_INSTRUCTION_KIND",
+    "SQL_INSTRUCTION_KIND",
+    "PythonReference",
+    "SqlEmissionContext",
+]

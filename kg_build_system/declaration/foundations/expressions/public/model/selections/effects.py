@@ -22,7 +22,7 @@ if TYPE_CHECKING:
     from ..boolean import BoolExpression
     from .array import ArraySelection
     from .nullable import NullableSelection
-    from ._types import NullableDataType, SelectionUnit
+    from .types import NullableDataType, SelectionUnit
     from .value import ValueSelection
 
 

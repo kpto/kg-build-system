@@ -6,7 +6,6 @@ from typing import Any, ClassVar
 
 from ....kernel import ExecutorFactoryContext
 from ...internal.adapters.kernel_module import KernelModule
-from ...internal.service.paths import validate_relative_path
 from ...public.model.registration import ModuleRegistrationConfiguration
 
 
@@ -39,14 +38,13 @@ class MetaGraphModuleConfiguration(ModuleRegistrationConfiguration):
     html_relative_path: str = "meta_graph.html"
 
     def __post_init__(self) -> None:
-        validate_relative_path(
-            self.relative_path, context="meta-graph document path",
+        from ..._private.modules.meta_graph.configuration import validate
+
+        validate(
+            relative_path=self.relative_path,
+            html_relative_path=self.html_relative_path,
+            example_limit=self.example_limit,
         )
-        validate_relative_path(
-            self.html_relative_path, context="meta-graph HTML path",
-        )
-        if self.example_limit < 0:
-            raise ValueError("meta-graph example limit may not be negative")
 
 
 class MetaGraphModule(KernelModule):
@@ -79,14 +77,14 @@ class MetaGraphModule(KernelModule):
     @classmethod
     def compiler(cls, configuration: Any) -> Any:
         """Create the compiler for this module version."""
-        from .compiler import MetaGraphCompiler
+        from ..._private.modules.meta_graph.compiler import MetaGraphCompiler
 
         return MetaGraphCompiler(configuration)
 
     @classmethod
     def executor(cls, context: ExecutorFactoryContext) -> Any:
         """Create the executor for this module version."""
-        from .executor import MetaGraphExecutor
+        from ..._private.modules.meta_graph.executor import MetaGraphExecutor
 
         return MetaGraphExecutor()
 

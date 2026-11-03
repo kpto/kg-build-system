@@ -1,9 +1,6 @@
-"""Private mechanisms of the compilation package.
+"""Private compilation mechanisms.
 
-The compilation mechanisms currently live under ``internal`` because module
-compilers, the relational planner and the instruction emitters are the
-framework-internal interface while the refactor is in progress.
+The compilation pipeline, planning algorithms and instruction emitters live
+here; the internal zone holds their data, protocols and wrappers.
 """
 from __future__ import annotations
-
-__all__: list[str] = []

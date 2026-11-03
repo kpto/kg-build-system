@@ -1,7 +1,7 @@
 """The array distinct operation."""
 from __future__ import annotations
 
-from ._predicates import is_array
+from ...._private.predicates import is_array
 from .spec import ArgumentSpec, OperationSpec
 
 

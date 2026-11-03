@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from .......kernel.internal.types import INT
-from ._predicates import is_array, is_exact
+from ...._private.predicates import is_array, is_exact
 from .spec import ArgumentSpec, OperationSpec
 
 

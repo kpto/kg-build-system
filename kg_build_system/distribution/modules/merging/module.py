@@ -1,14 +1,11 @@
 """The compatible-facts merging module."""
 from __future__ import annotations
 
-import importlib
-from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any, ClassVar
 
 from ....kernel import ExecutorFactoryContext
 from ...internal.adapters.kernel_module import KernelModule
-from ...internal.service.runtime import thaw_object
 from ...public.model.registration import ModuleRegistrationConfiguration
 
 
@@ -42,59 +39,14 @@ class MergeCompatibleFactsModuleConfiguration(ModuleRegistrationConfiguration):
     components: tuple[type[Any], ...] | None = None
 
     def __post_init__(self) -> None:
-        if self.components is not None:
-            from ....declaration.languages.topology.internal import (
-                component_kind,
-                is_abstract_component,
-            )
+        from ..._private.modules.merging.configuration import resolve_components
 
-            values = tuple(
-                _resolve_component(component) for component in self.components
-            )
-            for component in values:
-                if (
-                    not isinstance(component, type)
-                    or component_kind(component) not in {"node", "edge"}
-                    or is_abstract_component(component)
-                ):
-                    raise TypeError(
-                        "components must be concrete Node or Edge classes"
-                    )
-            object.__setattr__(self, "components", values)
+        object.__setattr__(self, "components", resolve_components(self.components))
 
     def to_json(self) -> Any:
-        return {
-            "components": (
-                None if self.components is None
-                else [
-                    {
-                        "module": component.__module__,
-                        "qualname": component.__qualname__,
-                    }
-                    for component in self.components
-                ]
-            ),
-        }
+        from ..._private.modules.merging.configuration import components_json
 
-
-def _resolve_component(value: Any) -> Any:
-    if isinstance(value, type):
-        return value
-    value = thaw_object(value)
-    if isinstance(value, Mapping):
-        module = importlib.import_module(str(value["module"]))
-        component: Any = module
-        for part in str(value["qualname"]).split("."):
-            component = getattr(component, part)
-        return component
-    raise TypeError("components must be concrete Node or Edge classes")
-
-
-def component_name(component: type[Any]) -> str:
-    name = getattr(component, "_component_name", None)
-    if not isinstance(name, str) or not name:
-        raise TypeError("components must name a declared node or edge")
-    return name
+        return components_json(self.components)
 
 
 class MergeCompatibleFactsModule(KernelModule):
@@ -128,14 +80,14 @@ class MergeCompatibleFactsModule(KernelModule):
     @classmethod
     def compiler(cls, configuration: Any) -> Any:
         """Create the compiler for this module version."""
-        from .compiler import MergingCompiler
+        from ..._private.modules.merging.compiler import MergingCompiler
 
         return MergingCompiler(configuration)
 
     @classmethod
     def executor(cls, context: ExecutorFactoryContext) -> Any:
         """Create the executor for this module version."""
-        from .executor import MergingExecutor
+        from ..._private.modules.merging.executor import MergingExecutor
 
         return MergingExecutor()
 
@@ -143,5 +95,4 @@ class MergeCompatibleFactsModule(KernelModule):
 __all__ = [
     "MergeCompatibleFactsModule",
     "MergeCompatibleFactsModuleConfiguration",
-    "component_name",
 ]

@@ -1,12 +1,14 @@
 # pyright: reportUnsupportedDunderAll=false
 """Framework-internal interface of the table language.
 
-Another subpackage imports the language adapter, its blueprint DTO and codec
-here. The author-facing names live in the package's ``public`` zone.
+Another subpackage imports the language adapter, its blueprint DTO, codec and
+row-source interface here. The author-facing names live in the package's
+``public`` zone.
 
-The adapter, services and row algebra are resolved lazily: class creation imports
-the model specs while the internal package is still initialising, and those
-specs must not pull the public field descriptors back through this facade.
+This facade imports DTO and model data only. The codec, adapter, services and
+row algebra are resolved lazily: class creation imports the model specs while
+the internal package is still initialising, and those specs must not pull the
+public field descriptors back through this facade.
 """
 from __future__ import annotations
 
@@ -17,7 +19,6 @@ from .dto.blueprint_dto import (
     RowFilterDTO, RowGroupByDTO, RowJoinDTO, RowOrderByDTO, RowScanDTO,
     RowSourcePlanDTO, RowUnionDTO, SourceDTO, StructDTO,
 )
-from .dto.codec import data_from_document, data_to_document
 from .model.declarations import DeclarationSpec
 from .model.fields import FieldSpec
 
@@ -27,6 +28,8 @@ _LAZY = {
     "as_row_source": ("model.rows", "as_row_source"),
     "collect_declarations": ("service.transcription", "collect_declarations"),
     "collect_values": ("service.transcription", "collect_values"),
+    "data_from_document": ("dto.codec", "data_from_document"),
+    "data_to_document": ("dto.codec", "data_to_document"),
     "declaration_source_name": ("model.rows", "declaration_source_name"),
     "derive_distinct": ("model.rows", "derive_distinct"),
     "derive_group_by": ("model.rows", "derive_group_by"),

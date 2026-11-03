@@ -10,24 +10,21 @@ from collections.abc import Callable, Iterator, Mapping
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Literal, TypeAlias
 
-from .......kernel.internal.json import freeze_json
-from ...._private.literals import literal
-from ...model import ExpressionNode, OperationExpression, OperationParameter, RowSemantics
-from ...._private.semantics import compose_row_semantics
 from .......kernel.internal.types import LogicalType
+from ...model import ExpressionNode, OperationExpression, RowSemantics
 
 if TYPE_CHECKING:
     from ....public.model.values import ValueExpression
 
 
-_ARITY: TypeAlias = int | tuple[int, int | None]
+Arity: TypeAlias = int | tuple[int, int | None]
 
 
-class _Missing:
+class Missing:
     """Marker for an operation parameter with no default."""
 
 
-_MISSING = _Missing()
+MISSING = Missing()
 
 
 @dataclass(frozen=True, slots=True)
@@ -44,12 +41,12 @@ class ParameterSpec:
     """One named operation parameter and its validation rule."""
 
     name: str
-    default: Any = _MISSING
+    default: Any = MISSING
     accepts: Callable[[Any], bool] | None = None
 
     @property
     def required(self) -> bool:
-        return self.default is _MISSING
+        return self.default is MISSING
 
 
 ResultTypeResolver: TypeAlias = Callable[
@@ -91,14 +88,9 @@ class RowEffectSpec:
         types: tuple[LogicalType, ...],
         parameters: Mapping[str, Any],
     ) -> RowSemantics:
-        if self.kind == "expand":
-            if self.scope is None:
-                raise TypeError("expanding row effects require a scope resolver")
-            scope = self.scope(nodes, types, parameters)
-            if not scope:
-                raise ValueError("expanding row effects require a non-empty scope")
-            return RowSemantics("expand", scope)
-        return RowSemantics("filter")
+        from ...._private.operations import resolve_row_effect_spec
+
+        return resolve_row_effect_spec(self, nodes, types, parameters)
 
 
 @dataclass(frozen=True, slots=True)
@@ -106,7 +98,7 @@ class OperationSpec:
     """The single declaration of one operation."""
 
     name: str
-    arity: _ARITY
+    arity: Arity
     arguments: tuple[ArgumentSpec, ...] = ()
     parameters: tuple[ParameterSpec, ...] = ()
     result_type: ResultTypeResolver | LogicalType | None = None
@@ -132,90 +124,15 @@ class OperationSpec:
             raise ValueError("operation parameter names must be non-empty")
 
     def accepts_arity(self, count: int) -> bool:
-        if isinstance(self.arity, int):
-            return count == self.arity
-        minimum, maximum = self.arity
-        return count >= minimum and (maximum is None or count <= maximum)
+        from ...._private.operations import accepts_arity
 
-    def _arity_message(self) -> str:
-        if isinstance(self.arity, int):
-            return f"{self.name} requires {self.arity} arguments"
-        minimum, maximum = self.arity
-        if maximum is None:
-            return f"{self.name} requires at least {minimum} arguments"
-        return f"{self.name} requires between {minimum} and {maximum} arguments"
-
-    def _argument_spec(self, index: int) -> ArgumentSpec | None:
-        if index < len(self.arguments):
-            return self.arguments[index]
-        if self.repeat_last_argument and self.arguments:
-            return self.arguments[-1]
-        return None
-
-    def _coerce(self, value: Any, index: int, types: tuple[LogicalType, ...]) -> ExpressionNode:
-        if isinstance(value, ExpressionNode):
-            return value
-        model = getattr(value, "model", None)
-        if isinstance(model, ExpressionNode):
-            return model
-        spec = self._argument_spec(index)
-        expected: LogicalType | None = None
-        if spec is not None and spec.expected is not None:
-            expected = (
-                spec.expected(types)
-                if callable(spec.expected)
-                else spec.expected
-            )
-        return literal(value, logical_type=expected)
-
-    def _parameters(self, values: Mapping[str, Any]) -> dict[str, Any]:
-        declared = {parameter.name: parameter for parameter in self.parameters}
-        unknown = set(values) - set(declared)
-        if unknown:
-            raise TypeError(
-                f"{self.name} received unknown parameters {sorted(unknown)}"
-            )
-        resolved: dict[str, Any] = {}
-        for parameter in self.parameters:
-            if parameter.name in values:
-                value = values[parameter.name]
-            elif parameter.required:
-                raise TypeError(
-                    f"{self.name} requires parameter {parameter.name!r}"
-                )
-            else:
-                value = parameter.default
-            if parameter.accepts is not None and not parameter.accepts(value):
-                raise ValueError(
-                    f"{self.name} parameter {parameter.name!r} has invalid value {value!r}"
-                )
-            resolved[parameter.name] = value
-        return resolved
-
-    def _validate_types(
-        self,
-        nodes: tuple[ExpressionNode, ...],
-        parameters: Mapping[str, Any],
-    ) -> tuple[LogicalType, ...]:
-        types = tuple(node.logical_type for node in nodes)
-        for index, logical_type in enumerate(types):
-            spec = self._argument_spec(index)
-            if spec is not None and spec.accepts is not None and not spec.accepts(logical_type):
-                raise TypeError(
-                    f"{self.name} argument {index + 1} has logical type "
-                    f"{logical_type!r}, which is not a valid {spec.description}"
-                )
-        if self.validate_arguments is not None:
-            self.validate_arguments(nodes, parameters)
-        return types
+        return accepts_arity(self, count)
 
     def result(self, types: tuple[LogicalType, ...], parameters: Mapping[str, Any]) -> LogicalType:
         """Resolve the result logical type for one argument type tuple."""
-        if self.result_type is None:
-            raise TypeError(f"{self.name} requires an explicit result type")
-        if callable(self.result_type):
-            return self.result_type(types, parameters)
-        return self.result_type
+        from ...._private.operations import resolve_result
+
+        return resolve_result(self, types, parameters)
 
     def semantics(
         self,
@@ -224,11 +141,9 @@ class OperationSpec:
         parameters: Mapping[str, Any],
     ) -> RowSemantics:
         """Resolve the local row effect declared by this operation."""
-        if isinstance(self.row_effect, RowEffectSpec):
-            return self.row_effect.semantics(nodes, types, parameters)
-        if callable(self.row_effect):
-            return self.row_effect(nodes, types, parameters)
-        return self.row_effect
+        from ...._private.operations import resolve_semantics
+
+        return resolve_semantics(self, nodes, types, parameters)
 
     def apply(
         self,
@@ -237,31 +152,9 @@ class OperationSpec:
         **parameters: Any,
     ) -> "ValueExpression[Any]":
         """Build a typed authoring expression, validating the call first."""
-        if not self.accepts_arity(len(arguments)):
-            raise TypeError(self._arity_message())
-        resolved_parameters = self._parameters(parameters)
-        nodes: list[ExpressionNode] = []
-        for index, value in enumerate(arguments):
-            node = self._coerce(value, index, tuple(item.logical_type for item in nodes))
-            nodes.append(node)
-        frozen_nodes = tuple(nodes)
-        types = self._validate_types(frozen_nodes, resolved_parameters)
-        resolved_type = result_type or self.result(types, resolved_parameters)
-        local = self.semantics(frozen_nodes, types, resolved_parameters)
-        expression = OperationExpression(
-            operator=self.name,
-            arguments=frozen_nodes,
-            parameters=tuple(
-                OperationParameter(name, freeze_json(value))
-                for name, value in sorted(resolved_parameters.items())
-                if value is not _MISSING
-            ),
-            logical_type=resolved_type,
-            row_semantics=compose_row_semantics(*frozen_nodes, local=local),
-        )
-        from ....public.service.expression import wrap_expression
+        from ...._private.operations import apply
 
-        return wrap_expression(expression)
+        return apply(self, *arguments, result_type=result_type, **parameters)
 
 
 @dataclass(frozen=True, slots=True)

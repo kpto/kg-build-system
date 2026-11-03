@@ -52,27 +52,6 @@ class PythonRefDTO:
             raise ValueError("a Python binding reference requires a qualified name")
 
 
-def _validate_common(
-    component: str,
-    properties: tuple[tuple[str, ExpressionDTO], ...],
-    mode: str,
-    rows: RowPlanDTO | None,
-) -> None:
-    if not component:
-        raise ValueError("bindings require a non-empty component name")
-    names = tuple(name for name, _ in properties)
-    if any(not name for name in names):
-        raise ValueError("binding property names must be non-empty")
-    if len(names) != len(set(names)):
-        raise ValueError("binding property names must be unique")
-    if mode not in {"declarative", "python"}:
-        raise ValueError(f"unknown binding mode {mode!r}")
-    if mode == "python" and rows is None:
-        raise ValueError("a python binding requires a row plan")
-    if mode == "declarative" and rows is not None:
-        raise ValueError("a declarative binding cannot carry a row plan")
-
-
 @dataclass(frozen=True, slots=True)
 class NodeBindingDTO:
     """One node binding in the blueprint.
@@ -109,7 +88,9 @@ class NodeBindingDTO:
     python_ref: PythonRefDTO | None = None
 
     def __post_init__(self) -> None:
-        _validate_common(self.node, self.properties, self.mode, self.rows)
+        from ..._private.validation import validate_binding
+
+        validate_binding(self.node, self.properties, self.mode, self.rows)
 
     @property
     def component(self) -> str:
@@ -157,7 +138,9 @@ class EdgeBindingDTO:
     python_ref: PythonRefDTO | None = None
 
     def __post_init__(self) -> None:
-        _validate_common(self.edge, self.properties, self.mode, self.rows)
+        from ..._private.validation import validate_binding
+
+        validate_binding(self.edge, self.properties, self.mode, self.rows)
         if self.source_node is not None and not self.source_node:
             raise ValueError("edge binding source_node must be a graph name")
         if self.target_node is not None and not self.target_node:

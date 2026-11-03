@@ -1,8 +1,7 @@
-"""Module loading and compilation pipeline.
+"""Module loading and compilation pipeline wrappers.
 
-The pipeline reads the blueprint, decomposes it into the kernel's in-memory build,
-runs each module compiler and hands the compiled contributions to contract
-assembly.
+The pipeline mechanism lives in ``_private.compiler``; these wrappers keep the
+internal compiler path stable.
 """
 from __future__ import annotations
 

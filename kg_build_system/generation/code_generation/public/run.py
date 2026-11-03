@@ -5,9 +5,8 @@ from collections.abc import AsyncIterator, Iterable
 from pathlib import Path
 from threading import Event
 
-from .._private.discovery import discover as _discover, discover_file as _discover_file
-from .._private.engine import GenerationSession, generate as _generate
-from .._private.watcher import FileChange, watch as _watch
+from .._private.engine import GenerationSession
+from .._private.watcher import FileChange
 from ..internal.models import (
     DiscoveredGeneration, GenerationResult,
 )
@@ -26,7 +25,9 @@ def discover(project_root: str | Path) -> tuple[DiscoveredGeneration, ...]:
         requests = discover(".")
         ```
     """
-    return _discover(project_root)
+    from .._private.discovery import discover as implementation
+
+    return implementation(project_root)
 
 
 def discover_file(
@@ -45,7 +46,9 @@ def discover_file(
         requests = discover_file(".", "contracts/__init__.py")
         ```
     """
-    return _discover_file(project_root, source_path)
+    from .._private.discovery import discover_file as implementation
+
+    return implementation(project_root, source_path)
 
 
 async def generate(
@@ -68,7 +71,9 @@ async def generate(
         result.status
         ```
     """
-    return await _generate(project_root, check=check, regenerate=regenerate)
+    from .._private.engine import generate as implementation
+
+    return await implementation(project_root, check=check, regenerate=regenerate)
 
 
 async def watch(
@@ -98,7 +103,9 @@ async def watch(
         asyncio.run(print_changes())
         ```
     """
-    async for batch in _watch(
+    from .._private.watcher import watch as implementation
+
+    async for batch in implementation(
         root, debounce=debounce, step=step, suffixes=suffixes,
         stop_event=stop_event,
     ):

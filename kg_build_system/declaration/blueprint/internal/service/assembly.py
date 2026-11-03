@@ -1,9 +1,4 @@
-"""Assemble the layer DTOs into one public blueprint handle.
-
-Assembly is a structural operation: the graph DTOs already name nodes, edges,
-endpoints and parents, so no authoring module path or declaration expression is
-introduced here.
-"""
+"""Internal wrapper over the private blueprint assembly."""
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -18,24 +13,10 @@ def assemble_blueprint(
     data: DataPartDTO,
     bindings: Sequence[BindingDTO],
 ) -> GraphBlueprint:
-    """Assemble the layer DTOs into one blueprint handle.
+    """Assemble the layer DTOs into one blueprint handle."""
+    from ..._private.assembly import assemble_blueprint as implementation
 
-    Physical sources belong to the table language DTO and are exposed as the
-    blueprint's ``sources`` view. No authoring module path is introduced.
-
-    Example:
-    ```python
-    from kg_build_system.declaration.blueprint.internal import assemble_blueprint
-
-    blueprint = assemble_blueprint(graph, data, bindings)
-    ```
-    """
-    return GraphBlueprint(
-        graph=graph,
-        data=data,
-        bindings=tuple(bindings),
-        sources=tuple(getattr(data, "sources", ())),
-    )
+    return implementation(graph, data, bindings)
 
 
 __all__ = ["assemble_blueprint"]

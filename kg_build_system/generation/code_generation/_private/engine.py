@@ -20,8 +20,8 @@ from ..internal.models import (
     DiscoveredGeneration, GenerationAction, GenerationActionKind, GenerationError,
     GenerationManifest, GenerationResult, GenerationStatus,
 )
-from ..internal.adapters.provider import load_provider
 from ..internal.providers import ProviderContext
+from .adapters import load_provider
 from .rendering import FORMAT_VERSION, HEADER, generation_fingerprint, render_package
 
 

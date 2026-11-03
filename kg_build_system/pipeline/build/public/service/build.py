@@ -1,42 +1,11 @@
 """The author-facing build entry point."""
 from __future__ import annotations
 
-import json
-from dataclasses import asdict, replace
 from pathlib import Path
 
 from ..model.runtime import BuildRuntime, WorkflowReport
-from ....contract.internal import contract_to_document
 from ....contract.public import WorkflowContractDTO
-from ...internal.contract import read_contract
-from ...internal.runtime.executor import execute_contract, resolve_monitor
-from ...internal.runtime.monitor import WorkflowExecutionMonitor
-
-
-def _contract_text(contract: WorkflowContractDTO) -> str:
-    if isinstance(contract, WorkflowContractDTO):
-        return json.dumps(
-            contract_to_document(contract),
-            indent=2,
-            sort_keys=True,
-            default=str,
-        )
-    dump = getattr(contract, "model_dump_json", None)
-    if callable(dump):
-        return str(dump(indent=2))
-    return json.dumps(contract, indent=2, sort_keys=True, default=str)
-
-
-def _report_text(report: WorkflowReport) -> str:
-    return json.dumps(
-        asdict(report),
-        indent=2,
-        sort_keys=True,
-        default=lambda item: (
-            item.model_dump(mode="json")
-            if hasattr(item, "model_dump") else str(item)
-        ),
-    )
+from ..._private.runtime.monitor import WorkflowExecutionMonitor
 
 
 def build(
@@ -68,55 +37,16 @@ def build(
             print(failure.module_id, failure.step_id, failure.message)
     ```
     """
-    base = runtime or BuildRuntime()
-    resolved_output = Path(output_directory).resolve()
-    requested_working = (
-        Path(working_directory) if working_directory is not None
-        else Path("_workdir")
+    from ..._private.build import build as implementation
+
+    return implementation(
+        contract,
+        output_directory=output_directory,
+        working_directory=working_directory,
+        temporary_directory=temporary_directory,
+        runtime=runtime,
+        monitor=monitor,
     )
-    resolved_working = (
-        requested_working.resolve()
-        if requested_working.is_absolute()
-        else resolved_output / requested_working
-    )
-    resolved_temporary = (
-        Path(temporary_directory)
-        if temporary_directory is not None
-        else base.temporary_directory
-    )
-    configured = replace(
-        base,
-        output_directory=resolved_output,
-        working_directory=resolved_working,
-        temporary_directory=resolved_temporary,
-    )
-    configured.output_directory.mkdir(parents=True, exist_ok=True)
-    configured.working_directory.mkdir(parents=True, exist_ok=True)
-    if configured.temporary_directory is not None:
-        configured.temporary_directory.mkdir(parents=True, exist_ok=True)
-    (configured.output_directory / "workflow_contract.json").write_text(
-        _contract_text(contract), encoding="utf-8",
-    )
-    build_contract = read_contract(contract)
-    execution_monitor = resolve_monitor(monitor)
-    execution_monitor.start(build_contract.workflow)
-    try:
-        report = execute_contract(build_contract, configured, execution_monitor)
-    except Exception as error:
-        execution_monitor.workflow_halted(str(error))
-        execution_monitor.log(
-            "ERROR",
-            f"Workflow execution stopped: {type(error).__name__}: {error}",
-        )
-        raise
-    else:
-        execution_monitor.workflow_finished(report)
-    finally:
-        execution_monitor.stop()
-    (configured.output_directory / "build_report.json").write_text(
-        _report_text(report), encoding="utf-8",
-    )
-    return report
 
 
 __all__ = ["build"]

@@ -2,13 +2,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from pathlib import Path
 from typing import Any, ClassVar
 
 from ....kernel import ExecutorFactoryContext
 from ...internal.adapters.kernel_module import KernelModule
-from ...internal.service.paths import validate_relative_path
-from ...internal.service.runtime import as_mapping
 from ...public.model.registration import ModuleRegistrationConfiguration
 
 
@@ -41,17 +38,13 @@ class Neo4jModuleConfiguration(ModuleRegistrationConfiguration):
     default_database: str = "neo4j"
 
     def __post_init__(self) -> None:
-        validate_relative_path(
-            self.relative_directory, context="Neo4j output directory",
+        from ..._private.modules.neo4j.configuration import validate
+
+        validate(
+            relative_directory=self.relative_directory,
+            script_name=self.script_name,
+            default_database=self.default_database,
         )
-        validate_relative_path(self.script_name, context="Neo4j script name")
-        if (
-            len(Path(self.script_name).parts) != 1
-            or not self.script_name.endswith(".py")
-        ):
-            raise ValueError("Neo4j script name must be a Python filename")
-        if not isinstance(self.default_database, str) or not self.default_database.strip():
-            raise ValueError("Neo4j default database must be non-empty")
 
 
 class Neo4jModule(KernelModule):
@@ -84,19 +77,16 @@ class Neo4jModule(KernelModule):
     @classmethod
     def compiler(cls, configuration: Any) -> Any:
         """Create the compiler for this module version."""
-        from .compiler import Neo4jCompiler
+        from ..._private.modules.neo4j.compiler import Neo4jCompiler
 
         return Neo4jCompiler(configuration)
 
     @classmethod
     def executor(cls, context: ExecutorFactoryContext) -> Any:
         """Create the executor for this module version."""
-        from .executor import Neo4jExecutor
+        from ..._private.modules.neo4j.executor import executor_for
 
-        return Neo4jExecutor(as_mapping(
-            context.runtime_configuration,
-            context="Neo4j runtime configuration",
-        ))
+        return executor_for(context)
 
 
 __all__ = ["Neo4jModule", "Neo4jModuleConfiguration"]

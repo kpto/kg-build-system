@@ -1,6 +1,6 @@
 """Private mechanisms of the shared workflow contract.
 
-Assembly and document conversion are services in the internal zone; nothing in
-this zone is a contract of its own.
+Assembly and document conversion are implemented here; the internal zone holds
+only the wrappers that expose them.
 """
 from __future__ import annotations

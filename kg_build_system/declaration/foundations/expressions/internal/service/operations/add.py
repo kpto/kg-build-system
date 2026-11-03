@@ -1,15 +1,9 @@
 """The numeric addition operation."""
 from __future__ import annotations
 
-from .......kernel.internal.types import LogicalType
-from ._predicates import is_numeric
+from ...._private.operations import validate_numeric_operation
+from ...._private.predicates import is_numeric
 from .spec import ArgumentSpec, OperationSpec
-
-
-def _validate(arguments, parameters) -> None:
-    left, right = (argument.logical_type for argument in arguments)
-    if left != right:
-        raise TypeError("add requires arguments of one numeric type")
 
 
 ADD = OperationSpec(
@@ -20,7 +14,7 @@ ADD = OperationSpec(
         ArgumentSpec(accepts=is_numeric, description="numeric value"),
     ),
     result_type=lambda types, parameters: types[0],
-    validate_arguments=_validate,
+    validate_arguments=validate_numeric_operation("add"),
 )
 
 

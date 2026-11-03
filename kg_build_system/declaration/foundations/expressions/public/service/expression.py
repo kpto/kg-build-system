@@ -15,9 +15,9 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any, overload
 
 from ......kernel.internal.types import LogicalType
-from ..._private.factory import value_expression as _value_expression
-from ..._private.factory import wrap_expression as _wrap_expression
-from ..._private.literals import literal as _literal
+from ..._private.factory import value_expression as value_expression_impl
+from ..._private.factory import wrap_expression as wrap_expression_impl
+from ..._private.literals import literal as literal_impl
 from ...internal.model import ExpressionNode, LiteralExpression
 from ..model.values import ValueExpression
 
@@ -39,7 +39,7 @@ def wrap_expression(expression: ExpressionNode) -> ValueExpression[Any]:
         assert isinstance(wrapped, BoolExpression)
         ```
     """
-    return _wrap_expression(expression)
+    return wrap_expression_impl(expression)
 
 
 @overload
@@ -70,7 +70,7 @@ def value_expression(
         assert value_expression(1).logical_type.name == "int"
         ```
     """
-    return _value_expression(value, logical_type=logical_type)
+    return value_expression_impl(value, logical_type=logical_type)
 
 
 def literal(
@@ -89,7 +89,7 @@ def literal(
         assert literal(1, logical_type=INT).logical_type == INT
         ```
     """
-    return _literal(value, logical_type=logical_type)
+    return literal_impl(value, logical_type=logical_type)
 
 
 __all__ = ["literal", "value_expression", "wrap_expression"]

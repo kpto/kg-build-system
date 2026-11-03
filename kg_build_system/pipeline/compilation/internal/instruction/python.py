@@ -1,32 +1,17 @@
-"""Python instruction emission.
+"""Python instruction emitter wrapper.
 
-A Python instruction is a stable reference: module, qualified name and signature.
-It is not a live callable and carries no runtime state.
+The emission mechanism lives in ``_private.instructions``; this wrapper keeps the
+internal instruction path stable.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass
-from typing import Any
-
-from ....contract.public import InstructionDTO
-from .model import PythonReference
+from ..._private.instructions.python import (
+    PythonInstructionEmitter as _PythonInstructionEmitter,
+)
 
 
-@dataclass(frozen=True, slots=True)
-class PythonInstructionEmitter:
+class PythonInstructionEmitter(_PythonInstructionEmitter):
     """Emit a Python instruction from a stable callable reference."""
-
-    kind: str = "python"
-
-    def emit(
-        self, plan: PythonReference, context: Any = None,
-    ) -> InstructionDTO:
-        """Return the Python instruction naming ``plan``'s callable."""
-        return InstructionDTO(kind=self.kind, payload={
-            "module": plan.module,
-            "qualname": plan.qualname,
-            "signature": plan.signature,
-        })
 
 
 __all__ = ["PythonInstructionEmitter"]

@@ -1,15 +1,10 @@
 """The 0-based array index operation."""
 from __future__ import annotations
 
-from .......kernel.internal.types import INT, ArrayType, NullableType, non_nullable
-from ._predicates import is_array, is_exact
+from .......kernel.internal.types import INT
+from ...._private.operations import array_at_result
+from ...._private.predicates import is_array, is_exact
 from .spec import ArgumentSpec, OperationSpec
-
-
-def _result(types, parameters):
-    array = non_nullable(types[0])
-    assert isinstance(array, ArrayType)
-    return array.item if isinstance(array.item, NullableType) else NullableType(array.item)
 
 
 ARRAY_AT = OperationSpec(
@@ -19,7 +14,7 @@ ARRAY_AT = OperationSpec(
         ArgumentSpec(accepts=is_array, description="array value"),
         ArgumentSpec(expected=INT, accepts=is_exact(INT), description="integer index"),
     ),
-    result_type=_result,
+    result_type=array_at_result,
 )
 
 

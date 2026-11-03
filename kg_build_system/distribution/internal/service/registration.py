@@ -1,4 +1,4 @@
-"""Implementation of module registration."""
+"""Thin registration wrappers over the private implementation."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
@@ -16,17 +16,20 @@ def register_module(
     configuration: ModuleRegistrationConfiguration | None = None,
 ) -> ModuleRegistration[Any]:
     """Pair a module class with a validated configuration value."""
-    from ...public.model.registration import ModuleRegistration
+    from ..._private.service.registration import register_module as implementation
 
-    resolved = configuration or module_class.CONFIGURATION_TYPE()
-    return ModuleRegistration(module_class, resolved)
+    return implementation(module_class, configuration)
 
 
 def module_configuration_json(
     configuration: ModuleRegistrationConfiguration,
 ) -> Any:
     """Return a module configuration in its JSON-compatible form."""
-    return configuration.to_json()
+    from ..._private.service.registration import (
+        module_configuration_json as implementation,
+    )
+
+    return implementation(configuration)
 
 
 __all__ = ["module_configuration_json", "register_module"]

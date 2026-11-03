@@ -1,38 +1,11 @@
-"""Create a graph blueprint from declarations.
-
-The service collects and transcribes through the kernel registry, assembles the
-layer DTOs and validates the result. It does not take modules and it does not
-compile.
-"""
+"""Create a graph blueprint from declarations."""
 from __future__ import annotations
 
 from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
-from .....kernel import Registry
-from ....languages.binding.internal import BindingLanguage
-from ....languages.table.internal import TableLanguage
-from ....languages.topology.internal import TopologyLanguage
-from ..._private.discovery import _ModuleNamespace, _Namespace, namespace_modules
-from ...internal.service.assembly import assemble_blueprint
-from ...internal.service.validation import validate_blueprint
 from ..dto.graph_blueprint import GraphBlueprint
-
-
-def _default_languages() -> tuple[Any, ...]:
-    """Return the default table, topology and binding languages."""
-    return (TableLanguage(), TopologyLanguage(), BindingLanguage())
-
-
-def _part(build: Any, *names: str) -> Any:
-    """Read the first language part present under one of ``names``."""
-    for name in names:
-        try:
-            return build.part(name)
-        except KeyError:
-            continue
-    raise KeyError(f"the build has none of the language parts {names!r}")
 
 
 def create_blueprint(
@@ -58,25 +31,14 @@ def create_blueprint(
     blueprint = create_blueprint(namespace_path=Path("graph_pipeline"))
     ```
     """
-    explicit_bindings = tuple(bindings)
-    explicit_sources = tuple(sources)
-    if namespace_path is not None:
-        if explicit_bindings or explicit_sources:
-            raise ValueError(
-                "namespace_path cannot be combined with bindings or sources"
-            )
-        namespace: Any = _ModuleNamespace(namespace_modules(namespace_path))
-    else:
-        namespace = _Namespace((*explicit_bindings, *explicit_sources))
-    registry = Registry(tuple(languages or _default_languages()))
-    build = registry.build(namespace)
-    blueprint = assemble_blueprint(
-        _part(build, "topology", "graph"),
-        _part(build, "data", "table"),
-        _part(build, "binding", "bindings"),
+    from ..._private.create import create_blueprint as implementation
+
+    return implementation(
+        namespace_path=namespace_path,
+        bindings=bindings,
+        sources=sources,
+        languages=languages,
     )
-    validate_blueprint(blueprint)
-    return blueprint
 
 
 __all__ = ["create_blueprint"]

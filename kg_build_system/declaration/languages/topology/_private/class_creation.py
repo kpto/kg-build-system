@@ -4,9 +4,8 @@ from __future__ import annotations
 from typing import Any, Generic, Literal, cast, get_args, get_origin
 
 from kg_build_system.declaration.foundations.annotations.internal import Annotation, EdgeLabel, NodeLabel
-from ..internal.model.metadata import (
-    ComponentMetadata, _metadata_for, component_kind, is_abstract_component,
-)
+from ..internal.model.metadata import ComponentMetadata
+from .metadata import component_kind, is_abstract_component, metadata_for
 from .properties import _resolve_properties, declaration_name
 
 
@@ -146,7 +145,7 @@ def _resolve_edge_endpoints(
                 )
         return cast(tuple[type[Any], type[Any]], own)
     if parent is not None:
-        metadata = _metadata_for(parent)
+        metadata = metadata_for(parent)
         assert metadata is not None
         assert metadata.source is not None and metadata.target is not None
         return metadata.source, metadata.target
@@ -293,7 +292,6 @@ def _prepare_topology_declaration(cls: type[Any]) -> None:
 
 def make_endpoint(target: type[object]) -> object:
     """Validate a concrete node class and return its endpoint token."""
-    from ..internal.model.metadata import component_kind, is_abstract_component
     from ..public.model.declarations import Endpoint
 
     if not isinstance(target, type):

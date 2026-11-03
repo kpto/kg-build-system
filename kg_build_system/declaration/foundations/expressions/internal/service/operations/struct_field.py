@@ -1,7 +1,7 @@
 """The struct member read operation."""
 from __future__ import annotations
 
-from ._predicates import is_struct
+from ...._private.predicates import is_struct
 from .spec import ArgumentSpec, OperationSpec, ParameterSpec
 
 

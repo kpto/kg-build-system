@@ -13,13 +13,16 @@ Example:
 from __future__ import annotations
 
 from collections.abc import Callable
-from dataclasses import dataclass
-from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar, cast, overload
+from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar, cast
 
-from .......kernel.internal.types import Array, CustomDataType, LogicalType, Nullable, Struct
+from .......kernel.internal.types import LogicalType
 from ...._private.apply import apply_operation
+from ...._private.descriptors import ExpressionDescriptor
+from ...._private.selections import (
+    SelectedMember, require_expression, select_expression,
+)
 from ..values import ValueExpression
-from ._types import NullableDataType
+from .types import NullableDataType
 
 if TYPE_CHECKING:
     from ..arrays import ArrayExpression
@@ -30,68 +33,22 @@ if TYPE_CHECKING:
     from ..structs import StructExpression
     from ..text import StrExpression
     from .effects import ArrayRowEffects, NullableRowEffects, RowEffects
-    from ._types import NullableDataType
 
 
 TType_co = TypeVar("TType_co", covariant=True)
-
-
-@dataclass(frozen=True, slots=True)
-class _SelectedMember:
-    name: str
-    logical_type: LogicalType
-    declaration: Any
-
-
-class _ExpressionDescriptor:
-    @overload
-    def __get__(self, instance: "ValueSelection[bool]", owner: type[Any] | None) -> "BoolExpression": ...
-    @overload
-    def __get__(self, instance: "ValueSelection[int]", owner: type[Any] | None) -> "IntExpression": ...
-    @overload
-    def __get__(self, instance: "ValueSelection[float]", owner: type[Any] | None) -> "FloatExpression": ...
-    @overload
-    def __get__(self, instance: "ValueSelection[str]", owner: type[Any] | None) -> "StrExpression": ...
-    @overload
-    def __get__[C: CustomDataType](self, instance: "ValueSelection[C]", owner: type[Any] | None) -> "CustomDataTypeExpression[C]": ...
-    @overload
-    def __get__(self, instance: "ValueSelection[Nullable[bool]]", owner: type[Any] | None) -> "NullableExpression[bool, BoolExpression]": ...
-    @overload
-    def __get__(self, instance: "ValueSelection[Nullable[int]]", owner: type[Any] | None) -> "NullableExpression[int, IntExpression]": ...
-    @overload
-    def __get__(self, instance: "ValueSelection[Nullable[float]]", owner: type[Any] | None) -> "NullableExpression[float, FloatExpression]": ...
-    @overload
-    def __get__(self, instance: "ValueSelection[Nullable[str]]", owner: type[Any] | None) -> "NullableExpression[str, StrExpression]": ...
-    @overload
-    def __get__[C: CustomDataType](self, instance: "ValueSelection[Nullable[C]]", owner: type[Any] | None) -> "NullableExpression[C, CustomDataTypeExpression[C]]": ...
-    @overload
-    def __get__[I: NullableDataType](self, instance: "ValueSelection[Array[I]]", owner: type[Any] | None) -> "ArrayExpression[I]": ...
-    @overload
-    def __get__[I: NullableDataType](self, instance: "ValueSelection[Nullable[Array[I]]]", owner: type[Any] | None) -> "NullableExpression[Array[I], ArrayExpression[I]]": ...
-    @overload
-    def __get__[S: Struct](self, instance: "ValueSelection[S]", owner: type[Any] | None) -> "StructExpression[S]": ...
-    @overload
-    def __get__[S: Struct](self, instance: "ValueSelection[Nullable[S]]", owner: type[Any] | None) -> "NullableExpression[S, StructExpression[S]]": ...
-    @overload
-    def __get__[T](self, instance: "ValueSelection[T]", owner: type[Any] | None) -> ValueExpression[T]: ...  # pyright: ignore[reportOverlappingOverload]
-
-    def __get__(self, instance: Any, owner: Any) -> Any:
-        if instance is None:
-            return self
-        return instance._require_expression()
 
 
 class ValueSelection(Generic[TType_co]):
     """A selectable value whose bindable calculation is exposed by ``expression``."""
 
     __slots__ = ("_value", "_member")
-    expression: _ExpressionDescriptor = _ExpressionDescriptor()
+    expression: ExpressionDescriptor = ExpressionDescriptor()
 
     def __init__(
         self,
         value: ValueExpression[Any] | None = None,
         *,
-        member: _SelectedMember | None = None,
+        member: SelectedMember | None = None,
     ) -> None:
         if (value is None) == (member is None):
             raise TypeError("a selection requires exactly one expression or selected member")
@@ -101,7 +58,7 @@ class ValueSelection(Generic[TType_co]):
     @property
     def model(self):
         """The canonical expression node behind this selection."""
-        return self._require_expression().model
+        return require_expression(self).model
 
     @property
     def logical_type(self) -> LogicalType:
@@ -120,13 +77,8 @@ class ValueSelection(Generic[TType_co]):
         return (
             self._value.logical_type
             if self._value is not None
-            else cast(_SelectedMember, self._member).logical_type
+            else cast(SelectedMember, self._member).logical_type
         )
-
-    def _require_expression(self) -> ValueExpression[Any]:
-        if self._value is None:
-            raise TypeError("a struct member selection is only valid inside extract")
-        return self._value
 
     def where_present(self) -> Self:
         """A present value is already present; the old API's narrowing is a no-op.
@@ -180,12 +132,11 @@ class ValueSelection(Generic[TType_co]):
             raise TypeError("drop_if requires a callable predicate")
         result = predicate(self)
         from ..boolean import BoolExpression
-        from ...._private.selections import select_expression
 
         if not isinstance(result, BoolExpression):
             raise TypeError("drop_if predicates must return a BoolExpression")
         selection = apply_operation(
-            "where_if", self._require_expression(), result.model
+            "where_if", require_expression(self), result.model
         )
         return cast(Self, select_expression(selection))
 

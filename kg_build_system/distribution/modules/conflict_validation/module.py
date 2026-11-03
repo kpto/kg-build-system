@@ -73,14 +73,18 @@ class RejectConflictingNonNullValuesModule(KernelModule):
     @classmethod
     def compiler(cls, configuration: Any) -> Any:
         """Create the compiler for this module version."""
-        from .compiler import ConflictValidationCompiler
+        from ..._private.modules.conflict_validation.compiler import (
+            ConflictValidationCompiler,
+        )
 
         return ConflictValidationCompiler(configuration)
 
     @classmethod
     def executor(cls, context: ExecutorFactoryContext) -> Any:
         """Create the executor for this module version."""
-        from .executor import ConflictValidationExecutor
+        from ..._private.modules.conflict_validation.executor import (
+            ConflictValidationExecutor,
+        )
 
         return ConflictValidationExecutor()
 

@@ -134,6 +134,21 @@ class NamingTests(unittest.TestCase):
                     f"{path}:{node.lineno} imports private names {names} from {node.module}",
                 )
 
+    def test_public_and_internal_define_no_private_helpers(self) -> None:
+        for path in _framework_files():
+            relative = path.relative_to(ROOT)
+            if not ({"public", "internal"} & set(relative.parts)):
+                continue
+            for name, line in _definitions(path):
+                if not name.startswith("_"):
+                    continue
+                if name.startswith("__") and name.endswith("__"):
+                    continue
+                self.fail(
+                    f"{path}:{line} defines private helper {name!r} in "
+                    "public/internal; move it to _private"
+                )
+
     def test_plans_and_generated_models_are_not_dtos(self) -> None:
         for path in _framework_files():
             for name, line in _classes(path):

@@ -6,8 +6,7 @@ from typing import Any, ClassVar
 
 from ....kernel import ExecutorFactoryContext
 from ...internal.adapters.kernel_module import KernelModule
-from ...internal.service.paths import validate_relative_path
-from ...internal.service.runtime import as_mapping
+from ..._private.service.paths import validate_relative_path
 from ...public.model.registration import ModuleRegistrationConfiguration
 
 
@@ -67,18 +66,16 @@ class FileModule(KernelModule):
     @classmethod
     def compiler(cls, configuration: Any) -> Any:
         """Create the compiler for this module version."""
-        from .compiler import FileCompiler
+        from ..._private.modules.file.compiler import FileCompiler
 
         return FileCompiler(configuration)
 
     @classmethod
     def executor(cls, context: ExecutorFactoryContext) -> Any:
         """Create the executor for this module version."""
-        from .executor import FileExecutor
+        from ..._private.modules.file.executor import executor_for
 
-        return FileExecutor(as_mapping(
-            context.runtime_configuration, context="file runtime configuration",
-        ))
+        return executor_for(context)
 
 
 __all__ = ["FileModule", "FileModuleConfiguration"]

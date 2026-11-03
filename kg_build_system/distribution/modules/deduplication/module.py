@@ -39,14 +39,18 @@ class CollapseExactDuplicatesModule(KernelModule):
     @classmethod
     def compiler(cls, configuration: Any) -> Any:
         """Create the compiler for this module version."""
-        from .compiler import DeduplicationCompiler
+        from ..._private.modules.deduplication.compiler import (
+            DeduplicationCompiler,
+        )
 
         return DeduplicationCompiler(configuration)
 
     @classmethod
     def executor(cls, context: ExecutorFactoryContext) -> Any:
         """Create the executor for this module version."""
-        from .executor import DeduplicationExecutor
+        from ..._private.modules.deduplication.executor import (
+            DeduplicationExecutor,
+        )
 
         return DeduplicationExecutor()
 

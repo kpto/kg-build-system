@@ -29,7 +29,7 @@ from .to_string import TO_STRING
 from .transform_items import TRANSFORM_ITEMS
 from .where_if import WHERE_IF
 from .where_present import WHERE_PRESENT
-from ._predicates import is_unit
+from ...._private.predicates import is_unit
 from .spec import ArgumentSpec, OperationRegistry, OperationSpec, ParameterSpec, RowEffectSpec
 
 

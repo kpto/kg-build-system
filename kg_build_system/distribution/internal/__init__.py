@@ -1,4 +1,9 @@
-"""Framework-internal interface of the distribution package."""
+"""Framework-internal interface of the distribution package.
+
+The interface is the module protocol and the instruction DTOs. Registration and
+the supplied module implementations are reached through the package facade, and
+their mechanisms live in :mod:`kg_build_system.distribution._private`.
+"""
 from __future__ import annotations
 
 from .adapters import KernelModule
@@ -10,15 +15,8 @@ from .dto import (
     InstructionDTO,
     RelationInstructionDTO,
     SourceRelationInstructionDTO,
-    decode_core_instruction,
-    decode_instruction,
-    declared_column_type,
-    encode_declared_column,
-    encode_instruction,
-    instruction_document,
 )
 from .model import Module
-from .service import module_configuration_json, register_module
 
 __all__ = [
     "AggregateInstructionDTO",
@@ -30,12 +28,4 @@ __all__ = [
     "Module",
     "RelationInstructionDTO",
     "SourceRelationInstructionDTO",
-    "decode_core_instruction",
-    "decode_instruction",
-    "declared_column_type",
-    "encode_declared_column",
-    "encode_instruction",
-    "instruction_document",
-    "module_configuration_json",
-    "register_module",
 ]

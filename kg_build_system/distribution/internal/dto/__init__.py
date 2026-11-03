@@ -9,12 +9,6 @@ from .instruction_dto import (
     InstructionDTO,
     RelationInstructionDTO,
     SourceRelationInstructionDTO,
-    decode_core_instruction,
-    decode_instruction,
-    declared_column_type,
-    encode_declared_column,
-    encode_instruction,
-    instruction_document,
 )
 
 __all__ = [
@@ -25,10 +19,4 @@ __all__ = [
     "InstructionDTO",
     "RelationInstructionDTO",
     "SourceRelationInstructionDTO",
-    "decode_core_instruction",
-    "decode_instruction",
-    "declared_column_type",
-    "encode_declared_column",
-    "encode_instruction",
-    "instruction_document",
 ]

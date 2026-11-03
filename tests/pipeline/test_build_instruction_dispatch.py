@@ -6,11 +6,11 @@ from types import SimpleNamespace
 from typing import Any
 
 from kg_build_system.kernel import StepOutcome, StepStatus
-from kg_build_system.pipeline.build.internal.contract import (
+from kg_build_system.pipeline.build._private.contract import (
     Instruction,
     read_contract,
 )
-from kg_build_system.pipeline.build.internal.instructions import (
+from kg_build_system.pipeline.build._private.instructions import (
     InstructionDispatcher,
     UnknownInstructionKind,
 )

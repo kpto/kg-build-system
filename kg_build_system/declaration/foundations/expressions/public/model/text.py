@@ -12,6 +12,7 @@ from __future__ import annotations
 from ......kernel.internal.types import BOOL, STR
 from ..._private.apply import apply_operation
 from ..._private.coercion import expression_input
+from ..._private.text import separator_cut
 from .boolean import BoolExpression
 from .values import ValueExpression
 
@@ -86,32 +87,6 @@ class StrExpression(ValueExpression[str]):
             ).model
         )
 
-    def _separator_cut(
-        self,
-        separator: str,
-        occurrence: int,
-        side: str,
-        *,
-        include_separator: bool,
-    ) -> "StrExpression":
-        if not separator:
-            raise ValueError("separator must be non-empty")
-        if occurrence < 1:
-            raise ValueError("occurrence must be at least 1")
-        operator = {
-            "before": "before_separator",
-            "after": "after_separator",
-        }[side]
-        return StrExpression(
-            apply_operation(
-                operator,
-                self.model,
-                expression_input(separator, STR),
-                occurrence=occurrence,
-                include_separator=include_separator,
-            ).model
-        )
-
     def before_separator(
         self,
         separator: str,
@@ -132,7 +107,8 @@ class StrExpression(ValueExpression[str]):
             assert text.before_separator("::").model.operator == "before_separator"
             ```
         """
-        return self._separator_cut(
+        return separator_cut(
+            self,
             separator,
             occurrence,
             "before",
@@ -160,7 +136,8 @@ class StrExpression(ValueExpression[str]):
             assert text.after_separator("::").model.operator == "after_separator"
             ```
         """
-        return self._separator_cut(
+        return separator_cut(
+            self,
             separator,
             occurrence,
             "after",

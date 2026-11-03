@@ -18,9 +18,9 @@ def _transform_items(
     selector: Callable[[Any], ValueExpression[Any]],
 ) -> ValueExpression[Any]:
     """Apply one typed selector to every element of an array."""
-    from ..internal.service.visitors import walk_expression
-    from ..public.service.selection import as_expression, select_expression
     from .factory import wrap_expression
+    from .selections import as_expression, select_expression
+    from .visitors import walk_expression
 
     logical_type = expression.logical_type
     array_nullable = isinstance(logical_type, NullableType)

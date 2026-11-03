@@ -60,8 +60,14 @@ class NodeDTO:
     description: str | None = None
 
     def __post_init__(self) -> None:
-        _validate_component(
-            self.name, self.labels, self.properties, self.parent, self.description,
+        from ..._private.validation import validate_component
+
+        validate_component(
+            self.name,
+            self.labels,
+            tuple(item.name for item in self.properties),
+            self.parent,
+            self.description,
         )
 
 
@@ -90,8 +96,14 @@ class EdgeDTO:
     description: str | None = None
 
     def __post_init__(self) -> None:
-        _validate_component(
-            self.name, self.labels, self.properties, self.parent, self.description,
+        from ..._private.validation import validate_component
+
+        validate_component(
+            self.name,
+            self.labels,
+            tuple(item.name for item in self.properties),
+            self.parent,
+            self.description,
         )
         if not self.source or not self.target:
             raise ValueError(
@@ -122,28 +134,6 @@ class GraphPartDTO:
         )
         if len(names) != len(set(names)):
             raise ValueError("topology component names must be unique")
-
-
-def _validate_component(
-    name: str,
-    labels: tuple[str, ...],
-    properties: tuple[PropertyDTO, ...],
-    parent: str | None,
-    description: str | None,
-) -> None:
-    if not name:
-        raise ValueError("topology components require a non-empty name")
-    if any(not label for label in labels):
-        raise ValueError(f"component {name!r} labels must be non-empty")
-    if len(labels) > 1:
-        raise ValueError(f"component {name!r} carries at most one label")
-    property_names = tuple(item.name for item in properties)
-    if len(property_names) != len(set(property_names)):
-        raise ValueError(f"component {name!r} property names must be unique")
-    if parent is not None and not parent:
-        raise ValueError(f"component {name!r} parent must be a non-empty name")
-    if description is not None and not description.strip():
-        raise ValueError(f"component {name!r} description must be non-empty")
 
 
 __all__ = ["EdgeDTO", "GraphPartDTO", "NodeDTO", "PropertyDTO"]

@@ -12,8 +12,8 @@ from __future__ import annotations
 from typing import Generic, TypeVar
 
 from ......kernel.internal.types import FLOAT, INT
-from ..._private.apply import apply_operation
-from ..._private.coercion import expression_input
+from ..._private.numeric import binary
+
 from .values import ValueExpression
 
 
@@ -22,10 +22,6 @@ TNumber = TypeVar("TNumber", int, float)
 
 class NumberExpression(ValueExpression[TNumber], Generic[TNumber]):
     """Shared numeric operations with a family-preserving result."""
-
-    def _binary(self, operator: str, other: TNumber | ValueExpression[TNumber]):
-        right = expression_input(other, self.logical_type)
-        return type(self)(apply_operation(operator, self.model, right).model)
 
     def add(self, other: TNumber | ValueExpression[TNumber]) -> "NumberExpression[TNumber]":
         """Add another number of the same logical type.
@@ -39,7 +35,7 @@ class NumberExpression(ValueExpression[TNumber], Generic[TNumber]):
             assert number.add(2).model.operator == "add"
             ```
         """
-        return self._binary("add", other)
+        return binary(self, "add", other)
 
     def sub(self, other: TNumber | ValueExpression[TNumber]) -> "NumberExpression[TNumber]":
         """Subtract another number of the same logical type.
@@ -53,7 +49,7 @@ class NumberExpression(ValueExpression[TNumber], Generic[TNumber]):
             assert number.sub(2).model.operator == "subtract"
             ```
         """
-        return self._binary("subtract", other)
+        return binary(self, "subtract", other)
 
 
 class IntExpression(NumberExpression[int]):
@@ -72,7 +68,7 @@ class IntExpression(NumberExpression[int]):
             assert value_expression(1).add(2).model.operator == "add"
             ```
         """
-        return self._binary("add", other)
+        return binary(self, "add", other)
 
     def sub(self, other: int | ValueExpression[int]) -> "IntExpression":
         """Subtract another integer or integer expression.
@@ -84,7 +80,7 @@ class IntExpression(NumberExpression[int]):
             assert value_expression(1).sub(2).model.operator == "subtract"
             ```
         """
-        return self._binary("subtract", other)
+        return binary(self, "subtract", other)
 
 
 class FloatExpression(NumberExpression[float]):
@@ -103,7 +99,7 @@ class FloatExpression(NumberExpression[float]):
             assert value_expression(1.5).add(0.5).model.operator == "add"
             ```
         """
-        return self._binary("add", other)
+        return binary(self, "add", other)
 
     def sub(self, other: float | ValueExpression[float]) -> "FloatExpression":
         """Subtract another float or float expression.
@@ -115,7 +111,7 @@ class FloatExpression(NumberExpression[float]):
             assert value_expression(1.5).sub(0.5).model.operator == "subtract"
             ```
         """
-        return self._binary("subtract", other)
+        return binary(self, "subtract", other)
 
 
 __all__ = ["FloatExpression", "IntExpression", "NumberExpression"]

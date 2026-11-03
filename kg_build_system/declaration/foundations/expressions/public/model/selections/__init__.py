@@ -1,7 +1,7 @@
 """Author-facing selection families, row-effect handles and type aliases."""
 from __future__ import annotations
 
-from ._types import (
+from .types import (
     NullableDataType, SelectionDataType, SelectionStructured, SelectionUnit,
 )
 from .array import ArraySelection

@@ -19,8 +19,11 @@ from .......kernel.internal.types import Array, ArrayType, INT, Nullable, Nullab
 from ...._private.apply import apply_operation
 from ...._private.coercion import expression_input
 from ..values import NullableAuthoringInput, ValueExpression
-from ...._private.selections import _expand, _pick, as_expression, select_expression
-from ._types import NullableDataType, SelectionDataType, SelectionUnit
+from ...._private.selections import (
+    _expand as expand_selection, _pick as pick_member, as_expression,
+    drop_null_selection, require_expression, select_expression,
+)
+from .types import NullableDataType, SelectionDataType, SelectionUnit
 from .value import ValueInput, ValueSelection
 
 if TYPE_CHECKING:
@@ -77,7 +80,7 @@ class NullableSelection(
         )
         fallback = expression_input(normalized, logical_type.value)
         result = apply_operation(
-            "coalesce", self._require_expression(), fallback
+            "coalesce", require_expression(self), fallback
         )
         return select_expression(result)
 
@@ -100,15 +103,7 @@ class NullableSelection(
             assert Row.name.where_present().logical_type.name == "str"
             ```
         """
-        return self._drop_null()
-
-    def _drop_null(self) -> ValueSelection[Any]:
-        logical_type = self.logical_type
-        if not isinstance(logical_type, NullableType):
-            raise TypeError("where_present requires a nullable selection")
-        return select_expression(
-            apply_operation("where_present", self._require_expression())
-        )
+        return drop_null_selection(self)
 
     @overload
     def drop_null[U: SelectionUnit](self: "NullableSelection[U]") -> ValueSelection[U]: ...  # pyright: ignore[reportOverlappingOverload]
@@ -129,7 +124,7 @@ class NullableSelection(
             assert Row.name.drop_null().logical_type.name == "str"
             ```
         """
-        return self._drop_null()
+        return drop_null_selection(self)
 
     @overload
     def expand[U: SelectionUnit](self: "NullableSelection[Array[U]]") -> ValueSelection[U]: ...  # pyright: ignore[reportOverlappingOverload]
@@ -162,7 +157,7 @@ class NullableSelection(
             logical_type.value, ArrayType
         ):
             raise TypeError("expand requires a nullable array selection")
-        return _expand(self._require_expression())
+        return expand_selection(require_expression(self))
 
     @overload
     def pick[S: Struct, U: SelectionUnit](
@@ -205,7 +200,7 @@ class NullableSelection(
             logical_type.value, StructType
         ):
             raise TypeError("pick requires a nullable struct selection")
-        return _pick(self, selector, logical_type.value, propagate_null=True)
+        return pick_member(self, selector, logical_type.value, propagate_null=True)
 
     @overload
     def extract[S: Struct, U: SelectionUnit](
@@ -245,7 +240,7 @@ class NullableSelection(
             logical_type.value, StructType
         ):
             raise TypeError("extract requires a nullable struct selection")
-        return _pick(self, selector, logical_type.value, propagate_null=True)
+        return pick_member(self, selector, logical_type.value, propagate_null=True)
 
     # Legacy nullable-array operations. They preserve the array's own presence
     # and return a nullable selection; narrow with ``where_present`` first when
@@ -274,7 +269,7 @@ class NullableSelection(
             assert selected.model.operator == "transform_items"
             ```
         """
-        from ...._private.arrays import _transform_items
+        from ...._private.arrays import _transform_items as transform_items
 
         logical_type = self.logical_type
         if not isinstance(logical_type, NullableType) or not isinstance(
@@ -283,7 +278,7 @@ class NullableSelection(
             raise TypeError("transform_items requires a nullable array selection")
         return cast(
             "NullableSelection[Any]",
-            select_expression(_transform_items(self._require_expression(), selector)),
+            select_expression(transform_items(require_expression(self), selector)),
         )
 
     @overload
@@ -308,7 +303,7 @@ class NullableSelection(
             assert selected.model.operator == "drop_null_items"
             ```
         """
-        from ...._private.arrays import _drop_null_items
+        from ...._private.arrays import _drop_null_items as drop_null_items
 
         logical_type = self.logical_type
         if not isinstance(logical_type, NullableType) or not isinstance(
@@ -317,7 +312,7 @@ class NullableSelection(
             raise TypeError("drop_null_items requires a nullable array selection")
         return cast(
             "NullableSelection[Any]",
-            select_expression(_drop_null_items(self._require_expression())),
+            select_expression(drop_null_items(require_expression(self))),
         )
 
     def sort(self) -> "NullableSelection[Any]":
@@ -333,7 +328,7 @@ class NullableSelection(
             assert Row.names.sort().model.operator == "sort"
             ```
         """
-        from ...._private.arrays import _array_operation
+        from ...._private.arrays import _array_operation as array_operation
 
         logical_type = self.logical_type
         if not isinstance(logical_type, NullableType) or not isinstance(
@@ -342,7 +337,7 @@ class NullableSelection(
             raise TypeError("sort requires a nullable array selection")
         return cast(
             "NullableSelection[Any]",
-            select_expression(_array_operation(self._require_expression(), "sort")),
+            select_expression(array_operation(require_expression(self), "sort")),
         )
 
     def distinct(self) -> "NullableSelection[Any]":
@@ -358,7 +353,7 @@ class NullableSelection(
             assert Row.names.distinct().model.operator == "distinct"
             ```
         """
-        from ...._private.arrays import _array_operation
+        from ...._private.arrays import _array_operation as array_operation
 
         logical_type = self.logical_type
         if not isinstance(logical_type, NullableType) or not isinstance(
@@ -368,7 +363,7 @@ class NullableSelection(
         return cast(
             "NullableSelection[Any]",
             select_expression(
-                _array_operation(self._require_expression(), "distinct")
+                array_operation(require_expression(self), "distinct")
             ),
         )
 
@@ -412,7 +407,7 @@ class NullableSelection(
         if logical_type.value.item != STR:
             raise TypeError("join requires an array of non-null strings")
         result = apply_operation(
-            "join", self._require_expression(), expression_input(separator, STR)
+            "join", require_expression(self), expression_input(separator, STR)
         )
         return cast("NullableSelection[str]", select_expression(result))
 
@@ -454,7 +449,7 @@ class NullableSelection(
         return select_expression(
             apply_operation(
                 "array_at",
-                self._require_expression(),
+                require_expression(self),
                 expression_input(index, INT),
             )
         )
@@ -484,7 +479,7 @@ class NullableSelection(
             select_expression(
                 apply_operation(
                     "array_slice",
-                    self._require_expression(),
+                    require_expression(self),
                     expression_input(start, INT),
                     expression_input(end, INT),
                 )

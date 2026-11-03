@@ -1,7 +1,7 @@
 """The value-scoped predicate filter operation."""
 from __future__ import annotations
 
-from ._predicates import is_unit
+from ...._private.predicates import is_unit
 from .spec import ArgumentSpec, OperationSpec, RowEffectSpec
 
 

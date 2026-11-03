@@ -78,13 +78,9 @@ def metadata_for(cls: type[Any]) -> ComponentMetadata | None:
         assert metadata_for(object) is None
         ```
     """
-    value = vars(cls).get("_declaration")
-    return value if isinstance(value, ComponentMetadata) else None
+    from ..._private.metadata import metadata_for as read
 
-
-def _metadata_for(cls: type[Any]) -> ComponentMetadata | None:
-    """Compatibility alias for :func:`metadata_for` inside the package."""
-    return metadata_for(cls)
+    return read(cls)
 
 
 def properties_for(cls: type[Any]) -> dict[str, PropertyDeclaration]:
@@ -99,15 +95,9 @@ def properties_for(cls: type[Any]) -> dict[str, PropertyDeclaration]:
         assert properties_for(object) == {}
         ```
     """
-    resolved = vars(cls).get("_properties")
-    if isinstance(resolved, dict):
-        return resolved
-    from ..._private.properties import _resolve_properties
+    from ..._private.metadata import properties_for as resolve
 
-    return {
-        declaration.attribute: declaration
-        for declaration in _resolve_properties(cls)
-    }
+    return resolve(cls)
 
 
 def component_kind(cls: type[Any]) -> str | None:
@@ -122,8 +112,9 @@ def component_kind(cls: type[Any]) -> str | None:
         assert component_kind(object) is None
         ```
     """
-    metadata = metadata_for(cls)
-    return metadata.kind if metadata is not None else None
+    from ..._private.metadata import component_kind as read
+
+    return read(cls)
 
 
 def is_abstract_component(cls: type[Any]) -> bool:
@@ -138,8 +129,9 @@ def is_abstract_component(cls: type[Any]) -> bool:
         assert is_abstract_component(object) is False
         ```
     """
-    metadata = metadata_for(cls)
-    return metadata.abstract if metadata is not None else False
+    from ..._private.metadata import is_abstract_component as check
+
+    return check(cls)
 
 
 def is_concrete_component(cls: type[Any]) -> bool:
@@ -154,8 +146,9 @@ def is_concrete_component(cls: type[Any]) -> bool:
         assert is_concrete_component(object) is False
         ```
     """
-    metadata = metadata_for(cls)
-    return metadata is not None and not metadata.abstract
+    from ..._private.metadata import is_concrete_component as check
+
+    return check(cls)
 
 
 __all__ = [

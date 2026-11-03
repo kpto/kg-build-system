@@ -1,25 +1,14 @@
-"""DuckDB SQL emission.
+"""DuckDB SQL instruction and emitter interface.
 
-The package holds the only code that constructs DuckDB SQL from the
-engine-neutral expression and relation plans. Its author-facing instruction
-wrapper is :class:`DuckDbSqlEmitter`; the registry-backed implementation is
-:class:`DuckDbInstructionEmitter`.
+The implementation lives in ``_private.instructions.duckdb``; this package keeps
+the internal import path stable and exposes the thin instruction wrapper.
 """
 from __future__ import annotations
 
-from .emitter import (
-    DEFAULT_EMITTER,
-    DuckDbInstructionEmitter,
-    emit_expression,
-    emit_row_source,
-    expression_sql,
-    relation_sql,
-    row_source_sql,
-)
-from .instruction import DuckDbSqlEmitter
-from .types import (
+from ...._private.instructions.duckdb import (
     ARRAY_CANONICAL,
     CANONICAL_SQL_TYPES,
+    DEFAULT_EMITTER,
     DIGEST_TABLE,
     EXTENSION_CONDITIONAL_TYPE_NAMES,
     STRUCT_CANONICAL,
@@ -29,6 +18,7 @@ from .types import (
     CanonicalTypeName,
     DeclaredOnlyDigest,
     DigestDisposition,
+    DuckDbInstructionEmitter,
     RefusedDigest,
     SqlType,
     StructSqlType,
@@ -36,7 +26,13 @@ from .types import (
     canonical_sql_type,
     canonical_type_name,
     digest_for,
+    emit_expression,
+    emit_row_source,
+    expression_sql,
+    relation_sql,
+    row_source_sql,
 )
+from .instruction import DuckDbSqlEmitter
 
 __all__ = [
     "ARRAY_CANONICAL",

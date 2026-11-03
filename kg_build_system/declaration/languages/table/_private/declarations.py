@@ -10,6 +10,7 @@ from kg_build_system.kernel.internal.types import Shape
 from ..internal.model.declarations import DeclarationSpec
 from ..internal.model.fields import FieldSpec
 from .descriptors import resolve_field_specs
+from .naming import declaration_name
 
 if TYPE_CHECKING:
     from kg_build_system.declaration.foundations.expressions.public import BoolExpression
@@ -203,7 +204,193 @@ def is_table_group(cls: type[Any]) -> bool:
     return spec is not None and spec.kind == "table_group" and spec.final
 
 
+def prepare_table_declaration(cls: type[Any]) -> None:
+    """Record the spec of one ``Table`` declaration at class creation."""
+    from ..public.model.declarations import TableOptions
+
+    if any(_final_kind(base) == "table" for base in cls.__mro__[1:]):
+        raise TypeError("a final Table may not inherit from another final Table")
+    options = vars(cls).get("options", TableOptions())
+    _require_host_options(cls, "Table", options, TableOptions)
+    name = options.name or declaration_name(cls.__name__, suffixes=("Table",))
+    cls._table_name = name
+    _prepare_declaration(
+        cls,
+        kind="table",
+        name=name,
+        description=_description(cls, options.description),
+        annotations=(*_template_annotations(cls), *options.annotations),
+    )
+    cls.shape = cls
+
+
+def prepare_struct_declaration(cls: type[Any]) -> None:
+    """Record the spec of one ``Struct`` declaration at class creation."""
+    from ..public.model.declarations import StructOptions
+
+    options = vars(cls).get("options", StructOptions())
+    _require_host_options(cls, "Struct", options, StructOptions)
+    name = options.name or declaration_name(cls.__name__, suffixes=("Struct",))
+    _prepare_declaration(
+        cls,
+        kind="struct",
+        name=name,
+        description=_description(cls, options.description),
+        annotations=(*_template_annotations(cls), *options.annotations),
+    )
+
+
+def prepare_computed_struct_declaration(cls: type[Any]) -> None:
+    """Record the spec of one ``ComputedStruct`` declaration."""
+    from ..public.model.declarations import StructOptions
+
+    options = vars(cls).get("options", StructOptions())
+    _require_host_options(cls, "ComputedStruct", options, StructOptions)
+    name = options.name or declaration_name(
+        cls.__name__, suffixes=("ComputedStruct",),
+    )
+    _prepare_declaration(
+        cls,
+        kind="computed_struct",
+        name=name,
+        description=_description(cls, options.description),
+        annotations=(*_template_annotations(cls), *options.annotations),
+    )
+
+
+def prepare_projection_declaration(cls: type[Any]) -> None:
+    """Record the spec of one ``Projection`` declaration at class creation."""
+    from ..public.model.declarations import ProjectionOptions
+
+    is_base = bool(vars(cls).get("_projection_base", False))
+    if not is_base and any(
+        _final_kind(base) == "projection" for base in cls.__mro__[1:]
+    ):
+        raise TypeError(
+            "a final Projection may not inherit from another final Projection"
+        )
+    options = vars(cls).get("options", ProjectionOptions())
+    _require_host_options(cls, "Projection", options, ProjectionOptions)
+
+    row_source = next(
+        (
+            vars(base).get("_kg_row_source")
+            for base in cls.__mro__
+            if "_kg_row_source" in vars(base)
+        ),
+        None,
+    )
+    name = options.name or declaration_name(
+        cls.__name__, suffixes=("Projection",),
+    )
+    spec = _prepare_declaration(
+        cls,
+        kind="projection",
+        name=name,
+        description=_description(cls, options.description),
+        annotations=tuple(options.annotations),
+        final=not is_base,
+        row_source=row_source,
+    )
+    if not spec.fields and not is_base:
+        raise TypeError("projections must declare at least one computed_field")
+    cls._projection_name = name
+    cls._projection_row_source = row_source
+    setattr(cls, "shape", shape_view(cls))
+
+
+def prepare_table_group_declaration(cls: type[Any]) -> None:
+    """Record the spec of one ``TableGroup`` declaration at class creation."""
+    from ..public.model.declarations import TableGroupOptions
+
+    if any(_final_kind(base) == "table_group" for base in cls.__mro__[1:]):
+        raise TypeError(
+            "a final TableGroup may not inherit from another final TableGroup"
+        )
+    options = vars(cls).get("options", TableGroupOptions())
+    _require_host_options(cls, "TableGroup", options, TableGroupOptions)
+
+    declared: dict[str, type[Any]] = {}
+    for base in reversed(cls.__mro__):
+        for attribute, value in vars(base).items():
+            if isinstance(value, type) and (
+                is_concrete_table(value) or is_table_group(value)
+            ):
+                declared[attribute] = value
+            elif attribute in declared:
+                del declared[attribute]
+
+    invalid = tuple(
+        member
+        for member in options.members
+        if not is_concrete_table(member) and not is_table_group(member)
+    )
+    if invalid:
+        raise TypeError(
+            "table groups may contain only final Table or TableGroup declarations"
+        )
+    entries = tuple(dict.fromkeys((*options.members, *declared.values())))
+    if not entries:
+        raise TypeError("table groups must declare at least one member")
+
+    name = options.name or declaration_name(
+        cls.__name__, suffixes=("TableGroup",),
+    )
+    cls._table_group_name = name
+    cls._table_group_entries = entries
+    _prepare_declaration(
+        cls,
+        kind="table_group",
+        name=name,
+        description=_description(cls, options.description),
+        annotations=tuple(options.annotations),
+        members=entries,
+    )
+    cls._is_table_group = True
+
+    from .sources import group_tables
+
+    group_tables(cls)
+
+
+def require_struct_template_host(cls: type[Any]) -> None:
+    """Reject a template mixed into a declaration that is not a record host."""
+    from ..public.model.declarations import Projection, TableGroup
+
+    if issubclass(cls, (Projection, TableGroup)):
+        raise TypeError(
+            f"{cls.__name__} mixes StructTemplate into a non-record declaration: "
+            "the template tier serves only Table, Struct and ComputedStruct hosts"
+        )
+
+
+def prepare_struct_template_annotations(cls: type[Any]) -> None:
+    """Record a template's own annotations when it has a record host."""
+    from ..public.model.declarations import ComputedStruct, Struct, Table
+
+    if issubclass(cls, (Table, Struct, ComputedStruct)):
+        return
+    _record_template_annotations(cls, vars(cls).get("options"))
+
+
+def prepare_projection_type(source: Any | None) -> type[Any]:
+    """Build the pinned projection base for ``Projection(source)``."""
+    if source is None:
+        raise TypeError(
+            "Projection(source) requires a row source; "
+            "declare outputs on a named subclass"
+        )
+    from .plans import as_row_source
+
+    return pinned_base(as_row_source(source))
+
+
 __all__ = [
     "DeclarationSpec", "S", "is_concrete_table", "is_table_group",
-    "pinned_base", "projection_base", "projection_row_source", "shape_view",
+    "pinned_base", "prepare_computed_struct_declaration",
+    "prepare_projection_declaration", "prepare_projection_type",
+    "prepare_struct_declaration", "prepare_struct_template_annotations",
+    "prepare_table_declaration", "prepare_table_group_declaration",
+    "projection_base", "projection_row_source", "require_struct_template_host",
+    "shape_view",
 ]

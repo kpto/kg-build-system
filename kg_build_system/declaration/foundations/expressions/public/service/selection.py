@@ -3,9 +3,9 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING, Any
 
-from ..._private.selections import as_expression as _as_expression
-from ..._private.selections import select_expression as _select_expression
-from ..._private.selections import select_member as _select_member
+from ..._private.selections import as_expression as as_expression_impl
+from ..._private.selections import select_expression as select_expression_impl
+from ..._private.selections import select_member as select_member_impl
 
 if TYPE_CHECKING:
     from ......kernel.internal.types import LogicalType, StructType
@@ -24,7 +24,7 @@ def select_expression[T](expression: ValueExpression[T]) -> ValueSelection[T]:
         assert isinstance(select_expression(value_expression(1)), ValueSelection)
         ```
     """
-    return _select_expression(expression)
+    return select_expression_impl(expression)
 
 
 def select_member(
@@ -43,7 +43,7 @@ def select_member(
         assert member.logical_type == STR
         ```
     """
-    return _select_member(name, logical_type, declaration)
+    return select_member_impl(name, logical_type, declaration)
 
 
 def as_expression[T](value: ValueInput[T]) -> ValueExpression[T]:
@@ -57,7 +57,7 @@ def as_expression[T](value: ValueInput[T]) -> ValueExpression[T]:
         assert as_expression(expression) is expression
         ```
     """
-    return _as_expression(value)
+    return as_expression_impl(value)
 
 
 __all__ = ["as_expression", "select_expression", "select_member"]

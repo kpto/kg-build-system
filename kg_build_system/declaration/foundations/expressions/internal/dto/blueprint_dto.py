@@ -6,7 +6,6 @@ authoring row semantics; row effects are operations in the expression tree.
 """
 from __future__ import annotations
 
-from collections.abc import Iterator
 from dataclasses import dataclass
 from typing import TypeAlias
 
@@ -66,28 +65,8 @@ ExpressionDTO: TypeAlias = (
 )
 
 
-def walk_expression_dto(expression: ExpressionDTO) -> Iterator[ExpressionDTO]:
-    """Yield an expression DTO tree in deterministic pre-order.
-
-    Example:
-        ```python
-        from kg_build_system.declaration.foundations.expressions.internal import (
-            LiteralExpressionDTO, walk_expression_dto,
-        )
-        from kg_build_system.kernel.internal.types.dto import UnitTypeDTO
-
-        node = LiteralExpressionDTO(logical_type=UnitTypeDTO("int"), value=1)
-        assert tuple(walk_expression_dto(node)) == (node,)
-        ```
-    """
-    yield expression
-    if isinstance(expression, OperationExpressionDTO):
-        for argument in expression.arguments:
-            yield from walk_expression_dto(argument)
-
-
 __all__ = [
     "ExpressionDTO", "ExpressionDTOBase", "FieldReferenceDTO",
     "LiteralExpressionDTO", "OperationExpressionDTO", "OperationParameterDTO",
-    "VariableExpressionDTO", "walk_expression_dto",
+    "VariableExpressionDTO",
 ]

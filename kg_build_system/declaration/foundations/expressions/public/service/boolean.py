@@ -1,8 +1,8 @@
 """Predicate combinators over the Boolean expression family."""
 from __future__ import annotations
 
-from ..._private.boolean import all_of as _all_of
-from ..._private.boolean import any_of as _any_of
+from ..._private.boolean import all_of as all_of_impl
+from ..._private.boolean import any_of as any_of_impl
 from ..model.boolean import BoolExpression
 
 
@@ -17,7 +17,7 @@ def all_of(*predicates: BoolExpression) -> BoolExpression:
         assert both.model.operator == "and"
         ```
     """
-    return _all_of(*predicates)
+    return all_of_impl(*predicates)
 
 
 def any_of(*predicates: BoolExpression) -> BoolExpression:
@@ -31,7 +31,7 @@ def any_of(*predicates: BoolExpression) -> BoolExpression:
         assert either.model.operator == "or"
         ```
     """
-    return _any_of(*predicates)
+    return any_of_impl(*predicates)
 
 
 __all__ = ["all_of", "any_of"]

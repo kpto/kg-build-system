@@ -19,8 +19,8 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, Generic, TypeVar, overload
 
 from .......kernel.internal.types import Struct, StructType
-from ...._private.selections import _pick
-from ._types import NullableDataType, SelectionDataType, SelectionUnit
+from ...._private.selections import _pick as pick_member
+from .types import NullableDataType, SelectionDataType, SelectionUnit
 from .value import ValueSelection
 
 if TYPE_CHECKING:
@@ -66,7 +66,7 @@ class StructSelection(ValueSelection[TStruct], Generic[TStruct]):
         logical_type = self.logical_type
         if not isinstance(logical_type, StructType):
             raise TypeError("extract requires a struct selection")
-        return _pick(self, selector, logical_type, propagate_null=False)
+        return pick_member(self, selector, logical_type, propagate_null=False)
 
     def pick(self, selector: Callable[[TStruct], ValueSelection[Any]]) -> ValueSelection[Any]:
         """Legacy spelling of ``extract``.

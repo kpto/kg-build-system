@@ -12,8 +12,6 @@ Example:
 """
 from __future__ import annotations
 
-from ..internal import main as _main
-
 
 def main(argv: list[str] | None = None) -> int:
     """Run the ``kbs`` command line and return its exit code.
@@ -25,7 +23,9 @@ def main(argv: list[str] | None = None) -> int:
         main(["--help"])
         ```
     """
-    return _main(argv)
+    from ..internal import main as implementation
+
+    return implementation(argv)
 
 
 __all__ = ["main"]

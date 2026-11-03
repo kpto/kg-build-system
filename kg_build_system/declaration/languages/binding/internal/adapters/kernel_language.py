@@ -8,10 +8,7 @@ source.
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import Any
 
-from kg_build_system.declaration.languages.table.internal import DataPartDTO
-from kg_build_system.declaration.languages.topology.internal import GraphPartDTO
 from kg_build_system.kernel import (
     Language,
     LanguageContext,
@@ -21,19 +18,6 @@ from kg_build_system.kernel import (
 )
 
 from ..dto.blueprint_dto import EdgeBindingDTO, NodeBindingDTO
-from ..service.source import render_binding_source
-from ..service.transcription import (
-    collect_bindings,
-    transcribe_bindings,
-    validate_bindings,
-)
-
-
-def _part(context: Any, name: str) -> Any:
-    try:
-        return context.part(name)
-    except (AttributeError, KeyError):
-        return None
 
 
 class BindingLanguage(Language):
@@ -69,6 +53,8 @@ class BindingLanguage(Language):
             declarations = BindingLanguage().collect(Namespace())
             ```
         """
+        from ..._private.transcription import collect_bindings
+
         return collect_bindings(namespace)
 
     def transcribe(
@@ -81,15 +67,9 @@ class BindingLanguage(Language):
             bindings = BindingLanguage().transcribe((site_binding,), context)
             ```
         """
-        data = _part(context, "data")
-        topology = _part(context, "topology")
-        bindings = transcribe_bindings(
-            declarations,
-            data if isinstance(data, DataPartDTO) else None,
-        )
-        if isinstance(topology, GraphPartDTO):
-            _validate_references(bindings, topology)
-        return bindings
+        from ..._private.transcription import transcribe_binding_part
+
+        return transcribe_binding_part(declarations, context)
 
     def validate(
         self, dto: tuple[NodeBindingDTO | EdgeBindingDTO, ...],
@@ -101,6 +81,8 @@ class BindingLanguage(Language):
             BindingLanguage().validate(())
             ```
         """
+        from ..._private.transcription import validate_bindings
+
         validate_bindings(dto)
 
     def render(
@@ -116,29 +98,9 @@ class BindingLanguage(Language):
             assert fragment.body == ""
             ```
         """
+        from ..service.source import render_binding_source
+
         return render_binding_source(dto, context)
-
-
-def _validate_references(
-    bindings: Sequence[NodeBindingDTO | EdgeBindingDTO],
-    topology: GraphPartDTO,
-) -> None:
-    nodes = {item.name for item in topology.nodes}
-    components = nodes | {item.name for item in topology.edges}
-    for binding in bindings:
-        if binding.component not in components:
-            raise ValueError(
-                f"binding targets an unknown component {binding.component!r}"
-            )
-        if isinstance(binding, EdgeBindingDTO):
-            for side, name in (
-                ("source_node", binding.source_node),
-                ("target_node", binding.target_node),
-            ):
-                if name is not None and name not in nodes:
-                    raise ValueError(
-                        f"edge binding {side} {name!r} is not a node component"
-                    )
 
 
 __all__ = ["BindingLanguage"]

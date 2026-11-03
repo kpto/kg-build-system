@@ -59,9 +59,6 @@ class NullableExpression(
         assert isinstance(logical_type, NullableType)
         return logical_type.value
 
-    def _non_null(self, model: ExpressionNode) -> TNonNullExpr:
-        return self._non_null_factory(model)
-
     # Compatibility spelling for callers that build a text key directly on a
     # nullable source read (``row.id.expression.append(...)``). The result is
     # still nullable: these methods preserve absence rather than hiding it.

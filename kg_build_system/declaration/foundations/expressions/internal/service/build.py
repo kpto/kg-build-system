@@ -1,14 +1,14 @@
 """Factories for canonical field-reference and operation expressions."""
 from __future__ import annotations
 
-import dataclasses
 from collections.abc import Mapping, Sequence
 from typing import Any
 
-from ......kernel.internal.json import freeze_json
 from ......kernel.internal.types import LogicalType
-from ..model import ExpressionNode, FieldReferenceExpression, OperationExpression, OperationParameter, RowSemantics, Traversal
-from ..._private.semantics import compose_row_semantics
+from ..model import (
+    ExpressionNode, FieldReferenceExpression, OperationExpression, RowSemantics,
+    Traversal,
+)
 
 
 def field_reference(
@@ -20,11 +20,13 @@ def field_reference(
     row_semantics: RowSemantics = RowSemantics(),
 ) -> FieldReferenceExpression:
     """Build a field reference, the canonical form of a column or path read."""
-    return FieldReferenceExpression(
+    from ..._private.build import field_reference as build
+
+    return build(
         source=source,
-        path=tuple(path),
-        traversals=tuple(traversals),
+        path=path,
         logical_type=logical_type,
+        traversals=traversals,
         row_semantics=row_semantics,
     )
 
@@ -43,16 +45,14 @@ def operation(
     :class:`OperationSpec` so arity, parameter and row-effect rules are stated
     once.
     """
-    frozen_parameters = tuple(
-        OperationParameter(name, freeze_json(value))
-        for name, value in sorted((parameters or {}).items())
-    )
-    return OperationExpression(
-        operator=operator,
-        arguments=tuple(arguments),
-        parameters=frozen_parameters,
+    from ..._private.build import operation as build
+
+    return build(
+        operator,
+        *arguments,
         logical_type=logical_type,
-        row_semantics=compose_row_semantics(*arguments, local=row_semantics),
+        parameters=parameters,
+        row_semantics=row_semantics,
     )
 
 
@@ -60,9 +60,9 @@ def with_arguments(
     expression: OperationExpression, arguments: tuple[ExpressionNode, ...],
 ) -> OperationExpression:
     """An operation with a rewritten argument tuple."""
-    if arguments == expression.arguments:
-        return expression
-    return dataclasses.replace(expression, arguments=arguments)
+    from ..._private.build import with_arguments as replace_arguments
+
+    return replace_arguments(expression, arguments)
 
 
 __all__ = ["field_reference", "operation", "with_arguments"]

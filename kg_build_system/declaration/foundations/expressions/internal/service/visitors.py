@@ -4,9 +4,10 @@ from __future__ import annotations
 from collections.abc import Callable, Iterator
 from typing import Protocol, TypeVar
 
-from .build import with_arguments
-from ..model import Expression, ExpressionNode, FieldReferenceExpression, LiteralExpression, OperationExpression, VariableExpression
-
+from ..model import (
+    Expression, ExpressionNode, FieldReferenceExpression, LiteralExpression,
+    OperationExpression, VariableExpression,
+)
 
 T_co = TypeVar("T_co", covariant=True)
 
@@ -20,23 +21,16 @@ class ExpressionVisitor(Protocol[T_co]):
 
 def visit_expression(expression: Expression, visitor: ExpressionVisitor[T_co]) -> T_co:
     """Dispatch one expression node to its visitor method."""
-    if isinstance(expression, LiteralExpression):
-        return visitor.visit_literal(expression)
-    if isinstance(expression, FieldReferenceExpression):
-        return visitor.visit_field_reference(expression)
-    if isinstance(expression, OperationExpression):
-        return visitor.visit_operation(expression)
-    if isinstance(expression, VariableExpression):
-        return visitor.visit_variable(expression)
-    raise TypeError(f"unknown expression node {expression!r}")
+    from ..._private.visitors import visit_expression as visit
+
+    return visit(expression, visitor)
 
 
 def walk_expression(expression: ExpressionNode) -> Iterator[ExpressionNode]:
     """Yield an expression tree in deterministic pre-order."""
-    yield expression
-    if isinstance(expression, OperationExpression):
-        for argument in expression.arguments:
-            yield from walk_expression(argument)
+    from ..._private.visitors import walk_expression as walk
+
+    yield from walk(expression)
 
 
 def rewrite_expression(
@@ -44,14 +38,9 @@ def rewrite_expression(
     transform: Callable[[ExpressionNode], ExpressionNode],
 ) -> ExpressionNode:
     """Rewrite children first, preserving unchanged operation identities."""
-    current = expression
-    if isinstance(expression, OperationExpression):
-        arguments = tuple(
-            rewrite_expression(argument, transform)
-            for argument in expression.arguments
-        )
-        current = with_arguments(expression, arguments)
-    return transform(current)
+    from ..._private.visitors import rewrite_expression as rewrite
+
+    return rewrite(expression, transform)
 
 
 __all__ = ["ExpressionVisitor", "rewrite_expression", "visit_expression", "walk_expression"]

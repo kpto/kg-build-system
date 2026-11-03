@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING, Any, Generic, TypeVar, cast, overload
 
 from ......kernel.internal.types import Array, ArrayType, Nullable, STR, Struct, StructType
 from ..._private.apply import apply_operation
-from ..._private.arrays import _array_operation, _drop_null_items, _transform_items
+from ..._private.arrays import _array_operation as array_operation, _drop_null_items as drop_null_items, _transform_items as transform_items
 from ..._private.coercion import expression_input
 from .values import ValueExpression
 
@@ -69,7 +69,7 @@ class ArrayExpression(ValueExpression[Array[TItem]], Generic[TItem]):
             assert selected.model.operator == "transform_items"
             ```
         """
-        return cast("ArrayExpression[Any]", _transform_items(self, selector))
+        return cast("ArrayExpression[Any]", transform_items(self, selector))
 
     @overload
     def drop_null_items[I](self: "ArrayExpression[Nullable[I]]") -> "ArrayExpression[I]": ...  # pyright: ignore[reportInvalidTypeArguments]
@@ -89,7 +89,7 @@ class ArrayExpression(ValueExpression[Array[TItem]], Generic[TItem]):
             assert values.drop_null_items().model.operator == "drop_null_items"
             ```
         """
-        return cast("ArrayExpression[Any]", _drop_null_items(self))
+        return cast("ArrayExpression[Any]", drop_null_items(self))
 
     def sort(self) -> "ArrayExpression[TItem]":
         """Order the items ascending; a null array stays null.
@@ -103,7 +103,7 @@ class ArrayExpression(ValueExpression[Array[TItem]], Generic[TItem]):
             assert numbers.sort().model.operator == "sort"
             ```
         """
-        return cast("ArrayExpression[TItem]", _array_operation(self, "sort"))
+        return cast("ArrayExpression[TItem]", array_operation(self, "sort"))
 
     def distinct(self) -> "ArrayExpression[TItem]":
         """Keep one copy per item; a null array stays null.
@@ -117,7 +117,7 @@ class ArrayExpression(ValueExpression[Array[TItem]], Generic[TItem]):
             assert numbers.distinct().model.operator == "distinct"
             ```
         """
-        return cast("ArrayExpression[TItem]", _array_operation(self, "distinct"))
+        return cast("ArrayExpression[TItem]", array_operation(self, "distinct"))
 
     def join(self, separator: str) -> "StrExpression":
         """Concatenate non-null string items with ``separator``.

@@ -4,10 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from ...internal.model.module import Module
-from ...internal.service.registration import (
-    module_configuration_json as _module_configuration_json,
-    register_module as _register_module,
-)
+from ...internal.service import registration as registration_service
 from ..model.registration import (
     ModuleRegistration,
     ModuleRegistrationConfiguration,
@@ -38,7 +35,7 @@ def register_module(
         )
         ```
     """
-    return _register_module(module_class, configuration)
+    return registration_service.register_module(module_class, configuration)
 
 
 def module_configuration_json(
@@ -62,7 +59,7 @@ def module_configuration_json(
         module_configuration_json(registration.configuration)
         ```
     """
-    return _module_configuration_json(configuration)
+    return registration_service.module_configuration_json(configuration)
 
 
 __all__ = ["module_configuration_json", "register_module"]

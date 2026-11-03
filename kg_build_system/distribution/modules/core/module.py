@@ -44,14 +44,14 @@ class CoreModule(KernelModule):
     @classmethod
     def compiler(cls, configuration: Any) -> Any:
         """Create the compiler for this module version."""
-        from .compiler import CoreCompiler
+        from ..._private.modules.core.compiler import CoreCompiler
 
         return CoreCompiler()
 
     @classmethod
     def executor(cls, context: ExecutorFactoryContext) -> Any:
         """Create the executor for this module version."""
-        from .executor import CoreExecutor
+        from ..._private.modules.core.executor import CoreExecutor
 
         return CoreExecutor()
 

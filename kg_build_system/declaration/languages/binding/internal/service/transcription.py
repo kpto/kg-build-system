@@ -1,150 +1,20 @@
 """Transcribe binding declarations into the binding language DTO."""
 from __future__ import annotations
 
-import json
 from collections.abc import Sequence
 from typing import Any
 
-from kg_build_system.declaration.foundations.annotations.internal import AnnotationDTO
-from kg_build_system.declaration.foundations.annotations.internal import (
-    annotation_dtos,
-)
-from kg_build_system.declaration.foundations.expressions.internal import (
-    ExpressionDTO,
-    expression_dto,
-)
-from kg_build_system.declaration.languages.table.internal import (
-    DataPartDTO,
-    plan_scan_sources,
-    row_source_plan_dto,
-)
-from ...internal.dto.blueprint_dto import (
-    BindingDTO,
-    EdgeBindingDTO,
-    NodeBindingDTO,
-    PythonRefDTO,
-)
-from ...internal.model import (
-    Binding,
-    EdgeBinding,
-    NodeBinding,
-    PythonRef,
-)
-from ..dto.codec import binding_to_document
+from kg_build_system.declaration.languages.table.internal import DataPartDTO
 
-
-def _annotation_dtos(values: Sequence[Any]) -> tuple[AnnotationDTO, ...]:
-    return annotation_dtos(values)
-
-
-def _python_ref(value: PythonRef | None) -> PythonRefDTO | None:
-    if value is None:
-        return None
-    return PythonRefDTO(value.module, value.qualname, value.signature)
-
-
-def _component_name(target: Any) -> str:
-    from kg_build_system.declaration.languages.topology.internal import (
-        metadata_for,
-    )
-
-    metadata = metadata_for(target)
-    if metadata is None:
-        raise TypeError(
-            f"{getattr(target, '__name__', target)!r} is not a graph component"
-        )
-    return metadata.name
-
-
-def _endpoint_name(target: Any | None) -> str | None:
-    return None if target is None else _component_name(target)
-
-
-def _properties(
-    binding: Binding,
-) -> tuple[tuple[str, ExpressionDTO], ...]:
-    return tuple(sorted(
-        (
-            name,
-            expression_dto(expression.model),
-        )
-        for name, expression in binding.properties
-    ))
-
-
-def _rows(binding: Binding) -> Any:
-    if binding.rows is None:
-        return None
-    return row_source_plan_dto(binding.rows)
-
-
-def _node_dto(binding: NodeBinding[Any]) -> NodeBindingDTO:
-    return NodeBindingDTO(
-        node=_component_name(binding.target),
-        identity=expression_dto(binding.build_key.model),
-        properties=_properties(binding),
-        rows=_rows(binding),
-        annotations=_annotation_dtos(binding.annotations),
-        mode=binding.mode,
-        debug_name=binding.debug_name,
-        python_ref=_python_ref(binding.python_ref),
-    )
-
-
-def _edge_dto(binding: EdgeBinding[Any]) -> EdgeBindingDTO:
-    return EdgeBindingDTO(
-        edge=_component_name(binding.target),
-        identity=expression_dto(binding.build_key.model),
-        source_identity=expression_dto(binding.source_build_key.model),
-        target_identity=expression_dto(binding.target_build_key.model),
-        properties=_properties(binding),
-        rows=_rows(binding),
-        annotations=_annotation_dtos(binding.annotations),
-        mode=binding.mode,
-        debug_name=binding.debug_name,
-        source_node=_endpoint_name(binding.source_node),
-        target_node=_endpoint_name(binding.target_node),
-        python_ref=_python_ref(binding.python_ref),
-    )
+from ..dto.blueprint_dto import BindingDTO
+from ..model import Binding
 
 
 def collect_bindings(namespace: Any) -> tuple[Binding, ...]:
     """Select binding values from a namespace, preserving first occurrence."""
-    result: list[Binding] = []
-    seen: set[int] = set()
-    for value in namespace.values():
-        if not isinstance(value, (NodeBinding, EdgeBinding)):
-            continue
-        marker = id(value)
-        if marker in seen:
-            continue
-        seen.add(marker)
-        result.append(value)
-    return tuple(result)
+    from ..._private.transcription import collect_bindings as collect
 
-
-def _known_sources(data: DataPartDTO | None) -> set[str]:
-    if data is None:
-        return set()
-    return {
-        item.name
-        for item in (*data.relations, *data.projections)
-    }
-
-
-def _validate_rows(binding: Binding, known: set[str]) -> None:
-    if binding.rows is None or not known:
-        return
-    plan = row_source_plan_dto(binding.rows)
-    missing = {
-        source for source in plan_scan_sources(plan)
-        if not source.startswith("derived:") and source not in known
-    }
-    if missing:
-        raise ValueError(
-            "binding reads unknown logical source(s): "
-            + ", ".join(sorted(missing))
-        )
+    return collect(namespace)
 
 
 def transcribe_bindings(
@@ -152,49 +22,16 @@ def transcribe_bindings(
     data: DataPartDTO | None = None,
 ) -> tuple[BindingDTO, ...]:
     """Transcribe binding declarations into binding DTOs, sorted by target."""
-    known = _known_sources(data)
-    bindings: list[BindingDTO] = []
-    for value in declarations:
-        if isinstance(value, NodeBinding):
-            _validate_rows(value, known)
-            bindings.append(_node_dto(value))
-        elif isinstance(value, EdgeBinding):
-            _validate_rows(value, known)
-            bindings.append(_edge_dto(value))
-    return tuple(sorted(
-        bindings,
-        key=lambda item: (
-            "node" if isinstance(item, NodeBindingDTO) else "edge",
-            item.component,
-            item.debug_name or "",
-            json.dumps(binding_to_document(item), sort_keys=True, default=str),
-        ),
-    ))
+    from ..._private.transcription import transcribe_bindings as transcribe
+
+    return transcribe(declarations, data)
 
 
 def validate_bindings(bindings: Sequence[BindingDTO]) -> None:
     """Reject a binding part with duplicate identities or invalid modes."""
-    if not isinstance(bindings, tuple):
-        raise TypeError("the binding language must transcribe to a tuple")
-    documents: set[str] = set()
-    for binding in bindings:
-        if not isinstance(binding, (NodeBindingDTO, EdgeBindingDTO)):
-            raise TypeError(
-                "the binding language must transcribe only NodeBindingDTO or "
-                "EdgeBindingDTO values"
-            )
-        if not isinstance(binding.mode, str) or binding.mode not in {
-            "declarative", "python",
-        }:
-            raise ValueError(f"unknown binding mode {binding.mode!r}")
-        document = binding_to_document(binding)
-        document.pop("python_ref", None)
-        marker = json.dumps(document, sort_keys=True, default=str)
-        if marker in documents:
-            raise ValueError(
-                f"binding {binding.component!r} has a duplicate identity"
-            )
-        documents.add(marker)
+    from ..._private.transcription import validate_bindings as validate
+
+    validate(bindings)
 
 
 __all__ = [
