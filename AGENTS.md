@@ -128,6 +128,16 @@ rule about what the framework is belongs to the framework model.
 - A node or edge type states its meaning, direction, identity, absence and limits.
 - The build preserves those statements and publishes them for consumers.
 - A meaning that cannot be stated is recorded as a limit; it is not invented.
+- The blueprint is the semantic model of the graph, not a snapshot of the
+  declarations that produced it. Topology reads as nodes, edges, labels,
+  endpoints and properties; it does not carry Python paths, declaration
+  expressions or symbol IDs.
+- A DTO is a member of the blueprint or the workflow contract. A value outside
+  those two artifacts is in-memory: a lowered model, a plan, a render input or
+  a build result. It is not a DTO and is not expected to deserialise.
+- The blueprint must regenerate equivalent authoring source. The round trip
+  `blueprint -> generated source -> blueprint` is a contract test, not a
+  convenience.
 
 ### Experimental
 
