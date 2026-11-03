@@ -205,9 +205,6 @@ rule about what the framework is belongs to the framework model.
 - `public` is the definition site for author-facing names. A public function or
   method is a thin wrapper over `_private` or `internal`; the mechanism is not in
   `public`.
-- `public` and `internal` are interface-first, not abstract-only. A declaration
-  class may keep a class-creation hook that delegates to `_private`; a DTO may
-  keep its own invariant. A mechanism is not an interface.
 - Another subpackage imports `pkg`, `pkg.internal`, `pkg.internal.dto` or
   `pkg.internal.model`. It never imports `pkg._private`. Importing `pkg.public`
   directly is limited to frozen type vocabulary; a behaviour belongs in
@@ -275,6 +272,11 @@ rule about what the framework is belongs to the framework model.
 - A private helper stays beside its caller. Move it to `_private` only when it is
   shared by several modules or is independently replaceable; otherwise the move
   splits one decision and adds an import edge.
+- `public` and `internal` contain no mechanism: data, protocols, adapters and
+  thin delegations only. Codecs, transcription, rendering, validation, assembly
+  and planning live in `_private`.
+- A codec is private to its layer. Another package calls the layer's codec
+  interface; it never imports the codec implementation.
 - A language does not encode or decode. Serialisation belongs to the DTO codec,
   which names its artifact: `to_document` / `from_document`. The blueprint codec
   composes the layer codecs.
