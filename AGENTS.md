@@ -150,12 +150,6 @@ rule about what the framework is belongs to the framework model.
 - The blueprint must regenerate equivalent authoring source. The round trip
   `blueprint -> generated source -> blueprint` is a contract test, not a
   convenience.
-- The workflow contract is a step graph, not a module-variable store. A step
-  owns its instruction; the contract treats the instruction as an opaque
-  `kind` and payload. SQL is one instruction kind, not a contract field.
-- An emitter turns a step plan into an instruction; the executor registered for
-  the instruction kind interprets it. A Python executor is a compatibility mode
-  for the same step graph, not a second contract.
 
 ### Experimental
 
@@ -253,6 +247,12 @@ rule about what the framework is belongs to the framework model.
 - A language transcribes declarations to its DTO and renders its DTO back to
   authoring source. `transcribe` and `render` are the two directions of the same
   language.
+- The workflow contract owns structure: steps, inputs, outputs, connections and
+  provenance. A step owns its instruction. SQL is one instruction kind, not a
+  contract field.
+- Core emits instructions through an instruction emitter. SQL is the default
+  instruction kind; a Python instruction is a stable reference, not a live
+  callable.
 - A language does not encode or decode. Serialisation belongs to the DTO codec,
   which names its artifact: `to_document` / `from_document`. The blueprint codec
   composes the layer codecs.
