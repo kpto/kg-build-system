@@ -275,6 +275,8 @@ rule about what the framework is belongs to the framework model.
 - `public` and `internal` contain no mechanism: data, protocols, adapters and
   thin delegations only. Codecs, transcription, rendering, validation, assembly
   and planning live in `_private`.
+- Consequently, a well-executed `public` or `internal` defines no single-underscore
+  helper. Dunder protocol methods are not private helpers and remain.
 - A codec is private to its layer. Another package calls the layer's codec
   interface; it never imports the codec implementation.
 - A language does not encode or decode. Serialisation belongs to the DTO codec,
