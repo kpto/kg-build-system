@@ -8,9 +8,10 @@ from pathlib import Path
 from kg_build_system.kernel import (
     Artifact,
     ArtifactType,
+    Declaration,
     Extension,
     Instruction,
-    Layer,
+    Key,
     PlanContext,
     Publication,
     RuntimeField,
@@ -18,6 +19,9 @@ from kg_build_system.kernel import (
     Step,
     StepOutcome,
     StepStatus,
+    Symbol,
+    SymbolContext,
+    SymbolRef,
     Toolchain,
     WorkflowRuntime,
 )
@@ -40,30 +44,56 @@ class Namespace:
 
 class EchoLanguage:
     name = "echo"
-    requires: tuple[str, ...] = ()
 
-    def collect(self, namespace):
-        return namespace.values()
+    def discover_declarations(self, namespace):
+        return tuple(Declaration(value) for value in namespace.values())
 
-    def transcribe(self, declarations, context):
-        return Layer(
-            self.name,
-            EchoMessage(" ".join(str(item) for item in declarations)),
-        )
+    def compute_key(self, declaration):
+        return Key((str(declaration.value),))
 
-    def validate(self, layer):
-        assert layer.language == self.name
-        assert isinstance(layer.value, EchoMessage)
+    def get_kind(self, declaration):
+        del declaration
+        return "echo"
 
-    def render(self, layer, context):
-        return SourceFragment("inline", repr(layer.value.text))
+    def owns(self, value):
+        return isinstance(value, str)
+
+    def get_identity(self, value):
+        if not isinstance(value, str):
+            return None
+        return SymbolRef(self.name, Key((value,)))
+
+    def get_references(self, value, resolver):
+        del value, resolver
+        return ()
+
+    def transcribe_many(self, declarations, context):
+        del context
+        reference = SymbolRef(self.name, Key(("echo",)))
+        return {
+            reference: Symbol(
+                reference.key,
+                "echo",
+                EchoMessage(" ".join(
+                    str(declaration.value) for declaration in declarations
+                )),
+            ),
+        }
+
+    def render(self, symbol, context):
+        del context
+        return SourceFragment("inline", repr(symbol.value.text))
 
 
 class EchoLinker:
-    requires: tuple[str, ...] = ("echo",)
-
-    def link(self, layers):
-        value = layers["echo"].value
+    def link(self, languages, namespace):
+        language = languages[0]
+        declarations = tuple(language.discover_declarations(namespace))
+        symbols = language.transcribe_many(
+            declarations, SymbolContext(),
+        )
+        (symbol,) = symbols.values()
+        value = symbol.value
         assert isinstance(value, EchoMessage)
         return value
 
@@ -90,6 +120,7 @@ class EchoPlanner:
 
 class EchoExecutor:
     kinds = (("echo", "default"),)
+    resources: tuple[type, ...] = ()
 
     def execute(self, context, instruction):
         payload = instruction.payload
@@ -102,10 +133,10 @@ class EchoExecutor:
 
 
 class EchoResources:
-    def services(self, plan, configuration):
-        return None
+    def resources(self, configuration):
+        return {}
 
-    def close(self, services):
+    def close(self):
         return None
 
 
@@ -122,8 +153,7 @@ class ExtensionBundleTests(unittest.TestCase):
             linker=EchoLinker(),
             planners=extension.planners,
             executors=extension.executors,
-            resources=EchoResources(),
-            runtime=WorkflowRuntime(),
+            runtime=WorkflowRuntime(providers=(EchoResources(),)),
         )
 
         model = toolchain.build(Namespace("hello", "world"))

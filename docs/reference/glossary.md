@@ -258,16 +258,17 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 ## Compile, execute and outputs
 
 **Blueprint**
-: The immutable, validated declaration snapshot produced by
-  `create_blueprint`. It contains the graph topology, data declarations, bindings
-  and sources that a reached binding needs. See [Compile, build and
-  outputs](../concepts/build-and-outputs.md).
+: The immutable, validated semantic model produced by `create_blueprint`. It
+  contains the graph topology, data declarations, bindings and sources that a
+  reached binding needs, named by typed references rather than a symbol table.
+  See [Compile, build and outputs](../concepts/build-and-outputs.md).
 
 **Build**
-: The act of running `build` to link a model, `compile` to plan it, and
-  `execute` to run the plan. `execute` writes published artifacts,
-  `workflow_plan.json` and `build_report.json`, and returns a `WorkflowReport`.
-  See [Compile, execute and outputs](../concepts/build-and-outputs.md).
+: The act of linking declarations into a model with `build`, compiling that
+  model with `compile`, and running the plan with `execute`. `execute` writes
+  published artifacts, `workflow_plan.json` and `build_report.json`, and returns
+  a `WorkflowReport`. See [Compile, execute and
+  outputs](../concepts/build-and-outputs.md).
 
 **Compile**
 : The call `compile()` that reads a blueprint and produces a `WorkflowPlan`. It
@@ -283,13 +284,22 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 
 **Planner**
 : A component that reads the linked model and emits `Step`s. Supplied planners
-  deduplicate, merge, validate or produce graph records. The core planner is
-  always added. See [Planners and executors](../concepts/planners-and-executors.md).
+  deduplicate, merge, validate or produce graph records. The core module
+  contributes five planners that share one component; they are added
+  automatically. See [Planners and
+  executors](../concepts/planners-and-executors.md).
 
 **Executor**
-: A component that owns one exact instruction kind and executes its steps. The
-  DuckDB, Python, file, meta-graph and Neo4j executors are supplied. See
-  [Planners and executors](../concepts/planners-and-executors.md).
+: A component that owns one exact instruction kind, declares the resources it
+  reads and executes its steps. The DuckDB, Python, file, meta-graph and Neo4j
+  executors are supplied. See [Planners and
+  executors](../concepts/planners-and-executors.md).
+
+**Resource**
+: A live capability with a lifecycle, such as a DuckDB service or output storage.
+  A `ResourceProvider` creates and closes it; an executor receives only the
+  resource types it declares in a `ResourceView`. See [Planners and
+  executors](../concepts/planners-and-executors.md).
 
 **Output**
 : A value published by an output planner's executor during a build, such as
@@ -351,7 +361,7 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 | Struct | ComputedStruct / Table | A source struct is source-backed and each member reads its declaration; a computed struct supplies member types as witnesses and reads from its carrier; a table is also a bindable row source. |
 | Template | Category | A template is inert and never enters the workflow plan; a category is graph-visible and may be an endpoint. |
 | Row source | Shape | A shape is a class of fields; a row source is something that yields rows of that shape. |
-| Workflow plan | Blueprint | A workflow plan is executable; a blueprint is the validated declaration snapshot used to create one. |
+| Workflow plan | Blueprint | A workflow plan is executable; a blueprint is the validated semantic model used to create one. |
 | Binding target | Output target | The binding target is a component; the output target is a planner/executor pair that writes results. |
 | Source binding | Data contract | A data contract says what a row is; a source binding says where the rows live. |
 | Canonical type | Representative type | A canonical type is the lowercase logical type used by the workflow plan; a representative type is the Python alias an author may write. |

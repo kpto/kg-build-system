@@ -15,6 +15,13 @@ from kg_build_system.distribution.languages.expressions.service.internal import 
     expression_from_document,
     expression_to_document,
 )
+from kg_build_system.distribution.model.public.refs import (
+    EdgeRef,
+    NodeRef,
+    RelationRef,
+    ref_from_document,
+    ref_to_document,
+)
 from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import (
     RowDistinctDTO,
     RowFilterDTO,
@@ -61,6 +68,15 @@ def _optional_text(value: Mapping[str, Any], key: str) -> str | None:
     return result
 
 
+def _optional_node_ref(value: Mapping[str, Any], key: str) -> NodeRef | None:
+    if value.get(key) is None:
+        return None
+    reference = ref_from_document(value.get(key))
+    if not isinstance(reference, NodeRef):
+        raise ValueError(f"{key!r} must be a node reference")
+    return reference
+
+
 def _python_ref_to_document(value: PythonRefDTO) -> dict[str, Any]:
     return {
         "module": value.module,
@@ -83,7 +99,7 @@ def _python_ref_from_document(value: Mapping[str, Any]) -> PythonRefDTO:
 
 def _plan_to_document(plan: RowSourcePlanDTO) -> dict[str, Any]:
     if isinstance(plan, RowScanDTO):
-        return {"kind": "scan", "source": plan.source}
+        return {"kind": "scan", "relation": ref_to_document(plan.relation)}
     if isinstance(plan, RowFilterDTO):
         return {
             "kind": "filter",
@@ -142,7 +158,10 @@ def _boolean(value: Mapping[str, Any], key: str, default: bool | None = None) ->
 def _plan_from_document(value: Mapping[str, Any]) -> RowSourcePlanDTO:
     kind = value.get("kind")
     if kind == "scan":
-        return RowScanDTO(_text(value, "source"))
+        relation = ref_from_document(value.get("relation"))
+        if not isinstance(relation, RelationRef):
+            raise ValueError("a row plan 'relation' must be a relation reference")
+        return RowScanDTO(relation)
     if kind == "filter":
         return RowFilterDTO(
             _plan_from_document(_object(value.get("input"), "row plan input")),
@@ -235,13 +254,15 @@ def binding_to_document(binding: BindingDTO) -> dict[str, Any]:
         from kg_build_system.distribution.languages.binding.model.internal.dto import (
             NodeBindingDTO, binding_to_document,
         )
+        from kg_build_system.distribution.model.public.refs import NodeRef
+        from kg_build_system.kernel import Key
         from kg_build_system.distribution.languages.expressions.model.internal import (
             LiteralExpressionDTO,
         )
         from kg_build_system.kernel.model.internal.types.dto import UnitTypeDTO
 
         key = LiteralExpressionDTO(logical_type=UnitTypeDTO("str"), value="site::")
-        document = binding_to_document(NodeBindingDTO("site", key))
+        document = binding_to_document(NodeBindingDTO(NodeRef("topology", Key(("site",))), key))
         assert document["kind"] == "node"
         ```
     """
@@ -259,19 +280,19 @@ def binding_to_document(binding: BindingDTO) -> dict[str, Any]:
     if binding.python_ref is not None:
         common["python_ref"] = _python_ref_to_document(binding.python_ref)
     if isinstance(binding, NodeBindingDTO):
-        return {"kind": "node", "node": binding.node, **common}
+        return {"kind": "node", "node": ref_to_document(binding.node), **common}
     return {
         "kind": "edge",
-        "edge": binding.edge,
+        "edge": ref_to_document(binding.edge),
         "source_identity": expression_to_document(binding.source_identity),
         "target_identity": expression_to_document(binding.target_identity),
         **common,
         **(
-            {"source_node": binding.source_node}
+            {"source_node": ref_to_document(binding.source_node)}
             if binding.source_node is not None else {}
         ),
         **(
-            {"target_node": binding.target_node}
+            {"target_node": ref_to_document(binding.target_node)}
             if binding.target_node is not None else {}
         ),
     }
@@ -288,7 +309,7 @@ def binding_from_document(document: Mapping[str, Any]) -> BindingDTO:
 
         document = {
             "kind": "node",
-            "node": "site",
+            "node": ["topology", "node", "site"],
             "identity": {
                 "kind": "literal",
                 "value": "site::",
@@ -327,18 +348,24 @@ def binding_from_document(document: Mapping[str, Any]) -> BindingDTO:
     }
     kind = value.get("kind")
     if kind == "node":
-        return NodeBindingDTO(node=_text(value, "node"), **common)
+        node = ref_from_document(value.get("node"))
+        if not isinstance(node, NodeRef):
+            raise ValueError("a node binding 'node' must be a node reference")
+        return NodeBindingDTO(node=node, **common)
     if kind == "edge":
+        edge = ref_from_document(value.get("edge"))
+        if not isinstance(edge, EdgeRef):
+            raise ValueError("an edge binding 'edge' must be an edge reference")
         return EdgeBindingDTO(
-            edge=_text(value, "edge"),
+            edge=edge,
             source_identity=expression_from_document(
                 _object(value.get("source_identity"), "source identity")
             ),
             target_identity=expression_from_document(
                 _object(value.get("target_identity"), "target identity")
             ),
-            source_node=_optional_text(value, "source_node"),
-            target_node=_optional_text(value, "target_node"),
+            source_node=_optional_node_ref(value, "source_node"),
+            target_node=_optional_node_ref(value, "target_node"),
             **common,
         )
     raise ValueError(f"unknown binding kind {kind!r}")

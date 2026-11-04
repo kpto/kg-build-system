@@ -63,7 +63,7 @@ Use one module per handwritten table, such as `table/people.py`, or a generated 
 
 Generated contracts are owned by the generator. The author-owned request lives in `table/__init__.py`; change the request and regenerate rather than editing a generated package. See [data contracts](../concepts/data-contracts.md), the [declarations reference](../reference/declarations.md), and [projections](../concepts/projections.md).
 
-Keep graph labels and property names out of this layer. A column named `unit_ref` is data; that it identifies a `UnitNode` is a binding decision.
+Keep graph labels and property names out of this part. A column named `unit_ref` is data; that it identifies a `UnitNode` is a binding decision.
 
 ### 3. Declare graph meaning in `topology/`
 
@@ -95,7 +95,7 @@ bindings/person/
 
 A node binding lives in the package `__init__.py`; an edge binding lives in the module named after the edge. This is a convention for navigation, not a second declaration system.
 
-Bindings are the only layer that imports both a table and a topology component. That is what lets a feed be reshaped without touching graph meaning, and a node be reused across feeds without copying bindings. Keep shared property values, such as a provenance stage or source version, in `bindings/common.py` and pass them into the binding as ordinary values.
+Bindings are the only part that imports both a table and a topology component. That is what lets a feed be reshaped without touching graph meaning, and a node be reused across feeds without copying bindings. Keep shared property values, such as a provenance stage or source version, in `bindings/common.py` and pass them into the binding as ordinary values.
 
 See [bindings](../concepts/bindings.md) and the [bindings reference](../reference/bindings.md).
 
@@ -148,7 +148,7 @@ if __name__ == "__main__":
 
 `compile()` scans the package around `build.py`, so the declarations and bindings do not need an import list. Keep the `if __name__ == "__main__":` guard so discovery's import of `build.py` does not run a build.
 
-Choose planners here, not in the layers below. A file-only build, a deduplication pass, a meta-graph, or a Neo4j import are composition choices. See [planners and executors](../concepts/planners-and-executors.md), the [planners and executors reference](../reference/planners-and-executors.md), and [compile, execute and outputs](../concepts/build-and-outputs.md).
+Choose planners here, not in the declaration modules. A file-only build, a deduplication pass, a meta-graph, or a Neo4j import are composition choices. See [planners and executors](../concepts/planners-and-executors.md), the [planners and executors reference](../reference/planners-and-executors.md), and [compile, execute and outputs](../concepts/build-and-outputs.md).
 
 ### 7. Keep inputs in `data/` and outputs in `build/`
 
@@ -162,9 +162,9 @@ Build artifacts are inspectable development material: the graph records, the bui
 | `build_report.json` | `execute()` | Published artifacts, failures, and provenance |
 | `graph.jsonl` | `FileExecutor` | One JSON object per graph record |
 
-## Where each layer lives
+## Where each part lives
 
-| Layer | Owns | Changes when |
+| Directory | Owns | Changes when |
 | --- | --- | --- |
 | `data/` | Bytes on disk | A feed is refreshed |
 | `table/` | Field names and value types | A source schema changes |
@@ -186,7 +186,7 @@ topology ────────┘
 Tables do not import topology. Topology does not import tables. Sources do not know graph meaning. A binding is the meeting point, and the build composes the result.
 
 !!! warning "Keep the direction one-way"
-    If a table imports a node, or a topology module imports a table, the layers become impossible to change or test separately. If a mapping needs data from both sides, it belongs in `bindings/`.
+    If a table imports a node, or a topology module imports a table, the parts become impossible to change or test separately. If a mapping needs data from both sides, it belongs in `bindings/`.
 
 ## Verify
 
@@ -202,7 +202,7 @@ To verify the whole example, run `python -m people_graph.build` and check the no
 
 ## What to remember
 
-- `table/` owns shape, `topology/` owns meaning, `sources.py` owns location, and `bindings/` is the only layer that imports both sides.
+- `table/` owns shape, `topology/` owns meaning, `sources.py` owns location, and `bindings/` is the only part that imports both sides.
 - Keep one module per table and one package per node; mirror the topology tree under `bindings/`.
 - `build.py` at the package root is the entry point and needs a `__main__` guard.
 - Inputs go in `data/`; generated artifacts go in `build/` and are never edited by hand.
@@ -210,7 +210,7 @@ To verify the whole example, run `python -m people_graph.build` and check the no
 ## Next steps
 
 - [Build your first graph](first-graph.md) for the complete runnable version of this layout.
-- [Data contracts](../concepts/data-contracts.md) and [topology](../concepts/topology.md) for the declarations in each layer.
+- [Data contracts](../concepts/data-contracts.md) and [topology](../concepts/topology.md) for the declarations in each part.
 - [Bindings](../concepts/bindings.md) and [sources](../concepts/sources.md) for the mapping and physical location.
 - [Compile, execute and outputs](../concepts/build-and-outputs.md) for the workflow plan and artifacts.
 - [Authoring API reference](../reference/index.md) for the public names used in these files.

@@ -15,13 +15,15 @@ def binding_to_document(binding: BindingDTO) -> dict[str, Any]:
         from kg_build_system.distribution.languages.binding.model.internal.dto import (
             NodeBindingDTO, binding_to_document,
         )
+        from kg_build_system.distribution.model.public.refs import NodeRef
+        from kg_build_system.kernel import Key
         from kg_build_system.distribution.languages.expressions.model.internal import (
             LiteralExpressionDTO,
         )
         from kg_build_system.kernel.model.internal.types.dto import UnitTypeDTO
 
         key = LiteralExpressionDTO(logical_type=UnitTypeDTO("str"), value="site::")
-        document = binding_to_document(NodeBindingDTO("site", key))
+        document = binding_to_document(NodeBindingDTO(NodeRef("topology", Key(("site",))), key))
         assert document["kind"] == "node"
         ```
     """
@@ -41,7 +43,7 @@ def binding_from_document(document: Mapping[str, Any]) -> BindingDTO:
 
         document = {
             "kind": "node",
-            "node": "site",
+            "node": ["topology", "node", "site"],
             "identity": {
                 "kind": "literal",
                 "value": "site::",

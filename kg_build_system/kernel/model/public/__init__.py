@@ -1,15 +1,15 @@
-"""The kernel's public model: canonical types, language, workflow and runtime.
+"""The kernel's public model: canonical types, languages, workflow and runtime.
 
-This package is domain-agnostic. It knows languages, layers, definitions,
+This package is domain-agnostic. It knows languages, declarations, symbols,
 workflow steps, components and runtime outcomes; it knows no data, topology,
 expression, SQL or graph vocabulary. It imports no service behaviour and no
 private module.
 """
 from __future__ import annotations
 
+from .key import Key
 from .language import (
-    Definition, Language, LanguageContext, Layer, Namespace, RenderContext,
-    SourceFragment,
+    Language, Namespace, ReferenceResolver, RenderContext, SourceFragment,
 )
 from .runtime import (
     Artifact,
@@ -19,11 +19,13 @@ from .runtime import (
     ExecutionContext,
     Failure,
     PublishedArtifact,
+    ResourceView,
     RuntimeConfiguration,
     StepOutcome,
     StepStatus,
     WorkflowReport,
 )
+from .symbol import Declaration, Symbol, SymbolContext, SymbolRef
 from .types import (
     BOOL, CANONICAL_UNIT_NAMES, DATE, FLOAT, INT, STR, TEXT_CANONICAL_UNIT_NAMES,
     TIME, TIMESTAMP, UUID, Array, ArrayType, CustomDataType, CustomType, Date,
@@ -50,15 +52,17 @@ from .workflow import (
 __all__ = [
     "Array", "ArrayType", "Artifact", "ArtifactType", "BOOL",
     "CANONICAL_UNIT_NAMES", "Component", "Connection", "ContinuableInput",
-    "CustomDataType", "CustomType", "DATE", "Date", "Definition",
+    "CustomDataType", "CustomType", "DATE", "Date", "Declaration",
     "DisruptedExecutionContext", "DisruptingInput", "ExecutionContext",
     "FLOAT", "Failure", "Given", "Input", "INT", "Instruction",
-    "InstructionKind", "JsonValue", "Language", "LanguageContext", "Layer",
+    "InstructionKind", "JsonValue", "Key", "Language",
     "LogicalType", "Namespace", "NonNullableLogicalType", "Nullable",
     "NullableType", "Output", "Publication", "PublishedArtifact",
-    "RenderContext", "RuntimeConfiguration", "RuntimeField", "STR", "Shape",
-    "SourceFragment", "Step", "StepOutcome", "StepStatus", "Struct",
-    "StructType", "TEXT_CANONICAL_UNIT_NAMES", "TIME", "TIMESTAMP", "Time",
+    "ReferenceResolver", "RenderContext", "ResourceView",
+    "RuntimeConfiguration", "RuntimeField", "STR", "Shape", "SourceFragment",
+    "Step", "StepOutcome",
+    "StepStatus", "Struct", "StructType", "Symbol", "SymbolContext",
+    "SymbolRef", "TEXT_CANONICAL_UNIT_NAMES", "TIME", "TIMESTAMP", "Time",
     "Timestamp", "UUID", "UnitType", "UnitTypeName", "Uuid", "WorkflowPlan",
     "WorkflowReport", "is_canonical_unit_name",
 ]

@@ -6,11 +6,12 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from kg_build_system.distribution.executors.duckdb import (
+from kg_build_system.distribution.modules.runtime import RuntimeResources
+from kg_build_system.distribution.modules.duckdb import (
     DuckDbExecutor,
     DuckDbResourceProvider,
 )
-from kg_build_system.distribution.executors.neo4j import (
+from kg_build_system.distribution.modules.neo4j import (
     Neo4jConfiguration,
     Neo4jExecutor,
     Neo4jPlanner,
@@ -83,8 +84,9 @@ class Neo4jTargetTests(unittest.TestCase):
             languages=(),
             linker=_FakeLinker(),
             executors=(DuckDbExecutor(), Neo4jExecutor()),
-            resources=DuckDbResourceProvider(),
-            runtime=WorkflowRuntime(),
+            runtime=WorkflowRuntime(
+                providers=(RuntimeResources(), DuckDbResourceProvider()),
+            ),
         )
         plan = _plan(Neo4jConfiguration())
 

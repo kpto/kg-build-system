@@ -45,14 +45,15 @@ create_blueprint(
 ```
 
 `create_blueprint` takes no planners. It collects declarations through the
-selected languages, links the layers and validates the result.
+selected languages, links the language declarations into symbols and one model,
+and validates the result.
 
 | Argument | Meaning |
 | --- | --- |
 | `namespace_path` | An importable package name or directory to discover |
 | `bindings` | Explicit bindings; supply together with `sources` |
 | `sources` | Explicit source bindings; supply together with `bindings` |
-| `languages` | Language composition; defaults to data, topology and binding |
+| `languages` | Language composition; defaults to expressions, data, topology and binding |
 
 There are three declaration modes:
 
@@ -84,9 +85,10 @@ structs those types use, and the sources those tables need.
 | `bindings` | `NodeBindingDTO` and `EdgeBindingDTO` values |
 | `sources` | `SourceDTO` values for physical source bindings |
 
-The layer DTOs are internal to the language packages. `GraphBlueprint` is the
-public handle; `graph`, `data`, `bindings` and `sources` reference internal layer
-DTOs.
+The language DTOs are internal to the language packages. `GraphBlueprint` is the
+public handle; `graph`, `data`, `bindings` and `sources` reference internal
+language DTOs. Cross-symbol fields carry role-typed references such as
+`NodeRef`, `FieldRef` and `OperationRef`.
 
 ## `compile`
 
@@ -106,9 +108,9 @@ compile(
 `compile` reads the blueprint exactly as given, or creates one from the
 declaration mode. It never reads data.
 
-When `toolchain` is omitted, `compile` uses `default_toolchain`, adding the core
-planner unless a supplied planner already reports `component_id == "core"`, then
-appends the planners you pass. When `toolchain` is supplied, it appends the
+When `toolchain` is omitted, `compile` uses `default_toolchain`, adding the five
+core planners unless a supplied planner already reports `component_id == "core"`,
+then appends the planners you pass. When `toolchain` is supplied, it appends the
 `planners` argument to that toolchain's planners.
 
 ```python
@@ -130,7 +132,7 @@ Compilation checks everything that does not need data:
 
 | Field | Content |
 | --- | --- |
-| `components` | One component per planner, with its id, version and runtime fields |
+| `components` | One component per distinct component id, with its id, version and runtime fields |
 | `steps` | The scheduled instructions with typed inputs and outputs |
 | `connections` | Resolved connections between step openings |
 | `provenance` | Opaque JSON recorded by compilation |

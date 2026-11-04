@@ -5,51 +5,279 @@ import unittest
 from kg_build_system.distribution.interpreter import GraphBlueprint
 from kg_build_system.distribution.interpreter.service.internal import (
     BlueprintLinker,
-    assemble_blueprint,
-    validate_blueprint,
 )
-from kg_build_system.distribution.languages.data.model.internal import DataPartDTO
-from kg_build_system.distribution.languages.topology.model.internal import GraphPartDTO
-from kg_build_system.kernel import Layer
+from kg_build_system.distribution.languages.binding.service.internal import (
+    BindingLanguage,
+)
+from kg_build_system.distribution.languages.data.model.internal import (
+    DataPartDTO,
+    SourceDTO,
+    StructDTO,
+)
+from kg_build_system.distribution.languages.data.service.internal import (
+    DataLanguage,
+)
+from kg_build_system.distribution.languages.data import (
+    Field,
+    Struct,
+    StructOptions,
+    Table,
+    TableOptions,
+    field,
+)
+from kg_build_system.distribution.languages.topology.model.internal import (
+    GraphPartDTO,
+)
+from kg_build_system.distribution.languages.expressions.service.internal import (
+    ExpressionsLanguage,
+)
+from kg_build_system.distribution.languages.topology.service.internal import (
+    TopologyLanguage,
+)
+from kg_build_system.distribution.model.public.refs import RelationRef
+from kg_build_system.kernel import (
+    Declaration,
+    Key,
+    Symbol,
+    SymbolRef,
+)
 
 
-def _layers() -> dict[str, Layer]:
-    return {
-        "data": Layer(
-            "data",
-            DataPartDTO(structs=(), relations=(), projections=(), sources=()),
-        ),
-        "topology": Layer("topology", GraphPartDTO()),
-        "binding": Layer("binding", ()),
-    }
+class Namespace:
+    def __init__(self, *values: object) -> None:
+        self._values = values
+
+    def values(self):
+        return self._values
+
+
+def _languages():
+    return (
+        ExpressionsLanguage(), DataLanguage(), TopologyLanguage(),
+        BindingLanguage(),
+    )
+
+
+class BrokenDataLanguage:
+    name = "data"
+
+    def discover_declarations(self, namespace):
+        del namespace
+        return (Declaration("broken"),)
+
+    def compute_key(self, declaration):
+        del declaration
+        return Key(("broken",))
+
+    def get_kind(self, declaration):
+        del declaration
+        return "struct"
+
+    def owns(self, value):
+        return False
+
+    def get_identity(self, value):
+        del value
+        return None
+
+    def get_references(self, value, resolver):
+        del value, resolver
+        return ()
+
+    def transcribe_many(self, declarations, context):
+        del declarations, context
+        reference = SymbolRef("data", Key(("broken",)))
+        return {
+            reference: Symbol(
+                reference.key,
+                "struct",
+                StructDTO("broken", ()),
+                (SymbolRef("data", Key(("missing",))),),
+            ),
+        }
+
+
+class StructOnlyDataLanguage(BrokenDataLanguage):
+    def transcribe_many(self, declarations, context):
+        del declarations, context
+        reference = SymbolRef("data", Key(("broken",)))
+        return {
+            reference: Symbol(
+                reference.key, "struct", StructDTO("broken", ()),
+            ),
+        }
 
 
 class BlueprintLinkerTests(unittest.TestCase):
-    def test_requires_the_three_blueprint_layers(self) -> None:
-        self.assertEqual(
-            BlueprintLinker.requires, ("data", "topology", "binding"),
-        )
+    def test_the_linker_requires_every_default_language(self) -> None:
+        with self.assertRaisesRegex(
+            ValueError, "requires languages expressions, binding",
+        ):
+            BlueprintLinker().link(
+                (DataLanguage(), TopologyLanguage()), Namespace(),
+            )
 
-    def test_linking_returns_the_assembled_and_validated_blueprint(self) -> None:
-        layers = _layers()
-        expected = assemble_blueprint(
-            layers["topology"].value,
-            layers["data"].value,
-            layers["binding"].value,
-        )
-        validate_blueprint(expected)
-
-        linked = BlueprintLinker().link(layers)
+    def test_linking_an_empty_namespace_returns_an_empty_blueprint(self) -> None:
+        linked = BlueprintLinker().link(_languages(), Namespace())
 
         self.assertIsInstance(linked, GraphBlueprint)
-        self.assertEqual(linked, expected)
+        self.assertEqual(linked.graph, GraphPartDTO())
+        self.assertEqual(
+            linked.data,
+            DataPartDTO(structs=(), relations=(), projections=(), sources=()),
+        )
+        self.assertEqual(linked.bindings, ())
+        self.assertEqual(linked.sources, ())
 
-    def test_a_missing_layer_raises(self) -> None:
-        layers = _layers()
-        del layers["binding"]
+    def test_languages_are_transcribed_in_dependency_order(self) -> None:
+        calls: list[str] = []
 
-        with self.assertRaises(KeyError):
-            BlueprintLinker().link(layers)
+        class RecordingExpressions(ExpressionsLanguage):
+            def transcribe_many(self, declarations, context):
+                calls.append("expressions")
+                return super().transcribe_many(declarations, context)
+
+        class RecordingData(DataLanguage):
+            def transcribe_many(self, declarations, context):
+                calls.append("data")
+                return super().transcribe_many(declarations, context)
+
+        class RecordingTopology(TopologyLanguage):
+            def transcribe_many(self, declarations, context):
+                calls.append("topology")
+                return super().transcribe_many(declarations, context)
+
+        class RecordingBinding(BindingLanguage):
+            def transcribe_many(self, declarations, context):
+                calls.append("binding")
+                return super().transcribe_many(declarations, context)
+
+        BlueprintLinker().link(
+            (
+                RecordingBinding(), RecordingTopology(), RecordingData(),
+                RecordingExpressions(),
+            ),
+            Namespace(),
+        )
+
+        self.assertEqual(
+            calls, ["expressions", "data", "topology", "binding"],
+        )
+
+    def test_a_declaration_key_is_indexed_once(self) -> None:
+        class DuplicateData(StructOnlyDataLanguage):
+            def discover_declarations(self, namespace):
+                del namespace
+                return (Declaration("one"), Declaration("two"))
+
+            def compute_key(self, declaration):
+                del declaration
+                return Key(("same",))
+
+        with self.assertRaisesRegex(ValueError, "declares key same twice"):
+            BlueprintLinker().link(
+                (DuplicateData(), TopologyLanguage(), BindingLanguage(), ExpressionsLanguage()),
+                Namespace(),
+            )
+
+    def test_a_fake_language_produces_symbols_for_the_blueprint(self) -> None:
+        linked = BlueprintLinker().link(
+            (StructOnlyDataLanguage(), TopologyLanguage(), BindingLanguage(), ExpressionsLanguage()),
+            Namespace(),
+        )
+
+        self.assertEqual(
+            linked.data.structs, (StructDTO("broken", ()),),
+        )
+
+    def test_a_missing_symbol_reference_is_refused(self) -> None:
+        with self.assertRaisesRegex(ValueError, "unknown symbol reference"):
+            BlueprintLinker().link(
+                (BrokenDataLanguage(), TopologyLanguage(), BindingLanguage(), ExpressionsLanguage()),
+                Namespace(),
+            )
+
+    def test_a_binding_reference_must_exist(self) -> None:
+        class BrokenBindingLanguage(BindingLanguage):
+            def transcribe_many(self, declarations, context):
+                del declarations, context
+                reference = SymbolRef("binding", Key(("broken",)))
+                return {
+                    reference: Symbol(
+                        reference.key,
+                        "binding",
+                        SourceDTO(
+                            RelationRef("data", Key(("broken",))),
+                            "file.csv",
+                            "csv",
+                        ),
+                        (SymbolRef("topology", Key(("missing",))),),
+                    ),
+                }
+
+        with self.assertRaisesRegex(ValueError, "unknown symbol reference"):
+            BlueprintLinker().link(
+                (DataLanguage(), TopologyLanguage(), BrokenBindingLanguage(), ExpressionsLanguage()),
+                Namespace(),
+            )
+
+
+class DataSymbolKeyTests(unittest.TestCase):
+    def test_a_unique_struct_uses_its_graph_name(self) -> None:
+        class Info(Struct):
+            options = StructOptions(name="info")
+            value: Field[str] = field()
+
+        language = DataLanguage()
+        (declaration,) = tuple(
+            language.discover_declarations(Namespace(Info))
+        )
+
+        self.assertEqual(language.compute_key(declaration), Key(("info",)))
+        self.assertEqual(
+            language.get_identity(Info),
+            SymbolRef("data", Key(("info",))),
+        )
+
+    def test_a_repeated_struct_uses_its_qualified_name(self) -> None:
+        class Info(Struct):
+            options = StructOptions(name="info")
+            value: Field[str] = field()
+
+        class OtherInfo(Struct):
+            options = StructOptions(name="info")
+            other: Field[str] = field()
+
+        language = DataLanguage()
+        declarations = tuple(
+            language.discover_declarations(Namespace(Info, OtherInfo))
+        )
+        keys = {language.compute_key(item) for item in declarations}
+
+        self.assertEqual(len(keys), 2)
+        self.assertTrue(all(key.segments[0] == "info" for key in keys))
+
+    def test_a_struct_name_colliding_with_a_relation_is_qualified(self) -> None:
+        class Go(Struct):
+            options = StructOptions(name="go")
+            value: Field[str] = field()
+
+        class GoTable(Table):
+            options = TableOptions(name="go")
+            value: Field[str] = field()
+
+        language = DataLanguage()
+        declarations = tuple(
+            language.discover_declarations(Namespace(Go, GoTable))
+        )
+        keys = {
+            language.get_kind(item): language.compute_key(item)
+            for item in declarations
+        }
+
+        self.assertEqual(keys["relation"], Key(("go",)))
+        self.assertEqual(keys["struct"].segments[0], "go")
+        self.assertEqual(len(keys["struct"].segments), 2)
 
 
 if __name__ == "__main__":

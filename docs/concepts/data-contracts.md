@@ -3,7 +3,7 @@
 A data contract is a Python class that describes one row of input: its fields,
 their types and the records nested inside it.
 
-Data contracts are the first layer of a build. Source data is not under your
+Data contracts are the first stage of a build. Source data is not under your
 control. Columns are renamed, a number arrives as text, a nested object is absent.
 A contract puts the shape you expect into the code that builds the graph, so a
 mismatch is a declaration error rather than a surprise halfway through a build.
@@ -12,9 +12,9 @@ with it.
 
 ## Why contracts come first
 
-Every later layer reads the same shape. An expression reads a field, a row source
+Every later stage reads the same shape. An expression reads a field, a row source
 returns rows of that shape, and a binding maps those rows onto node and edge
-properties. If the shape is only a convention, each layer can interpret it
+properties. If the shape is only a convention, each stage can interpret it
 differently and the build discovers the disagreement late.
 
 A contract fixes the vocabulary before any of that happens. Compilation can then

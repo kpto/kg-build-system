@@ -3,14 +3,19 @@ from __future__ import annotations
 import unittest
 
 from kg_build_system.kernel import (
-    Layer,
+    Declaration,
+    Key,
+    Language,
     SourceFragment,
+    Symbol,
+    SymbolContext,
+    SymbolRef,
     Toolchain,
     WorkflowRuntime,
 )
 
 
-class Namespace:
+class _Namespace:
     def __init__(self, *values: object) -> None:
         self._values = values
 
@@ -20,49 +25,83 @@ class Namespace:
 
 class EchoLanguage:
     name = "echo"
-    requires: tuple[str, ...] = ()
 
-    def collect(self, namespace):
-        return namespace.values()
+    def discover_declarations(self, namespace):
+        return tuple(Declaration(value) for value in namespace.values())
 
-    def transcribe(self, declarations, context):
-        return Layer(self.name, tuple(declarations))
+    def compute_key(self, declaration):
+        return Key((str(declaration.value),))
 
-    def validate(self, layer):
-        assert layer.language == self.name
-        return None
+    def get_kind(self, declaration):
+        return "echo"
 
-    def render(self, layer, context):
-        return SourceFragment("inline", repr(layer.value))
+    def owns(self, value):
+        return isinstance(value, str)
+
+    def get_identity(self, value):
+        if not isinstance(value, str):
+            return None
+        return SymbolRef(self.name, Key((value,)))
+
+    def get_references(self, value, resolver):
+        del value, resolver
+        return ()
+
+    def transcribe_many(self, declarations, context):
+        del context
+        symbols = {}
+        for declaration in declarations:
+            reference = SymbolRef(
+                self.name, self.compute_key(declaration),
+            )
+            symbols[reference] = Symbol(
+                reference.key, "echo", declaration.value,
+            )
+        return symbols
+
+    def render(self, symbol, context):
+        del context
+        return SourceFragment("inline", repr(symbol.value))
 
 
 class ConsumerLanguage(EchoLanguage):
     name = "consumer"
-    requires: tuple[str, ...] = ("echo",)
 
-    def collect(self, namespace):
+    def discover_declarations(self, namespace):
+        del namespace
         return ()
 
-    def transcribe(self, declarations, context):
-        return Layer(self.name, tuple(context.layer("echo").value))
+    def transcribe_many(self, declarations, context):
+        del declarations
+        value = tuple(context.symbols.values())
+        reference = SymbolRef(self.name, Key(("consumer",)))
+        return {reference: Symbol(reference.key, "echo", value)}
 
 
 class RecordingLinker:
-    requires: tuple[str, ...] = ("echo", "consumer")
-
     def __init__(self) -> None:
-        self.layers: dict[str, Layer] | None = None
+        self.languages = None
+        self.namespace = None
 
-    def link(self, layers):
-        self.layers = dict(layers)
-        return {name: layer.value for name, layer in layers.items()}
+    def link(self, languages, namespace):
+        self.languages = tuple(languages)
+        self.namespace = namespace
+        model: dict[SymbolRef, Symbol] = {}
+        for language in languages:
+            declarations = tuple(
+                language.discover_declarations(namespace)
+            )
+            model.update(
+                language.transcribe_many(declarations, SymbolContext(model)),
+            )
+        return model
 
 
 class Resources:
-    def services(self, plan, configuration):
-        return None
+    def resources(self, configuration):
+        return {}
 
-    def close(self, services):
+    def close(self):
         return None
 
 
@@ -70,57 +109,119 @@ def _toolchain(*languages: object) -> Toolchain[object]:
     return Toolchain(
         languages=languages,
         linker=RecordingLinker(),
-        resources=Resources(),
-        runtime=WorkflowRuntime(),
+        runtime=WorkflowRuntime(providers=(Resources(),)),
     )
 
 
+class KeyTests(unittest.TestCase):
+    def test_a_key_extends_with_child_segments(self) -> None:
+        key = Key(("site",)).child("name")
+        self.assertEqual(key, Key(("site", "name")))
+        self.assertEqual(Key(()).child("a", "b"), Key(("a", "b")))
+
+    def test_starts_with_tests_a_prefix(self) -> None:
+        self.assertTrue(Key(("site", "name")).starts_with(Key(("site",))))
+        self.assertTrue(Key(("site",)).starts_with(Key(())))
+        self.assertFalse(Key(("site",)).starts_with(Key(("site", "name"))))
+
+    def test_matches_supports_segment_wildcards_and_a_final_double_star(self) -> None:
+        self.assertTrue(Key(("site", "name")).matches(Key(("site", "*"))))
+        self.assertTrue(Key(("site", "name", "value")).matches(
+            Key(("site", "**")),
+        ))
+        self.assertTrue(Key(("site",)).matches(Key(("site",))))
+        self.assertFalse(Key(("other", "name")).matches(Key(("site", "*"))))
+        self.assertFalse(Key(("site", "name", "value")).matches(
+            Key(("site",)),
+        ))
+
+    def test_a_key_round_trips_to_a_document_and_text(self) -> None:
+        key = Key(("site", "name"))
+        self.assertEqual(key.to_document(), ["site", "name"])
+        self.assertEqual(str(key), "site/name")
+        self.assertEqual(hash(key), hash(Key(("site", "name"))))
+
+
+class SymbolModelTests(unittest.TestCase):
+    def test_a_symbol_context_reads_symbols_and_values(self) -> None:
+        reference = SymbolRef("echo", Key(("hello",)))
+        symbol = Symbol(reference.key, "echo", "hello")
+        context = SymbolContext({reference: symbol})
+
+        self.assertIs(context.get_symbol(reference), symbol)
+        self.assertEqual(context.get_value(reference), "hello")
+
+    def test_a_symbol_context_refuses_an_unknown_reference(self) -> None:
+        context = SymbolContext()
+        with self.assertRaisesRegex(KeyError, "unknown symbol"):
+            context.get_symbol(SymbolRef("echo", Key(("missing",))))
+
+    def test_a_symbol_context_copies_its_mapping(self) -> None:
+        reference = SymbolRef("echo", Key(("hello",)))
+        symbols = {reference: Symbol(reference.key, "echo", "hello")}
+        context = SymbolContext(symbols)
+
+        symbols.clear()
+
+        self.assertEqual(context.get_value(reference), "hello")
+
+
 class KernelTests(unittest.TestCase):
-    def test_languages_transcribe_in_dependency_order(self) -> None:
+    def test_the_toolchain_hands_languages_and_namespace_to_the_linker(self) -> None:
         linker = RecordingLinker()
         toolchain = Toolchain(
-            languages=(ConsumerLanguage(), EchoLanguage()),
+            languages=(EchoLanguage(), ConsumerLanguage()),
             linker=linker,
-            resources=Resources(),
-            runtime=WorkflowRuntime(),
+        )
+        namespace = _Namespace(1, 2)
+
+        model = toolchain.build(namespace)
+
+        self.assertIs(linker.namespace, namespace)
+        self.assertEqual(
+            [language.name for language in linker.languages],
+            ["echo", "consumer"],
+        )
+        self.assertIsInstance(model, dict)
+
+    def test_a_language_produces_one_symbol_per_declaration(self) -> None:
+        model = _toolchain(EchoLanguage()).build(_Namespace("a", "b"))
+
+        self.assertEqual(
+            set(model),
+            {
+                SymbolRef("echo", Key(("a",))),
+                SymbolRef("echo", Key(("b",))),
+            },
+        )
+        self.assertEqual(
+            [symbol.value for symbol in model.values()],
+            ["a", "b"],
         )
 
-        model = toolchain.build(Namespace(1, 2))
-
-        self.assertEqual(model, {"echo": (1, 2), "consumer": (1, 2)})
-        self.assertIsNotNone(linker.layers)
-        assert linker.layers is not None
-        self.assertEqual(list(linker.layers), ["echo", "consumer"])
-
-    def test_a_language_can_read_a_dependency_layer(self) -> None:
-        build = _toolchain(EchoLanguage(), ConsumerLanguage()).build(
-            Namespace("a", "b"),
+    def test_a_later_language_reads_the_earlier_symbol_context(self) -> None:
+        model = _toolchain(EchoLanguage(), ConsumerLanguage()).build(
+            _Namespace("a", "b"),
         )
-        self.assertEqual(build["echo"], ("a", "b"))
-        self.assertEqual(build["consumer"], ("a", "b"))
-
-    def test_duplicate_language_names_are_rejected(self) -> None:
-        with self.assertRaisesRegex(ValueError, "unique"):
-            _toolchain(EchoLanguage(), EchoLanguage()).build(Namespace())
-
-    def test_a_missing_dependency_is_rejected(self) -> None:
-        with self.assertRaisesRegex(ValueError, "unknown"):
-            _toolchain(ConsumerLanguage()).build(Namespace())
-
-    def test_a_cycle_is_rejected(self) -> None:
-        first = type(
-            "First", (EchoLanguage,), {"name": "first", "requires": ("second",)},
+        consumer = model[SymbolRef("consumer", Key(("consumer",)))]
+        self.assertEqual(
+            [symbol.value for symbol in consumer.value],
+            ["a", "b"],
         )
-        second = type(
-            "Second", (EchoLanguage,), {"name": "second", "requires": ("first",)},
-        )
-        with self.assertRaisesRegex(ValueError, "cycle"):
-            _toolchain(first(), second()).build(Namespace())
 
-    def test_a_layer_definition_index_is_read_only(self) -> None:
-        layer = Layer("echo", (1,))
-        with self.assertRaises(TypeError):
-            layer.definitions["echo"] = None  # type: ignore[index]
+    def test_a_language_owns_its_values_and_reports_their_identity(self) -> None:
+        language = EchoLanguage()
+        self.assertTrue(language.owns("hello"))
+        self.assertFalse(language.owns(1))
+        self.assertEqual(
+            language.get_identity("hello"),
+            SymbolRef("echo", Key(("hello",))),
+        )
+        self.assertIsNone(language.get_identity(1))
+
+    def test_the_language_protocol_is_structural(self) -> None:
+        language: Language = EchoLanguage()
+        self.assertEqual(language.name, "echo")
 
 
 if __name__ == "__main__":

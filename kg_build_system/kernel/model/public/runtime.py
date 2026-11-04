@@ -1,8 +1,8 @@
-"""The runtime model: configuration, execution contexts, outcomes and reports.
+"""The runtime model: configuration, contexts, resources, outcomes and reports.
 
-These values are frozen and anaemic. Live services are passed to an executor
-through ``services``; they are not stored in the model, and the kernel never
-inspects them.
+These values are frozen and anaemic. Live resources are passed to an executor
+through a ``ResourceView``; they are not stored in the model, and the kernel
+never inspects them.
 """
 from __future__ import annotations
 
@@ -10,9 +10,11 @@ from collections.abc import Mapping
 from dataclasses import dataclass, field
 from enum import StrEnum
 from pathlib import Path
-from typing import Any, Literal
+from typing import Any, Literal, TypeVar
 
 from .workflow import ArtifactType, Step
+
+ResourceT = TypeVar("ResourceT")
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +45,41 @@ class RuntimeConfiguration:
     component_configuration: Mapping[str, Mapping[str, Any]] = field(
         default_factory=dict,
     )
+
+
+@dataclass(frozen=True, slots=True)
+class ResourceView:
+    """The exact live resources one executor may use.
+
+    ``get`` raises ``KeyError`` when the executor asks for a resource it did not
+    declare, even if the runtime opened that resource for another executor.
+
+    Example:
+    ```python
+    from kg_build_system.kernel import ResourceView
+
+    view = ResourceView({str: "available"})
+    assert view.get(str) == "available"
+    ```
+    """
+
+    resources: Mapping[type, Any]
+
+    def get(self, resource: type[ResourceT]) -> ResourceT:
+        """Return the resource of one exact type.
+
+        Example:
+        ```python
+        value = view.get(str)
+        ```
+        """
+        try:
+            return self.resources[resource]
+        except KeyError:
+            name = f"{resource.__module__}.{resource.__qualname__}"
+            raise KeyError(
+                f"resource {name} was not provided to this executor"
+            ) from None
 
 
 class StepStatus(StrEnum):
@@ -172,11 +209,12 @@ class ExecutionContext:
     """Everything an executor needs to run one normal step.
 
     ``inputs`` is keyed by the consuming step's declared input name; each value
-    is the tuple of continuable upstream results for that input.
+    is the tuple of continuable upstream results for that input. ``resources``
+    is the executor's own view and ``logger`` is scoped to this step.
 
     Example:
     ```python
-    from kg_build_system.kernel import ExecutionContext, Step
+    from kg_build_system.kernel import ExecutionContext, ResourceView, Step
 
     context = ExecutionContext(
         step=step,
@@ -184,7 +222,8 @@ class ExecutionContext:
         component="echo",
         runtime_configuration={},
         inputs={},
-        services=None,
+        resources=ResourceView({}),
+        logger=None,
     )
     ```
     """
@@ -194,7 +233,8 @@ class ExecutionContext:
     component: str
     runtime_configuration: Mapping[str, Any]
     inputs: Mapping[str, tuple[ContinuableInput, ...]]
-    services: Any
+    resources: ResourceView
+    logger: Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -206,7 +246,9 @@ class DisruptedExecutionContext:
 
     Example:
     ```python
-    from kg_build_system.kernel import DisruptedExecutionContext
+    from kg_build_system.kernel import (
+        DisruptedExecutionContext, ResourceView,
+    )
 
     context = DisruptedExecutionContext(
         step=step,
@@ -215,7 +257,8 @@ class DisruptedExecutionContext:
         runtime_configuration={},
         inputs={},
         disruptions=(),
-        services=None,
+        resources=ResourceView({}),
+        logger=None,
     )
     ```
     """
@@ -226,7 +269,8 @@ class DisruptedExecutionContext:
     runtime_configuration: Mapping[str, Any]
     inputs: Mapping[str, tuple[ContinuableInput | DisruptingInput, ...]]
     disruptions: tuple[DisruptingInput, ...]
-    services: Any
+    resources: ResourceView
+    logger: Any
 
 
 @dataclass(frozen=True, slots=True)
@@ -280,5 +324,6 @@ class WorkflowReport:
 __all__ = [
     "Artifact", "ContinuableInput", "DisruptedExecutionContext",
     "DisruptingInput", "ExecutionContext", "Failure", "PublishedArtifact",
-    "RuntimeConfiguration", "StepOutcome", "StepStatus", "WorkflowReport",
+    "ResourceView", "RuntimeConfiguration", "StepOutcome", "StepStatus",
+    "WorkflowReport",
 ]

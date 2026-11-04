@@ -3,15 +3,15 @@ from __future__ import annotations
 import hashlib
 import unittest
 
-from kg_build_system.distribution.executors.file import (
+from kg_build_system.distribution.modules.file import (
     FileConfiguration,
     FilePlanner,
 )
-from kg_build_system.distribution.executors.meta_graph import (
+from kg_build_system.distribution.modules.meta_graph import (
     MetaGraphConfiguration,
     MetaGraphPlanner,
 )
-from kg_build_system.distribution.executors.neo4j import (
+from kg_build_system.distribution.modules.neo4j import (
     Neo4jConfiguration,
     Neo4jPlanner,
 )

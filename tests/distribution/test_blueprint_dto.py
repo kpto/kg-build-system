@@ -32,6 +32,10 @@ from kg_build_system.distribution.languages.topology.model.internal import (
     NodeDTO,
     PropertyDTO,
 )
+from kg_build_system.distribution.model.public.refs import (
+    NodeRef, PropertyRef, RelationRef,
+)
+from kg_build_system.kernel import Key
 from kg_build_system.kernel.model.internal import UnitTypeDTO
 
 
@@ -64,19 +68,29 @@ def _blueprint() -> GraphBlueprint:
     site = NodeDTO(
         name="site",
         labels=("Site",),
-        properties=(PropertyDTO("name", UnitTypeDTO("str")),),
-        parent="documented",
+        properties=(
+            PropertyDTO(
+                "name",
+                UnitTypeDTO("str"),
+                PropertyRef("topology", Key(("site.name",))),
+            ),
+        ),
+        parent=NodeRef("topology", Key(("documented",))),
     )
     unit = NodeDTO(name="unit", labels=("Unit",))
+    monitored = NodeDTO(name="monitored", abstract=True)
     edge = EdgeDTO(
         name="has_unit",
         labels=("HAS_UNIT",),
-        source="site",
-        target="unit",
-        parent="monitored",
+        source=NodeRef("topology", Key(("site",))),
+        target=NodeRef("topology", Key(("unit",))),
+        parent=NodeRef("topology", Key(("monitored",))),
     )
-    monitored = NodeDTO(name="monitored", abstract=True)
-    source = SourceDTO(table="site", location="sites.csv", format="csv")
+    source = SourceDTO(
+        relation=RelationRef("data", Key(("site",))),
+        location="sites.csv",
+        format="csv",
+    )
     data = DataPartDTO(
         structs=(),
         relations=(),
@@ -100,21 +114,22 @@ class BlueprintDTOTests(unittest.TestCase):
                     {field.name for field in fields(dto_type)},
                 )
 
-    def test_topology_endpoints_and_parents_are_graph_names(self) -> None:
+    def test_topology_endpoints_and_parents_are_node_refs(self) -> None:
         blueprint = _blueprint()
         names = {node.name for node in blueprint.graph.nodes}
 
         for edge in blueprint.graph.edges:
             with self.subTest(edge=edge.name):
-                self.assertIsInstance(edge.source, str)
-                self.assertIsInstance(edge.target, str)
-                self.assertIn(edge.source, names)
-                self.assertIn(edge.target, names)
+                self.assertIsInstance(edge.source, NodeRef)
+                self.assertIsInstance(edge.target, NodeRef)
+                self.assertIn(edge.source.name, names)
+                self.assertIn(edge.target.name, names)
 
         for node in blueprint.graph.nodes:
             with self.subTest(node=node.name):
                 if node.parent is not None:
-                    self.assertIn(node.parent, names)
+                    self.assertIsInstance(node.parent, NodeRef)
+                    self.assertIn(node.parent.name, names)
 
     def test_the_public_blueprint_references_layer_dtos(self) -> None:
         hints = get_type_hints(GraphBlueprint)

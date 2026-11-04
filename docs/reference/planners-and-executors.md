@@ -41,6 +41,7 @@ An executor implements:
 ```python
 class StepExecutor(Protocol):
     kinds: tuple[InstructionKind, ...]
+    resources: tuple[type, ...]
     def execute(
         self,
         context: ExecutionContext | DisruptedExecutionContext,
@@ -48,33 +49,47 @@ class StepExecutor(Protocol):
     ) -> StepOutcome: ...
 ```
 
-`component_id` is the planner's identity in the plan. `version` and
-`runtime_fields` are published in the planner's `Component`. `kinds` is the set
-of exact tuples the executor handles. The kernel refuses a duplicate
-`component_id`, a duplicate step identity, a duplicate executor kind, and a plan
-instruction with no executor.
+`component_id` is the planner's identity in the plan. Several planners may share
+one `component_id`; they must agree on `version` and `runtime_fields`, which are
+published once in the component's `Component`. `kinds` is the set of exact
+tuples the executor handles, and `resources` names the exact resource types it
+reads from its `ResourceView`. The kernel refuses disagreeing planner versions
+or runtime fields, a duplicate step identity, a duplicate executor kind, a
+missing declared resource and a plan instruction with no executor.
 
 ## Supplied planners
 
 | Planner | Package | `component_id` | Configuration |
 | --- | --- | --- | --- |
-| `CorePlanner` | `distribution.planners.core` | `core` | none; optional `engine` SQL emitter |
-| `DeduplicationPlanner` | `distribution.planners.deduplication` | `deduplication` | none |
-| `MergingPlanner` | `distribution.planners.merging` | `merging` | `MergingConfiguration(components=None)` |
-| `ConflictValidationPlanner` | `distribution.planners.conflict_validation` | `conflict_validation` | `ConflictValidationConfiguration(fail_on_error=True)` |
-| `FilePlanner` | `distribution.executors.file` | `file` | `FileConfiguration(relative_path)` |
-| `MetaGraphPlanner` | `distribution.executors.meta_graph` | `meta_graph` | `MetaGraphConfiguration(...)` |
-| `Neo4jPlanner` | `distribution.executors.neo4j` | `neo4j` | `Neo4jConfiguration(...)` |
+| `InputPlanner` | `distribution.modules.core` | `core` | none; optional `engine` SQL emitter |
+| `RowSourcePlanner` | `distribution.modules.core` | `core` | none; optional `engine` SQL emitter |
+| `ProjectionPlanner` | `distribution.modules.core` | `core` | none; optional `engine` SQL emitter |
+| `BindingPlanner` | `distribution.modules.core` | `core` | none; optional `engine` SQL emitter |
+| `RecordsPlanner` | `distribution.modules.core` | `core` | none; optional `engine` SQL emitter |
+| `DeduplicationPlanner` | `distribution.modules.deduplication` | `deduplication` | none |
+| `MergingPlanner` | `distribution.modules.merging` | `merging` | `MergingConfiguration(components=None)` |
+| `ConflictValidationPlanner` | `distribution.modules.conflict_validation` | `conflict_validation` | `ConflictValidationConfiguration(fail_on_error=True)` |
+| `FilePlanner` | `distribution.modules.file` | `file` | `FileConfiguration(relative_path)` |
+| `MetaGraphPlanner` | `distribution.modules.meta_graph` | `meta_graph` | `MetaGraphConfiguration(...)` |
+| `Neo4jPlanner` | `distribution.modules.neo4j` | `neo4j` | `Neo4jConfiguration(...)` |
 
-### `CorePlanner`
+### Core planners
 
 ```python
-CorePlanner(*, engine: DuckDbSqlEmitter | None = None)
+core_planners(*, engine: DuckDbSqlEmitter | None = None)
+InputPlanner(*, engine: DuckDbSqlEmitter | None = None)
+RowSourcePlanner(*, engine: DuckDbSqlEmitter | None = None)
+ProjectionPlanner(*, engine: DuckDbSqlEmitter | None = None)
+BindingPlanner(*, engine: DuckDbSqlEmitter | None = None)
+RecordsPlanner(*, engine: DuckDbSqlEmitter | None = None)
 ```
 
-Emits source, row-source, projection, binding and aggregate steps. Its SQL steps
-use `("sql", "duckdb")`. `compile` adds it before your planners when no planner
-reports `component_id == "core"`.
+The core module owns five planners that share `component_id="core"` and one
+`CorePlan` in `PlanContext.shared["core.plan"]`. `core_planners()` returns them in
+assembled order: input, row-source, projection, binding and records. Together
+they emit source, row-source, projection, binding and aggregate steps. SQL steps
+use `("sql", "duckdb")`. `compile` adds the five before your planners when no
+planner reports `component_id == "core"`.
 
 ### `DeduplicationPlanner`
 
@@ -241,33 +256,39 @@ counts, and the file lists.
 
 | Executor | Package | Kinds |
 | --- | --- | --- |
-| `DuckDbExecutor` | `distribution.executors.duckdb` | `("source_relation", "duckdb")`, `("sql", "duckdb")`, `("aggregate", "duckdb")`, `("deduplication", "duckdb")`, `("merging", "duckdb")`, `("conflict_findings", "duckdb")` |
-| `DuckDbResourceProvider` | `distribution.executors.duckdb` | creates relations, working storage, temporary storage, credentials and the engine session |
-| `PythonExecutor` | `distribution.executors.python` | `("python", "cpython")` |
-| `FileExecutor` | `distribution.executors.file` | `("file", "default")` |
-| `MetaGraphExecutor` | `distribution.executors.meta_graph` | `("meta_graph", "default")` |
-| `Neo4jExecutor` | `distribution.executors.neo4j` | `("neo4j", "default")` |
-| `ConflictReportExecutor` | `distribution.executors.conflict_validation` | `("conflict_report", "default")` |
+| `DuckDbExecutor` | `distribution.modules.duckdb` | `("source_relation", "duckdb")`, `("sql", "duckdb")`, `("aggregate", "duckdb")`, `("deduplication", "duckdb")`, `("merging", "duckdb")`, `("conflict_findings", "duckdb")` |
+| `DuckDbResourceProvider` | `distribution.modules.duckdb` | opens the engine and provides `DuckDbService` and its `RelationService` |
+| `RuntimeResources` | `distribution.modules.runtime` | provides output, working and temporary storage and the credential resolver |
+| `PythonExecutor` | `distribution.modules.python` | `("python", "cpython")` |
+| `FileExecutor` | `distribution.modules.file` | `("file", "default")` |
+| `MetaGraphExecutor` | `distribution.modules.meta_graph` | `("meta_graph", "default")` |
+| `Neo4jExecutor` | `distribution.modules.neo4j` | `("neo4j", "default")` |
+| `ConflictReportExecutor` | `distribution.modules.conflict_validation` | `("conflict_report", "default")` |
 
 A `StepExecutor` may return a `StepOutcome` with `SUCCEEDED` or `WARNING` to feed
 downstream steps, or `FAILED` / `SKIPPED` to disrupt them. The default disrupted
 policy is `skipped(context)`, which carries the failure forward without running
 the step.
 
-`DuckDbResourceProvider` creates the execution services every distribution
-executor receives: `relations`, `output_storage`, `working_storage`,
-`temporary_storage`, `credentials`, `logger` and the engine. `execute` closes the
-services exactly once, including when the run raises.
+The runtime owns the resource providers. It opens every provider, merges the
+resources by exact type, refuses a duplicate type, builds one view per executor
+from that executor's declared `resources`, and closes the providers in reverse
+order even when a step raises. An executor reads a resource with
+`context.resources.get(SomeResource)` and an undeclared type raises `KeyError`.
+`DuckDbResourceProvider` supplies `DuckDbService` and `RelationService`;
+`RuntimeResources` supplies `OutputStorage`, `WorkingStorage`,
+`TemporaryStorage` and `CredentialResolver`.
 
-`distribution.executors.runtime` exports the helpers a custom executor usually
-needs: `execution_services(context)`, `instruction_payload(instruction)`,
-`output_name(given)`, `succeeded(context, value)`, `skipped(context)`, the local
-working and temporary storage classes, and `MappingCredentialResolver`.
+`distribution.modules.runtime` exports the helpers a custom executor usually
+needs: `instruction_payload(instruction)`, `output_name(given)`,
+`succeeded(context, value)`, `skipped(context)`, `RuntimeResources`, the
+`OutputStorage`, `WorkingStorage` and `TemporaryStorage` protocols, and
+`MappingCredentialResolver`.
 
 ## Ordering and composition
 
-The planner tuple is the composition order. The core planner is added before the
-supplied planners when it is absent.
+The planner tuple is the composition order. The five core planners are added
+before the supplied planners when no planner has `component_id == "core"`.
 
 | Rule | Result |
 | --- | --- |
@@ -294,11 +315,11 @@ planners = (
 
 A rewriting planner after an output planner may leave the two seeing different
 records. If an ordinary output has no reader, assembly fails with
-`nothing reads ...`. Two planners with one `component_id` fail with
-`workflow component IDs must be unique`. Two steps with one identity fail
-assembly.
+`nothing reads ...`. Two steps with one identity fail assembly. Several planners
+may share one `component_id` when their `version` and `runtime_fields` agree;
+the component is published once.
 
-Several bindings may target one component. The core planner unions their records
+Several bindings may target one component. The core planners union their records
 into that component's single stream; this is not two competing producers.
 
 ## Artifacts and publications
@@ -344,27 +365,28 @@ protocols. Add the planner to the toolchain and the executor to its executor
 sequence:
 
 ```python
-from kg_build_system.distribution import default_toolchain
+from kg_build_system import default_toolchain
 
 toolchain = default_toolchain(planners=(MyPlanner(),))
 toolchain = toolchain.with_executors((*toolchain.executors, MyExecutor()))
 ```
 
 `with_planners` and `with_executors` replace the sequence. `default_toolchain`
-adds the core planner and the default executors. See
+adds the five core planners and the default executors. Register any new
+`ResourceProvider` on the runtime that executes the plan. See
 [Write an extension](../how-to/custom-extensions.md) for a complete example.
 
 ## What to remember
 
-- A build is the core planner plus the planners you compose.
+- A build is the five core planners plus the planners you compose.
 - Composition order is priority order; rewriting planners come first and output
   planners last.
 - Planner configuration is compile-time; runtime fields are for paths and similar
   execution settings.
-- An executor owns exact instruction kinds; an unclaimed kind is refused before
-  execution.
-- Two bindings to one component are unioned; two planners with one
-  `component_id` fail.
+- An executor owns exact instruction kinds and declares the resources it reads;
+  an unclaimed kind is refused before execution.
+- Two bindings to one component are unioned; planners sharing a `component_id`
+  must agree on version and runtime fields.
 - Output executors publish summaries and write their own files.
 
 Related: [Planners and executors](../concepts/planners-and-executors.md),

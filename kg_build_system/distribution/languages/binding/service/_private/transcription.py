@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Sequence
-from typing import Any
+from typing import Any, cast
 
 from kg_build_system.distribution.languages.annotations.model.internal.dto import (
     AnnotationDTO,
@@ -26,6 +26,10 @@ from kg_build_system.distribution.languages.data.service.internal.rows import (
 from kg_build_system.distribution.languages.topology.model.internal.dto import (
     GraphPartDTO,
 )
+from kg_build_system.distribution.model.public.refs import (
+    EdgeRef, NodeRef,
+)
+from kg_build_system.kernel import Key
 from ...model.internal.dto.blueprint_dto import (
     BindingDTO,
     EdgeBindingDTO,
@@ -51,7 +55,7 @@ def _python_ref(value: PythonRef | None) -> PythonRefDTO | None:
     return PythonRefDTO(value.module, value.qualname, value.signature)
 
 
-def _component_name(target: Any) -> str:
+def _component_metadata(target: Any) -> Any:
     from kg_build_system.distribution.languages.topology.service.internal.metadata import (
         metadata_for,
     )
@@ -61,11 +65,21 @@ def _component_name(target: Any) -> str:
         raise TypeError(
             f"{getattr(target, '__name__', target)!r} is not a graph component"
         )
-    return metadata.name
+    return metadata
 
 
-def _endpoint_name(target: Any | None) -> str | None:
-    return None if target is None else _component_name(target)
+def _component_ref(target: Any) -> NodeRef | EdgeRef:
+    metadata = _component_metadata(target)
+    if metadata.kind == "edge":
+        return EdgeRef("topology", Key((metadata.name,)))
+    return NodeRef("topology", Key((metadata.name,)))
+
+
+def _node_ref(target: Any | None) -> NodeRef | None:
+    if target is None:
+        return None
+    metadata = _component_metadata(target)
+    return NodeRef("topology", Key((metadata.name,)))
 
 
 def _properties(
@@ -88,7 +102,7 @@ def _rows(binding: Binding) -> Any:
 
 def _node_dto(binding: NodeBinding[Any]) -> NodeBindingDTO:
     return NodeBindingDTO(
-        node=_component_name(binding.target),
+        node=cast(NodeRef, _component_ref(binding.target)),
         identity=expression_dto(binding.build_key.model),
         properties=_properties(binding),
         rows=_rows(binding),
@@ -101,7 +115,7 @@ def _node_dto(binding: NodeBinding[Any]) -> NodeBindingDTO:
 
 def _edge_dto(binding: EdgeBinding[Any]) -> EdgeBindingDTO:
     return EdgeBindingDTO(
-        edge=_component_name(binding.target),
+        edge=cast(EdgeRef, _component_ref(binding.target)),
         identity=expression_dto(binding.build_key.model),
         source_identity=expression_dto(binding.source_build_key.model),
         target_identity=expression_dto(binding.target_build_key.model),
@@ -110,8 +124,8 @@ def _edge_dto(binding: EdgeBinding[Any]) -> EdgeBindingDTO:
         annotations=_annotation_dtos(binding.annotations),
         mode=binding.mode,
         debug_name=binding.debug_name,
-        source_node=_endpoint_name(binding.source_node),
-        target_node=_endpoint_name(binding.target_node),
+        source_node=_node_ref(binding.source_node),
+        target_node=_node_ref(binding.target_node),
         python_ref=_python_ref(binding.python_ref),
     )
 
@@ -224,13 +238,14 @@ def _validate_references(
                 f"binding targets an unknown component {binding.component!r}"
             )
         if isinstance(binding, EdgeBindingDTO):
-            for side, name in (
+            for side, endpoint in (
                 ("source_node", binding.source_node),
                 ("target_node", binding.target_node),
             ):
-                if name is not None and name not in nodes:
+                if endpoint is not None and endpoint.name not in nodes:
                     raise ValueError(
-                        f"edge binding {side} {name!r} is not a node component"
+                        f"edge binding {side} {endpoint.name!r} is not a node "
+                        "component"
                     )
 
 

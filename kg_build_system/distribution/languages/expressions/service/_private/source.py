@@ -60,10 +60,13 @@ def render(expression: ExpressionDTO) -> str:
     if isinstance(expression, VariableExpressionDTO):
         return expression.name
     if isinstance(expression, FieldReferenceDTO):
-        path = ", ".join(repr(part) for part in expression.path)
+        path = ", ".join(
+            repr(part)
+            for part in (expression.field.field, *expression.path)
+        )
         return (
             "field_reference("
-            f"source={expression.source!r}, path=({path},), "
+            f"source={expression.field.relation!r}, path=({path},), "
             f"logical_type={render_type(expression.logical_type)})"
         )
     if isinstance(expression, OperationExpressionDTO):
@@ -73,7 +76,7 @@ def render(expression: ExpressionDTO) -> str:
             for parameter in expression.parameters
         )
         return (
-            f"operation({expression.operator!r}, {arguments}"
+            f"operation({expression.operator.name!r}, {arguments}"
             f"{parameters}, logical_type={render_type(expression.logical_type)})"
         )
     raise TypeError(f"unsupported expression DTO {expression!r}")

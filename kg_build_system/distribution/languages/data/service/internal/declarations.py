@@ -25,9 +25,13 @@ def projection_row_source(declaration: type[Any]) -> Any | None:
 def relation_plan_dto(source: type[Any]) -> Any:
     """Return the scan plan for one named table or projection relation."""
     from ...model.internal.dto.blueprint_dto import RowScanDTO
+    from kg_build_system.distribution.model.public.refs import RelationRef
+    from kg_build_system.kernel import Key
     from .._private.rows import declaration_source_name
 
-    return RowScanDTO(declaration_source_name(source))
+    return RowScanDTO(RelationRef(
+        "data", Key((declaration_source_name(source),)),
+    ))
 
 
 __all__ = [

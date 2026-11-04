@@ -20,7 +20,7 @@ from kg_build_system import (
     node_binding,
     property,
 )
-from kg_build_system.distribution.executors.duckdb import (
+from kg_build_system.distribution.modules.duckdb import (
     DuckDbInstructionEmitter,
     DuckDbSqlEmitter,
 )
@@ -30,7 +30,7 @@ from kg_build_system.distribution.languages.expressions.service.internal import 
     OperationSpec,
     is_unit,
 )
-from kg_build_system.distribution.planners import CorePlanner
+from kg_build_system.distribution.modules.core import core_planners
 from kg_build_system.kernel import INT, PlanContext
 
 
@@ -86,8 +86,11 @@ class CoreCustomEmitterTests(unittest.TestCase):
                 ),
             )
 
-            steps = CorePlanner(engine=emitter).plan(
-                blueprint, PlanContext(),
+            context = PlanContext()
+            steps = tuple(
+                step
+                for planner in core_planners(engine=emitter)
+                for step in planner.plan(blueprint, context)
             )
 
         sql = "\n".join(

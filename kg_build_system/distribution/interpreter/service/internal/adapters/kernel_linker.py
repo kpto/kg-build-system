@@ -1,17 +1,20 @@
 """The kernel ``Linker`` protocol implemented for graph blueprints."""
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Sequence
 
-from kg_build_system.kernel import Layer
+from kg_build_system.kernel import Language, Namespace
 
 from ....model.public import GraphBlueprint
-from ..assembly import assemble_blueprint
-from ..validation import validate_blueprint
+from ..link import link_blueprint
 
 
 class BlueprintLinker:
-    """Link the data, topology and binding layers into one graph blueprint.
+    """Link expression, data, topology and binding declarations into a blueprint.
+
+    The linker discovers each language's declarations, transcribes them in the
+    fixed order ``expressions``, ``data``, ``topology``, ``binding``, resolves
+    every symbol reference and assembles the blueprint.
 
     Example:
         ```python
@@ -20,26 +23,21 @@ class BlueprintLinker:
         )
 
         linker = BlueprintLinker()
-        assert linker.requires == ("data", "topology", "binding")
+        blueprint = linker.link(languages, namespace)
         ```
     """
 
-    requires: tuple[str, ...] = ("data", "topology", "binding")
-
-    def link(self, layers: Mapping[str, Layer]) -> GraphBlueprint:
-        """Assemble and validate a blueprint from the three linked layers.
+    def link(
+        self, languages: Sequence[Language], namespace: Namespace,
+    ) -> GraphBlueprint:
+        """Assemble and validate a blueprint from the language declarations.
 
         Example:
             ```python
-            blueprint = BlueprintLinker().link(layers)
+            blueprint = BlueprintLinker().link(languages, namespace)
             ```
         """
-        graph = layers["topology"].value
-        data = layers["data"].value
-        bindings = layers["binding"].value
-        blueprint = assemble_blueprint(graph, data, bindings)
-        validate_blueprint(blueprint)
-        return blueprint
+        return link_blueprint(languages, namespace)
 
 
 __all__ = ["BlueprintLinker"]

@@ -16,37 +16,34 @@ LEAVES = (
     "distribution/languages/topology",
     "distribution/languages/binding",
     "distribution/interpreter",
-    "distribution/planners",
-    "distribution/planners/core",
-    "distribution/planners/deduplication",
-    "distribution/planners/merging",
-    "distribution/planners/conflict_validation",
-    "distribution/executors",
-    "distribution/executors/runtime",
-    "distribution/executors/duckdb",
-    "distribution/executors/python",
-    "distribution/executors/file",
-    "distribution/executors/meta_graph",
-    "distribution/executors/neo4j",
-    "distribution/executors/conflict_validation",
+    "distribution/modules/core",
+    "distribution/modules/core/service/_private/input",
+    "distribution/modules/core/service/_private/row_source",
+    "distribution/modules/core/service/_private/projection",
+    "distribution/modules/core/service/_private/binding",
+    "distribution/modules/core/service/_private/records",
+    "distribution/modules/deduplication",
+    "distribution/modules/merging",
+    "distribution/modules/conflict_validation",
+    "distribution/modules/runtime",
+    "distribution/modules/duckdb",
+    "distribution/modules/python",
+    "distribution/modules/file",
+    "distribution/modules/meta_graph",
+    "distribution/modules/neo4j",
     "generation/code_generation",
     "cli",
 )
 LEAF_PARTS = {tuple(leaf.split("/")): leaf for leaf in LEAVES}
-MODEL_DIRECTORIES = (
+VISIBILITY_ZONES = (
     "model/public",
     "model/internal",
-)
-SERVICE_DIRECTORIES = (
+    "model/_private",
     "service/public",
     "service/internal",
     "service/_private",
 )
-REQUIRED_DIRECTORIES = MODEL_DIRECTORIES + SERVICE_DIRECTORIES
-# A shared artifact package may own only its model; it owns no service when the
-# producing system owns the codec, assembly and other behaviour.
-MODEL_ONLY_LEAVES: set[str] = set()
-KNOWN_MISSING_DIRECTORIES: set[tuple[str, str]] = set()
+PUBLIC_ZONES = ("model/public", "service/public")
 KNOWN_PRIVATE_PUBLIC_SERVICE_IMPORTS: set[tuple[str, str]] = set()
 
 
@@ -102,23 +99,82 @@ def _source_files(directory: Path):
             yield path
 
 
+def _is_empty_zone(directory: Path) -> bool:
+    init = directory / "__init__.py"
+    if not init.is_file():
+        return False
+    sources = [
+        path for path in directory.rglob("*.py")
+        if "__pycache__" not in path.parts
+    ]
+    if len(sources) > 1:
+        return False
+    tree = ast.parse(init.read_text(encoding="utf-8"), filename=str(init))
+    for node in tree.body:
+        if isinstance(node, ast.ImportFrom) and node.module == "__future__":
+            continue
+        if isinstance(node, (ast.Import, ast.ImportFrom)):
+            return False
+        if isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef, ast.ClassDef)):
+            return False
+        if isinstance(node, ast.If) and "TYPE_CHECKING" in ast.unparse(node.test):
+            if any(
+                isinstance(child, (ast.Import, ast.ImportFrom))
+                for child in node.body
+            ):
+                return False
+            continue
+        if isinstance(node, ast.Assign):
+            target = node.targets[0] if len(node.targets) == 1 else None
+            if isinstance(target, ast.Name) and target.id == "__all__":
+                if getattr(node.value, "elts", []):
+                    return False
+                continue
+            return False
+        if isinstance(node, ast.AnnAssign):
+            if isinstance(node.target, ast.Name) and node.target.id == "__all__":
+                if getattr(node.value, "elts", []):
+                    return False
+                continue
+            return False
+        if isinstance(node, ast.Expr) and isinstance(node.value, ast.Constant):
+            continue
+        return False
+    return True
+
+
 class LayoutTests(unittest.TestCase):
-    def test_every_leaf_has_the_model_and_service_directories(self) -> None:
+    def test_every_leaf_has_a_facade(self) -> None:
         for leaf in LEAVES:
-            root = ROOT / leaf
             with self.subTest(leaf=leaf):
-                self.assertTrue((root / "__init__.py").is_file())
-                required = (
-                    MODEL_DIRECTORIES
-                    if leaf in MODEL_ONLY_LEAVES
-                    else REQUIRED_DIRECTORIES
-                )
-                for directory in required:
-                    if (leaf, directory) in KNOWN_MISSING_DIRECTORIES:
-                        continue
+                self.assertTrue((ROOT / leaf / "__init__.py").is_file())
+
+    def test_a_visibility_zone_is_not_an_empty_marker(self) -> None:
+        for leaf in LEAVES:
+            for zone in VISIBILITY_ZONES:
+                directory = ROOT / leaf / zone
+                if not directory.is_dir():
+                    continue
+                with self.subTest(leaf=leaf, zone=zone):
+                    self.assertFalse(
+                        _is_empty_zone(directory),
+                        f"{leaf}/{zone} is an empty visibility zone",
+                    )
+
+    def test_a_facade_imports_only_existing_public_zones(self) -> None:
+        for leaf in LEAVES:
+            path = ROOT / leaf / "__init__.py"
+            for parts, line in _imports(path):
+                target, tail = _leaf(parts)
+                if target is None or len(tail) < 2:
+                    continue
+                if f"{tail[0]}/{tail[1]}" not in PUBLIC_ZONES:
+                    continue
+                with self.subTest(leaf=leaf, line=line):
                     self.assertTrue(
-                        (root / directory / "__init__.py").is_file(),
-                        f"{leaf} has no {directory}/__init__.py",
+                        (ROOT / target / tail[0] / tail[1]).is_dir(),
+                        f"{path}:{line} imports missing public zone "
+                        f"{'.'.join(parts)}",
                     )
 
     def test_a_facade_imports_no_old_public_or_internal_path(self) -> None:
@@ -138,7 +194,8 @@ class LayoutTests(unittest.TestCase):
     def test_private_code_may_read_public_model_but_not_public_service(self) -> None:
         for leaf in LEAVES:
             for path in _source_files(ROOT / leaf):
-                relative = path.relative_to(ROOT)
+                owner, _ = _leaf(list(path.relative_to(ROOT).parts))
+                relative = path.relative_to(ROOT / owner) if owner else path
                 if "_private" not in relative.parts:
                     continue
                 for parts, line in _imports(path):

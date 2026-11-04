@@ -4,15 +4,13 @@ import unittest
 from pathlib import Path
 from typing import Any
 
-from kg_build_system.distribution.executors.file import (
+from kg_build_system.distribution import (
+    DeduplicationPlanner,
     FileConfiguration,
     FilePlanner,
 )
 from kg_build_system.distribution.interpreter import create_blueprint
-from kg_build_system.distribution.planners import (
-    CorePlanner,
-    DeduplicationPlanner,
-)
+from kg_build_system.distribution.modules.core import core_planners
 from kg_build_system.kernel import StepOutcome, StepStatus, Toolchain
 
 
@@ -44,7 +42,7 @@ class PlanAssemblyTests(unittest.TestCase):
         toolchain: Toolchain[object] = Toolchain(
             languages=(),
             linker=FakeLinker(),
-            planners=(CorePlanner(), DeduplicationPlanner()),
+            planners=(*core_planners(), DeduplicationPlanner()),
             executors=(FakeExecutor(),),
         )
 
@@ -59,7 +57,7 @@ class PlanAssemblyTests(unittest.TestCase):
             languages=(),
             linker=FakeLinker(),
             planners=(
-                CorePlanner(),
+                *core_planners(),
                 DeduplicationPlanner(),
                 FilePlanner(FileConfiguration("graph.jsonl")),
             ),

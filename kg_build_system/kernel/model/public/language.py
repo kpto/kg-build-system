@@ -1,69 +1,18 @@
-"""The language frontend: declarations to one named layer.
+"""The language frontend: declarations, symbols and source rendering.
 
-A language owns one layer of a build. It collects the declarations it recognises
-from a namespace, transcribes them into its own value and a symbol index,
-validates that value and renders it back to authoring source. Languages declare
-the names of the layers they read, so the toolchain can transcribe them in
-dependency order.
+A language owns one part of a build. It discovers the authoring objects it
+recognises, computes a key and kind for each declaration, transcribes a batch of
+declarations into symbols and renders a symbol value back to authoring source.
+The linker orders languages, resolves references and assembles the model.
 """
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
-from dataclasses import dataclass, field
-from types import MappingProxyType
+from collections.abc import Iterable, Mapping, Sequence
+from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
-
-@dataclass(frozen=True, slots=True)
-class Definition:
-    """One named unit another language may reference.
-
-    ``kind`` names the sort of symbol (for example ``"table"`` or ``"node"``)
-    and ``value`` is the language's own frozen representation. The kernel treats
-    both strings and the value as opaque.
-
-    Example:
-    ```python
-    from kg_build_system.kernel import Definition
-
-    definition = Definition("Site", "node", {"name": "Site"})
-    assert definition.id == "Site"
-    ```
-    """
-
-    id: str
-    kind: str
-    value: Any
-
-
-@dataclass(frozen=True, slots=True)
-class Layer:
-    """One language's transcribed value and the definitions it publishes.
-
-    ``value`` is the language's own DTO. ``definitions`` is the symbol index
-    other languages read; it is copied and wrapped in a read-only proxy.
-
-    Example:
-    ```python
-    from kg_build_system.kernel import Definition, Layer
-
-    layer = Layer(
-        "topology",
-        {"nodes": ("Site",)},
-        {"Site": Definition("Site", "node", {"name": "Site"})},
-    )
-    assert layer.definitions["Site"].kind == "node"
-    ```
-    """
-
-    language: str
-    value: Any
-    definitions: Mapping[str, Definition] = field(default_factory=dict)
-
-    def __post_init__(self) -> None:
-        object.__setattr__(
-            self, "definitions", MappingProxyType(dict(self.definitions)),
-        )
+from .key import Key
+from .symbol import Declaration, Symbol, SymbolContext, SymbolRef
 
 
 class Namespace(Protocol):
@@ -97,43 +46,11 @@ class Namespace(Protocol):
         ...
 
 
-class LanguageContext(Protocol):
-    """The already-transcribed layers a language may read while transcribing.
-
-    ``layer`` returns the layer of a language named in ``requires``. It raises
-    ``KeyError`` for a layer that has not been transcribed yet, which the
-    toolchain's dependency order is responsible for preventing.
-
-    Example:
-    ```python
-    class Context:
-        def layer(self, name):
-            return {"data": "layer"}[name]
-
-    assert Context().layer("data") == "layer"
-    ```
-    """
-
-    def layer(self, name: str) -> Layer:
-        """Return the transcribed layer named ``name``.
-
-        Example:
-            ```python
-            class Context:
-                def layer(self, name):
-                    return {"data": "layer"}[name]
-
-            assert Context().layer("data") == "layer"
-            ```
-        """
-        ...
-
-
 class RenderContext(Protocol):
-    """The opaque context a language receives when rendering its value.
+    """The opaque context a language receives when rendering a symbol.
 
     The framework owns the context. A language passes it to the renderers of
-    the layers it depends on; it does not inspect it.
+    the languages it depends on; it does not inspect it.
 
     Example:
     ```python
@@ -143,6 +60,200 @@ class RenderContext(Protocol):
     Context()
     ```
     """
+
+
+class ReferenceResolver(Protocol):
+    """Resolve a value to its symbol reference and that reference's edges.
+
+    The linker supplies the resolver after transcription. ``get_identity``
+    returns ``None`` for a value the framework does not publish as a symbol.
+
+    Example:
+    ```python
+    class Resolver:
+        def get_identity(self, value):
+            return None
+
+        def get_references(self, value):
+            return ()
+    ```
+    """
+
+    def get_identity(self, value: Any) -> SymbolRef | None:
+        """Return the reference of ``value``, or ``None`` when it has none.
+
+        Example:
+            ```python
+            reference = resolver.get_identity(value)
+            ```
+        """
+        ...
+
+    def get_references(self, value: Any) -> tuple[SymbolRef, ...]:
+        """Return the references one value declares.
+
+        Example:
+            ```python
+            references = resolver.get_references(value)
+            ```
+        """
+        ...
+
+
+class Language(Protocol):
+    """One named frontend: discover, key, transcribe and render.
+
+    ``name`` is the language name written into every ``SymbolRef`` it
+    produces. ``transcribe_many`` is the required transcription path in this
+    wave; it may delegate to a batch implementation and split the resulting
+    DTOs into one symbol per declaration.
+
+    Example:
+    ```python
+    from kg_build_system.kernel import (
+        Declaration, Key, SourceFragment, Symbol, SymbolRef,
+    )
+
+    class EchoLanguage:
+        name = "echo"
+
+        def discover_declarations(self, namespace):
+            return (Declaration(value) for value in namespace.values())
+
+        def compute_key(self, declaration):
+            return Key((str(declaration.value),))
+
+        def get_kind(self, declaration):
+            return "echo"
+
+        def owns(self, value):
+            return isinstance(value, str)
+
+        def get_identity(self, value):
+            return SymbolRef("echo", Key((value,))) if isinstance(value, str) else None
+
+        def get_references(self, value, resolver):
+            return ()
+
+        def transcribe_many(self, declarations, context):
+            return {
+                SymbolRef("echo", self.compute_key(item)): Symbol(
+                    self.compute_key(item), "echo", item.value,
+                )
+                for item in declarations
+            }
+
+        def render(self, symbol, context):
+            return SourceFragment("inline", repr(symbol.value))
+    ```
+    """
+
+    name: str
+
+    def discover_declarations(
+        self, namespace: Namespace,
+    ) -> Iterable[Declaration]:
+        """Select the declarations this language recognises.
+
+        Example:
+            ```python
+            declarations = EchoLanguage().discover_declarations(namespace)
+            ```
+        """
+        ...
+
+    def compute_key(self, declaration: Declaration) -> Key:
+        """Return the key of one declaration within this language.
+
+        Example:
+            ```python
+            key = EchoLanguage().compute_key(Declaration("hello"))
+            assert key == Key(("hello",))
+            ```
+        """
+        ...
+
+    def get_kind(self, declaration: Declaration) -> str:
+        """Return the symbol kind of one declaration.
+
+        Example:
+            ```python
+            assert EchoLanguage().get_kind(Declaration("hello")) == "echo"
+            ```
+        """
+        ...
+
+    def owns(self, value: Any) -> bool:
+        """Whether this language owns ``value``.
+
+        The resolver uses ownership to choose the language that answers
+        ``get_identity`` and ``get_references``. A language may also own its
+        transcribed values (DTO fragments), because the linker resolves
+        references after transcription.
+
+        Example:
+            ```python
+            assert EchoLanguage().owns("hello")
+            ```
+        """
+        ...
+
+    def get_identity(self, value: Any) -> SymbolRef | None:
+        """Return the reference of one authoring or transcribed value.
+
+        Example:
+            ```python
+            reference = EchoLanguage().get_identity("hello")
+            assert reference == SymbolRef("echo", Key(("hello",)))
+            ```
+        """
+        ...
+
+    def get_references(
+        self, value: Any, resolver: ReferenceResolver,
+    ) -> tuple[SymbolRef, ...]:
+        """Return the references one transcribed symbol value declares.
+
+        This wave passes the transcribed symbol value (a DTO fragment) and the
+        linker calls the method after transcription. A later wave may pass the
+        authoring value instead.
+
+        Example:
+            ```python
+            references = EchoLanguage().get_references("hello", resolver)
+            ```
+        """
+        ...
+
+    def transcribe_many(
+        self, declarations: Sequence[Declaration], context: SymbolContext,
+    ) -> Mapping[SymbolRef, Symbol]:
+        """Transcribe a batch of declarations into symbols.
+
+        ``context`` holds the symbols of languages transcribed earlier.
+        ``transcribe_many`` is the required transcription path in this wave; a
+        per-symbol ``transcribe`` is an optimisation added later.
+
+        Example:
+            ```python
+            symbols = EchoLanguage().transcribe_many(declarations, context)
+            ```
+        """
+        ...
+
+    def render(self, symbol: Symbol, context: RenderContext) -> SourceFragment:
+        """Render one symbol value back to authoring source.
+
+        A renderer accepts either a ``Symbol`` or its value so the interpreter
+        can render a whole layer DTO as well as one symbol.
+
+        Example:
+            ```python
+            fragment = EchoLanguage().render(symbol, context)
+            assert fragment.kind == "inline"
+            ```
+        """
+        ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -167,86 +278,7 @@ class SourceFragment:
     imports: tuple[str, ...] = ()
 
 
-class Language(Protocol):
-    """One named layer: collect, transcribe, validate and render.
-
-    ``name`` is the layer name written into the toolchain's layer map.
-    ``requires`` names the layers this language reads; the toolchain rejects
-    unknown dependencies and dependency cycles, then transcribes languages in a
-    consistent order. ``transcribe`` returns a ``Layer`` whose ``language`` is
-    ``name``.
-
-    Example:
-    ```python
-    from kg_build_system.kernel import Layer, SourceFragment
-
-    class EchoLanguage:
-        name = "echo"
-        requires = ()
-
-        def collect(self, namespace):
-            return namespace.values()
-
-        def transcribe(self, declarations, context):
-            return Layer("echo", tuple(declarations))
-
-        def validate(self, layer):
-            assert layer.language == "echo"
-
-        def render(self, layer, context):
-            return SourceFragment("inline", repr(layer.value))
-    ```
-    """
-
-    name: str
-    requires: tuple[str, ...]
-
-    def collect(self, namespace: Namespace) -> Sequence[object]:
-        """Select the declarations this language recognises.
-
-        Example:
-            ```python
-            declarations = EchoLanguage().collect(namespace)
-            ```
-        """
-        ...
-
-    def transcribe(
-        self, declarations: Sequence[object], context: LanguageContext,
-    ) -> Layer:
-        """Turn collected declarations into this language's layer.
-
-        Example:
-            ```python
-            layer = EchoLanguage().transcribe(declarations, context)
-            assert layer.language == "echo"
-            ```
-        """
-        ...
-
-    def validate(self, layer: Layer) -> None:
-        """Reject a layer that violates this language's invariants.
-
-        Example:
-            ```python
-            EchoLanguage().validate(EchoLanguage().transcribe((), context))
-            ```
-        """
-        ...
-
-    def render(self, layer: Layer, context: RenderContext) -> SourceFragment:
-        """Render this language's layer back to authoring source.
-
-        Example:
-            ```python
-            fragment = EchoLanguage().render(layer, context)
-            assert fragment.kind == "inline"
-            ```
-        """
-        ...
-
-
 __all__ = [
-    "Definition", "Language", "LanguageContext", "Layer", "Namespace",
-    "RenderContext", "SourceFragment",
+    "Declaration", "Key", "Language", "Namespace", "ReferenceResolver",
+    "RenderContext", "SourceFragment", "Symbol", "SymbolContext", "SymbolRef",
 ]

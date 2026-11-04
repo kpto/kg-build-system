@@ -22,23 +22,36 @@ LEAVES = (
     "distribution/languages/topology",
     "distribution/languages/binding",
     "distribution/interpreter",
-    "distribution/planners",
-    "distribution/planners/core",
-    "distribution/planners/deduplication",
-    "distribution/planners/merging",
-    "distribution/planners/conflict_validation",
-    "distribution/executors",
-    "distribution/executors/runtime",
-    "distribution/executors/duckdb",
-    "distribution/executors/python",
-    "distribution/executors/file",
-    "distribution/executors/meta_graph",
-    "distribution/executors/neo4j",
-    "distribution/executors/conflict_validation",
+    "distribution/modules/core",
+    "distribution/modules/core/service/_private/input",
+    "distribution/modules/core/service/_private/row_source",
+    "distribution/modules/core/service/_private/projection",
+    "distribution/modules/core/service/_private/binding",
+    "distribution/modules/core/service/_private/records",
+    "distribution/modules/deduplication",
+    "distribution/modules/merging",
+    "distribution/modules/conflict_validation",
+    "distribution/modules/runtime",
+    "distribution/modules/duckdb",
+    "distribution/modules/python",
+    "distribution/modules/file",
+    "distribution/modules/meta_graph",
+    "distribution/modules/neo4j",
     "generation/code_generation",
     "cli",
 )
 LEAF_PARTS = {tuple(leaf.split("/")): leaf for leaf in LEAVES}
+# The five core planners are internal parts of one module. They are leaves for
+# layout and public-surface checks, but private imports stay inside the module.
+LEAF_GROUPS = {
+    leaf: "distribution/modules/core"
+    for leaf in LEAVES
+    if leaf.startswith("distribution/modules/core/service/_private/")
+}
+
+
+def _group(leaf: str | None) -> str | None:
+    return None if leaf is None else LEAF_GROUPS.get(leaf, leaf)
 ADAPTERS = {
     "distribution/languages/data": "kernel_language.py",
     "distribution/languages/topology": "kernel_language.py",
@@ -181,6 +194,11 @@ class ArchitectureTests(unittest.TestCase):
                             PUBLIC_SURFACES,
                             f"{path}:{line} imports {'.'.join(parts)}",
                         )
+                        self.assertTrue(
+                            (ROOT / target / tail[0] / tail[1]).is_dir(),
+                            f"{path}:{line} imports missing zone "
+                            f"{'.'.join(parts)}",
+                        )
                     else:
                         self.assertFalse(
                             any(part.startswith("_") for part in tail),
@@ -191,8 +209,10 @@ class ArchitectureTests(unittest.TestCase):
         for leaf in LEAVES:
             for path in _source_files(ROOT / leaf):
                 owner, _ = _owner(path)
+                owner = _group(owner)
                 for parts, line in _all_imports(path):
                     target, tail = _leaf(parts)
+                    target = _group(target)
                     if target is None or target == owner:
                         continue
                     if _surface(tail) in PRIVATE_SURFACES or _private(parts):
@@ -251,7 +271,14 @@ class ArchitectureTests(unittest.TestCase):
                 if _surface(tail) != "service.public":
                     continue
                 for parts, line in _module_imports(path):
-                    _, target_tail = _leaf(parts)
+                    target, target_tail = _leaf(parts)
+                    # A core subplanner's public planner lives beneath the core
+                    # module's private implementation directory by design.
+                    if (
+                        target in LEAF_GROUPS
+                        and _surface(target_tail) == "service.public"
+                    ):
+                        continue
                     if _surface(target_tail) in PRIVATE_SURFACES or _private(parts):
                         self.fail(
                             f"{path}:{line} public service imports private "
@@ -262,7 +289,7 @@ class ArchitectureTests(unittest.TestCase):
         for leaf in LEAVES:
             path = ROOT / leaf / "service" / "internal" / "__init__.py"
             if not path.is_file():
-                self.assertIn(leaf, MODEL_ONLY_LEAVES)
+                # The layout test states which zones each leaf has.
                 continue
             tree = ast.parse(path.read_text(encoding="utf-8"), filename=str(path))
             for node in tree.body:
@@ -300,13 +327,16 @@ class ArchitectureTests(unittest.TestCase):
     def test_only_interpreter_and_planners_read_the_blueprint(self) -> None:
         allowed = (
             ROOT / "distribution" / "interpreter",
-            ROOT / "distribution" / "planners",
-            ROOT / "distribution" / "executors" / "meta_graph",
-            ROOT / "distribution" / "executors" / "neo4j",
+            ROOT / "distribution" / "modules" / "core",
+            ROOT / "distribution" / "modules" / "deduplication",
+            ROOT / "distribution" / "modules" / "merging",
+            ROOT / "distribution" / "modules" / "conflict_validation",
+            ROOT / "distribution" / "modules" / "meta_graph",
+            ROOT / "distribution" / "modules" / "neo4j",
         )
         for root in (
             ROOT / "distribution" / "languages",
-            ROOT / "distribution" / "executors",
+            ROOT / "distribution" / "modules",
         ):
             for path in _source_files(root):
                 if any(path.is_relative_to(directory) for directory in allowed):

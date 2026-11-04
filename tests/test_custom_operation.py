@@ -21,11 +21,11 @@ from kg_build_system import (
     node_binding,
     property,
 )
-from kg_build_system.distribution.executors.duckdb import (
+from kg_build_system.distribution.modules.duckdb import (
     DuckDbInstructionEmitter,
     DuckDbSqlEmitter,
 )
-from kg_build_system.distribution.executors.file import (
+from kg_build_system.distribution.modules.file import (
     FileConfiguration,
     FilePlanner,
 )

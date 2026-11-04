@@ -10,29 +10,28 @@ publishes the graph with the meaning declared for it.
 
 | Group | Responsibility |
 | --- | --- |
-| `kernel/` | domain-agnostic toolchain: language, linker, planner, executor, runtime, workflow plan and canonical types |
+| `kernel/` | domain-agnostic toolchain: language, declaration, symbol, linker, planner, executor, resource, runtime, workflow plan and canonical types |
 | `distribution/languages/` | the annotation, expression, data, topology and binding languages |
 | `distribution/interpreter/` | `GraphBlueprint`, `BlueprintLinker` and `create_blueprint` |
-| `distribution/planners/` | core, deduplication, merging and conflict-validation planners |
-| `distribution/executors/` | DuckDB, Python, file, meta-graph, Neo4j and conflict-report executors |
-| `distribution/default.py` | `DEFAULT_TOOLCHAIN` and `default_toolchain` |
+| `distribution/modules/` | feature packages: core, deduplication, merging, conflict validation, file, meta-graph, Neo4j, DuckDB, Python and runtime resources |
+| `distribution/implementations.py` | language and linker implementations composed by `api.py` |
 | `generation/` | edit-time code generation |
-| `api.py` | the composition root: `create_blueprint`, `compile` and `execute` |
+| `api.py` | the composition root: `default_toolchain`, `DEFAULT_TOOLCHAIN`, `create_blueprint`, `compile` and `execute` |
 | `cli/` | the `kbs` entry point |
 
 `kg_build_system` re-exports the authoring vocabulary for the canonical types in
 `kernel/model/public/types`.
 
-The kernel vocabulary is toolchain vocabulary: language, layer, definition,
-linker, planner, workflow plan, runtime, executor and toolchain. The
+The kernel vocabulary is toolchain vocabulary: language, declaration, symbol,
+linker, planner, workflow plan, runtime, executor, resource and toolchain. The
 distribution vocabulary is domain vocabulary: graph, blueprint, node, edge,
 binding, projection, table, core, meta-graph, Neo4j, DuckDB and Python.
 
-Every framework leaf uses the model/service layout:
+Every framework leaf uses the zones it needs from the model/service layout:
 
 ```text
 pkg/
-  __init__.py          imports only model.public and service.public
+  __init__.py          docstring, imports and __all__ only
   model/
     public/            authoring models, returned values, public DTOs
     internal/          cross-package data: dto/, model/
@@ -62,7 +61,7 @@ uv run pyright
 uv run mkdocs build --strict
 ```
 
-Current verification: 115 tests passed, 604 subtests; pyright 0 errors.
+Current verification: 152 tests passed, 1586 subtests; pyright 0 errors.
 
 The framework is experimental; the guide describes the current model, not a
 compatibility promise.

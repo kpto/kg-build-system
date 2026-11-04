@@ -4,6 +4,9 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
+from kg_build_system.distribution.model.public.refs import (
+    FieldRef, OperationRef, ref_from_document, ref_to_document,
+)
 from kg_build_system.kernel.model.internal.json import FrozenJson, FrozenObject, freeze_json
 from kg_build_system.kernel.service.internal.types import type_from_document, type_to_document
 
@@ -31,14 +34,14 @@ def expression_to_document(expression: ExpressionDTO) -> dict[str, Any]:
     if isinstance(expression, FieldReferenceDTO):
         return {
             "kind": "field",
-            "source": expression.source,
+            "field": ref_to_document(expression.field),
             "path": list(expression.path),
             **common,
         }
     if isinstance(expression, OperationExpressionDTO):
         return {
             "kind": "operation",
-            "operator": expression.operator,
+            "operator": ref_to_document(expression.operator),
             "arguments": [
                 expression_to_document(item) for item in expression.arguments
             ],
@@ -86,9 +89,14 @@ def expression_from_document(value: Mapping[str, Any]) -> ExpressionDTO:
     if kind == "variable":
         return VariableExpressionDTO(name=text_field(value, "name"), **common)
     if kind == "field":
+        field = ref_from_document(value.get("field"))
+        if not isinstance(field, FieldRef):
+            raise ValueError("expression field 'field' must be a field reference")
         return FieldReferenceDTO(
-            source=text_field(value, "source"),
-            path=string_sequence(value.get("path"), field="path"),
+            field=field,
+            path=string_sequence(
+                value.get("path", ()), field="path", allow_empty=True,
+            ),
             **common,
         )
     if kind == "operation":
@@ -98,8 +106,13 @@ def expression_from_document(value: Mapping[str, Any]) -> ExpressionDTO:
         ):
             raise ValueError("expression field 'arguments' must be an array")
         parameters = object_field(value.get("parameters", {}), "parameters")
+        operator = ref_from_document(value.get("operator"))
+        if not isinstance(operator, OperationRef):
+            raise ValueError(
+                "expression field 'operator' must be an operation reference"
+            )
         return OperationExpressionDTO(
-            operator=text_field(value, "operator"),
+            operator=operator,
             arguments=tuple(
                 expression_from_document(object_field(item, "argument"))
                 for item in arguments_value

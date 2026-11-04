@@ -1,8 +1,9 @@
 """Schedule workflow steps, dispatch instructions and assemble the report.
 
-The kernel runtime owns scheduling, input classification and the step lifecycle.
-It treats services and instruction payloads as opaque: no engine, SQL, DuckDB or
-distribution import appears here. An executor owns its own engine bookkeeping.
+The kernel runtime owns resource allocation, scheduling, input classification
+and the step lifecycle. It treats resources and instruction payloads as opaque:
+no engine, SQL, DuckDB or distribution import appears here. An executor owns its
+own engine bookkeeping.
 """
 from __future__ import annotations
 
@@ -20,6 +21,7 @@ from ...model.public.runtime import (
     ExecutionContext,
     Failure,
     PublishedArtifact,
+    ResourceView,
     RuntimeConfiguration,
     StepOutcome,
     StepStatus,
@@ -111,6 +113,105 @@ def _notify(monitor: Any, name: str, *arguments: Any) -> None:
     method = getattr(monitor, name, None)
     if callable(method):
         method(*arguments)
+
+
+def _resource_name(resource: type) -> str:
+    """The fully qualified name of one resource type."""
+    return f"{resource.__module__}.{resource.__qualname__}"
+
+
+class _StepLogger:
+    """A logger scoped to one step, backed by the workflow monitor."""
+
+    def __init__(self, step_id: str, monitor: Any) -> None:
+        self._step_id = step_id
+        self._logger = _monitor_logger(monitor)
+
+    def _write(self, level: str, message: str, args: tuple[Any, ...]) -> None:
+        logger = self._logger
+        if logger is None:
+            return
+        method = getattr(logger, level, None)
+        if callable(method):
+            method(f"[{self._step_id}] {message}", *args)
+
+    def debug(self, message: str, *args: Any) -> None:
+        self._write("debug", message, args)
+
+    def info(self, message: str, *args: Any) -> None:
+        self._write("info", message, args)
+
+    def warning(self, message: str, *args: Any) -> None:
+        self._write("warning", message, args)
+
+    def error(self, message: str, *args: Any) -> None:
+        self._write("error", message, args)
+
+
+def _monitor_logger(monitor: Any) -> Any:
+    """The logging-like object a monitor exposes, when it exposes one."""
+    logger = getattr(monitor, "logger", None)
+    if logger is not None:
+        return logger
+    if all(
+        callable(getattr(monitor, level, None))
+        for level in ("debug", "info", "warning", "error")
+    ):
+        return monitor
+    return None
+
+
+def _open_resources(
+    providers: Sequence[Any], configuration: RuntimeConfiguration,
+) -> dict[type, Any]:
+    """Open every provider and merge its typed resources."""
+    merged: dict[type, Any] = {}
+    for provider in providers:
+        provided = dict(provider.resources(configuration))
+        for resource, value in provided.items():
+            if resource in merged:
+                raise ValueError(
+                    "duplicate resource type "
+                    f"{_resource_name(resource)} provided by more than one provider"
+                )
+            merged[resource] = value
+    return merged
+
+
+def _executor_views(
+    executors: Mapping[InstructionKind, Any], merged: Mapping[type, Any],
+) -> dict[int, ResourceView]:
+    """Build the exact resource view each executor declared."""
+    views: dict[int, ResourceView] = {}
+    for executor in executors.values():
+        key = id(executor)
+        if key in views:
+            continue
+        declared = tuple(getattr(executor, "resources", ()))
+        missing = [resource for resource in declared if resource not in merged]
+        if missing:
+            names = ", ".join(_resource_name(resource) for resource in missing)
+            raise ValueError(
+                f"executor {type(executor).__name__} requires missing resource(s): "
+                f"{names}"
+            )
+        views[key] = ResourceView(
+            {resource: merged[resource] for resource in declared},
+        )
+    return views
+
+
+def _close_resources(providers: Sequence[Any]) -> None:
+    """Close every provider in reverse order, even when one close raises."""
+    failure: Exception | None = None
+    for provider in reversed(tuple(providers)):
+        try:
+            provider.close()
+        except Exception as error:
+            if failure is None:
+                failure = error
+    if failure is not None:
+        raise failure
 
 
 @dataclass(frozen=True, slots=True)
@@ -337,8 +438,8 @@ def _execute_step(
     *,
     scheduled: Schedule,
     executors: Mapping[InstructionKind, Any],
+    views: Mapping[int, ResourceView],
     state: _ExecutionState,
-    services: Any,
     configuration: RuntimeConfiguration,
     monitor: Any,
 ) -> _StepRun:
@@ -362,6 +463,8 @@ def _execute_step(
         raise RuntimeError(
             f"no executor for instruction kind {step.instruction.kind!r}"
         )
+    resources = views[id(executor)]
+    logger = _StepLogger(identity, monitor)
     try:
         if disruptions:
             context = DisruptedExecutionContext(
@@ -371,7 +474,8 @@ def _execute_step(
                 runtime_configuration=runtime_configuration,
                 inputs=by_input,
                 disruptions=tuple(disruptions),
-                services=services,
+                resources=resources,
+                logger=logger,
             )
         else:
             continuable_inputs = {
@@ -386,7 +490,8 @@ def _execute_step(
                 component=step.component,
                 runtime_configuration=runtime_configuration,
                 inputs=continuable_inputs,
-                services=services,
+                resources=resources,
+                logger=logger,
             )
         outcome = executor.execute(context, step.instruction)
     except Exception as error:
@@ -444,7 +549,7 @@ def _outcome_detail(outcome: StepOutcome) -> str:
 def _execute(
     scheduled: Schedule,
     executors: Mapping[InstructionKind, Any],
-    services: Any,
+    views: Mapping[int, ResourceView],
     configuration: RuntimeConfiguration,
     monitor: Any,
 ) -> _ExecutionState:
@@ -463,8 +568,8 @@ def _execute(
                 step,
                 scheduled=scheduled,
                 executors=executors,
+                views=views,
                 state=state,
-                services=services,
                 configuration=configuration,
                 monitor=monitor,
             )
@@ -552,12 +657,14 @@ def _report(
 class WorkflowRuntime:
     """The kernel's scheduler-backed implementation of the ``Runtime`` protocol."""
 
+    def __init__(self, providers: Sequence[Any] = ()) -> None:
+        self._providers = tuple(providers)
+
     def execute(
         self,
         plan: WorkflowPlan,
         executors: Mapping[InstructionKind, Any],
         *,
-        services: Any,
         configuration: RuntimeConfiguration,
         monitor: Any = None,
     ) -> WorkflowReport:
@@ -569,19 +676,24 @@ class WorkflowRuntime:
         )
         _notify(observer, "start", plan)
         try:
-            scheduled = schedule(plan)
-            state = _execute(
-                scheduled, executors, services, configuration, observer,
-            )
-            published, recovered, unresolved = _classify(scheduled, state)
-            report = _report(
-                plan,
-                published=published,
-                recovered=recovered,
-                unresolved=unresolved,
-            )
-            _notify(observer, "workflow_finished", report)
-            return report
+            try:
+                merged = _open_resources(self._providers, configuration)
+                views = _executor_views(executors, merged)
+                scheduled = schedule(plan)
+                state = _execute(
+                    scheduled, executors, views, configuration, observer,
+                )
+                published, recovered, unresolved = _classify(scheduled, state)
+                report = _report(
+                    plan,
+                    published=published,
+                    recovered=recovered,
+                    unresolved=unresolved,
+                )
+                _notify(observer, "workflow_finished", report)
+                return report
+            finally:
+                _close_resources(self._providers)
         except Exception as error:
             _notify(observer, "workflow_halted", str(error))
             raise

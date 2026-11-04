@@ -16,19 +16,21 @@ PACKAGES = (
     "kg_build_system.distribution.languages.topology",
     "kg_build_system.distribution.languages.binding",
     "kg_build_system.distribution.interpreter",
-    "kg_build_system.distribution.planners",
-    "kg_build_system.distribution.planners.core",
-    "kg_build_system.distribution.planners.deduplication",
-    "kg_build_system.distribution.planners.merging",
-    "kg_build_system.distribution.planners.conflict_validation",
-    "kg_build_system.distribution.executors",
-    "kg_build_system.distribution.executors.runtime",
-    "kg_build_system.distribution.executors.duckdb",
-    "kg_build_system.distribution.executors.python",
-    "kg_build_system.distribution.executors.file",
-    "kg_build_system.distribution.executors.meta_graph",
-    "kg_build_system.distribution.executors.neo4j",
-    "kg_build_system.distribution.executors.conflict_validation",
+    "kg_build_system.distribution.modules.core",
+    "kg_build_system.distribution.modules.core.service._private.input",
+    "kg_build_system.distribution.modules.core.service._private.row_source",
+    "kg_build_system.distribution.modules.core.service._private.projection",
+    "kg_build_system.distribution.modules.core.service._private.binding",
+    "kg_build_system.distribution.modules.core.service._private.records",
+    "kg_build_system.distribution.modules.deduplication",
+    "kg_build_system.distribution.modules.merging",
+    "kg_build_system.distribution.modules.conflict_validation",
+    "kg_build_system.distribution.modules.runtime",
+    "kg_build_system.distribution.modules.duckdb",
+    "kg_build_system.distribution.modules.python",
+    "kg_build_system.distribution.modules.file",
+    "kg_build_system.distribution.modules.meta_graph",
+    "kg_build_system.distribution.modules.neo4j",
     "kg_build_system.generation.code_generation",
     "kg_build_system.cli",
 )
@@ -57,25 +59,26 @@ KNOWN_MISSING_METHOD_EXAMPLES = {
     ),
     *{
         (
-            "kg_build_system.distribution.executors.duckdb.model.public.relations",
-            class_name,
+            "kg_build_system.distribution.modules.duckdb.model.public.relations",
+            "RelationQueryResult",
             method,
         )
-        for class_name, methods in (
-            ("RelationQueryResult", ("fetchone", "fetchall", "fetchmany")),
-            (
-                "RelationService",
-                (
-                    "reference", "view", "materialize", "query",
-                    "export_parquet", "register_filesystem",
-                ),
-            ),
-        )
-        for method in methods
+        for method in ("fetchone", "fetchall", "fetchmany")
     },
     *{
         (
-            "kg_build_system.distribution.executors.duckdb.service._private.emitters.emitter",
+            "kg_build_system.distribution.service.internal.relations",
+            "RelationService",
+            method,
+        )
+        for method in (
+            "reference", "view", "materialize", "query",
+            "export_parquet", "register_filesystem",
+        )
+    },
+    *{
+        (
+            "kg_build_system.distribution.modules.duckdb.service._private.emitters.emitter",
             "DuckDbInstructionEmitter",
             method,
         )
@@ -86,13 +89,13 @@ KNOWN_MISSING_METHOD_EXAMPLES = {
         )
     },
     (
-        "kg_build_system.distribution.executors.duckdb.service._private.emitters.instruction",
+        "kg_build_system.distribution.modules.duckdb.service._private.emitters.instruction",
         "DuckDbSqlEmitter",
         "emit",
     ),
     *{
         (
-            "kg_build_system.distribution.executors.duckdb.service._private.emitters.protocols",
+            "kg_build_system.distribution.modules.duckdb.service._private.emitters.protocols",
             class_name,
             method,
         )
@@ -108,7 +111,7 @@ KNOWN_MISSING_METHOD_EXAMPLES = {
     },
     *{
         (
-            "kg_build_system.distribution.executors.runtime.model.public.services",
+            "kg_build_system.distribution.modules.runtime.model.public.services",
             class_name,
             method,
         )
@@ -127,12 +130,12 @@ KNOWN_MISSING_METHOD_EXAMPLES = {
         for method in methods
     },
     (
-        "kg_build_system.distribution.executors.runtime.service._private.storage.credentials",
+        "kg_build_system.distribution.modules.runtime.service._private.storage.credentials",
         "MappingCredentialResolver",
         "resolve",
     ),
     (
-        "kg_build_system.distribution.executors.runtime.service._private.storage.working",
+        "kg_build_system.distribution.modules.runtime.service._private.storage.working",
         "LocalWorkingStorage",
         "child",
     ),

@@ -7,8 +7,10 @@ from dataclasses import replace
 from hashlib import sha256
 from typing import Any, cast
 
-from kg_build_system.distribution.languages.expressions.model.internal import ExpressionDTO, FieldReferenceDTO, OperationExpression, OperationExpressionDTO; from kg_build_system.distribution.languages.expressions.service.internal import expression_dto, field_reference
+from kg_build_system.distribution.languages.expressions.model.internal import ExpressionDTO, FieldReferenceDTO, OperationExpression, OperationExpressionDTO; from kg_build_system.distribution.languages.expressions.service.internal import expression_dto, field_reference, expression_field_path
 from kg_build_system.distribution.languages.expressions.model.public import BoolExpression, ValueExpression; from kg_build_system.distribution.languages.expressions.service.internal import as_expression, wrap_expression
+from kg_build_system.distribution.model.public.refs import FieldRef, RelationRef
+from kg_build_system.kernel import Key
 from kg_build_system.kernel.model.public.types import ArrayType, LogicalType, NullableType, StructType
 from kg_build_system.kernel.model.internal.types.dto import ArrayTypeDTO
 from ...model.internal.dto.blueprint_dto import (
@@ -65,7 +67,7 @@ def _plan_document(plan: RowSourcePlanDTO) -> dict[str, Any]:
 def row_source_key(plan: RowSourcePlanDTO) -> str:
     """Return the logical source key one plan's rows are read through."""
     if isinstance(plan, RowScanDTO):
-        return plan.source
+        return plan.relation.name
     encoded = json.dumps(
         _plan_document(plan), sort_keys=True, separators=(",", ":"),
     ).encode("utf-8")
@@ -91,9 +93,9 @@ def plan_inputs(plan: RowSourcePlanDTO) -> tuple[RowSourcePlanDTO, ...]:
 
 
 def plan_scan_sources(plan: RowSourcePlanDTO) -> tuple[str, ...]:
-    """Return every named table or projection a plan reads."""
+    """Return every declared relation or projection name a plan reads."""
     if isinstance(plan, RowScanDTO):
-        return (plan.source,)
+        return (plan.relation.name,)
     return tuple(
         source
         for child in plan_inputs(plan)
@@ -119,11 +121,12 @@ def plan_fields(
 ) -> tuple[ShapeField, ...]:
     """Return the row shape a plan produces from its plan and declarations."""
     if isinstance(plan, RowScanDTO):
+        key = plan.relation.name
         try:
-            return tuple(declarations[plan.source])
+            return tuple(declarations[key])
         except KeyError as error:
             raise ValueError(
-                f"row-source plan reads unknown logical source {plan.source!r}"
+                f"row-source plan reads unknown logical source {key!r}"
             ) from error
     if isinstance(plan, (RowFilterDTO, RowDistinctDTO, RowOrderByDTO)):
         return plan_fields(plan.input, declarations)
@@ -185,12 +188,23 @@ def plan_fields(
 def retarget_expression_dto(
     expression: ExpressionDTO, mapping: Mapping[str, str],
 ) -> ExpressionDTO:
-    """Rewrite field references from one logical source key to another."""
+    """Rewrite field references from one logical source key to another.
+
+    The field name and the nested path are preserved; only the relation segment
+    of the field reference changes.
+    """
     if not mapping:
         return expression
     if isinstance(expression, FieldReferenceDTO):
-        target = mapping.get(expression.source)
-        return expression if target is None else replace(expression, source=target)
+        target = mapping.get(expression.field.relation)
+        if target is None:
+            return expression
+        return replace(
+            expression,
+            field=FieldRef(
+                "data", Key((f"{target}.{expression.field.field}",)),
+            ),
+        )
     if isinstance(expression, OperationExpressionDTO):
         return replace(
             expression,
@@ -473,11 +487,15 @@ def row_source_plan_dto(value: Any) -> RowSourcePlanDTO:
 
     source = as_row_source(value)
     if isinstance(source, RelationRowSource):
-        return RowScanDTO(declaration_source_name(source.source))
+        return RowScanDTO(RelationRef(
+            "data", Key((declaration_source_name(source.source),)),
+        ))
     if isinstance(source, DerivedRowSource):
         if source.plan_dto is not None:
             return source.plan_dto
-        plan: RowSourcePlanDTO = RowScanDTO(declaration_source_name(source.source))
+        plan: RowSourcePlanDTO = RowScanDTO(RelationRef(
+            "data", Key((declaration_source_name(source.source),)),
+        ))
         for predicate in source.filters:
             plan = RowFilterDTO(
                 plan,

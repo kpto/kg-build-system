@@ -32,7 +32,7 @@ data contracts ──► expressions ──► row sources ──► projections
                   compile ──► WorkflowPlan ──► execute ──► graph and reports
 ```
 
-A build has four layers. **Data contracts** describe the rows: their fields,
+A build has four parts. **Data contracts** describe the rows: their fields,
 types and nested records. **Expressions and row sources** turn those rows into
 the values and the grain a record needs. **Topology** declares the graph:
 nodes, edges, properties and their meaning. **Bindings** map one row context

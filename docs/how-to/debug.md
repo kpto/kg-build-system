@@ -124,7 +124,6 @@ component names must be unique
 table names must be unique
 projection names must be unique
 logical source names must be unique
-workflow component IDs must be unique
 ... fields 'x' and 'y' share external name 'name'
 ... properties 'x' and 'y' share external name 'name'
 ```
@@ -133,8 +132,8 @@ Give the declaration an explicit name with `NodeOptions(name=...)`,
 `EdgeOptions(name=...)`, `TableOptions(name=...)` or
 `ProjectionOptions(name=...)`. Rename a field or property with its `name=`
 argument. A table and a projection cannot share a logical name because both are
-logical relations. Compose a planner once; two planners may not share a
-`component_id`.
+logical relations. Give each step in a component a unique name; several planners
+may share a `component_id` when their version and runtime fields agree.
 
 **Missing sources and fields.** These are reference errors:
 

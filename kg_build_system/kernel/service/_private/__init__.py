@@ -1,4 +1,4 @@
-"""Private kernel services: language ordering, toolchain flow and runtime.
+"""Private kernel services: toolchain flow, assembly and runtime.
 
 Not an import surface outside the kernel.
 """

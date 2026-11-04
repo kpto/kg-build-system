@@ -24,13 +24,87 @@ from dataclasses import asdict, replace
 from pathlib import Path
 from typing import Any
 
-from .distribution.default import DEFAULT_TOOLCHAIN, default_toolchain
+from .distribution import (
+    BindingLanguage,
+    BlueprintLinker,
+    ConflictReportExecutor,
+    DataLanguage,
+    DuckDbExecutor,
+    DuckDbResourceProvider,
+    ExpressionsLanguage,
+    FileExecutor,
+    MetaGraphExecutor,
+    Neo4jExecutor,
+    PythonExecutor,
+    RuntimeResources,
+    TopologyLanguage,
+    core_planners,
+)
 from .distribution.interpreter import GraphBlueprint, create_blueprint as _create_blueprint
 from .distribution.languages.binding import Binding
 from .distribution.languages.data import BoundSource
 from .distribution.model.public.runtime import BuildRuntime
-from .kernel import RuntimeConfiguration, Toolchain, WorkflowPlan, WorkflowReport
+from .kernel import (
+    RuntimeConfiguration,
+    StepExecutor,
+    Toolchain,
+    WorkflowPlan,
+    WorkflowReport,
+    WorkflowRuntime,
+)
 from .kernel.service.internal.workflow_codec import workflow_plan_to_document
+
+DEFAULT_LANGUAGES = (
+    ExpressionsLanguage(), DataLanguage(), TopologyLanguage(), BindingLanguage(),
+)
+DEFAULT_EXECUTORS = (
+    DuckDbExecutor(),
+    PythonExecutor(),
+    ConflictReportExecutor(),
+    FileExecutor(),
+    MetaGraphExecutor(),
+    Neo4jExecutor(),
+)
+
+
+def default_toolchain(
+    *,
+    planners: Sequence[Any] = (),
+    executors: Sequence[StepExecutor] | None = None,
+    engine: Any = None,
+) -> Toolchain[Any]:
+    """Return a graph toolchain with the supplied planners and executors added.
+
+    A caller-supplied core planner is not duplicated: the five default core
+    planners are added only when no planner reports ``component_id == "core"``.
+
+    Example:
+    ```python
+    from kg_build_system import default_toolchain
+    from kg_build_system.distribution.modules.file import (
+        FileConfiguration, FilePlanner,
+    )
+
+    toolchain = default_toolchain(
+        planners=(FilePlanner(FileConfiguration("graph.jsonl")),),
+    )
+    ```
+    """
+    configured: tuple[Any, ...] = tuple(planners)
+    if not any(planner.component_id == "core" for planner in configured):
+        configured = (*core_planners(engine=engine), *configured)
+    return Toolchain(
+        languages=DEFAULT_LANGUAGES,
+        linker=BlueprintLinker(),
+        planners=configured,
+        executors=tuple(executors or DEFAULT_EXECUTORS),
+        runtime=WorkflowRuntime(
+            providers=(RuntimeResources(), DuckDbResourceProvider()),
+        ),
+    )
+
+
+DEFAULT_TOOLCHAIN = default_toolchain()
 
 
 def _calling_namespace_path() -> Path:
@@ -190,4 +264,13 @@ def execute(
     return report
 
 
-__all__ = ["GraphBlueprint", "compile", "create_blueprint", "execute"]
+__all__ = [
+    "DEFAULT_EXECUTORS",
+    "DEFAULT_LANGUAGES",
+    "DEFAULT_TOOLCHAIN",
+    "GraphBlueprint",
+    "compile",
+    "create_blueprint",
+    "default_toolchain",
+    "execute",
+]

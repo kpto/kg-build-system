@@ -18,16 +18,18 @@ The kernel protocols are importable from `kg_build_system.kernel`:
 
 | Name | Responsibility |
 | --- | --- |
-| `Language` | collect, transcribe, validate and render one layer |
-| `Linker` | link ordered layers into one opaque model |
+| `Language` | discover declarations, derive keys, transcribe symbols and render source |
+| `Linker` | select roots, resolve the symbol closure and assemble one opaque model |
 | `Planner` | compile the model into `Step`s for one component |
-| `StepExecutor` | execute one exact instruction kind |
+| `StepExecutor` | execute one exact instruction kind and declare its resources |
+| `ResourceProvider` | create and close the live resources one execution needs |
 | `Toolchain` | compose languages, linker, planners, executors and runtime |
 | `Extension` | bundle languages, planners and executors |
 
 A planner needs a `component_id`, a `version`, a `runtime_fields` tuple and a
-`plan(model, context)` method. An executor needs a `kinds` tuple and an
-`execute(context, instruction)` method.
+`plan(model, context)` method. An executor needs a `kinds` tuple, a `resources`
+tuple and an `execute(context, instruction)` method. Several planners may share
+one `component_id` when their version and runtime fields agree.
 
 ## Steps
 
@@ -35,7 +37,7 @@ A planner needs a `component_id`, a `version`, a `runtime_fields` tuple and a
 
 | Job | Extension point |
 | --- | --- |
-| read a new declaration syntax into its own layer | a `Language` and a `Linker` for the new model |
+| read a new declaration syntax into its own model | a `Language` and a `Linker` for the new model |
 | change what records survive or what values they carry | a rewriting `Planner` |
 | publish the graph in a new format | a `Planner` and a `StepExecutor` |
 | validate a rule that spans components | a `Planner` and a `StepExecutor` |
@@ -56,8 +58,8 @@ from __future__ import annotations
 from pathlib import PurePosixPath
 from typing import Any
 
-from kg_build_system.distribution.executors.runtime import (
-    execution_services,
+from kg_build_system.distribution.modules.runtime import (
+    OutputStorage,
     instruction_payload,
     skipped,
     succeeded,
@@ -104,6 +106,7 @@ class ManifestExecutor:
     """Execute one ("manifest", "default") instruction."""
 
     kinds = (("manifest", "default"),)
+    resources = (OutputStorage,)
 
     def execute(
         self,
@@ -113,7 +116,7 @@ class ManifestExecutor:
         if isinstance(context, DisruptedExecutionContext):
             return skipped(context)
 
-        services = execution_services(context)
+        output_storage = context.resources.get(OutputStorage)
         payload = instruction_payload(instruction)
         relative_path = payload["relative_path"]
         if not isinstance(relative_path, str):
@@ -126,7 +129,7 @@ class ManifestExecutor:
             for contribution in group
             if contribution.artifact is not None
         })
-        location = services.output_storage.child(PurePosixPath(relative_path))
+        location = output_storage.child(PurePosixPath(relative_path))
         location.parent.mkdir(parents=True, exist_ok=True)
         location.write_text("\n".join(names) + "\n", encoding="utf-8")
         return succeeded(context, {"location": relative_path, "types": len(names)})
@@ -136,7 +139,8 @@ class ManifestExecutor:
 `core/graph.*` output, so one input accepts all node and edge record streams.
 The planner declares a `Publication`, so the executor's result appears in the
 report. The instruction carries a JSON payload; the executor reads only that
-payload and its own step's inputs.
+payload and its own step's inputs. The executor declares `OutputStorage`, so the
+runtime gives it a resource view containing exactly that resource.
 
 ### Step 3: Add the planner and executor to the toolchain
 
@@ -145,12 +149,8 @@ Edit `people_graph/build.py`:
 ```python
 from pathlib import Path
 
-from kg_build_system import compile, execute
-from kg_build_system.distribution import (
-    FileConfiguration,
-    FilePlanner,
-    default_toolchain,
-)
+from kg_build_system import compile, default_toolchain, execute
+from kg_build_system.distribution import FileConfiguration, FilePlanner
 
 from people_graph.extensions.manifest import ManifestExecutor, ManifestPlanner
 
@@ -179,11 +179,11 @@ if __name__ == "__main__":
     main()
 ```
 
-`default_toolchain` adds the core planner because no supplied planner has
+`default_toolchain` adds the five core planners because no supplied planner has
 `component_id == "core"`. `with_executors` replaces the executor sequence, so the
 call appends the manifest executor to the default executors. `compile` and
 `execute` use the same toolchain, which is why the manifest instruction has an
-executor.
+executor and its resource is available.
 
 ### Step 4: Run and inspect the result
 
@@ -214,8 +214,64 @@ for connection in plan.connections:
 ### Step 5: Extend a language or linker
 
 A new declaration syntax is a `Language` plus a `Linker` for its model. A
-language returns one `Layer` whose `language` is its own `name`; a linker
-declares the layer names it needs in `requires`. Compose them directly:
+language discovers declarations, derives each key with `compute_key`,
+transcribes a batch into symbols and renders a symbol value back to source. It
+does not own keys itself: a `Declaration` holds only the authoring value that
+the language recognised.
+
+```python
+from kg_build_system.kernel import (
+    Declaration, Key, Language, Namespace, SourceFragment, Symbol,
+    SymbolContext, SymbolRef,
+)
+
+
+class MyLanguage(Language):
+    name = "my_language"
+
+    def discover_declarations(self, namespace: Namespace):
+        return (Declaration(value) for value in namespace.values())
+
+    def compute_key(self, declaration: Declaration) -> Key:
+        return Key((declaration.value.name,))
+
+    def get_kind(self, declaration: Declaration) -> str:
+        return "my_kind"
+
+    def owns(self, value) -> bool:
+        return isinstance(value, MyDeclaration)
+
+    def get_identity(self, value) -> SymbolRef | None:
+        if isinstance(value, MyDeclaration):
+            return SymbolRef(self.name, Key((value.name,)))
+        return None
+
+    def get_references(self, value, resolver) -> tuple[SymbolRef, ...]:
+        return ()
+
+    def transcribe_many(
+        self,
+        declarations,
+        context: SymbolContext,
+    ) -> dict[SymbolRef, Symbol]:
+        symbols = {}
+        for declaration in declarations:
+            reference = SymbolRef(self.name, self.compute_key(declaration))
+            symbols[reference] = Symbol(
+                reference.key, self.get_kind(declaration), declaration.value,
+            )
+        return symbols
+
+    def render(self, symbol, context):
+        return SourceFragment("declaration", f"value = {symbol.value!r}")
+```
+
+A `Linker` receives the language sequence and the namespace. It decides which
+declarations are roots, orders the languages, transcribes them, resolves the
+reference closure and assembles the model. There is no `requires` field:
+language order is the linker's decision.
+
+Compose them directly:
 
 ```python
 from kg_build_system.kernel import Toolchain
@@ -230,13 +286,10 @@ model = toolchain.build(namespace)
 plan = toolchain.compile(model)
 ```
 
-A linker that reads several languages names all of them in `requires`; the
-toolchain orders the languages and refuses a missing dependency or a cycle
-before `link` runs.
-
-A `Language` must also implement `render`. The blueprint must regenerate
-equivalent authoring source, so a language whose declarations cannot be rendered
-is not complete.
+A language that reads several other languages receives their symbols through
+`SymbolContext`; the linker transcribes those languages first. A `Language` must
+also implement `render`. The blueprint must regenerate equivalent authoring
+source, so a language whose declarations cannot be rendered is not complete.
 
 ## Semantics and edge cases
 
@@ -255,6 +308,9 @@ is not complete.
 - **Runtime fields are execution settings.** Declare one with `RuntimeField` and
   read it from `context.runtime_configuration`; it is not compile-time planner
   configuration.
+- **Resources are declared, not fetched.** List the exact resource types in the
+  executor's `resources` tuple and read them from `context.resources.get(...)`.
+  The runtime owns the providers and closes them in reverse order.
 - **An executor does not schedule.** The runtime owns scheduling, input
   classification and the step lifecycle.
 
@@ -264,12 +320,13 @@ is not complete.
 | --- | --- |
 | `no executor for instruction kind(s)` | Add an executor whose `kinds` contains the exact tuple the planner emitted. |
 | `duplicate executor for instruction kind` | Remove one executor that claims the same tuple. |
-| `duplicate component id` | Give the planner a unique `component_id`. |
+| `planners for component ... disagree on version` | Give every planner that shares a `component_id` the same `version` and `runtime_fields`. |
 | `duplicate step id` | Give each step in one component a unique `name`; identity is `component.name`. |
 | A step has no reader | Make the output a `Publication`, or add a step that consumes it. |
 | `no candidate producer` or `workflow cannot be assembled` | The input pattern matches no output. Check the namespace and name, for example `core/graph.*`. |
-| `step executors require execution services` | The executor was called without a resource provider. Execute through a toolchain, not by calling the executor directly. |
-| A custom language is refused | Its `Layer.language` must equal its `name`, and its `requires` must name existing layers. |
+| `executor ... requires missing resource(s)` | Add a provider that supplies every type the executor lists in `resources`. |
+| `duplicate resource type` | Remove one provider that supplies the same exact resource type. |
+| A custom language is refused | Language names must be unique, and a language may produce `SymbolRef`s only in its own `name`. Check `get_references` for unknown references and cycles. |
 
 ## Next steps
 

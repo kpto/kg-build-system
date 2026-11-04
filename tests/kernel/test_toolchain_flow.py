@@ -13,9 +13,10 @@ from kg_build_system.kernel import (
     ArtifactType,
     Component,
     Connection,
+    Declaration,
     Input,
     Instruction,
-    Layer,
+    Key,
     Output,
     Publication,
     RuntimeField,
@@ -23,6 +24,9 @@ from kg_build_system.kernel import (
     Step,
     StepOutcome,
     StepStatus,
+    Symbol,
+    SymbolContext,
+    SymbolRef,
     Toolchain,
     WorkflowPlan,
     WorkflowReport,
@@ -47,64 +51,95 @@ class Namespace:
 
 class LanguageA:
     name = "a"
-    requires: tuple[str, ...] = ()
 
-    def collect(self, namespace):
-        return namespace.values()
+    def discover_declarations(self, namespace):
+        return tuple(Declaration(value) for value in namespace.values())
 
-    def transcribe(self, declarations, context):
-        return Layer(self.name, tuple(declarations))
+    def compute_key(self, declaration):
+        return Key((str(declaration.value),))
 
-    def validate(self, layer):
-        assert layer.language == self.name
+    def get_kind(self, declaration):
+        return "value"
 
-    def render(self, layer, context):
-        return SourceFragment("inline", repr(layer.value))
+    def owns(self, value):
+        return isinstance(value, (str, int))
 
+    def get_identity(self, value):
+        if not self.owns(value):
+            return None
+        return SymbolRef(self.name, Key((str(value),)))
 
-class LanguageB:
-    name = "b"
-    requires: tuple[str, ...] = ("a",)
-
-    def collect(self, namespace):
+    def get_references(self, value, resolver):
+        del value, resolver
         return ()
 
-    def transcribe(self, declarations, context):
-        return Layer(self.name, (*context.layer("a").value, "b"))
+    def transcribe_many(self, declarations, context):
+        del context
+        symbols = {}
+        for declaration in declarations:
+            reference = SymbolRef(
+                self.name, self.compute_key(declaration),
+            )
+            symbols[reference] = Symbol(
+                reference.key, "value", declaration.value,
+            )
+        return symbols
 
-    def validate(self, layer):
-        assert layer.language == self.name
+    def render(self, symbol, context):
+        del context
+        return SourceFragment("inline", repr(symbol.value))
 
-    def render(self, layer, context):
-        return SourceFragment("inline", repr(layer.value))
+
+class LanguageB(LanguageA):
+    name = "b"
+
+    def discover_declarations(self, namespace):
+        del namespace
+        return ()
+
+    def transcribe_many(self, declarations, context):
+        del declarations
+        values = tuple(symbol.value for symbol in context.symbols.values())
+        reference = SymbolRef(self.name, Key(("b",)))
+        return {
+            reference: Symbol(reference.key, "value", (*values, "b")),
+        }
 
 
 class RecordingLinker:
-    requires: tuple[str, ...] = ("a", "b")
-
     def __init__(self) -> None:
-        self.layers: dict[str, Layer] | None = None
+        self.languages = None
+        self.namespace = None
 
-    def link(self, layers):
-        self.layers = dict(layers)
-        return tuple(layer.value for layer in layers.values())
+    def link(self, languages, namespace):
+        self.languages = tuple(languages)
+        self.namespace = namespace
+        model: dict[SymbolRef, Symbol] = {}
+        for language in languages:
+            declarations = tuple(
+                language.discover_declarations(namespace)
+            )
+            model.update(
+                language.transcribe_many(declarations, SymbolContext(model)),
+            )
+        return model
 
 
 class Resources:
     def __init__(self) -> None:
         self.opened = 0
-        self.closed: Any = None
+        self.closed = False
 
-    def services(self, plan, configuration):
+    def resources(self, configuration):
         self.opened += 1
-        return {"plan": plan, "configuration": configuration}
+        return {}
 
-    def close(self, services):
-        self.closed = services
+    def close(self):
+        self.closed = True
 
 
 class FailingRuntime:
-    def execute(self, plan, executors, *, services, configuration, monitor=None):
+    def execute(self, plan, executors, *, configuration, monitor=None):
         raise AssertionError("runtime must not run")
 
 
@@ -155,8 +190,39 @@ class DuplicateStepPlanner:
         )
 
 
+class FirstSharedPlanner:
+    component_id = "shared"
+    version = "1"
+    runtime_fields: tuple[RuntimeField, ...] = ()
+
+    def plan(self, model, context):
+        return (
+            Step(
+                self.component_id,
+                "first",
+                (),
+                (Publication(ArtifactType("demo", "first")),),
+                Instruction(("test", "default"), None),
+            ),
+        )
+
+
+class SecondSharedPlanner(FirstSharedPlanner):
+    def plan(self, model, context):
+        return (
+            Step(
+                self.component_id,
+                "second",
+                (),
+                (Publication(ArtifactType("demo", "second")),),
+                Instruction(("test", "default"), None),
+            ),
+        )
+
+
 class RecordingExecutor:
     kinds: tuple[tuple[str, ...], ...] = (("test", "default"),)
+    resources: tuple[type, ...] = ()
 
     def __init__(self) -> None:
         self.calls: list[str] = []
@@ -194,28 +260,29 @@ def _plan(instruction: Instruction) -> WorkflowPlan:
 
 
 class ToolchainFlowTests(unittest.TestCase):
-    def test_build_orders_languages_and_links_layers(self) -> None:
+    def test_build_orders_languages_and_links_symbols(self) -> None:
         linker = RecordingLinker()
         toolchain = Toolchain(
-            languages=(LanguageB(), LanguageA()),
+            languages=(LanguageA(), LanguageB()),
             linker=linker,
-            resources=Resources(),
             runtime=WorkflowRuntime(),
         )
 
         model = toolchain.build(Namespace(1, 2))
 
-        self.assertEqual(model, ((1, 2), (1, 2, "b")))
-        self.assertIsNotNone(linker.layers)
-        assert linker.layers is not None
-        self.assertEqual(linker.layers["a"].value, (1, 2))
-        self.assertEqual(linker.layers["b"].value, (1, 2, "b"))
+        self.assertEqual(
+            [language.name for language in linker.languages],
+            ["a", "b"],
+        )
+        values = {str(reference): symbol.value for reference, symbol in model.items()}
+        self.assertEqual(values["a:1"], 1)
+        self.assertEqual(values["a:2"], 2)
+        self.assertEqual(values["b:b"], (1, 2, "b"))
 
     def test_compile_assigns_components_and_assembles_connections(self) -> None:
         toolchain: Toolchain[Any] = Toolchain(
             languages=(),
             linker=RecordingLinker(),
-            resources=Resources(),
             runtime=WorkflowRuntime(),
             planners=(ProducerPlanner(), ConsumerPlanner()),
         )
@@ -238,11 +305,76 @@ class ToolchainFlowTests(unittest.TestCase):
         self.assertEqual(consumer.inputs[0].name, "value")
         self.assertEqual(consumer.inputs[0].input_name, "value")
 
+    def test_multiple_planners_share_one_component(self) -> None:
+        toolchain: Toolchain[Any] = Toolchain(
+            languages=(),
+            linker=RecordingLinker(),
+            runtime=WorkflowRuntime(),
+            planners=(FirstSharedPlanner(), SecondSharedPlanner()),
+        )
+
+        plan = toolchain.compile(object())
+
+        self.assertEqual(plan.components, (Component("shared", "1"),))
+        self.assertEqual(
+            [step.name for step in plan.steps],
+            ["first", "second"],
+        )
+        self.assertEqual(
+            {step.component for step in plan.steps},
+            {"shared"},
+        )
+
+    def test_planners_sharing_a_component_must_agree_on_version(self) -> None:
+        second = SecondSharedPlanner()
+        second.version = "2"
+        toolchain: Toolchain[Any] = Toolchain(
+            languages=(),
+            linker=RecordingLinker(),
+            planners=(FirstSharedPlanner(), second),
+        )
+
+        with self.assertRaisesRegex(ValueError, "disagree on version"):
+            toolchain.compile(object())
+
+    def test_planners_sharing_a_component_must_agree_on_runtime_fields(self) -> None:
+        second = SecondSharedPlanner()
+        second.runtime_fields = (RuntimeField("prefix", "Text"),)
+        toolchain: Toolchain[Any] = Toolchain(
+            languages=(),
+            linker=RecordingLinker(),
+            planners=(FirstSharedPlanner(), second),
+        )
+
+        with self.assertRaisesRegex(ValueError, "disagree on runtime_fields"):
+            toolchain.compile(object())
+
+    def test_duplicate_step_identity_across_a_component_is_refused(self) -> None:
+        class DuplicateAcross(FirstSharedPlanner):
+            def plan(self, model, context):
+                return (
+                    Step(
+                        self.component_id,
+                        "first",
+                        (),
+                        (Publication(ArtifactType("demo", "other")),),
+                        Instruction(("test", "default"), None),
+                    ),
+                )
+
+        toolchain: Toolchain[Any] = Toolchain(
+            languages=(),
+            linker=RecordingLinker(),
+            planners=(FirstSharedPlanner(), DuplicateAcross()),
+        )
+
+        with self.assertRaisesRegex(ValueError, "duplicate step id"):
+            toolchain.compile(object())
+
     def test_duplicate_step_identity_is_refused(self) -> None:
         toolchain: Toolchain[Any] = Toolchain(
             languages=(),
             linker=RecordingLinker(),
-            resources=Resources(),
             runtime=WorkflowRuntime(),
             planners=(DuplicateStepPlanner(),),
         )
@@ -255,7 +387,6 @@ class ToolchainFlowTests(unittest.TestCase):
         toolchain = Toolchain(
             languages=(),
             linker=RecordingLinker(),
-            resources=resources,
             runtime=FailingRuntime(),
         )
 
@@ -272,8 +403,7 @@ class ToolchainFlowTests(unittest.TestCase):
         toolchain: Toolchain[Any] = Toolchain(
             languages=(),
             linker=RecordingLinker(),
-            resources=resources,
-            runtime=WorkflowRuntime(),
+            runtime=WorkflowRuntime(providers=(resources,)),
             planners=(ProducerPlanner(), ConsumerPlanner()),
             executors=(executor,),
         )
@@ -288,7 +418,7 @@ class ToolchainFlowTests(unittest.TestCase):
             [artifact.value for artifact in report.published_artifacts],
             ["producer.make", "consumer.use"],
         )
-        self.assertIsNotNone(resources.closed)
+        self.assertTrue(resources.closed)
 
     def test_workflow_plan_round_trips_through_document(self) -> None:
         component = Component(

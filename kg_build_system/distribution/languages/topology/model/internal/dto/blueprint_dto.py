@@ -2,13 +2,18 @@
 
 The DTO is a semantic graph model: nodes, edges, labels, properties and
 endpoints. It carries no Python module path, symbol ID or declaration
-expression. ``source``, ``target`` and ``parent`` are logical graph names.
+expression. ``source`` and ``target`` are node references, ``parent`` names the
+node or edge category above the component, and every property carries its
+property reference.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 
 from kg_build_system.distribution.languages.annotations.model.internal.dto import AnnotationDTO
+from kg_build_system.distribution.model.public.refs import (
+    EdgeRef, NodeRef, PropertyRef,
+)
 from kg_build_system.kernel.model.internal.types.dto import LogicalTypeDTO
 
 
@@ -21,14 +26,21 @@ class PropertyDTO:
         from kg_build_system.distribution.languages.topology.model.internal.dto import (
             PropertyDTO,
         )
+        from kg_build_system.distribution.model.public.refs import PropertyRef
+        from kg_build_system.kernel import Key
         from kg_build_system.kernel.model.internal.types.dto import UnitTypeDTO
 
-        name = PropertyDTO("name", UnitTypeDTO("str"))
+        prop = PropertyDTO(
+            "name",
+            UnitTypeDTO("str"),
+            PropertyRef("topology", Key(("site.name",))),
+        )
         ```
     """
 
     name: str
     logical_type: LogicalTypeDTO
+    ref: PropertyRef
     description: str | None = None
     annotations: tuple[AnnotationDTO, ...] = ()
 
@@ -46,8 +58,14 @@ class NodeDTO:
         from kg_build_system.distribution.languages.topology.model.internal.dto import (
             NodeDTO,
         )
+        from kg_build_system.distribution.model.public.refs import NodeRef
+        from kg_build_system.kernel import Key
 
-        site = NodeDTO(name="site", labels=("Site",))
+        site = NodeDTO(
+            name="site",
+            labels=("Site",),
+            parent=NodeRef("topology", Key(("entity",))),
+        )
         ```
     """
 
@@ -56,7 +74,7 @@ class NodeDTO:
     properties: tuple[PropertyDTO, ...] = ()
     annotations: tuple[AnnotationDTO, ...] = ()
     abstract: bool = False
-    parent: str | None = None
+    parent: NodeRef | None = None
     description: str | None = None
 
     def __post_init__(self) -> None:
@@ -66,7 +84,7 @@ class NodeDTO:
             self.name,
             self.labels,
             tuple(item.name for item in self.properties),
-            self.parent,
+            None if self.parent is None else self.parent.name,
             self.description,
         )
 
@@ -80,19 +98,26 @@ class EdgeDTO:
         from kg_build_system.distribution.languages.topology.model.internal.dto import (
             EdgeDTO,
         )
+        from kg_build_system.distribution.model.public.refs import NodeRef
+        from kg_build_system.kernel import Key
 
-        edge = EdgeDTO(name="has_unit", source="site", target="unit")
+        edge = EdgeDTO(
+            name="has_unit",
+            labels=(),
+            source=NodeRef("topology", Key(("site",))),
+            target=NodeRef("topology", Key(("unit",))),
+        )
         ```
     """
 
     name: str
     labels: tuple[str, ...]
-    source: str
-    target: str
+    source: NodeRef
+    target: NodeRef
     properties: tuple[PropertyDTO, ...] = ()
     annotations: tuple[AnnotationDTO, ...] = ()
     abstract: bool = False
-    parent: str | None = None
+    parent: EdgeRef | None = None
     description: str | None = None
 
     def __post_init__(self) -> None:
@@ -102,12 +127,12 @@ class EdgeDTO:
             self.name,
             self.labels,
             tuple(item.name for item in self.properties),
-            self.parent,
+            None if self.parent is None else self.parent.name,
             self.description,
         )
-        if not self.source or not self.target:
+        if not self.source.name or not self.target.name:
             raise ValueError(
-                f"edge {self.name!r} requires a source and target graph name"
+                f"edge {self.name!r} requires a source and target node reference"
             )
 
 

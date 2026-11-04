@@ -8,6 +8,9 @@ from kg_build_system.distribution.languages.annotations.service.internal import 
     annotation_from_document,
     annotation_to_document,
 )
+from kg_build_system.distribution.model.public.refs import (
+    PropertyRef, ref_from_document, ref_to_document,
+)
 from kg_build_system.kernel.service.internal.types import (
     type_from_document, type_to_document,
 )
@@ -45,6 +48,37 @@ def _optional_text(value: Mapping[str, Any], key: str) -> str | None:
     return result
 
 
+def _node_ref(value: Mapping[str, Any], key: str):
+    from kg_build_system.distribution.model.public.refs import NodeRef
+
+    reference = ref_from_document(value.get(key))
+    if not isinstance(reference, NodeRef):
+        raise ValueError(f"{key!r} must be a node reference")
+    return reference
+
+
+def _optional_node_ref(value: Mapping[str, Any], key: str):
+    from kg_build_system.distribution.model.public.refs import NodeRef
+
+    if value.get(key) is None:
+        return None
+    reference = ref_from_document(value.get(key))
+    if not isinstance(reference, NodeRef):
+        raise ValueError(f"{key!r} must be a node reference")
+    return reference
+
+
+def _optional_edge_ref(value: Mapping[str, Any], key: str):
+    from kg_build_system.distribution.model.public.refs import EdgeRef
+
+    if value.get(key) is None:
+        return None
+    reference = ref_from_document(value.get(key))
+    if not isinstance(reference, EdgeRef):
+        raise ValueError(f"{key!r} must be an edge reference")
+    return reference
+
+
 def _labels(value: Mapping[str, Any]) -> tuple[str, ...]:
     result = tuple(_array(value.get("labels", ()), "labels"))
     if any(not isinstance(item, str) or not item for item in result):
@@ -56,6 +90,7 @@ def _property_to_document(value: PropertyDTO) -> dict[str, Any]:
     result: dict[str, Any] = {
         "name": value.name,
         "logical_type": type_to_document(value.logical_type),
+        "ref": ref_to_document(value.ref),
         "annotations": [annotation_to_document(item) for item in value.annotations],
     }
     if value.description is not None:
@@ -64,9 +99,13 @@ def _property_to_document(value: PropertyDTO) -> dict[str, Any]:
 
 
 def _property_from_document(value: Mapping[str, Any]) -> PropertyDTO:
+    reference = ref_from_document(value.get("ref"))
+    if not isinstance(reference, PropertyRef):
+        raise ValueError("a property 'ref' must be a property reference")
     return PropertyDTO(
         name=_text(value, "name"),
         logical_type=type_from_document(_object(value.get("logical_type"), "logical_type")),
+        ref=reference,
         description=_optional_text(value, "description"),
         annotations=tuple(
             annotation_from_document(_object(item, "property annotation"))
@@ -84,7 +123,7 @@ def _common_to_document(value: NodeDTO | EdgeDTO) -> dict[str, Any]:
         "annotations": [annotation_to_document(item) for item in value.annotations],
     }
     if value.parent is not None:
-        result["parent"] = value.parent
+        result["parent"] = ref_to_document(value.parent)
     if value.description is not None:
         result["description"] = value.description
     return result
@@ -96,8 +135,8 @@ def _node_to_document(value: NodeDTO) -> dict[str, Any]:
 
 def _edge_to_document(value: EdgeDTO) -> dict[str, Any]:
     result = _common_to_document(value)
-    result["source"] = value.source
-    result["target"] = value.target
+    result["source"] = ref_to_document(value.source)
+    result["target"] = ref_to_document(value.target)
     return result
 
 
@@ -117,21 +156,25 @@ def _common_from_document(value: Mapping[str, Any]) -> dict[str, Any]:
             for item in _array(value.get("annotations", ()), "annotations")
         ),
         "abstract": abstract,
-        "parent": _optional_text(value, "parent"),
         "description": _optional_text(value, "description"),
     }
 
 
 def _node_from_document(value: Mapping[str, Any]) -> NodeDTO:
-    return NodeDTO(**_common_from_document(value))
+    common = _common_from_document(value)
+    return NodeDTO(
+        **common,
+        parent=_optional_node_ref(value, "parent"),
+    )
 
 
 def _edge_from_document(value: Mapping[str, Any]) -> EdgeDTO:
     common = _common_from_document(value)
     return EdgeDTO(
         **common,
-        source=_text(value, "source"),
-        target=_text(value, "target"),
+        source=_node_ref(value, "source"),
+        target=_node_ref(value, "target"),
+        parent=_optional_edge_ref(value, "parent"),
     )
 
 

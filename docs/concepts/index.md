@@ -103,7 +103,7 @@ node_binding(
 )
 ```
 
-The binding is the only layer that imports both the data shape and the graph
+The binding is the only part that imports both the data shape and the graph
 meaning. The build key identifies the record; the properties carry the values;
 the row source carries the grain.
 
@@ -117,8 +117,8 @@ graph, so a consumer does not have to read the pipeline.
 ## 8. Compose the planners and executors
 
 [Planners and executors](planners-and-executors.md) are the stages applied to the whole graph
-after the bindings. The core planner materialises rows and records; file,
-meta-graph and Neo4j planners publish the result; deduplication, merging and
+after the bindings. The core module's five planners materialise rows and records;
+file, meta-graph and Neo4j planners publish the result; deduplication, merging and
 validation planners change which records survive.
 
 ## 9. Compile and run
@@ -146,5 +146,5 @@ data contracts ──► expressions ──► row sources ──► projections
                   compile ──► WorkflowPlan ──► execute ──► graph and reports
 ```
 
-Each layer has one job. The next page takes the first step:
+Each part has one job. The next page takes the first step:
 [data contracts](data-contracts.md).

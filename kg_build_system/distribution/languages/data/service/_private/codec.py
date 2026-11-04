@@ -6,6 +6,9 @@ from typing import Any, cast
 
 from kg_build_system.distribution.languages.annotations.service.internal import annotation_from_document, annotation_to_document
 from kg_build_system.distribution.languages.expressions.service.internal.dto.codec import expression_from_document, expression_to_document
+from kg_build_system.distribution.model.public.refs import (
+    FieldRef, RelationRef, ref_from_document, ref_to_document,
+)
 from kg_build_system.kernel.service.internal.types import type_from_document, type_to_document
 from ...model.internal.dto.blueprint_dto import (
     ColumnDTO, DataPartDTO, ProjectionDTO, RelationDTO, RowDistinctDTO,
@@ -62,7 +65,7 @@ def _items(value: Mapping[str, Any], key: str, decoder: Any) -> tuple[Any, ...]:
 
 def _encode_plan(plan: RowSourcePlanDTO) -> dict[str, Any]:
     if isinstance(plan, RowScanDTO):
-        return {"kind": "scan", "source": plan.source}
+        return {"kind": "scan", "relation": ref_to_document(plan.relation)}
     if isinstance(plan, RowFilterDTO):
         return {
             "kind": "filter",
@@ -114,7 +117,10 @@ def _encode_plan(plan: RowSourcePlanDTO) -> dict[str, Any]:
 def _decode_plan(value: Mapping[str, Any]) -> RowSourcePlanDTO:
     kind = value.get("kind")
     if kind == "scan":
-        return RowScanDTO(_text(value, "source"))
+        relation = ref_from_document(value.get("relation"))
+        if not isinstance(relation, RelationRef):
+            raise ValueError("a row plan 'relation' must be a relation reference")
+        return RowScanDTO(relation)
     if kind == "filter":
         return RowFilterDTO(
             _decode_plan(_object(value.get("input"), "row-source input")),
@@ -182,6 +188,7 @@ def _encode_column(value: ColumnDTO) -> dict[str, Any]:
     result: dict[str, Any] = {
         "name": value.name,
         "logical_type": type_to_document(value.logical_type),
+        "ref": ref_to_document(value.ref),
         "annotations": [annotation_to_document(item) for item in value.annotations],
     }
     if value.description is not None:
@@ -193,11 +200,15 @@ def _encode_column(value: ColumnDTO) -> dict[str, Any]:
 
 def _decode_column(value: Mapping[str, Any]) -> ColumnDTO:
     expression = value.get("expression")
+    reference = ref_from_document(value.get("ref"))
+    if not isinstance(reference, FieldRef):
+        raise ValueError("a column 'ref' must be a field reference")
     return ColumnDTO(
         name=_text(value, "name"),
         logical_type=type_from_document(
             _object(value.get("logical_type"), "logical_type")
         ),
+        ref=reference,
         description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", annotation_from_document),
         expression=(
@@ -258,7 +269,7 @@ def _decode_projection(value: Mapping[str, Any]) -> ProjectionDTO:
 
 def _encode_source(value: SourceDTO) -> dict[str, Any]:
     result: dict[str, Any] = {
-        "table": value.table,
+        "relation": ref_to_document(value.relation),
         "location": value.location,
         "format": value.format,
         "annotations": [annotation_to_document(item) for item in value.annotations],
@@ -274,8 +285,11 @@ def _decode_source(value: Mapping[str, Any]) -> SourceDTO:
     source_format = value.get("format")
     if source_format not in _SOURCE_FORMATS:
         raise ValueError(f"unknown source format {source_format!r}")
+    relation = ref_from_document(value.get("relation"))
+    if not isinstance(relation, RelationRef):
+        raise ValueError("a source 'relation' must be a relation reference")
     return SourceDTO(
-        table=_text(value, "table"),
+        relation=relation,
         location=_text(value, "location"),
         format=cast(Any, source_format),
         credential_reference=_optional_text(value, "credential_reference"),

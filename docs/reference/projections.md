@@ -62,7 +62,7 @@ class SiteProjection(Projection(SiteTable.row_source())):
 ```
 
 `Projection(SiteTable.row_source())` pins the relation and records its filters in
-the compiled definition. A filtered, joined, grouped or unioned source is passed
+the compiled declaration. A filtered, joined, grouped or unioned source is passed
 directly: `Projection(joined)`. The pin does not copy fields; declare the outputs
 explicitly.
 

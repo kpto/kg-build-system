@@ -267,7 +267,7 @@ if __name__ == "__main__":
     main()
 ```
 
-`compile()` scans the package that contains `build.py`, so the declarations and bindings do not need an import list. `FilePlanner` emits the JSON Lines step and `FileExecutor` writes the records; the configured path is relative to the output directory. The core planner, which materialises the records, is supplied automatically.
+`compile()` scans the package that contains `build.py`, so the declarations and bindings do not need an import list. `FilePlanner` emits the JSON Lines step and `FileExecutor` writes the records; the configured path is relative to the output directory. The five core planners, which materialise the records, are supplied automatically.
 
 The `__main__` guard matters: discovery imports `build.py`, and without the guard that import would run the build.
 

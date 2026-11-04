@@ -3,15 +3,15 @@ from __future__ import annotations
 import unittest
 from pathlib import Path
 
-from kg_build_system.distribution.interpreter import create_blueprint
-from kg_build_system.distribution.planners import (
+from kg_build_system.distribution import (
     ConflictValidationConfiguration,
     ConflictValidationPlanner,
-    CorePlanner,
     DeduplicationPlanner,
     MergingConfiguration,
     MergingPlanner,
 )
+from kg_build_system.distribution.interpreter import create_blueprint
+from kg_build_system.distribution.modules.core import core_planners
 from kg_build_system.kernel import Output, PlanContext, Publication
 from reference_project.topology.site import SiteNode
 
@@ -22,7 +22,12 @@ class DeduplicationPlannerTests(unittest.TestCase):
         cls.blueprint = create_blueprint(
             namespace_path=Path("reference_project"),
         )
-        cls.core_steps = CorePlanner().plan(cls.blueprint, PlanContext())
+        context = PlanContext()
+        cls.core_steps = tuple(
+            step
+            for planner in core_planners()
+            for step in planner.plan(cls.blueprint, context)
+        )
         cls.steps = tuple(
             DeduplicationPlanner().plan(cls.blueprint, PlanContext())
         )

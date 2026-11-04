@@ -72,7 +72,7 @@ framework means compiling again.
 
 ### Separation of meaning and execution
 
-The graph model is independent of where rows come from and of the engine that runs the build. Topology declares nodes, edges, and properties without importing a table or a target. Tables describe logical rows. A source binding supplies the physical location. Bindings are the only layer that imports both sides. Output planners and executors decide whether the result becomes JSON Lines, a meta-graph, a Neo4j bundle, or something else.
+The graph model is independent of where rows come from and of the engine that runs the build. Topology declares nodes, edges, and properties without importing a table or a target. Tables describe logical rows. A source binding supplies the physical location. Bindings are the only part that imports both sides. Output planners and executors decide whether the result becomes JSON Lines, a meta-graph, a Neo4j bundle, or something else.
 
 That separation lets a feed move without changing the graph, a node type be reused across feeds, or an output target change without rewriting the mapping. The same compiled plan can feed several targets.
 

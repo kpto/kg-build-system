@@ -1,18 +1,18 @@
-"""The toolchain: languages, linker, planners, executors, resources and runtime.
+"""The toolchain: languages, linker, planners, executors and runtime.
 
-A toolchain is the kernel's composition surface. It orders and transcribes
-languages, links their layers into one opaque model, compiles that model into a
-workflow plan and executes the plan through exact instruction-kind executors.
-The kernel never inspects a service or an instruction payload.
+A toolchain is the kernel's composition surface. It links language declarations
+into one opaque model, compiles that model into a workflow plan and executes the
+plan through exact instruction-kind executors. The runtime owns resources; the
+kernel never inspects a resource or an instruction payload.
 """
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
+from collections.abc import Mapping, MutableMapping, Sequence
 from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Generic, Protocol, TypeVar
 
-from ...model.public.language import Language, Namespace
+from ...model.public.language import Language, Namespace, ReferenceResolver
 from ...model.public.runtime import (
     DisruptedExecutionContext,
     ExecutionContext,
@@ -34,30 +34,28 @@ PlannerModelT = TypeVar("PlannerModelT", contravariant=True)
 
 
 class Linker(Protocol[LinkerModelT]):
-    """Link ordered language layers into one opaque model.
+    """Link ordered language declarations into one opaque model.
 
-    ``requires`` names the layers the linker needs; the toolchain refuses a
-    missing layer before calling ``link``. The kernel never inspects the model
-    it receives.
+    The linker owns dependency order. It discovers each language's
+    declarations, transcribes them into symbols and assembles the model. The
+    kernel never inspects the model it receives.
 
     Example:
     ```python
     class EchoLinker:
-        requires = ("echo",)
-
-        def link(self, layers):
-            return {"echo": layers["echo"].value}
+        def link(self, languages, namespace):
+            return {"languages": tuple(language.name for language in languages)}
     ```
     """
 
-    requires: tuple[str, ...]
-
-    def link(self, layers: Mapping[str, Any]) -> LinkerModelT:
-        """Link the transcribed layers into one model.
+    def link(
+        self, languages: Sequence[Language], namespace: Namespace,
+    ) -> LinkerModelT:
+        """Link the language declarations into one model.
 
         Example:
             ```python
-            model = EchoLinker().link({"echo": layer})
+            model = EchoLinker().link(languages, namespace)
             ```
         """
         ...
@@ -68,13 +66,16 @@ class PlanContext:
     """The frozen context every planner receives for one compile.
 
     ``runtime_configuration`` carries per-component runtime values known at plan
-    time, keyed by component id.
+    time, keyed by component id. ``shared`` is a mutable per-compile scratch
+    space so several planners that share one component can publish and read the
+    same plan state.
 
     Example:
     ```python
     from kg_build_system.kernel import PlanContext
 
     context = PlanContext({"echo": {"prefix": "hello"}})
+    context.shared["plan"] = "core"
     assert context.runtime_configuration["echo"]["prefix"] == "hello"
     ```
     """
@@ -82,14 +83,16 @@ class PlanContext:
     runtime_configuration: Mapping[str, Mapping[str, Any]] = field(
         default_factory=dict,
     )
+    shared: MutableMapping[str, Any] = field(default_factory=dict)
 
 
 class Planner(Protocol[PlannerModelT]):
     """Compile one opaque model into workflow steps for one component.
 
     ``component_id`` names the component the steps belong to; the toolchain
-    assigns it to every step the planner returns. ``version`` and
-    ``runtime_fields`` are published in the workflow plan.
+    assigns it to every step the planner returns. Several planners may share one
+    ``component_id`` when their ``version`` and ``runtime_fields`` agree.
+    ``version`` and ``runtime_fields`` are published in the workflow plan.
 
     Example:
     ```python
@@ -120,7 +123,7 @@ class Planner(Protocol[PlannerModelT]):
         ...
 
 
-class StepExecutor(Protocol):
+class Executor(Protocol):
     """Execute one exact instruction kind.
 
     A normal step receives an ``ExecutionContext``; a step whose upstream input
@@ -154,58 +157,107 @@ class StepExecutor(Protocol):
         ...
 
 
-class ResourceProvider(Protocol):
-    """Create and close the live services one execution needs.
+class StepExecutor(Executor, Protocol):
+    """An executor that names the runtime resources it needs.
 
-    Services are opaque to the kernel. ``close`` is called exactly once for a
-    successfully created service object, even when execution raises.
+    ``resources`` lists the resource types the executor reads from its
+    ``ResourceView``. The runtime builds a view containing exactly these types;
+    asking for any other type raises ``KeyError``.
 
     Example:
     ```python
-    class EchoResources:
-        def services(self, plan, configuration):
-            return {"connected": True}
+    class EchoExecutor:
+        kinds = (("echo", "default"),)
+        resources = (int,)
 
-        def close(self, services):
-            services.clear()
+        def execute(self, context, instruction):
+            assert context.resources.get(int) > 0
+            return StepOutcome(context.step_id, StepStatus.SUCCEEDED)
     ```
     """
 
-    def services(
-        self, plan: WorkflowPlan, configuration: RuntimeConfiguration,
-    ) -> Any:
-        """Create the services for one plan execution.
+    resources: tuple[type, ...] = ()
+
+
+class Resource(Protocol):
+    """A live capability with a lifecycle.
+
+    A resource is opened by a provider and released when the provider closes.
+    The kernel never inspects what the capability does.
+
+    Example:
+    ```python
+    class Connection:
+        def close(self):
+            pass
+
+    resource: Resource = Connection()
+    resource.close()
+    ```
+    """
+
+    def close(self) -> None:
+        """Release the capability.
 
         Example:
             ```python
-            services = EchoResources().services(plan, configuration)
+            resource.close()
             ```
         """
         ...
 
-    def close(self, services: Any) -> None:
-        """Release the services created for one execution.
+
+class ResourceProvider(Protocol):
+    """Create and close the live resources one execution needs.
+
+    Resources are opaque to the kernel and keyed by their exact type. The
+    runtime opens every provider before the first step and closes every provider
+    in reverse order afterwards, even when execution raises.
+
+    Example:
+    ```python
+    class EchoResources:
+        def resources(self, configuration):
+            return {str: "connected"}
+
+        def close(self):
+            pass
+    ```
+    """
+
+    def resources(
+        self, configuration: RuntimeConfiguration,
+    ) -> Mapping[type, Any]:
+        """Create the resources for one execution.
 
         Example:
             ```python
-            EchoResources().close(services)
+            resources = EchoResources().resources(configuration)
+            ```
+        """
+        ...
+
+    def close(self) -> None:
+        """Release every resource this provider owns.
+
+        Example:
+            ```python
+            EchoResources().close()
             ```
         """
         ...
 
 
 class Runtime(Protocol):
-    """Schedule a workflow plan and dispatch each step to its executor.
+    """Open resources, schedule a workflow plan and dispatch its steps.
 
     ``executors`` is an exact-kind map built by the toolchain; every instruction
-    kind in the plan is guaranteed to have an executor. ``services`` and
-    ``monitor`` are opaque to the kernel.
+    kind in the plan is guaranteed to have an executor. ``monitor`` is opaque to
+    the kernel.
 
     Example:
     ```python
-    report = runtime.execute(
-        plan, executors, services=services, configuration=configuration,
-    )
+    report = runtime.execute(plan, executors, configuration=configuration)
     ```
     """
 
@@ -214,7 +266,6 @@ class Runtime(Protocol):
         plan: WorkflowPlan,
         executors: Mapping[InstructionKind, StepExecutor],
         *,
-        services: Any,
         configuration: RuntimeConfiguration,
         monitor: Any = None,
     ) -> WorkflowReport:
@@ -223,10 +274,7 @@ class Runtime(Protocol):
         Example:
             ```python
             report = runtime.execute(
-                plan,
-                executors,
-                services=services,
-                configuration=configuration,
+                plan, executors, configuration=configuration,
             )
             ```
         """
@@ -256,8 +304,8 @@ class Extension:
 class Toolchain(Generic[ModelT]):
     """The full kernel composition: build, compile and execute.
 
-    Languages are ordered by ``requires``, transcribed and validated before the
-    linker sees them. Planners compile the same linked model in order. Execution
+    The linker owns language order and transcription. Planners compile the same
+    linked model in order; several planners may share a component. Execution
     maps each executor's exact instruction kinds to the plan's instructions.
 
     Example:
@@ -267,8 +315,7 @@ class Toolchain(Generic[ModelT]):
     toolchain = Toolchain(
         languages=(EchoLanguage(),),
         linker=EchoLinker(),
-        resources=EchoResources(),
-        runtime=WorkflowRuntime(),
+        runtime=WorkflowRuntime(providers=(EchoResources(),)),
     )
     model = toolchain.build(namespace)
     ```
@@ -276,16 +323,15 @@ class Toolchain(Generic[ModelT]):
 
     languages: Sequence[Language]
     linker: Linker[ModelT]
-    resources: ResourceProvider | None = None
     runtime: Runtime | None = None
     planners: Sequence[Planner[ModelT]] = ()
     executors: Sequence[StepExecutor] = ()
 
     def build(self, namespace: Namespace) -> ModelT:
-        """Order and transcribe languages, then link their layers.
+        """Link the language declarations into one model.
 
-        Duplicate language names, unknown dependencies, cycles and a layer whose
-        ``language`` does not match its language name raise ``ValueError``.
+        Duplicate language names, cycles and a symbol reference to a missing
+        symbol are the linker's responsibility; ``ValueError`` states them.
 
         Example:
         ```python
@@ -300,7 +346,8 @@ class Toolchain(Generic[ModelT]):
         """Compile a linked model into one assembled workflow plan.
 
         Every planner receives the same model and its steps are assigned the
-        planner's ``component_id``. Duplicate component or step ids raise
+        planner's ``component_id``. Planners that share a component must agree
+        on ``version`` and ``runtime_fields``. Duplicate step ids raise
         ``ValueError``.
 
         Example:
@@ -321,10 +368,10 @@ class Toolchain(Generic[ModelT]):
         configuration: RuntimeConfiguration | None = None,
         monitor: Any = None,
     ) -> WorkflowReport:
-        """Execute a plan through the registered executors and resources.
+        """Execute a plan through the registered executors and runtime.
 
         A duplicate instruction kind or a plan instruction with no executor is
-        refused before any step runs. Services are always closed.
+        refused before any step runs. The runtime opens and closes resources.
 
         Example:
         ```python
@@ -336,13 +383,10 @@ class Toolchain(Generic[ModelT]):
         """
         from ..internal.pipeline import execute_plan
 
-        if self.resources is None or self.runtime is None:
-            raise RuntimeError(
-                "this toolchain has no resources or runtime; it cannot execute"
-            )
+        if self.runtime is None:
+            raise RuntimeError("this toolchain has no runtime; it cannot execute")
         return execute_plan(
             self.executors,
-            self.resources,
             self.runtime,
             plan,
             output_directory=output_directory,
@@ -376,6 +420,7 @@ class Toolchain(Generic[ModelT]):
 
 
 __all__ = [
-    "Extension", "Linker", "PlanContext", "Planner", "ResourceProvider",
-    "Runtime", "StepExecutor", "Toolchain",
+    "Executor", "Extension", "Linker", "PlanContext", "Planner",
+    "ReferenceResolver", "Resource", "ResourceProvider", "Runtime",
+    "StepExecutor", "Toolchain",
 ]

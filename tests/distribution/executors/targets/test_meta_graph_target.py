@@ -6,11 +6,12 @@ from pathlib import Path
 from tempfile import TemporaryDirectory
 from typing import Any
 
-from kg_build_system.distribution.executors.duckdb import (
+from kg_build_system.distribution.modules.runtime import RuntimeResources
+from kg_build_system.distribution.modules.duckdb import (
     DuckDbExecutor,
     DuckDbResourceProvider,
 )
-from kg_build_system.distribution.executors.meta_graph import (
+from kg_build_system.distribution.modules.meta_graph import (
     MetaGraphConfiguration,
     MetaGraphExecutor,
     MetaGraphPlanner,
@@ -79,8 +80,9 @@ class MetaGraphTargetTests(unittest.TestCase):
             languages=(),
             linker=_FakeLinker(),
             executors=(DuckDbExecutor(), MetaGraphExecutor()),
-            resources=DuckDbResourceProvider(),
-            runtime=WorkflowRuntime(),
+            runtime=WorkflowRuntime(
+                providers=(RuntimeResources(), DuckDbResourceProvider()),
+            ),
         )
         plan = _plan(MetaGraphConfiguration())
 
@@ -109,8 +111,9 @@ class MetaGraphTargetTests(unittest.TestCase):
             languages=(),
             linker=_FakeLinker(),
             executors=(DuckDbExecutor(), MetaGraphExecutor()),
-            resources=DuckDbResourceProvider(),
-            runtime=WorkflowRuntime(),
+            runtime=WorkflowRuntime(
+                providers=(RuntimeResources(), DuckDbResourceProvider()),
+            ),
         )
         plan = _plan(MetaGraphConfiguration(include_html=False))
 

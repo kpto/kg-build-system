@@ -59,8 +59,9 @@ compilation.
 | `bindings` | node and edge binding DTOs |
 | `sources` | physical source bindings |
 
-The layer DTOs are internal to the language packages. `GraphBlueprint` is the
-public handle.
+The language DTOs are internal to the language packages. `GraphBlueprint` is the
+public handle. Cross-symbol fields are role-typed references such as `NodeRef`,
+`FieldRef` and `OperationRef`, not bare names.
 
 You can create one in three ways:
 
@@ -97,8 +98,8 @@ plan = compile(
 ```
 
 `compile` is also the shortcut. It creates the blueprint when it is not supplied,
-adds the core planner when it is absent, and appends the planners you pass. It
-returns a `WorkflowPlan`.
+adds the five core planners when no supplied planner has `component_id == "core"`,
+and appends the planners you pass. It returns a `WorkflowPlan`.
 
 Compilation checks everything that can be checked without reading data:
 
@@ -115,7 +116,7 @@ Compilation checks everything that can be checked without reading data:
 
 | Field | Content |
 | --- | --- |
-| `components` | One component per planner, with its id, version and runtime fields |
+| `components` | One component per distinct component id, with its id, version and runtime fields |
 | `steps` | The scheduled instructions with typed inputs and outputs |
 | `connections` | Resolved connections between step openings |
 | `provenance` | Opaque JSON recorded by compilation |
@@ -151,7 +152,9 @@ means:
   `duckdb_memory_limit` and `duckdb_threads` tune execution.
 
 `execute` dispatches each step by the exact tuple `step.instruction.kind`. A kind
-the toolchain does not register is refused before any step runs.
+the toolchain does not register is refused before any step runs. The runtime
+opens the registered resource providers, gives each executor only the resource
+types it declared, and closes the providers in reverse order when the run ends.
 
 ## Durability and implementation versions
 

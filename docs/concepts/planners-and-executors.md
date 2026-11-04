@@ -2,8 +2,8 @@
 
 A planner decides what work the whole graph needs. An executor performs one
 exact kind of instruction. Together they are the two extension points of a
-build: the core planner turns declarations into rows and records, and the other
-planners rewrite or publish those records.
+build: the core module turns declarations into rows and records, and the other
+modules rewrite or publish those records.
 
 Bindings answer what one row becomes. A planner answers what happens to all
 records together: removing duplicates, validating conflicts, merging parallel
@@ -18,7 +18,7 @@ A build has one plan:
 sources -> bindings -> core graph records -> rewriting planners -> output planners
 ```
 
-The core planner turns your declarations into the first graph records.
+The core module turns your declarations into the first graph records.
 Rewriting planners consume those records and produce records again. Output
 planners consume the final records and publish files or artifacts.
 
@@ -48,19 +48,20 @@ report = execute(plan, output_directory="build")
 ```
 
 The tuple is the whole planner composition. `compile` creates the blueprint
-internally, appends the core planner when no planner claims `component_id ==
-"core"`, and returns a `WorkflowPlan`. `execute` later receives that plan rather
-than the tuple. The bindings and sources are discovered from the calling file,
-so the example shows only the planner tuple.
+internally, appends the five core planners when no planner claims `component_id
+== "core"`, and returns a `WorkflowPlan`. `execute` later receives that plan
+rather than the tuple. The bindings and sources are discovered from the calling
+file, so the example shows only the planner tuple.
 
 Planner configuration is compile-time and carried in the instruction payload.
 Changing it changes the plan.
 
-## The core planner
+## The core planners
 
-The core planner is always present. It is added before the planners you supply,
-and you do not pass it yourself. It reads sources, evaluates projections and
-bindings, and assembles each component's records.
+The core module is always present. Its five planners are added before the
+planners you supply, and you do not pass them yourself. Together they read
+sources, evaluate projections and bindings, and assemble each component's
+records.
 
 Several bindings may target one component. Core unions their records into that
 component's single record stream, so one node type can be built from several
@@ -68,9 +69,26 @@ sources or grains. This is a normal composition, not two producers competing for
 the same record. Abstract categories are not record producers, so they get no
 records of their own.
 
-The core planner is `CorePlanner`, with `component_id="core"` and
-`version="4"`. It emits source, row-source, projection, binding and aggregate
-steps. Its SQL steps use `("sql", "duckdb")`; the DuckDB executor runs them.
+The core module has five planners — `InputPlanner`, `RowSourcePlanner`,
+`ProjectionPlanner`, `BindingPlanner` and `RecordsPlanner` — all with
+`component_id="core"` and the same `version` and `runtime_fields`.
+`core_planners()` returns them in assembled order; they share one `CorePlan` in
+`PlanContext.shared["core.plan"]`. Together they emit source, row-source,
+projection, binding and aggregate steps. Their SQL steps use `("sql", "duckdb")`;
+the DuckDB module's `DuckDbExecutor` runs them.
+
+## Modules
+
+A module is a feature package under `distribution/modules/`. It groups the
+planners, executors, resource providers and configuration for one feature; it is
+not a protocol or a registry entry. `core`, `deduplication`, `merging`,
+`conflict_validation`, `file`, `meta_graph`, `neo4j`, `duckdb`, `python` and
+`runtime` are modules.
+
+The DuckDB module is more than an executor. It supplies `DuckDbExecutor` for the
+SQL kinds, `DuckDbResourceProvider` for the live engine, `DuckDbService` as the
+engine resource, and `DuckDbSqlEmitter` for SQL text. The core planners use the
+emitter; the executor uses the service.
 
 ## Rewriting planners
 
@@ -202,10 +220,11 @@ Every ordinary output of a step must be read by another step; only a publication
 is exempt. If a step's output has no reader, assembly fails. That is a
 composition mistake, not a declaration mistake.
 
-Two planners cannot share a `component_id`. Two steps cannot share the identity
-`f"{component}.{name}"`. If several producers write one artifact type and the
-composition cannot tell which one a consumer means, assembly fails rather than
-choosing one.
+Two steps cannot share the identity `f"{component}.{name}"`. Several planners
+may share a `component_id`; they must agree on `version` and `runtime_fields`,
+and the component is published once. If several producers write one artifact
+type and the composition cannot tell which one a consumer means, assembly fails
+rather than choosing one.
 
 Two *bindings* to one component are different: core unions them. They are not
 two producers of a record type.
@@ -229,9 +248,17 @@ the blueprint and its own configuration and emit steps with typed ports. A plann
 does not execute, read data or write a file.
 
 An executor works on one step. It receives the step's inputs, the component's
-resolved runtime configuration and the execution services. It may rewrite
-records, publish an artifact, warn, fail, or recover from an upstream failure.
-It does not schedule another step and does not change the plan.
+resolved runtime configuration, its own `ResourceView` and a step-scoped logger.
+It may rewrite records, publish an artifact, warn, fail, or recover from an
+upstream failure. It does not schedule another step and does not change the
+plan.
+
+An executor declares the exact resource types it reads in `resources`. The
+runtime opens every provider, merges the declared resources, builds one view per
+executor and closes the providers in reverse order. An executor asks for a
+resource with `context.resources.get(SomeResource)`; asking for a type it did
+not declare raises `KeyError`. The runtime owns the providers, not the
+toolchain.
 
 A planner may not make binding-level choices. Reading a nested value, choosing a
 key, or turning an array into rows belongs to [expressions](expressions.md) and
@@ -246,12 +273,15 @@ a new output format, a validation rule that spans components, or a rewrite that
 is not a row-source operation.
 
 1. Choose a `component_id`, a `version` and the runtime fields the stage needs.
+   Several planners may share the component when these agree.
 2. Declare the inputs as artifact types. A target that accepts every graph
    record uses the pattern `ArtifactType("core", "graph.*")`.
 3. Emit one instruction per decision, with an exact kind tuple.
-4. Implement an executor whose `kinds` contains that tuple.
+4. Implement an executor whose `kinds` contains that tuple and whose
+   `resources` names every resource it reads.
 5. Add both to the toolchain, or pass the planner to `compile` and append the
-   executor to the default toolchain.
+   executor to the default toolchain. Register any new resource provider on the
+   runtime that executes the plan.
 
 A planner can emit a new kind and register its own executor; the kernel does not
 maintain a list of allowed kinds. See [Write an extension](../how-to/custom-extensions.md)
@@ -263,7 +293,8 @@ for a complete one-file example.
   projections and bindings.
 - Order is part of the result. Moving an output before a rewriting planner
   changes what that output publishes.
-- Every ordinary output needs a reader, and every `component_id` must be unique.
+- Every ordinary output needs a reader, and every step identity must be unique.
+  Planners sharing a component must agree on its version and runtime fields.
 - A target may narrow what it can store. Neo4j rejects unsupported property
   types and edges with unbound or abstract endpoints while planning.
 - The meta-graph counts the records that reached it. An earlier position reports

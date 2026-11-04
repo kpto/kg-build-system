@@ -35,6 +35,12 @@ calculations, so narrowing happens before arithmetic or comparison.
 
 A binding and a projection output accept either a selection or an expression.
 
+An expression is an inline fragment in the blueprint, not a separately named
+symbol. Its leaves are typed references: a field read names a `FieldRef`, an
+operation names an `OperationRef`, and a literal is a canonical value. When a
+calculation deserves a name that other declarations can read, use a projection
+output or a computed field; those are the named, shared expressions.
+
 ## Start from the declared access
 
 A source field reads the type it declares. `Field[str]` reads as a present

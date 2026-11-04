@@ -97,12 +97,16 @@ def _class_source(
     bases: list[str] = []
     if value.parent is not None:
         parent_map = node_classes if kind == "node" else edge_classes
-        parent_name = parent_map.get(value.parent)
+        parent_name = parent_map.get(value.parent.name)
         if parent_name is not None:
             bases.append(parent_name)
     if isinstance(value, EdgeDTO):
-        source_name = node_classes.get(value.source, class_name(value.source, "Node"))
-        target_name = node_classes.get(value.target, class_name(value.target, "Node"))
+        source_name = node_classes.get(
+            value.source.name, class_name(value.source.name, "Node"),
+        )
+        target_name = node_classes.get(
+            value.target.name, class_name(value.target.name, "Node"),
+        )
         bases.append(f"{tier_base}[{source_name}, {target_name}]")
     else:
         bases.append(tier_base)
@@ -135,7 +139,10 @@ def _depths(
         if name in seen:
             raise ValueError(f"topology parent cycle includes {name!r}")
         item = by_name[name]
-        value = 0 if item.parent is None else 1 + depth(item.parent, seen | {name})
+        value = (
+            0 if item.parent is None
+            else 1 + depth(item.parent.name, seen | {name})
+        )
         result[name] = value
         return value
 

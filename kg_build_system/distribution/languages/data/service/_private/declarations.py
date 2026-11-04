@@ -158,6 +158,8 @@ def _derive_projection_plan(declaration: type[Any]) -> Any | None:
     """Derive the scan of an unpinned projection from its output expressions."""
     from kg_build_system.distribution.languages.expressions.service.internal import expression_dto
     from kg_build_system.distribution.languages.expressions.model.internal import FieldReferenceDTO
+    from kg_build_system.distribution.model.public.refs import RelationRef
+    from kg_build_system.kernel import Key
     from ...model.internal.dto.blueprint_dto import RowScanDTO
 
     try:
@@ -175,9 +177,9 @@ def _derive_projection_plan(declaration: type[Any]) -> Any | None:
             continue
         for node in walk_expression_dto(expression_dto(expression.model)):
             if isinstance(node, FieldReferenceDTO):
-                sources.add(node.source)
+                sources.add(node.field.relation)
     if len(sources) == 1:
-        return RowScanDTO(next(iter(sources)))
+        return RowScanDTO(RelationRef("data", Key((next(iter(sources)),))))
     return None
 
 

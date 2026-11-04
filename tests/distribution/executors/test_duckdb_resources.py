@@ -4,20 +4,31 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from kg_build_system.distribution.executors.duckdb import (
+from kg_build_system.distribution.modules.duckdb import (
     DuckDbResourceProvider,
+    DuckDbService,
+    RelationService,
 )
-from kg_build_system.distribution.executors.runtime import ExecutionServices
+from kg_build_system.distribution.modules.runtime import (
+    CredentialResolver,
+    OutputStorage,
+    RuntimeResources,
+    TemporaryStorage,
+    WorkingStorage,
+)
 from kg_build_system.distribution.model.public.runtime import BuildRuntime
-from kg_build_system.kernel import RuntimeConfiguration, WorkflowPlan
+from kg_build_system.kernel import RuntimeConfiguration
 
 
-class DuckDbResourceProviderTests(unittest.TestCase):
+class ResourceProviderTests(unittest.TestCase):
     def setUp(self) -> None:
         self._temporary = TemporaryDirectory()
         self.addCleanup(self._temporary.cleanup)
         self.root = Path(self._temporary.name)
-        self.provider = DuckDbResourceProvider()
+        self.runtime_resources = RuntimeResources()
+        self.duckdb_resources = DuckDbResourceProvider()
+        self.addCleanup(self.duckdb_resources.close)
+        self.addCleanup(self.runtime_resources.close)
 
     def _configuration(
         self, duckdb: dict[str, object] | None = None,
@@ -30,65 +41,85 @@ class DuckDbResourceProviderTests(unittest.TestCase):
             component_configuration={"duckdb": duckdb or {}},
         )
 
-    def test_services_returns_execution_services(self) -> None:
-        services = self.provider.services(
-            WorkflowPlan((), ()), self._configuration(),
+    def test_runtime_resources_provide_storage_and_credentials(self) -> None:
+        configuration = self._configuration()
+        resources = self.runtime_resources.resources(configuration)
+
+        self.assertEqual(
+            resources[OutputStorage].root, self.root / "output",
         )
-        self.addCleanup(lambda: self.provider.close(services))
-
-        self.assertIsInstance(services, ExecutionServices)
-        self.assertEqual(services.output_storage.root, self.root / "output")
-        self.assertEqual(services.working_storage.root, self.root / "working")
-        self.assertEqual(services.temporary_storage.root.parent, self.root / "temporary")
-        self.assertEqual(services.credentials.resolve("source"), "secret")
-
-    def test_close_is_idempotent_and_the_engine_is_unusable(self) -> None:
-        services = self.provider.services(
-            WorkflowPlan((), ()), self._configuration(),
+        self.assertEqual(
+            resources[WorkingStorage].root, self.root / "working",
         )
-        temporary = services.temporary_storage.root
+        self.assertEqual(
+            resources[TemporaryStorage].root.parent, self.root / "temporary",
+        )
+        self.assertEqual(
+            resources[CredentialResolver].resolve("source"), "secret",
+        )
+        self.assertTrue((self.root / "output").is_dir())
+        self.assertTrue((self.root / "working").is_dir())
 
-        self.provider.close(services)
-        self.provider.close(services)
+    def test_runtime_resources_close_removes_the_temporary_root(self) -> None:
+        configuration = self._configuration()
+        resources = self.runtime_resources.resources(configuration)
+        temporary = resources[TemporaryStorage].root
+
+        self.runtime_resources.close()
+        self.runtime_resources.close()
 
         self.assertFalse(temporary.exists())
+
+    def test_duckdb_resources_expose_the_service_and_relation_service(self) -> None:
+        configuration = self._configuration()
+        resources = self.duckdb_resources.resources(configuration)
+
+        service = resources[DuckDbService]
+        self.assertIsInstance(service, DuckDbService)
+        self.assertIs(resources[RelationService], service.relations)
+
+    def test_close_is_idempotent_and_the_engine_is_unusable(self) -> None:
+        configuration = self._configuration()
+        resources = self.duckdb_resources.resources(configuration)
+        service = resources[DuckDbService]
+        storage = service.engine.storage_directory
+        assert storage is not None
+
+        self.duckdb_resources.close()
+        self.duckdb_resources.close()
+
+        self.assertFalse(storage.exists())
         with self.assertRaisesRegex(RuntimeError, "closed"):
-            services.relations.query("SELECT 1")
+            service.relations.query("SELECT 1")
 
     def test_duckdb_settings_come_from_component_configuration(self) -> None:
-        services = self.provider.services(
-            WorkflowPlan((), ()),
-            self._configuration({
-                "storage": "memory",
-                "threads": 2,
-                "memory_limit": "1GiB",
-                "compression": False,
-            }),
-        )
-        self.addCleanup(lambda: self.provider.close(services))
+        resources = self.duckdb_resources.resources(self._configuration({
+            "storage": "memory",
+            "threads": 2,
+            "memory_limit": "1GiB",
+            "compression": False,
+        }))
+        service = resources[DuckDbService]
 
-        self.assertEqual(services.engine.threads, 2)
-        self.assertIsNotNone(services.engine.memory_limit)
-        assert services.engine.memory_limit is not None
-        self.assertIn("1", services.engine.memory_limit)
+        self.assertEqual(service.engine.threads, 2)
+        self.assertIsNotNone(service.engine.memory_limit)
+        assert service.engine.memory_limit is not None
+        self.assertIn("1", service.engine.memory_limit)
 
     def test_disk_storage_uses_a_private_working_directory(self) -> None:
-        services = self.provider.services(
-            WorkflowPlan((), ()),
+        resources = self.duckdb_resources.resources(
             self._configuration({"storage": "disk"}),
         )
-        self.addCleanup(lambda: self.provider.close(services))
+        service = resources[DuckDbService]
 
-        storage_directory = services.engine.storage_directory
+        storage_directory = service.engine.storage_directory
         self.assertIsNotNone(storage_directory)
         assert storage_directory is not None
         self.assertEqual(storage_directory.parent, self.root / "working")
-        self.assertNotEqual(storage_directory, services.temporary_storage.root)
 
     def test_an_unknown_storage_setting_is_refused(self) -> None:
         with self.assertRaisesRegex(ValueError, "memory.*disk"):
-            self.provider.services(
-                WorkflowPlan((), ()),
+            self.duckdb_resources.resources(
                 self._configuration({"storage": "elsewhere"}),
             )
 

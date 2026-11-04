@@ -20,6 +20,10 @@ from kg_build_system.kernel.service.internal.types import type_to_dto
 from ...model.internal.dto.blueprint_dto import (
     EdgeDTO, GraphPartDTO, NodeDTO, PropertyDTO,
 )
+from kg_build_system.distribution.model.public.refs import (
+    EdgeRef, NodeRef, PropertyRef,
+)
+from kg_build_system.kernel import Key
 from ...model.internal.model.metadata import ComponentMetadata
 from .metadata import component_kind, metadata_for
 
@@ -58,7 +62,15 @@ def _labels_and_annotations(
     return tuple(labels), tuple(kept)
 
 
-def _property_dto(value: Any) -> PropertyDTO:
+def _node_ref(name: str) -> NodeRef:
+    return NodeRef("topology", Key((name,)))
+
+
+def _edge_ref(name: str) -> EdgeRef:
+    return EdgeRef("topology", Key((name,)))
+
+
+def _property_dto(component: str, value: Any) -> PropertyDTO:
     annotations: list[AnnotationDTO] = []
     for annotation in value.annotations:
         namespace, annotation_id, arguments = annotation_payload(annotation)
@@ -68,6 +80,9 @@ def _property_dto(value: Any) -> PropertyDTO:
     return PropertyDTO(
         name=value.name,
         logical_type=type_to_dto(value.logical_type),
+        ref=PropertyRef(
+            "topology", Key((f"{component}.{value.name}",)),
+        ),
         description=value.description,
         annotations=tuple(annotations),
     )
@@ -132,11 +147,11 @@ def _edges_of(
             raise ValueError(
                 f"edge {metadata.name!r} does not declare both endpoints"
             )
-        source = _component_metadata(metadata.source).name
-        target = _component_metadata(metadata.target).name
+        source = _node_ref(_component_metadata(metadata.source).name)
+        target = _node_ref(_component_metadata(metadata.target).name)
         parent = (
             None if metadata.parent is None
-            else _component_metadata(metadata.parent).name
+            else _edge_ref(_component_metadata(metadata.parent).name)
         )
         labels, annotations = _labels_and_annotations("edge", metadata.annotations)
         result[metadata.name] = EdgeDTO(
@@ -144,7 +159,10 @@ def _edges_of(
             labels=labels,
             source=source,
             target=target,
-            properties=tuple(_property_dto(item) for item in metadata.properties),
+            properties=tuple(
+                _property_dto(metadata.name, item)
+                for item in metadata.properties
+            ),
             annotations=annotations,
             abstract=metadata.abstract,
             parent=parent,
@@ -163,13 +181,16 @@ def _nodes_of(
             continue
         parent = (
             None if metadata.parent is None
-            else _component_metadata(metadata.parent).name
+            else _node_ref(_component_metadata(metadata.parent).name)
         )
         labels, annotations = _labels_and_annotations("node", metadata.annotations)
         result[metadata.name] = NodeDTO(
             name=metadata.name,
             labels=labels,
-            properties=tuple(_property_dto(item) for item in metadata.properties),
+            properties=tuple(
+                _property_dto(metadata.name, item)
+                for item in metadata.properties
+            ),
             annotations=annotations,
             abstract=metadata.abstract,
             parent=parent,
@@ -192,7 +213,7 @@ def _validate_acyclic(
                 )
             seen.add(current)
             parent = by_name.get(current)
-            current = None if parent is None else parent.parent
+            current = None if parent is None or parent.parent is None else parent.parent.name
 
 
 def collect_components(namespace: Namespace) -> Sequence[type[Any]]:
@@ -230,10 +251,10 @@ def validate_graph_part(dto: GraphPartDTO) -> None:
     for node in dto.nodes:
         if node.parent is None:
             continue
-        parent = nodes.get(node.parent)
+        parent = nodes.get(node.parent.name)
         if parent is None:
             raise ValueError(
-                f"node {node.name!r} parent {node.parent!r} is not a node "
+                f"node {node.name!r} parent {node.parent.name!r} is not a node "
                 "in this topology part"
             )
         if not parent.abstract:
@@ -241,18 +262,18 @@ def validate_graph_part(dto: GraphPartDTO) -> None:
                 f"node {node.name!r} parent {parent.name!r} is not abstract"
             )
     for edge in dto.edges:
-        for side, name in (("source", edge.source), ("target", edge.target)):
-            if name not in nodes:
+        for side, endpoint in (("source", edge.source), ("target", edge.target)):
+            if endpoint.name not in nodes:
                 raise ValueError(
-                    f"edge {edge.name!r} {side} {name!r} is not a node in "
-                    "this topology part"
+                    f"edge {edge.name!r} {side} {endpoint.name!r} is not a node "
+                    "in this topology part"
                 )
         if edge.parent is None:
             continue
-        parent = edges.get(edge.parent)
+        parent = edges.get(edge.parent.name)
         if parent is None:
             raise ValueError(
-                f"edge {edge.name!r} parent {edge.parent!r} is not an edge "
+                f"edge {edge.name!r} parent {edge.parent.name!r} is not an edge "
                 "in this topology part"
             )
         if not parent.abstract:

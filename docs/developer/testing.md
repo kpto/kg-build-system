@@ -4,131 +4,146 @@ The contract tests guard interfaces, not implementation. Each test names a
 boundary and fails when the boundary changes shape. A test that only proves one
 function returns the expected value is not a contract test.
 
-The suite has five layers: kernel flow, planner, executor, distribution and
-reference build. The sections below state what each layer guards.
+The suite has five groups: kernel flow, planner, executor, distribution and
+reference build. The sections below state what each group guards.
 
 ## Kernel flow
 
-**Asserts:** `build` orders languages by `requires`, rejects duplicate names,
-unknown dependencies and cycles, transcribes in dependency order and links the
-layers. `compile` assigns each planner's `component_id`, refuses duplicate
-component and step ids, assembles inputs to outputs and refuses a missing
-producer or a cycle. `execute` maps exact instruction kinds, refuses a duplicate
-kind or a kind with no executor before any step runs, and always closes the
-services.
+**Asserts:** `build` hands languages and a namespace to the linker; a language
+discovers declarations, derives a key with `compute_key`, transcribes symbols
+and exposes earlier symbols through `SymbolContext`. `compile` groups planners
+by `component_id`, accepts several planners in one group only when their
+versions and runtime fields agree, refuses duplicate step ids, assembles inputs
+to outputs and refuses a missing producer or a cycle. `execute` maps exact
+instruction kinds, refuses a duplicate kind or a kind with no executor before
+any step runs, opens every resource provider, builds one exact view per executor
+and closes providers in reverse order.
 
-The tests use fake languages, linkers, planners, executors, resources and a fake
+The tests use fake languages, linkers, planners, executors, providers and a fake
 runtime. None imports the distribution. This is the proof that the kernel is
 domain-agnostic and that its flow is complete without a graph.
 
 Current coverage:
 
-- `tests/kernel/test_kernel.py` — language ordering, dependency reads, duplicate
-  names, unknown dependencies, cycles and the read-only definition index.
+- `tests/kernel/test_kernel.py` — keys, declarations, symbols, symbol contexts,
+  language ownership and identity, duplicate language names and the linker
+  boundary.
 - `tests/kernel/test_toolchain_flow.py` — the full `build -> compile -> execute`
   flow, duplicate step ids, unregistered instruction kinds, duplicate executor
-  kinds, service closing and the workflow-plan codec round trip.
+  kinds and the workflow-plan codec round trip.
+- `tests/kernel/test_runtime_resources.py` — resource opening and closing,
+  duplicate resource types, missing declared resources and the per-executor
+  resource view.
 - `tests/kernel/test_extension_bundle.py` — one `Extension` composed into a
-  `Toolchain` with a fake language, linker, planner, executor and resources.
+  `Toolchain` with a fake language, linker, planner, executor and provider.
 - `tests/kernel/test_import_isolation.py` — importing the kernel does not load a
   graph, data, topology, binding or engine package.
 
 ## Planner tests
 
 **Asserts:** each planner receives a `GraphBlueprint`, emits the steps its
-component owns and leaves every other component's records alone. Core emits
-source, row-source, projection, binding and aggregate steps. Deduplication emits
-one distinct step per bound record component. Merging respects its component
-scope. Conflict validation emits one findings step per property and one deferred
-report step. A planner declares its `component_id`, `version` and
-`runtime_fields`, and its `plan` returns `Step` values with known input and output
-artifact types.
+component owns and leaves every other component's records alone. The five core
+planners share `component_id="core"` and one `CorePlan` in `PlanContext.shared`;
+they emit source, row-source, projection, binding and aggregate steps.
+Deduplication emits one distinct step per bound record component. Merging
+respects its component scope. Conflict validation emits one findings step per
+property and one deferred report step. A planner declares its `component_id`,
+`version` and `runtime_fields`, and its `plan` returns `Step` values with known
+input and output artifact types.
 
 Current coverage:
 
-- `tests/distribution/planners/test_core_planner.py` — core source,
-  projection, binding and aggregate planning.
-- `tests/distribution/planners/test_core_custom_emitter.py` — a custom SQL
-  emitter threaded through core planning.
-- `tests/distribution/planners/test_dedup_merge_conflict_planners.py` — the
-  deduplication, merging and conflict-validation planners.
-- `tests/distribution/planners/test_plan_assembly.py` — step assembly from planned
-  contributions.
-- `tests/distribution/planners/test_planner_imports_no_pipeline.py` — a planner
-  does not load the legacy package path.
+- `test_core_planner.py` — core source, projection, binding and aggregate
+  planning.
+- `test_core_custom_emitter.py` — a custom SQL emitter threaded through core
+  planning.
+- `test_dedup_merge_conflict_planners.py` — the deduplication, merging and
+  conflict-validation planners.
+- `test_multi_planner_components.py` — several planners sharing one component,
+  including the version and runtime-field checks.
+- `test_plan_assembly.py` — step assembly from planned contributions.
+- `test_planner_imports_no_pipeline.py` — a planner does not load the legacy
+  package path.
 
 ## Executor tests
 
-**Asserts:** an executor claims exact instruction kinds, reads only the payload
-for those kinds, returns a `StepOutcome` and turns a disrupted context into a
-skipped outcome. `DuckDbExecutor` owns the DuckDB kinds and its resource provider
-creates relations, working storage, temporary storage, credentials and the engine
-session. `FileExecutor`, `MetaGraphExecutor`, `Neo4jExecutor` and
-`PythonExecutor` own their own kinds. An executor does not schedule, assemble or
-read another executor's payload.
+**Asserts:** an executor claims exact instruction kinds, declares the resources
+it reads, reads only the payload for those kinds, returns a `StepOutcome` and
+turns a disrupted context into a skipped outcome. `DuckDbExecutor` owns the
+DuckDB kinds and reads a `DuckDbService` and `RelationService` from its resource
+view. `FileExecutor`, `MetaGraphExecutor`, `Neo4jExecutor` and
+`PythonExecutor` own their own kinds and declare their own resources. An
+executor does not schedule, assemble or read another executor's payload.
 
 Current coverage:
 
-- `tests/distribution/executors/test_duckdb_executor.py` — DuckDB instruction
-  kinds and outcomes.
-- `tests/distribution/executors/test_duckdb_resources.py` — the resource provider
-  and its services.
-- `tests/distribution/executors/test_python_executor.py` — the Python reference
-  instruction.
-- `tests/distribution/executors/test_toolchain_execution.py` — executor selection
-  and report assembly through a toolchain.
-- `tests/distribution/executors/test_executor_imports_no_pipeline.py` — an
-  executor does not load the legacy package path.
+- `test_duckdb_executor.py` — DuckDB instruction kinds and outcomes.
+- `test_duckdb_resources.py` — the DuckDB resource provider and its service.
+- `test_python_executor.py` — the Python reference instruction.
+- `test_toolchain_execution.py` — executor selection and report assembly through
+  a toolchain.
+- `test_executor_imports_no_pipeline.py` — an executor does not load the legacy
+  package path.
+- `targets/test_file_target.py`, `targets/test_meta_graph_target.py`,
+  `targets/test_neo4j_target.py` and `targets/test_conflict_report.py` — the
+  output targets.
 
 ## Distribution and DTO scope
 
-**Asserts:** every leaf has `model/public`, `model/internal`, `service/public`,
-`service/internal` and `service/_private`; a facade imports only `model.public`
-and `service.public`; model public/internal import no service or private code;
-service public imports no private code; service internal has no eager private
-import; cross-package imports never enter a private zone; every foreign protocol
-has an explicit adapter.
+**Asserts:** every leaf has the zones it uses; an existing zone is not an empty
+marker; a facade contains only a docstring, imports and `__all__`; model
+public/internal import no service or private code; service public imports no
+private code; service internal has no eager private import; cross-package
+imports never enter a private zone; every foreign protocol has an explicit
+adapter.
 
-A layer DTO imports only the DTOs of the layers it depends on; it does not import
-the blueprint. A graph node or edge identity contains no `symbol_id`, Python
-module path or declaration expression. Endpoints and parents are graph names.
-Annotation payloads are `(namespace, id, arguments)`. A Python binding carries
-only a stable `PythonRefDTO(module, qualname, signature)`.
+A language DTO imports only the DTOs of the languages it depends on; it does not
+import the blueprint. A graph node or edge identity contains no `symbol_id`,
+Python module path or declaration expression. Endpoints and parents are graph
+names. Annotation payloads are `(namespace, id, arguments)`. A Python binding
+carries only a stable `PythonRefDTO(module, qualname, signature)`. Cross-symbol
+fields carry role-typed refs such as `NodeRef`, `FieldRef` and `OperationRef`;
+none is a bare string.
 
 Current coverage:
 
-- `tests/test_layout.py` — model/service directories, facade imports and the
-  private/public-service import rule.
+- `tests/test_layout.py` — model/service zones, facade imports, empty-zone
+  removal and the private/public-service import rule.
 - `tests/test_architecture.py` — the package tree, facade surfaces, private
   zones, model/service import matrix and adapter files across `kernel`,
   `distribution`, `generation` and `cli`.
+- `tests/test_facades.py` — every `__init__.py` is a docstring, imports and
+  `__all__` only.
 - `tests/test_naming.py` — the interface naming rules.
-- `tests/distribution/test_blueprint_dto.py` — layer DTO fields, graph-name
+- `tests/distribution/test_blueprint_dto.py` — language DTO fields, graph-name
   endpoints and parents, and the public blueprint references.
+- `tests/distribution/test_typed_refs.py` — role-typed references and their
+  documents.
 - `tests/distribution/test_blueprint_linker.py` — `BlueprintLinker` implements
-  the kernel `Linker` protocol and links the language layers into one blueprint.
+  the kernel `Linker` protocol, keys declarations, transcribes symbols and
+  assembles one blueprint.
 
 ## Codec and source round trip
 
 **Asserts:** `workflow_plan_from_document(workflow_plan_to_document(plan))`
 round-trips the kernel workflow plan, including a Python instruction and an SQL
-instruction. For every layer DTO and for the assembled blueprint,
+instruction. For every language DTO and for the assembled blueprint,
 `from_document(to_document(value))` equals the original value. The blueprint
-codec composes the layer codecs. An unknown field, an unknown discriminator or an
-unknown source format is refused. There is no schema version and no migration
-path.
+codec composes the language codecs. An unknown field, an unknown discriminator
+or an unknown source format is refused. There is no schema version and no
+migration path.
 
 The source round trip asserts
 `GraphBlueprint -> rendered authoring source -> GraphBlueprint` produces an
-equivalent blueprint. The test renders through each layer's source service,
+equivalent blueprint. The test renders through each language's source service,
 imports the generated source in a clean namespace and creates a new blueprint.
 It compares the semantic models, not the source text.
 
 Current coverage:
 
 - `tests/kernel/test_toolchain_flow.py` — the workflow-plan codec round trip.
-- `tests/distribution/test_source_roundtrip.py` — the layer source fragments and
-  the blueprint source round trip.
+- `tests/distribution/test_source_roundtrip.py` — the language source fragments
+  and the blueprint source round trip.
 - `tests/distribution/test_blueprint_source.py` — the blueprint source round
   trip.
 
@@ -137,10 +152,11 @@ Current coverage:
 **Asserts:** the framework names do not use `IR` as a module or class suffix and
 do not use `lower` as a transformation verb. The allowed names are `DTO` for a
 serialisable artifact, `model` for an in-memory model and `plan` for an
-engine-neutral plan. The allowed verbs are `collect`, `transcribe`, `link`,
-`plan`, `assemble`, `emit`, `render` and `execute`.
+engine-neutral plan. The allowed verbs are `discover`, `key`, `transcribe`,
+`link`, `plan`, `assemble`, `emit`, `render` and `execute`. The symbol graph may
+be described as linker IR in prose, but no module or class is named for it.
 
-Current coverage: `tests/test_naming.py` checks that no framework definition uses
+Current coverage: `tests/test_naming.py` checks that no framework name uses
 the `IR` suffix or the `lower` verb, that DTO classes live in DTO modules and that
 plans and generated models are not DTOs.
 
@@ -174,7 +190,7 @@ Current coverage:
 
 ## Verification
 
-- 115 tests passed, 604 subtests.
+- 152 tests passed, 1586 subtests.
 - Pyright: 0 errors.
 - Open Targets: 7 tests passed.
 - `uv run mkdocs build --strict`: passes.
@@ -196,13 +212,15 @@ Do not rebuild the graph or regenerate artifacts unless the change requires it.
 ## What to remember
 
 - A contract test asserts an interface or a boundary, not a return value.
-- Kernel flow tests use fake languages, linkers, planners and executors; they
-  prove the kernel works without the distribution.
+- Kernel flow tests use fake languages, linkers, planners, executors and
+  providers; they prove the kernel works without the distribution.
 - Planner and executor tests name the component and the exact instruction kinds.
+- A planner group may share a component; a step identity may not repeat.
+- An executor declares its resources; the runtime owns the providers.
 - The source round trip is a contract, not a convenience.
 - `IR` and `lower` are not target vocabulary; the target vocabulary is `DTO`,
-  `model`, `plan`, `collect`, `transcribe`, `link`, `plan`, `assemble`, `emit`,
-  `render` and `execute`.
+  `model`, `plan`, `discover`, `key`, `transcribe`, `link`, `plan`, `assemble`,
+  `emit`, `render` and `execute`.
 - `compile` reads a linked model; the `compile` shortcut creates the blueprint
   first.
 

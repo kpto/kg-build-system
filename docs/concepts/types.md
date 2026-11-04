@@ -5,7 +5,7 @@ absent, and what you can do with it.
 
 A build crosses a boundary that Python does not check: a file, a warehouse table
 or an API response becomes rows, then expressions, then graph properties. Types
-are the claim every layer shares across that boundary. They let compilation reject
+are the claim every part shares across that boundary. They let compilation reject
 a text value bound to an integer property, or a nullable field used as an
 identifier, before any data is read.
 

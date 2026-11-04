@@ -12,28 +12,27 @@ This directory does not duplicate it.
 
 | Package | Model surface | Service surface |
 | --- | --- | --- |
-| `kernel` | canonical types; language, workflow and runtime values | `Language`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `ResourceProvider`, `Toolchain`, `Extension`, `WorkflowRuntime` |
+| `kernel` | canonical types; declaration, symbol, key, workflow and runtime values | `Language`, `Declaration`, `Symbol`, `SymbolRef`, `Key`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `Resource`, `ResourceProvider`, `ResourceView`, `Toolchain`, `Extension`, `WorkflowRuntime` |
 | `distribution/languages/annotations` | annotation values and labels | codec and source rendering |
 | `distribution/languages/expressions` | expression and selection values; expression DTOs | construction, operation specifications and source rendering |
 | `distribution/languages/data` | `Table`, `Struct`, `Projection`, fields and sources; data DTOs | field and source wrappers, transcription and source rendering |
 | `distribution/languages/topology` | `Node`, `Edge`, properties and templates; graph DTOs | property and endpoint wrappers, transcription and source rendering |
 | `distribution/languages/binding` | binding values; binding DTOs | `node_binding`, `edge_binding`, transcription and source rendering |
 | `distribution/interpreter` | `GraphBlueprint` | `create_blueprint`, `BlueprintLinker`, assembly, validation, codec and source |
-| `distribution/planners/*` | planner configuration and report values | supplied planners |
-| `distribution/executors/*` | executor configuration, report values and execution services | supplied executors and resource providers |
-| `distribution/model/public` | `BuildRuntime` and path rules | none |
-| `distribution/default.py` | none | `DEFAULT_TOOLCHAIN`, `default_toolchain` |
+| `distribution/model/public` | `BuildRuntime`, typed references and path rules | none |
+| `distribution/modules/<name>` | planner and executor configuration, report values and resource models | supplied planners, executors and resource providers |
+| `distribution/implementations.py` | none | language and linker implementations |
 | `generation/code_generation` | generation requests, results and provider contract | generation, discovery, rendering and ownership |
-| `api.py` | none | `create_blueprint`, `compile`, `execute` |
+| `api.py` | none | `default_toolchain`, `DEFAULT_TOOLCHAIN`, `create_blueprint`, `compile`, `execute` |
 | `cli` | none | `kbs` entry point |
 
 ## Zones
 
-Every leaf uses:
+Every leaf uses the zones it needs:
 
 ```text
 pkg/
-  __init__.py          imports only model.public and service.public
+  __init__.py          docstring, imports and __all__ only
   model/
     public/            authoring models, returned values, public DTOs
     internal/          cross-package data: dto/, model/
@@ -44,6 +43,9 @@ pkg/
     _private/          codecs, transcription, rendering, validation, assembly,
                        planning, engines, runtime
 ```
+
+An empty zone is deleted; it is not a marker. The top-level lazy loader is
+`_facade.py`.
 
 The import matrix:
 
@@ -62,13 +64,14 @@ The import matrix:
 ## Dependency spine
 
 `distribution/languages` depends on `kernel`. `distribution/interpreter` depends
-on the languages and the kernel. `distribution/planners` and
-`distribution/executors` depend on the interpreter, the languages and the
-kernel; the core planner uses the DuckDB SQL emitter, and the conflict-report
-executor reuses the planner's report values. `distribution/default` composes
-them. `generation` is upstream. `api.py` and `cli` compose the systems.
+on the languages and the kernel. `distribution/modules` depend on the interpreter
+where they read a blueprint, the languages, `distribution/model`,
+`distribution/service` and the kernel; the core module uses the DuckDB SQL
+emitter. `distribution/implementations` supplies the languages and linker that
+`api.py` composes. `generation` is upstream. `api.py` and `cli` compose the
+systems.
 
-The kernel imports no graph, table, topology, binding, SQL, DuckDB or Python
+The kernel imports no graph, data, topology, binding, SQL, DuckDB or Python
 package.
 
 See [system design](../docs/developer/system-design.md) for the full package

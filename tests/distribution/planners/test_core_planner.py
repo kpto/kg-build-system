@@ -3,28 +3,86 @@ from __future__ import annotations
 import unittest
 from collections.abc import Iterator
 from pathlib import Path
+from typing import Any
 
-from kg_build_system.distribution.interpreter import create_blueprint
-from kg_build_system.distribution.planners import CorePlanner
-from kg_build_system.kernel import PlanContext, Step
+from kg_build_system.api import default_toolchain
+from kg_build_system.distribution import (
+    FileConfiguration,
+    FilePlanner,
+    create_blueprint,
+)
+from kg_build_system.distribution.modules.core import InputPlanner, core_planners
+from kg_build_system.kernel import PlanContext, Step, Toolchain
 
 
 def _named(steps: tuple[Step, ...], prefix: str) -> Iterator[Step]:
     return (step for step in steps if step.name.startswith(prefix))
 
 
-class CorePlannerTests(unittest.TestCase):
+class _FakeLinker:
+    def link(self, languages: Any, namespace: Any) -> object:
+        return object()
+
+
+class CorePlannersTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls) -> None:
         cls.blueprint = create_blueprint(
             namespace_path=Path("reference_project"),
         )
-        cls.steps = tuple(CorePlanner().plan(cls.blueprint, PlanContext()))
+        cls.planners = core_planners()
+        context = PlanContext()
+        cls.steps = tuple(
+            step
+            for planner in cls.planners
+            for step in planner.plan(cls.blueprint, context)
+        )
+
+    def test_core_planners_share_the_core_component(self) -> None:
+        self.assertEqual(len(self.planners), 5)
+        for planner in self.planners:
+            with self.subTest(planner=type(planner).__name__):
+                self.assertEqual(planner.component_id, "core")
+                self.assertEqual(planner.version, "4")
+                self.assertEqual(planner.runtime_fields, ())
+
+    def test_a_caller_supplied_core_planner_replaces_the_default_group(self) -> None:
+        supplied = InputPlanner()
+
+        toolchain = default_toolchain(planners=(supplied,))
+
+        self.assertEqual(toolchain.planners, (supplied,))
 
     def test_the_core_planner_emits_every_step_shape(self) -> None:
-        for prefix in ("table.", "projection.", "binding.", "aggregate."):
+        for prefix in (
+            "table.", "projection.", "binding.", "aggregate.",
+        ):
             with self.subTest(prefix=prefix):
                 self.assertTrue(any(_named(self.steps, prefix)))
+
+    def test_the_assembled_core_plan_keeps_the_step_order(self) -> None:
+        toolchain: Toolchain[object] = Toolchain(
+            languages=(),
+            linker=_FakeLinker(),
+            planners=(
+                *core_planners(),
+                FilePlanner(FileConfiguration("graph.jsonl")),
+            ),
+        )
+
+        plan = toolchain.compile(self.blueprint)
+
+        self.assertEqual(
+            [component.id for component in plan.components].count("core"),
+            1,
+        )
+        core_steps = tuple(
+            step for step in plan.steps if step.component == "core"
+        )
+        self.assertEqual(
+            [step.name for step in core_steps],
+            [step.name for step in self.steps],
+        )
 
     def test_source_steps_use_the_source_relation_instruction(self) -> None:
         sources = tuple(_named(self.steps, "table."))

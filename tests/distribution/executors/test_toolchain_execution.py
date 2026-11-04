@@ -4,7 +4,8 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from kg_build_system.distribution.executors.duckdb import (
+from kg_build_system.distribution.modules.runtime import RuntimeResources
+from kg_build_system.distribution.modules.duckdb import (
     DuckDbExecutor,
     DuckDbResourceProvider,
     RelationRef,
@@ -51,8 +52,9 @@ class ToolchainExecutionTests(unittest.TestCase):
             languages=(),
             linker=_FakeLinker(),
             executors=(DuckDbExecutor(),),
-            resources=DuckDbResourceProvider(),
-            runtime=WorkflowRuntime(),
+            runtime=WorkflowRuntime(
+                providers=(RuntimeResources(), DuckDbResourceProvider()),
+            ),
         )
 
         with TemporaryDirectory() as directory:

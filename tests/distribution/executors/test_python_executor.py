@@ -2,13 +2,14 @@ from __future__ import annotations
 
 import unittest
 
-from kg_build_system.distribution.executors.python import PythonExecutor
+from kg_build_system.distribution.modules.python import PythonExecutor
 from kg_build_system.kernel import (
     ArtifactType,
     DisruptedExecutionContext,
     ExecutionContext,
     Instruction,
     Output,
+    ResourceView,
     Step,
     StepStatus,
 )
@@ -43,7 +44,8 @@ class PythonExecutorTests(unittest.TestCase):
             component="python",
             runtime_configuration={},
             inputs={},
-            services=object(),
+            resources=ResourceView({}),
+            logger=None,
         )
 
         outcome = PythonExecutor().execute(context, step.instruction)
@@ -61,7 +63,8 @@ class PythonExecutorTests(unittest.TestCase):
             runtime_configuration={},
             inputs={},
             disruptions=(),
-            services=object(),
+            resources=ResourceView({}),
+            logger=None,
         )
 
         outcome = PythonExecutor().execute(context, step.instruction)

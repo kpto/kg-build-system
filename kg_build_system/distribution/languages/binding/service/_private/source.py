@@ -134,12 +134,10 @@ def _render_expression(
     if isinstance(value, VariableExpressionDTO):
         return value.name
     if isinstance(value, FieldReferenceDTO):
-        owner = class_names.get(value.source)
+        owner = class_names.get(value.field.relation)
         base = owner if owner is not None else row_variable
-        if not value.path:
-            return base
-        result = f"{base}.{value.path[0]}"
-        for member in value.path[1:]:
+        result = f"{base}.{value.field.field}"
+        for member in value.path:
             result += f".extract(lambda value: value.{member})"
         return result
     if isinstance(value, OperationExpressionDTO):
@@ -156,10 +154,10 @@ def _render_expression(
         if arguments:
             suffix = f", {parameters}" if parameters else ""
             return (
-                f"{arguments[0]}.{value.operator}("
+                f"{arguments[0]}.{value.operator.name}("
                 f"{', '.join(arguments[1:])}{suffix})"
             )
-        return f"{row_variable}.{value.operator}({parameters})"
+        return f"{row_variable}.{value.operator.name}({parameters})"
     raise TypeError(f"unsupported expression DTO {value!r}")
 
 
@@ -169,7 +167,8 @@ def _render_plan(
     class_names: Mapping[str, str],
 ) -> str:
     if isinstance(value, RowScanDTO):
-        return f"{class_names.get(value.source, value.source)}.row_source()"
+        name = value.relation.name
+        return f"{class_names.get(name, name)}.row_source()"
     if isinstance(value, RowFilterDTO):
         inner = _render_plan(value.input, class_names=class_names)
         predicate = _render_expression(value.predicate, class_names=class_names)
@@ -214,7 +213,7 @@ def _render_plan(
 
 def _plan_sources(value: RowPlanDTO) -> tuple[str, ...]:
     if isinstance(value, RowScanDTO):
-        return (value.source,)
+        return (value.relation.name,)
     if isinstance(value, (RowFilterDTO, RowDistinctDTO, RowOrderByDTO)):
         return _plan_sources(value.input)
     if isinstance(value, (RowUnionDTO, RowJoinDTO)):
@@ -226,7 +225,7 @@ def _plan_sources(value: RowPlanDTO) -> tuple[str, ...]:
 
 def _expression_sources(value: ExpressionDTO) -> tuple[str, ...]:
     if isinstance(value, FieldReferenceDTO):
-        return (value.source,)
+        return (value.field.relation,)
     if isinstance(value, OperationExpressionDTO):
         return tuple(
             source
@@ -349,12 +348,14 @@ def _binding_source(
         if binding.source_node is not None:
             imports.add("from kg_build_system import endpoint")
             lines.append(
-                f"    source_node=endpoint({class_name(binding.source_node, 'Node')}),"
+                "    source_node=endpoint("
+                f"{class_name(binding.source_node.name, 'Node')}),"
             )
         if binding.target_node is not None:
             imports.add("from kg_build_system import endpoint")
             lines.append(
-                f"    target_node=endpoint({class_name(binding.target_node, 'Node')}),"
+                "    target_node=endpoint("
+                f"{class_name(binding.target_node.name, 'Node')}),"
             )
     if binding.debug_name is not None:
         lines.append(f"    debug_name={binding.debug_name!r},")

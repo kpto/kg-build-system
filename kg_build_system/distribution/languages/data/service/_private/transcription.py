@@ -7,6 +7,8 @@ from typing import Any, cast
 from kg_build_system.distribution.languages.annotations.service.internal import annotation_dtos
 from kg_build_system.distribution.languages.annotations.model.internal import AnnotationDTO
 from kg_build_system.distribution.languages.expressions.service.internal import expression_dto
+from kg_build_system.distribution.model.public.refs import FieldRef, RelationRef
+from kg_build_system.kernel import Key
 from kg_build_system.kernel.service.internal.types import type_to_dto
 from ...model.internal.dto.blueprint_dto import (
     ColumnDTO, DataPartDTO, ProjectionDTO, RelationDTO, RowDistinctDTO,
@@ -88,10 +90,13 @@ def _data_annotations(values: Sequence[Any]) -> tuple[AnnotationDTO, ...]:
     return annotation_dtos(values)
 
 
-def _column(item: Any, *, expression: bool = False) -> ColumnDTO:
+def _column(
+    owner: str, item: Any, *, expression: bool = False,
+) -> ColumnDTO:
     return ColumnDTO(
         name=item.name,
         logical_type=type_to_dto(item.logical_type),
+        ref=FieldRef("data", Key((f"{owner}.{item.name}",))),
         description=item.description,
         annotations=_data_annotations(item.annotations),
         expression=(
@@ -103,29 +108,32 @@ def _column(item: Any, *, expression: bool = False) -> ColumnDTO:
 
 
 def _struct(item: type[Any], spec: DeclarationSpec) -> StructDTO:
+    name = spec.name or item.__name__
     return StructDTO(
-        name=spec.name or item.__name__,
-        columns=tuple(_column(field) for field in spec.fields),
+        name=name,
+        columns=tuple(_column(name, field) for field in spec.fields),
         description=spec.description,
         annotations=_data_annotations(spec.annotations),
     )
 
 
 def _relation(item: type[Any], spec: DeclarationSpec) -> RelationDTO:
+    name = spec.name or item.__name__
     return RelationDTO(
-        name=spec.name or item.__name__,
-        columns=tuple(_column(field) for field in spec.fields),
+        name=name,
+        columns=tuple(_column(name, field) for field in spec.fields),
         description=spec.description,
         annotations=_data_annotations(spec.annotations),
     )
 
 
 def _projection(item: type[Any], spec: DeclarationSpec) -> ProjectionDTO:
+    name = spec.name or item.__name__
     columns = []
     for field in spec.fields:
         if field.descriptor.expression is None:
             raise TypeError("projection outputs require computed_field()")
-        columns.append(_column(field, expression=True))
+        columns.append(_column(name, field, expression=True))
     row_source = projection_row_source(item)
     if row_source is None:
         raise ValueError("projections require a row source")
@@ -138,7 +146,7 @@ def _projection(item: type[Any], spec: DeclarationSpec) -> ProjectionDTO:
         else row_source_plan_dto(row_source)
     )
     return ProjectionDTO(
-        name=spec.name or item.__name__,
+        name=name,
         columns=tuple(columns),
         row_source=cast(RowSourcePlanDTO, plan),
         description=spec.description,
@@ -152,7 +160,7 @@ def _source(source: BoundTable) -> SourceDTO:
     name = spec.name if spec is not None and spec.name else table.__name__
     annotations = tuple(spec.annotations if spec is not None else ())
     return SourceDTO(
-        table=name,
+        relation=RelationRef("data", Key((name,))),
         location=source.config.location,
         format=source.config.format.value,
         credential_reference=source.config.credentials,
@@ -246,7 +254,7 @@ def transcribe_data(declarations: Sequence[object]) -> DataPartDTO:
         )),
         sources=tuple(sorted(
             (_source(item) for item in bound_tables),
-            key=lambda item: item.table,
+            key=lambda item: item.relation.name,
         )),
     )
 
@@ -275,7 +283,7 @@ def validate_data(data: DataPartDTO) -> None:
                 "projection row source reads unknown logical source "
                 + ", ".join(sorted(unknown))
             )
-    source_tables = tuple(item.table for item in data.sources)
+    source_tables = tuple(item.relation.name for item in data.sources)
     if len(source_tables) != len(set(source_tables)):
         raise ValueError("source-bound relation names must be unique")
     unknown_sources = set(source_tables) - set(relation_names)

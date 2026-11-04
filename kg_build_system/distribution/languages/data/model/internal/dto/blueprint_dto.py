@@ -1,7 +1,9 @@
 """The data language's part of the graph blueprint.
 
 The DTO states the semantic model: structs, relations, projection outputs,
-physical sources and the row plans that read them. It carries graph names and
+physical sources and the row plans that read them. Every cross-symbol reference
+is a typed ref: a column names its field symbol, a scan names a relation and a
+physical source names the relation it binds. It carries graph names and
 canonical values only; it has no symbol id, Python module path or declaration
 object.
 """
@@ -12,15 +14,34 @@ from typing import Literal, TypeAlias
 
 from kg_build_system.distribution.languages.annotations.model.internal import AnnotationDTO
 from kg_build_system.distribution.languages.expressions.model.internal.dto.blueprint_dto import ExpressionDTO
+from kg_build_system.distribution.model.public.refs import FieldRef, RelationRef
 from kg_build_system.kernel.model.internal.types.dto import LogicalTypeDTO
 
 
 @dataclass(frozen=True, slots=True)
 class ColumnDTO:
-    """One named column of a struct, relation or projection output."""
+    """One named column of a struct, relation or projection output.
+
+    Example:
+        ```python
+        from kg_build_system.distribution.languages.data.model.internal import (
+            ColumnDTO,
+        )
+        from kg_build_system.distribution.model.public.refs import FieldRef
+        from kg_build_system.kernel import Key
+        from kg_build_system.kernel.model.internal.types.dto import UnitTypeDTO
+
+        column = ColumnDTO(
+            "site_name",
+            UnitTypeDTO("str"),
+            ref=FieldRef("data", Key(("sites.site_name",))),
+        )
+        ```
+    """
 
     name: str
     logical_type: LogicalTypeDTO
+    ref: FieldRef
     description: str | None = None
     annotations: tuple[AnnotationDTO, ...] = ()
     expression: ExpressionDTO | None = None
@@ -48,9 +69,21 @@ class RelationDTO:
 
 @dataclass(frozen=True, slots=True)
 class RowScanDTO:
-    """Read one named relation."""
+    """Read one declared relation or projection.
 
-    source: str
+    Example:
+        ```python
+        from kg_build_system.distribution.languages.data.model.internal import (
+            RowScanDTO,
+        )
+        from kg_build_system.distribution.model.public.refs import RelationRef
+        from kg_build_system.kernel import Key
+
+        scan = RowScanDTO(RelationRef("data", Key(("sites",))))
+        ```
+    """
+
+    relation: RelationRef
 
 
 @dataclass(frozen=True, slots=True)
@@ -123,9 +156,25 @@ class ProjectionDTO:
 
 @dataclass(frozen=True, slots=True)
 class SourceDTO:
-    """The physical source one relation is read from."""
+    """The physical source one relation is read from.
 
-    table: str
+    Example:
+        ```python
+        from kg_build_system.distribution.languages.data.model.internal import (
+            SourceDTO,
+        )
+        from kg_build_system.distribution.model.public.refs import RelationRef
+        from kg_build_system.kernel import Key
+
+        source = SourceDTO(
+            relation=RelationRef("data", Key(("sites",))),
+            location="sites.parquet",
+            format="parquet",
+        )
+        ```
+    """
+
+    relation: RelationRef
     location: str
     format: Literal["csv", "json", "parquet"]
     credential_reference: str | None = None

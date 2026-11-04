@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unittest
 
-from kg_build_system.distribution.executors.conflict_validation import (
+from kg_build_system.distribution.modules.conflict_validation import (
     ConflictReportExecutor,
     ConflictingNonNullValueFinding,
     ConflictingNonNullValuesReport,
@@ -16,6 +16,7 @@ from kg_build_system.kernel import (
     Instruction,
     Output,
     Publication,
+    ResourceView,
     Step,
     StepStatus,
 )
@@ -74,7 +75,8 @@ def _context(
                 ),
             ),
         },
-        services=None,
+        resources=ResourceView({}),
+        logger=None,
     )
 
 

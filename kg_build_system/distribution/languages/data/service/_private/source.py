@@ -110,7 +110,8 @@ def _render_row_source(
     plan: RowSourcePlanDTO, *, class_names: Mapping[str, str], imports: set[str],
 ) -> str:
     if isinstance(plan, RowScanDTO):
-        owner = class_names.get(plan.source, class_name(plan.source, "Table"))
+        name = plan.relation.name
+        owner = class_names.get(name, class_name(name, "Table"))
         return f"{owner}.row_source()"
     if isinstance(plan, RowFilterDTO):
         inner = _render_row_source(plan.input, class_names=class_names, imports=imports)
@@ -196,7 +197,8 @@ def _source_source(
     imports = {
         "from kg_build_system import DataSourceConfig, InputFormat, bind_source",
     }
-    target = class_names.get(value.table, class_name(value.table, "Table"))
+    name = value.relation.name
+    target = class_names.get(name, class_name(name, "Table"))
     arguments = [repr(value.location)]
     if value.format != "csv":
         arguments.append(f"format=InputFormat.{value.format.upper()}")
@@ -205,7 +207,7 @@ def _source_source(
     if value.credential_reference is not None:
         arguments.append(f"credentials={value.credential_reference!r}")
     lines = [
-        f"{member_name(value.table)}_source = bind_source(",
+        f"{member_name(name)}_source = bind_source(",
         f"    target={target},",
         f"    config=DataSourceConfig({', '.join(arguments)}),",
         ")",

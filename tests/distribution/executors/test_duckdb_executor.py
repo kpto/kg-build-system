@@ -4,11 +4,12 @@ import unittest
 from pathlib import Path
 from tempfile import TemporaryDirectory
 
-from kg_build_system.distribution.executors.duckdb import (
+from kg_build_system.distribution.modules.duckdb import (
     DuckDbExecutor,
     DuckDbResourceProvider,
+    DuckDbService,
 )
-from kg_build_system.distribution.executors.runtime import ExecutionServices
+from kg_build_system.distribution.modules.runtime import RuntimeResources
 from kg_build_system.kernel import (
     Artifact,
     ArtifactType,
@@ -18,10 +19,10 @@ from kg_build_system.kernel import (
     Input,
     Instruction,
     Output,
+    ResourceView,
     RuntimeConfiguration,
     Step,
     StepStatus,
-    WorkflowPlan,
 )
 
 RECORDS = ArtifactType("core", "records")
@@ -46,7 +47,7 @@ def _step(
 
 def _context(
     step: Step,
-    services: ExecutionServices,
+    resources: ResourceView,
     inputs: dict[str, tuple[ContinuableInput, ...]] | None = None,
 ) -> ExecutionContext:
     return ExecutionContext(
@@ -55,7 +56,8 @@ def _context(
         component="core",
         runtime_configuration={},
         inputs=inputs or {},
-        services=services,
+        resources=resources,
+        logger=None,
     )
 
 
@@ -78,13 +80,20 @@ class DuckDbExecutorTests(unittest.TestCase):
             temporary_directory=root / "temporary",
         )
         self.provider = DuckDbResourceProvider()
-        self.services = self.provider.services(WorkflowPlan((), ()), configuration)
-        self.addCleanup(lambda: self.provider.close(self.services))
+        self.runtime_resources = RuntimeResources()
+        provided = {
+            **self.runtime_resources.resources(configuration),
+            **self.provider.resources(configuration),
+        }
+        self.addCleanup(self.provider.close)
+        self.addCleanup(self.runtime_resources.close)
+        self.resources = ResourceView(provided)
+        self.service = self.resources.get(DuckDbService)
         self.executor = DuckDbExecutor()
 
     def _rows(self, relation: object) -> list[tuple[object, ...]]:
-        source = self.services.relations.reference(relation)
-        return list(self.services.relations.query(
+        source = self.service.relations.reference(relation)
+        return list(self.service.relations.query(
             f"SELECT * FROM {source} ORDER BY 1",
         ).fetchall())
 
@@ -111,7 +120,7 @@ class DuckDbExecutorTests(unittest.TestCase):
         )
 
         outcome = self.executor.execute(
-            _context(step, self.services),
+            _context(step, self.resources),
             step.instruction,
         )
 
@@ -120,7 +129,7 @@ class DuckDbExecutorTests(unittest.TestCase):
         self.assertEqual(self._rows(outcome.artifacts[0].value), [(42,)])
 
     def test_deduplication_returns_distinct_rows(self) -> None:
-        source = self.services.relations.materialize(
+        source = self.service.relations.materialize(
             "duplicate_source",
             "SELECT * FROM (VALUES (1), (1), (2)) AS rows(value)",
         )
@@ -134,7 +143,7 @@ class DuckDbExecutorTests(unittest.TestCase):
         outcome = self.executor.execute(
             _context(
                 step,
-                self.services,
+                self.resources,
                 {"records": (_artifact("value", source),)},
             ),
             step.instruction,
@@ -144,11 +153,11 @@ class DuckDbExecutorTests(unittest.TestCase):
         self.assertEqual(self._rows(outcome.artifacts[0].value), [(1,), (2,)])
 
     def test_aggregate_unions_every_input_relation(self) -> None:
-        first = self.services.relations.materialize(
+        first = self.service.relations.materialize(
             "first_source",
             "SELECT * FROM (VALUES (1), (2)) AS rows(value)",
         )
-        second = self.services.relations.materialize(
+        second = self.service.relations.materialize(
             "second_source",
             "SELECT * FROM (VALUES (3)) AS rows(value)",
         )
@@ -160,7 +169,7 @@ class DuckDbExecutorTests(unittest.TestCase):
         outcome = self.executor.execute(
             _context(
                 step,
-                self.services,
+                self.resources,
                 {
                     "first": (_artifact("first", first),),
                     "second": (_artifact("second", second),),
@@ -186,7 +195,8 @@ class DuckDbExecutorTests(unittest.TestCase):
             runtime_configuration={},
             inputs={},
             disruptions=(),
-            services=self.services,
+            resources=self.resources,
+            logger=None,
         )
 
         outcome = self.executor.execute(context, step.instruction)
@@ -200,4 +210,4 @@ class DuckDbExecutorTests(unittest.TestCase):
         )
 
         with self.assertRaisesRegex(ValueError, "unknown instruction kind"):
-            self.executor.execute(_context(step, self.services), step.instruction)
+            self.executor.execute(_context(step, self.resources), step.instruction)

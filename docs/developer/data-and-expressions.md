@@ -8,7 +8,7 @@ prove.
 
 | Concept | Owner | What it is |
 | --- | --- | --- |
-| Canonical types | `kernel/model/public/types` | the one type ontology every layer uses |
+| Canonical types | `kernel/model/public/types` | the one type ontology every language uses |
 | Annotations | `distribution/languages/annotations` | annotation values and DTOs |
 | Selections | `distribution/languages/expressions/model/public` | typed reads over a row shape |
 | Operation specifications | `distribution/languages/expressions/service/internal/operations` | one specification per operation |
@@ -16,11 +16,11 @@ prove.
 | Joins, unions, filters, groups, distinct, order | `distribution/languages/data` | row-source operations and their plan DTOs |
 | Projections | `distribution/languages/data` | a named relation with output expressions and a row source |
 | Data DTO | `distribution/languages/data/model/internal/dto/blueprint_dto.py` | the frozen data part of the blueprint |
-| Blueprint | `distribution/interpreter` | assembles the layer DTOs into `GraphBlueprint` |
-| Relational plan | `distribution/planners/core/service/_private` | engine-neutral relation plans and step planning |
-| Instruction emission | `distribution/planners/core` and `distribution/executors/duckdb` | turns a plan into a `("sql", "duckdb")` instruction |
-| SQL emitter | `distribution/executors/duckdb/service/_private` | emits DuckDB SQL for an instruction |
-| Engine boundary | `distribution/executors/duckdb` | opens and runs the engine through `DuckDbResourceProvider` |
+| Blueprint | `distribution/interpreter` | assembles the language DTOs into `GraphBlueprint` |
+| Relational plan | `distribution/modules/core/service/_private/planning` | engine-neutral relation plans and step planning |
+| Instruction emission | `distribution/modules/core` and `distribution/modules/duckdb` | turns a plan into a `("sql", "duckdb")` instruction |
+| SQL emitter | `distribution/modules/duckdb/service/_private/emitters` | emits DuckDB SQL for an instruction |
+| Engine boundary | `distribution/modules/duckdb` | opens and runs the engine through `DuckDbResourceProvider` |
 
 `data` is the graph language that owns row sources, projections and their
 DTOs. `expressions` contributes operations and expression DTOs; it is not a
@@ -34,7 +34,7 @@ The four boundaries have different jobs:
 | --- | --- | --- | --- |
 | Data language | `Table`, `Struct`, `Projection`, row-source values | `DataPartDTO` | the blueprint, the engine, the workflow plan |
 | Expressions | selections, literals, field references, operations | expression DTOs and operation specifications | the blueprint, the engine runtime |
-| Blueprint | layer DTOs | `GraphBlueprint` | declaration classes, symbol IDs |
+| Blueprint | language DTOs | `GraphBlueprint` | declaration classes, symbol keys |
 | Planning | `GraphBlueprint` | `WorkflowPlan` | authoring classes; it reads DTOs only |
 
 A row source is a value. A row shape is the type of one row, not a schema
@@ -42,7 +42,7 @@ instance or a dictionary. Reading a member produces a typed selection. A
 projection is a named relation with output expressions and a row source; it is
 not a raw SQL string and not a second kind of table declaration.
 
-The data language transcribes declarations to its DTO. Planning never sees the
+The data language transcribes declarations into its DTO. Planning never sees the
 declaration classes, the field descriptors or the row-source wrapper. It sees
 the DTO and the plans derived from it.
 
@@ -53,7 +53,7 @@ plan DTO belong to the row-source package.
 
 !!! warning "Join changes belong to the row-source package"
     A join-semantics change lives in the row-source algebra and its DTO. It does
-    not require editing table declarations, the core planner and the authoring
+    not require editing table declarations, the core planners and the authoring
     API.
 
     If a planner needs a generated join shape, the row-source interface exposes
@@ -93,13 +93,13 @@ The semantics are part of the DTO:
 - `order_by` has one direction for all keys;
 - a generated record is a struct value, not a row source.
 
-A plan is frozen and content-addressed. Two equal plans denote one relation, and
-a decoded blueprint computes the same plan key without the authoring object.
+A plan is frozen. Two equal plans denote one relation, and a decoded blueprint
+computes the same plan without the authoring object.
 
 ## DTO shapes
 
 Only the blueprint and the workflow plan are serialisable artifacts. The
-blueprint's data layer uses these DTOs:
+blueprint's data language uses these DTOs:
 
 ```text
 distribution/languages/annotations/model/internal/dto/blueprint_dto.py
@@ -121,21 +121,62 @@ distribution/languages/topology/model/internal/dto/blueprint_dto.py
 distribution/languages/binding/model/internal/dto/blueprint_dto.py
     NodeBindingDTO, EdgeBindingDTO
 
+distribution/model/public/refs.py
+    NodeRef, EdgeRef, RelationRef, FieldRef, PropertyRef, SourceRef,
+    OperationRef
+
 distribution/interpreter/model/public/graph_blueprint.py
     GraphBlueprint(graph, data, bindings, sources)
 ```
 
+## Typed references
+
+A blueprint is a semantic model, not a symbol table. Every cross-symbol field is
+a role type from `distribution/model/public/refs.py`:
+
+| Role | Names | Used by |
+| --- | --- | --- |
+| `NodeRef` | one topology node | `NodeDTO.parent`, `EdgeDTO.source`/`target`, binding targets and endpoints |
+| `EdgeRef` | one topology edge | `EdgeDTO.parent`, edge binding targets |
+| `RelationRef` | one relation or projection | `RowScanDTO.relation`, `SourceDTO.relation` |
+| `FieldRef` | one declared field | `ColumnDTO.ref`, `FieldReferenceDTO.field` |
+| `PropertyRef` | one graph property | `PropertyDTO.ref` |
+| `SourceRef` | one physical source | source symbol identity |
+| `OperationRef` | one operation specification | `OperationExpressionDTO.operator` |
+
+Each wraps a kernel `SymbolRef` and exposes `.symbol`, `.key`, `.name` and a
+constructor from `(language, Key)` or from a `SymbolRef`. Equality and hashing
+use the wrapped reference. `.name` is the last key segment.
+
+A reference serialises as `[language, role, *key segments]`:
+
+```json
+["data", "field", "sites.site_name"]
+["expressions", "operation", "default_to"]
+```
+
+The role token makes the document decodable without knowing which DTO field it
+came from. A field symbol's key joins its owner and the column name, and a
+property symbol's key joins its component and the property name.
+
+The expressions language (`name = "expressions"`) publishes one `operation`
+symbol per built-in specification. It is the first language in the linker order
+`expressions, data, topology, binding`, so a binding that reads a field or an
+operation resolves against symbols that already exist. An expression tree is a
+value, not a symbol: it references field and operation symbols through typed
+refs.
+
 The graph DTO has these rules:
 
-- no `symbol_id`, Python module path or declaration expression appears in a
-  graph node or edge identity;
+- no `symbol_id`, symbol key, Python module path or declaration expression
+  appears in a graph node or edge identity;
 - a Python binding carries only a stable `PythonRefDTO(module, qualname,
   signature)`;
 - endpoints and parents are graph names, not declaration identities;
 - an annotation payload is `(namespace, id, arguments)`;
-- a layer DTO knows only the DTOs of the layers it depends on, never the
+- a language DTO knows only the DTOs of the languages it depends on, never the
   blueprint;
-- the blueprint codec composes the layer codecs;
+- the blueprint codec composes the language codecs;
 - a DTO codec lives beside the DTO and uses `to_document` / `from_document`.
 
 `DataPartDTO` contains the data declarations. `GraphPartDTO` contains the graph
@@ -144,15 +185,15 @@ to one graph record. `GraphBlueprint` is the assembled semantic model.
 
 ## Planning boundary
 
-Planning reads a `GraphBlueprint` and runs each planner. The core planner
-decomposes the blueprint into sources, row sources, projections, bindings and
-aggregates, emits instructions through the DuckDB SQL emitter, and returns
+Planning reads a `GraphBlueprint` and runs each planner. The five core planners
+decompose the blueprint into sources, row sources, projections, bindings and
+aggregates, emit instructions through the DuckDB SQL emitter, and return
 `Step`s. The kernel assembles those steps into a `WorkflowPlan`. Planning does
 not read authoring declarations and does not call the blueprint package.
 
 ```text
 GraphBlueprint
-    -> CorePlanner
+    -> core_planners()
     -> relational plans and SQL text
     -> Step(instruction=("sql", "duckdb"), ...)
     -> WorkflowPlan
@@ -171,12 +212,12 @@ rewrite the core steps.
 
 A language has two directions:
 
-- `service/_private/transcription.py`: declarations -> layer DTO;
-- `service/_private/source.py`: layer DTO -> `SourceFragment`.
+- `service/_private/transcription.py`: declarations -> symbols and language DTO;
+- `service/_private/source.py`: language DTO or symbol value -> `SourceFragment`.
 
-A layer renders its own DTO using its dependency layers' renderers. The blueprint
-source service delegates to each layer and assembles the fragments; it does not
-render data, topology or binding source itself.
+A language renders its own DTO using its dependency languages' renderers. The
+blueprint source service delegates to each language and assembles the fragments;
+it does not render data, topology or binding source itself.
 
 The round trip is a contract:
 
@@ -195,7 +236,7 @@ blueprint.
 The round trip proves three things:
 
 - the blueprint carries enough information to reconstruct the declarations;
-- no layer depends on the declaration objects that produced the DTO;
+- no language depends on the declaration objects that produced the DTO;
 - rendering is a language responsibility, not a blueprint special case.
 
 ## Current state and limits
@@ -204,21 +245,24 @@ The data model is implemented:
 
 - `distribution/languages/data/model/internal/dto/blueprint_dto.py` defines
   `DataPartDTO`, `StructDTO`, `RelationDTO`, `ColumnDTO`, `ProjectionDTO`,
-  `SourceDTO` and the `Row*DTO` plans. They carry graph names and no
-  `symbol_id`.
-- `distribution/languages/data`, `topology` and `binding` each provide a
-  transcription service and a source service. Their languages implement
-  `collect`, `transcribe`, `validate` and `render`.
+  `SourceDTO` and the `Row*DTO` plans. They carry graph names and typed refs,
+  never a `symbol_id` or a symbol key.
+- `distribution/languages/data`, `topology`, `binding` and `expressions` each
+  provide a kernel `Language` adapter, a transcription service and a source
+  service. Their languages discover declarations, transcribe symbols and
+  render those symbol values back to authoring source.
 - `distribution/languages/expressions/model/internal/dto/blueprint_dto.py`
   defines `LiteralExpressionDTO`, `FieldReferenceDTO`, `VariableExpressionDTO`
-  and `OperationExpressionDTO`.
+  and `OperationExpressionDTO`. A field read carries a `FieldRef` and a nested
+  path; an operation carries an `OperationRef`. An expression is an inline
+  fragment, not a separately keyed symbol.
 - `distribution/interpreter` defines `GraphBlueprint(graph, data, bindings,
   sources)`, a composing codec and a source service. The source service
   delegates to the data, topology and binding renderers and assembles their
   fragments.
-- `distribution/planners/core` owns the engine-neutral relation plans and the
-  `("sql", "duckdb")` steps. `distribution/executors/duckdb` owns the emitter
-  and the engine.
+- `distribution/modules/core` owns the five core planners, the engine-neutral
+  relation plans and the `("sql", "duckdb")` steps. `distribution/modules/duckdb`
+  owns the emitter, the executor and the engine resource.
 - The kernel scheduler dispatches on `step.instruction.kind`; SQL is one
   instruction kind.
 
@@ -229,10 +273,8 @@ The remaining limits in this area are:
 
 - a Python instruction is a reference (`("python", "cpython")` carries module
   and qualname), not the callable body;
-- public `GraphBlueprint` fields reference internal layer DTOs;
-- the core planner depends on the DuckDB SQL emitter;
-- a language may publish only its layer value instead of per-declaration
-  definitions.
+- public `GraphBlueprint` fields reference internal language DTOs;
+- the core planners depend on the DuckDB SQL emitter.
 
 ## What to remember
 

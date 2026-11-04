@@ -13,6 +13,5 @@ Example:
 from __future__ import annotations
 
 from .model.public import Annotation, EdgeLabel, NodeLabel
-from .service.public import *  # noqa: F403
 
 __all__ = ["Annotation", "EdgeLabel", "NodeLabel"]

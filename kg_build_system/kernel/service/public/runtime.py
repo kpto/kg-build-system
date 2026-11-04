@@ -1,23 +1,25 @@
 """The kernel runtime: a public wrapper over the scheduler implementation.
 
-The class is a thin delegation; scheduling, input classification and the step
-lifecycle live in ``kernel.service._private.runtime``.
+The class is a thin delegation; resource allocation, scheduling, input
+classification and the step lifecycle live in ``kernel.service._private.runtime``.
 """
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any
 
 from ...model.public.runtime import RuntimeConfiguration, WorkflowReport
 from ...model.public.workflow import InstructionKind, WorkflowPlan
-from .pipeline import StepExecutor
+from .pipeline import ResourceProvider, StepExecutor
 
 
 class WorkflowRuntime:
-    """Schedule a workflow plan and dispatch each step to its executor.
+    """Schedule a workflow plan, allocate resources and dispatch its steps.
 
     The runtime is the kernel's default ``Runtime`` implementation. It is
-    transport-agnostic: services and instruction payloads are opaque.
+    transport-agnostic: resources and instruction payloads are opaque. Each
+    execution opens every provider, builds one view per executor and closes the
+    providers in reverse order.
 
     Example:
     ```python
@@ -27,12 +29,14 @@ class WorkflowRuntime:
     ```
     """
 
+    def __init__(self, providers: Sequence[ResourceProvider] = ()) -> None:
+        self._providers = tuple(providers)
+
     def execute(
         self,
         plan: WorkflowPlan,
         executors: Mapping[InstructionKind, StepExecutor],
         *,
-        services: Any,
         configuration: RuntimeConfiguration,
         monitor: Any = None,
     ) -> WorkflowReport:
@@ -41,16 +45,15 @@ class WorkflowRuntime:
         Example:
         ```python
         report = runtime.execute(
-            plan, executors, services=services, configuration=configuration,
+            plan, executors, configuration=configuration,
         )
         ```
         """
         from .._private.runtime import WorkflowRuntime as implementation
 
-        return implementation().execute(
+        return implementation(self._providers).execute(
             plan,
             executors,
-            services=services,
             configuration=configuration,
             monitor=monitor,
         )

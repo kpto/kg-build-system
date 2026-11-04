@@ -10,6 +10,10 @@ from kg_build_system.distribution.languages.topology.model.internal.dto import (
     NodeDTO,
     PropertyDTO,
 )
+from kg_build_system.distribution.model.public.refs import (
+    NodeRef, PropertyRef,
+)
+from kg_build_system.kernel import Key
 from kg_build_system.kernel import ArtifactType, Component, Connection
 from kg_build_system.kernel.model.internal.types.dto import UnitTypeDTO
 
@@ -20,7 +24,13 @@ def node(name: str, *properties: str) -> NodeDTO:
         name=name,
         labels=(name,),
         properties=tuple(
-            PropertyDTO(property_name, UnitTypeDTO("str"))
+            PropertyDTO(
+                property_name,
+                UnitTypeDTO("str"),
+                PropertyRef(
+                    "topology", Key((f"{name}.{property_name}",)),
+                ),
+            )
             for property_name in properties
         ),
     )

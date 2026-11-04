@@ -5,7 +5,7 @@ implementation.
 
 ## Verification
 
-- **115 tests**, **604 subtests**.
+- **152 tests**, **1586 subtests**.
 - Pyright: **0 errors**.
 - `uv run mkdocs build --strict`: passes.
 - Open Targets KG: **7 tests** pass.
@@ -24,7 +24,9 @@ kg_build_system/
   kernel/
     model/
       public/
+        key.py
         language.py
+        symbol.py
         workflow.py
         runtime.py
         types/
@@ -40,41 +42,42 @@ kg_build_system/
     model/public/
     languages/{annotations,expressions,data,topology,binding}
     interpreter/
-    planners/{core,deduplication,merging,conflict_validation}
-    executors/
-      model/ service/     the executor leaf's own zones
-      runtime/
-      duckdb/
-      python/
-      file/
-      meta_graph/
-      neo4j/
-      conflict_validation/
+    modules/{core,deduplication,merging,conflict_validation,file,meta_graph,neo4j,duckdb,python,runtime}
     service/             the distribution leaf's service zone
-    default.py
+    implementations.py
   generation/code_generation/
+  _facade.py
   api.py
   cli/
 ```
 
-Every leaf uses `model/public`, `model/internal`, `model/_private`,
-`service/public`, `service/internal` and `service/_private`. `__init__.py`
-imports only `model.public` and `service.public`.
+Every leaf uses the zones it needs from `model/public`, `model/internal`,
+`model/_private`, `service/public`, `service/internal` and `service/_private`.
+An empty zone is deleted. `__init__.py` is a docstring, imports and `__all__`
+only; the top-level lazy loader is `_facade.py`.
 
 ## Toolchain
 
-- `build` orders languages, transcribes and validates their layers and calls
-  `linker.link(layers)`.
-- `compile` calls every planner, assigns each planner's `component_id` to its
-  steps and assembles a `WorkflowPlan`.
-- `execute` maps exact instruction kinds, creates services and calls the runtime.
+- `build` hands languages and a namespace to the `Linker`. The linker discovers
+  declarations, derives keys with `compute_key`, transcribes symbols, resolves
+  references, orders them and assembles the model.
+- A `Declaration` has no key; a `Symbol` carries its key, kind, value and
+  references. `SymbolRef(language, key)` is the only cross-symbol identity.
+- `compile` groups planners by `component_id`; several planners may share a
+  component when their `version` and `runtime_fields` agree. It assigns the
+  component to each step and assembles a `WorkflowPlan`.
+- `PlanContext.shared` carries per-compile state; the core planners share
+  `"core.plan"`.
+- `execute` maps exact instruction kinds, and the runtime opens providers, merges
+  resources, builds one view per executor and closes providers in reverse order.
 - `create_blueprint` lives in `distribution/interpreter` and returns
   `GraphBlueprint`.
 - `compile` is the composition-root shortcut: it creates a blueprint when none is
   supplied and returns a `WorkflowPlan`.
 - `execute` lives in `api.py` and dispatches on `step.instruction.kind`.
-- Supplied planners and executors live in `distribution`; `default_toolchain`
-  adds the core planner and the default executors.
+- Supplied planners, executors and resources live in `distribution/modules`;
+  `default_toolchain` adds the five core planners, the default executors and the
+  runtime providers.
 - Source generation is per language; the interpreter source service delegates to
   the data, topology and binding renderers.
 - The workflow plan owns components, steps, connections and provenance. A step
@@ -87,10 +90,10 @@ imports only `model.public` and `service.public`.
   of the kernel.
 - A Python instruction is a reference: `("python", "cpython")` carries
   `{module, qualname}`, not a live callable.
-- Public `GraphBlueprint` fields reference internal layer DTOs. The handle is
-  public; those layer DTOs are not exported public names.
-- A language may publish only its layer value instead of per-declaration
-  definitions.
+- Public `GraphBlueprint` fields reference internal language DTOs. The handle is
+  public; those language DTOs are not exported public names.
+- A repeated struct graph name takes its qualified Python name as an extra key
+  segment.
 
 ## Documentation
 

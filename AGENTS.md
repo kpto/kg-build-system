@@ -113,36 +113,48 @@ rule about what the framework is belongs to the framework model.
 
 ### Kernel and distribution
 
-- `kg_build_system.kernel` is domain-agnostic: language, layer, definition,
-  linker, planner, workflow plan, runtime, executor and toolchain. It imports no
-  table, topology, expression, engine or graph package.
+- `kg_build_system.kernel` is domain-agnostic: language, declaration, symbol,
+  key, reference, linker, planner, workflow plan, runtime, executor, resource
+  and toolchain. It imports no table, topology, expression, engine or graph
+  package.
 - The kernel holds what is inseparable from the framework: protocols, workflow
   values, plan vocabulary and the canonical type system. A package that can be
   omitted or replaced is not kernel.
-- Canonical types are a kernel assumption. Every layer, the blueprint and the
-  workflow plan use the same type ontology; no layer defines its own.
-- The kernel uses toolchain vocabulary: language, layer, definition, linker,
-  planner, workflow plan, runtime and executor. The distribution uses domain
-  vocabulary: graph, blueprint, node, edge, binding and projection. The kernel
-  model is opaque; the distribution implements it.
-- A language, its layer and its package share one name: `DataLanguage`, layer
-  `data`, package `languages/data`. The authoring class names the syntax
-  (`Table`, `Node`); the language is named for the model it produces.
+- Canonical types are a kernel assumption. Every language, the blueprint and the
+  workflow plan use the same type ontology; no language defines its own.
+- The kernel uses toolchain vocabulary: language, declaration, symbol, linker,
+  planner, workflow plan, runtime, executor and resource. The distribution uses
+  domain vocabulary: graph, blueprint, node, edge, binding and projection. The
+  kernel model is opaque; the distribution implements it.
+- A language and its package share one name: `DataLanguage`, language `data`,
+  package `languages/data`. The authoring class names the syntax (`Table`,
+  `Node`); the language is named for the model it produces.
 - A package shared only inside one system belongs to that system. It does not
-  become a `foundation` package just because several layers use it. Only a
+  become a `foundation` package just because several languages use it. Only a
   package every system needs, and cannot replace, moves to the kernel.
 - The package tree shows the primary dependency spine. A shared artifact or
   interface is the root of its consumer cluster. A tree cannot encode every
   edge; the dependency tests enforce the rest.
-- `annotations`, `expressions`, `table`, `topology` and `binding` are
-  distribution languages; `core`, `deduplication`, `merging` and
-  `conflict_validation` are distribution planners; DuckDB, Python, file,
-  meta-graph and Neo4j are distribution executors.
+- `annotations`, `expressions`, `data`, `topology` and `binding` are
+  distribution languages. `core`, `deduplication`, `merging`,
+  `conflict_validation`, `file`, `meta_graph`, `neo4j`, `duckdb`, `python` and
+  `runtime` are distribution modules.
+- A module is a feature package, not a protocol and not a registry entry. It
+  groups one feature's planners, executors, resources and configuration.
+- The runtime owns the resource providers; `Toolchain` has no `resources` field.
+  An executor declares the exact `resources` it reads and receives a
+  `ResourceView`; the runtime opens, merges, validates and closes the providers.
+- `api.py` is the composition root. It owns `default_toolchain`,
+  `DEFAULT_TOOLCHAIN`, `create_blueprint`, `compile` and `execute`; the
+  distribution supplies implementations only.
+- Several planners may share one component when their `version` and
+  `runtime_fields` agree. The component is published once and each step gets its
+  `component_id`; a step identity still may not repeat.
 - An operation is one specification plus one instruction emitter. Adding one
   does not edit a dispatcher.
 - A planner emits steps; it does not execute them. An executor executes one
-  exact instruction kind; it does not plan. A component that needs both is two
-  objects.
+  exact instruction kind and declares the resources it reads; it does not plan.
+  A component that needs both is two objects.
 - An extension declares the surfaces it extends: a language, a linker, a
   planner and/or an executor. It does not implement one module interface.
 - Instruction kinds are exact namespaced tuples such as `("sql", "duckdb")`.
@@ -165,21 +177,36 @@ rule about what the framework is belongs to the framework model.
 - A DTO is a member of the blueprint or the workflow plan. A value outside those
   two artifacts is in-memory: a model, a plan, a render input or a build result.
   It is not a DTO and is not expected to deserialise.
-- A layer DTO does not know the blueprint. It knows only the layers it depends
-  on. The interpreter links the layers into one semantic model.
-- The kernel has three stages: `build` (languages -> layers -> linked model),
-  `compile` (model -> workflow plan) and `execute` (plan -> artifacts). The
-  public verbs are `compile` and `execute`; `create_blueprint` is the
-  distribution's build shortcut.
+- A language discovers declarations, derives a key with `compute_key` and
+  transcribes symbols. A declaration has no key; a symbol carries key, kind,
+  value and references. The linker selects roots, resolves the closure, orders
+  symbols and assembles the model.
+- A language DTO does not know the blueprint. It knows only the languages it
+  depends on. The interpreter links the language DTOs into one semantic model.
+- The kernel has three stages: `build` (languages -> declarations -> symbols ->
+  model), `compile` (model -> planners -> `WorkflowPlan`) and `execute` (runtime
+  -> resources -> executors). The public verbs are `compile` and `execute`;
+  `create_blueprint` is the distribution's build shortcut.
 - `compile` reads a linked model and runs planners to produce a `WorkflowPlan`.
   It does not assemble a blueprint and does not call the blueprint package. The
   composition root calls `create_blueprint` and then `compile`.
-- The blueprint is public: a user may obtain a blueprint handle. The layer DTOs
-  it references are not exported public names. The canonical flow is the
+- The blueprint is the semantic model, not a symbol table. The symbol graph is
+  linker IR: it exists to key declarations, resolve references and order
+  transcription. The delivered blueprint names semantic roles, not symbols.
+- The blueprint is public: a user may obtain a blueprint handle. The language
+  DTOs it references are not exported public names. The canonical flow is the
   compile shortcut that creates and consumes the blueprint without exposing it.
-- Source generation is the responsibility of the layer that owns the DTO. A
-  layer renders its own DTO using its dependency layers' renderers; the
-  blueprint layer only delegates to each layer and assembles the fragments.
+- Cross-symbol fields are typed refs such as `NodeRef`, `FieldRef`,
+  `PropertyRef`, `RelationRef` and `OperationRef`; there is no bare
+  cross-symbol string.
+- Expressions are inline fragments, not symbols. Their leaves are typed refs; a
+  shared or named expression is a computed field or a projection output.
+- Identity is a qualified name (`Key` segments). A fingerprint or digest may be
+  recorded beside a value; symbols are not content-addressed by default (a
+  binding without a debug name is the distribution's stable-digest exception).
+- Source generation is the responsibility of the language that owns the DTO. A
+  language renders its own DTO using its dependency languages' renderers; the
+  interpreter only delegates to each language and assembles the fragments.
 - The blueprint must regenerate equivalent authoring source. The round trip
   `blueprint -> generated source -> blueprint` is a contract test, not a
   convenience.
@@ -189,7 +216,9 @@ rule about what the framework is belongs to the framework model.
 - The API is not stable; breaking changes are expected.
 - The framework has no schema versions and no compatibility negotiation or
   migration path.
-- If an artifact needs an identity, derive it from its content.
+- If an artifact needs a fingerprint, derive it from its content and record it
+  beside the artifact's identity; symbols are keyed by qualified name, not by a
+  content address.
 
 ### Interfaces
 
@@ -219,8 +248,8 @@ rule about what the framework is belongs to the framework model.
 - Each subpackage declares its responsibility, its interface and the subpackages
   it may import.
 - Every framework subpackage uses the same model/service layout:
-  - `__init__.py` — the facade; it imports only `model.public` and
-    `service.public`;
+  - `__init__.py` — the facade; a docstring, imports and `__all__` only, with no
+    function, class, constant, registry or lazy `__getattr__`;
   - `model/public/` — authoring models, returned values and public DTOs;
   - `model/internal/` — cross-package data: `dto/` and `model/`;
   - `model/_private/` — private plans, render models and SQL types;
@@ -229,6 +258,8 @@ rule about what the framework is belongs to the framework model.
     `adapters/`;
   - `service/_private/` — codecs, transcription, rendering, validation,
     assembly, planning, engines and runtime.
+- A leaf contains only the zones it uses; an empty zone is deleted. The
+  top-level lazy loader is `_facade.py`, not an `__init__.py`.
 - `model.public` and `service.public` are the definition sites for author-facing
   names. A public function or method is a thin wrapper over `service._private` or
   `service.internal`; the mechanism is not in `service.public`.
@@ -255,7 +286,7 @@ rule about what the framework is belongs to the framework model.
 ### The authoring API is the guard
 
 - The **authoring API** is what a graph author writes; it is the product model,
-  not a convenience layer over internals.
+  not a convenience shortcut over internals.
 - A public API method is a thin wrapper over an internal implementation, with a
   docstring and a runnable example. It is not a bare re-export.
 - It makes the intended use easy and the wrong use impossible.
@@ -277,14 +308,17 @@ rule about what the framework is belongs to the framework model.
   `BindingDTO`.
 - A model that is not serialised is not a DTO: name it an in-memory `model` or
   an engine-neutral `plan`. A DTO whose artifact cannot be named is not a DTO.
-- Use one verb per transformation. A language **transcribes** declarations to
-  its `Layer`; the linker **links** layers into a model; a planner **plans** a
-  model into `Step`s; the runtime **executes** a `WorkflowPlan`; an engine
-  **emits** SQL from a plan; source generation **renders** a DTO to authoring
-  source. Do not use `lower` for any of them.
-- A language transcribes declarations to its `Layer` and renders that layer's
-  value back to authoring source. `transcribe` and `render` are the two
-  directions of the same language.
+- Use one verb per transformation. A language **discovers** declarations,
+  **computes keys** and **transcribes** symbols; the linker **links** languages
+  and symbols into a model; a planner **plans** a model into `Step`s; the runtime
+  **executes** a `WorkflowPlan`; an engine **emits** SQL from a plan; source
+  generation **renders** a DTO or symbol value to authoring source. Do not use
+  `lower` for any of them.
+- A language transcribes declarations into symbols and renders a symbol value
+  back to authoring source. Transcribe and render are the two directions of the
+  same language.
+- A declaration does not own a key; `compute_key` derives it. A symbol carries
+  its key, kind, value and references.
 - The workflow plan owns structure: steps, inputs, outputs, connections and
   provenance. A step owns its instruction. SQL is one instruction kind, not a
   plan field.
@@ -304,7 +338,7 @@ rule about what the framework is belongs to the framework model.
   `_private`.
 - Consequently, these four zones define no single-underscore helper. Dunder
   protocol methods are not private helpers and remain.
-- A codec is private to its layer. Another package calls the layer's codec
+- A codec is private to its language. Another package calls the language's codec
   interface; it never imports the codec implementation.
 - A shared artifact package owns its model and, at most, its document codec. It
   does not own the algorithm that produces it; the producing system owns the
@@ -312,7 +346,7 @@ rule about what the framework is belongs to the framework model.
 - A package that only re-exports another package's model is not a package. Expose
   the names from the top-level facade or import the definition site; do not add a
   package with no model or service of its own.
-- Data is the lowest layer inside a package. `model._private` may import
+- Data is the lowest part inside a package. `model._private` may import
   `model.public` and `model.internal`; `service._private` may also import
   `model.public` and `model.internal`. `_private` may use public model data but
   not public service behaviour. `model.public` and `model.internal` import no
@@ -321,7 +355,7 @@ rule about what the framework is belongs to the framework model.
   import a service that imports `_private`.
 - A language does not encode or decode. Serialisation belongs to the DTO codec,
   which names its artifact: `to_document` / `from_document`. The blueprint codec
-  composes the layer codecs.
+  composes the language codecs.
 
 ### Models are anaemic and amnesic
 
