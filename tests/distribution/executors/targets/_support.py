@@ -4,7 +4,7 @@ from __future__ import annotations
 from types import SimpleNamespace
 from typing import Any
 
-from kg_build_system.distribution.languages.table.model.internal import DataPartDTO
+from kg_build_system.distribution.languages.data.model.internal import DataPartDTO
 from kg_build_system.distribution.languages.topology.model.internal.dto import (
     GraphPartDTO,
     NodeDTO,

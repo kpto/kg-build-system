@@ -12,14 +12,14 @@ from kg_build_system.distribution.languages.expressions.model.public import (
 from kg_build_system.distribution.languages.expressions.service.internal import (
     as_expression,
 )
-from kg_build_system.distribution.languages.table.model.public import (
+from kg_build_system.distribution.languages.data.model.public import (
     DerivedRowSource,
     RelationRowSource,
 )
-from kg_build_system.distribution.languages.table.service.internal.rows import (
+from kg_build_system.distribution.languages.data.service.internal.rows import (
     as_row_source,
 )
-from kg_build_system.distribution.languages.table.service.internal import (
+from kg_build_system.distribution.languages.data.service.internal import (
     shape_context,
 )
 from kg_build_system.distribution.languages.topology.model.public import (

@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from typing import TYPE_CHECKING
 
-from kg_build_system.distribution.languages.table.model.internal.dto import RowScanDTO
+from kg_build_system.distribution.languages.data.model.internal.dto import RowScanDTO
 
 if TYPE_CHECKING:
     from ..protocols import RowSourceEmissionContext

@@ -10,7 +10,7 @@ from ..sql import SqlNode
 from kg_build_system.distribution.languages.expressions.service.internal import walk_expression_dto
 from kg_build_system.distribution.languages.expressions.model.internal import OperationExpressionDTO
 from ..planning import expansion_scope
-from kg_build_system.distribution.languages.table.model.internal.dto import RowFilterDTO
+from kg_build_system.distribution.languages.data.model.internal.dto import RowFilterDTO
 
 if TYPE_CHECKING:
     from ..protocols import RowSourceEmissionContext

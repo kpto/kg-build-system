@@ -40,7 +40,7 @@ kg_build_system/
     languages/
       annotations/
       expressions/
-      table/
+      data/
       topology/
       binding/
     interpreter/
@@ -123,9 +123,9 @@ The primary edges are:
 | `kernel` | no framework package |
 | `distribution/languages/annotations` | `kernel` |
 | `distribution/languages/expressions` | `kernel` |
-| `distribution/languages/table` | `kernel`, annotations, expressions |
+| `distribution/languages/data` | `kernel`, annotations, expressions |
 | `distribution/languages/topology` | `kernel`, annotations, expressions |
-| `distribution/languages/binding` | `kernel`, annotations, table, topology |
+| `distribution/languages/binding` | `kernel`, annotations, data, topology |
 | `distribution/interpreter` | `kernel`, every graph language |
 | `distribution/planners/*` | `kernel`, `distribution/interpreter`, distribution languages; the core planner also uses the DuckDB SQL emitter |
 | `distribution/executors/*` | `kernel`, distribution model, distribution languages; the conflict-report executor reuses the planner's report values |
@@ -134,7 +134,7 @@ The primary edges are:
 | `api.py` | `distribution`, `kernel` |
 | `cli` | `generation`, `api.py` |
 
-The kernel imports no graph, table, topology, binding, SQL, DuckDB or Python
+The kernel imports no graph, data, topology, binding, SQL, DuckDB or Python
 package. Another package imports a leaf's `model.public`, `model.internal`,
 `service.public` or `service.internal`; it never imports a private zone.
 

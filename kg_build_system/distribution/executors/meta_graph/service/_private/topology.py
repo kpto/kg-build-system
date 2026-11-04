@@ -8,7 +8,7 @@ from typing import Any, Literal
 from kg_build_system.kernel.model.internal.json import FrozenObject, thaw_json
 from kg_build_system.distribution.interpreter.model.public import GraphBlueprint
 from kg_build_system.distribution.languages.binding.model.internal.dto import EdgeBindingDTO
-from kg_build_system.distribution.languages.table.model.internal import StructDTO
+from kg_build_system.distribution.languages.data.model.internal import StructDTO
 from kg_build_system.distribution.languages.topology.model.internal.dto import EdgeDTO, NodeDTO
 from kg_build_system.kernel.service.internal.types import type_to_document
 from kg_build_system.kernel.model.internal.types.dto import ArrayTypeDTO, CustomTypeDTO, LogicalTypeDTO, NullableTypeDTO, StructTypeDTO, UnitTypeDTO

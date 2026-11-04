@@ -12,26 +12,27 @@ prove.
 | Annotations | `distribution/languages/annotations` | annotation values and DTOs |
 | Selections | `distribution/languages/expressions/model/public` | typed reads over a row shape |
 | Operation specifications | `distribution/languages/expressions/service/internal/operations` | one specification per operation |
-| Row sources | `distribution/languages/table` | the row value a projection or binding reads |
-| Joins, unions, filters, groups, distinct, order | `distribution/languages/table` | row-source operations and their plan DTOs |
-| Projections | `distribution/languages/table` | a named relation with output expressions and a row source |
-| Data DTO | `distribution/languages/table/model/internal/dto/blueprint_dto.py` | the frozen data part of the blueprint |
+| Row sources | `distribution/languages/data` | the row value a projection or binding reads |
+| Joins, unions, filters, groups, distinct, order | `distribution/languages/data` | row-source operations and their plan DTOs |
+| Projections | `distribution/languages/data` | a named relation with output expressions and a row source |
+| Data DTO | `distribution/languages/data/model/internal/dto/blueprint_dto.py` | the frozen data part of the blueprint |
 | Blueprint | `distribution/interpreter` | assembles the layer DTOs into `GraphBlueprint` |
 | Relational plan | `distribution/planners/core/service/_private` | engine-neutral relation plans and step planning |
 | Instruction emission | `distribution/planners/core` and `distribution/executors/duckdb` | turns a plan into a `("sql", "duckdb")` instruction |
 | SQL emitter | `distribution/executors/duckdb/service/_private` | emits DuckDB SQL for an instruction |
 | Engine boundary | `distribution/executors/duckdb` | opens and runs the engine through `DuckDbResourceProvider` |
 
-`table` is the `data` language. `expressions` contributes operations and
-expression DTOs; it is not a graph language and does not own a build part.
+`data` is the graph language that owns row sources, projections and their
+DTOs. `expressions` contributes operations and expression DTOs; it is not a
+graph language and does not own a build part.
 
-## Table, expression, blueprint and planning
+## Data, expression, blueprint and planning
 
 The four boundaries have different jobs:
 
 | Boundary | Input | Output | Must not know |
 | --- | --- | --- | --- |
-| Table language | `Table`, `Struct`, `Projection`, row-source values | `DataPartDTO` | the blueprint, the engine, the workflow plan |
+| Data language | `Table`, `Struct`, `Projection`, row-source values | `DataPartDTO` | the blueprint, the engine, the workflow plan |
 | Expressions | selections, literals, field references, operations | expression DTOs and operation specifications | the blueprint, the engine runtime |
 | Blueprint | layer DTOs | `GraphBlueprint` | declaration classes, symbol IDs |
 | Planning | `GraphBlueprint` | `WorkflowPlan` | authoring classes; it reads DTOs only |
@@ -41,7 +42,7 @@ instance or a dictionary. Reading a member produces a typed selection. A
 projection is a named relation with output expressions and a row source; it is
 not a raw SQL string and not a second kind of table declaration.
 
-The table language transcribes declarations to its DTO. Planning never sees the
+The data language transcribes declarations to its DTO. Planning never sees the
 declaration classes, the field descriptors or the row-source wrapper. It sees
 the DTO and the plans derived from it.
 
@@ -107,7 +108,7 @@ distribution/languages/annotations/model/internal/dto/blueprint_dto.py
 distribution/languages/expressions/model/internal/dto/blueprint_dto.py
     LiteralExpressionDTO, FieldReferenceDTO, OperationExpressionDTO
 
-distribution/languages/table/model/internal/dto/blueprint_dto.py
+distribution/languages/data/model/internal/dto/blueprint_dto.py
     DataPartDTO
     StructDTO, RelationDTO, ColumnDTO
     ProjectionDTO, SourceDTO
@@ -175,7 +176,7 @@ A language has two directions:
 
 A layer renders its own DTO using its dependency layers' renderers. The blueprint
 source service delegates to each layer and assembles the fragments; it does not
-render table, topology or binding source itself.
+render data, topology or binding source itself.
 
 The round trip is a contract:
 
@@ -201,11 +202,11 @@ The round trip proves three things:
 
 The data model is implemented:
 
-- `distribution/languages/table/model/internal/dto/blueprint_dto.py` defines
+- `distribution/languages/data/model/internal/dto/blueprint_dto.py` defines
   `DataPartDTO`, `StructDTO`, `RelationDTO`, `ColumnDTO`, `ProjectionDTO`,
   `SourceDTO` and the `Row*DTO` plans. They carry graph names and no
   `symbol_id`.
-- `distribution/languages/table`, `topology` and `binding` each provide a
+- `distribution/languages/data`, `topology` and `binding` each provide a
   transcription service and a source service. Their languages implement
   `collect`, `transcribe`, `validate` and `render`.
 - `distribution/languages/expressions/model/internal/dto/blueprint_dto.py`
@@ -213,7 +214,7 @@ The data model is implemented:
   and `OperationExpressionDTO`.
 - `distribution/interpreter` defines `GraphBlueprint(graph, data, bindings,
   sources)`, a composing codec and a source service. The source service
-  delegates to the table, topology and binding renderers and assembles their
+  delegates to the data, topology and binding renderers and assembles their
   fragments.
 - `distribution/planners/core` owns the engine-neutral relation plans and the
   `("sql", "duckdb")` steps. `distribution/executors/duckdb` owns the emitter
@@ -235,7 +236,7 @@ The remaining limits in this area are:
 
 ## What to remember
 
-- Row sources, joins and projections belong to the table language.
+- Row sources, joins and projections belong to the data language.
 - Expressions contribute operation specifications and expression DTOs.
 - The blueprint assembles DTOs; planning reads the blueprint and never the
   declarations.

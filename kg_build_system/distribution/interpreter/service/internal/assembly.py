@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from kg_build_system.distribution.languages.table.model.internal.dto.blueprint_dto import DataPartDTO
+from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import DataPartDTO
 from kg_build_system.distribution.languages.topology.model.internal.dto.blueprint_dto import GraphPartDTO
 from ...model.public import BindingDTO, GraphBlueprint
 

@@ -5,7 +5,7 @@ from collections.abc import Sequence
 
 from kg_build_system.distribution.executors.duckdb import DuckDbSqlEmitter
 from kg_build_system.distribution.interpreter.model.public import GraphBlueprint
-from kg_build_system.distribution.languages.table.service.internal import (
+from kg_build_system.distribution.languages.data.service.internal import (
     plan_fields,
     plan_scan_sources,
     row_source_key,

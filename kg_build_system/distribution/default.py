@@ -19,11 +19,11 @@ from .executors.neo4j import Neo4jExecutor
 from .executors.python import PythonExecutor
 from .interpreter.service.internal import BlueprintLinker
 from .languages.binding.service.internal import BindingLanguage
-from .languages.table.service.internal import TableLanguage
+from .languages.data.service.internal import DataLanguage
 from .languages.topology.service.internal import TopologyLanguage
 from .planners import CorePlanner
 
-DEFAULT_LANGUAGES = (TableLanguage(), TopologyLanguage(), BindingLanguage())
+DEFAULT_LANGUAGES = (DataLanguage(), TopologyLanguage(), BindingLanguage())
 DEFAULT_EXECUTORS = (
     DuckDbExecutor(),
     PythonExecutor(),

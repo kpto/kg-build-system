@@ -10,10 +10,10 @@ from collections.abc import Mapping
 from kg_build_system.distribution.languages.expressions.model.internal import (
     ExpressionDTO,
 )
-from kg_build_system.distribution.languages.table.model.public.shapes import (
+from kg_build_system.distribution.languages.data.model.public.shapes import (
     ShapeField,
 )
-from kg_build_system.distribution.languages.table.model.internal import (
+from kg_build_system.distribution.languages.data.model.internal import (
     RowSourcePlanDTO,
 )
 

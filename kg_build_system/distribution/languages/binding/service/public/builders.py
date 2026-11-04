@@ -41,7 +41,7 @@ from typing import Any, cast, overload
 from kg_build_system.distribution.languages.expressions.model.public import (
     ValueInput,
 )
-from kg_build_system.distribution.languages.table.model.public import (
+from kg_build_system.distribution.languages.data.model.public import (
     DerivedRowSource,
     RelationRowSource,
 )

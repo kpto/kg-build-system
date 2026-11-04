@@ -25,11 +25,11 @@ from kg_build_system.distribution.languages.expressions.model.internal import (
 from kg_build_system.distribution.languages.expressions.service.internal import (
     walk_expression_dto,
 )
-from kg_build_system.distribution.languages.table.model.internal import (
+from kg_build_system.distribution.languages.data.model.internal import (
     ProjectionDTO,
     RowSourcePlanDTO,
 )
-from kg_build_system.distribution.languages.table.service.internal import (
+from kg_build_system.distribution.languages.data.service.internal import (
     plan_scan_sources,
     plan_shape_source_name,
     retarget_expression_dto,

@@ -72,7 +72,7 @@ kg_build_system/
     languages/
       annotations/
       expressions/
-      table/
+      data/
       topology/
       binding/
     interpreter/
@@ -547,7 +547,7 @@ by component id in `RuntimeConfiguration.component_configuration`. The supplied
 
 | Package | Contents |
 | --- | --- |
-| `languages/{annotations,expressions,table,topology,binding}` | the graph declaration languages and their DTOs |
+| `languages/{annotations,expressions,data,topology,binding}` | the graph declaration languages and their DTOs |
 | `interpreter` | `GraphBlueprint`, `BlueprintLinker`, `create_blueprint`, validation and source rendering |
 | `planners/*` | graph-aware planners that emit steps |
 | `executors/*` | instruction executors and execution services |
@@ -600,9 +600,9 @@ the dependency tests enforce the rest.
 | `kernel` | no framework package |
 | `distribution/languages/annotations` | `kernel` |
 | `distribution/languages/expressions` | `kernel` |
-| `distribution/languages/table` | `kernel`, annotations, expressions |
+| `distribution/languages/data` | `kernel`, annotations, expressions |
 | `distribution/languages/topology` | `kernel`, annotations, expressions |
-| `distribution/languages/binding` | `kernel`, annotations, table, topology |
+| `distribution/languages/binding` | `kernel`, annotations, data, topology |
 | `distribution/interpreter` | `kernel`, every graph language |
 | `distribution/planners/*` | `kernel`, `distribution/interpreter`, distribution languages; the core planner also uses the DuckDB SQL emitter |
 | `distribution/executors/*` | `kernel`, distribution model, distribution languages; the conflict-report executor reuses the planner's report values |
@@ -614,7 +614,7 @@ the dependency tests enforce the rest.
 
 Two rules apply to every row:
 
-- the kernel imports no graph, table, topology, binding, SQL, DuckDB or Python
+- the kernel imports no graph, data, topology, binding, SQL, DuckDB or Python
   package;
 - no package imports another package's private zones.
 
@@ -670,7 +670,7 @@ a public artifact.
 
 The kernel is domain-agnostic. Its dependency tests refuse an import of:
 
-- `distribution.languages.*` (graph, table, topology, binding, annotations,
+- `distribution.languages.*` (graph, data, topology, binding, annotations,
   expressions);
 - `distribution.interpreter` (blueprint);
 - `distribution.planners.*` and `distribution.executors.*`;

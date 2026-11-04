@@ -38,7 +38,7 @@ kg_build_system/
       _private/
   distribution/
     model/public/
-    languages/{annotations,expressions,table,topology,binding}
+    languages/{annotations,expressions,data,topology,binding}
     interpreter/
     planners/{core,deduplication,merging,conflict_validation}
     executors/
@@ -76,7 +76,7 @@ imports only `model.public` and `service.public`.
 - Supplied planners and executors live in `distribution`; `default_toolchain`
   adds the core planner and the default executors.
 - Source generation is per language; the interpreter source service delegates to
-  the table, topology and binding renderers.
+  the data, topology and binding renderers.
 - The workflow plan owns components, steps, connections and provenance. A step
   owns its instruction.
 

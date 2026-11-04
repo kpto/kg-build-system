@@ -10,7 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from kg_build_system.distribution.languages.binding.model.internal.dto.blueprint_dto import BindingDTO
-from kg_build_system.distribution.languages.table.model.internal.dto.blueprint_dto import DataPartDTO, SourceDTO
+from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import DataPartDTO, SourceDTO
 from kg_build_system.distribution.languages.topology.model.internal.dto.blueprint_dto import GraphPartDTO
 
 

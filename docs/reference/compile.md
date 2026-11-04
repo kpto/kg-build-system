@@ -52,7 +52,7 @@ selected languages, links the layers and validates the result.
 | `namespace_path` | An importable package name or directory to discover |
 | `bindings` | Explicit bindings; supply together with `sources` |
 | `sources` | Explicit source bindings; supply together with `bindings` |
-| `languages` | Language composition; defaults to table, topology and binding |
+| `languages` | Language composition; defaults to data, topology and binding |
 
 There are three declaration modes:
 

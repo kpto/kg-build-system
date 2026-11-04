@@ -18,7 +18,7 @@ LEAVES = (
     "distribution",
     "distribution/languages/annotations",
     "distribution/languages/expressions",
-    "distribution/languages/table",
+    "distribution/languages/data",
     "distribution/languages/topology",
     "distribution/languages/binding",
     "distribution/interpreter",

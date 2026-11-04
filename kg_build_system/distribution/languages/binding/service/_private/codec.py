@@ -15,7 +15,7 @@ from kg_build_system.distribution.languages.expressions.service.internal import 
     expression_from_document,
     expression_to_document,
 )
-from kg_build_system.distribution.languages.table.model.internal.dto.blueprint_dto import (
+from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import (
     RowDistinctDTO,
     RowFilterDTO,
     RowGroupByDTO,

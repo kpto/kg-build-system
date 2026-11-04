@@ -15,7 +15,7 @@ from kg_build_system.distribution.languages.expressions.model.internal.dto impor
     VariableExpressionDTO,
 )
 from kg_build_system.distribution.service.internal.rendering import class_name, member_name, render_annotation
-from kg_build_system.distribution.languages.table.model.internal.dto.blueprint_dto import (
+from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import (
     RowDistinctDTO,
     RowFilterDTO,
     RowGroupByDTO,

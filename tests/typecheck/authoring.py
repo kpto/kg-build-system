@@ -19,12 +19,12 @@ from kg_build_system.distribution.languages.binding.model.public import (
 from kg_build_system.distribution.languages.binding.service.public import (
     node_binding,
 )
-from kg_build_system.distribution.languages.table.model.public import (
+from kg_build_system.distribution.languages.data.model.public import (
     Field,
     Table,
     TableOptions,
 )
-from kg_build_system.distribution.languages.table.service.public import field
+from kg_build_system.distribution.languages.data.service.public import field
 from kg_build_system.distribution.languages.topology.model.public import (
     Node,
     NodeOptions,

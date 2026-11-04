@@ -1,7 +1,7 @@
 """Adapter from binding declarations to the kernel ``binding`` layer.
 
 ``BindingLanguage`` implements the kernel language shape. It references its
-target node or edge by graph name, reads the table and topology layers for
+target node or edge by graph name, reads the data and topology layers for
 validation, and renders bindings back to ``node_binding``/``edge_binding``
 source.
 """

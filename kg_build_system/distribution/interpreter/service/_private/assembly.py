@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from kg_build_system.distribution.languages.table.model.internal.dto.blueprint_dto import DataPartDTO
+from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import DataPartDTO
 from kg_build_system.distribution.languages.topology.model.internal.dto.blueprint_dto import GraphPartDTO
 from ...model.public import BindingDTO, GraphBlueprint
 
@@ -20,7 +20,7 @@ def assemble_blueprint(
 ) -> GraphBlueprint:
     """Assemble the layer DTOs into one blueprint handle.
 
-    Physical sources belong to the table language DTO and are exposed as the
+    Physical sources belong to the data language DTO and are exposed as the
     blueprint's ``sources`` view. No authoring module path is introduced.
     """
     return GraphBlueprint(

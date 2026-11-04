@@ -17,10 +17,10 @@ from kg_build_system.distribution.languages.expressions.model.internal.dto impor
 from kg_build_system.distribution.languages.expressions.service.internal import (
     expression_dto,
 )
-from kg_build_system.distribution.languages.table.model.internal.dto import (
+from kg_build_system.distribution.languages.data.model.internal.dto import (
     DataPartDTO,
 )
-from kg_build_system.distribution.languages.table.service.internal.rows import (
+from kg_build_system.distribution.languages.data.service.internal.rows import (
     plan_scan_sources, row_source_plan_dto,
 )
 from kg_build_system.distribution.languages.topology.model.internal.dto import (

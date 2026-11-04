@@ -15,7 +15,7 @@ This directory does not duplicate it.
 | `kernel` | canonical types; language, workflow and runtime values | `Language`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `ResourceProvider`, `Toolchain`, `Extension`, `WorkflowRuntime` |
 | `distribution/languages/annotations` | annotation values and labels | codec and source rendering |
 | `distribution/languages/expressions` | expression and selection values; expression DTOs | construction, operation specifications and source rendering |
-| `distribution/languages/table` | `Table`, `Struct`, `Projection`, fields and sources; data DTOs | field and source wrappers, transcription and source rendering |
+| `distribution/languages/data` | `Table`, `Struct`, `Projection`, fields and sources; data DTOs | field and source wrappers, transcription and source rendering |
 | `distribution/languages/topology` | `Node`, `Edge`, properties and templates; graph DTOs | property and endpoint wrappers, transcription and source rendering |
 | `distribution/languages/binding` | binding values; binding DTOs | `node_binding`, `edge_binding`, transcription and source rendering |
 | `distribution/interpreter` | `GraphBlueprint` | `create_blueprint`, `BlueprintLinker`, assembly, validation, codec and source |

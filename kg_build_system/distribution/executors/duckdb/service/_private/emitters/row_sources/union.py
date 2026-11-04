@@ -5,7 +5,7 @@ from typing import TYPE_CHECKING
 
 from sqlglot import exp
 
-from kg_build_system.distribution.languages.table.model.internal.dto import RowUnionDTO
+from kg_build_system.distribution.languages.data.model.internal.dto import RowUnionDTO
 
 if TYPE_CHECKING:
     from ..protocols import RowSourceEmissionContext

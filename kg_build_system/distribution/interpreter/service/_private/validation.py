@@ -4,7 +4,7 @@ from __future__ import annotations
 from typing import Any
 
 from kg_build_system.distribution.languages.binding.model.internal.dto.blueprint_dto import EdgeBindingDTO
-from kg_build_system.distribution.languages.table.model.internal.dto.blueprint_dto import DataPartDTO
+from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import DataPartDTO
 from kg_build_system.distribution.languages.topology.model.internal.dto.blueprint_dto import EdgeDTO
 from ...model.public import GraphBlueprint
 

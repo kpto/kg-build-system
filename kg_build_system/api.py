@@ -27,7 +27,7 @@ from typing import Any
 from .distribution.default import DEFAULT_TOOLCHAIN, default_toolchain
 from .distribution.interpreter import GraphBlueprint, create_blueprint as _create_blueprint
 from .distribution.languages.binding import Binding
-from .distribution.languages.table import BoundSource
+from .distribution.languages.data import BoundSource
 from .distribution.model.public.runtime import BuildRuntime
 from .kernel import RuntimeConfiguration, Toolchain, WorkflowPlan, WorkflowReport
 from .kernel.service.internal.workflow_codec import workflow_plan_to_document

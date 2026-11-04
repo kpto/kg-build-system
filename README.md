@@ -11,7 +11,7 @@ publishes the graph with the meaning declared for it.
 | Group | Responsibility |
 | --- | --- |
 | `kernel/` | domain-agnostic toolchain: language, linker, planner, executor, runtime, workflow plan and canonical types |
-| `distribution/languages/` | the annotation, expression, table, topology and binding languages |
+| `distribution/languages/` | the annotation, expression, data, topology and binding languages |
 | `distribution/interpreter/` | `GraphBlueprint`, `BlueprintLinker` and `create_blueprint` |
 | `distribution/planners/` | core, deduplication, merging and conflict-validation planners |
 | `distribution/executors/` | DuckDB, Python, file, meta-graph, Neo4j and conflict-report executors |

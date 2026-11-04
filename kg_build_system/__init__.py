@@ -25,7 +25,7 @@ if TYPE_CHECKING:
         BindingOptions, EdgeBinding, EdgeValues, NodeBinding, NodeValues,
         edge_binding, node_binding,
     )
-    from .distribution.languages.table import (
+    from .distribution.languages.data import (
         BoundSource, BoundTable, BoundTableGroup, ComputedStruct, DataSourceConfig,
         DerivedRowSource, Field, InputFormat, Projection, ProjectionOptions,
         RelationRowSource, RowSource, SourceBindingOptions, Struct, StructOptions,
@@ -62,7 +62,7 @@ _GROUPS: dict[str, tuple[str, ...]] = {
         "ValueSelection", "all_of", "any_of", "as_expression",
         "value_expression",
     ),
-    "distribution.languages.table": (
+    "distribution.languages.data": (
         "BoundSource", "BoundTable", "BoundTableGroup", "ComputedStruct",
         "DataSourceConfig", "DerivedRowSource", "Field", "InputFormat",
         "Projection", "ProjectionOptions", "RelationRowSource", "RowSource",

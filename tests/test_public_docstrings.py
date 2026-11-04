@@ -12,7 +12,7 @@ PACKAGES = (
     "kg_build_system.distribution",
     "kg_build_system.distribution.languages.annotations",
     "kg_build_system.distribution.languages.expressions",
-    "kg_build_system.distribution.languages.table",
+    "kg_build_system.distribution.languages.data",
     "kg_build_system.distribution.languages.topology",
     "kg_build_system.distribution.languages.binding",
     "kg_build_system.distribution.interpreter",
@@ -39,11 +39,11 @@ INTERNAL_SURFACES = ("model.internal", "service.internal")
 # the check for every public function.
 KNOWN_MISSING_FUNCTION_EXAMPLES = {
     (
-        "kg_build_system.distribution.languages.table.model.public.declarations",
+        "kg_build_system.distribution.languages.data.model.public.declarations",
         "is_concrete_table",
     ),
     (
-        "kg_build_system.distribution.languages.table.model.public.declarations",
+        "kg_build_system.distribution.languages.data.model.public.declarations",
         "is_table_group",
     ),
 }

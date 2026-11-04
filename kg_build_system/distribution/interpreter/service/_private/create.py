@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from kg_build_system.distribution.languages.binding.service.internal import BindingLanguage
-from kg_build_system.distribution.languages.table.service.internal import TableLanguage
+from kg_build_system.distribution.languages.data.service.internal import DataLanguage
 from kg_build_system.distribution.languages.topology.service.internal import TopologyLanguage
 from kg_build_system.kernel import Toolchain
 
@@ -21,8 +21,8 @@ from .discovery import _ModuleNamespace, _Namespace, namespace_modules
 
 
 def _default_languages() -> tuple[Any, ...]:
-    """Return the default table, topology and binding languages."""
-    return (TableLanguage(), TopologyLanguage(), BindingLanguage())
+    """Return the default data, topology and binding languages."""
+    return (DataLanguage(), TopologyLanguage(), BindingLanguage())
 
 
 def create_blueprint(

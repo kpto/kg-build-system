@@ -8,7 +8,7 @@ from kg_build_system.distribution.interpreter.service.internal import (
     assemble_blueprint,
     validate_blueprint,
 )
-from kg_build_system.distribution.languages.table.model.internal import DataPartDTO
+from kg_build_system.distribution.languages.data.model.internal import DataPartDTO
 from kg_build_system.distribution.languages.topology.model.internal import GraphPartDTO
 from kg_build_system.kernel import Layer
 

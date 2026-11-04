@@ -33,12 +33,12 @@ The implemented tree is `kernel`, `distribution`, `generation`, `api.py` and
 uses `model/` and `service/`; shared mechanisms live in the package that
 consumes them, for example JSON freezing in `kernel/model/internal/json.py`,
 the scheduler in `kernel/service/_private/runtime.py`, and table naming and
-docstring helpers in `distribution/languages/table/service/_private/`.
+docstring helpers in `distribution/languages/data/service/_private/`.
 
 | Area | Implementation | Remaining limit |
 | --- | --- | --- |
 | Kernel | `Language`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `ResourceProvider`, `Toolchain` and `Extension` in `kernel/service/public`; the workflow and runtime values in `kernel/model/public`; canonical types in `kernel/model/public/types` | A language may publish only its layer value instead of per-declaration definitions |
-| Languages | `collect`, `transcribe`, `validate`, `render` in the table, topology and binding services; annotations and expressions as supporting languages | None |
+| Languages | `collect`, `transcribe`, `validate`, `render` in the data, topology and binding services; annotations and expressions as supporting languages | None |
 | Blueprint | `create_blueprint(...) -> GraphBlueprint`; `BlueprintLinker` implements the kernel `Linker` protocol through `service/internal/adapters/kernel_linker.py` | Public `GraphBlueprint` fields reference internal layer DTOs |
 | Planning | `compile(model) -> WorkflowPlan` with the core, deduplication, merging and conflict-validation planners | The core planner depends on the DuckDB SQL emitter |
 | Execution | `execute(plan, output_directory=...) -> WorkflowReport`; the kernel scheduler dispatches by exact `instruction.kind`; `DuckDbResourceProvider` owns engine services | DuckDB is the default engine |

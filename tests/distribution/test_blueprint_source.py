@@ -18,7 +18,7 @@ try:
         blueprint_to_document, blueprint_to_source,
     )
     from kg_build_system.distribution.languages.binding import node_binding
-    from kg_build_system.distribution.languages.table import (
+    from kg_build_system.distribution.languages.data import (
         DataSourceConfig, Field, Table, bind_source, field,
     )
     from kg_build_system.distribution.languages.topology import (

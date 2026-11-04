@@ -13,14 +13,14 @@ from kg_build_system.distribution.interpreter.service.internal import (
 )
 from kg_build_system.distribution.languages.binding import node_binding
 from kg_build_system.distribution.languages.binding.service.internal import BindingLanguage
-from kg_build_system.distribution.languages.table import (
+from kg_build_system.distribution.languages.data import (
     DataSourceConfig,
     Field,
     Table,
     bind_source,
     field,
 )
-from kg_build_system.distribution.languages.table.service.internal.adapters.kernel_language import TableLanguage
+from kg_build_system.distribution.languages.data.service.internal.adapters.kernel_language import DataLanguage
 from kg_build_system.distribution.languages.topology import (
     Node,
     PropertySlot,
@@ -57,7 +57,7 @@ def _canonical(document: object) -> str:
 def _source_from_layers(blueprint: GraphBlueprint) -> str:
     fragments = (
         TopologyLanguage().render(blueprint.graph, None),
-        TableLanguage().render(blueprint.data, None),
+        DataLanguage().render(blueprint.data, None),
         BindingLanguage().render(blueprint.bindings, None),
     )
     imports = sorted({

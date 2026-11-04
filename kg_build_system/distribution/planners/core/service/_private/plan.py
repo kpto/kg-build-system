@@ -20,7 +20,7 @@ from kg_build_system.distribution.languages.expressions.model.internal import (
 from kg_build_system.distribution.languages.expressions.service.internal import (
     walk_expression_dto,
 )
-from kg_build_system.distribution.languages.table.model.internal import (
+from kg_build_system.distribution.languages.data.model.internal import (
     ColumnDTO,
     ProjectionDTO,
     RelationDTO,
@@ -28,10 +28,10 @@ from kg_build_system.distribution.languages.table.model.internal import (
     RowSourcePlanDTO,
     StructDTO,
 )
-from kg_build_system.distribution.languages.table.model.public.shapes import (
+from kg_build_system.distribution.languages.data.model.public.shapes import (
     ShapeField,
 )
-from kg_build_system.distribution.languages.table.service.internal import (
+from kg_build_system.distribution.languages.data.service.internal import (
     plan_inputs,
     plan_scan_sources,
     row_source_key,

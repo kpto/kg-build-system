@@ -171,7 +171,7 @@ Source generation is the responsibility of the layer that owns the DTO:
 - a layer renders its own DTO using its dependency layers' renderers;
 - the blueprint source service delegates to each layer and assembles the
   fragments;
-- the blueprint layer does not render table, topology or binding source itself.
+- the blueprint layer does not render data, topology or binding source itself.
 
 The blueprint must regenerate equivalent authoring source. The round trip
 

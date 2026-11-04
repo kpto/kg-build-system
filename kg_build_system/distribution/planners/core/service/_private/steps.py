@@ -8,12 +8,12 @@ from kg_build_system.distribution.executors.duckdb.service.internal.emitters imp
     DuckDbSqlEmitter,
 )
 from kg_build_system.distribution.interpreter.model.public import GraphBlueprint
-from kg_build_system.distribution.languages.table.model.internal import (
+from kg_build_system.distribution.languages.data.model.internal import (
     ProjectionDTO,
     RelationDTO,
     RowSourcePlanDTO,
 )
-from kg_build_system.distribution.languages.table.service.internal import (
+from kg_build_system.distribution.languages.data.service.internal import (
     plan_inputs,
     row_source_key,
 )

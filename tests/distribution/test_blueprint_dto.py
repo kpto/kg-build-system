@@ -11,7 +11,7 @@ from kg_build_system.distribution.languages.binding.model.internal import (
     NodeBindingDTO,
     PythonRefDTO,
 )
-from kg_build_system.distribution.languages.table.model.internal import (
+from kg_build_system.distribution.languages.data.model.internal import (
     ColumnDTO,
     DataPartDTO,
     ProjectionDTO,

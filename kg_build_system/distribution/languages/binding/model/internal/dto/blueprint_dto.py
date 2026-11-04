@@ -1,7 +1,7 @@
 """Blueprint DTO for the binding part.
 
 A binding references its node or edge by graph name, its keys and properties by
-expression DTOs, and its rows by the table language's row plan DTO. It carries
+expression DTOs, and its rows by the data language's row plan DTO. It carries
 no Python component symbol or live callable. A rows-form binding is a Python
 binding and names the producing callable with a :class:`PythonRefDTO`.
 """
@@ -14,11 +14,11 @@ from kg_build_system.distribution.languages.annotations.model.internal.dto impor
 from kg_build_system.distribution.languages.expressions.model.internal.dto import (
     ExpressionDTO,
 )
-from kg_build_system.distribution.languages.table.model.internal.dto.blueprint_dto import (
+from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import (
     RowSourcePlanDTO,
 )
 
-# The binding rows field uses the table language's row plan DTO.
+# The binding rows field uses the data language's row plan DTO.
 RowPlanDTO: TypeAlias = RowSourcePlanDTO
 
 type BindingMode = Literal["declarative", "python"]

@@ -11,8 +11,8 @@ from sqlglot import exp
 from ..sql import SqlNode
 
 from kg_build_system.distribution.languages.expressions.model.internal import ExpressionDTO
-from kg_build_system.distribution.languages.table.service.internal import row_source_key
-from kg_build_system.distribution.languages.table.model.public import ShapeField
+from kg_build_system.distribution.languages.data.service.internal import row_source_key
+from kg_build_system.distribution.languages.data.model.public import ShapeField
 
 if TYPE_CHECKING:
     from ..protocols import ExpressionEmitter

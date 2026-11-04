@@ -6,7 +6,7 @@ from kg_build_system.distribution.languages.expressions import (
     NullableSelection,
     ValueSelection,
 )
-from kg_build_system.distribution.languages.table import (
+from kg_build_system.distribution.languages.data import (
     Field,
     Projection,
     Struct,

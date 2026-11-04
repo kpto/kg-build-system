@@ -31,7 +31,7 @@ Current coverage:
 - `tests/kernel/test_extension_bundle.py` — one `Extension` composed into a
   `Toolchain` with a fake language, linker, planner, executor and resources.
 - `tests/kernel/test_import_isolation.py` — importing the kernel does not load a
-  graph, table, topology, binding or engine package.
+  graph, data, topology, binding or engine package.
 
 ## Planner tests
 

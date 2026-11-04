@@ -18,7 +18,7 @@ LEAVES = (
     "distribution",
     "distribution/languages/annotations",
     "distribution/languages/expressions",
-    "distribution/languages/table",
+    "distribution/languages/data",
     "distribution/languages/topology",
     "distribution/languages/binding",
     "distribution/interpreter",
@@ -40,7 +40,7 @@ LEAVES = (
 )
 LEAF_PARTS = {tuple(leaf.split("/")): leaf for leaf in LEAVES}
 ADAPTERS = {
-    "distribution/languages/table": "kernel_language.py",
+    "distribution/languages/data": "kernel_language.py",
     "distribution/languages/topology": "kernel_language.py",
     "distribution/languages/binding": "kernel_language.py",
     "distribution/interpreter": "kernel_linker.py",

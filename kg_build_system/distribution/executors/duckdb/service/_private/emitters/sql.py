@@ -10,7 +10,7 @@ from typing import Any
 
 from sqlglot import exp
 
-from kg_build_system.distribution.languages.table.model.public import ShapeField
+from kg_build_system.distribution.languages.data.model.public import ShapeField
 
 
 #: sqlglot publishes no public base-class alias that type checkers accept, so the

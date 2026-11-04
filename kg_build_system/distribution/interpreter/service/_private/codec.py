@@ -9,7 +9,7 @@ from __future__ import annotations
 from typing import Any, Mapping
 
 from kg_build_system.distribution.languages.binding.service.internal.codec import binding_from_document, binding_to_document
-from kg_build_system.distribution.languages.table.service.internal.codec import data_from_document, data_to_document
+from kg_build_system.distribution.languages.data.service.internal.codec import data_from_document, data_to_document
 from kg_build_system.distribution.languages.topology.service.internal.codec import graph_from_document, graph_to_document
 from ...model.public import GraphBlueprint
 
@@ -18,7 +18,7 @@ def blueprint_to_document(blueprint: GraphBlueprint) -> dict[str, Any]:
     """Encode a blueprint into its canonical JSON-compatible document.
 
     The document has one member per layer codec: ``graph``, ``data`` and
-    ``bindings``. Physical sources are encoded by the table DTO.
+    ``bindings``. Physical sources are encoded by the data DTO.
     """
     return {
         "graph": graph_to_document(blueprint.graph),

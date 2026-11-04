@@ -1,7 +1,7 @@
 """The kernel's public model: canonical types, language, workflow and runtime.
 
 This package is domain-agnostic. It knows languages, layers, definitions,
-workflow steps, components and runtime outcomes; it knows no table, topology,
+workflow steps, components and runtime outcomes; it knows no data, topology,
 expression, SQL or graph vocabulary. It imports no service behaviour and no
 private module.
 """

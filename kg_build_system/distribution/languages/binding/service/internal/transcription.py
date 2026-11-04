@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from kg_build_system.distribution.languages.table.model.internal.dto import (
+from kg_build_system.distribution.languages.data.model.internal.dto import (
     DataPartDTO,
 )
 
