@@ -69,24 +69,6 @@ class StructSelection(ValueSelection[TStruct], Generic[TStruct]):
             raise TypeError("extract requires a struct selection")
         return pick_member(self, selector, logical_type, propagate_null=False)
 
-    def pick(self, selector: Callable[[TStruct], ValueSelection[Any]]) -> ValueSelection[Any]:
-        """Legacy spelling of ``extract``.
-
-        Example:
-            ```python
-            from kg_build_system import Field, Struct, Table, field
-
-            class Detail(Struct):
-                label: Field[str] = field(name="label")
-
-            class Row(Table):
-                detail: Field[Detail] = field(name="detail")
-
-            selected = Row.detail.pick(lambda detail: detail.label)
-            assert selected.logical_type.name == "str"
-            ```
-        """
-        return self.extract(selector)
 
 
 __all__ = ["StructSelection"]

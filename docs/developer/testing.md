@@ -195,14 +195,14 @@ Current coverage:
 
 - `tests/test_reference_build.py` — the reference build writes `graph.jsonl`,
   `meta_graph.json`, `meta_graph.html` and `neo4j-import/`.
-- `tests/test_public_api.py` and `tests/test_old_authoring_api.py` — the public
+- `tests/test_public_api.py` and `tests/test_authoring_api.py` — the public
   names and the authoring surface.
 - `tests/typecheck/authoring.py` — the authoring typecheck fixture.
 - Open Targets: `cd ~/Repos/opentargets-kg && uv run pytest -q`.
 
 ## Verification
 
-- 228 tests passed, 1755 subtests.
+- 228 tests passed, 1753 subtests.
 - Pyright: 0 errors.
 - Open Targets: 7 tests passed.
 - `uv run mkdocs build --strict`: passes.

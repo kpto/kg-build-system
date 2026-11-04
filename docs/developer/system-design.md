@@ -766,7 +766,7 @@ value.
 
 The tree above is the implementation.
 
-- 228 tests passed, 1755 subtests.
+- 228 tests passed, 1753 subtests.
 - Pyright: 0 errors.
 - mkdocs strict build: passes.
 - Open Targets: the migrated project builds against the API; 7 tests pass.

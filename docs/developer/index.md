@@ -54,7 +54,7 @@ naming and docstring helpers in
 
 ## Verification
 
-- 228 tests passed, 1755 subtests.
+- 228 tests passed, 1753 subtests.
 - Pyright: 0 errors.
 - `uv run mkdocs build --strict`: passes.
 - Open Targets: 7 tests passed.

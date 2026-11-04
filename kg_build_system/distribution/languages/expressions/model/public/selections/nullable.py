@@ -164,51 +164,6 @@ class NullableSelection(
         return expand_selection(self.require_expression())
 
     @overload
-    def pick[S: Struct, U: SelectionUnit](
-        self: "NullableSelection[S]", selector: Callable[[S], ValueSelection[U]],
-    ) -> "NullableSelection[U]": ...  # pyright: ignore[reportOverlappingOverload]
-    @overload
-    def pick[S: Struct, D: SelectionDataType](
-        self: "NullableSelection[S]", selector: Callable[[S], "NullableSelection[D]"],
-    ) -> "NullableSelection[D]": ...
-    @overload
-    def pick[S: Struct, I: NullableDataType](
-        self: "NullableSelection[S]", selector: Callable[[S], "ArraySelection[I]"],
-    ) -> "NullableSelection[Array[I]]": ...
-    @overload
-    def pick[S: Struct, Inner: Struct](
-        self: "NullableSelection[S]", selector: Callable[[S], "StructSelection[Inner]"],
-    ) -> "NullableSelection[Inner]": ...
-    def pick(self, selector: Callable[[Any], ValueSelection[Any]]) -> ValueSelection[Any]:
-        """Read one declared member of this nullable struct.
-
-        The legacy spelling of ``extract``. The member inherits the parent
-        struct's nullness.
-
-        Example:
-            ```python
-            from kg_build_system import Field, Struct, Table, field
-
-            class Detail(Struct):
-                label: Field[str] = field(name="label")
-
-            class Row(Table):
-                detail: Field[Detail | None] = field(name="detail")
-
-            selected = Row.detail.pick(lambda detail: detail.label)
-            assert selected.logical_type.value.name == "str"
-            ```
-        """
-        logical_type = self.logical_type
-        from ....service._private.selections import _pick as pick_member
-
-        if not isinstance(logical_type, NullableType) or not isinstance(
-            logical_type.value, StructType
-        ):
-            raise TypeError("pick requires a nullable struct selection")
-        return pick_member(self, selector, logical_type.value, propagate_null=True)
-
-    @overload
     def extract[S: Struct, U: SelectionUnit](
         self: "NullableSelection[S]", selector: Callable[[S], ValueSelection[U]],
     ) -> "NullableSelection[U]": ...  # pyright: ignore[reportOverlappingOverload]

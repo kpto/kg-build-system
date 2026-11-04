@@ -28,22 +28,22 @@ class Source(Table[TestEstate]):
     details: Field[Array[Detail] | None] = field(name="details")
 
 
-class OldProjection(Projection):
+class SourceProjection(Projection):
     ident = projection_field(Source.id)
 
 
-class OldAuthoringTests(unittest.TestCase):
+class AuthoringApiTests(unittest.TestCase):
     def test_source_access_follows_the_declaration(self) -> None:
         self.assertIsInstance(Source.id, ValueSelection)
         self.assertIsInstance(Source.detail, NullableSelection)
 
-    def test_old_selection_spellings_compose(self) -> None:
+    def test_selection_operations_compose(self) -> None:
         selected = (
             Source.details
             .where_present()
             .drop_null_items()
             .expand()
-            .pick(lambda item: item.label)
+            .extract(lambda item: item.label)
             .where_present()
         )
         self.assertIsInstance(selected, ValueSelection)
@@ -53,7 +53,7 @@ class OldAuthoringTests(unittest.TestCase):
         )
 
     def test_an_unpinned_projection_uses_projection_field(self) -> None:
-        self.assertEqual(OldProjection.ident.logical_type, Source.id.logical_type)
+        self.assertEqual(SourceProjection.ident.logical_type, Source.id.logical_type)
 
 
 if __name__ == "__main__":
