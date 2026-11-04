@@ -261,8 +261,10 @@ rule about what the framework is belongs to the framework model.
 - Each subpackage declares its responsibility, its interface and the subpackages
   it may import.
 - Every framework subpackage uses the same model/service layout:
-  - `__init__.py` — the facade; a docstring, imports and `__all__` only, with no
-    function, class, constant, registry or lazy `__getattr__`;
+  - `__init__.py` — the facade; a docstring, imports, a literal `__all__` and
+    import/re-export machinery (`__getattr__`, `__dir__`, a lazy group table).
+    It contains no business logic: no service, planner, codec, validation,
+    feature registry or default instance;
   - `model/public/` — authoring models, returned values and public DTOs;
   - `model/internal/` — cross-package data: `dto/` and `model/`;
   - `model/_private/` — private plans, render models and SQL types;
@@ -272,7 +274,8 @@ rule about what the framework is belongs to the framework model.
   - `service/_private/` — codecs, transcription, rendering, validation,
     assembly, planning, engines and runtime.
 - A leaf contains only the zones it uses; an empty zone is deleted. The
-  top-level lazy loader is `_facade.py`, not an `__init__.py`.
+  top-level lazy export table lives in `kg_build_system/__init__.py`; lazy
+  loading is import machinery, not business logic.
 - `model.public` and `service.public` are the definition sites for author-facing
   names. A public function or method is a thin wrapper over `service._private` or
   `service.internal`; the mechanism is not in `service.public`.

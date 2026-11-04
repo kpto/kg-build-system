@@ -120,8 +120,9 @@ Current coverage:
 - `tests/test_architecture.py` — the package tree, facade surfaces, private
   zones, model/service import matrix and adapter files across `kernel`,
   `distribution`, `generation` and `cli`.
-- `tests/test_facades.py` — every `__init__.py` is a docstring, imports and
-  `__all__` only.
+- `tests/test_facades.py` — every `__init__.py` contains only a docstring,
+  imports, a literal `__all__`, `TYPE_CHECKING` imports and import/re-export
+  machinery; the top-level lazy groups match `__all__`.
 - `tests/test_naming.py` — the interface naming rules.
 - `tests/distribution/test_blueprint_dto.py` — language DTO fields, graph-name
   endpoints and parents, and the public blueprint references.
@@ -201,7 +202,7 @@ Current coverage:
 
 ## Verification
 
-- 226 tests passed, 1655 subtests.
+- 228 tests passed, 1755 subtests.
 - Pyright: 0 errors.
 - Open Targets: 7 tests passed.
 - `uv run mkdocs build --strict`: passes.

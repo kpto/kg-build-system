@@ -5,7 +5,7 @@ implementation.
 
 ## Verification
 
-- **226 tests**, **1655 subtests**.
+- **228 tests**, **1755 subtests**.
 - Pyright: **0 errors**.
 - `uv run mkdocs build --strict`: passes.
 - Open Targets KG: **7 tests** pass.
@@ -46,7 +46,7 @@ kg_build_system/
     service/             the distribution leaf's service zone
     implementations.py
   generation/code_generation/
-  _facade.py
+  __init__.py            lazy export table; literal __all__
   api.py
   cli/
 ```

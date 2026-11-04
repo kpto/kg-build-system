@@ -119,7 +119,7 @@ kg_build_system/
     code_generation/
   frontend/
     monitor.py           Monitor, NullMonitor, ConsoleMonitor, resolve_monitor
-  _facade.py             top-level lazy export table
+  __init__.py            top-level lazy export table; literal __all__
   api.py                 default_toolchain, DEFAULT_TOOLCHAIN,
                          create_blueprint, compile, execute
   cli/
@@ -151,10 +151,13 @@ pkg/
 
 - A leaf contains only the zones it uses. An empty zone is deleted; it is not a
   marker.
-- `__init__.py` is a facade: a docstring, imports and `__all__`. It defines no
-  function, class, constant, registry, `__getattr__` or `__dir__`.
-- The package root is the one exception: `kg_build_system/__init__.py` delegates
-  to `_facade.py`, which is the top-level lazy export table.
+- `__init__.py` is a facade: a docstring, imports, a literal `__all__` and
+  import/re-export machinery (`__getattr__`, `__dir__`, a lazy group table).
+  It contains no business logic: no service, planner, codec, validation,
+  feature registry or default instance.
+- The package root keeps the lazy export table, `__getattr__`, `__dir__` and a
+  literal `__all__` in `kg_build_system/__init__.py`. The literal export list
+  and the lazy group table are checked for parity by `tests/test_facades.py`.
 - `tests/test_facades.py` enforces the facade shape, and the relaxed layout test
   enforces that an existing zone is not empty and a facade imports an existing
   public zone.
@@ -763,7 +766,7 @@ value.
 
 The tree above is the implementation.
 
-- 226 tests passed, 1655 subtests.
+- 228 tests passed, 1755 subtests.
 - Pyright: 0 errors.
 - mkdocs strict build: passes.
 - Open Targets: the migrated project builds against the API; 7 tests pass.

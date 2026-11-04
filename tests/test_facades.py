@@ -29,6 +29,37 @@ def _is_all_assignment(node: ast.stmt) -> bool:
     )
 
 
+def _is_import_groups(node: ast.stmt) -> bool:
+    if isinstance(node, ast.Assign):
+        if len(node.targets) != 1 or not isinstance(node.targets[0], ast.Name):
+            return False
+        target = node.targets[0]
+    elif isinstance(node, ast.AnnAssign) and isinstance(node.target, ast.Name):
+        target = node.target
+    else:
+        return False
+    if target.id != "_GROUPS" or not isinstance(node.value, ast.Dict):
+        return False
+    for key, value in zip(node.value.keys, node.value.values):
+        if not isinstance(key, ast.Constant) or not isinstance(key.value, str):
+            return False
+        if not isinstance(value, (ast.Tuple, ast.List)):
+            return False
+        if not all(
+            isinstance(item, ast.Constant) and isinstance(item.value, str)
+            for item in value.elts
+        ):
+            return False
+    return True
+
+
+def _is_import_machinery(node: ast.stmt) -> bool:
+    return (
+        isinstance(node, ast.FunctionDef)
+        and node.name in {"__getattr__", "__dir__"}
+    )
+
+
 def _is_type_checking_block(node: ast.stmt) -> bool:
     if not isinstance(node, ast.If) or node.orelse:
         return False
@@ -46,7 +77,7 @@ def _is_type_checking_block(node: ast.stmt) -> bool:
 
 
 class FacadeTests(unittest.TestCase):
-    def test_every_init_is_docstring_imports_type_checking_and_all(self) -> None:
+    def test_every_init_contains_only_import_machinery(self) -> None:
         for path in sorted(ROOT.rglob("__init__.py")):
             if "__pycache__" in path.parts:
                 continue
@@ -63,12 +94,30 @@ class FacadeTests(unittest.TestCase):
                         continue
                     if _is_all_assignment(node):
                         continue
+                    if _is_import_groups(node):
+                        continue
+                    if _is_import_machinery(node):
+                        continue
                     if _is_type_checking_block(node):
                         continue
                     self.fail(
                         f"{path}:{node.lineno} has a forbidden facade statement "
                         f"{type(node).__name__}: {ast.unparse(node)}"
                     )
+
+
+    def test_the_literal_export_table_matches_the_lazy_groups(self) -> None:
+        groups = kg_build_system._GROUPS
+        expected = {
+            name for names in groups.values() for name in names
+        }
+        self.assertEqual(set(kg_build_system.__all__), expected)
+        self.assertEqual(len(kg_build_system.__all__), len(expected))
+
+    def test_every_export_is_resolvable(self) -> None:
+        for name in kg_build_system.__all__:
+            with self.subTest(name=name):
+                self.assertIsNotNone(getattr(kg_build_system, name))
 
 
 if __name__ == "__main__":
