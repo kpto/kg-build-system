@@ -126,7 +126,7 @@ An annotation has no owner field. The attachment on the declaration says what it
 
 Mixing a template into a component adds the template's annotations to that component. Each template contributes its own frozen tuple once, base template before derived, followed by the component's own `options.annotations`. The template is not a graph component and does not enter the blueprint. A category parent's own annotations stay on the parent; they are not copied down to its children.
 
-When you compile, every reached declaration contributes its annotations to the blueprint, including bindings and source bindings. Only declarations the build reaches are published: the tables and projections a binding reads, the components a binding targets and their ancestors and endpoints, the structs those types use, and the sources those tables need. An annotation on an unrelated declaration is valid Python but no consumer can reach it.
+When you compile, every reached declaration contributes its annotations to the blueprint, including bindings and assets. Only declarations the build reaches are published: the tables and projections a binding reads, the components a binding targets and their ancestors and endpoints, the structs those types use, and the assets those tables name. An annotation on an unrelated declaration is valid Python but no consumer can reach it.
 
 ## What consumers see
 

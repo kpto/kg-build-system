@@ -23,14 +23,16 @@ Returns the relation row source for a table or projection. The relation's
 from kg_build_system import Field, Table, TableOptions, field
 
 
-class SiteTable(Table):
+from estate.assets import Estate
+
+class SiteTable(Table[Estate]):
     options = TableOptions(name="sites")
     site_id: Field[str] = field()
     name: Field[str] = field()
     region: Field[str] = field()
 
 
-class ReadingTable(Table):
+class ReadingTable(Table[Estate]):
     options = TableOptions(name="readings")
     reading_id: Field[str] = field()
     site_id: Field[str] = field()

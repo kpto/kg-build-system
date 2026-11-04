@@ -15,14 +15,15 @@ This directory does not duplicate it.
 | `kernel` | canonical types; declaration, symbol, key, workflow and runtime values | `Language`, `Declaration`, `Symbol`, `SymbolRef`, `Key`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `Resource`, `ResourceProvider`, `ResourceView`, `Toolchain`, `Extension`, `WorkflowRuntime` |
 | `distribution/languages/annotations` | annotation values and labels | codec and source rendering |
 | `distribution/languages/expressions` | expression and selection values; expression DTOs | construction, operation specifications and source rendering |
-| `distribution/languages/data` | `Table`, `Struct`, `Projection`, fields and sources; data DTOs | field and source wrappers, transcription and source rendering |
+| `distribution/languages/asset` | `Asset`, `AssetOptions`, `AssetLayout`, `AssetSemantics`, `AssetGovernance`; asset DTOs | asset discovery, transcription, codec and source rendering |
+| `distribution/languages/data` | `Table[Asset]`, `Struct`, `Projection` and fields; data DTOs | field wrappers, transcription and source rendering |
 | `distribution/languages/topology` | `Node`, `Edge`, properties and templates; graph DTOs | property and endpoint wrappers, transcription and source rendering |
 | `distribution/languages/binding` | binding values; binding DTOs | `node_binding`, `edge_binding`, transcription and source rendering |
 | `distribution/interpreter` | `GraphBlueprint` | `create_blueprint`, `BlueprintLinker`, assembly, validation, codec and source |
 | `distribution/model/public` | `BuildRuntime`, typed references and path rules | none |
 | `distribution/modules/<name>` | planner and executor configuration, report values and resource models | supplied planners, executors and resource providers |
 | `distribution/implementations.py` | none | language and linker implementations |
-| `generation/code_generation` | generation requests, results and provider contract | generation, discovery, rendering and ownership |
+| `generation/code_generation` | `AssetContractOptions`, results and provider contract | `asset_contract`, generation, discovery, rendering and ownership |
 | `api.py` | none | `default_toolchain`, `DEFAULT_TOOLCHAIN`, `create_blueprint`, `compile`, `execute` |
 | `cli` | none | `kbs` entry point |
 
@@ -63,12 +64,13 @@ The import matrix:
 
 ## Dependency spine
 
-`distribution/languages` depends on `kernel`. `distribution/interpreter` depends
-on the languages and the kernel. `distribution/modules` depend on the interpreter
+`distribution/languages` depends on `kernel`; `data` also depends on `asset`.
+`distribution/interpreter` depends on the languages and the kernel. `distribution/modules` depend on the interpreter
 where they read a blueprint, the languages, `distribution/model`,
 `distribution/service` and the kernel; the core module uses the DuckDB SQL
 emitter. `distribution/implementations` supplies the languages and linker that
-`api.py` composes. `generation` is upstream. `api.py` and `cli` compose the
+`api.py` composes. `generation/code_generation` is upstream and depends on
+`kernel` and `distribution.languages.asset`. `api.py` and `cli` compose the
 systems.
 
 The kernel imports no graph, data, topology, binding, SQL, DuckDB or Python

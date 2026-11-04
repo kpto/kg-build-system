@@ -19,7 +19,7 @@ try:
     )
     from kg_build_system.distribution.languages.binding import node_binding
     from kg_build_system.distribution.languages.data import (
-        DataSourceConfig, Field, Table, bind_source, field,
+        Field, Table, field,
     )
     from kg_build_system.distribution.languages.topology import (
         Node, PropertySlot, property,
@@ -29,8 +29,10 @@ except ImportError as error:  # pragma: no cover - concurrent refactor guard
         f"declaration blueprint dependencies are not available: {error}"
     ) from error
 
+from .support import TestEstate
 
-class SiteTable(Table):
+
+class SiteTable(Table[TestEstate]):
     site_id: Field[str] = field()
 
 
@@ -39,16 +41,12 @@ class SiteNode(Node):
 
 
 def _fixture() -> GraphBlueprint:
-    source = bind_source(
-        target=SiteTable,
-        config=DataSourceConfig(location="sites.csv"),
-    )
     binding = node_binding(
         target=SiteNode,
         build_key=SiteTable.site_id,
         properties=SiteNode(site_id=SiteTable.site_id),
     )
-    return create_blueprint(bindings=(binding,), sources=(source,))
+    return create_blueprint(bindings=(binding,))
 
 
 def _canonical(blueprint: GraphBlueprint) -> str:
@@ -58,6 +56,17 @@ def _canonical(blueprint: GraphBlueprint) -> str:
 
 
 class BlueprintSourceTests(unittest.TestCase):
+    def test_the_rendered_source_states_the_asset_and_generic_table(self) -> None:
+        source = blueprint_to_source(_fixture(), None)
+
+        self.assertIn("class EstateAsset(Asset):", source)
+        self.assertIn("class SiteTable(Table[EstateAsset]):", source)
+        self.assertNotIn("bind_source", source)
+        self.assertLess(
+            source.index("class EstateAsset(Asset):"),
+            source.index("class SiteTable(Table[EstateAsset]):"),
+        )
+
     def test_the_rendered_source_recreates_the_blueprint(self) -> None:
         first = _fixture()
         source = blueprint_to_source(first, None)

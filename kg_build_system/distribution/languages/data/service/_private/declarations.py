@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, TypeVar
+from typing import TYPE_CHECKING, Any, TypeVar, get_args, get_origin
 
 from kg_build_system.distribution.languages.annotations.model.public import Annotation
 from kg_build_system.kernel.model.public.types import Shape
@@ -78,6 +78,7 @@ def _prepare_declaration(
     final: bool = True,
     row_source: Any = None,
     members: tuple[type[Any], ...] = (),
+    asset: Any = None,
 ) -> DeclarationSpec:
     field_kind = "source" if kind in {"table", "struct"} else "computed"
     fields = resolve_field_specs(cls, field_kind)
@@ -90,6 +91,7 @@ def _prepare_declaration(
         final=final,
         row_source=row_source,
         members=members,
+        asset=asset,
     )
     cls._kg_declaration_spec = spec
     cls._fields = {item.attribute: item.descriptor for item in fields}
@@ -194,8 +196,32 @@ def projection_row_source(declaration: type[Any]) -> Any | None:
     return _derive_projection_plan(declaration)
 
 
+def _table_asset(cls: type[Any]) -> type[Any]:
+    """Resolve the logical asset a table names through ``Table[Asset]``."""
+    from kg_build_system.distribution.languages.asset.model.public import Asset
+    from ...model.public.declarations import Table
+
+    for base in getattr(cls, "__orig_bases__", ()):
+        if get_origin(base) is not Table:
+            continue
+        arguments = get_args(base)
+        if not arguments:
+            continue
+        asset = arguments[0]
+        if not isinstance(asset, type) or not issubclass(asset, Asset):
+            raise TypeError(
+                f"{cls.__name__} must name an Asset subclass: "
+                "Table[Asset]"
+            )
+        return asset
+    raise TypeError(
+        f"{cls.__name__} is a concrete Table without an asset; "
+        "declare it as Table[Asset]"
+    )
+
+
 def prepare_table_declaration(cls: type[Any]) -> None:
-    """Record the spec of one ``Table`` declaration at class creation."""
+    """Record the spec of one ``Table[Asset]`` declaration at class creation."""
     from ...model.public.declarations import TableOptions
 
     if any(_final_kind(base) == "table" for base in cls.__mro__[1:]):
@@ -203,13 +229,16 @@ def prepare_table_declaration(cls: type[Any]) -> None:
     options = vars(cls).get("options", TableOptions())
     _require_host_options(cls, "Table", options, TableOptions)
     name = options.name or declaration_name(cls.__name__, suffixes=("Table",))
+    asset = _table_asset(cls)
     cls._table_name = name
+    cls._table_asset = asset
     _prepare_declaration(
         cls,
         kind="table",
         name=name,
         description=_description(cls, options.description),
         annotations=(*_template_annotations(cls), *options.annotations),
+        asset=asset,
     )
     cls.shape = cls
 
@@ -338,7 +367,7 @@ def prepare_table_group_declaration(cls: type[Any]) -> None:
     )
     cls._is_table_group = True
 
-    from .sources import group_tables
+    from .groups import group_tables
 
     group_tables(cls)
 

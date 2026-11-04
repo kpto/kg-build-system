@@ -16,9 +16,12 @@ def generation_fingerprint(request: DiscoveredGeneration, provider_version: str)
     bytes — or any digest of them — deliberately do not enter this value.
     """
     normalized = {
+        "asset": f"{request.request.asset_module}.{request.request.asset_qualname}",
+        "asset_digest": request.request.asset_digest,
         "configuration": request.request.configuration,
         "config_type": f"{request.request.config_module}.{request.request.config_qualname}",
         "format_version": FORMAT_VERSION,
+        "package": request.request.package,
         "provider": f"{request.request.provider_module}.{request.request.provider_qualname}",
         "provider_version": provider_version,
         "request_id": request.location.request_id,

@@ -7,15 +7,17 @@ from pathlib import Path
 from sqlglot import exp
 
 from kg_build_system import (
-    DataSourceConfig,
+    Asset,
+    AssetAuthority,
+    AssetLayout,
+    AssetOptions,
+    AssetSemantics,
     Field,
-    InputFormat,
     Node,
     NodeValues,
     PropertySlot,
     Table,
     TableOptions,
-    bind_source,
     field,
     node_binding,
     property,
@@ -51,7 +53,22 @@ class DoubleEmitter:
         )
 
 
-class DoubleRow(Table):
+class DoubleAsset(Asset):
+    options = AssetOptions(
+        name="double_asset",
+        semantics=AssetSemantics(
+            subject="double rows",
+            coverage="one csv",
+            authority=AssetAuthority.INFERRED,
+            basis="test fixture",
+        ),
+        layout=AssetLayout(
+            locator="rows.csv", format="csv", selector="{table}.csv",
+        ),
+    )
+
+
+class DoubleRow(Table[DoubleAsset]):
     options = TableOptions(name="double_row")
     id: Field[int] = field(name="id")
 
@@ -73,13 +90,7 @@ class CoreCustomEmitterTests(unittest.TestCase):
                     properties=DoubleNode(value=DOUBLE.apply(row.id)),
                 ),
             )
-            source = bind_source(
-                target=DoubleRow,
-                config=DataSourceConfig(str(csv), format=InputFormat.CSV),
-            )
-            blueprint = create_blueprint(
-                bindings=(binding,), sources=(source,),
-            )
+            blueprint = create_blueprint(bindings=(binding,))
             emitter = DuckDbSqlEmitter(
                 instruction_emitter=(
                     DuckDbInstructionEmitter().with_operators(DoubleEmitter())

@@ -26,7 +26,7 @@ people-graph/
   people_graph/
     __init__.py
     build.py
-    sources.py
+    assets.py
     data/
       people.csv
       knows.csv
@@ -82,8 +82,10 @@ Create `people_graph/table/people.py`:
 ```python
 from kg_build_system import Field, Table, TableOptions, field
 
+from people_graph.assets import Directory
 
-class PeopleTable(Table):
+
+class PeopleTable(Table[Directory]):
     """One row per person in the directory."""
 
     options = TableOptions(name="people")
@@ -97,8 +99,10 @@ Create `people_graph/table/knows.py`:
 ```python
 from kg_build_system import Field, Table, TableOptions, field
 
+from people_graph.assets import Directory
 
-class KnowsTable(Table):
+
+class KnowsTable(Table[Directory]):
     """One row per professional introduction."""
 
     options = TableOptions(name="knows")
@@ -107,36 +111,59 @@ class KnowsTable(Table):
     since: Field[int] = field()
 ```
 
-`PeopleTable` is both a shape and a row source. The source binding in the next step supplies the file location. For more about declarations, see [data contracts](../concepts/data-contracts.md) and the [declarations reference](../reference/declarations.md).
+`PeopleTable` is both a shape and a row source, and `Table[Directory]` names the asset its rows come from. For more about declarations, see [data contracts](../concepts/data-contracts.md) and the [declarations reference](../reference/declarations.md).
 
-### 2. Bind a source
+### 2. Declare the asset
 
-A source binding supplies the physical location for a table. `bind_source()` connects the table to a `DataSourceConfig`; `InputFormat.CSV` selects the CSV reader.
+An asset is one logical unit of source data. One asset may back many tables, and
+a table names it with `Table[Asset]`. The optional `AssetLayout` tells the
+generic DuckDB source planner where each relation lives.
 
-Create `people_graph/sources.py`:
+Create `people_graph/assets.py`:
 
 ```python
 from pathlib import Path
 
-from kg_build_system import DataSourceConfig, InputFormat, bind_source
-
-from people_graph.table.knows import KnowsTable
-from people_graph.table.people import PeopleTable
+from kg_build_system import (
+    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetSemantics,
+)
 
 DATA = Path(__file__).parent / "data"
 
-people_source = bind_source(
-    target=PeopleTable,
-    config=DataSourceConfig(str(DATA / "people.csv"), format=InputFormat.CSV),
-)
 
-knows_source = bind_source(
-    target=KnowsTable,
-    config=DataSourceConfig(str(DATA / "knows.csv"), format=InputFormat.CSV),
-)
+class Directory(Asset):
+    """The people directory export."""
+
+    options = AssetOptions(
+        name="directory",
+        version="2026-08",
+        semantics=AssetSemantics(
+            subject="people directory",
+            coverage="staff and professional introductions",
+            authority=AssetAuthority.PRIMARY,
+            basis="directory export",
+        ),
+        layout=AssetLayout(
+            kind="csv",
+            locator=str(DATA),
+            format="csv",
+            members={
+                "people": "people.csv",
+                "knows": "knows.csv",
+            },
+        ),
+    )
 ```
 
-Keep source bindings at module level. `compile()` discovers them when it scans the package. The source binding is the only place the file path appears, so you can move a feed without changing a table, a node, or an edge. See [sources](../concepts/sources.md).
+Keep asset declarations at module level. `compile()` discovers them when it scans
+the package. The asset and its layout are the only place the file locations
+appear, so you can move a feed without changing a table, a node, or an edge. See
+[assets](../concepts/assets.md).
+
+!!! note "One asset, two tables"
+    `Directory` backs both `PeopleTable` and `KnowsTable`. The generic source
+    planner emits one `source.people` step and one `source.knows` step from the
+    asset's `members` mapping.
 
 ### 3. Declare the topology
 
@@ -267,7 +294,7 @@ if __name__ == "__main__":
     main()
 ```
 
-`compile()` scans the package that contains `build.py`, so the declarations and bindings do not need an import list. `FilePlanner` emits the JSON Lines step and `FileExecutor` writes the records; the configured path is relative to the output directory. The five core planners, which materialise the records, are supplied automatically.
+`compile()` scans the package that contains `build.py`, so the declarations and bindings do not need an import list. `FilePlanner` emits the JSON Lines step and `FileExecutor` writes the records; the configured path is relative to the output directory. The generic DuckDB source planner and the four core planners are supplied automatically.
 
 The `__main__` guard matters: discovery imports `build.py`, and without the guard that import would run the build.
 
@@ -324,7 +351,7 @@ If the counts differ, inspect the input keys and the `drop_null()` calls first. 
 
 ## What to remember
 
-- The order is shape, source, meaning, binding: declare the table, bind its source, declare the node or edge, then bind the rows.
+- The order is shape, asset, meaning, binding: declare the table, declare the asset it names, declare the node or edge, then bind the rows.
 - The `bind` callable receives a symbolic row instance; `row.name` is a typed selection, not a Python value.
 - A `Field[T | None]` reads as nullable; `Field[T]` reads non-null. A key must be a present scalar, so narrow it with `alter_rows().drop_null()` rather than inventing an identity.
 - `compile()` checks the declarations; `execute()` reads data and writes outputs.

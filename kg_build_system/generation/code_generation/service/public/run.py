@@ -11,10 +11,11 @@ from .session import GenerationSession
 
 
 def discover(project_root: str | Path) -> tuple[DiscoveredGeneration, ...]:
-    """Discover every generation request beneath a project root.
+    """Discover every asset contract beneath a project root.
 
-    Discovery parses ``__init__.py`` files without importing the author-owned
-    project. Directories beginning with ``.`` and ``__pycache__`` are skipped.
+    Discovery parses Python files without importing the author-owned project.
+    Directories beginning with ``.`` and ``__pycache__`` are skipped. A request's
+    identity is its asset name and its product is ``<package>/<asset name>``.
 
     Example:
         ```python
@@ -31,7 +32,7 @@ def discover(project_root: str | Path) -> tuple[DiscoveredGeneration, ...]:
 def discover_file(
     project_root: str | Path, source_path: str | Path,
 ) -> tuple[DiscoveredGeneration, ...]:
-    """Discover the generation requests declared by one source file.
+    """Discover the asset contracts declared by one source file.
 
     ``source_path`` must be inside ``project_root``. The file is parsed
     statically, so importing it is unnecessary and a syntax error is reported
@@ -41,7 +42,7 @@ def discover_file(
         ```python
         from kg_build_system.generation.code_generation import discover_file
 
-        requests = discover_file(".", "contracts/__init__.py")
+        requests = discover_file(".", "contracts/assets.py")
         ```
     """
     from .._private.discovery import discover_file as implementation

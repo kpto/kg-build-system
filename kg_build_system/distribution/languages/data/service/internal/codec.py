@@ -20,7 +20,7 @@ def data_to_document(data: DataPartDTO) -> dict[str, Any]:
             DataPartDTO, data_to_document,
         )
 
-        document = data_to_document(DataPartDTO((), (), (), ()))
+        document = data_to_document(DataPartDTO((), (), ()))
         ```
     """
     from .._private.codec import data_to_document as encode
@@ -38,7 +38,7 @@ def data_from_document(value: Mapping[str, Any]) -> DataPartDTO:
         )
 
         data = data_from_document({
-            "structs": [], "relations": [], "projections": [], "sources": [],
+            "structs": [], "relations": [], "projections": [],
         })
         ```
     """

@@ -17,6 +17,7 @@ LEAVES = (
     "kernel",
     "distribution",
     "distribution/languages/annotations",
+    "distribution/languages/asset",
     "distribution/languages/expressions",
     "distribution/languages/data",
     "distribution/languages/topology",

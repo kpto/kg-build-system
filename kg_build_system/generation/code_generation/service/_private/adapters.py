@@ -7,6 +7,7 @@ from typing import cast
 
 from ...model.internal.providers import (
     Provider,
+    ProviderAsset,
     ProviderContext,
     ProviderGenerationConfig,
 )
@@ -47,6 +48,23 @@ def load_provider(
     return cast(type[Provider[ProviderGenerationConfig]], provider_type), config
 
 
+def load_asset(request: GenerationRequest) -> ProviderAsset | None:
+    """Import a discovered asset declaration and expose its options."""
+    from kg_build_system.distribution.languages.asset import Asset, asset_name
+
+    if not request.asset_module or not request.asset_qualname:
+        return None
+    asset_type = _load_class(request.asset_module, request.asset_qualname)
+    if not issubclass(asset_type, Asset):
+        raise TypeError(
+            f"{request.asset_module}.{request.asset_qualname} is not an Asset subclass"
+        )
+    return ProviderAsset(
+        request.asset_module, request.asset_qualname,
+        asset_name(asset_type), asset_type.options,
+    )
+
+
 def resolve_provider_path[T: ProviderGenerationConfig](
     context: ProviderContext[T], value: str,
 ) -> Path:
@@ -60,4 +78,4 @@ def resolve_provider_path[T: ProviderGenerationConfig](
     return (context.request_path.parent / value).resolve()
 
 
-__all__ = ["load_provider", "resolve_provider_path"]
+__all__ = ["load_asset", "load_provider", "resolve_provider_path"]

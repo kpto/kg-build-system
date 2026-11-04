@@ -13,7 +13,7 @@ from kg_build_system.kernel.model.internal.types.dto import ArrayTypeDTO, Custom
 from ...model.internal.dto.blueprint_dto import (
     ColumnDTO, DataPartDTO, ProjectionDTO, RelationDTO, RowDistinctDTO,
     RowFilterDTO, RowGroupByDTO, RowJoinDTO, RowOrderByDTO, RowScanDTO,
-    RowSourcePlanDTO, RowUnionDTO, SourceDTO, StructDTO,
+    RowSourcePlanDTO, RowUnionDTO, StructDTO,
 )
 
 
@@ -79,11 +79,13 @@ def _declaration_source(
     suffix: str,
     option_class: str,
     type_names: Mapping[str, str],
+    asset_class: str | None = None,
 ) -> tuple[tuple[str, ...], set[str]]:
     imports: set[str] = {"from kg_build_system import Field, field"}
     imports.add(f"from kg_build_system import {base}, {option_class}")
     own_name = class_name(value.name, suffix)
-    lines = [f"class {own_name}({base}):"]
+    base_source = base if asset_class is None else f"{base}[{asset_class}]"
+    lines = [f"class {own_name}({base_source}):"]
     lines.append(f"    options = {option_class}(")
     lines.append(f"        name={value.name!r},")
     if value.description is not None:
@@ -191,30 +193,6 @@ def _projection_source(
     return tuple(lines), imports
 
 
-def _source_source(
-    value: SourceDTO, *, class_names: Mapping[str, str],
-) -> tuple[tuple[str, ...], set[str]]:
-    imports = {
-        "from kg_build_system import DataSourceConfig, InputFormat, bind_source",
-    }
-    name = value.relation.name
-    target = class_names.get(name, class_name(name, "Table"))
-    arguments = [repr(value.location)]
-    if value.format != "csv":
-        arguments.append(f"format=InputFormat.{value.format.upper()}")
-    if value.version is not None:
-        arguments.append(f"version={value.version!r}")
-    if value.credential_reference is not None:
-        arguments.append(f"credentials={value.credential_reference!r}")
-    lines = [
-        f"{member_name(name)}_source = bind_source(",
-        f"    target={target},",
-        f"    config=DataSourceConfig({', '.join(arguments)}),",
-        ")",
-    ]
-    return tuple(lines), imports
-
-
 def render_data(
     data: DataPartDTO,
     context: Any = None,
@@ -235,12 +213,14 @@ def render_data(
             render_data,
         )
 
-        fragment = render_data(DataPartDTO((), (), (), ()))
+        fragment = render_data(DataPartDTO((), (), ()))
         assert fragment.body == ""
         ```
     """
     del context
     names = dict(class_names or {})
+    for asset in data.relations:
+        names.setdefault(asset.asset.name, class_name(asset.asset.name, "Asset"))
     for struct in data.structs:
         names.setdefault(struct.name, class_name(struct.name, "Struct"))
     for relation in data.relations:
@@ -269,6 +249,7 @@ def render_data(
         lines, needed = _declaration_source(
             relation, base="Table", suffix="Table", option_class="TableOptions",
             type_names=type_names,
+            asset_class=names[relation.asset.name],
         )
         imports.update(needed)
         chunks.append("\n".join(lines))
@@ -276,11 +257,6 @@ def render_data(
         lines, needed = _projection_source(projection, class_names=names)
         imports.update(needed)
         chunks.append("\n".join(lines))
-    for source in data.sources:
-        lines, needed = _source_source(source, class_names=names)
-        imports.update(needed)
-        chunks.append("\n".join(lines))
-
     body = "\n\n\n".join(chunks)
     if body:
         body += "\n"

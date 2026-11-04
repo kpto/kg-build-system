@@ -199,7 +199,7 @@ A category's own annotations are not copied down. `RecordNode` does not receive 
 | Table, struct, projection or table group | the class's `options` |
 | Struct template | `StructOptionsTemplate(annotations=...)` |
 | Binding | `BindingOptions(annotations=...)` |
-| Source binding | `SourceBindingOptions(annotations=...)` |
+| Asset | `AssetOptions(annotations=...)` |
 
 A binding has no description. Use `debug_name` for its human handle and annotations for its metadata; see [Bindings](bindings.md).
 

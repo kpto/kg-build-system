@@ -11,6 +11,10 @@ _GROUPS: dict[str, tuple[str, ...]] = {
         "execute",
     ),
     "distribution.interpreter": ("GraphBlueprint",),
+    "distribution.languages.asset": (
+        "Asset", "AssetAuthority", "AssetGovernance", "AssetLayout",
+        "AssetLicense", "AssetOptions", "AssetSemantics",
+    ),
     "distribution.languages.annotations": ("Annotation", "EdgeLabel", "NodeLabel"),
     "distribution.languages.binding": (
         "BindingOptions", "EdgeBinding", "EdgeValues", "NodeBinding",
@@ -25,13 +29,11 @@ _GROUPS: dict[str, tuple[str, ...]] = {
         "value_expression",
     ),
     "distribution.languages.data": (
-        "BoundSource", "BoundTable", "BoundTableGroup", "ComputedStruct",
-        "DataSourceConfig", "DerivedRowSource", "Field", "InputFormat",
-        "Projection", "ProjectionOptions", "RelationRowSource", "RowSource",
-        "SourceBindingOptions", "Struct", "StructOptions", "StructOptionsTemplate",
-        "StructTemplate", "Table", "TableGroup", "TableGroupOptions",
-        "TableOptions", "bind_source", "computed_field", "field",
-        "projection_field",
+        "ComputedStruct", "DerivedRowSource", "Field", "JoinHow", "Projection",
+        "ProjectionOptions", "RelationRowSource", "RowSource", "Struct",
+        "StructOptions", "StructOptionsTemplate", "StructTemplate", "Table",
+        "TableGroup", "TableGroupOptions", "TableOptions", "computed_field",
+        "field", "projection_field",
     ),
     "distribution.languages.topology": (
         "AbstractEdge", "AbstractNode", "Edge", "EdgeOptions",

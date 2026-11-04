@@ -1,10 +1,10 @@
 """Link language declarations into a graph blueprint.
 
-The linker fixes the transcription order to ``expressions``, ``data``,
-``topology`` then ``binding``: data and bindings read expression operations and
-bindings read the other two languages. It indexes declarations,
-transcribes each language, resolves references, validates the symbol graph and
-assembles the current blueprint shapes.
+The linker fixes the transcription order to ``expressions``, ``asset``,
+``data``, ``topology`` then ``binding``: data reads expression operations and
+names its assets, and bindings read the other three languages. It indexes
+declarations, transcribes each language, resolves references, validates the
+symbol graph and assembles the current blueprint shapes.
 """
 from __future__ import annotations
 
@@ -24,11 +24,12 @@ from kg_build_system.kernel import (
 )
 
 from ...model.public import GraphBlueprint
+from ....languages.asset.model.internal.dto import AssetDTO, AssetPartDTO
 from ....languages.binding.model.internal.dto.blueprint_dto import (
     EdgeBindingDTO, NodeBindingDTO,
 )
 from ....languages.data.model.internal.dto.blueprint_dto import (
-    DataPartDTO, ProjectionDTO, RelationDTO, SourceDTO, StructDTO,
+    DataPartDTO, ProjectionDTO, RelationDTO, StructDTO,
 )
 from ....languages.topology.model.internal.dto.blueprint_dto import (
     EdgeDTO, GraphPartDTO, NodeDTO,
@@ -36,7 +37,7 @@ from ....languages.topology.model.internal.dto.blueprint_dto import (
 from .assembly import assemble_blueprint
 from .validation import validate_blueprint
 
-ORDER = ("expressions", "data", "topology", "binding")
+ORDER = ("expressions", "asset", "data", "topology", "binding")
 
 
 class _LanguageResolver:
@@ -148,11 +149,11 @@ def _assemble(symbols: dict[SymbolRef, Symbol]) -> GraphBlueprint:
             symbol.value for symbol in resolved
             if isinstance(symbol.value, ProjectionDTO)
         ),
-        sources=tuple(
-            symbol.value for symbol in resolved
-            if isinstance(symbol.value, SourceDTO)
-        ),
     )
+    assets = AssetPartDTO(assets=tuple(
+        symbol.value for symbol in resolved
+        if isinstance(symbol.value, AssetDTO)
+    ))
     graph = GraphPartDTO(
         nodes=tuple(
             symbol.value for symbol in resolved
@@ -167,7 +168,7 @@ def _assemble(symbols: dict[SymbolRef, Symbol]) -> GraphBlueprint:
         symbol.value for symbol in resolved
         if isinstance(symbol.value, (NodeBindingDTO, EdgeBindingDTO))
     )
-    blueprint = assemble_blueprint(graph, data, bindings)
+    blueprint = assemble_blueprint(graph, data, assets, bindings)
     validate_blueprint(blueprint)
     return blueprint
 

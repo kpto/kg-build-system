@@ -81,7 +81,7 @@ kg_build_system/
     model/
       public/
         refs.py          NodeRef, EdgeRef, RelationRef, FieldRef, PropertyRef,
-                         SourceRef, OperationRef, Ref
+                         AssetRef, OperationRef, Ref
         artifacts.py     CoreArtifactTypes, graph-record vocabulary
         runtime.py       BuildRuntime
         paths.py         relative-path rule
@@ -90,6 +90,7 @@ kg_build_system/
     languages/
       annotations/
       expressions/
+      asset/
       data/
       topology/
       binding/
@@ -126,8 +127,9 @@ kg_build_system/
 
 A **module** is a feature package under `distribution/modules/`. It is not a
 protocol and not a registry entry. It groups one feature's planners, executors,
-resources and configuration. Core is a module with five planners; DuckDB is a
-module with an executor, a resource provider, a service and an SQL emitter.
+resources and configuration. Core is a module with four planners; DuckDB is a
+module with a source planner, an executor, a resource provider, a service and an
+SQL emitter.
 
 ## Module layout
 
@@ -156,7 +158,7 @@ pkg/
 - `tests/test_facades.py` enforces the facade shape, and the relaxed layout test
   enforces that an existing zone is not empty and a facade imports an existing
   public zone.
-- `distribution/modules/core` is the parent of the five core subplanners. The
+- `distribution/modules/core` is the parent of the four core subplanners. The
   subplanners are layout leaves for surface checks, but private imports stay
   inside the core module.
 
@@ -307,7 +309,7 @@ class Planner(Protocol[ModelT]):
 
 `PlanContext.shared` is mutable scratch space for one compile. It lets several
 planners that share a component publish and read the same planning state. Core
-uses it for `"core.plan"`; the plan is computed once and read by the five core
+uses it for `"core.plan"`; the plan is computed once and read by the four core
 planners.
 
 ## Declarations, symbols and the linker
@@ -328,8 +330,8 @@ authoring source.
 The linker owns the part the kernel cannot: which declarations are roots, how
 languages order, how the reference closure is walked and what model the
 distribution assembles. The distribution's `BlueprintLinker` uses the fixed
-order `expressions`, `data`, `topology`, `binding`; data reads expression
-operations and bindings read both.
+order `expressions`, `asset`, `data`, `topology`, `binding`: data reads asset
+declarations and expression operations, and bindings read both.
 
 The symbol graph is **linker IR**. It exists to key declarations, resolve
 references and order transcription. It is not the delivered model.
@@ -341,14 +343,14 @@ A blueprint is the semantic model of the graph, not a symbol table.
 ```python
 GraphBlueprint(
     graph=GraphPartDTO(nodes=..., edges=...),
-    data=DataPartDTO(structs=..., relations=..., projections=..., sources=...),
+    data=DataPartDTO(structs=..., relations=..., projections=...),
+    assets=AssetPartDTO(assets=...),
     bindings=...,
-    sources=...,
 )
 ```
 
-- The blueprint names nodes, edges, relations, fields, properties, sources and
-  operations as semantic roles. It carries no Python path, declaration object or
+- The blueprint names nodes, edges, relations, fields, properties, assets and
+  operations as semantic roles. A relation names its asset with an `AssetRef`. It carries no Python path, declaration object or
   symbol-table entry.
 - The symbol graph is the linker's working representation. It may carry keys,
   kinds and references; it does not appear in the delivered artifact.
@@ -368,10 +370,10 @@ Every cross-symbol field in a blueprint is a role-typed reference from
 | --- | --- | --- |
 | `NodeRef` | one topology node | node parents, edge endpoints, binding targets |
 | `EdgeRef` | one topology edge | edge parents, edge binding targets |
-| `RelationRef` | one relation or projection | row scans and physical sources |
+| `RelationRef` | one relation or projection | row scans |
 | `FieldRef` | one declared field | columns and field reads |
 | `PropertyRef` | one graph property | topology properties |
-| `SourceRef` | one physical source | source identity |
+| `AssetRef` | one logical asset | `RelationDTO.asset` |
 | `OperationRef` | one operation specification | operation expressions |
 
 Each wraps a `SymbolRef` and exposes `.symbol`, `.key`, `.language` and `.name`.
@@ -426,15 +428,20 @@ This is how core is split:
 
 | Planner | Responsibility |
 | --- | --- |
-| `InputPlanner` | source-relation steps |
 | `RowSourcePlanner` | row-source steps |
 | `ProjectionPlanner` | projection steps |
 | `BindingPlanner` | binding steps |
 | `RecordsPlanner` | aggregate record steps |
 
-All five report `component_id="core"` and the same version and runtime fields.
+All four report `component_id="core"` and the same version and runtime fields.
 `core_planners()` returns them in assembled order. They share one `CorePlan` in
 `PlanContext.shared["core.plan"]`.
+
+The generic `DuckDbSourcePlanner` is a separate planner with
+`component_id="duckdb"`. It reads each relation's asset layout and emits one
+`source.<relation>` step with instruction kind
+`("source_relation", "duckdb")`. One asset may produce many source steps; the
+planner is not an adapter.
 
 A planner emits steps; it does not execute them. An executor executes one exact
 instruction kind; it does not plan. A component that needs both is two objects.
@@ -538,9 +545,10 @@ class Runtime(Protocol):
 `DEFAULT_TOOLCHAIN`, `create_blueprint`, `compile` and `execute`.
 
 - `default_toolchain` composes the default languages, `BlueprintLinker`, the
-  five core planners when no supplied planner reports `component_id == "core"`,
-  the supplied planners, the default executors and a `WorkflowRuntime` with
-  `RuntimeResources` and `DuckDbResourceProvider`.
+  generic `DuckDbSourcePlanner` when no supplied planner reports
+  `component_id == "duckdb"`, the four core planners when no supplied planner
+  reports `component_id == "core"`, the supplied planners, the default executors
+  and a `WorkflowRuntime` with `RuntimeResources` and `DuckDbResourceProvider`.
 - `DEFAULT_TOOLCHAIN` is the default composition.
 - `create_blueprint` discovers declarations, links them and validates the
   blueprint.
@@ -562,19 +570,19 @@ root.
 
 | Module | Contents |
 | --- | --- |
-| `core` | five planners and one shared `CorePlan` |
+| `core` | four planners and one shared `CorePlan` |
 | `deduplication` | `DeduplicationPlanner` |
 | `merging` | `MergingPlanner` and its configuration |
 | `conflict_validation` | planner, report values and `ConflictReportExecutor` |
 | `file` | `FilePlanner` and `FileExecutor` |
 | `meta_graph` | `MetaGraphPlanner` and `MetaGraphExecutor` |
 | `neo4j` | `Neo4jPlanner` and `Neo4jExecutor` |
-| `duckdb` | `DuckDbExecutor`, `DuckDbResourceProvider`, `DuckDbService`, SQL emitter |
+| `duckdb` | `DuckDbSourcePlanner`, `DuckDbExecutor`, `DuckDbResourceProvider`, `DuckDbService`, SQL emitter |
 | `python` | `PythonExecutor` |
 | `runtime` | `RuntimeResources` and executor helpers |
 
-`distribution/languages/{annotations,expressions,data,topology,binding}` own the
-language frontends. `distribution/interpreter` owns `GraphBlueprint`,
+`distribution/languages/{annotations,expressions,asset,data,topology,binding}`
+own the language frontends. `distribution/interpreter` owns `GraphBlueprint`,
 `BlueprintLinker`, `create_blueprint`, validation, the blueprint codec and source
 rendering. `distribution/implementations.py` supplies the language and linker
 implementations.
@@ -598,9 +606,9 @@ planner may emit a new kind and register its own executor.
 | `("meta_graph", "default")` | `{relative_path, example_limit, include_html, html_relative_path, components}` |
 | `("neo4j", "default")` | `{kind: "export_component" | "write_script", ...}` |
 
-The five core planners emit `InstructionKind("source_relation", "duckdb")`,
-`InstructionKind("sql", "duckdb")` and `InstructionKind("aggregate", "duckdb")`;
-`DuckDbExecutor` owns them. `DeduplicationPlanner`, `MergingPlanner` and
+`DuckDbSourcePlanner` emits `InstructionKind("source_relation", "duckdb")`. The
+four core planners emit `InstructionKind("sql", "duckdb")` and
+`InstructionKind("aggregate", "duckdb")`. `DuckDbExecutor` owns all three. `DeduplicationPlanner`, `MergingPlanner` and
 `ConflictValidationPlanner` emit the other DuckDB kinds.
 
 ## Planner and executor ownership
@@ -612,14 +620,14 @@ same module.
 
 | Component | Class | Module | Responsibility |
 | --- | --- | --- | --- |
-| `core` | `core_planners()` (`InputPlanner`, `RowSourcePlanner`, `ProjectionPlanner`, `BindingPlanner`, `RecordsPlanner`) | `modules.core` | source, row-source, projection, binding and aggregate steps |
+| `core` | `core_planners()` (`RowSourcePlanner`, `ProjectionPlanner`, `BindingPlanner`, `RecordsPlanner`) | `modules.core` | row-source, projection, binding and aggregate steps |
 | `deduplication` | `DeduplicationPlanner` | `modules.deduplication` | one distinct step per bound record component |
 | `merging` | `MergingPlanner` | `modules.merging` | one merge step per component in scope |
 | `conflict_validation` | `ConflictValidationPlanner` / `ConflictReportExecutor` | `modules.conflict_validation` | findings steps and one deferred report step |
 | `file` | `FilePlanner` / `FileExecutor` | `modules.file` | JSON Lines target |
 | `meta_graph` | `MetaGraphPlanner` / `MetaGraphExecutor` | `modules.meta_graph` | topology document and optional HTML |
 | `neo4j` | `Neo4jPlanner` / `Neo4jExecutor` | `modules.neo4j` | component exports and import script |
-| — | `DuckDbExecutor` / `DuckDbResourceProvider` | `modules.duckdb` | SQL kinds and the DuckDB resource |
+| `duckdb` | `DuckDbSourcePlanner` / `DuckDbExecutor` / `DuckDbResourceProvider` | `modules.duckdb` | source and SQL kinds and the DuckDB resource |
 | — | `PythonExecutor` | `modules.python` | `InstructionKind("python", "cpython")` |
 | — | `RuntimeResources` | `modules.runtime` | storage and credential resources |
 
@@ -636,15 +644,16 @@ provider id, not a plan component.
 
 ## Generation
 
-`generation/code_generation/` is the edit-time lane. It turns typed requests
-into declarations before the blueprint runs. It is upstream of the blueprint.
+`generation/code_generation/` is the edit-time lane. It turns an inert
+`@asset_contract(AssetContractOptions(...))` on an asset into declarations before
+the blueprint runs. It is upstream of the blueprint.
 
 | Surface | Contents |
 | --- | --- |
-| `model/public` | generation requests and result models |
+| `model/public` | asset contract options, generation requests and result models |
 | `model/internal` | provider contract and discovery models |
 | `model/_private` | generated render model |
-| `service/public` | `generation`, `generate`, `discover`, `watch` |
+| `service/public` | `asset_contract`, `generate`, `discover`, `watch` |
 | `service/internal` | provider loading and provider adapters |
 | `service/_private` | discovery, rendering, ownership, watcher and engine |
 
@@ -667,7 +676,8 @@ the dependency tests enforce the rest.
 | `kernel` | no framework package |
 | `distribution/languages/annotations` | `kernel` |
 | `distribution/languages/expressions` | `kernel` |
-| `distribution/languages/data` | `kernel`, annotations, expressions |
+| `distribution/languages/asset` | `kernel`, annotations |
+| `distribution/languages/data` | `kernel`, annotations, expressions, asset |
 | `distribution/languages/topology` | `kernel`, annotations, expressions |
 | `distribution/languages/binding` | `kernel`, annotations, data, topology |
 | `distribution/interpreter` | `kernel`, every graph language |
@@ -675,7 +685,7 @@ the dependency tests enforce the rest.
 | `distribution/modules/core` | also the DuckDB module's SQL emitter |
 | `distribution/implementations.py` | `kernel`, interpreter, languages |
 | `distribution/service` | `kernel`, distribution languages, interpreter |
-| `generation/code_generation` | `kernel`; engine observation is read-only |
+| `generation/code_generation` | `kernel` and `distribution.languages.asset`; engine observation is read-only |
 | `api.py` | `kernel`, `distribution` |
 | `cli` | `generation`, `api.py` |
 
@@ -753,7 +763,7 @@ value.
 
 The tree above is the implementation.
 
-- 187 tests passed, 1618 subtests.
+- 226 tests passed, 1655 subtests.
 - Pyright: 0 errors.
 - mkdocs strict build: passes.
 - Open Targets: the migrated project builds against the API; 7 tests pass.
@@ -765,7 +775,7 @@ The remaining limits are:
 | A toolchain is the only composition unit. | There is no registry. A caller composes a `Toolchain` or uses `default_toolchain` in `api.py`. |
 | DuckDB is the default SQL emitter. | `DuckDbSqlEmitter` is the core module's SQL library; another engine supplies another emitter and executor. |
 | A Python instruction is a reference. | `("python", "cpython")` carries `{module, qualname}`, not a live callable. |
-| Public `GraphBlueprint` fields reference internal language DTOs. | `GraphBlueprint` is public; its `graph`, `data`, `bindings` and `sources` fields are typed by language DTOs that are not exported public names. |
+| Public `GraphBlueprint` fields reference internal language DTOs. | `GraphBlueprint` is public; its `graph`, `data`, `assets` and `bindings` fields are typed by language DTOs that are not exported public names. |
 | A language may share a struct graph name. | A repeated struct name takes its qualified Python name as an extra key segment; the blueprint still names the struct by its graph role. |
 
 See [data and expressions](data-and-expressions.md) for the DTO shapes and the

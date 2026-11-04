@@ -34,7 +34,9 @@ class ContactStruct(Struct):
     email: Field[str | None] = field()
 
 
-class SiteTable(Table):
+from estate.assets import Estate
+
+class SiteTable(Table[Estate]):
     options = TableOptions(name="sites")
     site_id: Field[str] = field()
     name: Field[str] = field()

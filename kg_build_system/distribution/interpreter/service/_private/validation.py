@@ -3,6 +3,9 @@ from __future__ import annotations
 
 from typing import Any
 
+from kg_build_system.distribution.languages.asset.model.internal.dto import (
+    AssetPartDTO,
+)
 from kg_build_system.distribution.languages.binding.model.internal.dto.blueprint_dto import (
     EdgeBindingDTO, NodeBindingDTO,
 )
@@ -13,7 +16,7 @@ from kg_build_system.distribution.languages.topology.model.internal.dto.blueprin
     EdgeDTO, NodeDTO,
 )
 from kg_build_system.distribution.model.public.refs import (
-    EdgeRef, FieldRef, NodeRef, PropertyRef, RelationRef,
+    AssetRef, EdgeRef, FieldRef, NodeRef, PropertyRef, RelationRef,
 )
 from kg_build_system.kernel import Key
 from ...model.public import GraphBlueprint
@@ -30,7 +33,7 @@ def _components(graph: Any) -> tuple[Any, ...]:
 def _name(value: Any) -> str:
     name = getattr(value, "name", None)
     if not isinstance(name, str) or not name:
-        raise ValueError("graph components, relations and sources require a name")
+        raise ValueError("graph components, relations and assets require a name")
     return name
 
 
@@ -53,26 +56,16 @@ def _relation_ref(name: str) -> RelationRef:
     return RelationRef("data", Key((name,)))
 
 
+def _asset_ref(name: str) -> AssetRef:
+    return AssetRef("asset", Key((name,)))
+
+
 def _field_ref(owner: str, name: str) -> FieldRef:
     return FieldRef("data", Key((f"{owner}.{name}",)))
 
 
 def _property_ref(owner: str, name: str) -> PropertyRef:
     return PropertyRef("topology", Key((f"{owner}.{name}",)))
-
-
-def _source_relation(source: Any) -> RelationRef:
-    relation = getattr(source, "relation", None)
-    if not isinstance(relation, RelationRef):
-        raise ValueError("sources require the relation reference they bind")
-    return relation
-
-
-def _source_name(source: Any) -> str:
-    name = getattr(source, "name", None)
-    if isinstance(name, str) and name:
-        return name
-    return _source_relation(source).name
 
 
 def _binding_component(binding: Any) -> str:
@@ -112,12 +105,19 @@ def _validate_properties(component: Any) -> None:
             )
 
 
+def _validate_assets(assets: AssetPartDTO) -> set[AssetRef]:
+    names = tuple(_name(asset) for asset in assets.assets)
+    if len(names) != len(set(names)):
+        raise ValueError("asset names must be unique")
+    return {_asset_ref(name) for name in names}
+
+
 def validate_blueprint(blueprint: GraphBlueprint) -> None:
     """Reject a blueprint with colliding names or dangling references.
 
     The checks are reference-based: every endpoint, parent, property, field,
-    source and binding must carry the role reference whose language and key name
-    an existing declaration. Names are only used for the messages.
+    relation asset and binding must carry the role reference whose language and
+    key name an existing declaration. Names are only used for the messages.
     """
     components = _components(blueprint.graph)
     names = tuple(_name(item) for item in components)
@@ -145,10 +145,17 @@ def validate_blueprint(blueprint: GraphBlueprint) -> None:
                     f"{parent.name!r}"
                 )
 
-    relations = {_relation_ref(item.name) for item in blueprint.data.relations}
-    projections = {
-        _relation_ref(item.name) for item in blueprint.data.projections
-    }
+    assets = _validate_assets(blueprint.assets)
+    for relation in blueprint.data.relations:
+        if relation.asset is None:
+            raise ValueError(
+                f"relation {relation.name!r} must name its logical asset"
+            )
+        if relation.asset not in assets:
+            raise ValueError(
+                f"relation {relation.name!r} names an unknown asset "
+                f"{relation.asset.name!r}"
+            )
     for relation in blueprint.data.relations:
         _validate_columns(relation, _field_ref, "relation")
     for projection in blueprint.data.projections:
@@ -175,23 +182,6 @@ def validate_blueprint(blueprint: GraphBlueprint) -> None:
                         f"edge binding targets an unknown endpoint "
                         f"{endpoint.name!r}"
                     )
-
-    source_names: list[str] = []
-    for source in blueprint.sources:
-        source_names.append(_source_name(source))
-        relation = _source_relation(source)
-        if relation not in relations:
-            if relation in projections:
-                raise ValueError(
-                    f"source {source_names[-1]!r} names a projection "
-                    f"{relation.name!r}, not a relation"
-                )
-            raise ValueError(
-                f"source {source_names[-1]!r} names an unknown relation "
-                f"{relation.name!r}"
-            )
-    if len(source_names) != len(set(source_names)):
-        raise ValueError("source names must be unique")
 
 
 __all__ = ["validate_blueprint"]

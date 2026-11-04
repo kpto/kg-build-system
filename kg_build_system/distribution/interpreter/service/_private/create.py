@@ -10,6 +10,7 @@ from collections.abc import Iterable, Sequence
 from pathlib import Path
 from typing import Any
 
+from kg_build_system.distribution.languages.asset.service.internal import AssetLanguage
 from kg_build_system.distribution.languages.binding.service.internal import BindingLanguage
 from kg_build_system.distribution.languages.data.service.internal import DataLanguage
 from kg_build_system.distribution.languages.expressions.service.internal import ExpressionsLanguage
@@ -22,10 +23,10 @@ from .discovery import _ModuleNamespace, _Namespace, namespace_modules
 
 
 def _default_languages() -> tuple[Any, ...]:
-    """Return the default expression, data, topology and binding languages."""
+    """Return the default expression, asset, data, topology and binding languages."""
     return (
-        ExpressionsLanguage(), DataLanguage(), TopologyLanguage(),
-        BindingLanguage(),
+        ExpressionsLanguage(), AssetLanguage(), DataLanguage(),
+        TopologyLanguage(), BindingLanguage(),
     )
 
 
@@ -33,26 +34,24 @@ def create_blueprint(
     *,
     namespace_path: str | Path | None = None,
     bindings: Iterable[Any] = (),
-    sources: Sequence[Any] = (),
     languages: Sequence[Any] | None = None,
 ) -> GraphBlueprint:
     """Collect declarations into a validated, frozen graph blueprint.
 
-    Supply either ``namespace_path`` or explicit ``bindings`` and ``sources``.
-    The declared languages are run through the kernel toolchain; each language
-    collects and transcribes its own DTO, and :class:`BlueprintLinker` assembles
-    the DTOs into one blueprint.
+    Supply either ``namespace_path`` or explicit ``bindings``. The declared
+    languages are run through the kernel toolchain; each language collects and
+    transcribes its own DTO, and :class:`BlueprintLinker` assembles the DTOs
+    into one blueprint.
     """
     explicit_bindings = tuple(bindings)
-    explicit_sources = tuple(sources)
     if namespace_path is not None:
-        if explicit_bindings or explicit_sources:
+        if explicit_bindings:
             raise ValueError(
-                "namespace_path cannot be combined with bindings or sources"
+                "namespace_path cannot be combined with bindings"
             )
         namespace: Any = _ModuleNamespace(namespace_modules(namespace_path))
     else:
-        namespace = _Namespace((*explicit_bindings, *explicit_sources))
+        namespace = _Namespace(explicit_bindings)
     toolchain = Toolchain(
         languages=tuple(languages or _default_languages()),
         linker=BlueprintLinker(),

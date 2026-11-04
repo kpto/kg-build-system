@@ -1,7 +1,8 @@
 """Author-facing edit-time generation requests.
 
-A graph author declares ``generation(...)`` and runs ``kbs generate`` or
-``generate``/``watch`` here. The provider extension contract is
+A graph author attaches ``@asset_contract(AssetContractOptions(...))`` to an
+``Asset`` subclass and runs ``kbs generate`` or ``generate``/``watch`` here. The
+provider extension contract is
 :mod:`kg_build_system.generation.code_generation.model.internal`; the
 generated-declaration render model is
 :mod:`kg_build_system.generation.code_generation.model._private.generated`.
@@ -9,25 +10,25 @@ generated-declaration render model is
 from __future__ import annotations
 
 from .model.public import (
-    FileChange, FileChangeKind, Generation, GenerationError, GenerationRequest,
-    GenerationResult, GenerationStatus,
+    AssetContractOptions, FileChange, FileChangeKind, GenerationError,
+    GenerationRequest, GenerationResult, GenerationStatus,
 )
 from .service.public import (
-    GenerationSession, discover, discover_file, generate, generation, watch,
+    GenerationSession, asset_contract, discover, discover_file, generate, watch,
 )
 
 __all__ = [
+    "AssetContractOptions",
     "FileChange",
     "FileChangeKind",
-    "Generation",
     "GenerationError",
     "GenerationRequest",
     "GenerationResult",
     "GenerationSession",
     "GenerationStatus",
+    "asset_contract",
     "discover",
     "discover_file",
     "generate",
-    "generation",
     "watch",
 ]

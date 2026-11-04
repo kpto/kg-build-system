@@ -46,9 +46,11 @@ Current coverage:
 ## Planner tests
 
 **Asserts:** each planner receives a `GraphBlueprint`, emits the steps its
-component owns and leaves every other component's records alone. The five core
+component owns and leaves every other component's records alone. The four core
 planners share `component_id="core"` and one `CorePlan` in `PlanContext.shared`;
-they emit source, row-source, projection, binding and aggregate steps.
+they emit row-source, projection, binding and aggregate steps. The generic
+`DuckDbSourcePlanner` has `component_id="duckdb"` and emits one
+`source.<relation>` step per compatible asset-backed relation.
 Deduplication emits one distinct step per bound record component. Merging
 respects its component scope. Conflict validation emits one findings step per
 property and one deferred report step. A planner declares its `component_id`,
@@ -57,8 +59,10 @@ input and output artifact types.
 
 Current coverage:
 
-- `test_core_planner.py` — core source, projection, binding and aggregate
-  planning.
+- `test_core_planner.py` — source, projection, binding and aggregate planning
+  across the generic source planner and the core planners.
+- `test_duckdb_source_planner.py` — asset-table selection, layout resolution
+  and `source_relation` payloads.
 - `test_core_custom_emitter.py` — a custom SQL emitter threaded through core
   planning.
 - `test_dedup_merge_conflict_planners.py` — the deduplication, merging and
@@ -123,9 +127,12 @@ Current coverage:
   endpoints and parents, and the public blueprint references.
 - `tests/distribution/test_typed_refs.py` — role-typed references and their
   documents.
+- `tests/distribution/test_asset_language.py` — asset declaration, validation,
+  discovery, key, transcription, typed reference and codec round trip.
 - `tests/distribution/test_blueprint_linker.py` — `BlueprintLinker` implements
   the kernel `Linker` protocol, keys declarations, transcribes symbols and
-  assembles one blueprint.
+  assembles one blueprint in `expressions`, `asset`, `data`, `topology`,
+  `binding` order.
 
 ## Codec and source round trip
 
@@ -194,7 +201,7 @@ Current coverage:
 
 ## Verification
 
-- 187 tests passed, 1618 subtests.
+- 226 tests passed, 1655 subtests.
 - Pyright: 0 errors.
 - Open Targets: 7 tests passed.
 - `uv run mkdocs build --strict`: passes.

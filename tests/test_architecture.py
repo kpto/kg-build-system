@@ -17,13 +17,13 @@ LEAVES = (
     "kernel",
     "distribution",
     "distribution/languages/annotations",
+    "distribution/languages/asset",
     "distribution/languages/expressions",
     "distribution/languages/data",
     "distribution/languages/topology",
     "distribution/languages/binding",
     "distribution/interpreter",
     "distribution/modules/core",
-    "distribution/modules/core/service/_private/input",
     "distribution/modules/core/service/_private/row_source",
     "distribution/modules/core/service/_private/projection",
     "distribution/modules/core/service/_private/binding",
@@ -54,6 +54,7 @@ def _group(leaf: str | None) -> str | None:
     return None if leaf is None else LEAF_GROUPS.get(leaf, leaf)
 ADAPTERS = {
     "distribution/languages/data": "kernel_language.py",
+    "distribution/languages/asset": "kernel_language.py",
     "distribution/languages/topology": "kernel_language.py",
     "distribution/languages/binding": "kernel_language.py",
     "distribution/interpreter": "kernel_linker.py",
@@ -328,6 +329,7 @@ class ArchitectureTests(unittest.TestCase):
         allowed = (
             ROOT / "distribution" / "interpreter",
             ROOT / "distribution" / "modules" / "core",
+            ROOT / "distribution" / "modules" / "duckdb",
             ROOT / "distribution" / "modules" / "deduplication",
             ROOT / "distribution" / "modules" / "merging",
             ROOT / "distribution" / "modules" / "conflict_validation",

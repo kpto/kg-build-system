@@ -58,7 +58,9 @@ class Currency(CustomDataType):
     """An application-defined scalar, such as a currency code."""
 
 
-class BudgetTable(Table):
+from estate.assets import Estate
+
+class BudgetTable(Table[Estate]):
     budget: Field[Currency] = field()
 ```
 
@@ -207,8 +209,8 @@ presence and item nullability are separate decisions, explained on
 
 ## Next steps
 
-Continue with [sources](sources.md) to attach these typed declarations to
-physical files.
+Continue with [assets](assets.md) to declare the logical source package a
+table names and the optional layout a source planner reads.
 
 ## Reference
 

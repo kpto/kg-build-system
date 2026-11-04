@@ -15,10 +15,11 @@ build, not when you write a binding.
 A build has one plan:
 
 ```text
-sources -> bindings -> core graph records -> rewriting planners -> output planners
+asset layouts -> source steps -> core graph records -> rewriting planners -> output planners
 ```
 
-The core module turns your declarations into the first graph records.
+The generic DuckDB source planner turns compatible layouts into source steps.
+The core module turns the resulting rows into the first graph records.
 Rewriting planners consume those records and produce records again. Output
 planners consume the final records and publish files or artifacts.
 
@@ -48,8 +49,8 @@ report = execute(plan, output_directory="build")
 ```
 
 The tuple is the whole planner composition. `compile` creates the blueprint
-internally, appends the five core planners when no planner claims `component_id
-== "core"`, and returns a `WorkflowPlan`. `execute` later receives that plan
+internally, adds the generic DuckDB source planner and the four core planners
+when no planner claims their components, and returns a `WorkflowPlan`. `execute` later receives that plan
 rather than the tuple. The bindings and sources are discovered from the calling
 file, so the example shows only the planner tuple.
 
@@ -58,10 +59,10 @@ Changing it changes the plan.
 
 ## The core planners
 
-The core module is always present. Its five planners are added before the
-planners you supply, and you do not pass them yourself. Together they read
-sources, evaluate projections and bindings, and assemble each component's
-records.
+The core module is always present. The generic DuckDB source planner is added
+first, then the four core planners, and you do not pass them yourself. Together
+they read asset-backed relations, evaluate projections and bindings, and
+assemble each component's records.
 
 Several bindings may target one component. Core unions their records into that
 component's single record stream, so one node type can be built from several
@@ -69,13 +70,18 @@ sources or grains. This is a normal composition, not two producers competing for
 the same record. Abstract categories are not record producers, so they get no
 records of their own.
 
-The core module has five planners — `InputPlanner`, `RowSourcePlanner`,
-`ProjectionPlanner`, `BindingPlanner` and `RecordsPlanner` — all with
-`component_id="core"` and the same `version` and `runtime_fields`.
-`core_planners()` returns them in assembled order; they share one `CorePlan` in
-`PlanContext.shared["core.plan"]`. Together they emit source, row-source,
-projection, binding and aggregate steps. Their SQL steps use `("sql", "duckdb")`;
-the DuckDB module's `DuckDbExecutor` runs them.
+The core module has four planners — `RowSourcePlanner`, `ProjectionPlanner`,
+`BindingPlanner` and `RecordsPlanner` — all with `component_id="core"` and the
+same `version` and `runtime_fields`. `core_planners()` returns them in assembled
+order; they share one `CorePlan` in `PlanContext.shared["core.plan"]`. Together
+they emit row-source, projection, binding and aggregate steps. Their SQL steps
+use `("sql", "duckdb")`; the DuckDB module's `DuckDbExecutor` runs them.
+
+The DuckDB module also supplies `DuckDbSourcePlanner`, the generic source planner
+with `component_id="duckdb"`. It reads each relation's `AssetLayout`, emits one
+`source.<relation>` step per compatible table and uses instruction kind
+`("source_relation", "duckdb")`. One asset may produce many source steps. There
+is no adapter registry: another format is another ordinary module planner.
 
 ## Modules
 
@@ -85,10 +91,11 @@ not a protocol or a registry entry. `core`, `deduplication`, `merging`,
 `conflict_validation`, `file`, `meta_graph`, `neo4j`, `duckdb`, `python` and
 `runtime` are modules.
 
-The DuckDB module is more than an executor. It supplies `DuckDbExecutor` for the
-SQL kinds, `DuckDbResourceProvider` for the live engine, `DuckDbService` as the
-engine resource, and `DuckDbSqlEmitter` for SQL text. The core planners use the
-emitter; the executor uses the service.
+The DuckDB module is more than an executor. It supplies `DuckDbSourcePlanner`
+for asset-backed sources, `DuckDbExecutor` for the SQL kinds,
+`DuckDbResourceProvider` for the live engine, `DuckDbService` as the engine
+resource, and `DuckDbSqlEmitter` for SQL text. The core planners use the emitter;
+the executor uses the service.
 
 ## Rewriting planners
 

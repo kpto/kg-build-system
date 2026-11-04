@@ -6,6 +6,7 @@ from typing import Any
 
 from kg_build_system.distribution import (
     DeduplicationPlanner,
+    DuckDbSourcePlanner,
     FileConfiguration,
     FilePlanner,
 )
@@ -44,7 +45,9 @@ class PlanAssemblyTests(unittest.TestCase):
         toolchain: Toolchain[object] = Toolchain(
             languages=(),
             linker=FakeLinker(),
-            planners=(*core_planners(), DeduplicationPlanner()),
+            planners=(
+                DuckDbSourcePlanner(), *core_planners(), DeduplicationPlanner(),
+            ),
             executors=(FakeExecutor(),),
         )
 
@@ -59,6 +62,7 @@ class PlanAssemblyTests(unittest.TestCase):
             languages=(),
             linker=FakeLinker(),
             planners=(
+                DuckDbSourcePlanner(),
                 *core_planners(),
                 DeduplicationPlanner(),
                 FilePlanner(FileConfiguration("graph.jsonl")),
@@ -73,7 +77,7 @@ class PlanAssemblyTests(unittest.TestCase):
         self.assertTrue(all(step.component for step in plan.steps))
         self.assertEqual(
             [component.id for component in plan.components],
-            ["core", "deduplication", "file"],
+            ["duckdb", "core", "deduplication", "file"],
         )
         identities = {step_id(step) for step in plan.steps}
         for connection in plan.connections:

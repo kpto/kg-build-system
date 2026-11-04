@@ -5,6 +5,12 @@ from dataclasses import fields
 from typing import get_args, get_origin, get_type_hints
 
 from kg_build_system.distribution.interpreter.model.public import GraphBlueprint
+from kg_build_system.distribution.languages.asset.model.internal import (
+    AssetDTO,
+    AssetPartDTO,
+    AssetSemanticsDTO,
+)
+from kg_build_system.distribution.languages.asset.model.public import AssetAuthority
 from kg_build_system.distribution.languages.binding.model.internal import (
     BindingDTO,
     EdgeBindingDTO,
@@ -23,7 +29,6 @@ from kg_build_system.distribution.languages.data.model.internal import (
     RowOrderByDTO,
     RowScanDTO,
     RowUnionDTO,
-    SourceDTO,
     StructDTO,
 )
 from kg_build_system.distribution.languages.topology.model.internal import (
@@ -33,7 +38,7 @@ from kg_build_system.distribution.languages.topology.model.internal import (
     PropertyDTO,
 )
 from kg_build_system.distribution.model.public.refs import (
-    NodeRef, PropertyRef, RelationRef,
+    AssetRef, NodeRef, PropertyRef, RelationRef,
 )
 from kg_build_system.kernel import Key
 from kg_build_system.kernel.model.internal import UnitTypeDTO
@@ -51,8 +56,9 @@ DTO_TYPES = (
     RowOrderByDTO,
     RowScanDTO,
     RowUnionDTO,
-    SourceDTO,
     StructDTO,
+    AssetDTO,
+    AssetPartDTO,
     EdgeDTO,
     GraphPartDTO,
     NodeDTO,
@@ -61,6 +67,20 @@ DTO_TYPES = (
     NodeBindingDTO,
     PythonRefDTO,
 )
+
+
+def _asset() -> AssetPartDTO:
+    return AssetPartDTO(assets=(
+        AssetDTO(
+            "estate",
+            AssetSemanticsDTO(
+                subject="estate records",
+                coverage="sites",
+                authority=AssetAuthority.PRIMARY,
+                basis="test fixture",
+            ),
+        ),
+    ))
 
 
 def _blueprint() -> GraphBlueprint:
@@ -86,22 +106,22 @@ def _blueprint() -> GraphBlueprint:
         target=NodeRef("topology", Key(("unit",))),
         parent=NodeRef("topology", Key(("monitored",))),
     )
-    source = SourceDTO(
-        relation=RelationRef("data", Key(("site",))),
-        location="sites.csv",
-        format="csv",
+    relation = RelationDTO(
+        name="site",
+        columns=(),
+        asset=AssetRef("asset", Key(("estate",))),
     )
     data = DataPartDTO(
         structs=(),
-        relations=(),
+        relations=(relation,),
         projections=(),
-        sources=(source,),
     )
+    assets = _asset()
     return GraphBlueprint(
         graph=GraphPartDTO(nodes=(documented, site, unit, monitored), edges=(edge,)),
         data=data,
+        assets=assets,
         bindings=(),
-        sources=data.sources,
     )
 
 
@@ -131,22 +151,36 @@ class BlueprintDTOTests(unittest.TestCase):
                     self.assertIsInstance(node.parent, NodeRef)
                     self.assertIn(node.parent.name, names)
 
+    def test_a_relation_names_its_asset(self) -> None:
+        relation = _blueprint().data.relations[0]
+
+        self.assertIsInstance(relation.asset, AssetRef)
+        self.assertEqual(
+            relation.asset.to_document(), ["asset", "asset", "estate"],
+        )
+
+    def test_the_data_part_has_structs_relations_and_projections_only(self) -> None:
+        self.assertEqual(
+            {field.name for field in fields(DataPartDTO)},
+            {"structs", "relations", "projections"},
+        )
+
     def test_the_public_blueprint_references_layer_dtos(self) -> None:
         hints = get_type_hints(GraphBlueprint)
 
         self.assertIs(hints["graph"], GraphPartDTO)
         self.assertIs(hints["data"], DataPartDTO)
+        self.assertIs(hints["assets"], AssetPartDTO)
         self.assertEqual(get_origin(hints["bindings"]), tuple)
         self.assertEqual(get_args(hints["bindings"])[0], BindingDTO)
-        self.assertEqual(get_origin(hints["sources"]), tuple)
-        self.assertEqual(get_args(hints["sources"])[0], SourceDTO)
+        self.assertNotIn("sources", hints)
 
     def test_an_empty_blueprint_has_the_layer_shapes(self) -> None:
         blueprint = _blueprint()
 
         self.assertIsInstance(blueprint.graph, GraphPartDTO)
         self.assertIsInstance(blueprint.data, DataPartDTO)
-        self.assertIsInstance(blueprint.sources[0], SourceDTO)
+        self.assertIsInstance(blueprint.assets, AssetPartDTO)
 
 
 if __name__ == "__main__":

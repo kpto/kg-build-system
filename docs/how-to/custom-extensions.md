@@ -181,8 +181,8 @@ if __name__ == "__main__":
     main()
 ```
 
-`default_toolchain` adds the five core planners because no supplied planner has
-`component_id == "core"`. `with_executors` replaces the executor sequence, so the
+`default_toolchain` adds the generic DuckDB source planner and the four core
+planners because no supplied planner claims those components. `with_executors` replaces the executor sequence, so the
 call appends the manifest executor to the default executors. `compile` and
 `execute` use the same toolchain, which is why the manifest instruction has an
 executor and its resource is available.

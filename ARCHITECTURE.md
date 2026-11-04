@@ -41,12 +41,13 @@ kg_build_system/
     model/
       public/
         refs.py          NodeRef, EdgeRef, RelationRef, FieldRef, PropertyRef,
-                         SourceRef, OperationRef, Ref
+                         AssetRef, OperationRef, Ref
         runtime.py       BuildRuntime
         paths.py
     languages/
       annotations/
       expressions/
+      asset/
       data/
       topology/
       binding/
@@ -114,8 +115,8 @@ distribution/languages -> kernel
 distribution/interpreter -> distribution/languages, kernel
 distribution/modules -> distribution/interpreter, distribution/languages,
                         distribution/model, distribution/service, kernel
+generation/code_generation -> distribution/languages.asset, kernel
 distribution/implementations -> distribution/languages, distribution/interpreter
-generation/code_generation -> kernel
 api.py -> distribution, kernel
 cli -> generation, api.py
 ```
@@ -127,13 +128,14 @@ The primary edges are:
 | `kernel` | no framework package |
 | `distribution/languages/annotations` | `kernel` |
 | `distribution/languages/expressions` | `kernel` |
-| `distribution/languages/data` | `kernel`, annotations, expressions |
+| `distribution/languages/asset` | `kernel`, annotations |
+| `distribution/languages/data` | `kernel`, annotations, expressions, asset |
 | `distribution/languages/topology` | `kernel`, annotations, expressions |
 | `distribution/languages/binding` | `kernel`, annotations, data, topology |
 | `distribution/interpreter` | `kernel`, every graph language |
 | `distribution/modules/<name>` | `kernel`, `distribution/interpreter` where it reads a blueprint, distribution languages, `distribution.model` and `distribution.service`; the core module also uses the DuckDB SQL emitter |
 | `distribution/implementations.py` | `kernel`, interpreter, languages |
-| `generation/code_generation` | `kernel` |
+| `generation/code_generation` | `kernel`, `distribution.languages.asset` |
 | `api.py` | `distribution`, `kernel` |
 | `cli` | `generation`, `api.py` |
 

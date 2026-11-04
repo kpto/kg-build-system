@@ -20,6 +20,7 @@ class DeclarationSpec:
     final: bool = True
     row_source: Any = None
     members: tuple[type[Any], ...] = ()
+    asset: Any = None
 
 
 __all__ = ["DeclarationSpec"]

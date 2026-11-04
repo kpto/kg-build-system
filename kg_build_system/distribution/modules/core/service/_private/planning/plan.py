@@ -1,9 +1,9 @@
 """What the core planners need to know about the graph blueprint.
 
-``CorePlan`` is the one plan five planners share through
-``PlanContext.shared["core.plan"]``. ``CorePlanning`` computes it once: source
-order, relation names, row-source fields, declared read paths, projections,
-row-source plans and bindings. It does not build steps and does not emit SQL.
+``CorePlan`` is the one plan four planners share through
+``PlanContext.shared["core.plan"]``. ``CorePlanning`` computes it once: relation
+names, row-source fields, projections, row-source plans and bindings. It does not
+build steps and does not emit SQL.
 """
 from __future__ import annotations
 
@@ -16,10 +16,8 @@ from kg_build_system.distribution.languages.binding.model.internal.dto import (
 )
 from kg_build_system.distribution.languages.data.model.internal import (
     ProjectionDTO,
-    RelationDTO,
     RowScanDTO,
     RowSourcePlanDTO,
-    SourceDTO,
 )
 from kg_build_system.distribution.languages.data.model.public.shapes import (
     ShapeField,
@@ -30,12 +28,8 @@ from kg_build_system.distribution.languages.data.service.internal import (
     plan_scan_sources,
     row_source_key,
 )
-from kg_build_system.distribution.modules.core.service._private.input.service._private.reading import (
-    DeclaredPath,
-    declared_read_paths,
-)
+from kg_build_system.distribution.service.internal import table_relations
 from kg_build_system.distribution.modules.core.service._private.planning.emission import (
-    binding_sources,
     projection_sources,
 )
 from kg_build_system.kernel import PlanContext
@@ -45,14 +39,12 @@ CORE_PLAN_KEY = "core.plan"
 
 @dataclass(frozen=True, slots=True)
 class CorePlan:
-    """Everything the five core planners share for one compile."""
+    """Everything the four core planners share for one compile."""
 
-    sources: tuple[SourceDTO, ...]
     projections: tuple[ProjectionDTO, ...]
     row_source_plans: tuple[RowSourcePlanDTO, ...]
     bindings: tuple[BindingDTO, ...]
     shapes: Mapping[str, tuple[ShapeField, ...]]
-    read_paths: Mapping[str, tuple[DeclaredPath, ...]]
     table_relations: Mapping[str, str]
     projection_relations: Mapping[str, str]
     row_source_relations: Mapping[str, str]
@@ -141,25 +133,9 @@ class CorePlanning:
     """Compute the shared core plan once for one blueprint."""
 
     def plan(self, blueprint: GraphBlueprint) -> CorePlan:
-        """Return the source, relation, shape and binding facts of one build."""
+        """Return the relation, shape and binding facts of one build."""
         projections = ordered_projections(blueprint)
-        used_tables: set[str] = set()
-        for binding in blueprint.bindings:
-            used_tables.update(binding_sources(binding))
-        for projection in projections:
-            used_tables.update(projection_sources(projection))
-        sources = tuple(sorted(
-            (
-                source for source in blueprint.sources
-                if source.relation.name in used_tables
-            ),
-            key=lambda source: source.relation.name,
-        ))
-        table_relations = {
-            source.relation.name: f"kg_table_{index}"
-            for index, source in enumerate(sources)
-        }
-        read_paths = declared_read_paths(blueprint)
+        relations_by_name = table_relations(blueprint)
         projection_relations = {
             projection.name: f"kg_projection_{index}"
             for index, projection in enumerate(projections)
@@ -178,15 +154,15 @@ class CorePlanning:
             for scan in plan_scan_sources(plan):
                 if scan in shapes:
                     row_source_fields.setdefault(scan, shapes[scan])
-        relations = table_relations | projection_relations | row_source_relations
+        relations = {
+            **relations_by_name, **projection_relations, **row_source_relations,
+        }
         return CorePlan(
-            sources=sources,
             projections=projections,
             row_source_plans=plans,
             bindings=tuple(blueprint.bindings),
             shapes=shapes,
-            read_paths=read_paths,
-            table_relations=table_relations,
+            table_relations=relations_by_name,
             projection_relations=projection_relations,
             row_source_relations=row_source_relations,
             row_source_fields=row_source_fields,

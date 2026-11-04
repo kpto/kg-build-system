@@ -26,8 +26,9 @@ mistake.
 
 Three declarations cover the data side of a build:
 
-- A `Table` describes a relation: one class, one row shape. It is also a row
-  source, so a binding can pass `SiteTable.row_source()` as its rows.
+- A `Table` describes a relation: one class, one row shape read from one
+  [asset](assets.md). It is also a row source, so a binding can pass
+  `SiteTable.row_source()` as its rows.
 - A `Struct` describes a record nested inside a row or inside another struct. It
   is a shape only and is never a row source.
 - A `Field[T]` declares one member. `T` is the value type, such as `str`, `Date`,
@@ -53,6 +54,8 @@ data, and each field names the value the source holds:
 from kg_build_system import Field, Struct, Table, field
 from kg_build_system import Array, Date
 
+from estate.assets import Estate
+
 
 class ContactStruct(Struct):
     """How a site can be reached."""
@@ -61,7 +64,7 @@ class ContactStruct(Struct):
     phone: Field[str] = field()
 
 
-class SiteTable(Table):
+class SiteTable(Table[Estate]):
     """One surveyed site."""
 
     site_id: Field[str] = field()
@@ -71,7 +74,7 @@ class SiteTable(Table):
     aliases: Field[Array[str | None]] = field()
 
 
-class UnitTable(Table):
+class UnitTable(Table[Estate]):
     """One asset at a site."""
 
     unit_id: Field[str] = field()
@@ -79,7 +82,7 @@ class UnitTable(Table):
     label: Field[str] = field()
 
 
-class DefectTable(Table):
+class DefectTable(Table[Estate]):
     """One defect found on a unit."""
 
     defect_id: Field[str] = field()
@@ -136,7 +139,9 @@ class SiteSummaryStruct(ComputedStruct):
     name = computed_field(SiteTable.name)
 
 
-class SummaryTable(Table):
+from estate.assets import Estate
+
+class SummaryTable(Table[Estate]):
     site_id: Field[str] = field()
     summary: Field[SiteSummaryStruct] = field()
 ```
@@ -189,18 +194,20 @@ to carry common provenance columns without copying members.
 ### Let a group describe a family
 
 A `TableGroup` is a catalog of concrete tables and nested groups, not a shape and
-not a union. It lets one source binding describe a family whose files follow one
-layout. Each member keeps its own rows and its own shape. See
-[sources](sources.md#when-a-family-shares-a-layout).
+not a union. It is a navigation and generation convenience, not a source
+binding: each member table names its own asset. A group may therefore contain
+tables from more than one asset. See [assets](assets.md).
 
-### Generate a contract from a source
+### Generate a contract from an asset
 
-`kbs generate` writes ordinary `Table`, `Struct` and `TableGroup` classes from a
-physical source. The generated field type follows the source tier: a source
+An `@asset_contract(AssetContractOptions(...))` decorator on an asset makes
+`kbs generate` write ordinary `Table[Asset]`, `Struct` and `TableGroup` classes
+from a physical source. The generated field type follows the source tier: a source
 whose nullability is only defaulted renders `Field[T | None]`, while an enforced
-or declared non-null source renders `Field[T]`. The header and generation manifest
-keep the full claim for diagnostics. A nullability `override` can assert or
-decline a claim; change the request and regenerate, generated files are not
+or declared non-null source renders `Field[T]`. Generated tables name the asset
+with `Table[Asset]`. The header and generation manifest keep the full claim for
+diagnostics. A nullability `override` can assert or
+decline a claim; change the asset contract and regenerate, generated files are not
 hand-edited. Source access follows the declaration: `Field[T]` reads non-null and
 `Field[T | None]` reads nullable.
 

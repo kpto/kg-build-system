@@ -6,12 +6,14 @@ from kg_build_system.distribution.interpreter import GraphBlueprint
 from kg_build_system.distribution.interpreter.service.internal import (
     BlueprintLinker,
 )
+from kg_build_system.distribution.languages.asset.service.internal import (
+    AssetLanguage,
+)
 from kg_build_system.distribution.languages.binding.service.internal import (
     BindingLanguage,
 )
 from kg_build_system.distribution.languages.data.model.internal import (
     DataPartDTO,
-    SourceDTO,
     StructDTO,
 )
 from kg_build_system.distribution.languages.data.service.internal import (
@@ -34,7 +36,6 @@ from kg_build_system.distribution.languages.expressions.service.internal import 
 from kg_build_system.distribution.languages.topology.service.internal import (
     TopologyLanguage,
 )
-from kg_build_system.distribution.model.public.refs import RelationRef
 from kg_build_system.kernel import (
     Declaration,
     Key,
@@ -44,6 +45,7 @@ from kg_build_system.kernel import (
 from kg_build_system.distribution.interpreter.service._private.link import (
     select_reachable,
 )
+from .support import TestEstate
 
 
 class Namespace:
@@ -56,8 +58,8 @@ class Namespace:
 
 def _languages():
     return (
-        ExpressionsLanguage(), DataLanguage(), TopologyLanguage(),
-        BindingLanguage(),
+        ExpressionsLanguage(), AssetLanguage(), DataLanguage(),
+        TopologyLanguage(), BindingLanguage(),
     )
 
 
@@ -114,7 +116,7 @@ class StructOnlyDataLanguage(BrokenDataLanguage):
 class BlueprintLinkerTests(unittest.TestCase):
     def test_the_linker_requires_every_default_language(self) -> None:
         with self.assertRaisesRegex(
-            ValueError, "requires languages expressions, binding",
+            ValueError, "requires languages expressions, asset, binding",
         ):
             BlueprintLinker().link(
                 (DataLanguage(), TopologyLanguage()), Namespace(),
@@ -127,10 +129,10 @@ class BlueprintLinkerTests(unittest.TestCase):
         self.assertEqual(linked.graph, GraphPartDTO())
         self.assertEqual(
             linked.data,
-            DataPartDTO(structs=(), relations=(), projections=(), sources=()),
+            DataPartDTO(structs=(), relations=(), projections=()),
         )
+        self.assertEqual(linked.assets.assets, ())
         self.assertEqual(linked.bindings, ())
-        self.assertEqual(linked.sources, ())
 
     def test_languages_are_transcribed_in_dependency_order(self) -> None:
         calls: list[str] = []
@@ -138,6 +140,11 @@ class BlueprintLinkerTests(unittest.TestCase):
         class RecordingExpressions(ExpressionsLanguage):
             def transcribe_many(self, declarations, context):
                 calls.append("expressions")
+                return super().transcribe_many(declarations, context)
+
+        class RecordingAsset(AssetLanguage):
+            def transcribe_many(self, declarations, context):
+                calls.append("asset")
                 return super().transcribe_many(declarations, context)
 
         class RecordingData(DataLanguage):
@@ -158,13 +165,13 @@ class BlueprintLinkerTests(unittest.TestCase):
         BlueprintLinker().link(
             (
                 RecordingBinding(), RecordingTopology(), RecordingData(),
-                RecordingExpressions(),
+                RecordingAsset(), RecordingExpressions(),
             ),
             Namespace(),
         )
 
         self.assertEqual(
-            calls, ["expressions", "data", "topology", "binding"],
+            calls, ["expressions", "asset", "data", "topology", "binding"],
         )
 
     def test_a_declaration_key_is_indexed_once(self) -> None:
@@ -179,13 +186,19 @@ class BlueprintLinkerTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "declares key same twice"):
             BlueprintLinker().link(
-                (DuplicateData(), TopologyLanguage(), BindingLanguage(), ExpressionsLanguage()),
+                (
+                    DuplicateData(), AssetLanguage(), TopologyLanguage(),
+                    BindingLanguage(), ExpressionsLanguage(),
+                ),
                 Namespace(),
             )
 
     def test_a_fake_language_produces_symbols_for_the_blueprint(self) -> None:
         linked = BlueprintLinker().link(
-            (StructOnlyDataLanguage(), TopologyLanguage(), BindingLanguage(), ExpressionsLanguage()),
+            (
+                StructOnlyDataLanguage(), AssetLanguage(), TopologyLanguage(),
+                BindingLanguage(), ExpressionsLanguage(),
+            ),
             Namespace(),
         )
 
@@ -196,7 +209,10 @@ class BlueprintLinkerTests(unittest.TestCase):
     def test_a_missing_symbol_reference_is_refused(self) -> None:
         with self.assertRaisesRegex(ValueError, "unknown symbol reference"):
             BlueprintLinker().link(
-                (BrokenDataLanguage(), TopologyLanguage(), BindingLanguage(), ExpressionsLanguage()),
+                (
+                    BrokenDataLanguage(), AssetLanguage(), TopologyLanguage(),
+                    BindingLanguage(), ExpressionsLanguage(),
+                ),
                 Namespace(),
             )
 
@@ -209,18 +225,17 @@ class BlueprintLinkerTests(unittest.TestCase):
                     reference: Symbol(
                         reference.key,
                         "binding",
-                        SourceDTO(
-                            RelationRef("data", Key(("broken",))),
-                            "file.csv",
-                            "csv",
-                        ),
+                        object(),
                         (SymbolRef("topology", Key(("missing",))),),
                     ),
                 }
 
         with self.assertRaisesRegex(ValueError, "unknown symbol reference"):
             BlueprintLinker().link(
-                (DataLanguage(), TopologyLanguage(), BrokenBindingLanguage(), ExpressionsLanguage()),
+                (
+                    DataLanguage(), AssetLanguage(), TopologyLanguage(),
+                    BrokenBindingLanguage(), ExpressionsLanguage(),
+                ),
                 Namespace(),
             )
 
@@ -265,7 +280,7 @@ class DataSymbolKeyTests(unittest.TestCase):
             options = StructOptions(name="go")
             value: Field[str] = field()
 
-        class GoTable(Table):
+        class GoTable(Table[TestEstate]):
             options = TableOptions(name="go")
             value: Field[str] = field()
 
@@ -281,6 +296,11 @@ class DataSymbolKeyTests(unittest.TestCase):
         self.assertEqual(keys["relation"], Key(("go",)))
         self.assertEqual(keys["struct"].segments[0], "go")
         self.assertEqual(len(keys["struct"].segments), 2)
+
+    def test_a_table_without_an_asset_is_refused(self) -> None:
+        with self.assertRaisesRegex(TypeError, "Table\\[Asset\\]"):
+            class NoAsset(Table):
+                value: Field[str] = field()
 
 
 class RootPolicyTests(unittest.TestCase):

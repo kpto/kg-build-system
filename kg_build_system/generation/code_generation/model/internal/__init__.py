@@ -3,7 +3,8 @@ from __future__ import annotations
 
 from .models import DiscoveredGeneration, GenerationLocation, GenerationManifest
 from .providers import (
-    GeneratedDeclarations, Provider, ProviderContext, ProviderGenerationConfig,
+    GeneratedDeclarations, Provider, ProviderAsset, ProviderContext,
+    ProviderGenerationConfig,
 )
 
 __all__ = [
@@ -12,6 +13,7 @@ __all__ = [
     "GenerationLocation",
     "GenerationManifest",
     "Provider",
+    "ProviderAsset",
     "ProviderContext",
     "ProviderGenerationConfig",
 ]

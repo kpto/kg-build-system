@@ -11,7 +11,7 @@ publishes the graph with the meaning declared for it.
 | Group | Responsibility |
 | --- | --- |
 | `kernel/` | domain-agnostic toolchain: language, declaration, symbol, linker, planner, executor, resource, runtime, workflow plan and canonical types |
-| `distribution/languages/` | the annotation, expression, data, topology and binding languages |
+| `distribution/languages/` | the annotation, expression, asset, data, topology and binding languages |
 | `distribution/interpreter/` | `GraphBlueprint`, `BlueprintLinker` and `create_blueprint` |
 | `distribution/modules/` | feature packages: core, deduplication, merging, conflict validation, file, meta-graph, Neo4j, DuckDB, Python and runtime resources |
 | `distribution/implementations.py` | language and linker implementations composed by `api.py` |
@@ -25,7 +25,7 @@ publishes the graph with the meaning declared for it.
 The kernel vocabulary is toolchain vocabulary: language, declaration, symbol,
 linker, planner, workflow plan, runtime, executor, resource and toolchain. The
 distribution vocabulary is domain vocabulary: graph, blueprint, node, edge,
-binding, projection, table, core, meta-graph, Neo4j, DuckDB and Python.
+binding, projection, table, asset, core, meta-graph, Neo4j, DuckDB and Python.
 
 Every framework leaf uses the zones it needs from the model/service layout:
 
@@ -42,6 +42,21 @@ pkg/
     _private/          codecs, transcription, rendering, validation, assembly,
                        planning, engines, runtime
 ```
+
+## Source data
+
+- An **asset** is one logical unit of source data, like a package. One asset may
+  back many tables. A table names its asset with `Table[Asset]`; the relation
+  carries that identity as an `AssetRef`.
+- `AssetLayout` is optional descriptive metadata: `kind`, `locator`, `format`,
+  `selector`, `partition_by`, `members` and `properties`. It is not an access
+  contract.
+- `DuckDbSourcePlanner` is the generic module planner for `parquet`, `json` and
+  `csv` assets. There is no adapter concept in the toolchain and no adapter
+  registry; another format is another ordinary module planner.
+- `@asset_contract(AssetContractOptions(...))` is an inert edit-time decorator
+  on an asset. Code generation is not part of `AssetOptions`, `AssetDTO` or the
+  blueprint, and there are no source binding values.
 
 ## Documentation
 
@@ -61,7 +76,7 @@ uv run pyright
 uv run mkdocs build --strict
 ```
 
-Current verification: 187 tests passed, 1618 subtests; pyright 0 errors.
+Current verification: 226 tests passed, 1655 subtests; pyright 0 errors.
 
 The framework is experimental; the guide describes the current model, not a
 compatibility promise.

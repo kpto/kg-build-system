@@ -25,12 +25,14 @@ from pathlib import Path
 from typing import Any
 
 from .distribution import (
+    AssetLanguage,
     BindingLanguage,
     BlueprintLinker,
     ConflictReportExecutor,
     DataLanguage,
     DuckDbExecutor,
     DuckDbResourceProvider,
+    DuckDbSourcePlanner,
     ExpressionsLanguage,
     FileExecutor,
     MetaGraphExecutor,
@@ -42,7 +44,6 @@ from .distribution import (
 )
 from .distribution.interpreter import GraphBlueprint, create_blueprint as _create_blueprint
 from .distribution.languages.binding import Binding
-from .distribution.languages.data import BoundSource
 from .distribution.model.public.runtime import BuildRuntime
 from .frontend import Monitor, resolve_monitor
 from .kernel import (
@@ -57,7 +58,8 @@ from .kernel.service.internal.report_codec import workflow_report_to_document
 from .kernel.service.internal.workflow_codec import workflow_plan_to_document
 
 DEFAULT_LANGUAGES = (
-    ExpressionsLanguage(), DataLanguage(), TopologyLanguage(), BindingLanguage(),
+    ExpressionsLanguage(), AssetLanguage(), DataLanguage(), TopologyLanguage(),
+    BindingLanguage(),
 )
 DEFAULT_EXECUTORS = (
     DuckDbExecutor(),
@@ -77,7 +79,8 @@ def default_toolchain(
 ) -> Toolchain[Any]:
     """Return a graph toolchain with the supplied planners and executors added.
 
-    A caller-supplied core planner is not duplicated: the five default core
+    The generic DuckDB source planner is added before the core planners, and a
+    caller-supplied core planner is not duplicated: the four default core
     planners are added only when no planner reports ``component_id == "core"``.
 
     Example:
@@ -93,8 +96,15 @@ def default_toolchain(
     ```
     """
     configured: tuple[Any, ...] = tuple(planners)
+    sources: tuple[Any, ...] = (
+        ()
+        if any(planner.component_id == "duckdb" for planner in configured)
+        else (DuckDbSourcePlanner(),)
+    )
     if not any(planner.component_id == "core" for planner in configured):
-        configured = (*core_planners(engine=engine), *configured)
+        configured = (*sources, *core_planners(engine=engine), *configured)
+    elif sources:
+        configured = (*sources, *configured)
     return Toolchain(
         languages=DEFAULT_LANGUAGES,
         linker=BlueprintLinker(),
@@ -130,7 +140,6 @@ def create_blueprint(
     *,
     namespace_path: str | Path | None = None,
     bindings: Iterable[Binding] = (),
-    sources: Sequence[BoundSource] = (),
     languages: Sequence[Any] | None = None,
 ) -> GraphBlueprint:
     """Create the semantic blueprint for one declaration namespace.
@@ -144,13 +153,13 @@ def create_blueprint(
         ```
     """
     binding_values = tuple(bindings)
-    if binding_values or sources:
+    if binding_values:
         if namespace_path is not None:
             raise ValueError(
-                "namespace_path cannot be combined with bindings or sources"
+                "namespace_path cannot be combined with bindings"
             )
         return _create_blueprint(
-            bindings=binding_values, sources=sources, languages=languages,
+            bindings=binding_values, languages=languages,
         )
     if namespace_path is None:
         namespace_path = _calling_namespace_path()
@@ -162,7 +171,6 @@ def compile(
     blueprint: GraphBlueprint | None = None,
     namespace_path: str | Path | None = None,
     bindings: Iterable[Binding] | None = None,
-    sources: Sequence[BoundSource] | None = None,
     planners: Sequence[Any] = (),
     toolchain: Toolchain[GraphBlueprint] | None = None,
     engine: Any = None,
@@ -185,16 +193,15 @@ def compile(
         ```
     """
     if blueprint is not None:
-        if namespace_path is not None or bindings is not None or sources is not None:
+        if namespace_path is not None or bindings is not None:
             raise ValueError(
-                "blueprint cannot be combined with namespace_path, bindings, or sources"
+                "blueprint cannot be combined with namespace_path or bindings"
             )
         prepared = blueprint
     else:
         prepared = create_blueprint(
             namespace_path=namespace_path,
             bindings=() if bindings is None else bindings,
-            sources=() if sources is None else sources,
         )
     if toolchain is None:
         selected: Toolchain[GraphBlueprint] = default_toolchain(

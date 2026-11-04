@@ -15,7 +15,9 @@ class whose fields are the columns you expect. A `Table` describes a row of
 input; a `Struct` describes a nested record inside it.
 
 ```python
-class SiteTable(Table):
+from estate.assets import Estate
+
+class SiteTable(Table[Estate]):
     site_id: Field[str] = field()
     name: Field[str | None] = field()
     surveyed_on: Field[Date] = field()
@@ -25,17 +27,29 @@ The declaration is the schema. There is no separate mapping document. Every
 field also carries a [type](types.md), so compilation can check what a value
 may become.
 
-## 2. Give the rows a source
+## 2. Name the asset
 
-A [source](sources.md) attaches the table to a file or URI. The table says what a
-row looks like; the source says where the rows live. Keeping them separate means
-a feed can move without changing the graph.
+An [asset](assets.md) is one logical unit of source data, like a package. One
+asset may back many tables. A table names its asset with `Table[Asset]`; the
+asset carries the optional layout that a source planner resolves. Keeping them
+separate means a feed can move without changing the graph.
 
 ```python
-source = bind_source(
-    target=SiteTable,
-    config=DataSourceConfig("data/sites.json", format=InputFormat.JSON),
-)
+class Estate(Asset):
+    options = AssetOptions(
+        semantics=AssetSemantics(
+            subject="monitored estate",
+            coverage="sites, units and defects",
+            authority=AssetAuthority.PRIMARY,
+            basis="survey export",
+        ),
+        layout=AssetLayout(
+            kind="json",
+            locator="data/survey",
+            format="json",
+            members={"sites": "sites.json"},
+        ),
+    )
 ```
 
 ## 3. Work with values
@@ -117,9 +131,10 @@ graph, so a consumer does not have to read the pipeline.
 ## 8. Compose the planners and executors
 
 [Planners and executors](planners-and-executors.md) are the stages applied to the whole graph
-after the bindings. The core module's five planners materialise rows and records;
-file, meta-graph and Neo4j planners publish the result; deduplication, merging and
-validation planners change which records survive.
+after the bindings. The generic DuckDB source planner turns compatible asset
+layouts into source steps; the core module's four planners materialise rows and
+records; file, meta-graph and Neo4j planners publish the result; deduplication,
+merging and validation planners change which records survive.
 
 ## 9. Compile and run
 
@@ -135,7 +150,7 @@ report = execute(plan, output_directory="build")
 ## The whole pipeline
 
 ```text
-source files
+assets and layouts
     │
     ▼
 data contracts ──► expressions ──► row sources ──► projections

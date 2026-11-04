@@ -12,7 +12,8 @@ composition or input that caused it.
   lifecycle and the output files.
 - Keep [Bindings](../concepts/bindings.md),
   [Row sources](../concepts/row-sources.md),
-  [Projections](../concepts/projections.md) and
+  [Projections](../concepts/projections.md),
+  [Assets](../concepts/assets.md) and
   [Planners and executors](../concepts/planners-and-executors.md) open while you work.
 
 A normal investigation starts with these calls:
@@ -139,7 +140,7 @@ may share a `component_id` when their version and runtime fields agree.
 
 | Message | What to change |
 | --- | --- |
-| `no source bound for: x` | Add `bind_source(target=XTable, config=...)` for every table the bindings read. |
+| `... takes ... which no other step writes` | The table's asset has no compatible `AssetLayout` for the supplied source planner. Add or repair `layout`, or add a module planner that emits the relation. |
 | `references unknown logical source 'x'` | Import the table or projection, or check its `options.name`. |
 | `references unknown field 'x' on logical source 'y'` | Correct the field name or add the field to the declaration. |
 | `expressions reference undiscoverable logical sources: x` | Move the projection inside the discovered namespace, or add the source it reads. |
@@ -273,7 +274,7 @@ other output planners after the counts are correct. See
 | The report is unsuccessful but no file appears | Read `unresolved_failures` and `workflow_plan.json`. The failure names the step. |
 | The graph file is missing | The output planner is not composed, its path is relative to the output directory, or its step failed. Check `published_artifacts`. |
 | The record count is an exact multiple | Find the expansion or many-side join that multiplied the rows. Move it to its own grain. |
-| The record count is zero | Check `no source bound for`, the source path, a `drop_null` in a key or property, and the discovered namespace. |
+| The record count is zero | Check the asset layout and source step, the source path, a `drop_null` in a key or property, and the discovered namespace. |
 | An edge points at a missing node | The endpoint key expression differs from the node binding, or the node row was filtered out. |
 | A required property is null at run time | Default it, make the property nullable, or drop the row deliberately. |
 | The conflict-validation planner reports findings without failing | Inspect the published findings report, fix the data or the binding, then turn `fail_on_error` on. |

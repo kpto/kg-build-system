@@ -64,8 +64,8 @@ class SourceSpec:
     declared_paths: tuple[DeclaredPath, ...] = ()
 
 
-class CoreSourceCredentialOptions(BaseModel):
-    """Secret runtime options understood only by the core source reader."""
+class DuckDbSourceCredentialOptions(BaseModel):
+    """Secret runtime options understood only by the DuckDB source reader."""
 
     model_config = ConfigDict(frozen=True, extra="forbid", strict=True)
 
@@ -273,7 +273,7 @@ def _configure_source_credentials(
     from kg_build_system.distribution.modules.runtime import CredentialResolver
 
     resolved = resources.get(CredentialResolver).resolve(credential_reference)
-    options = CoreSourceCredentialOptions.model_validate_json(resolved)
+    options = DuckDbSourceCredentialOptions.model_validate_json(resolved)
     protocol = urlsplit(location).scheme
     if not protocol:
         raise ValueError("credentialed source locations require a URI scheme")
@@ -321,9 +321,9 @@ def open_source(
 
 
 __all__ = [
-    "CoreSourceCredentialOptions",
     "DeclaredColumn",
     "DeclaredPath",
+    "DuckDbSourceCredentialOptions",
     "SourceSpec",
     "open_source",
     "source_scan",

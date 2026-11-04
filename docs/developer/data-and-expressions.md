@@ -10,6 +10,7 @@ prove.
 | --- | --- | --- |
 | Canonical types | `kernel/model/public/types` | the one type ontology every language uses |
 | Annotations | `distribution/languages/annotations` | annotation values and DTOs |
+| Assets | `distribution/languages/asset` | logical source-data declarations, layout metadata and asset DTOs |
 | Selections | `distribution/languages/expressions/model/public` | typed reads over a row shape |
 | Operation specifications | `distribution/languages/expressions/service/internal/operations` | one specification per operation |
 | Row sources | `distribution/languages/data` | the row value a projection or binding reads |
@@ -108,10 +109,14 @@ distribution/languages/annotations/model/internal/dto/blueprint_dto.py
 distribution/languages/expressions/model/internal/dto/blueprint_dto.py
     LiteralExpressionDTO, FieldReferenceDTO, OperationExpressionDTO
 
+distribution/languages/asset/model/internal/dto/asset_dto.py
+    AssetPartDTO, AssetDTO, AssetLayoutDTO, AssetSemanticsDTO,
+    AssetGovernanceDTO, AssetLicenseDTO
+
 distribution/languages/data/model/internal/dto/blueprint_dto.py
     DataPartDTO
     StructDTO, RelationDTO, ColumnDTO
-    ProjectionDTO, SourceDTO
+    ProjectionDTO
     RowScanDTO, RowFilterDTO, RowUnionDTO, RowJoinDTO,
     RowGroupByDTO, RowDistinctDTO, RowOrderByDTO
 
@@ -122,11 +127,11 @@ distribution/languages/binding/model/internal/dto/blueprint_dto.py
     NodeBindingDTO, EdgeBindingDTO
 
 distribution/model/public/refs.py
-    NodeRef, EdgeRef, RelationRef, FieldRef, PropertyRef, SourceRef,
+    NodeRef, EdgeRef, RelationRef, FieldRef, PropertyRef, AssetRef,
     OperationRef
 
 distribution/interpreter/model/public/graph_blueprint.py
-    GraphBlueprint(graph, data, bindings, sources)
+    GraphBlueprint(graph, data, assets, bindings)
 ```
 
 ## Typed references
@@ -138,10 +143,10 @@ a role type from `distribution/model/public/refs.py`:
 | --- | --- | --- |
 | `NodeRef` | one topology node | `NodeDTO.parent`, `EdgeDTO.source`/`target`, binding targets and endpoints |
 | `EdgeRef` | one topology edge | `EdgeDTO.parent`, edge binding targets |
-| `RelationRef` | one relation or projection | `RowScanDTO.relation`, `SourceDTO.relation` |
+| `RelationRef` | one relation or projection | `RowScanDTO.relation` |
 | `FieldRef` | one declared field | `ColumnDTO.ref`, `FieldReferenceDTO.field` |
 | `PropertyRef` | one graph property | `PropertyDTO.ref` |
-| `SourceRef` | one physical source | source symbol identity |
+| `AssetRef` | one logical asset | `RelationDTO.asset` |
 | `OperationRef` | one operation specification | `OperationExpressionDTO.operator` |
 
 Each wraps a kernel `SymbolRef` and exposes `.symbol`, `.key`, `.name` and a
@@ -160,11 +165,13 @@ came from. A field symbol's key joins its owner and the column name, and a
 property symbol's key joins its component and the property name.
 
 The expressions language (`name = "expressions"`) publishes one `operation`
-symbol per built-in specification. It is the first language in the linker order
-`expressions, data, topology, binding`, so a binding that reads a field or an
-operation resolves against symbols that already exist. An expression tree is a
-value, not a symbol: it references field and operation symbols through typed
-refs.
+symbol per built-in specification. The linker order is
+`expressions, asset, data, topology, binding`: expressions resolve first, then
+asset declarations, then data relations that reference assets and expressions,
+then topology and bindings.
+
+An expression tree is a value, not a symbol: it references field and operation
+symbols through typed refs.
 
 The graph DTO has these rules:
 
@@ -185,17 +192,18 @@ to one graph record. `GraphBlueprint` is the assembled semantic model.
 
 ## Planning boundary
 
-Planning reads a `GraphBlueprint` and runs each planner. The five core planners
-decompose the blueprint into sources, row sources, projections, bindings and
-aggregates, emit instructions through the DuckDB SQL emitter, and return
-`Step`s. The kernel assembles those steps into a `WorkflowPlan`. Planning does
+Planning reads a `GraphBlueprint` and runs each planner. The generic
+`DuckDbSourcePlanner` turns compatible asset layouts into
+`("source_relation", "duckdb")` steps. The four core planners decompose the rest
+of the blueprint into row sources, projections, bindings and aggregates, emit
+instructions through the DuckDB SQL emitter, and return `Step`s. The kernel assembles those steps into a `WorkflowPlan`. Planning does
 not read authoring declarations and does not call the blueprint package.
 
 ```text
 GraphBlueprint
-    -> core_planners()
-    -> relational plans and SQL text
-    -> Step(instruction=("sql", "duckdb"), ...)
+    -> DuckDbSourcePlanner() and core_planners()
+    -> relation plans and SQL text
+    -> Step(instruction=("source_relation" | "sql", "duckdb"), ...)
     -> WorkflowPlan
 ```
 
@@ -244,11 +252,13 @@ The round trip proves three things:
 The data model is implemented:
 
 - `distribution/languages/data/model/internal/dto/blueprint_dto.py` defines
-  `DataPartDTO`, `StructDTO`, `RelationDTO`, `ColumnDTO`, `ProjectionDTO`,
-  `SourceDTO` and the `Row*DTO` plans. They carry graph names and typed refs,
-  never a `symbol_id` or a symbol key.
-- `distribution/languages/data`, `topology`, `binding` and `expressions` each
-  provide a kernel `Language` adapter, a transcription service and a source
+  `DataPartDTO`, `StructDTO`, `RelationDTO`, `ColumnDTO`, `ProjectionDTO` and the
+  `Row*DTO` plans. They carry graph names and typed refs, never a `symbol_id` or
+  a symbol key. Every `RelationDTO` carries an `AssetRef`.
+- `distribution/languages/asset` defines the asset language, `AssetPartDTO` and
+  its codec. A relation names a logical asset, not a physical reader binding.
+- `distribution/languages/asset`, `data`, `topology`, `binding` and `expressions`
+  each provide a kernel `Language` adapter, a transcription service and a source
   service. Their languages discover declarations, transcribe symbols and
   render those symbol values back to authoring source.
 - `distribution/languages/expressions/model/internal/dto/blueprint_dto.py`
@@ -256,13 +266,15 @@ The data model is implemented:
   and `OperationExpressionDTO`. A field read carries a `FieldRef` and a nested
   path; an operation carries an `OperationRef`. An expression is an inline
   fragment, not a separately keyed symbol.
-- `distribution/interpreter` defines `GraphBlueprint(graph, data, bindings,
-  sources)`, a composing codec and a source service. The source service
-  delegates to the data, topology and binding renderers and assembles their
-  fragments.
-- `distribution/modules/core` owns the five core planners, the engine-neutral
-  relation plans and the `("sql", "duckdb")` steps. `distribution/modules/duckdb`
-  owns the emitter, the executor and the engine resource.
+- `distribution/interpreter` defines `GraphBlueprint(graph, data, assets,
+  bindings)`, a composing codec and a source service. The source service
+  delegates to the asset, data, topology and binding renderers and assembles
+  their fragments.
+- `distribution/modules/duckdb` owns `DuckDbSourcePlanner`, which reads
+  `AssetLayout` and emits `("source_relation", "duckdb")` steps, plus the SQL
+  emitter, the executor and the engine resource.
+- `distribution/modules/core` owns the four core planners, the engine-neutral
+  relation plans and the `("sql", "duckdb")` steps.
 - The kernel scheduler dispatches on `step.instruction.kind`; SQL is one
   instruction kind.
 
@@ -278,6 +290,7 @@ The remaining limits in this area are:
 
 ## What to remember
 
+- Assets belong to the asset language; relations name them with `AssetRef`.
 - Row sources, joins and projections belong to the data language.
 - Expressions contribute operation specifications and expression DTOs.
 - The blueprint assembles DTOs; planning reads the blueprint and never the

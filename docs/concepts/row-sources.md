@@ -2,7 +2,7 @@
 
 A row source is a value that describes one relation of rows: the shape of a row and the filters, joins, unions, groups and ordering that produce it.
 
-Your data contract says what a row looks like, and a source says where the rows live. A binding still has to answer a third question: which rows become this record? A row source is that answer. It makes the grain explicit, lets one plan feed several consumers, and keeps every filter and join visible where you write it.
+Your data contract says what a row looks like, and the asset it names says which logical source the rows belong to. A binding still has to answer a third question: which rows become this record? A row source is that answer. It makes the grain explicit, lets one plan feed several consumers, and keeps every filter and join visible where you write it.
 
 ## The grain is a decision
 
@@ -42,13 +42,15 @@ class ObservationStruct(Struct):
     value: Field[float] = field()
 
 
-class SiteTable(Table):
+from estate.assets import Estate
+
+class SiteTable(Table[Estate]):
     site_id: Field[str] = field()
     name: Field[str] = field()
     region: Field[str] = field()
 
 
-class UnitTable(Table):
+class UnitTable(Table[Estate]):
     site_id: Field[str] = field()
     unit_ref: Field[str] = field()
     unit_name: Field[str] = field()
@@ -57,7 +59,7 @@ class UnitTable(Table):
     survey_period: Field[str] = field()
 
 
-class DefectTable(Table):
+class DefectTable(Table[Estate]):
     defect_id: Field[str] = field()
     unit_ref: Field[str] = field()
     title: Field[str] = field()

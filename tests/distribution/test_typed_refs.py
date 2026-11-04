@@ -28,7 +28,6 @@ from kg_build_system.distribution.languages.data.model.internal import (
     ColumnDTO,
     DataPartDTO,
     RelationDTO,
-    SourceDTO,
 )
 from kg_build_system.distribution.languages.expressions.model.internal import (
     FieldReferenceDTO,
@@ -46,17 +45,24 @@ from kg_build_system.distribution.languages.topology.model.internal import (
     PropertyDTO,
 )
 from kg_build_system.distribution.model.public.refs import (
+    AssetRef,
     EdgeRef,
     FieldRef,
     NodeRef,
     OperationRef,
     PropertyRef,
     RelationRef,
-    SourceRef,
     ref_from_document,
 )
+from kg_build_system.distribution.languages.asset.model.internal import (
+    AssetDTO,
+    AssetPartDTO,
+    AssetSemanticsDTO,
+)
+from kg_build_system.distribution.languages.asset.model.public import AssetAuthority
 from kg_build_system.kernel import Key, SymbolRef
 from kg_build_system.kernel.model.internal.types.dto import UnitTypeDTO
+from .support import TestEstate
 
 
 def _site() -> NodeRef:
@@ -75,7 +81,7 @@ class ReferenceRoleTests(unittest.TestCase):
             (RelationRef, Key(("sites",))),
             (FieldRef, Key(("sites.site_name",))),
             (PropertyRef, Key(("site.name",))),
-            (SourceRef, Key(("sites", "source"))),
+            (AssetRef, Key(("estate",))),
             (OperationRef, Key(("default_to",))),
         )
         for role_type, key in cases:
@@ -101,12 +107,15 @@ class ReferenceRoleTests(unittest.TestCase):
         self.assertEqual(reference, FieldRef(symbol))
         self.assertEqual(hash(reference), hash(FieldRef(symbol)))
 
-    def test_property_and_source_roles_split_their_key(self) -> None:
+    def test_property_and_asset_roles_state_their_key(self) -> None:
         prop = PropertyRef("topology", Key(("site.name",)))
-        source = SourceRef("data", Key(("sites", "source")))
+        asset = AssetRef("asset", Key(("estate",)))
 
         self.assertEqual((prop.component, prop.property), ("site", "name"))
-        self.assertEqual(source.relation, "sites")
+        self.assertEqual(asset.name, "estate")
+        self.assertEqual(
+            asset.to_document(), ["asset", "asset", "estate"],
+        )
 
 
 class ExpressionReferenceDocumentTests(unittest.TestCase):
@@ -166,12 +175,19 @@ class BlueprintReferenceCodecTests(unittest.TestCase):
                     FieldRef("data", Key(("sites.site_name",))),
                 ),
             ),
+            AssetRef("asset", Key(("estate",))),
         )
-        source = SourceDTO(
-            relation=RelationRef("data", Key(("sites",))),
-            location="sites.csv",
-            format="csv",
-        )
+        assets = AssetPartDTO(assets=(
+            AssetDTO(
+                "estate",
+                AssetSemanticsDTO(
+                    subject="estate",
+                    coverage="sites",
+                    authority=AssetAuthority.PRIMARY,
+                    basis="test fixture",
+                ),
+            ),
+        ))
         binding = NodeBindingDTO(
             _site(),
             LiteralExpressionDTO(
@@ -192,10 +208,9 @@ class BlueprintReferenceCodecTests(unittest.TestCase):
                 structs=(),
                 relations=(relation,),
                 projections=(),
-                sources=(source,),
             ),
+            assets=assets,
             bindings=(binding,),
-            sources=(source,),
         )
 
         document = blueprint_to_document(blueprint)
@@ -211,8 +226,8 @@ class BlueprintReferenceCodecTests(unittest.TestCase):
             ["data", "field", "sites.site_name"],
         )
         self.assertEqual(
-            document["data"]["sources"][0]["relation"],
-            ["data", "relation", "sites"],
+            document["data"]["relations"][0]["asset"],
+            ["asset", "asset", "estate"],
         )
         self.assertEqual(
             document["bindings"][0]["node"],
@@ -222,7 +237,7 @@ class BlueprintReferenceCodecTests(unittest.TestCase):
 
 class BindingSymbolReferenceTests(unittest.TestCase):
     def test_a_binding_references_a_field_and_an_operation_symbol(self) -> None:
-        class Row(Table):
+        class Row(Table[TestEstate]):
             options = TableOptions(name="row")
             value: Field[int] = field(name="value")
 

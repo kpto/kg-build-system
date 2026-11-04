@@ -30,7 +30,7 @@ def render_data(
             render_data,
         )
 
-        fragment = render_data(DataPartDTO((), (), (), ()))
+        fragment = render_data(DataPartDTO((), (), ()))
         assert fragment.body == ""
         ```
     """

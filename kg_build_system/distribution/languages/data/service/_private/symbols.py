@@ -1,11 +1,9 @@
 """Project the data language DTO into linked symbols.
 
-The graph name is the temporary key bridge in this wave. Relations, projections
-and physical sources are unique by graph name. Struct names are not unique:
-the same nested record name can appear in several modules, so a struct key takes
-its Python qualified name as a second segment. A physical source shares its
-relation's graph name, so a source key takes ``"source"`` as its second
-segment.
+The graph name is the temporary key bridge in this wave. Relations and
+projections are unique by graph name. Struct names are not unique: the same
+nested record name can appear in several modules, so a struct key takes its
+Python qualified name as a second segment.
 
 Fields are symbols too. A field key joins its owner's key segments and the
 column name with dots, so a relation ``sites`` and its column ``site_name``
@@ -28,16 +26,12 @@ from ...model.internal.dto.blueprint_dto import (
     DataPartDTO,
     ProjectionDTO,
     RelationDTO,
-    SourceDTO,
     StructDTO,
 )
-from ...model.public.sources import BoundTable, BoundTableGroup
 from .rows import plan_scan_sources
-from .sources import resolve_bound_source
 from .transcription import (
     _projection,
     _relation,
-    _source,
     _struct,
 )
 
@@ -65,21 +59,11 @@ def declaration_name(value: Any) -> str:
             return name
         if isinstance(value, type):
             return value.__name__
-    if isinstance(value, BoundTable):
-        return declaration_name(value.table)
-    if isinstance(value, BoundTableGroup):
-        group = value.group
-        name = getattr(group, "_table_group_name", None)
-        if isinstance(name, str) and name:
-            return name
-        return group.__name__
     raise TypeError(f"data declaration {value!r} has no graph name")
 
 
 def declaration_kind(value: Any) -> str:
     """Return the symbol kind of one data declaration."""
-    if isinstance(value, (BoundTable, BoundTableGroup)):
-        return "source"
     spec = declaration_spec(value)
     if spec is None:
         raise TypeError(f"data declaration {value!r} has no kind")
@@ -104,18 +88,13 @@ def declaration_key(value: Any, *, qualify_struct: bool = False) -> Key:
     kind = declaration_kind(value)
     if kind == "struct" and qualify_struct:
         return Key((name, _struct_name(value)))
-    if kind == "source":
-        return Key((name, "source"))
     return Key((name,))
 
 
 def name_counts(declarations: Sequence[Declaration]) -> dict[str, int]:
-    """Count the graph names of the non-source declarations."""
+    """Count the graph names of the data declarations."""
     counts: dict[str, int] = {}
     for declaration in declarations:
-        kind = declaration_kind(declaration.value)
-        if kind == "source":
-            continue
         name = declaration_name(declaration.value)
         counts[name] = counts.get(name, 0) + 1
     return counts
@@ -179,12 +158,10 @@ def _field_symbols(
 
 def owns_value(value: Any) -> bool:
     """Whether the data language owns an authoring value or a DTO fragment."""
-    if isinstance(value, (BoundTable, BoundTableGroup)):
-        return True
     if declaration_spec(value) is not None:
         return True
     return isinstance(
-        value, (StructDTO, RelationDTO, ProjectionDTO, SourceDTO, ColumnDTO),
+        value, (StructDTO, RelationDTO, ProjectionDTO, ColumnDTO),
     )
 
 
@@ -201,10 +178,6 @@ def value_identity(value: Any) -> SymbolRef | None:
         return SymbolRef("data", Key((value.name,)))
     if isinstance(value, ProjectionDTO):
         return SymbolRef("data", Key((value.name,)))
-    if isinstance(value, SourceDTO):
-        return SymbolRef("data", Key((value.relation.name, "source")))
-    if isinstance(value, (BoundTable, BoundTableGroup)):
-        return SymbolRef("data", Key((declaration_name(value), "source")))
     if declaration_spec(value) is not None:
         return SymbolRef("data", declaration_key(value))
     return None
@@ -213,14 +186,17 @@ def value_identity(value: Any) -> SymbolRef | None:
 def value_references(value: Any) -> tuple[SymbolRef, ...]:
     """Return the references a data DTO fragment declares.
 
-    A relation refers to its field symbols and, when a physical source is bound,
-    to that source symbol. A projection refers to its field symbols, the field
-    and operation symbols its output expressions read, and the relations its row
-    plan scans. A source itself declares no outgoing reference: the relation
-    owns the direction so the symbol graph stays acyclic.
+    A relation refers to its field symbols and to its logical asset. A
+    projection refers to its field symbols, the field and operation symbols its
+    output expressions read, and the relations its row plan scans.
     """
-    if isinstance(value, (StructDTO, RelationDTO)):
+    if isinstance(value, StructDTO):
         return tuple(column.ref.symbol for column in value.columns)
+    if isinstance(value, RelationDTO):
+        return (
+            *(column.ref.symbol for column in value.columns),
+            value.asset.symbol,
+        )
     if isinstance(value, ProjectionDTO):
         references: list[SymbolRef] = [
             column.ref.symbol for column in value.columns
@@ -259,13 +235,6 @@ def _dto_for_declaration(
     elif kind == "projection":
         dto = _projection(value, declaration_spec(value))
         key = declaration_key(value)
-    elif isinstance(value, BoundTable):
-        dto = _source(value)
-        key = declaration_key(value)
-    elif isinstance(value, BoundTableGroup):
-        raise ValueError(
-            "a table-group source expands to several sources"
-        )
     else:
         raise TypeError(f"data declaration {value!r} has no DTO")
     return dto, kind, key
@@ -276,32 +245,16 @@ def symbols_for_declarations(
 ) -> dict[SymbolRef, Symbol]:
     """Split one transcribed data part into one symbol per declaration."""
     counts = name_counts(declarations)
-    source_relations = {source.relation.name for source in part.sources}
     symbols: dict[SymbolRef, Symbol] = {}
     for declaration in declarations:
-        value = declaration.value
-        if isinstance(value, BoundTableGroup):
-            for bound in resolve_bound_source(value):
-                source = _source(bound)
-                reference = SymbolRef(
-                    "data", Key((source.relation.name, "source")),
-                )
-                symbols[reference] = Symbol(
-                    reference.key, "source", source,
-                )
-            continue
         dto, kind, key = _dto_for_declaration(declaration, counts)
         if isinstance(dto, (StructDTO, RelationDTO, ProjectionDTO)):
             dto = _with_field_refs(dto, key)
             symbols.update(_field_symbols(dto))
         reference = SymbolRef("data", key)
-        references: tuple[SymbolRef, ...] = value_references(dto)
-        if kind == "relation" and dto.name in source_relations:
-            references = (
-                *references,
-                SymbolRef("data", Key((dto.name, "source"))),
-            )
-        symbols[reference] = Symbol(key, kind, dto, references)
+        symbols[reference] = Symbol(
+            key, kind, dto, value_references(dto),
+        )
     return symbols
 
 

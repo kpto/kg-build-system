@@ -61,7 +61,7 @@ kind, a missing declared resource and a plan instruction with no executor.
 
 | Planner | Package | `component_id` | Configuration |
 | --- | --- | --- | --- |
-| `InputPlanner` | `distribution.modules.core` | `core` | none; optional `engine` SQL emitter |
+| `DuckDbSourcePlanner` | `distribution.modules.duckdb` | `duckdb` | `formats`, `union_by_name` |
 | `RowSourcePlanner` | `distribution.modules.core` | `core` | none; optional `engine` SQL emitter |
 | `ProjectionPlanner` | `distribution.modules.core` | `core` | none; optional `engine` SQL emitter |
 | `BindingPlanner` | `distribution.modules.core` | `core` | none; optional `engine` SQL emitter |
@@ -77,19 +77,41 @@ kind, a missing declared resource and a plan instruction with no executor.
 
 ```python
 core_planners(*, engine: DuckDbSqlEmitter | None = None)
-InputPlanner(*, engine: DuckDbSqlEmitter | None = None)
 RowSourcePlanner(*, engine: DuckDbSqlEmitter | None = None)
 ProjectionPlanner(*, engine: DuckDbSqlEmitter | None = None)
 BindingPlanner(*, engine: DuckDbSqlEmitter | None = None)
 RecordsPlanner(*, engine: DuckDbSqlEmitter | None = None)
 ```
 
-The core module owns five planners that share `component_id="core"` and one
+The core module owns four planners that share `component_id="core"` and one
 `CorePlan` in `PlanContext.shared["core.plan"]`. `core_planners()` returns them in
-assembled order: input, row-source, projection, binding and records. Together
-they emit source, row-source, projection, binding and aggregate steps. SQL steps
-use `("sql", "duckdb")`. `compile` adds the five before your planners when no
-planner reports `component_id == "core"`.
+assembled order: row-source, projection, binding and records. Together they emit
+row-source, projection, binding and aggregate steps. SQL steps use
+`("sql", "duckdb")`. `compile` adds the four before your planners when no planner
+reports `component_id == "core"`.
+
+### `DuckDbSourcePlanner`
+
+```python
+DuckDbSourcePlanner(
+    *,
+    formats: Sequence[str] = ("parquet", "json", "csv"),
+    union_by_name: bool = False,
+)
+```
+
+Emits one `source.<relation>` step for each asset-backed relation the graph
+reads whose `AssetLayout` resolves to `parquet`, `json` or `csv`. The step
+produces `CoreArtifactTypes.table(relation)` with instruction kind
+`("source_relation", "duckdb")`.
+
+`AssetLayout` resolution is `members[relation]`, then
+`selector.format(table=relation, table_path=relation.replace(".", "/"))`, then
+`locator`; a relative result is joined to `locator`. One asset may produce many
+steps. A relation with no layout, an unsupported format or no location produces
+no step, which leaves an unresolved opening when the graph reads it. `formats`
+restricts the accepted layouts. The planner is not an adapter; another module
+contributes another ordinary planner for another format.
 
 ### `DeduplicationPlanner`
 
@@ -291,8 +313,10 @@ opening name as a `Key`), `succeeded(context, value)`, `skipped(context)`,
 
 ## Ordering and composition
 
-The planner tuple is the composition order. The five core planners are added
-before the supplied planners when no planner has `component_id == "core"`.
+The planner tuple is the composition order. The DuckDB source planner is added
+first, then the four core planners. Core is added when no supplied planner has
+`component_id == "core"`; the source planner is added when no supplied planner
+has `component_id == "duckdb"`.
 
 | Rule | Result |
 | --- | --- |
@@ -378,13 +402,15 @@ toolchain = toolchain.with_executors((*toolchain.executors, MyExecutor()))
 ```
 
 `with_planners` and `with_executors` replace the sequence. `default_toolchain`
-adds the five core planners and the default executors. Register any new
+adds the generic DuckDB source planner, the four core planners and the default
+executors. Register any new
 `ResourceProvider` on the runtime that executes the plan. See
 [Write an extension](../how-to/custom-extensions.md) for a complete example.
 
 ## What to remember
 
-- A build is the five core planners plus the planners you compose.
+- A build is the generic DuckDB source planner plus the four core planners plus
+the planners you compose.
 - Composition order is priority order; rewriting planners come first and output
   planners last.
 - Planner configuration is compile-time; runtime fields are for paths and similar

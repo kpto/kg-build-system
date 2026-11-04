@@ -29,13 +29,15 @@ from kg_build_system import (
 )
 
 
-class SiteTable(Table):
+from estate.assets import Estate
+
+class SiteTable(Table[Estate]):
     site_id: Field[str] = field()
     name: Field[str] = field()
     region: Field[str] = field()
 
 
-class UnitTable(Table):
+class UnitTable(Table[Estate]):
     site_id: Field[str] = field()
     unit_ref: Field[str] = field()
     unit_name: Field[str] = field()
@@ -210,7 +212,7 @@ A binding maps one row context onto one component. If one context feeds two comp
 
 Give each producer a distinct `debug_name` when a component has more than one. The name is reported by the meta-graph output and keeps the producers distinct in binding identity. Two bindings targeting the same component from the same row context with the same values and no distinguishing name describe the same binding and collide on identity.
 
-Bindings are ordinary module-level values. The default `compile()` discovers them by importing the calling file's namespace recursively. Re-exported objects are deduplicated by identity. Bindings created inside functions or stored in a container are not discovered. You can also pass bindings and sources explicitly to `compile`; see [compile and build](build-and-outputs.md).
+Bindings are ordinary module-level values. The default `compile()` discovers them by importing the calling file's namespace recursively. Re-exported objects are deduplicated by identity. Bindings created inside functions or stored in a container are not discovered. You can also pass bindings explicitly to `compile`; see [compile and build](build-and-outputs.md).
 
 Use `BindingOptions(annotations=...)` to carry portable metadata; see [semantics and annotations](semantics.md).
 

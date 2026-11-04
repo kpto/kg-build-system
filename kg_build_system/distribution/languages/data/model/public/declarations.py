@@ -8,18 +8,21 @@ options are transcribed into a frozen ``DeclarationSpec`` stored on the class; t
 Example:
     ```python
     from kg_build_system import (
-        Field, Projection, Table, TableGroup, TableGroupOptions, field,
-        computed_field,
+        Asset, AssetOptions, Field, Projection, Table, TableGroup,
+        TableGroupOptions, computed_field, field,
     )
 
-    class Site(Table):
+    class Estate(Asset):
+        options = AssetOptions(...)
+
+    class Site(Table[Estate]):
         site_id: Field[str] = field()
         name: Field[str] = field()
 
     class SiteLabels(Projection(Site.row_source())):
         label = computed_field(Site.name)
 
-    class Estate(TableGroup):
+    class EstateCatalog(TableGroup):
         options = TableGroupOptions(name="estate")
         sites = Site
     ```
@@ -34,6 +37,7 @@ from kg_build_system.distribution.languages.annotations.service.internal import 
 from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
 )
+from kg_build_system.distribution.languages.asset.model.public import Asset
 from kg_build_system.distribution.languages.expressions.model.public import (
     BoolExpression,
 )
@@ -102,7 +106,7 @@ class TableGroupOptions:
 
 
 def is_concrete_table(cls: type[Any]) -> bool:
-    """Return whether a class is a final, source-bindable table."""
+    """Return whether a class is a final table."""
     spec = vars(cls).get("_kg_declaration_spec")
     return spec is not None and spec.kind == "table" and spec.final
 
@@ -113,8 +117,13 @@ def is_table_group(cls: type[Any]) -> bool:
     return spec is not None and spec.kind == "table_group" and spec.final
 
 
-class Table(StructDeclaration, RowSource["Table"]):
-    """A final, source-bindable logical table declaration."""
+class Table[AssetT: Asset](StructDeclaration, RowSource["Table[AssetT]"]):
+    """A final logical table declaration read from one logical asset.
+
+    The asset is part of the declaration: ``class Site(Table[Estate])`` states
+    which logical unit of source data backs the relation. A concrete table
+    without an asset parameter is refused.
+    """
 
     options: ClassVar[TableOptions] = TableOptions()
 
@@ -293,22 +302,26 @@ class Projection(Shape, RowSource["Projection"], metaclass=ProjectionMeta):
 class TableGroup:
     """A final named catalog of concrete tables and nested table groups.
 
-    A group is not a shape and not a row source. ``bind_source`` binds a group
-    when its ``DataSourceConfig`` carries a layout for its members.
+    A group is not a shape and not a row source. Each member table names its own
+    asset; a group catalog does not bind a physical source.
 
     Example:
         ```python
         from kg_build_system import (
-            Field, Table, TableGroup, TableGroupOptions, field,
+            Asset, AssetOptions, Field, Table, TableGroup, TableGroupOptions,
+            field,
         )
 
-        class Site(Table):
+        class Estate(Asset):
+            options = AssetOptions(...)
+
+        class Site(Table[Estate]):
             site_id: Field[str] = field()
 
-        class Reading(Table):
+        class Reading(Table[Estate]):
             reading_id: Field[str] = field()
 
-        class Estate(TableGroup):
+        class EstateCatalog(TableGroup):
             options = TableGroupOptions(name="estate")
             sites = Site
             readings = Reading

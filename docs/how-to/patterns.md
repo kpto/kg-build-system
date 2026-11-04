@@ -23,13 +23,15 @@ from kg_build_system import (
 from kg_build_system import Array
 
 
-class SiteTable(Table):
+from estate.assets import Estate
+
+class SiteTable(Table[Estate]):
     site_id: Field[str] = field()
     name: Field[str] = field()
     closed_on: Field[str] = field()
 
 
-class UnitTable(Table):
+class UnitTable(Table[Estate]):
     unit_ref: Field[str] = field()
     site_id: Field[str] = field()
     label: Field[str] = field()

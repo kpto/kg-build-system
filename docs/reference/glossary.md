@@ -6,10 +6,10 @@ The diagram shows the main path through an authoring project. Each entry below
 names the concept page or reference page that owns the detail.
 
 ```text
-generation request ──kbs generate──> Table / Struct / TableGroup
-                                          │
-DataSourceConfig ──bind_source────────────┘
-                                          │
+asset contract ──kbs generate──> Table[Asset] / Struct / TableGroup
+                                           │
+Asset + AssetLayout ───────────────────────┘
+                                           │
 field access ──selection──> projection ──binding──> WorkflowPlan ──execute──> target
 ```
 
@@ -57,15 +57,15 @@ field access ──selection──> projection ──binding──> WorkflowPlan
   contracts](../concepts/data-contracts.md#nested-records).
 
 **Table**
-: A final logical data declaration. It is both a shape and a row source; a
-  separate `bind_source(...)` supplies its physical location. See [Data
+: A final logical data declaration. It is both a shape and a row source, and it
+  names the asset its rows come from with `Table[Asset]`. See [Data
   contracts](../concepts/data-contracts.md).
 
 **Table group**
 : A named hierarchy of final tables and nested table groups. Every member has a
-  canonical catalog path, and a group source uses one layout to resolve each
-  member's physical location. A group is not a shape and not a row source. See
-  [Sources and ingest](ingest.md#table-groups-and-layout).
+  canonical catalog path and names its own asset. A group is a catalog, not a
+  shape, a row source or a source declaration. See
+  [Assets and ingest](ingest.md#table-groups).
 
 **Template**
 : An inert mixin that shares property slots or fields and annotation flow with
@@ -97,7 +97,7 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 **Digest gate**
 : The generation boundary that maps a physical DuckDB type to a canonical type
   with one of three dispositions: `canonical`, `declared_only` or `refused`. See
-  [Sources and ingest](ingest.md#digest-gate) and [the full
+  [Assets and ingest](ingest.md#digest-gate) and [the full
   mapping](types.md#duckdb-dispositions).
 
 **Graph property**
@@ -109,7 +109,7 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 **Guard**
 : The build-time check on every non-null binding output: `build_key`, source and
   target keys, and every non-null property. It aborts on the first null where
-  that output is read. A nullable output is not guarded. See [Sources and
+  that output is read. A nullable output is not guarded. See [Assets and
   ingest](ingest.md#guards).
 
 **Key**
@@ -129,7 +129,7 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 **Pre-flight**
 : The Parquet footer statistics check behind a declared non-null claim. At
   generation it reports violations and continues; at build it marks the source
-  step `WARNING` and logs the count. It never enforces the claim. See [Sources
+  step `WARNING` and logs the count. It never enforces the claim. See [Assets
   and ingest](ingest.md#statistics-pre-flight).
 
 **Representative type**
@@ -140,36 +140,61 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 **Trust tier**
 : The nullability authority of a source: `ENFORCED` for an enforced catalog
   constraint, `DECLARED` for a Parquet footer, or `DEFAULTED` for a schema-less
-  CSV or JSON source. See [Sources and ingest](ingest.md#trust-tiers).
+  CSV or JSON source. See [Assets and ingest](ingest.md#trust-tiers).
 
 **Widening**
 : The build's cast of each declared top-level source column to the canonical SQL
   type of its logical type. Ingest widens and never narrows by itself; a
-  declared-only narrowing requires an override and is checked. See [Sources and
+  declared-only narrowing requires an override and is checked. See [Assets and
   ingest](ingest.md#widening).
 
-## Sources and ingest
+## Assets
 
-**`DataSourceConfig`**
-: The frozen physical configuration of a source: `location`, `format`, `layout`,
-  `credentials` and `version`. Declaring one opens no file. See [Sources and
-  ingest](ingest.md#datasourceconfig).
+**Asset**
+: One logical unit of source data, like a package. One asset may back many
+  tables. It declares semantics, optional layout, governance and annotations,
+  and a table names it with `Table[Asset]`. See
+  [Assets](../concepts/assets.md).
 
-**`InputFormat`**
-: The reader selected for a source: `CSV`, `JSON` or `PARQUET`. The build reader
-  follows `format`, not the file suffix. See [Sources and
-  ingest](ingest.md#inputformat).
+**`AssetOptions`**
+: The options on an asset: `semantics`, `name`, `website`, `version`, `layout`,
+  `governance` and `annotations`. It has no content model, adapter or
+  code-generation field. See [Assets](assets.md).
 
-**Layout**
-: The path template of a group source. It may use only `{group_path}` and
-  `{table_name}`, and it resolves every member of the group. See [Sources and
-  ingest](ingest.md#table-groups-and-layout).
+**`AssetSemantics`**
+: What an asset represents and the limits of that representation: `subject`,
+  `coverage`, `authority`, `basis`, `claims`, `limitations` and optional
+  title/description. See [Assets](assets.md#assetsemantics).
 
-**Source binding**
-: The value returned by `bind_source(...)`, either a `BoundTable` or a
-  `BoundTableGroup`, often called a `BoundSource`. It is the only place a
-  location, format, credential reference or version appears. See [Sources and
-  ingest](ingest.md).
+**`AssetAuthority`**
+: How an asset relates to its claims: `PRIMARY`, `DERIVED`, `REFERENCE` or
+  `INFERRED`. See [Assets](assets.md#assetauthority).
+
+**`AssetGovernance`**
+: The `license`, `owner` and string `metadata` of an asset. See
+  [Assets](assets.md#assetgovernance).
+
+**`AssetLicense`**
+: The license an asset is distributed under: `identifier`, optional `url` and
+  optional `attribution`. See [Assets](assets.md#assetlicense).
+
+**`AssetLayout`**
+: Optional descriptive layout metadata: `kind`, `locator`, `format`, `selector`,
+  `partition_by`, `members` and `properties`. It is not an access contract and
+  is not a Hive, catalog, schema or partition-style model. See
+  [Assets](assets.md#assetlayout).
+
+**Asset contract**
+: The inert `@asset_contract(AssetContractOptions(...))` class decorator on an
+  asset. It states how the asset's table declarations are generated; it is not
+  part of `AssetOptions` or the blueprint. See
+  [Generation](generation.md#request-model).
+
+**Generic source planner**
+: `DuckDbSourcePlanner`, a module planner that resolves `parquet`, `json` and
+  `csv` asset layouts into `source.<relation>` steps. It is not an adapter and
+  there is no adapter registry. See
+  [Assets and ingest](ingest.md#the-generic-source-planner).
 
 ## Rows and graph meaning
 
@@ -259,7 +284,7 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 
 **Blueprint**
 : The immutable, validated semantic model produced by `create_blueprint`. It
-  contains the graph topology, data declarations, bindings and sources that a
+  contains the graph topology, data declarations, assets and bindings that a
   reached binding needs, named by typed references rather than a symbol table.
   See [Compile, build and outputs](../concepts/build-and-outputs.md).
 
@@ -305,9 +330,9 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 **Planner**
 : A component that reads the linked model and emits `Step`s. Supplied planners
   deduplicate, merge, validate or produce graph records. The core module
-  contributes five planners that share one component; they are added
-  automatically. See [Planners and
-  executors](../concepts/planners-and-executors.md).
+  contributes four planners that share one component; the generic
+  `DuckDbSourcePlanner` is a separate planner with `component_id="duckdb"`. See
+  [Planners and executors](../concepts/planners-and-executors.md).
 
 **Executor**
 : A component that owns one exact instruction kind, declares the resources it
@@ -347,12 +372,6 @@ field access ──selection──> projection ──binding──> WorkflowPlan
   requests and ownership records. It reports `CURRENT` or `STALE` and does not
   observe sources. See [Generation](generation.md#check).
 
-**Generation request**
-: The inert `generation(provider, configuration)` assignment in an author-owned
-  `__init__.py`. The assignment name is the request identity, the product
-  directory name and the package suffix. See
-  [Generation](generation.md#request-model).
-
 **Generation result**
 : The value returned by `generate(...)`: a `GenerationStatus` plus changed,
   created, updated and deleted paths, diagnostics and actions. See
@@ -390,11 +409,11 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 | Row source | Shape | A shape is a class of fields; a row source is something that yields rows of that shape. |
 | Workflow plan | Blueprint | A workflow plan is executable; a blueprint is the validated semantic model used to create one. |
 | Binding target | Output target | The binding target is a component; the output target is a planner/executor pair that writes results. |
-| Source binding | Data contract | A data contract says what a row is; a source binding says where the rows live. |
+| Asset | Data contract | An asset says what the source data is and how it is laid out; a data contract says what one row is. |
 | Canonical type | Representative type | A canonical type is the lowercase logical type used by the workflow plan; a representative type is the Python alias an author may write. |
 | Guard | Pre-flight | A guard aborts at the point a non-null value is read; a pre-flight only reports null counts from Parquet footers. |
 | Check | Regenerate | Check compares generated files with their requests; regenerate re-observes the source schema. |
-| Generation request | Generated package | The request is author-owned and inert; the package is generator-owned output. |
+| Asset contract | Generated package | The contract is author-owned and inert; the package is generator-owned output. |
 
 ## Authoring names
 
@@ -405,8 +424,9 @@ computed output with `computed_field(...)`. A struct member is reached with
 present array, use `drop_null_items()`, `sort()`, `unique()`, `concat()`, `at()`,
 `slice()` and `transform_items()`.
 
-Generation uses `generation(...)` in an author-owned `__init__.py` and the
-`kbs generate` command. Sources use `bind_source(...)`. Graph records use
+Generation uses `@asset_contract(AssetContractOptions(...))` on an
+author-owned asset and the `kbs generate` command. An asset names its own
+`AssetLayout`. Graph records use
 `node_binding(...)` and `edge_binding(...)`. A build uses `compile()` and
 `execute()`.
 
@@ -414,7 +434,7 @@ Generation uses `generation(...)` in an author-owned `__init__.py` and the
 
 - [Authoring API](index.md) — the surface you write.
 - [Types](types.md) — canonical types, nullability and DuckDB dispositions.
-- [Sources and ingest](ingest.md) — physical sources, trust tiers and guards.
+- [Assets and ingest](ingest.md) — asset layouts, source steps, trust tiers and guards.
 - [Generation](generation.md) — requests, providers and generated packages.
 - [Data contracts](../concepts/data-contracts.md) and
   [Bindings](../concepts/bindings.md) — the two halves of a build.

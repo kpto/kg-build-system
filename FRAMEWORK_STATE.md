@@ -5,7 +5,7 @@ implementation.
 
 ## Verification
 
-- **187 tests**, **1618 subtests**.
+- **226 tests**, **1655 subtests**.
 - Pyright: **0 errors**.
 - `uv run mkdocs build --strict`: passes.
 - Open Targets KG: **7 tests** pass.
@@ -40,7 +40,7 @@ kg_build_system/
       _private/
   distribution/
     model/public/
-    languages/{annotations,expressions,data,topology,binding}
+    languages/{annotations,expressions,asset,data,topology,binding}
     interpreter/
     modules/{core,deduplication,merging,conflict_validation,file,meta_graph,neo4j,duckdb,python,runtime}
     service/             the distribution leaf's service zone
@@ -76,10 +76,15 @@ only; the top-level lazy loader is `_facade.py`.
   supplied and returns a `WorkflowPlan`.
 - `execute` lives in `api.py` and dispatches on `step.instruction.kind`.
 - Supplied planners, executors and resources live in `distribution/modules`;
-  `default_toolchain` adds the five core planners, the default executors and the
-  runtime providers.
+  `default_toolchain` adds the generic DuckDB source planner, the four core
+  planners, the default executors and the runtime providers.
+- An asset is one logical unit of source data and may back many tables; a table
+  names its asset with `Table[Asset]`. `AssetLayout` is optional descriptive
+  metadata, not an access contract.
 - Source generation is per language; the interpreter source service delegates to
-  the data, topology and binding renderers.
+  the asset, data, topology and binding renderers.
+- Generation is an edit-time frontend: `@asset_contract(AssetContractOptions(...))`
+  is an inert decorator on an asset, not an asset field or blueprint value.
 - The workflow plan owns components, steps, connections and provenance. A step
   owns its instruction.
 
@@ -88,6 +93,8 @@ only; the top-level lazy loader is `_facade.py`.
 - A toolchain is the only composition unit. There is no registry.
 - DuckDB is the default SQL emitter. `DuckDbSqlEmitter` is a library, not part
   of the kernel.
+- There is no adapter concept and no adapter registry. A module contributes an
+  ordinary planner; `DuckDbSourcePlanner` handles `parquet`, `json` and `csv`.
 - A Python instruction is a reference: `("python", "cpython")` carries
   `{module, qualname}`, not a live callable.
 - Public `GraphBlueprint` fields reference internal language DTOs. The handle is

@@ -1,11 +1,10 @@
 """The data language's part of the graph blueprint.
 
-The DTO states the semantic model: structs, relations, projection outputs,
-physical sources and the row plans that read them. Every cross-symbol reference
-is a typed ref: a column names its field symbol, a scan names a relation and a
-physical source names the relation it binds. It carries graph names and
-canonical values only; it has no symbol id, Python module path or declaration
-object.
+The DTO states the semantic model: structs, relations, projection outputs and
+the row plans that read them. Every cross-symbol reference is a typed ref: a
+column names its field symbol, a scan names a relation and a relation names the
+logical asset it is read from. It carries graph names and canonical values only;
+it has no symbol id, Python module path or declaration object.
 """
 from __future__ import annotations
 
@@ -14,7 +13,9 @@ from typing import Literal, TypeAlias
 
 from kg_build_system.distribution.languages.annotations.model.internal import AnnotationDTO
 from kg_build_system.distribution.languages.expressions.model.internal.dto.blueprint_dto import ExpressionDTO
-from kg_build_system.distribution.model.public.refs import FieldRef, RelationRef
+from kg_build_system.distribution.model.public.refs import (
+    AssetRef, FieldRef, RelationRef,
+)
 from kg_build_system.kernel.model.internal.types.dto import LogicalTypeDTO
 
 
@@ -59,10 +60,11 @@ class StructDTO:
 
 @dataclass(frozen=True, slots=True)
 class RelationDTO:
-    """A named logical table relation."""
+    """A named logical table relation read from one logical asset."""
 
     name: str
     columns: tuple[ColumnDTO, ...]
+    asset: AssetRef
     description: str | None = None
     annotations: tuple[AnnotationDTO, ...] = ()
 
@@ -155,46 +157,17 @@ class ProjectionDTO:
 
 
 @dataclass(frozen=True, slots=True)
-class SourceDTO:
-    """The physical source one relation is read from.
-
-    Example:
-        ```python
-        from kg_build_system.distribution.languages.data.model.internal import (
-            SourceDTO,
-        )
-        from kg_build_system.distribution.model.public.refs import RelationRef
-        from kg_build_system.kernel import Key
-
-        source = SourceDTO(
-            relation=RelationRef("data", Key(("sites",))),
-            location="sites.parquet",
-            format="parquet",
-        )
-        ```
-    """
-
-    relation: RelationRef
-    location: str
-    format: Literal["csv", "json", "parquet"]
-    credential_reference: str | None = None
-    version: str | None = None
-    annotations: tuple[AnnotationDTO, ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
 class DataPartDTO:
     """The data language part of a blueprint."""
 
     structs: tuple[StructDTO, ...]
     relations: tuple[RelationDTO, ...]
     projections: tuple[ProjectionDTO, ...]
-    sources: tuple[SourceDTO, ...]
 
 
 __all__ = [
     "ColumnDTO", "DataPartDTO", "ProjectionDTO", "RelationDTO",
     "RowDistinctDTO", "RowFilterDTO", "RowGroupByDTO", "RowJoinDTO",
     "RowOrderByDTO", "RowScanDTO", "RowSourcePlanDTO", "RowUnionDTO",
-    "SourceDTO", "StructDTO",
+    "StructDTO",
 ]

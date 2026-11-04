@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from .....model._private.generated import GeneratedClass, GeneratedField, GeneratedMember, Nullability
+from .....model.public.errors import GenerationError
 from ..types import field_annotation
 
 
@@ -26,7 +27,14 @@ def render_member(member: GeneratedMember) -> str:
 
 def render_class(declaration: GeneratedClass, *, options_class: str | None = None) -> list[str]:
     """Render one declaration as class lines, without surrounding blank lines."""
-    base = f"({declaration.base})" if declaration.base else ""
+    base_name = declaration.base or ""
+    if declaration.asset is not None:
+        if not base_name:
+            raise GenerationError(
+                f"generated declaration {declaration.name!r} names an asset without a base class"
+            )
+        base_name = f"{base_name}[{declaration.asset.qualname}]"
+    base = f"({base_name})" if base_name else ""
     lines = [f"class {declaration.name}{base}:"]
     if declaration.description:
         lines.append(f"    {declaration.description!r}")

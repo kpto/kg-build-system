@@ -94,6 +94,6 @@ The output lists the `generate` command. The CLI creates and maintains generated
 ## Next steps
 
 - [Build your first graph](first-graph.md) for a complete walkthrough from CSV files to JSON Lines.
-- [Project layout](project-layout.md) for where declarations, sources, bindings, and outputs live.
+- [Project layout](project-layout.md) for where declarations, assets, bindings, and outputs live.
 - [Data contracts](../concepts/data-contracts.md) for the table declarations the walkthrough uses.
 - [Authoring API reference](../reference/index.md) for the names you can import from `kg_build_system`.

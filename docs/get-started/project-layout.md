@@ -14,7 +14,7 @@ people-graph/
   people_graph/
     __init__.py
     build.py
-    sources.py
+    assets.py
     data/
       people.csv
       knows.csv
@@ -41,17 +41,17 @@ people-graph/
       workflow_plan.json
 ```
 
-The `table/`, `topology/`, `bindings/`, and `data/` directories are siblings inside the package, not inside each other. `sources.py` and `build.py` sit at the package root. Every directory that holds Python modules needs an `__init__.py` file; `data/` and `build/` do not.
+The `table/`, `topology/`, `bindings/`, and `data/` directories are siblings inside the package, not inside each other. `assets.py` and `build.py` sit at the package root. Every directory that holds Python modules needs an `__init__.py` file; `data/` and `build/` do not.
 
 `pyproject.toml` is optional for the walkthrough but recommended for a real project.
 
-`compile()` treats the package that contains `build.py` as the namespace to scan. The package name is part of every import: the walkthrough imports `people_graph.table.people`, and `compile()` discovers module-level bindings and sources from the same package.
+`compile()` treats the package that contains `build.py` as the namespace to scan. The package name is part of every import: the walkthrough imports `people_graph.table.people`, and `compile()` discovers module-level bindings and assets from the same package.
 
 ## Steps
 
 ### 1. Create the package root
 
-Put `build.py` and `sources.py` beside the `data/`, `table/`, `topology/`, and `bindings/` directories. Do not put declarations in `build.py`; it is the composition entry point.
+Put `build.py` and `assets.py` beside the `data/`, `table/`, `topology/`, and `bindings/` directories. Do not put declarations in `build.py`; it is the composition entry point.
 
 Run project commands from the directory that contains `people_graph/`, not from inside the package. That keeps `python -m people_graph.build` resolving the package you are editing.
 
@@ -59,9 +59,9 @@ Run project commands from the directory that contains `people_graph/`, not from 
 
 `table/` owns the shape of the rows: field names, value types, nested records, and the source's declared structure. It knows nothing about nodes, edges, or graph properties.
 
-Use one module per handwritten table, such as `table/people.py`, or a generated package under `table/<request_id>/`. A reusable derived grain belongs in `table/projections/`. A projection names a row product that more than one binding can read.
+Use one module per handwritten table, such as `table/people.py`, or a generated product under `<package>/<asset name>/`. A reusable derived grain belongs in `table/projections/`. A projection names a row product that more than one binding can read.
 
-Generated contracts are owned by the generator. The author-owned request lives in `table/__init__.py`; change the request and regenerate rather than editing a generated package. See [data contracts](../concepts/data-contracts.md), the [declarations reference](../reference/declarations.md), and [projections](../concepts/projections.md).
+Generated contracts are owned by the generator. The author-owned asset and its `@asset_contract` live in `assets.py`; change the asset contract and regenerate rather than editing a generated package. See [data contracts](../concepts/data-contracts.md), the [declarations reference](../reference/declarations.md), and [projections](../concepts/projections.md).
 
 Keep graph labels and property names out of this part. A column named `unit_ref` is data; that it identifies a `UnitNode` is a binding decision.
 
@@ -99,30 +99,45 @@ Bindings are the only part that imports both a table and a topology component. T
 
 See [bindings](../concepts/bindings.md) and the [bindings reference](../reference/bindings.md).
 
-### 5. Bind physical locations in `sources.py`
+### 5. Declare assets in `assets.py`
 
-`sources.py` owns the location, format, and version of each physical source. It contains one `bind_source()` per source and no graph declarations:
+`assets.py` owns the logical source packages: semantics, optional layout,
+governance, and version. It contains one `Asset` per logical source and no graph
+declarations:
 
 ```python
 from pathlib import Path
 
-from kg_build_system import DataSourceConfig, InputFormat, bind_source
-
-from people_graph.table.people import PeopleTable
+from kg_build_system import (
+    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetSemantics,
+)
 
 DATA = Path(__file__).parent / "data"
 
-people_source = bind_source(
-    target=PeopleTable,
-    config=DataSourceConfig(
-        location=str(DATA / "people.csv"),
-        format=InputFormat.CSV,
+
+class Directory(Asset):
+    options = AssetOptions(
+        name="directory",
         version="people-2026-08",
-    ),
-)
+        semantics=AssetSemantics(
+            subject="people directory",
+            coverage="staff and professional introductions",
+            authority=AssetAuthority.PRIMARY,
+            basis="directory export",
+        ),
+        layout=AssetLayout(
+            kind="csv",
+            locator=str(DATA),
+            format="csv",
+            members={"people": "people.csv", "knows": "knows.csv"},
+        ),
+    )
 ```
 
-Bind at module level so discovery can find the source. A table may be bound once. Keep source provenance here: the version belongs to the physical feed, not to a node or edge. See [sources](../concepts/sources.md) and the [sources and ingest reference](../reference/ingest.md).
+Declare assets at module level so discovery can find them. A table names exactly
+one asset with `Table[Asset]`. Keep source provenance here: the version belongs
+to the logical feed, not to a node or edge. See [assets](../concepts/assets.md)
+and the [assets and ingest reference](../reference/ingest.md).
 
 ### 6. Compose the build in `build.py`
 
@@ -167,9 +182,9 @@ Build artifacts are inspectable development material: the graph records, the bui
 | Directory | Owns | Changes when |
 | --- | --- | --- |
 | `data/` | Bytes on disk | A feed is refreshed |
-| `table/` | Field names and value types | A source schema changes |
+| `table/` | Field names, value types and the asset they name | A source schema changes |
 | `topology/` | Node and edge types, properties | The graph model changes |
-| `sources.py` | Location, format, version | A feed moves or changes format |
+| `assets.py` | Logical source package, layout, semantics and version | A feed moves or changes format |
 | `bindings/` | Which rows make which records | A mapping decision changes |
 | `build.py` | Planner and executor composition and output path | A build target changes |
 
@@ -178,12 +193,13 @@ Build artifacts are inspectable development material: the graph records, the bui
 The dependencies point one way:
 
 ```text
-data ──> table ──┐
-                 ├──> bindings ──> build
-topology ────────┘
+data ──> assets ──> table ──┐
+                            ├──> bindings ──> build
+topology ───────────────────┘
 ```
 
-Tables do not import topology. Topology does not import tables. Sources do not know graph meaning. A binding is the meeting point, and the build composes the result.
+Tables do not import topology. Topology does not import tables. An asset does not
+know graph meaning; it declares the logical source and its optional layout. A binding is the meeting point, and the build composes the result.
 
 !!! warning "Keep the direction one-way"
     If a table imports a node, or a topology module imports a table, the parts become impossible to change or test separately. If a mapping needs data from both sides, it belongs in `bindings/`.
@@ -202,7 +218,7 @@ To verify the whole example, run `python -m people_graph.build` and check the no
 
 ## What to remember
 
-- `table/` owns shape, `topology/` owns meaning, `sources.py` owns location, and `bindings/` is the only part that imports both sides.
+- `table/` owns shape and names its asset, `topology/` owns meaning, `assets.py` owns the logical source and layout, and `bindings/` is the only part that imports the data and graph sides.
 - Keep one module per table and one package per node; mirror the topology tree under `bindings/`.
 - `build.py` at the package root is the entry point and needs a `__main__` guard.
 - Inputs go in `data/`; generated artifacts go in `build/` and are never edited by hand.
@@ -211,6 +227,6 @@ To verify the whole example, run `python -m people_graph.build` and check the no
 
 - [Build your first graph](first-graph.md) for the complete runnable version of this layout.
 - [Data contracts](../concepts/data-contracts.md) and [topology](../concepts/topology.md) for the declarations in each part.
-- [Bindings](../concepts/bindings.md) and [sources](../concepts/sources.md) for the mapping and physical location.
+- [Bindings](../concepts/bindings.md) and [assets](../concepts/assets.md) for the mapping and physical location.
 - [Compile, execute and outputs](../concepts/build-and-outputs.md) for the workflow plan and artifacts.
 - [Authoring API reference](../reference/index.md) for the public names used in these files.

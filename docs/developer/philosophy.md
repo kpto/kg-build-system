@@ -25,8 +25,8 @@ The framework also makes models amnesic:
 - a model does not store an identity that can be derived from its content;
 - a model does not carry a wider build context.
 
-`GraphBlueprint` is a blueprint DTO: it holds graph names, data names, bindings
-and sources. It does not hold the declaration classes, a symbol-table entry or
+`GraphBlueprint` is a blueprint DTO: it holds graph names, data names, assets
+and bindings. It does not hold the declaration classes, a symbol-table entry or
 the expression objects that produced those names. A Python binding carries only
 a stable `PythonRefDTO`. A `Step` holds its ports and instruction; it does not
 hold the planner that contributed it. A `WorkflowPlan` holds components, steps
@@ -240,7 +240,7 @@ The remaining limits are:
 - public `GraphBlueprint` fields reference internal language DTOs;
 - the core planners depend on the DuckDB SQL emitter.
 
-Verification: 187 tests passed, 1618 subtests; pyright 0 errors; the Open Targets
+Verification: 226 tests passed, 1655 subtests; pyright 0 errors; the Open Targets
 project passes 7 tests against the API.
 
 See [system design](system-design.md) for the layout and [testing](testing.md)

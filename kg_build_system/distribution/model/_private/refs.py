@@ -10,7 +10,7 @@ from collections.abc import Sequence
 from typing import Any
 
 ROLES = frozenset({
-    "node", "edge", "relation", "field", "property", "source", "operation",
+    "node", "edge", "relation", "field", "property", "operation", "asset",
 })
 
 
@@ -25,8 +25,8 @@ def role_types() -> dict[str, type[Any]]:
         ```
     """
     from ..public.refs import (
-        EdgeRef, FieldRef, NodeRef, OperationRef, PropertyRef, RelationRef,
-        SourceRef,
+        AssetRef, EdgeRef, FieldRef, NodeRef, OperationRef, PropertyRef,
+        RelationRef,
     )
 
     return {
@@ -35,8 +35,8 @@ def role_types() -> dict[str, type[Any]]:
         "relation": RelationRef,
         "field": FieldRef,
         "property": PropertyRef,
-        "source": SourceRef,
         "operation": OperationRef,
+        "asset": AssetRef,
     }
 
 

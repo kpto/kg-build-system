@@ -43,7 +43,7 @@ nav:
       - How a build works: concepts/index.md
       - Data contracts: concepts/data-contracts.md
       - Types and nullability: concepts/types.md
-      - Sources: concepts/sources.md
+      - Assets: concepts/assets.md
       - Expressions: concepts/expressions.md
       - Row sources and grain: concepts/row-sources.md
       - Projections: concepts/projections.md
@@ -67,6 +67,7 @@ nav:
       - Authoring API: reference/index.md
       - Types: reference/types.md
       - Declarations: reference/declarations.md
+      - Assets: reference/assets.md
       - Expressions and selections: reference/expressions.md
       - Row sources: reference/row-sources.md
       - Projections: reference/projections.md
@@ -75,6 +76,6 @@ nav:
       - Semantics: reference/semantics.md
       - Compile and execute: reference/compile.md
       - Planners and executors: reference/planners-and-executors.md
-      - Sources and ingest: reference/ingest.md
+      - Assets and ingest: reference/ingest.md
       - Generation: reference/generation.md
       - Glossary: reference/glossary.md

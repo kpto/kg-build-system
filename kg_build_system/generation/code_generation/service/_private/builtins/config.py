@@ -28,7 +28,9 @@ class ColumnOverride(BaseModel):
 
 
 class DataContractInferenceConfig(ProviderGenerationConfig):
-    source: str
+    #: The observed input. When omitted, the provider uses the decorated
+    #: asset's ``AssetLayout.locator``; a request with neither is refused.
+    source: str | None = None
     relation: str | None = None
     mode: Literal["table", "table_group"] = "table"
     layout: Literal["files", "parquet_parts", "hive_partitioned_parquet"] = "files"

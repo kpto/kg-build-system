@@ -20,7 +20,6 @@ from ....model.internal.dto.blueprint_dto import (
     DataPartDTO,
     ProjectionDTO,
     RelationDTO,
-    SourceDTO,
     StructDTO,
 )
 from ..source import render_data
@@ -39,13 +38,12 @@ from ..._private.symbols import (
 
 
 class DataLanguage(Language):
-    """The data language: structs, relations, projections and sources.
+    """The data language: structs, relations and projections.
 
-    Symbols are keyed by the declaration graph name. A physical source shares
-    its relation's name, so a source key is ``(name, "source")``. A struct
-    whose graph name repeats or collides with a relation or projection takes its
-    qualified name as a second segment. Every column is a ``field`` symbol whose
-    key joins its owner and the column name, so ``sites.site_name`` is one key.
+    Symbols are keyed by the declaration graph name. A struct whose graph name
+    repeats or collides with a relation or projection takes its qualified name
+    as a second segment. Every column is a ``field`` symbol whose key joins its
+    owner and the column name, so ``sites.site_name`` is one key.
 
     Example:
         ```python
@@ -64,7 +62,7 @@ class DataLanguage(Language):
     def discover_declarations(
         self, namespace: Namespace,
     ) -> Iterable[Declaration]:
-        """Select table declarations and source bindings from a namespace.
+        """Select data declarations reachable from a namespace.
 
         Example:
             ```python
@@ -96,7 +94,7 @@ class DataLanguage(Language):
         )
 
     def get_kind(self, declaration: Declaration) -> str:
-        """Return ``struct``, ``relation``, ``projection`` or ``source``.
+        """Return ``struct``, ``relation`` or ``projection``.
 
         Example:
             ```python
@@ -143,9 +141,8 @@ class DataLanguage(Language):
         """Return the references a transcribed data DTO fragment declares.
 
         The value is a DTO fragment for this wave; the linker calls this method
-        after transcription. A projection reads its scan sources. A relation's
-        physical source is recorded by ``transcribe_many`` because only the
-        batch knows whether the source exists.
+        after transcription. A relation names its logical asset and a projection
+        reads its scan sources.
 
         Example:
             ```python
@@ -184,13 +181,11 @@ class DataLanguage(Language):
         """
         value = symbol.value if isinstance(symbol, Symbol) else symbol
         if isinstance(value, StructDTO):
-            value = DataPartDTO((value,), (), (), ())
+            value = DataPartDTO((value,), (), ())
         elif isinstance(value, RelationDTO):
-            value = DataPartDTO((), (value,), (), ())
+            value = DataPartDTO((), (value,), ())
         elif isinstance(value, ProjectionDTO):
-            value = DataPartDTO((), (), (value,), ())
-        elif isinstance(value, SourceDTO):
-            value = DataPartDTO((), (), (), (value,))
+            value = DataPartDTO((), (), (value,))
         return render_data(value, context, class_names=class_names)
 
 

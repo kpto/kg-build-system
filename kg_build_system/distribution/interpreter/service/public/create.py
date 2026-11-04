@@ -12,12 +12,11 @@ def create_blueprint(
     *,
     namespace_path: str | Path | None = None,
     bindings: Iterable[Any] = (),
-    sources: Sequence[Any] = (),
     languages: Sequence[Any] | None = None,
 ) -> GraphBlueprint:
     """Collect declarations into a validated, frozen graph blueprint.
 
-    Supply either ``namespace_path`` or explicit ``bindings`` and ``sources``.
+    Supply either ``namespace_path`` or explicit ``bindings``.
     The declared languages are run through the kernel toolchain; each language
     collects and transcribes its own DTO, and :class:`BlueprintLinker` assembles
     the DTOs into one blueprint.
@@ -36,7 +35,6 @@ def create_blueprint(
     return implementation(
         namespace_path=namespace_path,
         bindings=bindings,
-        sources=sources,
         languages=languages,
     )
 

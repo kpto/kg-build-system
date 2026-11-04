@@ -47,7 +47,9 @@ class ObservationStruct(Struct):
     value: Field[float] = field()
 
 
-class UnitTable(Table):
+from estate.assets import Estate
+
+class UnitTable(Table[Estate]):
     site_id: Field[str] = field()
     unit_ref: Field[str] = field()
     unit_name: Field[str] = field()
@@ -56,7 +58,7 @@ class UnitTable(Table):
     survey_period: Field[str] = field()
 
 
-class DefectTable(Table):
+class DefectTable(Table[Estate]):
     defect_id: Field[str] = field()
     unit_ref: Field[str] = field()
     title: Field[str] = field()

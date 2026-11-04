@@ -17,6 +17,7 @@ Example:
 from __future__ import annotations
 
 from .implementations import (
+    AssetLanguage,
     BindingLanguage,
     BlueprintLinker,
     DataLanguage,
@@ -25,6 +26,7 @@ from .implementations import (
 )
 from .interpreter import GraphBlueprint, create_blueprint
 from .model.public import (
+    AssetRef,
     BuildRuntime,
     EdgeRef,
     FieldRef,
@@ -33,7 +35,6 @@ from .model.public import (
     PropertyRef,
     Ref,
     RelationRef,
-    SourceRef,
     ref_from_document,
     ref_to_document,
 )
@@ -46,7 +47,6 @@ from .modules.conflict_validation import (
 )
 from .modules.core import (
     BindingPlanner,
-    InputPlanner,
     ProjectionPlanner,
     RecordsPlanner,
     RowSourcePlanner,
@@ -58,6 +58,7 @@ from .modules.duckdb import (
     DuckDbInstructionEmitter,
     DuckDbResourceProvider,
     DuckDbService,
+    DuckDbSourcePlanner,
     DuckDbSqlEmitter,
 )
 from .modules.file import (
@@ -83,6 +84,8 @@ from .modules.python import PythonExecutor
 from .modules.runtime import RuntimeResources
 
 __all__ = [
+    "AssetLanguage",
+    "AssetRef",
     "BindingLanguage",
     "BindingPlanner",
     "BlueprintLinker",
@@ -98,6 +101,7 @@ __all__ = [
     "DuckDbInstructionEmitter",
     "DuckDbResourceProvider",
     "DuckDbService",
+    "DuckDbSourcePlanner",
     "DuckDbSqlEmitter",
     "EdgeRef",
     "ExpressionsLanguage",
@@ -106,7 +110,6 @@ __all__ = [
     "FileExecutor",
     "FilePlanner",
     "GraphBlueprint",
-    "InputPlanner",
     "MetaGraphConfiguration",
     "MetaGraphExecutor",
     "MetaGraphPlanner",
@@ -125,7 +128,6 @@ __all__ = [
     "RelationRef",
     "RowSourcePlanner",
     "RuntimeResources",
-    "SourceRef",
     "TopologyLanguage",
     "core_planners",
     "create_blueprint",

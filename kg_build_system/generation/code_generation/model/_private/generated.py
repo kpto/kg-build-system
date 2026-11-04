@@ -99,6 +99,14 @@ class GeneratedMember:
 
 
 @dataclass(frozen=True, slots=True)
+class GeneratedAsset:
+    """The authored asset class a generated table names as its generic argument."""
+
+    module: str
+    qualname: str
+
+
+@dataclass(frozen=True, slots=True)
 class GeneratedClass:
     name: str
     fields: tuple[GeneratedField, ...] = ()
@@ -106,6 +114,7 @@ class GeneratedClass:
     description: str | None = None
     base: str | None = None
     declaration_name: str | None = None
+    asset: GeneratedAsset | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -142,8 +151,8 @@ class GeneratedPackage:
 
 
 __all__ = [
-    "GeneratedAnnotation", "GeneratedArrayType", "GeneratedClass",
-    "GeneratedField", "GeneratedFile", "GeneratedMember",
+    "GeneratedAnnotation", "GeneratedArrayType", "GeneratedAsset",
+    "GeneratedClass", "GeneratedField", "GeneratedFile", "GeneratedMember",
     "GeneratedNullableType", "GeneratedPackage", "GeneratedScalarType",
     "GeneratedStructType", "GeneratedType", "Nullability", "NullabilityNote",
     "ScalarTypeName", "StaticValue",

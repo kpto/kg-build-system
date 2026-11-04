@@ -9,10 +9,11 @@
 # pyright: reportUnknownVariableType=false
 
 from kg_build_system import Field, Table, TableOptions, field
+from reference_project.assets import Estate
 from kg_build_system import Array, Date, Time, Timestamp, Uuid
 
 
-class EquipmentTable(Table):
+class EquipmentTable(Table[Estate]):
     options = TableOptions(name='equipment')
     unit_ref: Field[str | None] = field(name='unit_ref')
     unit_name: Field[str | None] = field(name='unit_name')

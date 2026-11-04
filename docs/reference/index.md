@@ -11,7 +11,8 @@ the rules; it does not repeat the explanation of why the model works that way.
 
 | Reference page | What it covers | Concept page |
 | --- | --- | --- |
-| [Declarations](declarations.md) | Fields, `Table`, `Struct`, `ComputedStruct`, `TableGroup`, `StructTemplate`, options and source binding | [Data contracts](../concepts/data-contracts.md) and [Sources](../concepts/sources.md) |
+| [Declarations](declarations.md) | Fields, `Table[Asset]`, `Struct`, `ComputedStruct`, `TableGroup`, `StructTemplate` and options | [Data contracts](../concepts/data-contracts.md) |
+| [Assets](assets.md) | `Asset`, options, layout, semantics, governance, `Table[Asset]`, `@asset_contract` and the generic source planner | [Assets](../concepts/assets.md) |
 | [Expressions and selections](expressions.md) | Selections, `extract`, null policy, row effects, array and value operations, literals and Boolean composition | [Expressions](../concepts/expressions.md) |
 | [Row sources](row-sources.md) | `row_source()`, `where`, `union`, `join`, `group_by`, `distinct`, `order_by` and generated shapes | [Row sources and grain](../concepts/row-sources.md) |
 | [Projections](projections.md) | Pinning a source, `computed_field`, `projection_base`, outputs and dependencies | [Projections](../concepts/projections.md) |
@@ -19,8 +20,8 @@ the rules; it does not repeat the explanation of why the model works that way.
 | [Bindings](bindings.md) | `node_binding`, `edge_binding`, keys, properties and endpoint tokens | [Bindings](../concepts/bindings.md) |
 | [Semantics](semantics.md) | `Annotation`, labels and descriptions | [Semantics and annotations](../concepts/semantics.md) |
 | [Types](types.md) | Canonical types, nullability, property shapes and key rules | [Types and nullability](../concepts/types.md) |
-| [Sources and ingest](ingest.md) | `DataSourceConfig`, `bind_source`, source checks and trust rules | [Sources](../concepts/sources.md) |
-| [Generation](generation.md) | Requests, generated packages and source nullability claims | [Data contracts](../concepts/data-contracts.md) |
+| [Assets and ingest](ingest.md) | `AssetLayout`, the generic source planner, source checks and trust rules | [Assets](../concepts/assets.md) |
+| [Generation](generation.md) | `@asset_contract`, generated packages and source nullability claims | [Data contracts](../concepts/data-contracts.md) |
 | [Compile and execute](compile.md) | `create_blueprint`, `compile`, `execute`, runtime and report | [Compile, execute and outputs](../concepts/build-and-outputs.md) |
 | [Planners and executors](planners-and-executors.md) | supplied planners and executors, configuration, kinds and composition | [Planners and executors](../concepts/planners-and-executors.md) |
 | [Glossary](glossary.md) | The vocabulary used across the guide | [How a build works](../concepts/index.md) |
@@ -49,7 +50,7 @@ the rules; it does not repeat the explanation of why the model works that way.
 | `WorkflowPlan`, `Step`, `StepId`, `OpeningId`, `ArtifactType`, `ArtifactPattern`, `InstructionKind` and the kernel protocols | `kg_build_system.kernel` |
 | Representative types and canonical logical types | `kg_build_system` |
 | Supplied planners and executors | `kg_build_system.distribution` |
-| Generation requests and commands | `kg_build_system.generation.code_generation` |
+| Generation contracts and commands | `kg_build_system.generation` |
 
 ## What to remember
 
@@ -60,4 +61,4 @@ the rules; it does not repeat the explanation of why the model works that way.
 - Errors are quoted so they can be matched against the message the framework
   emits.
 
-Start with [Declarations](declarations.md) for row shapes and source binding.
+Start with [Declarations](declarations.md) for row shapes and [Assets](assets.md) for the logical source they name.

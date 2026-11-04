@@ -6,20 +6,22 @@ from typing import Any, cast
 
 from kg_build_system.distribution.languages.annotations.service.internal import annotation_dtos
 from kg_build_system.distribution.languages.annotations.model.internal import AnnotationDTO
+from kg_build_system.distribution.languages.asset.model.public import (
+    asset_reference,
+)
 from kg_build_system.distribution.languages.expressions.service.internal import expression_dto
-from kg_build_system.distribution.model.public.refs import FieldRef, RelationRef
+from kg_build_system.distribution.model.public.refs import FieldRef
 from kg_build_system.kernel import Key
 from kg_build_system.kernel.service.internal.types import type_to_dto
 from ...model.internal.dto.blueprint_dto import (
     ColumnDTO, DataPartDTO, ProjectionDTO, RelationDTO, RowDistinctDTO,
     RowFilterDTO, RowGroupByDTO, RowJoinDTO, RowOrderByDTO, RowScanDTO,
-    RowSourcePlanDTO, RowUnionDTO, SourceDTO, StructDTO,
+    RowSourcePlanDTO, RowUnionDTO, StructDTO,
 )
 from ...model.public.row_sources import RowSource
-from ...model.public.sources import BoundSource, BoundTable
 from .declarations import DeclarationSpec, is_table_group, projection_row_source
+from .groups import group_tables
 from .rows import plan_scan_sources, row_source_plan_dto
-from .sources import group_tables, resolve_bound_source
 
 _DECLARATION_KINDS = {"table", "struct", "computed_struct", "projection"}
 
@@ -49,10 +51,6 @@ def _walk(value: Any, found: dict[int, Any], seen: set[int]) -> None:
             for member in spec.members:
                 _walk(member, found, seen)
         return
-    if isinstance(value, BoundSource):
-        target = value.table if isinstance(value, BoundTable) else value.group
-        _walk(target, found, seen)
-        return
     if isinstance(value, RowSource):
         _walk(getattr(value, "source", None), found, seen)
         return
@@ -72,13 +70,12 @@ def collect_declarations(values: Sequence[Any]) -> tuple[dict[int, Any], dict[in
 
 
 def collect_values(namespace: Any) -> tuple[object, ...]:
-    """Select table declarations and source bindings from a namespace."""
+    """Select data declarations reachable from a namespace."""
     values = tuple(namespace.values())
     found, _ = collect_declarations(values)
-    sources = tuple(value for value in values if isinstance(value, BoundSource))
     result: list[object] = []
     seen: set[int] = set()
-    for value in (*found.values(), *sources):
+    for value in found.values():
         if id(value) in seen:
             continue
         seen.add(id(value))
@@ -119,9 +116,12 @@ def _struct(item: type[Any], spec: DeclarationSpec) -> StructDTO:
 
 def _relation(item: type[Any], spec: DeclarationSpec) -> RelationDTO:
     name = spec.name or item.__name__
+    if spec.asset is None:
+        raise ValueError(f"relation {name!r} has no logical asset")
     return RelationDTO(
         name=name,
         columns=tuple(_column(name, field) for field in spec.fields),
+        asset=asset_reference(spec.asset),
         description=spec.description,
         annotations=_data_annotations(spec.annotations),
     )
@@ -151,21 +151,6 @@ def _projection(item: type[Any], spec: DeclarationSpec) -> ProjectionDTO:
         row_source=cast(RowSourcePlanDTO, plan),
         description=spec.description,
         annotations=_data_annotations(spec.annotations),
-    )
-
-
-def _source(source: BoundTable) -> SourceDTO:
-    table = source.table
-    spec = _spec(table)
-    name = spec.name if spec is not None and spec.name else table.__name__
-    annotations = tuple(spec.annotations if spec is not None else ())
-    return SourceDTO(
-        relation=RelationRef("data", Key((name,))),
-        location=source.config.location,
-        format=source.config.format.value,
-        credential_reference=source.config.credentials,
-        version=source.config.version,
-        annotations=_data_annotations((*annotations, *source.annotations)),
     )
 
 
@@ -202,15 +187,10 @@ def _add_struct_closure(
 def transcribe_data(declarations: Sequence[object]) -> DataPartDTO:
     """Transcribe collected declarations into the data language DTO."""
     found, _ = collect_declarations(tuple(declarations))
-    bound_tables: list[BoundTable] = []
     for value in declarations:
-        if isinstance(value, BoundSource):
-            bound_tables.extend(resolve_bound_source(value))
-        elif isinstance(value, type) and is_table_group(value):
+        if isinstance(value, type) and is_table_group(value):
             for table, _ in group_tables(value):
                 found.setdefault(id(table), table)
-    for source in bound_tables:
-        found.setdefault(id(source.table), source.table)
 
     relations: dict[int, type[Any]] = {}
     projections: dict[int, type[Any]] = {}
@@ -252,10 +232,6 @@ def transcribe_data(declarations: Sequence[object]) -> DataPartDTO:
             ),
             key=lambda item: item.name,
         )),
-        sources=tuple(sorted(
-            (_source(item) for item in bound_tables),
-            key=lambda item: item.relation.name,
-        )),
     )
 
 
@@ -276,6 +252,11 @@ def validate_data(data: DataPartDTO) -> None:
         if len(names) != len(set(names)):
             raise ValueError(f"{declaration.name} column names must be unique")
     known = set(relation_names) | set(projection_names)
+    for relation in data.relations:
+        if relation.asset is None:
+            raise ValueError(
+                f"relation {relation.name!r} must name its logical asset"
+            )
     for projection in data.projections:
         unknown = set(plan_scan_sources(projection.row_source)) - known
         if unknown:
@@ -283,15 +264,6 @@ def validate_data(data: DataPartDTO) -> None:
                 "projection row source reads unknown logical source "
                 + ", ".join(sorted(unknown))
             )
-    source_tables = tuple(item.relation.name for item in data.sources)
-    if len(source_tables) != len(set(source_tables)):
-        raise ValueError("source-bound relation names must be unique")
-    unknown_sources = set(source_tables) - set(relation_names)
-    if unknown_sources:
-        raise ValueError(
-            "a physical source references an unknown relation: "
-            + ", ".join(sorted(unknown_sources))
-        )
 
 
 __all__ = [

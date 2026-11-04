@@ -14,6 +14,10 @@ if TYPE_CHECKING:
         DEFAULT_TOOLCHAIN, compile, create_blueprint, default_toolchain, execute,
     )
     from .distribution.interpreter import GraphBlueprint
+    from .distribution.languages.asset import (
+        Asset, AssetAuthority, AssetGovernance, AssetLayout, AssetLicense,
+        AssetOptions, AssetSemantics,
+    )
     from .distribution.languages.annotations import (
         Annotation, EdgeLabel, NodeLabel,
     )
@@ -29,11 +33,10 @@ if TYPE_CHECKING:
         edge_binding, node_binding,
     )
     from .distribution.languages.data import (
-        BoundSource, BoundTable, BoundTableGroup, ComputedStruct, DataSourceConfig,
-        DerivedRowSource, Field, InputFormat, Projection, ProjectionOptions,
-        RelationRowSource, RowSource, SourceBindingOptions, Struct, StructOptions,
+        ComputedStruct, DerivedRowSource, Field, JoinHow, Projection,
+        ProjectionOptions, RelationRowSource, RowSource, Struct, StructOptions,
         StructOptionsTemplate, StructTemplate, Table, TableGroup, TableGroupOptions,
-        TableOptions, bind_source, computed_field, field, projection_field,
+        TableOptions, computed_field, field, projection_field,
     )
     from .distribution.languages.topology import (
         AbstractEdge, AbstractNode, Edge, EdgeOptions, EdgeOptionsTemplate,

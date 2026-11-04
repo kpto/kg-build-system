@@ -6,7 +6,7 @@ Every annotation normalizes to one logical type before it reaches the workflow p
 The canonical name is lowercase; a capitalised name such as `Date` is a
 representative type, not a second type. The concepts behind these rules are on
 [types and nullability](../concepts/types.md); the physical ingest side is on
-[sources and ingest](ingest.md).
+[assets and ingest](ingest.md).
 
 ```python
 from kg_build_system import Array, Date, Time, Timestamp, Uuid
@@ -50,7 +50,9 @@ from kg_build_system import Field, Table, field
 from kg_build_system import Timestamp, Uuid
 
 
-class RegisterTable(Table):
+from estate.assets import Estate
+
+class RegisterTable(Table[Estate]):
     site_id: Field[Uuid] = field(name="site_id")
     opened_on: Field[Timestamp] = field(name="opened_on")
 ```
@@ -70,7 +72,9 @@ class Currency(CustomDataType):
     """An application-defined scalar, such as a currency code."""
 
 
-class BudgetTable(Table):
+from estate.assets import Estate
+
+class BudgetTable(Table[Estate]):
     budget: Field[Currency] = field()
 ```
 
@@ -130,7 +134,9 @@ class AddressStruct(Struct):
     postcode: Field[str] = field()
 
 
-class SiteTable(Table):
+from estate.assets import Estate
+
+class SiteTable(Table[Estate]):
     site_id: Field[str] = field()
     parent_site: Field[str | None] = field()
     address: Field[AddressStruct | None] = field()
@@ -262,7 +268,7 @@ first, then apply `sort()` and `unique()` before joining it.
 
 The generation digest gate classifies every DuckDB type it understands into one
 of three dispositions. The full mapping is below; the gate's effect on a
-generated package is on [sources and ingest](ingest.md#digest-gate).
+generated package is on [assets and ingest](ingest.md#digest-gate).
 
 | Disposition | Meaning |
 | --- | --- |
@@ -368,7 +374,9 @@ from kg_build_system import (
 from kg_build_system import Array, Timestamp
 
 
-class ReadingTable(Table):
+from estate.assets import Estate
+
+class ReadingTable(Table[Estate]):
     reading_id: Field[str] = field()
     recorded_on: Field[Timestamp | None] = field()
     value: Field[float | None] = field()
@@ -414,6 +422,6 @@ shape and `Array[str | None]` is not.
 - The digest gate widens canonical types, requires a declaration for a
   declared-only type, and refuses a type with no canonical meaning.
 
-Next: [Sources and ingest](ingest.md) attaches these types to physical data.
+Next: [Assets and ingest](ingest.md) attaches these types to physical data.
 See also the [Authoring API](index.md), [Generation](generation.md) and the
 [Glossary](glossary.md).

@@ -1,7 +1,9 @@
-"""The declared read paths a source step promises to open.
+"""The declared read paths a generic source step promises to open.
 
-Only paths the topology contract claims are non-null and the build actually
-reaches are opened; the rest are recorded as limits rather than invented.
+Only paths the graph contract claims are non-null and the build actually
+reaches are opened; the rest are recorded as limits rather than invented. This
+is a source-planner concern, so it lives with the DuckDB source planner rather
+than with the core relational planners.
 """
 from __future__ import annotations
 
@@ -9,19 +11,21 @@ from collections.abc import Mapping
 from dataclasses import dataclass
 from typing import Any
 
+from kg_build_system.distribution.languages.binding.model.internal import (
+    BindingDTO,
+    EdgeBindingDTO,
+)
 from kg_build_system.distribution.languages.data.model.internal import (
     ColumnDTO,
     RelationDTO,
     StructDTO,
 )
 from kg_build_system.distribution.languages.expressions.model.internal import (
+    ExpressionDTO,
     FieldReferenceDTO,
 )
 from kg_build_system.distribution.languages.expressions.service.internal import (
     walk_expression_dto,
-)
-from kg_build_system.distribution.modules.core.service._private.planning.emission import (
-    binding_outputs,
 )
 from kg_build_system.distribution.modules.duckdb.service.internal.emitters import (
     PARQUET_LIST_WRAPPER_PATH,
@@ -57,6 +61,15 @@ def _struct_name(value: StructTypeDTO) -> str:
 
 def _structs(blueprint: Any) -> dict[str, StructDTO]:
     return {struct.name: struct for struct in blueprint.data.structs}
+
+
+def _binding_outputs(binding: BindingDTO) -> dict[str, ExpressionDTO]:
+    outputs: dict[str, ExpressionDTO] = {"build_key": binding.identity}
+    if isinstance(binding, EdgeBindingDTO):
+        outputs["source_build_key"] = binding.source_identity
+        outputs["target_build_key"] = binding.target_identity
+    outputs.update(dict(binding.properties))
+    return outputs
 
 
 def declared_non_null_paths(
@@ -118,7 +131,7 @@ def declared_read_paths(blueprint: Any) -> dict[str, tuple[DeclaredPath, ...]]:
     pending: list[Any] = [
         expression
         for binding in blueprint.bindings
-        for expression in binding_outputs(binding).values()
+        for expression in _binding_outputs(binding).values()
     ]
     included: set[str] = set()
     while pending:

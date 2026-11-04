@@ -24,7 +24,7 @@ from ...model.public.errors import GenerationError
 from ...model.public.results import (
     GenerationAction, GenerationActionKind, GenerationResult, GenerationStatus,
 )
-from .adapters import load_provider
+from .adapters import load_asset, load_provider
 from .rendering import FORMAT_VERSION, HEADER, generation_fingerprint, render_package
 
 
@@ -180,7 +180,10 @@ async def _desired(root: Path, request: DiscoveredGeneration) -> _ObservedProduc
     request, never the observed data, so no dependency exists to hash or watch.
     """
     provider, config = load_provider(request.request)
-    context = ProviderContext(root, request.location.source_path, request.location.request_id, config)
+    context = ProviderContext(
+        root, request.location.source_path, request.location.request_id, config,
+        load_asset(request.request),
+    )
     fingerprint = generation_fingerprint(request, provider.VERSION)
     package = cast(GeneratedPackage, await provider.generate(context))
     first = render_package(request, package, fingerprint)
@@ -499,10 +502,10 @@ class GenerationSession:
     ) -> GenerationResult:
         """Regenerate after a batch of watched declaration changes.
 
-        Paths may be absolute or relative to the project root. Only changed
-        ``__init__.py`` request declarations schedule a pass; paths beneath an
-        owned product are ignored. ``on_action`` receives each added, changed
-        or deleted declaration before generation runs.
+        Paths may be absolute or relative to the project root. A changed asset
+        module that declares an ``@asset_contract`` schedules a pass; paths
+        beneath an owned product are ignored. ``on_action`` receives each added,
+        changed or deleted declaration before generation runs.
 
         Example:
             ```python
@@ -515,7 +518,7 @@ class GenerationSession:
                 session = GenerationSession(".")
                 await session.start()
                 result = await session.handle(
-                    [Path("contracts/__init__.py")],
+                    [Path("contracts/assets.py")],
                     on_action=lambda action: print(action.kind),
                 )
                 print(result.actions)
@@ -529,28 +532,31 @@ class GenerationSession:
             absolute = path.resolve() if path.is_absolute() else (self.root / path).resolve()
             if any(absolute == product or product in absolute.parents for product in self._products):
                 continue
-            if absolute.name == "__init__.py":
-                previous = self._by_source.get(absolute, ())
-                current = discover_file(self.root, absolute) if absolute.is_file() else ()
-                if current == previous:
-                    continue
-                previous_by_id = {item.location.request_id: item for item in previous}
-                current_by_id = {item.location.request_id: item for item in current}
-                source = absolute.relative_to(self.root)
-                for request_id in sorted(previous_by_id.keys() | current_by_id.keys()):
-                    old, new = previous_by_id.get(request_id), current_by_id.get(request_id)
-                    if old is None and new is not None:
-                        actions.append(GenerationAction(
-                            GenerationActionKind.DECLARATION_ADDED, source, (source,), new.package_import,
-                        ))
-                    elif new is None and old is not None:
-                        actions.append(GenerationAction(
-                            GenerationActionKind.DECLARATION_DELETED, source, (source,), old.package_import,
-                        ))
-                    elif old != new and new is not None:
-                        actions.append(GenerationAction(
-                            GenerationActionKind.DECLARATION_CHANGED, source, (source,), new.package_import,
-                        ))
+            previous = self._by_source.get(absolute, ())
+            current = discover_file(self.root, absolute) if absolute.is_file() else ()
+            if not previous and not current:
+                continue
+            previous_by_id = {item.location.request_id: item for item in previous}
+            current_by_id = {item.location.request_id: item for item in current}
+            source = absolute.relative_to(self.root)
+            for request_id in sorted(previous_by_id.keys() | current_by_id.keys()):
+                old, new = previous_by_id.get(request_id), current_by_id.get(request_id)
+                if old is None and new is not None:
+                    actions.append(GenerationAction(
+                        GenerationActionKind.DECLARATION_ADDED, source, (source,), new.package_import,
+                    ))
+                elif new is None and old is not None:
+                    actions.append(GenerationAction(
+                        GenerationActionKind.DECLARATION_DELETED, source, (source,), old.package_import,
+                    ))
+                elif new is not None:
+                    # The asset source changed. Its static request may be
+                    # unchanged while its layout, and therefore what the
+                    # provider observes, changed, so the declaration is
+                    # treated as changed and the product is re-observed.
+                    actions.append(GenerationAction(
+                        GenerationActionKind.DECLARATION_CHANGED, source, (source,), new.package_import,
+                    ))
         if not actions:
             return GenerationResult(GenerationStatus.CURRENT)
         if on_action is not None:

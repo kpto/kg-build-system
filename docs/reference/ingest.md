@@ -1,149 +1,156 @@
-# Sources and ingest
+# Assets and ingest
 
-A source binding turns a physical file or URI into typed rows, and the build checks the source before reading rows.
+An asset declares one logical unit of source data. A table names that asset, and
+a module planner turns a compatible layout into typed rows. The build checks the
+source before reading rows.
 
-A source binding is the only build-time place a location, format, credential
-reference or version appears in an author's project. The logical side is on
-[data contracts](../concepts/data-contracts.md); the physical side and its rules
-are on [sources](../concepts/sources.md). Types are on
-[types](types.md), and generated packages are on [generation](generation.md).
+The logical side is on [data contracts](../concepts/data-contracts.md); the
+asset model, layout and source planning are on [assets](../concepts/assets.md).
+Types are on [types](types.md), and generated packages are on
+[generation](generation.md).
 
-## `DataSourceConfig`
+## `AssetLayout`
 
 ```python
-DataSourceConfig(
-    location: str,
-    format: InputFormat = InputFormat.CSV,
-    layout: str | None = None,
-    credentials: str | None = None,
-    version: str | None = None,
+AssetLayout(
+    kind: str | None = None,
+    locator: str | None = None,
+    format: str | None = None,
+    selector: str | None = None,
+    partition_by: Sequence[str] = (),
+    members: Mapping[str, str] = {},
+    properties: Mapping[str, str] = {},
 )
 ```
 
-`DataSourceConfig` is a frozen value. Declaring one opens no file and resolves no
-credential.
+Layout is optional descriptive metadata on an asset. It opens no file and
+resolves no credential. It is not a Hive, catalog, schema or storage-style
+model; every value is an open string.
 
-| Field | Meaning | Default |
-| --- | --- | --- |
-| `location` | A file, directory, glob or URI | Required, non-empty |
-| `format` | The reader to use | `InputFormat.CSV` |
-| `layout` | How a group source derives each member's path | `None` |
-| `credentials` | The name of a runtime credential entry | `None` |
-| `version` | A free-text label recorded with the source | `None` |
+| Field | Meaning |
+| --- | --- |
+| `kind` | Free-text storage kind, such as `parquet` or `json` |
+| `locator` | A base path, directory or URI |
+| `format` | The reader format, such as `parquet`, `json` or `csv` |
+| `selector` | A one-relation path template |
+| `partition_by` | Semantic partition keys, in order |
+| `members` | Per-relation paths keyed by relation name |
+| `properties` | Portable reader hints |
 
 ```python
-from kg_build_system import DataSourceConfig, InputFormat
+from kg_build_system import AssetLayout
 
-config = DataSourceConfig(
-    location="data/sites.json",
-    format=InputFormat.JSON,
-    version="registry-2026-08",
+layout = AssetLayout(
+    kind="json",
+    locator="data",
+    format="json",
+    members={"sites": "sites.json"},
 )
 ```
 
-`version` is recorded verbatim in the compiled source entry. It selects no file,
-pins no commit and triggers no download.
+The generic planner resolves one relation's location in this order:
 
-## `InputFormat`
+1. `members[relation]`, when present;
+2. otherwise `selector` formatted with `{table}` and `{table_path}`;
+3. otherwise `locator`.
 
-| Member | Value | Reader | Accepts |
-| --- | --- | --- | --- |
-| `InputFormat.CSV` | `"csv"` | `read_csv_auto` | Delimited text; the delimiter is sniffed, so `.tsv` works under `CSV` |
-| `InputFormat.JSON` | `"json"` | `read_json_auto` | JSON lines or arrays, including `.jsonl` and `.ndjson` |
-| `InputFormat.PARQUET` | `"parquet"` | `read_parquet` | Parquet files or a directory of parts, including `.pq` |
+A relative member or selector result is joined to `locator`. An absolute path or
+a value with a URI scheme is used as written. `{table}` is the relation's
+logical name. `{table_path}` replaces dots with `/`: `readings.vibration`
+becomes `readings/vibration`.
 
-The build reader is chosen by `format`, not by the file suffix. A source may be a
-single file, a glob or a directory as far as its reader supports it.
+`partition_by` describes meaning, not directory names. It records that rows with
+different partition values describe different physical slices.
 
-!!! warning "The default format is CSV"
-    Omitting `format` on a JSON or Parquet source compiles cleanly and fails when
-    the source is opened. The failure names the declaration, the location and the
-    declared format, before any row is consumed.
+`properties` carries portable hints. The generic planner reads
+`properties["credentials"]` as the runtime credential reference. A secret is
+never part of the layout.
 
-## `bind_source`
+## The generic source planner
 
 ```python
-bind_source(
+DuckDbSourcePlanner(
     *,
-    target: type[Table | TableGroup],
-    config: DataSourceConfig,
-    options: SourceBindingOptions = SourceBindingOptions(),
-) -> BoundTable | BoundTableGroup
-```
-
-`bind_source` attaches a physical configuration to one final table or one table
-group. The returned value is a `BoundSource`: either a `BoundTable` or a
-`BoundTableGroup`.
-
-| Parameter | Meaning |
-| --- | --- |
-| `target` | A final `Table` or `TableGroup` class |
-| `config` | The physical location and reader settings |
-| `options` | `SourceBindingOptions(annotations=())`; source-level provenance |
-
-The returned value is one of:
-
-| Type | Fields |
-| --- | --- |
-| `BoundTable(table, config, annotations=())` | One concrete table and its configuration |
-| `BoundTableGroup(group, config, annotations=())` | One group and the layout that resolves its members |
-| `BoundSource` | The alias `BoundTable \| BoundTableGroup` |
-
-```python
-from kg_build_system import DataSourceConfig, InputFormat, bind_source
-
-sites_source = bind_source(
-    target=SiteTable,
-    config=DataSourceConfig(
-        location="data/sites.json",
-        format=InputFormat.JSON,
-        version="registry-2026-08",
-    ),
+    formats: Sequence[str] = ("parquet", "json", "csv"),
+    union_by_name: bool = False,
 )
 ```
 
-Bind at module level. Discovery finds module-level `BoundSource` values in the
-project namespace, or pass the values explicitly:
+`DuckDbSourcePlanner` is a module planner, not an adapter and not a registry
+entry. It emits one source step for each asset-backed relation the graph reads:
 
-```python
-plan = compile(
-    bindings=(site_binding,),
-    sources=(sites_source,),
-    planners=planners,
-)
-```
+| Property | Value |
+| --- | --- |
+| `component_id` | `"duckdb"` |
+| Step name | `source.<relation_name>` |
+| Output | `CoreArtifactTypes.table(relation_name)` |
+| Instruction kind | `("source_relation", "duckdb")` |
+
+The step payload carries `relation`, `location`, `format`,
+`credential_reference`, `declaration`, `declared_columns` and `declared_paths`.
 
 Rules:
 
-| Rule | Failure |
-| --- | --- |
-| The target must be a final `Table` or `TableGroup` | `sources require a final Table or TableGroup` |
-| `location` must be non-empty | `data sources require a non-empty location` |
-| Every table a reached binding or projection reads must be bound | `no source bound for: <tables>` |
-| A table may be bound only once | `source-bound table names must be unique` |
-| A table and the group containing it may not both be bound | The same duplicate-source failure: the table would be bound twice |
+- One asset may produce many source steps.
+- A relation is included only when a binding or projection reads it.
+- A relation with no layout, an unsupported format or no resolvable location
+  produces no step. If the graph reads it, compilation reports an unresolved
+  plan opening.
+- Two producers for one relation artifact are refused.
+- `formats` restricts which layouts this planner accepts.
+- `union_by_name` is accepted and currently does not change the emitted step;
+  the generic planner resolves one location per relation.
 
-Source annotations are recorded on the compiled source entry. The table
-declaration's own annotations come first, then `SourceBindingOptions`
-annotations. A group source copies its annotations to each resolved member.
+`default_toolchain` adds one `DuckDbSourcePlanner` before the core planners
+unless a supplied planner already reports `component_id == "duckdb"`. Another
+format is supported by another ordinary module planner with its own instruction
+kind. There is no adapter registry.
 
-## Table groups and layout
+## Readers and formats
 
-A `TableGroup` names a hierarchy of final tables and nested groups. It is a
-catalog and a source-binding convenience, not a shape and not a row source.
+| `format` or `kind` | Reader | Accepts |
+| --- | --- | --- |
+| `parquet` | `read_parquet` | Parquet files or a directory of parts, including `.pq` |
+| `json` | `read_json_auto` | JSON lines or arrays, including `.jsonl` and `.ndjson` |
+| `csv` | `read_csv_auto` | Delimited text; the delimiter is sniffed, so `.tsv` works as `csv` |
+
+The planner resolves `layout.format` first and falls back to `layout.kind`.
+Values are matched exactly against the accepted set; write them in lower case.
+The reader follows the declared value, not the file suffix.
+
+!!! warning "A layout is not a reader claim"
+    A layout that names no supported format produces no source step. If the graph
+    reads the relation, compilation reports an unresolved plan opening. The
+    failure is at plan time, not after a partial read.
+
+## Table groups
+
+A `TableGroup` is a catalog of final tables and nested groups. It binds nothing.
+Each member table names its own asset:
 
 ```python
 from kg_build_system import (
-    DataSourceConfig, Field, InputFormat, Table, TableGroup, TableGroupOptions,
-    bind_source, field,
+    Asset, AssetAuthority, AssetOptions, AssetSemantics, Field, Table,
+    TableGroup, TableGroupOptions, field,
 )
 
 
-class TemperatureTable(Table):
+class Estate(Asset):
+    options = AssetOptions(
+        semantics=AssetSemantics(
+            subject="monitored estate",
+            coverage="sites and readings",
+            authority=AssetAuthority.PRIMARY,
+            basis="estate export",
+        ),
+    )
+
+
+class TemperatureTable(Table[Estate]):
     station_id: Field[str] = field()
 
 
-class VibrationTable(Table):
+class VibrationTable(Table[Estate]):
     device_id: Field[str] = field()
 
 
@@ -156,73 +163,44 @@ class ReadingsTableGroup(TableGroup):
     options = TableGroupOptions(name="readings")
     temperature = TemperatureTable
     mechanical = MechanicalTableGroup
-
-
-readings_source = bind_source(
-    target=ReadingsTableGroup,
-    config=DataSourceConfig(
-        location="data",
-        format=InputFormat.JSON,
-        layout="{group_path}/{table_name}.json",
-    ),
-)
 ```
 
-`{group_path}` is the chain of group names above the table, joined with `/`; each
-name comes from `TableGroupOptions(name=...)` or the class name without
-`TableGroup`. `{table_name}` is the table's own logical name. Those are the only
-placeholders.
+A group may contain tables from more than one asset. Members that no reached
+binding or projection reads are dropped: they do not enter the blueprint and
+produce no source step.
 
-| Table | `{group_path}` | `{table_name}` | Location |
-| --- | --- | --- | --- |
-| `temperature` | `readings` | `temperature` | `data/readings/temperature.json` |
-| `vibration` | `readings/mechanical` | `vibration` | `data/readings/mechanical/vibration.json` |
-
-Rules:
-
-- A group source requires `layout`; without one it fails with `group sources
-  require DataSourceConfig.layout to resolve each table`.
-- A layout may use only `{group_path}` and `{table_name}`; anything else fails
-  with `group source layouts may use only {group_path} and {table_name}`.
-- Members must be final tables or other groups. A table appears once, catalog
-  paths are unique, and groups contain no cycle.
-- A group with no members is refused with `table groups must declare at least
-  one member`.
-- The layout resolves the whole group because binding the group binds every
-  member. Members that no reached binding or projection reads are then dropped
-  from the blueprint and have no recorded source.
-- A group source does not join, merge or widen anything. Each member keeps its
-  own rows and its own shape.
-
-Use a table source when each table has its own location or naming does not follow
-a rule. Use a group source when a family shares a format and a naming rule.
+| Error | Trigger |
+| --- | --- |
+| `table groups must declare at least one member` | The group has no table or group member |
+| `table groups may contain only final Table or TableGroup declarations` | A member is not a final table or group |
+| `table groups may not contain a cycle` | A group contains itself, directly or through nested groups |
+| `a table group may include a final table only once` | The same table is reached through two catalog paths |
+| `a table group has duplicate catalog paths` | Two members resolve to the same catalog path |
 
 ## Locations and credentials
 
 A local location is a path. Prefer an absolute path, or one built from
 `Path(__file__).parent`, so the build does not depend on the process's current
-directory. A relative path resolves against that directory.
+directory.
 
 An object store is a URI with a scheme. A private store names a runtime
-credential:
+credential in `properties`:
 
 ```python
-lake_source = bind_source(
-    target=SitesTable,
-    config=DataSourceConfig(
-        location="s3://estate-registry/2026-08/sites.parquet",
-        format=InputFormat.PARQUET,
-        credentials="estate_lake",
-    ),
+AssetLayout(
+    kind="parquet",
+    locator="s3://estate-registry/2026-08",
+    format="parquet",
+    members={"sites": "sites.parquet"},
+    properties={"credentials": "estate_lake"},
 )
 ```
 
-The declaration carries the credential name, never the value. Supply the value
+The layout carries the credential name, never the value. Supply the value
 through `BuildRuntime(credentials=...)`; the workflow plan and the report contain
-no secret. The value is a JSON object whose `filesystem_options` are handed to the
-filesystem for the URI's scheme. Unknown keys are refused, and a credentialed
-location without a scheme fails with `credentialed source locations require a URI
-scheme`.
+no secret. The value is a JSON object whose `filesystem_options` are handed to
+the filesystem for the URI's scheme. Unknown keys are refused, and a credentialed
+location without a scheme fails.
 
 ## Generated nullability
 
@@ -244,16 +222,19 @@ The `Nullability` values are `DECLARED`, `ENFORCED` and `DEFAULTED`. A nullable
 field records `DEFAULTED`; a Parquet `REQUIRED` field records `DECLARED`; an
 enforced catalog constraint records `ENFORCED`.
 
-The built-in provider refuses database inputs because no `InputFormat` selects a
-database reader: a generated table could never be bound. Export the relation
-to Parquet, or declare the table outside a generated package. The enforced tier
-still exists for a provider that can observe an enforced catalog.
+The built-in provider refuses database inputs because no supported asset layout
+format selects a database reader: a generated table could never get a generic
+source step. Export the relation to `parquet`, `json` or `csv`, contribute a
+module planner for the database, or declare the table outside a generated
+package. The enforced tier still exists for a provider that can observe an
+enforced catalog.
 
 ### What is rendered
 
 - A `DEFAULTED` field renders `Field[T | None]` and reads as nullable.
 - A `DECLARED` or `ENFORCED` field renders `Field[T]` and reads as non-null.
 - Nested member and array-item nullability stay in the value type.
+- Every generated table declares its asset: `class SitesTable(Table[Estate])`.
 - The header records one note per source, or per relation in a group:
 
 | Tier | Header line |
@@ -268,25 +249,40 @@ tracked input, and a change to it alone does not make a generated product stale.
 ### Overrides
 
 An override settles a source's claim or type for one whole top-level column. It
-is request-time configuration, not a generated declaration and not a runtime
-option in the compiled workflow plan.
+is a `DataContractInferenceConfig` value inside the asset's
+`@asset_contract(AssetContractOptions(...))` decorator, not a generated
+declaration and not a runtime option in the compiled workflow plan.
 
 ```python
+from kg_build_system import (
+    Asset, AssetAuthority, AssetOptions, AssetSemantics,
+)
+from kg_build_system.generation import AssetContractOptions, asset_contract
 from kg_build_system.generation.code_generation.builtins import (
     DataContractInferenceConfig, InferDataContractProvider,
 )
-from kg_build_system.generation.code_generation import generation
 
-readings = generation(
-    InferDataContractProvider,
-    DataContractInferenceConfig(
-        source="../data/readings.parquet",
+
+@asset_contract(AssetContractOptions(
+    provider=InferDataContractProvider,
+    configuration=DataContractInferenceConfig(
+        mode="table_group",
         override={
-            "readings.recorded_on": {"type": "timestamp"},
+            "readings.temperature.recorded_on": {"type": "timestamp"},
             "readings.quality": {"nullable": False},
         },
     ),
-)
+    package="estate.table",
+))
+class Estate(Asset):
+    options = AssetOptions(
+        semantics=AssetSemantics(
+            subject="monitored estate",
+            coverage="sites and readings",
+            authority=AssetAuthority.PRIMARY,
+            basis="estate export",
+        ),
+    )
 ```
 
 | Override entry | Effect |
@@ -304,9 +300,9 @@ promote a container and cannot lift a refused physical type. An override never
 reads values to decide a claim; the checked cast or the build guard tests the
 declaration against the data.
 
-The full request model is on [Generation](generation.md#request-model), the
-built-in provider is on [Generation](generation.md#built-in-inference-provider),
-and the override contract is on [Generation](generation.md#override-contract).
+The request model is on [Generation](generation.md#request-model), the built-in
+provider is on [Generation](generation.md#built-in-inference-provider), and the
+override contract is on [Generation](generation.md#override-contract).
 
 ## Digest gate
 
@@ -340,7 +336,8 @@ The complete DuckDB mapping and the reason each refused type is refused are on
 ## Widening
 
 The ingest boundary widens and never narrows by itself. At build, each declared
-top-level column is cast in its per-source view to the canonical SQL type:
+top-level column is cast in its per-relation source view to the canonical SQL
+type:
 
 | Canonical | SQL type |
 | --- | --- |
@@ -359,8 +356,8 @@ Further rules:
 - An array of castable items casts element-wise. A struct, a custom type, and an
   array containing either have no canonical SQL type and are left uncast.
 - The cast repeats the column's own name, so widening never renames a column.
-- A multi-file Parquet source is widened in its own source view before any union,
-  so one partition's narrower physical width does not leak into another.
+- A multi-file Parquet relation is widened in its own source view before any
+  union, so one partition's narrower physical width does not leak into another.
 - A declared-only narrowing is applied only when an override declares it. The
   cast is checked: a value outside the target range aborts the build.
 - A request `type` override is a declaration, not an inference. It may target any
@@ -415,8 +412,9 @@ violation.
 
 ## What the build checks before reading rows
 
-Compilation records the declared fields with the location. When the build starts
-a source, before any row is consumed, it describes the scan and compares the two:
+The source step carries the declared columns and their logical types. When the
+build starts a source, before any row is consumed, it describes the scan and
+compares the two:
 
 | Defect | Failure |
 | --- | --- |
@@ -429,26 +427,27 @@ property or key then fails at the guard, naming the property and the row key.
 ## Limits
 
 - `version` is a label, not a pin. Pin input data in your own pipeline.
-- A source binding stores a credential reference; the secret is runtime input
-  and never enters the workflow plan or report.
-- A group source maps hierarchy to paths. It does not join, merge, widen or
-  change rows.
-- A group layout may use only two placeholders, `{group_path}` and
-  `{table_name}`; resolved paths are joined to `location`.
-- The build reader follows `format`, not the suffix. A mismatch fails before any
-  row is consumed.
-- A table may have one source, and a family may be bound at one level only.
+- Layout is optional descriptive metadata, not an access contract. A relation
+  without a compatible layout has no generic source step.
+- The layout stores a credential reference; the secret is runtime input and never
+  enters the workflow plan or report.
+- One asset may back many tables; a table names exactly one asset.
+- A group is a catalog. It does not bind, join, merge, widen or change rows.
+- The generic planner follows `format` or `kind`, not the suffix. Values are
+  matched exactly against `parquet`, `json` and `csv`.
 - Generation classifies a source by suffix; a schema change enters a generated
   package only through `kbs generate --regenerate` or a request edit.
 - A database input has an enforced tier in the model, but the built-in provider
-  refuses it because no `InputFormat` can bind it. Export it to a supported
-  format or handwrite the declaration.
+  refuses it because no supported layout format can select a database reader.
+  Export it to a supported format, contribute a module planner, or handwrite the
+  declaration.
 
 ## What to remember
 
-- A source binding is the only build-time place a location, format, credential
-  or version appears.
-- A group source resolves paths; it never changes rows.
+- An asset is the logical source package; a layout is optional metadata.
+- `DuckDbSourcePlanner` handles `parquet`, `json` and `csv`; another module
+  contributes another ordinary planner.
+- A group resolves relations; it never changes rows.
 - The digest gate widens canonical types, requires an override for a
   declared-only type, and refuses a type with no canonical meaning.
 - Generated nullability decides the field type: `DEFAULTED` renders

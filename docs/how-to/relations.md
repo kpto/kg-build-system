@@ -25,26 +25,28 @@ from kg_build_system import (
 )
 
 
-class MeterTable(Table):
+from estate.assets import Estate
+
+class MeterTable(Table[Estate]):
     meter_id: Field[str] = field()
     site_id: Field[str] = field()
     label: Field[str] = field()
 
 
-class ReadingTable(Table):
+class ReadingTable(Table[Estate]):
     reading_id: Field[str] = field()
     site_id: Field[str] = field()
     meter_id: Field[str] = field()
     kwh: Field[float] = field()
 
 
-class CurrentMeterTable(Table):
+class CurrentMeterTable(Table[Estate]):
     meter_id: Field[str] = field()
     site_id: Field[str] = field()
     label: Field[str] = field()
 
 
-class RetiredMeterTable(Table):
+class RetiredMeterTable(Table[Estate]):
     meter_id: Field[str] = field()
     site_id: Field[str] = field()
     label: Field[str] = field()

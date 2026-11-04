@@ -15,13 +15,14 @@ from kg_build_system.distribution.languages.data import (
     projection_field,
 )
 from kg_build_system.kernel import Array
+from tests.distribution.support import TestEstate
 
 
 class Detail(Struct):
     label: Field[str | None] = field(name="label")
 
 
-class Source(Table):
+class Source(Table[TestEstate]):
     id: Field[str] = field(name="id")
     detail: Field[Detail | None] = field(name="detail")
     details: Field[Array[Detail] | None] = field(name="details")

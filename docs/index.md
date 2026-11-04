@@ -16,12 +16,12 @@ the values behind its design.
 - [Install](get-started/install.md) — set up the package and verify it.
 - [Build your first graph](get-started/first-graph.md) — a complete walkthrough.
 - [Project layout](get-started/project-layout.md) — where declarations,
-  bindings and sources live.
+  assets, bindings and outputs live.
 
 ## How a build works
 
 ```text
-source files
+assets and layouts
     │
     ▼
 data contracts ──► expressions ──► row sources ──► projections
@@ -49,7 +49,7 @@ Read these in order for the complete story, or jump to the concept you need:
 1. [Data contracts](concepts/data-contracts.md) — rows as typed Python classes.
 2. [Types and nullability](concepts/types.md) — the vocabulary every value
    carries.
-3. [Sources](concepts/sources.md) — where the rows physically live.
+3. [Assets](concepts/assets.md) — the logical source package and its layout.
 4. [Expressions](concepts/expressions.md) — reading, transforming and filtering
    values.
 5. [Row sources and grain](concepts/row-sources.md) — what one row means.

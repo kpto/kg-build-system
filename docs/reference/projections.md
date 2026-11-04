@@ -19,7 +19,9 @@ class ContactStruct(Struct):
     email: Field[str] = field()
 
 
-class SiteTable(Table):
+from estate.assets import Estate
+
+class SiteTable(Table[Estate]):
     options = TableOptions(name="sites")
     site_id: Field[str] = field()
     name: Field[str] = field()
@@ -29,7 +31,7 @@ class SiteTable(Table):
     contacts: Field[Array[ContactStruct]] = field()
 
 
-class ReadingTable(Table):
+class ReadingTable(Table[Estate]):
     options = TableOptions(name="readings")
     reading_id: Field[str] = field()
     site_id: Field[str] = field()
@@ -226,7 +228,6 @@ variant that inherits the generated shape's fields.
 | `rows must be a row source value; use Table.row_source() or Projection.row_source()` | `Projection` is pinned to a declaration class rather than a row-source value |
 | `projection names must be unique` | Two projections share a logical name |
 | `logical source names must be unique` | A projection and a table share a logical name |
-| `sources require a final Table or TableGroup` | `bind_source` targets a projection |
 
 ## Row behaviour
 

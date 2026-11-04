@@ -191,6 +191,23 @@ class RelationRef(Ref):
 
 
 @dataclass(frozen=True, slots=True, init=False, eq=False)
+class AssetRef(Ref):
+    """A reference to one logical source-data asset.
+
+    Example:
+        ```python
+        from kg_build_system.kernel import Key
+        from kg_build_system.distribution.model.public.refs import AssetRef
+
+        reference = AssetRef("asset", Key(("open_targets",)))
+        assert reference.to_document() == ["asset", "asset", "open_targets"]
+        ```
+    """
+
+    role: ClassVar[str] = "asset"
+
+
+@dataclass(frozen=True, slots=True, init=False, eq=False)
 class FieldRef(Ref):
     """A reference to one declared field of a relation, projection or struct.
 
@@ -283,33 +300,6 @@ class PropertyRef(Ref):
 
 
 @dataclass(frozen=True, slots=True, init=False, eq=False)
-class SourceRef(Ref):
-    """A reference to one physical source bound to a relation.
-
-    Example:
-        ```python
-        from kg_build_system.kernel import Key
-        from kg_build_system.distribution.model.public.refs import SourceRef
-
-        assert SourceRef("data", Key(("sites", "source"))).name == "source"
-        ```
-    """
-
-    role: ClassVar[str] = "source"
-
-    @property
-    def relation(self) -> str:
-        """The relation the source binds.
-
-        Example:
-            ```python
-            assert SourceRef("data", Key(("sites", "source"))).relation == "sites"
-            ```
-        """
-        return self.key.segments[0] if self.key.segments else ""
-
-
-@dataclass(frozen=True, slots=True, init=False, eq=False)
 class OperationRef(Ref):
     """A reference to one expression operation specification.
 
@@ -362,6 +352,6 @@ def ref_from_document(value: Any) -> Ref:
 
 
 __all__ = [
-    "EdgeRef", "FieldRef", "NodeRef", "OperationRef", "PropertyRef", "Ref",
-    "RelationRef", "SourceRef", "ref_from_document", "ref_to_document",
+    "AssetRef", "EdgeRef", "FieldRef", "NodeRef", "OperationRef",
+    "PropertyRef", "Ref", "RelationRef", "ref_from_document", "ref_to_document",
 ]

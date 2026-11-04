@@ -16,7 +16,6 @@ def create_blueprint(
     *,
     namespace_path: str | Path | None = None,
     bindings: Iterable[Any] = (),
-    sources: Sequence[Any] = (),
     languages: Sequence[Any] | None = None,
 ) -> GraphBlueprint:
     """Collect declarations into a validated, frozen graph blueprint.
@@ -35,7 +34,6 @@ def create_blueprint(
     return implementation(
         namespace_path=namespace_path,
         bindings=bindings,
-        sources=sources,
         languages=languages,
     )
 

@@ -124,8 +124,8 @@ rule about what the framework is belongs to the framework model.
   workflow plan use the same type ontology; no language defines its own.
 - The kernel uses toolchain vocabulary: language, declaration, symbol, linker,
   planner, workflow plan, runtime, executor and resource. The distribution uses
-  domain vocabulary: graph, blueprint, node, edge, binding and projection. The
-  kernel model is opaque; the distribution implements it.
+  domain vocabulary: graph, blueprint, node, edge, binding, projection and
+  asset. The kernel model is opaque; the distribution implements it.
 - A language and its package share one name: `DataLanguage`, language `data`,
   package `languages/data`. The authoring class names the syntax (`Table`,
   `Node`); the language is named for the model it produces.
@@ -135,12 +135,22 @@ rule about what the framework is belongs to the framework model.
 - The package tree shows the primary dependency spine. A shared artifact or
   interface is the root of its consumer cluster. A tree cannot encode every
   edge; the dependency tests enforce the rest.
-- `annotations`, `expressions`, `data`, `topology` and `binding` are
+- `annotations`, `expressions`, `asset`, `data`, `topology` and `binding` are
   distribution languages. `core`, `deduplication`, `merging`,
   `conflict_validation`, `file`, `meta_graph`, `neo4j`, `duckdb`, `python` and
   `runtime` are distribution modules.
 - A module is a feature package, not a protocol and not a registry entry. It
   groups one feature's planners, executors, resources and configuration.
+- An asset is a logical unit of source data, like a package; one asset may back
+  many tables. A table names its asset through `Table[Asset]`, and a relation
+  carries that identity as an `AssetRef`.
+- Asset layout is optional descriptive metadata, not an access contract. There
+  is no adapter concept in the toolchain and no adapter registry; a module
+  contributes ordinary relation-producing steps. `DuckDbSourcePlanner` resolves
+  compatible `parquet`, `json` and `csv` layouts.
+- No code-generation field belongs to the asset model. `@asset_contract` is a
+  generation-frontend decorator on an `Asset` subclass; it is inert and outside
+  `AssetOptions` and the blueprint.
 - The runtime owns the resource providers; `Toolchain` has no `resources` field.
   The pipeline emits events; a monitor is a frontend listener and a provider is
   an event subscriber that creates resources on pipeline start and disposes them
@@ -200,7 +210,7 @@ rule about what the framework is belongs to the framework model.
   DTOs it references are not exported public names. The canonical flow is the
   compile shortcut that creates and consumes the blueprint without exposing it.
 - Cross-symbol fields are typed refs such as `NodeRef`, `FieldRef`,
-  `PropertyRef`, `RelationRef` and `OperationRef`; there is no bare
+  `PropertyRef`, `RelationRef`, `AssetRef` and `OperationRef`; there is no bare
   cross-symbol string.
 - Expressions are inline fragments, not symbols. Their leaves are typed refs; a
   shared or named expression is a computed field or a projection output.

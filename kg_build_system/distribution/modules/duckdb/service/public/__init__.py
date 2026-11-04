@@ -28,6 +28,7 @@ from ..internal import (
     SqlType,
 )
 from .functions import expression_sql, relation_sql, row_source_sql
+from .planner import DuckDbSourcePlanner
 
 __all__ = [
     "ArraySqlType",
@@ -35,6 +36,7 @@ __all__ = [
     "DuckDbInstructionEmitter",
     "DuckDbResourceProvider",
     "DuckDbService",
+    "DuckDbSourcePlanner",
     "DuckDbSqlEmitter",
     "EmissionContext",
     "ExpressionEmitter",

@@ -44,7 +44,7 @@ def bound_blueprint(*components: NodeDTO) -> Any:
     """A blueprint-shaped value with one binding per node component."""
     graph = GraphPartDTO(nodes=components, edges=())
     data = DataPartDTO(
-        structs=(), relations=(), projections=(), sources=(),
+        structs=(), relations=(), projections=(),
     )
     bindings = tuple(
         SimpleNamespace(

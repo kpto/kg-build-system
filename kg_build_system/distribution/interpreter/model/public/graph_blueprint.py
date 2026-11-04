@@ -1,16 +1,19 @@
 """The public graph blueprint handle.
 
 A blueprint is the semantic model of one graph: its topology, its data
-declarations, the bindings that populate it and the physical sources those
-relations read. The layer DTOs are owned by their language packages; the
+declarations, the logical assets its relations are read from and the bindings
+that populate it. The layer DTOs are owned by their language packages; the
 blueprint only references them.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 
+from kg_build_system.distribution.languages.asset.model.internal.dto import (
+    AssetPartDTO,
+)
 from kg_build_system.distribution.languages.binding.model.internal.dto.blueprint_dto import BindingDTO
-from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import DataPartDTO, SourceDTO
+from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import DataPartDTO
 from kg_build_system.distribution.languages.topology.model.internal.dto.blueprint_dto import GraphPartDTO
 
 
@@ -19,9 +22,9 @@ class GraphBlueprint:
     """One validated graph model assembled from the declaration layers.
 
     ``graph`` is the topology, ``data`` holds structs, relations and
-    projections, ``bindings`` target graph components, and ``sources`` bind
-    relations to physical locations. The value is frozen and carries no owner,
-    service or Python authoring path.
+    projections, ``assets`` holds the logical source-data units relations name,
+    and ``bindings`` target graph components. The value is frozen and carries no
+    owner, service or Python authoring path.
 
     Example:
     ```python
@@ -29,14 +32,14 @@ class GraphBlueprint:
 
     blueprint = create_blueprint(namespace_path="graph_pipeline")
     nodes = blueprint.graph.nodes
-    sources = blueprint.sources
+    assets = blueprint.assets.assets
     ```
     """
 
     graph: GraphPartDTO
     data: DataPartDTO
+    assets: AssetPartDTO
     bindings: tuple[BindingDTO, ...]
-    sources: tuple[SourceDTO, ...]
 
 
 __all__ = ["BindingDTO", "GraphBlueprint"]

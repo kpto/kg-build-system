@@ -7,17 +7,16 @@ from typing import Any, cast
 from kg_build_system.distribution.languages.annotations.service.internal import annotation_from_document, annotation_to_document
 from kg_build_system.distribution.languages.expressions.service.internal.dto.codec import expression_from_document, expression_to_document
 from kg_build_system.distribution.model.public.refs import (
-    FieldRef, RelationRef, ref_from_document, ref_to_document,
+    AssetRef, FieldRef, RelationRef, ref_from_document, ref_to_document,
 )
 from kg_build_system.kernel.service.internal.types import type_from_document, type_to_document
 from ...model.internal.dto.blueprint_dto import (
     ColumnDTO, DataPartDTO, ProjectionDTO, RelationDTO, RowDistinctDTO,
     RowFilterDTO, RowGroupByDTO, RowJoinDTO, RowOrderByDTO, RowScanDTO,
-    RowSourcePlanDTO, RowUnionDTO, SourceDTO, StructDTO,
+    RowSourcePlanDTO, RowUnionDTO, StructDTO,
 )
 
 _JOIN_MODES = {"inner", "left", "right", "full"}
-_SOURCE_FORMATS = {"csv", "json", "parquet"}
 
 
 def _object(value: Any, context: str) -> Mapping[str, Any]:
@@ -228,6 +227,8 @@ def _encode_declaration(
     }
     if value.description is not None:
         result["description"] = value.description
+    if isinstance(value, RelationDTO):
+        result["asset"] = ref_to_document(value.asset)
     return result
 
 
@@ -241,9 +242,13 @@ def _decode_struct(value: Mapping[str, Any]) -> StructDTO:
 
 
 def _decode_relation(value: Mapping[str, Any]) -> RelationDTO:
+    asset = ref_from_document(value.get("asset"))
+    if not isinstance(asset, AssetRef):
+        raise ValueError("a relation 'asset' must be an asset reference")
     return RelationDTO(
         name=_text(value, "name"),
         columns=_items(value, "columns", _decode_column),
+        asset=asset,
         description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", annotation_from_document),
     )
@@ -267,37 +272,6 @@ def _decode_projection(value: Mapping[str, Any]) -> ProjectionDTO:
     )
 
 
-def _encode_source(value: SourceDTO) -> dict[str, Any]:
-    result: dict[str, Any] = {
-        "relation": ref_to_document(value.relation),
-        "location": value.location,
-        "format": value.format,
-        "annotations": [annotation_to_document(item) for item in value.annotations],
-    }
-    if value.credential_reference is not None:
-        result["credential_reference"] = value.credential_reference
-    if value.version is not None:
-        result["version"] = value.version
-    return result
-
-
-def _decode_source(value: Mapping[str, Any]) -> SourceDTO:
-    source_format = value.get("format")
-    if source_format not in _SOURCE_FORMATS:
-        raise ValueError(f"unknown source format {source_format!r}")
-    relation = ref_from_document(value.get("relation"))
-    if not isinstance(relation, RelationRef):
-        raise ValueError("a source 'relation' must be a relation reference")
-    return SourceDTO(
-        relation=relation,
-        location=_text(value, "location"),
-        format=cast(Any, source_format),
-        credential_reference=_optional_text(value, "credential_reference"),
-        version=_optional_text(value, "version"),
-        annotations=_items(value, "annotations", annotation_from_document),
-    )
-
-
 def data_to_document(data: DataPartDTO) -> dict[str, Any]:
     """Encode the data language part as its canonical document.
 
@@ -307,14 +281,13 @@ def data_to_document(data: DataPartDTO) -> dict[str, Any]:
             DataPartDTO, data_to_document,
         )
 
-        document = data_to_document(DataPartDTO((), (), (), ()))
+        document = data_to_document(DataPartDTO((), (), ()))
         ```
     """
     return {
         "structs": [_encode_declaration(item) for item in data.structs],
         "relations": [_encode_declaration(item) for item in data.relations],
         "projections": [_encode_projection(item) for item in data.projections],
-        "sources": [_encode_source(item) for item in data.sources],
     }
 
 
@@ -328,7 +301,7 @@ def data_from_document(value: Mapping[str, Any]) -> DataPartDTO:
         )
 
         data = data_from_document({
-            "structs": [], "relations": [], "projections": [], "sources": [],
+            "structs": [], "relations": [], "projections": [],
         })
         ```
     """
@@ -338,7 +311,6 @@ def data_from_document(value: Mapping[str, Any]) -> DataPartDTO:
         structs=_items(value, "structs", _decode_struct),
         relations=_items(value, "relations", _decode_relation),
         projections=_items(value, "projections", _decode_projection),
-        sources=_items(value, "sources", _decode_source),
     )
 
 

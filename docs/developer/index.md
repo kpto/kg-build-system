@@ -42,9 +42,9 @@ naming and docstring helpers in
 | Area | Implementation | Remaining limit |
 | --- | --- | --- |
 | Kernel | `Language`, `Declaration`, `Symbol`, `SymbolRef`, `Key`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `Resource`, `ResourceProvider`, `ResourceView`, `Toolchain` in `kernel/service/public`; the workflow, runtime and event values in `kernel/model/public`; canonical types in `kernel/model/public/types` | A toolchain is the only composition unit |
-| Languages | `discover_declarations`, `compute_key`, `get_kind`, `owns`, `get_identity`, `get_references`, `transcribe_many` and `render` in the expressions, data, topology and binding services; annotations remain inline | Custom operations outside the static registry are not symbol declarations |
+| Languages | `discover_declarations`, `compute_key`, `get_kind`, `owns`, `get_identity`, `get_references`, `transcribe_many` and `render` in the expressions, asset, data, topology and binding services; annotations remain inline | Custom operations outside the static registry are not symbol declarations |
 | Blueprint | `create_blueprint(...) -> GraphBlueprint`; `BlueprintLinker` implements the kernel `Linker` protocol through `service/internal/adapters/kernel_linker.py`; typed references in `distribution/model/public/refs.py` | Public `GraphBlueprint` fields reference internal language DTOs |
-| Planning | `compile(model) -> WorkflowPlan`; the core module has five planners sharing `component_id="core"`, plus deduplication, merging and conflict-validation planners | The core planners depend on the DuckDB SQL emitter |
+| Planning | `compile(model) -> WorkflowPlan`; the generic `DuckDbSourcePlanner` has `component_id="duckdb"` and the core module has four planners sharing `component_id="core"`, plus deduplication, merging and conflict-validation planners | The core planners depend on the DuckDB SQL emitter |
 | Execution | `execute(plan, output_directory=..., monitor=...) -> WorkflowReport`; the kernel emits `PipelineEvent`s and dispatches by exact `instruction.kind`; providers subscribe to the run and publish resources on `PipelineStarted`; `DuckDbResourceProvider`, `DuckDbService` and `RuntimeResources` own the live resources | DuckDB is the default engine |
 | Frontend | `Monitor`, `NullMonitor`, `ConsoleMonitor` and `resolve_monitor` in `frontend/monitor.py`; `api.execute(monitor=...)` subscribes the selected listener | `rich` is optional and loaded lazily |
 | DTO names | `*DTO` names; cross-symbol fields carry role-typed refs such as `NodeRef` and `FieldRef`, never a bare name or `symbol_id` | None |
@@ -54,7 +54,7 @@ naming and docstring helpers in
 
 ## Verification
 
-- 187 tests passed, 1618 subtests.
+- 226 tests passed, 1655 subtests.
 - Pyright: 0 errors.
 - `uv run mkdocs build --strict`: passes.
 - Open Targets: 7 tests passed.

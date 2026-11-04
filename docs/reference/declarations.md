@@ -1,25 +1,26 @@
 # Declarations
 
 Declarations state the shape of one row, the shape of a nested record, the name
-of a relation, a table catalog and the physical source those rows come from.
+of a relation, a table catalog and the asset those rows come from.
 
 The declaration names come from `kg_build_system`; the representative and
 canonical types come from `kg_build_system`. The meaning of each
-declaration is on [Data contracts](../concepts/data-contracts.md); the physical
-side is on [Sources](../concepts/sources.md). Expressions are on
+declaration is on [Data contracts](../concepts/data-contracts.md); the asset
+model is on [Assets](../concepts/assets.md) and the
+[assets reference](assets.md). Expressions are on
 [Expressions and selections](expressions.md), row plans on
 [Row sources](row-sources.md), and named relations on
 [Projections](projections.md).
 
 ## The declaration set
 
-| Declaration | What it declares | Row source | `bind_source` target |
+| Declaration | What it declares | Row source | Names an asset |
 | --- | --- | --- | --- |
-| `Table` | A final, source-bindable row shape | Yes, through `row_source()` | Yes |
+| `Table` | A final row shape read from one asset | Yes, through `row_source()` | Yes, `Table[Asset]` |
 | `Struct` | A nested record used as a field type | No | No |
 | `ComputedStruct` | A value record whose members are type witnesses | No | No |
 | `Projection` | A named relation with computed outputs | Yes, through `row_source()` | No |
-| `TableGroup` | A named catalog of final tables and nested groups | No | Yes, as a group |
+| `TableGroup` | A named catalog of final tables and nested groups | No | Through its members |
 | `StructTemplate` | A mixin sharing fields and annotations | No | No |
 
 `Table`, `TableGroup` and `Projection` are final: a final declaration may not
@@ -54,8 +55,10 @@ constructors decide the backing kind.
 from kg_build_system import Field, Table, TableOptions, field
 from kg_build_system import Timestamp
 
+from estate.assets import Estate
 
-class VisitTable(Table):
+
+class VisitTable(Table[Estate]):
     """One inspection visit."""
 
     options = TableOptions(name="visit")
@@ -186,7 +189,7 @@ in the type, as in `Field[Array[str | None]]`. See [Types](types.md).
 ## `Table`
 
 ```python
-class Table:
+class Table[AssetT: Asset]:
     options: TableOptions
     # field members
 
@@ -200,9 +203,19 @@ class Table:
     def projection_base(cls) -> type: ...
 ```
 
-A `Table` is both a typed shape and a row source. It is final and becomes a
-relation only when a binding or projection reads it or a `bind_source` gives it
-a physical location.
+A `Table` is a typed shape, a row source and the name of the asset its rows come
+from. It is final and becomes a relation only when a binding or projection reads
+it.
+
+```python
+from estate.assets import Estate
+
+class SiteTable(Table[Estate]):
+    site_id: Field[str] = field()
+```
+
+The asset parameter is part of the declaration. A concrete table without one is
+refused when the class is created.
 
 | Member | Returns | Use |
 | --- | --- | --- |
@@ -219,8 +232,10 @@ inherited.
 ```python
 from kg_build_system import Field, Table, TableOptions, field
 
+from estate.assets import Estate
 
-class SiteTable(Table):
+
+class SiteTable(Table[Estate]):
     """One site in the estate."""
 
     options = TableOptions(name="sites")
@@ -237,6 +252,8 @@ for `projection_base()`.
 | Error | Trigger |
 | --- | --- |
 | `a final Table may not inherit from another final Table` | A `Table` subclass inherits another final `Table` |
+| `X is a concrete Table without an asset; declare it as Table[Asset]` | A concrete table names no asset |
+| `X must name an Asset subclass: Table[Asset]` | The parameter is not an `Asset` subclass |
 | `Table.options must be a TableOptions value` | `options` is not a `TableOptions` |
 | `<Class> is a Table declaration: declare TableOptions, not template options` | `options = StructOptionsTemplate(...)` on a table |
 | `table names must be non-empty` | `TableOptions(name="")` |
@@ -250,7 +267,7 @@ class Struct:
 ```
 
 A `Struct` is a nested-record shape. It is used as `Field[SomeStruct]`, never as
-a row source, table-group member or `bind_source` target. Its identity is the
+a row source, table-group member or table declaration. Its identity is the
 `(module, qualname)` pair, so two structs with the same name in different modules
 are distinct.
 
@@ -300,13 +317,15 @@ from kg_build_system import (
     ComputedStruct, Field, Table, TableOptions, computed_field, field,
 )
 
+from estate.assets import Estate
+
 
 class SiteSummaryStruct(ComputedStruct):
     site_id = computed_field(SiteTable.site_id.alter_rows().drop_null())
     region = computed_field(SiteTable.region)
 
 
-class SummaryTable(Table):
+class SummaryTable(Table[Estate]):
     options = TableOptions(name="summary")
     site_id: Field[str] = field()
     summary: Field[SiteSummaryStruct] = field()
@@ -327,8 +346,8 @@ Projection(source: RowSource[S]) -> type[Projection]
 
 `Projection(source)` returns a base pinned to one row source. Subclass it, give
 the class a name and declare at least one output with `computed_field`. A
-projection is a shape and a row source, but it is not a `Table` and has no
-physical source of its own.
+projection is a shape and a row source, but it is not a `Table` and names no
+asset of its own.
 
 An unpinned `class P(Projection)` with `projection_field(...)` outputs is the
 compatibility form. Its plan is derived from the one logical source those
@@ -383,8 +402,8 @@ class ReadingsTableGroup(TableGroup):
 ```
 
 The group name defaults to the class name with one `TableGroup` suffix removed
-and converted to snake case. A group is bound with `bind_source` and a layout;
-see [Sources](../concepts/sources.md) and [`bind_source()`](#bind_source).
+and converted to snake case. A group is a catalog, not a source declaration: each
+member table names its own asset. See [Assets](../concepts/assets.md).
 
 | Error | Trigger |
 | --- | --- |
@@ -409,7 +428,7 @@ class StructTemplate:
 `StructTemplate` shares field slots and annotation flow with `Table`, `Struct`
 and `ComputedStruct`. It never becomes a declaration, has no name or description
 and never enters the blueprint. Templates come first in the base list:
-`class SiteTable(ProvenancedTemplate, Table)`.
+`class SiteTable(ProvenancedTemplate, Table[Estate])`.
 
 A template's options must be `StructOptionsTemplate`, which carries annotations
 only. A template may extend another template by naming it as its base. Mixing a
@@ -428,7 +447,7 @@ class ProvenancedTemplate(StructTemplate):
     source_version: Field[str] = field()
 
 
-class SiteTable(ProvenancedTemplate, Table):
+class SiteTable(ProvenancedTemplate, Table[Estate]):
     options = TableOptions(name="sites")
     site_id: Field[str] = field()
 ```
@@ -448,98 +467,11 @@ class SiteTable(ProvenancedTemplate, Table):
 | `ProjectionOptions` | `ProjectionOptions(name=None, description=None, annotations=())` | Projection identity, description and annotations |
 | `TableGroupOptions` | `TableGroupOptions(members=(), name=None, description=None, annotations=())` | Group members plus identity, description and annotations |
 | `StructOptionsTemplate` | `StructOptionsTemplate(annotations=())` | Template annotations only; no name or description |
-| `SourceBindingOptions` | `SourceBindingOptions(annotations=())` | Source-level annotations |
 
 Every option value is frozen. `name` must be non-empty when supplied.
 `description` defaults to the declaration's own docstring and is never
 inherited. `annotations` is a sequence of `Annotation` values; see
 [Semantics and annotations](../concepts/semantics.md).
-
-## `bind_source()`
-
-```python
-def bind_source(
-    *,
-    target: type,
-    config: DataSourceConfig,
-    options: SourceBindingOptions = SourceBindingOptions(),
-) -> BoundSource: ...
-```
-
-`bind_source()` attaches one physical configuration to a final `Table` or
-`TableGroup`. It opens no file when declared.
-
-| Parameter | Type | Meaning |
-| --- | --- | --- |
-| `target` | `type` | A final `Table` or `TableGroup` |
-| `config` | `DataSourceConfig` | Location, format and optional layout, credentials and version |
-| `options` | `SourceBindingOptions` | Source-level annotations |
-
-Returns a `BoundSource`: a `BoundTable` for a table target or a
-`BoundTableGroup` for a group target. `BoundTable` and `BoundTableGroup` are
-frozen values; `bound_table.table` or `bound_table.group`, `.config` and
-`.annotations` are readable.
-
-```python
-from kg_build_system import DataSourceConfig, InputFormat, bind_source
-
-
-sites_source = bind_source(
-    target=SiteTable,
-    config=DataSourceConfig(
-        "data/sites.json",
-        format=InputFormat.JSON,
-        version="registry-2026-08",
-    ),
-)
-
-
-readings_source = bind_source(
-    target=ReadingsTableGroup,
-    config=DataSourceConfig(
-        "data/readings",
-        format=InputFormat.JSON,
-        layout="{group_path}/{table_name}.json",
-    ),
-)
-```
-
-### `DataSourceConfig`
-
-```text
-DataSourceConfig(
-    location: str,
-    format: InputFormat = InputFormat.CSV,
-    layout: str | None = None,
-    credentials: str | None = None,
-    version: str | None = None,
-)
-```
-
-| Field | Meaning | Default |
-| --- | --- | --- |
-| `location` | A file, directory, glob or URI | Required |
-| `format` | Reader selection | `InputFormat.CSV` |
-| `layout` | Group-source path template | `None`; required for a group target |
-| `credentials` | The name of a runtime credential entry | `None`; the secret is supplied at build time |
-| `version` | Free-text label recorded with the source | `None`; not interpreted by the build |
-
-`InputFormat` has three members: `CSV`, `JSON` and `PARQUET`. The declared format
-selects the reader; the file name does not.
-
-A group layout may use only `{group_path}` and `{table_name}`. `{group_path}` is
-the chain of group names above the table, joined with `/`; `{table_name}` is the
-table's own name. The layout must resolve every member of the group.
-
-| Error | Trigger |
-| --- | --- |
-| `sources require a final Table or TableGroup` | `target` is a `Struct`, `Projection` or other non-final declaration |
-| `data sources require a non-empty location` | `DataSourceConfig("")` |
-| `group sources require DataSourceConfig.layout to resolve each table` | A group source has no layout, at compile |
-| `group source layouts may use only {group_path} and {table_name}` | The layout names another placeholder |
-| `no source bound for: sites` | A reached table has no source, at compile |
-| `source-bound table names must be unique` | A table is bound twice, at compile |
-| `credentialed source locations require a URI scheme` | A credentialed location is a bare path |
 
 ## What to remember
 
@@ -549,8 +481,8 @@ table's own name. The layout must resolve every member of the group.
   is non-null and `Field[T | None]` is nullable.
 - `Table`, `TableGroup` and `Projection` are final. `Struct` and
   `ComputedStruct` are value records, not row sources.
-- `bind_source()` is the only place a location, format or credential reference
-  appears.
+- `Table[Asset]` names the logical source of a table; the asset and its
+  optional layout carry location, format and credential reference.
 - A name, description and annotation are declaration metadata; they never
   become fields or graph properties.
 

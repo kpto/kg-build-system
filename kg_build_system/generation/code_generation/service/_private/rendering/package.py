@@ -141,6 +141,9 @@ def render_package(
             target = resolve(name, path)
             if target is not None:
                 cross.setdefault(_module_name(request.package_import, target), set()).add(name)
+        for declaration in classes:
+            if declaration.asset is not None:
+                cross.setdefault(declaration.asset.module, set()).add(declaration.asset.qualname)
         # Same-named declarations are legal across files; a file that would
         # import two of them needs an alias the model does not yet carry, so
         # the collision is refused rather than rendered as silent shadowing.

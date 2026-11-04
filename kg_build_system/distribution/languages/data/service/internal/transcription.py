@@ -21,7 +21,7 @@ def collect_declarations(
 
 
 def collect_values(namespace: Any) -> tuple[object, ...]:
-    """Select table declarations and source bindings from a namespace."""
+    """Select data declarations reachable from a namespace."""
     from .._private.transcription import collect_values as collect
 
     return collect(namespace)

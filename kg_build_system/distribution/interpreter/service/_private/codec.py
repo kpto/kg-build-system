@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from typing import Any, Mapping
 
+from kg_build_system.distribution.languages.asset.service.internal.codec import assets_from_document, assets_to_document
 from kg_build_system.distribution.languages.binding.service.internal.codec import binding_from_document, binding_to_document
 from kg_build_system.distribution.languages.data.service.internal.codec import data_from_document, data_to_document
 from kg_build_system.distribution.languages.topology.service.internal.codec import graph_from_document, graph_to_document
@@ -17,12 +18,13 @@ from ...model.public import GraphBlueprint
 def blueprint_to_document(blueprint: GraphBlueprint) -> dict[str, Any]:
     """Encode a blueprint into its canonical JSON-compatible document.
 
-    The document has one member per layer codec: ``graph``, ``data`` and
-    ``bindings``. Physical sources are encoded by the data DTO.
+    The document has one member per layer codec: ``graph``, ``data``,
+    ``assets`` and ``bindings``.
     """
     return {
         "graph": graph_to_document(blueprint.graph),
         "data": data_to_document(blueprint.data),
+        "assets": assets_to_document(blueprint.assets),
         "bindings": [
             binding_to_document(binding) for binding in blueprint.bindings
         ],
@@ -36,13 +38,14 @@ def blueprint_from_document(value: Mapping[str, Any]) -> GraphBlueprint:
     """
     graph = graph_from_document(value["graph"])
     data = data_from_document(value["data"])
+    assets = assets_from_document(value.get("assets", ()))
     documents = value.get("bindings", value.get("binding", ()))
     bindings = tuple(binding_from_document(item) for item in documents)
     return GraphBlueprint(
         graph=graph,
         data=data,
+        assets=assets,
         bindings=bindings,
-        sources=tuple(getattr(data, "sources", ())),
     )
 
 

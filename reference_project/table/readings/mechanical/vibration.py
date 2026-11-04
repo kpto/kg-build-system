@@ -9,10 +9,11 @@
 # pyright: reportUnknownVariableType=false
 
 from kg_build_system import Field, Table, TableOptions, field
+from reference_project.assets import Estate
 from kg_build_system import Array, Date, Time, Timestamp, Uuid
 
 
-class VibrationTable(Table):
+class VibrationTable(Table[Estate]):
     options = TableOptions(name='vibration')
     reading_uid: Field[str | None] = field(name='reading_uid')
     unit_ref: Field[str | None] = field(name='unit_ref')

@@ -9,6 +9,7 @@
 # pyright: reportUnknownVariableType=false
 
 from kg_build_system import Field, Struct, Table, TableOptions, field
+from reference_project.assets import Estate
 from kg_build_system import Array, Date, Time, Timestamp, Uuid
 
 
@@ -27,7 +28,7 @@ class PremisesStruct(Struct):
     contact: Field[PremisesContactStruct | None] = field(name='contact')
 
 
-class SitesTable(Table):
+class SitesTable(Table[Estate]):
     options = TableOptions(name='sites')
     site_id: Field[str | None] = field(name='site_id')
     site_name: Field[str | None] = field(name='site_name')

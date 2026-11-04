@@ -3,6 +3,12 @@ from __future__ import annotations
 
 from typing import assert_type
 
+from kg_build_system.distribution.languages.asset.model.public import (
+    Asset,
+    AssetAuthority,
+    AssetOptions,
+    AssetSemantics,
+)
 from kg_build_system.distribution.languages.expressions.model.public import (
     IntExpression,
     NullableSelection,
@@ -31,15 +37,37 @@ from kg_build_system.distribution.languages.topology.model.public import (
     PropertySlot,
 )
 from kg_build_system.distribution.languages.topology.service.public import property
+from kg_build_system.generation import AssetContractOptions, asset_contract
+from kg_build_system.generation.code_generation.builtins import (
+    DataContractInferenceConfig,
+    InferDataContractProvider,
+)
 
 
-class Row(Table):
+@asset_contract(AssetContractOptions(
+    provider=InferDataContractProvider,
+    configuration=DataContractInferenceConfig(mode="table"),
+    package="fixture.tables",
+))
+class FixtureAsset(Asset):
+    options = AssetOptions(
+        name="fixture_asset",
+        semantics=AssetSemantics(
+            subject="fixture rows",
+            coverage="one fixture",
+            authority=AssetAuthority.INFERRED,
+            basis="typecheck fixture",
+        ),
+    )
+
+
+class Row(Table[FixtureAsset]):
     options = TableOptions(name="row")
     id: Field[str] = field(name="id")
     count: Field[int] = field(name="count")
 
 
-class OptionalRow(Table):
+class OptionalRow(Table[FixtureAsset]):
     value: Field[str | None] = field(name="value")  # pyright: ignore[reportUnknownVariableType]
 
 

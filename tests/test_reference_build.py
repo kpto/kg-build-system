@@ -20,7 +20,7 @@ class ReferenceBuildTests(unittest.TestCase):
         self.assertIsInstance(blueprint, GraphBlueprint)
         self.assertTrue(blueprint.graph.nodes)
         self.assertTrue(blueprint.bindings)
-        self.assertTrue(blueprint.sources)
+        self.assertTrue(blueprint.assets.assets)
 
     def test_the_reference_project_compiles_and_builds(self) -> None:
         plan = compile_reference_build()

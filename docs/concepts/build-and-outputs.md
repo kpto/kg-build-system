@@ -46,8 +46,8 @@ report = execute(plan, output_directory="build")
 
 A blueprint is a frozen description of what the build reaches. It contains the
 tables and projections a binding reads, the components those bindings target and
-their ancestors and endpoints, the structs those types use, and the sources those
-tables need. It has stable ordering, so it is safe to store, compare or pass to
+their ancestors and endpoints, the structs those types use, and the assets those
+tables name. It has stable ordering, so it is safe to store, compare or pass to
 compilation.
 
 `GraphBlueprint` has four fields:
@@ -55,9 +55,9 @@ compilation.
 | Field | Content |
 | --- | --- |
 | `graph` | nodes and edges with graph names, labels, endpoints, properties, annotations, `abstract` and `parent` |
-| `data` | structs, relations, projections and sources |
+| `data` | structs, relations and projections |
+| `assets` | the logical source-data units relations name |
 | `bindings` | node and edge binding DTOs |
-| `sources` | physical source bindings |
 
 The language DTOs are internal to the language packages. `GraphBlueprint` is the
 public handle. Cross-symbol fields are role-typed references such as `NodeRef`,
@@ -67,10 +67,10 @@ You can create one in three ways:
 
 - **This file's namespace.** Call `create_blueprint()` with no arguments. The
   framework imports the calling file's directory and collects module-level
-  bindings and source bindings.
+  bindings and assets.
 - **An explicit namespace.** Pass `namespace_path` as an importable package name
   or a directory when the build file lives elsewhere.
-- **Explicit declarations.** Pass `bindings` and `sources` together.
+- **Explicit declarations.** Pass `bindings` explicitly.
 
 Only reached declarations enter the blueprint. Discovery may import a package
 with many declarations, but an unread table, projection or category is not
@@ -98,8 +98,9 @@ plan = compile(
 ```
 
 `compile` is also the shortcut. It creates the blueprint when it is not supplied,
-adds the five core planners when no supplied planner has `component_id == "core"`,
-and appends the planners you pass. It returns a `WorkflowPlan`.
+adds the generic DuckDB source planner and the four core planners when no
+supplied planner claims those components, and appends the planners you pass. It
+returns a `WorkflowPlan`.
 
 Compilation checks everything that can be checked without reading data:
 
@@ -108,7 +109,7 @@ Compilation checks everything that can be checked without reading data:
 - every expression names a known table or projection field;
 - build keys are non-null scalars;
 - edge endpoints exist, are concrete and descend from the declared categories;
-- every table has a source;
+- every relation names an asset present in the blueprint;
 - every planner's compile-time configuration is valid;
 - the step wiring can feed every input and read every ordinary output.
 
@@ -146,8 +147,8 @@ beneath it and must not escape it.
 `BuildRuntime` carries settings about how the build runs, not what the graph
 means:
 
-- `credentials` maps a credential reference to its value. A source binding stores
-  the reference; secrets do not enter the plan or the report.
+- `credentials` maps a credential reference to its value. An asset layout stores
+  the reference in `properties`; secrets do not enter the plan or the report.
 - `component_configuration` supplies runtime values for fields a component
   declared. Its keys must name plan components. Unknown fields, missing required
   fields and values of the wrong type stop the run before any step executes.

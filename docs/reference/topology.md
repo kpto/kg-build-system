@@ -270,7 +270,9 @@ from kg_build_system import (
     field, node_binding, property,
 )
 
-class SiteTable(Table):
+from estate.assets import Estate
+
+class SiteTable(Table[Estate]):
     site_id: Field[str] = field()
     summary: Field[str] = field()
     name: Field[str] = field()

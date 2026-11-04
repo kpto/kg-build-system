@@ -13,13 +13,8 @@ from kg_build_system.distribution.interpreter.service.internal import (
 )
 from kg_build_system.distribution.languages.binding import node_binding
 from kg_build_system.distribution.languages.binding.service.internal import BindingLanguage
-from kg_build_system.distribution.languages.data import (
-    DataSourceConfig,
-    Field,
-    Table,
-    bind_source,
-    field,
-)
+from kg_build_system.distribution.languages.asset.service.internal import AssetLanguage
+from kg_build_system.distribution.languages.data import Field, Table, field
 from kg_build_system.distribution.languages.data.service.internal.adapters.kernel_language import DataLanguage
 from kg_build_system.distribution.languages.topology import (
     Node,
@@ -27,9 +22,10 @@ from kg_build_system.distribution.languages.topology import (
     property,
 )
 from kg_build_system.distribution.languages.topology.service.internal import TopologyLanguage
+from .support import TestEstate
 
 
-class SiteTable(Table):
+class SiteTable(Table[TestEstate]):
     site_id: Field[str] = field()
 
 
@@ -38,16 +34,12 @@ class SiteNode(Node):
 
 
 def _fixture() -> GraphBlueprint:
-    source = bind_source(
-        target=SiteTable,
-        config=DataSourceConfig(location="sites.csv"),
-    )
     binding = node_binding(
         target=SiteNode,
         build_key=SiteTable.site_id,
         properties=SiteNode(site_id=SiteTable.site_id),
     )
-    return create_blueprint(bindings=(binding,), sources=(source,))
+    return create_blueprint(bindings=(binding,))
 
 
 def _canonical(document: object) -> str:
@@ -55,9 +47,18 @@ def _canonical(document: object) -> str:
 
 
 def _source_from_layers(blueprint: GraphBlueprint) -> str:
+    from kg_build_system.distribution.service.internal.rendering import class_name
+
+    asset_class_names = {
+        asset.name: class_name(asset.name, "Asset")
+        for asset in blueprint.assets.assets
+    }
     fragments = (
+        AssetLanguage().render(blueprint.assets, None),
         TopologyLanguage().render(blueprint.graph, None),
-        DataLanguage().render(blueprint.data, None),
+        DataLanguage().render(
+            blueprint.data, None, class_names=asset_class_names,
+        ),
         BindingLanguage().render(blueprint.bindings, None),
     )
     imports = sorted({

@@ -11,11 +11,12 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class GenerationLocation:
-    """Where one request was declared and the identity it received.
+    """Where one asset contract was declared and the identity it received.
 
-    ``project_root`` and ``source_path`` locate the author-owned ``__init__.py``;
-    ``line`` and ``column`` point at the assignment. ``request_id`` is the
-    assignment name, and ``source_package`` is the package containing it.
+    ``project_root`` and ``source_path`` locate the author-owned asset module;
+    ``line`` and ``column`` point at the ``@asset_contract`` decorator.
+    ``request_id`` is the asset name, and ``source_package`` is the package
+    containing the asset module.
 
     Example:
         ```python
@@ -24,7 +25,7 @@ class GenerationLocation:
         from kg_build_system.generation.code_generation.model.internal import GenerationLocation
 
         location = GenerationLocation(
-            Path("."), Path("contracts/__init__.py"), 4, 1,
+            Path("."), Path("contracts/assets.py"), 4, 1,
             "people", "contracts",
         )
         ```
@@ -42,9 +43,10 @@ class GenerationLocation:
 class DiscoveredGeneration:
     """One request, its location, and the product it owns.
 
-    ``product_path`` is the sibling directory of the author-owned
-    ``__init__.py``; ``package_import`` is the import name of the generated
-    package.
+    ``product_path`` is ``<package as a path>/<asset name>`` below the project
+    root; when the root is itself a package, its leading package segment is not
+    repeated on disk. ``package_import`` is the full product import name. The
+    rule is fixed so an asset's package is readable from its declaration alone.
 
     Example:
         ```python

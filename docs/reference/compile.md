@@ -39,7 +39,6 @@ create_blueprint(
     *,
     namespace_path: str | Path | None = None,
     bindings: Iterable[Binding] = (),
-    sources: Sequence[BoundSource] = (),
     languages: Sequence[Language] | None = None,
 ) -> GraphBlueprint
 ```
@@ -51,20 +50,18 @@ and validates the result.
 | Argument | Meaning |
 | --- | --- |
 | `namespace_path` | An importable package name or directory to discover |
-| `bindings` | Explicit bindings; supply together with `sources` |
-| `sources` | Explicit source bindings; supply together with `bindings` |
-| `languages` | Language composition; defaults to expressions, data, topology and binding |
+| `bindings` | Explicit bindings |
+| `languages` | Language composition; defaults to expressions, asset, data, topology and binding |
 
 There are three declaration modes:
 
 | Mode | Arguments | Discovery |
 | --- | --- | --- |
-| Calling file | none | Imports the calling file's directory recursively and collects module-level binding and source values |
+| Calling file | none | Imports the calling file's directory recursively and collects module-level binding values |
 | Explicit namespace | `namespace_path=...` | Imports that package or directory |
-| Explicit declarations | `bindings=(...), sources=(...)` | Uses exactly the supplied values |
+| Explicit declarations | `bindings=(...)` | Uses exactly the supplied bindings |
 
-`namespace_path` cannot be combined with `bindings` or `sources`. `bindings` and
-`sources` must be supplied together.
+`namespace_path` cannot be combined with `bindings`.
 
 ```python
 blueprint = create_blueprint(
@@ -74,21 +71,21 @@ blueprint = create_blueprint(
 
 Only reached declarations enter the blueprint: the tables and projections a
 binding reads, the components it targets and their ancestors and endpoints, the
-structs those types use, and the sources those tables need.
+structs those types use, and the assets those tables name.
 
 `GraphBlueprint` has four fields:
 
 | Field | Content |
 | --- | --- |
 | `graph` | `GraphPartDTO`: nodes and edges with graph names, labels, endpoints, properties, annotations, `abstract` and `parent` |
-| `data` | `DataPartDTO`: structs, relations, projections and sources |
+| `data` | `DataPartDTO`: structs, relations and projections |
+| `assets` | `AssetPartDTO`: the logical source-data units relations name |
 | `bindings` | `NodeBindingDTO` and `EdgeBindingDTO` values |
-| `sources` | `SourceDTO` values for physical source bindings |
 
 The language DTOs are internal to the language packages. `GraphBlueprint` is the
-public handle; `graph`, `data`, `bindings` and `sources` reference internal
+public handle; `graph`, `data`, `assets` and `bindings` reference internal
 language DTOs. Cross-symbol fields carry role-typed references such as
-`NodeRef`, `FieldRef` and `OperationRef`.
+`NodeRef`, `FieldRef`, `AssetRef` and `OperationRef`.
 
 ## `compile`
 
@@ -98,7 +95,6 @@ compile(
     blueprint: GraphBlueprint | None = None,
     namespace_path: str | Path | None = None,
     bindings: Iterable[Binding] | None = None,
-    sources: Sequence[BoundSource] | None = None,
     planners: Sequence[Planner] = (),
     toolchain: Toolchain[GraphBlueprint] | None = None,
     engine: DuckDbSqlEmitter | None = None,
@@ -108,7 +104,7 @@ compile(
 `compile` reads the blueprint exactly as given, or creates one from the
 declaration mode. It never reads data.
 
-When `toolchain` is omitted, `compile` uses `default_toolchain`, adding the five
+When `toolchain` is omitted, `compile` uses `default_toolchain`, adding the four
 core planners unless a supplied planner already reports `component_id == "core"`,
 then appends the planners you pass. When `toolchain` is supplied, it appends the
 `planners` argument to that toolchain's planners.
@@ -124,7 +120,7 @@ Compilation checks everything that does not need data:
 - every expression names a known table or projection field;
 - keys are non-null scalars;
 - edge endpoints exist, are concrete and descend from the declared categories;
-- every reached table has a source;
+- every relation names an asset present in the blueprint;
 - each planner's compile-time configuration is valid;
 - the step wiring can feed every input and read every ordinary output.
 
@@ -237,7 +233,7 @@ Each failure exposes `message`, a typed `step_id` and `exception_type`.
 | Requirement | Enforced by |
 | --- | --- |
 | Exactly one declaration mode | `create_blueprint` / `compile` argument checks |
-| A source for every reached table | the blueprint validation inside `compile` |
+| An asset for every reached relation | the blueprint validation inside `compile` |
 | Valid compile-time configuration for every planner | each planner's `plan` |
 | A wireable planner composition | kernel assembly |
 | An output directory for execution | `execute` |

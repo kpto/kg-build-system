@@ -14,12 +14,14 @@ from typing import ClassVar
 import duckdb
 
 from ....model._private.generated import (
-    GeneratedClass, GeneratedFile, GeneratedMember, GeneratedPackage, Nullability,
-    NullabilityNote,
+    GeneratedAsset, GeneratedClass, GeneratedFile, GeneratedMember,
+    GeneratedPackage, Nullability, NullabilityNote,
 )
 from ....model.public.errors import GenerationError
 from ..adapters import resolve_provider_path
-from ....model.internal.providers import Provider, ProviderContext, ProviderGenerationConfig
+from ....model.internal.providers import (
+    Provider, ProviderContext, ProviderGenerationConfig,
+)
 from .config import DataContractInferenceConfig
 from .datasets import LogicalTable, logical_tables
 from .formats import DATABASE_SUFFIXES, PARQUET_SUFFIXES, remote_source, source_suffix, tier_for_suffix
@@ -33,6 +35,28 @@ from .overrides import declared_overrides, require_overrides
 from .provenance import nullability_note, report_null_statistics, schema_digest, schema_facts
 from .shapes import members, node_shape, parquet_trees
 from .state import Inference
+
+
+def _generated_asset(
+    context: ProviderContext[DataContractInferenceConfig],
+) -> GeneratedAsset | None:
+    asset = context.asset
+    if asset is None:
+        return None
+    return GeneratedAsset(asset.module, asset.qualname)
+
+
+def _source(context: ProviderContext[DataContractInferenceConfig]) -> str:
+    """The configured source, or the decorated asset layout's locator."""
+    if context.config.source is not None:
+        return context.config.source
+    asset = context.asset
+    layout = None if asset is None else asset.options.layout
+    if layout is not None and layout.locator is not None:
+        return layout.locator
+    raise GenerationError(
+        "data-contract inference requires source= or an asset layout with a locator"
+    )
 
 
 class InferDataContractProvider(Provider[DataContractInferenceConfig]):
@@ -60,6 +84,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         final: bool,
         hive_partitioned: bool = False,
         inference: Inference,
+        asset: GeneratedAsset | None = None,
     ) -> tuple[GeneratedClass, ...]:
         fields = []
         supporting: list[GeneratedClass] = []
@@ -121,6 +146,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 tuple(fields),
                 base="Table" if final else None,
                 declaration_name=relation if final else None,
+                asset=asset if final else None,
             ),
         )
 
@@ -150,6 +176,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 final=True,
                 hive_partitioned=table.hive_partitioned,
                 inference=inference,
+                asset=_generated_asset(context),
             )
             note = nullability_note(
                 tier_for_suffix(source_suffix(table.sources[0])),
@@ -204,16 +231,17 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
     def _generate(
         cls, context: ProviderContext[DataContractInferenceConfig],
     ) -> GeneratedPackage:
-        remote = remote_source(context.config.source)
-        path = None if remote else resolve_provider_path(context, context.config.source)
-        source = context.config.source if remote else str(path)
+        source = _source(context)
+        remote = remote_source(source)
+        path = None if remote else resolve_provider_path(context, source)
+        source = source if remote else str(path)
         if context.config.layout != "files" and context.config.mode != "table_group":
             raise GenerationError(f"layout={context.config.layout!r} requires mode='table_group'")
         if source_suffix(source) in DATABASE_SUFFIXES:
             raise GenerationError(
                 f"data-contract inference input {source} is a DuckDB database: its "
-                "relations can be inferred but never bound, because no InputFormat "
-                "selects a database reader. Export the relation to Parquet, or "
+                "relations can be inferred but never bound, because no source "
+                "planner selects a database reader. Export the relation to Parquet, or "
                 "declare the contract outside a generated package."
             )
         inference = Inference(overrides=declared_overrides(context.config.override))
@@ -258,7 +286,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
             classes = cls._table_classes(
                 connection=connection, sources=(source,), relation=relation,
                 relation_path=relation, class_name=class_name, final=True,
-                inference=inference,
+                inference=inference, asset=_generated_asset(context),
             )
             require_overrides(inference)
             package = GeneratedPackage(

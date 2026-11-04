@@ -7,7 +7,9 @@ A binding is the only place data shape and graph meaning meet. The declaration s
 ```python
 from kg_build_system import Edge, Field, Node, PropertySlot, Table, field, property
 
-class EquipmentTable(Table):
+from estate.assets import Estate
+
+class EquipmentTable(Table[Estate]):
     site_id: Field[str] = field()
     unit_ref: Field[str] = field()
     unit_name: Field[str] = field()

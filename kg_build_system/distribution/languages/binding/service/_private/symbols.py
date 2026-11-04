@@ -16,7 +16,7 @@ from kg_build_system.kernel import (
 )
 
 from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import (
-    DataPartDTO, ProjectionDTO, RelationDTO, SourceDTO, StructDTO,
+    DataPartDTO, ProjectionDTO, RelationDTO, StructDTO,
 )
 from kg_build_system.distribution.languages.data.service.internal.rows import (
     plan_expressions,
@@ -153,10 +153,6 @@ def _data_part(context: SymbolContext) -> DataPartDTO:
         projections=tuple(
             symbol.value for symbol in context.symbols.values()
             if isinstance(symbol.value, ProjectionDTO)
-        ),
-        sources=tuple(
-            symbol.value for symbol in context.symbols.values()
-            if isinstance(symbol.value, SourceDTO)
         ),
     )
 
