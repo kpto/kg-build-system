@@ -41,6 +41,9 @@ from kg_build_system.kernel import (
     Symbol,
     SymbolRef,
 )
+from kg_build_system.distribution.interpreter.service._private.link import (
+    select_reachable,
+)
 
 
 class Namespace:
@@ -278,6 +281,24 @@ class DataSymbolKeyTests(unittest.TestCase):
         self.assertEqual(keys["relation"], Key(("go",)))
         self.assertEqual(keys["struct"].segments[0], "go")
         self.assertEqual(len(keys["struct"].segments), 2)
+
+
+class RootPolicyTests(unittest.TestCase):
+    def test_only_reachable_symbols_are_selected(self) -> None:
+        node = SymbolRef("topology", Key(("site",)))
+        binding = SymbolRef("binding", Key(("site",)))
+        orphan = SymbolRef("topology", Key(("orphan",)))
+        symbols = {
+            node: Symbol(Key(("site",)), "node", object()),
+            binding: Symbol(
+                Key(("site",)), "binding", object(), (node,),
+            ),
+            orphan: Symbol(Key(("orphan",)), "node", object()),
+        }
+
+        selected = select_reachable(symbols, ("binding",))
+
+        self.assertEqual(set(selected), {binding, node})
 
 
 if __name__ == "__main__":

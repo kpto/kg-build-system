@@ -24,7 +24,6 @@ The kernel protocols are importable from `kg_build_system.kernel`:
 | `StepExecutor` | execute one exact instruction kind and declare its resources |
 | `ResourceProvider` | create and close the live resources one execution needs |
 | `Toolchain` | compose languages, linker, planners, executors and runtime |
-| `Extension` | bundle languages, planners and executors |
 
 A planner needs a `component_id`, a `version`, a `runtime_fields` tuple and a
 `plan(model, context)` method. An executor needs a `kinds` tuple, a `resources`

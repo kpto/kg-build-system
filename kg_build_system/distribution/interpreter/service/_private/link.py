@@ -101,6 +101,37 @@ def order_symbols(symbols: dict[SymbolRef, Symbol]) -> tuple[SymbolRef, ...]:
     return tuple(ordered)
 
 
+def select_reachable(
+    symbols: dict[SymbolRef, Symbol], roots: Sequence[str],
+) -> dict[SymbolRef, Symbol]:
+    """Return the symbols reachable from the root languages.
+
+    The linker always transcribes the full declaration set in this wave; the
+    root policy controls which symbols enter the assembled model. Every
+    dependency of a root symbol is included.
+    """
+    root_names = set(roots)
+    root_refs = [
+        reference for reference in symbols
+        if reference.language in root_names
+    ]
+    seen: set[SymbolRef] = set()
+
+    def visit(reference: SymbolRef) -> None:
+        if reference in seen:
+            return
+        symbol = symbols.get(reference)
+        if symbol is None:
+            raise ValueError(f"unknown symbol reference {reference}")
+        seen.add(reference)
+        for dependency in symbol.references:
+            visit(dependency)
+
+    for reference in root_refs:
+        visit(reference)
+    return {reference: symbols[reference] for reference in seen}
+
+
 def _assemble(symbols: dict[SymbolRef, Symbol]) -> GraphBlueprint:
     ordered = order_symbols(symbols)
     resolved = [symbols[reference] for reference in ordered]
@@ -142,9 +173,17 @@ def _assemble(symbols: dict[SymbolRef, Symbol]) -> GraphBlueprint:
 
 
 def link_blueprint(
-    languages: Sequence[Language], namespace: Namespace,
+    languages: Sequence[Language],
+    namespace: Namespace,
+    *,
+    roots: Sequence[str] | None = None,
 ) -> GraphBlueprint:
-    """Index, transcribe, resolve and assemble one graph blueprint."""
+    """Index, transcribe, resolve and assemble one graph blueprint.
+
+    ``roots`` names the languages whose symbols are starting points. ``None``
+    uses every language, preserving the full blueprint. A narrower policy such
+    as ``("binding",)`` assembles only the closure reachable from bindings.
+    """
     by_name: dict[str, Language] = {}
     for language in languages:
         if language.name in by_name:
@@ -154,6 +193,12 @@ def link_blueprint(
     if missing:
         raise ValueError(
             "the graph linker requires languages " + ", ".join(missing)
+        )
+    root_names = tuple(ORDER if roots is None else roots)
+    unknown_roots = set(root_names) - set(by_name)
+    if unknown_roots:
+        raise ValueError(
+            "unknown root language(s): " + ", ".join(sorted(unknown_roots))
         )
 
     declarations: dict[str, tuple[Declaration, ...]] = {}
@@ -182,7 +227,7 @@ def link_blueprint(
         extra = language.get_references(symbol.value, resolver)
         references = tuple(dict.fromkeys((*symbol.references, *extra)))
         resolved[reference] = replace(symbol, references=references)
-    return _assemble(resolved)
+    return _assemble(select_reachable(resolved, root_names))
 
 
-__all__ = ["ORDER", "link_blueprint", "order_symbols"]
+__all__ = ["ORDER", "link_blueprint", "order_symbols", "select_reachable"]

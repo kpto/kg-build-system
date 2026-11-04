@@ -26,7 +26,6 @@ The kernel vocabulary is toolchain vocabulary:
 | `ResourceProvider` | creates and closes typed resources for one execution |
 | `ResourceView` | the exact resources one executor declared |
 | `Toolchain` | languages + linker + planners + executors + runtime |
-| `Extension` | a named bundle of languages, planners and executors |
 
 The distribution vocabulary is domain vocabulary: graph, blueprint, node, edge,
 binding, projection, table, core, meta-graph, Neo4j, DuckDB and Python.
@@ -59,7 +58,7 @@ kg_build_system/
     service/
       public/
         pipeline.py      Linker, Planner, StepExecutor, Runtime, Resource,
-                         ResourceProvider, Toolchain, Extension, PlanContext
+                         ResourceProvider, Toolchain, PlanContext
         runtime.py       WorkflowRuntime
       internal/
         pipeline.py      thin wrappers only
@@ -670,7 +669,7 @@ value.
 
 The tree above is the implementation.
 
-- 152 tests passed, 1586 subtests.
+- 153 tests passed, 1586 subtests.
 - Pyright: 0 errors.
 - mkdocs strict build: passes.
 - Open Targets: the migrated project builds against the API; 7 tests pass.

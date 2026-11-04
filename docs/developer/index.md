@@ -39,7 +39,7 @@ the package that consumes them, for example JSON freezing in
 
 | Area | Implementation | Remaining limit |
 | --- | --- | --- |
-| Kernel | `Language`, `Declaration`, `Symbol`, `SymbolRef`, `Key`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `Resource`, `ResourceProvider`, `ResourceView`, `Toolchain` and `Extension` in `kernel/service/public`; the workflow and runtime values in `kernel/model/public`; canonical types in `kernel/model/public/types` | A toolchain is the only composition unit |
+| Kernel | `Language`, `Declaration`, `Symbol`, `SymbolRef`, `Key`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `Resource`, `ResourceProvider`, `ResourceView`, `Toolchain` in `kernel/service/public`; the workflow and runtime values in `kernel/model/public`; canonical types in `kernel/model/public/types` | A toolchain is the only composition unit |
 | Languages | `discover_declarations`, `compute_key`, `get_kind`, `owns`, `get_identity`, `get_references`, `transcribe_many` and `render` in the expressions, data, topology and binding services; annotations remain inline | Custom operations outside the static registry are not symbol declarations |
 | Blueprint | `create_blueprint(...) -> GraphBlueprint`; `BlueprintLinker` implements the kernel `Linker` protocol through `service/internal/adapters/kernel_linker.py`; typed references in `distribution/model/public/refs.py` | Public `GraphBlueprint` fields reference internal language DTOs |
 | Planning | `compile(model) -> WorkflowPlan`; the core module has five planners sharing `component_id="core"`, plus deduplication, merging and conflict-validation planners | The core planners depend on the DuckDB SQL emitter |
@@ -51,7 +51,7 @@ the package that consumes them, for example JSON freezing in
 
 ## Verification
 
-- 152 tests passed, 1586 subtests.
+- 153 tests passed, 1586 subtests.
 - Pyright: 0 errors.
 - `uv run mkdocs build --strict`: passes.
 - Open Targets: 7 tests passed.

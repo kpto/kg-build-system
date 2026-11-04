@@ -27,17 +27,25 @@ class BlueprintLinker:
         ```
     """
 
+    def __init__(self, *, roots: Sequence[str] | None = None) -> None:
+        self._roots = None if roots is None else tuple(roots)
+
     def link(
         self, languages: Sequence[Language], namespace: Namespace,
     ) -> GraphBlueprint:
         """Assemble and validate a blueprint from the language declarations.
+
+        ``roots`` selects the languages whose symbols are starting points.
+        ``None`` uses every language. A narrower policy such as
+        ``BlueprintLinker(roots=("binding",))`` assembles only the closure
+        reachable from bindings.
 
         Example:
             ```python
             blueprint = BlueprintLinker().link(languages, namespace)
             ```
         """
-        return link_blueprint(languages, namespace)
+        return link_blueprint(languages, namespace, roots=self._roots)
 
 
 __all__ = ["BlueprintLinker"]

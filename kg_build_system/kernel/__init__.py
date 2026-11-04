@@ -72,7 +72,6 @@ from .model.public import (
 )
 from .service.public import (
     Executor,
-    Extension,
     Linker,
     PlanContext,
     Planner,
@@ -89,7 +88,7 @@ __all__ = [
     "CANONICAL_UNIT_NAMES", "Component", "Connection", "ContinuableInput",
     "CustomDataType", "CustomType", "DATE", "Date", "Declaration",
     "DisruptedExecutionContext", "DisruptingInput", "ExecutionContext",
-    "Executor", "Extension", "FLOAT", "Failure", "Given", "Input", "INT",
+    "Executor", "FLOAT", "Failure", "Given", "Input", "INT",
     "Instruction", "InstructionKind", "JsonValue", "Key", "Language",
     "Linker", "LogicalType", "Namespace", "NonNullableLogicalType", "Nullable",
     "NullableType", "Output", "PlanContext", "Planner", "Publication",

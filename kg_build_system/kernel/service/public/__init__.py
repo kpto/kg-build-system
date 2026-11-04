@@ -6,13 +6,13 @@ The toolchain is the kernel's build/compile/execute surface. Mechanisms live in
 from __future__ import annotations
 
 from .pipeline import (
-    Executor, Extension, Linker, PlanContext, Planner, ReferenceResolver,
+    Executor, Linker, PlanContext, Planner, ReferenceResolver,
     Resource, ResourceProvider, Runtime, StepExecutor, Toolchain,
 )
 from .runtime import WorkflowRuntime
 
 __all__ = [
-    "Executor", "Extension", "Linker", "PlanContext", "Planner",
+    "Executor", "Linker", "PlanContext", "Planner",
     "ReferenceResolver", "Resource", "ResourceProvider", "Runtime",
     "StepExecutor", "Toolchain", "WorkflowRuntime",
 ]

@@ -282,25 +282,6 @@ class Runtime(Protocol):
 
 
 @dataclass(frozen=True, slots=True)
-class Extension:
-    """A named bundle of languages, planners and executors.
-
-    Example:
-    ```python
-    from kg_build_system.kernel import Extension
-
-    extension = Extension("echo", languages=(EchoLanguage(),))
-    assert extension.name == "echo"
-    ```
-    """
-
-    name: str
-    languages: tuple[Language, ...] = ()
-    planners: tuple[Any, ...] = ()
-    executors: tuple[StepExecutor, ...] = ()
-
-
-@dataclass(frozen=True, slots=True)
 class Toolchain(Generic[ModelT]):
     """The full kernel composition: build, compile and execute.
 
@@ -420,7 +401,7 @@ class Toolchain(Generic[ModelT]):
 
 
 __all__ = [
-    "Executor", "Extension", "Linker", "PlanContext", "Planner",
+    "Executor", "Linker", "PlanContext", "Planner",
     "ReferenceResolver", "Resource", "ResourceProvider", "Runtime",
     "StepExecutor", "Toolchain",
 ]

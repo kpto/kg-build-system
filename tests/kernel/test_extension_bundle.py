@@ -9,7 +9,6 @@ from kg_build_system.kernel import (
     Artifact,
     ArtifactType,
     Declaration,
-    Extension,
     Instruction,
     Key,
     PlanContext,
@@ -140,19 +139,13 @@ class EchoResources:
         return None
 
 
-class ExtensionBundleTests(unittest.TestCase):
+class CompositionTests(unittest.TestCase):
     def test_one_extension_builds_compiles_and_executes(self) -> None:
-        extension = Extension(
-            "echo",
+        toolchain: Toolchain[EchoMessage] = Toolchain(
             languages=(EchoLanguage(),),
+            linker=EchoLinker(),
             planners=(EchoPlanner(),),
             executors=(EchoExecutor(),),
-        )
-        toolchain: Toolchain[EchoMessage] = Toolchain(
-            languages=extension.languages,
-            linker=EchoLinker(),
-            planners=extension.planners,
-            executors=extension.executors,
             runtime=WorkflowRuntime(providers=(EchoResources(),)),
         )
 

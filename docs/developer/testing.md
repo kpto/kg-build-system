@@ -34,8 +34,8 @@ Current coverage:
 - `tests/kernel/test_runtime_resources.py` — resource opening and closing,
   duplicate resource types, missing declared resources and the per-executor
   resource view.
-- `tests/kernel/test_extension_bundle.py` — one `Extension` composed into a
-  `Toolchain` with a fake language, linker, planner, executor and provider.
+- `tests/kernel/test_extension_bundle.py` — one language, linker, planner,
+  executor and provider composed into a `Toolchain`.
 - `tests/kernel/test_import_isolation.py` — importing the kernel does not load a
   graph, data, topology, binding or engine package.
 
@@ -190,7 +190,7 @@ Current coverage:
 
 ## Verification
 
-- 152 tests passed, 1586 subtests.
+- 153 tests passed, 1586 subtests.
 - Pyright: 0 errors.
 - Open Targets: 7 tests passed.
 - `uv run mkdocs build --strict`: passes.
