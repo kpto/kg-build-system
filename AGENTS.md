@@ -125,6 +125,9 @@ rule about what the framework is belongs to the framework model.
   planner, workflow plan, runtime and executor. The distribution uses domain
   vocabulary: graph, blueprint, node, edge, binding and projection. The kernel
   model is opaque; the distribution implements it.
+- A language, its layer and its package share one name: `DataLanguage`, layer
+  `data`, package `languages/data`. The authoring class names the syntax
+  (`Table`, `Node`); the language is named for the model it produces.
 - A package shared only inside one system belongs to that system. It does not
   become a `foundation` package just because several layers use it. Only a
   package every system needs, and cannot replace, moves to the kernel.
