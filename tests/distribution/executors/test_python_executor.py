@@ -8,13 +8,15 @@ from kg_build_system.kernel import (
     DisruptedExecutionContext,
     ExecutionContext,
     Instruction,
+    InstructionKind,
+    Key,
     Output,
     ResourceView,
     Step,
     StepStatus,
 )
 
-VALUE = ArtifactType("python", "value")
+VALUE = ArtifactType.of("python", "value")
 
 
 def produce(context: ExecutionContext, instruction: Instruction) -> int:
@@ -27,9 +29,9 @@ def _step() -> Step:
         "python",
         "produce",
         (),
-        (Output(VALUE, "value"),),
+        (Output(VALUE, Key(("value",))),),
         Instruction(
-            ("python", "cpython"),
+            InstructionKind("python", "cpython"),
             {"module": __name__, "qualname": "produce"},
         ),
     )
@@ -40,8 +42,6 @@ class PythonExecutorTests(unittest.TestCase):
         step = _step()
         context = ExecutionContext(
             step=step,
-            step_id="python.produce",
-            component="python",
             runtime_configuration={},
             inputs={},
             resources=ResourceView({}),
@@ -58,8 +58,6 @@ class PythonExecutorTests(unittest.TestCase):
         step = _step()
         context = DisruptedExecutionContext(
             step=step,
-            step_id="python.produce",
-            component="python",
             runtime_configuration={},
             inputs={},
             disruptions=(),

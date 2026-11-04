@@ -1,6 +1,7 @@
 """Small plan and blueprint fixtures shared by the target tests."""
 from __future__ import annotations
 
+from dataclasses import replace
 from types import SimpleNamespace
 from typing import Any
 
@@ -10,11 +11,14 @@ from kg_build_system.distribution.languages.topology.model.internal.dto import (
     NodeDTO,
     PropertyDTO,
 )
+from kg_build_system.distribution.model.public.artifacts import CoreArtifactTypes
 from kg_build_system.distribution.model.public.refs import (
     NodeRef, PropertyRef,
 )
-from kg_build_system.kernel import Key
-from kg_build_system.kernel import ArtifactType, Component, Connection
+from kg_build_system.kernel import (
+    ArtifactType, Component, Connection, Key, OpeningDirection, OpeningId, Step,
+    step_id,
+)
 from kg_build_system.kernel.model.internal.types.dto import UnitTypeDTO
 
 
@@ -56,28 +60,30 @@ def bound_blueprint(*components: NodeDTO) -> Any:
 
 def record_type(component: str) -> ArtifactType:
     """The core graph-record artifact type for one node component."""
-    return ArtifactType("core", f"graph.node.{component}")
+    return CoreArtifactTypes.graph_records("node", component)
 
 
-def output_id(component: str, step: str, output: str) -> str:
-    """The whole-workflow identity of one output opening."""
-    return f"{component}.{step}.{output}"
+def opening(
+    step: Step, direction: OpeningDirection, name: str,
+) -> OpeningId:
+    """The typed opening of one manually built step."""
+    return OpeningId(step_id(step), direction, Key((name,)))
 
 
-def input_id(component: str, step: str, input_name: str) -> str:
-    """The whole-workflow identity of one consumed input opening."""
-    return f"{component}.{step}.{input_name}"
-
-
-def connection(
-    consumer: tuple[str, str, str],
-    producer: tuple[str, str, str],
-) -> Connection:
-    """Connect one consumer input name to one producer output name."""
-    return Connection(
-        input_id(*consumer),
-        output_id(*producer),
+def resolve_inputs(step: Step) -> Step:
+    """Give a planned step one concrete opening per declared input name."""
+    return replace(
+        step,
+        inputs=tuple(
+            replace(taken, opening_name=Key((taken.declared_name,)))
+            for taken in step.inputs
+        ),
     )
+
+
+def connection(input: OpeningId, output: OpeningId) -> Connection:
+    """Connect one typed input opening to one typed output opening."""
+    return Connection(input=input, output=output)
 
 
 def component(component_id: str, version: str, runtime_fields: Any = ()) -> Component:

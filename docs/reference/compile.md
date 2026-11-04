@@ -138,9 +138,17 @@ Compilation checks everything that does not need data:
 | `provenance` | Opaque JSON recorded by compilation |
 
 A `Step` owns its inputs, outputs, `assembly_preference` and one
-`Instruction(kind, payload)`. Step identity is `f"{component}.{name}"`; an
-opening identity is `f"{step_id}.{opening_name}"`. SQL is one instruction kind,
-not a plan field.
+`Instruction(kind, payload)`. `Step.component` and `Step.name` are the facts;
+`Step.id` derives a `StepId`. An `OpeningId` is a `StepId`, a direction and an
+opening name (`Key`); the direction is part of the key, so an input and an
+output with the same name stay distinct. An input declares an
+`ArtifactPattern`, an output and a publication name a concrete `ArtifactType`.
+A `Connection` holds one input `OpeningId` and one output `OpeningId`.
+
+`InstructionKind(operation, engine)` is the exact executor key. `Instruction.kind`
+is that value; SQL is one instruction kind, not a plan field. `workflow_plan.json`
+writes every identity as its `Key` array; `build_report.json` uses the same
+form for `step_id` and a publication `opening`.
 
 ## `execute`
 
@@ -162,8 +170,9 @@ execute(
 | `toolchain` | The executors, resources and runtime; defaults to `DEFAULT_TOOLCHAIN` |
 
 `execute` writes the plan before execution starts and the report after it
-finishes. It dispatches each step by the exact tuple `step.instruction.kind`. A
-kind the toolchain does not implement is refused before any step runs.
+finishes. It dispatches each step by the exact `InstructionKind` in
+`step.instruction.kind`. A kind the toolchain does not implement is refused
+before any step runs.
 
 ```python
 report = execute(
@@ -185,6 +194,7 @@ entry.
 BuildRuntime(
     credentials: dict[str, str] = {},
     component_configuration: dict[str, dict[str, Any]] = {},
+    provider_configuration: dict[str, dict[str, Any]] = {},
     output_directory: Path = Path.cwd() / "build",
     working_directory: Path = Path("_workdir"),
     temporary_directory: Path | None = None,
@@ -200,21 +210,21 @@ settings. Runtime values are not part of the plan. A relative working directory
 resolves beneath the output directory. `to_configuration()` returns the kernel
 `RuntimeConfiguration` that execution reads.
 
-The engine settings are published under the `duckdb` component id, so an
-executor reads them from the same per-component map as every other component's
-values.
+The engine settings are published under the `duckdb` provider id in
+`RuntimeConfiguration.provider_configuration`. `component_configuration` holds
+only plan component ids; `duckdb` is not a plan component.
 
 ## `WorkflowReport`
 
 | Attribute | Meaning |
 | --- | --- |
-| `published_artifacts` | One entry per publication, with its type and value |
+| `published_artifacts` | One entry per publication, with its `OpeningId`, type and value |
 | `recovered_failures` | Failures that a later step handled |
 | `unresolved_failures` | Failures that blocked a publication |
 | `provenance` | The plan provenance |
 | `succeeded` | True when `unresolved_failures` is empty |
 
-Each failure exposes `message`, `step_id` and `exception_type`.
+Each failure exposes `message`, a typed `step_id` and `exception_type`.
 
 ## Required inputs
 
@@ -235,7 +245,9 @@ Each failure exposes `message`, `step_id` and `exception_type`.
   `WorkflowPlan`.
 - `execute` runs the plan, dispatches by `step.instruction.kind` and returns a
   `WorkflowReport`.
-- A step owns its `Instruction`; SQL is one instruction kind.
+- A step owns its `Instruction`; SQL is one `InstructionKind`.
+- An identity crossing the plan, runtime or report is a typed role over `Key`;
+  a formatted string is display only.
 - `execute` writes `workflow_plan.json` before the run and `build_report.json`
   after it.
 

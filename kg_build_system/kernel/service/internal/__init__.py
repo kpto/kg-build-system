@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from .pipeline import build_model, compile_model, execute_plan
+from .report_codec import workflow_report_to_document
 from .types import (
     array_item, canonical_value_text, is_nullable, non_nullable, normalize_type,
     require_graph_property, require_non_nullable, require_scalar,
@@ -17,5 +18,5 @@ __all__ = [
     "require_graph_property", "require_non_nullable", "require_scalar",
     "type_from_document", "type_from_dto",
     "type_to_document", "type_to_dto", "workflow_plan_from_document",
-    "workflow_plan_to_document",
+    "workflow_plan_to_document", "workflow_report_to_document",
 ]

@@ -28,7 +28,9 @@ from kg_build_system.kernel.model.internal.types.dto import (
 )
 
 from ....runtime import succeeded
-from .artifacts import graph_record_identity
+from kg_build_system.distribution.model.public.artifacts import (
+    graph_record_artifact as graph_record_identity,
+)
 from .instruction_dto import (
     Neo4jComponentImportDTO,
     Neo4jEdgeImportDTO,
@@ -78,9 +80,11 @@ def id_space(component: ComponentDTO) -> str:
 def component_export_type(
     specification: Neo4jComponentImportDTO,
 ) -> ArtifactType:
-    return ArtifactType(
-        namespace=_MODULE_ID,
-        name=f"component.{specification.kind}.{specification.component}",
+    return ArtifactType.of(
+        _MODULE_ID,
+        "component",
+        specification.kind,
+        specification.component,
     )
 
 

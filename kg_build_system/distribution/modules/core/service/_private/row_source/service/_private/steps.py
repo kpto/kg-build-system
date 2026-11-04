@@ -8,8 +8,10 @@ from kg_build_system.distribution.languages.data.service.internal import (
     plan_inputs,
     row_source_key,
 )
-from kg_build_system.distribution.modules.core.service._private.planning.artifacts import (
+from kg_build_system.distribution.model.public.artifacts import (
     CoreArtifactTypes,
+)
+from kg_build_system.distribution.modules.core.service._private.planning.artifacts import (
     read_input,
 )
 from kg_build_system.distribution.modules.core.service._private.planning.plan import (
@@ -18,7 +20,7 @@ from kg_build_system.distribution.modules.core.service._private.planning.plan im
 from kg_build_system.distribution.modules.duckdb.service.internal.emitters import (
     DuckDbSqlEmitter,
 )
-from kg_build_system.kernel import Instruction, Output, Step
+from kg_build_system.kernel import Instruction, InstructionKind, Output, Step
 from .sql import row_source_sql
 
 
@@ -44,7 +46,7 @@ def row_source_step(
             )
         ),
         outputs=(Output(CoreArtifactTypes.row_source(key)),),
-        instruction=Instruction(("sql", "duckdb"), {
+        instruction=Instruction(InstructionKind("sql", "duckdb"), {
             "relation": core_plan.row_source_relations[key],
             "sql": row_source_sql(
                 plan,

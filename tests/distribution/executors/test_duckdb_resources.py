@@ -38,7 +38,7 @@ class ResourceProviderTests(unittest.TestCase):
             working_directory=self.root / "working",
             temporary_directory=self.root / "temporary",
             credentials={"source": "secret"},
-            component_configuration={"duckdb": duckdb or {}},
+            provider_configuration={"duckdb": duckdb or {}},
         )
 
     def test_runtime_resources_provide_storage_and_credentials(self) -> None:
@@ -92,7 +92,7 @@ class ResourceProviderTests(unittest.TestCase):
         with self.assertRaisesRegex(RuntimeError, "closed"):
             service.relations.query("SELECT 1")
 
-    def test_duckdb_settings_come_from_component_configuration(self) -> None:
+    def test_duckdb_settings_come_from_provider_configuration(self) -> None:
         resources = self.duckdb_resources.resources(self._configuration({
             "storage": "memory",
             "threads": 2,
@@ -143,7 +143,7 @@ class ResourceProviderTests(unittest.TestCase):
             {"relative_path": "graph.jsonl"},
         )
         self.assertEqual(
-            configuration.component_configuration["duckdb"],
+            configuration.provider_configuration["duckdb"],
             {
                 "storage": "disk",
                 "threads": 3,

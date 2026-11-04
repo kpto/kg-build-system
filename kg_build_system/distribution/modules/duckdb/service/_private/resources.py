@@ -15,8 +15,8 @@ from .service import DuckDbService
 
 
 def _settings(configuration: RuntimeConfiguration) -> DuckDbSettings:
-    """Read the safe DuckDB settings from the ``duckdb`` component configuration."""
-    component = configuration.component_configuration.get("duckdb", {})
+    """Read the safe DuckDB settings from the ``duckdb`` provider configuration."""
+    component = configuration.provider_configuration.get("duckdb", {})
     storage = component.get("storage", "memory")
     if storage not in {"memory", "disk"}:
         raise ValueError("duckdb storage must be 'memory' or 'disk'")

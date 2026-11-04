@@ -6,6 +6,7 @@ from typing import Any
 
 from kg_build_system.kernel import (
     Instruction,
+    InstructionKind,
     PlanContext,
     RuntimeField,
     Step,
@@ -39,7 +40,7 @@ class _StepPlanner:
                 name=self.name,
                 inputs=(),
                 outputs=(),
-                instruction=Instruction(("noop", "default"), {}),
+                instruction=Instruction(InstructionKind("noop", "default"), {}),
             ),
         )
 

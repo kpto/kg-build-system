@@ -10,6 +10,7 @@ from kg_build_system.kernel import (
     ArtifactType,
     Declaration,
     Instruction,
+    InstructionKind,
     Key,
     PlanContext,
     Publication,
@@ -25,7 +26,7 @@ from kg_build_system.kernel import (
     WorkflowRuntime,
 )
 
-TEXT = ArtifactType("echo", "text")
+TEXT = ArtifactType.of("echo", "text")
 
 
 @dataclass(frozen=True)
@@ -109,16 +110,16 @@ class EchoPlanner:
                 component=self.component_id,
                 name="echo",
                 inputs=(),
-                outputs=(Publication(TEXT, "value"),),
+                outputs=(Publication(TEXT, Key(("value",))),),
                 instruction=Instruction(
-                    ("echo", "default"), {"text": model.text},
+                    InstructionKind("echo", "default"), {"text": model.text},
                 ),
             ),
         )
 
 
 class EchoExecutor:
-    kinds = (("echo", "default"),)
+    kinds = (InstructionKind("echo", "default"),)
     resources: tuple[type, ...] = ()
 
     def execute(self, context, instruction):
@@ -127,7 +128,7 @@ class EchoExecutor:
         return StepOutcome(
             step_id=context.step_id,
             status=StepStatus.SUCCEEDED,
-            artifacts=(Artifact("value", TEXT, payload["text"]),),
+            artifacts=(Artifact(Key(("value",)), TEXT, payload["text"]),),
         )
 
 
@@ -153,7 +154,7 @@ class CompositionTests(unittest.TestCase):
         plan = toolchain.compile(model)
         self.assertEqual(
             [step.instruction.kind for step in plan.steps],
-            [("echo", "default")],
+            [InstructionKind("echo", "default")],
         )
 
         with tempfile.TemporaryDirectory() as directory:

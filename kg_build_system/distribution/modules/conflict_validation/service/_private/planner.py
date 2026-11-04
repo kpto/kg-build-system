@@ -4,10 +4,16 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from kg_build_system.distribution.interpreter.model.public import GraphBlueprint
+from kg_build_system.distribution.model.public.artifacts import (
+    CoreArtifactTypes,
+)
 from kg_build_system.kernel import (
+    ArtifactPattern,
     ArtifactType,
     Input,
     Instruction,
+    InstructionKind,
+    Key,
     Output,
     PlanContext,
     Publication,
@@ -17,17 +23,14 @@ from kg_build_system.kernel import (
 from ...model.public import ConflictValidationConfiguration
 from .artifacts import (
     ComponentDTO,
-    CoreArtifactTypes,
     component_kind,
     graph_record_components,
 )
 
 _RECORDS_INPUT = "records"
 _FINDINGS = "findings"
-_FINDINGS_PATTERN = "findings.*"
 _REPORT_OUTPUT = "report"
-_RECORDS_SUFFIX = ".records"
-_VALIDATED_SUFFIX = ".validated"
+_VALIDATED = "validated"
 
 
 class ConflictValidationPlanner:
@@ -60,28 +63,27 @@ class ConflictValidationPlanner:
                 component_kind(component), component.name,
             )
             for prop in component.properties:
-                name = f"{component.name}.{prop.name}"
                 steps.append(Step(
                     component=self.component_id,
-                    name=name,
+                    name=f"{component.name}.{prop.name}",
                     inputs=(
                         Input(
-                            type=records_type,
-                            name=None,
-                            input_name=_RECORDS_INPUT,
+                            type=ArtifactPattern(records_type.key),
+                            opening_name=None,
+                            declared_name=_RECORDS_INPUT,
                         ),
                     ),
                     outputs=(
                         Output(
-                            ArtifactType(
-                                self.component_id,
-                                f"{_FINDINGS}.{name}",
+                            ArtifactType.of(
+                                self.component_id, _FINDINGS,
+                                component.name, prop.name,
                             ),
-                            name=_FINDINGS,
+                            opening_name=Key((_FINDINGS,)),
                         ),
                     ),
                     instruction=Instruction(
-                        ("conflict_findings", "duckdb"),
+                        InstructionKind("conflict_findings", "duckdb"),
                         {
                             "component": component.name,
                             "field": prop.name,
@@ -99,44 +101,43 @@ class ConflictValidationPlanner:
             name=_REPORT_OUTPUT,
             inputs=(
                 Input(
-                    type=ArtifactType(
-                        self.component_id,
-                        _FINDINGS_PATTERN,
+                    type=ArtifactPattern.of(
+                        self.component_id, _FINDINGS, "**",
                     ),
-                    name=None,
-                    input_name=_FINDINGS,
+                    opening_name=None,
+                    declared_name=_FINDINGS,
                 ),
                 *(
                     Input(
-                        type=CoreArtifactTypes.graph_records(
-                            component_kind(component), component.name,
+                        type=ArtifactPattern(
+                            CoreArtifactTypes.graph_records(
+                                component_kind(component), component.name,
+                            ).key,
                         ),
-                        name=None,
-                        input_name=(
-                            f"{component.name}{_RECORDS_SUFFIX}"
-                        ),
+                        opening_name=None,
+                        declared_name=f"{component.name}.{_RECORDS_INPUT}",
                     )
                     for component in components
                 ),
             ),
             outputs=(
                 Publication(
-                    ArtifactType(self.component_id, _REPORT_OUTPUT),
-                    name=_REPORT_OUTPUT,
+                    ArtifactType.of(self.component_id, _REPORT_OUTPUT),
+                    opening_name=Key((_REPORT_OUTPUT,)),
                 ),
                 *(
                     Output(
                         CoreArtifactTypes.graph_records(
                             component_kind(component), component.name,
                         ),
-                        name=f"{component.name}{_VALIDATED_SUFFIX}",
+                        opening_name=Key((_VALIDATED, component.name)),
                     )
                     for component in components
                 ),
             ),
             assembly_preference="deferred",
             instruction=Instruction(
-                ("conflict_report", "default"),
+                InstructionKind("conflict_report", "default"),
                 {"fail_on_error": self._configuration.fail_on_error},
             ),
         )

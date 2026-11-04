@@ -42,9 +42,10 @@ kg_build_system/
                          ReferenceResolver, RenderContext, SourceFragment,
                          Symbol, SymbolContext, SymbolRef
         symbol.py        Declaration, Symbol, SymbolContext, SymbolRef
-        workflow.py      InstructionKind, Instruction, ArtifactType, Input,
-                         Output, Publication, Step, Connection, Component,
-                         RuntimeField, WorkflowPlan
+        workflow.py      OpeningDirection, StepId, OpeningId, ArtifactType,
+                         ArtifactPattern, InstructionKind, Instruction,
+                         Input, Output, Publication, Step, Connection,
+                         Component, RuntimeField, WorkflowPlan
         runtime.py       StepStatus, Failure, Artifact, StepOutcome,
                          ContinuableInput, DisruptingInput, PublishedArtifact,
                          ResourceView, WorkflowReport, ExecutionContext,
@@ -69,11 +70,13 @@ kg_build_system/
         assembly.py      step and connection assembly
         runtime.py       resource lifecycle, scheduler and step lifecycle
         workflow_codec.py
+        report_codec.py  WorkflowReport document
   distribution/
     model/
       public/
         refs.py          NodeRef, EdgeRef, RelationRef, FieldRef, PropertyRef,
                          SourceRef, OperationRef, Ref
+        artifacts.py     CoreArtifactTypes, graph-record vocabulary
         runtime.py       BuildRuntime
         paths.py         relative-path rule
       _private/
@@ -177,8 +180,9 @@ root and closure policy.
 2. Group planners by `component_id`. Planners in one group must agree on
    `version` and `runtime_fields`.
 3. Publish one `Component` per group, assign its `component_id` to every step
-   the group produced, and refuse a duplicate step identity
-   `f"{component}.{name}"`.
+   the group produced, and refuse a duplicate `StepId(component, name)`.
+   `compile_model` does not run its own duplicate check; assembly resolves empty
+   names first and is the single authority.
 4. Assemble open inputs to outputs, publications to the report, and return one
    `WorkflowPlan`. A wiring with no producer or with a cycle is refused.
 
@@ -391,13 +395,22 @@ resolve; it does not publish one symbol per expression tree.
 - Fingerprints and digests may be recorded beside a value, as generation does
   for ownership. They are not the blueprint's primary key, and the framework does
   not content-address symbols by default.
+- Pipeline identity is not symbol identity. `StepId(component, name)` and
+  `OpeningId(step, direction, name)` are role types over `Key`; they carry no
+  language and are not `SymbolRef`. Direction is part of an opening key because
+  an input and an output may share a name.
+- `ArtifactType` is a concrete `Key`; an input declares an `ArtifactPattern`.
+  `*` matches one segment and a final `**` matches the rest. `ArtifactType.name`
+  is display only and is never parsed.
+- `InstructionKind(operation, engine)` is a two-segment role type. Executor maps
+  are keyed by it, and the document form stays `["sql", "duckdb"]`.
 
 ## Planning and multiple planners per component
 
 `compile_model` groups planners by `component_id`. Several planners may share a
 component when their `version` and `runtime_fields` agree. The component is
-published once; every step the group emits is assigned that component id; a
-duplicate step identity is refused.
+published once; every step the group emits is assigned that component id;
+assembly refuses a duplicate `StepId`.
 
 This is how core is split:
 
@@ -500,8 +513,8 @@ implementations.
 
 ## Instruction kinds
 
-Kinds are exact tuples. A custom planner may emit a new kind and register its
-own executor.
+`InstructionKind(operation, engine)` is an exact two-segment role type. A custom
+planner may emit a new kind and register its own executor.
 
 | Kind | Payload |
 | --- | --- |
@@ -517,10 +530,10 @@ own executor.
 | `("meta_graph", "default")` | `{relative_path, example_limit, include_html, html_relative_path, components}` |
 | `("neo4j", "default")` | `{kind: "export_component" | "write_script", ...}` |
 
-The five core planners emit `("source_relation", "duckdb")`, `("sql",
-"duckdb")` and `("aggregate", "duckdb")`; `DuckDbExecutor` owns them.
-`DeduplicationPlanner`, `MergingPlanner` and `ConflictValidationPlanner` emit the
-other DuckDB kinds.
+The five core planners emit `InstructionKind("source_relation", "duckdb")`,
+`InstructionKind("sql", "duckdb")` and `InstructionKind("aggregate", "duckdb")`;
+`DuckDbExecutor` owns them. `DeduplicationPlanner`, `MergingPlanner` and
+`ConflictValidationPlanner` emit the other DuckDB kinds.
 
 ## Planner and executor ownership
 
@@ -539,16 +552,19 @@ same module.
 | `meta_graph` | `MetaGraphPlanner` / `MetaGraphExecutor` | `modules.meta_graph` | topology document and optional HTML |
 | `neo4j` | `Neo4jPlanner` / `Neo4jExecutor` | `modules.neo4j` | component exports and import script |
 | — | `DuckDbExecutor` / `DuckDbResourceProvider` | `modules.duckdb` | SQL kinds and the DuckDB resource |
-| — | `PythonExecutor` | `modules.python` | `("python", "cpython")` |
+| — | `PythonExecutor` | `modules.python` | `InstructionKind("python", "cpython")` |
 | — | `RuntimeResources` | `modules.runtime` | storage and credential resources |
 
 A target planner declares its input as an artifact pattern such as
-`ArtifactType("core", "graph.*")` and its side effect as a kind its executor
-owns. The planner never writes a file; the executor never changes the plan.
+`ArtifactPattern.of("core", "graph", "**")` and its side effect as an
+`InstructionKind` its executor owns. The planner never writes a file; the
+executor never changes the plan.
 
 Planner configuration is compile-time and carried in the instruction payload.
 Runtime fields describe values an operator may replace at execution time, keyed
-by component id in `RuntimeConfiguration.component_configuration`.
+by component id in `RuntimeConfiguration.component_configuration`. Resource
+providers read `RuntimeConfiguration.provider_configuration`; `duckdb` is a
+provider id, not a plan component.
 
 ## Generation
 
@@ -669,7 +685,7 @@ value.
 
 The tree above is the implementation.
 
-- 153 tests passed, 1586 subtests.
+- 177 tests passed, 1611 subtests.
 - Pyright: 0 errors.
 - mkdocs strict build: passes.
 - Open Targets: the migrated project builds against the API; 7 tests pass.

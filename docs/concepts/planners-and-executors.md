@@ -220,9 +220,10 @@ Every ordinary output of a step must be read by another step; only a publication
 is exempt. If a step's output has no reader, assembly fails. That is a
 composition mistake, not a declaration mistake.
 
-Two steps cannot share the identity `f"{component}.{name}"`. Several planners
-may share a `component_id`; they must agree on `version` and `runtime_fields`,
-and the component is published once. If several producers write one artifact
+Two steps cannot share a `StepId(component, name)`. Several planners may share a
+`component_id`; they must agree on `version` and `runtime_fields`, and the
+component is published once. The assembler resolves empty names before it
+checks identity, so it is the single authority for the rule. If several producers write one artifact
 type and the composition cannot tell which one a consumer means, assembly fails
 rather than choosing one.
 
@@ -274,10 +275,11 @@ is not a row-source operation.
 
 1. Choose a `component_id`, a `version` and the runtime fields the stage needs.
    Several planners may share the component when these agree.
-2. Declare the inputs as artifact types. A target that accepts every graph
-   record uses the pattern `ArtifactType("core", "graph.*")`.
-3. Emit one instruction per decision, with an exact kind tuple.
-4. Implement an executor whose `kinds` contains that tuple and whose
+2. Declare the inputs as `ArtifactPattern` values. A target that accepts every
+   graph record uses `ArtifactPattern.of("core", "graph", "**")`.
+3. Emit one instruction per decision, with an exact
+   `InstructionKind(operation, engine)`.
+4. Implement an executor whose `kinds` contains that kind and whose
    `resources` names every resource it reads.
 5. Add both to the toolchain, or pass the planner to `compile` and append the
    executor to the default toolchain. Register any new resource provider on the
@@ -293,7 +295,7 @@ for a complete one-file example.
   projections and bindings.
 - Order is part of the result. Moving an output before a rewriting planner
   changes what that output publishes.
-- Every ordinary output needs a reader, and every step identity must be unique.
+- Every ordinary output needs a reader, and every `StepId` must be unique.
   Planners sharing a component must agree on its version and runtime fields.
 - A target may narrow what it can store. Neo4j rejects unsupported property
   types and edges with unbound or abstract endpoints while planning.

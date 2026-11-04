@@ -14,17 +14,21 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass
 from enum import Enum
-from fnmatch import fnmatchcase
 
+from ...model.public.key import Key
 from ...model.public.workflow import (
+    ArtifactPattern,
     ArtifactType,
     Component,
     Connection,
     Input,
     JsonValue,
+    OpeningDirection,
+    OpeningId,
     Output,
     Publication,
     Step,
+    StepId,
     WorkflowPlan,
 )
 
@@ -41,58 +45,38 @@ def _step_name(step: Step, position: int) -> str:
     return step.name if step.name else f"{DEFAULT_STEP_NAME}{position + 1}"
 
 
-def _output_name(given: Output | Publication) -> str:
-    return given.name if given.name is not None else DEFAULT_OUTPUT_NAME
-
-
-def _type_text(value: ArtifactType) -> str:
-    return f"{value.namespace}.{value.name}"
-
-
-def _expanded_input_name(
-    declared_name: str, taken_type: ArtifactType,
-) -> str:
-    return f"{declared_name}:{_type_text(taken_type)}"
-
-
-def _step_identity(component: str, name: str) -> str:
-    return f"{component}.{name}"
-
-
-def _opening_identity(identity: str, name: str) -> str:
-    return f"{identity}.{name}"
+def _output_name(given: Output | Publication) -> Key:
+    return given.opening_name or Key((DEFAULT_OUTPUT_NAME,))
 
 
 @dataclass(frozen=True, slots=True)
 class _DeclaredStep:
-    identity: str
+    step_id: StepId
     step: Step
 
 
 @dataclass(frozen=True, slots=True)
 class _OutputPort:
     sequence: int
-    step_id: str
-    name: str
+    opening: OpeningId
     type: ArtifactType
     rank: int
     must_read: bool
 
     def __str__(self) -> str:
-        return f"{self.step_id}.{self.name}"
+        return str(self.opening)
 
 
 @dataclass(frozen=True, slots=True)
 class _InputPort:
     sequence: int
-    step_id: str
-    name: str
-    input_name: str
+    opening: OpeningId
+    declared_name: str
     type: ArtifactType
     rank: int
 
     def __str__(self) -> str:
-        return f"{self.step_id}.{self.name}"
+        return str(self.opening)
 
 
 @dataclass(frozen=True, slots=True)
@@ -101,15 +85,15 @@ class _Expansion:
     outputs: tuple[_OutputPort, ...]
     inputs: tuple[_InputPort, ...]
     scan_order: tuple[_InputPort, ...]
-    inputs_of_step: dict[str, tuple[_InputPort, ...]]
-    outputs_of_step: dict[str, tuple[_OutputPort, ...]]
+    inputs_of_step: dict[StepId, tuple[_InputPort, ...]]
+    outputs_of_step: dict[StepId, tuple[_OutputPort, ...]]
     outputs_of_type: dict[ArtifactType, tuple[_OutputPort, ...]]
     readers_of_type: dict[ArtifactType, tuple[_InputPort, ...]]
 
     def candidates(self, port: _InputPort) -> tuple[_OutputPort, ...]:
         return tuple(
             output for output in self.outputs_of_type.get(port.type, ())
-            if output.step_id != port.step_id
+            if output.opening.step != port.opening.step
         )
 
 
@@ -130,7 +114,7 @@ class _Wiring:
         self._made: list[tuple[_OutputPort, _InputPort]] = []
         self._feeders: dict[_InputPort, _OutputPort] = {}
         self._readers: dict[_OutputPort, list[_InputPort]] = {}
-        self._reaches: dict[str, set[str]] = {}
+        self._reaches: dict[StepId, set[StepId]] = {}
         self._roles: dict[_OutputPort, _Role] = {}
 
     def connect(self, output: _OutputPort, port: _InputPort) -> None:
@@ -139,10 +123,10 @@ class _Wiring:
         self._made.append((output, port))
         self._feeders[port] = output
         self._readers.setdefault(output, []).append(port)
-        self._extend(output.step_id, port.step_id)
+        self._extend(output.opening.step, port.opening.step)
         self._roles.clear()
 
-    def _extend(self, writer: str, reader: str) -> None:
+    def _extend(self, writer: StepId, reader: StepId) -> None:
         ahead = self._reaches.get(reader, set()) | {reader}
         behind = {writer} | {
             step for step, seen in self._reaches.items() if writer in seen
@@ -159,7 +143,7 @@ class _Wiring:
     def is_read(self, output: _OutputPort) -> bool:
         return bool(self._readers.get(output))
 
-    def closes_cycle(self, writer: str, reader: str) -> bool:
+    def closes_cycle(self, writer: StepId, reader: StepId) -> bool:
         return writer == reader or writer in self._reaches.get(reader, set())
 
     def cached_role(self, output: _OutputPort) -> _Role | None:
@@ -172,25 +156,14 @@ class _Wiring:
         return tuple(self._made)
 
 
-def _is_pattern(artifact_type: ArtifactType) -> bool:
-    return "*" in artifact_type.namespace or "*" in artifact_type.name
-
-
-def _type_matches(declared: ArtifactType, actual: ArtifactType) -> bool:
-    return (
-        fnmatchcase(actual.namespace, declared.namespace)
-        and fnmatchcase(actual.name, declared.name)
-    )
-
-
 def _matched_types(
-    declared: ArtifactType, available: Sequence[ArtifactType],
+    declared: ArtifactPattern, available: Sequence[ArtifactType],
 ) -> tuple[ArtifactType, ...]:
-    if not _is_pattern(declared):
-        return (declared,)
+    if not declared.is_pattern:
+        return (declared.exact(),)
     return tuple(
         artifact_type for artifact_type in available
-        if _type_matches(declared, artifact_type)
+        if declared.matches(artifact_type)
     )
 
 
@@ -207,9 +180,9 @@ def _declare_steps(
 ) -> tuple[tuple[_DeclaredStep, ...], dict[str, tuple[str, ...]]]:
     declared: list[_DeclaredStep] = []
     names_by_component: dict[str, tuple[str, ...]] = {}
+    seen_steps: set[StepId] = set()
     for component, steps in contributions:
         names: list[str] = []
-        seen: set[str] = set()
         for position, step in enumerate(steps):
             if step.component != component.id:
                 raise AssemblyError(
@@ -217,51 +190,48 @@ def _declare_steps(
                     f"{component.id!r}"
                 )
             name = _step_name(step, position)
-            if name in seen:
+            identity = StepId(component.id, name)
+            if identity in seen_steps:
                 raise AssemblyError(
-                    f"component {component.id!r} declares step {name!r} twice"
+                    f"duplicate step id {identity}"
                 )
-            seen.add(name)
+            seen_steps.add(identity)
             names.append(name)
-            declared.append(_DeclaredStep(
-                _step_identity(component.id, name), step,
-            ))
+            declared.append(_DeclaredStep(identity, step))
         names_by_component[component.id] = tuple(names)
     return tuple(declared), names_by_component
 
 
 def _build_outputs(
-    declared: Sequence[_DeclaredStep], ranks: dict[str, int],
+    declared: Sequence[_DeclaredStep], ranks: dict[StepId, int],
 ) -> tuple[
     tuple[_OutputPort, ...],
-    dict[str, tuple[_OutputPort, ...]],
+    dict[StepId, tuple[_OutputPort, ...]],
     tuple[ArtifactType, ...],
 ]:
     outputs: list[_OutputPort] = []
-    outputs_of_step: dict[str, list[_OutputPort]] = {}
+    outputs_of_step: dict[StepId, list[_OutputPort]] = {}
     available: list[ArtifactType] = []
     for item in declared:
-        names: set[str] = set()
+        names: set[Key] = set()
         for given in item.step.outputs:
             name = _output_name(given)
             if name in names:
-                raise AssemblyError(f"step {item.identity} gives out {name!r} twice")
-            if _is_pattern(given.type):
                 raise AssemblyError(
-                    f"step {item.identity} gives out {name!r} as a pattern; a value "
-                    "given out is one type, only a value taken may be a question"
+                    f"step {item.step_id} gives out {name!s} twice"
                 )
             names.add(name)
             port = _OutputPort(
                 sequence=len(outputs),
-                step_id=item.identity,
-                name=name,
+                opening=OpeningId(
+                    item.step_id, OpeningDirection.OUTPUT, name,
+                ),
                 type=given.type,
-                rank=ranks[item.identity],
+                rank=ranks[item.step_id],
                 must_read=isinstance(given, Output),
             )
             outputs.append(port)
-            outputs_of_step.setdefault(item.identity, []).append(port)
+            outputs_of_step.setdefault(item.step_id, []).append(port)
             if given.type not in available:
                 available.append(given.type)
     return (
@@ -273,38 +243,41 @@ def _build_outputs(
 
 def _build_inputs(
     declared: Sequence[_DeclaredStep],
-    ranks: dict[str, int],
+    ranks: dict[StepId, int],
     available: Sequence[ArtifactType],
     sequence_offset: int,
-) -> tuple[tuple[_InputPort, ...], dict[str, tuple[_InputPort, ...]]]:
+) -> tuple[tuple[_InputPort, ...], dict[StepId, tuple[_InputPort, ...]]]:
     inputs: list[_InputPort] = []
-    inputs_of_step: dict[str, list[_InputPort]] = {}
+    inputs_of_step: dict[StepId, list[_InputPort]] = {}
     for item in declared:
-        names: set[str] = set()
+        names: set[Key] = set()
         for declared_input in item.step.inputs:
-            taken = declared_input.input_name or DEFAULT_INPUT_NAME
-            open_input = _is_pattern(declared_input.type)
-            for artifact_type in _matched_types(declared_input.type, available):
+            taken = declared_input.declared_name or DEFAULT_INPUT_NAME
+            open_input = declared_input.type.is_pattern
+            for artifact_type in _matched_types(
+                declared_input.type, available,
+            ):
                 name = (
-                    _expanded_input_name(taken, artifact_type)
-                    if open_input else taken
+                    Key((taken, *artifact_type.key.segments))
+                    if open_input else Key((taken,))
                 )
                 if name in names:
                     raise AssemblyError(
-                        f"step {item.identity} takes {name!r} twice; a step names "
+                        f"step {item.step_id} takes {name!s} twice; a step names "
                         "each opening it takes once"
                     )
                 names.add(name)
                 port = _InputPort(
                     sequence=sequence_offset + len(inputs),
-                    step_id=item.identity,
-                    name=name,
-                    input_name=taken,
+                    opening=OpeningId(
+                        item.step_id, OpeningDirection.INPUT, name,
+                    ),
+                    declared_name=taken,
                     type=artifact_type,
-                    rank=ranks[item.identity],
+                    rank=ranks[item.step_id],
                 )
                 inputs.append(port)
-                inputs_of_step.setdefault(item.identity, []).append(port)
+                inputs_of_step.setdefault(item.step_id, []).append(port)
     return (
         tuple(inputs),
         {key: tuple(value) for key, value in inputs_of_step.items()},
@@ -334,18 +307,18 @@ def _index_ports(
 
 def derive_ranks(
     contributions: Sequence[tuple[Component, Sequence[Step]]],
-) -> dict[str, int]:
+) -> dict[StepId, int]:
     """One integer per step, the greater running earlier."""
-    placed: list[tuple[int, int, int, str]] = []
+    placed: list[tuple[int, int, int, StepId]] = []
     for component_index, (component, steps) in enumerate(contributions):
         for position, step in enumerate(steps):
             placed.append((
                 component_index,
                 0 if step.assembly_preference == "eager" else 1,
                 position,
-                _step_identity(component.id, _step_name(step, position)),
+                StepId(component.id, _step_name(step, position)),
             ))
-    placed.sort()
+    placed.sort(key=lambda item: (item[0], item[1], item[2], item[3].key.segments))
     total = len(placed)
     return {
         identity: total - index
@@ -384,11 +357,11 @@ def expand(
 def _takes_type(
     expansion: _Expansion,
     wiring: _Wiring,
-    step_id: str,
+    step_id: StepId,
     artifact_type: ArtifactType,
 ) -> _TakesType:
     pending = [step_id]
-    seen: set[str] = set()
+    seen: set[StepId] = set()
     unsettled = False
     while pending:
         current = pending.pop()
@@ -402,7 +375,7 @@ def _takes_type(
             if feeder is None:
                 unsettled = True
             else:
-                pending.append(feeder.step_id)
+                pending.append(feeder.opening.step)
     return _TakesType.UNSETTLED if unsettled else _TakesType.NO
 
 
@@ -416,7 +389,7 @@ def _role(
         _TakesType.YES: _Role.ENDOFUNCTOR,
         _TakesType.UNSETTLED: _Role.UNKNOWN,
         _TakesType.NO: _Role.PRODUCER,
-    }[_takes_type(expansion, wiring, output.step_id, output.type)]
+    }[_takes_type(expansion, wiring, output.opening.step, output.type)]
     wiring.remember_role(output, role)
     return role
 
@@ -426,7 +399,7 @@ def _admissible(
 ) -> tuple[_OutputPort, ...]:
     return tuple(
         output for output in expansion.candidates(port)
-        if not wiring.closes_cycle(output.step_id, port.step_id)
+        if not wiring.closes_cycle(output.opening.step, port.opening.step)
     )
 
 
@@ -435,9 +408,9 @@ def _open_readers(
 ) -> tuple[_InputPort, ...]:
     return tuple(
         port for port in expansion.readers_of_type.get(output.type, ())
-        if port.step_id != output.step_id
+        if port.opening.step != output.opening.step
         and not wiring.is_fed(port)
-        and not wiring.closes_cycle(output.step_id, port.step_id)
+        and not wiring.closes_cycle(output.opening.step, port.opening.step)
     )
 
 
@@ -458,7 +431,7 @@ def _conclude(
     expansion: _Expansion, wiring: _Wiring, port: _InputPort,
 ) -> _Answer | _Refusal:
     candidates = expansion.candidates(port)
-    asked = _type_text(port.type)
+    asked = str(port.type)
     if not candidates:
         return _Refusal(port, f"{port} takes {asked}, which no other step writes")
     admissible = _admissible(expansion, wiring, port)
@@ -558,11 +531,11 @@ def _explain(expansion: _Expansion, wiring: _Wiring) -> str:
 
 
 def _resolved(
-    given: Output | Publication, name: str,
+    given: Output | Publication, opening_name: Key,
 ) -> Output | Publication:
     if isinstance(given, Publication):
-        return Publication(type=given.type, name=name)
-    return Output(type=given.type, name=name)
+        return Publication(type=given.type, opening_name=opening_name)
+    return Output(type=given.type, opening_name=opening_name)
 
 
 def _define(
@@ -575,15 +548,15 @@ def _define(
     for component, contribution_steps, names in expansion.contributions:
         components.append(component)
         for position, step in enumerate(contribution_steps):
-            identity = _step_identity(component.id, names[position])
+            identity = StepId(component.id, names[position])
             steps.append(Step(
                 component=component.id,
-                name=names[position],
+                name=identity.name,
                 inputs=tuple(
                     Input(
-                        type=port.type,
-                        name=port.name,
-                        input_name=port.input_name,
+                        type=ArtifactPattern(port.type.key),
+                        opening_name=port.opening.name,
+                        declared_name=port.declared_name,
                     )
                     for port in expansion.inputs_of_step.get(identity, ())
                 ),
@@ -595,10 +568,7 @@ def _define(
                 assembly_preference=step.assembly_preference,
             ))
     connections = tuple(
-        Connection(
-            input_id=_opening_identity(port.step_id, port.name),
-            output_id=_opening_identity(output.step_id, output.name),
-        )
+        Connection(input=port.opening, output=output.opening)
         for output, port in wiring.snapshot()
     )
     return WorkflowPlan(

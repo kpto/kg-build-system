@@ -7,19 +7,20 @@ import uuid
 from collections.abc import Mapping
 from typing import Any
 
+from kg_build_system.distribution.model.public.artifacts import (
+    graph_record_artifact,
+)
 from kg_build_system.kernel import (
-    Artifact,
-    ArtifactType,
     DisruptedExecutionContext,
     ExecutionContext,
     Instruction,
+    InstructionKind,
     StepOutcome,
 )
 from kg_build_system.kernel.service.internal.types import canonical_value_text
 
 from ....runtime import (
     instruction_payload,
-    output_name,
     skipped,
     succeeded,
 )
@@ -34,23 +35,6 @@ from kg_build_system.distribution.service.internal.execution import (
 )
 
 _RECORDS_INPUT = "records"
-
-
-def _graph_record_identity(
-    artifact_type: ArtifactType,
-) -> tuple[str, str] | None:
-    """The kind and component of a core graph-record artifact type."""
-    if artifact_type.namespace != "core":
-        return None
-    parts = artifact_type.name.split(".", 2)
-    if (
-        len(parts) != 3
-        or parts[0] != "graph"
-        or parts[1] not in {"node", "edge"}
-        or not parts[2]
-    ):
-        return None
-    return parts[1], parts[2]
 
 
 def _canonical_property_value(value: Any) -> Any:
@@ -98,7 +82,7 @@ def _configuration_mapping(configuration: Any) -> Mapping[str, Any]:
 class FileExecutor:
     """Write every graph-record relation the step receives, in one pass."""
 
-    kinds = (("file", "default"),)
+    kinds = (InstructionKind("file", "default"),)
     resources = (RelationService, OutputStorage)
 
     def __init__(self, configuration: Any = None) -> None:
@@ -154,10 +138,10 @@ class FileExecutor:
                 artifact = artifact_of(contribution)
                 if artifact is None:
                     continue
-                identity = _graph_record_identity(artifact.type)
+                identity = graph_record_artifact(artifact.type)
                 if identity is None:
                     continue
-                kind, component = identity
+                kind, component = identity.kind, identity.component
 
                 relation = reference(resources, artifact.value)
                 result = query(resources, f"SELECT * FROM {relation}")

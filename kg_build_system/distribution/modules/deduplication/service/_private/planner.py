@@ -4,19 +4,21 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from kg_build_system.distribution.interpreter.model.public import GraphBlueprint
+from kg_build_system.distribution.model.public.artifacts import (
+    CoreArtifactTypes,
+)
 from kg_build_system.kernel import (
+    ArtifactPattern,
     Input,
     Instruction,
+    InstructionKind,
+    Key,
     Output,
     PlanContext,
     RuntimeField,
     Step,
 )
-from .artifacts import (
-    CoreArtifactTypes,
-    component_kind,
-    graph_record_components,
-)
+from .artifacts import component_kind, graph_record_components
 
 _RECORDS_INPUT = "records"
 _DISTINCT_OUTPUT = "distinct"
@@ -50,16 +52,16 @@ class DeduplicationPlanner:
                 name=component.name,
                 inputs=(
                     Input(
-                        type=records_type,
-                        name=None,
-                        input_name=_RECORDS_INPUT,
+                        type=ArtifactPattern(records_type.key),
+                        opening_name=None,
+                        declared_name=_RECORDS_INPUT,
                     ),
                 ),
                 outputs=(
-                    Output(records_type, name=_DISTINCT_OUTPUT),
+                    Output(records_type, opening_name=Key((_DISTINCT_OUTPUT,))),
                 ),
                 instruction=Instruction(
-                    ("deduplication", "duckdb"),
+                    InstructionKind("deduplication", "duckdb"),
                     {"relation": f"kg_distinct_{component.name.lower()}"},
                 ),
             ))

@@ -16,8 +16,11 @@ from kg_build_system.distribution.modules.neo4j import (
     Neo4jPlanner,
 )
 from kg_build_system.kernel import (
+    ArtifactPattern,
     ArtifactType,
     Input,
+    InstructionKind,
+    Key,
     Output,
     PlanContext,
     Publication,
@@ -44,18 +47,29 @@ class FilePlannerTests(unittest.TestCase):
             ),),
         )
         self.assertEqual(step.name, "write")
-        self.assertEqual(step.instruction.kind, ("file", "default"))
+        self.assertEqual(
+            step.instruction.kind, InstructionKind("file", "default"),
+        )
         self.assertEqual(set(step.instruction.payload), {"relative_path"})
         self.assertEqual(
             step.instruction.payload, {"relative_path": "graph.jsonl"},
         )
         self.assertEqual(
             step.inputs,
-            (Input(ArtifactType("core", "graph.*"), None, "records"),),
+            (
+                Input(
+                    ArtifactPattern.of("core", "graph", "**"), None, "records",
+                ),
+            ),
         )
         self.assertEqual(
             step.outputs,
-            (Publication(ArtifactType("file", "write_result"), "result"),),
+            (
+                Publication(
+                    ArtifactType.of("file", "write_result"),
+                    Key(("result",)),
+                ),
+            ),
         )
         self.assertEqual(step.assembly_preference, "deferred")
 
@@ -71,7 +85,9 @@ class MetaGraphPlannerTests(unittest.TestCase):
         self.assertEqual(planner.version, "2")
         self.assertEqual(planner.runtime_fields, ())
         self.assertEqual(step.name, "document")
-        self.assertEqual(step.instruction.kind, ("meta_graph", "default"))
+        self.assertEqual(
+            step.instruction.kind, InstructionKind("meta_graph", "default"),
+        )
         self.assertEqual(
             set(step.instruction.payload),
             {
@@ -88,14 +104,18 @@ class MetaGraphPlannerTests(unittest.TestCase):
         self.assertEqual(payload["components"][0]["name"], "Person")
         self.assertEqual(
             step.inputs,
-            (Input(ArtifactType("core", "graph.*"), None, "records"),),
+            (
+                Input(
+                    ArtifactPattern.of("core", "graph", "**"), None, "records",
+                ),
+            ),
         )
         self.assertEqual(
             step.outputs,
             (
                 Publication(
-                    ArtifactType("meta_graph", "meta_graph_document"),
-                    "result",
+                    ArtifactType.of("meta_graph", "meta_graph_document"),
+                    Key(("result",)),
                 ),
             ),
         )
@@ -124,7 +144,9 @@ class Neo4jPlannerTests(unittest.TestCase):
         )
         digest = hashlib.sha256(b"Person").hexdigest()[:8]
         self.assertEqual(export.name, f"export.node.Person-{digest}")
-        self.assertEqual(export.instruction.kind, ("neo4j", "default"))
+        self.assertEqual(
+            export.instruction.kind, InstructionKind("neo4j", "default"),
+        )
         self.assertEqual(
             set(export.instruction.payload),
             {"kind", "component", "relative_directory"},
@@ -147,7 +169,7 @@ class Neo4jPlannerTests(unittest.TestCase):
             export.inputs,
             (
                 Input(
-                    ArtifactType("core", "graph.node.Person"),
+                    ArtifactPattern.of("core", "graph", "node", "Person"),
                     None,
                     "records",
                 ),
@@ -157,15 +179,17 @@ class Neo4jPlannerTests(unittest.TestCase):
             export.outputs,
             (
                 Output(
-                    ArtifactType("neo4j", "component.node.Person"),
-                    "result",
+                    ArtifactType.of("neo4j", "component", "node", "Person"),
+                    Key(("result",)),
                 ),
             ),
         )
         self.assertEqual(export.assembly_preference, "deferred")
 
         self.assertEqual(script.name, "script")
-        self.assertEqual(script.instruction.kind, ("neo4j", "default"))
+        self.assertEqual(
+            script.instruction.kind, InstructionKind("neo4j", "default"),
+        )
         self.assertEqual(
             set(script.instruction.payload),
             {
@@ -183,7 +207,7 @@ class Neo4jPlannerTests(unittest.TestCase):
             script.inputs,
             (
                 Input(
-                    ArtifactType("neo4j", "component.*"),
+                    ArtifactPattern.of("neo4j", "component", "**"),
                     None,
                     "components",
                 ),
@@ -193,8 +217,8 @@ class Neo4jPlannerTests(unittest.TestCase):
             script.outputs,
             (
                 Publication(
-                    ArtifactType("neo4j", "import_bundle"),
-                    "result",
+                    ArtifactType.of("neo4j", "import_bundle"),
+                    Key(("result",)),
                 ),
             ),
         )

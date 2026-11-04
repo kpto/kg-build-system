@@ -51,7 +51,7 @@ the package that consumes them, for example JSON freezing in
 
 ## Verification
 
-- 153 tests passed, 1586 subtests.
+- 177 tests passed, 1611 subtests.
 - Pyright: 0 errors.
 - `uv run mkdocs build --strict`: passes.
 - Open Targets: 7 tests passed.

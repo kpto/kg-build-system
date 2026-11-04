@@ -10,6 +10,7 @@ from kg_build_system.kernel import (
     DisruptedExecutionContext,
     ExecutionContext,
     Instruction,
+    InstructionKind,
     StepOutcome,
 )
 
@@ -36,7 +37,7 @@ _COMPONENTS_INPUT = "components"
 class Neo4jExecutor:
     """Execute Neo4j component exports and the final import-script step."""
 
-    kinds = (("neo4j", "default"),)
+    kinds = (InstructionKind("neo4j", "default"),)
     resources = (RelationService, OutputStorage)
 
     def __init__(self, configuration: Any = None) -> None:

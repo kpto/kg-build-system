@@ -319,6 +319,11 @@ rule about what the framework is belongs to the framework model.
   same language.
 - A declaration does not own a key; `compute_key` derives it. A symbol carries
   its key, kind, value and references.
+- An identity that crosses a planner, executor, runtime or codec boundary is a
+  role type over `Key`: `StepId`, `OpeningId`, `ArtifactType`,
+  `ArtifactPattern`, `InstructionKind`. A formatted string is display only,
+  never an identity. Direction is part of an opening identity when one name
+  can denote more than one port.
 - The workflow plan owns structure: steps, inputs, outputs, connections and
   provenance. A step owns its instruction. SQL is one instruction kind, not a
   plan field.

@@ -1,7 +1,8 @@
 """Encode and decode a ``WorkflowPlan`` as a JSON-safe document.
 
-The document belongs to the workflow plan. Tuple instruction kinds serialise as
-JSON arrays and provenance is preserved verbatim. No executor or engine is
+The document belongs to the workflow plan. Every pipeline identity is written
+as the ``Key`` array of its role type; the field name states the role, so no
+role token is added. Provenance is preserved verbatim. No executor or engine is
 involved.
 """
 from __future__ import annotations
@@ -9,29 +10,83 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any, Literal, cast
 
+from ...model.public.key import Key
 from ...model.public.workflow import (
+    ArtifactPattern,
     ArtifactType,
     Component,
     Connection,
     Input,
     Instruction,
+    InstructionKind,
+    OpeningDirection,
+    OpeningId,
     Output,
     Publication,
     RuntimeField,
     Step,
+    StepId,
     WorkflowPlan,
+    step_id,
 )
 
 
-def _type_to_document(artifact_type: ArtifactType) -> dict[str, Any]:
-    return {"namespace": artifact_type.namespace, "name": artifact_type.name}
+def _type_to_document(artifact_type: ArtifactType) -> list[str]:
+    return artifact_type.key.to_document()
 
 
-def _type_from_document(document: Mapping[str, Any]) -> ArtifactType:
-    return ArtifactType(
-        str(document["namespace"]),
-        str(document["name"]),
+def _type_from_document(value: Any) -> ArtifactType:
+    return ArtifactType(Key.from_document(value))
+
+
+def _pattern_to_document(pattern: ArtifactPattern) -> list[str]:
+    return pattern.key.to_document()
+
+
+def _pattern_from_document(value: Any) -> ArtifactPattern:
+    return ArtifactPattern(Key.from_document(value))
+
+
+def _name_to_document(name: Key | None) -> list[str] | None:
+    return None if name is None else name.to_document()
+
+
+def _name_from_document(value: Any) -> Key | None:
+    return None if value is None else Key.from_document(value)
+
+
+def _step_id_from_document(value: Any) -> StepId:
+    segments = Key.from_document(value).segments
+    if len(segments) != 2:
+        raise ValueError("a step id document must have exactly two segments")
+    return StepId(segments[0], segments[1])
+
+
+def _opening_from_document(value: Any) -> OpeningId:
+    segments = Key.from_document(value).segments
+    if len(segments) < 4:
+        raise ValueError(
+            "an opening document needs a component, a step, a direction and a name"
+        )
+    try:
+        direction = OpeningDirection(segments[2])
+    except ValueError:
+        raise ValueError(
+            f"an opening direction must be 'input' or 'output', not "
+            f"{segments[2]!r}"
+        ) from None
+    return OpeningId(
+        StepId(segments[0], segments[1]), direction, Key(segments[3:]),
     )
+
+
+def _kind_from_document(value: Any) -> InstructionKind:
+    segments = Key.from_document(value).segments
+    if len(segments) != 2:
+        raise ValueError(
+            "an instruction kind document must have exactly two segments"
+        )
+    return InstructionKind(segments[0], segments[1])
 
 
 def _field_to_document(field: RuntimeField) -> dict[str, Any]:
@@ -81,18 +136,17 @@ def _component_from_document(document: Mapping[str, Any]) -> Component:
 
 def _input_to_document(taken: Input) -> dict[str, Any]:
     return {
-        "type": _type_to_document(taken.type),
-        "name": taken.name,
-        "input_name": taken.input_name,
+        "type": _pattern_to_document(taken.type),
+        "opening_name": _name_to_document(taken.opening_name),
+        "declared_name": taken.declared_name,
     }
 
 
 def _input_from_document(document: Mapping[str, Any]) -> Input:
-    name = document.get("name")
     return Input(
-        type=_type_from_document(document["type"]),
-        name=None if name is None else str(name),
-        input_name=str(document.get("input_name", document.get("name") or "")),
+        type=_pattern_from_document(document["type"]),
+        opening_name=_name_from_document(document.get("opening_name")),
+        declared_name=str(document.get("declared_name", "")),
     )
 
 
@@ -100,37 +154,35 @@ def _given_to_document(given: Output | Publication) -> dict[str, Any]:
     return {
         "kind": "publication" if isinstance(given, Publication) else "output",
         "type": _type_to_document(given.type),
-        "name": given.name,
+        "opening_name": _name_to_document(given.opening_name),
     }
 
 
 def _given_from_document(document: Mapping[str, Any]) -> Output | Publication:
-    name = document.get("name")
     artifact_type = _type_from_document(document["type"])
-    resolved_name = None if name is None else str(name)
+    opening_name = _name_from_document(document.get("opening_name"))
     if document.get("kind") == "publication":
-        return Publication(type=artifact_type, name=resolved_name)
-    return Output(type=artifact_type, name=resolved_name)
+        return Publication(type=artifact_type, opening_name=opening_name)
+    return Output(type=artifact_type, opening_name=opening_name)
 
 
 def _instruction_to_document(instruction: Instruction) -> dict[str, Any]:
     return {
-        "kind": list(instruction.kind),
+        "kind": instruction.kind.key.to_document(),
         "payload": instruction.payload,
     }
 
 
 def _instruction_from_document(document: Mapping[str, Any]) -> Instruction:
     return Instruction(
-        kind=tuple(str(item) for item in document.get("kind", ())),
+        kind=_kind_from_document(document.get("kind")),
         payload=document.get("payload"),
     )
 
 
 def _step_to_document(step: Step) -> dict[str, Any]:
     return {
-        "component": step.component,
-        "name": step.name,
+        "id": step_id(step).key.to_document(),
         "inputs": [_input_to_document(taken) for taken in step.inputs],
         "outputs": [_given_to_document(given) for given in step.outputs],
         "instruction": _instruction_to_document(step.instruction),
@@ -139,9 +191,10 @@ def _step_to_document(step: Step) -> dict[str, Any]:
 
 
 def _step_from_document(document: Mapping[str, Any]) -> Step:
+    identity = _step_id_from_document(document["id"])
     return Step(
-        component=str(document["component"]),
-        name=str(document["name"]),
+        component=identity.component,
+        name=identity.name,
         inputs=tuple(
             _input_from_document(taken)
             for taken in document.get("inputs", ())
@@ -164,7 +217,7 @@ def workflow_plan_to_document(plan: WorkflowPlan) -> dict[str, Any]:
     Example:
     ```python
     document = workflow_plan_to_document(plan)
-    assert isinstance(document["steps"][0]["instruction"]["kind"], list)
+    assert document["steps"][0]["id"] == ["echo", "echo"]
     ```
     """
     return {
@@ -173,7 +226,10 @@ def workflow_plan_to_document(plan: WorkflowPlan) -> dict[str, Any]:
         ],
         "steps": [_step_to_document(step) for step in plan.steps],
         "connections": [
-            {"input_id": connection.input_id, "output_id": connection.output_id}
+            {
+                "input": connection.input.key.to_document(),
+                "output": connection.output.key.to_document(),
+            }
             for connection in plan.connections
         ],
         "provenance": plan.provenance,
@@ -186,7 +242,7 @@ def workflow_plan_from_document(document: Mapping[str, Any]) -> WorkflowPlan:
     Example:
     ```python
     plan = workflow_plan_from_document(workflow_plan_to_document(plan))
-    assert isinstance(plan.steps[0].instruction.kind, tuple)
+    assert plan.steps[0].instruction.kind.operation == "echo"
     ```
     """
     return WorkflowPlan(
@@ -200,8 +256,8 @@ def workflow_plan_from_document(document: Mapping[str, Any]) -> WorkflowPlan:
         ),
         connections=tuple(
             Connection(
-                str(connection["input_id"]),
-                str(connection["output_id"]),
+                _opening_from_document(connection["input"]),
+                _opening_from_document(connection["output"]),
             )
             for connection in document.get("connections", ())
         ),

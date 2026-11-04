@@ -15,7 +15,9 @@ from typing import Any
 
 from kg_build_system.kernel.service.internal.types import canonical_value_text
 
-from .artifacts import graph_record_identity
+from kg_build_system.distribution.model.public.artifacts import (
+    graph_record_artifact as graph_record_identity,
+)
 from .instruction_dto import MetaGraphComponentDTO, MetaGraphDocumentDTO
 from kg_build_system.distribution.service.internal.execution import artifact_of, input_values, query, reference
 

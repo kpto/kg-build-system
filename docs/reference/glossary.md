@@ -282,6 +282,26 @@ field access ──selection──> projection ──binding──> WorkflowPlan
   there is no schema migration path. See [Compile, build and
   outputs](../concepts/build-and-outputs.md).
 
+**Step identity**
+: `StepId(component, name)`, a two-segment role type over `Key`. `Step` keeps
+  `component` and `name` and derives `.id`; a formatted string is display only.
+  See [Compile, build and outputs](../reference/compile.md).
+
+**Opening**
+: `OpeningId(step, direction, name)`, the typed identity of one input or output
+  port. Direction is part of the key, so an input and an output with the same
+  name are distinct. See [Compile, build and outputs](../reference/compile.md).
+
+**Artifact type**
+: A concrete `ArtifactType` over a `Key`. An input declares an `ArtifactPattern`;
+  `*` matches one segment and a final `**` matches the rest. See
+  [Planners and executors](../reference/planners-and-executors.md).
+
+**Instruction kind**
+: `InstructionKind(operation, engine)`, the exact two-segment key an executor
+  owns. There is no prefix matching. See
+  [Planners and executors](../reference/planners-and-executors.md).
+
 **Planner**
 : A component that reads the linked model and emits `Step`s. Supplied planners
   deduplicate, merge, validate or produce graph records. The core module

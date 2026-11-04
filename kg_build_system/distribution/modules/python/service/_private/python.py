@@ -48,7 +48,7 @@ def _invoke(
 class PythonExecutor:
     """Import ``payload.module``/``payload.qualname`` and execute the target."""
 
-    kinds: tuple[InstructionKind, ...] = (("python", "cpython"),)
+    kinds: tuple[InstructionKind, ...] = (InstructionKind("python", "cpython"),)
     resources: tuple[type, ...] = ()
 
     def execute(

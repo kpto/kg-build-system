@@ -5,12 +5,16 @@ from kg_build_system.distribution.interpreter.model.public import GraphBlueprint
 from kg_build_system.distribution.languages.binding.model.internal.dto import (
     BindingDTO,
 )
-from kg_build_system.distribution.modules.core.service._private.planning.artifacts import (
+from kg_build_system.distribution.model.public.artifacts import (
     CoreArtifactTypes,
+)
+from kg_build_system.distribution.modules.core.service._private.planning.artifacts import (
     component_kind,
     graph_record_components,
 )
-from kg_build_system.kernel import Input, Instruction, Output, Step
+from kg_build_system.kernel import (
+    ArtifactPattern, Input, Instruction, InstructionKind, Output, Step,
+)
 
 
 def aggregation_steps(
@@ -19,30 +23,33 @@ def aggregation_steps(
     """One deferred union step per component that has at least one binding."""
     steps: list[Step] = []
     for component in graph_record_components(blueprint):
-        identities = tuple(
-            f"{binding.component}.{index}"
+        indexes = tuple(
+            index
             for index, binding in enumerate(bindings)
             if binding.component == component.name
         )
-        if not identities:
+        if not indexes:
             continue
-        name = f"aggregate.{component.name}"
         steps.append(Step(
             component="core",
-            name=name,
+            name=f"aggregate.{component.name}",
             inputs=tuple(
                 Input(
-                    type=CoreArtifactTypes.binding(identity),
-                    name=None,
-                    input_name=f"binding.{identity}",
+                    type=ArtifactPattern(
+                        CoreArtifactTypes.binding(
+                            component.name, index,
+                        ).key,
+                    ),
+                    opening_name=None,
+                    declared_name=f"binding.{index}",
                 )
-                for identity in identities
+                for index in indexes
             ),
             outputs=(Output(CoreArtifactTypes.graph_records(
                 component_kind(component), component.name,
             )),),
             assembly_preference="deferred",
-            instruction=Instruction(("aggregate", "duckdb"), {
+            instruction=Instruction(InstructionKind("aggregate", "duckdb"), {
                 "relation": f"kg_graph_{component.name.lower()}",
             }),
         ))

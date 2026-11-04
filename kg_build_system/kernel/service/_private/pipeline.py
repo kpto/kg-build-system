@@ -13,6 +13,7 @@ from typing import Any
 from ...model.public.runtime import RuntimeConfiguration
 from ...model.public.workflow import (
     Component,
+    InstructionKind,
     Step,
     WorkflowPlan,
 )
@@ -40,7 +41,6 @@ def compile_model(
         groups.setdefault(planner.component_id, []).append(planner)
 
     contributions: list[tuple[Component, tuple[Step, ...]]] = []
-    seen_steps: set[str] = set()
     for component_id, group in groups.items():
         first = group[0]
         component = Component(
@@ -62,13 +62,15 @@ def compile_model(
         steps: list[Step] = []
         for planner in group:
             for step in planner.plan(model, context):
-                assigned = replace(step, component=component_id)
-                identity = f"{component_id}.{assigned.name}"
-                if identity in seen_steps:
-                    raise ValueError(f"duplicate step id {identity!r}")
-                seen_steps.add(identity)
-                steps.append(assigned)
+                steps.append(replace(step, component=component_id))
         contributions.append((component, tuple(steps)))
+    unknown = sorted(
+        set(getattr(context, "runtime_configuration", {})) - set(groups)
+    )
+    if unknown:
+        raise ValueError(
+            "unknown planner component configuration: " + ", ".join(unknown)
+        )
     return assemble_plan(tuple(contributions))
 
 
@@ -82,22 +84,22 @@ def execute_plan(
     monitor: Any = None,
 ) -> Any:
     """Resolve instruction kinds and run one plan through the runtime."""
-    by_kind: dict[tuple[str, ...], Any] = {}
+    by_kind: dict[InstructionKind, Any] = {}
     for executor in executors:
         for kind in executor.kinds:
             if kind in by_kind:
                 raise ValueError(
-                    f"duplicate executor for instruction kind {kind!r}"
+                    f"duplicate executor for instruction kind {kind}"
                 )
             by_kind[kind] = executor
 
-    unknown: list[tuple[str, ...]] = []
+    unknown: list[InstructionKind] = []
     for step in plan.steps:
         kind = step.instruction.kind
         if kind not in by_kind and kind not in unknown:
             unknown.append(kind)
     if unknown:
-        listed = ", ".join(repr(kind) for kind in unknown)
+        listed = ", ".join(str(kind) for kind in unknown)
         raise ValueError(f"no executor for instruction kind(s): {listed}")
 
     resolved = (

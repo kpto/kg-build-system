@@ -4,10 +4,16 @@ from __future__ import annotations
 from typing import Any
 
 from kg_build_system.distribution.interpreter.model.public import GraphBlueprint
+from kg_build_system.distribution.model.public.artifacts import (
+    CoreArtifactTypes,
+)
 from kg_build_system.kernel import (
+    ArtifactPattern,
     ArtifactType,
     Input,
     Instruction,
+    InstructionKind,
+    Key,
     PlanContext,
     Publication,
     Output,
@@ -72,19 +78,19 @@ class Neo4jPlanner:
             name=_SCRIPT_STEP_NAME,
             inputs=(
                 Input(
-                    ArtifactType(self.component_id, "component.*"),
+                    ArtifactPattern.of(self.component_id, "component", "**"),
                     None,
                     _COMPONENTS_INPUT,
                 ),
             ),
             outputs=(
                 Publication(
-                    ArtifactType(self.component_id, "import_bundle"),
-                    "result",
+                    ArtifactType.of(self.component_id, "import_bundle"),
+                    Key(("result",)),
                 ),
             ),
             instruction=Instruction(
-                ("neo4j", "default"),
+                InstructionKind("neo4j", "default"),
                 {
                     "kind": "write_script",
                     "components": [
@@ -105,18 +111,22 @@ class Neo4jPlanner:
             name=component_step_name(component),
             inputs=(
                 Input(
-                    ArtifactType(
-                        "core", f"graph.{component.kind}.{component.component}",
+                    ArtifactPattern(
+                        CoreArtifactTypes.graph_records(
+                            component.kind, component.component,
+                        ).key,
                     ),
                     None,
                     _RECORDS_INPUT,
                 ),
             ),
             outputs=(
-                Output(component_export_type(component), "result"),
+                Output(
+                    component_export_type(component), Key(("result",)),
+                ),
             ),
             instruction=Instruction(
-                ("neo4j", "default"),
+                InstructionKind("neo4j", "default"),
                 {
                     "kind": "export_component",
                     "component": component.model_dump(mode="json"),

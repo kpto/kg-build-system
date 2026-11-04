@@ -190,7 +190,7 @@ Current coverage:
 
 ## Verification
 
-- 153 tests passed, 1586 subtests.
+- 177 tests passed, 1611 subtests.
 - Pyright: 0 errors.
 - Open Targets: 7 tests passed.
 - `uv run mkdocs build --strict`: passes.
@@ -215,7 +215,10 @@ Do not rebuild the graph or regenerate artifacts unless the change requires it.
 - Kernel flow tests use fake languages, linkers, planners, executors and
   providers; they prove the kernel works without the distribution.
 - Planner and executor tests name the component and the exact instruction kinds.
-- A planner group may share a component; a step identity may not repeat.
+- `tests/pipeline/test_pipeline_identity.py` guards the identity roles:
+  ambiguous dotted ids, input/output name collision, artifact patterns,
+  instruction-kind exactness, duplicate ids and unknown connection endpoints.
+- A planner group may share a component; a `StepId` may not repeat.
 - An executor declares its resources; the runtime owns the providers.
 - The source round trip is a contract, not a convenience.
 - `IR` and `lower` are not target vocabulary; the target vocabulary is `DTO`,

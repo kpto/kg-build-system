@@ -13,7 +13,7 @@ from kg_build_system.kernel import Instruction, InstructionKind
 
 from .emitter import DuckDbInstructionEmitter
 
-DEFAULT_SQL_KIND: InstructionKind = ("sql", "duckdb")
+DEFAULT_SQL_KIND = InstructionKind("sql", "duckdb")
 
 
 @dataclass(frozen=True, slots=True)

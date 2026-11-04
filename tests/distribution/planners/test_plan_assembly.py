@@ -11,7 +11,9 @@ from kg_build_system.distribution import (
 )
 from kg_build_system.distribution.interpreter import create_blueprint
 from kg_build_system.distribution.modules.core import core_planners
-from kg_build_system.kernel import StepOutcome, StepStatus, Toolchain
+from kg_build_system.kernel import (
+    InstructionKind, StepOutcome, StepStatus, Toolchain, step_id,
+)
 
 
 class FakeLinker:
@@ -23,11 +25,11 @@ class FakeLinker:
 
 class FakeExecutor:
     kinds = (
-        ("source_relation", "duckdb"),
-        ("sql", "duckdb"),
-        ("aggregate", "duckdb"),
-        ("deduplication", "duckdb"),
-        ("file", "default"),
+        InstructionKind("source_relation", "duckdb"),
+        InstructionKind("sql", "duckdb"),
+        InstructionKind("aggregate", "duckdb"),
+        InstructionKind("deduplication", "duckdb"),
+        InstructionKind("file", "default"),
     )
 
     def execute(self, context: Any, instruction: Any) -> StepOutcome:
@@ -73,18 +75,12 @@ class PlanAssemblyTests(unittest.TestCase):
             [component.id for component in plan.components],
             ["core", "deduplication", "file"],
         )
-        identities = {f"{step.component}.{step.name}" for step in plan.steps}
+        identities = {step_id(step) for step in plan.steps}
         for connection in plan.connections:
-            self.assertTrue(any(
-                connection.input_id.startswith(f"{identity}.")
-                for identity in identities
-            ))
-            self.assertTrue(any(
-                connection.output_id.startswith(f"{identity}.")
-                for identity in identities
-            ))
+            self.assertIn(connection.input.step, identities)
+            self.assertIn(connection.output.step, identities)
         self.assertTrue(any(
-            connection.output_id.startswith("deduplication.")
+            connection.output.step.component == "deduplication"
             for connection in plan.connections
         ))
 

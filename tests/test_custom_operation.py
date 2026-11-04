@@ -36,7 +36,7 @@ from kg_build_system.distribution.languages.expressions.service.internal import 
     expression_dto,
     is_unit,
 )
-from kg_build_system.kernel import INT
+from kg_build_system.kernel import INT, InstructionKind
 
 
 DOUBLE = OperationSpec(
@@ -114,7 +114,7 @@ class CustomOperationTests(unittest.TestCase):
         sql = "\n".join(
             payload["sql"]
             for step in plan.steps
-            if step.instruction.kind == ("sql", "duckdb")
+            if step.instruction.kind == InstructionKind("sql", "duckdb")
             and isinstance(payload := step.instruction.payload, dict)
             and isinstance(payload.get("sql"), str)
         )

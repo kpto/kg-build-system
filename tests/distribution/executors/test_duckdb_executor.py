@@ -18,15 +18,20 @@ from kg_build_system.kernel import (
     ExecutionContext,
     Input,
     Instruction,
+    InstructionKind,
+    Key,
+    OpeningDirection,
+    OpeningId,
     Output,
     ResourceView,
     RuntimeConfiguration,
     Step,
+    StepId,
     StepStatus,
 )
 
-RECORDS = ArtifactType("core", "records")
-RESULT = ArtifactType("core", "result")
+RECORDS = ArtifactType.of("core", "records")
+RESULT = ArtifactType.of("core", "result")
 
 
 def _step(
@@ -40,7 +45,7 @@ def _step(
         "core",
         name,
         inputs,
-        (Output(output_type, "value"),),
+        (Output(output_type, Key(("value",))),),
         instruction,
     )
 
@@ -52,8 +57,6 @@ def _context(
 ) -> ExecutionContext:
     return ExecutionContext(
         step=step,
-        step_id=f"core.{step.name}",
-        component="core",
         runtime_configuration={},
         inputs=inputs or {},
         resources=resources,
@@ -63,9 +66,13 @@ def _context(
 
 def _artifact(name: str, value: object) -> ContinuableInput:
     return ContinuableInput(
-        f"core.source.{name}",
+        OpeningId(
+            StepId("core", "source"),
+            OpeningDirection.OUTPUT,
+            Key((name,)),
+        ),
         StepStatus.SUCCEEDED,
-        Artifact(name, RECORDS, value),
+        Artifact(Key((name,)), RECORDS, value),
     )
 
 
@@ -101,12 +108,12 @@ class DuckDbExecutorTests(unittest.TestCase):
         self.assertEqual(
             DuckDbExecutor.kinds,
             (
-                ("source_relation", "duckdb"),
-                ("sql", "duckdb"),
-                ("aggregate", "duckdb"),
-                ("deduplication", "duckdb"),
-                ("merging", "duckdb"),
-                ("conflict_findings", "duckdb"),
+                InstructionKind("source_relation", "duckdb"),
+                InstructionKind("sql", "duckdb"),
+                InstructionKind("aggregate", "duckdb"),
+                InstructionKind("deduplication", "duckdb"),
+                InstructionKind("merging", "duckdb"),
+                InstructionKind("conflict_findings", "duckdb"),
             ),
         )
 
@@ -114,7 +121,7 @@ class DuckDbExecutorTests(unittest.TestCase):
         step = _step(
             "sql",
             Instruction(
-                ("sql", "duckdb"),
+                InstructionKind("sql", "duckdb"),
                 {"relation": "answer", "sql": "SELECT 42 AS value"},
             ),
         )
@@ -136,7 +143,8 @@ class DuckDbExecutorTests(unittest.TestCase):
         step = _step(
             "deduplication",
             Instruction(
-                ("deduplication", "duckdb"), {"relation": "distinct_records"},
+                InstructionKind("deduplication", "duckdb"),
+                {"relation": "distinct_records"},
             ),
         )
 
@@ -163,7 +171,10 @@ class DuckDbExecutorTests(unittest.TestCase):
         )
         step = _step(
             "aggregate",
-            Instruction(("aggregate", "duckdb"), {"relation": "all_records"}),
+            Instruction(
+                InstructionKind("aggregate", "duckdb"),
+                {"relation": "all_records"},
+            ),
         )
 
         outcome = self.executor.execute(
@@ -186,12 +197,13 @@ class DuckDbExecutorTests(unittest.TestCase):
     def test_a_disrupted_context_is_skipped(self) -> None:
         step = _step(
             "sql",
-            Instruction(("sql", "duckdb"), {"relation": "unused", "sql": "SELECT 1"}),
+            Instruction(
+                InstructionKind("sql", "duckdb"),
+                {"relation": "unused", "sql": "SELECT 1"},
+            ),
         )
         context = DisruptedExecutionContext(
             step=step,
-            step_id="core.sql",
-            component="core",
             runtime_configuration={},
             inputs={},
             disruptions=(),
@@ -206,7 +218,9 @@ class DuckDbExecutorTests(unittest.TestCase):
     def test_an_unknown_kind_raises(self) -> None:
         step = _step(
             "unknown",
-            Instruction(("unknown", "duckdb"), {"relation": "unused"}),
+            Instruction(
+                InstructionKind("unknown", "duckdb"), {"relation": "unused"},
+            ),
         )
 
         with self.assertRaisesRegex(ValueError, "unknown instruction kind"):

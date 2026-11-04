@@ -20,7 +20,7 @@ from __future__ import annotations
 import inspect
 import json
 from collections.abc import Iterable, Sequence
-from dataclasses import asdict, replace
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -52,6 +52,7 @@ from .kernel import (
     WorkflowReport,
     WorkflowRuntime,
 )
+from .kernel.service.internal.report_codec import workflow_report_to_document
 from .kernel.service.internal.workflow_codec import workflow_plan_to_document
 
 DEFAULT_LANGUAGES = (
@@ -251,7 +252,7 @@ def execute(
     )
     (destination / "build_report.json").write_text(
         json.dumps(
-            asdict(report),
+            workflow_report_to_document(report),
             indent=2,
             sort_keys=True,
             default=lambda value: (

@@ -22,12 +22,12 @@ from .findings import ConflictingNonNullValueFinding
 from .readers import open_source, source_spec
 from .service import DuckDbService
 
-SOURCE_RELATION: InstructionKind = ("source_relation", "duckdb")
-SQL: InstructionKind = ("sql", "duckdb")
-AGGREGATE: InstructionKind = ("aggregate", "duckdb")
-DEDUPLICATION: InstructionKind = ("deduplication", "duckdb")
-MERGING: InstructionKind = ("merging", "duckdb")
-CONFLICT_FINDINGS: InstructionKind = ("conflict_findings", "duckdb")
+SOURCE_RELATION = InstructionKind("source_relation", "duckdb")
+SQL = InstructionKind("sql", "duckdb")
+AGGREGATE = InstructionKind("aggregate", "duckdb")
+DEDUPLICATION = InstructionKind("deduplication", "duckdb")
+MERGING = InstructionKind("merging", "duckdb")
+CONFLICT_FINDINGS = InstructionKind("conflict_findings", "duckdb")
 
 
 def _quote_identifier(value: object) -> str:

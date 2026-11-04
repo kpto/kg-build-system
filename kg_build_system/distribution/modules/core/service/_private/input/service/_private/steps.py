@@ -9,13 +9,13 @@ from kg_build_system.distribution.languages.data.model.internal import (
     RelationDTO,
     SourceDTO,
 )
-from kg_build_system.distribution.modules.core.service._private.planning.artifacts import (
+from kg_build_system.distribution.model.public.artifacts import (
     CoreArtifactTypes,
 )
 from kg_build_system.distribution.modules.core.service._private.planning.plan import (
     CorePlan,
 )
-from kg_build_system.kernel import Instruction, Output, Step
+from kg_build_system.kernel import Instruction, InstructionKind, Output, Step
 from kg_build_system.kernel.service.internal.types import type_to_document
 from .credentials import credential_reference
 
@@ -77,7 +77,7 @@ def source_step(
         inputs=(),
         outputs=(Output(CoreArtifactTypes.table(source.relation.name)),),
         instruction=Instruction(
-            ("source_relation", "duckdb"),
+            InstructionKind("source_relation", "duckdb"),
             source_payload(source, relation, blueprint, read_paths),
         ),
     )

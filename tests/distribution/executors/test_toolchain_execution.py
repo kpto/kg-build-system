@@ -14,6 +14,8 @@ from kg_build_system.kernel import (
     ArtifactType,
     Component,
     Instruction,
+    InstructionKind,
+    Key,
     Publication,
     Step,
     Toolchain,
@@ -22,7 +24,7 @@ from kg_build_system.kernel import (
 )
 from kg_build_system.kernel.service._private.runtime import WorkflowRuntime
 
-VALUE = ArtifactType("core", "value")
+VALUE = ArtifactType.of("core", "value")
 
 
 class _FakeLinker:
@@ -38,9 +40,9 @@ class ToolchainExecutionTests(unittest.TestCase):
             "core",
             "sql",
             (),
-            (Publication(VALUE, "value"),),
+            (Publication(VALUE, Key(("value",))),),
             Instruction(
-                ("sql", "duckdb"),
+                InstructionKind("sql", "duckdb"),
                 {"relation": "published", "sql": "SELECT 42 AS value"},
             ),
         )

@@ -18,6 +18,9 @@ from kg_build_system.distribution.modules.meta_graph import (
 )
 from kg_build_system.kernel import (
     Instruction,
+    InstructionKind,
+    Key,
+    OpeningDirection,
     Output,
     PlanContext,
     Step,
@@ -26,7 +29,10 @@ from kg_build_system.kernel import (
 )
 from kg_build_system.kernel.service._private.runtime import WorkflowRuntime
 
-from ._support import bound_blueprint, component, connection, node, record_type
+from ._support import (
+    bound_blueprint, component, connection, node, opening, record_type,
+    resolve_inputs,
+)
 
 
 class _FakeLinker:
@@ -41,9 +47,9 @@ def _plan(configuration: MetaGraphConfiguration) -> WorkflowPlan:
         "core",
         "records",
         (),
-        (Output(record_type("Person"), "records"),),
+        (Output(record_type("Person"), Key(("records",))),),
         Instruction(
-            ("sql", "duckdb"),
+            InstructionKind("sql", "duckdb"),
             {
                 "relation": "person_records",
                 "sql": (
@@ -57,6 +63,7 @@ def _plan(configuration: MetaGraphConfiguration) -> WorkflowPlan:
     planner = MetaGraphPlanner(configuration)
     model = bound_blueprint(node("Person", "name"))
     (document_step,) = planner.plan(model, PlanContext())
+    document_step = resolve_inputs(document_step)
     return WorkflowPlan(
         components=(
             component("core", "4"),
@@ -67,8 +74,8 @@ def _plan(configuration: MetaGraphConfiguration) -> WorkflowPlan:
         steps=(source, document_step),
         connections=(
             connection(
-                ("meta_graph", "document", "records"),
-                ("core", "records", "records"),
+                opening(document_step, OpeningDirection.INPUT, "records"),
+                opening(source, OpeningDirection.OUTPUT, "records"),
             ),
         ),
     )

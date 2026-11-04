@@ -12,7 +12,9 @@ from kg_build_system.distribution import (
     create_blueprint,
 )
 from kg_build_system.distribution.modules.core import InputPlanner, core_planners
-from kg_build_system.kernel import PlanContext, Step, Toolchain
+from kg_build_system.kernel import (
+    InstructionKind, PlanContext, Step, Toolchain,
+)
 
 
 def _named(steps: tuple[Step, ...], prefix: str) -> Iterator[Step]:
@@ -88,7 +90,7 @@ class CorePlannersTests(unittest.TestCase):
         sources = tuple(_named(self.steps, "table."))
         self.assertTrue(sources)
         for step in sources:
-            self.assertEqual(step.instruction.kind, ("source_relation", "duckdb"))
+            self.assertEqual(step.instruction.kind, InstructionKind("source_relation", "duckdb"))
             payload = step.instruction.payload
             assert isinstance(payload, dict)
             self.assertEqual(
@@ -106,7 +108,7 @@ class CorePlannersTests(unittest.TestCase):
         )
         self.assertTrue(relational)
         for step in relational:
-            self.assertEqual(step.instruction.kind, ("sql", "duckdb"))
+            self.assertEqual(step.instruction.kind, InstructionKind("sql", "duckdb"))
             payload = step.instruction.payload
             assert isinstance(payload, dict)
             self.assertIn("relation", payload)
@@ -124,7 +126,7 @@ class CorePlannersTests(unittest.TestCase):
         aggregates = tuple(_named(self.steps, "aggregate."))
         self.assertTrue(aggregates)
         for step in aggregates:
-            self.assertEqual(step.instruction.kind, ("aggregate", "duckdb"))
+            self.assertEqual(step.instruction.kind, InstructionKind("aggregate", "duckdb"))
             self.assertEqual(step.assembly_preference, "deferred")
 
 

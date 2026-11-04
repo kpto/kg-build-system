@@ -4,9 +4,12 @@ from __future__ import annotations
 from typing import Any
 
 from kg_build_system.kernel import (
+    ArtifactPattern,
     ArtifactType,
     Input,
     Instruction,
+    InstructionKind,
+    Key,
     PlanContext,
     Publication,
     Step,
@@ -52,18 +55,22 @@ class MetaGraphPlanner:
                 name="document",
                 inputs=(
                     Input(
-                        ArtifactType("core", "graph.*"),
+                        ArtifactPattern.of("core", "graph", "**"),
                         None,
                         _RECORDS_INPUT,
                     ),
                 ),
                 outputs=(
                     Publication(
-                        ArtifactType(self.component_id, "meta_graph_document"),
-                        "result",
+                        ArtifactType.of(
+                            self.component_id, "meta_graph_document",
+                        ),
+                        Key(("result",)),
                     ),
                 ),
-                instruction=Instruction(("meta_graph", "default"), payload),
+                instruction=Instruction(
+                    InstructionKind("meta_graph", "default"), payload,
+                ),
                 assembly_preference="deferred",
             ),
         )

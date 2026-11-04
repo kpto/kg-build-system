@@ -193,13 +193,15 @@ class NamingTests(unittest.TestCase):
                     f"{module_names + imported_names} from {'.'.join(parts)}",
                 )
 
-    def test_an_instruction_kind_is_a_tuple_of_strings(self) -> None:
-        from kg_build_system.kernel import Instruction
+    def test_an_instruction_kind_is_a_typed_two_segment_key(self) -> None:
+        from kg_build_system.kernel import (
+            Instruction, InstructionKind, Key,
+        )
 
-        instruction = Instruction(("sql", "duckdb"), None)
-        self.assertIsInstance(instruction.kind, tuple)
-        self.assertTrue(instruction.kind)
-        self.assertTrue(all(isinstance(part, str) for part in instruction.kind))
+        instruction = Instruction(InstructionKind("sql", "duckdb"), None)
+        self.assertEqual(instruction.kind.key, Key(("sql", "duckdb")))
+        self.assertEqual(instruction.kind.operation, "sql")
+        self.assertEqual(instruction.kind.engine, "duckdb")
 
     def test_no_public_module_keeps_the_removed_contract_or_module_name(
         self,

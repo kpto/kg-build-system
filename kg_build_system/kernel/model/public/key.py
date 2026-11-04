@@ -6,6 +6,7 @@ language's key space.
 """
 from __future__ import annotations
 
+from collections.abc import Sequence
 from dataclasses import dataclass
 from fnmatch import fnmatchcase
 
@@ -88,6 +89,27 @@ class Key:
         ```
         """
         return list(self.segments)
+
+    @classmethod
+    def from_document(cls, value: Sequence[str]) -> Key:
+        """Read a key from its JSON array form.
+
+        A string, bytes or any non-sequence value is refused. Every item must
+        be a string; the segments are not otherwise validated because the role
+        type that owns the key states its own arity and segment rules.
+
+        Example:
+        ```python
+        assert Key.from_document(["site", "name"]) == Key(("site", "name"))
+        ```
+        """
+        if isinstance(value, (str, bytes, bytearray)) or not isinstance(
+            value, Sequence,
+        ):
+            raise ValueError("a key document must be an array of strings")
+        if any(not isinstance(item, str) for item in value):
+            raise ValueError("key segments must be strings")
+        return cls(tuple(value))
 
     def __str__(self) -> str:
         return "/".join(self.segments)

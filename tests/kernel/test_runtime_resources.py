@@ -8,6 +8,8 @@ from kg_build_system.kernel import (
     ArtifactType,
     Component,
     Instruction,
+    InstructionKind,
+    Key,
     Publication,
     ResourceView,
     RuntimeConfiguration,
@@ -18,8 +20,8 @@ from kg_build_system.kernel import (
     WorkflowRuntime,
 )
 
-VALUE = ArtifactType("demo", "value")
-KIND = ("test", "default")
+VALUE = ArtifactType.of("demo", "value")
+KIND = InstructionKind("test", "default")
 
 
 def _plan() -> WorkflowPlan:
@@ -30,7 +32,7 @@ def _plan() -> WorkflowPlan:
                 "demo",
                 "make",
                 (),
-                (Publication(VALUE, "value"),),
+                (Publication(VALUE, Key(("value",))),),
                 Instruction(KIND, None),
             ),
         ),
@@ -73,7 +75,7 @@ class _Executor:
         return StepOutcome(
             context.step_id,
             StepStatus.SUCCEEDED,
-            (Artifact("value", VALUE, "ok"),),
+            (Artifact(Key(("value",)), VALUE, "ok"),),
         )
 
 

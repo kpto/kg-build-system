@@ -36,6 +36,14 @@ Derived rules live beside the model. Identity functions, codecs, planners,
 renderers and emitters take a model as an argument. They are not methods that
 need an owner.
 
+Pipeline identity follows the same rule. `Step` keeps `component` and `name`;
+`Step.id` and `step_id(step)` derive the `StepId`. An identity that crosses a
+planner, executor, runtime or codec boundary is a role type over `Key`:
+`StepId`, `OpeningId`, `ArtifactType`, `ArtifactPattern` and `InstructionKind`.
+A formatted string is display only and is never parsed back into an identity.
+Direction is part of an opening identity because one name can denote an input
+and an output on the same step.
+
 ## Semantics as contract
 
 A node or edge type states its meaning: what it represents, its direction, what
@@ -232,7 +240,7 @@ The remaining limits are:
 - public `GraphBlueprint` fields reference internal language DTOs;
 - the core planners depend on the DuckDB SQL emitter.
 
-Verification: 153 tests passed, 1586 subtests; pyright 0 errors; the Open Targets
+Verification: 177 tests passed, 1611 subtests; pyright 0 errors; the Open Targets
 project passes 7 tests against the API.
 
 See [system design](system-design.md) for the layout and [testing](testing.md)

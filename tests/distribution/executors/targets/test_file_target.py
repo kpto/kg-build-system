@@ -17,9 +17,13 @@ from kg_build_system.distribution.modules.file import (
     FilePlanner,
 )
 from kg_build_system.kernel import (
+    ArtifactPattern,
     ArtifactType,
     Input,
     Instruction,
+    InstructionKind,
+    Key,
+    OpeningDirection,
     Output,
     PlanContext,
     Step,
@@ -28,7 +32,9 @@ from kg_build_system.kernel import (
 )
 from kg_build_system.kernel.service._private.runtime import WorkflowRuntime
 
-from ._support import component, connection, record_type
+from ._support import (
+    component, connection, opening, record_type, resolve_inputs,
+)
 
 
 class _FakeLinker:
@@ -44,9 +50,9 @@ class FileTargetTests(unittest.TestCase):
             "core",
             "records",
             (),
-            (Output(record_type("Person"), "records"),),
+            (Output(record_type("Person"), Key(("records",))),),
             Instruction(
-                ("sql", "duckdb"),
+                InstructionKind("sql", "duckdb"),
                 {
                     "relation": "person_records",
                     "sql": (
@@ -59,6 +65,7 @@ class FileTargetTests(unittest.TestCase):
         )
         planner = FilePlanner(FileConfiguration("graph.jsonl"))
         (file_step,) = planner.plan(object(), PlanContext())
+        file_step = resolve_inputs(file_step)
         plan = WorkflowPlan(
             components=(
                 component("core", "4"),
@@ -69,8 +76,8 @@ class FileTargetTests(unittest.TestCase):
             steps=(source, file_step),
             connections=(
                 connection(
-                    ("file", "write", "records"),
-                    ("core", "records", "records"),
+                    opening(file_step, OpeningDirection.INPUT, "records"),
+                    opening(source, OpeningDirection.OUTPUT, "records"),
                 ),
             ),
         )
@@ -120,7 +127,11 @@ class FileTargetTests(unittest.TestCase):
         (file_step,) = planner.plan(object(), PlanContext())
         self.assertEqual(
             file_step.inputs,
-            (Input(ArtifactType("core", "graph.*"), None, "records"),),
+            (
+                Input(
+                    ArtifactPattern.of("core", "graph", "**"), None, "records",
+                ),
+            ),
         )
         self.assertEqual(
             file_step.instruction.payload, {"relative_path": "compiled.jsonl"},

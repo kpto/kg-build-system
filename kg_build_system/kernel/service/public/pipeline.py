@@ -133,7 +133,7 @@ class Executor(Protocol):
     Example:
     ```python
     class EchoExecutor:
-        kinds = (("echo", "default"),)
+        kinds = (InstructionKind("echo", "default"),)
 
         def execute(self, context, instruction):
             return StepOutcome(context.step_id, StepStatus.SUCCEEDED)
@@ -167,7 +167,7 @@ class StepExecutor(Executor, Protocol):
     Example:
     ```python
     class EchoExecutor:
-        kinds = (("echo", "default"),)
+        kinds = (InstructionKind("echo", "default"),)
         resources = (int,)
 
         def execute(self, context, instruction):

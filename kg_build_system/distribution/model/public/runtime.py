@@ -19,6 +19,7 @@ class BuildRuntime:
     Attributes:
         credentials: Resolved credential values by reference.
         component_configuration: Per-component runtime overrides by component ID.
+        provider_configuration: Resource-provider settings by provider ID.
         output_directory: Where publications and reports are written.
         working_directory: Working storage; a relative path resolves beneath
             ``output_directory``.
@@ -40,12 +41,15 @@ class BuildRuntime:
         component_configuration={"file": {"relative_path": "graph/current.jsonl"}},
     )
     configuration = runtime.to_configuration()
-    assert configuration.component_configuration["duckdb"]["threads"] == 4
+    assert configuration.provider_configuration["duckdb"]["threads"] == 4
     ```
     """
 
     credentials: dict[str, str] = field(default_factory=dict)
     component_configuration: dict[str, dict[str, Any]] = field(
+        default_factory=dict,
+    )
+    provider_configuration: dict[str, dict[str, Any]] = field(
         default_factory=dict,
     )
     output_directory: Path = field(default_factory=lambda: Path.cwd() / "build")
@@ -67,14 +71,14 @@ class BuildRuntime:
     def to_configuration(self) -> RuntimeConfiguration:
         """Return the kernel configuration one execution reads.
 
-        Per-component overrides are copied unchanged. The ``duckdb`` component
-        entry is built from the safe engine settings, so an executor reads them
-        from the same per-component map as every other component's values.
+        Per-component overrides are copied unchanged. The ``duckdb`` provider
+        entry is built from the safe engine settings; ``duckdb`` is a provider
+        id, not a plan component.
 
         Example:
             ```python
             configuration = BuildRuntime().to_configuration()
-            assert configuration.component_configuration["duckdb"]["storage"] == (
+            assert configuration.provider_configuration["duckdb"]["storage"] == (
                 "memory"
             )
             ```
@@ -83,7 +87,12 @@ class BuildRuntime:
             component: dict(values)
             for component, values in self.component_configuration.items()
         }
-        component_configuration["duckdb"] = {
+        provider_configuration = {
+            provider: dict(values)
+            for provider, values in self.provider_configuration.items()
+        }
+        provider_configuration["duckdb"] = {
+            **provider_configuration.get("duckdb", {}),
             "storage": self.duckdb_storage,
             "threads": self.duckdb_threads,
             "memory_limit": self.duckdb_memory_limit,
@@ -95,6 +104,7 @@ class BuildRuntime:
             temporary_directory=self.temporary_directory,
             credentials=dict(self.credentials),
             component_configuration=component_configuration,
+            provider_configuration=provider_configuration,
         )
 
 

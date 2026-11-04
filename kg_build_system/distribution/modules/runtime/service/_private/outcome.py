@@ -9,17 +9,18 @@ from kg_build_system.kernel import (
     DisruptedExecutionContext,
     ExecutionContext,
     Instruction,
+    Key,
     StepOutcome,
     StepStatus,
 )
 from kg_build_system.kernel.model.internal.json import thaw_json
 
-DEFAULT_OUTPUT_NAME = "output"
+DEFAULT_OUTPUT_NAME = Key(("output",))
 
 
-def output_name(given: Any) -> str:
-    """The name an output or publication takes in an outcome."""
-    return given.name or DEFAULT_OUTPUT_NAME
+def output_name(given: Any) -> Key:
+    """The output opening name an output or publication takes in an outcome."""
+    return given.opening_name or DEFAULT_OUTPUT_NAME
 
 
 def succeeded(
@@ -53,7 +54,7 @@ def instruction_payload(instruction: Instruction) -> Mapping[str, Any]:
     value: Any = thaw_json(cast(Any, instruction.payload))
     if not isinstance(value, Mapping):
         raise TypeError(
-            f"instruction kind {instruction.kind!r} requires an object payload"
+            f"instruction kind {instruction.kind} requires an object payload"
         )
     return value
 

@@ -205,7 +205,7 @@ plan stores the instruction, not the engine's live objects.
 
 A planner other than core receives the same linked `GraphBlueprint` and returns
 its own steps. A target planner such as `FilePlanner` consumes
-`ArtifactType("core", "graph.*")` and emits its own instruction kind. It does not
+`ArtifactPattern.of("core", "graph", "**")` and emits its own `InstructionKind`. It does not
 rewrite the core steps.
 
 ## Source-rendering round trip

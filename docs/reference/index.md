@@ -46,7 +46,7 @@ the rules; it does not repeat the explanation of why the model works that way.
 | Declarations, selections, expressions, row sources and projections | `kg_build_system` |
 | `compile`, `create_blueprint` and `execute` | `kg_build_system` |
 | `BuildRuntime` and `WorkflowReport` | `kg_build_system` (also `kg_build_system.distribution`) |
-| `WorkflowPlan`, `Step` and the kernel protocols | `kg_build_system.kernel` |
+| `WorkflowPlan`, `Step`, `StepId`, `OpeningId`, `ArtifactType`, `ArtifactPattern`, `InstructionKind` and the kernel protocols | `kg_build_system.kernel` |
 | Representative types and canonical logical types | `kg_build_system` |
 | Supplied planners and executors | `kg_build_system.distribution` |
 | Generation requests and commands | `kg_build_system.generation.code_generation` |

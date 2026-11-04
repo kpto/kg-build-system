@@ -4,9 +4,12 @@ from __future__ import annotations
 from typing import Any
 
 from kg_build_system.kernel import (
+    ArtifactPattern,
     ArtifactType,
     Input,
     Instruction,
+    InstructionKind,
+    Key,
     PlanContext,
     Publication,
     RuntimeField,
@@ -48,19 +51,19 @@ class FilePlanner:
                 name="write",
                 inputs=(
                     Input(
-                        ArtifactType("core", "graph.*"),
+                        ArtifactPattern.of("core", "graph", "**"),
                         None,
                         RECORDS_INPUT,
                     ),
                 ),
                 outputs=(
                     Publication(
-                        ArtifactType(self.component_id, "write_result"),
-                        "result",
+                        ArtifactType.of(self.component_id, "write_result"),
+                        Key(("result",)),
                     ),
                 ),
                 instruction=Instruction(
-                    ("file", "default"),
+                    InstructionKind("file", "default"),
                     {"relative_path": self.configuration.relative_path},
                 ),
                 assembly_preference="deferred",

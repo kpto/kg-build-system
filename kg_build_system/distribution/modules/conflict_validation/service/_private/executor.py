@@ -11,6 +11,8 @@ from kg_build_system.kernel import (
     ExecutionContext,
     Failure,
     Instruction,
+    InstructionKind,
+    Key,
     Output,
     StepOutcome,
     StepStatus,
@@ -27,13 +29,13 @@ from ...model.public import (
 )
 
 _FINDINGS = "findings"
-_REPORT_OUTPUT = "report"
+_REPORT_OUTPUT = Key(("report",))
 
 
 class ConflictReportExecutor:
     """Gather findings, publish the report and forward the graph records."""
 
-    kinds = (("conflict_report", "default"),)
+    kinds = (InstructionKind("conflict_report", "default"),)
     resources = ()
 
     def execute(

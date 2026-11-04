@@ -4,6 +4,9 @@ The kernel runtime owns resource allocation, scheduling, input classification
 and the step lifecycle. It treats resources and instruction payloads as opaque:
 no engine, SQL, DuckDB or distribution import appears here. An executor owns its
 own engine bookkeeping.
+
+Every schedule key is a typed ``StepId`` or ``OpeningId``. The only string left
+is a step label or an executor input-map key.
 """
 from __future__ import annotations
 
@@ -13,6 +16,7 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from typing import Any, Literal, Protocol, cast
 
+from ...model.public.key import Key
 from ...model.public.runtime import (
     Artifact,
     ContinuableInput,
@@ -28,29 +32,22 @@ from ...model.public.runtime import (
     WorkflowReport,
 )
 from ...model.public.workflow import (
+    ArtifactType,
     Component,
     InstructionKind,
+    OpeningId,
     Publication,
     Step,
+    StepId,
     WorkflowPlan,
+    input_opening,
+    output_opening,
+    step_id,
 )
 
-DEFAULT_OUTPUT_NAME = "output"
 
-
-def output_name(given: Any) -> str:
-    """The name an output or publication takes in an outcome."""
-    return given.name or DEFAULT_OUTPUT_NAME
-
-
-def step_identity(component: str, name: str) -> str:
-    """The identity of one step across the whole workflow."""
-    return f"{component}.{name}"
-
-
-def opening_identity(identity: str, name: str) -> str:
-    """The identity of one input or output of a step known by its identity."""
-    return f"{identity}.{name}"
+def _unresolved(step: Step, role: str) -> ValueError:
+    return ValueError(f"step {step_id(step)} has an unresolved {role}")
 
 
 class WorkflowMonitor(Protocol):
@@ -60,7 +57,7 @@ class WorkflowMonitor(Protocol):
         """Begin observing one workflow."""
         ...
 
-    def step_started(self, step_id: str, detail: str) -> None:
+    def step_started(self, step_id: StepId, detail: str) -> None:
         """Record that one step started."""
         ...
 
@@ -88,7 +85,7 @@ class NullWorkflowMonitor:
         """Begin observing one workflow."""
         pass
 
-    def step_started(self, step_id: str, detail: str) -> None:
+    def step_started(self, step_id: StepId, detail: str) -> None:
         """Record that one step started."""
         pass
 
@@ -123,7 +120,7 @@ def _resource_name(resource: type) -> str:
 class _StepLogger:
     """A logger scoped to one step, backed by the workflow monitor."""
 
-    def __init__(self, step_id: str, monitor: Any) -> None:
+    def __init__(self, step_id: StepId, monitor: Any) -> None:
         self._step_id = step_id
         self._logger = _monitor_logger(monitor)
 
@@ -216,66 +213,118 @@ def _close_resources(providers: Sequence[Any]) -> None:
 
 @dataclass(frozen=True, slots=True)
 class Schedule:
-    """Steps indexed by the identities their openings and producers use."""
+    """Steps and openings indexed by their typed identities."""
 
     steps: tuple[Step, ...]
     components: Mapping[str, Component]
-    identity_of: Mapping[tuple[str, str], str]
-    output_owner: Mapping[str, str]
-    publication_ids: tuple[str, ...]
-    publishing_steps: tuple[str, ...]
-    incoming: Mapping[str, tuple[str, ...]]
+    output_owner: Mapping[OpeningId, StepId]
+    publication_ids: tuple[OpeningId, ...]
+    publishing_steps: tuple[StepId, ...]
+    incoming: Mapping[OpeningId, tuple[OpeningId, ...]]
 
-    def identity(self, step: Step) -> str:
-        """Return the whole-workflow identity of one step."""
-        return self.identity_of[(step.component, step.name)]
+    def sources(self, input_id: OpeningId) -> tuple[OpeningId, ...]:
+        """Return the output openings feeding one taken opening."""
+        return self.incoming.get(input_id, ())
 
-    def sources(self, step_id: str, taken_name: str) -> tuple[str, ...]:
-        """Return the output identities feeding one taken opening."""
-        return self.incoming.get(opening_identity(step_id, taken_name), ())
-
-    def is_ready(self, step: Step, completed: set[str]) -> bool:
+    def is_ready(self, step: Step, completed: set[StepId]) -> bool:
         """Return whether every producer of a step has completed."""
-        identity = self.identity(step)
-        return all(
-            self.output_owner[source] in completed
-            for taken in step.inputs
-            for source in self.sources(
-                identity, taken.name or taken.input_name,
-            )
-        )
+        for taken in step.inputs:
+            for source in self.sources(input_opening(step, taken)):
+                if self.output_owner[source] not in completed:
+                    return False
+        return True
+
+
+@dataclass(frozen=True, slots=True)
+class _DeclaredOpenings:
+    inputs: Mapping[OpeningId, StepId]
+    outputs: Mapping[OpeningId, ArtifactType]
+    owners: Mapping[OpeningId, StepId]
+
+
+def _declared_openings(
+    steps: Sequence[Step],
+) -> _DeclaredOpenings:
+    declared_inputs: dict[OpeningId, StepId] = {}
+    declared_outputs: dict[OpeningId, ArtifactType] = {}
+    owners: dict[OpeningId, StepId] = {}
+    seen_steps: set[StepId] = set()
+    for step in steps:
+        identity = step_id(step)
+        if identity in seen_steps:
+            raise ValueError(f"duplicate step id {identity}")
+        seen_steps.add(identity)
+        for taken in step.inputs:
+            if taken.opening_name is None:
+                raise _unresolved(step, "input")
+            opening = input_opening(step, taken)
+            if opening in declared_inputs:
+                raise ValueError(f"duplicate input opening {opening}")
+            declared_inputs[opening] = identity
+        names: set[Key] = set()
+        for given in step.outputs:
+            if given.opening_name is None:
+                raise _unresolved(step, "output")
+            if given.opening_name in names:
+                raise ValueError(
+                    f"step {identity} declares output "
+                    f"{given.opening_name!s} twice"
+                )
+            names.add(given.opening_name)
+            opening = output_opening(step, given)
+            if opening in declared_outputs:
+                raise ValueError(f"duplicate output opening {opening}")
+            declared_outputs[opening] = given.type
+            owners[opening] = identity
+    return _DeclaredOpenings(declared_inputs, declared_outputs, owners)
 
 
 def schedule(plan: WorkflowPlan) -> Schedule:
-    """Index a workflow plan by its generated identities."""
+    """Validate a plan and index it by its typed identities.
+
+    The scheduler is the single authority for executable plan identity. It
+    refuses duplicate step ids, duplicate component ids, a step whose component
+    is absent, an unresolved executable opening, a duplicate output name and a
+    connection whose endpoint is not declared.
+    """
     steps = tuple(plan.steps)
-    identity_of = {
-        (step.component, step.name): step_identity(step.component, step.name)
-        for step in steps
-    }
-    output_owner = {
-        opening_identity(identity_of[(step.component, step.name)], output_name(output)):
-            identity_of[(step.component, step.name)]
-        for step in steps for output in step.outputs
-    }
+    component_ids = [component.id for component in plan.components]
+    if len(component_ids) != len(set(component_ids)):
+        raise ValueError("workflow component ids must be unique")
+    components = {component.id: component for component in plan.components}
+    declared = _declared_openings(steps)
+    for step in steps:
+        if step.component not in components:
+            raise ValueError(
+                f"step {step_id(step)} names unknown component "
+                f"{step.component!r}"
+            )
+    incoming: dict[OpeningId, list[OpeningId]] = defaultdict(list)
+    for connection in plan.connections:
+        if connection.input not in declared.inputs:
+            raise ValueError(
+                f"connection input {connection.input} is not declared by a step"
+            )
+        if connection.output not in declared.outputs:
+            raise ValueError(
+                f"connection output {connection.output} is not declared by a step"
+            )
+        incoming[connection.input].append(connection.output)
+
     publication_ids = tuple(
-        opening_identity(identity_of[(step.component, step.name)], output_name(output))
-        for step in steps for output in step.outputs
-        if isinstance(output, Publication)
+        output_opening(step, given)
+        for step in steps for given in step.outputs
+        if isinstance(given, Publication)
     )
     publishing_steps = tuple(dict.fromkeys(
-        identity_of[(step.component, step.name)]
+        step_id(step)
         for step in steps
-        if any(isinstance(output, Publication) for output in step.outputs)
+        if any(isinstance(given, Publication) for given in step.outputs)
     ))
-    incoming: dict[str, list[str]] = defaultdict(list)
-    for connection in plan.connections:
-        incoming[connection.input_id].append(connection.output_id)
     return Schedule(
         steps=steps,
-        components={component.id: component for component in plan.components},
-        identity_of=identity_of,
-        output_owner=output_owner,
+        components=components,
+        output_owner=dict(declared.owners),
         publication_ids=publication_ids,
         publishing_steps=publishing_steps,
         incoming={key: tuple(value) for key, value in incoming.items()},
@@ -336,10 +385,10 @@ def _validate_runtime_configuration(
 class _ExecutionState:
     """The results accumulated while the schedule runs."""
 
-    completed: set[str] = field(default_factory=set)
-    artifacts: dict[str, Artifact] = field(default_factory=dict)
-    outcomes_by_step: dict[str, StepOutcome] = field(default_factory=dict)
-    active_failures_by_step: dict[str, set[Failure]] = field(
+    completed: set[StepId] = field(default_factory=set)
+    artifacts: dict[OpeningId, Artifact] = field(default_factory=dict)
+    outcomes_by_step: dict[StepId, StepOutcome] = field(default_factory=dict)
+    active_failures_by_step: dict[StepId, set[Failure]] = field(
         default_factory=dict,
     )
     outcomes: list[StepOutcome] = field(default_factory=list)
@@ -351,12 +400,11 @@ class _StepRun:
 
     outcome: StepOutcome
     inherited_failures: frozenset[Failure]
-    returned_artifacts: Mapping[str, Artifact]
+    returned_artifacts: Mapping[Key, Artifact]
 
 
 def _gather_inputs(
     step: Step,
-    identity: str,
     scheduled: Schedule,
     state: _ExecutionState,
 ) -> tuple[
@@ -369,15 +417,13 @@ def _gather_inputs(
     disruptions: list[DisruptingInput] = []
     inherited_failures: set[Failure] = set()
     for taken in step.inputs:
-        for source in scheduled.sources(
-            identity, taken.name or taken.input_name,
-        ):
+        for source in scheduled.sources(input_opening(step, taken)):
             owner = scheduled.output_owner[source]
             previous = state.outcomes_by_step[owner]
             inherited_failures.update(state.active_failures_by_step[owner])
             artifact = state.artifacts.get(source)
             if previous.status in {StepStatus.SUCCEEDED, StepStatus.WARNING}:
-                gathered[taken.input_name].append(ContinuableInput(
+                gathered[taken.declared_name].append(ContinuableInput(
                     source,
                     cast(
                         Literal[StepStatus.SUCCEEDED, StepStatus.WARNING],
@@ -395,7 +441,7 @@ def _gather_inputs(
                     artifact,
                     previous.failure,
                 )
-                gathered[taken.input_name].append(disruption)
+                gathered[taken.declared_name].append(disruption)
                 disruptions.append(disruption)
     return (
         {name: tuple(values) for name, values in gathered.items()},
@@ -406,20 +452,40 @@ def _gather_inputs(
 
 def _validate_outcome(
     outcome: StepOutcome,
-    identity: str,
     step: Step,
-) -> Mapping[str, Artifact]:
+) -> Mapping[Key, Artifact]:
     """Check an outcome against what the schedule asked of this step."""
+    identity = step_id(step)
     if outcome.step_id != identity:
         raise RuntimeError(
             f"executor returned an outcome for a different step: {identity}"
         )
     if outcome.status == StepStatus.FAILED and outcome.failure is None:
         raise RuntimeError(f"failed step {identity} did not provide a failure")
-    declared = {output_name(output): output.type for output in step.outputs}
-    returned = {
-        artifact.output_name: artifact for artifact in outcome.artifacts
-    }
+    if (
+        outcome.failure is not None
+        and outcome.failure.step_id != identity
+    ):
+        raise RuntimeError(
+            f"step {identity} reported a failure for a different step"
+        )
+    declared: dict[Key, ArtifactType] = {}
+    for given in step.outputs:
+        if given.opening_name is None:
+            raise _unresolved(step, "output")
+        if given.opening_name in declared:
+            raise RuntimeError(
+                f"step {identity} declares output {given.opening_name!s} twice"
+            )
+        declared[given.opening_name] = given.type
+    returned: dict[Key, Artifact] = {}
+    for artifact in outcome.artifacts:
+        if artifact.output_name in returned:
+            raise RuntimeError(
+                f"step {identity} returned output "
+                f"{artifact.output_name!s} twice"
+            )
+        returned[artifact.output_name] = artifact
     if not set(returned) <= set(declared):
         raise RuntimeError(
             f"step {identity} returned an artifact for an undeclared output"
@@ -444,14 +510,14 @@ def _execute_step(
     monitor: Any,
 ) -> _StepRun:
     """Run one ready step through its instruction executor."""
-    identity = scheduled.identity(step)
+    identity = step_id(step)
     detail = (
         f"Processing {len(step.inputs)} input(s) → "
         f"{len(step.outputs)} output(s)"
     )
     _notify(monitor, "step_started", identity, detail)
     by_input, disruptions, inherited_failures = _gather_inputs(
-        step, identity, scheduled, state,
+        step, scheduled, state,
     )
     runtime_configuration = dict(
         configuration.component_configuration.get(step.component, {}),
@@ -461,7 +527,7 @@ def _execute_step(
     executor = executors.get(step.instruction.kind)
     if executor is None:
         raise RuntimeError(
-            f"no executor for instruction kind {step.instruction.kind!r}"
+            f"no executor for instruction kind {step.instruction.kind}"
         )
     resources = views[id(executor)]
     logger = _StepLogger(identity, monitor)
@@ -469,8 +535,6 @@ def _execute_step(
         if disruptions:
             context = DisruptedExecutionContext(
                 step=step,
-                step_id=identity,
-                component=step.component,
                 runtime_configuration=runtime_configuration,
                 inputs=by_input,
                 disruptions=tuple(disruptions),
@@ -486,8 +550,6 @@ def _execute_step(
             }
             context = ExecutionContext(
                 step=step,
-                step_id=identity,
-                component=step.component,
                 runtime_configuration=runtime_configuration,
                 inputs=continuable_inputs,
                 resources=resources,
@@ -502,7 +564,7 @@ def _execute_step(
                 str(error), identity, type(error).__name__,
             ),
         )
-    returned = _validate_outcome(outcome, identity, step)
+    returned = _validate_outcome(outcome, step)
     return _StepRun(
         outcome=outcome,
         inherited_failures=inherited_failures,
@@ -519,8 +581,8 @@ def _record_step(
     """Record one outcome, its artifacts and the failures it keeps active."""
     outcome = run.outcome
     state.artifacts.update({
-        opening_identity(outcome.step_id, name): artifact
-        for name, artifact in run.returned_artifacts.items()
+        artifact.opening(outcome.step_id): artifact
+        for artifact in run.returned_artifacts.values()
     })
     state.outcomes_by_step[outcome.step_id] = outcome
     if outcome.status == StepStatus.FAILED and outcome.failure is not None:
@@ -584,12 +646,13 @@ def _published_artifacts(
 ) -> tuple[PublishedArtifact, ...]:
     """The artifacts the plan publishes, in declaration order."""
     return tuple(
-        PublishedArtifact(type=artifact.type, value=artifact.value)
-        for artifact in (
-            state.artifacts[output_id]
-            for output_id in scheduled.publication_ids
-            if output_id in state.artifacts
+        PublishedArtifact(
+            opening=output_id,
+            type=state.artifacts[output_id].type,
+            value=state.artifacts[output_id].value,
         )
+        for output_id in scheduled.publication_ids
+        if output_id in state.artifacts
     )
 
 
@@ -680,6 +743,14 @@ class WorkflowRuntime:
                 merged = _open_resources(self._providers, configuration)
                 views = _executor_views(executors, merged)
                 scheduled = schedule(plan)
+                unknown = sorted(
+                    set(configuration.component_configuration)
+                    - set(scheduled.components)
+                )
+                if unknown:
+                    raise ValueError(
+                        "unknown component configuration: " + ", ".join(unknown)
+                    )
                 state = _execute(
                     scheduled, executors, views, configuration, observer,
                 )
@@ -711,7 +782,9 @@ def succeeded(
     artifacts: tuple[Artifact, ...] = ()
     if context.step.outputs:
         output = context.step.outputs[0]
-        artifacts = (Artifact(output_name(output), output.type, value),)
+        if output.opening_name is None:
+            raise _unresolved(context.step, "output")
+        artifacts = (Artifact(output.opening_name, output.type, value),)
     return StepOutcome(
         step_id=context.step_id,
         status=status,
@@ -729,6 +802,5 @@ def skipped(context: DisruptedExecutionContext) -> StepOutcome:
 
 __all__ = [
     "NullWorkflowMonitor", "Schedule", "WorkflowMonitor", "WorkflowRuntime",
-    "opening_identity", "output_name", "schedule", "skipped", "step_identity",
-    "succeeded",
+    "schedule", "skipped", "succeeded",
 ]

@@ -18,6 +18,9 @@ from kg_build_system.distribution.modules.neo4j import (
 )
 from kg_build_system.kernel import (
     Instruction,
+    InstructionKind,
+    Key,
+    OpeningDirection,
     Output,
     PlanContext,
     Step,
@@ -26,7 +29,10 @@ from kg_build_system.kernel import (
 )
 from kg_build_system.kernel.service._private.runtime import WorkflowRuntime
 
-from ._support import bound_blueprint, component, connection, node, record_type
+from ._support import (
+    bound_blueprint, component, connection, node, opening, record_type,
+    resolve_inputs,
+)
 
 
 class _FakeLinker:
@@ -41,9 +47,9 @@ def _plan(configuration: Neo4jConfiguration) -> WorkflowPlan:
         "core",
         "records",
         (),
-        (Output(record_type("Person"), "records"),),
+        (Output(record_type("Person"), Key(("records",))),),
         Instruction(
-            ("sql", "duckdb"),
+            InstructionKind("sql", "duckdb"),
             {
                 "relation": "person_records",
                 "sql": (
@@ -57,6 +63,8 @@ def _plan(configuration: Neo4jConfiguration) -> WorkflowPlan:
     planner = Neo4jPlanner(configuration)
     model = bound_blueprint(node("Person", "name"))
     export, script = planner.plan(model, PlanContext())
+    export = resolve_inputs(export)
+    script = resolve_inputs(script)
     return WorkflowPlan(
         components=(
             component("core", "4"),
@@ -67,12 +75,12 @@ def _plan(configuration: Neo4jConfiguration) -> WorkflowPlan:
         steps=(source, export, script),
         connections=(
             connection(
-                ("neo4j", export.name, "records"),
-                ("core", "records", "records"),
+                opening(export, OpeningDirection.INPUT, "records"),
+                opening(source, OpeningDirection.OUTPUT, "records"),
             ),
             connection(
-                ("neo4j", "script", "components"),
-                ("neo4j", export.name, "result"),
+                opening(script, OpeningDirection.INPUT, "components"),
+                opening(export, OpeningDirection.OUTPUT, "result"),
             ),
         ),
     )

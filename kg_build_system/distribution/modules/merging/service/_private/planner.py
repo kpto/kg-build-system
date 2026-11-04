@@ -4,20 +4,22 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from kg_build_system.distribution.interpreter.model.public import GraphBlueprint
+from kg_build_system.distribution.model.public.artifacts import (
+    CoreArtifactTypes,
+)
 from kg_build_system.kernel import (
+    ArtifactPattern,
     Input,
     Instruction,
+    InstructionKind,
+    Key,
     Output,
     PlanContext,
     RuntimeField,
     Step,
 )
 from ...model.public import MergingConfiguration
-from .artifacts import (
-    CoreArtifactTypes,
-    component_kind,
-    graph_record_components,
-)
+from .artifacts import component_kind, graph_record_components
 from .configuration import component_name
 
 _RECORDS_INPUT = "records"
@@ -75,18 +77,20 @@ class MergingPlanner:
                 name=component.name,
                 inputs=(
                     Input(
-                        type=records_type,
-                        name=None,
-                        input_name=_RECORDS_INPUT,
+                        type=ArtifactPattern(records_type.key),
+                        opening_name=None,
+                        declared_name=_RECORDS_INPUT,
                     ),
                 ),
                 outputs=(
-                    Output(records_type, name=_MERGED_OUTPUT),
+                    Output(records_type, opening_name=Key((_MERGED_OUTPUT,))),
                 ),
-                instruction=Instruction(("merging", "duckdb"), {
-                    "relation": f"kg_normalised_{component.name.lower()}",
-                    "select": select,
-                }),
+                instruction=Instruction(
+                    InstructionKind("merging", "duckdb"), {
+                        "relation": f"kg_normalised_{component.name.lower()}",
+                        "select": select,
+                    },
+                ),
             ))
         return tuple(steps)
 

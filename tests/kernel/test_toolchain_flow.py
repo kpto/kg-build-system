@@ -10,18 +10,23 @@ from typing import Any
 
 from kg_build_system.kernel import (
     Artifact,
+    ArtifactPattern,
     ArtifactType,
     Component,
     Connection,
     Declaration,
     Input,
     Instruction,
+    InstructionKind,
     Key,
+    OpeningDirection,
+    OpeningId,
     Output,
     Publication,
     RuntimeField,
     SourceFragment,
     Step,
+    StepId,
     StepOutcome,
     StepStatus,
     Symbol,
@@ -38,7 +43,7 @@ from kg_build_system.kernel.service.internal.workflow_codec import (
 )
 
 ROOT = Path(__file__).resolve().parents[2]
-DEMO = ArtifactType("demo", "value")
+DEMO = ArtifactType.of("demo", "value")
 
 
 class Namespace:
@@ -154,8 +159,8 @@ class ProducerPlanner:
                 self.component_id,
                 "make",
                 (),
-                (Publication(DEMO, "value"),),
-                Instruction(("test", "default"), None),
+                (Publication(DEMO, Key(("value",))),),
+                Instruction(InstructionKind("test", "default"), None),
             ),
         )
 
@@ -170,9 +175,9 @@ class ConsumerPlanner:
             Step(
                 self.component_id,
                 "use",
-                (Input(DEMO, None, "value"),),
-                (Publication(DEMO, "value"),),
-                Instruction(("test", "default"), None),
+                (Input(ArtifactPattern.of("demo", "value"), None, "value"),),
+                (Publication(DEMO, Key(("value",))),),
+                Instruction(InstructionKind("test", "default"), None),
             ),
         )
 
@@ -183,10 +188,16 @@ class DuplicateStepPlanner:
     runtime_fields: tuple[RuntimeField, ...] = ()
 
     def plan(self, model, context):
-        instruction = Instruction(("test", "default"), None)
+        instruction = Instruction(InstructionKind("test", "default"), None)
         return (
-            Step("duplicate", "same", (), (Publication(DEMO, "value"),), instruction),
-            Step("duplicate", "same", (), (Publication(DEMO, "other"),), instruction),
+            Step(
+                "duplicate", "same", (),
+                (Publication(DEMO, Key(("value",))),), instruction,
+            ),
+            Step(
+                "duplicate", "same", (),
+                (Publication(DEMO, Key(("other",))),), instruction,
+            ),
         )
 
 
@@ -201,8 +212,8 @@ class FirstSharedPlanner:
                 self.component_id,
                 "first",
                 (),
-                (Publication(ArtifactType("demo", "first")),),
-                Instruction(("test", "default"), None),
+                (Publication(ArtifactType.of("demo", "first"), Key(("value",))),),
+                Instruction(InstructionKind("test", "default"), None),
             ),
         )
 
@@ -214,28 +225,31 @@ class SecondSharedPlanner(FirstSharedPlanner):
                 self.component_id,
                 "second",
                 (),
-                (Publication(ArtifactType("demo", "second")),),
-                Instruction(("test", "default"), None),
+                (Publication(ArtifactType.of("demo", "second"), Key(("value",))),),
+                Instruction(InstructionKind("test", "default"), None),
             ),
         )
 
 
 class RecordingExecutor:
-    kinds: tuple[tuple[str, ...], ...] = (("test", "default"),)
+    kinds: tuple[InstructionKind, ...] = (
+        InstructionKind("test", "default"),
+    )
     resources: tuple[type, ...] = ()
 
     def __init__(self) -> None:
-        self.calls: list[str] = []
+        self.calls: list[StepId] = []
 
     def execute(self, context, instruction):
         self.calls.append(context.step_id)
         output = context.step.outputs[0]
+        assert output.opening_name is not None
         return StepOutcome(
             context.step_id,
             StepStatus.SUCCEEDED,
             (
                 Artifact(
-                    output.name or "output",
+                    output.opening_name,
                     output.type,
                     context.step_id,
                 ),
@@ -252,7 +266,7 @@ def _plan(instruction: Instruction) -> WorkflowPlan:
                 "producer",
                 "make",
                 (),
-                (Publication(DEMO, "value"),),
+                (Publication(DEMO, Key(("value",))),),
                 instruction,
             ),
         ),
@@ -299,11 +313,22 @@ class ToolchainFlowTests(unittest.TestCase):
         )
         self.assertEqual(
             plan.connections,
-            (Connection("consumer.use.value", "producer.make.value"),),
+            (Connection(
+                input=OpeningId(
+                    StepId("consumer", "use"),
+                    OpeningDirection.INPUT,
+                    Key(("value",)),
+                ),
+                output=OpeningId(
+                    StepId("producer", "make"),
+                    OpeningDirection.OUTPUT,
+                    Key(("value",)),
+                ),
+            ),),
         )
         consumer = plan.steps[1]
-        self.assertEqual(consumer.inputs[0].name, "value")
-        self.assertEqual(consumer.inputs[0].input_name, "value")
+        self.assertEqual(consumer.inputs[0].opening_name, Key(("value",)))
+        self.assertEqual(consumer.inputs[0].declared_name, "value")
 
     def test_multiple_planners_share_one_component(self) -> None:
         toolchain: Toolchain[Any] = Toolchain(
@@ -357,8 +382,13 @@ class ToolchainFlowTests(unittest.TestCase):
                         self.component_id,
                         "first",
                         (),
-                        (Publication(ArtifactType("demo", "other")),),
-                        Instruction(("test", "default"), None),
+                        (
+                            Publication(
+                                ArtifactType.of("demo", "other"),
+                                Key(("value",)),
+                            ),
+                        ),
+                        Instruction(InstructionKind("test", "default"), None),
                     ),
                 )
 
@@ -392,7 +422,9 @@ class ToolchainFlowTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "no executor"):
             toolchain.execute(
-                _plan(Instruction(("missing", "default"), None)),
+                _plan(Instruction(
+                    InstructionKind("missing", "default"), None,
+                )),
                 output_directory=Path("build"),
             )
         self.assertEqual(resources.opened, 0)
@@ -413,10 +445,16 @@ class ToolchainFlowTests(unittest.TestCase):
             report = toolchain.execute(plan, output_directory=Path(directory))
 
         self.assertIsInstance(report, WorkflowReport)
-        self.assertEqual(executor.calls, ["producer.make", "consumer.use"])
+        self.assertEqual(
+            executor.calls,
+            [StepId("producer", "make"), StepId("consumer", "use")],
+        )
         self.assertEqual(
             [artifact.value for artifact in report.published_artifacts],
-            ["producer.make", "consumer.use"],
+            [
+                StepId("producer", "make"),
+                StepId("consumer", "use"),
+            ],
         )
         self.assertTrue(resources.closed)
 
@@ -432,13 +470,35 @@ class ToolchainFlowTests(unittest.TestCase):
                 Step(
                     "echo",
                     "echo",
-                    (Input(DEMO, "value", "value"),),
-                    (Output(DEMO, "value"), Publication(DEMO, "report")),
-                    Instruction(("echo", "default"), {"text": "hello"}),
+                    (
+                        Input(
+                            ArtifactPattern.of("demo", "value"),
+                            Key(("value",)),
+                            "value",
+                        ),
+                    ),
+                    (
+                        Output(DEMO, Key(("value",))),
+                        Publication(DEMO, Key(("report",))),
+                    ),
+                    Instruction(
+                        InstructionKind("echo", "default"), {"text": "hello"},
+                    ),
                     assembly_preference="deferred",
                 ),
             ),
-            connections=(Connection("echo.echo.value", "echo.echo.value"),),
+            connections=(Connection(
+                input=OpeningId(
+                    StepId("echo", "echo"),
+                    OpeningDirection.INPUT,
+                    Key(("value",)),
+                ),
+                output=OpeningId(
+                    StepId("echo", "echo"),
+                    OpeningDirection.OUTPUT,
+                    Key(("value",)),
+                ),
+            ),),
             provenance={"source": "test", "count": 1},
         )
 
@@ -446,8 +506,12 @@ class ToolchainFlowTests(unittest.TestCase):
         encoded = json.dumps(document)
         decoded = workflow_plan_from_document(json.loads(encoded))
 
+        self.assertEqual(document["steps"][0]["id"], ["echo", "echo"])
         self.assertIsInstance(document["steps"][0]["instruction"]["kind"], list)
-        self.assertIsInstance(decoded.steps[0].instruction.kind, tuple)
+        self.assertEqual(
+            decoded.steps[0].instruction.kind,
+            InstructionKind("echo", "default"),
+        )
         self.assertEqual(decoded, plan)
 
     def test_kernel_imports_no_distribution_or_engine(self) -> None:

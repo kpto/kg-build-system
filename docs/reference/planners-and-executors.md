@@ -52,10 +52,10 @@ class StepExecutor(Protocol):
 `component_id` is the planner's identity in the plan. Several planners may share
 one `component_id`; they must agree on `version` and `runtime_fields`, which are
 published once in the component's `Component`. `kinds` is the set of exact
-tuples the executor handles, and `resources` names the exact resource types it
-reads from its `ResourceView`. The kernel refuses disagreeing planner versions
-or runtime fields, a duplicate step identity, a duplicate executor kind, a
-missing declared resource and a plan instruction with no executor.
+`InstructionKind` values the executor handles, and `resources` names the exact
+resource types it reads from its `ResourceView`. The kernel refuses disagreeing
+planner versions or runtime fields, a duplicate `StepId`, a duplicate executor
+kind, a missing declared resource and a plan instruction with no executor.
 
 ## Supplied planners
 
@@ -155,7 +155,8 @@ distinct_values)`. No report is published when there are no findings.
 FilePlanner(FileConfiguration(relative_path: str))
 ```
 
-Emits one deferred step that reads `core/graph.*` and publishes `file/write_result`
+Emits one deferred step that reads `ArtifactPattern.of("core", "graph", "**")` and
+publishes `file/write_result`
 with `nodes`, `edges` and `location`. The executor writes one JSON object per
 line to `relative_path`, resolved beneath the output directory. The path must be
 non-empty, relative, and must not contain `..`.
@@ -280,8 +281,9 @@ order even when a step raises. An executor reads a resource with
 `TemporaryStorage` and `CredentialResolver`.
 
 `distribution.modules.runtime` exports the helpers a custom executor usually
-needs: `instruction_payload(instruction)`, `output_name(given)`,
-`succeeded(context, value)`, `skipped(context)`, `RuntimeResources`, the
+needs: `instruction_payload(instruction)`, `output_name(given)` (an output
+opening name as a `Key`), `succeeded(context, value)`, `skipped(context)`,
+`RuntimeResources`, the
 `OutputStorage`, `WorkingStorage` and `TemporaryStorage` protocols, and
 `MappingCredentialResolver`.
 
@@ -356,7 +358,9 @@ runtime = BuildRuntime(
 ```
 
 Runtime configuration is validated before any step runs. It is not part of the
-plan. The top-level keys are component ids, not planner class names.
+plan. The top-level keys are plan component ids, not planner class names.
+Resource-provider settings live in `BuildRuntime.provider_configuration`; the
+`duckdb` engine settings are a provider entry, not a component entry.
 
 ## Adding a planner or executor
 

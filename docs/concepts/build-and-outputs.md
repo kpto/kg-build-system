@@ -122,8 +122,11 @@ Compilation checks everything that can be checked without reading data:
 | `provenance` | Opaque JSON recorded by compilation |
 
 A `Step` owns its inputs, outputs, `assembly_preference` and one
-`Instruction(kind, payload)`. SQL is one instruction kind, not a plan field. Step
-identity is `f"{component}.{name}"`.
+`Instruction(kind, payload)`. SQL is one instruction kind, not a plan field. The
+step's identity is derived from its facts as `StepId(component, name)`; an
+opening is `OpeningId(step, direction, name)`, so an input and an output named
+`value` are different openings. An input declares an `ArtifactPattern`; an output
+and a publication name a concrete `ArtifactType`.
 
 ## Running a build
 
@@ -146,13 +149,15 @@ means:
 - `credentials` maps a credential reference to its value. A source binding stores
   the reference; secrets do not enter the plan or the report.
 - `component_configuration` supplies runtime values for fields a component
-  declared. Unknown fields, missing required fields and values of the wrong type
-  stop the run before any step executes.
-- `duckdb_storage` chooses `"memory"` or `"disk"`; `duckdb_compression`,
+  declared. Its keys must name plan components. Unknown fields, missing required
+  fields and values of the wrong type stop the run before any step executes.
+- `provider_configuration` holds resource-provider settings. `duckdb_storage`
+  chooses `"memory"` or `"disk"`; `duckdb_compression`,
   `duckdb_memory_limit` and `duckdb_threads` tune execution.
 
-`execute` dispatches each step by the exact tuple `step.instruction.kind`. A kind
-the toolchain does not register is refused before any step runs. The runtime
+`execute` dispatches each step by the exact `InstructionKind` in
+`step.instruction.kind`. A kind the toolchain does not register is refused before
+any step runs. The runtime
 opens the registered resource providers, gives each executor only the resource
 types it declared, and closes the providers in reverse order when the run ends.
 
@@ -227,7 +232,7 @@ if not report.succeeded:
 - `published_artifacts` lists one entry per published value.
 - `provenance` records the plan provenance.
 
-Each failure exposes `message`, `step_id` and `exception_type`. A problem inside
+Each failure exposes `message`, a typed `step_id` and `exception_type`. A problem inside
 a step becomes a failure in the report. A failure before execution raises.
 
 ## Limits

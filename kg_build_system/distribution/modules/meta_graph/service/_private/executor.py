@@ -8,6 +8,7 @@ from kg_build_system.kernel import (
     DisruptedExecutionContext,
     ExecutionContext,
     Instruction,
+    InstructionKind,
     StepOutcome,
 )
 
@@ -30,7 +31,7 @@ _MODULE_ID = "meta_graph"
 class MetaGraphExecutor:
     """Measure the received records and write the document and optional page."""
 
-    kinds = (("meta_graph", "default"),)
+    kinds = (InstructionKind("meta_graph", "default"),)
     resources = (RelationService, OutputStorage)
 
     def __init__(self, module_version: str = "2") -> None:

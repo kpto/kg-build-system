@@ -8,17 +8,20 @@ from kg_build_system.kernel import (
     DisruptedExecutionContext,
     ExecutionContext,
     Instruction,
+    Key,
     StepOutcome,
     StepStatus,
 )
 
 
-def output_name(given: Any) -> str:
-    """The name an output or publication takes in an outcome.
+def output_name(given: Any) -> Key:
+    """The output opening name an output or publication takes in an outcome.
 
     Example:
         ```python
-        name = output_name(Publication(ArtifactType("echo", "text"), "value"))
+        name = output_name(
+            Publication(ArtifactType.of("echo", "text"), Key(("value",))),
+        )
         ```
     """
     from .._private.outcome import output_name as implementation

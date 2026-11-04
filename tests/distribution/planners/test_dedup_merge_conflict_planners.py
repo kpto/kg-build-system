@@ -12,7 +12,9 @@ from kg_build_system.distribution import (
 )
 from kg_build_system.distribution.interpreter import create_blueprint
 from kg_build_system.distribution.modules.core import core_planners
-from kg_build_system.kernel import Output, PlanContext, Publication
+from kg_build_system.kernel import (
+    InstructionKind, Key, Output, PlanContext, Publication,
+)
 from reference_project.topology.site import SiteNode
 
 
@@ -51,9 +53,9 @@ class DeduplicationPlannerTests(unittest.TestCase):
 
     def test_steps_use_records_and_publish_distinct(self) -> None:
         for step in self.steps:
-            self.assertEqual(step.instruction.kind, ("deduplication", "duckdb"))
-            self.assertEqual(step.inputs[0].input_name, "records")
-            self.assertEqual(step.outputs[0].name, "distinct")
+            self.assertEqual(step.instruction.kind, InstructionKind("deduplication", "duckdb"))
+            self.assertEqual(step.inputs[0].declared_name, "records")
+            self.assertEqual(step.outputs[0].opening_name, Key(("distinct",)))
             self.assertIsInstance(step.outputs[0], Output)
             self.assertNotIsInstance(step.outputs[0], Publication)
             self.assertEqual(
@@ -102,9 +104,9 @@ class MergingPlannerTests(unittest.TestCase):
 
     def test_each_step_merges_records_by_build_key(self) -> None:
         for step in self.steps:
-            self.assertEqual(step.instruction.kind, ("merging", "duckdb"))
-            self.assertEqual(step.inputs[0].input_name, "records")
-            self.assertEqual(step.outputs[0].name, "merged")
+            self.assertEqual(step.instruction.kind, InstructionKind("merging", "duckdb"))
+            self.assertEqual(step.inputs[0].declared_name, "records")
+            self.assertEqual(step.outputs[0].opening_name, Key(("merged",)))
             self.assertIsInstance(step.outputs[0], Output)
             self.assertNotIsInstance(step.outputs[0], Publication)
             payload = step.instruction.payload
@@ -163,10 +165,10 @@ class ConflictValidationPlannerTests(unittest.TestCase):
             if step.name == "report":
                 continue
             self.assertEqual(
-                step.instruction.kind, ("conflict_findings", "duckdb"),
+                step.instruction.kind, InstructionKind("conflict_findings", "duckdb"),
             )
-            self.assertEqual(step.inputs[0].input_name, "records")
-            self.assertEqual(step.outputs[0].name, "findings")
+            self.assertEqual(step.inputs[0].declared_name, "records")
+            self.assertEqual(step.outputs[0].opening_name, Key(("findings",)))
             self.assertIsInstance(step.outputs[0], Output)
             self.assertNotIsInstance(step.outputs[0], Publication)
             self.assertEqual(
@@ -179,18 +181,21 @@ class ConflictValidationPlannerTests(unittest.TestCase):
     def test_the_report_step_is_deferred_and_publishes_validation(self) -> None:
         report = self.steps[-1]
         self.assertEqual(report.name, "report")
-        self.assertEqual(report.instruction.kind, ("conflict_report", "default"))
+        self.assertEqual(report.instruction.kind, InstructionKind("conflict_report", "default"))
         self.assertEqual(report.assembly_preference, "deferred")
         self.assertEqual(
             report.instruction.payload, {"fail_on_error": True},
         )
         publication = report.outputs[0]
         self.assertIsInstance(publication, Publication)
-        self.assertEqual(publication.name, "report")
+        self.assertEqual(publication.opening_name, Key(("report",)))
         self.assertEqual(publication.type.namespace, "conflict_validation")
         self.assertEqual(
-            [output.name for output in report.outputs[1:]],
-            [f"{component.name}.validated" for component in self.components],
+            [output.opening_name for output in report.outputs[1:]],
+            [
+                Key(("validated", component.name))
+                for component in self.components
+            ],
         )
         for output in report.outputs[1:]:
             self.assertIsInstance(output, Output)

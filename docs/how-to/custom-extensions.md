@@ -64,18 +64,21 @@ from kg_build_system.distribution.modules.runtime import (
     succeeded,
 )
 from kg_build_system.kernel import (
+    ArtifactPattern,
     ArtifactType,
     DisruptedExecutionContext,
     ExecutionContext,
     Input,
     Instruction,
+    InstructionKind,
+    Key,
     PlanContext,
     Publication,
     Step,
 )
 
-MANIFEST = ArtifactType("manifest", "manifest")
-RECORDS = ArtifactType("core", "graph.*")
+MANIFEST = ArtifactType.of("manifest", "manifest")
+RECORDS = ArtifactPattern.of("core", "graph", "**")
 
 
 class ManifestPlanner:
@@ -91,9 +94,9 @@ class ManifestPlanner:
                 component=self.component_id,
                 name="write",
                 inputs=(Input(RECORDS, None, "records"),),
-                outputs=(Publication(MANIFEST, "result"),),
+                outputs=(Publication(MANIFEST, Key(("result",))),),
                 instruction=Instruction(
-                    ("manifest", "default"),
+                    InstructionKind("manifest", "default"),
                     {"relative_path": "manifest.txt"},
                 ),
                 assembly_preference="deferred",
@@ -104,7 +107,7 @@ class ManifestPlanner:
 class ManifestExecutor:
     """Execute one ("manifest", "default") instruction."""
 
-    kinds = (("manifest", "default"),)
+    kinds = (InstructionKind("manifest", "default"),)
     resources = (OutputStorage,)
 
     def execute(
@@ -122,8 +125,7 @@ class ManifestExecutor:
             raise TypeError("manifest instruction requires a relative path")
 
         names = sorted({
-            f"{contribution.artifact.type.namespace}/"
-            f"{contribution.artifact.type.name}"
+            str(contribution.artifact.type)
             for group in context.inputs.values()
             for contribution in group
             if contribution.artifact is not None
@@ -134,8 +136,9 @@ class ManifestExecutor:
         return succeeded(context, {"location": relative_path, "types": len(names)})
 ```
 
-`RECORDS` is an input pattern: `fnmatchcase` matches it against every concrete
-`core/graph.*` output, so one input accepts all node and edge record streams.
+`RECORDS` is an `ArtifactPattern`: `Key.matches` matches it against every
+concrete `core/graph/...` output, so one input accepts all node and edge record
+streams. `*` matches one segment; a final `**` matches the rest.
 The planner declares a `Publication`, so the executor's result appears in the
 report. The instruction carries a JSON payload; the executor reads only that
 payload and its own step's inputs. The executor declares `OutputStorage`, so the
@@ -292,16 +295,16 @@ source, so a language whose declarations cannot be rendered is not complete.
 
 ## Semantics and edge cases
 
-- **Instruction kinds are exact.** `("manifest", "default")` matches only that
-  tuple. Two executors may not claim the same kind; an unclaimed kind in the plan
-  is refused before any step runs.
+- **Instruction kinds are exact.** `InstructionKind("manifest", "default")`
+  matches only that operation and engine. Two executors may not claim the same
+  kind; an unclaimed kind in the plan is refused before any step runs.
 - **A deferred step stays intact.** Use `assembly_preference="deferred"` when an
   executor expects to see its own step as planned.
 - **An input pattern is a question.** Only an `Input` may use a pattern. An
   output or publication names one concrete type.
 - **A disrupted downstream step still reaches its executor.** Return
-  `StepOutcome(step_id, StepStatus.SKIPPED)` for the default policy, or inspect
-  `context.disruptions` and recover deliberately.
+  `StepOutcome(context.step_id, StepStatus.SKIPPED)` for the default policy, or
+  inspect `context.disruptions` and recover deliberately.
 - **Publish a summary when a step writes a side effect.** A publication is how
   the result appears in `WorkflowReport.published_artifacts`.
 - **Runtime fields are execution settings.** Declare one with `RuntimeField` and
@@ -317,12 +320,12 @@ source, so a language whose declarations cannot be rendered is not complete.
 
 | Message or symptom | What to change |
 | --- | --- |
-| `no executor for instruction kind(s)` | Add an executor whose `kinds` contains the exact tuple the planner emitted. |
-| `duplicate executor for instruction kind` | Remove one executor that claims the same tuple. |
+| `no executor for instruction kind(s)` | Add an executor whose `kinds` contains the exact `InstructionKind` the planner emitted. |
+| `duplicate executor for instruction kind` | Remove one executor that claims the same kind. |
 | `planners for component ... disagree on version` | Give every planner that shares a `component_id` the same `version` and `runtime_fields`. |
-| `duplicate step id` | Give each step in one component a unique `name`; identity is `component.name`. |
+| `duplicate step id` | Give each step in one component a unique `name`; the identity is `StepId(component, name)`. |
 | A step has no reader | Make the output a `Publication`, or add a step that consumes it. |
-| `no candidate producer` or `workflow cannot be assembled` | The input pattern matches no output. Check the namespace and name, for example `core/graph.*`. |
+| `no candidate producer` or `workflow cannot be assembled` | The input pattern matches no output. Check its key, for example `ArtifactPattern.of("core", "graph", "**")`. |
 | `executor ... requires missing resource(s)` | Add a provider that supplies every type the executor lists in `resources`. |
 | `duplicate resource type` | Remove one provider that supplies the same exact resource type. |
 | A custom language is refused | Language names must be unique, and a language may produce `SymbolRef`s only in its own `name`. Check `get_references` for unknown references and cycles. |

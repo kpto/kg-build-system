@@ -3,6 +3,10 @@
 These values are frozen and anaemic. Live resources are passed to an executor
 through a ``ResourceView``; they are not stored in the model, and the kernel
 never inspects them.
+
+Step and opening identities are the typed pipeline roles ``StepId`` and
+``OpeningId``. An artifact stores only its output opening name; the outcome it
+belongs to owns the step.
 """
 from __future__ import annotations
 
@@ -12,7 +16,10 @@ from enum import StrEnum
 from pathlib import Path
 from typing import Any, Literal, TypeVar
 
-from .workflow import ArtifactType, Step
+from .key import Key
+from .workflow import (
+    ArtifactType, OpeningDirection, OpeningId, Step, StepId, step_id,
+)
 
 ResourceT = TypeVar("ResourceT")
 
@@ -21,8 +28,10 @@ ResourceT = TypeVar("ResourceT")
 class RuntimeConfiguration:
     """How one workflow run is configured.
 
-    ``component_configuration`` holds per-component runtime values keyed by the
-    component id. ``credentials`` maps a credential reference to its value.
+    ``component_configuration`` holds per-component runtime values keyed by plan
+    component id. ``provider_configuration`` holds resource-provider settings
+    keyed by provider id; ``duckdb`` is a provider key, not a plan component.
+    ``credentials`` maps a credential reference to its value.
 
     Example:
     ```python
@@ -34,6 +43,7 @@ class RuntimeConfiguration:
         output_directory=Path("build"),
         working_directory=Path("build/_workdir"),
         component_configuration={"echo": {"prefix": "hello"}},
+        provider_configuration={"duckdb": {"threads": 2}},
     )
     ```
     """
@@ -43,6 +53,9 @@ class RuntimeConfiguration:
     temporary_directory: Path | None = None
     credentials: Mapping[str, str] = field(default_factory=dict)
     component_configuration: Mapping[str, Mapping[str, Any]] = field(
+        default_factory=dict,
+    )
+    provider_configuration: Mapping[str, Mapping[str, Any]] = field(
         default_factory=dict,
     )
 
@@ -108,34 +121,51 @@ class Failure:
 
     Example:
     ```python
-    from kg_build_system.kernel import Failure
+    from kg_build_system.kernel import Failure, StepId
 
-    failure = Failure("missing source", "echo.echo", "FileNotFoundError")
-    assert failure.step_id == "echo.echo"
+    failure = Failure("missing source", StepId("echo", "echo"), "FileNotFoundError")
+    assert failure.step_id == StepId("echo", "echo")
     ```
     """
 
     message: str
-    step_id: str
+    step_id: StepId
     exception_type: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
 class Artifact:
-    """A value produced by a step under one output name and type.
+    """A value produced by a step under one output opening name and type.
+
+    The artifact does not store its step: the ``StepOutcome`` it belongs to
+    owns that fact. ``opening(step)`` derives the typed opening when needed.
 
     Example:
     ```python
-    from kg_build_system.kernel import Artifact, ArtifactType
+    from kg_build_system.kernel import (
+        Artifact, ArtifactType, Key, OpeningDirection, StepId,
+    )
 
-    artifact = Artifact("value", ArtifactType("echo", "text"), "hello")
-    assert artifact.value == "hello"
+    artifact = Artifact(Key(("value",)), ArtifactType.of("echo", "text"), "hello")
+    opening = artifact.opening(StepId("echo", "echo"))
+    assert opening.direction is OpeningDirection.OUTPUT
     ```
     """
 
-    output_name: str
+    output_name: Key
     type: ArtifactType
     value: Any
+
+    def opening(self, step: StepId) -> OpeningId:
+        """Derive this artifact's output opening on its producing step.
+
+        Example:
+        ```python
+        opening = artifact.opening(StepId("echo", "echo"))
+        assert opening.name == artifact.output_name
+        ```
+        """
+        return OpeningId(step, OpeningDirection.OUTPUT, self.output_name)
 
 
 @dataclass(frozen=True, slots=True)
@@ -145,22 +175,33 @@ class StepOutcome:
     Example:
     ```python
     from kg_build_system.kernel import (
-        Artifact, ArtifactType, StepOutcome, StepStatus,
+        Artifact, ArtifactType, Key, StepId, StepOutcome, StepStatus,
     )
 
     outcome = StepOutcome(
-        "echo.echo",
+        StepId("echo", "echo"),
         StepStatus.SUCCEEDED,
-        (Artifact("value", ArtifactType("echo", "text"), "hello"),),
+        (Artifact(Key(("value",)), ArtifactType.of("echo", "text"), "hello"),),
     )
     assert outcome.status is StepStatus.SUCCEEDED
     ```
     """
 
-    step_id: str
+    step_id: StepId
     status: StepStatus
     artifacts: tuple[Artifact, ...] = ()
     failure: Failure | None = None
+
+    def opening(self, artifact: Artifact) -> OpeningId:
+        """Derive the output opening of one artifact in this outcome.
+
+        Example:
+        ```python
+        opening = outcome.opening(outcome.artifacts[0])
+        assert opening.step == outcome.step_id
+        ```
+        """
+        return artifact.opening(self.step_id)
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,14 +212,19 @@ class ContinuableInput:
 
     Example:
     ```python
-    from kg_build_system.kernel import ContinuableInput, StepStatus
+    from kg_build_system.kernel import (
+        ContinuableInput, Key, OpeningDirection, OpeningId, StepId, StepStatus,
+    )
 
-    ready = ContinuableInput("echo.echo.value", StepStatus.SUCCEEDED, None)
+    output = OpeningId(
+        StepId("echo", "echo"), OpeningDirection.OUTPUT, Key(("value",)),
+    )
+    ready = ContinuableInput(output, StepStatus.SUCCEEDED, None)
     assert ready.artifact is None
     ```
     """
 
-    output_id: str
+    output_id: OpeningId
     status: Literal[StepStatus.SUCCEEDED, StepStatus.WARNING]
     artifact: Artifact | None
 
@@ -191,14 +237,19 @@ class DisruptingInput:
 
     Example:
     ```python
-    from kg_build_system.kernel import DisruptingInput, StepStatus
+    from kg_build_system.kernel import (
+        DisruptingInput, Key, OpeningDirection, OpeningId, StepId, StepStatus,
+    )
 
-    broken = DisruptingInput("echo.echo.value", StepStatus.FAILED, None, None)
+    output = OpeningId(
+        StepId("echo", "echo"), OpeningDirection.OUTPUT, Key(("value",)),
+    )
+    broken = DisruptingInput(output, StepStatus.FAILED, None, None)
     assert broken.failure is None
     ```
     """
 
-    output_id: str
+    output_id: OpeningId
     status: Literal[StepStatus.FAILED, StepStatus.SKIPPED]
     artifact: Artifact | None
     failure: Failure | None
@@ -210,31 +261,37 @@ class ExecutionContext:
 
     ``inputs`` is keyed by the consuming step's declared input name; each value
     is the tuple of continuable upstream results for that input. ``resources``
-    is the executor's own view and ``logger`` is scoped to this step.
+    is the executor's own view and ``logger`` is scoped to this step. The step
+    identity and component are derived from ``step``.
 
     Example:
     ```python
-    from kg_build_system.kernel import ExecutionContext, ResourceView, Step
+    from kg_build_system.kernel import ExecutionContext, ResourceView, StepId
 
     context = ExecutionContext(
         step=step,
-        step_id="echo.echo",
-        component="echo",
         runtime_configuration={},
         inputs={},
         resources=ResourceView({}),
         logger=None,
     )
+    assert context.step_id == StepId(step.component, step.name)
     ```
     """
 
     step: Step
-    step_id: str
-    component: str
     runtime_configuration: Mapping[str, Any]
     inputs: Mapping[str, tuple[ContinuableInput, ...]]
     resources: ResourceView
     logger: Any
+
+    @property
+    def step_id(self) -> StepId:
+        return step_id(self.step)
+
+    @property
+    def component(self) -> str:
+        return self.step.component
 
 
 @dataclass(frozen=True, slots=True)
@@ -252,40 +309,56 @@ class DisruptedExecutionContext:
 
     context = DisruptedExecutionContext(
         step=step,
-        step_id="echo.echo",
-        component="echo",
         runtime_configuration={},
         inputs={},
         disruptions=(),
         resources=ResourceView({}),
         logger=None,
     )
+    assert context.component == step.component
     ```
     """
 
     step: Step
-    step_id: str
-    component: str
     runtime_configuration: Mapping[str, Any]
     inputs: Mapping[str, tuple[ContinuableInput | DisruptingInput, ...]]
     disruptions: tuple[DisruptingInput, ...]
     resources: ResourceView
     logger: Any
 
+    @property
+    def step_id(self) -> StepId:
+        return step_id(self.step)
+
+    @property
+    def component(self) -> str:
+        return self.step.component
+
 
 @dataclass(frozen=True, slots=True)
 class PublishedArtifact:
     """A final artifact of a successful workflow.
 
+    ``opening`` is the publication's output opening. Two publications of one
+    type remain distinguishable because the opening identifies the step and the
+    publication name.
+
     Example:
     ```python
-    from kg_build_system.kernel import ArtifactType, PublishedArtifact
+    from kg_build_system.kernel import (
+        ArtifactType, Key, OpeningDirection, OpeningId, PublishedArtifact,
+        StepId,
+    )
 
-    published = PublishedArtifact(ArtifactType("echo", "text"), "hello")
-    assert published.value == "hello"
+    opening = OpeningId(
+        StepId("echo", "echo"), OpeningDirection.OUTPUT, Key(("result",)),
+    )
+    published = PublishedArtifact(opening, ArtifactType.of("echo", "text"), "hi")
+    assert published.value == "hi"
     ```
     """
 
+    opening: OpeningId
     type: ArtifactType
     value: Any
 
