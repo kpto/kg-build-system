@@ -5,7 +5,7 @@ implementation.
 
 ## Verification
 
-- **177 tests**, **1611 subtests**.
+- **187 tests**, **1618 subtests**.
 - Pyright: **0 errors**.
 - `uv run mkdocs build --strict`: passes.
 - Open Targets KG: **7 tests** pass.

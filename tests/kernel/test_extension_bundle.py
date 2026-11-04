@@ -133,10 +133,7 @@ class EchoExecutor:
 
 
 class EchoResources:
-    def resources(self, configuration):
-        return {}
-
-    def close(self):
+    def on_event(self, event):
         return None
 
 

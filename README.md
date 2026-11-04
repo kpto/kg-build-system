@@ -61,7 +61,7 @@ uv run pyright
 uv run mkdocs build --strict
 ```
 
-Current verification: 177 tests passed, 1611 subtests; pyright 0 errors.
+Current verification: 187 tests passed, 1618 subtests; pyright 0 errors.
 
 The framework is experimental; the guide describes the current model, not a
 compatibility promise.

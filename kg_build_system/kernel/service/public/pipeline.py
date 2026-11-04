@@ -12,6 +12,7 @@ from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Generic, Protocol, TypeVar
 
+from ...model.public.events import Listener, PipelineEvent
 from ...model.public.language import Language, Namespace, ReferenceResolver
 from ...model.public.runtime import (
     DisruptedExecutionContext,
@@ -208,41 +209,30 @@ class Resource(Protocol):
 
 
 class ResourceProvider(Protocol):
-    """Create and close the live resources one execution needs.
+    """Create and dispose the live resources one execution needs.
 
-    Resources are opaque to the kernel and keyed by their exact type. The
-    runtime opens every provider before the first step and closes every provider
-    in reverse order afterwards, even when execution raises.
+    A provider is an event listener. It adds resources to
+    ``PipelineStarted.resources`` and disposes them when it receives
+    ``PipelineFinished`` or ``PipelineHalted``. A provider that never saw
+    ``PipelineStarted`` does nothing.
 
     Example:
     ```python
-    class EchoResources:
-        def resources(self, configuration):
-            return {str: "connected"}
+    from kg_build_system.kernel import PipelineStarted
 
-        def close(self):
-            pass
+    class EchoResources:
+        def on_event(self, event):
+            if isinstance(event, PipelineStarted):
+                event.resources.add(str, "connected")
     ```
     """
 
-    def resources(
-        self, configuration: RuntimeConfiguration,
-    ) -> Mapping[type, Any]:
-        """Create the resources for one execution.
+    def on_event(self, event: PipelineEvent) -> None:
+        """Handle one pipeline event.
 
         Example:
             ```python
-            resources = EchoResources().resources(configuration)
-            ```
-        """
-        ...
-
-    def close(self) -> None:
-        """Release every resource this provider owns.
-
-        Example:
-            ```python
-            EchoResources().close()
+            provider.on_event(PipelineStarted(plan, configuration, resources))
             ```
         """
         ...
@@ -252,8 +242,8 @@ class Runtime(Protocol):
     """Open resources, schedule a workflow plan and dispatch its steps.
 
     ``executors`` is an exact-kind map built by the toolchain; every instruction
-    kind in the plan is guaranteed to have an executor. ``monitor`` is opaque to
-    the kernel.
+    kind in the plan is guaranteed to have an executor. ``listeners`` are the
+    frontend observers subscribed to this run.
 
     Example:
     ```python
@@ -267,7 +257,7 @@ class Runtime(Protocol):
         executors: Mapping[InstructionKind, StepExecutor],
         *,
         configuration: RuntimeConfiguration,
-        monitor: Any = None,
+        listeners: Sequence[Listener] = (),
     ) -> WorkflowReport:
         """Run one plan and return its report.
 
@@ -347,12 +337,13 @@ class Toolchain(Generic[ModelT]):
         *,
         output_directory: Path,
         configuration: RuntimeConfiguration | None = None,
-        monitor: Any = None,
+        listeners: Sequence[Listener] = (),
     ) -> WorkflowReport:
         """Execute a plan through the registered executors and runtime.
 
         A duplicate instruction kind or a plan instruction with no executor is
-        refused before any step runs. The runtime opens and closes resources.
+        refused before any step runs. The runtime emits the pipeline events and
+        its providers own the resource lifecycle.
 
         Example:
         ```python
@@ -372,7 +363,7 @@ class Toolchain(Generic[ModelT]):
             plan,
             output_directory=output_directory,
             configuration=configuration,
-            monitor=monitor,
+            listeners=listeners,
         )
 
     def with_planners(

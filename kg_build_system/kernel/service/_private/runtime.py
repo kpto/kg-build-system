@@ -14,8 +14,19 @@ import json
 from collections import defaultdict
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
-from typing import Any, Literal, Protocol, cast
+from typing import Any, Literal, cast
 
+from ...model.public.events import (
+    EventBus,
+    Listener,
+    PipelineFinished,
+    PipelineHalted,
+    PipelineStarted,
+    ResourceRegistry,
+    StepFinished,
+    StepLogged,
+    StepStarted,
+)
 from ...model.public.key import Key
 from ...model.public.runtime import (
     Artifact,
@@ -50,87 +61,21 @@ def _unresolved(step: Step, role: str) -> ValueError:
     return ValueError(f"step {step_id(step)} has an unresolved {role}")
 
 
-class WorkflowMonitor(Protocol):
-    """A minimal observer for one workflow execution."""
-
-    def start(self, plan: WorkflowPlan) -> None:
-        """Begin observing one workflow."""
-        ...
-
-    def step_started(self, step_id: StepId, detail: str) -> None:
-        """Record that one step started."""
-        ...
-
-    def step_finished(self, outcome: StepOutcome, detail: str) -> None:
-        """Record that one step finished."""
-        ...
-
-    def workflow_finished(self, report: WorkflowReport) -> None:
-        """Record the completed report."""
-        ...
-
-    def workflow_halted(self, message: str) -> None:
-        """Record that execution halted."""
-        ...
-
-    def stop(self) -> None:
-        """Stop observing and release presentation resources."""
-        ...
-
-
-class NullWorkflowMonitor:
-    """No-op observer for non-interactive and embedded execution."""
-
-    def start(self, plan: WorkflowPlan) -> None:
-        """Begin observing one workflow."""
-        pass
-
-    def step_started(self, step_id: StepId, detail: str) -> None:
-        """Record that one step started."""
-        pass
-
-    def step_finished(self, outcome: StepOutcome, detail: str) -> None:
-        """Record that one step finished."""
-        pass
-
-    def workflow_finished(self, report: WorkflowReport) -> None:
-        """Record the completed report."""
-        pass
-
-    def workflow_halted(self, message: str) -> None:
-        """Record that execution halted."""
-        pass
-
-    def stop(self) -> None:
-        """Stop observing and release presentation resources."""
-        pass
-
-
-def _notify(monitor: Any, name: str, *arguments: Any) -> None:
-    method = getattr(monitor, name, None)
-    if callable(method):
-        method(*arguments)
-
-
 def _resource_name(resource: type) -> str:
     """The fully qualified name of one resource type."""
     return f"{resource.__module__}.{resource.__qualname__}"
 
 
 class _StepLogger:
-    """A logger scoped to one step, backed by the workflow monitor."""
+    """A logger scoped to one step, emitting ``StepLogged`` on the run's bus."""
 
-    def __init__(self, step_id: StepId, monitor: Any) -> None:
+    def __init__(self, step_id: StepId, bus: EventBus) -> None:
         self._step_id = step_id
-        self._logger = _monitor_logger(monitor)
+        self._bus = bus
 
     def _write(self, level: str, message: str, args: tuple[Any, ...]) -> None:
-        logger = self._logger
-        if logger is None:
-            return
-        method = getattr(logger, level, None)
-        if callable(method):
-            method(f"[{self._step_id}] {message}", *args)
+        text = message % args if args else message
+        self._bus.emit(StepLogged(self._step_id, level, text))
 
     def debug(self, message: str, *args: Any) -> None:
         self._write("debug", message, args)
@@ -143,36 +88,6 @@ class _StepLogger:
 
     def error(self, message: str, *args: Any) -> None:
         self._write("error", message, args)
-
-
-def _monitor_logger(monitor: Any) -> Any:
-    """The logging-like object a monitor exposes, when it exposes one."""
-    logger = getattr(monitor, "logger", None)
-    if logger is not None:
-        return logger
-    if all(
-        callable(getattr(monitor, level, None))
-        for level in ("debug", "info", "warning", "error")
-    ):
-        return monitor
-    return None
-
-
-def _open_resources(
-    providers: Sequence[Any], configuration: RuntimeConfiguration,
-) -> dict[type, Any]:
-    """Open every provider and merge its typed resources."""
-    merged: dict[type, Any] = {}
-    for provider in providers:
-        provided = dict(provider.resources(configuration))
-        for resource, value in provided.items():
-            if resource in merged:
-                raise ValueError(
-                    "duplicate resource type "
-                    f"{_resource_name(resource)} provided by more than one provider"
-                )
-            merged[resource] = value
-    return merged
 
 
 def _executor_views(
@@ -196,19 +111,6 @@ def _executor_views(
             {resource: merged[resource] for resource in declared},
         )
     return views
-
-
-def _close_resources(providers: Sequence[Any]) -> None:
-    """Close every provider in reverse order, even when one close raises."""
-    failure: Exception | None = None
-    for provider in reversed(tuple(providers)):
-        try:
-            provider.close()
-        except Exception as error:
-            if failure is None:
-                failure = error
-    if failure is not None:
-        raise failure
 
 
 @dataclass(frozen=True, slots=True)
@@ -507,7 +409,7 @@ def _execute_step(
     views: Mapping[int, ResourceView],
     state: _ExecutionState,
     configuration: RuntimeConfiguration,
-    monitor: Any,
+    bus: EventBus,
 ) -> _StepRun:
     """Run one ready step through its instruction executor."""
     identity = step_id(step)
@@ -515,7 +417,7 @@ def _execute_step(
         f"Processing {len(step.inputs)} input(s) → "
         f"{len(step.outputs)} output(s)"
     )
-    _notify(monitor, "step_started", identity, detail)
+    bus.emit(StepStarted(identity, detail))
     by_input, disruptions, inherited_failures = _gather_inputs(
         step, scheduled, state,
     )
@@ -530,7 +432,7 @@ def _execute_step(
             f"no executor for instruction kind {step.instruction.kind}"
         )
     resources = views[id(executor)]
-    logger = _StepLogger(identity, monitor)
+    logger = _StepLogger(identity, bus)
     try:
         if disruptions:
             context = DisruptedExecutionContext(
@@ -557,6 +459,8 @@ def _execute_step(
             )
         outcome = executor.execute(context, step.instruction)
     except Exception as error:
+        if bus.failure is not None:
+            raise bus.failure
         outcome = StepOutcome(
             step_id=identity,
             status=StepStatus.FAILED,
@@ -613,7 +517,7 @@ def _execute(
     executors: Mapping[InstructionKind, Any],
     views: Mapping[int, ResourceView],
     configuration: RuntimeConfiguration,
-    monitor: Any,
+    bus: EventBus,
 ) -> _ExecutionState:
     """Run every step in waves whose producers have all completed."""
     state = _ExecutionState()
@@ -633,11 +537,11 @@ def _execute(
                 views=views,
                 state=state,
                 configuration=configuration,
-                monitor=monitor,
+                bus=bus,
             )
             _record_step(step, run, state, pending)
             detail = _outcome_detail(run.outcome)
-            _notify(monitor, "step_finished", run.outcome, detail)
+            bus.emit(StepFinished(run.outcome, detail))
     return state
 
 
@@ -729,47 +633,45 @@ class WorkflowRuntime:
         executors: Mapping[InstructionKind, Any],
         *,
         configuration: RuntimeConfiguration,
-        monitor: Any = None,
+        listeners: Sequence[Listener] = (),
     ) -> WorkflowReport:
         """Run one plan and return its report."""
-        observer: Any = (
-            NullWorkflowMonitor()
-            if monitor is None or isinstance(monitor, bool)
-            else monitor
-        )
-        _notify(observer, "start", plan)
+        bus = EventBus()
+        for provider in self._providers:
+            bus.subscribe(provider.on_event)
+        for listener in listeners:
+            bus.subscribe(listener)
+        resources = ResourceRegistry()
         try:
+            bus.emit(PipelineStarted(plan, configuration, resources))
+            views = _executor_views(executors, resources.snapshot())
+            scheduled = schedule(plan)
+            unknown = sorted(
+                set(configuration.component_configuration)
+                - set(scheduled.components)
+            )
+            if unknown:
+                raise ValueError(
+                    "unknown component configuration: " + ", ".join(unknown)
+                )
+            state = _execute(
+                scheduled, executors, views, configuration, bus,
+            )
+            published, recovered, unresolved = _classify(scheduled, state)
+            report = _report(
+                plan,
+                published=published,
+                recovered=recovered,
+                unresolved=unresolved,
+            )
+            bus.emit(PipelineFinished(report))
+            return report
+        except BaseException as error:
             try:
-                merged = _open_resources(self._providers, configuration)
-                views = _executor_views(executors, merged)
-                scheduled = schedule(plan)
-                unknown = sorted(
-                    set(configuration.component_configuration)
-                    - set(scheduled.components)
-                )
-                if unknown:
-                    raise ValueError(
-                        "unknown component configuration: " + ", ".join(unknown)
-                    )
-                state = _execute(
-                    scheduled, executors, views, configuration, observer,
-                )
-                published, recovered, unresolved = _classify(scheduled, state)
-                report = _report(
-                    plan,
-                    published=published,
-                    recovered=recovered,
-                    unresolved=unresolved,
-                )
-                _notify(observer, "workflow_finished", report)
-                return report
-            finally:
-                _close_resources(self._providers)
-        except Exception as error:
-            _notify(observer, "workflow_halted", str(error))
+                bus.emit(PipelineHalted(error))
+            except BaseException:
+                pass
             raise
-        finally:
-            _notify(observer, "stop")
 
 
 def succeeded(
@@ -801,6 +703,5 @@ def skipped(context: DisruptedExecutionContext) -> StepOutcome:
 
 
 __all__ = [
-    "NullWorkflowMonitor", "Schedule", "WorkflowMonitor", "WorkflowRuntime",
-    "schedule", "skipped", "succeeded",
+    "Schedule", "WorkflowRuntime", "schedule", "skipped", "succeeded",
 ]

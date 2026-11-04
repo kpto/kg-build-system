@@ -10,6 +10,7 @@ from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
+from ...model.public.events import Listener
 from ...model.public.runtime import RuntimeConfiguration
 from ...model.public.workflow import (
     Component,
@@ -81,7 +82,7 @@ def execute_plan(
     *,
     output_directory: Path,
     configuration: RuntimeConfiguration | None = None,
-    monitor: Any = None,
+    listeners: Sequence[Listener] = (),
 ) -> Any:
     """Resolve instruction kinds and run one plan through the runtime."""
     by_kind: dict[InstructionKind, Any] = {}
@@ -114,7 +115,7 @@ def execute_plan(
         plan,
         by_kind,
         configuration=resolved,
-        monitor=monitor,
+        listeners=listeners,
     )
 
 

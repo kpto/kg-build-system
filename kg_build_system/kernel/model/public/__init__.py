@@ -7,6 +7,18 @@ private module.
 """
 from __future__ import annotations
 
+from .events import (
+    EventBus,
+    Listener,
+    PipelineEvent,
+    PipelineFinished,
+    PipelineHalted,
+    PipelineStarted,
+    ResourceRegistry,
+    StepFinished,
+    StepLogged,
+    StepStarted,
+)
 from .key import Key
 from .language import (
     Language, Namespace, ReferenceResolver, RenderContext, SourceFragment,
@@ -61,13 +73,15 @@ __all__ = [
     "BOOL", "CANONICAL_UNIT_NAMES", "Component", "Connection",
     "ContinuableInput", "CustomDataType", "CustomType", "DATE", "Date",
     "Declaration", "DisruptedExecutionContext", "DisruptingInput",
-    "ExecutionContext", "FLOAT", "Failure", "Given", "Input", "INT",
-    "Instruction", "InstructionKind", "JsonValue", "Key", "Language",
-    "LogicalType", "Namespace", "NonNullableLogicalType", "Nullable",
-    "NullableType", "OpeningDirection", "OpeningId", "Output",
+    "EventBus", "ExecutionContext", "FLOAT", "Failure", "Given", "Input",
+    "INT", "Instruction", "InstructionKind", "JsonValue", "Key", "Language",
+    "Listener", "LogicalType", "Namespace", "NonNullableLogicalType",
+    "Nullable", "NullableType", "OpeningDirection", "OpeningId", "Output",
+    "PipelineEvent", "PipelineFinished", "PipelineHalted", "PipelineStarted",
     "Publication", "PublishedArtifact", "ReferenceResolver", "RenderContext",
-    "ResourceView", "RuntimeConfiguration", "RuntimeField", "STR", "Shape",
-    "SourceFragment", "Step", "StepId", "StepOutcome", "StepStatus", "Struct",
+    "ResourceRegistry", "ResourceView", "RuntimeConfiguration", "RuntimeField",
+    "STR", "Shape", "SourceFragment", "Step", "StepFinished", "StepId",
+    "StepLogged", "StepOutcome", "StepStarted", "StepStatus", "Struct",
     "StructType", "Symbol", "SymbolContext", "SymbolRef",
     "TEXT_CANONICAL_UNIT_NAMES", "TIME", "TIMESTAMP", "Time", "Timestamp",
     "UUID", "UnitType", "UnitTypeName", "Uuid", "WorkflowPlan",

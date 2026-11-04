@@ -142,8 +142,11 @@ rule about what the framework is belongs to the framework model.
 - A module is a feature package, not a protocol and not a registry entry. It
   groups one feature's planners, executors, resources and configuration.
 - The runtime owns the resource providers; `Toolchain` has no `resources` field.
-  An executor declares the exact `resources` it reads and receives a
-  `ResourceView`; the runtime opens, merges, validates and closes the providers.
+  The pipeline emits events; a monitor is a frontend listener and a provider is
+  an event subscriber that creates resources on pipeline start and disposes them
+  on finish or halt. An executor declares the exact `resources` it reads and
+  receives a `ResourceView`; the runtime validates the declarations against the
+  resource registry. A listener error is a pipeline failure.
 - `api.py` is the composition root. It owns `default_toolchain`,
   `DEFAULT_TOOLCHAIN`, `create_blueprint`, `compile` and `execute`; the
   distribution supplies implementations only.
@@ -333,7 +336,8 @@ rule about what the framework is belongs to the framework model.
 - A leading underscore means module-private or package-private. A private helper
   inside one service module is allowed; a private name exported from
   `model/public/`, `model/internal/`, `service/public/` or `service/internal/`,
-  or imported across packages, is not. Shared mechanisms belong in `_private`.
+  or imported or read as an attribute across a module boundary, is not. Shared
+  mechanisms belong in `_private`.
 - A private helper stays beside its caller. Move it to `_private` only when it is
   shared by several modules or is independently replaceable; otherwise the move
   splits one decision and adds an import edge.

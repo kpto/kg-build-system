@@ -10,6 +10,9 @@ from kg_build_system.kernel import (
     Instruction,
     InstructionKind,
     Key,
+    PipelineFinished,
+    PipelineHalted,
+    PipelineStarted,
     Publication,
     ResourceView,
     RuntimeConfiguration,
@@ -17,6 +20,7 @@ from kg_build_system.kernel import (
     StepOutcome,
     StepStatus,
     WorkflowPlan,
+    WorkflowReport,
     WorkflowRuntime,
 )
 
@@ -51,13 +55,17 @@ class _Provider:
         self.name = name
         self.values = values
         self.events = events
+        self.started = False
 
-    def resources(self, configuration):
-        self.events.append(f"{self.name}:open")
-        return self.values
-
-    def close(self):
-        self.events.append(f"{self.name}:close")
+    def on_event(self, event: object) -> None:
+        if isinstance(event, PipelineStarted):
+            self.events.append(f"{self.name}:start")
+            self.started = True
+            for resource, value in self.values.items():
+                event.resources.add(resource, value)
+        elif isinstance(event, (PipelineFinished, PipelineHalted)) and self.started:
+            self.events.append(f"{self.name}:dispose")
+            self.started = False
 
 
 class _Executor:
@@ -92,7 +100,13 @@ class RuntimeResourceTests(unittest.TestCase):
                 _plan(), {KIND: _Executor()}, configuration=_configuration(),
             )
 
-        self.assertEqual(events, ["first:open", "second:open", "second:close", "first:close"])
+        self.assertEqual(
+            events,
+            [
+                "first:start", "second:start",
+                "first:dispose", "second:dispose",
+            ],
+        )
 
     def test_a_missing_declared_resource_is_refused_before_any_step(self) -> None:
         events: list[str] = []
@@ -105,7 +119,7 @@ class RuntimeResourceTests(unittest.TestCase):
             )
 
         self.assertEqual(executor.seen, [])
-        self.assertEqual(events, ["only:open", "only:close"])
+        self.assertEqual(events, ["only:start", "only:dispose"])
 
     def test_an_executor_receives_only_its_declared_resources(self) -> None:
         events: list[str] = []
@@ -123,7 +137,7 @@ class RuntimeResourceTests(unittest.TestCase):
         with self.assertRaisesRegex(KeyError, "builtins.str"):
             view.get(str)
 
-    def test_providers_close_in_reverse_order_when_a_step_raises(self) -> None:
+    def test_a_failed_step_still_disposes_its_providers(self) -> None:
         events: list[str] = []
         executor = _Executor((int,), fail=True)
         runtime = WorkflowRuntime(providers=(
@@ -139,10 +153,18 @@ class RuntimeResourceTests(unittest.TestCase):
         self.assertEqual(
             events,
             [
-                "first:open", "second:open",
-                "second:close", "first:close",
+                "first:start", "second:start",
+                "first:dispose", "second:dispose",
             ],
         )
+
+    def test_a_provider_that_never_saw_start_does_nothing(self) -> None:
+        events: list[str] = []
+        provider = _Provider("idle", {int: 1}, events)
+
+        provider.on_event(PipelineFinished(WorkflowReport((), (), (), {})))
+
+        self.assertEqual(events, [])
 
 
 if __name__ == "__main__":

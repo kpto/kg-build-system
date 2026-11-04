@@ -157,9 +157,15 @@ means:
 
 `execute` dispatches each step by the exact `InstructionKind` in
 `step.instruction.kind`. A kind the toolchain does not register is refused before
-any step runs. The runtime
-opens the registered resource providers, gives each executor only the resource
-types it declared, and closes the providers in reverse order when the run ends.
+any step runs. The runtime emits pipeline events; the registered resource
+providers subscribe to those events, publish their resources on
+`PipelineStarted`, and give each executor only the resource types it declared.
+The providers dispose their resources on `PipelineFinished` or `PipelineHalted`.
+
+`execute(..., monitor=True)` subscribes a simple console monitor to the event
+stream; pass a monitor object to present events yourself, or leave `monitor` as
+`None`/`False` for a silent run. A monitor observes the run and cannot change
+its plan, resources or report.
 
 ## Durability and implementation versions
 

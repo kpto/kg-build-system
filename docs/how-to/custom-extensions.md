@@ -22,7 +22,7 @@ The kernel protocols are importable from `kg_build_system.kernel`:
 | `Linker` | select roots, resolve the symbol closure and assemble one opaque model |
 | `Planner` | compile the model into `Step`s for one component |
 | `StepExecutor` | execute one exact instruction kind and declare its resources |
-| `ResourceProvider` | create and close the live resources one execution needs |
+| `ResourceProvider` | subscribe to pipeline events and own the resources one execution needs |
 | `Toolchain` | compose languages, linker, planners, executors and runtime |
 
 A planner needs a `component_id`, a `version`, a `runtime_fields` tuple and a
@@ -312,7 +312,8 @@ source, so a language whose declarations cannot be rendered is not complete.
   configuration.
 - **Resources are declared, not fetched.** List the exact resource types in the
   executor's `resources` tuple and read them from `context.resources.get(...)`.
-  The runtime owns the providers and closes them in reverse order.
+  A provider publishes them on `PipelineStarted` and disposes them on
+  `PipelineFinished` or `PipelineHalted`; the runtime owns the providers.
 - **An executor does not schedule.** The runtime owns scheduling, input
   classification and the step lifecycle.
 

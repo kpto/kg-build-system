@@ -3,12 +3,18 @@ from __future__ import annotations
 
 from pathlib import Path
 from tempfile import mkdtemp
-from typing import Any
 
 from kg_build_system.distribution.service.internal.relations import (
     RelationService,
 )
-from kg_build_system.kernel import RuntimeConfiguration
+from kg_build_system.kernel import (
+    PipelineEvent,
+    PipelineFinished,
+    PipelineHalted,
+    PipelineStarted,
+    ResourceRegistry,
+    RuntimeConfiguration,
+)
 
 from .engine.session import DuckDbSettings, open_engine
 from .service import DuckDbService
@@ -42,8 +48,10 @@ def _settings(configuration: RuntimeConfiguration) -> DuckDbSettings:
 class DuckDbResourceProvider:
     """Provide the DuckDB engine and its non-owning relation service.
 
-    The provider creates only the engine's private storage directory. Output,
-    working, temporary and credential resources belong to ``RuntimeResources``.
+    The provider creates only the engine's private storage directory when it
+    receives ``PipelineStarted``. Output, working, temporary and credential
+    resources belong to ``RuntimeResources``. The engine is closed on
+    ``PipelineFinished`` or ``PipelineHalted``.
 
     Example:
     ```python
@@ -52,24 +60,31 @@ class DuckDbResourceProvider:
     )
 
     provider = DuckDbResourceProvider()
-    resources = provider.resources(configuration)
-    provider.close()
+    provider.on_event(event)
     ```
     """
 
     def __init__(self) -> None:
         self._services: list[DuckDbService] = []
 
-    def resources(
-        self, configuration: RuntimeConfiguration,
-    ) -> dict[type, Any]:
-        """Open the engine and expose it with its relation service.
+    def on_event(self, event: PipelineEvent) -> None:
+        """Open the engine on start and close it on finish or halt.
 
         Example:
-        ```python
-        resources = DuckDbResourceProvider().resources(configuration)
-        ```
+            ```python
+            provider.on_event(PipelineStarted(plan, configuration, resources))
+            ```
         """
+        if isinstance(event, PipelineStarted):
+            self._create(event.configuration, event.resources)
+        elif isinstance(event, (PipelineFinished, PipelineHalted)):
+            self._dispose()
+
+    def _create(
+        self,
+        configuration: RuntimeConfiguration,
+        resources: ResourceRegistry,
+    ) -> None:
         settings = _settings(configuration)
         working_directory = configuration.working_directory
         working_directory.mkdir(parents=True, exist_ok=True)
@@ -79,19 +94,10 @@ class DuckDbResourceProvider:
         engine = open_engine(settings, storage_directory)
         service = DuckDbService(engine)
         self._services.append(service)
-        return {
-            DuckDbService: service,
-            RelationService: service.relations,
-        }
+        resources.add(DuckDbService, service)
+        resources.add(RelationService, service.relations)
 
-    def close(self) -> None:
-        """Close every engine this provider opened, in reverse order.
-
-        Example:
-        ```python
-        DuckDbResourceProvider().close()
-        ```
-        """
+    def _dispose(self) -> None:
         services = self._services
         self._services = []
         for service in reversed(services):

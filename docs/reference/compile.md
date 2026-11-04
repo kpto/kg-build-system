@@ -159,6 +159,7 @@ execute(
     output_directory: str | Path,
     runtime: BuildRuntime | None = None,
     toolchain: Toolchain[GraphBlueprint] | None = None,
+    monitor: Monitor | bool | None = None,
 ) -> WorkflowReport
 ```
 
@@ -168,6 +169,11 @@ execute(
 | `output_directory` | Where publications, `workflow_plan.json` and `build_report.json` land |
 | `runtime` | Credentials, component runtime overrides and engine settings |
 | `toolchain` | The executors, resources and runtime; defaults to `DEFAULT_TOOLCHAIN` |
+| `monitor` | `None`/`False` presents nothing; `True` selects `ConsoleMonitor`; a monitor is used as supplied |
+
+A monitor is a frontend listener on the pipeline event stream: `PipelineStarted`,
+`StepStarted`, `StepFinished`, `StepLogged`, `PipelineFinished` and
+`PipelineHalted`. It cannot change scheduling, resources or the report.
 
 `execute` writes the plan before execution starts and the report after it
 finishes. It dispatches each step by the exact `InstructionKind` in

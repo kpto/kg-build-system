@@ -16,8 +16,9 @@ by `component_id`, accepts several planners in one group only when their
 versions and runtime fields agree, refuses duplicate step ids, assembles inputs
 to outputs and refuses a missing producer or a cycle. `execute` maps exact
 instruction kinds, refuses a duplicate kind or a kind with no executor before
-any step runs, opens every resource provider, builds one exact view per executor
-and closes providers in reverse order.
+any step runs, creates a fresh event bus and resource registry, subscribes the
+providers and listeners, emits the pipeline lifecycle, builds one exact view per
+executor and lets providers dispose their resources on finish or halt.
 
 The tests use fake languages, linkers, planners, executors, providers and a fake
 runtime. None imports the distribution. This is the proof that the kernel is
@@ -31,9 +32,12 @@ Current coverage:
 - `tests/kernel/test_toolchain_flow.py` — the full `build -> compile -> execute`
   flow, duplicate step ids, unregistered instruction kinds, duplicate executor
   kinds and the workflow-plan codec round trip.
-- `tests/kernel/test_runtime_resources.py` — resource opening and closing,
-  duplicate resource types, missing declared resources and the per-executor
-  resource view.
+- `tests/kernel/test_runtime_resources.py` — provider resource publication on
+  `PipelineStarted`, disposal on finish and halt, duplicate resource types,
+  missing declared resources and the per-executor resource view.
+- `tests/kernel/test_runtime_events.py` — the event lifecycle, halt events,
+  listener errors, listener isolation between runs, `StepLogged` and the API
+  monitor listener.
 - `tests/kernel/test_extension_bundle.py` — one language, linker, planner,
   executor and provider composed into a `Toolchain`.
 - `tests/kernel/test_import_isolation.py` — importing the kernel does not load a
@@ -190,7 +194,7 @@ Current coverage:
 
 ## Verification
 
-- 177 tests passed, 1611 subtests.
+- 187 tests passed, 1618 subtests.
 - Pyright: 0 errors.
 - Open Targets: 7 tests passed.
 - `uv run mkdocs build --strict`: passes.

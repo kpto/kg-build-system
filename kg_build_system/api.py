@@ -44,6 +44,7 @@ from .distribution.interpreter import GraphBlueprint, create_blueprint as _creat
 from .distribution.languages.binding import Binding
 from .distribution.languages.data import BoundSource
 from .distribution.model.public.runtime import BuildRuntime
+from .frontend import Monitor, resolve_monitor
 from .kernel import (
     RuntimeConfiguration,
     StepExecutor,
@@ -214,12 +215,15 @@ def execute(
     output_directory: str | Path,
     runtime: BuildRuntime | None = None,
     toolchain: Toolchain[GraphBlueprint] | None = None,
+    monitor: Monitor | bool | None = None,
 ) -> WorkflowReport:
     """Execute a workflow plan and return its report.
 
     The output directory is an execution argument, not a build setting: the
     supplied ``BuildRuntime`` states credentials, component overrides and engine
     settings, while ``output_directory`` states where this run writes.
+    ``monitor`` is a frontend listener: ``None`` and ``False`` present nothing,
+    ``True`` selects a ``ConsoleMonitor`` and a monitor is used as supplied.
 
     Example:
         ```python
@@ -245,10 +249,13 @@ def execute(
         ),
         encoding="utf-8",
     )
+    selected_monitor = resolve_monitor(monitor)
+    listeners = () if selected_monitor is None else (selected_monitor,)
     report = selected.execute(
         plan,
         output_directory=destination,
         configuration=configuration,
+        listeners=listeners,
     )
     (destination / "build_report.json").write_text(
         json.dumps(

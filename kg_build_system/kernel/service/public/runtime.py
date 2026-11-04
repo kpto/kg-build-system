@@ -6,8 +6,8 @@ classification and the step lifecycle live in ``kernel.service._private.runtime`
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from typing import Any
 
+from ...model.public.events import Listener
 from ...model.public.runtime import RuntimeConfiguration, WorkflowReport
 from ...model.public.workflow import InstructionKind, WorkflowPlan
 from .pipeline import ResourceProvider, StepExecutor
@@ -18,8 +18,9 @@ class WorkflowRuntime:
 
     The runtime is the kernel's default ``Runtime`` implementation. It is
     transport-agnostic: resources and instruction payloads are opaque. Each
-    execution opens every provider, builds one view per executor and closes the
-    providers in reverse order.
+    execution creates a fresh event bus and resource registry, subscribes its
+    providers and frontend listeners, emits the pipeline lifecycle and builds
+    one resource view per executor.
 
     Example:
     ```python
@@ -38,7 +39,7 @@ class WorkflowRuntime:
         executors: Mapping[InstructionKind, StepExecutor],
         *,
         configuration: RuntimeConfiguration,
-        monitor: Any = None,
+        listeners: Sequence[Listener] = (),
     ) -> WorkflowReport:
         """Run one plan and return its report.
 
@@ -55,7 +56,7 @@ class WorkflowRuntime:
             plan,
             executors,
             configuration=configuration,
-            monitor=monitor,
+            listeners=listeners,
         )
 
 

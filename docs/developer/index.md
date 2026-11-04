@@ -29,21 +29,24 @@ framework model, the package boundaries and the contract tests.
 
 ## Current state
 
-The implemented tree is `kernel`, `distribution`, `generation`, `api.py` and
-`cli`. The kernel type vocabulary is re-exported by the package root. Every leaf
-uses the zones it needs from `model/` and `service/`; shared mechanisms live in
-the package that consumes them, for example JSON freezing in
+The implemented tree is `kernel`, `distribution`, `frontend`, `generation`,
+`api.py` and `cli`. The kernel type vocabulary is re-exported by the package
+root. Every leaf uses the zones it needs from `model/` and `service/`; shared
+mechanisms live in the package that consumes them, for example JSON freezing in
 `kernel/model/internal/json.py`, the scheduler in
-`kernel/service/_private/runtime.py`, and naming and docstring helpers in
+`kernel/service/_private/runtime.py`, the pipeline event model in
+`kernel/model/public/events.py`, frontend monitors in `frontend/monitor.py`, and
+naming and docstring helpers in
 `distribution/languages/data/service/_private/`.
 
 | Area | Implementation | Remaining limit |
 | --- | --- | --- |
-| Kernel | `Language`, `Declaration`, `Symbol`, `SymbolRef`, `Key`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `Resource`, `ResourceProvider`, `ResourceView`, `Toolchain` in `kernel/service/public`; the workflow and runtime values in `kernel/model/public`; canonical types in `kernel/model/public/types` | A toolchain is the only composition unit |
+| Kernel | `Language`, `Declaration`, `Symbol`, `SymbolRef`, `Key`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `Resource`, `ResourceProvider`, `ResourceView`, `Toolchain` in `kernel/service/public`; the workflow, runtime and event values in `kernel/model/public`; canonical types in `kernel/model/public/types` | A toolchain is the only composition unit |
 | Languages | `discover_declarations`, `compute_key`, `get_kind`, `owns`, `get_identity`, `get_references`, `transcribe_many` and `render` in the expressions, data, topology and binding services; annotations remain inline | Custom operations outside the static registry are not symbol declarations |
 | Blueprint | `create_blueprint(...) -> GraphBlueprint`; `BlueprintLinker` implements the kernel `Linker` protocol through `service/internal/adapters/kernel_linker.py`; typed references in `distribution/model/public/refs.py` | Public `GraphBlueprint` fields reference internal language DTOs |
 | Planning | `compile(model) -> WorkflowPlan`; the core module has five planners sharing `component_id="core"`, plus deduplication, merging and conflict-validation planners | The core planners depend on the DuckDB SQL emitter |
-| Execution | `execute(plan, output_directory=...) -> WorkflowReport`; the kernel scheduler dispatches by exact `instruction.kind`; the runtime owns `ResourceProvider`s; `DuckDbResourceProvider`, `DuckDbService` and `RuntimeResources` own the live resources | DuckDB is the default engine |
+| Execution | `execute(plan, output_directory=..., monitor=...) -> WorkflowReport`; the kernel emits `PipelineEvent`s and dispatches by exact `instruction.kind`; providers subscribe to the run and publish resources on `PipelineStarted`; `DuckDbResourceProvider`, `DuckDbService` and `RuntimeResources` own the live resources | DuckDB is the default engine |
+| Frontend | `Monitor`, `NullMonitor`, `ConsoleMonitor` and `resolve_monitor` in `frontend/monitor.py`; `api.execute(monitor=...)` subscribes the selected listener | `rich` is optional and loaded lazily |
 | DTO names | `*DTO` names; cross-symbol fields carry role-typed refs such as `NodeRef` and `FieldRef`, never a bare name or `symbol_id` | None |
 | Source regeneration | Each language renders its own DTO; the blueprint source service delegates to the language renderers | Python binding source is a reference, not the callable body |
 | Distribution | `kg_build_system.api` exports `DEFAULT_TOOLCHAIN` and `default_toolchain`; the distribution supplies implementations; planners and executors are opt-in | None |
@@ -51,7 +54,7 @@ the package that consumes them, for example JSON freezing in
 
 ## Verification
 
-- 177 tests passed, 1611 subtests.
+- 187 tests passed, 1618 subtests.
 - Pyright: 0 errors.
 - `uv run mkdocs build --strict`: passes.
 - Open Targets: 7 tests passed.

@@ -240,7 +240,7 @@ The remaining limits are:
 - public `GraphBlueprint` fields reference internal language DTOs;
 - the core planners depend on the DuckDB SQL emitter.
 
-Verification: 177 tests passed, 1611 subtests; pyright 0 errors; the Open Targets
+Verification: 187 tests passed, 1618 subtests; pyright 0 errors; the Open Targets
 project passes 7 tests against the API.
 
 See [system design](system-design.md) for the layout and [testing](testing.md)

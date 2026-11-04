@@ -21,9 +21,12 @@ The kernel vocabulary is toolchain vocabulary:
 | `WorkflowPlan` | one assembled instruction DAG |
 | `Step` | one scheduled instruction with typed inputs and outputs |
 | `StepExecutor` | executes one exact instruction kind |
-| `Runtime` | opens resources, schedules steps and dispatches instructions |
+| `Runtime` | emits pipeline events, schedules steps and dispatches instructions |
 | `Resource` | a live capability with a lifecycle, owned by a provider |
-| `ResourceProvider` | creates and closes typed resources for one execution |
+| `ResourceProvider` | subscribes to pipeline events and owns the resources it publishes |
+| `ResourceRegistry` | the live resources one run publishes by exact type |
+| `PipelineEvent` | one lifecycle, step or log event emitted by a run |
+| `EventBus` | delivers every event to the providers and listeners of one run |
 | `ResourceView` | the exact resources one executor declared |
 | `Toolchain` | languages + linker + planners + executors + runtime |
 
@@ -50,6 +53,9 @@ kg_build_system/
                          ContinuableInput, DisruptingInput, PublishedArtifact,
                          ResourceView, WorkflowReport, ExecutionContext,
                          DisruptedExecutionContext, RuntimeConfiguration
+        events.py        ResourceRegistry, PipelineEvent, EventBus, Listener,
+                         PipelineStarted, StepStarted, StepFinished,
+                         StepLogged, PipelineFinished, PipelineHalted
         types/           canonical types
       internal/
         json.py
@@ -68,7 +74,7 @@ kg_build_system/
       _private/
         pipeline.py      build -> compile -> execute
         assembly.py      step and connection assembly
-        runtime.py       resource lifecycle, scheduler and step lifecycle
+        runtime.py       event dispatch, scheduler and step lifecycle
         workflow_codec.py
         report_codec.py  WorkflowReport document
   distribution/
@@ -110,6 +116,8 @@ kg_build_system/
     implementations.py   language and linker implementations
   generation/
     code_generation/
+  frontend/
+    monitor.py           Monitor, NullMonitor, ConsoleMonitor, resolve_monitor
   _facade.py             top-level lazy export table
   api.py                 default_toolchain, DEFAULT_TOOLCHAIN,
                          create_blueprint, compile, execute
@@ -190,17 +198,19 @@ root and closure policy.
 (`api.compile`) may call `create_blueprint` and then `compile`; the kernel
 method never does.
 
-### `execute(plan, *, output_directory, configuration=None, monitor=None) -> WorkflowReport`
+### `execute(plan, *, output_directory, configuration=None, listeners=()) -> WorkflowReport`
 
 1. Build an exact-kind map from every executor's `kinds`. A duplicate kind
    raises `ValueError`.
 2. Refuse an instruction kind in the plan that has no executor, before any step
    runs.
 3. Build a `RuntimeConfiguration` when none is supplied.
-4. Call `runtime.execute(plan, executors, configuration=..., monitor=...)`.
-5. The runtime opens every provider, merges the resources, validates duplicate
-   and missing types, builds one view per executor and closes every provider in
-   reverse order.
+4. Call `runtime.execute(plan, executors, configuration=..., listeners=...)`.
+5. The runtime creates a fresh `EventBus` and `ResourceRegistry`, subscribes the
+   providers and the frontend listeners, emits `PipelineStarted` and reads the
+   resources the providers published. It validates every executor declaration,
+   builds one view per executor, emits the step and log events and finally
+   emits `PipelineFinished` or `PipelineHalted`.
 
 The scheduler classifies each upstream result as continuable (`SUCCEEDED`,
 `WARNING`) or disrupting (`FAILED`, `SKIPPED`). A normal step receives an
@@ -432,16 +442,56 @@ instruction kind; it does not plan. A component that needs both is two objects.
 ## Execution resources and the runtime
 
 ```python
-class Resource(Protocol):
-    def close(self) -> None: ...
-
-class ResourceProvider(Protocol):
-    def resources(
-        self, configuration: RuntimeConfiguration,
-    ) -> Mapping[type, Any]: ...
-    def close(self) -> None: ...
+# kernel/model/public/events.py
+class ResourceRegistry:
+    def add(self, resource_type: type, value: Any) -> None: ...
+    def get(self, resource_type: type) -> Any: ...
+    def snapshot(self) -> Mapping[type, Any]: ...
 
 @dataclass(frozen=True, slots=True)
+class PipelineStarted:
+    plan: WorkflowPlan
+    configuration: RuntimeConfiguration
+    resources: ResourceRegistry
+
+@dataclass(frozen=True, slots=True)
+class StepStarted:
+    step_id: StepId
+    detail: str = ""
+
+@dataclass(frozen=True, slots=True)
+class StepFinished:
+    outcome: StepOutcome
+    detail: str = ""
+
+@dataclass(frozen=True, slots=True)
+class StepLogged:
+    step_id: StepId
+    level: str
+    message: str
+
+@dataclass(frozen=True, slots=True)
+class PipelineFinished:
+    report: WorkflowReport
+
+@dataclass(frozen=True, slots=True)
+class PipelineHalted:
+    error: BaseException
+
+type PipelineEvent = (
+    PipelineStarted | StepStarted | StepFinished | StepLogged
+    | PipelineFinished | PipelineHalted
+)
+
+type Listener = Callable[[PipelineEvent], None]
+
+class EventBus:
+    def subscribe(self, listener: Listener) -> None: ...
+    def emit(self, event: PipelineEvent) -> None: ...
+
+class ResourceProvider(Protocol):
+    def on_event(self, event: PipelineEvent) -> None: ...
+
 class ResourceView:
     resources: Mapping[type, Any]
     def get[T](self, resource: type[T]) -> T: ...
@@ -453,23 +503,34 @@ class StepExecutor(Protocol):
 
 class Runtime(Protocol):
     def execute(
-        self, plan, executors, *, configuration, monitor=None,
+        self, plan, executors, *, configuration, listeners=()
     ) -> WorkflowReport: ...
 ```
 
 - The runtime owns the providers. `Toolchain` has no `resources` field.
-- The runtime opens every provider, merges the resources by exact type, refuses
-  a duplicate type, builds a per-executor view containing only that executor's
-  declared `resources`, and closes providers in reverse order even when a step
-  raises.
+- Each run creates a fresh `EventBus` and `ResourceRegistry` and subscribes the
+  providers before the frontend listeners. Nothing carries from one run to the
+  next.
+- Lifecycle order: `PipelineStarted`, then one `StepStarted` / `StepFinished`
+  pair per step with any `StepLogged` between them, then `PipelineFinished` on
+  success or `PipelineHalted` on failure. `PipelineHalted` is emitted before the
+  original error is re-raised.
+- Providers publish resources on `PipelineStarted` and dispose them on
+  `PipelineFinished` or `PipelineHalted`. A provider that never saw
+  `PipelineStarted` does nothing.
+- The runtime validates every executor declaration against the registry, refuses
+  a missing type and builds a view containing only that executor's declared
+  `resources`. A duplicate exact type is refused by `ResourceRegistry.add`.
 - `ExecutionContext` and `DisruptedExecutionContext` expose `resources:
-  ResourceView` and a per-step `logger`.
+  ResourceView` and a per-step `logger`; every log method emits `StepLogged`.
 - A resource type is exact. Asking for a type the executor did not declare
   raises `KeyError`, even when another executor received that resource.
 - `DuckDbService` owns the engine and its relation service; it is a resource.
   `DuckDbResourceProvider` is in `modules/duckdb`. `RuntimeResources` in
   `modules/runtime` provides output, working and temporary storage and the
   credential resolver.
+- A listener error propagates through the bus and is treated as a pipeline
+  failure: the runtime emits `PipelineHalted` and re-raises the listener error.
 
 ## Composition root and the distribution
 
@@ -485,10 +546,17 @@ class Runtime(Protocol):
   blueprint.
 - `compile` creates a blueprint when one is not supplied, then compiles it.
 - `execute` writes `workflow_plan.json` before the run and `build_report.json`
-  after it.
+  after it. Its `monitor` argument is a frontend listener: `None` and `False`
+  subscribe nothing, `True` selects `ConsoleMonitor`, and a monitor is used
+  unchanged.
 
 `distribution` supplies implementations only. It does not own the composition
 root.
+
+`frontend/monitor.py` owns presentation. `Monitor` is the listener protocol,
+`NullMonitor` presents nothing, `ConsoleMonitor` writes simple text and imports
+`rich` lazily, and `resolve_monitor` maps the public argument to a listener or
+`None`. The kernel imports no frontend module and no `rich`.
 
 ## Distribution modules
 
@@ -685,7 +753,7 @@ value.
 
 The tree above is the implementation.
 
-- 177 tests passed, 1611 subtests.
+- 187 tests passed, 1618 subtests.
 - Pyright: 0 errors.
 - mkdocs strict build: passes.
 - Open Targets: the migrated project builds against the API; 7 tests pass.

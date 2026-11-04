@@ -317,9 +317,16 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 
 **Resource**
 : A live capability with a lifecycle, such as a DuckDB service or output storage.
-  A `ResourceProvider` creates and closes it; an executor receives only the
-  resource types it declares in a `ResourceView`. See [Planners and
+  A `ResourceProvider` publishes it on `PipelineStarted` and disposes it on
+  `PipelineFinished` or `PipelineHalted`; an executor receives only the resource
+  types it declares in a `ResourceView`. See [Planners and
   executors](../concepts/planners-and-executors.md).
+
+**Pipeline event**
+: One `PipelineStarted`, `StepStarted`, `StepFinished`, `StepLogged`,
+  `PipelineFinished` or `PipelineHalted` value emitted by a run. An `EventBus`
+  delivers each event to the run's providers and frontend listeners; a monitor
+  is a frontend listener.
 
 **Output**
 : A value published by an output planner's executor during a build, such as

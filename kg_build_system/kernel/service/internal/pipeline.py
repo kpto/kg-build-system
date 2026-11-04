@@ -9,6 +9,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
+from ...model.public.events import Listener
 from ...model.public.runtime import RuntimeConfiguration
 from ...model.public.workflow import WorkflowPlan
 
@@ -38,7 +39,7 @@ def execute_plan(
     *,
     output_directory: Path,
     configuration: RuntimeConfiguration | None = None,
-    monitor: Any = None,
+    listeners: Sequence[Listener] = (),
 ) -> Any:
     """Resolve instruction kinds and run one plan through the runtime."""
     from .._private.pipeline import execute_plan as implementation
@@ -49,7 +50,7 @@ def execute_plan(
         plan,
         output_directory=output_directory,
         configuration=configuration,
-        monitor=monitor,
+        listeners=listeners,
     )
 
 

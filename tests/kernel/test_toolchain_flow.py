@@ -22,6 +22,9 @@ from kg_build_system.kernel import (
     OpeningDirection,
     OpeningId,
     Output,
+    PipelineFinished,
+    PipelineHalted,
+    PipelineStarted,
     Publication,
     RuntimeField,
     SourceFragment,
@@ -135,16 +138,15 @@ class Resources:
         self.opened = 0
         self.closed = False
 
-    def resources(self, configuration):
-        self.opened += 1
-        return {}
-
-    def close(self):
-        self.closed = True
+    def on_event(self, event):
+        if isinstance(event, PipelineStarted):
+            self.opened += 1
+        elif isinstance(event, (PipelineFinished, PipelineHalted)):
+            self.closed = True
 
 
 class FailingRuntime:
-    def execute(self, plan, executors, *, configuration, monitor=None):
+    def execute(self, plan, executors, *, configuration, listeners=()):
         raise AssertionError("runtime must not run")
 
 

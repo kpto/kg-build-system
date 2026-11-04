@@ -255,9 +255,10 @@ upstream failure. It does not schedule another step and does not change the
 plan.
 
 An executor declares the exact resource types it reads in `resources`. The
-runtime opens every provider, merges the declared resources, builds one view per
-executor and closes the providers in reverse order. An executor asks for a
-resource with `context.resources.get(SomeResource)`; asking for a type it did
+runtime creates one event stream per run, lets providers publish their resources
+on `PipelineStarted`, builds one view per executor and lets providers dispose
+their resources on `PipelineFinished` or `PipelineHalted`. An executor asks for
+a resource with `context.resources.get(SomeResource)`; asking for a type it did
 not declare raises `KeyError`. The runtime owns the providers, not the
 toolchain.
 

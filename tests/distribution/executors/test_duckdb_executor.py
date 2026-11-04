@@ -15,6 +15,7 @@ from kg_build_system.kernel import (
     ArtifactType,
     ContinuableInput,
     DisruptedExecutionContext,
+    EventBus,
     ExecutionContext,
     Input,
     Instruction,
@@ -23,11 +24,16 @@ from kg_build_system.kernel import (
     OpeningDirection,
     OpeningId,
     Output,
+    PipelineFinished,
+    PipelineStarted,
+    ResourceRegistry,
     ResourceView,
     RuntimeConfiguration,
     Step,
     StepId,
     StepStatus,
+    WorkflowPlan,
+    WorkflowReport,
 )
 
 RECORDS = ArtifactType.of("core", "records")
@@ -88,15 +94,20 @@ class DuckDbExecutorTests(unittest.TestCase):
         )
         self.provider = DuckDbResourceProvider()
         self.runtime_resources = RuntimeResources()
-        provided = {
-            **self.runtime_resources.resources(configuration),
-            **self.provider.resources(configuration),
-        }
-        self.addCleanup(self.provider.close)
-        self.addCleanup(self.runtime_resources.close)
-        self.resources = ResourceView(provided)
+        registry = ResourceRegistry()
+        bus = EventBus()
+        bus.subscribe(self.runtime_resources.on_event)
+        bus.subscribe(self.provider.on_event)
+        bus.emit(PipelineStarted(
+            WorkflowPlan((), ()), configuration, registry,
+        ))
+        self.addCleanup(self._dispose, bus)
+        self.resources = ResourceView(registry.snapshot())
         self.service = self.resources.get(DuckDbService)
         self.executor = DuckDbExecutor()
+
+    def _dispose(self, bus: EventBus) -> None:
+        bus.emit(PipelineFinished(WorkflowReport((), (), (), {})))
 
     def _rows(self, relation: object) -> list[tuple[object, ...]]:
         source = self.service.relations.reference(relation)

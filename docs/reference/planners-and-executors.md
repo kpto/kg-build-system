@@ -258,8 +258,8 @@ counts, and the file lists.
 | Executor | Package | Kinds |
 | --- | --- | --- |
 | `DuckDbExecutor` | `distribution.modules.duckdb` | `("source_relation", "duckdb")`, `("sql", "duckdb")`, `("aggregate", "duckdb")`, `("deduplication", "duckdb")`, `("merging", "duckdb")`, `("conflict_findings", "duckdb")` |
-| `DuckDbResourceProvider` | `distribution.modules.duckdb` | opens the engine and provides `DuckDbService` and its `RelationService` |
-| `RuntimeResources` | `distribution.modules.runtime` | provides output, working and temporary storage and the credential resolver |
+| `DuckDbResourceProvider` | `distribution.modules.duckdb` | event subscriber: opens the engine on `PipelineStarted` and provides `DuckDbService` and its `RelationService` |
+| `RuntimeResources` | `distribution.modules.runtime` | event subscriber: provides output, working and temporary storage and the credential resolver |
 | `PythonExecutor` | `distribution.modules.python` | `("python", "cpython")` |
 | `FileExecutor` | `distribution.modules.file` | `("file", "default")` |
 | `MetaGraphExecutor` | `distribution.modules.meta_graph` | `("meta_graph", "default")` |
@@ -271,14 +271,16 @@ downstream steps, or `FAILED` / `SKIPPED` to disrupt them. The default disrupted
 policy is `skipped(context)`, which carries the failure forward without running
 the step.
 
-The runtime owns the resource providers. It opens every provider, merges the
-resources by exact type, refuses a duplicate type, builds one view per executor
-from that executor's declared `resources`, and closes the providers in reverse
-order even when a step raises. An executor reads a resource with
-`context.resources.get(SomeResource)` and an undeclared type raises `KeyError`.
-`DuckDbResourceProvider` supplies `DuckDbService` and `RelationService`;
-`RuntimeResources` supplies `OutputStorage`, `WorkingStorage`,
-`TemporaryStorage` and `CredentialResolver`.
+The runtime owns the resource providers. Each run creates a fresh `EventBus`
+and `ResourceRegistry`, subscribes the providers and the frontend listeners, and
+emits `PipelineStarted`. Providers publish resources into the registry while
+they handle that event; the runtime refuses a duplicate exact type, validates
+every executor's declared `resources`, builds one view per executor and emits
+`PipelineFinished` or `PipelineHalted` so the providers dispose their resources.
+An executor reads a resource with `context.resources.get(SomeResource)` and an
+undeclared type raises `KeyError`. `DuckDbResourceProvider` supplies
+`DuckDbService` and `RelationService`; `RuntimeResources` supplies
+`OutputStorage`, `WorkingStorage`, `TemporaryStorage` and `CredentialResolver`.
 
 `distribution.modules.runtime` exports the helpers a custom executor usually
 needs: `instruction_payload(instruction)`, `output_name(given)` (an output
