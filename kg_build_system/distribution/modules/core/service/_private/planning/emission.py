@@ -218,9 +218,9 @@ def _row_effect(
                 return "filter", None
     if operation.operator.name == "expand":
         return "expand", None
-    if operation.operator.name == "where_present":
+    if operation.operator.name == "drop_null":
         return "filter", None
-    if operation.operator.name == "where_if":
+    if operation.operator.name == "drop_if":
         return "filter", 1
     return None
 

@@ -1,4 +1,4 @@
-"""The nullable selection: null policy, nullable navigation and legacy aliases.
+"""The nullable selection: null policy and nullable navigation.
 
 Example:
     ```python
@@ -22,7 +22,7 @@ from .value import ValueInput, ValueSelection
 
 if TYPE_CHECKING:
     from .array import ArraySelection
-    from .effects import NullableRowEffects
+    from .effects import NullableArrayRowEffects, NullableRowEffects
     from .struct import StructSelection
 
 
@@ -83,87 +83,6 @@ class NullableSelection(
         return select_expression(result)
 
     @overload
-    def where_present[U: SelectionUnit](self: "NullableSelection[U]") -> ValueSelection[U]: ...  # pyright: ignore[reportOverlappingOverload]
-    @overload
-    def where_present[I: NullableDataType](self: "NullableSelection[Array[I]]") -> "ArraySelection[I]": ...
-    @overload
-    def where_present[S: Struct](self: "NullableSelection[S]") -> "StructSelection[S]": ...
-    def where_present(self) -> ValueSelection[Any]:
-        """Legacy spelling of the presence filter; see ``alter_rows().drop_null()``.
-
-        Example:
-            ```python
-            from kg_build_system import Field, Table, field
-
-            class Row(Table):
-                name: Field[str | None] = field(name="name")
-
-            assert Row.name.where_present().logical_type.name == "str"
-            ```
-        """
-        from ....service._private.selections import drop_null_selection
-
-        return drop_null_selection(self)
-
-    @overload
-    def drop_null[U: SelectionUnit](self: "NullableSelection[U]") -> ValueSelection[U]: ...  # pyright: ignore[reportOverlappingOverload]
-    @overload
-    def drop_null[I: NullableDataType](self: "NullableSelection[Array[I]]") -> "ArraySelection[I]": ...
-    @overload
-    def drop_null[S: Struct](self: "NullableSelection[S]") -> "StructSelection[S]": ...
-    def drop_null(self) -> ValueSelection[Any]:
-        """Drop the row when this value is null.
-
-        Example:
-            ```python
-            from kg_build_system import Field, Table, field
-
-            class Row(Table):
-                name: Field[str | None] = field(name="name")
-
-            assert Row.name.drop_null().logical_type.name == "str"
-            ```
-        """
-        from ....service._private.selections import drop_null_selection
-
-        return drop_null_selection(self)
-
-    @overload
-    def expand[U: SelectionUnit](self: "NullableSelection[Array[U]]") -> ValueSelection[U]: ...  # pyright: ignore[reportOverlappingOverload]
-    @overload
-    def expand[U: SelectionUnit](self: "NullableSelection[Array[Nullable[U]]]") -> "NullableSelection[U]": ...
-    @overload
-    def expand[S: Struct](self: "NullableSelection[Array[S]]") -> "StructSelection[S]": ...
-    @overload
-    def expand[S: Struct](self: "NullableSelection[Array[Nullable[S]]]") -> "NullableSelection[S]": ...
-    @overload
-    def expand[I: NullableDataType](self: "NullableSelection[Array[Array[I]]]") -> "ArraySelection[I]": ...
-    def expand(self) -> ValueSelection[Any]:
-        """One row per element of a present array; an absent array yields none.
-
-        The item type determines the result; a nullable item keeps its own
-        nullable selection.
-
-        Example:
-            ```python
-            from kg_build_system import Array, Field, Table, field
-
-            class Row(Table):
-                names: Field[Array[str] | None] = field(name="names")
-
-            assert Row.names.expand().logical_type.name == "str"
-            ```
-        """
-        logical_type = self.logical_type
-        from ....service._private.selections import _expand as expand_selection
-
-        if not isinstance(logical_type, NullableType) or not isinstance(
-            logical_type.value, ArrayType
-        ):
-            raise TypeError("expand requires a nullable array selection")
-        return expand_selection(self.require_expression())
-
-    @overload
     def extract[S: Struct, U: SelectionUnit](
         self: "NullableSelection[S]", selector: Callable[[S], ValueSelection[U]],
     ) -> "NullableSelection[U]": ...  # pyright: ignore[reportOverlappingOverload]
@@ -197,16 +116,16 @@ class NullableSelection(
             ```
         """
         logical_type = self.logical_type
-        from ....service._private.selections import _pick as pick_member
+        from ....service._private.selections import _extract_member as extract_member
 
         if not isinstance(logical_type, NullableType) or not isinstance(
             logical_type.value, StructType
         ):
             raise TypeError("extract requires a nullable struct selection")
-        return pick_member(self, selector, logical_type.value, propagate_null=True)
+        return extract_member(self, selector, logical_type.value, propagate_null=True)
 
-    # Legacy nullable-array operations. They preserve the array's own presence
-    # and return a nullable selection; narrow with ``where_present`` first when
+    # Nullable-array operations preserve the array's own presence and return a
+    # nullable selection; narrow with ``alter_rows().drop_null()`` first when
     # the result must be present.
     @overload
     def transform_items[S: Struct, U](
@@ -306,36 +225,8 @@ class NullableSelection(
             select_expression(array_operation(self.require_expression(), "sort")),
         )
 
-    def distinct(self) -> "NullableSelection[Any]":
-        """Keep one copy of each item of a present array.
-
-        Example:
-            ```python
-            from kg_build_system import Array, Field, Table, field
-
-            class Row(Table):
-                names: Field[Array[str] | None] = field(name="names")
-
-            assert Row.names.distinct().model.operator == "distinct"
-            ```
-        """
-        from ....service._private.arrays import _array_operation as array_operation
-        from ....service._private.selections import select_expression
-
-        logical_type = self.logical_type
-        if not isinstance(logical_type, NullableType) or not isinstance(
-            logical_type.value, ArrayType
-        ):
-            raise TypeError("distinct requires a nullable array selection")
-        return cast(
-            "NullableSelection[Any]",
-            select_expression(
-                array_operation(self.require_expression(), "distinct")
-            ),
-        )
-
     def unique(self) -> "NullableSelection[Any]":
-        """Keep one copy per item; the legacy spelling of ``distinct``.
+        """Keep one copy of each item of a present array.
 
         Example:
             ```python
@@ -347,9 +238,22 @@ class NullableSelection(
             assert Row.names.unique().model.operator == "distinct"
             ```
         """
-        return self.distinct()
+        from ....service._private.arrays import _array_operation as array_operation
+        from ....service._private.selections import select_expression
 
-    def join(self, separator: str) -> "NullableSelection[str]":
+        logical_type = self.logical_type
+        if not isinstance(logical_type, NullableType) or not isinstance(
+            logical_type.value, ArrayType
+        ):
+            raise TypeError("unique requires a nullable array selection")
+        return cast(
+            "NullableSelection[Any]",
+            select_expression(
+                array_operation(self.require_expression(), "distinct")
+            ),
+        )
+
+    def concat(self, separator: str) -> "NullableSelection[str]":
         """Join non-null string items with ``separator``.
 
         Requires an array of non-null strings. The result is null when the
@@ -362,7 +266,7 @@ class NullableSelection(
             class Row(Table):
                 names: Field[Array[str] | None] = field(name="names")
 
-            joined = Row.names.join(", ")
+            joined = Row.names.concat(", ")
             assert joined.logical_type.value.name == "str"
             ```
         """
@@ -374,29 +278,11 @@ class NullableSelection(
         if not isinstance(logical_type, NullableType) or not isinstance(
             logical_type.value, ArrayType
         ):
-            raise TypeError("join requires a nullable array selection")
-        if logical_type.value.item != STR:
-            raise TypeError("join requires an array of non-null strings")
+            raise TypeError("concat requires a nullable array selection")
         result = apply_operation(
             "join", self.require_expression(), expression_input(separator, STR)
         )
         return cast("NullableSelection[str]", select_expression(result))
-
-    def concat(self, separator: str) -> "NullableSelection[str]":
-        """Join non-null string items; the legacy spelling of ``join``.
-
-        Example:
-            ```python
-            from kg_build_system import Array, Field, Table, field
-
-            class Row(Table):
-                names: Field[Array[str] | None] = field(name="names")
-
-            joined = Row.names.concat(", ")
-            assert joined.logical_type.value.name == "str"
-            ```
-        """
-        return self.join(separator)
 
     def at(self, index: int | ValueInput[int]) -> ValueSelection[Any]:
         """The nullable item at a 0-based index.
@@ -465,7 +351,13 @@ class NullableSelection(
             ),
         )
 
-    def alter_rows(self) -> "NullableRowEffects[TItem]":
+    @overload
+    def alter_rows[I: NullableDataType](
+        self: "NullableSelection[Array[I]]",
+    ) -> "NullableArrayRowEffects[I]": ...
+    @overload
+    def alter_rows(self) -> "NullableRowEffects[TItem]": ...
+    def alter_rows(self) -> "NullableRowEffects[Any]":
         """Opt in to the row-changing operations of this nullable selection.
 
         Example:
@@ -479,8 +371,13 @@ class NullableSelection(
             assert isinstance(Row.names.alter_rows(), NullableRowEffects)
             ```
         """
-        from .effects import NullableRowEffects
+        from .effects import NullableArrayRowEffects, NullableRowEffects
 
+        logical_type = self.logical_type
+        if isinstance(logical_type, NullableType) and isinstance(
+            logical_type.value, ArrayType
+        ):
+            return NullableArrayRowEffects(cast(Any, self))
         return NullableRowEffects(self)
 
 

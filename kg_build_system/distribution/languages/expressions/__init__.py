@@ -13,10 +13,10 @@ from __future__ import annotations
 from .model.public import (
     ArrayExpression, ArrayRowEffects, ArraySelection, BoolExpression,
     CustomDataTypeExpression, FloatExpression, IntExpression,
-    NullableAuthoringInput, NullableDataType, NullableExpression,
-    NullableRowEffects, NullableSelection, NumberExpression, RowEffects,
-    SelectionDataType, SelectionStructured, SelectionUnit, StrExpression,
-    StructExpression, StructSelection, ValueExpression, ValueInput,
+    NullableArrayRowEffects, NullableAuthoringInput, NullableDataType,
+    NullableExpression, NullableRowEffects, NullableSelection, NumberExpression,
+    RowEffects, SelectionDataType, SelectionStructured, SelectionUnit,
+    StrExpression, StructExpression, StructSelection, ValueExpression, ValueInput,
     ValueSelection,
 )
 from .service.public import (
@@ -27,9 +27,10 @@ from .service.public import (
 __all__ = [
     "ArrayExpression", "ArrayRowEffects", "ArraySelection", "BoolExpression",
     "CustomDataTypeExpression", "FloatExpression", "IntExpression",
-    "NullableAuthoringInput", "NullableDataType", "NullableExpression",
-    "NullableRowEffects", "NullableSelection", "NumberExpression", "RowEffects",
-    "SelectionDataType", "SelectionStructured", "SelectionUnit", "StrExpression",
+    "NullableArrayRowEffects", "NullableAuthoringInput", "NullableDataType",
+    "NullableExpression", "NullableRowEffects", "NullableSelection",
+    "NumberExpression", "RowEffects", "SelectionDataType", "SelectionStructured",
+    "SelectionUnit", "StrExpression",
     "StructExpression", "StructSelection", "ValueExpression", "ValueInput",
     "ValueSelection", "all_of", "any_of", "as_expression", "literal",
     "select_expression", "select_member", "value_expression", "wrap_expression",

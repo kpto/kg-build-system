@@ -143,9 +143,7 @@ NullableSelection.default_to(value: T | ValueExpression[T]) -> ValueSelection[T]
 Replaces a null with `value` and keeps the row. The result is present. A nullable
 array becomes an `ArraySelection`; a nullable struct becomes a
 `StructSelection`. On a present `ValueSelection`, `default_to()` is a no-op and
-returns the same selection. `where_present()` is the compatibility spelling of
-the presence filter: it is a no-op on a present selection and equivalent to
-`drop_null()` on a nullable one.
+returns the same selection.
 
 ```python
 period = SiteTable.survey_period.default_to("Unrecorded period")
@@ -168,7 +166,8 @@ selection.alter_rows()
 
 Returns a one-shot handle exposing only the row effects valid for that
 selection. Each effect returns a selection, not another handle, so a second
-effect needs a second `alter_rows()`.
+effect needs a second `alter_rows()`. Reusing a consumed handle raises
+`RuntimeError`.
 
 | Effect | Available on | Returns | Row behaviour |
 | --- | --- | --- | --- |
@@ -187,8 +186,8 @@ active = (
 )
 ```
 
-`drop_null()` and `expand()` are also available directly on the matching
-selection. Writing them through `alter_rows()` makes the row effect visible.
+The row-effect methods exist only on the handle; a selection exposes no direct
+`drop_null()`, `drop_if()` or `expand()`.
 
 | Error | Trigger |
 | --- | --- |
@@ -203,7 +202,6 @@ The row effects differ in what happens to the row:
 | Operation | Row effect |
 | --- | --- |
 | `default_to(value)` | None; the row survives with a present value. No-op on a present selection |
-| `where_present()` | Compatibility spelling of the presence filter; no-op on a present selection |
 | `alter_rows().drop_null()` | Drops the row when the value is null; no-op on a non-null selection |
 | `alter_rows().drop_if(...)` | Drops the row when the predicate is false or null |
 | `alter_rows().expand()` | Produces one row per array item; absent and empty arrays produce none |
@@ -379,7 +377,7 @@ Each argument must be a `BoolExpression`. A null predicate is not true, so a
 | `equals` is text-only | Non-text equality uses the row-source key pair |
 | `to_string()` is scalar-only | Arrays, structs and custom scalars have no canonical text form |
 | `extract` returns declared members only | A selector cannot invent a field |
-| Row effects are opt-in | `expand`, `drop_null` and `drop_if` are reached through `alter_rows()` or their direct selection form |
+| Row effects are opt-in | `expand`, `drop_null` and `drop_if` are reached only through `alter_rows()` |
 | `expand` is the only fan-out | Every other operation preserves the row count |
 | Nulls propagate through calculations | `default_to` keeps the row; `drop_null` removes it |
 

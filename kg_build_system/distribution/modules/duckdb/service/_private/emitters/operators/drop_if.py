@@ -1,4 +1,4 @@
-"""Emit the ``where_if`` expression operator."""
+"""Emit the ``drop_if`` expression operator."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -16,8 +16,8 @@ from .base import require_arity
 
 
 @dataclass(frozen=True, slots=True)
-class WhereIf:
-    operator = "where_if"
+class DropIf:
+    operator = "drop_if"
 
     def emit(
         self,
@@ -25,8 +25,8 @@ class WhereIf:
         operands: Sequence[Operand[SqlNode]],
         context: EmissionContext[SqlNode],
     ) -> SqlNode:
-        require_arity(expression, operands, 2, "where_if requires two arguments")
+        require_arity(expression, operands, 2, "drop_if requires two arguments")
         return operands[0].sql()
 
 
-__all__ = ["WhereIf"]
+__all__ = ["DropIf"]

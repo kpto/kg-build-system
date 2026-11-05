@@ -5,13 +5,16 @@ from .types import (
     NullableDataType, SelectionDataType, SelectionStructured, SelectionUnit,
 )
 from .array import ArraySelection
-from .effects import ArrayRowEffects, NullableRowEffects, RowEffects
+from .effects import (
+    ArrayRowEffects, NullableArrayRowEffects, NullableRowEffects, RowEffects,
+)
 from .nullable import NullableSelection
 from .struct import StructSelection
 from .value import ValueInput, ValueSelection
 
 __all__ = [
-    "ArrayRowEffects", "ArraySelection", "NullableDataType", "NullableRowEffects",
-    "NullableSelection", "RowEffects", "SelectionDataType", "SelectionStructured",
-    "SelectionUnit", "StructSelection", "ValueInput", "ValueSelection",
+    "ArrayRowEffects", "ArraySelection", "NullableArrayRowEffects",
+    "NullableDataType", "NullableRowEffects", "NullableSelection", "RowEffects",
+    "SelectionDataType", "SelectionStructured", "SelectionUnit", "StructSelection",
+    "ValueInput", "ValueSelection",
 ]

@@ -1,4 +1,4 @@
-"""Emit the ``where_present`` expression operator."""
+"""Emit the ``drop_null`` expression operator."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -16,8 +16,8 @@ from .base import require_arity
 
 
 @dataclass(frozen=True, slots=True)
-class WherePresent:
-    operator = "where_present"
+class DropNull:
+    operator = "drop_null"
 
     def emit(
         self,
@@ -26,9 +26,9 @@ class WherePresent:
         context: EmissionContext[SqlNode],
     ) -> SqlNode:
         require_arity(
-            expression, operands, 1, "where_present requires one argument",
+            expression, operands, 1, "drop_null requires one argument",
         )
         return operands[0].sql()
 
 
-__all__ = ["WherePresent"]
+__all__ = ["DropNull"]

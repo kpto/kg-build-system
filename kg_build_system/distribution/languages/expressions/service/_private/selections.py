@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib
+from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
 from kg_build_system.kernel.model.public.types import ArrayType, LogicalType, NullableType, StructType
@@ -30,7 +31,7 @@ def _declaration(logical_type: StructType):
     return value
 
 
-def _pick(
+def _extract_member(
     parent,
     selector,
     parent_type: StructType,
@@ -84,16 +85,38 @@ def _pick(
     return select_expression_from_node(result)
 
 
-def _expand(expression: ValueExpression[Any]):
-    return select_expression_from_node(apply_operation("expand", expression.model))
+def expand_selection(selection: ValueSelection[Any]):
+    logical_type = selection.logical_type
+    base = logical_type.value if isinstance(logical_type, NullableType) else logical_type
+    if not isinstance(base, ArrayType):
+        raise TypeError("expand requires an array selection")
+    return select_expression_from_node(
+        apply_operation("expand", require_expression(selection)).model
+    )
 
 
 def drop_null_selection(selection: ValueSelection[Any]):
     logical_type = selection.logical_type
     if not isinstance(logical_type, NullableType):
-        raise TypeError("where_present requires a nullable selection")
+        raise TypeError("drop_null requires a nullable selection")
     return select_expression(
-        apply_operation("where_present", require_expression(selection))
+        apply_operation("drop_null", require_expression(selection))
+    )
+
+
+def drop_if_selection(
+    selection: ValueSelection[Any],
+    predicate: Callable[[Any], Any],
+):
+    from ...model.public.boolean import BoolExpression
+
+    if not callable(predicate):
+        raise TypeError("drop_if requires a callable predicate")
+    result = predicate(selection)
+    if not isinstance(result, BoolExpression):
+        raise TypeError("drop_if predicates must return a BoolExpression")
+    return select_expression(
+        apply_operation("drop_if", require_expression(selection), result.model)
     )
 
 
@@ -155,6 +178,7 @@ def as_expression[T](value: ValueInput[T]) -> ValueExpression[T]:
 
 
 __all__ = [
-    "SelectedMember", "as_expression", "drop_null_selection", "require_expression",
-    "select_expression", "select_expression_from_node", "select_member",
+    "SelectedMember", "as_expression", "drop_if_selection", "drop_null_selection",
+    "expand_selection", "require_expression", "select_expression",
+    "select_expression_from_node", "select_member",
 ]

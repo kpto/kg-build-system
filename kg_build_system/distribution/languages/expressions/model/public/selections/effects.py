@@ -2,13 +2,12 @@
 
 Example:
     ```python
-    from kg_build_system import Field, Table, field
-    from kg_build_system import Array
+    from kg_build_system import Array, Field, Table, field
 
     class Row(Table):
         tags: Field[Array[str]] = field(name="tags")
 
-    assert Row.tags.expand() is not None
+    assert Row.tags.alter_rows().expand() is not None
     ```
 """
 from __future__ import annotations
@@ -37,17 +36,14 @@ class RowEffects(Generic[SSelection]):
     handle, so a second row effect must opt in again.
     """
 
-    __slots__ = ("_selection",)
+    __slots__ = ("_selection", "_used")
 
     def __init__(self, selection: SSelection) -> None:
         self._selection = selection
-
-    @property
-    def selection(self) -> SSelection:
-        return self._selection
+        self._used = False
 
     def drop_null(self) -> SSelection:
-        """A non-null selection has no null row; the old spelling is a no-op.
+        """A present selection has no null row, so this is a no-op.
 
         Example:
             ```python
@@ -60,27 +56,12 @@ class RowEffects(Generic[SSelection]):
             assert selection.alter_rows().drop_null() is selection
             ```
         """
+        if self._used:
+            raise RuntimeError(
+                "a row-effect handle is one-shot; call alter_rows() again"
+            )
+        self._used = True
         return self._selection
-
-    def expand(self) -> SSelection:
-        """Only array selections expand; the base spelling is refused at runtime.
-
-        Example:
-            ```python
-            from kg_build_system import Field, Table, field
-
-            class Row(Table):
-                name: Field[str] = field(name="name")
-
-            try:
-                Row.name.alter_rows().expand()
-            except TypeError as error:
-                assert str(error) == "expand requires an array selection"
-            else:
-                raise AssertionError("expand requires an array selection")
-            ```
-        """
-        raise TypeError("expand requires an array selection")
 
     def drop_if(self, predicate: Callable[[SSelection], "BoolExpression"]) -> SSelection:
         """Drop rows whose value does not satisfy the predicate.
@@ -95,10 +76,17 @@ class RowEffects(Generic[SSelection]):
             selected = Row.name.alter_rows().drop_if(
                 lambda name: name.expression.equals("Depot")
             )
-            assert selected.model.operator == "where_if"
+            assert selected.model.operator == "drop_if"
             ```
         """
-        return self._selection.drop_if(predicate)
+        from ....service._private.selections import drop_if_selection
+
+        if self._used:
+            raise RuntimeError(
+                "a row-effect handle is one-shot; call alter_rows() again"
+            )
+        self._used = True
+        return cast(SSelection, drop_if_selection(self._selection, predicate))
 
 
 class ArrayRowEffects(RowEffects["ArraySelection[TItem]"], Generic[TItem]):
@@ -126,7 +114,14 @@ class ArrayRowEffects(RowEffects["ArraySelection[TItem]"], Generic[TItem]):
             assert selected.logical_type.name == "str"
             ```
         """
-        return cast("ArraySelection[Any]", self._selection).expand()
+        from ....service._private.selections import expand_selection
+
+        if self._used:
+            raise RuntimeError(
+                "a row-effect handle is one-shot; call alter_rows() again"
+            )
+        self._used = True
+        return expand_selection(self._selection)
 
 
 class NullableRowEffects(RowEffects["NullableSelection[TItem]"], Generic[TItem]):
@@ -138,7 +133,7 @@ class NullableRowEffects(RowEffects["NullableSelection[TItem]"], Generic[TItem])
     def drop_null[I: NullableDataType](self: "NullableRowEffects[Array[I]]") -> "ArraySelection[I]": ...
     @overload
     def drop_null[S: Any](self: "NullableRowEffects[S]") -> Any: ...
-    def drop_null(self):
+    def drop_null(self) -> Any:
         """Drop rows whose value is null.
 
         Example:
@@ -152,16 +147,31 @@ class NullableRowEffects(RowEffects["NullableSelection[TItem]"], Generic[TItem])
             assert selected.logical_type.name == "str"
             ```
         """
-        return cast("NullableSelection[Any]", self._selection).drop_null()
+        from ....service._private.selections import drop_null_selection
+
+        if self._used:
+            raise RuntimeError(
+                "a row-effect handle is one-shot; call alter_rows() again"
+            )
+        self._used = True
+        return cast(
+            "NullableSelection[Any]", drop_null_selection(self._selection),
+        )
+
+
+class NullableArrayRowEffects(
+    NullableRowEffects[Array[TItem]], Generic[TItem],
+):
+    """Row effects available on a nullable array selection."""
 
     @overload
-    def expand[U: SelectionUnit](self: "NullableRowEffects[Array[U]]") -> "ValueSelection[U]": ...  # pyright: ignore[reportOverlappingOverload]
+    def expand[U: SelectionUnit](self: "NullableArrayRowEffects[U]") -> "ValueSelection[U]": ...  # pyright: ignore[reportOverlappingOverload]
     @overload
-    def expand[U: SelectionUnit](self: "NullableRowEffects[Array[Nullable[U]]]") -> "NullableSelection[U]": ...
+    def expand[U: SelectionUnit](self: "NullableArrayRowEffects[Nullable[U]]") -> "NullableSelection[U]": ...
     @overload
-    def expand[S: Any](self: "NullableRowEffects[Array[S]]") -> Any: ...
+    def expand[S: Any](self: "NullableArrayRowEffects[S]") -> Any: ...
     @overload
-    def expand[I: NullableDataType](self: "NullableRowEffects[Array[Array[I]]]") -> "ArraySelection[I]": ...
+    def expand[I: NullableDataType](self: "NullableArrayRowEffects[Array[I]]") -> "ArraySelection[I]": ...
     def expand(self):
         """One row per element of a present array, yielding none when absent.
 
@@ -176,7 +186,17 @@ class NullableRowEffects(RowEffects["NullableSelection[TItem]"], Generic[TItem])
             assert selected.logical_type.name == "str"
             ```
         """
-        return cast("NullableSelection[Any]", self._selection).expand()
+        from ....service._private.selections import expand_selection
+
+        if self._used:
+            raise RuntimeError(
+                "a row-effect handle is one-shot; call alter_rows() again"
+            )
+        self._used = True
+        return expand_selection(self._selection)
 
 
-__all__ = ["ArrayRowEffects", "NullableRowEffects", "RowEffects"]
+__all__ = [
+    "ArrayRowEffects", "NullableArrayRowEffects", "NullableRowEffects",
+    "RowEffects",
+]

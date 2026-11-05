@@ -5,8 +5,8 @@ from ..._private.predicates import is_unit
 from .spec import ArgumentSpec, OperationSpec, RowEffectSpec
 
 
-WHERE_IF = OperationSpec(
-    name="where_if",
+DROP_IF = OperationSpec(
+    name="drop_if",
     arity=2,
     arguments=(
         ArgumentSpec(description="value"),
@@ -17,4 +17,4 @@ WHERE_IF = OperationSpec(
 )
 
 
-__all__ = ["WHERE_IF"]
+__all__ = ["DROP_IF"]

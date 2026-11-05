@@ -8,7 +8,7 @@ Example:
     class Row(Table):
         tags: Field[Array[str]] = field(name="tags")
 
-    assert Row.tags.expand() is not None
+    assert Row.tags.alter_rows().expand() is not None
     ```
 """
 from __future__ import annotations
@@ -135,32 +135,8 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
             select_expression(array_operation(expression, "sort")),
         )
 
-    def distinct(self) -> "ArraySelection[TItem]":
-        """Keep one copy of each item in the array.
-
-        Example:
-            ```python
-            from kg_build_system import Array, Field, Table, field
-
-            class Row(Table):
-                names: Field[Array[str]] = field(name="names")
-
-            assert Row.names.distinct().model.operator == "distinct"
-            ```
-        """
-        from ....service._private.arrays import _array_operation as array_operation
-        from ....service._private.selections import select_expression
-
-        expression = self.require_expression()
-        if not isinstance(self.logical_type, ArrayType):
-            raise TypeError("distinct requires an array selection")
-        return cast(
-            "ArraySelection[TItem]",
-            select_expression(array_operation(expression, "distinct")),
-        )
-
     def unique(self) -> "ArraySelection[TItem]":
-        """Keep one copy per item; the selection spelling of ``distinct``.
+        """Keep one copy of each item in the array.
 
         Example:
             ```python
@@ -172,36 +148,19 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
             assert Row.names.unique().model.operator == "distinct"
             ```
         """
-        return self.distinct()
-
-    def join(self, separator: str) -> ValueSelection[str]:
-        """Join the array's non-null string items with ``separator``.
-
-        Example:
-            ```python
-            from kg_build_system import Array, Field, Table, field
-
-            class Row(Table):
-                names: Field[Array[str]] = field(name="names")
-
-            assert Row.names.join(", ").logical_type.name == "str"
-            ```
-        """
-        from ....service._private.apply import apply_operation
-        from ....service._private.coercion import expression_input
+        from ....service._private.arrays import _array_operation as array_operation
         from ....service._private.selections import select_expression
 
         expression = self.require_expression()
         if not isinstance(self.logical_type, ArrayType):
-            raise TypeError("join requires an array selection")
-        return select_expression(
-            apply_operation(
-                "join", expression, expression_input(separator, STR)
-            )
+            raise TypeError("unique requires an array selection")
+        return cast(
+            "ArraySelection[TItem]",
+            select_expression(array_operation(expression, "distinct")),
         )
 
     def concat(self, separator: str) -> ValueSelection[str]:
-        """Join non-null string items; the selection spelling of ``join``.
+        """Join the array's non-null string items with ``separator``.
 
         Example:
             ```python
@@ -213,7 +172,18 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
             assert Row.names.concat(", ").logical_type.name == "str"
             ```
         """
-        return self.join(separator)
+        from ....service._private.apply import apply_operation
+        from ....service._private.coercion import expression_input
+        from ....service._private.selections import select_expression
+
+        expression = self.require_expression()
+        if not isinstance(self.logical_type, ArrayType):
+            raise TypeError("concat requires an array selection")
+        return select_expression(
+            apply_operation(
+                "join", expression, expression_input(separator, STR)
+            )
+        )
 
     @overload
     def at[U: SelectionUnit](self: "ArraySelection[U]", index: int | ValueInput[int]) -> "NullableSelection[U]": ...
@@ -294,39 +264,6 @@ class ArraySelection(ValueSelection[Array[TItem]], Generic[TItem]):
         from .effects import ArrayRowEffects
 
         return ArrayRowEffects(self)
-
-    @overload
-    def expand[U: SelectionUnit](self: "ArraySelection[U]") -> ValueSelection[U]: ...  # pyright: ignore[reportOverlappingOverload]
-    @overload
-    def expand[U: SelectionUnit](self: "ArraySelection[Nullable[U]]") -> "NullableSelection[U]": ...
-    @overload
-    def expand[S: Any](self: "ArraySelection[S]") -> "StructSelection[S]": ...
-    @overload
-    def expand[S: Any](self: "ArraySelection[Nullable[S]]") -> "NullableSelection[S]": ...
-    @overload
-    def expand[I: NullableDataType](self: "ArraySelection[Array[I]]") -> "ArraySelection[I]": ...
-    def expand(self) -> ValueSelection[Any]:
-        """One row per array element.
-
-        The item type determines the result; a nullable item keeps its own
-        nullable selection.
-
-        Example:
-            ```python
-            from kg_build_system import Array, Field, Table, field
-
-            class Row(Table):
-                names: Field[Array[str]] = field(name="names")
-
-            assert Row.names.expand().logical_type.name == "str"
-            ```
-        """
-        logical_type = self.logical_type
-        from ....service._private.selections import _expand as expand_selection
-
-        if not isinstance(logical_type, ArrayType):
-            raise TypeError("expand requires an array selection")
-        return expand_selection(self.require_expression())
 
 
 __all__ = ["ArraySelection"]

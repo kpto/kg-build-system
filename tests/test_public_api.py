@@ -48,6 +48,13 @@ class PublicApiTests(unittest.TestCase):
         self.assertTrue(callable(kg_build_system.execute))
         self.assertIsNot(kg_build_system.compile, kg_build_system.execute)
 
+    def test_the_interpreter_does_not_export_layer_dtos(self) -> None:
+        from kg_build_system.distribution import interpreter
+        from kg_build_system.distribution.interpreter.model import public
+
+        self.assertNotIn("BindingDTO", interpreter.__all__)
+        self.assertNotIn("BindingDTO", public.__all__)
+
     def test_the_removed_layers_do_not_import(self) -> None:
         for removed in ("declaration", "pipeline"):
             name = f"kg_build_system.{removed}"

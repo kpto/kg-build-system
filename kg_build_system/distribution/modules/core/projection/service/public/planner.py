@@ -1,4 +1,4 @@
-"""The binding planner: one guarded SQL step per binding."""
+"""The projection planner: declared projections, dependency order."""
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -8,8 +8,8 @@ from kg_build_system.distribution.modules.duckdb import DuckDbSqlEmitter
 from kg_build_system.kernel import PlanContext, RuntimeField, Step
 
 
-class BindingPlanner:
-    """Plan one ``binding.<index>`` step for every blueprint binding."""
+class ProjectionPlanner:
+    """Plan one ``projection.<name>`` step for every declared projection."""
 
     component_id = "core"
     version = "4"
@@ -21,23 +21,21 @@ class BindingPlanner:
     def plan(
         self, blueprint: GraphBlueprint, context: PlanContext,
     ) -> Sequence[Step]:
-        """Return the binding steps for this compile.
+        """Return the projection steps for this compile.
 
         Example:
             ```python
-            steps = BindingPlanner().plan(blueprint, PlanContext())
+            steps = ProjectionPlanner().plan(blueprint, PlanContext())
             ```
         """
-        from kg_build_system.distribution.modules.core.service._private.binding.service._private.steps import (
-            binding_steps,
-        )
         from kg_build_system.distribution.modules.core.service._private.planning.plan import (
             core_plan,
         )
-
-        return binding_steps(
-            blueprint, core_plan(blueprint, context), engine=self._engine,
+        from kg_build_system.distribution.modules.core.projection.service._private.steps import (
+            projection_steps,
         )
 
+        return projection_steps(core_plan(blueprint, context), engine=self._engine)
 
-__all__ = ["BindingPlanner"]
+
+__all__ = ["ProjectionPlanner"]

@@ -101,6 +101,21 @@ kg_build_system/
       service/_private/{create,link,assembly,validation,codec,source,discovery}.py
     modules/
       core/
+        row_source/
+          service/public/planner.py   RowSourcePlanner
+          service/_private/           row-source steps and SQL
+        projection/
+          service/public/planner.py   ProjectionPlanner
+          service/_private/           projection steps and SQL
+        binding/
+          service/public/planner.py   BindingPlanner
+          service/_private/           binding steps, SQL and guards
+        records/
+          service/public/planner.py   RecordsPlanner
+          service/_private/           aggregation steps
+        service/
+          public/{__init__,functions}.py  core_planners facade
+          _private/planning/          shared CorePlan, relations and emission
       deduplication/
       merging/
       conflict_validation/
@@ -161,9 +176,15 @@ pkg/
 - `tests/test_facades.py` enforces the facade shape, and the relaxed layout test
   enforces that an existing zone is not empty and a facade imports an existing
   public zone.
-- `distribution/modules/core` is the parent of the four core subplanners. The
-  subplanners are layout leaves for surface checks, but private imports stay
-  inside the core module.
+- `distribution/modules/core` is the parent of the four core feature planners:
+  `row_source`, `projection`, `binding` and `records`. Each feature is a layout
+  leaf whose definition site is `service/public/planner.py` and whose
+  implementation is under `service/_private/`. The feature leaves are grouped
+  under the core module for private-import checks, so private imports stay
+  inside `core`. The shared `CorePlan` and emission helpers remain in
+  `core/service/_private/planning/`; `core/__init__.py` and
+  `core/service/public/functions.py` re-export the planners from the feature
+  public sites.
 
 ## The three verbs
 

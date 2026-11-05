@@ -42,9 +42,7 @@ def is_array_of(predicate: TypePredicate) -> TypePredicate:
         base = non_nullable(logical_type)
         if not isinstance(base, ArrayType):
             return False
-        return predicate(base.item) or (
-            isinstance(base.item, NullableType) and predicate(base.item.value)
-        )
+        return predicate(base.item)
 
     return check
 

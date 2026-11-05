@@ -62,12 +62,12 @@ class StructSelection(ValueSelection[TStruct], Generic[TStruct]):
             assert selected.logical_type.name == "str"
             ```
         """
-        from ....service._private.selections import _pick as pick_member
+        from ....service._private.selections import _extract_member as extract_member
 
         logical_type = self.logical_type
         if not isinstance(logical_type, StructType):
             raise TypeError("extract requires a struct selection")
-        return pick_member(self, selector, logical_type, propagate_null=False)
+        return extract_member(self, selector, logical_type, propagate_null=False)
 
 
 

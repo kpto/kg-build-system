@@ -306,6 +306,7 @@ rule about what the framework is belongs to the framework model.
 - A public API method is a thin wrapper over an internal implementation, with a
   docstring and a runnable example. It is not a bare re-export.
 - It makes the intended use easy and the wrong use impossible.
+- A capability handle exposes only the operations its subject supports and is consumed by its first use; an unsupported operation is absent from the handle type, not present and refused at runtime.
 - It exposes only what an author may write; internal types stay internal.
 - A type in a public signature is a public type. If the value is an internal model, the
   public function returns either an opaque token or a public view of it; it does

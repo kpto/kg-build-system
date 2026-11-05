@@ -1,12 +1,12 @@
-"""The presence filter operation."""
+"""The drop-null row filter operation."""
 from __future__ import annotations
 
 from kg_build_system.kernel.service.internal.types import non_nullable
 from .spec import ArgumentSpec, OperationSpec, RowEffectSpec
 
 
-WHERE_PRESENT = OperationSpec(
-    name="where_present",
+DROP_NULL = OperationSpec(
+    name="drop_null",
     arity=1,
     arguments=(ArgumentSpec(description="value"),),
     result_type=lambda types, parameters: non_nullable(types[0]),
@@ -14,4 +14,4 @@ WHERE_PRESENT = OperationSpec(
 )
 
 
-__all__ = ["WHERE_PRESENT"]
+__all__ = ["DROP_NULL"]

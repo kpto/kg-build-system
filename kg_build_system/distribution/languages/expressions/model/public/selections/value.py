@@ -12,7 +12,6 @@ Example:
 """
 from __future__ import annotations
 
-from collections.abc import Callable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING, Any, Generic, Self, TypeVar, cast, overload
 
@@ -128,22 +127,6 @@ class ValueSelection(Generic[TType_co]):
             raise TypeError("a struct member selection is only valid inside extract")
         return self._value
 
-    def where_present(self) -> Self:
-        """A present value is already present; the old API's narrowing is a no-op.
-
-        Example:
-            ```python
-            from kg_build_system import Field, Table, field
-
-            class Row(Table):
-                name: Field[str] = field(name="name")
-
-            selection = Row.name
-            assert selection.where_present() is selection
-            ```
-        """
-        return self
-
     def default_to(self, value: Any) -> Self:
         """A present value needs no fallback; the old spelling is a no-op.
 
@@ -160,36 +143,6 @@ class ValueSelection(Generic[TType_co]):
         """
         return self
 
-    def drop_if(self, predicate: "Callable[[Self], BoolExpression]") -> Self:
-        """Keep rows whose value satisfies a value-scoped predicate.
-
-        Example:
-            ```python
-            from kg_build_system import Field, Table, field
-
-            class Row(Table):
-                name: Field[str] = field(name="name")
-
-            selected = Row.name.drop_if(
-                lambda name: name.expression.equals("Depot")
-            )
-            assert selected.model.operator == "where_if"
-            ```
-        """
-        if not callable(predicate):
-            raise TypeError("drop_if requires a callable predicate")
-        result = predicate(self)
-        from ..boolean import BoolExpression
-        from ....service._private.apply import apply_operation
-        from ....service._private.selections import select_expression
-
-        if not isinstance(result, BoolExpression):
-            raise TypeError("drop_if predicates must return a BoolExpression")
-        selection = apply_operation(
-            "where_if", self.require_expression(), result.model
-        )
-        return cast(Self, select_expression(selection))
-
     def alter_rows(self) -> "RowEffects[Self]":
         """Opt in to the row-changing operations available on this selection.
 
@@ -200,8 +153,7 @@ class ValueSelection(Generic[TType_co]):
             class Row(Table):
                 name: Field[str] = field(name="name")
 
-            selection = Row.name
-            assert selection.alter_rows().selection is selection
+            assert Row.name.alter_rows() is not None
             ```
         """
         from .effects import RowEffects

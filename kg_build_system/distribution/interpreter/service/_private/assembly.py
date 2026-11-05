@@ -10,8 +10,9 @@ from collections.abc import Sequence
 
 from kg_build_system.distribution.languages.asset.model.internal.dto import AssetPartDTO
 from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import DataPartDTO
+from kg_build_system.distribution.languages.binding.model.internal.dto.blueprint_dto import BindingDTO
 from kg_build_system.distribution.languages.topology.model.internal.dto.blueprint_dto import GraphPartDTO
-from ...model.public import BindingDTO, GraphBlueprint
+from ...model.public import GraphBlueprint
 
 
 def assemble_blueprint(

@@ -15,6 +15,8 @@ from .before_separator import BEFORE_SEPARATOR
 from .coalesce import COALESCE
 from .concat import CONCAT
 from .distinct import DISTINCT
+from .drop_if import DROP_IF
+from .drop_null import DROP_NULL
 from .drop_null_items import DROP_NULL_ITEMS
 from .equals import EQUALS
 from .expand import EXPAND
@@ -28,8 +30,6 @@ from .struct_field import STRUCT_FIELD
 from .subtract import SUBTRACT
 from .to_string import TO_STRING
 from .transform_items import TRANSFORM_ITEMS
-from .where_if import WHERE_IF
-from .where_present import WHERE_PRESENT
 
 DEFAULT_OPERATIONS = OperationRegistry((
     ADD,
@@ -54,8 +54,8 @@ DEFAULT_OPERATIONS = OperationRegistry((
     OR,
     STRUCT_FIELD,
     EXPAND,
-    WHERE_PRESENT,
-    WHERE_IF,
+    DROP_NULL,
+    DROP_IF,
 ))
 
 __all__ = ["DEFAULT_OPERATIONS"]

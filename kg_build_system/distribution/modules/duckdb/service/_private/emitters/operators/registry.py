@@ -19,6 +19,8 @@ from .before_separator import BeforeSeparator
 from .coalesce import Coalesce
 from .concat import Concat
 from .distinct import Distinct
+from .drop_if import DropIf
+from .drop_null import DropNull
 from .drop_null_items import DropNullItems
 from .equals import EQUALS
 from .expand import Expand
@@ -31,8 +33,6 @@ from .struct_field import StructField
 from .subtract import SUBTRACT
 from .to_string import ToString
 from .transform_items import TransformItems
-from .where_if import WhereIf
-from .where_present import WherePresent
 
 if TYPE_CHECKING:
     from ..protocols import ExpressionEmitter
@@ -59,8 +59,8 @@ OPERATORS = (
     ArrayJoin(),
     StructField(),
     Expand(),
-    WherePresent(),
-    WhereIf(),
+    DropNull(),
+    DropIf(),
     Coalesce(),
 )
 

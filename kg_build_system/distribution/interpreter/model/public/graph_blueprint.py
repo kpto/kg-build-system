@@ -42,4 +42,4 @@ class GraphBlueprint:
     bindings: tuple[BindingDTO, ...]
 
 
-__all__ = ["BindingDTO", "GraphBlueprint"]
+__all__ = ["GraphBlueprint"]

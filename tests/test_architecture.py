@@ -24,10 +24,10 @@ LEAVES = (
     "distribution/languages/binding",
     "distribution/interpreter",
     "distribution/modules/core",
-    "distribution/modules/core/service/_private/row_source",
-    "distribution/modules/core/service/_private/projection",
-    "distribution/modules/core/service/_private/binding",
-    "distribution/modules/core/service/_private/records",
+    "distribution/modules/core/row_source",
+    "distribution/modules/core/projection",
+    "distribution/modules/core/binding",
+    "distribution/modules/core/records",
     "distribution/modules/deduplication",
     "distribution/modules/merging",
     "distribution/modules/conflict_validation",
@@ -41,12 +41,13 @@ LEAVES = (
     "cli",
 )
 LEAF_PARTS = {tuple(leaf.split("/")): leaf for leaf in LEAVES}
-# The five core planners are internal parts of one module. They are leaves for
-# layout and public-surface checks, but private imports stay inside the module.
+# The four core feature planners are internal parts of one module. They are
+# leaves for layout and public-surface checks, but private imports stay inside
+# the module.
 LEAF_GROUPS = {
     leaf: "distribution/modules/core"
     for leaf in LEAVES
-    if leaf.startswith("distribution/modules/core/service/_private/")
+    if leaf.startswith("distribution/modules/core/")
 }
 
 
@@ -272,14 +273,7 @@ class ArchitectureTests(unittest.TestCase):
                 if _surface(tail) != "service.public":
                     continue
                 for parts, line in _module_imports(path):
-                    target, target_tail = _leaf(parts)
-                    # A core subplanner's public planner lives beneath the core
-                    # module's private implementation directory by design.
-                    if (
-                        target in LEAF_GROUPS
-                        and _surface(target_tail) == "service.public"
-                    ):
-                        continue
+                    _, target_tail = _leaf(parts)
                     if _surface(target_tail) in PRIVATE_SURFACES or _private(parts):
                         self.fail(
                             f"{path}:{line} public service imports private "
