@@ -254,9 +254,10 @@ class BindingSymbolReferenceTests(unittest.TestCase):
         )
 
         blueprint = create_blueprint(bindings=(binding,))
+        self.assertEqual(blueprint.bindings[0].component, "item")
 
         self.assertEqual(
-            BindingLanguage().get_references(blueprint.bindings[0], None),
+            BindingLanguage().get_references(binding, None),
             (
                 SymbolRef("topology", Key(("item",))),
                 SymbolRef("data", Key(("row",))),

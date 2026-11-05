@@ -46,17 +46,15 @@ class EchoLanguage:
     name = "echo"
 
     def discover_declarations(self, namespace):
-        return tuple(Declaration(value) for value in namespace.values())
+        return (Declaration(tuple(namespace.values())),)
 
     def compute_key(self, declaration):
-        return Key((str(declaration.value),))
+        del declaration
+        return Key(("echo",))
 
     def get_kind(self, declaration):
         del declaration
         return "echo"
-
-    def owns(self, value):
-        return isinstance(value, str)
 
     def get_identity(self, value):
         if not isinstance(value, str):
@@ -67,18 +65,16 @@ class EchoLanguage:
         del value, resolver
         return ()
 
-    def transcribe_many(self, declarations, context):
+    def transcribe(self, declaration, context):
         del context
-        reference = SymbolRef(self.name, Key(("echo",)))
-        return {
-            reference: Symbol(
-                reference.key,
-                "echo",
-                EchoMessage(" ".join(
-                    str(declaration.value) for declaration in declarations
-                )),
-            ),
-        }
+        key = Key(("echo",))
+        return Symbol(
+            key,
+            "echo",
+            EchoMessage(" ".join(
+                str(value) for value in declaration.value
+            )),
+        )
 
     def render(self, symbol, context):
         del context
@@ -89,9 +85,11 @@ class EchoLinker:
     def link(self, languages, namespace):
         language = languages[0]
         declarations = tuple(language.discover_declarations(namespace))
-        symbols = language.transcribe_many(
-            declarations, SymbolContext(),
-        )
+        symbols = {
+            SymbolRef(language.name, symbol.key): symbol
+            for declaration in declarations
+            for symbol in (language.transcribe(declaration, SymbolContext()),)
+        }
         (symbol,) = symbols.values()
         value = symbol.value
         assert isinstance(value, EchoMessage)

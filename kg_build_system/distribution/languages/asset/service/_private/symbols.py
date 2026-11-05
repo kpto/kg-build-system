@@ -1,18 +1,14 @@
-"""Project the asset language DTO into linked symbols."""
+"""Project the asset language declaration into a linked symbol."""
 from __future__ import annotations
 
 from typing import Any
 
 from kg_build_system.kernel import Key, Symbol, SymbolRef
 
-from ...model.internal.dto.asset_dto import AssetDTO, AssetPartDTO
+from ...model.internal.dto.asset_dto import AssetDTO
 from ...model.public.descriptor import asset_name
 from .declarations import is_asset_declaration
-
-
-def owns_value(value: Any) -> bool:
-    """Whether the asset language owns an authoring value or DTO."""
-    return is_asset_declaration(value) or isinstance(value, AssetDTO)
+from .transcription import asset_to_dto
 
 
 def value_identity(value: Any) -> SymbolRef | None:
@@ -24,13 +20,11 @@ def value_identity(value: Any) -> SymbolRef | None:
     return None
 
 
-def symbols_for_part(part: AssetPartDTO) -> dict[SymbolRef, Symbol]:
-    """Split one asset DTO part into one symbol per asset."""
-    symbols: dict[SymbolRef, Symbol] = {}
-    for asset in part.assets:
-        reference = SymbolRef("asset", Key((asset.name,)))
-        symbols[reference] = Symbol(Key((asset.name,)), "asset", asset)
-    return symbols
+def symbol_for_declaration(value: type[Any]) -> Symbol:
+    """Transcribe one asset declaration into one symbol."""
+    dto = asset_to_dto(value)
+    key = Key((dto.name,))
+    return Symbol(key, "asset", dto)
 
 
-__all__ = ["owns_value", "symbols_for_part", "value_identity"]
+__all__ = ["symbol_for_declaration", "value_identity"]

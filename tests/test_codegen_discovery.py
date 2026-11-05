@@ -20,10 +20,15 @@ from kg_build_system.generation.code_generation.builtins import (
     InferDataContractProvider,
 )
 from kg_build_system.generation.code_generation.model._private.generated import (
+    GeneratedArrayType,
     GeneratedAsset,
     GeneratedClass,
+    GeneratedField,
     GeneratedFile,
+    GeneratedNullableType,
     GeneratedPackage,
+    GeneratedScalarType,
+    Nullability,
 )
 from kg_build_system.generation.code_generation.model.internal import (
     DiscoveredGeneration,
@@ -32,6 +37,9 @@ from kg_build_system.generation.code_generation.model.internal import (
 )
 from kg_build_system.generation.code_generation.model.public.requests import (
     GenerationRequest,
+)
+from kg_build_system.generation.code_generation.service._private.builtins.overrides import (
+    overridden_field,
 )
 from kg_build_system.generation.code_generation.service._private.rendering import (
     render_package,
@@ -294,6 +302,9 @@ class NotAnAsset:
                 rendered = product.read_text(encoding="utf-8")
                 self.assertIn("from codegen_project.assets import CodegenSample", rendered)
                 self.assertIn("class CodegenSampleTable(Table[CodegenSample]):", rendered)
+                self.assertIn("id: Field[int] = field(name='id')", rendered)
+                self.assertIn("name: Field[str] = field(name='name')", rendered)
+                self.assertNotIn("| None", rendered)
                 self.assertIs(
                     asyncio.run(generate(root, check=True)).status,
                     GenerationStatus.CURRENT,
@@ -302,6 +313,109 @@ class NotAnAsset:
                 sys.path.remove(str(root))
                 sys.modules.pop("codegen_project.assets", None)
                 sys.modules.pop("codegen_project", None)
+
+
+class CodegenNullabilityTests(unittest.TestCase):
+    def _render(self, declaration: GeneratedClass) -> str:
+        request = DiscoveredGeneration(
+            GenerationRequest(
+                "project.providers", "Provider",
+                "project.providers", "Config",
+                package="project.tables",
+                asset_module="project.assets",
+                asset_qualname="Estate",
+            ),
+            GenerationLocation(
+                Path("."), Path("project/assets.py"), 1, 1,
+                "estate", "project",
+            ),
+            Path("project/tables/estate"),
+            "project.tables.estate",
+        )
+        package = GeneratedPackage((
+            GeneratedFile(
+                Path("__init__.py"),
+                declarations=(declaration,),
+                exports=(declaration.name,),
+            ),
+        ))
+        return render_package(
+            request, package, "fingerprint",
+        )[PurePosixPath("__init__.py")]
+
+    def test_a_defaulted_source_field_renders_its_value_type_alone(self) -> None:
+        rendered = self._render(GeneratedClass(
+            name="SitesTable",
+            base="Table",
+            declaration_name="sites",
+            fields=(
+                GeneratedField(
+                    "site_id", "siteId", GeneratedScalarType("str"),
+                    nullability=Nullability.DEFAULTED,
+                ),
+            ),
+        ))
+
+        self.assertIn("site_id: Field[str] = field(name='siteId')", rendered)
+        self.assertNotIn("| None", rendered)
+
+    def test_an_array_item_keeps_its_own_nullability(self) -> None:
+        rendered = self._render(GeneratedClass(
+            name="SitesTable",
+            base="Table",
+            declaration_name="sites",
+            fields=(
+                GeneratedField(
+                    "labels", "labels",
+                    GeneratedArrayType(GeneratedNullableType(
+                        GeneratedScalarType("str"),
+                    )),
+                    nullability=Nullability.DEFAULTED,
+                ),
+            ),
+        ))
+
+        self.assertIn(
+            "labels: Field[Array[str | None]] = field(name='labels')",
+            rendered,
+        )
+        self.assertNotIn("Field[Array[str | None] | None]", rendered)
+
+    def test_an_explicitly_nullable_computed_value_keeps_its_type(self) -> None:
+        rendered = self._render(GeneratedClass(
+            name="SitesTable",
+            base="Table",
+            declaration_name="sites",
+            fields=(
+                GeneratedField(
+                    "label", "label",
+                    GeneratedNullableType(GeneratedScalarType("str")),
+                    nullability=Nullability.DECLARED,
+                ),
+            ),
+        ))
+
+        self.assertIn("label: Field[str | None] = field(name='label')", rendered)
+
+    def test_a_nullability_override_changes_the_claim_not_the_value_type(self) -> None:
+        item_type = GeneratedNullableType(GeneratedScalarType("str"))
+        value_type = GeneratedArrayType(item_type)
+        declared = GeneratedField(
+            "labels", "labels", value_type,
+            nullability=Nullability.DECLARED,
+        )
+        defaulted = GeneratedField(
+            "labels", "labels", value_type,
+            nullability=Nullability.DEFAULTED,
+        )
+
+        declined = overridden_field(declared, True)
+        asserted = overridden_field(defaulted, False)
+
+        self.assertIs(declined.nullability, Nullability.DEFAULTED)
+        self.assertIs(declined.value_type, value_type)
+        self.assertIs(asserted.nullability, Nullability.DECLARED)
+        self.assertIs(asserted.value_type, value_type)
 
 
 if __name__ == "__main__":

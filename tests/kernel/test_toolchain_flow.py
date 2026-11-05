@@ -69,11 +69,8 @@ class LanguageA:
     def get_kind(self, declaration):
         return "value"
 
-    def owns(self, value):
-        return isinstance(value, (str, int))
-
     def get_identity(self, value):
-        if not self.owns(value):
+        if not isinstance(value, (str, int)):
             return None
         return SymbolRef(self.name, Key((str(value),)))
 
@@ -81,17 +78,10 @@ class LanguageA:
         del value, resolver
         return ()
 
-    def transcribe_many(self, declarations, context):
+    def transcribe(self, declaration, context):
         del context
-        symbols = {}
-        for declaration in declarations:
-            reference = SymbolRef(
-                self.name, self.compute_key(declaration),
-            )
-            symbols[reference] = Symbol(
-                reference.key, "value", declaration.value,
-            )
-        return symbols
+        key = self.compute_key(declaration)
+        return Symbol(key, "value", declaration.value)
 
     def render(self, symbol, context):
         del context
@@ -103,15 +93,13 @@ class LanguageB(LanguageA):
 
     def discover_declarations(self, namespace):
         del namespace
-        return ()
+        return (Declaration("b"),)
 
-    def transcribe_many(self, declarations, context):
-        del declarations
+    def transcribe(self, declaration, context):
+        del declaration
         values = tuple(symbol.value for symbol in context.symbols.values())
-        reference = SymbolRef(self.name, Key(("b",)))
-        return {
-            reference: Symbol(reference.key, "value", (*values, "b")),
-        }
+        key = Key(("b",))
+        return Symbol(key, "value", (*values, "b"))
 
 
 class RecordingLinker:
@@ -127,9 +115,11 @@ class RecordingLinker:
             declarations = tuple(
                 language.discover_declarations(namespace)
             )
-            model.update(
-                language.transcribe_many(declarations, SymbolContext(model)),
-            )
+            for declaration in declarations:
+                symbol = language.transcribe(
+                    declaration, SymbolContext(model),
+                )
+                model[SymbolRef(language.name, symbol.key)] = symbol
         return model
 
 

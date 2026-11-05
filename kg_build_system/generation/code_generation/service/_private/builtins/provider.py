@@ -69,7 +69,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
     """
 
     ID: ClassVar[str] = "infer_data_contract"
-    VERSION: ClassVar[str] = "7"
+    VERSION: ClassVar[str] = "8"
     CONFIG_TYPE: ClassVar[type[ProviderGenerationConfig]] = DataContractInferenceConfig
 
     @classmethod

@@ -1,7 +1,7 @@
 """The binding language: binding declarations, symbols and source."""
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable
 from typing import Any
 
 from kg_build_system.kernel import (
@@ -24,8 +24,7 @@ from ..source import render_binding_source
 from ..transcription import collect_bindings
 from ..._private.symbols import (
     binding_identity,
-    owns_value,
-    transcribe_symbols,
+    symbol_for_declaration,
     value_identity,
     value_references,
 )
@@ -86,18 +85,8 @@ class BindingLanguage(Language):
         del declaration
         return "binding"
 
-    def owns(self, value: Any) -> bool:
-        """Whether a value is a binding declaration or DTO.
-
-        Example:
-            ```python
-            assert BindingLanguage().owns(declaration.value)
-            ```
-        """
-        return owns_value(value)
-
     def get_identity(self, value: Any) -> SymbolRef | None:
-        """Return the binding reference of a declaration or DTO.
+        """Return the binding reference of an authoring value.
 
         Example:
             ```python
@@ -109,32 +98,31 @@ class BindingLanguage(Language):
     def get_references(
         self, value: Any, resolver: Any,
     ) -> tuple[SymbolRef, ...]:
-        """Return the references a transcribed binding DTO declares.
+        """Return the references an authoring binding declares.
 
-        The value is a binding DTO for this wave; the linker calls this method
-        after transcription. References name the target node or edge, the edge
-        endpoints, the data sources read by the rows and every field source the
-        expressions read.
+        References name the target node or edge, the edge endpoints, the data
+        sources read by the rows and every expression leaf. The value is the
+        authoring binding, never a transcribed DTO.
 
         Example:
             ```python
-            references = BindingLanguage().get_references(fragment, resolver)
+            references = BindingLanguage().get_references(binding, resolver)
             ```
         """
         del resolver
         return value_references(value)
 
-    def transcribe_many(
-        self, declarations: Sequence[Declaration], context: SymbolContext,
-    ) -> Mapping[SymbolRef, Symbol]:
-        """Transcribe bindings against the data and topology symbols.
+    def transcribe(
+        self, declaration: Declaration, context: SymbolContext,
+    ) -> Symbol:
+        """Transcribe one binding against the data and topology symbols.
 
         Example:
             ```python
-            symbols = BindingLanguage().transcribe_many(declarations, context)
+            symbol = BindingLanguage().transcribe(declaration, context)
             ```
         """
-        return transcribe_symbols(declarations, context)
+        return symbol_for_declaration(declaration, context)
 
     def render(
         self, symbol: Any, context: RenderContext,

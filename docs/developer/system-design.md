@@ -196,11 +196,11 @@ composition surface. It has three verbs and they do not overlap.
 1. Hand the language sequence and the namespace to `linker.link`.
 2. Let the linker discover each language's declarations and compute a key with
    `language.compute_key`.
-3. Let the linker select roots, transcribe in dependency order with
-   `language.transcribe_many` and resolve every reference.
-4. Refuse a duplicate language name, a duplicate declaration key, a symbol
-   produced under another language, a duplicate symbol, an unknown reference or
-   a reference cycle.
+3. Let the linker select roots, resolve the reference closure from the authoring
+   declaration values with `language.get_references`, order the reachable
+   declarations and transcribe each one with `language.transcribe`.
+4. Refuse a duplicate language name, a duplicate declaration key, an unknown
+   reference or a reference cycle. Only reachable declarations become symbols.
 5. Order symbols dependencies-first and assemble the opaque model.
 
 `build` is the only verb that reads declarations. It does not plan or execute.
@@ -282,8 +282,8 @@ class SymbolContext:
 ```
 
 `Symbol` carries its key. `Declaration` does not: the language derives the key
-with `compute_key`. `SymbolContext` exposes only the symbols transcribed before
-the current language.
+with `compute_key`. `SymbolContext` exposes the symbols transcribed before the
+current declaration in dependency order.
 
 ```python
 # kernel/model/public/language.py
@@ -295,22 +295,36 @@ class Language(Protocol):
     ) -> Iterable[Declaration]: ...
     def compute_key(self, declaration: Declaration) -> Key: ...
     def get_kind(self, declaration: Declaration) -> str: ...
-    def owns(self, value: Any) -> bool: ...
     def get_identity(self, value: Any) -> SymbolRef | None: ...
     def get_references(
         self, value: Any, resolver: ReferenceResolver,
     ) -> tuple[SymbolRef, ...]: ...
-    def transcribe_many(
-        self, declarations: Sequence[Declaration], context: SymbolContext,
-    ) -> Mapping[SymbolRef, Symbol]: ...
+    def transcribe(
+        self, declaration: Declaration, context: SymbolContext,
+    ) -> Symbol: ...
     def render(self, symbol: Symbol, context: RenderContext) -> SourceFragment: ...
 ```
 
-`owns` lets the resolver choose the language that answers `get_identity` and
-`get_references` for a value. `get_references` receives the transcribed symbol
-value (a DTO fragment in the distribution) and returns the references the symbol
-graph must contain. `transcribe_many` is the required transcription path; a
-per-symbol `transcribe` would be an optimisation, not a second interface.
+Declarations are candidates, not symbols. The linker indexes every declaration,
+selects the root declarations, walks the reference closure before transcription
+and transcribes only the reachable ones. A declaration that no root reaches
+contributes no symbol.
+
+`get_identity` answers for an authoring value and lets the resolver name the
+symbol a typed value denotes. `get_references` receives the **authoring
+declaration value**, not a transcribed DTO, and returns its direct dependencies;
+the linker follows those edges recursively. An expression is an inline fragment,
+so its leaves are typed references rather than separately keyed expressions.
+
+`transcribe` is the required per-declaration path. `context` holds the symbols
+already transcribed, dependencies first. A language may keep a batch
+implementation internally, but the linker calls `transcribe` once per reachable
+declaration and no language exposes a batch method as its contract.
+
+Some languages publish child declarations. The data language publishes each
+field as a declaration keyed by its owner and column name; the topology language
+publishes each property keyed by its component and property name. The owner
+references its child declarations, so the same closure walk reaches them.
 
 ```python
 # kernel/service/public/pipeline.py
@@ -339,7 +353,8 @@ planners.
 ## Declarations, symbols and the linker
 
 A language is a frontend. It discovers the authoring objects it recognises,
-keys them, transcribes them into symbols and renders symbol values back to
+keys them, reports the direct references an authoring value declares,
+transcribes one declaration into a symbol and renders symbol values back to
 authoring source.
 
 - A **declaration** is an authoring object a language offers. It carries only
@@ -352,10 +367,11 @@ authoring source.
   cross-symbol string.
 
 The linker owns the part the kernel cannot: which declarations are roots, how
-languages order, how the reference closure is walked and what model the
-distribution assembles. The distribution's `BlueprintLinker` uses the fixed
-order `expressions`, `asset`, `data`, `topology`, `binding`: data reads asset
-declarations and expression operations, and bindings read both.
+the language order constrains indexing, how the reference closure is walked and
+what model the distribution assembles. The distribution's `BlueprintLinker`
+indexes languages in the fixed order `expressions`, `asset`, `data`, `topology`,
+`binding`, then orders the reachable declarations by their authoring references:
+data reads asset declarations and expression operations, and bindings read both.
 
 The symbol graph is **linker IR**. It exists to key declarations, resolve
 references and order transcription. It is not the delivered model.
@@ -686,6 +702,11 @@ Generation and the toolchain are separate lanes:
 - generation observes a source, runs a provider and renders declarations;
 - `build` imports the resulting declarations and never invokes generation;
 - `compile` and `execute` never invoke generation.
+
+A generated field renders its value type. Observed source nullability is
+provenance for the manifest, statistics and semantics notes; it never adds
+`| None` to a source-backed field. Nullability that belongs to the value — an
+array item or an explicitly nullable computed result — stays in the value type.
 
 A generated declaration and a handwritten declaration enter the same language,
 blueprint, plan and execution path. There is no generation-specific plan path.

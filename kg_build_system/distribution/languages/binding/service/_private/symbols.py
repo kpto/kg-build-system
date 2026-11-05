@@ -1,7 +1,9 @@
-"""Project the binding language DTO into linked symbols.
+"""Project binding declarations into linked symbols.
 
 A binding's identity is its debug name when present, otherwise a content digest
-of its document. The identity is the temporary key bridge in this wave.
+of its document. Its references are read from the authoring binding: the target
+component, the endpoint nodes, the row sources it reads and every expression
+leaf. A transcribed DTO is never the source of those references.
 """
 from __future__ import annotations
 
@@ -11,25 +13,23 @@ from hashlib import sha256
 from types import SimpleNamespace
 from typing import Any
 
-from kg_build_system.kernel import (
-    Declaration, Key, Symbol, SymbolContext, SymbolRef,
-)
-
 from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import (
     DataPartDTO, ProjectionDTO, RelationDTO, StructDTO,
 )
-from kg_build_system.distribution.languages.data.service.internal.rows import (
-    plan_expressions,
-    plan_scan_sources,
+from kg_build_system.distribution.languages.data.service.internal import (
+    plan_expressions, plan_inputs, plan_scan_sources, row_source_plan_dto,
 )
 from kg_build_system.distribution.languages.expressions.model.internal.dto import (
     ExpressionDTO,
 )
 from kg_build_system.distribution.languages.expressions.service.internal import (
-    expression_references,
+    as_expression, authoring_references, expression_references,
 )
 from kg_build_system.distribution.languages.topology.model.internal.dto.blueprint_dto import (
     EdgeDTO, GraphPartDTO, NodeDTO,
+)
+from kg_build_system.kernel import (
+    Declaration, Key, Symbol, SymbolContext, SymbolRef,
 )
 
 from ...model.internal.dto.blueprint_dto import (
@@ -39,6 +39,8 @@ from ...model.internal.dto.blueprint_dto import (
 from ...model.public.values import EdgeBinding, NodeBinding
 from .codec import binding_to_document
 from .transcription import (
+    _component_ref,
+    _node_ref,
     transcribe_binding_part,
     transcribe_bindings,
     validate_bindings,
@@ -67,67 +69,58 @@ def binding_identity(value: Any) -> str:
     return digest
 
 
-def owns_value(value: Any) -> bool:
-    """Whether the binding language owns an authoring value or DTO."""
-    return isinstance(
-        value, (NodeBinding, EdgeBinding, NodeBindingDTO, EdgeBindingDTO),
-    )
-
-
 def value_identity(value: Any) -> SymbolRef | None:
-    """Return the binding reference of a declaration or DTO."""
-    if not owns_value(value):
+    """Return the binding reference of an authoring value or DTO."""
+    if not isinstance(
+        value, (NodeBinding, EdgeBinding, NodeBindingDTO, EdgeBindingDTO),
+    ):
         return None
     return SymbolRef("binding", Key((binding_identity(value),)))
 
 
-def _expressions(value: NodeBindingDTO | EdgeBindingDTO) -> Iterator[ExpressionDTO]:
-    yield value.identity
+def _expressions(value: NodeBinding | EdgeBinding) -> Iterator[Any]:
+    names = ("build_key", "source_build_key", "target_build_key")
+    for name in names:
+        expression = getattr(value, name, None)
+        if expression is not None:
+            yield as_expression(expression).model
     for _, expression in value.properties:
-        yield expression
-    if value.rows is not None:
-        yield from plan_expressions(value.rows)
+        yield as_expression(expression).model
+
+
+def _plan_expressions(plan: Any) -> Iterator[ExpressionDTO]:
+    yield from plan_expressions(plan)
+    for child in plan_inputs(plan):
+        yield from _plan_expressions(child)
 
 
 def value_references(value: Any) -> tuple[SymbolRef, ...]:
-    """Return the references one binding DTO declares.
+    """Return the references one authoring binding declares.
 
     A binding refers to its target node or edge, to the nodes named by an edge
-    binding's endpoints, to the data sources read by its rows and to every field
-    source its expressions read.
+    binding's endpoints, to the data sources read by its rows and to every
+    expression leaf it evaluates.
     """
-    if not isinstance(value, (NodeBindingDTO, EdgeBindingDTO)):
+    if not isinstance(value, (NodeBinding, EdgeBinding)):
         return ()
-    references: list[SymbolRef] = [
-        value.node.symbol
-        if isinstance(value, NodeBindingDTO) else value.edge.symbol,
-    ]
-    if isinstance(value, EdgeBindingDTO):
+    references: list[SymbolRef] = [_component_ref(value.target).symbol]
+    if isinstance(value, EdgeBinding):
         for endpoint in (value.source_node, value.target_node):
             if endpoint is not None:
-                references.append(endpoint.symbol)
+                reference = _node_ref(endpoint)
+                assert reference is not None
+                references.append(reference.symbol)
     if value.rows is not None:
+        plan = row_source_plan_dto(value.rows)
         references.extend(
             SymbolRef("data", Key((name,)))
-            for name in plan_scan_sources(value.rows)
+            for name in plan_scan_sources(plan)
         )
+        for expression in _plan_expressions(plan):
+            references.extend(expression_references(expression))
     for expression in _expressions(value):
-        references.extend(expression_references(expression))
+        references.extend(authoring_references(expression))
     return tuple(dict.fromkeys(references))
-
-
-def symbols_for_part(
-    bindings: Sequence[NodeBindingDTO | EdgeBindingDTO],
-) -> dict[SymbolRef, Symbol]:
-    """Split transcribed binding DTOs into one symbol per binding."""
-    symbols: dict[SymbolRef, Symbol] = {}
-    for binding in bindings:
-        identity = binding_identity(binding)
-        reference = SymbolRef("binding", Key((identity,)))
-        symbols[reference] = Symbol(
-            reference.key, "binding", binding, value_references(binding),
-        )
-    return symbols
 
 
 class _PartContext:
@@ -170,20 +163,32 @@ def _topology_part(context: SymbolContext) -> GraphPartDTO:
     )
 
 
+def symbol_for_declaration(
+    declaration: Declaration, context: SymbolContext,
+) -> Symbol:
+    """Transcribe one binding declaration against the earlier symbol context."""
+    binding = declaration.value
+    part_context = _PartContext(
+        _data_part(context), _topology_part(context),
+    )
+    (dto,) = transcribe_binding_part((binding,), part_context)
+    validate_bindings((dto,))
+    key = Key((binding_identity(dto),))
+    return Symbol(key, "binding", dto, value_references(binding))
+
+
 def transcribe_symbols(
     declarations: Sequence[Declaration], context: SymbolContext,
 ) -> dict[SymbolRef, Symbol]:
-    """Transcribe binding declarations against the earlier symbol context."""
-    part_context = _PartContext(_data_part(context), _topology_part(context))
-    bindings = transcribe_binding_part(
-        tuple(declaration.value for declaration in declarations),
-        part_context,
-    )
-    validate_bindings(bindings)
-    return symbols_for_part(bindings)
+    """Transcribe a batch of bindings through the per-declaration path."""
+    symbols: dict[SymbolRef, Symbol] = {}
+    for declaration in declarations:
+        symbol = symbol_for_declaration(declaration, context)
+        symbols[SymbolRef("binding", symbol.key)] = symbol
+    return symbols
 
 
 __all__ = [
-    "binding_identity", "owns_value", "symbols_for_part", "transcribe_symbols",
+    "binding_identity", "symbol_for_declaration", "transcribe_symbols",
     "value_identity", "value_references",
 ]

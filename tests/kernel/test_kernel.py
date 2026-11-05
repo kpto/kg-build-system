@@ -35,9 +35,6 @@ class EchoLanguage:
     def get_kind(self, declaration):
         return "echo"
 
-    def owns(self, value):
-        return isinstance(value, str)
-
     def get_identity(self, value):
         if not isinstance(value, str):
             return None
@@ -47,17 +44,10 @@ class EchoLanguage:
         del value, resolver
         return ()
 
-    def transcribe_many(self, declarations, context):
+    def transcribe(self, declaration, context):
         del context
-        symbols = {}
-        for declaration in declarations:
-            reference = SymbolRef(
-                self.name, self.compute_key(declaration),
-            )
-            symbols[reference] = Symbol(
-                reference.key, "echo", declaration.value,
-            )
-        return symbols
+        key = self.compute_key(declaration)
+        return Symbol(key, "echo", declaration.value)
 
     def render(self, symbol, context):
         del context
@@ -69,13 +59,22 @@ class ConsumerLanguage(EchoLanguage):
 
     def discover_declarations(self, namespace):
         del namespace
-        return ()
+        return (Declaration("consumer"),)
 
-    def transcribe_many(self, declarations, context):
-        del declarations
+    def compute_key(self, declaration):
+        del declaration
+        return Key(("consumer",))
+
+    def get_identity(self, value):
+        if value != "consumer":
+            return None
+        return SymbolRef(self.name, Key(("consumer",)))
+
+    def transcribe(self, declaration, context):
+        del declaration
         value = tuple(context.symbols.values())
-        reference = SymbolRef(self.name, Key(("consumer",)))
-        return {reference: Symbol(reference.key, "echo", value)}
+        key = Key(("consumer",))
+        return Symbol(key, "echo", value)
 
 
 class RecordingLinker:
@@ -91,9 +90,11 @@ class RecordingLinker:
             declarations = tuple(
                 language.discover_declarations(namespace)
             )
-            model.update(
-                language.transcribe_many(declarations, SymbolContext(model)),
-            )
+            for declaration in declarations:
+                symbol = language.transcribe(
+                    declaration, SymbolContext(model),
+                )
+                model[SymbolRef(language.name, symbol.key)] = symbol
         return model
 
 
@@ -209,10 +210,8 @@ class KernelTests(unittest.TestCase):
             ["a", "b"],
         )
 
-    def test_a_language_owns_its_values_and_reports_their_identity(self) -> None:
+    def test_a_language_reports_the_identity_of_its_values(self) -> None:
         language = EchoLanguage()
-        self.assertTrue(language.owns("hello"))
-        self.assertFalse(language.owns(1))
         self.assertEqual(
             language.get_identity("hello"),
             SymbolRef("echo", Key(("hello",))),

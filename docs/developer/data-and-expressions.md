@@ -165,10 +165,14 @@ came from. A field symbol's key joins its owner and the column name, and a
 property symbol's key joins its component and the property name.
 
 The expressions language (`name = "expressions"`) publishes one `operation`
-symbol per built-in specification. The linker order is
-`expressions, asset, data, topology, binding`: expressions resolve first, then
-asset declarations, then data relations that reference assets and expressions,
-then topology and bindings.
+symbol per built-in specification. The linker indexes declarations in the order
+`expressions, asset, data, topology, binding`, selects the root declarations,
+resolves the reference closure from the authoring values with
+`Language.get_references`, orders the reachable declarations and transcribes
+each one with `Language.transcribe`. A declaration is a candidate; a declaration
+no root reaches contributes no symbol. Data fields and topology properties are
+child declarations, and their owner references them so the same closure walk
+reaches them.
 
 An expression tree is a value, not a symbol: it references field and operation
 symbols through typed refs.
@@ -220,7 +224,8 @@ rewrite the core steps.
 
 A language has two directions:
 
-- `service/_private/transcription.py`: declarations -> symbols and language DTO;
+- `service/_private/transcription.py`: one declaration -> one symbol and its
+  language DTO, with references read from the authoring value;
 - `service/_private/source.py`: language DTO or symbol value -> `SourceFragment`.
 
 A language renders its own DTO using its dependency languages' renderers. The
@@ -257,9 +262,10 @@ The data model is implemented:
   a symbol key. Every `RelationDTO` carries an `AssetRef`.
 - `distribution/languages/asset` defines the asset language, `AssetPartDTO` and
   its codec. A relation names a logical asset, not a physical reader binding.
-- `distribution/languages/asset`, `data`, `topology`, `binding` and `expressions`
-  each provide a kernel `Language` adapter, a transcription service and a source
-  service. Their languages discover declarations, transcribe symbols and
+- `distribution/languages/asset`, `data`, `topology`, `binding` and
+  `expressions` each provide a kernel `Language` adapter, a transcription service
+  and a source service. Their languages discover declarations, resolve direct
+  dependencies from authoring values, transcribe one declaration at a time and
   render those symbol values back to authoring source.
 - `distribution/languages/expressions/model/internal/dto/blueprint_dto.py`
   defines `LiteralExpressionDTO`, `FieldReferenceDTO`, `VariableExpressionDTO`

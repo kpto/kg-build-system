@@ -1,13 +1,15 @@
 """The language frontend: declarations, symbols and source rendering.
 
 A language owns one part of a build. It discovers the authoring objects it
-recognises, computes a key and kind for each declaration, transcribes a batch of
-declarations into symbols and renders a symbol value back to authoring source.
-The linker orders languages, resolves references and assembles the model.
+recognises, computes a key and kind for each declaration, reports the
+references one authoring value declares, transcribes one declaration into a
+symbol and renders a symbol value back to authoring source. The linker indexes
+declarations, selects roots, walks the reference closure, orders declarations,
+transcribes only the reachable ones and assembles the model.
 """
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable, Sequence
 from dataclasses import dataclass
 from typing import Any, Literal, Protocol
 
@@ -63,19 +65,17 @@ class RenderContext(Protocol):
 
 
 class ReferenceResolver(Protocol):
-    """Resolve a value to its symbol reference and that reference's edges.
+    """Resolve an authoring value to the symbol reference it denotes.
 
-    The linker supplies the resolver after transcription. ``get_identity``
-    returns ``None`` for a value the framework does not publish as a symbol.
+    The linker supplies the resolver before transcription. It answers from the
+    declarations it has indexed across every language, so a language can resolve
+    a typed reference without knowing which language owns the value.
 
     Example:
     ```python
     class Resolver:
         def get_identity(self, value):
             return None
-
-        def get_references(self, value):
-            return ()
     ```
     """
 
@@ -89,24 +89,14 @@ class ReferenceResolver(Protocol):
         """
         ...
 
-    def get_references(self, value: Any) -> tuple[SymbolRef, ...]:
-        """Return the references one value declares.
-
-        Example:
-            ```python
-            references = resolver.get_references(value)
-            ```
-        """
-        ...
-
 
 class Language(Protocol):
     """One named frontend: discover, key, transcribe and render.
 
     ``name`` is the language name written into every ``SymbolRef`` it
-    produces. ``transcribe_many`` is the required transcription path in this
-    wave; it may delegate to a batch implementation and split the resulting
-    DTOs into one symbol per declaration.
+    produces. ``transcribe`` is the required per-declaration path; a language
+    may use a batch implementation internally, but the linker calls
+    ``transcribe`` once per reachable declaration.
 
     Example:
     ```python
@@ -126,22 +116,15 @@ class Language(Protocol):
         def get_kind(self, declaration):
             return "echo"
 
-        def owns(self, value):
-            return isinstance(value, str)
-
         def get_identity(self, value):
             return SymbolRef("echo", Key((value,))) if isinstance(value, str) else None
 
         def get_references(self, value, resolver):
             return ()
 
-        def transcribe_many(self, declarations, context):
-            return {
-                SymbolRef("echo", self.compute_key(item)): Symbol(
-                    self.compute_key(item), "echo", item.value,
-                )
-                for item in declarations
-            }
+        def transcribe(self, declaration, context):
+            key = self.compute_key(declaration)
+            return Symbol(key, "echo", declaration.value)
 
         def render(self, symbol, context):
             return SourceFragment("inline", repr(symbol.value))
@@ -183,23 +166,11 @@ class Language(Protocol):
         """
         ...
 
-    def owns(self, value: Any) -> bool:
-        """Whether this language owns ``value``.
-
-        The resolver uses ownership to choose the language that answers
-        ``get_identity`` and ``get_references``. A language may also own its
-        transcribed values (DTO fragments), because the linker resolves
-        references after transcription.
-
-        Example:
-            ```python
-            assert EchoLanguage().owns("hello")
-            ```
-        """
-        ...
-
     def get_identity(self, value: Any) -> SymbolRef | None:
-        """Return the reference of one authoring or transcribed value.
+        """Return the reference one authoring value denotes.
+
+        The value is an authoring value, not a transcribed symbol or DTO. A
+        value the language does not publish as a symbol returns ``None``.
 
         Example:
             ```python
@@ -212,11 +183,12 @@ class Language(Protocol):
     def get_references(
         self, value: Any, resolver: ReferenceResolver,
     ) -> tuple[SymbolRef, ...]:
-        """Return the references one transcribed symbol value declares.
+        """Return the direct dependencies one authoring declaration value declares.
 
-        This wave passes the transcribed symbol value (a DTO fragment) and the
-        linker calls the method after transcription. A later wave may pass the
-        authoring value instead.
+        The linker calls this before transcription, using the declaration value.
+        The result names only direct edges: the closure walk follows them to
+        reach the rest. An expression is an inline fragment, so its leaves are
+        typed references rather than separately keyed expressions.
 
         Example:
             ```python
@@ -225,18 +197,22 @@ class Language(Protocol):
         """
         ...
 
-    def transcribe_many(
-        self, declarations: Sequence[Declaration], context: SymbolContext,
-    ) -> Mapping[SymbolRef, Symbol]:
-        """Transcribe a batch of declarations into symbols.
+    def transcribe(
+        self, declaration: Declaration, context: SymbolContext,
+    ) -> Symbol:
+        """Transcribe one declaration into one symbol.
 
-        ``context`` holds the symbols of languages transcribed earlier.
-        ``transcribe_many`` is the required transcription path in this wave; a
-        per-symbol ``transcribe`` is an optimisation added later.
+        ``context`` holds the symbols already transcribed, dependencies first.
+        This is the required per-declaration path; the linker selects the
+        reference closure before calling it and never transcribes an
+        unreachable declaration.
 
         Example:
             ```python
-            symbols = EchoLanguage().transcribe_many(declarations, context)
+            symbol = EchoLanguage().transcribe(
+                Declaration("hello"), SymbolContext(),
+            )
+            assert symbol.key == Key(("hello",))
             ```
         """
         ...

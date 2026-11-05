@@ -1,7 +1,7 @@
 """Kernel language adapter for the asset language."""
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable
 from typing import Any
 
 from kg_build_system.kernel import (
@@ -18,8 +18,7 @@ from kg_build_system.kernel import (
 
 from ....model.internal.dto.asset_dto import AssetDTO, AssetPartDTO
 from ..._private.declarations import is_asset_declaration
-from ..._private.symbols import owns_value, symbols_for_part, value_identity
-from ..._private.transcription import transcribe_asset_part
+from ..._private.symbols import symbol_for_declaration, value_identity
 from ..source import render_asset_source
 
 
@@ -78,18 +77,8 @@ class AssetLanguage(Language):
         del declaration
         return "asset"
 
-    def owns(self, value: Any) -> bool:
-        """Whether a value is an asset declaration or asset DTO.
-
-        Example:
-            ```python
-            assert AssetLanguage().owns(declaration.value)
-            ```
-        """
-        return owns_value(value)
-
     def get_identity(self, value: Any) -> SymbolRef | None:
-        """Return the asset reference of a declaration or DTO.
+        """Return the asset reference of an authoring declaration.
 
         Example:
             ```python
@@ -101,33 +90,32 @@ class AssetLanguage(Language):
     def get_references(
         self, value: Any, resolver: Any,
     ) -> tuple[SymbolRef, ...]:
-        """Return the references an asset symbol declares; an asset has none.
+        """Return the references an asset declaration declares; an asset has none.
 
         Example:
             ```python
-            assert AssetLanguage().get_references(fragment, resolver) == ()
+            assert AssetLanguage().get_references(declaration.value, resolver) == ()
             ```
         """
         del value, resolver
         return ()
 
-    def transcribe_many(
-        self, declarations: Sequence[Declaration], context: SymbolContext,
-    ) -> Mapping[SymbolRef, Symbol]:
-        """Transcribe a batch of asset declarations into symbols.
+    def transcribe(
+        self, declaration: Declaration, context: SymbolContext,
+    ) -> Symbol:
+        """Transcribe one asset declaration into one symbol.
 
         Example:
             ```python
-            symbols = AssetLanguage().transcribe_many(declarations, context)
+            symbol = AssetLanguage().transcribe(declaration, context)
             ```
         """
         del context
-        values = tuple(declaration.value for declaration in declarations)
-        for value in values:
-            if not is_asset_declaration(value):
-                raise TypeError(f"{value!r} is not an asset declaration")
-        part = transcribe_asset_part(values)
-        return symbols_for_part(part)
+        if not is_asset_declaration(declaration.value):
+            raise TypeError(
+                f"{declaration.value!r} is not an asset declaration"
+            )
+        return symbol_for_declaration(declaration.value)
 
     def render(
         self, symbol: Any, context: RenderContext,

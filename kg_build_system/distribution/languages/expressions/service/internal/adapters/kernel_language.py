@@ -1,7 +1,7 @@
 """The expressions language: operation symbols and expression source."""
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable
 from typing import Any
 
 from kg_build_system.kernel import (
@@ -20,12 +20,11 @@ from ....model.internal.dto.blueprint_dto import ExpressionDTO
 from ....model.internal.model import ExpressionNode
 from ..operations import DEFAULT_OPERATIONS, OperationSpec
 from ..source import render_expression_source
-from ..._private.dto import expression_dto, expression_references
+from ..._private.dto import expression_dto
 from ..._private.symbols import (
     authoring_references,
     operation_reference,
     spec_of,
-    symbols_for_declarations,
 )
 
 
@@ -84,18 +83,6 @@ class ExpressionsLanguage(Language):
         del declaration
         return "operation"
 
-    def owns(self, value: Any) -> bool:
-        """Whether the value is an authoring expression or operation spec.
-
-        Example:
-            ```python
-            assert ExpressionsLanguage().owns(next(iter(DEFAULT_OPERATIONS)))
-            ```
-        """
-        if isinstance(value, (ExpressionNode, OperationSpec)):
-            return True
-        return isinstance(value, str) and value in DEFAULT_OPERATIONS
-
     def get_identity(self, value: Any) -> SymbolRef | None:
         """Return the operation reference of a spec or name.
 
@@ -115,10 +102,10 @@ class ExpressionsLanguage(Language):
     def get_references(
         self, value: Any, resolver: Any,
     ) -> tuple[SymbolRef, ...]:
-        """Return the field and operation references an expression reads.
+        """Return the field and operation references an authoring expression reads.
 
-        The value may be an authoring expression tree or a transcribed
-        expression DTO.
+        The value is an authoring expression tree, not a transcribed DTO. An
+        expression is an inline fragment, so its leaves are typed references.
 
         Example:
             ```python
@@ -128,22 +115,22 @@ class ExpressionsLanguage(Language):
         del resolver
         if isinstance(value, ExpressionNode):
             return authoring_references(value)
-        if isinstance(value, ExpressionDTO):
-            return expression_references(value)
         return ()
 
-    def transcribe_many(
-        self, declarations: Sequence[Declaration], context: SymbolContext,
-    ) -> Mapping[SymbolRef, Symbol]:
-        """Transcribe one symbol per operation specification.
+    def transcribe(
+        self, declaration: Declaration, context: SymbolContext,
+    ) -> Symbol:
+        """Transcribe one operation specification into one symbol.
 
         Example:
             ```python
-            symbols = ExpressionsLanguage().transcribe_many(declarations, context)
+            symbol = ExpressionsLanguage().transcribe(declaration, context)
             ```
         """
         del context
-        return symbols_for_declarations(declarations)
+        spec = spec_of(declaration)
+        reference = operation_reference(spec.name)
+        return Symbol(reference.key, "operation", spec)
 
     def transcribe_fragment(self, value: Any, context: Any = None) -> ExpressionDTO:
         """Transcribe one authoring expression tree into its blueprint DTO.

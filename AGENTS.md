@@ -183,6 +183,9 @@ rule about what the framework is belongs to the framework model.
 - A node or edge type states its meaning, direction, identity, absence and limits.
 - The build preserves those statements and publishes them for consumers.
 - A meaning that cannot be stated is recorded as a limit; it is not invented.
+- Observation is provenance. A generated field renders its value type; an
+  observed source nullability may inform the manifest, statistics and notes but
+  never adds `| None` to generated source.
 - The blueprint is the semantic model of the graph, not a snapshot of the
   declarations that produced it. Topology reads as nodes, edges, labels,
   endpoints and properties; it does not carry Python paths, declaration
@@ -190,10 +193,12 @@ rule about what the framework is belongs to the framework model.
 - A DTO is a member of the blueprint or the workflow plan. A value outside those
   two artifacts is in-memory: a model, a plan, a render input or a build result.
   It is not a DTO and is not expected to deserialise.
-- A language discovers declarations, derives a key with `compute_key` and
-  transcribes symbols. A declaration has no key; a symbol carries key, kind,
-  value and references. The linker selects roots, resolves the closure, orders
-  symbols and assembles the model.
+- A language discovers declarations, derives a key with `compute_key`, reports
+  direct references from the authoring value and transcribes one declaration
+  into one symbol; a batch implementation stays internal. A declaration has no
+  key; a symbol carries key, kind, value and references. The linker selects
+  roots, resolves the closure before transcription, orders declarations and
+  assembles the model.
 - A language DTO does not know the blueprint. It knows only the languages it
   depends on. The interpreter links the language DTOs into one semantic model.
 - The kernel has three stages: `build` (languages -> declarations -> symbols ->

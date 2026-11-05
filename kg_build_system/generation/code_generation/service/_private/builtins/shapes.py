@@ -17,7 +17,7 @@ from .mapping import (
     DeclaredOnlyDigest, RefusedDigest, canonical_sql_type, digest_for,
 )
 from .naming import Paths, record_name, top_level_column
-from .nullability import level_nullability, wrap
+from .nullability import level_nullability
 from .observation import DescribedColumn, ParquetSchemaRow
 
 type ParquetTreeNodeRow = tuple[str, str, str | None, int | None, str | None, int]
@@ -226,11 +226,11 @@ def _register(inferred: GeneratedField, paths: Paths, inference: Inference) -> G
     return inferred
 
 
-def make_field(name: str, paths: Paths, value_type: GeneratedType, *, inference: Inference) -> GeneratedField:
-    nullability = (
-        Nullability.DEFAULTED if isinstance(value_type, GeneratedNullableType)
-        else Nullability.DECLARED
-    )
+def make_field(
+    name: str, paths: Paths, value_type: GeneratedType, *,
+    nullability: Nullability, inference: Inference,
+) -> GeneratedField:
+    """One field whose claim is provenance and whose value type is rendered as-is."""
     from .naming import identifier
 
     return _register(
@@ -272,7 +272,7 @@ def shape_for_node(
         )
         return (
             GeneratedArrayType(
-                wrap(item_type, Nullability.DEFAULTED) if item_nullable else item_type
+                GeneratedNullableType(item_type) if item_nullable else item_type
             ),
             declarations,
             not node.declared,
@@ -353,8 +353,10 @@ def tree_field(
     shape, declarations, _shape_is_nullable = shape_for_node(
         node=node, paths=paths, describe_type=describe_type, inference=inference,
     )
-    value = wrap(shape, level_nullability(node.repetition))
-    return make_field(node.name, paths, value, inference=inference), declarations
+    return make_field(
+        node.name, paths, shape,
+        nullability=level_nullability(node.repetition), inference=inference,
+    ), declarations
 
 
 def is_list_node(node: ParquetNode) -> bool:
@@ -427,7 +429,9 @@ def text_field(
         )
         value = GeneratedScalarType(scalar)
 
-    return make_field(name, paths, wrap(value, nullability), inference=inference), declarations
+    return make_field(
+        name, paths, value, nullability=nullability, inference=inference,
+    ), declarations
 
 
 def members(

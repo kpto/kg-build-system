@@ -15,7 +15,11 @@ from ..public.values import StaticValue
 
 
 class Nullability(StrEnum):
-    """How far a declared non-nullability is trusted, per source tier."""
+    """How far a source's non-nullability claim is trusted, recorded as provenance.
+
+    The value never changes a generated field's rendered value type; it selects
+    which fields enter the declared null-statistics pre-flight.
+    """
 
     DECLARED = "declared"
     ENFORCED = "enforced"

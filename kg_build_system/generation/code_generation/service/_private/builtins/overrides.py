@@ -8,7 +8,7 @@ from typing import Any
 from pydantic import ValidationError
 
 from kg_build_system.kernel.model.public.types import CANONICAL_UNIT_NAMES, UnitTypeName, is_canonical_unit_name
-from ....model._private.generated import GeneratedField, GeneratedNullableType, GeneratedType, Nullability
+from ....model._private.generated import GeneratedField, Nullability
 from ....model.public.errors import GenerationError
 from .config import ColumnOverride
 from .mapping import (
@@ -120,27 +120,23 @@ def declared_overrides(override: dict[str, dict[str, Any]]) -> dict[str, ColumnO
 
 
 def overridden_field(field_: GeneratedField, nullable: bool) -> GeneratedField:
-    """One finished member with the request's nullability override applied.
+    """One finished member with the request's nullability claim applied.
 
-    The author's word replaces the source's claim in either direction: ``True``
-    declines a non-null claim, dropping the member back to defaulted and out of
-    the statistics pre-flight; ``False`` asserts one the build guard will test.
-    Neither reads the values — an override is a declaration, and the guard is
-    what checks it against the data.
+    The author's word replaces the source's recorded claim in either direction:
+    ``True`` declines a non-null claim, dropping the member back to defaulted
+    and out of the statistics pre-flight; ``False`` asserts one the build guard
+    will test. The claim is provenance and never changes the member's value
+    type: ``True`` does not add ``None`` and ``False`` does not remove it from a
+    value that genuinely carries nullability. Neither reads the values — an
+    override is a declaration, and the guard checks it against the data.
     """
     if nullable:
         if field_.nullability is Nullability.DEFAULTED:
             return field_
-        value: GeneratedType = field_.value_type
-        if not isinstance(value, GeneratedNullableType):
-            value = GeneratedNullableType(value)
-        return replace(field_, value_type=value, nullability=Nullability.DEFAULTED)
+        return replace(field_, nullability=Nullability.DEFAULTED)
     if field_.nullability is not Nullability.DEFAULTED:
         return field_
-    value = field_.value_type
-    if isinstance(value, GeneratedNullableType):
-        value = value.value
-    return replace(field_, value_type=value, nullability=Nullability.DECLARED)
+    return replace(field_, nullability=Nullability.DECLARED)
 
 
 def require_overrides(inference: Inference) -> None:

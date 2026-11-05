@@ -37,9 +37,10 @@ PlannerModelT = TypeVar("PlannerModelT", contravariant=True)
 class Linker(Protocol[LinkerModelT]):
     """Link ordered language declarations into one opaque model.
 
-    The linker owns dependency order. It discovers each language's
-    declarations, transcribes them into symbols and assembles the model. The
-    kernel never inspects the model it receives.
+    The linker owns dependency order. It indexes each language's declarations,
+    selects roots, resolves the reference closure from authoring values, orders
+    the reachable declarations, transcribes only those declarations and
+    assembles the model. The kernel never inspects the model it receives.
 
     Example:
     ```python

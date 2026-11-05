@@ -1,21 +1,30 @@
-"""Project the data language DTO into linked symbols.
+"""Project data declarations and their fields into linked symbols.
 
-The graph name is the temporary key bridge in this wave. Relations and
-projections are unique by graph name. Struct names are not unique: the same
-nested record name can appear in several modules, so a struct key takes its
-Python qualified name as a second segment.
+A data declaration is a struct, relation or projection. Each declared field is
+its own declaration too: the owner references its fields, so the closure walk
+reaches them, and a computed field references the expression leaves it reads.
+Field keys join the owner key segments and the column name with a dot, so a
+relation ``sites`` and its column ``site_name`` produce
+``Key(("sites.site_name",))``.
 
-Fields are symbols too. A field key joins its owner's key segments and the
-column name with dots, so a relation ``sites`` and its column ``site_name``
-produce ``Key(("sites.site_name",))``.
+References are read from the authoring declaration and field specs, never from
+a transcribed DTO.
 """
 from __future__ import annotations
 
-from collections.abc import Sequence
-from dataclasses import replace
+from collections.abc import Iterable, Sequence
+from dataclasses import dataclass, replace
 from typing import Any
 
+from kg_build_system.distribution.languages.asset.model.public import (
+    asset_reference,
+)
+from kg_build_system.distribution.languages.expressions.model.internal import (
+    ExpressionDTO,
+)
 from kg_build_system.distribution.languages.expressions.service.internal import (
+    as_expression,
+    authoring_references,
     expression_references,
 )
 from kg_build_system.distribution.model.public.refs import FieldRef
@@ -23,17 +32,16 @@ from kg_build_system.kernel import Declaration, Key, Symbol, SymbolRef
 
 from ...model.internal.dto.blueprint_dto import (
     ColumnDTO,
-    DataPartDTO,
     ProjectionDTO,
     RelationDTO,
     StructDTO,
 )
-from .rows import plan_scan_sources
-from .transcription import (
-    _projection,
-    _relation,
-    _struct,
+from ...model.internal.model.fields import FieldSpec
+from .declarations import projection_row_source
+from .rows import (
+    plan_expressions, plan_inputs, plan_scan_sources, row_source_plan_dto,
 )
+from .transcription import _column, _projection, _relation, _struct
 
 _KINDS = {
     "table": "relation",
@@ -41,6 +49,14 @@ _KINDS = {
     "computed_struct": "struct",
     "projection": "projection",
 }
+
+
+@dataclass(frozen=True, slots=True)
+class FieldDeclaration:
+    """One declared field offered to the linker as its own declaration."""
+
+    owner: type[Any]
+    spec: FieldSpec
 
 
 def declaration_spec(value: Any) -> Any:
@@ -78,7 +94,7 @@ def _struct_name(value: type[Any]) -> str:
 
 
 def declaration_key(value: Any, *, qualify_struct: bool = False) -> Key:
-    """Return the temporary key of one data declaration.
+    """Return the key of one data declaration.
 
     A struct uses its bare graph name when that name is unique among the
     non-source declarations. When the name repeats (or collides with a relation
@@ -92,9 +108,11 @@ def declaration_key(value: Any, *, qualify_struct: bool = False) -> Key:
 
 
 def name_counts(declarations: Sequence[Declaration]) -> dict[str, int]:
-    """Count the graph names of the data declarations."""
+    """Count the graph names of the non-field data declarations."""
     counts: dict[str, int] = {}
     for declaration in declarations:
+        if declaration_spec(declaration.value) is None:
+            continue
         name = declaration_name(declaration.value)
         counts[name] = counts.get(name, 0) + 1
     return counts
@@ -105,8 +123,16 @@ def needs_qualified_struct(
 ) -> bool:
     """Whether a struct needs its qualified name to keep its key unique."""
     return (
-        declaration_kind(value) == "struct"
+        declaration_spec(value) is not None
+        and declaration_kind(value) == "struct"
         and counts.get(declaration_name(value), 0) > 1
+    )
+
+
+def owner_key(value: Any, counts: dict[str, int]) -> Key:
+    """Return the key of the declaration that owns ``value``'s fields."""
+    return declaration_key(
+        value, qualify_struct=needs_qualified_struct(value, counts),
     )
 
 
@@ -140,84 +166,126 @@ def _with_field_refs(
     return replace(value, columns=columns)
 
 
-def _field_symbols(
-    value: StructDTO | RelationDTO | ProjectionDTO,
-) -> dict[SymbolRef, Symbol]:
-    symbols: dict[SymbolRef, Symbol] = {}
-    for column in value.columns:
-        references = (
-            expression_references(column.expression)
-            if column.expression is not None else ()
-        )
-        reference = column.ref.symbol
-        symbols[reference] = Symbol(
-            reference.key, "field", column, references,
-        )
-    return symbols
+def _unique(references: Iterable[SymbolRef]) -> tuple[SymbolRef, ...]:
+    return tuple(dict.fromkeys(references))
 
 
-def owns_value(value: Any) -> bool:
-    """Whether the data language owns an authoring value or a DTO fragment."""
-    if declaration_spec(value) is not None:
-        return True
-    return isinstance(
-        value, (StructDTO, RelationDTO, ProjectionDTO, ColumnDTO),
+def _field_declaration_symbol(
+    declaration: FieldDeclaration, counts: dict[str, int],
+) -> Symbol:
+    owner = owner_key(declaration.owner, counts)
+    key = field_key(owner, declaration.spec.name)
+    expression = declaration.spec.descriptor.expression is not None
+    column = _column(
+        declaration_name(declaration.owner), declaration.spec,
+        expression=expression,
+    )
+    column = replace(column, ref=FieldRef("data", key))
+    return Symbol(
+        key, "field", column, _field_declaration_references(declaration, counts),
     )
 
 
-def value_identity(value: Any) -> SymbolRef | None:
-    """Return the data reference of one authoring value or DTO fragment.
+def _field_declaration_references(
+    declaration: FieldDeclaration, counts: dict[str, int],
+) -> tuple[SymbolRef, ...]:
+    references: list[SymbolRef] = []
+    expression = declaration.spec.descriptor.expression
+    if expression is not None:
+        references.extend(
+            authoring_references(as_expression(expression).model)
+        )
+    nested = declaration.spec.declaration
+    if declaration_spec(nested) is not None:
+        references.append(SymbolRef("data", declaration_key(
+            nested,
+            qualify_struct=needs_qualified_struct(nested, counts),
+        )))
+    return _unique(references)
 
-    A ``StructDTO`` carries only its graph name, which is not unique across
-    modules, so it has no unambiguous reference. A column names the field
-    symbol recorded on the DTO.
-    """
+
+def _plan_expressions(plan: Any) -> tuple[ExpressionDTO, ...]:
+    expressions = list(plan_expressions(plan))
+    for child in plan_inputs(plan):
+        expressions.extend(_plan_expressions(child))
+    return tuple(expressions)
+
+
+def _declaration_references(
+    value: Any, counts: dict[str, int],
+) -> tuple[SymbolRef, ...]:
+    spec = declaration_spec(value)
+    if spec is None:
+        return ()
+    owner = owner_key(value, counts)
+    kind = declaration_kind(value)
+    references: list[SymbolRef] = [
+        _field_ref(owner, field.name).symbol for field in spec.fields
+    ]
+    if kind == "relation":
+        if spec.asset is None:
+            raise ValueError(
+                f"relation {declaration_name(value)!r} has no logical asset"
+            )
+        references.append(asset_reference(spec.asset).symbol)
+    elif kind == "projection":
+        row_source = projection_row_source(value)
+        if row_source is None:
+            raise ValueError("projections require a row source")
+        plan = row_source_plan_dto(row_source)
+        references.extend(
+            SymbolRef("data", Key((name,)))
+            for name in plan_scan_sources(plan)
+        )
+        for expression in _plan_expressions(plan):
+            references.extend(expression_references(expression))
+        for field in spec.fields:
+            expression = field.descriptor.expression
+            if expression is not None:
+                references.extend(
+                    authoring_references(as_expression(expression).model)
+                )
+    return _unique(references)
+
+
+def declaration_references(
+    value: Any, counts: dict[str, int],
+) -> tuple[SymbolRef, ...]:
+    """Return the direct dependencies an authoring data value declares."""
+    if isinstance(value, FieldDeclaration):
+        return _field_declaration_references(value, counts)
+    return _declaration_references(value, counts)
+
+
+def field_declarations(value: Any) -> tuple[FieldDeclaration, ...]:
+    """Return one field declaration per field of ``value``."""
+    spec = declaration_spec(value)
+    if spec is None:
+        return ()
+    return tuple(
+        FieldDeclaration(value, field) for field in spec.fields
+    )
+
+
+def value_identity(
+    value: Any, counts: dict[str, int] | None = None,
+) -> SymbolRef | None:
+    """Return the data reference of an authoring value or DTO fragment."""
+    counts = {} if counts is None else counts
+    if isinstance(value, FieldDeclaration):
+        return SymbolRef(
+            "data",
+            field_key(owner_key(value.owner, counts), value.spec.name),
+        )
+    if declaration_spec(value) is not None:
+        return SymbolRef("data", owner_key(value, counts))
     if isinstance(value, ColumnDTO):
         return value.ref.symbol
     if isinstance(value, RelationDTO):
         return SymbolRef("data", Key((value.name,)))
     if isinstance(value, ProjectionDTO):
         return SymbolRef("data", Key((value.name,)))
-    if declaration_spec(value) is not None:
-        return SymbolRef("data", declaration_key(value))
     return None
-
-
-def value_references(value: Any) -> tuple[SymbolRef, ...]:
-    """Return the references a data DTO fragment declares.
-
-    A relation refers to its field symbols and to its logical asset. A
-    projection refers to its field symbols, the field and operation symbols its
-    output expressions read, and the relations its row plan scans.
-    """
-    if isinstance(value, StructDTO):
-        return tuple(column.ref.symbol for column in value.columns)
-    if isinstance(value, RelationDTO):
-        return (
-            *(column.ref.symbol for column in value.columns),
-            value.asset.symbol,
-        )
-    if isinstance(value, ProjectionDTO):
-        references: list[SymbolRef] = [
-            column.ref.symbol for column in value.columns
-        ]
-        for column in value.columns:
-            if column.expression is not None:
-                references.extend(
-                    expression_references(column.expression)
-                )
-        references.extend(
-            SymbolRef("data", Key((name,)))
-            for name in plan_scan_sources(value.row_source)
-        )
-        return tuple(dict.fromkeys(references))
-    if isinstance(value, ColumnDTO):
-        return (
-            ()
-            if value.expression is None
-            else expression_references(value.expression)
-        )
-    return ()
 
 
 def _dto_for_declaration(
@@ -240,26 +308,36 @@ def _dto_for_declaration(
     return dto, kind, key
 
 
+def symbol_for_declaration(
+    declaration: Declaration, counts: dict[str, int],
+) -> Symbol:
+    """Transcribe one data declaration (or field) into one symbol."""
+    value = declaration.value
+    if isinstance(value, FieldDeclaration):
+        return _field_declaration_symbol(value, counts)
+    dto, kind, key = _dto_for_declaration(declaration, counts)
+    if isinstance(dto, (StructDTO, RelationDTO, ProjectionDTO)):
+        dto = _with_field_refs(dto, key)
+    return Symbol(
+        key, kind, dto, declaration_references(value, counts),
+    )
+
+
 def symbols_for_declarations(
-    declarations: Sequence[Declaration], part: DataPartDTO,
+    declarations: Sequence[Declaration], counts: dict[str, int],
 ) -> dict[SymbolRef, Symbol]:
-    """Split one transcribed data part into one symbol per declaration."""
-    counts = name_counts(declarations)
+    """Split a batch of declarations into symbols, one per declaration."""
     symbols: dict[SymbolRef, Symbol] = {}
     for declaration in declarations:
-        dto, kind, key = _dto_for_declaration(declaration, counts)
-        if isinstance(dto, (StructDTO, RelationDTO, ProjectionDTO)):
-            dto = _with_field_refs(dto, key)
-            symbols.update(_field_symbols(dto))
-        reference = SymbolRef("data", key)
-        symbols[reference] = Symbol(
-            key, kind, dto, value_references(dto),
-        )
+        symbol = symbol_for_declaration(declaration, counts)
+        symbols[SymbolRef("data", symbol.key)] = symbol
     return symbols
 
 
 __all__ = [
-    "declaration_key", "declaration_kind", "declaration_name",
-    "declaration_spec", "field_key", "owns_value",
-    "symbols_for_declarations", "value_identity", "value_references",
+    "FieldDeclaration", "declaration_key", "declaration_kind",
+    "declaration_name", "declaration_references", "declaration_spec",
+    "field_declarations", "field_key", "name_counts",
+    "needs_qualified_struct", "owner_key", "symbol_for_declaration",
+    "symbols_for_declarations", "value_identity",
 ]

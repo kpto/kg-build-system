@@ -1,14 +1,13 @@
 """Shared assembly of one generated declaration body."""
 from __future__ import annotations
 
-from .....model._private.generated import GeneratedClass, GeneratedField, GeneratedMember, Nullability
+from .....model._private.generated import GeneratedClass, GeneratedField, GeneratedMember
 from .....model.public.errors import GenerationError
 from ..types import field_annotation
 
 
 def render_field(field: GeneratedField) -> str:
-    nullable = field.nullability is Nullability.DEFAULTED
-    annotation = f"Field[{field_annotation(field.value_type, nullable=nullable)}]"
+    annotation = f"Field[{field_annotation(field.value_type)}]"
     arguments: list[str] = [f"name={field.external_name!r}"]
     if field.description is not None:
         arguments.append(f"description={field.description!r}")

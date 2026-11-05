@@ -1,6 +1,8 @@
 from __future__ import annotations
 
 import unittest
+from dataclasses import dataclass
+from typing import Any
 
 from kg_build_system.distribution.interpreter import GraphBlueprint
 from kg_build_system.distribution.interpreter.service.internal import (
@@ -39,11 +41,10 @@ from kg_build_system.distribution.languages.topology.service.internal import (
 from kg_build_system.kernel import (
     Declaration,
     Key,
+    SourceFragment,
     Symbol,
+    SymbolContext,
     SymbolRef,
-)
-from kg_build_system.distribution.interpreter.service._private.link import (
-    select_reachable,
 )
 from .support import TestEstate
 
@@ -63,54 +64,97 @@ def _languages():
     )
 
 
-class BrokenDataLanguage:
-    name = "data"
+@dataclass(frozen=True)
+class ProbeValue:
+    """One authoring value a probe language offers to the linker."""
+
+    owner: str
+    name: str
+    references: tuple[SymbolRef, ...] = ()
+    payload: Any = None
+
+
+class ProbeLanguage:
+    """A minimal language with per-declaration transcription."""
+
+    def __init__(
+        self, name: str, values: tuple[ProbeValue, ...] = (),
+    ) -> None:
+        self.name = name
+        self.values = values
+        self.transcribed: list[str] = []
 
     def discover_declarations(self, namespace):
         del namespace
-        return (Declaration("broken"),)
+        return tuple(Declaration(value) for value in self.values)
 
     def compute_key(self, declaration):
-        del declaration
-        return Key(("broken",))
+        return Key((declaration.value.name,))
 
     def get_kind(self, declaration):
         del declaration
-        return "struct"
-
-    def owns(self, value):
-        return False
+        return "probe"
 
     def get_identity(self, value):
-        del value
-        return None
+        if not isinstance(value, ProbeValue) or value.owner != self.name:
+            return None
+        return SymbolRef(self.name, Key((value.name,)))
 
     def get_references(self, value, resolver):
-        del value, resolver
-        return ()
+        del resolver
+        if not isinstance(value, ProbeValue):
+            return ()
+        return value.references
 
-    def transcribe_many(self, declarations, context):
-        del declarations, context
-        reference = SymbolRef("data", Key(("broken",)))
-        return {
-            reference: Symbol(
-                reference.key,
-                "struct",
-                StructDTO("broken", ()),
-                (SymbolRef("data", Key(("missing",))),),
-            ),
+    def transcribe(self, declaration, context):
+        del context
+        value = declaration.value
+        self.transcribed.append(value.name)
+        return Symbol(
+            Key((value.name,)),
+            "probe",
+            value if value.payload is None else value.payload,
+        )
+
+    def render(self, symbol, context):
+        del context
+        return SourceFragment("inline", repr(symbol.value))
+
+
+class BatchProbeLanguage(ProbeLanguage):
+    """A batch implementation hidden behind the per-declaration method."""
+
+    def discover_declarations(self, namespace):
+        declarations = super().discover_declarations(namespace)
+        self._batch = {
+            value.name: Symbol(Key((value.name,)), "probe", value)
+            for value in self.values
         }
+        return declarations
+
+    def transcribe(self, declaration, context):
+        del context
+        value = declaration.value
+        self.transcribed.append(value.name)
+        return self._batch[value.name]
 
 
-class StructOnlyDataLanguage(BrokenDataLanguage):
-    def transcribe_many(self, declarations, context):
-        del declarations, context
-        reference = SymbolRef("data", Key(("broken",)))
-        return {
-            reference: Symbol(
-                reference.key, "struct", StructDTO("broken", ()),
-            ),
-        }
+def _probe_languages(**values: tuple[ProbeValue, ...]):
+    return (
+        ProbeLanguage("expressions", values.get("expressions", ())),
+        ProbeLanguage("asset", values.get("asset", ())),
+        ProbeLanguage("data", values.get("data", ())),
+        ProbeLanguage("topology", values.get("topology", ())),
+        ProbeLanguage("binding", values.get("binding", ())),
+    )
+
+
+def _data_declarations(language, namespace):
+    return tuple(
+        declaration
+        for declaration in language.discover_declarations(namespace)
+        if isinstance(declaration.value, type)
+    )
 
 
 class BlueprintLinkerTests(unittest.TestCase):
@@ -134,33 +178,33 @@ class BlueprintLinkerTests(unittest.TestCase):
         self.assertEqual(linked.assets.assets, ())
         self.assertEqual(linked.bindings, ())
 
-    def test_languages_are_transcribed_in_dependency_order(self) -> None:
+    def test_languages_are_indexed_in_dependency_order(self) -> None:
         calls: list[str] = []
 
         class RecordingExpressions(ExpressionsLanguage):
-            def transcribe_many(self, declarations, context):
+            def discover_declarations(self, namespace):
                 calls.append("expressions")
-                return super().transcribe_many(declarations, context)
+                return super().discover_declarations(namespace)
 
         class RecordingAsset(AssetLanguage):
-            def transcribe_many(self, declarations, context):
+            def discover_declarations(self, namespace):
                 calls.append("asset")
-                return super().transcribe_many(declarations, context)
+                return super().discover_declarations(namespace)
 
         class RecordingData(DataLanguage):
-            def transcribe_many(self, declarations, context):
+            def discover_declarations(self, namespace):
                 calls.append("data")
-                return super().transcribe_many(declarations, context)
+                return super().discover_declarations(namespace)
 
         class RecordingTopology(TopologyLanguage):
-            def transcribe_many(self, declarations, context):
+            def discover_declarations(self, namespace):
                 calls.append("topology")
-                return super().transcribe_many(declarations, context)
+                return super().discover_declarations(namespace)
 
         class RecordingBinding(BindingLanguage):
-            def transcribe_many(self, declarations, context):
+            def discover_declarations(self, namespace):
                 calls.append("binding")
-                return super().transcribe_many(declarations, context)
+                return super().discover_declarations(namespace)
 
         BlueprintLinker().link(
             (
@@ -175,29 +219,27 @@ class BlueprintLinkerTests(unittest.TestCase):
         )
 
     def test_a_declaration_key_is_indexed_once(self) -> None:
-        class DuplicateData(StructOnlyDataLanguage):
-            def discover_declarations(self, namespace):
-                del namespace
-                return (Declaration("one"), Declaration("two"))
-
-            def compute_key(self, declaration):
-                del declaration
-                return Key(("same",))
+        language = ProbeLanguage("data", (
+            ProbeValue("data", "same"), ProbeValue("data", "same"),
+        ))
 
         with self.assertRaisesRegex(ValueError, "declares key same twice"):
-            BlueprintLinker().link(
-                (
-                    DuplicateData(), AssetLanguage(), TopologyLanguage(),
-                    BindingLanguage(), ExpressionsLanguage(),
-                ),
-                Namespace(),
+            BlueprintLinker(roots=("data",)).link(
+                _probe_languages(data=language.values), Namespace(),
             )
 
     def test_a_fake_language_produces_symbols_for_the_blueprint(self) -> None:
-        linked = BlueprintLinker().link(
+        language = ProbeLanguage("data", (
+            ProbeValue(
+                "data", "broken", payload=StructDTO("broken", ()),
+            ),
+        ))
+
+        linked = BlueprintLinker(roots=("data",)).link(
             (
-                StructOnlyDataLanguage(), AssetLanguage(), TopologyLanguage(),
-                BindingLanguage(), ExpressionsLanguage(),
+                ProbeLanguage("expressions"), ProbeLanguage("asset"),
+                language, ProbeLanguage("topology"),
+                ProbeLanguage("binding"),
             ),
             Namespace(),
         )
@@ -205,39 +247,98 @@ class BlueprintLinkerTests(unittest.TestCase):
         self.assertEqual(
             linked.data.structs, (StructDTO("broken", ()),),
         )
+        self.assertEqual(language.transcribed, ["broken"])
 
     def test_a_missing_symbol_reference_is_refused(self) -> None:
+        missing = SymbolRef("data", Key(("missing",)))
+        language = ProbeLanguage("data", (
+            ProbeValue("data", "broken", (missing,)),
+        ))
+
         with self.assertRaisesRegex(ValueError, "unknown symbol reference"):
-            BlueprintLinker().link(
-                (
-                    BrokenDataLanguage(), AssetLanguage(), TopologyLanguage(),
-                    BindingLanguage(), ExpressionsLanguage(),
-                ),
-                Namespace(),
+            BlueprintLinker(roots=("data",)).link(
+                _probe_languages(data=language.values), Namespace(),
+            )
+
+    def test_a_reference_cycle_is_refused(self) -> None:
+        first = SymbolRef("data", Key(("first",)))
+        second = SymbolRef("data", Key(("second",)))
+        language = ProbeLanguage("data", (
+            ProbeValue("data", "first", (second,)),
+            ProbeValue("data", "second", (first,)),
+        ))
+
+        with self.assertRaisesRegex(ValueError, "symbol reference cycle"):
+            BlueprintLinker(roots=("data",)).link(
+                _probe_languages(data=language.values), Namespace(),
             )
 
     def test_a_binding_reference_must_exist(self) -> None:
-        class BrokenBindingLanguage(BindingLanguage):
-            def transcribe_many(self, declarations, context):
-                del declarations, context
-                reference = SymbolRef("binding", Key(("broken",)))
-                return {
-                    reference: Symbol(
-                        reference.key,
-                        "binding",
-                        object(),
-                        (SymbolRef("topology", Key(("missing",))),),
-                    ),
-                }
+        missing = SymbolRef("topology", Key(("missing",)))
+        language = ProbeLanguage("binding", (
+            ProbeValue("binding", "broken", (missing,)),
+        ))
 
         with self.assertRaisesRegex(ValueError, "unknown symbol reference"):
-            BlueprintLinker().link(
-                (
-                    DataLanguage(), AssetLanguage(), TopologyLanguage(),
-                    BrokenBindingLanguage(), ExpressionsLanguage(),
-                ),
-                Namespace(),
+            BlueprintLinker(roots=("binding",)).link(
+                _probe_languages(binding=language.values), Namespace(),
             )
+
+    def test_the_root_closure_is_selected_before_transcription(self) -> None:
+        keep = SymbolRef("data", Key(("keep",)))
+        dependency = SymbolRef("data", Key(("dependency",)))
+        data = ProbeLanguage("data", (
+            ProbeValue("data", "keep", (dependency,)),
+            ProbeValue("data", "dependency"),
+            ProbeValue("data", "orphan"),
+        ))
+        binding = ProbeLanguage("binding", (
+            ProbeValue("binding", "root", (keep,)),
+        ))
+
+        BlueprintLinker(roots=("binding",)).link(
+            (
+                ProbeLanguage("expressions"), ProbeLanguage("asset"),
+                data, ProbeLanguage("topology"), binding,
+            ),
+            Namespace(),
+        )
+
+        self.assertEqual(data.transcribed, ["dependency", "keep"])
+        self.assertEqual(binding.transcribed, ["root"])
+
+    def test_default_roots_include_every_declaration(self) -> None:
+        data = ProbeLanguage("data", (
+            ProbeValue("data", "kept"),
+            ProbeValue("data", "orphan"),
+        ))
+
+        BlueprintLinker().link(
+            (
+                ProbeLanguage("expressions"), ProbeLanguage("asset"),
+                data, ProbeLanguage("topology"),
+                ProbeLanguage("binding"),
+            ),
+            Namespace(),
+        )
+
+        self.assertEqual(data.transcribed, ["kept", "orphan"])
+
+    def test_a_batch_implementation_satisfies_the_same_contract(self) -> None:
+        data = BatchProbeLanguage("data", (
+            ProbeValue("data", "first"), ProbeValue("data", "second"),
+        ))
+        languages = (
+            ProbeLanguage("expressions"),
+            ProbeLanguage("asset"),
+            data,
+            ProbeLanguage("topology"),
+            ProbeLanguage("binding"),
+        )
+
+        BlueprintLinker(roots=("data",)).link(languages, Namespace())
+
+        self.assertEqual(data.transcribed, ["first", "second"])
 
 
 class DataSymbolKeyTests(unittest.TestCase):
@@ -247,9 +348,7 @@ class DataSymbolKeyTests(unittest.TestCase):
             value: Field[str] = field()
 
         language = DataLanguage()
-        (declaration,) = tuple(
-            language.discover_declarations(Namespace(Info))
-        )
+        (declaration,) = _data_declarations(language, Namespace(Info))
 
         self.assertEqual(language.compute_key(declaration), Key(("info",)))
         self.assertEqual(
@@ -267,8 +366,8 @@ class DataSymbolKeyTests(unittest.TestCase):
             other: Field[str] = field()
 
         language = DataLanguage()
-        declarations = tuple(
-            language.discover_declarations(Namespace(Info, OtherInfo))
+        declarations = _data_declarations(
+            language, Namespace(Info, OtherInfo),
         )
         keys = {language.compute_key(item) for item in declarations}
 
@@ -285,8 +384,8 @@ class DataSymbolKeyTests(unittest.TestCase):
             value: Field[str] = field()
 
         language = DataLanguage()
-        declarations = tuple(
-            language.discover_declarations(Namespace(Go, GoTable))
+        declarations = _data_declarations(
+            language, Namespace(Go, GoTable),
         )
         keys = {
             language.get_kind(item): language.compute_key(item)
@@ -303,22 +402,26 @@ class DataSymbolKeyTests(unittest.TestCase):
                 value: Field[str] = field()
 
 
-class RootPolicyTests(unittest.TestCase):
-    def test_only_reachable_symbols_are_selected(self) -> None:
-        node = SymbolRef("topology", Key(("site",)))
-        binding = SymbolRef("binding", Key(("site",)))
-        orphan = SymbolRef("topology", Key(("orphan",)))
-        symbols = {
-            node: Symbol(Key(("site",)), "node", object()),
-            binding: Symbol(
-                Key(("site",)), "binding", object(), (node,),
-            ),
-            orphan: Symbol(Key(("orphan",)), "node", object()),
-        }
+class AuthoringReferenceTests(unittest.TestCase):
+    def test_data_references_read_the_authoring_declaration(self) -> None:
+        class Row(Table[TestEstate]):
+            options = TableOptions(name="row")
+            value: Field[int] = field(name="value")
 
-        selected = select_reachable(symbols, ("binding",))
+        language = DataLanguage()
+        declarations = language.discover_declarations(Namespace(Row))
+        relation = next(
+            declaration for declaration in declarations
+            if declaration.value is Row
+        )
+        references = language.get_references(relation.value, None)
 
-        self.assertEqual(set(selected), {binding, node})
+        self.assertIn(
+            SymbolRef("data", Key(("row.value",))), references,
+        )
+        self.assertIn(
+            SymbolRef("asset", Key(("estate",))), references,
+        )
 
 
 if __name__ == "__main__":

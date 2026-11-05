@@ -1,7 +1,7 @@
-"""Nullability claims and value-shape wrapping."""
+"""Nullability claims recorded as provenance, never as a rendered type."""
 from __future__ import annotations
 
-from ....model._private.generated import GeneratedNullableType, GeneratedType, Nullability
+from ....model._private.generated import Nullability
 from .formats import SchemaTier
 
 
@@ -24,11 +24,4 @@ def level_nullability(repetition: str) -> Nullability:
     return Nullability.DECLARED if repetition.upper() == "REQUIRED" else Nullability.DEFAULTED
 
 
-def wrap(value: GeneratedType, nullability: Nullability) -> GeneratedType:
-    """Wrap a value in ``GeneratedNullableType`` when the claim is defaulted."""
-    if nullability is Nullability.DEFAULTED and not isinstance(value, GeneratedNullableType):
-        return GeneratedNullableType(value)
-    return value
-
-
-__all__ = ["describe_nullability", "level_nullability", "wrap"]
+__all__ = ["describe_nullability", "level_nullability"]

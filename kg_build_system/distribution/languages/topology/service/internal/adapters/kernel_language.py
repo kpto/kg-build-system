@@ -1,7 +1,7 @@
 """The topology language: node and edge declarations, symbols and source."""
 from __future__ import annotations
 
-from collections.abc import Iterable, Mapping, Sequence
+from collections.abc import Iterable
 from typing import Any
 
 from kg_build_system.kernel import (
@@ -18,24 +18,24 @@ from kg_build_system.kernel import (
 
 from ....model.internal.dto.blueprint_dto import EdgeDTO, GraphPartDTO, NodeDTO
 from ..source import render_graph_source
-from ..transcription import (
-    collect_components, transcribe_graph_part, validate_graph_part,
-)
+from ..transcription import collect_components
 from ..._private.symbols import (
+    PropertyEntry,
     declaration_kind,
     declaration_name,
-    owns_value,
-    symbols_for_part,
+    declaration_references,
+    property_declarations,
+    symbol_for_declaration,
     value_identity,
-    value_references,
 )
 
 
 class TopologyLanguage(Language):
-    """The topology language: ``node`` and ``edge`` symbols.
+    """The topology language: ``node``, ``edge`` and ``property`` symbols.
 
     Collection includes abstract parents and edge endpoint categories even when
-    a namespace only exposes bindings.
+    a namespace only exposes bindings. Each declared property is its own
+    declaration so the closure walk can reach it from its component.
 
     Example:
         ```python
@@ -53,49 +53,53 @@ class TopologyLanguage(Language):
     def discover_declarations(
         self, namespace: Namespace,
     ) -> Iterable[Declaration]:
-        """Select every graph-visible declaration reachable from the namespace.
+        """Select every graph-visible declaration and property from a namespace.
 
         Example:
             ```python
             declarations = TopologyLanguage().discover_declarations(namespace)
             ```
         """
-        return tuple(
-            Declaration(value) for value in collect_components(namespace)
-        )
+        components = tuple(collect_components(namespace))
+        declarations: list[Declaration] = [
+            Declaration(component) for component in components
+        ]
+        for component in components:
+            declarations.extend(
+                Declaration(prop)
+                for prop in property_declarations(component)
+            )
+        return tuple(declarations)
 
     def compute_key(self, declaration: Declaration) -> Key:
-        """Return the graph-name key of a node or edge declaration.
+        """Return the graph-name key of a node, edge or property declaration.
 
         Example:
             ```python
             key = TopologyLanguage().compute_key(declaration)
             ```
         """
-        return Key((declaration_name(declaration.value),))
+        value = declaration.value
+        if isinstance(value, PropertyEntry):
+            owner = declaration_name(value.owner)
+            return Key((f"{owner}.{value.declaration.name}",))
+        return Key((declaration_name(value),))
 
     def get_kind(self, declaration: Declaration) -> str:
-        """Return ``node`` or ``edge``.
+        """Return ``node``, ``edge`` or ``property``.
 
         Example:
             ```python
             kind = TopologyLanguage().get_kind(declaration)
             ```
         """
-        return declaration_kind(declaration.value)
-
-    def owns(self, value: Any) -> bool:
-        """Whether a value is a topology declaration or DTO fragment.
-
-        Example:
-            ```python
-            assert TopologyLanguage().owns(declaration.value)
-            ```
-        """
-        return owns_value(value)
+        value = declaration.value
+        if isinstance(value, PropertyEntry):
+            return "property"
+        return declaration_kind(value)
 
     def get_identity(self, value: Any) -> SymbolRef | None:
-        """Return the topology reference of a declaration or DTO fragment.
+        """Return the topology reference of an authoring value.
 
         Example:
             ```python
@@ -107,35 +111,32 @@ class TopologyLanguage(Language):
     def get_references(
         self, value: Any, resolver: Any,
     ) -> tuple[SymbolRef, ...]:
-        """Return the references a transcribed node or edge DTO declares.
+        """Return the direct dependencies an authoring topology value declares.
 
-        The value is a DTO fragment for this wave; the linker calls this method
-        after transcription.
+        A node names its property declarations and its parent category; an edge
+        also names its source and target nodes. The value is authoring topology,
+        never a transcribed DTO.
 
         Example:
             ```python
-            references = TopologyLanguage().get_references(fragment, resolver)
+            references = TopologyLanguage().get_references(declaration.value, resolver)
             ```
         """
         del resolver
-        return value_references(value)
+        return declaration_references(value)
 
-    def transcribe_many(
-        self, declarations: Sequence[Declaration], context: SymbolContext,
-    ) -> Mapping[SymbolRef, Symbol]:
-        """Transcribe a batch of topology declarations and split the DTO.
+    def transcribe(
+        self, declaration: Declaration, context: SymbolContext,
+    ) -> Symbol:
+        """Transcribe one node, edge or property declaration into one symbol.
 
         Example:
             ```python
-            symbols = TopologyLanguage().transcribe_many(declarations, context)
+            symbol = TopologyLanguage().transcribe(declaration, context)
             ```
         """
         del context
-        part = transcribe_graph_part(
-            tuple(declaration.value for declaration in declarations),
-        )
-        validate_graph_part(part)
-        return symbols_for_part(part)
+        return symbol_for_declaration(declaration.value)
 
     def render(
         self, symbol: Any, context: RenderContext,

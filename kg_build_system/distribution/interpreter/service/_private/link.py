@@ -3,8 +3,10 @@
 The linker fixes the transcription order to ``expressions``, ``asset``,
 ``data``, ``topology`` then ``binding``: data reads expression operations and
 names its assets, and bindings read the other three languages. It indexes
-declarations, transcribes each language, resolves references, validates the
-symbol graph and assembles the current blueprint shapes.
+declarations, selects roots, resolves the reference closure from authoring
+values, orders the reachable declarations, transcribes only those declarations
+and assembles the blueprint. Declarations are candidates; only reachable ones
+become symbols.
 """
 from __future__ import annotations
 
@@ -17,7 +19,6 @@ from kg_build_system.kernel import (
     Key,
     Language,
     Namespace,
-    ReferenceResolver,
     Symbol,
     SymbolContext,
     SymbolRef,
@@ -41,40 +42,40 @@ ORDER = ("expressions", "asset", "data", "topology", "binding")
 
 
 class _LanguageResolver:
-    """Resolve values by asking the language that owns them."""
+    """Resolve authoring values by asking every language for their identity."""
 
-    def __init__(
-        self, languages: Sequence[Language], symbols: dict[SymbolRef, Symbol],
-    ) -> None:
+    def __init__(self, languages: Sequence[Language]) -> None:
         self._languages = tuple(languages)
-        self._symbols = symbols
 
     def get_identity(self, value: Any) -> SymbolRef | None:
-        for language in self._languages:
-            if language.owns(value):
-                return language.get_identity(value)
-        return None
-
-    def get_references(self, value: Any) -> tuple[SymbolRef, ...]:
-        for language in self._languages:
-            if language.owns(value):
-                return language.get_references(value, self)
-        return ()
+        matches = tuple(
+            reference
+            for language in self._languages
+            if (reference := language.get_identity(value)) is not None
+        )
+        if len(matches) > 1:
+            raise ValueError(
+                "more than one language claims value identity: "
+                + ", ".join(str(reference) for reference in matches)
+            )
+        return matches[0] if matches else None
 
 
 def _index_language(
     language: Language, namespace: Namespace,
-) -> tuple[tuple[Declaration, ...], dict[Key, Declaration]]:
+) -> tuple[tuple[Key, Declaration], ...]:
     declarations = tuple(language.discover_declarations(namespace))
-    index: dict[Key, Declaration] = {}
+    keys: set[Key] = set()
+    indexed: list[tuple[Key, Declaration]] = []
     for declaration in declarations:
         key = language.compute_key(declaration)
-        if key in index:
+        if key in keys:
             raise ValueError(
                 f"language {language.name!r} declares key {key!s} twice"
             )
-        index[key] = declaration
-    return declarations, index
+        keys.add(key)
+        indexed.append((key, declaration))
+    return tuple(indexed)
 
 
 def order_symbols(symbols: dict[SymbolRef, Symbol]) -> tuple[SymbolRef, ...]:
@@ -100,37 +101,6 @@ def order_symbols(symbols: dict[SymbolRef, Symbol]) -> tuple[SymbolRef, ...]:
     for reference in symbols:
         visit(reference)
     return tuple(ordered)
-
-
-def select_reachable(
-    symbols: dict[SymbolRef, Symbol], roots: Sequence[str],
-) -> dict[SymbolRef, Symbol]:
-    """Return the symbols reachable from the root languages.
-
-    The linker always transcribes the full declaration set in this wave; the
-    root policy controls which symbols enter the assembled model. Every
-    dependency of a root symbol is included.
-    """
-    root_names = set(roots)
-    root_refs = [
-        reference for reference in symbols
-        if reference.language in root_names
-    ]
-    seen: set[SymbolRef] = set()
-
-    def visit(reference: SymbolRef) -> None:
-        if reference in seen:
-            return
-        symbol = symbols.get(reference)
-        if symbol is None:
-            raise ValueError(f"unknown symbol reference {reference}")
-        seen.add(reference)
-        for dependency in symbol.references:
-            visit(dependency)
-
-    for reference in root_refs:
-        visit(reference)
-    return {reference: symbols[reference] for reference in seen}
 
 
 def _assemble(symbols: dict[SymbolRef, Symbol]) -> GraphBlueprint:
@@ -179,11 +149,12 @@ def link_blueprint(
     *,
     roots: Sequence[str] | None = None,
 ) -> GraphBlueprint:
-    """Index, transcribe, resolve and assemble one graph blueprint.
+    """Index, select, transcribe, resolve and assemble one graph blueprint.
 
-    ``roots`` names the languages whose symbols are starting points. ``None``
-    uses every language, preserving the full blueprint. A narrower policy such
-    as ``("binding",)`` assembles only the closure reachable from bindings.
+    ``roots`` names the languages whose declarations are starting points.
+    ``None`` uses every language, preserving the full blueprint. A narrower
+    policy such as ``("binding",)`` selects the closure reachable from bindings
+    before any declaration is transcribed.
     """
     by_name: dict[str, Language] = {}
     for language in languages:
@@ -196,39 +167,86 @@ def link_blueprint(
             "the graph linker requires languages " + ", ".join(missing)
         )
     root_names = tuple(ORDER if roots is None else roots)
-    unknown_roots = set(root_names) - set(by_name)
+    root_languages = set(root_names)
+    unknown_roots = root_languages - set(by_name)
     if unknown_roots:
         raise ValueError(
             "unknown root language(s): " + ", ".join(sorted(unknown_roots))
         )
 
-    declarations: dict[str, tuple[Declaration, ...]] = {}
+    indexed: dict[SymbolRef, tuple[Language, Declaration]] = {}
     for name in ORDER:
-        declarations[name], _ = _index_language(by_name[name], namespace)
+        language = by_name[name]
+        for key, declaration in _index_language(language, namespace):
+            indexed[SymbolRef(name, key)] = (language, declaration)
+
+    resolver = _LanguageResolver(
+        tuple(by_name[name] for name in ORDER),
+    )
+    references: dict[SymbolRef, tuple[SymbolRef, ...]] = {}
+
+    def references_for(reference: SymbolRef) -> tuple[SymbolRef, ...]:
+        cached = references.get(reference)
+        if cached is not None:
+            return cached
+        entry = indexed.get(reference)
+        if entry is None:
+            raise ValueError(f"unknown symbol reference {reference}")
+        language, declaration = entry
+        resolved = tuple(
+            language.get_references(declaration.value, resolver)
+        )
+        references[reference] = resolved
+        return resolved
+
+    reachable: dict[SymbolRef, None] = {}
+
+    def collect(reference: SymbolRef) -> None:
+        if reference in reachable:
+            return
+        if reference not in indexed:
+            raise ValueError(f"unknown symbol reference {reference}")
+        reachable[reference] = None
+        for dependency in references_for(reference):
+            collect(dependency)
+
+    for reference in indexed:
+        if reference.language in root_languages:
+            collect(reference)
+
+    state: dict[SymbolRef, int] = {}
+    ordered: list[SymbolRef] = []
+
+    def order(reference: SymbolRef) -> None:
+        status = state.get(reference)
+        if status == 1:
+            raise ValueError(f"symbol reference cycle at {reference}")
+        if status == 2:
+            return
+        state[reference] = 1
+        for dependency in references_for(reference):
+            order(dependency)
+        state[reference] = 2
+        ordered.append(reference)
+
+    for reference in reachable:
+        order(reference)
 
     symbols: dict[SymbolRef, Symbol] = {}
-    for name in ORDER:
-        context = SymbolContext(symbols)
-        produced = by_name[name].transcribe_many(declarations[name], context)
-        for reference, symbol in produced.items():
-            if reference.language != name:
-                raise ValueError(
-                    f"language {name!r} produced symbol {reference} for "
-                    f"another language"
-                )
-            if reference in symbols:
-                raise ValueError(f"duplicate symbol reference {reference}")
-            symbols[reference] = symbol
-
-    ordered = tuple(by_name[name] for name in ORDER)
-    resolver = _LanguageResolver(ordered, symbols)
-    resolved: dict[SymbolRef, Symbol] = {}
-    for reference, symbol in symbols.items():
-        language = by_name[reference.language]
-        extra = language.get_references(symbol.value, resolver)
-        references = tuple(dict.fromkeys((*symbol.references, *extra)))
-        resolved[reference] = replace(symbol, references=references)
-    return _assemble(select_reachable(resolved, root_names))
+    for reference in ordered:
+        language, declaration = indexed[reference]
+        symbol = language.transcribe(
+            declaration, SymbolContext(symbols),
+        )
+        if symbol.key != reference.key:
+            raise ValueError(
+                f"language {language.name!r} transcribed {reference.key!s} "
+                f"as {symbol.key!s}"
+            )
+        symbols[reference] = replace(
+            symbol, references=references_for(reference),
+        )
+    return _assemble(symbols)
 
 
-__all__ = ["ORDER", "link_blueprint", "order_symbols", "select_reachable"]
+__all__ = ["ORDER", "link_blueprint", "order_symbols"]

@@ -160,29 +160,18 @@ class AssetLanguageTests(unittest.TestCase):
 
         self.assertEqual(language.compute_key(item), Key(("open_targets",)))
         self.assertEqual(language.get_kind(item), "asset")
-        self.assertTrue(language.owns(declaration))
         self.assertEqual(
             language.get_identity(declaration),
             SymbolRef("asset", Key(("open_targets",))),
         )
 
-        symbols = language.transcribe_many((item,), SymbolContext())
-        reference = SymbolRef("asset", Key(("open_targets",)))
+        symbol = language.transcribe(item, SymbolContext())
 
-        self.assertEqual(tuple(symbols), (reference,))
-        self.assertEqual(symbols[reference].kind, "asset")
-        self.assertEqual(symbols[reference].value.name, "open_targets")
-        self.assertEqual(symbols[reference].references, ())
-        self.assertEqual(language.get_references(symbols[reference].value, None), ())
-
-    def test_duplicate_asset_names_are_rejected(self) -> None:
-        first = _declaration("same")
-        second = _declaration("same")
-
-        with self.assertRaises(ValueError):
-            AssetLanguage().transcribe_many(
-                (Declaration(first), Declaration(second)), SymbolContext(),
-            )
+        self.assertEqual(symbol.key, Key(("open_targets",)))
+        self.assertEqual(symbol.kind, "asset")
+        self.assertEqual(symbol.value.name, "open_targets")
+        self.assertEqual(symbol.references, ())
+        self.assertEqual(language.get_references(declaration, None), ())
 
 
 class AssetReferenceTests(unittest.TestCase):
@@ -208,9 +197,9 @@ class AssetCodecTests(unittest.TestCase):
         self,
     ) -> None:
         declaration = _declaration()
-        part = AssetLanguage().transcribe_many(
-            (Declaration(declaration),), SymbolContext(),
-        )[SymbolRef("asset", Key(("open_targets",)))].value
+        part = AssetLanguage().transcribe(
+            Declaration(declaration), SymbolContext(),
+        ).value
 
         document = assets_to_document(AssetPartDTO((part,)))
         restored = assets_from_document(document)
@@ -240,9 +229,9 @@ class AssetCodecTests(unittest.TestCase):
 class AssetSourceTests(unittest.TestCase):
     def test_the_source_render_is_a_class_option_declaration(self) -> None:
         declaration = _declaration()
-        part = AssetLanguage().transcribe_many(
-            (Declaration(declaration),), SymbolContext(),
-        )[SymbolRef("asset", Key(("open_targets",)))].value
+        part = AssetLanguage().transcribe(
+            Declaration(declaration), SymbolContext(),
+        ).value
 
         fragment = render_asset_source(AssetPartDTO((part,)))
 

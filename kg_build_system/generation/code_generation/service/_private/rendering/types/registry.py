@@ -45,17 +45,15 @@ def struct_references(value: GeneratedType) -> tuple[GeneratedStructType, ...]:
     return collector(value, struct_references)  # type: ignore[return-value]
 
 
-def field_annotation(value: GeneratedType, *, nullable: bool = False) -> str:
-    """The declared type of a source field.
+def field_annotation(value: GeneratedType) -> str:
+    """The declared value type of a generated field.
 
-    A field whose source tier only defaults nullability is a nullable field;
-    a required/declared source field is non-null. Array item and nested member
-    nullability are carried by the value type itself.
+    A source field's observed nullability is provenance, not part of the value
+    type, so the annotation is the value type alone. Nullability that belongs
+    to the value — an array item or an explicitly nullable computed result — is
+    carried by ``GeneratedNullableType`` inside the value.
     """
-    if type(value) is GeneratedNullableType:
-        value = value.value  # type: ignore[union-attr]
-    rendered = render_type(value)
-    return f"{rendered} | None" if nullable else rendered
+    return render_type(value)
 
 
 __all__ = ["field_annotation", "render_type", "struct_references"]
