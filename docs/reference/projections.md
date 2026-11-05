@@ -5,7 +5,7 @@ row.
 
 `Projection` is both a shape and a row source. The model and the choice of
 grain are on [Projections](../concepts/projections.md); the source algebra is
-on [Row sources](row-sources.md); expression typing is on
+on [Row sources](row-sources.md); selection typing is on
 [Expressions and selections](expressions.md).
 
 The examples use these declarations:
@@ -26,7 +26,6 @@ class SiteTable(Table[Estate]):
     site_id: Field[str] = field()
     name: Field[str] = field()
     region: Field[str] = field()
-    parent_site: Field[str] = field()
     tags: Field[Array[str]] = field()
     contacts: Field[Array[ContactStruct]] = field()
 
@@ -59,7 +58,7 @@ class SiteProjection(Projection(SiteTable.row_source())):
 
     site_id = computed_field(SiteTable.site_id.alter_rows().drop_null())
     label = computed_field(
-        SiteTable.name.alter_rows().drop_null().expression.prepend("site::")
+        SiteTable.name.alter_rows().drop_null().prepend("site::")
     )
 ```
 
@@ -68,32 +67,25 @@ the compiled declaration. A filtered, joined, grouped or unioned source is passe
 directly: `Projection(joined)`. The pin does not copy fields; declare the outputs
 explicitly.
 
-The compatibility form declares the class without a pin and marks outputs with
-`projection_field(...)`. Its plan is derived from the one source its outputs
-read; prefer the pinned form because it states the grain directly. The
-constructor is documented once on
-[Declarations](declarations.md#projection_field).
-
 A projection is final and terminal. It may not inherit from another final
-`Projection`; reuse a shape with `projection_base()` or pin a new source.
+`Projection`; pin a new source instead.
 
 | Member | Returns | Use |
 | --- | --- | --- |
 | `row_source()` | `RelationRowSource[Any]` | Read the projection as a relation |
-| `where(predicate)` | `DerivedRowSource[Self]` | Shorthand for `row_source().where(...)` |
-| `projection_base()` | A dynamic projection base | Inherit the output fields under a new base |
 
 | Error | Trigger |
 | --- | --- |
-| `projections require a row source` | An unpinned projection's outputs do not resolve to one driving source, at compile |
-| `projections must declare at least one computed_field` | The projection has no effective output |
+| `requires a row source` | `Projection()` is called without a source, or a class is declared as `class P(Projection)` |
+| `projections must declare at least one computed_field` | The projection has no output |
 | `a final Projection may not inherit from another final Projection` | A final projection inherits another final projection |
+| `rows must be a row source value; use Table.row_source() or Projection.row_source()` | `Projection` is pinned to a declaration class rather than a row-source value |
 
-## `computed_field()` in a projection
+## `computed_field()`
 
 ```python
-def computed_field(
-    value: ValueInput[T],
+def computed_field[T: DeclaredValue](
+    value: Selection[T],
     *,
     name: str | None = None,
     description: str | None = None,
@@ -101,12 +93,12 @@ def computed_field(
 ) -> Field[T]: ...
 ```
 
-Declares one projection output. `value` is a selection or expression; the output
-is typed by its logical type and nullability.
+Declares one projection output. `value` is a selection; the output is typed by
+its logical type.
 
 | Parameter | Type | Meaning | Default |
 | --- | --- | --- | --- |
-| `value` | `ValueInput[T]` | The output expression | Required |
+| `value` | `Selection[T]` | The output selection | Required |
 | `name` | `str or None` | External output name | Snake case of the attribute; one trailing `_` is removed |
 | `description` | `str or None` | Output description | The string below the assignment |
 | `annotations` | `Sequence[Annotation]` | Portable output metadata | `()` |
@@ -117,75 +109,32 @@ class SiteOutputProjection(Projection(SiteTable.row_source())):
         SiteTable.site_id.alter_rows().drop_null(),
         name="site_id",
     )
-    parent = computed_field(SiteTable.parent_site)
+    region = computed_field(SiteTable.region)
 ```
 
-| Output expression | Read result |
+| Output selection | Read result |
 | --- | --- |
-| Non-null scalar | `ValueSelection[T]` |
-| Nullable scalar | `NullableSelection[T]` |
-| Present array | `ArraySelection[T]` |
-| Nullable array | `NullableSelection[Array[T]]` |
-| Present struct | `StructSelection[S]` |
-| Nullable struct | `NullableSelection[S]` |
+| Present scalar | `Selection[T]` |
+| Nullable scalar | `Selection[Nullable[T]]` |
+| Present array | `Selection[Array[T]]` |
+| Nullable array | `Selection[Nullable[Array[T]]]` |
+| Present struct | `Selection[S]` |
+| Nullable struct | `Selection[Nullable[S]]` |
 
 `field()` is not legal for a projection output; a projection has no source
 columns of its own. Reading `SiteProjection.site_id` anywhere returns the
-projection's materialised output, not the expression that produced it.
+projection's materialised output, not the selection that produced it.
 
 | Error | Trigger |
 | --- | --- |
 | `<Class>.<attribute> must be declared with computed_field()` | `field()` is used for an output |
-| `expected a value selection or value expression` | `value` is neither |
 | `<Class> fields 'x' and 'y' share external name 'name'` | Two outputs resolve to the same external name |
-
-## `projection_base()`
-
-```text
-Table.projection_base() -> type
-Projection.projection_base() -> type
-RelationRowSource.projection_base() -> type
-DerivedRowSource.projection_base() -> type
-```
-
-Returns a dynamic projection base that carries the source's plan and inherits its
-fields as computed outputs. It is available on a table, a projection, a relation
-row source and a derived row source.
-
-```python
-north = SiteTable.row_source().where(
-    lambda site: site.region.alter_rows().drop_null().expression.equals("north")
-)
-
-
-class NorthernSitesProjection(north.projection_base()):
-    """The northern sites under a name bindings can share."""
-
-
-class NorthernLabelsProjection(NorthernSitesProjection.projection_base()):
-    label = computed_field(
-        NorthernSitesProjection.site_id.alter_rows().drop_null()
-        .expression.prepend("site::")
-    )
-```
-
-Inherited fields are typed from the fields' declared access, so a `Field[str]`
-arrives present and a `Field[str | None]` arrives nullable. Declare additional
-outputs with `computed_field` as usual.
-A declared field with the same Python attribute shadows the inherited one, as
-normal Python attribute shadowing works; two fields with the same external name
-but different attributes are rejected at class creation.
-
-The base returned by `projection_base()` is not a final projection and does not
-enter the build by itself. Only the named class you finish enters.
-
-| Error | Trigger |
-| --- | --- |
-| `<Class> fields 'x' and 'y' share external name 'name'` | An inherited and a declared field have the same external name |
+| `<Class>.<attribute> must have a Field[T] annotation` | The output has no `Field[T]` annotation |
+| `computed field names must be non-empty` | `computed_field(..., name="")` |
 
 ## Outputs and dependencies
 
-- A projection has one driving source. All output expressions must read that
+- A projection has one driving source. All output selections must read that
   source, possibly through chained expansions and struct navigation.
 - A reference to another projection's output is a dependency, not an embedded
   row plan. Reading that field reuses the named relation.
@@ -194,7 +143,7 @@ enter the build by itself. Only the named class you finish enters.
 - A projection that references two unrelated relations fails compilation with
   `a relational product requires one driving source; additional sources must be
   introduced by an explicit lookup`. Build the relation first and pin it, or use
-  `projection_base()` on the derived source.
+  `lookup` to read the second relation by key.
 - A projection name must be unique among projections and among logical source
   names; tables and projections share the relation namespace.
 
@@ -218,16 +167,29 @@ class SiteReadingProjection(Projection(joined)):
     )
 ```
 
-A grouped source is pinned the same way. `joined.projection_base()` is the
-variant that inherits the generated shape's fields.
+A grouped source is pinned the same way.
 
 | Compile error | Trigger |
 | --- | --- |
 | `a relational product requires one driving source; additional sources must be introduced by an explicit lookup` | Outputs read unrelated relations |
 | `projection dependency cycle includes 'name'` | Projections depend on each other in a cycle |
-| `rows must be a row source value; use Table.row_source() or Projection.row_source()` | `Projection` is pinned to a declaration class rather than a row-source value |
 | `projection names must be unique` | Two projections share a logical name |
 | `logical source names must be unique` | A projection and a table share a logical name |
+
+A second relation can be read inline with `lookup`, without making it a scan of
+the projection:
+
+```python
+class SiteWithRegionProjection(Projection(SiteTable.row_source())):
+    site_id = computed_field(SiteTable.site_id.alter_rows().drop_null())
+
+    region_name = computed_field(
+        SiteTable.region_id.lookup(RegionTable, SiteTable.region_id)
+        .alter_rows().drop_null()
+        .alter_rows().expand()
+        .extract(lambda region: region.name)
+    )
+```
 
 ## Row behaviour
 
@@ -243,6 +205,7 @@ class ContactProjection(Projection(SiteTable.row_source())):
         SiteTable.contacts.alter_rows().drop_null()
         .alter_rows().expand()
         .extract(lambda contact: contact.email)
+        .alter_rows().drop_null()
     )
 ```
 
@@ -256,10 +219,15 @@ needs its own projection, not a second expansion in the same class.
 from kg_build_system import ProjectionOptions
 
 
-class SiteLabelProjection(SiteProjection.projection_base()):
+class SiteLabelProjection(Projection(SiteTable.row_source())):
     options = ProjectionOptions(
         name="site_label",
         description="One row per site, with the shared display label.",
+    )
+
+    site_id = computed_field(SiteTable.site_id.alter_rows().drop_null())
+    label = computed_field(
+        SiteTable.name.alter_rows().drop_null().prepend("site::")
     )
 ```
 
@@ -273,20 +241,18 @@ inherited. `options.annotations` attaches portable metadata. An explicit
 | --- | --- |
 | `Projection.options must be a ProjectionOptions value` | `options` is not a `ProjectionOptions` |
 | `<Class> is a Projection declaration: declare ProjectionOptions, not template options` | `options = StructOptionsTemplate(...)` on a projection |
+| `projection names must be non-empty` | `ProjectionOptions(name="")` |
 
 ## What to remember
 
-- Prefer pinning a projection at class creation with `Projection(source)`; the
-  unpinned `projection_field` form is a compatibility spelling.
-- Outputs use `computed_field`; they carry the expression's type and
-  nullability.
+- Pin a projection at class creation with `Projection(source)`; there is no
+  unpinned form.
+- Outputs use `computed_field`; they carry the selection's type.
 - Reading a projection field returns its materialised output, not the
   calculation behind it.
 - One projection has one driving source. Join, group or union in the row source
-  you pin.
+  you pin; read a second relation by key with `lookup`.
 - All outputs share one row plan, so an expansion or drop affects the whole
   projection.
-- `projection_base()` names a source and inherits its fields; only the finished
-  named class enters the build.
 
 Next: [Reference index](index.md) collects every authoring name by task.

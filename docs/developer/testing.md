@@ -60,11 +60,11 @@ input and output artifact types.
 Current coverage:
 
 - `test_core_planner.py` — source, projection, binding and aggregate planning
-  across the generic source planner and the core planners.
+  across the generic source planner and the feature-scoped core planners.
 - `test_duckdb_source_planner.py` — asset-table selection, layout resolution
   and `source_relation` payloads.
-- `test_core_custom_emitter.py` — a custom SQL emitter threaded through core
-  planning.
+- `test_core_custom_emitter.py` — a non-DuckDB `SqlEmitter` threaded through
+  core planning; core imports the neutral protocol only.
 - `test_dedup_merge_conflict_planners.py` — the deduplication, merging and
   conflict-validation planners.
 - `test_multi_planner_components.py` — several planners sharing one component,
@@ -131,9 +131,12 @@ Current coverage:
 - `tests/distribution/test_asset_language.py` — asset declaration, validation,
   discovery, key, transcription, typed reference and codec round trip.
 - `tests/distribution/test_blueprint_linker.py` — `BlueprintLinker` implements
-  the kernel `Linker` protocol, keys declarations, transcribes symbols and
-  assembles one blueprint in `expressions`, `asset`, `data`, `topology`,
-  `binding` order.
+  the kernel `Linker` protocol, keys declarations, resolves the authoring
+  reference closure, transcribes each reachable declaration once and assembles
+  one blueprint in `expressions`, `asset`, `data`, `topology`, `binding` order.
+- `tests/distribution/test_expression_operations.py` — `Selection` operations,
+  `extract`, one-shot row effects, `lookup`, `zip`, array operations and
+  `RowSource.unnest`.
 
 ## Codec and source round trip
 
@@ -196,14 +199,17 @@ Current coverage:
 - `tests/test_reference_build.py` — the reference build writes `graph.jsonl`,
   `meta_graph.json`, `meta_graph.html` and `neo4j-import/`.
 - `tests/test_public_api.py` and `tests/test_authoring_api.py` — the public
-  names and the authoring surface.
+  names and the authoring surface: `Selection`, owner-derived nullability,
+  `field`/`computed_field`, pinned projections, row effects, lookup, zip and
+  unnest.
 - `tests/typecheck/authoring.py` — the authoring typecheck fixture.
 - Open Targets: `cd ~/Repos/opentargets-kg && uv run pytest -q`.
 
 ## Verification
 
-- 228 tests passed, 1753 subtests.
+- 259 tests passed, 1858 subtests.
 - Pyright: 0 errors.
+- The reference build passes.
 - Open Targets: 7 tests passed.
 - `uv run mkdocs build --strict`: passes.
 

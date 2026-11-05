@@ -23,24 +23,25 @@ field access ──selection──> projection ──binding──> WorkflowPlan
   annotations](../concepts/semantics.md).
 
 **Computed field**
-: A member declared with `computed_field(expression)`. As a `Projection` output
-  it is typed by its expression: non-null when the expression is non-null,
-  nullable when it is nullable. As a `ComputedStruct` member it is a type
-  witness only, and the value is read from the carrier row. See
+: A member declared with `computed_field(selection)`. As a `Projection` output
+  it is typed by its selection: present when the selection is present, nullable
+  when it is nullable. As a `ComputedStruct` member it is a type witness only,
+  and the value is read from the carrier row. See
   [Projections](../concepts/projections.md).
 
 **Computed struct**
 : A value-record declaration built from `computed_field` members. It is usable
   as a field type (`Field[SomeComputedStruct]`) and through `extract`, but it is
-  not a table or row source and cannot be bound. Its member expressions are type
+  not a table or row source and cannot be bound. Its member selections are type
   witnesses: they fix member types, are not evaluated, and `extract` reads the
   member from the carrier row. See [Types](types.md#structs-and-computed-structs).
 
 **Field**
 : The typed member of a record, written `Field[T]`. `field()` declares a
-  source-backed field: a table column or a source struct member. A field
-  declaration names the value type and its presence: `Field[T]` reads a present
-  selection and `Field[T | None]` reads a nullable one. See [Data
+  source-backed field: a table column or a source struct member. `T` is a value
+  type, never `T | None`. A source `Table` or source `Struct` read is a
+  `NullableSelection[T]`; a `Projection` output or `ComputedStruct` member
+  follows its `computed_field` selection. See [Data
   contracts](../concepts/data-contracts.md).
 
 **Generated package**
@@ -78,9 +79,10 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 
 **Array**
 : The portable ordered-collection marker `Array[T]`. It is not `list[T]`,
-  `Sequence[T]` or a storage type. Array presence is declared: `Field[Array[T]]`
-  is present and `Field[Array[T] | None]` is nullable. Item nullability stays in
-  the declaration as `Array[T | None]`. See [Types](types.md#arrays).
+  `Sequence[T]` or a storage type. Array presence comes from the owner: a source
+  `Field[Array[T]]` reads as a nullable array, and a computed output follows its
+  selection. Item nullability is a fact about the value and stays in the
+  declaration as `Array[Nullable[T]]`. See [Types](types.md#arrays).
 
 **Canonical type**
 : The normalized logical type of a value: one of the eight lowercase scalars,
@@ -113,17 +115,19 @@ field access ──selection──> projection ──binding──> WorkflowPlan
   ingest](ingest.md#guards).
 
 **Key**
-: The build key: the non-null scalar expression that identifies one node or edge
-  record. An edge binding also has source and target node keys. A source field
-  declared `Field[T | None]` must be narrowed for a key; `Field[T]` is already
-  present. See [Types](types.md#keys).
+: The build key: the present scalar selection that identifies one node or edge
+  record. An edge binding also has source and target node keys. Every source
+  field read is nullable, so a source key is narrowed with
+  `alter_rows().drop_null()`; a present computed output needs no narrowing. See
+  [Types](types.md#keys).
 
 **Nullability**
-: Whether a selection may hold an absent value. Source field access follows the
-  declaration: `Field[T]` is present and `Field[T | None]` is nullable.
-  `default_to(...)` replaces an absence and `alter_rows().drop_null()` removes
-  the row; both are no-ops on a present value. A computed field follows its
-  expression; a computed-struct member follows its witness. See
+: Whether a selection may hold an absent value. A field declaration names a
+  value type, never absence. Every source `Table` or source `Struct` read is a
+  `NullableSelection[T]`; a `Projection` output or `ComputedStruct` member
+  follows its selection, composed with any carrier presence. `default_to(...)`
+  replaces an absence and keeps the row; `alter_rows().drop_null()` removes the
+  row. Neither is exposed on a present selection. See
   [Types](types.md#nullability).
 
 **Pre-flight**
@@ -138,9 +142,11 @@ field access ──selection──> projection ──binding──> WorkflowPlan
   engine returns, not a subclass. See [Types](types.md#representative-types).
 
 **Trust tier**
-: The nullability authority of a source: `ENFORCED` for an enforced catalog
-  constraint, `DECLARED` for a Parquet footer, or `DEFAULTED` for a schema-less
-  CSV or JSON source. See [Assets and ingest](ingest.md#trust-tiers).
+: The observed nullability authority of a source: `ENFORCED` for an enforced
+  catalog constraint, `DECLARED` for a Parquet footer, or `DEFAULTED` for a
+  schema-less CSV or JSON source. The tier is provenance for the manifest and
+  pre-flight; every source-backed field still renders `Field[T]`. See [Assets
+  and ingest](ingest.md#trust-tiers).
 
 **Widening**
 : The build's cast of each declared top-level source column to the canonical SQL
@@ -222,10 +228,10 @@ field access ──selection──> projection ──binding──> WorkflowPlan
   concrete node participates. See [Bindings](../concepts/bindings.md).
 
 **Expression**
-: A typed calculation over row values. It carries a logical type and only the
-  operations valid for that type; it performs no structural navigation and owns
-  no null policy. A selection exposes its calculation as `.expression`. See
-  [Expressions](../concepts/expressions.md).
+: A typed calculation inside a selection. The compiler expression tree is
+  private; an author writes every calculation as a method on `Selection[T]`.
+  There is no expression-family authoring type and no accessor that unwraps the
+  tree. See [Expressions](../concepts/expressions.md).
 
 **Node**
 : A graph entity component with properties. A concrete `Node` is bindable and
@@ -251,18 +257,19 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 
 **Row source**
 : Something that produces rows of a known shape. `Table.row_source()` and
-  `Projection.row_source()` return a `RelationRowSource`; `where`, `union`,
-  `join`, `group_by`, `distinct` and `order_by` return a `DerivedRowSource`. A
-  row source is a value; the algebra requires it. A binding accepts a `Table` or
-  `Projection` class as a compatibility shorthand. See [Row sources
-  and grain](../concepts/row-sources.md).
+  `Projection.row_source()` return a `RelationRowSource`; `where`, `unnest`,
+  `union`, `join`, `group_by`, `distinct` and `order_by` return a
+  `DerivedRowSource`. A row source is a value; the algebra requires it. A
+  binding and a projection pin accept only a row-source value, never a `Table` or
+  `Projection` class. See [Row sources and grain](../concepts/row-sources.md).
 
 **Selection**
-: A typed, structural view of a field or value in a row. A source field gives the
-  selection its declaration names: present for `Field[T]`, nullable for
-  `Field[T | None]`. Narrowing gives a `ValueSelection`, `ArraySelection` or
-  `StructSelection`. A selection owns `extract`, `alter_rows`, `default_to` and
-  the present-array operations; `.expression` reaches the calculation. See
+: The single authoring type, `Selection[T]`. It navigates a row shape, calculates
+  a value and owns the decision about absence. `NullableSelection[T]` is the
+  alias `Selection[Nullable[T]]`. Source access is nullable; computed access
+  follows the declared selection. A selection owns extraction (`extract`, `at`,
+  `slice`), row effects through the one-shot `alter_rows()` handle,
+  `default_to`, `lookup`, `zip` and the present value operations. See
   [Expressions](../concepts/expressions.md).
 
 **Semantics**
@@ -402,8 +409,8 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 
 | Term | Not the same as | Difference |
 | --- | --- | --- |
-| Field | Property | A field describes a source member or computed output; a property is a graph value bound from an expression. |
-| Selection | Expression | A selection navigates structure and owns null policy; an expression calculates a value. |
+| Field | Property | A field describes a source member or computed output; a property is a graph value bound from a selection. |
+| Selection | Expression tree | `Selection[T]` is the authoring type; the expression tree is private compiler data behind it. |
 | Struct | ComputedStruct / Table | A source struct is source-backed and each member reads its declaration; a computed struct supplies member types as witnesses and reads from its carrier; a table is also a bindable row source. |
 | Template | Category | A template is inert and never enters the workflow plan; a category is graph-visible and may be an endpoint. |
 | Row source | Shape | A shape is a class of fields; a row source is something that yields rows of that shape. |
@@ -418,11 +425,14 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 ## Authoring names
 
 Use these names in author code. A source member is declared with `field()` and a
-computed output with `computed_field(...)`. A struct member is reached with
-`extract`. A null is resolved with `default_to(...)` or
-`alter_rows().drop_null()`. Row effects are opt-in through `alter_rows()`. On a
-present array, use `drop_null_items()`, `sort()`, `unique()`, `concat()`, `at()`,
-`slice()` and `transform_items()`.
+computed output with `computed_field(...)`. `Selection[T]` is the single
+authoring type. A struct member is reached with `extract`, an array item with
+`at` and a range with `slice`. A null is resolved with `default_to(...)` or
+`alter_rows().drop_null()`. Row effects are opt-in through the one-shot
+`alter_rows()` handle: `drop_null`, `drop_if` and `expand`. On a present array,
+use `drop_null_items()`, `sort()`, `unique()`, `concat()`, `transform_items()`
+and `zip()`. `lookup()` reads another relation by key, and `RowSource.unnest()`
+expands an array as the grain of a relation.
 
 Generation uses `@asset_contract(AssetContractOptions(...))` on an
 author-owned asset and the `kbs generate` command. An asset names its own

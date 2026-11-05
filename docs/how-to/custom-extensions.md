@@ -43,7 +43,7 @@ one `component_id` when their version and runtime fields agree.
 | run one instruction in a new engine | a `StepExecutor` and, when needed, a `ResourceProvider` |
 
 If the job belongs to one binding, it is not an extension. Keep it in the
-declaration where the grain is known: an expression, a projection, or a binding.
+declaration where the grain is known: a selection, a projection, or a binding.
 
 ### Step 2: Write the planner and executor
 
@@ -216,10 +216,11 @@ for connection in plan.connections:
 ### Step 5: Extend a language or linker
 
 A new declaration syntax is a `Language` plus a `Linker` for its model. A
-language discovers declarations, derives each key with `compute_key`,
-transcribes a batch into symbols and renders a symbol value back to source. It
-does not own keys itself: a `Declaration` holds only the authoring value that
-the language recognised.
+language discovers declarations, derives each key with `compute_key`, reports
+each declaration's direct references with `get_references`, transcribes one
+declaration at a time with `transcribe` and renders a symbol value back to
+source. It does not own keys itself: a `Declaration` holds only the authoring
+value that the language recognised.
 
 ```python
 from kg_build_system.kernel import (
@@ -240,9 +241,6 @@ class MyLanguage(Language):
     def get_kind(self, declaration: Declaration) -> str:
         return "my_kind"
 
-    def owns(self, value) -> bool:
-        return isinstance(value, MyDeclaration)
-
     def get_identity(self, value) -> SymbolRef | None:
         if isinstance(value, MyDeclaration):
             return SymbolRef(self.name, Key((value.name,)))
@@ -251,27 +249,24 @@ class MyLanguage(Language):
     def get_references(self, value, resolver) -> tuple[SymbolRef, ...]:
         return ()
 
-    def transcribe_many(
+    def transcribe(
         self,
-        declarations,
+        declaration: Declaration,
         context: SymbolContext,
-    ) -> dict[SymbolRef, Symbol]:
-        symbols = {}
-        for declaration in declarations:
-            reference = SymbolRef(self.name, self.compute_key(declaration))
-            symbols[reference] = Symbol(
-                reference.key, self.get_kind(declaration), declaration.value,
-            )
-        return symbols
+    ) -> Symbol:
+        key = self.compute_key(declaration)
+        return Symbol(key, self.get_kind(declaration), declaration.value)
 
     def render(self, symbol, context):
         return SourceFragment("declaration", f"value = {symbol.value!r}")
 ```
 
 A `Linker` receives the language sequence and the namespace. It decides which
-declarations are roots, orders the languages, transcribes them, resolves the
-reference closure and assembles the model. There is no `requires` field:
-language order is the linker's decision.
+declarations are roots, orders the languages, resolves the reference closure
+from the authoring values before transcription, transcribes each reachable
+declaration once and assembles the model. There is no `requires` field:
+language order is the linker's decision. A batch helper may exist inside a
+language, but `transcribe` is the protocol path.
 
 Compose them directly:
 

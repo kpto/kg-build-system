@@ -334,8 +334,8 @@ The instruction payload carries:
 Rules:
 
 - One asset may produce many source steps.
-- A relation is included only when a binding expression, a binding row plan, a
-  projection expression or a projection row plan reads it.
+- A relation is included only when a binding selection, a binding row plan, a
+  projection selection or a projection row plan reads it.
 - A relation with no layout, an unsupported format or no resolvable location
   produces no step. If the graph reads it, compilation reports an unresolved
   plan opening.

@@ -20,7 +20,7 @@ from kg_build_system import (
     Edge, EdgeValues, Field, Node, NodeValues, Projection, PropertySlot, Table,
     computed_field, edge_binding, endpoint, field, node_binding, property,
 )
-from kg_build_system import Array
+from kg_build_system import Array, Nullable
 
 
 from estate.assets import Estate
@@ -35,7 +35,7 @@ class UnitTable(Table[Estate]):
     unit_ref: Field[str] = field()
     site_id: Field[str] = field()
     label: Field[str] = field()
-    tags: Field[Array[str | None]] = field()
+    tags: Field[Array[Nullable[str]]] = field()
 
 
 class SiteNode(Node):
@@ -83,11 +83,12 @@ site_binding = node_binding(
 )
 ```
 
-When the identifier is declared `Field[str | None]`, `alter_rows().drop_null()`
-both narrows the key and drops rows whose identifier is absent. A `Field[str]`
-key is already present, so the same call is a no-op. Use `default_to(...)` only
-when a shared placeholder identity is genuinely correct; every absent identifier
-then becomes the same record.
+A source identifier always reads as a nullable selection, even when the field is
+declared `Field[str]`, because the source may omit it. `alter_rows().drop_null()`
+both narrows the key and drops rows whose identifier is absent. A computed
+projection output can already be present, so it needs no further narrowing. Use
+`default_to(...)` only when a shared placeholder identity is genuinely correct;
+every absent identifier then becomes the same record.
 
 When no single field identifies the record, compose one deterministically. Add a
 namespace when identifiers from different systems could collide. Inside a
@@ -95,14 +96,14 @@ namespace when identifiers from different systems could collide. Inside a
 
 ```python
 key = (
-    row.site_id.alter_rows().drop_null().expression.prepend("site::")
+    row.site_id.alter_rows().drop_null().prepend("site::")
     .append("::unit::")
-    .append(row.unit_ref.alter_rows().drop_null().expression)
+    .append(row.unit_ref.alter_rows().drop_null())
 )
 ```
 
 Use that scalar as the binding's `build_key`. A composite key is still one
-scalar string. An edge endpoint key must use the same expression as the node
+scalar string. An edge endpoint key must use the same selection as the node
 binding; otherwise the edge points at a key no node emitted.
 
 ### Step 2: Keep one grain per binding
@@ -171,9 +172,9 @@ tag_binding = node_binding(
     rows=TagProjection.row_source(),
     bind=lambda row: NodeValues(
         build_key=(
-            row.unit_ref.expression.prepend("unit::")
+            row.unit_ref.prepend("unit::")
             .append("::tag::")
-            .append(row.tag.expression)
+            .append(row.tag)
         ),
         properties=TagNode(label=row.tag),
     ),
@@ -206,9 +207,9 @@ property means "this record may not have this value"; the node or edge still
 exists. A required property is a claim the build enforces.
 
 `SiteNode` above declares `name` required and `closed_on` nullable. A nullable
-property accepts a nullable expression directly. A field declared
-`Field[str | None]` can be passed unchanged; a `Field[str]` is already present.
-For a required property, choose explicitly:
+graph property accepts a nullable selection directly, so a source read can be
+passed unchanged. A required property needs a present selection; choose
+explicitly:
 
 ```python
 name = row.name.default_to("Unnamed site")        # keep the row
@@ -236,7 +237,7 @@ unit"; the source is the first argument and the target is the second. If the
 reverse is a different assertion, declare a second edge type with the endpoints
 swapped.
 
-The source and target keys name existing node records. Use the same expressions
+The source and target keys name existing node records. Use the same selections
 as the node bindings. The `has_unit_binding` in Step 2 shows the shape: its
 source key is the site identifier, its target key is the unit reference, and its
 edge key is the unit reference because this source has one row per unit.

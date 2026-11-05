@@ -60,8 +60,10 @@ compilation.
 | `bindings` | node and edge binding DTOs |
 
 The language DTOs are internal to the language packages. `GraphBlueprint` is the
-public handle. Cross-symbol fields are role-typed references such as `NodeRef`,
-`FieldRef` and `OperationRef`, not bare names.
+public handle; `BindingDTO`, the shared binding DTO used by the blueprint and
+the core planners, is not exported from the interpreter facade. Cross-symbol
+fields are role-typed references such as `NodeRef`, `FieldRef` and
+`OperationRef`, not bare names.
 
 You can create one in three ways:
 
@@ -106,7 +108,7 @@ Compilation checks everything that can be checked without reading data:
 
 - every binding targets a concrete component;
 - every declared property is mapped exactly once;
-- every expression names a known table or projection field;
+- every selection names a known table or projection field;
 - build keys are non-null scalars;
 - edge endpoints exist, are concrete and descend from the declared categories;
 - every relation names an asset present in the blueprint;

@@ -204,9 +204,11 @@ location without a scheme fails.
 
 ## Generated nullability
 
-A generated package records the source's nullability claim in the rendered field
-and in provenance. A `DEFAULTED` field is nullable; a `DECLARED` or `ENFORCED`
-field is non-null.
+A generated package records the source's observed nullability claim as
+provenance. Every generated source-backed field renders `Field[T]`; source
+access is a `NullableSelection[T]` because the owner is a source `Table` or
+`Struct`. The claim feeds the statistics pre-flight and the manifest notes, and
+it never adds absence to the rendered field.
 
 ### Trust tiers
 
@@ -218,9 +220,11 @@ The built-in inference provider chooses one tier from the source suffix:
 | `.csv`, `.tsv`, `.json`, `.jsonl`, `.ndjson` | Defaulted | No level declares non-nullability; all members are nullable |
 | `.db`, `.ddb`, `.duckdb` | Enforced | A catalog `NOT NULL` constraint is enforced |
 
-The `Nullability` values are `DECLARED`, `ENFORCED` and `DEFAULTED`. A nullable
-field records `DEFAULTED`; a Parquet `REQUIRED` field records `DECLARED`; an
-enforced catalog constraint records `ENFORCED`.
+The `Nullability` values are `DECLARED`, `ENFORCED` and `DEFAULTED`. A source
+with no non-null claim records `DEFAULTED`; a Parquet `REQUIRED` field records
+`DECLARED`; an enforced catalog constraint records `ENFORCED`. The tier is
+provenance: it selects the pre-flight and the header note, not the rendered
+field.
 
 The built-in provider refuses database inputs because no supported asset layout
 format selects a database reader: a generated table could never get a generic
@@ -231,9 +235,11 @@ enforced catalog.
 
 ### What is rendered
 
-- A `DEFAULTED` field renders `Field[T | None]` and reads as nullable.
-- A `DECLARED` or `ENFORCED` field renders `Field[T]` and reads as non-null.
-- Nested member and array-item nullability stay in the value type.
+- Every generated source field renders `Field[T]` from its value type.
+- Source access is `NullableSelection[T]` for every tier; the declaration does
+  not encode the observed claim.
+- Nested member and array-item nullability stay in the value type, as in
+  `Field[Array[Nullable[str]]]`.
 - Every generated table declares its asset: `class SitesTable(Table[Estate])`.
 - The header records one note per source, or per relation in a group:
 
@@ -288,8 +294,8 @@ class Estate(Asset):
 | Override entry | Effect |
 | --- | --- |
 | `{"type": "<canonical unit>"}` | Declares the whole column's canonical type; the scan applies a checked cast |
-| `{"nullable": True}` | Declines a source non-null claim; the field records `DEFAULTED`, renders `Field[T \| None]`, and leaves the pre-flight |
-| `{"nullable": False}` | Asserts a non-null claim; the field records `DECLARED`, renders `Field[T]`, and enters the pre-flight |
+| `{"nullable": True}` | Declines a source non-null claim; the field records `DEFAULTED`, still renders `Field[T]`, and leaves the pre-flight |
+| `{"nullable": False}` | Asserts a non-null claim; the field records `DECLARED`, still renders `Field[T]`, and enters the pre-flight |
 | Absent `nullable` | Keeps the source's own claim |
 | Absent `type` | Keeps the reader's reported type |
 
@@ -407,7 +413,7 @@ violation.
   not property-cast.
 - There is no configuration to downgrade, publish or continue past a guard
   failure.
-- A key must already be a non-null scalar expression; the binding factory refuses
+- A key must already be a present scalar selection; the binding factory refuses
   a nullable or composite key before the build runs.
 
 ## What the build checks before reading rows
@@ -450,8 +456,8 @@ property or key then fails at the guard, naming the property and the row key.
 - A group resolves relations; it never changes rows.
 - The digest gate widens canonical types, requires an override for a
   declared-only type, and refuses a type with no canonical meaning.
-- Generated nullability decides the field type: `DEFAULTED` renders
-  `Field[T | None]`; `DECLARED` or `ENFORCED` renders `Field[T]`.
+- Observed nullability is provenance: every generated source field renders
+  `Field[T]` and reads as nullable because it belongs to a source.
 - A Parquet pre-flight reports nulls; the guard enforces non-nullability at the
   point of use.
 - A source defect surfaces before any row is consumed.

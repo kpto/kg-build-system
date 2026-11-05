@@ -401,6 +401,77 @@ GraphBlueprint(
 A language DTO knows only the DTOs of the languages it depends on. It does not
 know the blueprint.
 
+`GraphBlueprint` is the public handle. Its fields reference language DTOs, but
+those DTOs are not exported public names. `BindingDTO` is the shared binding DTO
+used by the blueprint and the core planners; it is not exported from the
+interpreter facade.
+
+## The authoring model
+
+The distribution has one authoring value for a typed position in a row:
+`Selection[T]`. `NullableSelection[T]` is the alias `Selection[Nullable[T]]`.
+There is no expression-family authoring type, no accessor that unwraps the
+compiler tree, and no separately named expression object. The compiler
+expression tree is private; every operation is a method on the selection.
+
+- A `Field[T]` declares a value type, never `T | None`. A source `Table` or
+  source `Struct` read yields `NullableSelection[T]` because the source may omit
+  the value. A `Projection` output and a `ComputedStruct` member yield the type
+  of their `computed_field` selection, composed with the carrier's presence.
+- Nested array-item nullability belongs to the value and is allowed:
+  `Field[Array[Nullable[str]]]` reads as
+  `Selection[Nullable[Array[Nullable[str]]]]`.
+- `Table` and `Projection` are `RowSourceProvider`s. A relation is read through
+  `Table.row_source()` or `Projection.row_source()`. There is no table-class
+  shorthand for rows and no unpinned `class P(Projection)`; `Projection(source)`
+  pins one row-source value at class creation.
+- There is one `Field` class with two constructors: `field()` for a source
+  `Table` or `Struct`, and `computed_field(selection)` for a `Projection` or
+  `ComputedStruct`. The host decides which constructor is legal.
+- A binding lambda receives a typed row proxy `S`; `rows=Table.row_source()` is
+  the only form.
+- `Selection.alter_rows()` is the only row-effect gate. It returns a one-shot
+  handle exposing only the effects valid for the selection: `drop_null` on a
+  nullable selection, `drop_if` on every selection, and `expand` on an array.
+  An invalid effect is absent from the handle type. Each effect returns a
+  selection, so a second effect needs a second `alter_rows()`.
+- Navigation is `extract`, `at` and `slice`; value operations include `lookup`,
+  `zip`, `unique`, `sort`, `concat`, `transform_items` and `drop_null_items`.
+- `lookup` is ungated: it returns a nullable array of target records. The caller
+  composes the grain: left keeps the value, inner adds
+  `alter_rows().drop_null()`, and one row per match adds
+  `alter_rows().expand()`.
+- `zip` pairs two arrays by position at value level and refuses unequal lengths.
+  `RowSource.unnest` expands one array member while preserving the source row;
+  it is the row-source spelling of an array grain.
+
+The languages implement the linker path per declaration: `get_references`
+reports direct references from the authoring value, the linker resolves the
+closure and orders reachable declarations, and `transcribe` converts one
+declaration into one `Symbol`. A batch helper may stay internal, but
+`transcribe_many` is not the protocol path.
+
+Generation observes a source and renders declarations. Observation is
+provenance: a generated source-backed field always renders `Field[T]`, and the
+observed nullability tier changes the manifest, statistics and notes, never the
+rendered annotation. Value-type nullability, such as an array item, stays in the
+value type.
+
+## Assets
+
+An asset is one logical unit of source data, like a package. One asset may back
+many tables. A table names its asset with `Table[Asset]`, and a relation carries
+that identity as an `AssetRef`. `AssetOptions` carries `website`, optional
+`layout`, `semantics` and `governance`; it has no adapter or code-generation
+field.
+
+`AssetLayout` is optional descriptive metadata, not an access contract. There is
+no adapter concept and no adapter registry. A module contributes ordinary
+relation-producing steps; `DuckDbSourcePlanner` resolves compatible `parquet`,
+`json` and `csv` layouts. `@asset_contract(AssetContractOptions(...))` is an
+inert generation-frontend decorator on an `Asset` subclass and is outside
+`AssetOptions` and the blueprint.
+
 ## Typed references and expression fragments
 
 Every cross-symbol field in a blueprint is a role-typed reference from
@@ -817,9 +888,10 @@ value.
 
 The tree above is the implementation.
 
-- 228 tests passed, 1753 subtests.
+- 259 tests passed, 1858 subtests.
 - Pyright: 0 errors.
 - mkdocs strict build: passes.
+- The reference build passes.
 - Open Targets: the migrated project builds against the API; 7 tests pass.
 
 The remaining limits are:
@@ -838,6 +910,7 @@ source round trip.
 ## What to remember
 
 - The kernel is domain-agnostic and owns the toolchain vocabulary.
+- `Selection[T]` is the single authoring type; the owner supplies nullability.
 - `build` links declarations into symbols and a model, `compile` plans,
   `execute` runs.
 - A declaration has no key; `compute_key` derives it. A symbol carries its key,

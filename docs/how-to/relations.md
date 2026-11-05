@@ -136,22 +136,22 @@ deliberately before joining; otherwise filter the row or accept the unmatched
 result.
 
 For a composite natural key, build one scalar key on each side with the same
-expression. The pair form accepts that scalar; there is no multi-key join:
+selection. The pair form accepts that scalar; there is no multi-key join:
 
 ```python
 on=lambda reading, meter: (
     reading.site_id.alter_rows().drop_null()
-    .expression.prepend("site::").append("::meter::")
-    .append(reading.meter_id.alter_rows().drop_null().expression),
+    .prepend("site::").append("::meter::")
+    .append(reading.meter_id.alter_rows().drop_null()),
     meter.site_id.alter_rows().drop_null()
-    .expression.prepend("site::").append("::meter::")
-    .append(meter.meter_id.alter_rows().drop_null().expression),
+    .prepend("site::").append("::meter::")
+    .append(meter.meter_id.alter_rows().drop_null()),
 )
 ```
 
 Use the text-only `equals` form only when both sides are present text. It is
 narrower than the pair form and it makes null handling a choice at the
-expression, not a property of the join.
+selection, not a property of the join.
 
 ### Step 3: Group on scalar, non-null keys
 
@@ -317,9 +317,10 @@ reading_binding = node_binding(
 )
 ```
 
-`derived.projection_base()` is the variant that inherits the generated shape's
-fields. Use it when consumers should read `on`, `left`, `right`, `by` or
-`members` directly.
+A projection pinned to a derived source starts without inherited outputs. Its
+outputs read the generated shape through `source.shape`, so `on`, `left`,
+`right`, `by` and `members` are reached explicitly with `extract`. Declare each
+output with `computed_field` and publish only the members a consumer needs.
 
 ## Verify
 
@@ -372,7 +373,7 @@ alongside the records. See
 | `group_by key names must be unique` | Rename one key in the `by` mapping. |
 | `group_by key names must be Python identifiers` | Use a public name such as `meter_id`, not a display label. |
 | A grouped row is missing | Its key tuple contained a null and was dropped. Default the key before grouping if a placeholder group is correct. |
-| `projections require a row source` | Pin the plan: `Projection(joined)` or `Projection(grouped)`. An unpinned projection must have outputs that read exactly one source. |
+| `requires a row source` | Pin the plan: `Projection(joined)` or `Projection(grouped)`. `class P(Projection)` and `Projection()` are refused. |
 | Duplicate build keys after a join | The join matched more than one row on one side. Decide the grain and move the many side to its own projection or binding. |
 | Duplicate build keys after a union | `all=False` removes identical rows, not repeated keys. Fix the key or add a deduplication or merging planner. |
 

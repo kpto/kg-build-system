@@ -19,7 +19,7 @@ from estate.assets import Estate
 
 class SiteTable(Table[Estate]):
     site_id: Field[str] = field()
-    name: Field[str | None] = field()
+    name: Field[str] = field()
     surveyed_on: Field[Date] = field()
 ```
 
@@ -62,9 +62,11 @@ effects such as expanding an array or dropping a null row are explicit.
 site_name = SiteTable.name.alter_rows().drop_null()
 ```
 
-A source field reads the presence its declaration names. `Field[T]` is present;
-`Field[T | None]` is nullable. The author decides whether to drop the row,
-default the value, or keep it nullable.
+A field declaration names a value type, never absence. A source `Table` or
+`Struct` read is a `NullableSelection[T]` because the source may omit the
+value; a computed projection output is a `Selection[T]` when its selection is
+present. The author decides whether to drop the row, default the value, or keep
+the nullable read on a nullable graph property.
 
 ## 4. Choose the grain
 

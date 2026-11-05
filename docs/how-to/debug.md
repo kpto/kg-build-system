@@ -108,13 +108,13 @@ class ReadingGrainProjection(Projection(reading_rows)):
 
 `Projection(source.row_source())` pins a relation. A joined, grouped, unioned or
 filtered plan is already a row source, so pass it directly, as
-`Projection(reading_rows)`. The compatibility form leaves the class unpinned and
-declares outputs with `projection_field(...)`; its plan is derived from the one
-source those outputs read. If no single source is derivable, compilation fails
-with `projections require a row source`. A projection with no effective output
-also fails; declare at least one output. A projection that reads two unrelated
-relations fails with `a relational product requires one driving source`; build
-the join in the row source and pin the result.
+`Projection(reading_rows)`. A projection is always pinned: `Projection()` and
+`class P(Projection)` are refused with `Projection(source) requires a row
+source`. A projection with no effective output also fails; declare at least one
+`computed_field`. A projection that reads two unrelated relations fails with `a
+relational product requires one driving source; additional sources must be
+introduced by an explicit lookup`; build the join in the row source and pin the
+result, or read the second relation with `lookup`.
 
 ### Step 4: Fix declaration and composition errors
 
@@ -157,9 +157,9 @@ table groups must declare at least one member
 ```
 
 Final declarations are terminal. Share source fields with `StructTemplate`,
-share rows with `projection_base()`, and share topology through one category
-parent plus templates. A category is a parent, not a base to instantiate; bind a
-concrete descendant.
+share rows by pinning a row source in another `Projection`, and share topology
+through one category parent plus templates. A category is a parent, not a base
+to instantiate; bind a concrete descendant.
 
 **Other frequent declaration errors.** These usually fail when the binding is
 written or compiled:
@@ -168,7 +168,7 @@ written or compiled:
 | --- | --- |
 | `build_key must not be nullable` | Narrow it with `alter_rows().drop_null()`, or default it deliberately. |
 | `build_key must be a scalar` | Use a scalar member, or turn a flat array into text with `concat`. |
-| `... must be assigned a value selection or expression` | Assign every declared property, including inherited ones. Remove the property from the component if this graph does not use it. |
+| A declared property is missing at write time | Assign a `Selection` to every declared property, including inherited ones. Remove the property from the component if this graph does not use it. |
 | `source_node must name the declared endpoint category ...` | Pass `endpoint(ConcreteNode)` for the abstract side. |
 | `... must equal or descend from the declared endpoint category` | Name a concrete node that descends from the category. |
 | `edge component '...' requires bound source and target node components` | Bind and export both endpoint node components for the target. |
@@ -180,9 +180,9 @@ written anyway and fails when a graph database imports it. Use the same
 expression on both sides:
 
 ```python
-build_key=row.site_id.alter_rows().drop_null().expression.prepend("site::")
+build_key=row.site_id.alter_rows().drop_null().prepend("site::")
 source_build_key=(
-    row.site_id.alter_rows().drop_null().expression.prepend("site::")
+    row.site_id.alter_rows().drop_null().prepend("site::")
 )
 ```
 

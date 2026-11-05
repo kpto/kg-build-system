@@ -206,6 +206,23 @@ semantic model. Two different declaration spellings that mean the same thing
 should produce the same blueprint; the renderer emits one equivalent authoring
 form, not the original text.
 
+## One authoring type
+
+The distribution exposes one authoring value for a typed position in a row:
+`Selection[T]`. `NullableSelection[T]` is the alias `Selection[Nullable[T]]`.
+There is no expression family and no accessor that unwraps the compiler tree.
+
+A field declaration names a value type, never `T | None`. A source `Table` or
+`Struct` read is nullable because the source may omit the value; a computed
+`Projection` output or `ComputedStruct` member follows its selection. The owner
+supplies nullability; the author never writes it into a field annotation.
+
+Row effects are explicit and gated: `alter_rows()` is a one-shot handle exposing
+only `drop_null`, `drop_if` and `expand` where they are valid. `lookup` returns a
+nullable array of target records and composes its grain with those effects;
+`zip` pairs arrays by position; `RowSource.unnest` expands an array as the grain
+of a relation.
+
 ## One verb per transformation
 
 Each transformation has one name. The verbs describe a direction, not a package
@@ -241,8 +258,8 @@ The remaining limits are:
 - the core planners require an injected `SqlEmitter`; the composition root
   injects DuckDB's emitter by default.
 
-Verification: 228 tests passed, 1753 subtests; pyright 0 errors; the Open Targets
-project passes 7 tests against the API.
+Verification: 259 tests passed, 1858 subtests; pyright 0 errors; the reference
+build passes and the Open Targets project passes 7 tests against the API.
 
 See [system design](system-design.md) for the layout and [testing](testing.md)
 for the contract tests.

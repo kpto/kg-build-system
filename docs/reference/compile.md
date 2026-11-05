@@ -84,8 +84,10 @@ structs those types use, and the assets those tables name.
 
 The language DTOs are internal to the language packages. `GraphBlueprint` is the
 public handle; `graph`, `data`, `assets` and `bindings` reference internal
-language DTOs. Cross-symbol fields carry role-typed references such as
-`NodeRef`, `FieldRef`, `AssetRef` and `OperationRef`.
+language DTOs. `BindingDTO` is the shared binding DTO used by the blueprint and
+the core planners; it is not exported from the interpreter facade. Cross-symbol
+fields carry role-typed references such as `NodeRef`, `FieldRef`, `AssetRef` and
+`OperationRef`.
 
 ## `compile`
 
@@ -97,9 +99,14 @@ compile(
     bindings: Iterable[Binding] | None = None,
     planners: Sequence[Planner] = (),
     toolchain: Toolchain[GraphBlueprint] | None = None,
-    engine: DuckDbSqlEmitter | None = None,
+    engine: SqlEmitter | None = None,
 ) -> WorkflowPlan
 ```
+
+`SqlEmitter` is the engine-neutral protocol in
+`distribution/service/internal/emission.py`. `DuckDbSqlEmitter` implements it;
+the core planners import only the neutral relation plan and protocol, never the
+DuckDB module.
 
 `compile` reads the blueprint exactly as given, or creates one from the
 declaration mode. It never reads data.
@@ -117,7 +124,7 @@ Compilation checks everything that does not need data:
 
 - every binding targets a concrete component;
 - every declared property is mapped exactly once;
-- every expression names a known table or projection field;
+- every selection names a known table or projection field;
 - keys are non-null scalars;
 - edge endpoints exist, are concrete and descend from the declared categories;
 - every relation names an asset present in the blueprint;

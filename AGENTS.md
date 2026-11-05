@@ -217,6 +217,11 @@ rule about what the framework is belongs to the framework model.
 - Cross-symbol fields are typed refs such as `NodeRef`, `FieldRef`,
   `PropertyRef`, `RelationRef`, `AssetRef` and `OperationRef`; there is no bare
   cross-symbol string.
+- `Selection[T]` is the single authoring type; `NullableSelection[T]` is
+  `Selection[Nullable[T]]`. A field declares a value type, never absence: source
+  access is nullable and computed access follows the selection. A field never
+  exposes the compiler expression tree. `alter_rows()` gates every row effect
+  one-shot; `lookup`, `zip` and row-source `unnest` state grain explicitly.
 - Expressions are inline fragments, not symbols. Their leaves are typed refs; a
   shared or named expression is a computed field or a projection output.
 - Identity is a qualified name (`Key` segments). A fingerprint or digest may be

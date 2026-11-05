@@ -85,9 +85,12 @@ RecordsPlanner(*, engine: SqlEmitter)
 
 `SqlEmitter` is the neutral SQL-emitter protocol in
 `distribution.service.internal.emission`; `DuckDbSqlEmitter` implements it. The
-core module owns four planners that share `component_id="core"` and one
-`CorePlan` in `PlanContext.shared["core.plan"]`. `core_planners(engine=...)`
-returns them in assembled order: row-source, projection, binding and records.
+core planners live under `modules/core/<feature>/service/public/planner.py`, and
+shared planning is under `core/service/_private/planning/`. The core module owns
+four planners that share `component_id="core"` and one `CorePlan` in
+`PlanContext.shared["core.plan"]`. `core_planners(engine=...)` returns them in
+assembled order: row-source, projection, binding and records. Core consumes the
+neutral relation plan and protocol; it imports no DuckDB module.
 Together they emit row-source, projection, binding and aggregate steps. SQL steps
 use the emitter's instruction kind, which is `("sql", "duckdb")` for the default
 emitter. `compile` injects `DuckDbSqlEmitter()` and adds the four before your

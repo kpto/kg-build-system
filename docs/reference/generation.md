@@ -412,6 +412,8 @@ Rendering rules:
 - A source-backed field renders `Field[T]` from its value type. The observed
   claim never adds `| None`; array-item and explicitly computed value
   nullability stay in the value type.
+- Source access follows the owner: a generated source field reads as
+  `NullableSelection[T]`, exactly like a handwritten source field.
 - Canonical `date`, `time`, `timestamp` and `uuid` render as `Date`, `Time`,
   `Timestamp` and `Uuid`; the builtin scalars use their Python names. Every file
   that declares anything imports the whole representative set.
@@ -562,6 +564,9 @@ turn `DECIMAL` into `float` or otherwise lift a refusal.
   sources; `--watch` regenerates on declaration changes and ignores data changes.
 - Generated declarations are ordinary `Table`, `Struct` and `TableGroup`
   classes, and each generated table uses `Table[Asset]`.
+- Observed nullability is provenance. A generated source field renders `Field[T]`
+  and reads as a nullable source selection; the claim feeds the manifest and
+  pre-flight, not the annotation.
 - An override is a whole-column declaration in the contract. It records the
   observed claim for the pre-flight; it does not change the rendered `Field[T]`.
 

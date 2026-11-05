@@ -17,7 +17,7 @@ You write topology as ordinary Python classes:
 - A **node** is a thing: a site, a unit, a defect.
 - An **edge** is a directed assertion between two nodes: a site *has* a unit, a unit *has* a defect.
 
-Each declaration names the component, its properties and, for an edge, its two endpoints. The declaration stores no values. Values arrive later, in a [binding](bindings.md), when you assign an expression to every declared property.
+Each declaration names the component, its properties and, for an edge, its two endpoints. The declaration stores no values. Values arrive later, in a [binding](bindings.md), when you assign a selection to every declared property.
 
 ```python
 from kg_build_system import (
@@ -89,7 +89,7 @@ Arrays are one level deep and homogeneous. Null items inside an array are reject
 
 Nested arrays and structs are not graph properties. When a value is richer than a flat array, make it a node and connect it with an edge. Use [`extract()`](expressions.md) or [`alter_rows().expand()`](projections.md) to reach the scalar values a property accepts.
 
-Nullability is a declaration, not a hint. A required property promises that a value will be present, and the build stops if the data breaks that promise. A nullable property accepts a null expression and stores no graph value. Every declared property, including inherited ones, must be bound; there are no defaults.
+Nullability is a declaration, not a hint. A required property promises that a value will be present, and the build stops if the data breaks that promise. A nullable property accepts a nullable selection and stores no graph value. Every declared property, including inherited ones, must be bound; there are no defaults.
 
 ## Templates, categories and concrete components
 

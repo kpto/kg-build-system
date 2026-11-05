@@ -15,7 +15,7 @@ the rules; it does not repeat the explanation of why the model works that way.
 | [Assets](assets.md) | `Asset`, options, layout, semantics, governance, `Table[Asset]`, `@asset_contract` and the generic source planner | [Assets](../concepts/assets.md) |
 | [Expressions and selections](expressions.md) | Selections, `extract`, null policy, row effects, array and value operations, literals and Boolean composition | [Expressions](../concepts/expressions.md) |
 | [Row sources](row-sources.md) | `row_source()`, `where`, `union`, `join`, `group_by`, `distinct`, `order_by` and generated shapes | [Row sources and grain](../concepts/row-sources.md) |
-| [Projections](projections.md) | Pinning a source, `computed_field`, `projection_base`, outputs and dependencies | [Projections](../concepts/projections.md) |
+| [Projections](projections.md) | Pinning a source, `computed_field`, outputs and dependencies | [Projections](../concepts/projections.md) |
 | [Topology declarations](topology.md) | `Node`, `Edge`, properties, categories, templates and endpoints | [Topology](../concepts/topology.md) |
 | [Bindings](bindings.md) | `node_binding`, `edge_binding`, keys, properties and endpoint tokens | [Bindings](../concepts/bindings.md) |
 | [Semantics](semantics.md) | `Annotation`, labels and descriptions | [Semantics and annotations](../concepts/semantics.md) |
@@ -36,15 +36,16 @@ the rules; it does not repeat the explanation of why the model works that way.
   the error tables on each page give the message and the trigger.
 - `Value` means a row-source value such as `SiteTable.row_source()`, not the
   declaration class `SiteTable`.
-- A source field read follows its declaration: `Field[T]` is present and
-  `Field[T | None]` is nullable. The reference says when an operation removes or
-  preserves that null.
+- A field declaration names a value type, never absence. A source `Table` or
+  source `Struct` read is a `NullableSelection[T]`; a `Projection` output or
+  `ComputedStruct` member follows its `computed_field` selection. The reference
+  says when an operation removes or preserves a null.
 
 ## Import paths
 
 | Surface | Import from |
 | --- | --- |
-| Declarations, selections, expressions, row sources and projections | `kg_build_system` |
+| Declarations, selections, row sources and projections | `kg_build_system` |
 | `compile`, `create_blueprint` and `execute` | `kg_build_system` |
 | `BuildRuntime` and `WorkflowReport` | `kg_build_system` (also `kg_build_system.distribution`) |
 | `WorkflowPlan`, `Step`, `StepId`, `OpeningId`, `ArtifactType`, `ArtifactPattern`, `InstructionKind` and the kernel protocols | `kg_build_system.kernel` |
@@ -56,8 +57,8 @@ the rules; it does not repeat the explanation of why the model works that way.
 
 - Read the concept page for meaning; read the reference page for the exact
   interface.
-- Every declaration, selection and expression is a typed authoring construct,
-  not a schema document or a dictionary.
+- Every declaration and selection is a typed authoring construct, not a schema
+  document or a dictionary.
 - Errors are quoted so they can be matched against the message the framework
   emits.
 

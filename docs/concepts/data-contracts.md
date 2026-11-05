@@ -12,7 +12,7 @@ with it.
 
 ## Why contracts come first
 
-Every later stage reads the same shape. An expression reads a field, a row source
+Every later stage reads the same shape. A selection reads a field, a row source
 returns rows of that shape, and a binding maps those rows onto node and edge
 properties. If the shape is only a convention, each stage can interpret it
 differently and the build discovers the disagreement late.
@@ -27,7 +27,7 @@ mistake.
 Three declarations cover the data side of a build:
 
 - A `Table` describes a relation: one class, one row shape read from one
-  [asset](assets.md). It is also a row source, so a binding can pass
+  [asset](assets.md). It is also a row source provider, so a binding can pass
   `SiteTable.row_source()` as its rows.
 - A `Struct` describes a record nested inside a row or inside another struct. It
   is a shape only and is never a row source.
@@ -35,15 +35,15 @@ Three declarations cover the data side of a build:
   a nested `Struct`, or an `Array` of those.
 
 `Table` and source `Struct` members are source-backed and use `field()`.
-Projection outputs and `ComputedStruct` members are expression-backed and use
-`computed_field(expression)`. The host decides which constructor is legal; mixing
+Projection outputs and `ComputedStruct` members are selection-backed and use
+`computed_field(selection)`. The host decides which constructor is legal; mixing
 them is refused when the class is created.
 
-The declaration names the value type and its presence. A source field reads the
-declared type: `Field[str]` reads as a present value, while `Field[str | None]`
-reads as nullable. Choose the declaration that matches what the source promises;
-a binding receives that type. Null handling is covered on
-[types and nullability](types.md#nullability-belongs-to-the-declaration).
+A field declares a value type, never `T | None`. A source row may omit a value,
+so every source field read is a `NullableSelection[T]`; the binding decides
+whether to drop the row, default the value, or carry the absence into a nullable
+property. Null handling is covered on
+[types and nullability](types.md#a-field-declares-a-value-type).
 
 ## Example: one row per site
 
@@ -52,7 +52,7 @@ data, and each field names the value the source holds:
 
 ```python
 from kg_build_system import Field, Struct, Table, field
-from kg_build_system import Array, Date
+from kg_build_system import Array, Date, Nullable
 
 from estate.assets import Estate
 
@@ -71,7 +71,7 @@ class SiteTable(Table[Estate]):
     name: Field[str] = field()
     surveyed_on: Field[Date] = field()
     contact: Field[ContactStruct] = field()
-    aliases: Field[Array[str | None]] = field()
+    aliases: Field[Array[Nullable[str]]] = field()
 
 
 class UnitTable(Table[Estate]):
@@ -104,19 +104,18 @@ joins are on [row sources](row-sources.md).
 
 ## Nested records
 
-A nested JSON object becomes a `Struct`. Each step carries the presence its
-declaration names: `Field[ContactStruct | None]` makes the carrier nullable, and
-`Field[str | None]` makes one member nullable. The example declares both
-`contact` and `email` non-null, so reading the member through a present carrier
-returns a present value. Use `extract` to read a member:
+A nested JSON object becomes a `Struct`. Every source member reads as nullable,
+because the source may omit the carrier or the member. Reach a member through
+`extract`; presence composes:
 
 ```python
 email = SiteTable.contact.extract(lambda contact: contact.email)
-# ValueSelection[str]
+# Selection[Nullable[str]]
 ```
 
-Declare `Field[ContactStruct | None]` or `Field[str | None]` when the source may
-omit that step; the carrier's presence then composes with the member's.
+A present carrier still yields a nullable member for a source struct. A
+`ComputedStruct` member is different: its witness supplies the type, so a
+non-null witness under a present carrier stays non-null.
 
 A `Struct` is never bound, placed in a table group or passed as `rows=`. It only
 describes the value of a field. A nested record is also not a graph property;
@@ -124,7 +123,7 @@ bind its scalar members to separate property slots.
 
 ## Computed values and type witnesses
 
-`computed_field(expression)` declares a value that comes from an expression rather
+`computed_field(selection)` declares a value that comes from a selection rather
 than from a source column. A projection uses it for its typed outputs; a
 `ComputedStruct` uses it for a record that a row already carries:
 
@@ -136,7 +135,7 @@ class SiteSummaryStruct(ComputedStruct):
     """The member types a summary record carries."""
 
     site_id = computed_field(SiteTable.site_id.alter_rows().drop_null())
-    name = computed_field(SiteTable.name)
+    name = computed_field(SiteTable.name.alter_rows().drop_null())
 
 
 from estate.assets import Estate
@@ -146,33 +145,32 @@ class SummaryTable(Table[Estate]):
     summary: Field[SiteSummaryStruct] = field()
 ```
 
-When `SiteSummaryStruct` is used as a field type, its member expressions are
-**type witnesses**. They fix each member's type and nullability but are not
-evaluated and do not create a row plan. Under a present carrier, reading
-`summary.site_id` through `extract` returns the nested data from the carrier row,
-typed as a present string; `name` is present for the same reason, because its
-witness reads a non-null `Field[str]`. A nullable witness or a nullable carrier
-makes the member nullable. A witness only describes the record. To calculate a
-value from another relation, declare a projection output instead. See
+When `SiteSummaryStruct` is used as a field type, its member selections are
+**type witnesses**. They fix each member's type but are not evaluated and do not
+create a row plan. Under a present carrier, reading `summary.site_id` through
+`extract` returns the nested data from the carrier row, typed as a present
+string; `name` is present for the same reason, because its witness is a present
+selection. A nullable witness or a nullable carrier makes the member nullable. A
+witness only describes the record. To calculate a value from another relation,
+declare a projection output instead. See
 [computed structs](projections.md#computed-structs).
 
 ## Decisions you make
 
-### Name presence deliberately
+### Keep the value type, not the source's absence
 
-Write `Field[str]` when the source must supply the value, and
-`Field[str | None]` when it may be absent. The declaration decides how the field
-reads; a top-level `| None` is not stripped. Narrow or default a nullable field
-in the binding. See
-[nullability on access](types.md#nullability-belongs-to-the-declaration).
+Write `Field[str]` for the value, not a nullable annotation. Source access is
+nullable because the source may omit a row value; the binding narrows or
+defaults it. See
+[nullability and the owner](types.md#a-field-declares-a-value-type).
 
 ### Declare an array at two levels
 
-`Field[Array[str]]` names a list of non-null strings. `Field[Array[str | None]]`
-names a list whose items may be null. That item union stays in the declaration
-because a null item inside a present list is a fact about the value. Array
-presence is a separate decision: `Field[Array[str]]` reads a present list, while
-`Field[Array[str] | None]` reads a list that may be absent.
+`Field[Array[str]]` names a list of non-null strings.
+`Field[Array[Nullable[str]]]` names a list whose items may be null. That item
+nullability stays in the declaration because a null item inside a list is a fact
+about the value. Array presence is decided by the owner: a source array reads as
+nullable, and a computed array output follows its selection.
 
 ### Describe names and meaning
 
@@ -202,20 +200,21 @@ tables from more than one asset. See [assets](assets.md).
 
 An `@asset_contract(AssetContractOptions(...))` decorator on an asset makes
 `kbs generate` write ordinary `Table[Asset]`, `Struct` and `TableGroup` classes
-from a physical source. The generated field type follows the source tier: a source
-whose nullability is only defaulted renders `Field[T | None]`, while an enforced
-or declared non-null source renders `Field[T]`. Generated tables name the asset
-with `Table[Asset]`. The header and generation manifest keep the full claim for
-diagnostics. A nullability `override` can assert or
-decline a claim; change the asset contract and regenerate, generated files are not
-hand-edited. Source access follows the declaration: `Field[T]` reads non-null and
-`Field[T | None]` reads nullable.
+from a physical source. A generated source field always renders `Field[T]` from
+its value type. The observed nullability claim is provenance for the manifest,
+statistics and notes; it never adds absence to the rendered field. Generated
+tables name the asset with `Table[Asset]`. A nullability `override` changes the
+provenance claim, not the rendered annotation; change the asset contract and
+regenerate, generated files are not hand-edited. Source access follows the owner:
+a generated source field reads as nullable.
 
 ## Limits
 
 - A field type must be a value record: a scalar, an array, a `Struct`,
   `ComputedStruct` or custom scalar. A table or projection cannot be a field
   type; bind that relation separately.
+- A field annotation may not include absence. Use `Nullable[T]` for an array
+  item, and narrow or default a source read in the binding.
 - A `Struct` has no location, no row source and no group membership.
 - `Table`, `TableGroup` and `Projection` are final. Share members through a
   `StructTemplate` instead of inheriting from another final declaration. A

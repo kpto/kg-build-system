@@ -43,20 +43,44 @@ pkg/
                        planning, engines, runtime
 ```
 
+## Authoring model
+
+- `Selection[T]` is the single authoring type; `NullableSelection[T]` is the
+  alias `Selection[Nullable[T]]`. The compiler expression tree is private.
+- A `Field[T]` declares a value type, never `T | None`. Source `Table` and
+  source `Struct` reads yield `NullableSelection[T]`; computed `Projection` and
+  `ComputedStruct` reads yield the type of their `computed_field` selection.
+  Nested array-item nullability stays in the value type.
+- `Table` and `Projection` are row-source providers. Use
+  `Table.row_source()` / `Projection.row_source()`; a projection is pinned with
+  `Projection(source)`.
+- `field()` declares a source member and `computed_field(selection)` a computed
+  member. Binding lambdas receive a typed row proxy.
+- `alter_rows()` is the one-shot row-effect gate; it exposes only `drop_null`,
+  `drop_if` and `expand` where they are valid. `lookup`, `zip`, `at`, `slice`,
+  `extract` and the present value operations are selection methods.
+- A language reports authoring references with `get_references` and transcribes
+  one declaration at a time with `transcribe`; the linker resolves the closure
+  before transcription.
+
 ## Source data
 
 - An **asset** is one logical unit of source data, like a package. One asset may
   back many tables. A table names its asset with `Table[Asset]`; the relation
   carries that identity as an `AssetRef`.
-- `AssetLayout` is optional descriptive metadata: `kind`, `locator`, `format`,
-  `selector`, `partition_by`, `members` and `properties`. It is not an access
-  contract.
+- `AssetOptions` carries `website`, optional `layout`, `semantics` and
+  `governance`. `AssetLayout` is optional descriptive metadata: `kind`,
+  `locator`, `format`, `selector`, `partition_by`, `members` and `properties`.
+  It is not an access contract.
 - `DuckDbSourcePlanner` is the generic module planner for `parquet`, `json` and
   `csv` assets. There is no adapter concept in the toolchain and no adapter
   registry; another format is another ordinary module planner.
 - `@asset_contract(AssetContractOptions(...))` is an inert edit-time decorator
   on an asset. Code generation is not part of `AssetOptions`, `AssetDTO` or the
   blueprint, and there are no source binding values.
+- Generation observes a source and renders declarations. Observation is
+  provenance: a generated source-backed field renders `Field[T]` and never adds
+  absence to the declaration.
 
 ## Documentation
 
@@ -76,7 +100,9 @@ uv run pyright
 uv run mkdocs build --strict
 ```
 
-Current verification: 228 tests passed, 1753 subtests; pyright 0 errors.
+Current verification: 259 tests passed, 1858 subtests; pyright 0 errors; the
+reference build passes; the Open Targets project passes 7 tests; the strict
+documentation build passes.
 
 The framework is experimental; the guide describes the current model, not a
 compatibility promise.

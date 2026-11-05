@@ -7,7 +7,7 @@ The declaration names come from `kg_build_system`; the representative and
 canonical types come from `kg_build_system`. The meaning of each
 declaration is on [Data contracts](../concepts/data-contracts.md); the asset
 model is on [Assets](../concepts/assets.md) and the
-[assets reference](assets.md). Expressions are on
+[assets reference](assets.md). Selections are on
 [Expressions and selections](expressions.md), row plans on
 [Row sources](row-sources.md), and named relations on
 [Projections](projections.md).
@@ -30,7 +30,7 @@ inherit from another final declaration of the same kind. `Struct` and
 ## `field()`
 
 ```python
-def field(
+def field[T: DeclaredValue](
     *,
     name: str | None = None,
     description: str | None = None,
@@ -44,7 +44,7 @@ member. The type argument is written in the annotation, as
 
 | Parameter | Type | Meaning | Default |
 | --- | --- | --- | --- |
-| `name` | `str or None` | External field name seen by expressions and the source | Snake case of the attribute; one trailing `_` is removed |
+| `name` | `str or None` | External field name seen by selections and the source | Snake case of the attribute; one trailing `_` is removed |
 | `description` | `str or None` | Member description | The string written directly below the assignment |
 | `annotations` | `Sequence[Annotation]` | Portable metadata carried by the field | `()` |
 
@@ -74,6 +74,9 @@ A field type must be one of those value types; `Field[SomeTable]` and
 `Field[SomeProjection]` are not legal. The full type table is on
 [Types](types.md).
 
+A source `Field[T]` read yields `Selection[Nullable[T]]`. The declaration names
+the value type; the source owner decides presence.
+
 | Error | Trigger |
 | --- | --- |
 | `field names must be non-empty` | `field(name="")` |
@@ -84,14 +87,14 @@ A field type must be one of those value types; `Field[SomeTable]` and
 | `one Field instance may not be assigned to multiple declarations` | The same `Field` object is assigned twice |
 | `<Name> is a row source, not a value record; field types must be Struct or ComputedStruct declarations` | `Field[SomeTable]` or `Field[SomeProjection]` |
 | `logical types must be explicit; Any is not supported` | `Field[Any]` |
-| <code>logical unions are limited to T &#124; None</code> | A union with two non-null members |
+| `<Class>.<attribute> is a source field and must be declared with field(), not T \| None` | The annotation includes absence |
 | `unsupported logical type annotation: ...` | `list[T]`, `dict[K, V]` or another unsupported annotation |
 
 ## `computed_field()`
 
 ```python
-def computed_field(
-    value: ValueInput[T],
+def computed_field[T: DeclaredValue](
+    value: Selection[T],
     *,
     name: str | None = None,
     description: str | None = None,
@@ -99,13 +102,13 @@ def computed_field(
 ) -> Field[T]: ...
 ```
 
-`computed_field()` declares an expression-backed member. It is legal on a
+`computed_field()` declares a selection-backed member. It is legal on a
 `Projection` output and on a `ComputedStruct` member; the host decides what the
-expression means.
+selection means.
 
 | Parameter | Type | Meaning | Default |
 | --- | --- | --- | --- |
-| `value` | `ValueInput[T]` | A selection or expression that types the output | Required |
+| `value` | `Selection[T]` | A selection that types the output | Required |
 | `name` | `str or None` | External output name | Snake case of the attribute; one trailing `_` is removed |
 | `description` | `str or None` | Output description | The string written directly below the assignment |
 | `annotations` | `Sequence[Annotation]` | Portable metadata carried by the output | `()` |
@@ -122,7 +125,7 @@ from kg_build_system import ComputedStruct, Projection, computed_field
 class SiteProjection(Projection(SiteTable.row_source())):
     site_id = computed_field(SiteTable.site_id.alter_rows().drop_null())
     label = computed_field(
-        SiteTable.name.alter_rows().drop_null().expression.prepend("site::")
+        SiteTable.name.alter_rows().drop_null().prepend("site::")
     )
 
 
@@ -136,39 +139,9 @@ class SiteSummaryStruct(ComputedStruct):
 | Error | Trigger |
 | --- | --- |
 | `computed field names must be non-empty` | `computed_field(..., name="")` |
-| `expected a value selection or value expression` | `value` is not a selection or expression |
 | `<Class>.<attribute> must be declared with computed_field()` | `field()` used in a `Projection` or `ComputedStruct` |
 | `<Class>.<attribute> is a source field and must be declared with field(), not computed_field()` | `computed_field(...)` used in a `Table` or `Struct` |
 | `<Class> fields 'x' and 'y' share external name 'name'` | Two outputs or members resolve to the same external name |
-
-## `projection_field()`
-
-```python
-def projection_field(
-    value: ValueInput[T],
-    *,
-    name: str | None = None,
-    description: str | None = None,
-    annotations: Sequence[Annotation] = (),
-) -> Field[T]: ...
-```
-
-`projection_field()` is the compatibility spelling of `computed_field()` for an
-unpinned `Projection`. Its arguments, backing expression and resolved type are
-identical; only the constructor name differs. New code should declare outputs
-with `computed_field()` on a pinned projection. The older form still derives its
-row plan from the output expressions:
-
-```python
-from kg_build_system import Projection, projection_field
-
-
-class OldSiteProjection(Projection):
-    site_id = projection_field(SiteTable.site_id)
-```
-
-The class is valid only when its outputs resolve to one driving source;
-otherwise compilation fails with `projections require a row source`.
 
 ## `Field[T]`
 
@@ -177,14 +150,13 @@ constructor names the backing.
 
 | Host | Declaration | Read result |
 | --- | --- | --- |
-| `Table` or source `Struct` | `Field[T]` | The present selection for the value: `ValueSelection[T]` for a scalar, `ArraySelection` for an array, `StructSelection` for a struct |
-| `Table` or source `Struct` | `Field[T \| None]` | `NullableSelection[T]` |
-| `Projection` | `computed_field(expression)` | Selection typed by the field expression |
-| `ComputedStruct` | `computed_field(expression)` | Read only through `extract`; the witness type composed with the carrier's presence |
+| `Table` or source `Struct` | `Field[T]` | `Selection[Nullable[T]]` |
+| `Projection` | `computed_field(selection)` | Selection typed by the field's selection |
+| `ComputedStruct` | `computed_field(selection)` | Read only through `extract`; the witness type composed with the carrier's presence |
 
-A source read follows the declaration: `Field[str]` reads non-null and
-`Field[str | None]` reads nullable. Array item and nested member nullability stay
-in the type, as in `Field[Array[str | None]]`. See [Types](types.md).
+A field annotation never includes absence. Source access is nullable because the
+source may omit the value; array item and nested value nullability stay in the
+value type, as in `Field[Array[Nullable[str]]]`. See [Types](types.md).
 
 ## `Table`
 
@@ -195,17 +167,11 @@ class Table[AssetT: Asset]:
 
     @classmethod
     def row_source(cls) -> RelationRowSource[Self]: ...
-
-    @classmethod
-    def where(cls, predicate: Callable[[Self], BoolExpression]) -> DerivedRowSource[Self]: ...
-
-    @classmethod
-    def projection_base(cls) -> type: ...
 ```
 
-A `Table` is a typed shape, a row source and the name of the asset its rows come
-from. It is final and becomes a relation only when a binding or projection reads
-it.
+A `Table` is a typed shape, a row source provider and the name of the asset its
+rows come from. It is final and becomes a relation only when a binding or
+projection reads it.
 
 ```python
 from estate.assets import Estate
@@ -221,8 +187,6 @@ refused when the class is created.
 | --- | --- | --- |
 | `options` | `TableOptions` | Identity, description and annotations |
 | `row_source()` | `RelationRowSource[Self]` | Start the row-source algebra |
-| `where(predicate)` | `DerivedRowSource[Self]` | Shorthand for `row_source().where(...)` |
-| `projection_base()` | A dynamic projection base | Inherit the table's fields as projection outputs |
 
 The name defaults to the class name with one `Table` suffix removed and
 converted to snake case, so `VisitTable` becomes `visit`. `description` defaults
@@ -244,10 +208,10 @@ class SiteTable(Table[Estate]):
     region: Field[str] = field()
 ```
 
-`SiteTable.site_id` is a `ValueSelection[str]` because it is declared
-`Field[str]`; `SiteTable.row_source()` is the relation a binding reads. See
+`SiteTable.site_id` is a `Selection[Nullable[str]]` because source access is
+nullable; `SiteTable.row_source()` is the relation a binding reads. See
 [Row sources](row-sources.md) for the algebra and [Projections](projections.md)
-for `projection_base()`.
+for named relations.
 
 | Error | Trigger |
 | --- | --- |
@@ -283,10 +247,8 @@ class ContactStruct(Struct):
     phone: Field[str] = field()
 ```
 
-A nested member keeps the nullability its declaration states: selecting `email`
-from a present `ContactStruct` yields `ValueSelection[str]` for `Field[str]` and
-`NullableSelection[str]` for `Field[str | None]`. A nullable carrier makes the
-member nullable too. Reach members with `extract`; see
+A source struct member read yields `Selection[Nullable[T]]`; a nullable carrier
+also makes every member nullable. Reach members with `extract`; see
 [Expressions and selections](expressions.md#extract).
 
 | Error | Trigger |
@@ -307,10 +269,10 @@ A `ComputedStruct` is a value-record declaration built from `computed_field`
 members. It is usable as `Field[SomeComputedStruct]` and through `extract`, but
 it has no `row_source()`, cannot be bound and cannot be a table-group member.
 
-As a field type its member expressions are **type witnesses**: they fix each
-member's logical type and nullability, are not evaluated, and do not add a row
-plan. The carrier record supplies the value. A present carrier leaves a
-non-null witness non-null; a nullable carrier makes the member nullable.
+As a field type its member selections are **type witnesses**: they fix each
+member's logical type, are not evaluated, and do not add a row plan. The carrier
+record supplies the value. A present carrier leaves a present witness present; a
+nullable carrier makes the member nullable.
 
 ```python
 from kg_build_system import (
@@ -322,7 +284,7 @@ from estate.assets import Estate
 
 class SiteSummaryStruct(ComputedStruct):
     site_id = computed_field(SiteTable.site_id.alter_rows().drop_null())
-    region = computed_field(SiteTable.region)
+    region = computed_field(SiteTable.region.alter_rows().drop_null())
 
 
 class SummaryTable(Table[Estate]):
@@ -349,10 +311,8 @@ the class a name and declare at least one output with `computed_field`. A
 projection is a shape and a row source, but it is not a `Table` and names no
 asset of its own.
 
-An unpinned `class P(Projection)` with `projection_field(...)` outputs is the
-compatibility form. Its plan is derived from the one logical source those
-outputs read; the pinned form is preferred because it states the grain directly.
-See [`projection_field()`](#projection_field).
+There is no unpinned projection. `Projection()` and `class P(Projection)` are
+refused when the class is created.
 
 ```python
 from kg_build_system import Projection, ProjectionOptions, computed_field
@@ -362,19 +322,19 @@ class SiteProjection(Projection(SiteTable.row_source())):
     options = ProjectionOptions(name="site_projection")
     site_id = computed_field(SiteTable.site_id.alter_rows().drop_null())
     label = computed_field(
-        SiteTable.name.alter_rows().drop_null().expression.prepend("site::")
+        SiteTable.name.alter_rows().drop_null().prepend("site::")
     )
 ```
 
 | Error | Trigger |
 | --- | --- |
-| `projections require a row source` | An unpinned projection's outputs do not resolve to one driving source, at compile |
+| `requires a row source` | `Projection()` is called without a source, or a class is declared without one |
 | `projections must declare at least one computed_field` | The projection has no output |
 | `a final Projection may not inherit from another final Projection` | A final projection inherits another final projection |
 | `projection names must be non-empty` | `ProjectionOptions(name="")` |
 | `<Class>.<attribute> must be declared with computed_field()` | `field()` is used for an output |
 
-The pin, outputs, `projection_base()` and dependency rules are on
+The pin, outputs and dependency rules are on
 [Projections](projections.md).
 
 ## `TableGroup`
@@ -475,14 +435,16 @@ inherited. `annotations` is a sequence of `Annotation` values; see
 
 ## What to remember
 
-- `field()` declares source backing; `computed_field()` declares expression
-  backing. The host decides which is legal.
-- `Field[T]` names a value type. A source read follows the declaration: `Field[T]`
-  is non-null and `Field[T | None]` is nullable.
+- `field()` declares source backing; `computed_field(selection)` declares
+  selection backing. The host decides which is legal.
+- `Field[T]` names a value type. Source `Table` and `Struct` reads are
+  `Selection[Nullable[T]]`; projection and computed-struct reads follow their
+  selection.
 - `Table`, `TableGroup` and `Projection` are final. `Struct` and
   `ComputedStruct` are value records, not row sources.
 - `Table[Asset]` names the logical source of a table; the asset and its
   optional layout carry location, format and credential reference.
+- A projection is always pinned to a row-source value.
 - A name, description and annotation are declaration metadata; they never
   become fields or graph properties.
 

@@ -1,6 +1,7 @@
 # Types
 
-This page lists the canonical logical types an author writes and the rules that decide how a value is stored, bound and exported.
+This page lists the canonical logical types an author writes and the rules that
+decide how a value is stored, bound and exported.
 
 Every annotation normalizes to one logical type before it reaches the workflow plan.
 The canonical name is lowercase; a capitalised name such as `Date` is a
@@ -93,20 +94,19 @@ class BudgetTable(Table[Estate]):
 `list[T]`, `Sequence[T]` or a storage type. The item may be any supported type,
 including another array or a struct.
 
-| Declaration | Value it names | Read as |
+| Declaration | Value it names | Source read |
 | --- | --- | --- |
-| `Field[Array[str]]` | a list of non-null strings | `ArraySelection[str]` |
-| `Field[Array[str \| None]]` | a list whose items may be null | `ArraySelection[str \| None]` |
-| `Field[Array[SomeStruct]]` | a list of nested records | `ArraySelection[SomeStruct]` |
-| `Field[Array[str] \| None]` | the same list, or absent | `NullableSelection[Array[str]]` |
+| `Field[Array[str]]` | a list of non-null strings | `Selection[Nullable[Array[str]]]` |
+| `Field[Array[Nullable[str]]]` | a list whose items may be null | `Selection[Nullable[Array[Nullable[str]]]]` |
+| `Field[Array[SomeStruct]]` | a list of nested records | `Selection[Nullable[Array[SomeStruct]]]` |
 
 Two nullability questions are independent:
 
-- **Array presence** is declared. `Field[Array[T]]` reads a present
-  `ArraySelection`; `Field[Array[T] | None]` reads
-  `NullableSelection[Array[T]]`.
-- **Item nullability** is a fact about the value. `Array[T | None]` stays in the
-  declaration and is retained by normalization.
+- **Array presence** belongs to the owner. A source array reads as nullable
+  because the source may omit the array; a computed array output is present when
+  its selection is present.
+- **Item nullability** is a fact about the value. `Array[Nullable[T]]` stays in
+  the declaration and is retained by normalization.
 
 A null array produces no rows when expanded. An empty array also produces no
 rows. An array with null items still produces rows; remove the null items with
@@ -117,7 +117,7 @@ rows. An array with null items still produces rows; remove the null items with
 | Form | Meaning | Example |
 | --- | --- | --- |
 | `SomeStruct` | Source-backed nested record declared with `Struct` | `Field[AddressStruct]` |
-| `SomeComputedStruct` | Value record whose member expressions type the value | `Field[ReadingSummaryStruct]` |
+| `SomeComputedStruct` | Value record whose member selections type the value | `Field[ReadingSummaryStruct]` |
 
 A struct is a nested-record shape only. It is never a row source, has no
 location, and cannot be bound. A struct may contain structs and arrays of
@@ -130,7 +130,7 @@ from kg_build_system import Array
 
 
 class AddressStruct(Struct):
-    city: Field[str | None] = field()
+    city: Field[str] = field()
     postcode: Field[str] = field()
 
 
@@ -138,67 +138,60 @@ from estate.assets import Estate
 
 class SiteTable(Table[Estate]):
     site_id: Field[str] = field()
-    parent_site: Field[str | None] = field()
-    address: Field[AddressStruct | None] = field()
+    address: Field[AddressStruct] = field()
     previous_addresses: Field[Array[AddressStruct]] = field()
 ```
 
-A source struct member reads its declared presence. A non-null member of a
-present carrier is present, a nullable member is nullable, and a nullable
-carrier makes the member nullable. A `ComputedStruct` member expression is a
-**type witness** when the computed struct is carried by a row: it fixes the
-member type and nullability, but it is not evaluated. The carrier row supplies
-the value, and `extract` is the only way to read it.
+A source struct member reads as nullable because the source may omit it. A
+`ComputedStruct` member selection is a **type witness** when the computed struct
+is carried by a row: it fixes the member type, but it is not evaluated. The
+carrier row supplies the value, and `extract` is the only way to read it.
 
-A field type must be a value record. `Field[SomeTable]` and
-`Field[SomeProjection]` are refused; use `extract` for a record already carried
-by a field, or bind the relation separately.
+A field type must be a value record. `Field[SomeTable]` and `Field[SomeProjection]`
+are refused; use `extract` for a record already carried by a field, or bind the
+relation separately.
 
 ## Nullability
 
-A field declaration names the value type and its presence. `Field[str]` reads as
-`ValueSelection[str]`; `Field[str | None]` reads as `NullableSelection[str]`.
+A field declaration names a value type. Presence comes from the owner:
 
 ```python
-site_id = SiteTable.site_id          # ValueSelection[str]
-parent = SiteTable.parent_site       # NullableSelection[str]
-address = SiteTable.address          # NullableSelection[AddressStruct]
+site_id = SiteTable.site_id          # Selection[Nullable[str]]
+address = SiteTable.address          # Selection[Nullable[AddressStruct]]
 ```
 
-A `Projection` output is different: `computed_field(expression)` is typed by its
-expression. A non-null expression publishes a non-null selection, and a nullable
-expression publishes a nullable one.
+A `Projection` output is different: `computed_field(value)` is typed by `value`.
+A non-null selection publishes a non-null output, and a nullable selection
+publishes a nullable one.
 
-| Declaration | Value it names | Read as |
-| --- | --- | --- |
-| `Field[str]` | a string | `ValueSelection[str]` |
-| `Field[str \| None]` | the same string value type, possibly absent | `NullableSelection[str]` |
-| `Field[Array[str]]` | a list of non-null strings | `ArraySelection[str]` |
-| `Field[Array[str \| None]]` | a list whose items may be null | `ArraySelection[str \| None]` |
-| `Field[Array[str] \| None]` | the same list, possibly absent | `NullableSelection[Array[str]]` |
-| `Field[AddressStruct]` | a nested record | `StructSelection[AddressStruct]` |
-| `Field[AddressStruct \| None]` | a nested record, possibly absent | `NullableSelection[AddressStruct]` |
-| `computed_field(expr)` | a projection output, or a computed-struct member witness | a selection typed by `expr` |
+| Owner and declaration | Read as |
+| --- | --- |
+| Source `Table`: `Field[str]` | `Selection[Nullable[str]]` |
+| Source `Table`: `Field[Array[str]]` | `Selection[Nullable[Array[str]]]` |
+| Source `Table`: `Field[Array[Nullable[str]]]` | `Selection[Nullable[Array[Nullable[str]]]]` |
+| Source `Table`: `Field[AddressStruct]` | `Selection[Nullable[AddressStruct]]` |
+| `Projection`: `computed_field(present selection)` | `Selection[T]` |
+| `Projection`: `computed_field(nullable selection)` | `Selection[Nullable[T]]` |
+| `ComputedStruct` member through `extract` | The witness type, composed with the carrier's presence |
 
 Nullability is flattened: a nullable value never wraps another nullable value,
-and `T | None | None` is simply `T | None`. Do not write the internal
-`Nullable[T]` marker in declarations.
+and a nullable of a nullable is simply nullable. Do not write the internal
+`Nullable[T]` marker in a field annotation; it is for array items and canonical
+types.
 
-A source struct member reads its declaration: selecting `city` from a present
-`AddressStruct` gives `ValueSelection[str]` for `Field[str]` and
-`NullableSelection[str]` for `Field[str | None]`. A nullable carrier makes the
-member nullable as well. A `ComputedStruct` member uses its witness type
-instead: a non-null witness under a present carrier stays non-null, and the same
-witness under a nullable carrier becomes nullable.
+A source struct member is always nullable because the source may omit it. A
+nullable carrier also makes any member nullable. A `ComputedStruct` member uses
+its witness type instead: a non-null witness under a present carrier stays
+non-null, and the same witness under a nullable carrier becomes nullable.
 
 Nulls pass through calculations. A selection owns the null policy:
 
-- `default_to(value)` replaces null and keeps the row; it is a no-op on a
-  present value.
+- `default_to(value)` replaces null and keeps the row; it is not exposed on a
+  present selection.
 - `alter_rows().drop_null()` removes rows whose value is null and returns a
-  present selection; it is a no-op on a non-null selection.
+  present selection; it is not exposed on a present selection.
 - `drop_null_items()` removes null array items; narrow the array to a present
-  `ArraySelection` first.
+  selection first.
 
 ```python
 city = SiteTable.address.extract(lambda address: address.city).default_to("unknown")
@@ -208,16 +201,16 @@ postcode = (
 )
 ```
 
-A generated package's source-nullability claim determines the rendered field: a
-`DEFAULTED` tier renders `Field[T | None]`, while an `ENFORCED` or `DECLARED`
-tier renders `Field[T]`. Access then follows the rendered declaration. See
-[generated nullability](ingest.md#generated-nullability).
+A generated package renders every source field as `Field[T]` from its value type.
+The observed source claim is provenance for the manifest, statistics and notes;
+it never adds absence to the rendered field. Access then follows the owner: a
+generated source field reads as nullable because it belongs to a source table.
+See [generated nullability](ingest.md#generated-nullability).
 
 ## Graph property shape
 
 A graph property is a scalar or a **flat, homogeneous array of non-null
-scalars**. It is declared as a `PropertySlot[T]` and accepts a selection or
-expression of `T`.
+scalars**. It is declared as a `PropertySlot[T]` and accepts a selection of `T`.
 
 ```python
 from kg_build_system import Node, PropertySlot, property
@@ -226,17 +219,17 @@ from kg_build_system import Array
 
 class SiteNode(Node):
     name: PropertySlot[str] = property()
-    rating: PropertySlot[float | None] = property()
+    rating: PropertySlot[float] = property()
     tags: PropertySlot[Array[str]] = property()
 ```
 
 | Shape | Accepted as a property | Reason |
 | --- | --- | --- |
 | Scalar `T` | Yes | Stored natively |
-| <code>T &#124; None</code> | Yes | The property may be absent |
+| a scalar that may be absent | Yes | The property may be absent |
 | `Array[T]` with non-null scalar items | Yes | Flat homogeneous list |
-| <code>Array[T] &#124; None</code> | Yes | The same list, or absent |
-| <code>Array[T &#124; None]</code> | No | Properties cannot hold null items; narrow the array, then use `drop_null_items()` |
+| an array that may be absent | Yes | The same list, or absent |
+| `Array[Nullable[T]]` | No | Properties cannot hold null items; narrow the array, then use `drop_null_items()` |
 | `Array[Array[T]]` | No | Nested arrays are not a graph value; flatten with `alter_rows().expand()` |
 | `Array[SomeStruct]` | No | Struct members do not survive the boundary; reify them |
 | `SomeStruct` | No | Properties are flat scalars or lists |
@@ -246,14 +239,13 @@ still refuse them.
 
 ## Keys
 
-A build key, source key or target key must be a **non-null scalar** expression.
-Arrays and structs are refused, and so is a nullable scalar. A key written from a
-source field declared `Field[T | None]` narrows first; a `Field[T]` key is
-already present.
+A build key, source key or target key must be a **present scalar** selection.
+Arrays and structs are refused, and so is a nullable scalar. A key from a source
+field is narrowed first because source access is nullable.
 
 ```python
 build_key = SiteTable.site_id.alter_rows().drop_null()
-target_key = SiteTable.parent_site.alter_rows().drop_null().expression.to_string()
+target_key = SiteTable.site_id.alter_rows().drop_null().to_string()
 ```
 
 An array of strings becomes key material through `concat(...)`. Narrow the array
@@ -328,13 +320,14 @@ property shape and target capability are separate checks.
 | Declaration | Why it is refused | What to do |
 | --- | --- | --- |
 | `Any` | The logical type must be explicit | Name the concrete type |
+| A field annotation that includes absence | A field names the value; the owner decides presence | Declare `Field[T]` and narrow or default the source read |
 | <code>T &#124; U</code> with two non-null members | Logical unions do not exist | Use one type, or separate fields |
 | `list[T]`, `Sequence[T]`, `dict[K, V]`, `tuple[...]` | Only the portable `Array` marker and declared structs exist | Use `Array[T]` or a `Struct` |
 | A struct or custom type declared inside a function | It cannot be resolved by module and qualified name | Declare it at module level |
 | A `Table` or `Projection` as a field type | A row source is not a value record | Use a `Struct` or `ComputedStruct`, or bind the relation separately |
 | `value_expression(None)` | A null literal has no inferable type | Pass `logical_type=NullableType(STR)` (or the matching canonical type) |
 | `value_expression([])` or an all-null array literal | The item type cannot be inferred | Pass `logical_type=ArrayType(INT)` (or the matching item type) |
-| A struct or custom value as a literal | Literals are portable scalars and arrays only | Build the value from row expressions |
+| A struct or custom value as a literal | Literals are portable scalars and arrays only | Build the value from row selections |
 | A mixed-type array literal | Array items must have one logical type | Normalize the items first |
 
 !!! note "`logical_type` takes a canonical type"
@@ -359,9 +352,8 @@ property shape and target capability are separate checks.
   properties. It refuses `uuid` and custom scalars because it has no property
   type for them. Its array properties hold `bool`, `int`, `float` or `str` items
   only. A refused property fails at compile rather than being coerced.
-- A generated package's nullability claim decides the rendered field:
-  `DEFAULTED` renders `Field[T | None]`; `DECLARED` or `ENFORCED` renders
-  `Field[T]`.
+- A generated source field always renders `Field[T]`; observed source
+  nullability is provenance, not a rendered type.
 - A text-canonical value is written in its canonical form: ISO for `date`,
   `time` and `timestamp`, lowercase hyphenated text for `uuid`.
 
@@ -371,21 +363,21 @@ property shape and target capability are separate checks.
 from kg_build_system import (
     Field, Node, NodeValues, PropertySlot, Table, field, node_binding, property,
 )
-from kg_build_system import Array, Timestamp
+from kg_build_system import Array, Nullable, Timestamp
 
 
 from estate.assets import Estate
 
 class ReadingTable(Table[Estate]):
     reading_id: Field[str] = field()
-    recorded_on: Field[Timestamp | None] = field()
-    value: Field[float | None] = field()
-    labels: Field[Array[str | None] | None] = field()
+    recorded_on: Field[Timestamp] = field()
+    value: Field[float] = field()
+    labels: Field[Array[Nullable[str]]] = field()
 
 
 class ReadingNode(Node):
-    recorded_on: PropertySlot[Timestamp | None] = property()
-    value: PropertySlot[float | None] = property()
+    recorded_on: PropertySlot[Timestamp] = property()
+    value: PropertySlot[float] = property()
     labels: PropertySlot[Array[str]] = property()
 
 
@@ -393,34 +385,34 @@ reading_binding = node_binding(
     target=ReadingNode,
     rows=ReadingTable.row_source(),
     bind=lambda row: NodeValues(
-        build_key=row.reading_id,
+        build_key=row.reading_id.alter_rows().drop_null(),
         properties=ReadingNode(
-            recorded_on=row.recorded_on,
-            value=row.value,
-            labels=row.labels.default_to([]).drop_null_items(),
+            recorded_on=row.recorded_on.alter_rows().drop_null(),
+            value=row.value.alter_rows().drop_null(),
+            labels=row.labels.alter_rows().drop_null().drop_null_items(),
         ),
     ),
 )
 ```
 
-The build key is already a present string because `reading_id` is declared
-`Field[str]`. The nullable timestamp and float pass through unchanged because the
-properties accept absence. The labels array is made present when the source omits
-it, then its null items are removed, because `Array[str]` is a valid property
-shape and `Array[str | None]` is not.
+Every source field reads as nullable, so each required property narrows it. The
+build key is present after `drop_null()`. The labels array is made present by
+narrowing, then its null items are removed, because `Array[str]` is a valid
+property shape and `Array[Nullable[str]]` is not.
 
 ## What to remember
 
-- Eight canonical scalars, one `Array[T]`, structs for nesting, and `T | None`
-  for absence that a declaration or property genuinely allows.
-- A field declaration names a value type and its presence. `Field[T]` reads non-null; `Field[T | None]` reads nullable.
-- A computed field is typed by its expression; a computed-struct member
-  expression is a type witness.
+- Eight canonical scalars, one `Array[T]`, structs for nesting, and `Nullable[T]`
+  for item nullability or a canonical type.
+- A field declaration names a value type; the owner decides presence. Source
+  fields read nullable; computed fields read exactly their selection type.
+- A computed field is typed by its selection; a computed-struct member selection
+  is a type witness.
 - Graph properties are scalars or flat arrays of non-null scalars.
-- Keys are present scalars; narrow a nullable source value before using it as
-  one.
+- Keys are present scalars; narrow a nullable source read before using it as one.
 - The digest gate widens canonical types, requires a declaration for a
   declared-only type, and refuses a type with no canonical meaning.
+- Generated fields always render `Field[T]`; observed nullability is provenance.
 
 Next: [Assets and ingest](ingest.md) attaches these types to physical data.
 See also the [Authoring API](index.md), [Generation](generation.md) and the

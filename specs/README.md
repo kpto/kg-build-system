@@ -14,9 +14,9 @@ This directory does not duplicate it.
 | --- | --- | --- |
 | `kernel` | canonical types; declaration, symbol, key, workflow and runtime values | `Language`, `Declaration`, `Symbol`, `SymbolRef`, `Key`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `Resource`, `ResourceProvider`, `ResourceView`, `Toolchain`, `Extension`, `WorkflowRuntime` |
 | `distribution/languages/annotations` | annotation values and labels | codec and source rendering |
-| `distribution/languages/expressions` | expression and selection values; expression DTOs | construction, operation specifications and source rendering |
+| `distribution/languages/expressions` | `Selection[T]`, `NullableSelection[T]`, one-shot row-effect handles and `Pair`; expression DTOs | construction, operation specifications, lookup/zip and source rendering |
 | `distribution/languages/asset` | `Asset`, `AssetOptions`, `AssetLayout`, `AssetSemantics`, `AssetGovernance`; asset DTOs | asset discovery, transcription, codec and source rendering |
-| `distribution/languages/data` | `Table[Asset]`, `Struct`, `Projection` and fields; data DTOs | field wrappers, transcription and source rendering |
+| `distribution/languages/data` | `Table[Asset]`, `Struct`, `ComputedStruct`, `Projection(source)`, `RowSource`, `Field[T]`; data DTOs | field wrappers, row-source derivation, transcription and source rendering |
 | `distribution/languages/topology` | `Node`, `Edge`, properties and templates; graph DTOs | property and endpoint wrappers, transcription and source rendering |
 | `distribution/languages/binding` | binding values; binding DTOs | `node_binding`, `edge_binding`, transcription and source rendering |
 | `distribution/interpreter` | `GraphBlueprint` | `create_blueprint`, `BlueprintLinker`, assembly, validation, codec and source |
@@ -45,8 +45,8 @@ pkg/
                        planning, engines, runtime
 ```
 
-An empty zone is deleted; it is not a marker. The top-level lazy loader is
-`_facade.py`.
+An empty zone is deleted; it is not a marker. The top-level lazy export table,
+`__getattr__` and the literal `__all__` live in `kg_build_system/__init__.py`.
 
 The import matrix:
 
@@ -67,11 +67,18 @@ The import matrix:
 `distribution/languages` depends on `kernel`; `data` also depends on `asset`.
 `distribution/interpreter` depends on the languages and the kernel. `distribution/modules` depend on the interpreter
 where they read a blueprint, the languages, `distribution/model`,
-`distribution/service` and the kernel; the core module uses the DuckDB SQL
-emitter. `distribution/implementations` supplies the languages and linker that
-`api.py` composes. `generation/code_generation` is upstream and depends on
-`kernel` and `distribution.languages.asset`. `api.py` and `cli` compose the
-systems.
+`distribution/service` and the kernel; the core module uses the engine-neutral
+relation plan and `SqlEmitter` protocol under `distribution/service/internal`,
+not the DuckDB module. Core planners live under
+`modules/core/<feature>/service/public/planner.py`, and shared planning is under
+`core/service/_private/planning/`. `distribution/implementations` supplies the
+languages and linker that `api.py` composes. `generation/code_generation` is
+upstream and depends on `kernel` and `distribution.languages.asset`. `api.py`
+and `cli` compose the systems.
+
+A field declares a value type, never absence. Source `Table`/`Struct` reads are
+`NullableSelection[T]`; computed `Projection`/`ComputedStruct` reads follow
+their `computed_field` selection. `alter_rows()` is the only row-effect gate.
 
 The kernel imports no graph, data, topology, binding, SQL, DuckDB or Python
 package.

@@ -5,9 +5,10 @@ implementation.
 
 ## Verification
 
-- **228 tests**, **1753 subtests**.
+- **259 tests**, **1858 subtests**.
 - Pyright: **0 errors**.
 - `uv run mkdocs build --strict`: passes.
+- The reference build passes.
 - Open Targets KG: **7 tests** pass.
 
 ```console
@@ -54,15 +55,24 @@ kg_build_system/
 Every leaf uses the zones it needs from `model/public`, `model/internal`,
 `model/_private`, `service/public`, `service/internal` and `service/_private`.
 An empty zone is deleted. `__init__.py` is a docstring, imports and `__all__`
-only; the top-level lazy loader is `_facade.py`.
+only; the top-level lazy export table and `__getattr__` live in
+`kg_build_system/__init__.py`.
 
 ## Toolchain
 
 - `build` hands languages and a namespace to the `Linker`. The linker discovers
-  declarations, derives keys with `compute_key`, transcribes symbols, resolves
-  references, orders them and assembles the model.
+  declarations, derives keys with `compute_key`, reads direct references from
+  authoring values with `get_references`, resolves the closure before
+  transcription, orders the reachable declarations and transcribes each one with
+  `transcribe`.
 - A `Declaration` has no key; a `Symbol` carries its key, kind, value and
   references. `SymbolRef(language, key)` is the only cross-symbol identity.
+- `Selection[T]` is the single authoring type; `NullableSelection[T]` is
+  `Selection[Nullable[T]]`. A `Field[T]` declares a value type, never `T | None`;
+  source `Table`/`Struct` reads are nullable and computed `Projection`/
+  `ComputedStruct` reads follow their selection. `alter_rows()` is the one-shot
+  row-effect gate; `lookup`, `zip` and `RowSource.unnest` complete the value and
+  grain surface.
 - `compile` groups planners by `component_id`; several planners may share a
   component when their `version` and `runtime_fields` agree. It assigns the
   component to each step and assembles a `WorkflowPlan`.
@@ -77,22 +87,30 @@ only; the top-level lazy loader is `_facade.py`.
 - `execute` lives in `api.py` and dispatches on `step.instruction.kind`.
 - Supplied planners, executors and resources live in `distribution/modules`;
   `default_toolchain` adds the generic DuckDB source planner, the four core
-  planners, the default executors and the runtime providers.
+  planners, the default executors and the runtime providers. Core planners live
+  under `modules/core/<feature>/service/public/planner.py`; shared planning is
+  under `core/service/_private/planning/`.
+- Core consumes the neutral relation plan and `SqlEmitter` protocol from
+  `distribution/service/internal`; DuckDB implements the protocol. Core imports
+  no DuckDB module.
 - An asset is one logical unit of source data and may back many tables; a table
-  names its asset with `Table[Asset]`. `AssetLayout` is optional descriptive
+  names its asset with `Table[Asset]`. `AssetOptions` carries website, optional
+  layout, semantics and governance. `AssetLayout` is optional descriptive
   metadata, not an access contract.
 - Source generation is per language; the interpreter source service delegates to
   the asset, data, topology and binding renderers.
 - Generation is an edit-time frontend: `@asset_contract(AssetContractOptions(...))`
   is an inert decorator on an asset, not an asset field or blueprint value.
+  Observation is provenance; a generated source-backed field renders `Field[T]`.
 - The workflow plan owns components, steps, connections and provenance. A step
   owns its instruction.
 
 ## Remaining limits
 
 - A toolchain is the only composition unit. There is no registry.
-- DuckDB is the default SQL emitter. `DuckDbSqlEmitter` is a library, not part
-  of the kernel.
+- DuckDB is the default SQL emitter. `DuckDbSqlEmitter` implements the neutral
+  `SqlEmitter` protocol; it is a library, not part of the kernel. Core consumes
+  the protocol and imports no DuckDB module.
 - There is no adapter concept and no adapter registry. A module contributes an
   ordinary planner; `DuckDbSourcePlanner` handles `parquet`, `json` and `csv`.
 - A Python instruction is a reference: `("python", "cpython")` carries

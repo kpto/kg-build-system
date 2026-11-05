@@ -72,8 +72,12 @@ records of their own.
 
 The core module has four planners — `RowSourcePlanner`, `ProjectionPlanner`,
 `BindingPlanner` and `RecordsPlanner` — all with `component_id="core"` and the
-same `version` and `runtime_fields`. `core_planners(engine=...)` returns them in
+same `version` and `runtime_fields`. Each is defined under
+`modules/core/<feature>/service/public/planner.py` and shares planning under
+`core/service/_private/planning/`. `core_planners(engine=...)` returns them in
 assembled order; they share one `CorePlan` in `PlanContext.shared["core.plan"]`.
+Core takes the neutral relation plan and `SqlEmitter` protocol and imports no
+DuckDB module.
 Together they emit row-source, projection, binding and aggregate steps. Their SQL
 steps use the injected emitter's kind, which is `("sql", "duckdb")` for the
 default emitter; the DuckDB module's `DuckDbExecutor` runs them.
@@ -300,7 +304,7 @@ for a complete one-file example.
 
 ## Limits
 
-- A planner changes the whole build. Keep row-level work in expressions,
+- A planner changes the whole build. Keep row-level work in selections,
   projections and bindings.
 - Order is part of the result. Moving an output before a rewriting planner
   changes what that output publishes.

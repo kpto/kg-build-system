@@ -198,17 +198,16 @@ class KnowsEdge(Edge[PersonNode, PersonNode]):
     since: PropertySlot[int] = property()
 ```
 
-`PropertySlot[T]` is the graph-side counterpart of `Field[T]`: a binding must supply an expression of that type. `NodeLabel` and `EdgeLabel` are annotations, not properties; the compiled model preserves them.
+`PropertySlot[T]` is the graph-side counterpart of `Field[T]`: a binding must supply a selection of that type. `NodeLabel` and `EdgeLabel` are annotations, not properties; the compiled model preserves them.
 
 The type arguments on `Edge[PersonNode, PersonNode]` state both endpoints. The file name `knows__person.py` is a convention for navigation; the declaration is the graph meaning. See [topology](../concepts/topology.md), [semantics and annotations](../concepts/semantics.md), and the [topology reference](../reference/topology.md).
 
 ### 4. Bind the node
 
 A binding says which rows produce which records. The `rows=` argument takes a row
-source value; a `Table` class is accepted as a compatibility shorthand and
-converted with `row_source()`, but the explicit value states the plan. The `bind`
-callable receives a symbolic instance of that row shape; `row.name` is a typed
-selection, not a value read from a file.
+source value, written `PeopleTable.row_source()`; a declaration class is refused.
+The `bind` callable receives a typed row proxy for that shape; `row.name` is a
+typed selection, not a value read from a file.
 
 Create `people_graph/bindings/person/__init__.py`:
 
@@ -231,10 +230,18 @@ person_binding = node_binding(
 )
 ```
 
-The build key is the non-null scalar that identifies a node. A `Field[T | None]` reads as nullable; `Field[T]` reads non-null, so the key narrows with `alter_rows().drop_null()`. A property uses `default_to(...)` when an absent value has a meaningful fallback.
+The build key is the non-null scalar that identifies a node. A source field reads
+as nullable because the CSV may omit the value, so the key narrows with
+`alter_rows().drop_null()`. A property uses `default_to(...)` when an absent value
+has a meaningful fallback.
 
 !!! note "Null values and rows"
-    `drop_null()` removes the row when a nullable value is null; on a present value it is a no-op. `default_to(value)` keeps the row and replaces a null; it is a no-op on a present value. Use `drop_null()` for a nullable key that cannot name anything, and `default_to()` for a property whose absence has a fallback. See [types and nullability](../concepts/types.md) and the [type vocabulary](../reference/types.md).
+    `drop_null()` removes the row when a nullable value is null; a present
+    selection does not expose it. `default_to(value)` keeps the row and replaces a
+    null; it is not exposed on a present selection either. Use `drop_null()` for a
+    key that cannot name anything, and `default_to()` for a property whose
+    absence has a fallback. See [types and nullability](../concepts/types.md) and
+    the [type vocabulary](../reference/types.md).
 
 ### 5. Bind the edge
 
@@ -253,9 +260,9 @@ knows_binding = edge_binding(
     rows=KnowsTable.row_source(),
     bind=lambda row: EdgeValues(
         build_key=(
-            row.source_id.alter_rows().drop_null().expression
+            row.source_id.alter_rows().drop_null()
             .append("->")
-            .append(row.target_id.alter_rows().drop_null().expression)
+            .append(row.target_id.alter_rows().drop_null())
         ),
         source_build_key=row.source_id.alter_rows().drop_null(),
         target_build_key=row.target_id.alter_rows().drop_null(),
@@ -353,7 +360,7 @@ If the counts differ, inspect the input keys and the `drop_null()` calls first. 
 
 - The order is shape, asset, meaning, binding: declare the table, declare the asset it names, declare the node or edge, then bind the rows.
 - The `bind` callable receives a symbolic row instance; `row.name` is a typed selection, not a Python value.
-- A `Field[T | None]` reads as nullable; `Field[T]` reads non-null. A key must be a present scalar, so narrow it with `alter_rows().drop_null()` rather than inventing an identity.
+- A field declares a value type, never absence. Every source read is nullable; a key must be a present scalar, so narrow it with `alter_rows().drop_null()` rather than inventing an identity.
 - `compile()` checks the declarations; `execute()` reads data and writes outputs.
 - Read the JSON Lines file and confirm the counts before adding more components.
 
