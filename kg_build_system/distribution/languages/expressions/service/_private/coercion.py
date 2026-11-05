@@ -13,9 +13,14 @@ if TYPE_CHECKING:
 
 def expression_input(value: Any, expected: LogicalType) -> ExpressionNode:
     """Normalize a literal or typed expression and check its logical type."""
+    from ...model.public.selection import Selection
     from ...model.public.values import ValueExpression
 
-    if isinstance(value, ValueExpression):
+    if isinstance(value, Selection):
+        from .selections import as_expression
+
+        result = as_expression(value).model
+    elif isinstance(value, ValueExpression):
         result = value.model
     else:
         literal_type = expected

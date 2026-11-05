@@ -2,26 +2,21 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 
 from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
 )
-from kg_build_system.distribution.languages.expressions.model.public import (
-    ValueInput,
-)
-from ...model.public.fields import AuthoringDataType
+from ...model.public.fields import DeclaredValue
 from ..internal.fields import computed_field as computed_field_impl
 from ..internal.fields import field as field_impl
-from ..internal.fields import projection_field as projection_field_impl
 
 if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.expressions.model.public import Selection
     from ...model.public.fields import Field
 
-T = TypeVar("T")
 
-
-def field[T: AuthoringDataType](  # pyright: ignore[reportInvalidTypeVarUse]
+def field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     *,
     name: str | None = None,
     description: str | None = None,
@@ -42,8 +37,8 @@ def field[T: AuthoringDataType](  # pyright: ignore[reportInvalidTypeVarUse]
     )
 
 
-def computed_field[T](  # pyright: ignore[reportInvalidTypeVarUse]
-    value: ValueInput[T],
+def computed_field[T: DeclaredValue](
+    value: "Selection[T]",
     *,
     name: str | None = None,
     description: str | None = None,
@@ -56,7 +51,7 @@ def computed_field[T](  # pyright: ignore[reportInvalidTypeVarUse]
         from kg_build_system import Projection, computed_field
 
         class SiteLabels(Projection(SiteTable.row_source())):
-            label = computed_field(SiteTable.name)
+            label = computed_field(SiteTable.name.alter_rows().drop_null())
         ```
     """
     return computed_field_impl(
@@ -64,26 +59,4 @@ def computed_field[T](  # pyright: ignore[reportInvalidTypeVarUse]
     )
 
 
-def projection_field[T](  # pyright: ignore[reportInvalidTypeVarUse]
-    value: ValueInput[T],
-    *,
-    name: str | None = None,
-    description: str | None = None,
-    annotations: Sequence[Annotation] = (),
-) -> "Field[T]":
-    """Declare the older unpinned spelling of :func:`computed_field`.
-
-    Example:
-        ```python
-        from kg_build_system import Projection, projection_field
-
-        class SiteLabels(Projection):
-            label = projection_field(SiteTable.name)
-        ```
-    """
-    return projection_field_impl(
-        value, name=name, description=description, annotations=annotations,
-    )
-
-
-__all__ = ["computed_field", "field", "projection_field"]
+__all__ = ["computed_field", "field"]

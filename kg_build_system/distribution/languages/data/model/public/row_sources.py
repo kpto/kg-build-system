@@ -24,7 +24,7 @@ from dataclasses import dataclass
 from typing import Any, Generic, Literal, TypeVar
 
 from kg_build_system.distribution.languages.expressions.model.public import (
-    BoolExpression,
+    Selection,
 )
 from kg_build_system.kernel.model.public.types import Shape
 from ..internal.dto.blueprint_dto import RowScanDTO, RowSourcePlanDTO
@@ -34,16 +34,36 @@ S = TypeVar("S", bound=Shape)
 JoinHow = Literal["inner", "left", "right", "full"]
 
 
+class RowSourceProvider:
+    """A declaration that provides a row source through ``row_source()``."""
+
+    @classmethod
+    def row_source(cls) -> "RowSource[Any]":
+        """Return the relation row source for this declaration.
+
+        Example:
+            ```python
+            from kg_build_system import Table, field
+
+            class Site(Table):
+                site_id = field()
+
+            rows = Site.row_source()
+            ```
+        """
+        raise NotImplementedError
+
+
 class RowSource(Generic[S]):
     """A source of rows whose shape is ``S``; declarations satisfy it by subclassing."""
 
     shape: type[S]
 
-    def where(self, predicate: Callable[[S], BoolExpression]) -> "DerivedRowSource[S]":
+    def where(self, predicate: Callable[[S], Selection[bool]]) -> "DerivedRowSource[S]":
         """Keep rows whose predicate is true.
 
         The predicate receives a symbolic shape instance and must return a
-        ``BoolExpression``.
+        ``Selection[bool]``.
 
         Example:
             ```python
@@ -138,7 +158,7 @@ class RelationRowSource(RowSource[S], Generic[S]):
 
     source: type[Any]
     shape: type[S]
-    filters: tuple[BoolExpression, ...] = ()
+    filters: tuple[Selection[bool], ...] = ()
 
     @property
     def plan_dto(self) -> RowScanDTO:
@@ -147,22 +167,6 @@ class RelationRowSource(RowSource[S], Generic[S]):
 
         return relation_plan_dto(self.source)
 
-    def projection_base(self) -> type:
-        """Return a projection base over this relation.
-
-        Example:
-            ```python
-            from kg_build_system import computed_field
-
-            base = SiteTable.row_source().projection_base()
-
-            class SiteLabels(base):
-                label = computed_field(SiteTable.name)
-            ```
-        """
-        from ...service.public.rows import projection_base
-
-        return projection_base(self)
 
 
 @dataclass(frozen=True, slots=True)
@@ -171,32 +175,13 @@ class DerivedRowSource(RowSource[S], Generic[S]):
 
     shape: type[S]
     source: type[Any]
-    filters: tuple[BoolExpression, ...] = ()
+    filters: tuple[Selection[bool], ...] = ()
     plan_dto: RowSourcePlanDTO | None = None
 
-    def projection_base(self) -> type:
-        """Return a projection base over this derived row source.
-
-        Example:
-            ```python
-            from kg_build_system import computed_field
-
-            active = SiteTable.row_source().where(
-                lambda site: site.name.alter_rows().drop_null()
-                .expression.equals("Depot")
-            )
-            base = active.projection_base()
-
-            class ActiveSiteLabels(base):
-                label = computed_field(SiteTable.name)
-            ```
-        """
-        from ...service.public.rows import projection_base
-
-        return projection_base(self)
 
 
 __all__ = [
-    "DerivedRowSource", "RelationRowSource", "RowSource", "ShapeField",
+    "DerivedRowSource", "RelationRowSource", "RowSource",
+    "RowSourceProvider", "ShapeField",
     "JoinHow",
 ]

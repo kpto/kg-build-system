@@ -6,11 +6,10 @@ from collections.abc import Callable
 from typing import Any, overload
 
 from kg_build_system.distribution.languages.expressions.model.public import (
-    ValueExpression,
-    ValueInput,
+    Selection,
 )
 from kg_build_system.distribution.languages.expressions.service.internal import (
-    as_expression,
+    as_expression, select_expression,
 )
 from kg_build_system.distribution.languages.data.model.public import (
     DerivedRowSource,
@@ -43,18 +42,21 @@ from ...model.public.values import (
 )
 
 
-def _require_key(value: object, *, argument: str) -> ValueExpression[Any]:
+def _require_key(value: object, *, argument: str) -> Selection[Any]:
     try:
-        expression = as_expression(value)  # type: ignore[arg-type]
+        selection = (
+            value if isinstance(value, Selection)
+            else select_expression(as_expression(value))
+        )
     except TypeError as error:
         raise TypeError(
-            f"{argument} must be a value selection or expression"
+            f"{argument} must be a selection"
         ) from error
     require_non_nullable(
-        require_scalar(expression.logical_type, context=argument),
+        require_scalar(selection.logical_type, context=argument),
         context=argument,
     )
-    return expression
+    return selection
 
 
 def _compatible(expected: object, actual: object) -> bool:
@@ -79,7 +81,7 @@ def _property_values[
         raise TypeError(
             f"{target.__name__} has no declared property {names}"
         )
-    result: list[tuple[str, ValueExpression[Any]]] = []
+    result: list[tuple[str, Selection[Any]]] = []
     for attribute, declaration in declarations.items():
         try:
             supplied = getattr(value, attribute)
@@ -89,38 +91,32 @@ def _property_values[
                 "selection or expression"
             ) from error
         try:
-            expression = as_expression(supplied)
+            selection = (
+                supplied if isinstance(supplied, Selection)
+                else select_expression(as_expression(supplied))
+            )
         except TypeError as error:
             raise TypeError(
-                f"{target.__name__}.{attribute} must be assigned a value "
-                "selection or expression"
+                f"{target.__name__}.{attribute} must be assigned a selection"
             ) from error
-        if not _compatible(declaration.logical_type, expression.logical_type):
+        if not _compatible(declaration.logical_type, selection.logical_type):
             raise TypeError(
                 f"{target.__name__}.{attribute} expects "
-                f"{declaration.logical_type!r}, but the expression resolves to "
-                f"{expression.logical_type!r}"
+                f"{declaration.logical_type!r}, but the selection resolves to "
+                f"{selection.logical_type!r}"
             )
-        result.append((declaration.name or attribute, expression))
+        result.append((declaration.name or attribute, selection))
     return tuple(sorted(result, key=lambda item: item[0]))
 
 
 def _as_row_source(value: Any) -> Any:
-    """Accept both a row-source value and the declaration-class shorthand."""
-    if isinstance(value, type):
-        factory = getattr(value, "row_source", None)
-        if not callable(factory):
-            raise TypeError(
-                "rows must be a row source value or a Table/Projection "
-                "declaration; use Table.row_source()"
-            )
-        value = factory()
+    """Require a row-source value; the declaration class is not accepted."""
     try:
         return as_row_source(value)
     except TypeError as error:
         raise TypeError(
-            "rows must be a row source value or a Table/Projection declaration; "
-            "use Table.row_source()"
+            "rows must be a row source value; use Table.row_source() or "
+            "Projection.row_source()"
         ) from error
 
 
@@ -212,7 +208,7 @@ def _python_reference(value: Any) -> PythonRef | None:
 @overload
 def node_binding[N: Node, S: Shape](
     *, target: type[N],
-    rows: type[S] | DerivedRowSource[S] | RelationRowSource[S],
+    rows: DerivedRowSource[S] | RelationRowSource[S],
     bind: Callable[[S], NodeValues[N, Any]],
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
 ) -> NodeBinding[N]: ...
@@ -220,13 +216,13 @@ def node_binding[N: Node, S: Shape](
 
 @overload
 def node_binding[N: Node, Key: NonNullableGraphValue](
-    *, target: type[N], build_key: ValueInput[Key], properties: N,
+    *, target: type[N], build_key: Selection[Key], properties: N,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
 ) -> NodeBinding[N]: ...
 
 
 def node_binding[N: Node](
-    *, target: type[N], build_key: ValueInput[Any] | None = None,
+    *, target: type[N], build_key: Selection[Any] | None = None,
     properties: Any = None, rows: Any = None, bind: Any = None,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
 ) -> NodeBinding[N]:
@@ -267,7 +263,7 @@ def node_binding[N: Node](
 @overload
 def edge_binding[E: Edge[Any, Any], S: Shape](
     *, target: type[E],
-    rows: type[S] | DerivedRowSource[S] | RelationRowSource[S],
+    rows: DerivedRowSource[S] | RelationRowSource[S],
     bind: Callable[[S], EdgeValues[E, Any, Any, Any]],
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
     source_node: Endpoint[Any] | None = None,
@@ -280,9 +276,9 @@ def edge_binding[
     E: Edge[Any, Any], S: Node, D: Node, Key: NonNullableGraphValue,
     SourceKey: NonNullableGraphValue, TargetKey: NonNullableGraphValue,
 ](
-    *, target: type[Edge[S, D]], build_key: ValueInput[Key],
-    source_build_key: ValueInput[SourceKey],
-    target_build_key: ValueInput[TargetKey], properties: E,
+    *, target: type[Edge[S, D]], build_key: Selection[Key],
+    source_build_key: Selection[SourceKey],
+    target_build_key: Selection[TargetKey], properties: E,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
 ) -> EdgeBinding[E]: ...
 
@@ -293,8 +289,8 @@ def edge_binding[
     SourceKey: NonNullableGraphValue, TargetKey: NonNullableGraphValue,
 ](
     *, target: type[Edge[S, DC]], target_node: Endpoint[DC],
-    build_key: ValueInput[Key], source_build_key: ValueInput[SourceKey],
-    target_build_key: ValueInput[TargetKey], properties: E,
+    build_key: Selection[Key], source_build_key: Selection[SourceKey],
+    target_build_key: Selection[TargetKey], properties: E,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
 ) -> EdgeBinding[E]: ...
 
@@ -305,8 +301,8 @@ def edge_binding[
     SourceKey: NonNullableGraphValue, TargetKey: NonNullableGraphValue,
 ](
     *, target: type[Edge[SC, D]], source_node: Endpoint[SC],
-    build_key: ValueInput[Key], source_build_key: ValueInput[SourceKey],
-    target_build_key: ValueInput[TargetKey], properties: E,
+    build_key: Selection[Key], source_build_key: Selection[SourceKey],
+    target_build_key: Selection[TargetKey], properties: E,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
 ) -> EdgeBinding[E]: ...
 
@@ -318,17 +314,17 @@ def edge_binding[
     TargetKey: NonNullableGraphValue,
 ](
     *, target: type[Edge[SC, DC]], source_node: Endpoint[SC],
-    target_node: Endpoint[DC], build_key: ValueInput[Key],
-    source_build_key: ValueInput[SourceKey],
-    target_build_key: ValueInput[TargetKey], properties: E,
+    target_node: Endpoint[DC], build_key: Selection[Key],
+    source_build_key: Selection[SourceKey],
+    target_build_key: Selection[TargetKey], properties: E,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
 ) -> EdgeBinding[E]: ...
 
 
 def edge_binding(
-    *, target: type[Edge[Any, Any]], build_key: ValueInput[Any] | None = None,
-    source_build_key: ValueInput[Any] | None = None,
-    target_build_key: ValueInput[Any] | None = None, properties: Any = None,
+    *, target: type[Edge[Any, Any]], build_key: Selection[Any] | None = None,
+    source_build_key: Selection[Any] | None = None,
+    target_build_key: Selection[Any] | None = None, properties: Any = None,
     rows: Any = None, bind: Any = None,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
     source_node: Endpoint[Any] | None = None,

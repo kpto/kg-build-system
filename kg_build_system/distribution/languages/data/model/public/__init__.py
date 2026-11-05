@@ -8,14 +8,14 @@ from .declarations import (
 )
 from .fields import Field
 from .row_sources import (
-    DerivedRowSource, JoinHow, RelationRowSource, RowSource,
+    DerivedRowSource, JoinHow, RelationRowSource, RowSource, RowSourceProvider,
 )
 from .shapes import ShapeField
 
 __all__ = [
     "ComputedStruct", "DerivedRowSource", "Field", "JoinHow", "Projection",
     "ProjectionMeta", "ProjectionOptions", "RelationRowSource", "RowSource",
-    "ShapeField", "Struct", "StructOptions", "StructOptionsTemplate",
-    "StructTemplate", "Table", "TableGroup", "TableGroupOptions",
-    "TableOptions", "is_concrete_table", "is_table_group",
+    "RowSourceProvider", "ShapeField", "Struct", "StructOptions",
+    "StructOptionsTemplate", "StructTemplate", "Table", "TableGroup",
+    "TableGroupOptions", "TableOptions", "is_concrete_table", "is_table_group",
 ]

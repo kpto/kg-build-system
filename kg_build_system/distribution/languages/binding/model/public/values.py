@@ -31,8 +31,7 @@ from kg_build_system.distribution.languages.annotations.service.internal import 
     annotation_tuple,
 )
 from kg_build_system.distribution.languages.expressions.model.public import (
-    ValueExpression,
-    ValueInput,
+    Selection,
 )
 from kg_build_system.distribution.languages.topology.model.public import (
     Edge, Node,
@@ -45,7 +44,7 @@ SK = TypeVar("SK")
 TK = TypeVar("TK")
 
 # External property name paired with the expression the binding supplies for it.
-type PropertyValues = tuple[tuple[str, ValueExpression[Any]], ...]
+type PropertyValues = tuple[tuple[str, Selection[Any]], ...]
 type BindingMode = Literal["declarative", "python"]
 
 
@@ -108,7 +107,7 @@ class NodeValues(Generic[N_co, K]):
         ```
     """
 
-    build_key: ValueInput[K]
+    build_key: Selection[K]
     properties: N_co
 
 
@@ -132,9 +131,9 @@ class EdgeValues(Generic[E_co, K, SK, TK]):
         ```
     """
 
-    build_key: ValueInput[K]
-    source_build_key: ValueInput[SK]
-    target_build_key: ValueInput[TK]
+    build_key: Selection[K]
+    source_build_key: Selection[SK]
+    target_build_key: Selection[TK]
     properties: E_co
 
 
@@ -156,7 +155,7 @@ class NodeBinding(Generic[N_co]):
 
     debug_name: str | None
     target: type[N_co]
-    build_key: ValueExpression[Any]
+    build_key: Selection[Any]
     properties: PropertyValues
     annotations: tuple[Annotation, ...] = ()
     rows: Any = None
@@ -184,9 +183,9 @@ class EdgeBinding(Generic[E_co]):
 
     debug_name: str | None
     target: type[E_co]
-    build_key: ValueExpression[Any]
-    source_build_key: ValueExpression[Any]
-    target_build_key: ValueExpression[Any]
+    build_key: Selection[Any]
+    source_build_key: Selection[Any]
+    target_build_key: Selection[Any]
     properties: PropertyValues
     annotations: tuple[Annotation, ...] = ()
     source_node: type[Node] | None = None

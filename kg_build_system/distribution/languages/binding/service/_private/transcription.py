@@ -15,7 +15,7 @@ from kg_build_system.distribution.languages.expressions.model.internal.dto impor
     ExpressionDTO,
 )
 from kg_build_system.distribution.languages.expressions.service.internal import (
-    expression_dto,
+    as_expression, expression_dto,
 )
 from kg_build_system.distribution.languages.data.model.internal.dto import (
     DataPartDTO,
@@ -88,7 +88,7 @@ def _properties(
     return tuple(sorted(
         (
             name,
-            expression_dto(expression.model),
+            expression_dto(as_expression(expression).model),
         )
         for name, expression in binding.properties
     ))
@@ -103,7 +103,7 @@ def _rows(binding: Binding) -> Any:
 def _node_dto(binding: NodeBinding[Any]) -> NodeBindingDTO:
     return NodeBindingDTO(
         node=cast(NodeRef, _component_ref(binding.target)),
-        identity=expression_dto(binding.build_key.model),
+        identity=expression_dto(as_expression(binding.build_key).model),
         properties=_properties(binding),
         rows=_rows(binding),
         annotations=_annotation_dtos(binding.annotations),
@@ -116,9 +116,9 @@ def _node_dto(binding: NodeBinding[Any]) -> NodeBindingDTO:
 def _edge_dto(binding: EdgeBinding[Any]) -> EdgeBindingDTO:
     return EdgeBindingDTO(
         edge=cast(EdgeRef, _component_ref(binding.target)),
-        identity=expression_dto(binding.build_key.model),
-        source_identity=expression_dto(binding.source_build_key.model),
-        target_identity=expression_dto(binding.target_build_key.model),
+        identity=expression_dto(as_expression(binding.build_key).model),
+        source_identity=expression_dto(as_expression(binding.source_build_key).model),
+        target_identity=expression_dto(as_expression(binding.target_build_key).model),
         properties=_properties(binding),
         rows=_rows(binding),
         annotations=_annotation_dtos(binding.annotations),

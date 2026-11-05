@@ -6,9 +6,11 @@ from .expression import (
     LiteralExpression, OperationExpression, OperationParameter, RowEffect,
     RowSemantics, Traversal, VariableExpression,
 )
+from .selection import SelectedMember
 
 __all__ = [
     "PRESERVE_ROWS", "Expression", "ExpressionNode", "FieldReferenceExpression",
     "LiteralExpression", "OperationExpression", "OperationParameter",
-    "RowEffect", "RowSemantics", "Traversal", "VariableExpression",
+    "RowEffect", "RowSemantics", "SelectedMember", "Traversal",
+    "VariableExpression",
 ]

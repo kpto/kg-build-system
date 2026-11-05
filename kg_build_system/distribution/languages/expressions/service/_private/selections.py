@@ -1,26 +1,95 @@
-"""Selection construction, struct navigation and authoring normalization."""
+"""Selection construction, navigation, array/value algebra and authoring helpers."""
 from __future__ import annotations
 
 import importlib
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast
 
-from kg_build_system.kernel.model.public.types import ArrayType, LogicalType, NullableType, StructType
-from ...model.internal.model import Traversal
-from ...model.public.selections.value import SelectedMember
+from kg_build_system.kernel.model.public.types import (
+    BOOL,
+    INT,
+    STR,
+    ArrayType,
+    LogicalType,
+    NullableType,
+    StructType,
+)
+from ...model.internal.model import (
+    ExpressionNode,
+    FieldReferenceExpression,
+    SelectedMember,
+    Traversal,
+)
 from .apply import apply_operation
 from .build import field_reference
 
 if TYPE_CHECKING:
-    from ...model.public.selections.value import ValueInput, ValueSelection
+    from ...model.public.selection import Selection
     from ...model.public.values import ValueExpression
 
 
-def require_expression(selection: ValueSelection[Any]) -> ValueExpression[Any]:
-    return selection.require_expression()
+def _selection_class():
+    from ...model.public.selection import Selection
+
+    return Selection
 
 
-def _declaration(logical_type: StructType):
+def require_expression(selection: "Selection[Any]") -> "ValueExpression[Any]":
+    """Return the private expression behind a selection."""
+    from ...model.public.values import ValueExpression
+
+    node = getattr(selection, "_node", None)
+    if not isinstance(node, ExpressionNode):
+        raise TypeError("a struct member selection is only valid inside extract")
+    return cast("ValueExpression[Any]", _wrap_expression(node))
+
+
+def _wrap_expression(node: ExpressionNode) -> "ValueExpression[Any]":
+    from .factory import wrap_expression
+
+    return wrap_expression(node)
+
+
+def selection_from_node(node: ExpressionNode) -> "Selection[Any]":
+    """Wrap one compiler expression node in the single authoring type."""
+    return _selection_class()(node)
+
+
+def select_expression(expression: Any) -> "Selection[Any]":
+    """Wrap a bindable expression or node in the single authoring type."""
+    from ...model.public.values import ValueExpression
+
+    if isinstance(expression, ValueExpression):
+        return selection_from_node(expression.model)
+    if isinstance(expression, ExpressionNode):
+        return selection_from_node(expression)
+    raise TypeError("select_expression requires an expression or expression node")
+
+
+def select_member(
+    name: str, logical_type: LogicalType, declaration: StructType,
+) -> "Selection[Any]":
+    """Create the temporary selection returned by a field on a struct proxy."""
+    return _selection_class()(
+        member=SelectedMember(name, logical_type, declaration),
+    )
+
+
+def as_expression(value: Any) -> "ValueExpression[Any]":
+    """Normalize a terminal authoring input to its private expression."""
+    from ...model.public.selection import Selection
+    from ...model.public.values import ValueExpression
+
+    if isinstance(value, Selection):
+        return require_expression(value)
+    if isinstance(value, ValueExpression):
+        return value
+    if isinstance(value, ExpressionNode):
+        return _wrap_expression(value)
+    raise TypeError("expected a selection or value expression")
+
+
+def _declaration(logical_type: StructType) -> type[Any]:
     from kg_build_system.kernel.model.public.types import Struct
 
     value: Any = importlib.import_module(logical_type.module)
@@ -31,19 +100,22 @@ def _declaration(logical_type: StructType):
     return value
 
 
-def _extract_member(
-    parent,
-    selector,
-    parent_type: StructType,
-    *,
-    propagate_null: bool,
-):
-    from ...model.internal.model import FieldReferenceExpression
-    from ...model.public.selections.value import ValueSelection
+def _base(logical_type: LogicalType) -> LogicalType:
+    return logical_type.value if isinstance(logical_type, NullableType) else logical_type
 
+
+def extract_member(
+    parent: "Selection[Any]", selector: Callable[[Any], "Selection[Any]"],
+) -> "Selection[Any]":
+    """Build a member selection from a declared struct and compose presence."""
+    from ...model.public.selection import Selection
+
+    parent_type = _base(parent.logical_type)
+    if not isinstance(parent_type, StructType):
+        raise TypeError("extract requires a struct selection")
     proxy = object.__new__(_declaration(parent_type))
     selected = selector(proxy)
-    if not isinstance(selected, ValueSelection) or selected._member is None:
+    if not isinstance(selected, Selection) or selected._member is None:
         raise TypeError("struct selectors must return a declared field selection")
     member = selected._member
     if member.declaration != parent_type:
@@ -51,19 +123,17 @@ def _extract_member(
             "struct selectors must return a field from their input declaration"
         )
     result_type = member.logical_type
-    if propagate_null and not isinstance(result_type, NullableType):
+    if isinstance(parent.logical_type, NullableType) and not isinstance(
+        result_type, NullableType
+    ):
         result_type = NullableType(result_type)
-    parent_model = parent.require_expression().model
-
+    parent_model = parent._node
+    if parent_model is None:
+        raise TypeError("extract requires a value expression")
     if isinstance(parent_model, FieldReferenceExpression):
         path = (*parent_model.path, member.name)
         traversals = list(parent_model.traversals)
-        member_type = member.logical_type
-        selected_base = (
-            member_type.value
-            if isinstance(member_type, NullableType)
-            else member_type
-        )
+        selected_base = _base(member.logical_type)
         if isinstance(selected_base, StructType):
             traversals.append(Traversal("struct", path))
         elif isinstance(selected_base, ArrayType):
@@ -82,103 +152,241 @@ def _extract_member(
             result_type=result_type,
             name=member.name,
         ).model
-    return select_expression_from_node(result)
+    return selection_from_node(result)
 
 
-def expand_selection(selection: ValueSelection[Any]):
-    logical_type = selection.logical_type
-    base = logical_type.value if isinstance(logical_type, NullableType) else logical_type
+def _array_base(selection: "Selection[Any]") -> ArrayType:
+    base = _base(selection.logical_type)
     if not isinstance(base, ArrayType):
-        raise TypeError("expand requires an array selection")
-    return select_expression_from_node(
-        apply_operation("expand", require_expression(selection)).model
+        raise TypeError("an array selection is required")
+    return base
+
+
+def array_operation(selection: "Selection[Any]", operator: str) -> "Selection[Any]":
+    """Apply a null-preserving array operator."""
+    _array_base(selection)
+    return selection_from_node(
+        apply_operation(operator, require_expression(selection).model).model
     )
 
 
-def drop_null_selection(selection: ValueSelection[Any]):
+def array_at(
+    selection: "Selection[Any]", index: int | Selection[int],
+) -> "Selection[Any]":
+    """Index an array; the result is nullable for out-of-bounds."""
+    _array_base(selection)
+    from .coercion import expression_input
+
+    node = require_expression(selection).model
+    return selection_from_node(
+        apply_operation("array_at", node, expression_input(index, INT)).model
+    )
+
+
+def array_slice(
+    selection: "Selection[Any]",
+    start: int | Selection[int],
+    end: int | Selection[int],
+) -> "Selection[Any]":
+    """Keep an array range."""
+    _array_base(selection)
+    from .coercion import expression_input
+
+    node = require_expression(selection).model
+    return selection_from_node(
+        apply_operation(
+            "array_slice",
+            node,
+            expression_input(start, INT),
+            expression_input(end, INT),
+        ).model
+    )
+
+
+def array_concat(selection: "Selection[Any]", separator: str) -> "Selection[Any]":
+    """Join an array of non-null strings with ``separator``."""
+    _array_base(selection)
+    from .coercion import expression_input
+
+    node = require_expression(selection).model
+    return selection_from_node(
+        apply_operation("join", node, expression_input(separator, STR)).model
+    )
+
+
+def transform_items(
+    selection: "Selection[Any]",
+    selector: Callable[["Selection[Any]"], "Selection[Any]"],
+) -> "Selection[Any]":
+    """Apply a selector to every array item."""
+    from .arrays import _transform_items
+
+    return selection_from_node(
+        _transform_items(require_expression(selection), selector).model
+    )
+
+
+def null_items_removed(selection: "Selection[Any]") -> "Selection[Any]":
+    """Drop null items from an array."""
+    from .arrays import _drop_null_items
+
+    return selection_from_node(
+        _drop_null_items(require_expression(selection)).model
+    )
+
+
+def text_concat(
+    selection: "Selection[Any]", value: Any, *, prepend: bool,
+) -> "Selection[Any]":
+    from .coercion import expression_input
+
+    node = require_expression(selection).model
+    other = expression_input(value, STR)
+    arguments = (other, node) if prepend else (node, other)
+    return selection_from_node(
+        apply_operation("concat", *arguments, result_type=STR).model
+    )
+
+
+def text_replace(
+    selection: "Selection[Any]", search: str, replacement: str,
+) -> "Selection[Any]":
+    from .coercion import expression_input
+
+    node = require_expression(selection).model
+    return selection_from_node(
+        apply_operation(
+            "replace",
+            node,
+            expression_input(search, STR),
+            expression_input(replacement, STR),
+        ).model
+    )
+
+
+def text_equals(selection: "Selection[Any]", value: Any) -> "Selection[Any]":
+    from .coercion import expression_input
+
+    node = require_expression(selection).model
+    return selection_from_node(
+        apply_operation("equals", node, expression_input(value, STR)).model
+    )
+
+
+def separator_text(
+    selection: "Selection[Any]",
+    separator: str,
+    occurrence: int,
+    side: str,
+    include_separator: bool,
+) -> "Selection[Any]":
+    from .coercion import expression_input
+
+    node = require_expression(selection).model
+    operator = "before_separator" if side == "before" else "after_separator"
+    return selection_from_node(
+        apply_operation(
+            operator,
+            node,
+            expression_input(separator, STR),
+            occurrence=occurrence,
+            include_separator=include_separator,
+        ).model
+    )
+
+
+def numeric_binary(
+    selection: "Selection[Any]", operator: str, other: Any,
+) -> "Selection[Any]":
+    from .coercion import expression_input
+
+    logical_type = selection.logical_type
+    node = require_expression(selection).model
+    operand = expression_input(other, logical_type)
+    return selection_from_node(
+        apply_operation(operator, node, operand).model
+    )
+
+
+def boolean_unary(selection: "Selection[Any]", operator: str) -> "Selection[Any]":
+    node = require_expression(selection).model
+    return selection_from_node(apply_operation(operator, node).model)
+
+
+def boolean_binary(
+    selection: "Selection[Any]", operator: str, other: Any,
+) -> "Selection[Any]":
+    from .coercion import expression_input
+
+    node = require_expression(selection).model
+    return selection_from_node(
+        apply_operation(operator, node, expression_input(other, BOOL)).model
+    )
+
+
+def scalar_to_string(selection: "Selection[Any]") -> "Selection[Any]":
+    node = require_expression(selection).model
+    return selection_from_node(apply_operation("to_string", node).model)
+
+
+def default_to(selection: "Selection[Any]", value: Any) -> "Selection[Any]":
+    from .coercion import expression_input
+
     logical_type = selection.logical_type
     if not isinstance(logical_type, NullableType):
-        raise TypeError("drop_null requires a nullable selection")
-    return select_expression(
-        apply_operation("drop_null", require_expression(selection))
+        raise TypeError("default_to requires a nullable selection")
+    node = require_expression(selection).model
+    fallback = expression_input(value, logical_type.value)
+    return selection_from_node(
+        apply_operation("coalesce", node, fallback).model
     )
 
 
-def drop_if_selection(
-    selection: ValueSelection[Any],
-    predicate: Callable[[Any], Any],
-):
-    from ...model.public.boolean import BoolExpression
+# --------------------------------------------------------------------------
+# Row-effect operations used by the one-shot handles.
+
+
+def drop_null_rows(selection: "Selection[Any]") -> "Selection[Any]":
+    if not isinstance(selection.logical_type, NullableType):
+        raise TypeError("drop_null requires a nullable selection")
+    return selection_from_node(
+        apply_operation("drop_null", require_expression(selection).model).model
+    )
+
+
+def drop_if_rows(
+    selection: "Selection[Any]", predicate: Callable[[Any], Any],
+) -> "Selection[Any]":
+    from ...model.public.selection import Selection
 
     if not callable(predicate):
         raise TypeError("drop_if requires a callable predicate")
     result = predicate(selection)
-    if not isinstance(result, BoolExpression):
-        raise TypeError("drop_if predicates must return a BoolExpression")
-    return select_expression(
-        apply_operation("drop_if", require_expression(selection), result.model)
+    if not isinstance(result, Selection) or _base(result.logical_type) != BOOL:
+        raise TypeError("drop_if predicates must return a Selection[bool]")
+    return selection_from_node(
+        apply_operation(
+            "drop_if",
+            require_expression(selection).model,
+            require_expression(result).model,
+        ).model
     )
 
 
-def select_expression_from_node(expression):
-    from ...model.public.selections.array import ArraySelection
-    from ...model.public.selections.nullable import NullableSelection
-    from ...model.public.selections.struct import StructSelection
-    from ...model.public.selections.value import ValueSelection
-    from ...model.public.values import ValueExpression
-    from .factory import wrap_expression
-
-    if not isinstance(expression, ValueExpression):
-        expression = wrap_expression(expression)
-    logical_type = expression.logical_type
-    if isinstance(logical_type, NullableType):
-        return NullableSelection(expression)
-    if isinstance(logical_type, ArrayType):
-        return ArraySelection(expression)
-    if isinstance(logical_type, StructType):
-        return StructSelection(expression)
-    return ValueSelection(expression)
-
-
-def select_expression[T](expression: ValueExpression[T]) -> ValueSelection[T]:
-    """Wrap a bindable expression in the selection matching its logical shape."""
-    return cast("ValueSelection[T]", select_expression_from_node(expression))
-
-
-def select_member(
-    name: str, logical_type: LogicalType, declaration: StructType,
-) -> ValueSelection[Any]:
-    """Create the temporary selection returned by a field on a struct proxy."""
-    from ...model.public.selections.array import ArraySelection
-    from ...model.public.selections.nullable import NullableSelection
-    from ...model.public.selections.struct import StructSelection
-    from ...model.public.selections.value import ValueSelection
-
-    member = SelectedMember(name, logical_type, declaration)
-    base = logical_type.value if isinstance(logical_type, NullableType) else logical_type
-    if isinstance(logical_type, NullableType):
-        return NullableSelection(member=member)
-    if isinstance(base, ArrayType):
-        return ArraySelection(member=member)
-    if isinstance(base, StructType):
-        return StructSelection(member=member)
-    return ValueSelection(member=member)
-
-
-def as_expression[T](value: ValueInput[T]) -> ValueExpression[T]:
-    """Normalize a terminal authoring input to its bindable expression."""
-    from ...model.public.selections.value import ValueSelection
-    from ...model.public.values import ValueExpression
-
-    if isinstance(value, ValueSelection):
-        return cast("ValueExpression[T]", require_expression(value))
-    if isinstance(value, ValueExpression):
-        return value
-    raise TypeError("expected a value selection or value expression")
+def expand_rows(selection: "Selection[Any]") -> "Selection[Any]":
+    if not isinstance(_base(selection.logical_type), ArrayType):
+        raise TypeError("expand requires an array selection")
+    return selection_from_node(
+        apply_operation("expand", require_expression(selection).model).model
+    )
 
 
 __all__ = [
-    "SelectedMember", "as_expression", "drop_if_selection", "drop_null_selection",
-    "expand_selection", "require_expression", "select_expression",
-    "select_expression_from_node", "select_member",
+    "SelectedMember", "array_at", "array_concat", "array_operation",
+    "array_slice", "as_expression", "boolean_binary", "boolean_unary",
+    "default_to", "drop_if_rows", "drop_null_rows", "expand_rows",
+    "extract_member", "null_items_removed", "numeric_binary",
+    "require_expression", "scalar_to_string", "select_expression",
+    "select_member", "selection_from_node", "separator_text", "text_concat",
+    "text_equals", "text_replace", "transform_items",
 ]

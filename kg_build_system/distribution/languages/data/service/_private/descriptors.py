@@ -5,25 +5,31 @@ import types as pytypes
 from collections.abc import Sequence
 from typing import TYPE_CHECKING, Any, TypeVar, Union, get_args, get_origin, get_type_hints
 
+from kg_build_system.distribution.languages.annotations.model.public import Annotation
+from kg_build_system.distribution.languages.annotations.service.internal import annotation_tuple
+from kg_build_system.distribution.languages.expressions.model.internal import Traversal
+from kg_build_system.distribution.languages.expressions.service.internal import (
+    as_expression, field_reference, select_expression, select_member,
+)
+from kg_build_system.kernel.model.public.types import (
+    Array, ArrayType, LogicalType, Nullable, NullableType, Struct, StructType,
+)
+from kg_build_system.kernel.service.internal.types import normalize_type
+
 from .docstrings import attribute_docstring
 from .naming import declaration_name, member_name
-from kg_build_system.distribution.languages.annotations.model.public import Annotation; from kg_build_system.distribution.languages.annotations.service.internal import annotation_tuple
-from kg_build_system.distribution.languages.expressions.model.internal import Traversal; from kg_build_system.distribution.languages.expressions.service.internal import field_reference
-from kg_build_system.distribution.languages.expressions.model.public import NullableDataType, SelectionUnit, ValueExpression, ValueInput; from kg_build_system.distribution.languages.expressions.service.internal import as_expression, select_expression, select_member, wrap_expression
-from kg_build_system.kernel.model.public.types import Array, ArrayType, LogicalType, Nullable, NullableType, Struct, StructType; from kg_build_system.kernel.service.internal.types import normalize_type
-
-if TYPE_CHECKING:
-    from kg_build_system.distribution.languages.expressions.model.public import ArraySelection, NullableSelection, StructSelection, ValueSelection
-
 from ...model.internal.model.fields import FieldSpec
 from ...model.public.fields import (
-    AuthoringDataType, Field, FieldDescriptor, FieldMetadata,
+    DeclaredValue, Field, FieldDescriptor, FieldMetadata,
 )
+
+if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.expressions.model.public import Selection
 
 T = TypeVar("T")
 
 
-def make_field[T: AuthoringDataType](  # pyright: ignore[reportInvalidTypeVarUse]
+def make_field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     *,
     name: str | None = None,
     description: str | None = None,
@@ -39,8 +45,8 @@ def make_field[T: AuthoringDataType](  # pyright: ignore[reportInvalidTypeVarUse
     ))
 
 
-def make_computed_field[T](
-    value: ValueInput[T],
+def make_computed_field[T: DeclaredValue](
+    value: "Selection[T]",
     *,
     name: str | None = None,
     description: str | None = None,
@@ -59,29 +65,11 @@ def make_computed_field[T](
     )
 
 
-def make_projection_field[T](
-    value: ValueInput[T],
-    *,
-    name: str | None = None,
-    description: str | None = None,
-    annotations: Sequence[Annotation] = (),
-) -> Field[T]:
-    """Create the old-projection spelling of an expression-backed field."""
-    if name is not None and not name:
-        raise ValueError("projection field names must be non-empty")
-    return Field(
-        as_expression(value),
-        FieldMetadata(
-            name=name,
-            description=description,
-            annotations=annotation_tuple(list(annotations)),
-        ),
-    )
-
-
 def _owner_kind(owner: type[Any]) -> str | None:
     """Classify a descriptor owner as source-backed, computed, or a view."""
-    from ...model.public.declarations import ComputedStruct, Projection, Struct as SourceStruct, Table
+    from ...model.public.declarations import (
+        ComputedStruct, Projection, Struct as SourceStruct, Table,
+    )
 
     if issubclass(owner, (Table, SourceStruct)):
         return "source"
@@ -117,6 +105,13 @@ def _nullable(logical_type: LogicalType) -> LogicalType:
     return NullableType(logical_type)
 
 
+def _is_top_level_nullable(value: Any) -> bool:
+    origin = get_origin(value)
+    if origin in (Union, pytypes.UnionType):
+        return any(item is type(None) for item in get_args(value))
+    return origin is Nullable
+
+
 def _declaration_from_annotation(value: Any) -> type[Any] | None:
     origin = get_origin(value)
     if origin in (Union, pytypes.UnionType):
@@ -149,7 +144,13 @@ def _field_annotation(hints: dict[str, Any], owner: type[Any], attribute: str) -
     arguments = get_args(annotation)
     if len(arguments) != 1:
         raise TypeError(f"{owner.__name__}.{attribute} must have a Field[T] annotation")
-    return arguments[0]
+    declared = arguments[0]
+    if _is_top_level_nullable(declared):
+        raise TypeError(
+            f"{owner.__name__}.{attribute}: field type must be T, not T | None; "
+            "source access is already nullable"
+        )
+    return declared
 
 
 def _validate_backing(
@@ -203,7 +204,9 @@ def resolve_field_specs(owner: type[Any], kind: str | None) -> tuple[FieldSpec, 
                     "record; field types must be Struct or ComputedStruct "
                     "declarations"
                 )
-        access_type = logical_type
+        access_type = (
+            _nullable(logical_type) if kind in {"source", "view"} else logical_type
+        )
         name = field.metadata.name
         if name is None:
             name = member_name(attribute)
@@ -308,12 +311,12 @@ def field_get(
             spec.access_type if spec is not None else field_access_type(field, owner)
         )
         if issubclass(owner, Table):
-            return select_expression(wrap_expression(field_reference(
+            return select_expression(field_reference(
                 source=_source_name(owner),
                 path=(name,),
                 logical_type=access_type,
                 traversals=_traversals(name, access_type),
-            )))
+            ))
         return select_member(
             name, access_type,
             StructType(owner.__module__, owner.__qualname__),
@@ -321,19 +324,16 @@ def field_get(
     if kind == "computed":
         from ...model.public.declarations import Projection
 
+        access_type = (
+            spec.access_type if spec is not None else field_access_type(field, owner)
+        )
         if issubclass(owner, Projection):
-            access_type = (
-                spec.access_type if spec is not None else field_access_type(field, owner)
-            )
-            return select_expression(wrap_expression(field_reference(
+            return select_expression(field_reference(
                 source=_source_name(owner),
                 path=(name,),
                 logical_type=access_type,
                 traversals=_traversals(name, access_type),
-            )))
-        access_type = (
-            spec.access_type if spec is not None else field_access_type(field, owner)
-        )
+            ))
         return select_member(
             name, access_type,
             StructType(owner.__module__, owner.__qualname__),
@@ -361,8 +361,8 @@ def declared_fields(owner: type[Any]) -> dict[str, Any]:
 
 
 __all__ = [
-    "AuthoringDataType", "FieldDescriptor", "FieldMetadata", "FieldSpec",
+    "DeclaredValue", "FieldDescriptor", "FieldMetadata", "FieldSpec",
     "declared_fields", "field_access_type", "field_get", "field_logical_type",
     "field_set_name", "make_computed_field", "make_field",
-    "make_projection_field", "resolve_field_specs",
+    "resolve_field_specs",
 ]

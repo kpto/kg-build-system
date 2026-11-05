@@ -60,6 +60,9 @@ def coerce_argument(
     model = getattr(value, "model", None)
     if isinstance(model, ExpressionNode):
         return model
+    node = getattr(value, "_node", None)
+    if isinstance(node, ExpressionNode):
+        return node
     declared = argument_spec(spec, index)
     expected: LogicalType | None = None
     if declared is not None and declared.expected is not None:

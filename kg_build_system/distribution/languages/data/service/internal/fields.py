@@ -2,23 +2,19 @@
 from __future__ import annotations
 
 from collections.abc import Sequence
-from typing import TYPE_CHECKING, TypeVar
+from typing import TYPE_CHECKING
 
 from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
 )
-from kg_build_system.distribution.languages.expressions.model.public import (
-    ValueInput,
-)
-from ...model.public.fields import AuthoringDataType
+from ...model.public.fields import DeclaredValue
 
 if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.expressions.model.public import Selection
     from ...model.public.fields import Field
 
-T = TypeVar("T")
 
-
-def field[T: AuthoringDataType](  # pyright: ignore[reportInvalidTypeVarUse]
+def field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     *,
     name: str | None = None,
     description: str | None = None,
@@ -32,8 +28,8 @@ def field[T: AuthoringDataType](  # pyright: ignore[reportInvalidTypeVarUse]
     )
 
 
-def computed_field[T](  # pyright: ignore[reportInvalidTypeVarUse]
-    value: ValueInput[T],
+def computed_field[T: DeclaredValue](
+    value: "Selection[T]",
     *,
     name: str | None = None,
     description: str | None = None,
@@ -47,19 +43,4 @@ def computed_field[T](  # pyright: ignore[reportInvalidTypeVarUse]
     )
 
 
-def projection_field[T](  # pyright: ignore[reportInvalidTypeVarUse]
-    value: ValueInput[T],
-    *,
-    name: str | None = None,
-    description: str | None = None,
-    annotations: Sequence[Annotation] = (),
-) -> "Field[T]":
-    """Create the old-projection spelling of an expression-backed field."""
-    from .._private.descriptors import make_projection_field
-
-    return make_projection_field(
-        value, name=name, description=description, annotations=annotations,
-    )
-
-
-__all__ = ["computed_field", "field", "projection_field"]
+__all__ = ["computed_field", "field"]

@@ -8,7 +8,7 @@ from hashlib import sha256
 from typing import Any, cast
 
 from kg_build_system.distribution.languages.expressions.model.internal import ExpressionDTO, FieldReferenceDTO, OperationExpression, OperationExpressionDTO; from kg_build_system.distribution.languages.expressions.service.internal import expression_dto, field_reference, expression_field_path
-from kg_build_system.distribution.languages.expressions.model.public import BoolExpression, ValueExpression; from kg_build_system.distribution.languages.expressions.service.internal import as_expression, wrap_expression
+from kg_build_system.distribution.languages.expressions.model.public import Selection; from kg_build_system.distribution.languages.expressions.service.internal import as_expression, select_expression
 from kg_build_system.distribution.model.public.refs import FieldRef, RelationRef
 from kg_build_system.kernel import Key
 from kg_build_system.kernel.model.public.types import ArrayType, LogicalType, NullableType, StructType
@@ -223,20 +223,20 @@ def _retarget(
 
 
 def _evaluate_predicate(
-    shape: Any, predicate: Callable[[Any], BoolExpression],
-) -> BoolExpression:
+    shape: Any, predicate: Callable[[Any], Selection[bool]],
+) -> Selection[bool]:
     from .shapes import make_shape_context
 
     if not callable(predicate):
         raise TypeError("where requires a callable predicate")
     result = predicate(make_shape_context(shape))
-    if not isinstance(result, BoolExpression):
-        raise TypeError("where predicates must return a BoolExpression")
+    if not isinstance(result, Selection):
+        raise TypeError("where predicates must return a Selection[bool]")
     return result
 
 
 def derive_row_source(
-    parent: Any, predicate: BoolExpression, *, shape: Any | None = None,
+    parent: Any, predicate: Selection[bool], *, shape: Any | None = None,
 ) -> Any:
     """Add one filter over a row source, preserving its shape by default."""
     from ...model.public.row_sources import DerivedRowSource
@@ -244,7 +244,7 @@ def derive_row_source(
     base = as_row_source(parent)
     base_plan = row_source_plan_dto(base)
     predicate_dto = _retarget(
-        expression_dto(predicate.model),
+        expression_dto(as_expression(predicate).model),
         {shape_source_name(base.shape): row_source_key(base_plan)},
     )
     result_shape = base.shape if shape is None else shape
@@ -257,7 +257,7 @@ def derive_row_source(
 
 
 def derive_where(
-    source: Any, predicate: Callable[[Any], BoolExpression],
+    source: Any, predicate: Callable[[Any], Selection[bool]],
 ) -> Any:
     """Add one validated filter over a value row source."""
     return derive_row_source(source, _evaluate_predicate(source.shape, predicate))
@@ -265,14 +265,14 @@ def derive_where(
 
 def _join_pair(
     on: Any, left_shape: Any, right_shape: Any,
-) -> tuple[ValueExpression[Any], ValueExpression[Any]]:
+) -> tuple[Selection[Any], Selection[Any]]:
     from .shapes import make_shape_context
 
     if not callable(on):
         raise TypeError("join on must be a callable returning a key pair")
     pair = on(make_shape_context(left_shape), make_shape_context(right_shape))
-    if isinstance(pair, BoolExpression):
-        model = pair.model
+    if isinstance(pair, Selection) and _base(pair.logical_type).name == "bool":
+        model = as_expression(pair).model
         if (
             not isinstance(model, OperationExpression)
             or model.operator != "equals"
@@ -282,11 +282,11 @@ def _join_pair(
                 "join on must return a (left key, right key) pair or one equals "
                 "expression"
             )
-        left = wrap_expression(model.arguments[0])
-        right = wrap_expression(model.arguments[1])
+        left = Selection(model.arguments[0])
+        right = Selection(model.arguments[1])
     elif isinstance(pair, tuple) and len(pair) == 2:
-        left = as_expression(pair[0])
-        right = as_expression(pair[1])
+        left = select_expression(as_expression(pair[0]))
+        right = select_expression(as_expression(pair[1]))
     else:
         raise TypeError("join on must return a (left key, right key) pair")
     left_type = _base(left.logical_type)
@@ -330,11 +330,11 @@ def derive_join(
         left_plan,
         right_plan,
         _retarget(
-            expression_dto(left_key.model),
+            expression_dto(as_expression(left_key).model),
             {shape_source_name(source.shape): row_source_key(left_plan)},
         ),
         _retarget(
-            expression_dto(right_key.model),
+            expression_dto(as_expression(right_key).model),
             {shape_source_name(right.shape): row_source_key(right_plan)},
         ),
         cast(Any, how),
@@ -454,7 +454,7 @@ def derive_order_by(
                 raise ValueError(
                     f"order_by column {key!r} is not a member of the row source"
                 )
-            expression = wrap_expression(field_reference(
+            expression = Selection(field_reference(
                 source=source_key,
                 path=(field.name,),
                 logical_type=field.logical_type,
@@ -466,11 +466,11 @@ def derive_order_by(
             )
         else:
             expression = as_expression(key)
-        if not isinstance(expression, ValueExpression):
-            raise TypeError("order_by keys must be expressions or column names")
+        if not isinstance(expression, Selection):
+            raise TypeError("order_by keys must be selections or column names")
         authored.append((
             _retarget(
-                expression_dto(expression.model),
+                expression_dto(as_expression(expression).model),
                 {shape_source_name(source.shape): source_key},
             ),
             bool(ascending),
@@ -500,7 +500,7 @@ def row_source_plan_dto(value: Any) -> RowSourcePlanDTO:
             plan = RowFilterDTO(
                 plan,
                 _retarget(
-                    expression_dto(predicate.model),
+                    expression_dto(as_expression(predicate).model),
                     {plan_shape_source_name(plan): row_source_key(plan)},
                 ),
             )

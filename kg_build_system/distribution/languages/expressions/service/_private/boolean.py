@@ -1,36 +1,31 @@
-"""Predicate folding for the Boolean authoring family."""
+"""Boolean predicate combinators over compiler expressions."""
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import Any
 
 from kg_build_system.kernel.model.public.types import BOOL
+from .apply import apply_operation
 from .literals import literal
-
-if TYPE_CHECKING:
-    from ...model.public.boolean import BoolExpression
+from ...model.public.values import ValueExpression
 
 
-def any_of(*predicates: BoolExpression) -> BoolExpression:
-    """Combine predicates with logical or; the empty identity is false."""
-    from ...model.public.boolean import BoolExpression
-
+def any_of(*predicates: ValueExpression[Any]) -> ValueExpression[Any]:
+    """Combine predicates with logical or."""
     if not predicates:
-        return BoolExpression(literal(False, logical_type=BOOL))
+        return ValueExpression(literal(False, logical_type=BOOL))
     result = predicates[0]
     for predicate in predicates[1:]:
-        result = result.or_(predicate)
+        result = ValueExpression(apply_operation("or", result.model, predicate.model).model)
     return result
 
 
-def all_of(*predicates: BoolExpression) -> BoolExpression:
-    """Combine predicates with logical and; the empty identity is true."""
-    from ...model.public.boolean import BoolExpression
-
+def all_of(*predicates: ValueExpression[Any]) -> ValueExpression[Any]:
+    """Combine predicates with logical and."""
     if not predicates:
-        return BoolExpression(literal(True, logical_type=BOOL))
+        return ValueExpression(literal(True, logical_type=BOOL))
     result = predicates[0]
     for predicate in predicates[1:]:
-        result = result.and_(predicate)
+        result = ValueExpression(apply_operation("and", result.model, predicate.model).model)
     return result
 
 

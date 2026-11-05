@@ -10,13 +10,13 @@ binding-time surprise. The bundles pair with the templates and their
 
 from typing import TypedDict
 
-from kg_build_system import ValueExpression, value_expression
+from kg_build_system import Selection, value_expression
 
 
 class ProvenanceStamps(TypedDict):
     """The identical parameters every provenanced node binding stamps."""
 
-    source_version: ValueExpression[str]
+    source_version: Selection[str]
 
 
 provenance_stamps: ProvenanceStamps = {
@@ -27,7 +27,7 @@ provenance_stamps: ProvenanceStamps = {
 class RelationStamps(TypedDict):
     """The identical parameters every recorded relation binding stamps."""
 
-    stage: ValueExpression[str]
+    stage: Selection[str]
 
 
 relation_stamps: RelationStamps = {"stage": value_expression("derived")}

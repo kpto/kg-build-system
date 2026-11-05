@@ -1,63 +1,41 @@
-"""Construct typed authoring expressions and portable literals.
+"""Construct literal selections and portable expression values.
 
 Example:
     ```python
     from kg_build_system import value_expression
-    from kg_build_system.distribution.languages.expressions.service.public import literal
-    from kg_build_system import INT
 
     assert value_expression(1).logical_type.name == "int"
-    assert literal(1, logical_type=INT).logical_type == INT
     ```
 """
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, overload
+from typing import Any, overload
 
 from kg_build_system.kernel.model.public.types import LogicalType
-from ...model.internal.model import LiteralExpression
-from ...model.public.values import ValueExpression
+from ...model.public.selection import Selection
 from ..internal.construction import literal as literal_impl
 from ..internal.construction import value_expression as value_expression_impl
-from ..internal.construction import wrap_expression as wrap_expression_impl
-
-if TYPE_CHECKING:
-    from ...model.public.boolean import BoolExpression
-    from ...model.public.numeric import FloatExpression, IntExpression
-    from ...model.public.text import StrExpression
-
-
-def wrap_expression(expression: Any) -> ValueExpression[Any]:
-    """Wrap canonical data in the most specific runtime authoring family.
-
-    Example:
-        ```python
-        from kg_build_system import BoolExpression, value_expression
-        from kg_build_system.distribution.languages.expressions.service.public import wrap_expression
-
-        wrapped = wrap_expression(value_expression(True).model)
-        assert isinstance(wrapped, BoolExpression)
-        ```
-    """
-    return wrap_expression_impl(expression)
+from ..internal.selections import select_expression as select_expression_impl
 
 
 @overload
-def value_expression(value: bool, *, logical_type: None = None) -> "BoolExpression": ...
+def value_expression(value: bool, *, logical_type: None = None) -> Selection[bool]: ...
 @overload
-def value_expression(value: int, *, logical_type: None = None) -> "IntExpression": ...
+def value_expression(value: int, *, logical_type: None = None) -> Selection[int]: ...
 @overload
-def value_expression(value: float, *, logical_type: None = None) -> "FloatExpression": ...
+def value_expression(value: float, *, logical_type: None = None) -> Selection[float]: ...
 @overload
-def value_expression(value: str, *, logical_type: None = None) -> "StrExpression": ...
+def value_expression(value: str, *, logical_type: None = None) -> Selection[str]: ...
 @overload
-def value_expression(value: Any, *, logical_type: LogicalType | None = None) -> ValueExpression[Any]: ...
+def value_expression(
+    value: Any, *, logical_type: LogicalType | None = None,
+) -> Selection[Any]: ...
 
 
 def value_expression(
     value: Any, *, logical_type: LogicalType | None = None,
-) -> ValueExpression[Any]:
-    """Construct the most specific typed expression for a portable literal.
+) -> Selection[Any]:
+    """Construct the selection for a portable literal.
 
     ``value`` is a canonical scalar or a homogeneous array of them. The logical
     type is inferred when it is unambiguous; pass ``logical_type`` for a null,
@@ -70,16 +48,15 @@ def value_expression(
         assert value_expression(1).logical_type.name == "int"
         ```
     """
-    return value_expression_impl(value, logical_type=logical_type)
+    return select_expression_impl(
+        value_expression_impl(value, logical_type=logical_type)
+    )
 
 
 def literal(
     value: Any, *, logical_type: LogicalType | None = None,
-) -> LiteralExpression:
+) -> Any:
     """Build canonical literal data, inferring the type when unambiguous.
-
-    ``value`` must match the representative Python class of the resolved unit;
-    a null or an empty array needs an explicit ``logical_type``.
 
     Example:
         ```python
@@ -92,4 +69,4 @@ def literal(
     return literal_impl(value, logical_type=logical_type)
 
 
-__all__ = ["literal", "value_expression", "wrap_expression"]
+__all__ = ["literal", "value_expression"]

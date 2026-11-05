@@ -151,13 +151,39 @@ def _render_expression(
             f"{item.name}={_render_value(item.value)}"
             for item in value.parameters
         )
+        operator = value.operator.name
+        if operator == "drop_null" and arguments:
+            return f"{arguments[0]}.alter_rows().drop_null()"
+        if operator == "expand" and arguments:
+            return f"{arguments[0]}.alter_rows().expand()"
+        if operator == "drop_if" and len(arguments) >= 2:
+            suffix = f", {parameters}" if parameters else ""
+            return (
+                f"{arguments[0]}.alter_rows().drop_if("
+                f"lambda value: {arguments[1]}{suffix})"
+            )
+        if operator == "struct_field" and arguments:
+            name = next(
+                (item.value for item in value.parameters if item.name == "name"),
+                None,
+            )
+            return (
+                f"{arguments[0]}.extract(lambda value: value.{name})"
+                if isinstance(name, str) and name else arguments[0]
+            )
+        methods = {
+            "distinct": "unique", "join": "concat", "array_at": "at",
+            "array_slice": "slice", "subtract": "sub", "not": "not_",
+            "and": "and_", "or": "or_", "coalesce": "default_to",
+        }
+        method = methods.get(operator, operator)
         if arguments:
             suffix = f", {parameters}" if parameters else ""
             return (
-                f"{arguments[0]}.{value.operator.name}("
+                f"{arguments[0]}.{method}("
                 f"{', '.join(arguments[1:])}{suffix})"
             )
-        return f"{row_variable}.{value.operator.name}({parameters})"
+        return f"{row_variable}.{method}({parameters})"
     raise TypeError(f"unsupported expression DTO {value!r}")
 
 

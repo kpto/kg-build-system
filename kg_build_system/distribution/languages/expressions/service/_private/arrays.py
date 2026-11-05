@@ -15,7 +15,7 @@ if TYPE_CHECKING:
 
 def _transform_items(
     expression: ValueExpression[Any],
-    selector: Callable[[Any], ValueExpression[Any]],
+    selector: Callable[[Any], Any],
 ) -> ValueExpression[Any]:
     """Apply one typed selector to every element of an array."""
     from .factory import wrap_expression
@@ -32,13 +32,9 @@ def _transform_items(
     element_base = element.value if element_nullable else element
 
     item_expression = wrap_expression(
-        VariableExpression(name="item", logical_type=element_base)
+        VariableExpression(name="item", logical_type=element)
     )
-    proxy = (
-        select_expression(item_expression)
-        if isinstance(element_base, StructType)
-        else item_expression
-    )
+    proxy = select_expression(item_expression)
     body = as_expression(selector(proxy))
     if any(row_effects(node.row_semantics) for node in walk_expression(body.model)):
         raise TypeError("transform_items selectors must not contain row effects")

@@ -248,8 +248,8 @@ class BindingSymbolReferenceTests(unittest.TestCase):
             target=Item,
             rows=Row.row_source(),
             bind=lambda row: NodeValues(
-                build_key=row.value.expression,
-                properties=Item(value=row.value.expression.add(1)),
+                build_key=row.value.alter_rows().drop_null(),
+                properties=Item(value=row.value.alter_rows().drop_null().add(1)),
             ),
         )
 
@@ -260,6 +260,7 @@ class BindingSymbolReferenceTests(unittest.TestCase):
             (
                 SymbolRef("topology", Key(("item",))),
                 SymbolRef("data", Key(("row",))),
+                SymbolRef("expressions", Key(("drop_null",))),
                 SymbolRef("data", Key(("row.value",))),
                 SymbolRef("expressions", Key(("add",))),
             ),

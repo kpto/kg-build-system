@@ -1,20 +1,12 @@
-"""Author-facing selection families, row-effect handles and type aliases."""
+"""Selection handles and the single authoring type."""
 from __future__ import annotations
 
-from .types import (
-    NullableDataType, SelectionDataType, SelectionStructured, SelectionUnit,
-)
-from .array import ArraySelection
+from ..selection import NullableSelection, Selection
 from .effects import (
     ArrayRowEffects, NullableArrayRowEffects, NullableRowEffects, RowEffects,
 )
-from .nullable import NullableSelection
-from .struct import StructSelection
-from .value import ValueInput, ValueSelection
 
 __all__ = [
-    "ArrayRowEffects", "ArraySelection", "NullableArrayRowEffects",
-    "NullableDataType", "NullableRowEffects", "NullableSelection", "RowEffects",
-    "SelectionDataType", "SelectionStructured", "SelectionUnit", "StructSelection",
-    "ValueInput", "ValueSelection",
+    "ArrayRowEffects", "NullableArrayRowEffects", "NullableRowEffects",
+    "NullableSelection", "RowEffects", "Selection",
 ]

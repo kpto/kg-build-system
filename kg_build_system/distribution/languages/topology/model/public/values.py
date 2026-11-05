@@ -2,8 +2,7 @@
 from __future__ import annotations
 
 from kg_build_system.distribution.languages.expressions.model.public import (
-    NullableAuthoringInput,
-    ValueInput,
+    Selection,
 )
 from kg_build_system.kernel.model.public.types import (
     Array, CustomDataType, Date, Time, Timestamp, Uuid,
@@ -17,9 +16,9 @@ type GraphArray = Array[GraphScalar]
 type GraphValue = GraphScalar | GraphArray | None
 type NonNullableGraphValue = GraphScalar
 
-# The public slot describes accepted authoring values; declaration metadata is
-# a separate object returned by ``property()``.
-type PropertySlot[T: GraphValue] = ValueInput[T] | NullableAuthoringInput[T]
+# The public slot describes accepted authoring selections; declaration metadata
+# is a separate object returned by ``property()``.
+type PropertySlot[T: GraphValue] = Selection[T]
 
 
 __all__ = [

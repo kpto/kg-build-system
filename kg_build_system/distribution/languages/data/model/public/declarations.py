@@ -39,10 +39,12 @@ from kg_build_system.distribution.languages.annotations.model.public import (
 )
 from kg_build_system.distribution.languages.asset.model.public import Asset
 from kg_build_system.distribution.languages.expressions.model.public import (
-    BoolExpression,
+    Selection,
 )
 from kg_build_system.kernel.model.public.types import Shape, Struct as StructDeclaration
-from .row_sources import DerivedRowSource, RelationRowSource, RowSource
+from .row_sources import (
+    DerivedRowSource, RelationRowSource, RowSource, RowSourceProvider,
+)
 
 
 @dataclass(frozen=True, slots=True)
@@ -117,7 +119,7 @@ def is_table_group(cls: type[Any]) -> bool:
     return spec is not None and spec.kind == "table_group" and spec.final
 
 
-class Table[AssetT: Asset](StructDeclaration, RowSource["Table[AssetT]"]):
+class Table[AssetT: Asset](RowSourceProvider, Shape, RowSource["Table[AssetT]"]):
     """A final logical table declaration read from one logical asset.
 
     The asset is part of the declaration: ``class Site(Table[Estate])`` states
@@ -135,12 +137,12 @@ class Table[AssetT: Asset](StructDeclaration, RowSource["Table[AssetT]"]):
 
     @classmethod
     def where(
-        cls, predicate: Callable[[Self], BoolExpression],
+        cls, predicate: Callable[[Self], Selection[bool]],
     ) -> DerivedRowSource[Self]:
         """Keep the rows of this table that satisfy ``predicate``.
 
         The predicate receives a symbolic instance of the table and must return
-        a ``BoolExpression``.
+        a ``Selection[bool]``.
 
         Example:
             ```python
@@ -153,21 +155,6 @@ class Table[AssetT: Asset](StructDeclaration, RowSource["Table[AssetT]"]):
 
         return _derive(cls, predicate)
 
-    @classmethod
-    def projection_base(cls) -> type:
-        """Return a projection base pinned to this table's relation.
-
-        Example:
-            ```python
-            from kg_build_system import computed_field
-
-            class SiteLabels(SiteTable.projection_base()):
-                label = computed_field(SiteTable.name)
-            ```
-        """
-        from ...service.public.rows import projection_base
-
-        return projection_base(cls.row_source())
 
     @classmethod
     def row_source(cls) -> RelationRowSource[Self]:
@@ -237,7 +224,7 @@ class ProjectionMeta(type):
         return prepare_projection_type(source)
 
 
-class Projection(Shape, RowSource["Projection"], metaclass=ProjectionMeta):
+class Projection(RowSourceProvider, Shape, RowSource["Projection"], metaclass=ProjectionMeta):
     """A final named logical relation composed from typed expressions."""
 
     options: ClassVar[ProjectionOptions] = ProjectionOptions()
@@ -252,7 +239,7 @@ class Projection(Shape, RowSource["Projection"], metaclass=ProjectionMeta):
 
     @classmethod
     def where(
-        cls, predicate: Callable[[Self], BoolExpression],
+        cls, predicate: Callable[[Self], Selection[bool]],
     ) -> DerivedRowSource[Self]:
         """Keep the rows of this projection that satisfy ``predicate``.
 
@@ -271,21 +258,6 @@ class Projection(Shape, RowSource["Projection"], metaclass=ProjectionMeta):
 
         return _derive(cls, predicate)
 
-    @classmethod
-    def projection_base(cls) -> type:
-        """Return a projection base pinned to this projection's relation.
-
-        Example:
-            ```python
-            from kg_build_system import computed_field
-
-            class SiteLabels(SiteProjection.projection_base()):
-                display = computed_field(SiteProjection.label)
-            ```
-        """
-        from ...service.public.rows import projection_base
-
-        return projection_base(cls.row_source())
 
     @classmethod
     def row_source(cls) -> RelationRowSource[Any]:

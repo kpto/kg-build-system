@@ -1,27 +1,12 @@
-"""Author-facing expression and selection families."""
+"""Author-facing expression and selection surface."""
 from __future__ import annotations
 
-from .arrays import ArrayExpression
-from .boolean import BoolExpression
-from .custom import CustomDataTypeExpression
-from .nullable import NullableExpression
-from .numeric import FloatExpression, IntExpression, NumberExpression
-from .selections import (
-    ArrayRowEffects, ArraySelection, NullableArrayRowEffects, NullableDataType,
-    NullableRowEffects, NullableSelection, RowEffects, SelectionDataType,
-    SelectionStructured, SelectionUnit, StructSelection, ValueInput, ValueSelection,
+from .selection import NullableSelection, Selection
+from .selections.effects import (
+    ArrayRowEffects, NullableArrayRowEffects, NullableRowEffects, RowEffects,
 )
-from .structs import StructExpression
-from .text import StrExpression
-from .values import NullableAuthoringInput, ValueExpression
 
 __all__ = [
-    "ArrayExpression", "ArrayRowEffects", "ArraySelection", "BoolExpression",
-    "CustomDataTypeExpression", "FloatExpression", "IntExpression",
-    "NullableArrayRowEffects", "NullableAuthoringInput", "NullableDataType",
-    "NullableExpression", "NullableRowEffects", "NullableSelection",
-    "NumberExpression", "RowEffects", "SelectionDataType", "SelectionStructured",
-    "SelectionUnit", "StrExpression",
-    "StructExpression", "StructSelection", "ValueExpression", "ValueInput",
-    "ValueSelection",
+    "ArrayRowEffects", "NullableArrayRowEffects", "NullableRowEffects",
+    "NullableSelection", "RowEffects", "Selection",
 ]

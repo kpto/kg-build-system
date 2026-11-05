@@ -105,8 +105,8 @@ class CustomOperationTests(unittest.TestCase):
                 target=DoubleNode,
                 rows=DoubleRow.row_source(),
                 bind=lambda row: NodeValues(
-                    build_key=row.id,
-                    properties=DoubleNode(value=DOUBLE.apply(row.id)),
+                    build_key=row.id.alter_rows().drop_null(),
+                    properties=DoubleNode(value=DOUBLE.apply(row.id.alter_rows().drop_null())),
                 ),
             )
             blueprint = create_blueprint(bindings=(binding,))

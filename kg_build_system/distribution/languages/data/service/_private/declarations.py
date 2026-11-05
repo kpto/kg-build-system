@@ -13,7 +13,7 @@ from .descriptors import resolve_field_specs
 from .naming import declaration_name
 
 if TYPE_CHECKING:
-    from kg_build_system.distribution.languages.expressions.model.public import BoolExpression
+    from kg_build_system.distribution.languages.expressions.model.public import Selection
     from ...model.public.row_sources import DerivedRowSource
 
 
@@ -107,9 +107,9 @@ S = TypeVar("S", bound=Shape)
 
 def _derive(
     declaration: type[Any],
-    predicate: Callable[[Any], "BoolExpression"],
+    predicate: Callable[[Any], "Selection[bool]"],
 ) -> "DerivedRowSource[Any]":
-    from kg_build_system.distribution.languages.expressions.model.public import BoolExpression
+    from kg_build_system.distribution.languages.expressions.model.public import Selection
     from .rows import derive_row_source
     from .shapes import make_shape_context, shape_view
 
@@ -117,8 +117,8 @@ def _derive(
         raise TypeError("where requires a callable predicate")
     shape = shape_view(declaration)
     result = predicate(make_shape_context(shape))
-    if not isinstance(result, BoolExpression):
-        raise TypeError("where predicates must return a BoolExpression")
+    if not isinstance(result, Selection):
+        raise TypeError("where predicates must return a Selection[bool]")
     return derive_row_source(declaration.row_source(), result, shape=shape)
 
 
@@ -140,60 +140,16 @@ def pinned_base(row_source: Any) -> type[Any]:
     return type("PinnedProjectionBase", (Projection,), attrs)
 
 
-def projection_base(row_source: Any) -> type[Any]:
-    """A dynamic base carrying a row source plan and its inherited fields."""
-    from ...model.public.declarations import Projection
-    from .rows import as_row_source
-    from .shapes import projection_attrs
-
-    source = as_row_source(row_source)
-    attrs = projection_attrs(source.shape)
-    attrs["_kg_row_source"] = source
-    attrs["_projection_base"] = True
-    base_name = getattr(getattr(source, "source", None), "__name__", "RowSource")
-    name = f"{base_name}ProjectionBase"
-
-    return type(name, (Projection,), attrs)
 
 
-def _derive_projection_plan(declaration: type[Any]) -> Any | None:
-    """Derive the scan of an unpinned projection from its output expressions."""
-    from kg_build_system.distribution.languages.expressions.service.internal import expression_dto
-    from kg_build_system.distribution.languages.expressions.model.internal import FieldReferenceDTO
-    from kg_build_system.distribution.model.public.refs import RelationRef
-    from kg_build_system.kernel import Key
-    from ...model.internal.dto.blueprint_dto import RowScanDTO
-
-    try:
-        from kg_build_system.distribution.languages.expressions.service.internal import walk_expression_dto
-    except ImportError:  # pragma: no cover - depends on the expressions surface
-        from kg_build_system.distribution.languages.expressions.service.internal import walk_expression_dto
-
-    spec = vars(declaration).get("_kg_declaration_spec")
-    if spec is None:
-        return getattr(declaration, "_projection_row_source", None)
-    sources: set[str] = set()
-    for item in spec.fields:
-        expression = item.descriptor.expression
-        if expression is None:
-            continue
-        for node in walk_expression_dto(expression_dto(expression.model)):
-            if isinstance(node, FieldReferenceDTO):
-                sources.add(node.field.relation)
-    if len(sources) == 1:
-        return RowScanDTO(RelationRef("data", Key((next(iter(sources)),))))
-    return None
 
 
 def projection_row_source(declaration: type[Any]) -> Any | None:
-    """The pinned plan, or the plan derived from an old-style projection."""
+    """The pinned row source of a projection."""
     spec = vars(declaration).get("_kg_declaration_spec")
-    pinned = spec.row_source if spec is not None else getattr(
-        declaration, "_projection_row_source", None,
-    )
-    if pinned is not None:
-        return pinned
-    return _derive_projection_plan(declaration)
+    if spec is not None:
+        return spec.row_source
+    return getattr(declaration, "_projection_row_source", None)
 
 
 def _table_asset(cls: type[Any]) -> type[Any]:
@@ -311,6 +267,11 @@ def prepare_projection_declaration(cls: type[Any]) -> None:
         final=not is_base,
         row_source=row_source,
     )
+    if not is_base and row_source is None:
+        raise TypeError(
+            "Projection(source) requires a row source; declare outputs on a "
+            "named subclass of Projection(row_source)"
+        )
     if not spec.fields and not is_base:
         raise TypeError("projections must declare at least one computed_field")
     cls._projection_name = name
@@ -410,6 +371,6 @@ __all__ = [
     "prepare_projection_declaration", "prepare_projection_type",
     "prepare_struct_declaration", "prepare_struct_template_annotations",
     "prepare_table_declaration", "prepare_table_group_declaration",
-    "projection_base", "projection_row_source", "require_struct_template_host",
+    "projection_row_source", "require_struct_template_host",
     "shape_view",
 ]

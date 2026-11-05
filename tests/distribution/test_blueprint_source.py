@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import json
 import tempfile
+import uuid
 import unittest
 from pathlib import Path
 
@@ -43,8 +44,13 @@ class SiteNode(Node):
 def _fixture() -> GraphBlueprint:
     binding = node_binding(
         target=SiteNode,
-        build_key=SiteTable.site_id,
-        properties=SiteNode(site_id=SiteTable.site_id),
+        rows=SiteTable.row_source(),
+        bind=lambda row: __import__(
+            "kg_build_system", fromlist=["NodeValues"]
+        ).NodeValues(
+            build_key=row.site_id.alter_rows().drop_null(),
+            properties=SiteNode(site_id=row.site_id),
+        ),
     )
     return create_blueprint(bindings=(binding,))
 
@@ -72,7 +78,7 @@ class BlueprintSourceTests(unittest.TestCase):
         source = blueprint_to_source(first, None)
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            package = root / "graph_fixture"
+            package = root / f"graph_fixture_{uuid.uuid4().hex}"
             package.mkdir()
             (package / "__init__.py").write_text("")
             (package / "graph.py").write_text(source)

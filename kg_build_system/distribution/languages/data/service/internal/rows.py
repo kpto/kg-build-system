@@ -9,7 +9,7 @@ from collections.abc import Callable, Mapping
 from typing import Any
 
 from kg_build_system.distribution.languages.expressions.model.public import (
-    BoolExpression,
+    Selection,
 )
 
 
@@ -28,7 +28,7 @@ def declaration_source_name(source: Any) -> str:
 
 
 def derive_where(
-    source: Any, predicate: Callable[[Any], BoolExpression],
+    source: Any, predicate: Callable[[Any], Selection[bool]],
 ) -> Any:
     """Add one validated filter over a value row source."""
     from .._private.rows import derive_where as derive
@@ -37,7 +37,7 @@ def derive_where(
 
 
 def derive_row_source(
-    parent: Any, predicate: BoolExpression, *, shape: Any | None = None,
+    parent: Any, predicate: Selection[bool], *, shape: Any | None = None,
 ) -> Any:
     """Add one filter over a row source, preserving its shape by default."""
     from .._private.rows import derive_row_source as derive

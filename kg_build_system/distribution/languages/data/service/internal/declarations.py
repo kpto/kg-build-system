@@ -8,13 +8,6 @@ from __future__ import annotations
 from typing import Any
 
 
-def projection_base(row_source: Any) -> type[Any]:
-    """Return a dynamic base pinned to one row source."""
-    from .._private.declarations import projection_base as base
-
-    return base(row_source)
-
-
 def projection_row_source(declaration: type[Any]) -> Any | None:
     """Return the pinned plan or the plan derived from an old-style projection."""
     from .._private.declarations import projection_row_source as row_source
@@ -34,6 +27,4 @@ def relation_plan_dto(source: type[Any]) -> Any:
     ))
 
 
-__all__ = [
-    "projection_base", "projection_row_source", "relation_plan_dto",
-]
+__all__ = ["projection_row_source", "relation_plan_dto"]

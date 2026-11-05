@@ -5,11 +5,10 @@ from collections.abc import Callable
 from typing import Any, TypeVar
 
 from kg_build_system.distribution.languages.expressions.model.public import (
-    BoolExpression,
+    Selection,
 )
 from kg_build_system.kernel.model.public.types import Shape
 from ..internal.declarations import (
-    projection_base as projection_base_impl,
     projection_row_source as projection_row_source_impl,
     relation_plan_dto as relation_plan_dto_impl,
 )
@@ -43,22 +42,6 @@ def shape_context(shape: type[S]) -> S:
     return shape_context_impl(shape)
 
 
-def projection_base(row_source: Any) -> type[Any]:
-    """Return a projection base pinned to one row source.
-
-    Example:
-        ```python
-        from kg_build_system import Table, field
-
-        class Site(Table):
-            site_id = field()
-
-        base = Site.row_source().projection_base()
-        ```
-    """
-    return projection_base_impl(row_source)
-
-
 def projection_row_source(declaration: type[Any]) -> Any | None:
     """Return the pinned plan or the plan derived from an old-style projection.
 
@@ -81,7 +64,7 @@ def relation_plan_dto(source: type[Any]) -> Any:
 
 
 def derive_where(
-    source: Any, predicate: Callable[[Any], BoolExpression],
+    source: Any, predicate: Callable[[Any], Selection[bool]],
 ) -> Any:
     """Add one validated filter over a value row source."""
     return derive_where_impl(source, predicate)
@@ -118,4 +101,4 @@ def derive_order_by(
     return derive_order_by_impl(source, *keys, ascending=ascending)
 
 
-__all__ = ["projection_base", "projection_row_source", "shape_context"]
+__all__ = ["projection_row_source", "shape_context"]
