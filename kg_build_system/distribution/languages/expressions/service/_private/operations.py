@@ -346,6 +346,22 @@ def transform_items_result(
     return result
 
 
+def zip_result(
+    types: tuple[LogicalType, ...], parameters: Mapping[str, Any],
+) -> LogicalType:
+    """Return the paired-record array type of two array inputs."""
+    from .pair import pair_type
+
+    left = non_nullable(types[0])
+    right = non_nullable(types[1])
+    if not isinstance(left, ArrayType) or not isinstance(right, ArrayType):
+        raise TypeError("zip requires two array arguments")
+    result = ArrayType(pair_type(left.item, right.item))
+    if any(isinstance(item, NullableType) for item in types):
+        result = NullableType(result)
+    return result
+
+
 __all__ = [
     "accepts_arity", "apply", "arity_message", "argument_spec",
     "array_at_result", "coalesce_validate", "coerce_argument",
@@ -354,5 +370,5 @@ __all__ = [
     "positive_integer", "resolve_parameters", "resolve_result",
     "resolve_row_effect_spec", "resolve_semantics", "transform_items_result",
     "transform_items_validate", "validate_numeric_operation",
-    "validate_text_operation", "validate_types",
+    "validate_text_operation", "validate_types", "zip_result",
 ]

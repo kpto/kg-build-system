@@ -13,7 +13,7 @@ from kg_build_system.kernel.service.internal.types import type_from_document, ty
 from ...model.internal.dto.blueprint_dto import (
     ColumnDTO, DataPartDTO, ProjectionDTO, RelationDTO, RowDistinctDTO,
     RowFilterDTO, RowGroupByDTO, RowJoinDTO, RowOrderByDTO, RowScanDTO,
-    RowSourcePlanDTO, RowUnionDTO, StructDTO,
+    RowSourcePlanDTO, RowUnionDTO, RowUnnestDTO, StructDTO,
 )
 
 _JOIN_MODES = {"inner", "left", "right", "full"}
@@ -110,6 +110,13 @@ def _encode_plan(plan: RowSourcePlanDTO) -> dict[str, Any]:
                 for expression, ascending in plan.keys
             ],
         }
+    if isinstance(plan, RowUnnestDTO):
+        return {
+            "kind": "unnest",
+            "input": _encode_plan(plan.input),
+            "field": plan.field,
+            "expression": expression_to_document(plan.expression),
+        }
     raise TypeError(f"unsupported row-source plan {plan!r}")
 
 
@@ -175,6 +182,14 @@ def _decode_plan(value: Mapping[str, Any]) -> RowSourcePlanDTO:
         return RowOrderByDTO(
             _decode_plan(_object(value.get("input"), "row-source input")),
             tuple(keys),
+        )
+    if kind == "unnest":
+        return RowUnnestDTO(
+            _decode_plan(_object(value.get("input"), "row-source input")),
+            _text(value, "field"),
+            expression_from_document(
+                _object(value.get("expression"), "unnest expression")
+            ),
         )
     raise ValueError(f"unknown row-source plan kind {kind!r}")
 

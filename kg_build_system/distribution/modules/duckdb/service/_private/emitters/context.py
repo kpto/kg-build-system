@@ -12,6 +12,7 @@ from sqlglot import exp
 from .sql import SqlNode
 
 from kg_build_system.kernel.model.internal.json import thaw_json
+from kg_build_system.distribution.languages.data.model.public import ShapeField
 from kg_build_system.distribution.languages.expressions.model.internal import ExpressionDTO, OperationExpressionDTO
 from kg_build_system.kernel.model.internal.types.dto import LogicalTypeDTO
 
@@ -47,6 +48,8 @@ class DuckDbExpressionContext:
     aliases: Mapping[str, str] = field(default_factory=dict)
     expansions: Mapping[tuple[str, ...], SqlNode] = field(default_factory=dict)
     variables: Mapping[str, SqlNode] = field(default_factory=dict)
+    relations: Mapping[str, str] = field(default_factory=dict)
+    shapes: Mapping[str, tuple[ShapeField, ...]] = field(default_factory=dict)
 
     def emit(self, expression: ExpressionDTO) -> SqlNode:
         from .rendering import emit_expression

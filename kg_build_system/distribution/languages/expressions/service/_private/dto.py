@@ -14,11 +14,12 @@ from kg_build_system.kernel.service.internal.types import type_to_dto
 
 from ...model.internal.dto.blueprint_dto import (
     ExpressionDTO, FieldReferenceDTO, LiteralExpressionDTO,
-    OperationExpressionDTO, OperationParameterDTO, VariableExpressionDTO,
+    LookupExpressionDTO, OperationExpressionDTO, OperationParameterDTO,
+    VariableExpressionDTO,
 )
 from ...model.internal.model import (
     ExpressionNode, FieldReferenceExpression, LiteralExpression,
-    OperationExpression, VariableExpression,
+    LookupExpression, OperationExpression, VariableExpression,
 )
 
 
@@ -51,6 +52,13 @@ def expression_dto(value: ExpressionNode) -> ExpressionDTO:
     if isinstance(value, FieldReferenceExpression):
         field, path = field_reference_for(value.source, value.path)
         return FieldReferenceDTO(field=field, path=path, **common)
+    if isinstance(value, LookupExpression):
+        return LookupExpressionDTO(
+            relation=value.relation,
+            target_field=value.target_field,
+            key=expression_dto(value.key),
+            **common,
+        )
     if isinstance(value, OperationExpression):
         return OperationExpressionDTO(
             operator=OperationRef("expressions", Key((value.operator,))),
@@ -102,6 +110,8 @@ def expression_references(expression: ExpressionDTO) -> tuple[SymbolRef, ...]:
         if isinstance(node, FieldReferenceDTO):
             if not node.field.relation.startswith("derived:"):
                 references.append(node.field.symbol)
+        elif isinstance(node, LookupExpressionDTO):
+            references.append(node.relation.symbol)
         elif isinstance(node, OperationExpressionDTO):
             if node.operator.name in DEFAULT_OPERATIONS:
                 references.append(node.operator.symbol)
@@ -111,6 +121,8 @@ def expression_references(expression: ExpressionDTO) -> tuple[SymbolRef, ...]:
 def walk_expression_dto(expression: ExpressionDTO) -> Iterator[ExpressionDTO]:
     """Yield an expression DTO tree in deterministic pre-order."""
     yield expression
+    if isinstance(expression, LookupExpressionDTO):
+        yield from walk_expression_dto(expression.key)
     if isinstance(expression, OperationExpressionDTO):
         for argument in expression.arguments:
             yield from walk_expression_dto(argument)

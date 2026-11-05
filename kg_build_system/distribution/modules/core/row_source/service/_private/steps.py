@@ -49,7 +49,7 @@ def row_source_step(
             "sql": row_source_sql(
                 plan,
                 core_plan.relations,
-                core_plan.row_source_fields,
+                {**core_plan.shapes, **core_plan.row_source_fields},
                 engine=engine,
             ),
         }),

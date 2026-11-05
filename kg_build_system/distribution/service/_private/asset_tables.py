@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from collections.abc import Iterable, Mapping
 from types import MappingProxyType
+from typing import Any
 
 from kg_build_system.distribution.interpreter.model.public import GraphBlueprint
 from kg_build_system.distribution.languages.asset.model.internal import (
@@ -34,11 +35,14 @@ from kg_build_system.distribution.languages.data.model.internal import (
     RelationDTO,
 )
 from kg_build_system.distribution.languages.data.service.internal import (
+    plan_expressions,
+    plan_inputs,
     plan_scan_sources,
 )
 from kg_build_system.distribution.languages.expressions.model.internal import (
     ExpressionDTO,
     FieldReferenceDTO,
+    LookupExpressionDTO,
 )
 from kg_build_system.distribution.languages.expressions.service.internal import (
     walk_expression_dto,
@@ -105,13 +109,24 @@ def asset_descriptor(value: AssetDTO) -> AssetDescriptor:
 
 
 def _expression_relations(expressions: Iterable[ExpressionDTO | None]) -> set[str]:
-    return {
-        node.field.relation
-        for expression in expressions
-        if expression is not None
-        for node in walk_expression_dto(expression)
-        if isinstance(node, FieldReferenceDTO)
-    }
+    found: set[str] = set()
+    for expression in expressions:
+        if expression is None:
+            continue
+        for node in walk_expression_dto(expression):
+            if isinstance(node, FieldReferenceDTO):
+                found.add(node.field.relation)
+            elif isinstance(node, LookupExpressionDTO):
+                found.add(node.relation.name)
+    return found
+
+
+def _plan_relations(plan: Any) -> set[str]:
+    found = set(plan_scan_sources(plan))
+    found.update(_expression_relations(plan_expressions(plan)))
+    for child in plan_inputs(plan):
+        found.update(_plan_relations(child))
+    return found
 
 
 def _binding_relations(binding: BindingDTO) -> set[str]:
@@ -121,7 +136,7 @@ def _binding_relations(binding: BindingDTO) -> set[str]:
     expressions.extend(expression for _, expression in binding.properties)
     found = _expression_relations(expressions)
     if binding.rows is not None:
-        found.update(plan_scan_sources(binding.rows))
+        found.update(_plan_relations(binding.rows))
     return found
 
 
@@ -129,7 +144,7 @@ def _projection_relations(projection: ProjectionDTO) -> set[str]:
     found = _expression_relations(
         column.expression for column in projection.columns
     )
-    found.update(plan_scan_sources(projection.row_source))
+    found.update(_plan_relations(projection.row_source))
     return found
 
 

@@ -5,14 +5,15 @@ from collections.abc import Mapping, Sequence
 from typing import Any, cast
 
 from kg_build_system.distribution.model.public.refs import (
-    FieldRef, OperationRef, ref_from_document, ref_to_document,
+    FieldRef, OperationRef, RelationRef, ref_from_document, ref_to_document,
 )
 from kg_build_system.kernel.model.internal.json import FrozenJson, FrozenObject, freeze_json
 from kg_build_system.kernel.service.internal.types import type_from_document, type_to_document
 
 from ...model.internal.dto.blueprint_dto import (
     ExpressionDTO, FieldReferenceDTO, LiteralExpressionDTO,
-    OperationExpressionDTO, OperationParameterDTO, VariableExpressionDTO,
+    LookupExpressionDTO, OperationExpressionDTO, OperationParameterDTO,
+    VariableExpressionDTO,
 )
 
 
@@ -36,6 +37,14 @@ def expression_to_document(expression: ExpressionDTO) -> dict[str, Any]:
             "kind": "field",
             "field": ref_to_document(expression.field),
             "path": list(expression.path),
+            **common,
+        }
+    if isinstance(expression, LookupExpressionDTO):
+        return {
+            "kind": "lookup",
+            "relation": ref_to_document(expression.relation),
+            "target_field": expression.target_field,
+            "key": expression_to_document(expression.key),
             **common,
         }
     if isinstance(expression, OperationExpressionDTO):
@@ -97,6 +106,23 @@ def expression_from_document(value: Mapping[str, Any]) -> ExpressionDTO:
             path=string_sequence(
                 value.get("path", ()), field="path", allow_empty=True,
             ),
+            **common,
+        )
+    if kind == "lookup":
+        relation = ref_from_document(value.get("relation"))
+        if not isinstance(relation, RelationRef):
+            raise ValueError(
+                "expression field 'relation' must be a relation reference"
+            )
+        target_field = value.get("target_field", "")
+        if not isinstance(target_field, str):
+            raise ValueError(
+                "expression field 'target_field' must be a string"
+            )
+        return LookupExpressionDTO(
+            relation=relation,
+            key=expression_from_document(object_field(value.get("key"), "key")),
+            target_field=target_field,
             **common,
         )
     if kind == "operation":

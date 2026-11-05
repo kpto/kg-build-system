@@ -11,6 +11,7 @@ from kg_build_system.distribution.languages.expressions.model.internal.dto impor
     ExpressionDTO,
     FieldReferenceDTO,
     LiteralExpressionDTO,
+    LookupExpressionDTO,
     OperationExpressionDTO,
     VariableExpressionDTO,
 )
@@ -23,6 +24,7 @@ from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dt
     RowOrderByDTO,
     RowScanDTO,
     RowUnionDTO,
+    RowUnnestDTO,
 )
 from kg_build_system.kernel import SourceFragment
 from kg_build_system.kernel.model.internal.types.dto import (
@@ -140,6 +142,15 @@ def _render_expression(
         for member in value.path:
             result += f".extract(lambda value: value.{member})"
         return result
+    if isinstance(value, LookupExpressionDTO):
+        target = class_names.get(value.relation.name, value.relation.name)
+        key = _render_expression(
+            value.key, class_names=class_names, row_variable=row_variable,
+        )
+        return (
+            f"{key}.lookup({target}, {key}, "
+            f"target_key={value.target_field!r})"
+        )
     if isinstance(value, OperationExpressionDTO):
         arguments = [
             _render_expression(
@@ -234,24 +245,33 @@ def _render_plan(
         )
         ascending = value.keys[0][1] if value.keys else True
         return f"{inner}.order_by({keys}, ascending={ascending!r})"
+    if isinstance(value, RowUnnestDTO):
+        inner = _render_plan(value.input, class_names=class_names)
+        expression = _render_expression(
+            value.expression, class_names=class_names,
+        )
+        return f"{inner}.unnest(lambda row: {expression})"
     raise TypeError(f"unsupported row plan {value!r}")
 
 
 def _plan_sources(value: RowPlanDTO) -> tuple[str, ...]:
     if isinstance(value, RowScanDTO):
         return (value.relation.name,)
-    if isinstance(value, (RowFilterDTO, RowDistinctDTO, RowOrderByDTO)):
+    if isinstance(value, (
+        RowFilterDTO, RowDistinctDTO, RowOrderByDTO, RowGroupByDTO,
+        RowUnnestDTO,
+    )):
         return _plan_sources(value.input)
     if isinstance(value, (RowUnionDTO, RowJoinDTO)):
         return (*_plan_sources(value.left), *_plan_sources(value.right))
-    if isinstance(value, RowGroupByDTO):
-        return _plan_sources(value.input)
     return ()
 
 
 def _expression_sources(value: ExpressionDTO) -> tuple[str, ...]:
     if isinstance(value, FieldReferenceDTO):
         return (value.field.relation,)
+    if isinstance(value, LookupExpressionDTO):
+        return (value.relation.name, *_expression_sources(value.key))
     if isinstance(value, OperationExpressionDTO):
         return tuple(
             source

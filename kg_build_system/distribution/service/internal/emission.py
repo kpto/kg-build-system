@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Any, Final, Literal, Protocol, runtime_checkable
 
 from kg_build_system.distribution.languages.data.model.internal import (
@@ -81,12 +81,18 @@ class Filter:
 
 @dataclass(frozen=True, slots=True)
 class RelationPlan:
-    """One projection or binding: its scans, row effects and outputs."""
+    """One projection or binding: its scans, row effects and outputs.
+
+    ``relations`` and ``shapes`` resolve the named relations an inline lookup
+    reads without making them scans of this product.
+    """
 
     scans: tuple[Scan, ...]
     expands: tuple[Expand, ...]
     filters: tuple[Filter, ...]
     outputs: tuple[tuple[str, ExpressionDTO], ...]
+    relations: Mapping[str, str] = field(default_factory=dict)
+    shapes: Mapping[str, tuple[ShapeField, ...]] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

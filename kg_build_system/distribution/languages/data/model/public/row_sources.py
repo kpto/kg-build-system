@@ -21,12 +21,12 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar, overload
 
 from kg_build_system.distribution.languages.expressions.model.public import (
     Selection,
 )
-from kg_build_system.kernel.model.public.types import Shape
+from kg_build_system.kernel.model.public.types import Array, Nullable, Shape
 from ..internal.dto.blueprint_dto import RowScanDTO, RowSourcePlanDTO
 from .shapes import ShapeField
 
@@ -76,6 +76,39 @@ class RowSource(Generic[S]):
         from ...service.public.rows import derive_where
 
         return derive_where(self, predicate)
+
+    @overload
+    def unnest[I](
+        self, selector: Callable[[S], Selection[Array[I]]],
+    ) -> "DerivedRowSource[S]": ...
+    @overload
+    def unnest[I](
+        self, selector: Callable[[S], Selection[Nullable[Array[I]]]],
+    ) -> "DerivedRowSource[S]": ...
+    def unnest(self, selector: Callable[[Any], Any]) -> "DerivedRowSource[S]":
+        """Expand one array member into rows, one row per item.
+
+        The selected array must be a direct field read. The result keeps the
+        other fields and narrows the selected field to its item shape. A null
+        or empty array produces no rows. This is the row-source spelling of
+        expansion; ``Selection.expand`` stays a selection row effect.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Site(Table):
+                site_id: Field[str] = field(name="site_id")
+                tags: Field[Array[str]] = field(name="tags")
+
+            one_tag_per_row = Site.row_source().unnest(
+                lambda site: site.tags
+            )
+            ```
+        """
+        from ...service.public.rows import derive_unnest
+
+        return derive_unnest(self, selector)
 
     def union(self, other: Any, *, all: bool = True) -> "DerivedRowSource[S]":
         """Stack two same-shaped sources; ``all=False`` removes duplicates.

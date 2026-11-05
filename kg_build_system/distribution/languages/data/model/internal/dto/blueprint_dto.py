@@ -139,9 +139,23 @@ class RowOrderByDTO:
     keys: tuple[tuple[ExpressionDTO, bool], ...]
 
 
+@dataclass(frozen=True, slots=True)
+class RowUnnestDTO:
+    """Expand one array field into rows, keeping the other fields.
+
+    ``field`` is the external column name whose array value is expanded and
+    ``expression`` is that array in the input plan. A null or empty array
+    produces no rows.
+    """
+
+    input: "RowSourcePlanDTO"
+    field: str
+    expression: ExpressionDTO
+
+
 RowSourcePlanDTO: TypeAlias = (
     RowScanDTO | RowFilterDTO | RowUnionDTO | RowJoinDTO
-    | RowGroupByDTO | RowDistinctDTO | RowOrderByDTO
+    | RowGroupByDTO | RowDistinctDTO | RowOrderByDTO | RowUnnestDTO
 )
 
 
@@ -169,5 +183,5 @@ __all__ = [
     "ColumnDTO", "DataPartDTO", "ProjectionDTO", "RelationDTO",
     "RowDistinctDTO", "RowFilterDTO", "RowGroupByDTO", "RowJoinDTO",
     "RowOrderByDTO", "RowScanDTO", "RowSourcePlanDTO", "RowUnionDTO",
-    "StructDTO",
+    "RowUnnestDTO", "StructDTO",
 ]

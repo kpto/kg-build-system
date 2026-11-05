@@ -11,6 +11,7 @@ from kg_build_system.distribution.languages.asset.model.public import (
 )
 from kg_build_system.distribution.languages.expressions.model.public import (
     NullableSelection,
+    Pair,
     Selection,
 )
 from kg_build_system.distribution.languages.expressions.service.public import (
@@ -25,6 +26,7 @@ from kg_build_system.distribution.languages.binding.service.public import (
 )
 from kg_build_system.distribution.languages.data.model.public import (
     ComputedStruct,
+    DerivedRowSource,
     Field,
     Projection,
     Struct,
@@ -81,11 +83,18 @@ class Detail(Struct):
 class Site(Table[FixtureAsset]):
     options = TableOptions(name="site")
     site_id: Field[str] = field(name="id")
+    region_id: Field[str] = field(name="region_id")
     count: Field[int] = field(name="count")
     detail: Field[Detail] = field(name="detail")
     addresses: Field[Array[Address]] = field(name="addresses")
     tags: Field[Array[str]] = field(name="tags")
     labels: Field[Array[Nullable[str]]] = field(name="labels")
+
+
+class Region(Table[FixtureAsset]):
+    options = TableOptions(name="region")
+    region_id: Field[str] = field(name="region_id")
+    name: Field[str] = field(name="name")
 
 
 class Summary(ComputedStruct):
@@ -135,6 +144,26 @@ assert_type(
 assert_type(
     Site.labels.alter_rows().drop_null().drop_null_items(),
     Selection[Array[str]],
+)
+assert_type(
+    Site.region_id.lookup(Region, Site.region_id),
+    Selection[Nullable[Array[Region]]],
+)
+assert_type(
+    Site.tags.alter_rows().drop_null().zip(
+        Site.tags.alter_rows().drop_null()
+    ),
+    Selection[Array[Pair[str, str]]],
+)
+assert_type(
+    Site.tags.alter_rows().drop_null().zip(
+        Site.tags.alter_rows().drop_null()
+    ).alter_rows().expand().extract(lambda pair: pair.left),
+    Selection[str],
+)
+assert_type(
+    Site.row_source().unnest(lambda site: site.tags),
+    DerivedRowSource[Site],
 )
 
 

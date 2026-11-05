@@ -90,13 +90,21 @@ def as_expression(value: Any) -> "ValueExpression[Any]":
 
 
 def _declaration(logical_type: StructType) -> type[Any]:
-    from kg_build_system.kernel.model.public.types import Struct
+    from kg_build_system.kernel.model.public.types import Shape
 
+    if logical_type.module == "kg_build_system.distribution.languages.expressions.model.public.pair":
+        from .pair import pair_declaration
+
+        generated = pair_declaration(logical_type.qualname)
+        if generated is not None:
+            return generated
     value: Any = importlib.import_module(logical_type.module)
     for part in logical_type.qualname.split("."):
         value = getattr(value, part)
-    if not isinstance(value, type) or not issubclass(value, Struct):
-        raise TypeError("struct logical type does not resolve to a Struct declaration")
+    if not isinstance(value, type) or not issubclass(value, Shape):
+        raise TypeError(
+            "struct logical type does not resolve to a Shape declaration"
+        )
     return value
 
 
@@ -115,14 +123,25 @@ def extract_member(
         raise TypeError("extract requires a struct selection")
     proxy = object.__new__(_declaration(parent_type))
     selected = selector(proxy)
-    if not isinstance(selected, Selection) or selected._member is None:
+    if not isinstance(selected, Selection):
         raise TypeError("struct selectors must return a declared field selection")
     member = selected._member
-    if member.declaration != parent_type:
-        raise TypeError(
-            "struct selectors must return a field from their input declaration"
-        )
-    result_type = member.logical_type
+    if member is not None:
+        if member.declaration != parent_type:
+            raise TypeError(
+                "struct selectors must return a field from their input declaration"
+            )
+        member_name = member.name
+        member_type = member.logical_type
+    else:
+        node = selected._node
+        if not isinstance(node, FieldReferenceExpression) or not node.path:
+            raise TypeError(
+                "struct selectors must return a declared field selection"
+            )
+        member_name = node.path[-1]
+        member_type = node.logical_type
+    result_type = member_type
     if isinstance(parent.logical_type, NullableType) and not isinstance(
         result_type, NullableType
     ):
@@ -131,9 +150,9 @@ def extract_member(
     if parent_model is None:
         raise TypeError("extract requires a value expression")
     if isinstance(parent_model, FieldReferenceExpression):
-        path = (*parent_model.path, member.name)
+        path = (*parent_model.path, member_name)
         traversals = list(parent_model.traversals)
-        selected_base = _base(member.logical_type)
+        selected_base = _base(member_type)
         if isinstance(selected_base, StructType):
             traversals.append(Traversal("struct", path))
         elif isinstance(selected_base, ArrayType):
@@ -150,7 +169,7 @@ def extract_member(
             "struct_field",
             parent_model,
             result_type=result_type,
-            name=member.name,
+            name=member_name,
         ).model
     return selection_from_node(result)
 
@@ -199,6 +218,21 @@ def array_slice(
             node,
             expression_input(start, INT),
             expression_input(end, INT),
+        ).model
+    )
+
+
+def zip_arrays(
+    left: "Selection[Any]", right: "Selection[Any]",
+) -> "Selection[Any]":
+    """Pair two array selections by position."""
+    _array_base(left)
+    _array_base(right)
+    return selection_from_node(
+        apply_operation(
+            "zip",
+            require_expression(left).model,
+            require_expression(right).model,
         ).model
     )
 
@@ -388,5 +422,5 @@ __all__ = [
     "extract_member", "null_items_removed", "numeric_binary",
     "require_expression", "scalar_to_string", "select_expression",
     "select_member", "selection_from_node", "separator_text", "text_concat",
-    "text_equals", "text_replace", "transform_items",
+    "text_equals", "text_replace", "transform_items", "zip_arrays",
 ]

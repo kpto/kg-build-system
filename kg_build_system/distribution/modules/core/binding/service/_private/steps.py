@@ -43,6 +43,7 @@ def binding_step(
     symbol = binding_symbol(binding, index)
     binding_sql_text = binding_sql(
         blueprint, core_plan.relations, binding, engine=engine,
+        shapes={**core_plan.shapes, **core_plan.row_source_fields},
     )
     return Step(
         component="core",

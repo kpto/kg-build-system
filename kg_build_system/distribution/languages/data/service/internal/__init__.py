@@ -13,8 +13,9 @@ from .declarations import (
 )
 from .rows import (
     as_row_source, declaration_source_name, derive_distinct, derive_group_by,
-    derive_join, derive_order_by, derive_row_source, derive_union, derive_where,
-    plan_expressions, plan_fields, plan_inputs, plan_scan_sources,
+    derive_join, derive_order_by, derive_row_source, derive_union,
+    derive_unnest, derive_where, plan_expressions, plan_fields, plan_inputs,
+    plan_scan_sources,
     plan_shape_source_name, retarget_expression_dto, row_source_key,
     row_source_plan_dto, shape_context,
 )
@@ -28,7 +29,8 @@ __all__ = [
     "collect_values", "data_from_document", "data_to_document",
     "data_to_fragment", "declaration_source_name", "derive_distinct",
     "derive_group_by", "derive_join", "derive_order_by", "derive_row_source",
-    "derive_union", "derive_where", "plan_expressions", "plan_fields",
+    "derive_union", "derive_unnest", "derive_where", "plan_expressions",
+    "plan_fields",
     "plan_inputs", "plan_scan_sources", "plan_shape_source_name",
     "projection_row_source", "relation_plan_dto", "render",
     "render_data", "retarget_expression_dto", "row_source_key",

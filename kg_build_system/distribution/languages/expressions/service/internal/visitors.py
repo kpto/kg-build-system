@@ -6,7 +6,7 @@ from typing import Protocol, TypeVar
 
 from ...model.internal.model import (
     Expression, ExpressionNode, FieldReferenceExpression, LiteralExpression,
-    OperationExpression, VariableExpression,
+    LookupExpression, OperationExpression, VariableExpression,
 )
 
 T_co = TypeVar("T_co", covariant=True)
@@ -15,6 +15,7 @@ T_co = TypeVar("T_co", covariant=True)
 class ExpressionVisitor(Protocol[T_co]):
     def visit_literal(self, expression: LiteralExpression) -> T_co: ...
     def visit_field_reference(self, expression: FieldReferenceExpression) -> T_co: ...
+    def visit_lookup(self, expression: LookupExpression) -> T_co: ...
     def visit_operation(self, expression: OperationExpression) -> T_co: ...
     def visit_variable(self, expression: VariableExpression) -> T_co: ...
 

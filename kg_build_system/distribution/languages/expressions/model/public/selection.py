@@ -10,14 +10,18 @@ from __future__ import annotations
 from collections.abc import Callable
 from typing import TYPE_CHECKING, Any, cast, overload
 
+from kg_build_system.distribution.model.public.refs import RelationRef
 from kg_build_system.kernel.model.public.types import (
     Array,
     ArrayType,
     LogicalType,
     Nullable,
     NullableType,
+    Shape,
     Struct,
 )
+
+from .pair import Pair
 
 if TYPE_CHECKING:
     from ..internal.model import ExpressionNode, SelectedMember
@@ -187,6 +191,90 @@ class Selection[T]:
         from ...service._private.selections import array_slice
 
         return cast("Selection[Array[I]]", array_slice(self, start, end))
+
+    def lookup[S: Shape](
+        self,
+        relation: type[S] | RelationRef,
+        key: Selection[Any] | None = None,
+        *,
+        target_key: str | Selection[Any] | None = None,
+    ) -> Selection[Nullable[Array[S]]]:
+        """Read every target record whose key equals this row's key.
+
+        The result is a value: an array of target records, or null when no
+        target matches. A null key never matches. Row behaviour is composed
+        from the result:
+
+        - left: use the lookup value as it is;
+        - inner: ``lookup(...).alter_rows().drop_null()``;
+        - one row per match: ``lookup(...).alter_rows().expand()``.
+
+        ``target_key`` defaults to the column name of a direct field key. Pass
+        it explicitly when the target column has a different name.
+
+        Example:
+            ```python
+            from kg_build_system import Field, Table, field
+
+            class Region(Table):
+                region_id: Field[str] = field(name="region_id")
+
+            class Site(Table):
+                region_id: Field[str] = field(name="region_id")
+
+            regions = Site.region_id.lookup(Region, Site.region_id)
+            assert regions.logical_type.value.name == "array"
+            ```
+        """
+        from ...service._private.lookup import lookup_value
+
+        return cast(
+            "Selection[Nullable[Array[S]]]",
+            lookup_value(relation, self if key is None else key, target_key=target_key),
+        )
+
+    @overload
+    def zip[L, R](
+        self: Selection[Array[L]], other: Selection[Array[R]],
+    ) -> Selection[Array[Pair[L, R]]]: ...
+    @overload
+    def zip[L, R](
+        self: Selection[Nullable[Array[L]]], other: Selection[Array[R]],
+    ) -> Selection[Nullable[Array[Pair[L, R]]]]: ...
+    @overload
+    def zip[L, R](
+        self: Selection[Array[L]], other: Selection[Nullable[Array[R]]],
+    ) -> Selection[Nullable[Array[Pair[L, R]]]]: ...
+    @overload
+    def zip[L, R](
+        self: Selection[Nullable[Array[L]]],
+        other: Selection[Nullable[Array[R]]],
+    ) -> Selection[Nullable[Array[Pair[L, R]]]]: ...
+    def zip(self, other: Any) -> Any:
+        """Pair two arrays by position into an array of paired records.
+
+        The arrays must have the same length; a mismatch raises at execution.
+        An absent input makes the result absent. This is a value operation, not
+        a row-level cross or zip.
+
+        Example:
+            ```python
+            from kg_build_system import Array, Field, Table, field
+
+            class Row(Table):
+                tags: Field[Array[str]] = field(name="tags")
+                labels: Field[Array[str]] = field(name="labels")
+
+            paired = (
+                Row.tags.alter_rows().drop_null()
+                .zip(Row.labels.alter_rows().drop_null())
+            )
+            assert paired.logical_type.value.name == "array"
+            ```
+        """
+        from ...service._private.selections import zip_arrays
+
+        return zip_arrays(self, other)
 
     def unique[I](self: Selection[Array[I]]) -> Selection[Array[I]]:
         """Deduplicate array items.

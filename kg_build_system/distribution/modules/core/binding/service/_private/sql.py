@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import Any
 
 from kg_build_system.distribution.interpreter.model.public import GraphBlueprint
 from kg_build_system.distribution.languages.binding.model.internal.dto import (
@@ -39,6 +40,7 @@ def binding_sql(
     binding: BindingDTO,
     *,
     engine: SqlEmitter,
+    shapes: Mapping[str, Any] | None = None,
 ) -> str:
     """Emit one binding as the SQL of its graph records, guards included."""
     property_types = binding_property_types(graph, binding)
@@ -46,7 +48,7 @@ def binding_sql(
         name: retarget_expression(expression, binding.rows)
         for name, expression in binding_outputs(binding).items()
     }
-    inner = product_sql(outputs, relations, engine=engine)
+    inner = product_sql(outputs, relations, engine=engine, shapes=shapes)
     return (
         "WITH _kg_named AS ("
         f"SELECT {binding_rename_projection(binding, property_types)} "

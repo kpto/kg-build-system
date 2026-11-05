@@ -70,6 +70,15 @@ def derive_group_by(source: Any, *, by: Callable[[Any], Any]) -> Any:
     return derive(source, by=by)
 
 
+def derive_unnest(
+    source: Any, selector: Callable[[Any], Selection[Any]],
+) -> Any:
+    """Expand one array member into rows, narrowing that member to its item."""
+    from .._private.rows import derive_unnest as derive
+
+    return derive(source, selector)
+
+
 def derive_distinct(source: Any) -> Any:
     """Drop duplicate rows without changing the shape."""
     from .._private.rows import derive_distinct as derive

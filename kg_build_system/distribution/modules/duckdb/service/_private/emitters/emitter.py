@@ -73,12 +73,16 @@ class DuckDbInstructionEmitter:
         *,
         aliases: Mapping[str, str] | None = None,
         expansions: Mapping[tuple[str, ...], SqlNode] | None = None,
+        relations: Mapping[str, str] | None = None,
+        shapes: Mapping[str, tuple[ShapeField, ...]] | None = None,
     ) -> SqlNode:
         """Emit one expression with no surrounding relation plan."""
         context = DuckDbExpressionContext(
             self.operators,
             aliases=aliases or {},
             expansions=expansions or {},
+            relations=relations or {},
+            shapes=shapes or {},
         )
         return context.emit(expression)
 
@@ -87,9 +91,11 @@ class DuckDbInstructionEmitter:
         expression: ExpressionDTO,
         *,
         aliases: Mapping[str, str] | None = None,
+        relations: Mapping[str, str] | None = None,
+        shapes: Mapping[str, tuple[ShapeField, ...]] | None = None,
     ) -> str:
         return self.emit_expression(
-            expression, aliases=aliases,
+            expression, aliases=aliases, relations=relations, shapes=shapes,
         ).sql(dialect="duckdb")
 
     def relation_sql(self, plan: RelationPlan) -> str:
@@ -120,6 +126,8 @@ class DuckDbInstructionEmitter:
         context = DuckDbExpressionContext(
             self.operators,
             aliases={scan.source: scan.alias for scan in plan.scans},
+            relations=plan.relations,
+            shapes=plan.shapes,
         )
         for expansion in plan.expands:
             value = context.emit(expansion.expression)
@@ -191,11 +199,14 @@ def emit_expression(
     *,
     aliases: Mapping[str, str] | None = None,
     expansions: Mapping[tuple[str, ...], SqlNode] | None = None,
+    relations: Mapping[str, str] | None = None,
+    shapes: Mapping[str, tuple[ShapeField, ...]] | None = None,
     emitter: DuckDbInstructionEmitter = DEFAULT_EMITTER,
 ) -> SqlNode:
     """Emit one expression to a DuckDB SQL node without a relation plan."""
     return emitter.emit_expression(
         expression, aliases=aliases, expansions=expansions,
+        relations=relations, shapes=shapes,
     )
 
 
@@ -203,10 +214,14 @@ def expression_sql(
     expression: ExpressionDTO,
     *,
     aliases: Mapping[str, str] | None = None,
+    relations: Mapping[str, str] | None = None,
+    shapes: Mapping[str, tuple[ShapeField, ...]] | None = None,
     emitter: DuckDbInstructionEmitter = DEFAULT_EMITTER,
 ) -> str:
     """Render one expression directly as DuckDB SQL text."""
-    return emitter.expression_sql(expression, aliases=aliases)
+    return emitter.expression_sql(
+        expression, aliases=aliases, relations=relations, shapes=shapes,
+    )
 
 
 def relation_sql(

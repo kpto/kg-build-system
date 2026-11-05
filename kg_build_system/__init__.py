@@ -24,7 +24,7 @@ if TYPE_CHECKING:
     )
     from .distribution.languages.expressions import (
         ArrayRowEffects, NullableArrayRowEffects, NullableRowEffects,
-        NullableSelection, RowEffects, Selection, all_of, any_of,
+        NullableSelection, Pair, RowEffects, Selection, all_of, any_of,
         value_expression,
     )
     from .distribution.languages.binding import (
@@ -94,6 +94,7 @@ _GROUPS: dict[str, tuple[str, ...]] = {'api': ('DEFAULT_TOOLCHAIN',
                                         'NullableArrayRowEffects',
                                         'NullableRowEffects',
                                         'NullableSelection',
+                                        'Pair',
                                         'RowEffects',
                                         'Selection',
                                         'all_of',
@@ -162,6 +163,7 @@ __all__ = ['DEFAULT_TOOLCHAIN',
  'NullableArrayRowEffects',
  'NullableRowEffects',
  'NullableSelection',
+ 'Pair',
  'RowEffects',
  'Selection',
  'all_of',

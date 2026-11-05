@@ -37,7 +37,12 @@ class PlanContext:
     def expression_context(
         self, aliases: Mapping[str, str],
     ) -> DuckDbExpressionContext:
-        return DuckDbExpressionContext(self.operators, aliases=aliases)
+        return DuckDbExpressionContext(
+            self.operators,
+            aliases=aliases,
+            relations=self.relations,
+            shapes=self.shapes,
+        )
 
     def emit_expression(
         self, expression: ExpressionDTO, aliases: Mapping[str, str],

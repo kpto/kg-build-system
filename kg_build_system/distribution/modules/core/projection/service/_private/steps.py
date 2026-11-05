@@ -44,6 +44,7 @@ def projection_step(
             "relation": core_plan.projection_relations[projection.name],
             "sql": projection_sql(
                 core_plan.relations, projection, engine=engine,
+                shapes={**core_plan.shapes, **core_plan.row_source_fields},
             ),
         }),
     )

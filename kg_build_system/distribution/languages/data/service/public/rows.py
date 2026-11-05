@@ -18,6 +18,7 @@ from ..internal.rows import (
     derive_join as derive_join_impl,
     derive_order_by as derive_order_by_impl,
     derive_union as derive_union_impl,
+    derive_unnest as derive_unnest_impl,
     derive_where as derive_where_impl,
     shape_context as shape_context_impl,
 )
@@ -61,6 +62,17 @@ def projection_row_source(declaration: type[Any]) -> Any | None:
 def relation_plan_dto(source: type[Any]) -> Any:
     """Return the scan plan for one named table or projection relation."""
     return relation_plan_dto_impl(source)
+
+
+def derive_unnest(
+    source: Any, selector: Callable[[Any], Selection[Any]],
+) -> Any:
+    """Expand one array member into rows, narrowing that member to its item.
+
+    The selected array must be a direct field read. A null or empty array
+    produces no rows; every other field is preserved.
+    """
+    return derive_unnest_impl(source, selector)
 
 
 def derive_where(

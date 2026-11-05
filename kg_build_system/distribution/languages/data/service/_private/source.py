@@ -13,7 +13,7 @@ from kg_build_system.kernel.model.internal.types.dto import ArrayTypeDTO, Custom
 from ...model.internal.dto.blueprint_dto import (
     ColumnDTO, DataPartDTO, ProjectionDTO, RelationDTO, RowDistinctDTO,
     RowFilterDTO, RowGroupByDTO, RowJoinDTO, RowOrderByDTO, RowScanDTO,
-    RowSourcePlanDTO, RowUnionDTO, StructDTO,
+    RowSourcePlanDTO, RowUnionDTO, RowUnnestDTO, StructDTO,
 )
 
 
@@ -149,6 +149,10 @@ def _render_row_source(
         )
         ascending = plan.keys[0][1] if plan.keys else True
         return f"{inner}.order_by({keys}, ascending={ascending!r})"
+    if isinstance(plan, RowUnnestDTO):
+        inner = _render_row_source(plan.input, class_names=class_names, imports=imports)
+        expression = _render_expression(plan.expression, imports)
+        return f"{inner}.unnest(lambda row: {expression})"
     raise TypeError(f"unsupported row-source plan {plan!r}")
 
 

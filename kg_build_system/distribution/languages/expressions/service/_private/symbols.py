@@ -8,7 +8,8 @@ from kg_build_system.distribution.model.public.refs import FieldRef, OperationRe
 from kg_build_system.kernel import Declaration, Key, Symbol, SymbolRef
 
 from ...model.internal.model import (
-    ExpressionNode, FieldReferenceExpression, OperationExpression,
+    ExpressionNode, FieldReferenceExpression, LookupExpression,
+    OperationExpression,
 )
 from ..internal.operations import DEFAULT_OPERATIONS, OperationSpec
 from .visitors import walk_expression
@@ -64,6 +65,8 @@ def authoring_references(value: ExpressionNode) -> tuple[SymbolRef, ...]:
                         "data", Key((f"{node.source}.{node.path[0]}",)),
                     ).symbol
                 )
+        elif isinstance(node, LookupExpression):
+            references.append(node.relation.symbol)
         elif (
             isinstance(node, OperationExpression)
             and node.operator in DEFAULT_OPERATIONS

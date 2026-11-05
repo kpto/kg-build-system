@@ -5,11 +5,12 @@ import dataclasses
 from collections.abc import Mapping, Sequence
 from typing import Any
 
+from kg_build_system.distribution.model.public.refs import RelationRef
 from kg_build_system.kernel.model.internal.json import freeze_json
 from kg_build_system.kernel.model.public.types import LogicalType
 from ...model.internal.model import (
-    ExpressionNode, FieldReferenceExpression, OperationExpression,
-    OperationParameter, RowSemantics, Traversal,
+    ExpressionNode, FieldReferenceExpression, LookupExpression,
+    OperationExpression, OperationParameter, RowSemantics, Traversal,
 )
 from .semantics import compose_row_semantics
 
@@ -38,11 +39,18 @@ def operation(
     logical_type: LogicalType,
     parameters: Mapping[str, Any] | None = None,
     row_semantics: RowSemantics = RowSemantics(),
+    **named_parameters: Any,
 ) -> OperationExpression:
-    """Build a low-level operation expression."""
+    """Build a low-level operation expression.
+
+    Named parameters may be passed either as a mapping or as keyword arguments;
+    the source renderer uses the keyword form so its output is valid Python.
+    """
+    merged = dict(parameters or {})
+    merged.update(named_parameters)
     frozen_parameters = tuple(
         OperationParameter(name, freeze_json(value))
-        for name, value in sorted((parameters or {}).items())
+        for name, value in sorted(merged.items())
     )
     return OperationExpression(
         operator=operator,
@@ -50,6 +58,23 @@ def operation(
         parameters=frozen_parameters,
         logical_type=logical_type,
         row_semantics=compose_row_semantics(*arguments, local=row_semantics),
+    )
+
+
+def lookup_expression(
+    relation: RelationRef,
+    key: ExpressionNode,
+    *,
+    target_field: str,
+    logical_type: LogicalType,
+) -> LookupExpression:
+    """Build a typed lookup expression from a target relation and a key."""
+    return LookupExpression(
+        relation=relation,
+        target_field=target_field,
+        key=key,
+        logical_type=logical_type,
+        row_semantics=compose_row_semantics(key),
     )
 
 
@@ -62,4 +87,6 @@ def with_arguments(
     return dataclasses.replace(expression, arguments=arguments)
 
 
-__all__ = ["field_reference", "operation", "with_arguments"]
+__all__ = [
+    "field_reference", "lookup_expression", "operation", "with_arguments",
+]

@@ -10,7 +10,9 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import TypeAlias
 
-from kg_build_system.distribution.model.public.refs import FieldRef, OperationRef
+from kg_build_system.distribution.model.public.refs import (
+    FieldRef, OperationRef, RelationRef,
+)
 from kg_build_system.kernel.model.internal.json import FrozenJson
 from kg_build_system.kernel.model.internal.types.dto import LogicalTypeDTO
 
@@ -64,6 +66,43 @@ class FieldReferenceDTO(ExpressionDTOBase):
     path: tuple[str, ...] = ()
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class LookupExpressionDTO(ExpressionDTOBase):
+    """A value lookup over one typed target relation and one key expression.
+
+    ``relation`` is the target relation reference and ``target_field`` is the
+    column it is matched on. The key expression is evaluated in the current row.
+    The result is an array of target records, or null when no target matches.
+
+    Example:
+        ```python
+        from kg_build_system.distribution.languages.expressions.model.internal import (
+            FieldReferenceDTO, LookupExpressionDTO,
+        )
+        from kg_build_system.distribution.model.public.refs import (
+            FieldRef, RelationRef,
+        )
+        from kg_build_system.kernel import Key
+        from kg_build_system.kernel.model.internal.types.dto import UnitTypeDTO
+
+        key = FieldReferenceDTO(
+            logical_type=UnitTypeDTO("str"),
+            field=FieldRef("data", Key(("sites.region_id",))),
+        )
+        lookup = LookupExpressionDTO(
+            logical_type=UnitTypeDTO("str"),
+            relation=RelationRef("data", Key(("regions",))),
+            target_field="region_id",
+            key=key,
+        )
+        ```
+    """
+
+    relation: RelationRef
+    key: "ExpressionDTO"
+    target_field: str = ""
+
+
 @dataclass(frozen=True, slots=True)
 class OperationParameterDTO:
     """One named operation parameter."""
@@ -100,12 +139,12 @@ class OperationExpressionDTO(ExpressionDTOBase):
 
 ExpressionDTO: TypeAlias = (
     LiteralExpressionDTO | VariableExpressionDTO | FieldReferenceDTO
-    | OperationExpressionDTO
+    | LookupExpressionDTO | OperationExpressionDTO
 )
 
 
 __all__ = [
     "ExpressionDTO", "ExpressionDTOBase", "FieldReferenceDTO",
-    "LiteralExpressionDTO", "OperationExpressionDTO", "OperationParameterDTO",
-    "VariableExpressionDTO",
+    "LiteralExpressionDTO", "LookupExpressionDTO", "OperationExpressionDTO",
+    "OperationParameterDTO", "VariableExpressionDTO",
 ]

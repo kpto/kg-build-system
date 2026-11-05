@@ -20,6 +20,8 @@ from kg_build_system.distribution.languages.data.model.internal import (
     RowSourcePlanDTO,
 )
 from kg_build_system.distribution.languages.data.service.internal import (
+    plan_expressions,
+    plan_inputs,
     plan_scan_sources,
     plan_shape_source_name,
     retarget_expression_dto,
@@ -28,9 +30,11 @@ from kg_build_system.distribution.languages.data.service.internal import (
 from kg_build_system.distribution.languages.expressions.model.internal import (
     ExpressionDTO,
     FieldReferenceDTO,
+    LookupExpressionDTO,
     OperationExpressionDTO,
     RowSemantics,
 )
+from kg_build_system.distribution.languages.data.model.public import ShapeField
 from kg_build_system.distribution.languages.expressions.service.internal import (
     DEFAULT_OPERATIONS,
     RowEffectSpec,
@@ -78,7 +82,21 @@ def instruction_emitter(engine: SqlEmitter) -> RelationSqlEmitter:
 
 
 def expression_sources(expressions: Any) -> set[str]:
-    """Every relation named by a sequence of optional expressions."""
+    """Every relation an expression reads, including lookup targets."""
+    found: set[str] = set()
+    for expression in expressions:
+        if expression is None:
+            continue
+        for node in walk_expression_dto(expression):
+            if isinstance(node, FieldReferenceDTO):
+                found.add(node.field.relation)
+            elif isinstance(node, LookupExpressionDTO):
+                found.add(node.relation.name)
+    return found
+
+
+def expression_field_sources(expressions: Any) -> set[str]:
+    """Every relation a field read names; lookup targets are not scans."""
     return {
         node.field.relation
         for expression in expressions
@@ -91,7 +109,11 @@ def expression_sources(expressions: Any) -> set[str]:
 def _plan_sources(plan: RowSourcePlanDTO | None) -> set[str]:
     if plan is None:
         return set()
-    return {*plan_scan_sources(plan), row_source_key(plan)}
+    found = {*plan_scan_sources(plan), row_source_key(plan)}
+    found.update(expression_sources(plan_expressions(plan)))
+    for child in plan_inputs(plan):
+        found.update(_plan_sources(child))
+    return found
 
 
 def projection_sources(projection: ProjectionDTO) -> set[str]:
@@ -137,9 +159,12 @@ def product_sql(
     relations: Mapping[str, str],
     *,
     engine: SqlEmitter,
+    shapes: Mapping[str, tuple[ShapeField, ...]] | None = None,
 ) -> str:
     """Render one relational product through the configured SQL emitter."""
-    instruction = sql_emitter(engine).emit(plan_product(outputs, relations))
+    instruction = sql_emitter(engine).emit(
+        plan_product(outputs, relations, shapes=shapes),
+    )
     payload = instruction.payload
     if not isinstance(payload, Mapping):
         raise ValueError("SQL emission requires an object payload")
@@ -226,17 +251,15 @@ def plan_product(
     relations: Mapping[str, str],
     *,
     predicates: tuple[ExpressionDTO, ...] = (),
+    shapes: Mapping[str, tuple[ShapeField, ...]] | None = None,
 ) -> RelationPlan:
     """Plan one projection or binding without leaking its row effects elsewhere."""
     if not outputs:
         raise ValueError("relational products require at least one output")
     compiled_outputs = dict(outputs)
-    referenced = sorted({
-        node.field.relation
-        for expression in (*compiled_outputs.values(), *predicates)
-        for node in walk_expression_dto(expression)
-        if isinstance(node, FieldReferenceDTO)
-    })
+    referenced = sorted(expression_field_sources(
+        (*compiled_outputs.values(), *predicates),
+    ))
     missing = set(referenced) - set(relations)
     if missing:
         raise ValueError(
@@ -299,6 +322,8 @@ def plan_product(
         tuple(expands),
         tuple(filters) + tuple(Filter(item, "true") for item in predicates),
         tuple(compiled_outputs.items()),
+        relations=dict(relations),
+        shapes=dict(shapes or {}),
     )
 
 
@@ -306,6 +331,7 @@ __all__ = [
     "binding_outputs",
     "binding_sources",
     "expansion_scope",
+    "expression_field_sources",
     "expression_sources",
     "instruction_emitter",
     "plan_product",

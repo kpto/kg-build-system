@@ -33,6 +33,7 @@ from .struct_field import StructField
 from .subtract import SUBTRACT
 from .to_string import ToString
 from .transform_items import TransformItems
+from .zip import Zip
 
 if TYPE_CHECKING:
     from ..protocols import ExpressionEmitter
@@ -62,6 +63,7 @@ OPERATORS = (
     DropNull(),
     DropIf(),
     Coalesce(),
+    Zip(),
 )
 
 

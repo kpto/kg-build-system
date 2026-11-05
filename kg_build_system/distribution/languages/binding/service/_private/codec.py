@@ -31,6 +31,7 @@ from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dt
     RowScanDTO,
     RowSourcePlanDTO,
     RowUnionDTO,
+    RowUnnestDTO,
 )
 
 from ...model.internal.dto.blueprint_dto import (
@@ -145,6 +146,13 @@ def _plan_to_document(plan: RowSourcePlanDTO) -> dict[str, Any]:
                 for expression, ascending in plan.keys
             ],
         }
+    if isinstance(plan, RowUnnestDTO):
+        return {
+            "kind": "unnest",
+            "input": _plan_to_document(plan.input),
+            "field": plan.field,
+            "expression": expression_to_document(plan.expression),
+        }
     raise TypeError(f"unsupported row plan {plan!r}")
 
 
@@ -221,6 +229,14 @@ def _plan_from_document(value: Mapping[str, Any]) -> RowSourcePlanDTO:
         return RowOrderByDTO(
             _plan_from_document(_object(value.get("input"), "row plan input")),
             tuple(order_keys),
+        )
+    if kind == "unnest":
+        return RowUnnestDTO(
+            _plan_from_document(_object(value.get("input"), "row plan input")),
+            _text(value, "field"),
+            expression_from_document(
+                _object(value.get("expression"), "unnest expression")
+            ),
         )
     raise ValueError(f"unknown row plan kind {kind!r}")
 

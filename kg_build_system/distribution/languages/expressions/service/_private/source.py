@@ -9,7 +9,7 @@ from kg_build_system.kernel.model.internal.types.dto import ArrayTypeDTO, Custom
 from kg_build_system.kernel import SourceFragment
 from ...model.internal.dto.blueprint_dto import (
     ExpressionDTO, FieldReferenceDTO, LiteralExpressionDTO,
-    OperationExpressionDTO, VariableExpressionDTO,
+    LookupExpressionDTO, OperationExpressionDTO, VariableExpressionDTO,
 )
 
 UNIT_NAMES = {
@@ -69,6 +69,14 @@ def render(expression: ExpressionDTO) -> str:
             f"source={expression.field.relation!r}, path=({path},), "
             f"logical_type={render_type(expression.logical_type)})"
         )
+    if isinstance(expression, LookupExpressionDTO):
+        return (
+            "lookup_expression("
+            f"ref_from_document({expression.relation.to_document()!r}), "
+            f"key={render(expression.key)}, "
+            f"target_field={expression.target_field!r}, "
+            f"logical_type={render_type(expression.logical_type)})"
+        )
     if isinstance(expression, OperationExpressionDTO):
         arguments = ", ".join(render(argument) for argument in expression.arguments)
         parameters = "".join(
@@ -90,7 +98,9 @@ def render_expression_source(dto: ExpressionDTO) -> SourceFragment:
         (
             "from kg_build_system import value_expression",
             "from kg_build_system.distribution.languages.expressions.service.internal import "
-            "field_reference, operation",
+            "field_reference, lookup_expression, operation",
+            "from kg_build_system.distribution.model.public.refs import "
+            "ref_from_document",
             "from kg_build_system import "
             "ArrayType, NullableType, "
             "BOOL, DATE, FLOAT, INT, STR, TIME, TIMESTAMP, UUID",

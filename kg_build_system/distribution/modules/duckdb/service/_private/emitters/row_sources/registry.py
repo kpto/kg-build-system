@@ -11,6 +11,7 @@ from .join import JoinEmitter
 from .order_by import OrderByEmitter
 from .scan import ScanEmitter
 from .union import UnionEmitter
+from .unnest import UnnestEmitter
 
 if TYPE_CHECKING:
     from ..protocols import RowSourceEmitter
@@ -23,6 +24,7 @@ FAMILIES = (
     OrderByEmitter(),
     JoinEmitter(),
     GroupByEmitter(),
+    UnnestEmitter(),
 )
 
 

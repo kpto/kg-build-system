@@ -7,7 +7,7 @@ from dataclasses import replace
 from hashlib import sha256
 from typing import Any, cast
 
-from kg_build_system.distribution.languages.expressions.model.internal import ExpressionDTO, FieldReferenceDTO, OperationExpression, OperationExpressionDTO; from kg_build_system.distribution.languages.expressions.service.internal import expression_dto, field_reference, expression_field_path
+from kg_build_system.distribution.languages.expressions.model.internal import ExpressionDTO, ExpressionNode, FieldReferenceDTO, FieldReferenceExpression, LookupExpressionDTO, OperationExpression, OperationExpressionDTO; from kg_build_system.distribution.languages.expressions.service.internal import expression_dto, field_reference, expression_field_path
 from kg_build_system.distribution.languages.expressions.model.public import Selection; from kg_build_system.distribution.languages.expressions.service.internal import as_expression, select_expression
 from kg_build_system.distribution.model.public.refs import FieldRef, RelationRef
 from kg_build_system.kernel import Key
@@ -15,7 +15,7 @@ from kg_build_system.kernel.model.public.types import ArrayType, LogicalType, Nu
 from kg_build_system.kernel.model.internal.types.dto import ArrayTypeDTO
 from ...model.internal.dto.blueprint_dto import (
     RowDistinctDTO, RowFilterDTO, RowGroupByDTO, RowJoinDTO, RowOrderByDTO,
-    RowScanDTO, RowSourcePlanDTO, RowUnionDTO,
+    RowScanDTO, RowSourcePlanDTO, RowUnionDTO, RowUnnestDTO,
 )
 from .shapes import (
     ShapeField, _base, _is_nullable, _nullable_dto, _traversals,
@@ -85,7 +85,10 @@ def plan_shape_source_name(plan: RowSourcePlanDTO) -> str:
 
 def plan_inputs(plan: RowSourcePlanDTO) -> tuple[RowSourcePlanDTO, ...]:
     """Return the direct child plans a plan reads."""
-    if isinstance(plan, (RowFilterDTO, RowDistinctDTO, RowOrderByDTO, RowGroupByDTO)):
+    if isinstance(plan, (
+        RowFilterDTO, RowDistinctDTO, RowOrderByDTO, RowGroupByDTO,
+        RowUnnestDTO,
+    )):
         return (plan.input,)
     if isinstance(plan, (RowUnionDTO, RowJoinDTO)):
         return (plan.left, plan.right)
@@ -113,6 +116,8 @@ def plan_expressions(plan: RowSourcePlanDTO) -> tuple[ExpressionDTO, ...]:
         return tuple(expression for _, expression in plan.keys)
     if isinstance(plan, RowOrderByDTO):
         return tuple(expression for expression, _ in plan.keys)
+    if isinstance(plan, RowUnnestDTO):
+        return (plan.expression,)
     return ()
 
 
@@ -182,6 +187,20 @@ def plan_fields(
                 ArrayTypeDTO(cast(Any, record_shape_type(source))),
             ),
         )
+    if isinstance(plan, RowUnnestDTO):
+        fields = plan_fields(plan.input, declarations)
+        array = _base(plan.expression.logical_type)
+        if not isinstance(array, (ArrayType, ArrayTypeDTO)):
+            raise TypeError("unnest requires an array expression")
+        if not any(field.name == plan.field for field in fields):
+            raise ValueError(
+                f"unnest field {plan.field!r} is not a member of its input shape"
+            )
+        return tuple(
+            ShapeField(field.attribute, field.name, array.item)
+            if field.name == plan.field else field
+            for field in fields
+        )
     raise TypeError(f"unsupported row-source plan {plan!r}")
 
 
@@ -204,6 +223,11 @@ def retarget_expression_dto(
             field=FieldRef(
                 "data", Key((f"{target}.{expression.field.field}",)),
             ),
+        )
+    if isinstance(expression, LookupExpressionDTO):
+        return replace(
+            expression,
+            key=retarget_expression_dto(expression.key, mapping),
         )
     if isinstance(expression, OperationExpressionDTO):
         return replace(
@@ -423,6 +447,63 @@ def derive_group_by(source: Any, *, by: Callable[[Any], Any]) -> Any:
     )
 
 
+def _selected_field(expression: ExpressionNode) -> str | None:
+    if isinstance(expression, FieldReferenceExpression):
+        return expression.path[-1] if expression.path else None
+    if isinstance(expression, OperationExpression):
+        names = {
+            name for argument in expression.arguments
+            if (name := _selected_field(argument)) is not None
+        }
+        if len(names) == 1:
+            return names.pop()
+    return None
+
+
+def derive_unnest(
+    source: Any, selector: Callable[[Any], Selection[Any]],
+) -> Any:
+    """Expand one array member into rows, narrowing that member to its item.
+
+    The selector must read one declared array field, possibly through a
+    value-preserving operation. A null or empty array produces no rows; every
+    other field is preserved on each output row.
+    """
+    from ...model.public.row_sources import DerivedRowSource
+    from .shapes import make_shape_context
+
+    if not callable(selector):
+        raise TypeError("unnest requires a callable selector")
+    selected = selector(make_shape_context(source.shape))
+    if not isinstance(selected, (Selection, ExpressionNode)):
+        raise TypeError("unnest selectors must return an array Selection")
+    expression = as_expression(selected)
+    model = expression.model
+    field = _selected_field(model)
+    if field is None:
+        raise TypeError("unnest requires a selector that reads one declared field")
+    array = _base(expression.logical_type)
+    if not isinstance(array, ArrayType):
+        raise TypeError("unnest requires a present or nullable array field")
+    input_plan = row_source_plan_dto(source)
+    source_key = row_source_key(input_plan)
+    array_dto = _retarget(
+        expression_dto(model),
+        {shape_source_name(source.shape): source_key},
+    )
+    plan = RowUnnestDTO(input_plan, field, array_dto)
+    fields = tuple(
+        ShapeField(item.attribute, item.name, array.item)
+        if item.name == field else item
+        for item in shape_fields(source.shape)
+    )
+    return DerivedRowSource(
+        shape=make_row_shape(row_source_key(plan), fields),
+        source=_root_source(source),
+        plan_dto=plan,
+    )
+
+
 def derive_distinct(source: Any) -> Any:
     """Drop duplicate rows without changing the shape."""
     from ...model.public.row_sources import DerivedRowSource
@@ -511,7 +592,8 @@ def row_source_plan_dto(value: Any) -> RowSourcePlanDTO:
 __all__ = [
     "as_row_source", "declaration_source_name", "derive_distinct",
     "derive_group_by", "derive_join", "derive_order_by", "derive_row_source",
-    "derive_union", "derive_where", "plan_expressions", "plan_fields",
-    "plan_inputs", "plan_scan_sources", "plan_shape_source_name",
-    "retarget_expression_dto", "row_source_key", "row_source_plan_dto",
+    "derive_union", "derive_unnest", "derive_where", "plan_expressions",
+    "plan_fields", "plan_inputs", "plan_scan_sources",
+    "plan_shape_source_name", "retarget_expression_dto", "row_source_key",
+    "row_source_plan_dto",
 ]

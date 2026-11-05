@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping
+from typing import Any
 
 from kg_build_system.distribution.languages.data.model.internal import (
     ProjectionDTO,
@@ -18,6 +19,7 @@ def projection_sql(
     projection: ProjectionDTO,
     *,
     engine: SqlEmitter,
+    shapes: Mapping[str, Any] | None = None,
 ) -> str:
     """Render one projection's outputs through the configured SQL emitter."""
     outputs = {
@@ -25,7 +27,7 @@ def projection_sql(
         for column in projection.columns
         if column.expression is not None
     }
-    return product_sql(outputs, relations, engine=engine)
+    return product_sql(outputs, relations, engine=engine, shapes=shapes)
 
 
 __all__ = ["projection_sql"]

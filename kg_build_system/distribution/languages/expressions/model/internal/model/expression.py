@@ -10,6 +10,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from typing import Literal, TypeAlias
 
+from kg_build_system.distribution.model.public.refs import RelationRef
 from kg_build_system.kernel.model.internal.json import FrozenJson
 from kg_build_system.kernel.model.public.types import LogicalType
 
@@ -140,13 +141,34 @@ class OperationExpression(ExpressionNode):
             )
 
 
+@dataclass(frozen=True, slots=True, kw_only=True)
+class LookupExpression(ExpressionNode):
+    """A value lookup over one named relation and one target key column.
+
+    The key is evaluated in the current row. The value is the array of matching
+    target records, or null when there is no match. A null key never matches.
+    """
+
+    relation: RelationRef
+    target_field: str
+    key: ExpressionNode
+
+    def __post_init__(self) -> None:
+        if not self.relation.name:
+            raise ValueError("lookups require a named target relation")
+        if not self.target_field:
+            raise ValueError("lookups require a target key field")
+
+
 Expression: TypeAlias = (
-    LiteralExpression | FieldReferenceExpression | OperationExpression | VariableExpression
+    LiteralExpression | FieldReferenceExpression | LookupExpression
+    | OperationExpression | VariableExpression
 )
 
 
 __all__ = [
     "Expression", "ExpressionNode", "FieldReferenceExpression", "LiteralExpression",
-    "OperationExpression", "OperationParameter", "PRESERVE_ROWS", "RowEffect",
-    "RowSemantics", "Traversal", "VariableExpression",
+    "LookupExpression", "OperationExpression", "OperationParameter",
+    "PRESERVE_ROWS", "RowEffect", "RowSemantics", "Traversal",
+    "VariableExpression",
 ]

@@ -6,7 +6,7 @@ from typing import TYPE_CHECKING, TypeVar
 
 from ...model.internal.model import (
     Expression, ExpressionNode, FieldReferenceExpression, LiteralExpression,
-    OperationExpression, VariableExpression,
+    LookupExpression, OperationExpression, VariableExpression,
 )
 from .build import with_arguments
 
@@ -24,6 +24,8 @@ def visit_expression(
         return visitor.visit_literal(expression)
     if isinstance(expression, FieldReferenceExpression):
         return visitor.visit_field_reference(expression)
+    if isinstance(expression, LookupExpression):
+        return visitor.visit_lookup(expression)
     if isinstance(expression, OperationExpression):
         return visitor.visit_operation(expression)
     if isinstance(expression, VariableExpression):
@@ -34,6 +36,8 @@ def visit_expression(
 def walk_expression(expression: ExpressionNode) -> Iterator[ExpressionNode]:
     """Yield an expression tree in deterministic pre-order."""
     yield expression
+    if isinstance(expression, LookupExpression):
+        yield from walk_expression(expression.key)
     if isinstance(expression, OperationExpression):
         for argument in expression.arguments:
             yield from walk_expression(argument)
@@ -45,6 +49,12 @@ def rewrite_expression(
 ) -> ExpressionNode:
     """Rewrite children first, preserving unchanged operation identities."""
     current = expression
+    if isinstance(expression, LookupExpression):
+        key = rewrite_expression(expression.key, transform)
+        if key != expression.key:
+            import dataclasses
+
+            current = dataclasses.replace(expression, key=key)
     if isinstance(expression, OperationExpression):
         arguments = tuple(
             rewrite_expression(argument, transform)

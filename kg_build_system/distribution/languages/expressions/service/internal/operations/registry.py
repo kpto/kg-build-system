@@ -30,6 +30,7 @@ from .struct_field import STRUCT_FIELD
 from .subtract import SUBTRACT
 from .to_string import TO_STRING
 from .transform_items import TRANSFORM_ITEMS
+from .zip import ZIP
 
 DEFAULT_OPERATIONS = OperationRegistry((
     ADD,
@@ -56,6 +57,7 @@ DEFAULT_OPERATIONS = OperationRegistry((
     EXPAND,
     DROP_NULL,
     DROP_IF,
+    ZIP,
 ))
 
 __all__ = ["DEFAULT_OPERATIONS"]
