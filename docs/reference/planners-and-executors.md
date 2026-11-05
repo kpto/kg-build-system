@@ -62,10 +62,10 @@ kind, a missing declared resource and a plan instruction with no executor.
 | Planner | Package | `component_id` | Configuration |
 | --- | --- | --- | --- |
 | `DuckDbSourcePlanner` | `distribution.modules.duckdb` | `duckdb` | `formats`, `union_by_name` |
-| `RowSourcePlanner` | `distribution.modules.core` | `core` | none; optional `engine` SQL emitter |
-| `ProjectionPlanner` | `distribution.modules.core` | `core` | none; optional `engine` SQL emitter |
-| `BindingPlanner` | `distribution.modules.core` | `core` | none; optional `engine` SQL emitter |
-| `RecordsPlanner` | `distribution.modules.core` | `core` | none; optional `engine` SQL emitter |
+| `RowSourcePlanner` | `distribution.modules.core` | `core` | required `engine` SQL emitter; `compile` injects DuckDB's |
+| `ProjectionPlanner` | `distribution.modules.core` | `core` | required `engine` SQL emitter; `compile` injects DuckDB's |
+| `BindingPlanner` | `distribution.modules.core` | `core` | required `engine` SQL emitter; `compile` injects DuckDB's |
+| `RecordsPlanner` | `distribution.modules.core` | `core` | required `engine` SQL emitter; `compile` injects DuckDB's |
 | `DeduplicationPlanner` | `distribution.modules.deduplication` | `deduplication` | none |
 | `MergingPlanner` | `distribution.modules.merging` | `merging` | `MergingConfiguration(components=None)` |
 | `ConflictValidationPlanner` | `distribution.modules.conflict_validation` | `conflict_validation` | `ConflictValidationConfiguration(fail_on_error=True)` |
@@ -76,19 +76,22 @@ kind, a missing declared resource and a plan instruction with no executor.
 ### Core planners
 
 ```python
-core_planners(*, engine: DuckDbSqlEmitter | None = None)
-RowSourcePlanner(*, engine: DuckDbSqlEmitter | None = None)
-ProjectionPlanner(*, engine: DuckDbSqlEmitter | None = None)
-BindingPlanner(*, engine: DuckDbSqlEmitter | None = None)
-RecordsPlanner(*, engine: DuckDbSqlEmitter | None = None)
+core_planners(*, engine: SqlEmitter)
+RowSourcePlanner(*, engine: SqlEmitter)
+ProjectionPlanner(*, engine: SqlEmitter)
+BindingPlanner(*, engine: SqlEmitter)
+RecordsPlanner(*, engine: SqlEmitter)
 ```
 
-The core module owns four planners that share `component_id="core"` and one
-`CorePlan` in `PlanContext.shared["core.plan"]`. `core_planners()` returns them in
-assembled order: row-source, projection, binding and records. Together they emit
-row-source, projection, binding and aggregate steps. SQL steps use
-`("sql", "duckdb")`. `compile` adds the four before your planners when no planner
-reports `component_id == "core"`.
+`SqlEmitter` is the neutral SQL-emitter protocol in
+`distribution.service.internal.emission`; `DuckDbSqlEmitter` implements it. The
+core module owns four planners that share `component_id="core"` and one
+`CorePlan` in `PlanContext.shared["core.plan"]`. `core_planners(engine=...)`
+returns them in assembled order: row-source, projection, binding and records.
+Together they emit row-source, projection, binding and aggregate steps. SQL steps
+use the emitter's instruction kind, which is `("sql", "duckdb")` for the default
+emitter. `compile` injects `DuckDbSqlEmitter()` and adds the four before your
+planners when no planner reports `component_id == "core"`.
 
 ### `DuckDbSourcePlanner`
 

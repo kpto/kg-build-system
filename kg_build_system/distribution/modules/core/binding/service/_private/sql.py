@@ -12,9 +12,7 @@ from kg_build_system.distribution.modules.core.service._private.planning.emissio
     product_sql,
     retarget_expression,
 )
-from kg_build_system.distribution.modules.duckdb.service.internal.emitters import (
-    DuckDbSqlEmitter,
-)
+from kg_build_system.distribution.service.internal.emission import SqlEmitter
 from kg_build_system.kernel.model.internal.types.dto import LogicalTypeDTO
 from .guards import binding_guard_projection, binding_rename_projection
 
@@ -40,7 +38,7 @@ def binding_sql(
     relations: Mapping[str, str],
     binding: BindingDTO,
     *,
-    engine: DuckDbSqlEmitter | None = None,
+    engine: SqlEmitter,
 ) -> str:
     """Emit one binding as the SQL of its graph records, guards included."""
     property_types = binding_property_types(graph, binding)

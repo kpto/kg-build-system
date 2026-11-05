@@ -13,11 +13,11 @@ from kg_build_system.distribution.modules.core.records.service.public.planner im
 from kg_build_system.distribution.modules.core.row_source.service.public.planner import (
     RowSourcePlanner,
 )
-from kg_build_system.distribution.modules.duckdb import DuckDbSqlEmitter
+from kg_build_system.distribution.service.internal.emission import SqlEmitter
 
 
 def core_planners(
-    *, engine: DuckDbSqlEmitter | None = None,
+    *, engine: SqlEmitter,
 ) -> tuple[
     RowSourcePlanner,
     ProjectionPlanner,
@@ -27,13 +27,15 @@ def core_planners(
     """Return the four core planners in assembled plan order.
 
     The generic DuckDB source planner is not a core planner; it is added by the
-    default toolchain before this group.
+    default toolchain before this group. The caller supplies the engine's SQL
+    emitter; the composition root injects the DuckDB one by default.
 
     Example:
         ```python
         from kg_build_system.distribution.modules.core import core_planners
+        from kg_build_system.distribution.modules.duckdb import DuckDbSqlEmitter
 
-        planners = core_planners()
+        planners = core_planners(engine=DuckDbSqlEmitter())
         assert len(planners) == 4
         ```
     """

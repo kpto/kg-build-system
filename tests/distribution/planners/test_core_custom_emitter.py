@@ -33,6 +33,10 @@ from kg_build_system.distribution.languages.expressions.service.internal import 
     is_unit,
 )
 from kg_build_system.distribution.modules.core import core_planners
+from kg_build_system.distribution.service.internal.emission import (
+    RelationSqlEmitter,
+    SqlEmitter,
+)
 from kg_build_system.kernel import INT, PlanContext
 
 
@@ -78,6 +82,12 @@ class DoubleNode(Node):
 
 
 class CoreCustomEmitterTests(unittest.TestCase):
+    def test_duckdb_sql_emitter_implements_the_engine_protocol(self) -> None:
+        emitter = DuckDbSqlEmitter()
+
+        self.assertIsInstance(emitter, SqlEmitter)
+        self.assertIsInstance(emitter.instruction_emitter, RelationSqlEmitter)
+
     def test_core_planner_uses_the_supplied_instruction_emitter(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             csv = Path(directory) / "rows.csv"

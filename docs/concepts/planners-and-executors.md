@@ -72,10 +72,11 @@ records of their own.
 
 The core module has four planners — `RowSourcePlanner`, `ProjectionPlanner`,
 `BindingPlanner` and `RecordsPlanner` — all with `component_id="core"` and the
-same `version` and `runtime_fields`. `core_planners()` returns them in assembled
-order; they share one `CorePlan` in `PlanContext.shared["core.plan"]`. Together
-they emit row-source, projection, binding and aggregate steps. Their SQL steps
-use `("sql", "duckdb")`; the DuckDB module's `DuckDbExecutor` runs them.
+same `version` and `runtime_fields`. `core_planners(engine=...)` returns them in
+assembled order; they share one `CorePlan` in `PlanContext.shared["core.plan"]`.
+Together they emit row-source, projection, binding and aggregate steps. Their SQL
+steps use the injected emitter's kind, which is `("sql", "duckdb")` for the
+default emitter; the DuckDB module's `DuckDbExecutor` runs them.
 
 The DuckDB module also supplies `DuckDbSourcePlanner`, the generic source planner
 with `component_id="duckdb"`. It reads each relation's `AssetLayout`, emits one
@@ -94,8 +95,8 @@ not a protocol or a registry entry. `core`, `deduplication`, `merging`,
 The DuckDB module is more than an executor. It supplies `DuckDbSourcePlanner`
 for asset-backed sources, `DuckDbExecutor` for the SQL kinds,
 `DuckDbResourceProvider` for the live engine, `DuckDbService` as the engine
-resource, and `DuckDbSqlEmitter` for SQL text. The core planners use the emitter;
-the executor uses the service.
+resource, and `DuckDbSqlEmitter` for SQL text. The core planners use the injected
+emitter; the executor uses the service.
 
 ## Rewriting planners
 

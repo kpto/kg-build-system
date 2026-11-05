@@ -12,6 +12,7 @@ from kg_build_system.distribution import (
 )
 from kg_build_system.distribution.interpreter import create_blueprint
 from kg_build_system.distribution.modules.core import core_planners
+from kg_build_system.distribution.modules.duckdb import DuckDbSqlEmitter
 from kg_build_system.kernel import (
     InstructionKind, Key, Output, PlanContext, Publication,
 )
@@ -27,7 +28,7 @@ class DeduplicationPlannerTests(unittest.TestCase):
         context = PlanContext()
         cls.core_steps = tuple(
             step
-            for planner in core_planners()
+            for planner in core_planners(engine=DuckDbSqlEmitter())
             for step in planner.plan(cls.blueprint, context)
         )
         cls.steps = tuple(

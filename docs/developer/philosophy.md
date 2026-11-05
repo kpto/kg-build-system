@@ -238,7 +238,8 @@ The remaining limits are:
 - DuckDB is the default SQL emitter;
 - a Python instruction is a reference, not the callable body;
 - public `GraphBlueprint` fields reference internal language DTOs;
-- the core planners depend on the DuckDB SQL emitter.
+- the core planners require an injected `SqlEmitter`; the composition root
+  injects DuckDB's emitter by default.
 
 Verification: 228 tests passed, 1753 subtests; pyright 0 errors; the Open Targets
 project passes 7 tests against the API.

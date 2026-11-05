@@ -4,7 +4,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from kg_build_system.distribution.interpreter.model.public import GraphBlueprint
-from kg_build_system.distribution.modules.duckdb import DuckDbSqlEmitter
+from kg_build_system.distribution.service.internal.emission import SqlEmitter
 from kg_build_system.kernel import PlanContext, RuntimeField, Step
 
 
@@ -15,7 +15,7 @@ class ProjectionPlanner:
     version = "4"
     runtime_fields: tuple[RuntimeField, ...] = ()
 
-    def __init__(self, *, engine: DuckDbSqlEmitter | None = None) -> None:
+    def __init__(self, *, engine: SqlEmitter) -> None:
         self._engine = engine
 
     def plan(

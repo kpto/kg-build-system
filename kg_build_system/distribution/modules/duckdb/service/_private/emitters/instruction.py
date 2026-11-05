@@ -9,6 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from typing import Any
 
+from kg_build_system.distribution.service.internal.emission import RelationPlan
 from kg_build_system.kernel import Instruction, InstructionKind
 
 from .emitter import DuckDbInstructionEmitter
@@ -25,7 +26,7 @@ class DuckDbSqlEmitter:
         default_factory=DuckDbInstructionEmitter,
     )
 
-    def emit(self, plan: Any, context: Any = None) -> Instruction:
+    def emit(self, plan: RelationPlan, context: Any = None) -> Instruction:
         """Render one relation plan as DuckDB SQL and wrap it as an instruction."""
         sql = self.instruction_emitter.relation_sql(plan)
         payload: dict[str, Any] = {"sql": sql}

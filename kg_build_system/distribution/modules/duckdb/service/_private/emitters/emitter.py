@@ -22,7 +22,10 @@ from .row_sources.context import PlanContext
 from .sql import SqlNode, identifier, present_filter
 
 from kg_build_system.distribution.languages.expressions.model.internal import ExpressionDTO
-from .plan import Filter, RelationPlan
+from kg_build_system.distribution.service.internal.emission import (
+    Filter,
+    RelationPlan,
+)
 from kg_build_system.distribution.languages.data.model.public import ShapeField
 from kg_build_system.distribution.languages.data.model.internal.dto import RowSourcePlanDTO
 

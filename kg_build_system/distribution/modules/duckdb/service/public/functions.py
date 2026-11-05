@@ -12,10 +12,10 @@ from kg_build_system.distribution.languages.data.model.public.shapes import (
 from kg_build_system.distribution.languages.expressions.model.internal import (
     ExpressionDTO,
 )
+from kg_build_system.distribution.service.internal.emission import RelationPlan
 
 from ..internal import (
     DuckDbInstructionEmitter,
-    RelationPlan,
     expression_sql as _expression_sql,
     relation_sql as _relation_sql,
     row_source_sql as _row_source_sql,

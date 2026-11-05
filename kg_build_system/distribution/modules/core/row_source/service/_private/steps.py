@@ -17,10 +17,8 @@ from kg_build_system.distribution.modules.core.service._private.planning.artifac
 from kg_build_system.distribution.modules.core.service._private.planning.plan import (
     CorePlan,
 )
-from kg_build_system.distribution.modules.duckdb.service.internal.emitters import (
-    DuckDbSqlEmitter,
-)
-from kg_build_system.kernel import Instruction, InstructionKind, Output, Step
+from kg_build_system.distribution.service.internal.emission import SqlEmitter
+from kg_build_system.kernel import Instruction, Output, Step
 from .sql import row_source_sql
 
 
@@ -28,7 +26,7 @@ def row_source_step(
     plan: RowSourcePlanDTO,
     core_plan: CorePlan,
     *,
-    engine: DuckDbSqlEmitter | None = None,
+    engine: SqlEmitter,
 ) -> Step:
     """One step that materialises a derived row-source plan."""
     key = row_source_key(plan)
@@ -46,7 +44,7 @@ def row_source_step(
             )
         ),
         outputs=(Output(CoreArtifactTypes.row_source(key)),),
-        instruction=Instruction(InstructionKind("sql", "duckdb"), {
+        instruction=Instruction(engine.kind, {
             "relation": core_plan.row_source_relations[key],
             "sql": row_source_sql(
                 plan,
@@ -59,7 +57,7 @@ def row_source_step(
 
 
 def row_source_steps(
-    core_plan: CorePlan, *, engine: DuckDbSqlEmitter | None = None,
+    core_plan: CorePlan, *, engine: SqlEmitter,
 ) -> tuple[Step, ...]:
     """Every row-source step, children before the plans that read them."""
     return tuple(

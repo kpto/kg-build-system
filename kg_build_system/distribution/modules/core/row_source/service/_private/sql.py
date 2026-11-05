@@ -10,10 +10,7 @@ from kg_build_system.distribution.languages.data.model.internal import (
 from kg_build_system.distribution.modules.core.service._private.planning.emission import (
     instruction_emitter,
 )
-from kg_build_system.distribution.modules.duckdb.service.internal.emitters import (
-    DuckDbSqlEmitter,
-    row_source_sql as emit_row_source_sql,
-)
+from kg_build_system.distribution.service.internal.emission import SqlEmitter
 
 
 def row_source_sql(
@@ -21,11 +18,11 @@ def row_source_sql(
     relations: Mapping[str, str],
     shapes: Mapping[str, Any],
     *,
-    engine: DuckDbSqlEmitter | None = None,
+    engine: SqlEmitter,
 ) -> str:
     """Render one row-source plan with the supplied SQL emitter."""
-    return emit_row_source_sql(
-        plan, relations, shapes, emitter=instruction_emitter(engine),
+    return instruction_emitter(engine).emit_row_source(
+        plan, relations, shapes,
     )
 
 

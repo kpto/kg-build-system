@@ -23,7 +23,11 @@ from kg_build_system.kernel.model.internal.types.dto import (
 )
 from kg_build_system.kernel.service.internal.types import type_from_document
 
-from ...model.public.sql_types import ArraySqlType, SqlType, canonical_sql_type
+from kg_build_system.distribution.service.internal.emission import (
+    ArraySqlType,
+    SqlType,
+    canonical_sql_type,
+)
 from ...service._private.engine.parquet_metadata import (
     read_declared_null_statistics,
 )

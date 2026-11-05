@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from .service.public import (
-    ArraySqlType,
     DuckDbExecutor,
     DuckDbInstructionEmitter,
     DuckDbResourceProvider,
@@ -15,15 +14,12 @@ from .service.public import (
     RelationQueryResult,
     RelationRef,
     RelationService,
-    SqlType,
-    canonical_sql_type,
     expression_sql,
     relation_sql,
     row_source_sql,
 )
 
 __all__ = [
-    "ArraySqlType",
     "DuckDbExecutor",
     "DuckDbInstructionEmitter",
     "DuckDbResourceProvider",
@@ -36,8 +32,6 @@ __all__ = [
     "RelationQueryResult",
     "RelationRef",
     "RelationService",
-    "SqlType",
-    "canonical_sql_type",
     "expression_sql",
     "relation_sql",
     "row_source_sql",

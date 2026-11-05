@@ -16,10 +16,8 @@ from kg_build_system.distribution.modules.core.service._private.planning.emissio
 from kg_build_system.distribution.modules.core.service._private.planning.plan import (
     CorePlan,
 )
-from kg_build_system.distribution.modules.duckdb.service.internal.emitters import (
-    DuckDbSqlEmitter,
-)
-from kg_build_system.kernel import Instruction, InstructionKind, Output, Step
+from kg_build_system.distribution.service.internal.emission import SqlEmitter
+from kg_build_system.kernel import Instruction, Output, Step
 from .sql import projection_sql
 
 
@@ -27,7 +25,7 @@ def projection_step(
     core_plan: CorePlan,
     projection: ProjectionDTO,
     *,
-    engine: DuckDbSqlEmitter | None = None,
+    engine: SqlEmitter,
 ) -> Step:
     """One step that materialises a declared projection."""
     return Step(
@@ -42,7 +40,7 @@ def projection_step(
             for name in sorted(projection_sources(projection))
         ),
         outputs=(Output(CoreArtifactTypes.projection(projection.name)),),
-        instruction=Instruction(InstructionKind("sql", "duckdb"), {
+        instruction=Instruction(engine.kind, {
             "relation": core_plan.projection_relations[projection.name],
             "sql": projection_sql(
                 core_plan.relations, projection, engine=engine,
@@ -52,7 +50,7 @@ def projection_step(
 
 
 def projection_steps(
-    core_plan: CorePlan, *, engine: DuckDbSqlEmitter | None = None,
+    core_plan: CorePlan, *, engine: SqlEmitter,
 ) -> tuple[Step, ...]:
     """Every projection step, in dependency order."""
     return tuple(

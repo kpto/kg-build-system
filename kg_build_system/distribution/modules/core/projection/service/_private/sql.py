@@ -10,16 +10,14 @@ from kg_build_system.distribution.modules.core.service._private.planning.emissio
     product_sql,
     retarget_expression,
 )
-from kg_build_system.distribution.modules.duckdb.service.internal.emitters import (
-    DuckDbSqlEmitter,
-)
+from kg_build_system.distribution.service.internal.emission import SqlEmitter
 
 
 def projection_sql(
     relations: Mapping[str, str],
     projection: ProjectionDTO,
     *,
-    engine: DuckDbSqlEmitter | None = None,
+    engine: SqlEmitter,
 ) -> str:
     """Render one projection's outputs through the configured SQL emitter."""
     outputs = {

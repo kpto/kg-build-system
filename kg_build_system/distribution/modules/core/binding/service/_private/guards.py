@@ -13,7 +13,7 @@ from kg_build_system.distribution.modules.core.service._private.planning.emissio
     binding_outputs,
     sql_type_for,
 )
-from kg_build_system.distribution.modules.duckdb.service.internal.emitters import (
+from kg_build_system.distribution.service.internal.emission import (
     NULL_GUARD_MACRO,
     canonical_sql_type,
 )

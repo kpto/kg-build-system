@@ -9,13 +9,8 @@ from kg_build_system.distribution.service.internal.relations import (
     RelationService,
 )
 
-from ...model.public import (
-    RelationQueryResult,
-    RelationRef,
-    canonical_sql_type,
-)
+from ...model.public import RelationQueryResult, RelationRef
 from ..internal import (
-    ArraySqlType,
     DuckDbExecutor,
     DuckDbInstructionEmitter,
     DuckDbResourceProvider,
@@ -24,14 +19,11 @@ from ..internal import (
     EmissionContext,
     ExpressionEmitter,
     Operand,
-    RelationPlan,
-    SqlType,
 )
 from .functions import expression_sql, relation_sql, row_source_sql
 from .planner import DuckDbSourcePlanner
 
 __all__ = [
-    "ArraySqlType",
     "DuckDbExecutor",
     "DuckDbInstructionEmitter",
     "DuckDbResourceProvider",
@@ -44,8 +36,6 @@ __all__ = [
     "RelationQueryResult",
     "RelationRef",
     "RelationService",
-    "SqlType",
-    "canonical_sql_type",
     "expression_sql",
     "relation_sql",
     "row_source_sql",

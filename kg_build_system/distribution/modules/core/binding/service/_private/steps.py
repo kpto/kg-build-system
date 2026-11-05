@@ -17,10 +17,8 @@ from kg_build_system.distribution.modules.core.service._private.planning.emissio
 from kg_build_system.distribution.modules.core.service._private.planning.plan import (
     CorePlan,
 )
-from kg_build_system.distribution.modules.duckdb.service.internal.emitters import (
-    DuckDbSqlEmitter,
-)
-from kg_build_system.kernel import Instruction, InstructionKind, Output, Step
+from kg_build_system.distribution.service.internal.emission import SqlEmitter
+from kg_build_system.kernel import Instruction, Output, Step
 from .sql import binding_sql
 
 
@@ -39,7 +37,7 @@ def binding_step(
     index: int,
     core_plan: CorePlan,
     *,
-    engine: DuckDbSqlEmitter | None = None,
+    engine: SqlEmitter,
 ) -> Step:
     """One step that materialises one binding's rows."""
     symbol = binding_symbol(binding, index)
@@ -60,7 +58,7 @@ def binding_step(
         outputs=(
             Output(CoreArtifactTypes.binding(binding.component, index)),
         ),
-        instruction=Instruction(InstructionKind("sql", "duckdb"), {
+        instruction=Instruction(engine.kind, {
             "relation": f"kg_binding_{index}",
             "sql": (
                 f"SELECT *, '{symbol}' AS _kg_binding_symbol "
@@ -74,7 +72,7 @@ def binding_steps(
     blueprint: GraphBlueprint,
     core_plan: CorePlan,
     *,
-    engine: DuckDbSqlEmitter | None = None,
+    engine: SqlEmitter,
 ) -> tuple[Step, ...]:
     """Every binding step, in blueprint binding order."""
     return tuple(

@@ -30,40 +30,28 @@ from dataclasses import dataclass
 import re
 from typing import Final, Literal
 
-from kg_build_system.kernel.model.public.types import (
-    UnitTypeName,
-    is_canonical_unit_name,
+from kg_build_system.distribution.model.internal import (
+    ARRAY_CANONICAL,
+    STRUCT_CANONICAL,
+    CanonicalTypeName,
 )
 
 __all__ = [
     "ARRAY_CANONICAL",
-    "CANONICAL_SQL_TYPES",
     "DIGEST_TABLE",
     "EXTENSION_CONDITIONAL_TYPE_NAMES",
     "STRUCT_CANONICAL",
     "TYPE_NAME_ALIASES",
-    "ArraySqlType",
     "CanonicalDigest",
     "DeclaredOnlyDigest",
     "RefusedDigest",
     "CanonicalTypeName",
     "DigestDisposition",
-    "SqlType",
-    "StructSqlType",
     "TypeDigest",
-    "canonical_sql_type",
     "canonical_type_name",
     "digest_for",
 ]
 
-#: The canonical name of the ordered-collection shape. Lowercase like a canonical
-#: unit name; a container composes its SQL type from its item type.
-ARRAY_CANONICAL: Final = "array"
-
-#: The canonical name of the nested-record shape, composed from its members.
-STRUCT_CANONICAL: Final = "struct"
-
-type CanonicalTypeName = UnitTypeName | Literal["array", "struct"]
 type DigestDisposition = Literal["canonical", "declared_only", "refused"]
 
 
@@ -247,44 +235,6 @@ TYPE_NAME_ALIASES: Final[dict[str, str]] = {
 #: table because a definition that uses one is still a definition to refuse.
 EXTENSION_CONDITIONAL_TYPE_NAMES: Final = frozenset({"GEOGRAPHY"})
 
-#: The SQL type the source view casts each canonical unit type to, per plan
-#: section 5. A container composes its SQL type from its item or member types.
-CANONICAL_SQL_TYPES: Final[dict[UnitTypeName, str]] = {
-    "bool": "BOOLEAN",
-    "int": "BIGINT",
-    "float": "DOUBLE",
-    "str": "VARCHAR",
-    "date": "DATE",
-    "time": "TIME",
-    "timestamp": "TIMESTAMP",
-    "uuid": "UUID",
-}
-
-
-@dataclass(frozen=True, slots=True)
-class ArraySqlType:
-    """An ordered collection whose SQL type is composed from one item type."""
-
-    item: "SqlType"
-
-
-@dataclass(frozen=True, slots=True)
-class StructSqlType:
-    """A nested record whose SQL type is composed from its members, in order.
-
-    SQL types carry no nullability, so a member is a name and a type and nothing
-    else; a member name is quoted as it is written unless it needs no quotes.
-    """
-
-    members: tuple[tuple[str, "SqlType"], ...]
-
-
-#: A canonical type as SQL is written from it: a canonical unit name, or one of
-#: the two container shapes composed from the types below it.
-type SqlType = CanonicalTypeName | ArraySqlType | StructSqlType
-
-_SIMPLE_IDENTIFIER = re.compile(r"^[a-z_][a-z0-9_]*$")
-
 _PARAMETER_LIST = re.compile(r"\s*\(.*\)$")
 
 
@@ -321,41 +271,3 @@ def digest_for(value: str) -> TypeDigest | None:
         return digest
     target = TYPE_NAME_ALIASES.get(name)
     return DIGEST_TABLE.get(target) if target is not None else None
-
-
-def canonical_sql_type(canonical: SqlType) -> str:
-    """The SQL a canonical type is written as, composed from its parts.
-
-    A canonical unit type has one SQL type of its own — ``CANONICAL_SQL_TYPES``,
-    plan section 5 — and a container composes its SQL from its item or member
-    types, so ``Array[int]`` is ``BIGINT[]`` and ``Struct{a: int}`` is
-    ``STRUCT(a BIGINT)``. A bare container name has no parts to compose from and
-    is the one thing this function refuses.
-
-    Example:
-        ```python
-        assert canonical_sql_type(ArraySqlType("int")) == "BIGINT[]"
-        ```
-    """
-    if isinstance(canonical, ArraySqlType):
-        return f"{canonical_sql_type(canonical.item)}[]"
-    if isinstance(canonical, StructSqlType):
-        if not canonical.members:
-            raise ValueError("a struct SQL type composes its SQL from its members")
-        return "STRUCT({})".format(", ".join(
-            f"{sql_identifier(name)} {canonical_sql_type(member)}"
-            for name, member in canonical.members
-        ))
-    if not is_canonical_unit_name(canonical):
-        raise ValueError(
-            f"canonical {canonical!r} composes its SQL type from its item or "
-            "member types; only a canonical unit type has one of its own"
-        )
-    return CANONICAL_SQL_TYPES[canonical]
-
-
-def sql_identifier(value: str) -> str:
-    """A struct member name as SQL: quoted only where it has to be."""
-    if _SIMPLE_IDENTIFIER.fullmatch(value):
-        return value
-    return '"' + value.replace('"', '""') + '"'

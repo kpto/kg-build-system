@@ -127,7 +127,7 @@ kg_build_system/
       runtime/
     service/             the distribution leaf's service zone
       public/create.py
-      internal/{execution,relations,rendering}.py
+      internal/{emission,execution,relations,rendering}.py
       _private/{execution,rendering}.py
     implementations.py   language and linker implementations
   generation/
@@ -474,7 +474,8 @@ This is how core is split:
 | `RecordsPlanner` | aggregate record steps |
 
 All four report `component_id="core"` and the same version and runtime fields.
-`core_planners()` returns them in assembled order. They share one `CorePlan` in
+`core_planners(engine=...)` returns them in assembled order; the engine is the
+distribution's neutral `SqlEmitter` protocol. They share one `CorePlan` in
 `PlanContext.shared["core.plan"]`.
 
 The generic `DuckDbSourcePlanner` is a separate planner with
@@ -589,6 +590,9 @@ class Runtime(Protocol):
   `component_id == "duckdb"`, the four core planners when no supplied planner
   reports `component_id == "core"`, the supplied planners, the default executors
   and a `WorkflowRuntime` with `RuntimeResources` and `DuckDbResourceProvider`.
+- `default_toolchain` injects `DuckDbSqlEmitter()` into the core planners unless
+  the caller supplies another `SqlEmitter`. The core planners import only the
+  neutral plan and protocol, never the DuckDB module.
 - `DEFAULT_TOOLCHAIN` is the default composition.
 - `create_blueprint` discovers declarations, links them and validates the
   blueprint.
@@ -610,14 +614,14 @@ root.
 
 | Module | Contents |
 | --- | --- |
-| `core` | four planners and one shared `CorePlan` |
+| `core` | four planners and one shared `CorePlan`; imports the neutral plan and emitter protocol |
 | `deduplication` | `DeduplicationPlanner` |
 | `merging` | `MergingPlanner` and its configuration |
 | `conflict_validation` | planner, report values and `ConflictReportExecutor` |
 | `file` | `FilePlanner` and `FileExecutor` |
 | `meta_graph` | `MetaGraphPlanner` and `MetaGraphExecutor` |
 | `neo4j` | `Neo4jPlanner` and `Neo4jExecutor` |
-| `duckdb` | `DuckDbSourcePlanner`, `DuckDbExecutor`, `DuckDbResourceProvider`, `DuckDbService`, SQL emitter |
+| `duckdb` | `DuckDbSourcePlanner`, `DuckDbExecutor`, `DuckDbResourceProvider`, `DuckDbService`, `DuckDbSqlEmitter` implementing the neutral protocol |
 | `python` | `PythonExecutor` |
 | `runtime` | `RuntimeResources` and executor helpers |
 
@@ -647,7 +651,8 @@ planner may emit a new kind and register its own executor.
 | `("neo4j", "default")` | `{kind: "export_component" | "write_script", ...}` |
 
 `DuckDbSourcePlanner` emits `InstructionKind("source_relation", "duckdb")`. The
-four core planners emit `InstructionKind("sql", "duckdb")` and
+four core planners emit the injected emitter's kind, which is
+`InstructionKind("sql", "duckdb")` for `DuckDbSqlEmitter`, and
 `InstructionKind("aggregate", "duckdb")`. `DuckDbExecutor` owns all three. `DeduplicationPlanner`, `MergingPlanner` and
 `ConflictValidationPlanner` emit the other DuckDB kinds.
 
@@ -660,7 +665,7 @@ same module.
 
 | Component | Class | Module | Responsibility |
 | --- | --- | --- | --- |
-| `core` | `core_planners()` (`RowSourcePlanner`, `ProjectionPlanner`, `BindingPlanner`, `RecordsPlanner`) | `modules.core` | row-source, projection, binding and aggregate steps |
+| `core` | `core_planners(engine=...)` (`RowSourcePlanner`, `ProjectionPlanner`, `BindingPlanner`, `RecordsPlanner`) | `modules.core` | row-source, projection, binding and aggregate steps |
 | `deduplication` | `DeduplicationPlanner` | `modules.deduplication` | one distinct step per bound record component |
 | `merging` | `MergingPlanner` | `modules.merging` | one merge step per component in scope |
 | `conflict_validation` | `ConflictValidationPlanner` / `ConflictReportExecutor` | `modules.conflict_validation` | findings steps and one deferred report step |
@@ -727,7 +732,6 @@ the dependency tests enforce the rest.
 | `distribution/languages/binding` | `kernel`, annotations, data, topology |
 | `distribution/interpreter` | `kernel`, every graph language |
 | `distribution/modules/<name>` | `kernel`, `distribution/interpreter` where it reads a blueprint, distribution languages, `distribution.model` and `distribution.service` |
-| `distribution/modules/core` | also the DuckDB module's SQL emitter |
 | `distribution/implementations.py` | `kernel`, interpreter, languages |
 | `distribution/service` | `kernel`, distribution languages, interpreter |
 | `generation/code_generation` | `kernel` and `distribution.languages.asset`; engine observation is read-only |
@@ -739,6 +743,11 @@ Two rules apply to every row:
 - the kernel imports no graph, data, topology, binding, SQL, DuckDB or Python
   package;
 - no package imports another package's private zones.
+
+The core module is one engine consumer, not the engine. It imports the neutral
+relation plan and `SqlEmitter` protocol from `distribution/service/internal`; it
+does not import `distribution/modules/duckdb`. A dependency test enforces that
+edge.
 
 The exact edge set is a model decision. A new edge is proposed with its reason,
 not added because a call site needs it.
@@ -818,7 +827,7 @@ The remaining limits are:
 | Limit | Current choice |
 | --- | --- |
 | A toolchain is the only composition unit. | There is no registry. A caller composes a `Toolchain` or uses `default_toolchain` in `api.py`. |
-| DuckDB is the default SQL emitter. | `DuckDbSqlEmitter` is the core module's SQL library; another engine supplies another emitter and executor. |
+| DuckDB is the default SQL emitter. | `DuckDbSqlEmitter` implements the neutral `SqlEmitter` protocol; `api.default_toolchain` injects it into the core planners. Another engine supplies another emitter and executor. |
 | A Python instruction is a reference. | `("python", "cpython")` carries `{module, qualname}`, not a live callable. |
 | Public `GraphBlueprint` fields reference internal language DTOs. | `GraphBlueprint` is public; its `graph`, `data`, `assets` and `bindings` fields are typed by language DTOs that are not exported public names. |
 | A language may share a struct graph name. | A repeated struct name takes its qualified Python name as an extra key segment; the blueprint still names the struct by its graph role. |

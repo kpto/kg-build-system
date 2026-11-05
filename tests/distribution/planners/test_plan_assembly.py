@@ -12,6 +12,7 @@ from kg_build_system.distribution import (
 )
 from kg_build_system.distribution.interpreter import create_blueprint
 from kg_build_system.distribution.modules.core import core_planners
+from kg_build_system.distribution.modules.duckdb import DuckDbSqlEmitter
 from kg_build_system.kernel import (
     InstructionKind, StepOutcome, StepStatus, Toolchain, step_id,
 )
@@ -46,7 +47,9 @@ class PlanAssemblyTests(unittest.TestCase):
             languages=(),
             linker=FakeLinker(),
             planners=(
-                DuckDbSourcePlanner(), *core_planners(), DeduplicationPlanner(),
+                DuckDbSourcePlanner(),
+                *core_planners(engine=DuckDbSqlEmitter()),
+                DeduplicationPlanner(),
             ),
             executors=(FakeExecutor(),),
         )
@@ -63,7 +66,7 @@ class PlanAssemblyTests(unittest.TestCase):
             linker=FakeLinker(),
             planners=(
                 DuckDbSourcePlanner(),
-                *core_planners(),
+                *core_planners(engine=DuckDbSqlEmitter()),
                 DeduplicationPlanner(),
                 FilePlanner(FileConfiguration("graph.jsonl")),
             ),

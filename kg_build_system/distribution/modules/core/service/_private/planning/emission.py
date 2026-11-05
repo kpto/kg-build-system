@@ -37,16 +37,15 @@ from kg_build_system.distribution.languages.expressions.service.internal import 
     expression_to_document,
     walk_expression_dto,
 )
-from kg_build_system.distribution.modules.duckdb.service.internal.emitters import (
+from kg_build_system.distribution.service.internal.emission import (
     ArraySqlType,
-    DuckDbInstructionEmitter,
-    DuckDbSqlEmitter,
     Expand,
     Filter,
     RelationPlan,
+    RelationSqlEmitter,
     Scan,
+    SqlEmitter,
     SqlType,
-    canonical_sql_type,
 )
 from kg_build_system.kernel.model.internal.types.dto import (
     ArrayTypeDTO,
@@ -68,17 +67,14 @@ def sql_type_for(declared: LogicalTypeDTO) -> SqlType | None:
     return None
 
 
-def sql_emitter(engine: DuckDbSqlEmitter | None) -> DuckDbSqlEmitter:
-    """The configured SQL emitter, or the default one."""
-    return engine if engine is not None else DuckDbSqlEmitter()
+def sql_emitter(engine: SqlEmitter) -> SqlEmitter:
+    """The configured SQL emitter."""
+    return engine
 
 
-def instruction_emitter(
-    engine: DuckDbSqlEmitter | None,
-) -> DuckDbInstructionEmitter:
+def instruction_emitter(engine: SqlEmitter) -> RelationSqlEmitter:
     """The instruction emitter behind a configured SQL emitter."""
-    emitter = sql_emitter(engine).instruction_emitter
-    return emitter if emitter is not None else DuckDbInstructionEmitter()
+    return sql_emitter(engine).instruction_emitter
 
 
 def expression_sources(expressions: Any) -> set[str]:
@@ -140,7 +136,7 @@ def product_sql(
     outputs: Mapping[str, ExpressionDTO],
     relations: Mapping[str, str],
     *,
-    engine: DuckDbSqlEmitter | None = None,
+    engine: SqlEmitter,
 ) -> str:
     """Render one relational product through the configured SQL emitter."""
     instruction = sql_emitter(engine).emit(plan_product(outputs, relations))

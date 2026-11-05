@@ -13,6 +13,7 @@ from kg_build_system.distribution import (
     create_blueprint,
 )
 from kg_build_system.distribution.modules.core import RowSourcePlanner, core_planners
+from kg_build_system.distribution.modules.duckdb import DuckDbSqlEmitter
 from kg_build_system.kernel import (
     InstructionKind, PlanContext, Step, Toolchain,
 )
@@ -33,7 +34,7 @@ class CorePlannersTests(unittest.TestCase):
         cls.blueprint = create_blueprint(
             namespace_path=Path("reference_project"),
         )
-        cls.planners = core_planners()
+        cls.planners = core_planners(engine=DuckDbSqlEmitter())
         cls.source_planner = DuckDbSourcePlanner()
         context = PlanContext()
         cls.steps = (
@@ -59,7 +60,7 @@ class CorePlannersTests(unittest.TestCase):
         self.assertEqual(self.source_planner.runtime_fields, ())
 
     def test_a_caller_supplied_core_planner_replaces_the_default_group(self) -> None:
-        supplied = RowSourcePlanner()
+        supplied = RowSourcePlanner(engine=DuckDbSqlEmitter())
 
         toolchain = default_toolchain(planners=(supplied,))
 
@@ -82,7 +83,7 @@ class CorePlannersTests(unittest.TestCase):
             linker=_FakeLinker(),
             planners=(
                 DuckDbSourcePlanner(),
-                *core_planners(),
+                *core_planners(engine=DuckDbSqlEmitter()),
                 FilePlanner(FileConfiguration("graph.jsonl")),
             ),
         )

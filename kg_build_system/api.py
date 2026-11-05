@@ -33,6 +33,7 @@ from .distribution import (
     DuckDbExecutor,
     DuckDbResourceProvider,
     DuckDbSourcePlanner,
+    DuckDbSqlEmitter,
     ExpressionsLanguage,
     FileExecutor,
     MetaGraphExecutor,
@@ -96,13 +97,16 @@ def default_toolchain(
     ```
     """
     configured: tuple[Any, ...] = tuple(planners)
+    selected_engine = engine if engine is not None else DuckDbSqlEmitter()
     sources: tuple[Any, ...] = (
         ()
         if any(planner.component_id == "duckdb" for planner in configured)
         else (DuckDbSourcePlanner(),)
     )
     if not any(planner.component_id == "core" for planner in configured):
-        configured = (*sources, *core_planners(engine=engine), *configured)
+        configured = (
+            *sources, *core_planners(engine=selected_engine), *configured,
+        )
     elif sources:
         configured = (*sources, *configured)
     return Toolchain(

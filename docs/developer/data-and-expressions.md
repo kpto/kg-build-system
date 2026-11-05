@@ -18,9 +18,10 @@ prove.
 | Projections | `distribution/languages/data` | a named relation with output expressions and a row source |
 | Data DTO | `distribution/languages/data/model/internal/dto/blueprint_dto.py` | the frozen data part of the blueprint |
 | Blueprint | `distribution/interpreter` | assembles the language DTOs into `GraphBlueprint` |
-| Relational plan | `distribution/modules/core/service/_private/planning` | engine-neutral relation plans and step planning |
-| Instruction emission | `distribution/modules/core` and `distribution/modules/duckdb` | turns a plan into a `("sql", "duckdb")` instruction |
-| SQL emitter | `distribution/modules/duckdb/service/_private/emitters` | emits DuckDB SQL for an instruction |
+| Relational plan | `distribution/service/internal/emission.py` | `RelationPlan`, `Scan`, `Expand`, `Filter` and the SQL-emitter protocol |
+| Core planning | `distribution/modules/core/service/_private/planning` | turns a blueprint into plan values and `Step`s |
+| Instruction emission | `distribution/modules/core` and `distribution/modules/duckdb` | turns a plan into an engine instruction |
+| SQL emitter | `distribution/modules/duckdb/service/_private/emitters` | implements the protocol and emits DuckDB SQL |
 | Engine boundary | `distribution/modules/duckdb` | opens and runs the engine through `DuckDbResourceProvider` |
 
 `data` is the graph language that owns row sources, projections and their
@@ -200,20 +201,37 @@ Planning reads a `GraphBlueprint` and runs each planner. The generic
 `DuckDbSourcePlanner` turns compatible asset layouts into
 `("source_relation", "duckdb")` steps. The four core planners decompose the rest
 of the blueprint into row sources, projections, bindings and aggregates, emit
-instructions through the DuckDB SQL emitter, and return `Step`s. The kernel assembles those steps into a `WorkflowPlan`. Planning does
-not read authoring declarations and does not call the blueprint package.
+instructions through an injected SQL emitter, and return `Step`s. The kernel
+assembles those steps into a `WorkflowPlan`. Planning does not read authoring
+declarations and does not call the blueprint package.
 
 ```text
 GraphBlueprint
-    -> DuckDbSourcePlanner() and core_planners()
+    -> DuckDbSourcePlanner() and core_planners(engine=DuckDbSqlEmitter())
     -> relation plans and SQL text
     -> Step(instruction=("source_relation" | "sql", "duckdb"), ...)
     -> WorkflowPlan
 ```
 
 The relational plan is engine-neutral. It describes scans, row effects, filters
-and outputs. The emitter turns that plan and the expression DTOs into SQL. The
-plan stores the instruction, not the engine's live objects.
+and outputs. The plan and the `SqlEmitter` protocol live in
+`distribution/service/internal/emission.py`; the engine implementation lives in
+its own module. The emitter turns the plan and the expression DTOs into SQL and
+wraps it in the engine's instruction kind. The plan stores the instruction and
+the expression DTOs, not SQL text and not the engine's live objects.
+
+The core planners import only the neutral plan and protocol. They never import
+`distribution/modules/duckdb`. The composition root supplies the concrete
+emitter: `api.default_toolchain` injects `DuckDbSqlEmitter()` unless the caller
+supplies another `SqlEmitter`. A caller composing the core planners directly
+passes the same emitter, as the diagram shows.
+
+The canonical SQL type values (`SqlType`, `ArraySqlType`, `StructSqlType` and
+`canonical_sql_type`) are part of the same neutral boundary. They compose a
+canonical type into a SQL spelling and carry no DuckDB syntax. The canonical
+container names they are built from live in
+`distribution/model/internal/canonical_types.py`; the DuckDB type digest gate
+reads those names without importing the service zone.
 
 A planner other than core receives the same linked `GraphBlueprint` and returns
 its own steps. A target planner such as `FilePlanner` consumes
@@ -277,10 +295,12 @@ The data model is implemented:
   delegates to the asset, data, topology and binding renderers and assembles
   their fragments.
 - `distribution/modules/duckdb` owns `DuckDbSourcePlanner`, which reads
-  `AssetLayout` and emits `("source_relation", "duckdb")` steps, plus the SQL
-  emitter, the executor and the engine resource.
-- `distribution/modules/core` owns the four core planners, the engine-neutral
-  relation plans and the `("sql", "duckdb")` steps.
+  `AssetLayout` and emits `("source_relation", "duckdb")` steps, plus the
+  `DuckDbSqlEmitter`, the executor and the engine resource.
+- `distribution/service/internal` owns the engine-neutral relation plan, the
+  canonical SQL type values and the `SqlEmitter` protocol.
+- `distribution/modules/core` owns the four core planners and the
+  `("sql", "duckdb")` steps; its planners accept an injected `SqlEmitter`.
 - The kernel scheduler dispatches on `step.instruction.kind`; SQL is one
   instruction kind.
 
@@ -292,7 +312,9 @@ The remaining limits in this area are:
 - a Python instruction is a reference (`("python", "cpython")` carries module
   and qualname), not the callable body;
 - public `GraphBlueprint` fields reference internal language DTOs;
-- the core planners depend on the DuckDB SQL emitter.
+- the core planners require an injected SQL emitter; `api.default_toolchain`
+  injects DuckDB's emitter, so a non-DuckDB engine supplies both an emitter and
+  an executor and must be composed explicitly.
 
 ## What to remember
 

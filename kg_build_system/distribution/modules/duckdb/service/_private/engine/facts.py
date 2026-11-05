@@ -10,6 +10,8 @@ from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from kg_build_system.distribution.service.internal.emission import NULL_GUARD_MACRO
+
 __all__ = [
     "NULL_GUARD_MACRO",
     "NULL_GUARD_MACRO_SQL",
@@ -20,11 +22,6 @@ __all__ = [
     "ParquetSchemaRow",
     "RowReader",
 ]
-
-#: Aborts with ``msg`` when a value is null. Emitted bindings wrap every non-null
-#: output in it, so a violated contract claim stops a build instead of emitting a
-#: value the contract forbids.
-NULL_GUARD_MACRO = "_kg_nn"
 
 #: Idempotent and namespaced: macro names are database-scoped, and a disk build
 #: opens a fresh database per run.

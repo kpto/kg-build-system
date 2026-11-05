@@ -15,8 +15,12 @@ from .sql import SqlNode
 from kg_build_system.kernel.model.internal.json import thaw_json
 from kg_build_system.kernel.model.public.types import TEXT_CANONICAL_UNIT_NAMES
 from kg_build_system.distribution.languages.expressions.model.internal import LiteralExpressionDTO
+from kg_build_system.distribution.service.internal.emission import (
+    ArraySqlType,
+    SqlType,
+    canonical_sql_type,
+)
 from kg_build_system.kernel.model.internal.types.dto import ArrayTypeDTO, LogicalTypeDTO, NullableTypeDTO, UnitTypeDTO
-from ....model.public.sql_types import ArraySqlType, SqlType, canonical_sql_type
 
 
 def literal_cast_type(logical_type: LogicalTypeDTO) -> SqlType | None:
