@@ -69,7 +69,7 @@ identity and the product is `<package>/<asset name>`.
 
 ```python
 from kg_build_system import (
-    Asset, AssetAuthority, AssetOptions, AssetSemantics,
+    Asset, AssetAuthority, AssetOptions, AssetProfile,
 )
 from kg_build_system.generation import AssetContractOptions, asset_contract
 from kg_build_system.generation.code_generation.builtins import (
@@ -88,7 +88,7 @@ from kg_build_system.generation.code_generation.builtins import (
 ))
 class People(Asset):
     options = AssetOptions(
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="people directory",
             coverage="current staff and contacts",
             authority=AssetAuthority.PRIMARY,
@@ -482,7 +482,7 @@ a runtime option in the compiled workflow plan.
 
 ```python
 from kg_build_system import (
-    Asset, AssetAuthority, AssetOptions, AssetSemantics,
+    Asset, AssetAuthority, AssetOptions, AssetProfile,
 )
 from kg_build_system.generation import AssetContractOptions, asset_contract
 from kg_build_system.generation.code_generation.builtins import (
@@ -504,7 +504,7 @@ from kg_build_system.generation.code_generation.builtins import (
 ))
 class Readings(Asset):
     options = AssetOptions(
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="logger readings",
             coverage="mechanical and temperature sensors",
             authority=AssetAuthority.PRIMARY,

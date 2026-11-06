@@ -3,7 +3,7 @@ from __future__ import annotations
 
 import inspect
 from collections.abc import Callable
-from typing import Any, overload
+from typing import TYPE_CHECKING, Any, overload
 
 from kg_build_system.distribution.languages.expressions.model.public import (
     Selection,
@@ -24,6 +24,9 @@ from kg_build_system.distribution.languages.data.service.internal import (
 from kg_build_system.distribution.languages.topology.model.public import (
     Edge, Endpoint, Node, NodeSideBase, NonNullableGraphValue,
 )
+from kg_build_system.distribution.languages.semantics.model.public import (
+    Semantics,
+)
 from kg_build_system.distribution.languages.topology.service.internal.metadata import (
     component_kind, is_abstract_component, metadata_for, properties_for,
 )
@@ -40,6 +43,12 @@ from ...model.public.values import (
     PropertyValues,
     PythonRef,
 )
+from .validation import validate_semantics
+
+if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.semantics.model.public import (
+        Semantics,
+    )
 
 
 def _require_key(value: object, *, argument: str) -> Selection[Any]:
@@ -205,12 +214,24 @@ def _python_reference(value: Any) -> PythonRef | None:
     return PythonRef(module, qualname, signature)
 
 
+def _binding_semantics(
+    options: BindingOptions, semantics: Semantics | None,
+) -> Semantics | None:
+    if semantics is not None and options.semantics is not None:
+        if semantics != options.semantics:
+            raise ValueError(
+                "pass semantics either to the binding or to BindingOptions, not both"
+            )
+    return semantics if semantics is not None else options.semantics
+
+
 @overload
 def node_binding[N: Node, S: Shape](
     *, target: type[N],
     rows: DerivedRowSource[S] | RelationRowSource[S],
     bind: Callable[[S], NodeValues[N, Any]],
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
 ) -> NodeBinding[N]: ...
 
 
@@ -218,6 +239,7 @@ def node_binding[N: Node, S: Shape](
 def node_binding[N: Node, Key: NonNullableGraphValue](
     *, target: type[N], build_key: Selection[Key], properties: N,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
 ) -> NodeBinding[N]: ...
 
 
@@ -225,9 +247,11 @@ def node_binding[N: Node](
     *, target: type[N], build_key: Selection[Any] | None = None,
     properties: Any = None, rows: Any = None, bind: Any = None,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
 ) -> NodeBinding[N]:
     """Validate a node declaration into a frozen :class:`NodeBinding`."""
     _require_concrete_component(target, "node")
+    validate_semantics(semantics)
     mode = "declarative"
     reference: PythonRef | None = None
     if rows is not None or bind is not None:
@@ -257,6 +281,7 @@ def node_binding[N: Node](
         rows,
         mode=mode,  # type: ignore[arg-type]
         python_ref=reference,
+        semantics=_binding_semantics(options, semantics),
     )
 
 
@@ -266,6 +291,7 @@ def edge_binding[E: Edge[Any, Any], S: Shape](
     rows: DerivedRowSource[S] | RelationRowSource[S],
     bind: Callable[[S], EdgeValues[E, Any, Any, Any]],
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
     source_node: Endpoint[Any] | None = None,
     target_node: Endpoint[Any] | None = None,
 ) -> EdgeBinding[E]: ...
@@ -280,6 +306,7 @@ def edge_binding[
     source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
 ) -> EdgeBinding[E]: ...
 
 
@@ -292,6 +319,7 @@ def edge_binding[
     build_key: Selection[Key], source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
 ) -> EdgeBinding[E]: ...
 
 
@@ -304,6 +332,7 @@ def edge_binding[
     build_key: Selection[Key], source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
 ) -> EdgeBinding[E]: ...
 
 
@@ -318,6 +347,7 @@ def edge_binding[
     source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
 ) -> EdgeBinding[E]: ...
 
 
@@ -327,11 +357,13 @@ def edge_binding(
     target_build_key: Selection[Any] | None = None, properties: Any = None,
     rows: Any = None, bind: Any = None,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
     source_node: Endpoint[Any] | None = None,
     target_node: Endpoint[Any] | None = None,
 ) -> EdgeBinding[Any]:
     """Validate an edge declaration into a frozen :class:`EdgeBinding`."""
     _require_concrete_component(target, "edge")
+    validate_semantics(semantics)
     mode = "declarative"
     reference: PythonRef | None = None
     if rows is not None or bind is not None:
@@ -373,6 +405,7 @@ def edge_binding(
         rows,
         mode=mode,  # type: ignore[arg-type]
         python_ref=reference,
+        semantics=_binding_semantics(options, semantics),
     )
 
 

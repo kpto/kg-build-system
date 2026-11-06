@@ -26,6 +26,15 @@ from kg_build_system.distribution.languages.data.service.internal.rows import (
 from kg_build_system.distribution.languages.topology.model.internal.dto import (
     GraphPartDTO,
 )
+from kg_build_system.distribution.languages.semantics.model.internal.dto import (
+    ClaimDTO,
+    FrameDTO,
+    LimitationDTO,
+    SemanticsDTO,
+)
+from kg_build_system.distribution.languages.semantics.model.public import (
+    Semantics,
+)
 from kg_build_system.distribution.model.public.refs import (
     EdgeRef, NodeRef,
 )
@@ -100,6 +109,16 @@ def _rows(binding: Binding) -> Any:
     return row_source_plan_dto(binding.rows)
 
 
+def _semantics_dto(value: Semantics | None) -> SemanticsDTO | None:
+    if value is None:
+        return None
+    from kg_build_system.distribution.languages.semantics.service.internal import (
+        semantics_to_dto,
+    )
+
+    return semantics_to_dto(value)
+
+
 def _node_dto(binding: NodeBinding[Any]) -> NodeBindingDTO:
     return NodeBindingDTO(
         node=cast(NodeRef, _component_ref(binding.target)),
@@ -110,6 +129,7 @@ def _node_dto(binding: NodeBinding[Any]) -> NodeBindingDTO:
         mode=binding.mode,
         debug_name=binding.debug_name,
         python_ref=_python_ref(binding.python_ref),
+        semantics=_semantics_dto(binding.semantics),
     )
 
 
@@ -127,6 +147,7 @@ def _edge_dto(binding: EdgeBinding[Any]) -> EdgeBindingDTO:
         source_node=_node_ref(binding.source_node),
         target_node=_node_ref(binding.target_node),
         python_ref=_python_ref(binding.python_ref),
+        semantics=_semantics_dto(binding.semantics),
     )
 
 

@@ -15,6 +15,9 @@ from kg_build_system.distribution.languages.expressions.model.internal.dto impor
     OperationExpressionDTO,
     VariableExpressionDTO,
 )
+from kg_build_system.distribution.languages.semantics.service.internal import (
+    render_semantics,
+)
 from kg_build_system.distribution.service.internal.rendering import class_name, member_name, render_annotation
 from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import (
     RowDistinctDTO,
@@ -390,6 +393,10 @@ def _binding_source(
                 f"{_render_expression(expression, class_names=class_names)},"
             )
         lines.append("    ),")
+    if binding.semantics is not None:
+        semantics = render_semantics(binding.semantics)
+        imports.update(semantics.imports)
+        lines.extend(f"    {line}" for line in semantics.body.splitlines())
     if isinstance(binding, EdgeBindingDTO):
         if binding.source_node is not None:
             imports.add("from kg_build_system import endpoint")

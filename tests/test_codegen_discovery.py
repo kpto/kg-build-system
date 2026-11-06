@@ -67,7 +67,7 @@ def _asset_source(
     )
     return f'''
 from kg_build_system import (
-    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetSemantics,
+    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetProfile,
 )
 from kg_build_system.generation import AssetContractOptions, asset_contract
 from kg_build_system.generation.code_generation.builtins import (
@@ -92,7 +92,7 @@ class {class_name}(Asset):
 
 def _estate_options(locator: str = "/data/estate", *, named: bool = True) -> str:
     name = 'name="estate",\n        ' if named else ""
-    return f'''{name}semantics=AssetSemantics(
+    return f'''{name}profile=AssetProfile(
             subject="records",
             coverage="one directory",
             authority=AssetAuthority.PRIMARY,

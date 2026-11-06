@@ -36,6 +36,7 @@ from .distribution import (
     DuckDbSqlEmitter,
     ExpressionsLanguage,
     FileExecutor,
+    GraphLanguage,
     MetaGraphExecutor,
     Neo4jExecutor,
     PythonExecutor,
@@ -60,7 +61,7 @@ from .kernel.service.internal.workflow_codec import workflow_plan_to_document
 
 DEFAULT_LANGUAGES = (
     ExpressionsLanguage(), AssetLanguage(), DataLanguage(), TopologyLanguage(),
-    BindingLanguage(),
+    BindingLanguage(), GraphLanguage(),
 )
 DEFAULT_EXECUTORS = (
     DuckDbExecutor(),

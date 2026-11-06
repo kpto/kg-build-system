@@ -16,12 +16,12 @@ class Asset:
     Example:
         ```python
         from kg_build_system import (
-            Asset, AssetAuthority, AssetOptions, AssetSemantics,
+            Asset, AssetAuthority, AssetOptions, AssetProfile,
         )
 
         class OpenTargets(Asset):
             options = AssetOptions(
-                semantics=AssetSemantics(
+                profile=AssetProfile(
                     subject="gene-disease associations",
                     coverage="all curated evidence",
                     authority=AssetAuthority.PRIMARY,

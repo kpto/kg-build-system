@@ -11,11 +11,13 @@ from kg_build_system import (
     AssetLayout,
     AssetLicense,
     AssetOptions,
-    AssetSemantics,
+    AssetProfile,
 )
 from kg_build_system.distribution.languages.annotations import Annotation
 from kg_build_system.distribution.languages.asset.model.internal import (
+    AssetDTO,
     AssetPartDTO,
+    AssetProfileDTO,
 )
 from kg_build_system.distribution.languages.asset.model.public import (
     asset_name,
@@ -42,14 +44,12 @@ class Owner(Annotation):
     name: str
 
 
-def _semantics() -> AssetSemantics:
-    return AssetSemantics(
+def _profile() -> AssetProfile:
+    return AssetProfile(
         subject="gene-disease associations",
         coverage="all curated evidence",
         authority=AssetAuthority.PRIMARY,
         basis="Open Targets Platform release",
-        claims=("associations are scored per datatype",),
-        limitations=("curation coverage varies by disease",),
         title="Open Targets",
         description="Curated target-disease evidence.",
     )
@@ -57,7 +57,7 @@ def _semantics() -> AssetSemantics:
 
 def _options(name: str | None = None) -> AssetOptions:
     return AssetOptions(
-        semantics=_semantics(),
+        profile=_profile(),
         name=name,
         website="https://platform.opentargets.org",
         version="26.03",
@@ -113,7 +113,7 @@ class AssetDeclarationTests(unittest.TestCase):
 
     def test_options_validate_required_text_and_mappings(self) -> None:
         with self.assertRaises(ValueError):
-            AssetSemantics(
+            AssetProfile(
                 subject="",
                 coverage="all",
                 authority=AssetAuthority.PRIMARY,
@@ -124,12 +124,19 @@ class AssetDeclarationTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             AssetLicense("")
         with self.assertRaises(ValueError):
-            AssetSemantics(
+            AssetProfile(
                 subject="targets",
                 coverage="all",
                 authority=AssetAuthority.PRIMARY,
                 basis="release",
-                claims=("",),
+                title="",
+            )
+        with self.assertRaises(TypeError):
+            AssetOptions(profile="not a profile")  # type: ignore[arg-type]
+        with self.assertRaises(TypeError):
+            AssetOptions(
+                profile=_profile(),
+                semantics="not semantics",  # type: ignore[arg-type]
             )
 
     def test_layout_mappings_are_frozen_and_sorted(self) -> None:
@@ -193,7 +200,7 @@ class AssetReferenceTests(unittest.TestCase):
 
 
 class AssetCodecTests(unittest.TestCase):
-    def test_the_asset_part_round_trips_layout_semantics_and_governance(
+    def test_the_asset_part_round_trips_profile_layout_and_governance(
         self,
     ) -> None:
         declaration = _declaration()
@@ -206,7 +213,10 @@ class AssetCodecTests(unittest.TestCase):
 
         self.assertEqual(restored, AssetPartDTO((part,)))
         self.assertEqual(document[0]["name"], "open_targets")
-        self.assertEqual(document[0]["semantics"]["authority"], "primary")
+        self.assertEqual(document[0]["profile"]["authority"], "primary")
+        self.assertNotIn("semantics", document[0])
+        self.assertNotIn("claims", document[0]["profile"])
+        self.assertNotIn("limitations", document[0]["profile"])
         self.assertEqual(
             document[0]["layout"]["members"],
             {"diseases": "diseases.parquet", "targets": "targets.parquet"},
@@ -225,6 +235,84 @@ class AssetCodecTests(unittest.TestCase):
         )
         self.assertEqual(len(document[0]["annotations"]), 1)
 
+    def test_a_legacy_semantics_key_decodes_as_the_profile(self) -> None:
+        profile = _profile()
+        part = AssetPartDTO((
+            AssetDTO("open_targets", AssetProfileDTO(
+                subject=profile.subject,
+                coverage=profile.coverage,
+                authority=profile.authority,
+                basis=profile.basis,
+                title=profile.title,
+                description=profile.description,
+            )),
+        ))
+        document = assets_to_document(part)
+        legacy = document[0].pop("profile")
+        legacy["claims"] = ["a legacy claim"]
+        legacy["limitations"] = ["a legacy limitation"]
+        document[0]["semantics"] = legacy
+
+        restored = assets_from_document(document)
+
+        self.assertEqual(restored, part)
+
+    def test_an_asset_option_carries_declaration_semantics(self) -> None:
+        from kg_build_system.distribution.languages.semantics.model.public import (
+            Claim,
+            Semantics,
+        )
+
+        class OpenTargets(Asset):
+            options = AssetOptions(
+                profile=_profile(),
+                semantics=Semantics(claims=(Claim("a declaration claim"),)),
+            )
+
+        part = AssetLanguage().transcribe(
+            Declaration(OpenTargets), SymbolContext(),
+        ).value
+
+        self.assertEqual(part.semantics.claims[0].text, "a declaration claim")
+        document = assets_to_document(AssetPartDTO((part,)))
+        self.assertEqual(
+            assets_from_document(document), AssetPartDTO((part,)),
+        )
+
+    def test_the_asset_part_round_trips_profile_and_semantics(self) -> None:
+        from kg_build_system.distribution.languages.semantics.model.internal import (
+            ClaimDTO,
+            FrameDTO,
+            LimitationDTO,
+            SemanticsDTO,
+        )
+
+        semantics = SemanticsDTO(
+            claims=(ClaimDTO("associations are scored per datatype"),),
+            frames=(FrameDTO(
+                "curation",
+                limitations=(LimitationDTO("coverage varies by disease"),),
+            ),),
+        )
+        part = AssetPartDTO((
+            AssetDTO(
+                "open_targets", AssetProfileDTO(
+                    subject="gene-disease associations",
+                    coverage="all curated evidence",
+                    authority=AssetAuthority.PRIMARY,
+                    basis="Open Targets Platform release",
+                ),
+                semantics=semantics,
+            ),
+        ))
+
+        document = assets_to_document(part)
+        restored = assets_from_document(document)
+
+        self.assertEqual(restored, part)
+        self.assertIn("claims", document[0]["semantics"])
+        self.assertIn("frames", document[0]["semantics"])
+
 
 class AssetSourceTests(unittest.TestCase):
     def test_the_source_render_is_a_class_option_declaration(self) -> None:
@@ -237,11 +325,38 @@ class AssetSourceTests(unittest.TestCase):
 
         self.assertIn("class OpenTargetsAsset(Asset):", fragment.body)
         self.assertIn("options = AssetOptions(", fragment.body)
+        self.assertIn("profile=AssetProfile(", fragment.body)
         self.assertIn("authority=AssetAuthority.PRIMARY", fragment.body)
         self.assertIn("members={'diseases'", fragment.body)
         self.assertIn("from kg_build_system import Asset", fragment.imports)
         self.assertIn("from kg_build_system import AssetOptions", fragment.imports)
         self.assertIn("from kg_build_system import AssetLicense", fragment.imports)
+        compile(fragment.body, "<asset source>", "exec")
+
+    def test_the_source_render_includes_semantics_when_present(self) -> None:
+        from kg_build_system.distribution.languages.semantics.model.internal import (
+            ClaimDTO,
+            SemanticsDTO,
+        )
+
+        part = AssetPartDTO((
+            AssetDTO(
+                "open_targets", AssetProfileDTO(
+                    subject="gene-disease associations",
+                    coverage="all curated evidence",
+                    authority=AssetAuthority.PRIMARY,
+                    basis="Open Targets Platform release",
+                ),
+                semantics=SemanticsDTO(claims=(ClaimDTO("one claim"),)),
+            ),
+        ))
+
+        fragment = render_asset_source(part)
+
+        self.assertIn("profile=AssetProfile(", fragment.body)
+        self.assertIn("semantics=Semantics(", fragment.body)
+        self.assertIn("one claim", fragment.body)
+        compile(fragment.body, "<asset source>", "exec")
 
 
 class AssetFacadeTests(unittest.TestCase):
@@ -249,6 +364,8 @@ class AssetFacadeTests(unittest.TestCase):
         self.assertIn("Asset", kg_build_system.__all__)
         self.assertIs(kg_build_system.Asset, Asset)
         self.assertIn("AssetOptions", kg_build_system.__all__)
+        self.assertIn("AssetProfile", kg_build_system.__all__)
+        self.assertIs(kg_build_system.AssetProfile, AssetProfile)
 
 
 if __name__ == "__main__":

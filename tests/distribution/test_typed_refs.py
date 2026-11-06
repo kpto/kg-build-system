@@ -57,7 +57,7 @@ from kg_build_system.distribution.model.public.refs import (
 from kg_build_system.distribution.languages.asset.model.internal import (
     AssetDTO,
     AssetPartDTO,
-    AssetSemanticsDTO,
+    AssetProfileDTO,
 )
 from kg_build_system.distribution.languages.asset.model.public import AssetAuthority
 from kg_build_system.kernel import Key, SymbolRef
@@ -180,7 +180,7 @@ class BlueprintReferenceCodecTests(unittest.TestCase):
         assets = AssetPartDTO(assets=(
             AssetDTO(
                 "estate",
-                AssetSemanticsDTO(
+                AssetProfileDTO(
                     subject="estate",
                     coverage="sites",
                     authority=AssetAuthority.PRIMARY,

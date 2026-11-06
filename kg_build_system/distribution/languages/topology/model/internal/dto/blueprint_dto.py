@@ -9,12 +9,18 @@ property reference.
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from kg_build_system.distribution.languages.annotations.model.internal.dto import AnnotationDTO
 from kg_build_system.distribution.model.public.refs import (
     EdgeRef, NodeRef, PropertyRef,
 )
 from kg_build_system.kernel.model.internal.types.dto import LogicalTypeDTO
+
+if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.semantics.model.internal import (
+        SemanticsDTO,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -43,6 +49,7 @@ class PropertyDTO:
     ref: PropertyRef
     description: str | None = None
     annotations: tuple[AnnotationDTO, ...] = ()
+    semantics: SemanticsDTO | None = None
 
     def __post_init__(self) -> None:
         if not self.name:
@@ -76,6 +83,7 @@ class NodeDTO:
     abstract: bool = False
     parent: NodeRef | None = None
     description: str | None = None
+    semantics: SemanticsDTO | None = None
 
     def __post_init__(self) -> None:
         from ....service._private.validation import validate_component
@@ -119,6 +127,7 @@ class EdgeDTO:
     abstract: bool = False
     parent: EdgeRef | None = None
     description: str | None = None
+    semantics: SemanticsDTO | None = None
 
     def __post_init__(self) -> None:
         from ....service._private.validation import validate_component

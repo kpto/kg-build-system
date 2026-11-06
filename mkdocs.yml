@@ -50,6 +50,7 @@ nav:
       - Topology: concepts/topology.md
       - Bindings: concepts/bindings.md
       - Semantics and annotations: concepts/semantics.md
+      - Semantics language: concepts/semantics-language.md
       - Planners and executors: concepts/planners-and-executors.md
       - Compile, execute and outputs: concepts/build-and-outputs.md
   - How-to guides:

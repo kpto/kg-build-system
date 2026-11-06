@@ -422,10 +422,10 @@ class SiteTable(ProvenancedTemplate, Table[Estate]):
 
 | Option value | Signature | Fields |
 | --- | --- | --- |
-| `TableOptions` | `TableOptions(name=None, description=None, annotations=())` | Table identity, description and annotations |
-| `StructOptions` | `StructOptions(name=None, description=None, annotations=())` | Struct or computed-struct identity, description and annotations |
-| `ProjectionOptions` | `ProjectionOptions(name=None, description=None, annotations=())` | Projection identity, description and annotations |
-| `TableGroupOptions` | `TableGroupOptions(members=(), name=None, description=None, annotations=())` | Group members plus identity, description and annotations |
+| `TableOptions` | `TableOptions(name=None, description=None, annotations=(), semantics=None)` | Table identity, description, annotations and optional semantics |
+| `StructOptions` | `StructOptions(name=None, description=None, annotations=(), semantics=None)` | Struct or computed-struct identity, description, annotations and optional semantics |
+| `ProjectionOptions` | `ProjectionOptions(name=None, description=None, annotations=(), semantics=None)` | Projection identity, description, annotations and optional semantics |
+| `TableGroupOptions` | `TableGroupOptions(members=(), name=None, description=None, annotations=())` | Group members plus identity, description and annotations; no semantics |
 | `StructOptionsTemplate` | `StructOptionsTemplate(annotations=())` | Template annotations only; no name or description |
 
 Every option value is frozen. `name` must be non-empty when supplied.

@@ -4,6 +4,21 @@ from __future__ import annotations
 from typing import Any
 
 
+def validate_semantics(value: Any) -> None:
+    """Reject a graph meaning root or a non-semantics attachment."""
+    if value is None:
+        return
+    from kg_build_system.distribution.languages.semantics.model.public import (
+        GraphSemantics,
+        Semantics,
+    )
+
+    if isinstance(value, GraphSemantics) or not isinstance(value, Semantics):
+        raise TypeError(
+            "binding semantics must be a Semantics value, not GraphSemantics"
+        )
+
+
 def validate_binding(
     component: str,
     properties: tuple[tuple[str, Any], ...],
@@ -26,4 +41,4 @@ def validate_binding(
         raise ValueError("a declarative binding cannot carry a row plan")
 
 
-__all__ = ["validate_binding"]
+__all__ = ["validate_binding", "validate_semantics"]

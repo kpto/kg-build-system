@@ -25,6 +25,9 @@ from ...model.public.fields import (
 
 if TYPE_CHECKING:
     from kg_build_system.distribution.languages.expressions.model.public import Selection
+    from kg_build_system.distribution.languages.semantics.model.public import (
+        Semantics,
+    )
 
 T = TypeVar("T")
 
@@ -34,6 +37,7 @@ def make_field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
+    semantics: Semantics | None = None,
 ) -> Field[T]:  # pyright: ignore[reportInvalidTypeVarUse]
     """Create a source-backed field descriptor; an empty name is rejected."""
     if name is not None and not name:
@@ -42,6 +46,7 @@ def make_field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
         name=name,
         description=description,
         annotations=annotation_tuple(list(annotations)),
+        semantics=semantics,
     ))
 
 
@@ -51,6 +56,7 @@ def make_computed_field[T: DeclaredValue](
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
+    semantics: Semantics | None = None,
 ) -> Field[T]:
     """Create an expression-backed field descriptor; an empty name is rejected."""
     if name is not None and not name:
@@ -61,6 +67,7 @@ def make_computed_field[T: DeclaredValue](
             name=name,
             description=description,
             annotations=annotation_tuple(list(annotations)),
+            semantics=semantics,
         ),
     )
 
@@ -225,6 +232,7 @@ def resolve_field_specs(owner: type[Any], kind: str | None) -> tuple[FieldSpec, 
             description=field.metadata.description,
             annotations=field.metadata.annotations,
             declaration=declaration,
+            semantics=field.metadata.semantics,
         ))
     return tuple(resolved)
 
@@ -260,6 +268,7 @@ def field_set_name(
         description=description,
         annotations=field._metadata.annotations,
         attribute=attribute,
+        semantics=field._metadata.semantics,
     )
 
 

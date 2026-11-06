@@ -303,14 +303,14 @@ class BlueprintSourceRoundTripTests(unittest.TestCase):
     def test_lookup_zip_and_unnest_survive_source_round_trip(self) -> None:
         source = '''
 from kg_build_system import (
-    Array, Asset, AssetAuthority, AssetOptions, AssetSemantics, Field,
+    Array, Asset, AssetAuthority, AssetOptions, AssetProfile, Field,
     Projection, ProjectionOptions, Table, TableOptions, computed_field, field,
 )
 
 class Estate(Asset):
     options = AssetOptions(
         name="estate",
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="x", coverage="y",
             authority=AssetAuthority.PRIMARY, basis="z",
         ),

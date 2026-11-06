@@ -17,14 +17,14 @@ from kg_build_system.distribution.languages.asset.model.internal import (
     AssetGovernanceDTO,
     AssetLayoutDTO,
     AssetLicenseDTO,
-    AssetSemanticsDTO,
+    AssetProfileDTO,
 )
 from kg_build_system.distribution.languages.asset.model.public import (
     AssetDescriptor,
     AssetGovernance,
     AssetLayout,
     AssetLicense,
-    AssetSemantics,
+    AssetProfile,
 )
 from kg_build_system.distribution.languages.binding.model.internal import (
     BindingDTO,
@@ -83,14 +83,12 @@ def _layout(value: AssetLayoutDTO | None) -> AssetLayout | None:
     )
 
 
-def _semantics(value: AssetSemanticsDTO) -> AssetSemantics:
-    return AssetSemantics(
+def _profile(value: AssetProfileDTO) -> AssetProfile:
+    return AssetProfile(
         subject=value.subject,
         coverage=value.coverage,
         authority=value.authority,
         basis=value.basis,
-        claims=value.claims,
-        limitations=value.limitations,
         title=value.title,
         description=value.description,
     )
@@ -103,7 +101,7 @@ def asset_descriptor(value: AssetDTO) -> AssetDescriptor:
         website=value.website,
         version=value.version,
         layout=_layout(value.layout),
-        semantics=_semantics(value.semantics),
+        profile=_profile(value.profile),
         governance=_governance(value.governance),
     )
 

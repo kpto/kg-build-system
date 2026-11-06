@@ -22,7 +22,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Any, Generic, Literal, TypeVar
+from typing import TYPE_CHECKING, Any, Generic, Literal, TypeVar
 
 from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
@@ -33,9 +33,18 @@ from kg_build_system.distribution.languages.annotations.service.internal import 
 from kg_build_system.distribution.languages.expressions.model.public import (
     Selection,
 )
+from kg_build_system.distribution.languages.semantics.model.public import (
+    Semantics,
+    require_declaration_semantics,
+)
 from kg_build_system.distribution.languages.topology.model.public import (
     Edge, Node,
 )
+
+if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.semantics.model.public import (
+        Semantics,
+    )
 
 N_co = TypeVar("N_co", bound=Node, covariant=True)
 E_co = TypeVar("E_co", bound=Edge[Any, Any], covariant=True)
@@ -88,8 +97,10 @@ class BindingOptions:
     """
 
     annotations: Sequence[Annotation] = ()
+    semantics: Semantics | None = None
 
     def __post_init__(self) -> None:
+        require_declaration_semantics(self.semantics)
         object.__setattr__(
             self, "annotations", annotation_tuple(list(self.annotations)),
         )
@@ -161,6 +172,7 @@ class NodeBinding(Generic[N_co]):
     rows: Any = None
     mode: BindingMode = "declarative"
     python_ref: PythonRef | None = None
+    semantics: Semantics | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -193,6 +205,7 @@ class EdgeBinding(Generic[E_co]):
     rows: Any = None
     mode: BindingMode = "declarative"
     python_ref: PythonRef | None = None
+    semantics: Semantics | None = None
 
 
 type Binding = NodeBinding[Any] | EdgeBinding[Any]

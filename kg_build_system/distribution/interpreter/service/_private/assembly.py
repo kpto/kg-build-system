@@ -11,6 +11,7 @@ from collections.abc import Sequence
 from kg_build_system.distribution.languages.asset.model.internal.dto import AssetPartDTO
 from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import DataPartDTO
 from kg_build_system.distribution.languages.binding.model.internal.dto.blueprint_dto import BindingDTO
+from kg_build_system.distribution.languages.graph.model.internal.dto import GraphDeclarationDTO
 from kg_build_system.distribution.languages.topology.model.internal.dto.blueprint_dto import GraphPartDTO
 from ...model.public import GraphBlueprint
 
@@ -20,13 +21,19 @@ def assemble_blueprint(
     data: DataPartDTO,
     assets: AssetPartDTO,
     bindings: Sequence[BindingDTO],
+    graph_declaration: GraphDeclarationDTO | None = None,
 ) -> GraphBlueprint:
-    """Assemble the layer DTOs into one blueprint handle."""
+    """Assemble the layer DTOs into one blueprint handle.
+
+    ``graph_declaration`` is passed through unchanged; the blueprint does not
+    derive or validate it.
+    """
     return GraphBlueprint(
         graph=graph,
         data=data,
         assets=assets,
         bindings=tuple(bindings),
+        graph_declaration=graph_declaration,
     )
 
 

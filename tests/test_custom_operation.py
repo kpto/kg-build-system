@@ -11,7 +11,7 @@ from kg_build_system import (
     AssetAuthority,
     AssetLayout,
     AssetOptions,
-    AssetSemantics,
+    AssetProfile,
     Field,
     Node,
     NodeValues,
@@ -61,7 +61,7 @@ class DoubleEmitter:
 class DoubleAsset(Asset):
     options = AssetOptions(
         name="double_asset",
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="double rows",
             coverage="one csv",
             authority=AssetAuthority.INFERRED,

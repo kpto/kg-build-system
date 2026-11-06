@@ -16,9 +16,10 @@ from ...model.internal.dto.asset_dto import (
     AssetLayoutDTO,
     AssetLicenseDTO,
     AssetPartDTO,
-    AssetSemanticsDTO,
+    AssetProfileDTO,
 )
 from ...model.public.options import AssetAuthority
+from .semantics import render_semantics_lines
 
 
 def _strings_field(name: str, values: tuple[str, ...], indent: str) -> list[str]:
@@ -95,23 +96,21 @@ def _layout_lines(
     return lines
 
 
-def _semantics_lines(
-    value: AssetSemanticsDTO, imports: set[str], indent: str,
+def _profile_lines(
+    value: AssetProfileDTO, imports: set[str], indent: str,
 ) -> list[str]:
     imports.add("from kg_build_system import AssetAuthority")
-    imports.add("from kg_build_system import AssetSemantics")
+    imports.add("from kg_build_system import AssetProfile")
     authority = (
         value.authority
         if isinstance(value.authority, AssetAuthority)
         else AssetAuthority(value.authority)
     )
-    lines = [f"{indent}semantics=AssetSemantics("]
+    lines = [f"{indent}profile=AssetProfile("]
     lines.append(f"{indent}    subject={value.subject!r},")
     lines.append(f"{indent}    coverage={value.coverage!r},")
     lines.append(f"{indent}    authority=AssetAuthority.{authority.name},")
     lines.append(f"{indent}    basis={value.basis!r},")
-    lines.extend(_strings_field("claims", value.claims, f"{indent}    "))
-    lines.extend(_strings_field("limitations", value.limitations, f"{indent}    "))
     if value.title is not None:
         lines.append(f"{indent}    title={value.title!r},")
     if value.description is not None:
@@ -125,7 +124,9 @@ def _options_lines(value: AssetDTO, imports: set[str]) -> list[str]:
     imports.add("from kg_build_system import AssetOptions")
     indent = "        "
     lines = ["    options = AssetOptions("]
-    lines.extend(_semantics_lines(value.semantics, imports, indent))
+    lines.extend(_profile_lines(value.profile, imports, indent))
+    if value.semantics is not None:
+        lines.extend(render_semantics_lines(value.semantics, imports, indent))
     lines.append(f"{indent}name={value.name!r},")
     if value.website is not None:
         lines.append(f"{indent}website={value.website!r},")

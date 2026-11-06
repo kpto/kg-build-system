@@ -15,8 +15,10 @@ def _is_framework_root(cls: type[Any]) -> bool:
     return vars(cls).get("_framework_root", False) is True
 
 
-def _record_template_annotations(cls: type[Any], kind: str, options: Any) -> None:
-    """Record a template's own annotation contribution."""
+def _record_template_contribution(
+    cls: type[Any], kind: str, options: Any,
+) -> None:
+    """Record a template's own annotation and semantics contribution."""
     from ...model.public.options import (
         EdgeOptions, EdgeOptionsTemplate, NodeOptions, NodeOptionsTemplate,
     )
@@ -25,9 +27,11 @@ def _record_template_annotations(cls: type[Any], kind: str, options: Any) -> Non
     opposite = EdgeOptionsTemplate if kind == "node" else NodeOptionsTemplate
     if options is None:
         cls._template_annotations = ()
+        cls._template_semantics = None
         return
     if isinstance(options, template_options):
         cls._template_annotations = tuple(options.annotations)
+        cls._template_semantics = options.semantics
         return
     if isinstance(options, opposite):
         raise TypeError(
@@ -210,7 +214,7 @@ def prepare_topology_declaration(cls: type[Any]) -> None:
     resolved_properties = _resolve_properties(cls)
     own_options = vars(cls).get("options")
     if not node_side and not edge_side:
-        _record_template_annotations(cls, kind, own_options)
+        _record_template_contribution(cls, kind, own_options)
         cls._properties = {item.attribute: item for item in resolved_properties}
         return
 
@@ -244,6 +248,21 @@ def prepare_topology_declaration(cls: type[Any]) -> None:
     effective_annotations = template_annotations + own_annotations
     _require_label_uniqueness(cls, kind, effective_annotations)
 
+    # A semantics attachment is a single fragment, so a template contributes a
+    # value rather than a sequence: the closest template wins and the host's own
+    # options override every template. A category's semantics stay on the
+    # category; they are not copied to a concrete child.
+    template_semantics = next(
+        (
+            semantics
+            for base in cls.__mro__[1:]
+            if (semantics := vars(base).get("_template_semantics")) is not None
+        ),
+        None,
+    )
+    own_semantics = None if own_options is None else own_options.semantics
+    semantics = own_semantics if own_semantics is not None else template_semantics
+
     description = (
         own_options.description
         if own_options is not None and own_options.description is not None
@@ -267,6 +286,7 @@ def prepare_topology_declaration(cls: type[Any]) -> None:
         source=source,
         target=target,
         annotations=effective_annotations,
+        semantics=semantics,
         abstract=tier == "abstract",
         parent=parents[0] if parents else None,
     )

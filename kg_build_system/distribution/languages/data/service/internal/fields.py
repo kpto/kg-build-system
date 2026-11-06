@@ -11,6 +11,9 @@ from ...model.public.fields import DeclaredValue
 
 if TYPE_CHECKING:
     from kg_build_system.distribution.languages.expressions.model.public import Selection
+    from kg_build_system.distribution.languages.semantics.model.public import (
+        Semantics,
+    )
     from ...model.public.fields import Field
 
 
@@ -19,12 +22,14 @@ def field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
+    semantics: Semantics | None = None,
 ) -> "Field[T]":  # pyright: ignore[reportInvalidTypeVarUse]
     """Create a source-backed field descriptor; an empty name is rejected."""
     from .._private.descriptors import make_field
 
     return make_field(
         name=name, description=description, annotations=annotations,
+        semantics=semantics,
     )
 
 
@@ -34,12 +39,14 @@ def computed_field[T: DeclaredValue](
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
+    semantics: Semantics | None = None,
 ) -> "Field[T]":
     """Create an expression-backed field descriptor."""
     from .._private.descriptors import make_computed_field
 
     return make_computed_field(
         value, name=name, description=description, annotations=annotations,
+        semantics=semantics,
     )
 
 

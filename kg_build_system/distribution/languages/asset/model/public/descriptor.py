@@ -9,7 +9,7 @@ from kg_build_system.kernel import Key
 
 from ..internal.dto.asset_dto import AssetDTO
 from .declarations import Asset
-from .options import AssetGovernance, AssetLayout, AssetSemantics
+from .options import AssetGovernance, AssetLayout, AssetProfile
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,7 +19,7 @@ class AssetDescriptor:
     Example:
         ```python
         from kg_build_system import (
-            AssetAuthority, AssetDescriptor, AssetGovernance, AssetSemantics,
+            AssetAuthority, AssetDescriptor, AssetGovernance, AssetProfile,
         )
 
         descriptor = AssetDescriptor(
@@ -27,7 +27,7 @@ class AssetDescriptor:
             website=None,
             version=None,
             layout=None,
-            semantics=AssetSemantics(
+            profile=AssetProfile(
                 subject="gene-disease associations",
                 coverage="all curated evidence",
                 authority=AssetAuthority.PRIMARY,
@@ -42,7 +42,7 @@ class AssetDescriptor:
     website: str | None
     version: str | None
     layout: AssetLayout | None
-    semantics: AssetSemantics
+    profile: AssetProfile
     governance: AssetGovernance
 
 
@@ -52,12 +52,12 @@ def asset_name(value: type[Asset] | AssetDescriptor | AssetDTO) -> str:
     Example:
         ```python
         from kg_build_system import (
-            Asset, AssetAuthority, AssetOptions, AssetSemantics, asset_name,
+            Asset, AssetAuthority, AssetOptions, AssetProfile, asset_name,
         )
 
         class OpenTargets(Asset):
             options = AssetOptions(
-                semantics=AssetSemantics(
+                profile=AssetProfile(
                     subject="gene-disease associations",
                     coverage="all curated evidence",
                     authority=AssetAuthority.PRIMARY,
@@ -83,12 +83,12 @@ def asset_reference(value: type[Asset] | AssetDescriptor | AssetDTO) -> AssetRef
     Example:
         ```python
         from kg_build_system import (
-            Asset, AssetAuthority, AssetOptions, AssetSemantics, asset_reference,
+            Asset, AssetAuthority, AssetOptions, AssetProfile, asset_reference,
         )
 
         class OpenTargets(Asset):
             options = AssetOptions(
-                semantics=AssetSemantics(
+                profile=AssetProfile(
                     subject="gene-disease associations",
                     coverage="all curated evidence",
                     authority=AssetAuthority.PRIMARY,

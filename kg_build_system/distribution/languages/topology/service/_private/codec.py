@@ -18,6 +18,7 @@ from kg_build_system.kernel.service.internal.types import (
 from ...model.internal.dto.blueprint_dto import (
     EdgeDTO, GraphPartDTO, NodeDTO, PropertyDTO,
 )
+from .semantics import semantics_from_document, semantics_to_document
 
 
 def _object(value: Any, context: str) -> Mapping[str, Any]:
@@ -95,6 +96,8 @@ def _property_to_document(value: PropertyDTO) -> dict[str, Any]:
     }
     if value.description is not None:
         result["description"] = value.description
+    if value.semantics is not None:
+        result["semantics"] = semantics_to_document(value.semantics)
     return result
 
 
@@ -111,6 +114,10 @@ def _property_from_document(value: Mapping[str, Any]) -> PropertyDTO:
             annotation_from_document(_object(item, "property annotation"))
             for item in _array(value.get("annotations", ()), "annotations")
         ),
+        semantics=(
+            None if value.get("semantics") is None
+            else semantics_from_document(value.get("semantics"))
+        ),
     )
 
 
@@ -126,6 +133,8 @@ def _common_to_document(value: NodeDTO | EdgeDTO) -> dict[str, Any]:
         result["parent"] = ref_to_document(value.parent)
     if value.description is not None:
         result["description"] = value.description
+    if value.semantics is not None:
+        result["semantics"] = semantics_to_document(value.semantics)
     return result
 
 
@@ -157,6 +166,10 @@ def _common_from_document(value: Mapping[str, Any]) -> dict[str, Any]:
         ),
         "abstract": abstract,
         "description": _optional_text(value, "description"),
+        "semantics": (
+            None if value.get("semantics") is None
+            else semantics_from_document(value.get("semantics"))
+        ),
     }
 
 

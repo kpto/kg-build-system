@@ -2,10 +2,15 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from kg_build_system.distribution.languages.annotations.model.public import Annotation
 from .fields import FieldSpec
+
+if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.semantics.model.public import (
+        Semantics,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -21,6 +26,7 @@ class DeclarationSpec:
     row_source: Any = None
     members: tuple[type[Any], ...] = ()
     asset: Any = None
+    semantics: Semantics | None = None
 
 
 __all__ = ["DeclarationSpec"]

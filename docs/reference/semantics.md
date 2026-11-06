@@ -4,6 +4,10 @@
 
 Semantics are independent of the data: a description is prose for a reader, an annotation is a typed payload for a tool, and a label names the component in a target. See [Semantics and annotations](../concepts/semantics.md).
 
+This page covers annotations, labels and descriptions. Meaning units (`Claim`,
+`Limitation`, `Frame`, `Purpose`, `Semantics` and `GraphSemantics`) are the
+separate semantics language; see [Semantics language](../concepts/semantics-language.md).
+
 ```python
 from dataclasses import dataclass
 

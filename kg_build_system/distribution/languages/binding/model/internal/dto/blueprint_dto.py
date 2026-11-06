@@ -9,7 +9,7 @@ binding is a Python binding and names the producing callable with a
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, TypeAlias
+from typing import TYPE_CHECKING, Literal, TypeAlias
 
 from kg_build_system.distribution.languages.annotations.model.internal.dto import AnnotationDTO
 from kg_build_system.distribution.languages.expressions.model.internal.dto import (
@@ -19,6 +19,11 @@ from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dt
     RowSourcePlanDTO,
 )
 from kg_build_system.distribution.model.public.refs import EdgeRef, NodeRef
+
+if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.semantics.model.internal import (
+        SemanticsDTO,
+    )
 
 # The binding rows field uses the data language's row plan DTO.
 RowPlanDTO: TypeAlias = RowSourcePlanDTO
@@ -92,6 +97,7 @@ class NodeBindingDTO:
     mode: BindingMode = "declarative"
     debug_name: str | None = None
     python_ref: PythonRefDTO | None = None
+    semantics: SemanticsDTO | None = None
 
     def __post_init__(self) -> None:
         from ....service._private.validation import validate_binding
@@ -146,6 +152,7 @@ class EdgeBindingDTO:
     source_node: NodeRef | None = None
     target_node: NodeRef | None = None
     python_ref: PythonRefDTO | None = None
+    semantics: SemanticsDTO | None = None
 
     def __post_init__(self) -> None:
         from ....service._private.validation import validate_binding

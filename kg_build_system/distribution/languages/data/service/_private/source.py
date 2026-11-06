@@ -50,6 +50,25 @@ def _annotations_source(
     )
 
 
+def _semantics_source(
+    value: Any, imports: set[str], indent: str,
+) -> list[str]:
+    if value is None:
+        return []
+    from kg_build_system.distribution.languages.semantics.service.internal import (
+        render_semantics,
+    )
+
+    fragment = render_semantics(value)
+    imports.update(fragment.imports)
+    lines = fragment.body.strip().splitlines()
+    result = [f"{indent}{lines[0]}"]
+    result.extend(f"{indent}{line}" for line in lines[1:])
+    if not result[-1].rstrip().endswith(","):
+        result[-1] += ","
+    return result
+
+
 def _field_source(
     column: ColumnDTO,
     imports: set[str],
@@ -63,6 +82,7 @@ def _field_source(
     if column.description is not None:
         metadata.append(f"        description={column.description!r},")
     metadata.extend(_annotations_source(column.annotations, imports, "        "))
+    metadata.extend(_semantics_source(column.semantics, imports, "        "))
     if not metadata:
         return [f"    {attribute}: Field[{type_source}] = field()"]
     return [
@@ -92,6 +112,7 @@ def _declaration_source(
         lines.append(f"        description={value.description!r},")
     annotations = _annotations_source(value.annotations, imports, "        ")
     lines.extend(annotations)
+    lines.extend(_semantics_source(value.semantics, imports, "        "))
     lines.append("    )")
     if value.columns:
         lines.append("")
@@ -175,6 +196,7 @@ def _projection_source(
     if value.description is not None:
         lines.append(f"        description={value.description!r},")
     lines.extend(_annotations_source(value.annotations, imports, "        "))
+    lines.extend(_semantics_source(value.semantics, imports, "        "))
     lines.append("    )")
     if value.columns:
         lines.append("")
@@ -193,6 +215,7 @@ def _projection_source(
             if column.description is not None:
                 lines.append(f"        description={column.description!r},")
             lines.extend(_annotations_source(column.annotations, imports, "        "))
+            lines.extend(_semantics_source(column.semantics, imports, "        "))
             lines.append("    )")
     return tuple(lines), imports
 

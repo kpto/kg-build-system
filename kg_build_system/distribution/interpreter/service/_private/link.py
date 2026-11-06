@@ -1,12 +1,12 @@
 """Link language declarations into a graph blueprint.
 
 The linker fixes the transcription order to ``expressions``, ``asset``,
-``data``, ``topology`` then ``binding``: data reads expression operations and
-names its assets, and bindings read the other three languages. It indexes
-declarations, selects roots, resolves the reference closure from authoring
-values, orders the reachable declarations, transcribes only those declarations
-and assembles the blueprint. Declarations are candidates; only reachable ones
-become symbols.
+``data``, ``topology``, ``binding`` then ``graph``: data reads expression
+operations and names its assets, bindings read the other three languages and the
+graph declaration is the project-level root. It indexes declarations, selects
+roots, resolves the reference closure from authoring values, orders the
+reachable declarations, transcribes only those declarations and assembles the
+blueprint. Declarations are candidates; only reachable ones become symbols.
 """
 from __future__ import annotations
 
@@ -32,13 +32,15 @@ from ....languages.binding.model.internal.dto.blueprint_dto import (
 from ....languages.data.model.internal.dto.blueprint_dto import (
     DataPartDTO, ProjectionDTO, RelationDTO, StructDTO,
 )
+from ....languages.graph.model.internal.dto import GraphDeclarationDTO
 from ....languages.topology.model.internal.dto.blueprint_dto import (
     EdgeDTO, GraphPartDTO, NodeDTO,
 )
 from .assembly import assemble_blueprint
 from .validation import validate_blueprint
 
-ORDER = ("expressions", "asset", "data", "topology", "binding")
+ORDER = ("expressions", "asset", "data", "topology", "binding", "graph")
+_REQUIRED = tuple(name for name in ORDER if name != "graph")
 
 
 class _LanguageResolver:
@@ -138,7 +140,18 @@ def _assemble(symbols: dict[SymbolRef, Symbol]) -> GraphBlueprint:
         symbol.value for symbol in resolved
         if isinstance(symbol.value, (NodeBindingDTO, EdgeBindingDTO))
     )
-    blueprint = assemble_blueprint(graph, data, assets, bindings)
+    graph_declarations = tuple(
+        symbol.value for symbol in resolved
+        if isinstance(symbol.value, GraphDeclarationDTO)
+    )
+    if len(graph_declarations) > 1:
+        raise ValueError(
+            "the blueprint carries more than one graph declaration"
+        )
+    graph_declaration = graph_declarations[0] if graph_declarations else None
+    blueprint = assemble_blueprint(
+        graph, data, assets, bindings, graph_declaration,
+    )
     validate_blueprint(blueprint)
     return blueprint
 
@@ -152,21 +165,25 @@ def link_blueprint(
     """Index, select, transcribe, resolve and assemble one graph blueprint.
 
     ``roots`` names the languages whose declarations are starting points.
-    ``None`` uses every language, preserving the full blueprint. A narrower
-    policy such as ``("binding",)`` selects the closure reachable from bindings
-    before any declaration is transcribed.
+    ``None`` uses every supplied language, preserving the full blueprint. A
+    narrower policy such as ``("binding",)`` selects the closure reachable from
+    bindings before any declaration is transcribed; the graph declaration is
+    included only when ``graph`` is named in a narrower root set. The graph
+    language is optional: a build that does not adopt it simply has no graph
+    declaration.
     """
     by_name: dict[str, Language] = {}
     for language in languages:
         if language.name in by_name:
             raise ValueError(f"duplicate language name {language.name!r}")
         by_name[language.name] = language
-    missing = [name for name in ORDER if name not in by_name]
+    missing = [name for name in _REQUIRED if name not in by_name]
     if missing:
         raise ValueError(
             "the graph linker requires languages " + ", ".join(missing)
         )
-    root_names = tuple(ORDER if roots is None else roots)
+    available = tuple(name for name in ORDER if name in by_name)
+    root_names = tuple(available if roots is None else roots)
     root_languages = set(root_names)
     unknown_roots = root_languages - set(by_name)
     if unknown_roots:
@@ -175,13 +192,13 @@ def link_blueprint(
         )
 
     indexed: dict[SymbolRef, tuple[Language, Declaration]] = {}
-    for name in ORDER:
+    for name in available:
         language = by_name[name]
         for key, declaration in _index_language(language, namespace):
             indexed[SymbolRef(name, key)] = (language, declaration)
 
     resolver = _LanguageResolver(
-        tuple(by_name[name] for name in ORDER),
+        tuple(by_name[name] for name in available),
     )
     references: dict[SymbolRef, tuple[SymbolRef, ...]] = {}
 

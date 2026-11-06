@@ -20,8 +20,9 @@ The asset answers those questions once:
 
 - **Logical identity.** A relation records the asset it came from as an
   `AssetRef`, so a consumer can group tables by source package.
-- **Meaning.** Subject, coverage, authority, basis, claims and limitations travel
-  with the asset into the blueprint.
+- **Meaning.** The `AssetProfile` states what the source data represents and how
+  it was produced; an optional `Semantics` fragment states what the asset means
+  and the limits of that meaning. Both travel with the asset into the blueprint.
 - **Governance.** License, owner and portable metadata are declared beside the
   data they govern.
 - **Layout.** An optional description of where a relation may be found. It is
@@ -38,7 +39,7 @@ into an `AssetDTO` and the blueprint carries one `AssetPartDTO`.
 ```python
 from kg_build_system import (
     Asset, AssetAuthority, AssetGovernance, AssetLayout, AssetLicense,
-    AssetOptions, AssetSemantics,
+    AssetOptions, AssetProfile, Claim, Frame, Limitation, Semantics,
 )
 
 
@@ -49,14 +50,25 @@ class OpenTargets(Asset):
         name="open_targets",
         website="https://platform.opentargets.org/",
         version="24.09",
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="gene-disease associations",
             coverage="curated evidence for human genes and diseases",
             authority=AssetAuthority.PRIMARY,
             basis="Open Targets Platform release",
-            claims=("each association names the evidence that supports it",),
-            limitations=("the release does not cover non-human organisms",),
             title="Open Targets Platform",
+        ),
+        semantics=Semantics(
+            claims=(
+                Claim("Each association names the evidence that supports it."),
+            ),
+            frames=(
+                Frame(
+                    text="Curated evidence only.",
+                    limitations=(
+                        Limitation("Non-human organisms are excluded."),
+                    ),
+                ),
+            ),
         ),
         governance=AssetGovernance(
             license=AssetLicense(
@@ -91,11 +103,10 @@ downloads or checks it. Pin input data in the pipeline that produces the files.
 `annotations` carries ordinary `Annotation` values. They are published with the
 asset and interpreted by whatever planner or consumer supports them.
 
-## Semantics
+## Profile and semantics
 
-`AssetSemantics` states what the data represents and the limits of that
-representation. It is required: an asset with no semantics is not a declared
-asset.
+`AssetProfile` is required. It states what the source data represents and how it
+was produced, without asserting claims or limitations.
 
 | Field | Meaning |
 | --- | --- |
@@ -103,8 +114,6 @@ asset.
 | `coverage` | Which population, period or scope the asset covers |
 | `authority` | How the asset relates to the claims it supports |
 | `basis` | The method or release the data is built from |
-| `claims` | Statements the asset asserts that a consumer may rely on |
-| `limitations` | Known gaps or qualifications |
 | `title` | Human-facing title; optional |
 | `description` | Longer explanation; optional |
 
@@ -117,9 +126,35 @@ asset.
 | `AssetAuthority.REFERENCE` | The asset is a lookup or reference set |
 | `AssetAuthority.INFERRED` | The asset contains predictions or inference |
 
+`AssetOptions(semantics=...)` is an optional declaration semantics fragment. It
+uses the same units as every other declaration: contextless claims and frames
+that own limitations. A claim or limitation belongs in `semantics`, not in the
+profile.
+
+```python
+AssetOptions(
+    profile=AssetProfile(
+        subject="gene-disease associations",
+        coverage="curated human evidence",
+        authority=AssetAuthority.PRIMARY,
+        basis="Open Targets Platform release",
+    ),
+    semantics=Semantics(
+        claims=(Claim("Each association names its supporting evidence."),),
+        frames=(
+            Frame(
+                text="Curated evidence only.",
+                limitations=(Limitation("Non-human organisms are excluded."),),
+            ),
+        ),
+    ),
+)
+```
+
 A limitation is a fact about the data, not a build error. Recording it lets a
 consumer decide whether the asset answers its question; inventing precision is
-the only wrong answer.
+the only wrong answer. See [Semantics language](semantics-language.md) for the
+units and their rules.
 
 ## Governance
 
@@ -196,10 +231,10 @@ class TargetTable(Table[OpenTargets]):
     approved_symbol: Field[str] = field()
 ```
 
-`TableOptions` has only `name`, `description` and `annotations`. It has no
-location, format, credential or asset field; the asset is part of the class
-base. A concrete `Table` without an asset parameter is refused when the class is
-created.
+`TableOptions` has only `name`, `description`, `annotations` and an optional
+`semantics` fragment. It has no location, format, credential or asset field; the
+asset is part of the class base. A concrete `Table` without an asset parameter is
+refused when the class is created.
 
 `TableGroup` is still a named catalog of tables. It does not bind anything: each
 member table names its own asset, and a group may contain tables from more than
@@ -213,12 +248,14 @@ A release stores each relation as its own Parquet object under one prefix. The
 asset declares the prefix once; the tables name the asset and nothing else.
 
 ```python
-from kg_build_system import Asset, AssetAuthority, AssetLayout, AssetOptions, AssetSemantics
+from kg_build_system import (
+    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetProfile,
+)
 
 
 class OpenTargets(Asset):
     options = AssetOptions(
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="gene-disease associations",
             coverage="curated human evidence",
             authority=AssetAuthority.PRIMARY,
@@ -258,7 +295,10 @@ asset covers all of them.
 ```python
 from pathlib import Path
 
-from kg_build_system import Asset, AssetAuthority, AssetLayout, AssetOptions, AssetSemantics
+from kg_build_system import (
+    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetProfile, Claim,
+    Frame, Limitation, Semantics,
+)
 
 DATA = Path(__file__).parent / "data"
 
@@ -269,12 +309,23 @@ class Estate(Asset):
     options = AssetOptions(
         name="estate",
         version="2026-08",
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="monitored estate records",
             coverage="sites, equipment, surveys and logger readings",
             authority=AssetAuthority.PRIMARY,
             basis="estate registry and telemetry export",
-            limitations=("nullability is not declared by the JSON documents",),
+        ),
+        semantics=Semantics(
+            frames=(
+                Frame(
+                    text="Read from the JSON export.",
+                    limitations=(
+                        Limitation(
+                            "Nullability is not declared by the JSON documents.",
+                        ),
+                    ),
+                ),
+            ),
         ),
         layout=AssetLayout(
             kind="json",
@@ -333,8 +384,8 @@ layout resolves to `parquet`, `json` or `csv` and emits one
   store prefix; the prefix belongs in `locator`.
 - **Treat `version` as a label.** Record the release you meant; pin downloads
   upstream.
-- **Declare the semantics honestly.** State the subject and the limits; do not
-  turn a sample into a promise.
+- **Declare the profile and semantics honestly.** State the subject, the basis
+  and the limits; do not turn a sample into a promise.
 - **Prefer one asset per upstream package.** If two relations always ship
   together and share governance, they belong to one asset.
 - **Keep layout optional.** An asset without a layout is still a complete
@@ -353,8 +404,8 @@ layout resolves to `parquet`, `json` or `csv` and emits one
 - One asset may back many tables; a table names exactly one asset.
 - `website` and `locator` answer different questions. A website never selects
   rows.
-- Asset annotations and governance are published; a consumer decides what they
-  mean.
+- The asset profile, semantics, annotations and governance are published; a
+  consumer decides what they mean.
 
 ## Next steps
 
@@ -366,4 +417,5 @@ name an asset.
 
 For every asset option, layout rule, planner argument and error, see the
 [assets reference](../reference/assets.md) and the
-[assets and ingest reference](../reference/ingest.md).
+[assets and ingest reference](../reference/ingest.md). The meaning units and
+their attachment rules are on [Semantics language](semantics-language.md).

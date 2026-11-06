@@ -36,7 +36,7 @@ Example:
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import Any, cast, overload
+from typing import TYPE_CHECKING, Any, cast, overload
 
 from kg_build_system.distribution.languages.expressions.model.public import (
     Selection,
@@ -55,6 +55,11 @@ from ...model.public.values import (
 from ..internal.factories import edge_binding as edge_binding_impl
 from ..internal.factories import node_binding as node_binding_impl
 
+if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.semantics.model.public import (
+        Semantics,
+    )
+
 
 @overload
 def node_binding[N: Node, S: Shape](
@@ -62,6 +67,7 @@ def node_binding[N: Node, S: Shape](
     rows: DerivedRowSource[S] | RelationRowSource[S],
     bind: Callable[[S], NodeValues[N, Any]],
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
 ) -> NodeBinding[N]: ...
 
 
@@ -69,6 +75,7 @@ def node_binding[N: Node, S: Shape](
 def node_binding[N: Node, Key: NonNullableGraphValue](
     *, target: type[N], build_key: Selection[Key], properties: N,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
 ) -> NodeBinding[N]: ...
 
 
@@ -76,11 +83,13 @@ def node_binding[N: Node](
     *, target: type[N], build_key: Selection[Any] | None = None,
     properties: Any = None, rows: Any = None, bind: Any = None,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
 ) -> NodeBinding[N]:
     """Validate one node binding and return its frozen value.
 
     Accepts either the direct form, ``build_key`` plus ``properties``, or the
     row-derived form, ``rows`` plus ``bind``. The two forms are exclusive.
+    ``semantics`` attaches one declaration semantics fragment to the binding.
 
     Example:
     ```python
@@ -111,6 +120,7 @@ def node_binding[N: Node](
         bind=bind,
         debug_name=debug_name,
         options=options,
+        semantics=semantics,
     )
 
 
@@ -120,6 +130,7 @@ def edge_binding[E: Edge[Any, Any], S: Shape](
     rows: DerivedRowSource[S] | RelationRowSource[S],
     bind: Callable[[S], EdgeValues[E, Any, Any, Any]],
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
     source_node: Endpoint[Any] | None = None,
     target_node: Endpoint[Any] | None = None,
 ) -> EdgeBinding[E]: ...
@@ -134,6 +145,7 @@ def edge_binding[
     source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
 ) -> EdgeBinding[E]: ...
 
 
@@ -146,6 +158,7 @@ def edge_binding[
     build_key: Selection[Key], source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
 ) -> EdgeBinding[E]: ...
 
 
@@ -158,6 +171,7 @@ def edge_binding[
     build_key: Selection[Key], source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
 ) -> EdgeBinding[E]: ...
 
 
@@ -172,6 +186,7 @@ def edge_binding[
     source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
 ) -> EdgeBinding[E]: ...
 
 
@@ -181,6 +196,7 @@ def edge_binding(
     target_build_key: Selection[Any] | None = None, properties: Any = None,
     rows: Any = None, bind: Any = None,
     debug_name: str | None = None, options: BindingOptions = BindingOptions(),
+    semantics: Semantics | None = None,
     source_node: Endpoint[Any] | None = None,
     target_node: Endpoint[Any] | None = None,
 ) -> EdgeBinding[Any]:
@@ -189,7 +205,8 @@ def edge_binding(
     Accepts either the direct form, the three keys plus ``properties``, or the
     row-derived form, ``rows`` plus ``bind``. ``source_node`` and
     ``target_node`` are ``endpoint(...)`` tokens required by an abstract
-    declared endpoint and optional otherwise.
+    declared endpoint and optional otherwise. ``semantics`` attaches one
+    declaration semantics fragment to the binding.
 
     Example:
     ```python
@@ -232,6 +249,7 @@ def edge_binding(
         options=options,
         source_node=source_node,
         target_node=target_node,
+        semantics=semantics,
     )
 
 

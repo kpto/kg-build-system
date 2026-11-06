@@ -7,7 +7,7 @@ from kg_build_system import (
     AssetAuthority,
     AssetLayout,
     AssetOptions,
-    AssetSemantics,
+    AssetProfile,
 )
 from kg_build_system.generation import AssetContractOptions, asset_contract
 from kg_build_system.generation.code_generation.builtins import (
@@ -44,17 +44,11 @@ class Estate(Asset):
     options = AssetOptions(
         name="estate",
         version="2026-08",
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="monitored estate records",
             coverage="sites, equipment, surveys and logger readings",
             authority=AssetAuthority.PRIMARY,
             basis="estate registry and telemetry export",
-            claims=(
-                "every table is one JSON document or one partition per logger family",
-            ),
-            limitations=(
-                "nullability is not declared by the JSON documents",
-            ),
         ),
         layout=AssetLayout(
             kind="json",

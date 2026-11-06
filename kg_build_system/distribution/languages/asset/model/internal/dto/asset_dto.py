@@ -8,6 +8,9 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from kg_build_system.distribution.languages.annotations.model.internal import AnnotationDTO
+from kg_build_system.distribution.languages.semantics.model.internal import (
+    SemanticsDTO,
+)
 
 from ...public.options import AssetAuthority
 
@@ -44,15 +47,13 @@ class AssetGovernanceDTO:
 
 
 @dataclass(frozen=True, slots=True)
-class AssetSemanticsDTO:
-    """What an asset represents and the limits of that representation."""
+class AssetProfileDTO:
+    """What source data represents and the basis of that representation."""
 
     subject: str
     coverage: str
     authority: AssetAuthority
     basis: str
-    claims: tuple[str, ...] = ()
-    limitations: tuple[str, ...] = ()
     title: str | None = None
     description: str | None = None
 
@@ -62,7 +63,8 @@ class AssetDTO:
     """One asset declaration in the blueprint."""
 
     name: str
-    semantics: AssetSemanticsDTO
+    profile: AssetProfileDTO
+    semantics: SemanticsDTO | None = None
     website: str | None = None
     version: str | None = None
     layout: AssetLayoutDTO | None = None
@@ -84,5 +86,5 @@ class AssetPartDTO:
 
 __all__ = [
     "AssetDTO", "AssetGovernanceDTO", "AssetLayoutDTO", "AssetLicenseDTO",
-    "AssetPartDTO", "AssetSemanticsDTO",
+    "AssetPartDTO", "AssetProfileDTO",
 ]

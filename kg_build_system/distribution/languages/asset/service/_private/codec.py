@@ -15,9 +15,10 @@ from ...model.internal.dto.asset_dto import (
     AssetLayoutDTO,
     AssetLicenseDTO,
     AssetPartDTO,
-    AssetSemanticsDTO,
+    AssetProfileDTO,
 )
 from ...model.public.options import AssetAuthority
+from .semantics import semantics_from_document, semantics_to_document
 
 
 def _object(value: Any, context: str) -> Mapping[str, Any]:
@@ -130,40 +131,36 @@ def _layout_from_document(value: Mapping[str, Any]) -> AssetLayoutDTO:
     )
 
 
-def _semantics_to_document(value: AssetSemanticsDTO) -> dict[str, Any]:
+def _profile_to_document(value: AssetProfileDTO) -> dict[str, Any]:
     return {
         "subject": value.subject,
         "coverage": value.coverage,
         "authority": str(value.authority),
         "basis": value.basis,
-        "claims": list(value.claims),
-        "limitations": list(value.limitations),
         "title": value.title,
         "description": value.description,
     }
 
 
-def _semantics_from_document(value: Mapping[str, Any]) -> AssetSemanticsDTO:
+def _profile_from_document(value: Mapping[str, Any]) -> AssetProfileDTO:
     try:
         authority = AssetAuthority(_text(value, "authority"))
     except ValueError:
         raise ValueError(
             f"unknown asset authority {value.get('authority')!r}"
         ) from None
-    return AssetSemanticsDTO(
+    return AssetProfileDTO(
         subject=_text(value, "subject"),
         coverage=_text(value, "coverage"),
         authority=authority,
         basis=_text(value, "basis"),
-        claims=_strings(value, "claims"),
-        limitations=_strings(value, "limitations"),
         title=_optional_text(value, "title"),
         description=_optional_text(value, "description"),
     )
 
 
 def _asset_to_document(value: AssetDTO) -> dict[str, Any]:
-    return {
+    document: dict[str, Any] = {
         "name": value.name,
         "website": value.website,
         "version": value.version,
@@ -171,16 +168,30 @@ def _asset_to_document(value: AssetDTO) -> dict[str, Any]:
             None if value.layout is None
             else _layout_to_document(value.layout)
         ),
-        "semantics": _semantics_to_document(value.semantics),
+        "profile": _profile_to_document(value.profile),
         "governance": _governance_to_document(value.governance),
         "annotations": [
             annotation_to_document(item) for item in value.annotations
         ],
     }
+    if value.semantics is not None:
+        document["semantics"] = semantics_to_document(value.semantics)
+    return document
+
+
+def _profile_document(value: Mapping[str, Any]) -> Mapping[str, Any]:
+    profile = value.get("profile")
+    if profile is not None:
+        return _object(profile, "profile")
+    legacy = value.get("semantics")
+    if legacy is not None:
+        return _object(legacy, "semantics")
+    raise ValueError("'profile' must be an object")
 
 
 def _asset_from_document(value: Mapping[str, Any]) -> AssetDTO:
     layout = value.get("layout")
+    semantics = value.get("semantics")
     return AssetDTO(
         name=_text(value, "name"),
         website=_optional_text(value, "website"),
@@ -189,8 +200,10 @@ def _asset_from_document(value: Mapping[str, Any]) -> AssetDTO:
             None if layout is None
             else _layout_from_document(_object(layout, "layout"))
         ),
-        semantics=_semantics_from_document(
-            _object(value.get("semantics"), "semantics")
+        profile=_profile_from_document(_profile_document(value)),
+        semantics=(
+            None if value.get("profile") is None or semantics is None
+            else semantics_from_document(_object(semantics, "semantics"))
         ),
         governance=_governance_from_document(
             _object(value.get("governance", {}), "governance")

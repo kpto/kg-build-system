@@ -135,10 +135,16 @@ rule about what the framework is belongs to the framework model.
 - The package tree shows the primary dependency spine. A shared artifact or
   interface is the root of its consumer cluster. A tree cannot encode every
   edge; the dependency tests enforce the rest.
-- `annotations`, `expressions`, `asset`, `data`, `topology` and `binding` are
-  distribution languages. `core`, `deduplication`, `merging`,
-  `conflict_validation`, `file`, `meta_graph`, `neo4j`, `duckdb`, `python` and
-  `runtime` are distribution modules.
+- `annotations`, `expressions`, `asset`, `data`, `topology`, `binding`,
+  `semantics` and `graph` are distribution languages. `core`, `deduplication`,
+  `merging`, `conflict_validation`, `file`, `meta_graph`, `neo4j`, `duckdb`,
+  `python` and `runtime` are distribution modules.
+- `semantics` is a value language: claim, limitation, frame and purpose values
+  are embedded in declaration DTOs; it needs no kernel `Language` adapter.
+  Annotations are the other value language.
+- `graph` has at most one declaration per project. It carries the project's
+  purpose and graph-level semantics; every declaration semantics is read under
+  that purpose.
 - A module is a feature package, not a protocol and not a registry entry. It
   groups one feature's planners, executors, resources and configuration.
 - An asset is a logical unit of source data, like a package; one asset may back
@@ -187,7 +193,9 @@ rule about what the framework is belongs to the framework model.
   observed source nullability may inform the manifest, statistics and notes but
   never adds `| None` to generated source.
 - The blueprint is the semantic model of the graph, not a snapshot of the
-  declarations that produced it. Topology reads as nodes, edges, labels,
+  declarations that produced it. It carries the graph declaration (including
+  its purpose), the topology, data, assets, bindings and the semantics attached
+  to each declaration. Topology reads as nodes, edges, labels,
   endpoints and properties; it does not carry Python paths, declaration
   expressions or symbol IDs.
 - A DTO is a member of the blueprint or the workflow plan. A value outside those

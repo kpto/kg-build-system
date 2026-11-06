@@ -1,8 +1,9 @@
 """Options an author assigns to a node, edge or template declaration.
 
-Options carry graph identity and portable annotations. A concrete or abstract
-component uses ``NodeOptions`` or ``EdgeOptions``; an inert template uses the
-matching ``*OptionsTemplate``, which has no name or description.
+Options carry graph identity, portable annotations and a declaration semantics
+fragment. A concrete or abstract component uses ``NodeOptions`` or
+``EdgeOptions``; an inert template uses the matching ``*OptionsTemplate``, which
+has no name or description.
 
 Example:
     ```python
@@ -25,6 +26,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
@@ -32,11 +34,17 @@ from kg_build_system.distribution.languages.annotations.model.public import (
 from kg_build_system.distribution.languages.annotations.service.internal import (
     annotation_tuple,
 )
+from ..internal.model.metadata import require_semantics
+
+if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.semantics.model.public import (
+        Semantics,
+    )
 
 
 @dataclass(frozen=True, slots=True)
 class NodeOptions:
-    """Identity and annotations for a concrete or abstract node.
+    """Identity, annotations and semantics for a concrete or abstract node.
 
     Example:
         ```python
@@ -51,14 +59,16 @@ class NodeOptions:
     name: str | None = None
     description: str | None = None
     annotations: Sequence[Annotation] = ()
+    semantics: Semantics | None = None
 
     def __post_init__(self) -> None:
+        require_semantics(self.semantics, "node")
         object.__setattr__(self, "annotations", annotation_tuple(list(self.annotations)))
 
 
 @dataclass(frozen=True, slots=True)
 class EdgeOptions:
-    """Identity and annotations for a concrete or abstract edge.
+    """Identity, annotations and semantics for a concrete or abstract edge.
 
     Example:
         ```python
@@ -78,14 +88,16 @@ class EdgeOptions:
     name: str | None = None
     description: str | None = None
     annotations: Sequence[Annotation] = ()
+    semantics: Semantics | None = None
 
     def __post_init__(self) -> None:
+        require_semantics(self.semantics, "edge")
         object.__setattr__(self, "annotations", annotation_tuple(list(self.annotations)))
 
 
 @dataclass(frozen=True, slots=True)
 class NodeOptionsTemplate:
-    """Annotations-only options for a node-side template.
+    """Identity-free annotations and semantics for a node-side template.
 
     Example:
         ```python
@@ -99,14 +111,16 @@ class NodeOptionsTemplate:
     """
 
     annotations: Sequence[Annotation] = ()
+    semantics: Semantics | None = None
 
     def __post_init__(self) -> None:
+        require_semantics(self.semantics, "node template")
         object.__setattr__(self, "annotations", annotation_tuple(list(self.annotations)))
 
 
 @dataclass(frozen=True, slots=True)
 class EdgeOptionsTemplate:
-    """Annotations-only options for an edge-side template.
+    """Identity-free annotations and semantics for an edge-side template.
 
     Example:
         ```python
@@ -120,8 +134,10 @@ class EdgeOptionsTemplate:
     """
 
     annotations: Sequence[Annotation] = ()
+    semantics: Semantics | None = None
 
     def __post_init__(self) -> None:
+        require_semantics(self.semantics, "edge template")
         object.__setattr__(self, "annotations", annotation_tuple(list(self.annotations)))
 
 

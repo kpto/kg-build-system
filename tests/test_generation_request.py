@@ -6,7 +6,7 @@ from kg_build_system import (
     Asset,
     AssetAuthority,
     AssetOptions,
-    AssetSemantics,
+    AssetProfile,
 )
 from kg_build_system.generation import (
     AssetContractOptions,
@@ -35,7 +35,7 @@ class GenerationRequestTests(unittest.TestCase):
         @asset_contract(options)
         class Contracted(Asset):
             options = AssetOptions(
-                semantics=AssetSemantics(
+                profile=AssetProfile(
                     subject="records",
                     coverage="one file",
                     authority=AssetAuthority.PRIMARY,

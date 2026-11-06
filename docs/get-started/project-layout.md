@@ -101,15 +101,15 @@ See [bindings](../concepts/bindings.md) and the [bindings reference](../referenc
 
 ### 5. Declare assets in `assets.py`
 
-`assets.py` owns the logical source packages: semantics, optional layout,
-governance, and version. It contains one `Asset` per logical source and no graph
-declarations:
+`assets.py` owns the logical source packages: the profile, optional semantics,
+optional layout, governance and version. It contains one `Asset` per logical
+source and no graph declarations:
 
 ```python
 from pathlib import Path
 
 from kg_build_system import (
-    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetSemantics,
+    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetProfile,
 )
 
 DATA = Path(__file__).parent / "data"
@@ -119,7 +119,7 @@ class Directory(Asset):
     options = AssetOptions(
         name="directory",
         version="people-2026-08",
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="people directory",
             coverage="staff and professional introductions",
             authority=AssetAuthority.PRIMARY,
@@ -184,7 +184,7 @@ Build artifacts are inspectable development material: the graph records, the bui
 | `data/` | Bytes on disk | A feed is refreshed |
 | `table/` | Field names, value types and the asset they name | A source schema changes |
 | `topology/` | Node and edge types, properties | The graph model changes |
-| `assets.py` | Logical source package, layout, semantics and version | A feed moves or changes format |
+| `assets.py` | Logical source package, profile, semantics, layout and version | A feed moves or changes format |
 | `bindings/` | Which rows make which records | A mapping decision changes |
 | `build.py` | Planner and executor composition and output path | A build target changes |
 

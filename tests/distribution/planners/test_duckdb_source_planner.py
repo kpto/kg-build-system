@@ -8,7 +8,7 @@ from kg_build_system.distribution.languages.asset.model.internal import (
     AssetDTO,
     AssetLayoutDTO,
     AssetPartDTO,
-    AssetSemanticsDTO,
+    AssetProfileDTO,
 )
 from kg_build_system.distribution.languages.asset.model.public import AssetAuthority
 from kg_build_system.distribution.languages.binding.model.internal import (
@@ -39,7 +39,7 @@ def _asset(layout: AssetLayoutDTO | None) -> AssetPartDTO:
     return AssetPartDTO(assets=(
         AssetDTO(
             "estate",
-            AssetSemanticsDTO(
+            AssetProfileDTO(
                 subject="estate",
                 coverage="sites",
                 authority=AssetAuthority.PRIMARY,

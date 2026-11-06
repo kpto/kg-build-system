@@ -6,7 +6,7 @@ from kg_build_system import (
     Asset,
     AssetAuthority,
     AssetOptions,
-    AssetSemantics,
+    AssetProfile,
 )
 
 
@@ -15,7 +15,7 @@ class TestEstate(Asset):
 
     options = AssetOptions(
         name="estate",
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="estate records",
             coverage="sites",
             authority=AssetAuthority.PRIMARY,

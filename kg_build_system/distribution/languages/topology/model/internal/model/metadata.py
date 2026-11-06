@@ -7,12 +7,40 @@ syntax and never enters the graph DTO.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Any, Literal
+from typing import TYPE_CHECKING, Any, Literal
 
 from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
 )
 from kg_build_system.kernel.model.public.types import LogicalType
+
+if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.semantics.model.public import (
+        Semantics,
+    )
+
+
+def require_semantics(value: object, context: str) -> Semantics | None:
+    """Return ``value`` when it is a declaration semantics fragment.
+
+    A topology declaration attaches ``Semantics`` under the graph purpose; the
+    project's meaning root, ``GraphSemantics``, belongs only to ``GraphOptions``.
+
+    Raises:
+        TypeError: when the value is ``GraphSemantics`` or another object.
+    """
+    if value is None:
+        return None
+    from kg_build_system.distribution.languages.semantics.model.public import (
+        GraphSemantics,
+        Semantics,
+    )
+
+    if isinstance(value, GraphSemantics) or not isinstance(value, Semantics):
+        raise TypeError(
+            f"{context} semantics must be a Semantics value, not GraphSemantics"
+        )
+    return value
 
 
 @dataclass(frozen=True, slots=True)
@@ -36,6 +64,7 @@ class PropertyDeclaration:
     authoring_type: Any = None
     description: str | None = None
     annotations: tuple[Annotation, ...] = ()
+    semantics: Semantics | None = None
 
     @property
     def attr(self) -> str:
@@ -64,8 +93,9 @@ class ComponentMetadata:
     source: type[Any] | None = None
     target: type[Any] | None = None
     annotations: tuple[Annotation, ...] = ()
+    semantics: Semantics | None = None
     abstract: bool = False
     parent: type[Any] | None = None
 
 
-__all__ = ["ComponentMetadata", "PropertyDeclaration"]
+__all__ = ["ComponentMetadata", "PropertyDeclaration", "require_semantics"]

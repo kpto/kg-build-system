@@ -79,6 +79,7 @@ def _prepare_declaration(
     row_source: Any = None,
     members: tuple[type[Any], ...] = (),
     asset: Any = None,
+    semantics: Any = None,
 ) -> DeclarationSpec:
     field_kind = "source" if kind in {"table", "struct"} else "computed"
     fields = resolve_field_specs(cls, field_kind)
@@ -92,6 +93,7 @@ def _prepare_declaration(
         row_source=row_source,
         members=members,
         asset=asset,
+        semantics=semantics,
     )
     cls._kg_declaration_spec = spec
     cls._fields = {item.attribute: item.descriptor for item in fields}
@@ -195,6 +197,7 @@ def prepare_table_declaration(cls: type[Any]) -> None:
         description=_description(cls, options.description),
         annotations=(*_template_annotations(cls), *options.annotations),
         asset=asset,
+        semantics=options.semantics,
     )
     cls.shape = cls
 
@@ -212,6 +215,7 @@ def prepare_struct_declaration(cls: type[Any]) -> None:
         name=name,
         description=_description(cls, options.description),
         annotations=(*_template_annotations(cls), *options.annotations),
+        semantics=options.semantics,
     )
 
 
@@ -230,6 +234,7 @@ def prepare_computed_struct_declaration(cls: type[Any]) -> None:
         name=name,
         description=_description(cls, options.description),
         annotations=(*_template_annotations(cls), *options.annotations),
+        semantics=options.semantics,
     )
 
 
@@ -266,6 +271,7 @@ def prepare_projection_declaration(cls: type[Any]) -> None:
         annotations=tuple(options.annotations),
         final=not is_base,
         row_source=row_source,
+        semantics=options.semantics,
     )
     if not is_base and row_source is None:
         raise TypeError(

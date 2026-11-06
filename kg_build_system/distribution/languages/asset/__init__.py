@@ -1,18 +1,18 @@
 """The asset language: logical source-data declarations.
 
 An asset is a logical unit of source data. One asset may back many tables. Its
-options describe the data's semantics, optional layout and governance; they do
-not carry an adapter or code-generation request.
+options describe the data's profile, optional semantics, layout and governance;
+they do not carry an adapter or code-generation request.
 
 Example:
     ```python
     from kg_build_system import (
-        Asset, AssetAuthority, AssetOptions, AssetSemantics,
+        Asset, AssetAuthority, AssetOptions, AssetProfile,
     )
 
     class OpenTargets(Asset):
         options = AssetOptions(
-            semantics=AssetSemantics(
+            profile=AssetProfile(
                 subject="gene-disease associations",
                 coverage="all curated evidence",
                 authority=AssetAuthority.PRIMARY,
@@ -31,7 +31,7 @@ from .model.public import (
     AssetLayout,
     AssetLicense,
     AssetOptions,
-    AssetSemantics,
+    AssetProfile,
     asset_name,
     asset_reference,
 )
@@ -44,7 +44,7 @@ __all__ = [
     "AssetLayout",
     "AssetLicense",
     "AssetOptions",
-    "AssetSemantics",
+    "AssetProfile",
     "asset_name",
     "asset_reference",
 ]

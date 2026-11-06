@@ -41,7 +41,7 @@ kg_build_system/
       _private/
   distribution/
     model/public/
-    languages/{annotations,expressions,asset,data,topology,binding}
+    languages/{annotations,expressions,semantics,graph,asset,data,topology,binding}
     interpreter/
     modules/{core,deduplication,merging,conflict_validation,file,meta_graph,neo4j,duckdb,python,runtime}
     service/             the distribution leaf's service zone
@@ -94,11 +94,12 @@ only; the top-level lazy export table and `__getattr__` live in
   `distribution/service/internal`; DuckDB implements the protocol. Core imports
   no DuckDB module.
 - An asset is one logical unit of source data and may back many tables; a table
-  names its asset with `Table[Asset]`. `AssetOptions` carries website, optional
-  layout, semantics and governance. `AssetLayout` is optional descriptive
-  metadata, not an access contract.
-- Source generation is per language; the interpreter source service delegates to
-  the asset, data, topology and binding renderers.
+  names its asset with `Table[Asset]`. `AssetOptions` carries a required
+  `AssetProfile`, optional `Semantics`, website, optional layout and governance.
+  `AssetLayout` is optional descriptive metadata, not an access contract.
+- Source generation is per language; the interpreter source service renders the
+  graph declaration first, then delegates to the asset, topology, data and
+  binding renderers.
 - Generation is an edit-time frontend: `@asset_contract(AssetContractOptions(...))`
   is an inert decorator on an asset, not an asset field or blueprint value.
   Observation is provenance; a generated source-backed field renders `Field[T]`.

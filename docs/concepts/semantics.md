@@ -1,6 +1,6 @@
 # Semantics and annotations
 
-A build carries its meaning as data: descriptions explain a component to people, labels name it for targets, and annotations record facts a tool can act on.
+A build carries its meaning as data: descriptions explain a component to people, labels name it for targets, annotations record facts a tool can act on, and semantics units state what the graph or one declaration means.
 
 When you declare a node, edge, property or binding, you state more than a shape. You state what a record means, what a consumer may conclude from it, and which facts downstream tooling needs. kg-build-system compiles those statements into the blueprint and publishes them with the build, so a consumer can read the meaning without reading your pipeline.
 
@@ -21,10 +21,32 @@ This makes meaning part of the build artifact, not a convention around it. The s
 | Description | What does this component mean to a person? | class docstring or `description=` | `meta_graph.json` |
 | Label | What is this component called in a target? | `NodeLabel` or `EdgeLabel` | `meta_graph.json` and the Neo4j bundle |
 | Annotation | What fact should a tool read? | a frozen `Annotation` subclass | the blueprint |
+| Semantics unit | What does the graph or declaration mean, under which purpose and limits? | `GraphSemantics(...)` on `Graph`, `Semantics(...)` on a declaration | the blueprint (`graph_declaration`, `semantics`) |
 
 Descriptions and annotations are independent. A description never becomes an annotation, and a custom annotation does not appear in the meta-graph unless a planner or executor interprets it. A label is an annotation with a framework-defined meaning.
 
-## A node with all three
+## Semantics units are not annotations
+
+The semantics language is a separate channel, not another annotation shape. A
+semantics unit is authored as `Claim`, `Limitation`, `Frame`, `Purpose`,
+`Semantics` or `GraphSemantics`; it has its own DTO and a graph declaration that
+owns the one project purpose. It is not attached through `annotations=` and it is
+not a typed annotation payload.
+
+- A description is prose for a person and has no unit structure.
+- An annotation is a namespaced typed payload for a tool; it carries no purpose,
+  frame or limitation.
+- A semantics unit states meaning as `Claim` or as purpose -> frame ->
+  limitation. A `Claim` is not an `Annotation`, and a `NodeLabel` is not a
+  claim.
+
+The channels can describe the same declaration without becoming each other. A
+description explains a node to a reader; an annotation supplies a tool-readable
+fact; a `Semantics(...)` fragment states what the declaration means and the limits
+of that meaning. The full contract, attachment points and document shape are on
+[Semantics language](semantics-language.md).
+
+## A node with a description, a label and an annotation
 
 The survey build has a site table and a `SiteNode`. The declaration below gives the node a human description, a target label and a tool-readable provenance fact.
 
@@ -154,6 +176,7 @@ When you compile, every reached declaration contributes its annotations to the b
 
 ## Next steps
 
+- [Semantics language](semantics-language.md) states the units, attachment points, one-purpose rule and document shape.
 - [Planners and executors](planners-and-executors.md) explains how a build stage can read and act on what a declaration publishes.
 - [Compile, execute and outputs](build-and-outputs.md) follows the blueprint, workflow plan and output files.
 

@@ -14,6 +14,7 @@ from kg_build_system.distribution.languages.asset.service.internal import AssetL
 from kg_build_system.distribution.languages.binding.service.internal import BindingLanguage
 from kg_build_system.distribution.languages.data.service.internal import DataLanguage
 from kg_build_system.distribution.languages.expressions.service.internal import ExpressionsLanguage
+from kg_build_system.distribution.languages.graph.service.internal import GraphLanguage
 from kg_build_system.distribution.languages.topology.service.internal import TopologyLanguage
 from kg_build_system.kernel import Toolchain
 
@@ -23,10 +24,10 @@ from .discovery import _ModuleNamespace, _Namespace, namespace_modules
 
 
 def _default_languages() -> tuple[Any, ...]:
-    """Return the default expression, asset, data, topology and binding languages."""
+    """Return the default expression, asset, data, topology, binding and graph languages."""
     return (
         ExpressionsLanguage(), AssetLanguage(), DataLanguage(),
-        TopologyLanguage(), BindingLanguage(),
+        TopologyLanguage(), BindingLanguage(), GraphLanguage(),
     )
 
 

@@ -158,19 +158,29 @@ field access ──selection──> projection ──binding──> WorkflowPlan
 
 **Asset**
 : One logical unit of source data, like a package. One asset may back many
-  tables. It declares semantics, optional layout, governance and annotations,
-  and a table names it with `Table[Asset]`. See
+  tables. It declares a profile, optional semantics, optional layout, governance
+  and annotations, and a table names it with `Table[Asset]`. See
   [Assets](../concepts/assets.md).
 
 **`AssetOptions`**
-: The options on an asset: `semantics`, `name`, `website`, `version`, `layout`,
-  `governance` and `annotations`. It has no content model, adapter or
-  code-generation field. See [Assets](assets.md).
+: The options on an asset: `profile`, optional `semantics`, `name`, `website`,
+  `version`, `layout`, `governance` and `annotations`. It has no content model,
+  adapter or code-generation field. See [Assets](assets.md).
 
-**`AssetSemantics`**
-: What an asset represents and the limits of that representation: `subject`,
-  `coverage`, `authority`, `basis`, `claims`, `limitations` and optional
-  title/description. See [Assets](assets.md#assetsemantics).
+**`AssetProfile`**
+: What an asset represents and how it was produced: `subject`, `coverage`,
+  `authority`, `basis` and optional title/description. It carries no `claims` or
+  `limitations`. See [Assets](assets.md#assetprofile).
+
+**`GraphSemantics`**
+: The project's meaning root: claims and exactly one `Purpose`, whose frames own
+  limitations. It is attached through `GraphOptions(semantics=...)`. See
+  [Semantics language](../concepts/semantics-language.md).
+
+**`Semantics`**
+: A declaration semantics fragment: claims and frames, read under the graph
+  purpose. It is attached through a declaration's `semantics=` argument. See
+  [Semantics language](../concepts/semantics-language.md).
 
 **`AssetAuthority`**
 : How an asset relates to its claims: `PRIMARY`, `DERIVED`, `REFERENCE` or

@@ -9,7 +9,7 @@ it has no symbol id, Python module path or declaration object.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from typing import Literal, TypeAlias
+from typing import TYPE_CHECKING, Literal, TypeAlias
 
 from kg_build_system.distribution.languages.annotations.model.internal import AnnotationDTO
 from kg_build_system.distribution.languages.expressions.model.internal.dto.blueprint_dto import ExpressionDTO
@@ -17,6 +17,11 @@ from kg_build_system.distribution.model.public.refs import (
     AssetRef, FieldRef, RelationRef,
 )
 from kg_build_system.kernel.model.internal.types.dto import LogicalTypeDTO
+
+if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.semantics.model.internal import (
+        SemanticsDTO,
+    )
 
 
 @dataclass(frozen=True, slots=True)
@@ -46,6 +51,7 @@ class ColumnDTO:
     description: str | None = None
     annotations: tuple[AnnotationDTO, ...] = ()
     expression: ExpressionDTO | None = None
+    semantics: SemanticsDTO | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -56,6 +62,7 @@ class StructDTO:
     columns: tuple[ColumnDTO, ...]
     description: str | None = None
     annotations: tuple[AnnotationDTO, ...] = ()
+    semantics: SemanticsDTO | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -67,6 +74,7 @@ class RelationDTO:
     asset: AssetRef
     description: str | None = None
     annotations: tuple[AnnotationDTO, ...] = ()
+    semantics: SemanticsDTO | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -168,6 +176,7 @@ class ProjectionDTO:
     row_source: RowSourcePlanDTO
     description: str | None = None
     annotations: tuple[AnnotationDTO, ...] = ()
+    semantics: SemanticsDTO | None = None
 
 
 @dataclass(frozen=True, slots=True)

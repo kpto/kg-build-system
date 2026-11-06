@@ -13,15 +13,16 @@ from ...model.internal.dto.asset_dto import (
     AssetLayoutDTO,
     AssetLicenseDTO,
     AssetPartDTO,
-    AssetSemanticsDTO,
+    AssetProfileDTO,
 )
 from ...model.public.declarations import Asset
 from ...model.public.options import (
     AssetGovernance,
     AssetLayout,
     AssetLicense,
-    AssetSemantics,
+    AssetProfile,
 )
+from .semantics import semantics_to_dto
 
 
 def _pairs(value: Any) -> tuple[tuple[str, str], ...]:
@@ -44,14 +45,12 @@ def _governance_dto(value: AssetGovernance) -> AssetGovernanceDTO:
     )
 
 
-def _semantics_dto(value: AssetSemantics) -> AssetSemanticsDTO:
-    return AssetSemanticsDTO(
+def _profile_dto(value: AssetProfile) -> AssetProfileDTO:
+    return AssetProfileDTO(
         subject=value.subject,
         coverage=value.coverage,
         authority=value.authority,
         basis=value.basis,
-        claims=tuple(value.claims),
-        limitations=tuple(value.limitations),
         title=value.title,
         description=value.description,
     )
@@ -77,7 +76,11 @@ def asset_to_dto(value: type[Asset]) -> AssetDTO:
         website=options.website,
         version=options.version,
         layout=None if options.layout is None else _layout_dto(options.layout),
-        semantics=_semantics_dto(options.semantics),
+        profile=_profile_dto(options.profile),
+        semantics=(
+            None if options.semantics is None
+            else semantics_to_dto(options.semantics)
+        ),
         governance=_governance_dto(options.governance),
         annotations=annotation_dtos(options.annotations),
     )

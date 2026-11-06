@@ -6,6 +6,7 @@ from .languages.asset.service.internal import AssetLanguage
 from .languages.binding.service.internal import BindingLanguage
 from .languages.data.service.internal import DataLanguage
 from .languages.expressions.service.internal import ExpressionsLanguage
+from .languages.graph.service.internal import GraphLanguage
 from .languages.topology.service.internal import TopologyLanguage
 
 __all__ = [
@@ -14,5 +15,6 @@ __all__ = [
     "BlueprintLinker",
     "DataLanguage",
     "ExpressionsLanguage",
+    "GraphLanguage",
     "TopologyLanguage",
 ]

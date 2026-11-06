@@ -1,7 +1,7 @@
 """Render the topology blueprint DTO as authoring source."""
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 from kg_build_system.distribution.languages.annotations.model.internal.dto import (
     AnnotationDTO,
@@ -15,6 +15,12 @@ from kg_build_system.distribution.service.internal.rendering import class_name, 
 from ...model.internal.dto.blueprint_dto import (
     EdgeDTO, GraphPartDTO, NodeDTO, PropertyDTO,
 )
+from .semantics import render_semantics_lines
+
+if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.semantics.model.internal import (
+        SemanticsDTO,
+    )
 
 
 def _options_source(
@@ -22,6 +28,7 @@ def _options_source(
     name: str,
     labels: tuple[str, ...],
     annotations: tuple[AnnotationDTO, ...],
+    semantics: SemanticsDTO | None,
     imports: set[str],
 ) -> tuple[str, ...]:
     option_class = "NodeOptions" if kind == "node" else "EdgeOptions"
@@ -44,6 +51,8 @@ def _options_source(
         lines.append("        annotations=(")
         lines.extend(f"            {item}," for item in rendered)
         lines.append("        ),")
+    if semantics is not None:
+        lines.extend(render_semantics_lines(semantics, imports, "        "))
     lines.append("    )")
     return tuple(lines)
 
@@ -53,7 +62,8 @@ def _property_source(value: PropertyDTO, imports: set[str]) -> list[str]:
     type_source = render_logical_type(value.logical_type, imports)
     has_name = attribute != value.name
     has_annotations = bool(value.annotations)
-    if not has_name and not has_annotations:
+    has_semantics = value.semantics is not None
+    if not has_name and not has_annotations and not has_semantics:
         lines = [f"    {attribute}: PropertySlot[{type_source}] = property()"]
     else:
         lines = [f"    {attribute}: PropertySlot[{type_source}] = property("]
@@ -66,6 +76,10 @@ def _property_source(value: PropertyDTO, imports: set[str]) -> list[str]:
                 for item in value.annotations
             )
             lines.append("        ),")
+        if value.semantics is not None:
+            lines.extend(
+                render_semantics_lines(value.semantics, imports, "        ")
+            )
         lines.append("    )")
     lines.extend(render_docstring(value.description))
     return lines
@@ -116,7 +130,8 @@ def _class_source(
     if value.description:
         lines.append("")
     lines.extend(_options_source(
-        kind, value.name, value.labels, value.annotations, imports,
+        kind, value.name, value.labels, value.annotations, value.semantics,
+        imports,
     ))
     if value.properties:
         lines.append("")

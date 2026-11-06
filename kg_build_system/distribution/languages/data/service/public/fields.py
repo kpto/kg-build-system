@@ -13,6 +13,9 @@ from ..internal.fields import field as field_impl
 
 if TYPE_CHECKING:
     from kg_build_system.distribution.languages.expressions.model.public import Selection
+    from kg_build_system.distribution.languages.semantics.model.public import (
+        Semantics,
+    )
     from ...model.public.fields import Field
 
 
@@ -21,6 +24,7 @@ def field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
+    semantics: Semantics | None = None,
 ) -> "Field[T]":  # pyright: ignore[reportInvalidTypeVarUse]
     """Declare a source-backed field: a table column or source struct member.
 
@@ -34,6 +38,7 @@ def field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     """
     return field_impl(
         name=name, description=description, annotations=annotations,
+        semantics=semantics,
     )
 
 
@@ -43,6 +48,7 @@ def computed_field[T: DeclaredValue](
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
+    semantics: Semantics | None = None,
 ) -> "Field[T]":
     """Declare an expression-backed field: an output or computed member.
 
@@ -56,6 +62,7 @@ def computed_field[T: DeclaredValue](
     """
     return computed_field_impl(
         value, name=name, description=description, annotations=annotations,
+        semantics=semantics,
     )
 
 

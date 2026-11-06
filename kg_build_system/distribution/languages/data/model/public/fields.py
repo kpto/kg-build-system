@@ -22,6 +22,9 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
 )
+from kg_build_system.distribution.languages.semantics.model.public import (
+    require_declaration_semantics,
+)
 from kg_build_system.kernel.model.public.types import (
     Array,
     CustomDataType,
@@ -37,12 +40,17 @@ if TYPE_CHECKING:
     from kg_build_system.distribution.languages.expressions.model.public import (
         Selection,
     )
+    from kg_build_system.distribution.languages.semantics.model.public import (
+        Semantics,
+    )
     from kg_build_system.kernel.model.public.types import LogicalType
     from .declarations import (
         ComputedStruct, Projection, Struct as SourceStruct, Table,
     )
 
 T = TypeVar("T")
+
+
 
 # The closed value vocabulary a field may declare. A bound keeps the actual
 # subtype (`Address`, `Array[Address]`) instead of promoting it to the bound.
@@ -56,12 +64,16 @@ type DeclaredValue = (
 
 @dataclass(frozen=True, slots=True)
 class FieldMetadata:
-    """The name, description and annotations declared on one field."""
+    """The name, description, annotations and semantics declared on one field."""
 
     name: str | None = None
     description: str | None = None
     annotations: tuple[Annotation, ...] = ()
     attribute: str = ""
+    semantics: Semantics | None = None
+
+    def __post_init__(self) -> None:
+        require_declaration_semantics(self.semantics)
 
 
 class Field[T: DeclaredValue]:

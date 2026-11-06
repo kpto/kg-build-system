@@ -17,6 +17,9 @@ from kg_build_system.distribution.languages.annotations.model.public import (
 from kg_build_system.distribution.languages.annotations.service.internal import (
     annotation_tuple,
 )
+from kg_build_system.distribution.languages.semantics.model.public import (
+    Semantics,
+)
 
 
 class AssetAuthority(StrEnum):
@@ -96,14 +99,18 @@ class AssetGovernance:
 
 
 @dataclass(frozen=True, slots=True)
-class AssetSemantics:
-    """What an asset represents and the limits of that representation.
+class AssetProfile:
+    """What source data represents and the basis of that representation.
+
+    A profile is source-data metadata: subject, coverage, authority and basis.
+    Claims and limitations are semantics units and are declared separately with
+    ``AssetOptions(semantics=...)``.
 
     Example:
         ```python
-        from kg_build_system import AssetAuthority, AssetSemantics
+        from kg_build_system import AssetAuthority, AssetProfile
 
-        semantics = AssetSemantics(
+        profile = AssetProfile(
             subject="gene-disease associations",
             coverage="all curated evidence",
             authority=AssetAuthority.PRIMARY,
@@ -116,33 +123,21 @@ class AssetSemantics:
     coverage: str
     authority: AssetAuthority
     basis: str
-    claims: tuple[str, ...] = ()
-    limitations: tuple[str, ...] = ()
     title: str | None = None
     description: str | None = None
 
     def __post_init__(self) -> None:
-        from ...service._private.options import (
-            optional_text, required_text, text_tuple,
-        )
+        from ...service._private.options import optional_text, required_text
 
-        required_text(self.subject, "an asset semantics subject")
-        required_text(self.coverage, "an asset semantics coverage")
-        required_text(self.basis, "an asset semantics basis")
+        required_text(self.subject, "an asset profile subject")
+        required_text(self.coverage, "an asset profile coverage")
+        required_text(self.basis, "an asset profile basis")
         if not isinstance(self.authority, AssetAuthority):
             raise TypeError(
-                "asset semantics authority must be an AssetAuthority"
+                "asset profile authority must be an AssetAuthority"
             )
-        object.__setattr__(
-            self, "claims", text_tuple(self.claims, "asset semantics claims"),
-        )
-        object.__setattr__(
-            self,
-            "limitations",
-            text_tuple(self.limitations, "asset semantics limitations"),
-        )
-        optional_text(self.title, "an asset semantics title")
-        optional_text(self.description, "an asset semantics description")
+        optional_text(self.title, "an asset profile title")
+        optional_text(self.description, "an asset profile description")
 
 
 @dataclass(frozen=True, slots=True)
@@ -208,13 +203,13 @@ class AssetOptions:
     Example:
         ```python
         from kg_build_system import (
-            Asset, AssetAuthority, AssetLicense, AssetOptions, AssetSemantics,
-            AssetGovernance,
+            Asset, AssetAuthority, AssetGovernance, AssetLicense, AssetOptions,
+            AssetProfile,
         )
 
         class OpenTargets(Asset):
             options = AssetOptions(
-                semantics=AssetSemantics(
+                profile=AssetProfile(
                     subject="gene-disease associations",
                     coverage="all curated evidence",
                     authority=AssetAuthority.PRIMARY,
@@ -227,7 +222,8 @@ class AssetOptions:
         ```
     """
 
-    semantics: AssetSemantics
+    profile: AssetProfile
+    semantics: Semantics | None = None
     name: str | None = None
     website: str | None = None
     version: str | None = None
@@ -238,8 +234,12 @@ class AssetOptions:
     def __post_init__(self) -> None:
         from ...service._private.options import optional_text
 
-        if not isinstance(self.semantics, AssetSemantics):
-            raise TypeError("asset options semantics must be AssetSemantics")
+        if not isinstance(self.profile, AssetProfile):
+            raise TypeError("asset options profile must be an AssetProfile")
+        if self.semantics is not None and not isinstance(
+            self.semantics, Semantics,
+        ):
+            raise TypeError("asset options semantics must be a Semantics")
         if self.layout is not None and not isinstance(self.layout, AssetLayout):
             raise TypeError("asset options layout must be an AssetLayout")
         if not isinstance(self.governance, AssetGovernance):
@@ -254,5 +254,5 @@ class AssetOptions:
 
 __all__ = [
     "AssetAuthority", "AssetGovernance", "AssetLayout", "AssetLicense",
-    "AssetOptions", "AssetSemantics",
+    "AssetOptions", "AssetProfile",
 ]

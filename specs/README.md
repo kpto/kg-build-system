@@ -15,9 +15,11 @@ This directory does not duplicate it.
 | `kernel` | canonical types; declaration, symbol, key, workflow and runtime values | `Language`, `Declaration`, `Symbol`, `SymbolRef`, `Key`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `Resource`, `ResourceProvider`, `ResourceView`, `Toolchain`, `Extension`, `WorkflowRuntime` |
 | `distribution/languages/annotations` | annotation values and labels | codec and source rendering |
 | `distribution/languages/expressions` | `Selection[T]`, `NullableSelection[T]`, one-shot row-effect handles and `Pair`; expression DTOs | construction, operation specifications, lookup/zip and source rendering |
-| `distribution/languages/asset` | `Asset`, `AssetOptions`, `AssetLayout`, `AssetSemantics`, `AssetGovernance`; asset DTOs | asset discovery, transcription, codec and source rendering |
+| `distribution/languages/semantics` | `Claim`, `Limitation`, `Frame`, `Purpose`, `Semantics`, `GraphSemantics`; semantics DTOs | transcription, document codec and source rendering |
+| `distribution/languages/graph` | `Graph`, `GraphOptions`; graph declaration DTO | graph discovery, transcription, codec and source rendering |
+| `distribution/languages/asset` | `Asset`, `AssetOptions`, `AssetProfile`, `AssetLayout`, `AssetGovernance`; asset DTOs | asset discovery, transcription, codec and source rendering |
 | `distribution/languages/data` | `Table[Asset]`, `Struct`, `ComputedStruct`, `Projection(source)`, `RowSource`, `Field[T]`; data DTOs | field wrappers, row-source derivation, transcription and source rendering |
-| `distribution/languages/topology` | `Node`, `Edge`, properties and templates; graph DTOs | property and endpoint wrappers, transcription and source rendering |
+| `distribution/languages/topology` | `Node`, `Edge`, properties and templates; topology DTOs | property and endpoint wrappers, transcription and source rendering |
 | `distribution/languages/binding` | binding values; binding DTOs | `node_binding`, `edge_binding`, transcription and source rendering |
 | `distribution/interpreter` | `GraphBlueprint` | `create_blueprint`, `BlueprintLinker`, assembly, validation, codec and source |
 | `distribution/model/public` | `BuildRuntime`, typed references and path rules | none |

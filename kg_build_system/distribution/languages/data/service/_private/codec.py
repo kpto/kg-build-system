@@ -58,6 +58,27 @@ def _items(value: Mapping[str, Any], key: str, decoder: Any) -> tuple[Any, ...]:
     )
 
 
+def _encode_semantics(value: Any) -> dict[str, Any]:
+    from kg_build_system.distribution.languages.semantics.service.internal import (
+        semantics_to_document,
+    )
+
+    return semantics_to_document(value)
+
+
+def _decode_semantics(value: Any) -> Any:
+    from kg_build_system.distribution.languages.semantics.service.internal import (
+        semantics_from_document,
+    )
+
+    return semantics_from_document(value)
+
+
+def _optional_semantics(value: Mapping[str, Any]) -> Any:
+    document = value.get("semantics")
+    return None if document is None else _decode_semantics(document)
+
+
 # ---------------------------------------------------------------------------
 # Row plans
 
@@ -209,6 +230,8 @@ def _encode_column(value: ColumnDTO) -> dict[str, Any]:
         result["description"] = value.description
     if value.expression is not None:
         result["expression"] = expression_to_document(value.expression)
+    if value.semantics is not None:
+        result["semantics"] = _encode_semantics(value.semantics)
     return result
 
 
@@ -229,6 +252,7 @@ def _decode_column(value: Mapping[str, Any]) -> ColumnDTO:
             None if expression is None
             else expression_from_document(_object(expression, "expression"))
         ),
+        semantics=_optional_semantics(value),
     )
 
 
@@ -242,6 +266,8 @@ def _encode_declaration(
     }
     if value.description is not None:
         result["description"] = value.description
+    if value.semantics is not None:
+        result["semantics"] = _encode_semantics(value.semantics)
     if isinstance(value, RelationDTO):
         result["asset"] = ref_to_document(value.asset)
     return result
@@ -253,6 +279,7 @@ def _decode_struct(value: Mapping[str, Any]) -> StructDTO:
         columns=_items(value, "columns", _decode_column),
         description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", annotation_from_document),
+        semantics=_optional_semantics(value),
     )
 
 
@@ -266,6 +293,7 @@ def _decode_relation(value: Mapping[str, Any]) -> RelationDTO:
         asset=asset,
         description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", annotation_from_document),
+        semantics=_optional_semantics(value),
     )
 
 
@@ -284,6 +312,7 @@ def _decode_projection(value: Mapping[str, Any]) -> ProjectionDTO:
         ),
         description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", annotation_from_document),
+        semantics=_optional_semantics(value),
     )
 
 

@@ -12,6 +12,13 @@ from kg_build_system.distribution.languages.binding.model.internal.dto.blueprint
 from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import (
     DataPartDTO,
 )
+from kg_build_system.distribution.languages.graph.model.internal.dto import (
+    GraphDeclarationDTO,
+)
+from kg_build_system.distribution.languages.semantics.model.internal import (
+    GraphSemanticsDTO,
+    PurposeDTO,
+)
 from kg_build_system.distribution.languages.topology.model.internal.dto.blueprint_dto import (
     EdgeDTO, NodeDTO,
 )
@@ -20,6 +27,23 @@ from kg_build_system.distribution.model.public.refs import (
 )
 from kg_build_system.kernel import Key
 from ...model.public import GraphBlueprint
+
+
+def _validate_graph_declaration(blueprint: GraphBlueprint) -> None:
+    declaration = blueprint.graph_declaration
+    if declaration is None:
+        return
+    if not isinstance(declaration, GraphDeclarationDTO):
+        raise ValueError("the graph declaration must be a GraphDeclarationDTO")
+    semantics = declaration.semantics
+    if not isinstance(semantics, GraphSemanticsDTO):
+        raise ValueError(
+            "the graph declaration requires GraphSemantics semantics"
+        )
+    if not isinstance(semantics.purpose, PurposeDTO):
+        raise ValueError("the graph declaration requires a purpose")
+    if not semantics.purpose.text:
+        raise ValueError("the graph declaration purpose must be non-empty")
 
 
 def _components(graph: Any) -> tuple[Any, ...]:
@@ -117,8 +141,11 @@ def validate_blueprint(blueprint: GraphBlueprint) -> None:
 
     The checks are reference-based: every endpoint, parent, property, field,
     relation asset and binding must carry the role reference whose language and
-    key name an existing declaration. Names are only used for the messages.
+    key name an existing declaration. A graph declaration, when present, must
+    carry ``GraphSemantics`` with a purpose. Names are only used for the
+    messages.
     """
+    _validate_graph_declaration(blueprint)
     components = _components(blueprint.graph)
     names = tuple(_name(item) for item in components)
     if len(names) != len(set(names)):

@@ -87,6 +87,16 @@ def _data_annotations(values: Sequence[Any]) -> tuple[AnnotationDTO, ...]:
     return annotation_dtos(values)
 
 
+def _semantics_dto(value: Any) -> Any:
+    if value is None:
+        return None
+    from kg_build_system.distribution.languages.semantics.service.internal import (
+        semantics_to_dto,
+    )
+
+    return semantics_to_dto(value)
+
+
 def _column(
     owner: str, item: Any, *, expression: bool = False,
 ) -> ColumnDTO:
@@ -101,6 +111,7 @@ def _column(
             if expression and item.descriptor.expression is not None
             else None
         ),
+        semantics=_semantics_dto(item.semantics),
     )
 
 
@@ -111,6 +122,7 @@ def _struct(item: type[Any], spec: DeclarationSpec) -> StructDTO:
         columns=tuple(_column(name, field) for field in spec.fields),
         description=spec.description,
         annotations=_data_annotations(spec.annotations),
+        semantics=_semantics_dto(spec.semantics),
     )
 
 
@@ -124,6 +136,7 @@ def _relation(item: type[Any], spec: DeclarationSpec) -> RelationDTO:
         asset=asset_reference(spec.asset),
         description=spec.description,
         annotations=_data_annotations(spec.annotations),
+        semantics=_semantics_dto(spec.semantics),
     )
 
 
@@ -151,6 +164,7 @@ def _projection(item: type[Any], spec: DeclarationSpec) -> ProjectionDTO:
         row_source=cast(RowSourcePlanDTO, plan),
         description=spec.description,
         annotations=_data_annotations(spec.annotations),
+        semantics=_semantics_dto(spec.semantics),
     )
 
 

@@ -190,7 +190,8 @@ A projection's logical name is inferred from its class name: remove one trailing
 `Projection` and convert the rest to snake case. `DefectProjection` becomes
 `defect`.
 
-`ProjectionOptions` overrides the name and carries a description and annotations:
+`ProjectionOptions` overrides the name and carries a description, annotations and
+an optional `semantics` fragment:
 
 ```python
 from kg_build_system import ProjectionOptions

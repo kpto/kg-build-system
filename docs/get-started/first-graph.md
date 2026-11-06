@@ -125,7 +125,7 @@ Create `people_graph/assets.py`:
 from pathlib import Path
 
 from kg_build_system import (
-    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetSemantics,
+    Asset, AssetAuthority, AssetLayout, AssetOptions, AssetProfile,
 )
 
 DATA = Path(__file__).parent / "data"
@@ -137,7 +137,7 @@ class Directory(Asset):
     options = AssetOptions(
         name="directory",
         version="2026-08",
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="people directory",
             coverage="staff and professional introductions",
             authority=AssetAuthority.PRIMARY,

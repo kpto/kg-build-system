@@ -22,6 +22,7 @@ from .implementations import (
     BlueprintLinker,
     DataLanguage,
     ExpressionsLanguage,
+    GraphLanguage,
     TopologyLanguage,
 )
 from .interpreter import GraphBlueprint, create_blueprint
@@ -110,6 +111,7 @@ __all__ = [
     "FileExecutor",
     "FilePlanner",
     "GraphBlueprint",
+    "GraphLanguage",
     "MetaGraphConfiguration",
     "MetaGraphExecutor",
     "MetaGraphPlanner",

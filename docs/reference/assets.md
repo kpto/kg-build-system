@@ -1,14 +1,15 @@
 # Assets
 
 An asset is one logical unit of source data. One asset may back many tables. An
-`Asset` subclass declares its semantics, optional layout, governance and
-annotations; each table names the asset through `Table[Asset]`. See
-[Assets](../concepts/assets.md) for the model.
+`Asset` subclass declares its profile, optional semantics, optional layout,
+governance and annotations; each table names the asset through `Table[Asset]`.
+See [Assets](../concepts/assets.md) for the model.
 
 ```python
 from kg_build_system import (
     Asset, AssetAuthority, AssetGovernance, AssetLayout, AssetLicense,
-    AssetOptions, AssetSemantics, Field, Table, TableOptions, field,
+    AssetOptions, AssetProfile, Claim, Field, Semantics, Table, TableOptions,
+    field,
 )
 
 
@@ -19,11 +20,14 @@ class OpenTargets(Asset):
         name="open_targets",
         website="https://platform.opentargets.org/",
         version="24.09",
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="gene-disease associations",
             coverage="curated evidence for human genes and diseases",
             authority=AssetAuthority.PRIMARY,
             basis="Open Targets Platform release",
+        ),
+        semantics=Semantics(
+            claims=(Claim("Each association names its evidence."),),
         ),
         governance=AssetGovernance(license=AssetLicense("CC-BY-4.0")),
         layout=AssetLayout(
@@ -44,7 +48,8 @@ class TargetTable(Table[OpenTargets]):
 
 | Surface | Import from |
 | --- | --- |
-| `Asset`, `AssetOptions`, `AssetLayout`, `AssetSemantics`, `AssetAuthority`, `AssetGovernance`, `AssetLicense` | `kg_build_system` |
+| `Asset`, `AssetOptions`, `AssetLayout`, `AssetProfile`, `AssetAuthority`, `AssetGovernance`, `AssetLicense` | `kg_build_system` |
+| `Claim`, `Frame`, `Limitation`, `Purpose`, `Semantics`, `GraphSemantics` | `kg_build_system` |
 | `Table` and `TableOptions` | `kg_build_system` |
 | `AssetRef` | `kg_build_system.distribution` |
 | `DuckDbSourcePlanner` | `kg_build_system.distribution` or `kg_build_system.distribution.modules.duckdb` |
@@ -82,7 +87,8 @@ class OpenTargets(Asset):
 
 ```python
 AssetOptions(
-    semantics: AssetSemantics,
+    profile: AssetProfile,
+    semantics: Semantics | None = None,
     name: str | None = None,
     website: str | None = None,
     version: str | None = None,
@@ -94,7 +100,8 @@ AssetOptions(
 
 | Field | Meaning | Default |
 | --- | --- | --- |
-| `semantics` | What the data represents and its limits | Required |
+| `profile` | What the source data represents and how it was produced | Required |
+| `semantics` | Optional declaration semantics fragment | `None` |
 | `name` | Logical asset name | Snake case of the class name |
 | `website` | Canonical human-facing reference | `None` |
 | `version` | Free-text release label | `None` |
@@ -111,17 +118,16 @@ triggers no download.
 
 `name` must be non-empty when supplied. `website`, `version` and the layout text
 fields must be non-empty when present. `annotations` is normalised to a tuple.
+`semantics` must be a `Semantics` value, never `GraphSemantics`.
 
-## `AssetSemantics`
+## `AssetProfile`
 
 ```python
-AssetSemantics(
+AssetProfile(
     subject: str,
     coverage: str,
     authority: AssetAuthority,
     basis: str,
-    claims: Sequence[str] = (),
-    limitations: Sequence[str] = (),
     title: str | None = None,
     description: str | None = None,
 )
@@ -133,13 +139,12 @@ AssetSemantics(
 | `coverage` | The population, period or scope it covers |
 | `authority` | How the asset relates to the claims it supports |
 | `basis` | The method or release the data is built from |
-| `claims` | Statements a consumer may rely on |
-| `limitations` | Known gaps or qualifications |
 | `title` | Human-facing title |
 | `description` | Longer explanation |
 
-`subject`, `coverage` and `basis` must be non-empty. Every entry in `claims` and
-`limitations` must be non-empty.
+`subject`, `coverage` and `basis` must be non-empty. `profile` has no `claims` or
+`limitations`: those are semantics units declared through
+`AssetOptions(semantics=...)`. See [Semantics language](../concepts/semantics-language.md).
 
 ### `AssetAuthority`
 
@@ -255,8 +260,9 @@ class TargetTable(Table[OpenTargets]):
     target_id: Field[str] = field()
 ```
 
-`TableOptions` has only `name`, `description` and `annotations`. There is no
-asset option and no location, format, credential or version option.
+`TableOptions` has only `name`, `description`, `annotations` and an optional
+`semantics` fragment. There is no asset option and no location, format,
+credential or version option.
 
 | Error | Trigger |
 | --- | --- |
@@ -355,7 +361,8 @@ unless a supplied planner already reports `component_id == "duckdb"`.
 - `website` is the human-facing reference; `layout.locator` is the machine
   location.
 - Layout is optional descriptive metadata, not an access contract.
-- `AssetSemantics` and `AssetGovernance` are published with the asset.
+- `AssetProfile`, optional `Semantics` and `AssetGovernance` are published with
+  the asset.
 - `@asset_contract` is a generation frontend; it is not an asset field.
 - The generic DuckDB source planner handles `parquet`, `json` and `csv` layouts.
   Another module contributes another ordinary planner; there is no adapter

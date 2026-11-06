@@ -37,7 +37,7 @@ separate means a feed can move without changing the graph.
 ```python
 class Estate(Asset):
     options = AssetOptions(
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="monitored estate",
             coverage="sites, units and defects",
             authority=AssetAuthority.PRIMARY,
@@ -127,8 +127,10 @@ the row source carries the grain.
 
 [Semantics and annotations](semantics.md) turn descriptions and annotations into
 data. A description explains a component to a human; an annotation is a typed
-payload a tool can read. Both survive compilation and can be published with the
-graph, so a consumer does not have to read the pipeline.
+payload a tool can read. The [semantics language](semantics-language.md) adds
+authored meaning units: claims, one project purpose, frames and limitations.
+All three survive compilation and can be published with the graph, so a consumer
+does not have to read the pipeline.
 
 ## 8. Compose the planners and executors
 

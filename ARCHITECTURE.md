@@ -47,6 +47,8 @@ kg_build_system/
     languages/
       annotations/
       expressions/
+      semantics/
+      graph/
       asset/
       data/
       topology/
@@ -128,11 +130,13 @@ The primary edges are:
 | `kernel` | no framework package |
 | `distribution/languages/annotations` | `kernel` |
 | `distribution/languages/expressions` | `kernel` |
-| `distribution/languages/asset` | `kernel`, annotations |
-| `distribution/languages/data` | `kernel`, annotations, expressions, asset |
-| `distribution/languages/topology` | `kernel`, annotations, expressions |
-| `distribution/languages/binding` | `kernel`, annotations, data, topology |
-| `distribution/interpreter` | `kernel`, every graph language |
+| `distribution/languages/semantics` | `kernel` |
+| `distribution/languages/graph` | `kernel`, semantics |
+| `distribution/languages/asset` | `kernel`, annotations, semantics |
+| `distribution/languages/data` | `kernel`, annotations, expressions, asset, semantics |
+| `distribution/languages/topology` | `kernel`, annotations, expressions, semantics |
+| `distribution/languages/binding` | `kernel`, annotations, data, topology, semantics |
+| `distribution/interpreter` | `kernel`, every graph language, semantics |
 | `distribution/modules/<name>` | `kernel`, `distribution/interpreter` where it reads a blueprint, distribution languages, `distribution.model` and `distribution.service`; the core module uses the neutral relation plan and `SqlEmitter` protocol, not the DuckDB module |
 | `distribution/implementations.py` | `kernel`, interpreter, languages |
 | `generation/code_generation` | `kernel`, `distribution.languages.asset` |

@@ -31,11 +31,14 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass
-from typing import Any, ClassVar, Self
+from typing import TYPE_CHECKING, Any, ClassVar, Self
 
 from kg_build_system.distribution.languages.annotations.service.internal import annotation_tuple
 from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
+)
+from kg_build_system.distribution.languages.semantics.model.public import (
+    require_declaration_semantics,
 )
 from kg_build_system.distribution.languages.asset.model.public import Asset
 from kg_build_system.distribution.languages.expressions.model.public import (
@@ -46,16 +49,24 @@ from .row_sources import (
     DerivedRowSource, RelationRowSource, RowSource, RowSourceProvider,
 )
 
+if TYPE_CHECKING:
+    from kg_build_system.distribution.languages.semantics.model.public import (
+        Semantics,
+    )
+
+
 
 @dataclass(frozen=True, slots=True)
 class TableOptions:
     name: str | None = None
     description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
+    semantics: Semantics | None = None
 
     def __post_init__(self) -> None:
         if self.name is not None and not self.name:
             raise ValueError("table names must be non-empty")
+        require_declaration_semantics(self.semantics)
         object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
 
@@ -74,10 +85,12 @@ class StructOptions:
     name: str | None = None
     description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
+    semantics: Semantics | None = None
 
     def __post_init__(self) -> None:
         if self.name is not None and not self.name:
             raise ValueError("struct names must be non-empty")
+        require_declaration_semantics(self.semantics)
         object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
 
@@ -86,10 +99,12 @@ class ProjectionOptions:
     name: str | None = None
     description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
+    semantics: Semantics | None = None
 
     def __post_init__(self) -> None:
         if self.name is not None and not self.name:
             raise ValueError("projection names must be non-empty")
+        require_declaration_semantics(self.semantics)
         object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
 

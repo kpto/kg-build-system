@@ -10,7 +10,9 @@ prove.
 | --- | --- | --- |
 | Canonical types | `kernel/model/public/types` | the one type ontology every language uses |
 | Annotations | `distribution/languages/annotations` | annotation values and DTOs |
-| Assets | `distribution/languages/asset` | logical source-data declarations, layout metadata and asset DTOs |
+| Semantics | `distribution/languages/semantics` | claims, limitations, frames, purpose, declaration fragments and their DTOs |
+| Graph declaration | `distribution/languages/graph` | the one `Graph` declaration, its options and its DTO |
+| Assets | `distribution/languages/asset` | logical source-data declarations, profile and semantics attachments, layout metadata and asset DTOs |
 | Selections | `distribution/languages/expressions/model/public` | the single `Selection[T]` authoring type and its one-shot row-effect handles |
 | Field nullability | `distribution/languages/data` | a field declares a value type; the owner decides source or computed presence |
 | Operation specifications | `distribution/languages/expressions/service/internal/operations` | one specification per operation |
@@ -119,8 +121,15 @@ distribution/languages/expressions/model/internal/dto/blueprint_dto.py
     LookupExpressionDTO, OperationExpressionDTO
 
 distribution/languages/asset/model/internal/dto/asset_dto.py
-    AssetPartDTO, AssetDTO, AssetLayoutDTO, AssetSemanticsDTO,
+    AssetPartDTO, AssetDTO, AssetLayoutDTO, AssetProfileDTO,
     AssetGovernanceDTO, AssetLicenseDTO
+
+distribution/languages/semantics/model/internal/dto/semantics_dto.py
+    ClaimDTO, LimitationDTO, FrameDTO, PurposeDTO, SemanticsDTO,
+    GraphSemanticsDTO
+
+distribution/languages/graph/model/internal/dto/graph_dto.py
+    GraphDeclarationDTO
 
 distribution/languages/data/model/internal/dto/blueprint_dto.py
     DataPartDTO
@@ -133,17 +142,14 @@ distribution/languages/topology/model/internal/dto/blueprint_dto.py
     GraphPartDTO, NodeDTO, EdgeDTO, PropertyDTO
 
 distribution/languages/binding/model/internal/dto/blueprint_dto.py
-    NodeBindingDTO, EdgeBindingDTO
+    BindingDTO, NodeBindingDTO, EdgeBindingDTO
 
 distribution/model/public/refs.py
     NodeRef, EdgeRef, RelationRef, FieldRef, PropertyRef, AssetRef,
     OperationRef
 
 distribution/interpreter/model/public/graph_blueprint.py
-    GraphBlueprint(graph, data, assets, bindings)
-
-distribution/languages/binding/model/internal/dto/blueprint_dto.py
-    BindingDTO, NodeBindingDTO, EdgeBindingDTO
+    GraphBlueprint(graph, data, assets, bindings, graph_declaration=None)
 ```
 
 ## Typed references
@@ -178,8 +184,8 @@ property symbol's key joins its component and the property name.
 
 The expressions language (`name = "expressions"`) publishes one `operation`
 symbol per built-in specification. The linker indexes declarations in the order
-`expressions, asset, data, topology, binding`, selects the root declarations,
-resolves the reference closure from the authoring values with
+`expressions, asset, data, topology, binding, graph`, selects the root
+declarations, resolves the reference closure from the authoring values with
 `Language.get_references`, orders the reachable declarations and transcribes
 each one with `Language.transcribe`. A declaration is a candidate; a declaration
 no root reaches contributes no symbol. Data fields and topology properties are
@@ -298,16 +304,26 @@ The data model is implemented:
   `Row*DTO` plans, including `RowUnnestDTO`. They carry graph names and typed
   refs, never a `symbol_id` or a symbol key. Every `RelationDTO` carries an
   `AssetRef`.
+- `distribution/languages/semantics` defines `Claim`, `Limitation`, `Frame`,
+  `Purpose`, `Semantics` and `GraphSemantics`, their DTOs, document codec and
+  source rendering. It is a value language, not a graph language: it has no
+  declaration part of its own.
+- `distribution/languages/graph` defines the one `Graph` declaration,
+  `GraphOptions`, `GraphDeclarationDTO`, its codec and source rendering. The
+  graph declaration carries `GraphSemantics` and becomes
+  `GraphBlueprint.graph_declaration`.
 - `distribution/languages/asset` defines the asset language, `AssetPartDTO` and
   its codec. A relation names a logical asset, not a physical reader binding.
-  `AssetOptions` carries website, layout, semantics and governance; it has no
-  adapter or code-generation field. `@asset_contract` remains an inert
-  generation-frontend decorator on an `Asset` subclass.
-- `distribution/languages/asset`, `data`, `topology`, `binding` and
-  `expressions` each provide a kernel `Language` adapter, a transcription service
+  `AssetOptions` carries a required `AssetProfile`, optional `Semantics`,
+  website, layout and governance; it has no adapter or code-generation field.
+  `@asset_contract` remains an inert generation-frontend decorator on an
+  `Asset` subclass.
+- `distribution/languages/asset`, `data`, `topology`, `binding`, `expressions`
+  and `graph` each provide a kernel `Language` adapter, a transcription service
   and a source service. Their languages discover declarations, resolve direct
   dependencies from authoring values, transcribe one declaration at a time and
-  render those symbol values back to authoring source.
+  render those symbol values back to authoring source. The semantics language is
+  composed by the languages that attach its DTOs.
 - `distribution/languages/expressions/model/internal/dto/blueprint_dto.py`
   defines `LiteralExpressionDTO`, `FieldReferenceDTO`, `VariableExpressionDTO`,
   `LookupExpressionDTO` and `OperationExpressionDTO`. A field read carries a
@@ -319,9 +335,9 @@ The data model is implemented:
   `RowSource.unnest` expands one direct array member and preserves the rest of
   the source row.
 - `distribution/interpreter` defines `GraphBlueprint(graph, data, assets,
-  bindings)`, a composing codec and a source service. The source service
-  delegates to the asset, data, topology and binding renderers and assembles
-  their fragments.
+  bindings, graph_declaration=None)`, a composing codec and a source service.
+  The source service renders the graph declaration first, then delegates to the
+  asset, topology, data and binding renderers and assembles their fragments.
 - `distribution/modules/duckdb` owns `DuckDbSourcePlanner`, which reads
   `AssetLayout` and emits `("source_relation", "duckdb")` steps, plus the
   `DuckDbSqlEmitter`, the executor and the engine resource.
@@ -356,6 +372,8 @@ The remaining limits in this area are:
 ## What to remember
 
 - Assets belong to the asset language; relations name them with `AssetRef`.
+- Semantics units belong to `distribution/languages/semantics`; the one graph
+  declaration belongs to `distribution/languages/graph`.
 - Row sources, joins, projections and unnest belong to the data language.
 - `Selection[T]` is the single authoring type; the owner decides nullability.
 - Expressions contribute operation specifications and expression DTOs.

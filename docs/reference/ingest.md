@@ -130,14 +130,14 @@ Each member table names its own asset:
 
 ```python
 from kg_build_system import (
-    Asset, AssetAuthority, AssetOptions, AssetSemantics, Field, Table,
+    Asset, AssetAuthority, AssetOptions, AssetProfile, Field, Table,
     TableGroup, TableGroupOptions, field,
 )
 
 
 class Estate(Asset):
     options = AssetOptions(
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="monitored estate",
             coverage="sites and readings",
             authority=AssetAuthority.PRIMARY,
@@ -261,7 +261,7 @@ declaration and not a runtime option in the compiled workflow plan.
 
 ```python
 from kg_build_system import (
-    Asset, AssetAuthority, AssetOptions, AssetSemantics,
+    Asset, AssetAuthority, AssetOptions, AssetProfile,
 )
 from kg_build_system.generation import AssetContractOptions, asset_contract
 from kg_build_system.generation.code_generation.builtins import (
@@ -282,7 +282,7 @@ from kg_build_system.generation.code_generation.builtins import (
 ))
 class Estate(Asset):
     options = AssetOptions(
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="monitored estate",
             coverage="sites and readings",
             authority=AssetAuthority.PRIMARY,

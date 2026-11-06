@@ -7,7 +7,7 @@ from .dto import (
     AssetLayoutDTO,
     AssetLicenseDTO,
     AssetPartDTO,
-    AssetSemanticsDTO,
+    AssetProfileDTO,
 )
 
 __all__ = [
@@ -16,5 +16,5 @@ __all__ = [
     "AssetLayoutDTO",
     "AssetLicenseDTO",
     "AssetPartDTO",
-    "AssetSemanticsDTO",
+    "AssetProfileDTO",
 ]

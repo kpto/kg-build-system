@@ -9,7 +9,7 @@ from .options import (
     AssetLayout,
     AssetLicense,
     AssetOptions,
-    AssetSemantics,
+    AssetProfile,
 )
 
 __all__ = [
@@ -20,7 +20,7 @@ __all__ = [
     "AssetLayout",
     "AssetLicense",
     "AssetOptions",
-    "AssetSemantics",
+    "AssetProfile",
     "asset_name",
     "asset_reference",
 ]

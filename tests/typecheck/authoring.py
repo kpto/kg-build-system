@@ -3,11 +3,21 @@ from __future__ import annotations
 
 from typing import assert_type
 
+from kg_build_system import (
+    Claim,
+    Frame,
+    Graph,
+    GraphOptions,
+    GraphSemantics,
+    Limitation,
+    Purpose,
+    Semantics,
+)
 from kg_build_system.distribution.languages.asset.model.public import (
     Asset,
     AssetAuthority,
     AssetOptions,
-    AssetSemantics,
+    AssetProfile,
 )
 from kg_build_system.distribution.languages.expressions.model.public import (
     NullableSelection,
@@ -61,11 +71,34 @@ from kg_build_system.kernel import Array, Nullable
 class FixtureAsset(Asset):
     options = AssetOptions(
         name="fixture_asset",
-        semantics=AssetSemantics(
+        profile=AssetProfile(
             subject="fixture rows",
             coverage="one fixture",
             authority=AssetAuthority.INFERRED,
             basis="typecheck fixture",
+        ),
+    )
+
+
+class FixtureGraph(Graph):
+    options = GraphOptions(
+        name="fixture_graph",
+        description="A typecheck fixture graph.",
+        semantics=GraphSemantics(
+            claims=(Claim("Fixture rows describe sites and regions."),),
+            purpose=Purpose(
+                text="Exercise the authoring surface.",
+                frames=(
+                    Frame(
+                        text="Declared fixture declarations only.",
+                        limitations=(
+                            Limitation(
+                                "The fixture does not build graph records.",
+                            ),
+                        ),
+                    ),
+                ),
+            ),
         ),
     )
 
@@ -81,7 +114,12 @@ class Detail(Struct):
 
 
 class Site(Table[FixtureAsset]):
-    options = TableOptions(name="site")
+    options = TableOptions(
+        name="site",
+        semantics=Semantics(
+            claims=(Claim("One row is one monitored site."),),
+        ),
+    )
     site_id: Field[str] = field(name="id")
     region_id: Field[str] = field(name="region_id")
     count: Field[int] = field(name="count")
@@ -112,7 +150,18 @@ class SiteProjection(Projection(Site.row_source())):
 
 class SiteNode(Node):
     options = NodeOptions(name="site_node")
-    label: PropertySlot[str] = property()
+    label: PropertySlot[str] = property(
+        semantics=Semantics(
+            frames=(
+                Frame(
+                    text="Site display labels.",
+                    limitations=(
+                        Limitation("Labels are not unique across sites."),
+                    ),
+                ),
+            ),
+        ),
+    )
 
 
 assert_type(Site.site_id, Selection[Nullable[str]])
@@ -174,5 +223,12 @@ def bind(row: Site) -> NodeValues[SiteNode, str]:
     )
 
 
-binding = node_binding(target=SiteNode, rows=Site.row_source(), bind=bind)
+binding = node_binding(
+    target=SiteNode,
+    rows=Site.row_source(),
+    bind=bind,
+    semantics=Semantics(
+        claims=(Claim("One site row yields one site node."),),
+    ),
+)
 assert_type(binding, NodeBinding[SiteNode])
