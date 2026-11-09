@@ -96,6 +96,9 @@ rule about what the framework is belongs to the framework model.
   viewports and from measured geometry, not from code; a headless browser is
   acceptable. Compare the reference's structure, not its palette, and treat a
   widget restyle that leaves the layout intact as no redesign.
+- A visualisation opens at the lowest detail that still answers its first
+  question; every further layer is revealed by a named control, and raw JSON is
+  not a default surface.
 - End every change report with the rule-promotion result: none, refined or
   added.
 
