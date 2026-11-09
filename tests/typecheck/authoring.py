@@ -175,6 +175,9 @@ assert_type(Summary.total, Selection[int])
 assert_type(Summary.address, Selection[Nullable[Address]])
 assert_type(value_expression("x"), Selection[str])
 
+# A present value satisfies a nullable slot: `Nullable[T]` is `T | None`.
+_present_to_nullable: Selection[Nullable[str]] = value_expression("x")
+
 assert_type(Site.site_id.alter_rows().drop_null(), Selection[str])
 assert_type(Site.tags.alter_rows().expand(), Selection[str])
 assert_type(Site.addresses.alter_rows().drop_null().alter_rows().expand(), Selection[Address])

@@ -175,9 +175,12 @@ publishes a nullable one.
 | `ComputedStruct` member through `extract` | The witness type, composed with the carrier's presence |
 
 Nullability is flattened: a nullable value never wraps another nullable value,
-and a nullable of a nullable is simply nullable. Do not write the internal
-`Nullable[T]` marker in a field annotation; it is for array items and canonical
-types.
+and a nullable of a nullable is simply nullable. `Nullable[T]` and `T | None`
+are the same type: `Nullable` is a type alias for the union, so a generated or
+hand-written spelling type-checks identically. Do not write `Nullable[T]` as the
+outer field type; it is the spelling for array items and canonical types. A
+present `Selection[T]` may be bound to a nullable property or slot; the value is
+simply always present.
 
 A source struct member is always nullable because the source may omit it. A
 nullable carrier also makes any member nullable. A `ComputedStruct` member uses
