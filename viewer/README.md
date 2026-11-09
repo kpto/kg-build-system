@@ -38,7 +38,7 @@ The first paint shows the design, not its annotations.
 
 | Surface | Default | Revealed by |
 | --- | --- | --- |
-| Topology | circles, thin relation links, labels on hubs only | the sidebar **Detail** controls: labels off/hubs/all, edge labels, containment, semantics, properties |
+| Topology | circles, thin relation links, labels on hubs only | the sidebar **Detail** controls: labels off/hubs/all, edge labels, containment, semantics, properties; **Open in Proof** and **Open in Meaning** from the selection |
 | Proof | the selected property's lanes and type chain | the level switch (Property, Node, Edge, Abstract, Asset) and the branch selector |
 | Meaning | graph purpose and counts | **Show claims**, **Expand frames**, **Show limitations**, **Show subjects** |
 

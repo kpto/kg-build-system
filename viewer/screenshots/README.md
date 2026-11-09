@@ -10,6 +10,7 @@ They are review aids, not golden images.
 | `03-proof.png` | Proof for `adverse_event.event`: branch selector, type/presence chain, lanes, attached semantics and connections. |
 | `04-meaning.png` | Meaning default: graph purpose and counts; frames, limitations, claims and subjects collapsed. |
 | `05-meaning-selected.png` | Meaning with `node/target` selected: claims, frames and limitations in the editor. |
+| `06-topology-navigation.png` | Topology with `target` selected: sidebar selection card and bottom detail both offer **Open in Proof** and **Open in Meaning**. |
 
 The reference estate is still available at `?snapshot=reference`; it is not the
 default dataset.

@@ -94,7 +94,8 @@ global setting, because each question has its own useful first level.
 ## Reading flows
 
 **Orient.** Topology → filter or zoom → select a node or relation → read the
-selection detail → open Proof or Meaning when the question changes.
+selection detail → open Proof for its properties and provenance, or Meaning for
+its attached claims and limits.
 
 **Prove.** Proof → search a property in the side bar → read the branch's lanes
 and type/presence chain → switch level (node, edge, abstract, asset) when the

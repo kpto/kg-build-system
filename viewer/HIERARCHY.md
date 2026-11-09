@@ -38,7 +38,7 @@ The bottom panel's visibility is shell state and starts false.
 
 | Function | Side bar | Editor | Bottom |
 | --- | --- | --- | --- |
-| Topology | node/edge and abstract filters; Detail controls for labels, edge labels, containment, semantics and properties; legend; fit/reset/pin | D3 force graph, zoom/pan/drag, selection | Selection detail (name, kind, degree, labels, property and semantics counts when revealed) |
+| Topology | node/edge and abstract filters; selected-entity navigation; Detail controls for labels, edge labels, containment, semantics and properties; legend; fit/reset/pin | D3 force graph, zoom/pan/drag, selection | Selection detail with **Open in Proof** and **Open in Meaning** |
 | Proof | assets, relations, projections, nodes, edges, properties | level selector, branch selector, lane proof, type/presence chain, attached semantics | Trace, Evidence |
 | Meaning | purpose summary, frame/claim counts, subject-kind filter and search | purpose card, frames and limitations, claims, attached subject semantics | Details |
 
