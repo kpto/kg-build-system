@@ -1166,3 +1166,20 @@
     max-height: 300px;
   }
 }
+
+
+.orientationActions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  margin-top: 10px;
+}
+
+.orientationPath {
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}

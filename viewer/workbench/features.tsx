@@ -34,12 +34,12 @@ import type { ActivityId, FeatureModule } from "./types";
 
 export const FEATURES: FeatureModule[] = [
   {
-    id: "proof",
-    label: "Proof",
-    icon: BadgeCheck,
-    Sidebar: ProofSidebar,
-    Editor: ProofEditor,
-    Bottom: ProofBottom,
+    id: "semantics",
+    label: "Orient",
+    icon: ScrollText,
+    Sidebar: SemanticsSidebar,
+    Editor: SemanticsEditor,
+    Bottom: SemanticsBottom,
   },
   {
     id: "audit",
@@ -50,12 +50,12 @@ export const FEATURES: FeatureModule[] = [
     Bottom: AuditBottom,
   },
   {
-    id: "semantics",
-    label: "Semantics",
-    icon: ScrollText,
-    Sidebar: SemanticsSidebar,
-    Editor: SemanticsEditor,
-    Bottom: SemanticsBottom,
+    id: "proof",
+    label: "Proof",
+    icon: BadgeCheck,
+    Sidebar: ProofSidebar,
+    Editor: ProofEditor,
+    Bottom: ProofBottom,
   },
   {
     id: "topology",
@@ -68,9 +68,9 @@ export const FEATURES: FeatureModule[] = [
 ];
 
 export const FEATURE_BY_ID: Record<ActivityId, FeatureModule> = {
-  proof: FEATURES[0],
+  semantics: FEATURES[0],
   audit: FEATURES[1],
-  semantics: FEATURES[2],
+  proof: FEATURES[2],
   topology: FEATURES[3],
 };
 

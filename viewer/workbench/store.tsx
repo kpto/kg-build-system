@@ -383,7 +383,7 @@ export function WorkbenchProvider({
     snapshot,
     index,
     review,
-    activity: "audit" as ActivityId,
+    activity: "semantics" as ActivityId,
     functions: defaultFunctions(),
   }));
   const [hydrated, setHydrated] = useState(false);

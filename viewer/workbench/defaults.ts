@@ -15,23 +15,23 @@ import type {
 import { DEFAULT_LAYOUT } from "./types";
 
 export const ACTIVITY_ORDER: ActivityId[] = [
-  "proof",
-  "audit",
   "semantics",
+  "audit",
+  "proof",
   "topology",
 ];
 
 export const ACTIVITY_LABELS: Record<ActivityId, string> = {
-  proof: "Proof",
+  semantics: "Orient",
   audit: "Audit",
-  semantics: "Semantics",
+  proof: "Proof",
   topology: "Topology",
 };
 
 export const ACTIVITY_DESCRIPTIONS: Record<ActivityId, string> = {
-  proof: "Multi-level value provenance with attached semantics.",
+  semantics: "Understand the graph purpose, frames, claims and limits before auditing.",
   audit: "Identity, grounding, type/presence and semantics findings.",
-  semantics: "Purpose, ledger, decisions and sign-off readiness.",
+  proof: "Multi-level value provenance with attached semantics.",
   topology: "Force-directed orientation view of the graph.",
 };
 

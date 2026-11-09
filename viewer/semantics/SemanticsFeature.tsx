@@ -643,12 +643,26 @@ export function SemanticsEditor(props: FeatureProps): JSX.Element {
             <ScrollText aria-hidden className="size-[18px]" />
           </span>
           <div>
-            <p className={styles.kicker}>Semantic ledger</p>
+            <p className={styles.kicker}>Orientation</p>
             <h1>{ledger.graphName || "Graph"}</h1>
             <p className={styles.lede}>
-              Purpose, attached claims and limitations, required decisions and the
-              evidence behind sign-off.
+              Understand what this graph is before auditing it: its purpose,
+              frames, claims and limits. The ledger below records what is
+              attached and what still needs a decision.
             </p>
+            <div className={styles.orientationActions}>
+              <button
+                type="button"
+                className={styles.primaryButton}
+                onClick={() => props.actions.setActivity("audit")}
+              >
+                Start with the Audit
+                <span aria-hidden>→</span>
+              </button>
+              <span className={styles.orientationPath}>
+                Orient · Audit · Proof · Topology
+              </span>
+            </div>
           </div>
         </div>
         <div className={styles.headerMeta}>
