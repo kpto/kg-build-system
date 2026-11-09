@@ -133,7 +133,7 @@ function WorkbenchShell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
-  const [bottomVisible, setBottomVisible] = useState(false);
+  const [bottomVisible, setBottomVisible] = useState(true);
   const [zoom, setZoom] = useState(1);
 
   const activity = state.activity;

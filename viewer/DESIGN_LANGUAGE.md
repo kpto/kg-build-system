@@ -76,10 +76,25 @@ global setting, because each question has its own useful first level.
 
 - The shell owns panel visibility, width and height. A function never resizes
   the workbench.
-- The bottom panel starts hidden. The title bar toggle and `Cmd/Ctrl+J` open it.
+- Both panels are shown by default. The side bar is View/Browse; the bottom
+  panel is Inspect/Evidence. The title bar toggle and `Cmd/Ctrl+J` change the
+  bottom panel's visibility, not its purpose.
 - Sizes and selection persist per snapshot and function. Switching function
   restores that function's arrangement; content changes never resize a panel.
 - The bottom panel is selection detail, not output. It has no Data tab.
+
+## One region, one job
+
+- The side bar carries controls or navigation for the active angle: **View** in
+  Topology, **Browse** in Detail. It does not repeat the selected subject.
+- The bottom panel carries the inspection of that subject: **Inspect** in
+  Topology, **Trace/Evidence** in Detail. It is the only place where the
+  selected subject's properties and meaning are expanded.
+- Cognitive Load (Laws of UX): repeating the same properties in two regions is
+  extraneous load — it consumes attention without adding understanding.
+- Law of Common Region (Laws of UX): a boundary is a promise about what belongs
+  inside it. Duplicating properties across the side bar and the bottom panel
+  breaks that promise, so each region keeps one job.
 
 ## Selection
 

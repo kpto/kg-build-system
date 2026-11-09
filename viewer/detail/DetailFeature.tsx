@@ -630,6 +630,14 @@ export function DetailSidebar(props: FeatureProps) {
 
   return (
     <div className={styles.sidebar} data-testid="detail-sidebar">
+      <header className="flex items-baseline justify-between border-b border-line-soft px-2.5 py-1.5">
+        <p className="text-[9px] font-semibold tracking-[0.1em] text-text uppercase">
+          Browse
+        </p>
+        <span className="font-mono text-[9px] text-faint tabular-nums">
+          {index.stats.topologyNodes} nodes · {index.stats.topologyEdges} edges
+        </span>
+      </header>
       <div className={styles.search}>
         <Search aria-hidden className={styles.searchIcon} />
         <input

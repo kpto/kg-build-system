@@ -53,7 +53,7 @@ export const BOTTOM_TAB_LABELS: Record<string, string> = {
   trace: "Trace",
   evidence: "Evidence",
   details: "Details",
-  selection: "Selection",
+  selection: "Inspect",
 };
 
 const RETIRED_BOTTOM_TABS = new Set([

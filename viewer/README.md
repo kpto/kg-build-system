@@ -42,11 +42,13 @@ The first paint shows the design, not its annotations.
 
 | Surface | Default | Revealed by |
 | --- | --- | --- |
-| Topology | graph, purpose summary and counts | the **Detail** controls (labels, edge labels, containment, semantics, properties); selecting an entity adds its description, properties and meaning; **Open in Detail** |
-| Detail | meaning, properties and attached semantics of the selected subject | the level switch (Property, Node, Edge, Abstract, Asset), property rows, and the branch selector |
+| Topology | graph; the **View** side bar holds the canvas controls | selecting an entity fills the **Inspect** bottom panel with its description, properties and meaning; **Open in Detail** |
+| Detail | meaning, properties and attached semantics of the selected subject | the level switch (Property, Node, Edge, Abstract, Asset), property rows and the branch selector; the bottom panel carries Trace and Evidence |
 
-The bottom panel starts hidden. Open it with the title-bar panel toggle or
-`Cmd/Ctrl+J`. It shows selection detail only; there is no JSON/Data tab.
+Both panels are shown by default. The side bar is the **View** (Topology) or
+**Browse** (Detail) region; the bottom panel is the **Inspect** or evidence
+region. Each has one job, so a selected subject is not repeated across regions.
+There is no JSON/Data tab.
 
 ## Snapshot
 

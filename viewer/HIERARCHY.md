@@ -11,7 +11,7 @@ Window        the KG design viewer
   Function    Topology | Detail
     Side Bar  the function's subjects, filters and detail controls
     Editor    the function's canvas or detail layout
-    Bottom    the selected subject's detail, hidden by default
+    Bottom    the selected subject's inspection detail, shown by default
       Section one question inside a body
         Row   one node, relation, step, claim, frame or property
           Field one value
@@ -27,21 +27,21 @@ A level may be absent. It is never reordered or nested inside the same kind.
 | Activity bar | Topology, Detail, Search, Settings | `workbench/ActivityBar` |
 | Side bar | active function's sidebar | feature `Sidebar` |
 | Editor | tabs + active function body | feature `Editor` |
-| Bottom panel | selected subject detail; starts hidden | feature `Bottom` |
+| Bottom panel | selected subject detail; shown by default | feature `Bottom` |
 | Status bar | snapshot, selected subject, node/edge/binding counts, compile-only, zoom | `workbench/StatusBar` |
 
 The side bar is 220–520 px, the bottom panel 120–480 px. Each function owns a
 persisted `FunctionLayout` and selection; switching functions restores both.
-The bottom panel's visibility is shell state and starts false.
+The bottom panel's visibility is shell state and starts true.
 
 ## Functions
 
 | Function | Side bar | Editor | Bottom |
 | --- | --- | --- | --- |
-| Topology | graph purpose; selected entity's description, **properties** and meaning; filters; Detail controls; legend; fit/reset/pin | D3 force graph, zoom/pan/drag, selection | The selected entity's design card with **Open in Detail** |
-| Detail | graph meaning; design tree of assets, relations, projections, nodes, edges and properties | design meaning, property table, provenance lanes and type/presence chain, attached semantics | Trace, Evidence |
+| Topology | **View**: counts, filters, canvas detail controls, legend, fit/reset/pin | D3 force graph, zoom/pan/drag, selection | **Inspect**: graph purpose and selection instructions; when selected, identity, properties and meaning with **Open in Detail** |
+| Detail | **Browse**: graph meaning summary and design tree | design meaning, property table, provenance lanes and type/presence chain, attached semantics | Trace, Evidence |
 
-## Detail defaults
+## Display defaults
 
 | Control | Default | Meaning |
 | --- | --- | --- |
@@ -55,7 +55,7 @@ The bottom panel's visibility is shell state and starts false.
 | Topology properties | off | no property lists |
 | Detail meaning | full | the selected subject's claims and frames are part of the detail layout |
 | Detail provenance | on property | selecting a property shows its branches, lanes and type/presence chain |
-| Bottom panel | hidden | toggle in the title bar or `Cmd/Ctrl+J` |
+| Bottom panel | shown | toggle in the title bar or `Cmd/Ctrl+J` |
 
 ## Removed surfaces
 

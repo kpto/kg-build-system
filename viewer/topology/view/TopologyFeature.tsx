@@ -110,34 +110,6 @@ function openInDetail(
   props.actions.setActivity("detail");
 }
 
-function OpenDetailButton({
-  props,
-  entity,
-  property,
-  compact,
-}: {
-  props: FeatureProps;
-  entity: TopologyEntity;
-  property?: string;
-  compact?: boolean;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={() => openInDetail(props, entity, property)}
-      className={cx(
-        "inline-flex min-h-6 items-center gap-1 border border-accent/60 bg-accent/10 px-2 font-mono text-[10px] text-accent-strong hover:border-accent hover:text-text",
-        compact ? "mt-1" : "mt-2",
-      )}
-      title={`Open ${property ? `${entityComponentName(entity)}.${property}` : entityComponentName(entity)} in Detail`}
-      data-testid="topology-open-detail"
-    >
-      Open in Detail
-      <span aria-hidden>→</span>
-    </button>
-  );
-}
-
 function PropertyRows({
   props,
   entity,
@@ -167,52 +139,6 @@ function PropertyRows({
           </span>
         </button>
       ))}
-    </div>
-  );
-}
-
-function EntityDesign({
-  props,
-  entity,
-  compact = false,
-}: {
-  props: FeatureProps;
-  entity: TopologyEntity;
-  compact?: boolean;
-}) {
-  const meaning = isTopologyNode(entity)
-    ? componentMeaning(props.state.index, "node", entity.name)
-    : componentMeaning(props.state.index, "edge", entityComponentName(entity));
-  return (
-    <div className="space-y-2">
-      {entity.description ? (
-        <p
-          className={cx(
-            "text-[10px] leading-relaxed text-muted",
-            compact && "line-clamp-3",
-          )}
-        >
-          {entity.description}
-        </p>
-      ) : null}
-      <div>
-        <p className="mb-1 text-[9px] tracking-[0.08em] text-faint uppercase">
-          Properties
-        </p>
-        <PropertyRows props={props} entity={entity} />
-      </div>
-      <div>
-        <p className="mb-1 text-[9px] tracking-[0.08em] text-faint uppercase">
-          Meaning
-        </p>
-        <DesignMeaning
-          claims={meaning.claims}
-          frames={meaning.frames}
-          compact
-          emptyText="No meaning is attached to this entity."
-        />
-      </div>
-      <OpenDetailButton props={props} entity={entity} compact />
     </div>
   );
 }
@@ -379,8 +305,6 @@ export function TopologySidebar(props: FeatureProps): JSX.Element {
   const filters = ui.filters;
   const detail = ui.detail;
   const counts = model.filters.counts;
-  const selection = topologySelection(props);
-  const selected = findTopologyEntity(model, selection);
 
   const patchFilters = (
     patch: Partial<Omit<typeof filters, "kinds">> & {
@@ -410,53 +334,24 @@ export function TopologySidebar(props: FeatureProps): JSX.Element {
   return (
     <div className="flex h-full min-h-0 flex-col bg-panel">
       <header className="border-b border-line-soft px-3 py-2">
-        <p className="text-[10px] text-muted">
+        <div className="flex items-baseline justify-between gap-2">
+          <p className="text-[9px] font-semibold tracking-[0.1em] text-text uppercase">
+            View
+          </p>
+          <p className="font-mono text-[9px] text-faint tabular-nums">
+            {model.stats.nodes} nodes · {model.stats.edgeLinks} edges
+          </p>
+        </div>
+        <p className="mt-1 text-[10px] text-muted">
           {visible.nodes.length} visible · {relationLinks} relations
           {containmentLinks ? ` · ${containmentLinks} containment` : ""}
         </p>
         <p className="mt-0.5 font-mono text-[9px] text-faint tabular-nums">
-          {model.stats.nodes} nodes · {model.stats.edgeLinks} edges ·{" "}
           {model.stats.semantics} with semantics
         </p>
       </header>
 
       <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-2">
-        {selected ? (
-          <section
-            className="space-y-1 border-b border-line-soft pb-2"
-            aria-label="Selected design entity"
-            data-testid="topology-sidebar-selection"
-          >
-            <div className="flex items-baseline justify-between gap-2">
-              <p className="text-[9px] tracking-[0.08em] text-faint uppercase">
-                Selected {isTopologyNode(selected) ? "node" : "relation"}
-              </p>
-              <button
-                type="button"
-                onClick={() => clearSelection(props)}
-                className="font-mono text-[9px] text-faint hover:text-text"
-              >
-                Clear
-              </button>
-            </div>
-            <p className="truncate font-mono text-[11px] text-accent-strong">
-              {selected.name}
-            </p>
-            <EntityDesign props={props} entity={selected} compact />
-          </section>
-        ) : null}
-
-        <section className="space-y-1.5" aria-label="Graph meaning">
-          <p className="text-[9px] tracking-[0.08em] text-faint uppercase">
-            Graph purpose
-          </p>
-          <GraphMeaning
-            claims={graphMeaning(props.state.index).claims}
-            frames={graphMeaning(props.state.index).frames}
-            purpose={graphMeaning(props.state.index).purpose}
-          />
-        </section>
-
         <section className="space-y-2" aria-label="Topology filters">
           <FilterGroup label="Kind">
             <FilterButton
@@ -554,7 +449,7 @@ export function TopologySidebar(props: FeatureProps): JSX.Element {
             </FilterButton>
           </FilterGroup>
 
-          <FilterGroup label="Detail">
+          <FilterGroup label="Show">
             <FilterButton
               pressed={detail.edgeLabels}
               onClick={() => patchDetail({ edgeLabels: !detail.edgeLabels })}
@@ -637,9 +532,6 @@ export function TopologySidebar(props: FeatureProps): JSX.Element {
               count={model.stats.semantics}
             />
           ) : null}
-          <p className="pt-1 text-[9px] leading-relaxed text-faint">
-            Selection is shown with an orange ring. Open Detail for the full record.
-          </p>
         </section>
 
         <section
@@ -1823,7 +1715,7 @@ export function TopologyBottom(props: FeatureProps): JSX.Element {
       <div className="flex h-full min-h-0 flex-col bg-panel">
         <header className="flex items-baseline justify-between border-b border-line-soft px-3 py-1.5">
           <h2 className="text-[11px] font-semibold tracking-[0.08em] text-text uppercase">
-            Selection
+            Graph overview
           </h2>
           <span className="font-mono text-[9px] text-faint">
             {model.stats.nodes} nodes · {model.stats.edgeLinks} relations
@@ -1832,25 +1724,40 @@ export function TopologyBottom(props: FeatureProps): JSX.Element {
               : ""}
           </span>
         </header>
-        <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2">
-          <p className="text-[10px] text-muted">
-            Select a node or relation in the force graph to read its identity,
-            properties and meaning. Open Detail for its full provenance and
-            attached semantics.
-          </p>
-          <div className="mt-2 grid gap-1">
-            <SummaryField label="Nodes" value={model.stats.nodes} />
-            <SummaryField label="Abstract" value={model.stats.abstractNodes} />
-            <SummaryField label="Relations" value={model.stats.edgeLinks} />
-            <SummaryField
-              label="Containment"
-              value={model.stats.containmentLinks}
+        <div className="grid min-h-0 flex-1 grid-cols-[minmax(340px,1.5fr)_minmax(260px,1fr)] divide-x divide-line-soft">
+          <section className="thin-scrollbar min-h-0 overflow-y-auto px-3 py-2">
+            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+              Graph purpose
+            </p>
+            <GraphMeaning
+              claims={graphMeaning(props.state.index).claims}
+              frames={graphMeaning(props.state.index).frames}
+              purpose={graphMeaning(props.state.index).purpose}
             />
-            <SummaryField
-              label="Semantics"
-              value={`${model.stats.semantics} present`}
-            />
-          </div>
+          </section>
+          <section className="thin-scrollbar min-h-0 overflow-y-auto px-3 py-2">
+            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+              Selection
+            </p>
+            <p className="text-[10px] leading-relaxed text-muted">
+              Select a node or relation in the canvas. Its identity, properties
+              and attached meaning appear here; Open Detail adds provenance and
+              the full record.
+            </p>
+            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
+              <SummaryField label="Nodes" value={model.stats.nodes} />
+              <SummaryField label="Abstract" value={model.stats.abstractNodes} />
+              <SummaryField label="Relations" value={model.stats.edgeLinks} />
+              <SummaryField
+                label="Containment"
+                value={model.stats.containmentLinks}
+              />
+              <SummaryField
+                label="Semantics"
+                value={`${model.stats.semantics} present`}
+              />
+            </div>
+          </section>
         </div>
       </div>
     );
@@ -1860,63 +1767,104 @@ export function TopologyBottom(props: FeatureProps): JSX.Element {
     <div className="flex h-full min-h-0 flex-col bg-panel">
       <header className="flex items-baseline justify-between gap-2 border-b border-line-soft px-3 py-1.5">
         <div className="flex min-w-0 items-baseline gap-2">
-          <h2 className="text-[11px] font-semibold tracking-[0.08em] text-text uppercase">
-            {isTopologyNode(entity) ? "Node" : "Relation"}
-          </h2>
-          <span className="truncate font-mono text-[11px] text-accent-strong">
-            {entity.label}
-          </span>
-          <span className="truncate font-mono text-[9px] text-faint">
+          <span className="truncate font-mono text-[11px] font-semibold text-accent-strong">
             {entity.name}
           </span>
+          <span className="truncate font-mono text-[9px] text-faint">
+            {isTopologyNode(entity) ? "node" : "relation"} · {entity.category}
+          </span>
         </div>
-        <button
-          type="button"
-          onClick={() => clearSelection(props)}
-          className="shrink-0 border border-line-soft px-1.5 py-0.5 font-mono text-[9px] text-muted hover:border-line-strong hover:text-text"
-        >
-          Clear
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            type="button"
+            onClick={() => openInDetail(props, entity)}
+            className="border border-accent/60 bg-accent/10 px-2 py-0.5 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
+            data-testid="topology-open-detail"
+          >
+            Open Detail →
+          </button>
+          <button
+            type="button"
+            onClick={() => clearSelection(props)}
+            className="border border-line-soft px-1.5 py-0.5 font-mono text-[9px] text-muted hover:border-line-strong hover:text-text"
+          >
+            Clear
+          </button>
+        </div>
       </header>
 
-      <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto bg-panel px-3 py-2">
-        <EntityDesign props={props} entity={entity} compact />
-        <div className="mt-2 grid gap-1 border-t border-line-soft pt-2">
-          <SummaryField label="Kind" value={entityKindLabel(entity)} />
-          <SummaryField label="Name" value={entity.name} />
-          <SummaryField label="Category" value={entity.category} />
-          {isTopologyNode(entity) ? (
-            <>
-              <SummaryField label="Degree" value={entity.degree} />
-              <SummaryField label="Properties" value={entity.properties} />
-            </>
-          ) : (
-            <>
-              <SummaryField label="Source" value={entity.sourceName} />
-              <SummaryField label="Target" value={entity.targetName} />
-            </>
-          )}
-          <SummaryField
-            label="Labels"
-            value={entity.labels.length ? entity.labels.join(", ") : "—"}
-          />
-          {ui.detail.semantics ? (
-            <SummaryField
-              label="Semantics"
-              value={
-                entity.hasSemantics
-                  ? semanticsSummary(entity)
-                  : "none revealed"
-              }
-            />
-          ) : null}
-        </div>
-
-        {entity.description ? (
-          <p className="mt-2 border-t border-line-soft pt-2 text-[10px] leading-relaxed text-muted">
-            {entity.description}
+      <div className="grid min-h-0 flex-1 grid-cols-[minmax(210px,0.9fr)_minmax(240px,1fr)_minmax(280px,1.15fr)] divide-x divide-line-soft">
+        <section className="thin-scrollbar min-h-0 overflow-y-auto px-3 py-2">
+          <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+            Identity
           </p>
-        ) : null}
+          <div className="grid gap-1">
+            <SummaryField label="Kind" value={entityKindLabel(entity)} />
+            <SummaryField label="Name" value={entity.name} />
+            <SummaryField label="Category" value={entity.category} />
+            {isTopologyNode(entity) ? (
+              <SummaryField label="Degree" value={entity.degree} />
+            ) : (
+              <>
+                <SummaryField label="Source" value={entity.sourceName} />
+                <SummaryField label="Target" value={entity.targetName} />
+              </>
+            )}
+            <SummaryField
+              label="Labels"
+              value={entity.labels.length ? entity.labels.join(", ") : "—"}
+            />
+            {ui.detail.semantics ? (
+              <SummaryField
+                label="Semantics"
+                value={
+                  entity.hasSemantics
+                    ? semanticsSummary(entity)
+                    : "none revealed"
+                }
+              />
+            ) : null}
+          </div>
+          {entity.description ? (
+            <p className="mt-2 border-t border-line-soft pt-2 text-[10px] leading-relaxed text-muted">
+              {entity.description}
+            </p>
+          ) : null}
+        </section>
+
+        <section className="thin-scrollbar min-h-0 overflow-y-auto px-3 py-2">
+          <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+            Properties · {entityProperties(props, entity).length}
+          </p>
+          <PropertyRows props={props} entity={entity} />
+        </section>
+
+        <section className="thin-scrollbar min-h-0 overflow-y-auto px-3 py-2">
+          <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+            Meaning
+          </p>
+          <DesignMeaning
+            claims={
+              isTopologyNode(entity)
+                ? componentMeaning(props.state.index, "node", entity.name).claims
+                : componentMeaning(
+                    props.state.index,
+                    "edge",
+                    entityComponentName(entity),
+                  ).claims
+            }
+            frames={
+              isTopologyNode(entity)
+                ? componentMeaning(props.state.index, "node", entity.name).frames
+                : componentMeaning(
+                    props.state.index,
+                    "edge",
+                    entityComponentName(entity),
+                  ).frames
+            }
+            emptyText="No meaning is attached to this entity."
+          />
+        </section>
       </div>
     </div>
   );

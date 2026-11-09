@@ -70,9 +70,12 @@ def main() -> int:
             ).get_attribute("data-active")
             == "true"
         )
-        report["checks"]["bottom_hidden"] = not driver.find_elements(
-            By.CSS_SELECTOR, '[data-testid="bottom-panel"]'
+        report["checks"]["bottom_visible"] = bool(
+            driver.find_elements(By.CSS_SELECTOR, '[data-testid="bottom-panel"]')
         )
+        report["checks"]["sidebar_label"] = driver.find_element(
+            By.CSS_SELECTOR, '[data-testid="sidebar"]'
+        ).text.split("\n")[0]
         shot("01-topology")
 
         nodes = driver.find_elements(By.CSS_SELECTOR, "[data-topology-node-id]")
@@ -86,12 +89,17 @@ def main() -> int:
             target,
         )
         time.sleep(1)
+        bottom = driver.find_element(By.CSS_SELECTOR, '[data-testid="bottom-panel"]')
         report["checks"]["topology_property_rows"] = len(
-            driver.find_elements(By.CSS_SELECTOR, "[data-testid='topology-properties'] button")
+            bottom.find_elements(By.CSS_SELECTOR, "[data-testid='topology-properties'] button")
         )
-        report["checks"]["topology_meaning"] = bool(
-            driver.find_elements(By.CSS_SELECTOR, "[data-testid='topology-sidebar-selection']")
+        report["checks"]["sidebar_repeats_properties"] = bool(
+            driver.find_elements(
+                By.CSS_SELECTOR,
+                "[data-testid='sidebar'] [data-testid='topology-properties']",
+            )
         )
+        report["checks"]["bottom_label"] = bottom.text.split("\n")[0]
         shot("02-topology-selected")
 
         driver.find_elements(
@@ -109,6 +117,9 @@ def main() -> int:
         ).text.replace("\n", " | ")
         report["checks"]["detail_editor"] = bool(
             driver.find_elements(By.CSS_SELECTOR, '[data-testid="detail-editor"]')
+        )
+        report["checks"]["detail_bottom_visible"] = bool(
+            driver.find_elements(By.CSS_SELECTOR, '[data-testid="bottom-panel"]')
         )
         shot("03-detail-property")
 
