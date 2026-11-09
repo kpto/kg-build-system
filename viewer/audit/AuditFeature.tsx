@@ -521,7 +521,7 @@ export function AuditEditor(props: FeatureProps): JSX.Element {
     if (!selection.findingId && selected) {
       props.actions.setSelection("audit", findingSelection(selected));
     }
-  }, [props.actions, selected, selection.findingId]);
+  }, [props.actions, selected, selection]);
 
   const select = (finding: AuditFinding) => {
     props.actions.setSelection("audit", findingSelection(finding));
