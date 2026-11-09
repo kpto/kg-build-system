@@ -1,0 +1,55 @@
+{
+  "format": "kg-viewer-review",
+  "version": 1,
+  "ai": {
+    "note": "This is a compile-only snapshot. No model, prompt, run identity or confidence was captured. The meta graph and build report are intentionally absent because they describe a previous execution, not this compile."
+  },
+  "decisions": [
+    {
+      "id": "compile-only",
+      "title": "The viewer is showing a compile-only snapshot",
+      "status": "accepted",
+      "rationale": "The blueprint and workflow contract come from the current project source. The graph was not executed, so observed record counts, nullability observations and published artifacts are absent.",
+      "subject": {
+        "kind": "asset",
+        "name": "open_target",
+        "component": "open_target"
+      },
+      "evidence": [
+        {
+          "label": "compiled workflow provenance",
+          "artifact": "workflow",
+          "jsonPointer": "/provenance"
+        }
+      ],
+      "tags": [
+        "compile",
+        "provenance",
+        "limits"
+      ]
+    },
+    {
+      "id": "open-targets-release",
+      "title": "Open Targets Platform release 26.09",
+      "status": "accepted",
+      "rationale": "Release 26.09. A knowledge graph of the Open Targets Platform 26.09 release. Nodes are entities the release identifies; edges are relations the release reports, derives or lets a consumer read from its records. The graph is a semantic index over the release, not a replacement for the release's own data. Coverage: 236 components, 239 bindings and 1093 properties.",
+      "subject": {
+        "kind": "asset",
+        "name": "open_target",
+        "component": "open_target"
+      },
+      "evidence": [
+        {
+          "label": "asset semantics",
+          "artifact": "blueprint",
+          "jsonPointer": "/assets/0/semantics"
+        }
+      ],
+      "tags": [
+        "release",
+        "semantics"
+      ]
+    }
+  ],
+  "notes": []
+}

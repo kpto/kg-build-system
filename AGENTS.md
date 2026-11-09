@@ -11,6 +11,14 @@ rule about what the framework is belongs to the framework model.
 ### Working
 
 - Understand the current model before changing it.
+- Separate the view hierarchy from the ViewModel hierarchy. They share a shape
+  — window, task, panel, section, row, field — but they are different objects:
+  a view is reusable, a ViewModel owns one purpose, projection, state and
+  commands.
+- A ViewModel is framework-agnostic and never owns a view. The composition root
+  builds it and injects it; the view binds to it and keeps only presentation
+  state. A conceptual level that cannot be built and asserted without the UI
+  framework is not a level.
 - An additive wave copies the code it needs and adapts its imports; the new
   package must not import the package it will replace.
 - Think from the author's and the graph consumer's perspective: why the framework
@@ -84,6 +92,10 @@ rule about what the framework is belongs to the framework model.
 | `docs/developer/` | framework reviewer | internal interface, boundaries and invariants |
 
 - If the interface delta does not explain the change, the change is not ready.
+- A visual change is reviewed from screenshots at the target viewports and from
+  measured geometry, not from code; compare the reference's structure, not its
+  palette, and treat a widget restyle that leaves the layout intact as no
+  redesign.
 - End every change report with the rule-promotion result: none, refined or
   added.
 

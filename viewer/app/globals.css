@@ -1,0 +1,1063 @@
+@import "tailwindcss";
+
+@theme {
+  /* Blender 4.x dark editor: graphite regions, blue UI accent, orange graph
+     selection. One neutral family; colour carries meaning, never decoration. */
+  --color-abyss: #171717;
+  --color-panel: #262626;
+  --color-panel-raised: #313131;
+  --color-panel-soft: #3a3a3a;
+  --color-inset: #1c1c1c;
+  --color-gutter: #0c0c0c;
+  --color-line: #3c3c3c;
+  --color-line-soft: #292929;
+  --color-line-strong: #4e4e4e;
+
+  /* Graph connections are not panel borders. They need their own, brighter
+     neutral so 1px wires remain legible on the graphite canvas. */
+  --color-edge: #8b96a3;
+  --color-edge-strong: #aab5c2;
+
+  --color-text: #dedede;
+  --color-muted: #b6b6b6;
+  --color-faint: #858585;
+  --color-ink: #dedede;
+  --color-ink-soft: #cfcfcf;
+
+  /* Blender blue is active, focused or primary. */
+  --color-accent: #4772b3;
+  --color-accent-strong: #5b8bd0;
+  --color-accent-soft: #2c4463;
+  --color-accent-ink: #0d1622;
+  --color-on-accent: #ffffff;
+
+  /* Blender orange is graph selection, not a generic button accent. */
+  --color-selection: #ed9e5c;
+  --color-selection-strong: #f5b47a;
+  --color-selection-soft: #5a3a23;
+
+  /* The quiet informational alias retained by component tone maps. */
+  --color-secondary: #4a90d9;
+  --color-secondary-soft: #263b58;
+
+  /* Semantic data colours. */
+  --color-asset: #6aa84f;
+  --color-source: #4a9edb;
+  --color-transform: #9a7ad1;
+  --color-binding: #d6a34a;
+  --color-post: #d77f8f;
+  --color-target: #c9b958;
+
+  /* Audit severity — semantic, never used as a decorative accent. */
+  --color-critical: #e05a5a;
+  --color-high: #df8a4f;
+  --color-medium: #d6b84a;
+  --color-low: #4a90d9;
+  --color-info: #9a9a9a;
+
+  /* Stable map/group colours after the six semantic lanes. */
+  --color-group-7: #7d9d5a;
+  --color-group-8: #b47a9b;
+  --color-group-9: #6f8fae;
+  --color-group-10: #b07f5f;
+
+  --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Helvetica, Arial, sans-serif;
+  --font-mono: "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas, monospace;
+
+  --ease-instrument: cubic-bezier(0.22, 0.8, 0.24, 1);
+  --motion-fast: 120ms;
+  --motion-base: 160ms;
+  --motion-slow: 200ms;
+}
+
+:root {
+  color-scheme: dark;
+  --background: #171717;
+  --foreground: #dedede;
+  --accent: #4772b3;
+  --secondary: #4a90d9;
+  --motion-fast: 120ms;
+  --motion-base: 160ms;
+  --motion-slow: 200ms;
+  --ease-instrument: cubic-bezier(0.22, 0.8, 0.24, 1);
+  --react-flow-node-border: #3c3c3c;
+}
+
+@layer base {
+  * {
+    box-sizing: border-box;
+  }
+
+  html,
+  body {
+    height: 100%;
+  }
+
+  html {
+    /* One global readability step: rem-based spacing/icons grow 3%, while the
+       explicit micro-type utilities below grow slightly more. */
+    font-size: 16.5px;
+    background: var(--color-abyss);
+    /* The workbench is h-screen and scrolls inside panels. The document must
+       never scroll, or an inner scrollIntoView can shift the whole UI. */
+    overflow: hidden;
+  }
+
+  body {
+    margin: 0;
+    color: var(--foreground);
+    font-family: var(--font-sans);
+    font-synthesis: none;
+    background-color: var(--color-abyss);
+    overscroll-behavior: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  h1,
+  h2,
+  h3 {
+    letter-spacing: -0.012em;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  button,
+  input,
+  select,
+  textarea {
+    font: inherit;
+  }
+
+  button,
+  [role="button"],
+  summary,
+  label[for],
+  select {
+    cursor: pointer;
+  }
+
+  button:disabled,
+  input:disabled,
+  select:disabled {
+    cursor: not-allowed;
+    opacity: 0.55;
+  }
+
+  ::selection {
+    background: rgb(71 114 179 / 58%);
+    color: var(--color-text);
+  }
+
+  ::placeholder {
+    color: var(--color-faint);
+  }
+
+  /* One scrollbar language for the whole editor. */
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-line-strong) transparent;
+  }
+
+  *::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  *::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+    background-color: var(--color-line-strong);
+  }
+
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-muted);
+  }
+}
+
+@layer components {
+  /* ---- Blender editor primitives ---------------------------------------
+     Generic regions and widgets. Screens compose these with layout utilities;
+     no screen defines its own palette or button recipe. */
+
+  /* Regions are separated by a dark seam and a small radius, not by a grid of
+     grey hairlines. The surface step carries the boundary. */
+  [data-level="workspace"] {
+    gap: 2px;
+    background-color: var(--color-gutter);
+  }
+
+  [data-level="panel"] {
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: var(--color-panel);
+  }
+
+  .ui-panel {
+    border: 1px solid var(--color-line-soft);
+    border-radius: 4px;
+    background-color: var(--color-panel);
+    color: var(--color-text);
+    box-shadow: 0 6px 18px rgb(0 0 0 / 45%);
+  }
+
+  .ui-panel-header {
+    display: flex;
+    min-height: 32px;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 0 12px;
+    border-bottom: 1px solid var(--color-line-soft);
+    border-radius: 4px 4px 0 0;
+    background-color: var(--color-panel-raised);
+    color: var(--color-muted);
+  }
+
+  .ui-section-label,
+  .ui-label {
+    font-size: 10px;
+    font-weight: 550;
+    letter-spacing: 0;
+    line-height: 1.2;
+    text-transform: none;
+    color: var(--color-faint);
+  }
+
+  .ui-card {
+    border: 1px solid var(--color-line-soft);
+    border-radius: 3px;
+    background-color: var(--color-panel-raised);
+    color: var(--color-text);
+  }
+
+  /* ---- Conceptual hierarchy ------------------------------------------
+     A panel is a tiled region with an AreaHeader. A section is a facet of
+     that panel and is separated by a rule, never a card. A row is one
+     subject; a field is its evidence. These four primitives exist so the
+     ladder is expressed in the DOM, not only in a document. */
+
+  .ui-section {
+    margin: 6px;
+    border: 1px solid var(--color-line-soft);
+    border-radius: 4px;
+    overflow: hidden;
+    background-color: #232323;
+  }
+
+  .ui-section:last-child {
+    border-bottom: 1px solid var(--color-line-soft);
+  }
+
+  .ui-section-header {
+    display: flex;
+    min-height: 28px;
+    align-items: center;
+    gap: 8px;
+    padding: 0 10px;
+    border-bottom: 1px solid var(--color-line-soft);
+    background-color: var(--color-panel-raised);
+    color: var(--color-text);
+    text-align: left;
+  }
+
+  .ui-section-header[data-collapsible="true"]:hover {
+    background-color: color-mix(
+      in srgb,
+      var(--color-panel-soft) 48%,
+      transparent
+    );
+  }
+
+  .ui-section-header:focus-visible {
+    outline: 1px solid var(--color-accent-strong);
+    outline-offset: -1px;
+  }
+
+  .ui-section-title {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0;
+    line-height: 1.2;
+    text-transform: none;
+    color: var(--color-text);
+  }
+
+  .ui-section-count {
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-faint);
+  }
+
+  .ui-section-body {
+    min-width: 0;
+    padding: 3px 0 4px;
+  }
+
+  .ui-row {
+    display: flex;
+    min-height: 26px;
+    align-items: center;
+    gap: 8px;
+    margin: 1px 4px;
+    padding: 0 6px;
+    border: 0;
+    border-radius: 3px;
+    background-color: transparent;
+    color: var(--color-muted);
+    text-align: left;
+  }
+
+  .ui-row:hover {
+    background-color: #343434;
+    color: var(--color-text);
+  }
+
+  .ui-row[data-selected="true"] {
+    background-color: #34527c;
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  .ui-row[data-selected="true"]:hover {
+    background-color: #34527c;
+  }
+
+  .ui-row[data-active="true"] {
+    box-shadow: inset 2px 0 0 var(--color-selection);
+  }
+
+  .ui-row-meta {
+    flex: none;
+    font-family: var(--font-mono);
+    font-size: 10px;
+    font-variant-numeric: tabular-nums;
+    color: var(--color-faint);
+  }
+
+  .ui-field {
+    display: grid;
+    grid-template-columns: minmax(82px, max-content) minmax(0, 1fr);
+    align-items: baseline;
+    gap: 10px;
+    padding: 4px 10px;
+  }
+
+  .ui-field-label {
+    font-size: 10.5px;
+    font-weight: 500;
+    line-height: 1.3;
+    color: var(--color-faint);
+  }
+
+  .ui-field-value {
+    min-width: 0;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    line-height: 1.4;
+    color: var(--color-text);
+    overflow-wrap: anywhere;
+  }
+
+  .ui-button {
+    display: inline-flex;
+    min-height: 26px;
+    align-items: center;
+    justify-content: center;
+    gap: 5px;
+    padding: 4px 10px;
+    border: 1px solid var(--color-line);
+    border-radius: 4px;
+    background-color: var(--color-panel-raised);
+    color: var(--color-muted);
+    font-size: 10px;
+    font-weight: 500;
+    line-height: 1;
+    letter-spacing: -0.005em;
+    text-decoration: none;
+    white-space: nowrap;
+  }
+
+  .ui-button:hover:not(:disabled) {
+    border-color: var(--color-line-strong);
+    background-color: var(--color-panel-soft);
+    color: var(--color-text);
+  }
+
+  .ui-button[aria-pressed="true"]:hover:not(:disabled),
+  .ui-button.ui-selected:hover:not(:disabled) {
+    border-color: var(--color-accent);
+    background-color: var(--color-accent-soft);
+    color: var(--color-text);
+  }
+
+  .ui-button[aria-pressed="true"],
+  .ui-button.ui-selected {
+    border-color: var(--color-accent);
+    background-color: var(--color-accent-soft);
+    background-image: none;
+    color: var(--color-text);
+    box-shadow: inset 0 0 0 1px rgb(91 139 208 / 22%);
+  }
+
+  .ui-button-primary {
+    border-color: var(--color-accent);
+    background-color: var(--color-accent-soft);
+    background-image: none;
+    color: var(--color-accent-strong);
+  }
+
+  .ui-button-primary:hover:not(:disabled) {
+    border-color: var(--color-accent-strong);
+    background-color: var(--color-accent-soft);
+    color: var(--color-text);
+  }
+
+  .ui-button-primary:active:not(:disabled) {
+    background-color: var(--color-panel-soft);
+  }
+
+  .ui-button-ghost {
+    border-color: transparent;
+    background-color: transparent;
+    background-image: none;
+    color: var(--color-muted);
+  }
+
+  .ui-button-ghost:hover:not(:disabled) {
+    border-color: transparent;
+    background-color: var(--color-panel-soft);
+    color: var(--color-text);
+  }
+
+  .ui-button-ghost[aria-pressed="true"]:hover:not(:disabled),
+  .ui-button-ghost.ui-selected:hover:not(:disabled) {
+    border-color: var(--color-accent);
+    background-color: var(--color-accent-soft);
+    color: var(--color-text);
+  }
+
+  .ui-icon-button {
+    display: inline-flex;
+    width: 24px;
+    height: 24px;
+    flex: none;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 1px solid transparent;
+    border-radius: 3px;
+    background-color: transparent;
+    color: var(--color-muted);
+  }
+
+  .ui-icon-button:hover:not(:disabled) {
+    border-color: var(--color-line);
+    background-color: var(--color-panel-soft);
+    color: var(--color-text);
+  }
+
+  .ui-chip {
+    display: inline-flex;
+    min-height: 18px;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 0 6px;
+    border: 1px solid #424242;
+    border-radius: 3px;
+    background-color: #333333;
+    color: var(--color-muted);
+    font-family: var(--font-mono);
+    font-size: 8px;
+    font-variant-numeric: tabular-nums;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .ui-chip-active {
+    border-color: var(--color-accent);
+    background-color: var(--color-accent-soft);
+    color: var(--color-accent-strong);
+  }
+
+  .ui-input {
+    display: block;
+    border-radius: 4px;
+    width: 100%;
+    height: 26px;
+    padding: 0 7px;
+    border: 1px solid var(--color-line);
+    border-radius: 2px;
+    background-color: var(--color-panel-soft);
+    box-shadow: inset 0 1px 1px rgb(0 0 0 / 22%);
+    color: var(--color-text);
+    font-size: 11px;
+    line-height: 1;
+  }
+
+  .ui-input:hover {
+    border-color: var(--color-line-strong);
+  }
+
+  .ui-input:focus {
+    border-color: var(--color-accent);
+    box-shadow:
+      inset 0 1px 1px rgb(0 0 0 / 22%),
+      0 0 0 1px var(--color-accent);
+  }
+
+  .ui-kbd {
+    display: inline-flex;
+    min-width: 16px;
+    height: 15px;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    border: 1px solid var(--color-line);
+    border-radius: 2px;
+    background-color: var(--color-panel-soft);
+    color: var(--color-muted);
+    font-family: var(--font-mono);
+    font-size: 8px;
+    line-height: 1;
+  }
+
+  .ui-hint {
+    color: var(--color-faint);
+    font-size: 9px;
+    line-height: 1.55;
+  }
+
+  .ui-empty {
+    padding: 10px 9px;
+    border: 1px dashed var(--color-line);
+    border-radius: 3px;
+    background-color: rgb(0 0 0 / 10%);
+    color: var(--color-faint);
+    text-align: center;
+  }
+
+  /* Selected graph item: orange, thin, no large ring. */
+  .ui-selected {
+    background-color: var(--color-selection-soft);
+    color: var(--color-text);
+    box-shadow: inset 2px 0 0 var(--color-selection);
+  }
+
+  /* Selected Outliner/Properties row: Blender blue. */
+  .ui-selected-row {
+    background-color: var(--color-accent-soft);
+    color: var(--color-text);
+    box-shadow: inset 2px 0 0 var(--color-accent-strong);
+  }
+
+  .ui-selected-row:hover {
+    background-color: var(--color-accent-soft);
+  }
+
+  .ui-outliner-row {
+    display: flex;
+    min-height: 24px;
+    align-items: center;
+    gap: 6px;
+    margin: 1px 4px;
+    padding: 1px 6px;
+    border: 0;
+    border-radius: 3px;
+    background-color: transparent;
+    color: var(--color-muted);
+    font-size: 12px;
+    line-height: 1.3;
+    text-align: left;
+  }
+
+  .ui-outliner-row:hover {
+    background-color: #343434;
+    color: var(--color-text);
+  }
+
+  .ui-outliner-row.ui-selected-row,
+  .ui-outliner-row.ui-selected-row:hover {
+    background-color: #34527c;
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  .ui-inset {
+    border: 1px solid var(--color-line-soft);
+    border-radius: 2px;
+    background-color: var(--color-panel-soft);
+    box-shadow: inset 0 1px 1px rgb(0 0 0 / 20%);
+  }
+
+  .ui-property-section {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: flex;
+    min-height: 24px;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    padding: 3px 8px;
+    border-top: 1px solid var(--color-line-soft);
+    border-bottom: 1px solid var(--color-line-soft);
+    background-color: var(--color-panel-raised);
+    color: var(--color-muted);
+    text-align: left;
+  }
+
+  .ui-editor-header {
+    background-color: var(--color-panel-raised);
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .ui-outliner {
+    background-color: var(--color-panel);
+  }
+
+  .ui-properties {
+    background-color: var(--color-panel);
+  }
+
+  .ui-properties-rail {
+    display: flex;
+    width: 42px;
+    flex: none;
+    flex-direction: column;
+    align-items: center;
+    gap: 2px;
+    padding: 4px 0;
+    border-right: 1px solid var(--color-line-soft);
+    background-color: var(--color-panel-raised);
+  }
+
+  .ui-properties-rail-tab {
+    display: flex;
+    width: 34px;
+    height: 32px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--color-muted);
+  }
+
+  .ui-properties-rail-tab:hover:not(:disabled) {
+    background-color: #3d3d3d;
+    color: var(--color-text);
+  }
+
+  .ui-properties-rail-tab[aria-pressed="true"] {
+    background-color: var(--color-accent);
+    color: #ffffff;
+  }
+
+  .ui-properties-rail-tab[aria-pressed="true"]:hover:not(:disabled) {
+    border-right-color: var(--color-accent-strong);
+    background-color: var(--color-accent-soft);
+    color: var(--color-accent-strong);
+  }
+
+  .ui-area {
+    display: flex;
+    min-width: 0;
+    min-height: 0;
+    flex-direction: column;
+    background-color: var(--color-panel);
+  }
+
+  .ui-area-header {
+    background-color: var(--color-panel-raised);
+    border-bottom: 1px solid var(--color-line);
+  }
+
+  .ui-area-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    line-height: 1;
+    text-transform: uppercase;
+    color: var(--color-muted);
+  }
+
+  .ui-editor-tab {
+    position: relative;
+    display: inline-flex;
+    height: 24px;
+    align-self: center;
+    align-items: center;
+    gap: 6px;
+    margin: 0 1px;
+    padding: 0 9px;
+    border: 0;
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .ui-editor-tab:hover {
+    background-color: var(--color-panel-soft);
+    color: var(--color-text);
+  }
+
+  .ui-editor-tab[aria-current="page"] {
+    background-color: #3e3e3e;
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  .ui-editor-tab[aria-current="page"]:hover {
+    background-color: #454545;
+  }
+
+  .ui-workspace-tab {
+    position: relative;
+    display: inline-flex;
+    height: 26px;
+    align-self: center;
+    align-items: center;
+    gap: 6px;
+    margin: 0 1px;
+    padding: 0 10px;
+    border: 0;
+    border-radius: 4px;
+    background-color: transparent;
+    color: var(--color-muted);
+    font-size: 12.5px;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .ui-workspace-tab:hover {
+    background-color: var(--color-panel);
+    color: var(--color-text);
+  }
+
+  .ui-workspace-tab[aria-current="page"] {
+    background-color: #3e3e3e;
+    color: #ffffff;
+    box-shadow: none;
+  }
+
+  .ui-workspace-tab[aria-current="page"]:hover {
+    background-color: #454545;
+  }
+
+  .ui-subtabs {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    padding: 1px;
+    border: 1px solid var(--color-line);
+    border-radius: 3px;
+    background-color: var(--color-panel);
+  }
+
+  .ui-subtab {
+    display: inline-flex;
+    min-height: 22px;
+    align-items: center;
+    gap: 5px;
+    padding: 2px 7px;
+    border: 1px solid transparent;
+    border-radius: 2px;
+    background-color: transparent;
+    color: var(--color-muted);
+    font-size: 12px;
+    font-weight: 500;
+    letter-spacing: -0.005em;
+    line-height: 1;
+    white-space: nowrap;
+  }
+
+  .ui-subtab:hover {
+    background-color: var(--color-panel-raised);
+    color: var(--color-text);
+  }
+
+  .ui-subtab[aria-current="page"] {
+    border-color: var(--color-accent);
+    background-color: var(--color-accent-soft);
+    color: var(--color-text);
+  }
+
+  /* ---- Node editor primitives ------------------------------------------
+     Available to Map, Workflow, Blueprint and Lineage workers. Category
+     colour belongs in the header; the body stays graphite. */
+
+  .ui-node {
+    border: 1px solid var(--color-line);
+    border-radius: 3px;
+    background-color: var(--color-panel);
+    color: var(--color-text);
+    box-shadow: 0 1px 2px rgb(0 0 0 / 30%);
+  }
+
+  .ui-node-header {
+    display: flex;
+    min-height: 24px;
+    align-items: center;
+    gap: 6px;
+    padding: 2px 7px;
+    border-bottom: 1px solid var(--color-line-soft);
+    border-radius: 2px 2px 0 0;
+    background-color: var(--color-panel-raised);
+    color: var(--color-text);
+    font-size: 11px;
+    font-weight: 600;
+    line-height: 1.2;
+  }
+
+  .ui-node-body {
+    padding: 7px;
+    border-radius: 0 0 2px 2px;
+    background-color: var(--color-panel);
+  }
+
+  .ui-socket {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    flex: none;
+    border: 1px solid var(--color-abyss);
+    border-radius: 999px;
+    background-color: var(--color-muted);
+  }
+
+  .ui-wire {
+    fill: none;
+    stroke: var(--color-line-strong);
+    stroke-width: 1.5;
+  }
+
+  .ui-wire:hover {
+    stroke: var(--color-accent);
+  }
+
+  .ui-wire-active {
+    stroke: var(--color-selection);
+  }
+
+  .ui-node-selected {
+    border-color: var(--color-selection);
+    box-shadow:
+      0 0 0 1px var(--color-selection-soft),
+      0 0 8px rgb(237 158 92 / 18%);
+  }
+
+  .ui-focus-ring:focus-visible {
+    outline: 2px solid var(--color-accent-strong);
+    outline-offset: 1px;
+  }
+
+  .ui-grain {
+    position: relative;
+    isolation: isolate;
+  }
+
+  .ui-grain::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 50;
+    pointer-events: none;
+    border-radius: inherit;
+    opacity: 0.015;
+    mix-blend-mode: soft-light;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='180' height='180'%3E%3Cfilter id='grain'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.82' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23grain)' opacity='0.7'/%3E%3C/svg%3E");
+  }
+
+  .react-flow {
+    --xy-background-color: var(--color-abyss);
+    --xy-edge-stroke: var(--color-line-strong);
+    --xy-edge-stroke-selected: var(--color-selection);
+    --xy-connectionline-stroke: var(--color-accent);
+    --xy-minimap-background-color: var(--color-panel);
+    --xy-controls-button-background-color: var(--color-panel-raised);
+    --xy-controls-button-background-color-hover: var(--color-panel-soft);
+    --xy-controls-button-color: var(--color-muted);
+    --xy-controls-button-border-color: var(--color-line);
+    --xy-attribution-background-color: rgb(27 27 27 / 72%);
+  }
+
+  .react-flow__attribution {
+    background: transparent;
+    color: var(--color-faint);
+  }
+
+  .react-flow__attribution a {
+    color: var(--color-muted);
+  }
+
+  .react-flow__edge-path {
+    stroke-width: 1.4;
+  }
+
+  .react-flow__edge.selected .react-flow__edge-path {
+    stroke: var(--color-selection);
+    stroke-width: 2.1;
+  }
+
+  .react-flow__handle {
+    width: 8px;
+    height: 8px;
+    border: 1px solid var(--color-abyss);
+    background: var(--color-muted);
+  }
+
+  .react-flow__handle.connecting {
+    background: var(--color-accent-strong);
+  }
+
+  .react-flow__controls {
+    overflow: hidden;
+    border: 1px solid var(--color-line);
+    border-radius: 3px;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 30%);
+  }
+
+  .react-flow__minimap {
+    overflow: hidden;
+    border: 1px solid var(--color-line);
+    border-radius: 3px;
+    box-shadow: 0 2px 6px rgb(0 0 0 / 26%);
+  }
+}
+
+@layer utilities {
+  .thin-scrollbar {
+    scrollbar-color: var(--color-line-strong) transparent;
+    scrollbar-width: thin;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar {
+    width: 7px;
+    height: 7px;
+  }
+
+  .thin-scrollbar::-webkit-scrollbar-thumb {
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: content-box;
+    background-color: var(--color-line-strong);
+  }
+
+  .tnum {
+    font-variant-numeric: tabular-nums;
+  }
+
+  .ui-panel-texture {
+    background-image:
+      linear-gradient(180deg, rgb(255 255 255 / 2.6%), transparent 10rem),
+      linear-gradient(180deg, transparent, rgb(0 0 0 / 6%));
+  }
+
+  /* The operational UI was authored on a very small type scale. Raise every
+     arbitrary micro-size once here instead of letting each panel drift. */
+  .text-\[7\.5px\] {
+    font-size: 9px;
+  }
+  .text-\[8px\] {
+    font-size: 9.5px;
+  }
+  .text-\[8\.5px\] {
+    font-size: 10px;
+  }
+  .text-\[9px\] {
+    font-size: 10.5px;
+  }
+  .text-\[10px\] {
+    font-size: 11.5px;
+  }
+  .text-\[10\.5px\] {
+    font-size: 12px;
+  }
+  .text-\[11px\] {
+    font-size: 12.5px;
+  }
+  .text-\[12px\] {
+    font-size: 13.5px;
+  }
+  .text-\[13px\] {
+    font-size: 14.5px;
+  }
+
+  .ui-label,
+  .ui-section-label {
+    font-size: 10px;
+  }
+  .ui-chip {
+    font-size: 9px;
+  }
+  .ui-hint,
+  .ui-empty {
+    font-size: 10px;
+  }
+  .ui-input {
+    font-size: 12px;
+  }
+  .ui-kbd {
+    font-size: 9px;
+  }
+}
+
+/* Motion and focus live outside Tailwind layers so component utilities cannot
+   silently remove the keyboard contract. */
+:where(a, button, input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--color-accent-strong);
+  outline-offset: 1px;
+}
+
+:where(input, textarea, select):focus-visible {
+  outline-offset: 0;
+}
+
+/* HTML controls only. SVG graph nodes and link hit paths also carry
+   role="button"; they are geometry, not widgets, and must never inherit the
+   opacity fade or the 1px pressed transform. */
+:where(a, button, [role="button"], summary, input, select):not(svg *) {
+  transition:
+    background-color var(--motion-base) var(--ease-instrument),
+    border-color var(--motion-base) var(--ease-instrument),
+    color var(--motion-base) var(--ease-instrument),
+    box-shadow var(--motion-base) var(--ease-instrument),
+    opacity var(--motion-base) var(--ease-instrument),
+    transform var(--motion-fast) var(--ease-instrument);
+}
+
+:where(button, [role="button"], summary):not(svg *):not(:disabled):active {
+  transform: translateY(1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+
+  :where(button, [role="button"], summary):not(svg *):not(:disabled):active {
+    transform: none;
+  }
+}
