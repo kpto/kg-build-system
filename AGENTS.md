@@ -99,6 +99,9 @@ rule about what the framework is belongs to the framework model.
 - A visualisation opens at the lowest detail that still answers its first
   question; every further layer is revealed by a named control, and raw JSON is
   not a default surface.
+- Present the design before an author workflow: a canonical view carries the
+  facts a reader must know immediately, and a detail view shows the same object
+  with more evidence rather than starting a separate task.
 - End every change report with the rule-promotion result: none, refined or
   added.
 
