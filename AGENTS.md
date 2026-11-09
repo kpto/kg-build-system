@@ -193,6 +193,11 @@ rule about what the framework is belongs to the framework model.
 - A node or edge type states its meaning, direction, identity, absence and limits.
 - The build preserves those statements and publishes them for consumers.
 - A meaning that cannot be stated is recorded as a limit; it is not invented.
+- A project attaches the framework semantics units directly. A project-local
+  builder with its own grammar is a second semantics model, not a convenience.
+- Published provenance names the release declarations a value is read from. A
+  computed relation resolves to the base relations and fields behind it; its
+  internal computed name is not a source dataset.
 - Observation is provenance. A generated field renders its value type; an
   observed source nullability may inform the manifest, statistics and notes but
   never adds `| None` to generated source.
