@@ -102,6 +102,8 @@ rule about what the framework is belongs to the framework model.
 - Present the design before an author workflow: a canonical view carries the
   facts a reader must know immediately, and a detail view shows the same object
   with more evidence rather than starting a separate task.
+- Each region states one job in its header and does not repeat another region's
+  content; a subject's detail belongs to one region.
 - End every change report with the rule-promotion result: none, refined or
   added.
 
