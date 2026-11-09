@@ -5,12 +5,11 @@ They are review aids, not golden images.
 
 | File | What it shows |
 | --- | --- |
-| `01-topology.png` | Topology default: hub labels only, relation links, no edge labels, containment or semantics badges; bottom panel hidden. |
-| `02-topology-detail.png` | Topology with the detail controls revealed: all non-overlapping labels and category containment. |
-| `03-proof.png` | Proof for `adverse_event.event`: branch selector, type/presence chain, lanes, attached semantics and connections. |
-| `04-meaning.png` | Meaning default: graph purpose and counts; frames, limitations, claims and subjects collapsed. |
-| `05-meaning-selected.png` | Meaning with `node/target` selected: claims, frames and limitations in the editor. |
-| `06-topology-navigation.png` | Topology with `target` selected: sidebar selection card and bottom detail both offer **Open in Proof** and **Open in Meaning**. |
+| `01-topology.png` | Topology default: canonical graph, hub labels only, graph purpose summary; bottom panel hidden. |
+| `02-topology-selected.png` | `target` selected: description, nine properties with types, attached meaning and **Open in Detail**. |
+| `03-topology-graph-meaning.png` | The graph purpose revealed in full with its claims and frames. |
+| `04-detail-property.png` | Detail for `target.approvedSymbol`: design meaning, type/presence chain, provenance lanes, attached semantics and connections. |
+| `05-detail-node.png` | Detail for node `target`: design meaning, node description, property table and attached semantics. |
 
 The reference estate is still available at `?snapshot=reference`; it is not the
 default dataset.

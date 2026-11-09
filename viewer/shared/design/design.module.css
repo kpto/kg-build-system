@@ -1,0 +1,185 @@
+.graphMeaning {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.meaning {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  min-width: 0;
+}
+
+.meaningCompact {
+  gap: 5px;
+}
+
+.meaningCounts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+}
+
+.meaningCompact .meaningCounts {
+  font-size: 8.5px;
+}
+
+.meaningPurpose {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+.meaningClaims {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.meaningClaims li {
+  position: relative;
+  padding-left: 10px;
+  color: var(--color-muted);
+  font-size: 11px;
+  line-height: 1.5;
+}
+
+.meaningClaims li::before {
+  position: absolute;
+  left: 0;
+  color: var(--color-selection);
+  content: "·";
+}
+
+.meaningPurposeClamped {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 5;
+}
+
+.meaningPurposeToggle {
+  align-self: flex-start;
+  border: 0;
+  background: transparent;
+  padding: 0;
+  color: var(--color-accent-strong);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
+.meaningPurposeToggle:hover {
+  color: var(--color-text);
+}
+
+.meaningCompact .meaningClaims li {
+  display: -webkit-box;
+  overflow: hidden;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  font-size: 10px;
+}
+
+.meaningMore {
+  color: var(--color-faint) !important;
+  font-family: var(--font-mono);
+  font-size: 9px !important;
+}
+
+.meaningFrames {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.meaningFrame {
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.meaningFrameHead {
+  display: flex;
+  width: 100%;
+  min-height: 24px;
+  align-items: baseline;
+  gap: 5px;
+  border: 0;
+  background: transparent;
+  padding: 4px 0;
+  color: var(--color-muted);
+  font-size: 10.5px;
+  line-height: 1.4;
+  text-align: left;
+}
+
+.meaningFrameHead:disabled {
+  cursor: default;
+}
+
+.meaningFrameHead:hover:not(:disabled) {
+  color: var(--color-text);
+}
+
+.meaningChevron {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  align-self: center;
+  color: var(--color-faint);
+  transition: transform 120ms ease;
+}
+
+.meaningChevronOpen {
+  transform: rotate(90deg);
+}
+
+.meaningFrameHead > span:nth-child(2) {
+  min-width: 0;
+  flex: 1;
+}
+
+.meaningFrameCount {
+  flex: none;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+}
+
+.meaningLimits {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  margin: 0;
+  padding: 0 0 5px 15px;
+  list-style: none;
+}
+
+.meaningLimits li {
+  position: relative;
+  color: var(--color-faint);
+  font-size: 10px;
+  line-height: 1.45;
+}
+
+.meaningLimits li::before {
+  position: absolute;
+  left: -9px;
+  content: "—";
+  color: var(--color-open);
+}
+
+.meaningEmpty {
+  margin: 0;
+  color: var(--color-faint);
+  font-size: 10px;
+  line-height: 1.5;
+}

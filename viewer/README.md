@@ -4,18 +4,22 @@ A pure visualisation of a `kg-build-system` graph design. The viewer reads a
 compile-time viewer snapshot of a blueprint and workflow contract; it does not
 import the Python framework at runtime, execute a build or call a model.
 
-The app is a VS Code-style workbench with the Blender dark theme. It has three
-functions, in reading order:
+The app is a VS Code-style workbench with the Blender dark theme. It has two
+angles on the same design:
 
 | Function | Question it answers |
 | --- | --- |
-| **Topology** | What exists in the graph, and how is it connected? |
-| **Proof** | Where does one value come from, and what does it pass through? |
-| **Meaning** | What does the graph claim, and within which frames and limits? |
+| **Topology** | What exists, how is it connected, and what does each entity declare? |
+| **Detail** | One subject in full: its meaning, properties and provenance. |
 
-Topology is the first and default surface. The viewer is a design reader, not
-an audit or review tool: there are no findings, decisions, coverage, sign-off or
-review sidecars.
+Topology is the first and canonical surface. It shows the things an author must
+know immediately — purpose, identity, description, properties and attached
+meaning — when an entity is selected. Detail is the same design seen closer:
+graph meaning, the selected subject's claims and limits, its property table and,
+for a property, the full provenance chain.
+
+The viewer is a design reader, not an audit or review tool: there are no
+findings, decisions, coverage, sign-off or review sidecars.
 
 ## Run
 
@@ -38,9 +42,8 @@ The first paint shows the design, not its annotations.
 
 | Surface | Default | Revealed by |
 | --- | --- | --- |
-| Topology | circles, thin relation links, labels on hubs only | the sidebar **Detail** controls: labels off/hubs/all, edge labels, containment, semantics, properties; **Open in Proof** and **Open in Meaning** from the selection |
-| Proof | the selected property's lanes and type chain | the level switch (Property, Node, Edge, Abstract, Asset) and the branch selector |
-| Meaning | graph purpose and counts | **Show claims**, **Expand frames**, **Show limitations**, **Show subjects** |
+| Topology | graph, purpose summary and counts | the **Detail** controls (labels, edge labels, containment, semantics, properties); selecting an entity adds its description, properties and meaning; **Open in Detail** |
+| Detail | meaning, properties and attached semantics of the selected subject | the level switch (Property, Node, Edge, Abstract, Asset), property rows, and the branch selector |
 
 The bottom panel starts hidden. Open it with the title-bar panel toggle or
 `Cmd/Ctrl+J`. It shows selection detail only; there is no JSON/Data tab.
@@ -92,9 +95,10 @@ uv run --with selenium python scripts/screenshot.py \
 viewer/
   app/                 shell entry, route handlers and global theme
   workbench/           VS Code layout, state, persistence, UI chrome
-  topology/            D3 force model, detail controls and view
-  proof/               proof model and view
-  meaning/             purpose, frames, claims and attached semantics
+  topology/            canonical design graph, detail controls and view
+  detail/              the merged design view: meaning, properties and provenance
+  proof/               the provenance model used by Detail
+  shared/design/       meaning value, graph/entity meaning, and its renderer
   lib/                 snapshot types, loader, indexes, shared models
   scripts/             snapshot regeneration and browser screenshots
   public/data/         checked-in snapshots

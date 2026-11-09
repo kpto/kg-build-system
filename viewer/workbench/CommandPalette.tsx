@@ -41,16 +41,16 @@ interface SubjectTarget {
 const KIND_ACTIVITY: Record<SearchKind, ActivityId> = {
   "topology-node": "topology",
   "topology-edge": "topology",
-  property: "proof",
-  relation: "proof",
-  projection: "proof",
-  struct: "proof",
-  field: "proof",
-  asset: "proof",
-  binding: "proof",
-  step: "proof",
-  instruction: "proof",
-  "workflow-component": "proof",
+  property: "detail",
+  relation: "detail",
+  projection: "detail",
+  struct: "detail",
+  field: "detail",
+  asset: "detail",
+  binding: "detail",
+  step: "detail",
+  instruction: "detail",
+  "workflow-component": "detail",
 };
 
 function subjectTarget(

@@ -1,7 +1,7 @@
 # Viewer design language
 
 The viewer is one application, not a collection of screens. It reads a graph
-design through three functions and one shared ladder. Each level answers one
+design through two angles and one shared ladder. Each level answers one
 question and owns one kind of chrome. A level may be omitted; it may not be
 reordered, duplicated or wrapped in another level of the same kind.
 
@@ -12,7 +12,7 @@ The visible hierarchy is in `HIERARCHY.md`; the skin is in
 
 ```text
 Window        where am I, and what design am I reading?
-  Function    Topology, Proof or Meaning: which question am I asking?
+  Function    Topology or Detail: how close am I looking?
     Panel     which region answers it: side bar, editor or bottom?
       Section which facet of the subject?
         Row   which item?
@@ -33,25 +33,25 @@ Window        where am I, and what design am I reading?
 - **Field** is one value of that subject.
 - **Control** is one action or one reveal. It never carries content.
 
-## The three functions
+## The two angles
 
-| Function | Question | Model slice |
+| Function | Question | What it contains |
 | --- | --- | --- |
-| Topology | What exists, and how is it connected? | graph nodes, relations, categories |
-| Proof | Where does this value come from? | one property's bindings, sources, operators and target |
-| Meaning | What does the design claim, and within which limits? | graph purpose, frames, claims and attached subject semantics |
+| Topology | What exists, how is it connected, and what does each entity declare? | graph nodes, relations, categories, the selected entity's properties and attached meaning |
+| Detail | What exactly is this subject? | its meaning, properties, provenance and attached semantics |
 
-The functions share a scope, not a page. A selected node in Topology, a proof
-subject, and a semantic subject are the same design object seen through three
-slices. Switching function keeps the selection where the slice can resolve it.
+The functions share one design object, not a page. A node selected in Topology
+is the same node opened in Detail. Topology states what an author must know
+immediately; Detail adds the evidence and the full record.
 
 ## Detail is earned
 
 The first paint states the design, not every annotation.
 
 - **Low detail is the default.** Topology labels hubs only; edge labels,
-  containment, semantics badges and property lists are off. Meaning shows the
-  purpose and counts; frames, limitations, claims and subjects are collapsed.
+  containment, semantics badges and property lists are off. Detail shows the
+  selected subject's meaning and properties; graph claims and frames are
+  revealed on demand.
 - **A reveal is explicit.** Every hidden layer has one control that names it.
   A control's state is visible; a revealed layer is one click away from hidden.
 - **A reveal does not change scope.** Turning on semantics labels adds evidence
@@ -65,9 +65,9 @@ The first paint states the design, not every annotation.
 
 | Surface | Level 1 (default) | Level 2 | Level 3 |
 | --- | --- | --- | --- |
-| Topology | circles, thin relation links, hub labels | all labels, relation names | containment, semantics, property counts |
-| Proof | property lanes and type chain | node/edge/abstract union | asset reverse index |
-| Meaning | purpose and counts | claims and frames | limitations and attached subject semantics |
+| Topology | circles, thin relation links, hub labels, graph purpose | all labels, relation names | containment, semantics, property counts |
+| Topology selection | identity and description | properties with types | attached claims, frames and limitations |
+| Detail | subject meaning and properties | attached semantics along the path | property provenance, type/presence chain and trace |
 
 The level switch is part of the function's own header or side bar. It is not a
 global setting, because each question has its own useful first level.
@@ -94,16 +94,17 @@ global setting, because each question has its own useful first level.
 ## Reading flows
 
 **Orient.** Topology → filter or zoom → select a node or relation → read the
-selection detail → open Proof for its properties and provenance, or Meaning for
-its attached claims and limits.
+selection detail → open Detail for its properties, provenance and attached
+claims and limits.
 
-**Prove.** Proof → search a property in the side bar → read the branch's lanes
-and type/presence chain → switch level (node, edge, abstract, asset) when the
+**Open detail.** Select a node or edge in Topology → read its properties and
+meaning → **Open in Detail** → select a property to read its branches, lanes and
+type/presence chain, or switch level (node, edge, abstract, asset) when the
 question widens.
 
-**Read meaning.** Meaning → read the purpose → expand frames and limitations →
-reveal claims → search attached subject semantics → read a subject's claims and
-frames in the editor.
+**Read the design.** Detail's sidebar states the graph purpose and its full
+claims and frames on demand; the editor states the selected subject's meaning
+and properties before its provenance.
 
 ## Writing rules for the UI
 

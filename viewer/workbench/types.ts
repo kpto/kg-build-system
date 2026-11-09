@@ -10,7 +10,7 @@ import type { LucideIcon } from "lucide-react";
 
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 
-export type ActivityId = "topology" | "proof" | "meaning";
+export type ActivityId = "topology" | "detail";
 
 export type SelectionKind =
   | "asset"
@@ -23,7 +23,7 @@ export type SelectionKind =
   | "binding"
   | "step";
 
-export type ProofLevel = "property" | "node" | "edge" | "abstract" | "asset";
+export type DetailLevel = "property" | "node" | "edge" | "abstract" | "asset";
 
 export interface WorkbenchSelection {
   activity: ActivityId;
@@ -31,7 +31,7 @@ export interface WorkbenchSelection {
   name?: string;
   component?: string;
   property?: string;
-  level?: ProofLevel;
+  level?: DetailLevel;
   stepId?: [string, string];
 }
 

@@ -69,10 +69,7 @@ const FEATURE_DIRS = new Set([
 ]);
 /** The feature entry wrapper is a view by another name; keep it at the root. */
 const ENTRY_FILES = new Set([
-  "review/ReviewCampaign.tsx",
-  "proof/ProofFeature.tsx",
-  "audit/AuditFeature.tsx",
-  "semantics/SemanticsFeature.tsx",
+  "detail/DetailFeature.tsx",
   "topology/TopologyFeature.tsx",
 ]);
 

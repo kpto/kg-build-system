@@ -1,12 +1,12 @@
 "use client";
 
 /**
- * Proof activity.
+ * Detail activity: one design subject read in full.
  *
- * The sidebar selects a subject, the editor renders the selected level and the
- * bottom panel exposes the workflow trace, the attached evidence and the JSON
- * of the current proof. The model is built in `./model`; this module only binds
- * it to the workbench state and the Blender dark surface.
+ * The sidebar selects a design subject; the editor presents its meaning,
+ * properties and, for a property, its provenance; the bottom panel exposes the
+ * workflow trace and evidence. Provenance is a section of this view,
+ * not a separate activity.
  */
 
 import {
@@ -31,6 +31,7 @@ import {
 } from "lucide-react";
 
 import type {
+  ActivityId,
   FeatureProps,
   WorkbenchSelection,
 } from "@/workbench/types";
@@ -59,16 +60,27 @@ import {
   type ProofSubject,
   type ProofTrace,
   type ProofTypeChain,
-} from "./model";
-import styles from "./proof.module.css";
+} from "@/proof/model";
+import { DesignMeaning, GraphMeaning } from "@/shared/design/DesignMeaning";
+import {
+  attachedMeaning,
+  componentMeaning,
+  graphMeaning,
+  propertyMeaning,
+  type DesignMeaningValue,
+} from "@/shared/design/meaning";
+import styles from "./detail.module.css";
 
 // ---------------------------------------------------------------------------
 // Selection plumbing
 // ---------------------------------------------------------------------------
 
-function toWorkbenchSelection(subject: ProofSubject): WorkbenchSelection {
+function toWorkbenchSelection(
+  subject: ProofSubject,
+  activity: WorkbenchSelection["activity"],
+): WorkbenchSelection {
   const base: WorkbenchSelection = {
-    activity: "proof",
+    activity,
     name:
       subject.level === "property"
         ? `${subject.component}.${subject.property ?? ""}`
@@ -95,7 +107,7 @@ function toWorkbenchSelection(subject: ProofSubject): WorkbenchSelection {
 }
 
 function useProofModel(props: FeatureProps): ProofModel {
-  const selection = props.state.functions.proof.selection;
+  const selection = props.state.functions[props.activity].selection;
   return useMemo(
     () => buildProof(props.state.index, selection),
     [props.state.index, selection],
@@ -103,7 +115,7 @@ function useProofModel(props: FeatureProps): ProofModel {
 }
 
 function useCurrentSubject(props: FeatureProps): ProofSubject {
-  const selection = props.state.functions.proof.selection;
+  const selection = props.state.functions[props.activity].selection;
   return useMemo(
     () => resolveProofSubject(props.state.index, selection),
     [props.state.index, selection],
@@ -402,7 +414,7 @@ function SidebarRow({ label, meta, active, abstract, onSelect }: SidebarRowProps
   );
 }
 
-export function ProofSidebar(props: FeatureProps) {
+export function DetailSidebar(props: FeatureProps) {
   const { index } = props.state;
   const subject = useCurrentSubject(props);
   const model = useProofModel(props);
@@ -414,7 +426,7 @@ export function ProofSidebar(props: FeatureProps) {
   const normalized = query.trim().toLowerCase();
 
   const select = (next: ProofSubject) => {
-    props.actions.setSelection("proof", toWorkbenchSelection(next));
+    props.actions.setSelection(props.activity, toWorkbenchSelection(next, props.activity));
   };
   const toggle = (id: string) => {
     setOpen((current) => {
@@ -617,18 +629,26 @@ export function ProofSidebar(props: FeatureProps) {
   };
 
   return (
-    <div className={styles.sidebar} data-testid="proof-sidebar">
+    <div className={styles.sidebar} data-testid="detail-sidebar">
       <div className={styles.search}>
         <Search aria-hidden className={styles.searchIcon} />
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder="Filter assets, nodes, properties"
-          aria-label="Filter the proof tree"
+          aria-label="Filter the design tree"
           spellCheck={false}
         />
       </div>
       <div className={`${styles.sideScroll} thin-scrollbar`}>
+      <section className={styles.graphMeaning} aria-label="Graph meaning">
+        <p className={styles.sideSectionTitle}>Graph purpose</p>
+        <GraphMeaning
+          claims={graphMeaning(index).claims}
+          frames={graphMeaning(index).frames}
+          purpose={graphMeaning(index).purpose}
+        />
+      </section>
         <SideSection
           id="assets"
           title="Assets"
@@ -751,7 +771,7 @@ function LevelSelector({
   onChange(level: ProofLevel): void;
 }) {
   return (
-    <div className={styles.levelSelector} role="tablist" aria-label="Proof level">
+    <div className={styles.levelSelector} role="tablist" aria-label="Design level">
       {LEVELS.map((entry) => (
         <button
           key={entry.id}
@@ -1128,9 +1148,11 @@ function PropertyTable({
 function ComponentProofView({
   model,
   actions,
+  activity,
 }: {
   model: ProofModel;
   actions: FeatureProps["actions"];
+  activity: ActivityId;
 }) {
   const component = model.component;
   if (!component) {
@@ -1178,14 +1200,14 @@ function ComponentProofView({
           properties={component.properties}
           onSelect={(property) =>
             actions.setSelection(
-              "proof",
+              activity,
               toWorkbenchSelection({
                 level: "property",
                 kind: property.kind,
                 component: property.component,
                 property: property.property,
                 propertyRef: property.propertyRef,
-              }),
+              }, activity),
             )
           }
         />
@@ -1201,9 +1223,11 @@ function ComponentProofView({
 function AbstractProofView({
   model,
   actions,
+  activity,
 }: {
   model: ProofModel;
   actions: FeatureProps["actions"];
+  activity: ActivityId;
 }) {
   const abstract = model.abstract;
   if (!abstract) {
@@ -1254,14 +1278,14 @@ function AbstractProofView({
               properties={descendant.properties}
               onSelect={(property) =>
                 actions.setSelection(
-                  "proof",
+                  activity,
                   toWorkbenchSelection({
                     level: "property",
                     kind: property.kind,
                     component: property.component,
                     property: property.property,
                     propertyRef: property.propertyRef,
-                  }),
+                  }, activity),
                 )
               }
             />
@@ -1279,9 +1303,11 @@ function AbstractProofView({
 function AssetProofView({
   model,
   actions,
+  activity,
 }: {
   model: ProofModel;
   actions: FeatureProps["actions"];
+  activity: ActivityId;
 }) {
   const asset = model.asset;
   if (!asset) {
@@ -1335,14 +1361,14 @@ function AssetProofView({
           properties={asset.properties}
           onSelect={(property) =>
             actions.setSelection(
-              "proof",
+              activity,
               toWorkbenchSelection({
                 level: "property",
                 kind: property.kind,
                 component: property.component,
                 property: property.property,
                 propertyRef: property.propertyRef,
-              }),
+              }, activity),
             )
           }
         />
@@ -1418,34 +1444,66 @@ function AssetDataRows({
 // Editor export
 // ---------------------------------------------------------------------------
 
-export function ProofEditor(props: FeatureProps) {
+function subjectMeaning(
+  index: FeatureProps["state"]["index"],
+  model: ProofModel,
+): DesignMeaningValue {
+  switch (model.level) {
+    case "property":
+      if (
+        model.subject.kind === "node" ||
+        model.subject.kind === "edge"
+      ) {
+        return propertyMeaning(
+          index,
+          model.subject.kind,
+          model.subject.component,
+          model.subject.property ?? "",
+        );
+      }
+      return attachedMeaning(undefined);
+    case "node":
+    case "edge":
+      return componentMeaning(index, model.level, model.subject.component);
+    case "abstract":
+      return componentMeaning(index, "node", model.subject.component);
+    case "asset":
+      return attachedMeaning(
+        index.assetsByName.get(model.subject.component)?.semantics,
+      );
+  }
+}
+
+export function DetailEditor(props: FeatureProps) {
   const model = useProofModel(props);
-  const selection = props.state.functions.proof.selection;
+  const selection = props.state.functions[props.activity].selection;
+  const meaning = subjectMeaning(props.state.index, model);
 
   useEffect(() => {
     if (selection.kind || selection.component || selection.property) return;
     props.actions.setSelection(
-      "proof",
-      toWorkbenchSelection(defaultProofSubject(props.state.index)),
+      props.activity,
+      toWorkbenchSelection(defaultProofSubject(props.state.index), props.activity),
     );
-  }, [props.actions, props.state.index, selection]);
+  }, [props.actions, props.activity, props.state.index, selection]);
 
   const changeLevel = (level: ProofLevel) => {
     props.actions.setSelection(
-      "proof",
+      props.activity,
       toWorkbenchSelection(
         proofSubjectForLevel(props.state.index, model.subject, level),
+        props.activity,
       ),
     );
   };
 
   return (
-    <div className={styles.root} data-testid="proof-editor">
+    <div className={styles.root} data-testid="detail-editor">
       <header className={styles.topbar}>
         <div className={styles.titleBlock}>
           <p className={styles.kicker}>
             <BadgeCheck aria-hidden className={styles.kickerIcon} />
-            Proof · {model.level}
+            Design · {model.level}
           </p>
           <h1 className={styles.title}>{levelTitle(model)}</h1>
           <p className={styles.subtitle}>{levelSubtitle(model)}</p>
@@ -1454,14 +1512,28 @@ export function ProofEditor(props: FeatureProps) {
       </header>
 
       <div className={styles.body}>
+        <section className={styles.meaningPanel} aria-label="Design meaning">
+          <header className={styles.meaningPanelHeader}>
+            <span className={styles.meaningPanelTitle}>Design meaning</span>
+            <span className={styles.meaningPanelMeta}>
+              {model.subject.component}
+              {model.subject.property ? `.${model.subject.property}` : ""}
+            </span>
+          </header>
+          <DesignMeaning
+            claims={meaning.claims}
+            frames={meaning.frames}
+            emptyText="No meaning is attached to this subject."
+          />
+        </section>
         {model.level === "property" ? (
           <PropertyProofView model={model} />
         ) : model.level === "asset" ? (
-          <AssetProofView model={model} actions={props.actions} />
+          <AssetProofView model={model} actions={props.actions} activity={props.activity} />
         ) : model.level === "abstract" ? (
-          <AbstractProofView model={model} actions={props.actions} />
+          <AbstractProofView model={model} actions={props.actions} activity={props.activity} />
         ) : (
-          <ComponentProofView model={model} actions={props.actions} />
+          <ComponentProofView model={model} actions={props.actions} activity={props.activity} />
         )}
       </div>
     </div>
@@ -1587,11 +1659,11 @@ function EvidenceTab({ model }: { model: ProofModel }) {
   );
 }
 
-export function ProofBottom(props: FeatureProps) {
+export function DetailBottom(props: FeatureProps) {
   const model = useProofModel(props);
-  const tab = props.state.functions.proof.layout.bottomTab || "trace";
+  const tab = props.state.functions[props.activity].layout.bottomTab || "trace";
   return (
-    <div className={styles.bottom} data-testid="proof-bottom" data-tab={tab}>
+    <div className={styles.bottom} data-testid="detail-bottom" data-tab={tab}>
       {tab === "evidence" ? (
         <EvidenceTab model={model} />
       ) : (

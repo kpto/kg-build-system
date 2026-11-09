@@ -380,8 +380,7 @@ export function WorkbenchProvider({
     const fallback = defaultFunctions();
     const functions: Record<ActivityId, FunctionState> = {
       topology: readFunctionState(name, "topology", fallback.topology),
-      proof: readFunctionState(name, "proof", fallback.proof),
-      meaning: readFunctionState(name, "meaning", fallback.meaning),
+      detail: readFunctionState(name, "detail", fallback.detail),
     };
     dispatch({ type: "hydrate", functions, activity: readActivity(name) });
     setHydrated(true);

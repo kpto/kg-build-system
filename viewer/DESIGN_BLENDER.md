@@ -14,8 +14,8 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
   cards: no glass, no floating panel stacks, no shadow between regions.
 - **Application header** is a single line on the `inset` surface: brand,
   active function, snapshot, search, panel toggles and layout reset.
-- **Activity bar** is a 48px vertical rail: Topology, Proof, Meaning, then
-  Search and Settings. The active item carries the orange selection edge.
+- **Activity bar** is a 48px vertical rail: Topology, Detail, then Search and
+  Settings. The active item carries the orange selection edge.
 - **Area headers** are 30–32px bands on `panel-raised` with an icon, a
   sentence-case title, optional counts and right-aligned controls.
 - **Editor tabs** belong to the main area, not the window. They name the
@@ -128,9 +128,9 @@ loud pill), `.ui-button-ghost`, `.ui-icon-button`, `.ui-chip`, `.ui-chip-active`
 
 | Node | Size | Header |
 | --- | --- | ---: |
-| Proof lane node | 176×? | 22px |
+| Detail lane node | 176×? | 22px |
 | Topology hub | circle, degree radius | no header |
-| Meaning card | content | 24px |
+| Detail meaning card | content | 24px |
 
 - Header 20–24px, 3–4px top corners, body 3–4px bottom corners.
 - Category colour in the header or stripe only; body remains graphite.

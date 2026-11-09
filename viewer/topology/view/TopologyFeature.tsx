@@ -12,6 +12,13 @@ import type { JSX, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import * as d3 from "d3";
 
 import type { FeatureProps, WorkbenchSelection } from "@/workbench/types";
+import type { TopologyProperty } from "@/lib/types";
+import { logicalTypeName } from "@/lib/expressions";
+import { DesignMeaning, GraphMeaning } from "@/shared/design/DesignMeaning";
+import {
+  componentMeaning,
+  graphMeaning,
+} from "@/shared/design/meaning";
 import { cx, theme } from "@/shared/ui/theme";
 import type {
   TopologyDetailOptions,
@@ -28,7 +35,6 @@ import {
   isTopologyNode,
 } from "@/topology/model/TopologyGraphModel";
 import { topologyModelFor } from "@/topology/model/topologyViewModel";
-import { semanticSubjectKey } from "@/lib/indexes";
 import { getTopologyUiStore, type TopologyUiStore } from "./topologyUi";
 
 // ---------------------------------------------------------------------------
@@ -67,75 +73,146 @@ function entityComponentName(entity: TopologyEntity): string {
   return isTopologyNode(entity) ? entity.name : (entity.edgeName ?? entity.name);
 }
 
-function meaningKeyFor(entity: TopologyEntity): string {
-  return isTopologyNode(entity)
-    ? semanticSubjectKey("node", entity.name)
-    : semanticSubjectKey("edge", entityComponentName(entity));
+function entityProperties(props: FeatureProps, entity: TopologyEntity): TopologyProperty[] {
+  const name = entityComponentName(entity);
+  const component = isTopologyNode(entity)
+    ? props.state.index.topologyNodesByName.get(name)
+    : props.state.index.topologyEdgesByName.get(name);
+  return component?.properties ?? [];
 }
 
-function hasMeaning(props: FeatureProps, entity: TopologyEntity): boolean {
-  return props.state.index.semanticsByKey.has(meaningKeyFor(entity));
-}
-
-/** Open the selected design entity at its proof level. */
-function openInProof(props: FeatureProps, entity: TopologyEntity): void {
+/** Open the selected design subject in the Detail activity. */
+function openInDetail(
+  props: FeatureProps,
+  entity: TopologyEntity,
+  property?: string,
+): void {
   const component = entityComponentName(entity);
-  props.actions.setSelection("proof", {
-    activity: "proof",
-    kind: isTopologyNode(entity) ? "node" : "edge",
-    level: isTopologyNode(entity) && entity.abstract ? "abstract" : isTopologyNode(entity) ? "node" : "edge",
-    component,
-    name: component,
-  });
-  props.actions.setActivity("proof");
+  if (property) {
+    props.actions.setSelection("detail", {
+      activity: "detail",
+      kind: "property",
+      level: "property",
+      component,
+      property,
+      name: `${component}.${property}`,
+    });
+  } else {
+    const node = isTopologyNode(entity);
+    props.actions.setSelection("detail", {
+      activity: "detail",
+      kind: node ? "node" : "edge",
+      level: node && entity.abstract ? "abstract" : node ? "node" : "edge",
+      component,
+      name: component,
+    });
+  }
+  props.actions.setActivity("detail");
 }
 
-/** Open the selected design entity in the meaning reader. */
-function openInMeaning(props: FeatureProps, entity: TopologyEntity): void {
-  props.actions.setSelection("meaning", {
-    activity: "meaning",
-    kind: isTopologyNode(entity) ? "node" : "edge",
-    component: meaningKeyFor(entity),
-    name: entity.name,
-  });
-  props.actions.setActivity("meaning");
+function OpenDetailButton({
+  props,
+  entity,
+  property,
+  compact,
+}: {
+  props: FeatureProps;
+  entity: TopologyEntity;
+  property?: string;
+  compact?: boolean;
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => openInDetail(props, entity, property)}
+      className={cx(
+        "inline-flex min-h-6 items-center gap-1 border border-accent/60 bg-accent/10 px-2 font-mono text-[10px] text-accent-strong hover:border-accent hover:text-text",
+        compact ? "mt-1" : "mt-2",
+      )}
+      title={`Open ${property ? `${entityComponentName(entity)}.${property}` : entityComponentName(entity)} in Detail`}
+      data-testid="topology-open-detail"
+    >
+      Open in Detail
+      <span aria-hidden>→</span>
+    </button>
+  );
 }
 
-interface EntityNavigationProps {
+function PropertyRows({
+  props,
+  entity,
+}: {
+  props: FeatureProps;
+  entity: TopologyEntity;
+}) {
+  const properties = entityProperties(props, entity);
+  if (!properties.length) {
+    return <p className="text-[10px] text-faint">No properties are declared.</p>;
+  }
+  return (
+    <div className="grid gap-0.5" data-testid="topology-properties">
+      {properties.map((property) => (
+        <button
+          key={property.name}
+          type="button"
+          onClick={() => openInDetail(props, entity, property.name)}
+          className="flex min-h-6 w-full items-baseline justify-between gap-2 border border-transparent px-1 text-left hover:border-line-soft hover:bg-panel-soft/40"
+          title={`Open ${entityComponentName(entity)}.${property.name} in Detail`}
+        >
+          <span className="truncate font-mono text-[10px] text-text">
+            {property.name}
+          </span>
+          <span className="shrink-0 font-mono text-[9px] text-faint">
+            {logicalTypeName(property.logical_type)}
+          </span>
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function EntityDesign({
+  props,
+  entity,
+  compact = false,
+}: {
   props: FeatureProps;
   entity: TopologyEntity;
   compact?: boolean;
-}
-
-function EntityNavigation({ props, entity, compact }: EntityNavigationProps) {
-  const meaningful = hasMeaning(props, entity);
+}) {
+  const meaning = isTopologyNode(entity)
+    ? componentMeaning(props.state.index, "node", entity.name)
+    : componentMeaning(props.state.index, "edge", entityComponentName(entity));
   return (
-    <div className={cx("flex flex-wrap items-center gap-1", compact ? "mt-1" : "mt-2")}>
-      <button
-        type="button"
-        onClick={() => openInProof(props, entity)}
-        className="inline-flex min-h-6 items-center gap-1 border border-accent/60 bg-accent/10 px-2 font-mono text-[10px] text-accent-strong hover:border-accent hover:text-text"
-        title={`Open ${entityComponentName(entity)} in Proof`}
-        data-testid="topology-open-proof"
-      >
-        Open in Proof
-        <span aria-hidden>→</span>
-      </button>
-      <button
-        type="button"
-        onClick={() => openInMeaning(props, entity)}
-        disabled={!meaningful}
-        className="inline-flex min-h-6 items-center gap-1 border border-line-soft bg-panel-soft/40 px-2 font-mono text-[10px] text-muted hover:border-line-strong hover:text-text disabled:cursor-not-allowed disabled:opacity-40"
-        title={
-          meaningful
-            ? `Read the meaning attached to ${entity.name}`
-            : "This subject has no attached semantics"
-        }
-        data-testid="topology-open-meaning"
-      >
-        Open in Meaning
-        <span aria-hidden>→</span>
-      </button>
+    <div className="space-y-2">
+      {entity.description ? (
+        <p
+          className={cx(
+            "text-[10px] leading-relaxed text-muted",
+            compact && "line-clamp-3",
+          )}
+        >
+          {entity.description}
+        </p>
+      ) : null}
+      <div>
+        <p className="mb-1 text-[9px] tracking-[0.08em] text-faint uppercase">
+          Properties
+        </p>
+        <PropertyRows props={props} entity={entity} />
+      </div>
+      <div>
+        <p className="mb-1 text-[9px] tracking-[0.08em] text-faint uppercase">
+          Meaning
+        </p>
+        <DesignMeaning
+          claims={meaning.claims}
+          frames={meaning.frames}
+          compact
+          emptyText="No meaning is attached to this entity."
+        />
+      </div>
+      <OpenDetailButton props={props} entity={entity} compact />
     </div>
   );
 }
@@ -365,9 +442,20 @@ export function TopologySidebar(props: FeatureProps): JSX.Element {
             <p className="truncate font-mono text-[11px] text-accent-strong">
               {selected.name}
             </p>
-            <EntityNavigation props={props} entity={selected} compact />
+            <EntityDesign props={props} entity={selected} compact />
           </section>
         ) : null}
+
+        <section className="space-y-1.5" aria-label="Graph meaning">
+          <p className="text-[9px] tracking-[0.08em] text-faint uppercase">
+            Graph purpose
+          </p>
+          <GraphMeaning
+            claims={graphMeaning(props.state.index).claims}
+            frames={graphMeaning(props.state.index).frames}
+            purpose={graphMeaning(props.state.index).purpose}
+          />
+        </section>
 
         <section className="space-y-2" aria-label="Topology filters">
           <FilterGroup label="Kind">
@@ -550,7 +638,7 @@ export function TopologySidebar(props: FeatureProps): JSX.Element {
             />
           ) : null}
           <p className="pt-1 text-[9px] leading-relaxed text-faint">
-            Selection is shown with an orange ring. Hover for design details.
+            Selection is shown with an orange ring. Open Detail for the full record.
           </p>
         </section>
 
@@ -1746,9 +1834,9 @@ export function TopologyBottom(props: FeatureProps): JSX.Element {
         </header>
         <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2">
           <p className="text-[10px] text-muted">
-            Select a node or relation in the force graph to inspect its design
-            details. Clicking a node or edge also sets the workbench selection
-            for the other activities.
+            Select a node or relation in the force graph to read its identity,
+            properties and meaning. Open Detail for its full provenance and
+            attached semantics.
           </p>
           <div className="mt-2 grid gap-1">
             <SummaryField label="Nodes" value={model.stats.nodes} />
@@ -1792,7 +1880,7 @@ export function TopologyBottom(props: FeatureProps): JSX.Element {
       </header>
 
       <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto bg-panel px-3 py-2">
-        <EntityNavigation props={props} entity={entity} />
+        <EntityDesign props={props} entity={entity} compact />
         <div className="mt-2 grid gap-1 border-t border-line-soft pt-2">
           <SummaryField label="Kind" value={entityKindLabel(entity)} />
           <SummaryField label="Name" value={entity.name} />

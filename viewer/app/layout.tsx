@@ -4,7 +4,7 @@ import "./globals.css";
 export const metadata: Metadata = {
   title: "KG design viewer",
   description:
-    "Visualise the topology, proof and meaning of a kg-build-system graph.",
+    "Visualise the topology and detail of a kg-build-system graph design.",
 };
 
 export const viewport: Viewport = {

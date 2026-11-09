@@ -8,18 +8,13 @@
  * the only place that maps an activity id to those bodies.
  */
 
-import { BadgeCheck, BookOpen, Network } from "lucide-react";
+import { BadgeCheck, Network } from "lucide-react";
 
 import {
-  MeaningBottom,
-  MeaningEditor,
-  MeaningSidebar,
-} from "@/meaning/MeaningFeature";
-import {
-  ProofBottom,
-  ProofEditor,
-  ProofSidebar,
-} from "@/proof/ProofFeature";
+  DetailBottom,
+  DetailEditor,
+  DetailSidebar,
+} from "@/detail/DetailFeature";
 import {
   TopologyBottom,
   TopologyEditor,
@@ -37,27 +32,18 @@ export const FEATURES: FeatureModule[] = [
     Bottom: TopologyBottom,
   },
   {
-    id: "proof",
-    label: "Proof",
+    id: "detail",
+    label: "Detail",
     icon: BadgeCheck,
-    Sidebar: ProofSidebar,
-    Editor: ProofEditor,
-    Bottom: ProofBottom,
-  },
-  {
-    id: "meaning",
-    label: "Meaning",
-    icon: BookOpen,
-    Sidebar: MeaningSidebar,
-    Editor: MeaningEditor,
-    Bottom: MeaningBottom,
+    Sidebar: DetailSidebar,
+    Editor: DetailEditor,
+    Bottom: DetailBottom,
   },
 ];
 
 export const FEATURE_BY_ID: Record<ActivityId, FeatureModule> = {
   topology: FEATURES[0],
-  proof: FEATURES[1],
-  meaning: FEATURES[2],
+  detail: FEATURES[1],
 };
 
 export function getFeature(id: ActivityId): FeatureModule {

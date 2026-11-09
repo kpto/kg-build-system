@@ -16,20 +16,17 @@ import { DEFAULT_LAYOUT } from "./types";
 
 export const ACTIVITY_ORDER: ActivityId[] = [
   "topology",
-  "proof",
-  "meaning",
+  "detail",
 ];
 
 export const ACTIVITY_LABELS: Record<ActivityId, string> = {
   topology: "Topology",
-  proof: "Proof",
-  meaning: "Meaning",
+  detail: "Detail",
 };
 
 export const ACTIVITY_DESCRIPTIONS: Record<ActivityId, string> = {
-  topology: "Force-directed view of the graph and its relations.",
-  proof: "Multi-level value provenance with attached semantics.",
-  meaning: "Read the graph purpose, frames, claims and limits.",
+  topology: "Canonical design view: entities, relations, properties and meaning.",
+  detail: "One subject in full: meaning, properties and provenance.",
 };
 
 export interface ActivityTabs {
@@ -44,15 +41,10 @@ export const DEFAULT_TABS: Record<ActivityId, ActivityTabs> = {
     openTabs: ["Graph"],
     activeTab: "Graph",
   },
-  proof: {
+  detail: {
     bottomTabs: ["trace", "evidence"],
-    openTabs: ["Provenance"],
-    activeTab: "Provenance",
-  },
-  meaning: {
-    bottomTabs: ["details"],
-    openTabs: ["Meaning"],
-    activeTab: "Meaning",
+    openTabs: ["Design"],
+    activeTab: "Design",
   },
 };
 
@@ -111,8 +103,7 @@ export function defaultFunctionState(activity: ActivityId): FunctionState {
 export function defaultFunctions(): Record<ActivityId, FunctionState> {
   return {
     topology: defaultFunctionState("topology"),
-    proof: defaultFunctionState("proof"),
-    meaning: defaultFunctionState("meaning"),
+    detail: defaultFunctionState("detail"),
   };
 }
 
