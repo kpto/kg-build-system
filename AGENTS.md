@@ -92,10 +92,10 @@ rule about what the framework is belongs to the framework model.
 | `docs/developer/` | framework reviewer | internal interface, boundaries and invariants |
 
 - If the interface delta does not explain the change, the change is not ready.
-- A visual change is reviewed from screenshots at the target viewports and from
-  measured geometry, not from code; compare the reference's structure, not its
-  palette, and treat a widget restyle that leaves the layout intact as no
-  redesign.
+- A visual change is reviewed with a real browser screenshot at the target
+  viewports and from measured geometry, not from code; a headless browser is
+  acceptable. Compare the reference's structure, not its palette, and treat a
+  widget restyle that leaves the layout intact as no redesign.
 - End every change report with the rule-promotion result: none, refined or
   added.
 
