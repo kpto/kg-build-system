@@ -122,6 +122,10 @@ rule about what the framework is belongs to the framework model.
   omitted or replaced is not kernel.
 - Canonical types are a kernel assumption. Every language, the blueprint and the
   workflow plan use the same type ontology; no language defines its own.
+- `Nullable[T]` and `T | None` are one canonical type: `Nullable` is the
+  authoring alias for the union. Generated contracts, declarations and
+  selections use one spelling, and a present selection satisfies a nullable
+  slot.
 - The kernel uses toolchain vocabulary: language, declaration, symbol, linker,
   planner, workflow plan, runtime, executor and resource. The distribution uses
   domain vocabulary: graph, blueprint, node, edge, binding, projection and
