@@ -646,15 +646,6 @@
   overflow-wrap: anywhere;
 }
 
-.detailTotals {
-  flex: none;
-  padding-top: 2px;
-  color: var(--color-faint);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  font-variant-numeric: tabular-nums;
-}
-
 .profileGrid {
   display: grid;
   grid-template-columns: repeat(4, minmax(0, 1fr));

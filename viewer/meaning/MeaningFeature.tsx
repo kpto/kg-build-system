@@ -616,11 +616,6 @@ export function MeaningBottom(props: FeatureProps): JSX.Element {
               <p className={styles.kicker}>{selected.kind}</p>
               <p className={styles.selectedPath}>{selected.path}</p>
             </div>
-            <div className={styles.detailTotals}>
-              {meaningUnitLabel("claim", selected.counts.claims)} ·{" "}
-              {meaningUnitLabel("frame", selected.counts.frames)} ·{" "}
-              {meaningUnitLabel("limitation", selected.counts.limitations)}
-            </div>
           </div>
 
           {selected.profile ? (
