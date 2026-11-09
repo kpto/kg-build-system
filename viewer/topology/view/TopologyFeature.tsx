@@ -564,15 +564,18 @@ function linkPath(
   const targetX = target.x ?? 0;
   const targetY = target.y ?? 0;
   if (source.id === target.id) {
-    const radius = sourceRadius + 9;
+    // A self-loop is a teardrop beside the node, not a ring around it: a ring
+    // reads as a badge and hides the node's own state.
+    const radius = sourceRadius + 3;
+    const lift = radius * 0.7;
     return {
-      path: `M ${sourceX} ${sourceY - radius} C ${sourceX + radius * 1.9} ${
-        sourceY - radius * 2.2
-      }, ${sourceX + radius * 1.9} ${sourceY + radius * 2.2}, ${sourceX} ${
-        sourceY + radius
-      }`,
-      x: sourceX,
-      y: sourceY + radius,
+      path: `M ${sourceX + lift} ${sourceY - lift} C ${
+        sourceX + radius * 2.5
+      } ${sourceY - radius * 1.15}, ${sourceX + radius * 2.5} ${
+        sourceY + radius * 1.15
+      }, ${sourceX + lift} ${sourceY + lift}`,
+      x: sourceX + lift,
+      y: sourceY + lift,
     };
   }
 
@@ -724,7 +727,9 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
           .strength(0.05),
       )
       .alphaDecay(0.05)
-      .velocityDecay(0.36);
+      .velocityDecay(0.36)
+      // A design map must open in the same arrangement on every load.
+      .randomSource(d3.randomLcg(0.42));
 
     // Settle before the first paint. The graph is a static design map: an
     // animated mount would drift after the initial fit and make the viewport
@@ -1046,30 +1051,57 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
 
     const boxes: Array<{ left: number; right: number; top: number; bottom: number }> =
       [];
+    // Hub labels yield to node circles as well as to other labels; "all" only
+    // resolves label-label collisions so the explicit detail request stays
+    // readable instead of turning into a wall of text.
+    const checkNodeOverlap = ui.detail.labels !== "all";
+    const nodeBoxes = visible.nodes
+      .map((node) => {
+        const sim = simById.get(node.id);
+        if (!sim) return undefined;
+        const radius = nodeRadius(node);
+        const x = sim.x ?? 0;
+        const y = sim.y ?? 0;
+        return {
+          id: node.id,
+          left: x - radius,
+          right: x + radius,
+          top: y - radius,
+          bottom: y + radius,
+        };
+      })
+      .filter((box) => box !== undefined);
+    const intersects = (
+      left: { left: number; right: number; top: number; bottom: number },
+      right: { left: number; right: number; top: number; bottom: number },
+    ) =>
+      !(
+        left.right < right.left ||
+        left.left > right.right ||
+        left.bottom < right.top ||
+        left.top > right.bottom
+      );
     const visibleLabels = new Set<string>();
     for (const node of candidates) {
       const sim = simById.get(node.id);
       if (!sim) continue;
       const radius = nodeRadius(node);
-      const width = Math.max(16, node.label.length * 5.6 + 8);
+      const width = Math.max(16, node.label.length * 6.2 + 8);
       const x = sim.x ?? 0;
       const y = sim.y ?? 0;
       const box = {
         left: x - width / 2,
         right: x + width / 2,
         top: y + radius + 2,
-        bottom: y + radius + 15,
+        bottom: y + radius + 16,
       };
-      const overlaps = boxes.some(
-        (other) =>
-          !(
-            box.right < other.left ||
-            box.left > other.right ||
-            box.bottom < other.top ||
-            box.top > other.bottom
-          ),
-      );
-      if (overlaps && !forced.has(node.id)) continue;
+      const overlapsLabel = boxes.some((other) => intersects(box, other));
+      const overlapsNode =
+        checkNodeOverlap &&
+        nodeBoxes.some(
+          (other) => other.id !== node.id && intersects(box, other),
+        );
+      if ((overlapsLabel || overlapsNode) && !forced.has(node.id)) continue;
       boxes.push(box);
       visibleLabels.add(node.id);
     }
