@@ -1,17 +1,16 @@
 /**
- * Workbench contract shared by the shell and the four functions.
+ * Workbench contract shared by the shell and the three functions.
  *
- * The shell owns snapshot loading, the per-function layout/selection state and
- * the review sidecar. A function owns its sidebar, editor and bottom-panel
- * bodies and never resizes the workbench.
+ * The shell owns snapshot loading and the per-function layout/selection state.
+ * A function owns its sidebar, editor and bottom-panel bodies and never resizes
+ * the workbench.
  */
 
 import type { LucideIcon } from "lucide-react";
 
-import type { ReviewSidecar } from "@/lib/reviewTypes";
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 
-export type ActivityId = "proof" | "audit" | "semantics" | "topology";
+export type ActivityId = "topology" | "proof" | "meaning";
 
 export type SelectionKind =
   | "asset"
@@ -22,8 +21,6 @@ export type SelectionKind =
   | "edge"
   | "property"
   | "binding"
-  | "finding"
-  | "unit"
   | "step";
 
 export type ProofLevel = "property" | "node" | "edge" | "abstract" | "asset";
@@ -35,8 +32,6 @@ export interface WorkbenchSelection {
   component?: string;
   property?: string;
   level?: ProofLevel;
-  findingId?: string;
-  unitKey?: string;
   stepId?: [string, string];
 }
 
@@ -56,7 +51,6 @@ export interface FunctionState {
 export interface WorkbenchState {
   snapshot: ViewerSnapshot;
   index: ViewerIndex;
-  review: ReviewSidecar;
   activity: ActivityId;
   functions: Record<ActivityId, FunctionState>;
 }
@@ -65,7 +59,6 @@ export interface WorkbenchActions {
   setActivity(activity: ActivityId): void;
   setSelection(activity: ActivityId, selection: WorkbenchSelection): void;
   setLayout(activity: ActivityId, patch: Partial<FunctionLayout>): void;
-  updateReview(review: ReviewSidecar): void;
   openTab(activity: ActivityId, tab: string): void;
   closeTab(activity: ActivityId, tab: string): void;
   setActiveTab(activity: ActivityId, tab: string | null): void;
@@ -89,7 +82,7 @@ export interface FeatureModule {
 export const DEFAULT_LAYOUT: FunctionLayout = {
   sidebarWidth: 300,
   bottomHeight: 240,
-  bottomTab: "problems",
+  bottomTab: "selection",
   openTabs: [],
   activeTab: null,
 };

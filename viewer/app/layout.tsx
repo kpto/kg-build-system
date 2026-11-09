@@ -2,9 +2,9 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "KG Audit workbench",
+  title: "KG design viewer",
   description:
-    "Proof, audit, semantics and topology workbench for kg-build-system snapshots.",
+    "Visualise the topology, proof and meaning of a kg-build-system graph.",
 };
 
 export const viewport: Viewport = {

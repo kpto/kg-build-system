@@ -21,9 +21,16 @@ const THEME_SWATCHES = [
   { label: "Surface", value: "#232323" },
   { label: "Selection", value: "#ff9f43" },
   { label: "Link", value: "#5aa9e6" },
-  { label: "Accepted", value: "#7ac77a" },
-  { label: "Open", value: "#d7a84a" },
-  { label: "Rejected", value: "#e06c75" },
+  { label: "Positive", value: "#7ac77a" },
+  { label: "Attention", value: "#d7a84a" },
+  { label: "Negative", value: "#e06c75" },
+];
+
+const SHORTCUTS = [
+  { keys: "Ctrl/Cmd K", action: "Command palette" },
+  { keys: "Ctrl/Cmd B", action: "Toggle side bar" },
+  { keys: "Ctrl/Cmd J", action: "Toggle bottom panel" },
+  { keys: "Ctrl/Cmd ,", action: "Settings" },
 ];
 
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
@@ -118,7 +125,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
           <section className="wb-settings-section">
             <h3>Theme</h3>
-            <p>Blender dark surfaces with orange primary selection.</p>
+            <p>Dark surfaces with orange primary selection.</p>
             <div className="wb-swatch-grid">
               {THEME_SWATCHES.map((swatch) => (
                 <span key={swatch.label} className="wb-swatch">
@@ -132,6 +139,18 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 </span>
               ))}
             </div>
+          </section>
+
+          <section className="wb-settings-section">
+            <h3>Shortcuts</h3>
+            <dl className="wb-settings-facts">
+              {SHORTCUTS.map((shortcut) => (
+                <div key={shortcut.keys}>
+                  <dt className="wb-mono">{shortcut.keys}</dt>
+                  <dd>{shortcut.action}</dd>
+                </div>
+              ))}
+            </dl>
           </section>
 
           <section className="wb-settings-section">

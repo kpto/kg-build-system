@@ -1,19 +1,19 @@
-# KG Audit hierarchy
+# KG design viewer hierarchy
 
-The current application is a four-function VS Code-style workbench. The visual
+The current application is a three-function VS Code-style workbench. The visual
 rules remain in `DESIGN_LANGUAGE.md` and `DESIGN_BLENDER.md`; this file states
 the structure.
 
 ## Ladder
 
 ```text
-Window        the KG Audit application
-  Function    Proof | Audit | Semantics | Topology
-    Side Bar  the function's subject/queue/filters
-    Editor    the function's board, list or canvas
-    Bottom    the function's selected detail, evidence or JSON
+Window        the KG design viewer
+  Function    Topology | Proof | Meaning
+    Side Bar  the function's subjects, filters and detail controls
+    Editor    the function's canvas, proof or reading surface
+    Bottom    the selected subject's detail, hidden by default
       Section one question inside a body
-        Row   one subject, finding, unit, node or step
+        Row   one node, relation, step, claim, frame or property
           Field one value
 ```
 
@@ -23,28 +23,43 @@ A level may be absent. It is never reordered or nested inside the same kind.
 
 | Region | Contents | Owner |
 | --- | --- | --- |
-| Title bar | brand, active function, snapshot name/title, command trigger, panel toggles | `workbench/TitleBar` |
-| Activity bar | Proof, Audit, Semantics, Topology, Search, Settings | `workbench/ActivityBar` |
+| Title bar | brand, active function, snapshot name/title, command trigger, sidebar/bottom toggles, layout reset | `workbench/TitleBar` |
+| Activity bar | Topology, Proof, Meaning, Search, Settings | `workbench/ActivityBar` |
 | Side bar | active function's sidebar | feature `Sidebar` |
 | Editor | tabs + active function body | feature `Editor` |
-| Bottom panel | active function's detail tabs | feature `Bottom` |
-| Status bar | snapshot, selected subject, decision counts, coverage, mode, zoom | `workbench/StatusBar` |
+| Bottom panel | selected subject detail; starts hidden | feature `Bottom` |
+| Status bar | snapshot, selected subject, node/edge/binding counts, compile-only, zoom | `workbench/StatusBar` |
 
 The side bar is 220–520 px, the bottom panel 120–480 px. Each function owns a
 persisted `FunctionLayout` and selection; switching functions restores both.
+The bottom panel's visibility is shell state and starts false.
 
 ## Functions
 
 | Function | Side bar | Editor | Bottom |
 | --- | --- | --- | --- |
-| Proof | assets, relations, projections, nodes, edges, properties | level selector, branch selector, lane proof, type/presence chain, attached semantics | Trace, Evidence, Data |
-| Audit | rule groups, severity, subject filters, counts | focused finding queue + selected finding detail + evidence + decision | Problems, Evidence, Data |
-| Semantics | graph purpose, claims, frames/limitations, subject groups, status filters | purpose card, ledger, selected unit, decision form, coverage, sign-off | Decisions, Coverage, Data |
-| Topology | node/edge filters, semantics/finding filters, legend, layout controls | D3 force graph | Selection, Data |
+| Topology | node/edge and abstract filters; Detail controls for labels, edge labels, containment, semantics and properties; legend; fit/reset/pin | D3 force graph, zoom/pan/drag, selection | Selection detail (name, kind, degree, labels, property and semantics counts when revealed) |
+| Proof | assets, relations, projections, nodes, edges, properties | level selector, branch selector, lane proof, type/presence chain, attached semantics | Trace, Evidence |
+| Meaning | purpose summary, frame/claim counts, subject-kind filter and search | purpose card, frames and limitations, claims, attached subject semantics | Details |
+
+## Detail defaults
+
+| Control | Default | Meaning |
+| --- | --- | --- |
+| Topology labels | hubs | label hubs only; `off` and `all` are available |
+| Topology edge labels | off | relation names hidden |
+| Topology containment | off | category structure hidden |
+| Topology semantics | off | no semantics badges |
+| Topology properties | off | no property lists |
+| Meaning claims | collapsed | counts only until **Show claims** |
+| Meaning frames | collapsed | limitations appear only after expanding a frame |
+| Meaning subjects | collapsed | no 5,941-unit dump on first paint |
+| Bottom panel | hidden | toggle in the title bar or `Cmd/Ctrl+J` |
 
 ## Removed surfaces
 
-Map, Explore, Review campaign, Outliner, whole-graph Blueprint, summary rubric,
-separate Findings/Questions/Decisions pages, Dossier, Build audit, Diff
-destination and the properties rail are not part of the workbench. Workflow
-trace is a Proof/Audit detail; topology is the orientation view.
+Audit, decisions, coverage, sign-off, review sidecars, findings, severity
+filters, the semantic ledger, JSON/Data tabs, Map/Explore/Review campaign,
+Outliner, whole-graph Blueprint, Dossier, Build audit, Diff destination and the
+old properties rail are not part of the viewer. Topology is the orientation
+surface; Proof and Meaning are readers of the same design.

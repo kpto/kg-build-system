@@ -2,17 +2,22 @@
  * Shared view state for the topology function.
  *
  * The workbench shell owns selection and panel layout; the sidebar, editor and
- * bottom panel are mounted separately. Filters, the pin switch, saved positions
- * and the fit/reset/zoom requests therefore live in one small per-snapshot store
- * instead of in any one panel.
+ * bottom panel are mounted separately. Filters, detail switches, the pin switch,
+ * saved positions and the fit/reset/zoom requests therefore live in one small
+ * per-snapshot store instead of in any one panel.
  *
- * Only view state lives here. The graph model comes from
- * `buildTopologyModel`; no simulation or DOM object is stored.
+ * Only view state lives here. The graph model comes from `buildTopologyModel`;
+ * no simulation or DOM object is stored.
  */
 
-import type { TopologyFilters } from "@/topology/model/TopologyGraphModel";
+import type {
+  TopologyDetailOptions,
+  TopologyFilters,
+} from "@/topology/model/TopologyGraphModel";
 import {
+  cloneTopologyDetail,
   cloneTopologyFilters,
+  createTopologyDetail,
   createTopologyFilters,
 } from "@/topology/model/TopologyGraphModel";
 
@@ -23,6 +28,7 @@ export interface TopologyPosition {
 
 export interface TopologyUiState {
   filters: TopologyFilters;
+  detail: TopologyDetailOptions;
   pinned: boolean;
   positions: Record<string, TopologyPosition>;
   fitToken: number;
@@ -36,6 +42,7 @@ interface PersistedTopologyUi {
   filters?: Partial<TopologyFilters> & {
     kinds?: Partial<TopologyFilters["kinds"]>;
   };
+  detail?: Partial<TopologyDetailOptions>;
   pinned?: boolean;
   positions?: Record<string, TopologyPosition>;
 }
@@ -45,6 +52,7 @@ const STORAGE_PREFIX = "kg-viewer:topology:";
 function defaultState(): TopologyUiState {
   return {
     filters: createTopologyFilters(),
+    detail: createTopologyDetail(),
     pinned: false,
     positions: {},
     fitToken: 0,
@@ -75,6 +83,48 @@ function sanitizePositions(
     positions[key] = { x: candidate.x, y: candidate.y };
   }
   return positions;
+}
+
+function filtersFrom(
+  persisted: PersistedTopologyUi["filters"],
+  defaults: TopologyFilters,
+): TopologyFilters {
+  if (!persisted) return defaults;
+  const abstract =
+    persisted.abstract === "concrete" || persisted.abstract === "abstract"
+      ? persisted.abstract
+      : defaults.abstract;
+  const semantics =
+    persisted.semantics === "present" || persisted.semantics === "missing"
+      ? persisted.semantics
+      : defaults.semantics;
+  return {
+    kinds: {
+      node: persisted.kinds?.node ?? defaults.kinds.node,
+      edge: persisted.kinds?.edge ?? defaults.kinds.edge,
+    },
+    abstract,
+    semantics,
+  };
+}
+
+function detailFrom(
+  persisted: PersistedTopologyUi["detail"],
+  defaults: TopologyDetailOptions,
+): TopologyDetailOptions {
+  if (!persisted) return defaults;
+  const labels =
+    persisted.labels === "off" || persisted.labels === "all"
+      ? persisted.labels
+      : defaults.labels;
+  return {
+    labels,
+    edgeLabels: persisted.edgeLabels ?? defaults.edgeLabels,
+    containment: persisted.containment ?? defaults.containment,
+    semantics: persisted.semantics ?? defaults.semantics,
+    properties: persisted.properties ?? defaults.properties,
+    edges: persisted.edges === "off" ? "off" : defaults.edges,
+  };
 }
 
 export class TopologyUiStore {
@@ -108,6 +158,7 @@ export class TopologyUiStore {
     try {
       const body: PersistedTopologyUi = {
         filters: this.state.filters,
+        detail: this.state.detail,
         pinned: this.state.pinned,
         positions: this.state.positions,
       };
@@ -128,22 +179,10 @@ export class TopologyUiStore {
     } catch {
       persisted = undefined;
     }
-    const defaults = createTopologyFilters();
-    const filters: TopologyFilters = persisted?.filters
-      ? {
-          kinds: {
-            node: persisted.filters.kinds?.node ?? defaults.kinds.node,
-            edge: persisted.filters.kinds?.edge ?? defaults.kinds.edge,
-          },
-          abstract: persisted.filters.abstract ?? defaults.abstract,
-          semantics: persisted.filters.semantics ?? defaults.semantics,
-          findings: persisted.filters.findings ?? defaults.findings,
-          decision: persisted.filters.decision ?? defaults.decision,
-        }
-      : defaults;
     this.emit({
       ...this.state,
-      filters,
+      filters: filtersFrom(persisted?.filters, createTopologyFilters()),
+      detail: detailFrom(persisted?.detail, createTopologyDetail()),
       pinned: Boolean(persisted?.pinned),
       positions: sanitizePositions(persisted?.positions),
       hydrated: true,
@@ -152,6 +191,10 @@ export class TopologyUiStore {
 
   setFilters = (filters: TopologyFilters): void => {
     this.patch({ filters: cloneTopologyFilters(filters) });
+  };
+
+  setDetail = (detail: TopologyDetailOptions): void => {
+    this.patch({ detail: cloneTopologyDetail(detail) });
   };
 
   setPinned = (pinned: boolean): void => {
@@ -180,6 +223,7 @@ export class TopologyUiStore {
     this.emit({
       ...this.state,
       filters: createTopologyFilters(),
+      detail: createTopologyDetail(),
       pinned: false,
       positions: {},
       fitToken: this.state.fitToken + 1,

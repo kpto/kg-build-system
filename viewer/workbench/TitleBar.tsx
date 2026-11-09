@@ -27,11 +27,11 @@ export function TitleBar({
 
   return (
     <header className="wb-titlebar" aria-label="Workbench title bar">
-      <div className="wb-brand" title="KG Audit workbench">
+      <div className="wb-brand" title="KG design viewer">
         <span className="wb-brand-mark" aria-hidden>
           <Boxes className="size-4" />
         </span>
-        <span className="wb-brand-name">KG Audit</span>
+        <span className="wb-brand-name">KG Design</span>
         <span className="wb-brand-crumb">{ACTIVITY_LABELS[state.activity]}</span>
       </div>
 

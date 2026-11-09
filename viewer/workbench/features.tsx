@@ -8,23 +8,18 @@
  * the only place that maps an activity id to those bodies.
  */
 
-import { BadgeCheck, Network, ScanSearch, ScrollText } from "lucide-react";
+import { BadgeCheck, BookOpen, Network } from "lucide-react";
 
 import {
-  AuditBottom,
-  AuditEditor,
-  AuditSidebar,
-} from "@/audit/AuditFeature";
+  MeaningBottom,
+  MeaningEditor,
+  MeaningSidebar,
+} from "@/meaning/MeaningFeature";
 import {
   ProofBottom,
   ProofEditor,
   ProofSidebar,
 } from "@/proof/ProofFeature";
-import {
-  SemanticsBottom,
-  SemanticsEditor,
-  SemanticsSidebar,
-} from "@/semantics/SemanticsFeature";
 import {
   TopologyBottom,
   TopologyEditor,
@@ -34,20 +29,12 @@ import type { ActivityId, FeatureModule } from "./types";
 
 export const FEATURES: FeatureModule[] = [
   {
-    id: "semantics",
-    label: "Orient",
-    icon: ScrollText,
-    Sidebar: SemanticsSidebar,
-    Editor: SemanticsEditor,
-    Bottom: SemanticsBottom,
-  },
-  {
-    id: "audit",
-    label: "Audit",
-    icon: ScanSearch,
-    Sidebar: AuditSidebar,
-    Editor: AuditEditor,
-    Bottom: AuditBottom,
+    id: "topology",
+    label: "Topology",
+    icon: Network,
+    Sidebar: TopologySidebar,
+    Editor: TopologyEditor,
+    Bottom: TopologyBottom,
   },
   {
     id: "proof",
@@ -58,20 +45,19 @@ export const FEATURES: FeatureModule[] = [
     Bottom: ProofBottom,
   },
   {
-    id: "topology",
-    label: "Topology",
-    icon: Network,
-    Sidebar: TopologySidebar,
-    Editor: TopologyEditor,
-    Bottom: TopologyBottom,
+    id: "meaning",
+    label: "Meaning",
+    icon: BookOpen,
+    Sidebar: MeaningSidebar,
+    Editor: MeaningEditor,
+    Bottom: MeaningBottom,
   },
 ];
 
 export const FEATURE_BY_ID: Record<ActivityId, FeatureModule> = {
-  semantics: FEATURES[0],
-  audit: FEATURES[1],
-  proof: FEATURES[2],
-  topology: FEATURES[3],
+  topology: FEATURES[0],
+  proof: FEATURES[1],
+  meaning: FEATURES[2],
 };
 
 export function getFeature(id: ActivityId): FeatureModule {

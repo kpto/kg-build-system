@@ -6,9 +6,7 @@
  * data/index layer never mutates a loaded artifact.
  */
 
-import type { ReviewSidecar } from "./reviewTypes";
 
-export type { ReviewSidecar } from "./reviewTypes";
 
 export type Ref = string[];
 
@@ -398,8 +396,6 @@ export interface ViewerSnapshot {
   workflow: WorkflowPlan;
   report: BuildReport;
   metaGraph?: MetaGraph;
-  /** Optional review sidecar. The snapshot loads without it. */
-  review?: ReviewSidecar;
 }
 
 // ---------------------------------------------------------------------------

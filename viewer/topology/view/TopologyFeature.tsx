@@ -8,13 +8,13 @@ import {
   useState,
   useSyncExternalStore,
 } from "react";
-import type { JSX, MouseEvent as ReactMouseEvent } from "react";
+import type { JSX, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import * as d3 from "d3";
 
-import type { DecisionStatus, Severity } from "@/lib/reviewTypes";
 import type { FeatureProps, WorkbenchSelection } from "@/workbench/types";
-import { cx, severityColor, theme } from "@/shared/ui/theme";
+import { cx, theme } from "@/shared/ui/theme";
 import type {
+  TopologyDetailOptions,
   TopologyEntity,
   TopologyGraphModel,
   TopologyLinkModel,
@@ -28,7 +28,6 @@ import {
   isTopologyNode,
 } from "@/topology/model/TopologyGraphModel";
 import { topologyModelFor } from "@/topology/model/topologyViewModel";
-import type { TopologyUiState } from "./topologyUi";
 import { getTopologyUiStore, type TopologyUiStore } from "./topologyUi";
 
 // ---------------------------------------------------------------------------
@@ -64,14 +63,11 @@ function clearSelection(props: FeatureProps): void {
 }
 
 function useTopologyModel(props: FeatureProps): TopologyGraphModel {
-  const { snapshot, index, review } = props.state;
-  return useMemo(
-    () => topologyModelFor(snapshot, index, review),
-    [snapshot, index, review],
-  );
+  const { snapshot, index } = props.state;
+  return useMemo(() => topologyModelFor(snapshot, index), [snapshot, index]);
 }
 
-function useTopologyUi(snapshot: string): readonly [TopologyUiState, TopologyUiStore] {
+function useTopologyUi(snapshot: string): readonly [ReturnType<TopologyUiStore["getState"]>, TopologyUiStore] {
   const store = useMemo(() => getTopologyUiStore(snapshot), [snapshot]);
   const state = useSyncExternalStore(
     store.subscribe,
@@ -85,30 +81,8 @@ function useTopologyUi(snapshot: string): readonly [TopologyUiState, TopologyUiS
 }
 
 // ---------------------------------------------------------------------------
-// Shared visual vocabulary (existing theme tokens only)
+// Shared visual vocabulary
 // ---------------------------------------------------------------------------
-
-const DECISION_COLOR: Record<DecisionStatus, string> = {
-  accepted: theme.asset,
-  proposed: theme.medium,
-  open: theme.medium,
-  rejected: theme.critical,
-  waived: theme.info,
-};
-
-const SEVERITY_LABEL: Record<Severity, string> = {
-  critical: "critical",
-  high: "high",
-  medium: "medium",
-  low: "low",
-  info: "info",
-};
-
-function statusColor(entity: TopologyEntity): string | undefined {
-  if (entity.findings.worst) return severityColor[entity.findings.worst];
-  if (entity.decisionStatus) return DECISION_COLOR[entity.decisionStatus];
-  return undefined;
-}
 
 function nodeRadius(node: TopologyNodeModel): number {
   return Math.max(4.5, Math.min(18, 4 + Math.sqrt(Math.max(1, node.degree)) * 1.9));
@@ -127,16 +101,33 @@ function pointerPosition(
   return { x: event.clientX - rect.left, y: event.clientY - rect.top };
 }
 
-function formatStatus(entity: TopologyEntity): string {
+function semanticsSummary(entity: TopologyEntity): string {
+  const { semantics } = entity;
+  if (!semantics.present) return "no semantics";
   const parts: string[] = [];
-  if (entity.hasSemantics) parts.push("semantics");
-  if (entity.findings.total) {
+  if (semantics.claimCount) {
     parts.push(
-      `${entity.findings.total} finding${entity.findings.total === 1 ? "" : "s"}`,
+      `${semantics.claimCount} claim${semantics.claimCount === 1 ? "" : "s"}`,
     );
   }
-  if (entity.decisionStatus) parts.push(`decision ${entity.decisionStatus}`);
-  return parts.length ? parts.join(" · ") : "no semantics, finding or decision";
+  if (semantics.frameCount) {
+    parts.push(
+      `${semantics.frameCount} frame${semantics.frameCount === 1 ? "" : "s"}`,
+    );
+  }
+  if (semantics.limitationCount) {
+    parts.push(
+      `${semantics.limitationCount} limitation${
+        semantics.limitationCount === 1 ? "" : "s"
+      }`,
+    );
+  }
+  return parts.join(" · ");
+}
+
+function entityKindLabel(entity: TopologyEntity): string {
+  if (entity.kind === "node") return entity.abstract ? "abstract node" : "node";
+  return entity.kind === "containment" ? "containment" : "relation";
 }
 
 // ---------------------------------------------------------------------------
@@ -152,7 +143,7 @@ function FilterButton({
 }: {
   pressed: boolean;
   onClick: () => void;
-  children: React.ReactNode;
+  children: ReactNode;
   count?: number;
   title?: string;
 }) {
@@ -182,7 +173,7 @@ function FilterGroup({
   children,
 }: {
   label: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }) {
   return (
     <div className="space-y-1">
@@ -227,10 +218,11 @@ export function TopologySidebar(props: FeatureProps): JSX.Element {
   const model = useTopologyModel(props);
   const [ui, store] = useTopologyUi(props.state.snapshot.name);
   const visible = useMemo(
-    () => applyTopologyFilters(model, ui.filters),
-    [model, ui.filters],
+    () => applyTopologyFilters(model, ui.filters, ui.detail),
+    [model, ui.filters, ui.detail],
   );
   const filters = ui.filters;
+  const detail = ui.detail;
   const counts = model.filters.counts;
 
   const patchFilters = (
@@ -243,11 +235,19 @@ export function TopologySidebar(props: FeatureProps): JSX.Element {
       ...patch,
       kinds: { ...filters.kinds, ...(patch.kinds ?? {}) },
     });
+    store.requestFit();
   };
 
-  const relationLinks = visible.links.filter((link) => link.kind === "edge").length;
-  const visibleFindings = [...visible.nodes, ...visible.links.filter((link) => link.kind === "edge")].filter(
-    (entity) => entity.findings.total > 0,
+  const patchDetail = (patch: Partial<TopologyDetailOptions>) => {
+    store.setDetail({ ...detail, ...patch });
+    if ("containment" in patch || "edges" in patch) store.requestFit();
+  };
+
+  const relationLinks = visible.links.filter(
+    (link) => link.kind === "edge",
+  ).length;
+  const containmentLinks = visible.links.filter(
+    (link) => link.kind === "containment",
   ).length;
 
   return (
@@ -255,7 +255,7 @@ export function TopologySidebar(props: FeatureProps): JSX.Element {
       <header className="border-b border-line-soft px-3 py-2">
         <p className="text-[10px] text-muted">
           {visible.nodes.length} visible · {relationLinks} relations
-          {visibleFindings ? ` · ${visibleFindings} with findings` : ""}
+          {containmentLinks ? ` · ${containmentLinks} containment` : ""}
         </p>
         <p className="mt-0.5 font-mono text-[9px] text-faint tabular-nums">
           {model.stats.nodes} nodes · {model.stats.edgeLinks} edges ·{" "}
@@ -268,10 +268,7 @@ export function TopologySidebar(props: FeatureProps): JSX.Element {
           <FilterGroup label="Kind">
             <FilterButton
               pressed={filters.kinds.node}
-              onClick={() => {
-                patchFilters({ kinds: { node: !filters.kinds.node } });
-                store.requestFit();
-              }}
+              onClick={() => patchFilters({ kinds: { node: !filters.kinds.node } })}
               count={counts.kinds.node}
               title="Show or hide topology node components"
             >
@@ -279,10 +276,7 @@ export function TopologySidebar(props: FeatureProps): JSX.Element {
             </FilterButton>
             <FilterButton
               pressed={filters.kinds.edge}
-              onClick={() => {
-                patchFilters({ kinds: { edge: !filters.kinds.edge } });
-                store.requestFit();
-              }}
+              onClick={() => patchFilters({ kinds: { edge: !filters.kinds.edge } })}
               count={counts.kinds.edge}
               title="Show or hide topology edge components as relation links"
             >
@@ -337,78 +331,89 @@ export function TopologySidebar(props: FeatureProps): JSX.Element {
               Missing
             </FilterButton>
           </FilterGroup>
+        </section>
 
-          <FilterGroup label="Findings">
+        <section
+          className="space-y-2 border-t border-line-soft pt-2"
+          aria-label="Topology detail"
+        >
+          <FilterGroup label="Labels">
             <FilterButton
-              pressed={filters.findings === "all"}
-              onClick={() => patchFilters({ findings: "all" })}
-              count={counts.findings.all}
+              pressed={detail.labels === "off"}
+              onClick={() => patchDetail({ labels: "off" })}
+              title="Hide node labels"
+            >
+              Off
+            </FilterButton>
+            <FilterButton
+              pressed={detail.labels === "hubs"}
+              onClick={() => patchDetail({ labels: "hubs" })}
+              title="Label only the busiest nodes"
+            >
+              Hubs
+            </FilterButton>
+            <FilterButton
+              pressed={detail.labels === "all"}
+              onClick={() => patchDetail({ labels: "all" })}
+              title="Label every visible node"
             >
               All
-            </FilterButton>
-            <FilterButton
-              pressed={filters.findings === "with"}
-              onClick={() => patchFilters({ findings: "with" })}
-              count={counts.findings.with}
-            >
-              With
-            </FilterButton>
-            <FilterButton
-              pressed={filters.findings === "without"}
-              onClick={() => patchFilters({ findings: "without" })}
-              count={counts.findings.without}
-            >
-              Clean
             </FilterButton>
           </FilterGroup>
 
-          <FilterGroup label="Decision">
+          <FilterGroup label="Detail">
             <FilterButton
-              pressed={filters.decision === "all"}
-              onClick={() => patchFilters({ decision: "all" })}
-              count={counts.decision.all}
+              pressed={detail.edgeLabels}
+              onClick={() => patchDetail({ edgeLabels: !detail.edgeLabels })}
+              title="Show edge labels on relation links"
             >
-              All
+              Edge labels
             </FilterButton>
             <FilterButton
-              pressed={filters.decision === "none"}
-              onClick={() => patchFilters({ decision: "none" })}
-              count={counts.decision.none}
+              pressed={detail.containment}
+              onClick={() => patchDetail({ containment: !detail.containment })}
+              title="Show child to parent category containment links"
             >
-              None
+              Containment
             </FilterButton>
             <FilterButton
-              pressed={filters.decision === "accepted"}
-              onClick={() => patchFilters({ decision: "accepted" })}
-              count={counts.decision.accepted}
+              pressed={detail.semantics}
+              onClick={() => patchDetail({ semantics: !detail.semantics })}
+              title="Mark nodes and edges that carry semantics"
             >
-              Accepted
+              Semantics
             </FilterButton>
             <FilterButton
-              pressed={filters.decision === "open"}
-              onClick={() => patchFilters({ decision: "open" })}
-              count={counts.decision.open}
+              pressed={detail.properties}
+              onClick={() => patchDetail({ properties: !detail.properties })}
+              title="Show property counts on nodes"
             >
-              Open
+              Properties
+            </FilterButton>
+          </FilterGroup>
+
+          <FilterGroup label="Edges">
+            <FilterButton
+              pressed={detail.edges === "off"}
+              onClick={() => patchDetail({ edges: "off" })}
+              title="Hide relation links"
+            >
+              Off
             </FilterButton>
             <FilterButton
-              pressed={filters.decision === "proposed"}
-              onClick={() => patchFilters({ decision: "proposed" })}
-              count={counts.decision.proposed}
+              pressed={detail.edges === "relations"}
+              onClick={() => patchDetail({ edges: "relations" })}
+              title="Draw relation links"
             >
-              Proposed
-            </FilterButton>
-            <FilterButton
-              pressed={filters.decision === "rejected"}
-              onClick={() => patchFilters({ decision: "rejected" })}
-              count={counts.decision.rejected}
-            >
-              Rejected
+              Relations
             </FilterButton>
           </FilterGroup>
         </section>
 
-        <section className="space-y-1.5 border-t border-line-soft pt-2" aria-label="Topology legend">
+        <section
+          className="space-y-1.5 border-t border-line-soft pt-2"
+          aria-label="Topology legend"
+        >
           <p className="text-[9px] tracking-[0.08em] text-faint uppercase">Legend</p>
           <LegendRow
             color={theme.source}
@@ -421,23 +426,33 @@ export function TopologySidebar(props: FeatureProps): JSX.Element {
             count={model.stats.abstractNodes}
             dashed
           />
-          <LegendRow color={theme.edge} label="Relation edge" count={model.stats.edgeLinks} />
+          <LegendRow
+            color={theme.edge}
+            label="Relation edge"
+            count={model.stats.edgeLinks}
+          />
           <LegendRow
             color={theme.lineStrong}
             label="Category containment"
             count={model.stats.containmentLinks}
             dashed
           />
-          <LegendRow color={theme.critical} label="Finding" />
-          <LegendRow color={theme.asset} label="Decision accepted" />
-          <LegendRow color={theme.medium} label="Decision open / proposed" />
-          <LegendRow color={theme.critical} label="Decision rejected" />
+          {detail.semantics ? (
+            <LegendRow
+              color={theme.accent}
+              label="Semantics present"
+              count={model.stats.semantics}
+            />
+          ) : null}
           <p className="pt-1 text-[9px] leading-relaxed text-faint">
-            Ring = audit severity, then decision. Orange ring = selection.
+            Selection is shown with an orange ring. Hover for design details.
           </p>
         </section>
 
-        <section className="space-y-1.5 border-t border-line-soft pt-2" aria-label="Topology layout">
+        <section
+          className="space-y-1.5 border-t border-line-soft pt-2"
+          aria-label="Topology layout"
+        >
           <p className="text-[9px] tracking-[0.08em] text-faint uppercase">Layout</p>
           <div className="flex flex-wrap gap-1">
             <button
@@ -484,7 +499,7 @@ export function TopologySidebar(props: FeatureProps): JSX.Element {
               type="button"
               onClick={() => store.requestReset()}
               className="inline-flex min-h-6 items-center border border-line-soft bg-panel-soft/40 px-2 font-mono text-[10px] text-muted hover:border-line-strong hover:text-text"
-              title="Clear filters and pinned positions, then fit the graph"
+              title="Clear filters, detail and pinned positions, then fit the graph"
             >
               Reset
             </button>
@@ -524,10 +539,11 @@ interface HoverState {
 
 function categoryAnchors(nodes: SimNode[]): Map<string, { x: number; y: number }> {
   const categories = [...new Set(nodes.map((node) => node.model.category))].sort();
-  const radius = 130 + Math.min(220, nodes.length * 2);
+  const radius = 90 + Math.min(160, nodes.length * 1.2);
   return new Map(
     categories.map((category, index) => {
-      const angle = (index / Math.max(1, categories.length)) * Math.PI * 2 - Math.PI / 2;
+      const angle =
+        (index / Math.max(1, categories.length)) * Math.PI * 2 - Math.PI / 2;
       return [
         category,
         { x: Math.cos(angle) * radius, y: Math.sin(angle) * radius },
@@ -594,8 +610,8 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
   const [ui, store] = useTopologyUi(props.state.snapshot.name);
   const selection = topologySelection(props);
   const visible = useMemo(
-    () => applyTopologyFilters(model, ui.filters),
-    [model, ui.filters],
+    () => applyTopologyFilters(model, ui.filters, ui.detail),
+    [model, ui.filters, ui.detail],
   ) as TopologyVisibleGraph;
 
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -654,7 +670,7 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
   useEffect(() => {
     const positions = uiRef.current.positions;
     const pinned = uiRef.current.pinned;
-    const nodes: SimNode[] = model.nodes.map((node, index) => {
+    const nodes: SimNode[] = visible.nodes.map((node, index) => {
       const saved = positions[node.id];
       const angle = index * 2.399963229728653;
       const distance = 24 * Math.sqrt(index + 1);
@@ -669,7 +685,7 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
         fy: pinned && saved ? saved.y : null,
       };
     });
-    const links: SimLink[] = model.links.map((link) => ({
+    const links: SimLink[] = visible.links.map((link) => ({
       id: link.id,
       model: link,
       source: link.source,
@@ -686,33 +702,36 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
         d3
           .forceLink<SimNode, SimLink>(links)
           .id((node) => node.id)
-          .distance((link) => (link.model.kind === "containment" ? 92 : 118))
-          .strength((link) => (link.model.kind === "containment" ? 0.45 : 0.2)),
+          .distance((link) => (link.model.kind === "containment" ? 72 : 92))
+          .strength((link) => (link.model.kind === "containment" ? 0.5 : 0.16)),
       )
-      .force("charge", d3.forceManyBody<SimNode>().strength(-260))
+      .force("charge", d3.forceManyBody<SimNode>().strength(-190))
       .force("center", d3.forceCenter<SimNode>(0, 0))
       .force(
         "collide",
-        d3.forceCollide<SimNode>().radius((node) => nodeRadius(node.model) + 7),
+        d3.forceCollide<SimNode>().radius((node) => nodeRadius(node.model) + 5),
       )
       .force(
         "x",
         d3
           .forceX<SimNode>((node) => anchors.get(node.model.category)?.x ?? 0)
-          .strength(0.045),
+          .strength(0.05),
       )
       .force(
         "y",
         d3
           .forceY<SimNode>((node) => anchors.get(node.model.category)?.y ?? 0)
-          .strength(0.045),
+          .strength(0.05),
       )
       .alphaDecay(0.05)
       .velocityDecay(0.36);
 
+    // Settle before the first paint. The graph is a static design map: an
+    // animated mount would drift after the initial fit and make the viewport
+    // land off-centre.
     simulation.stop();
-    for (let step = 0; step < 220; step += 1) simulation.tick();
-    simulation.alpha(0.14).restart();
+    for (let step = 0; step < 260; step += 1) simulation.tick();
+    simulation.alpha(0).stop();
 
     simulationRef.current = simulation;
     simNodesRef.current = nodes;
@@ -734,7 +753,7 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
       simulation.stop();
       simulationRef.current = undefined;
     };
-  }, [model]);
+  }, [visible]);
 
   // Zoom/pan. The scene transform is written imperatively so a simulation tick
   // does not reconcile the viewport.
@@ -977,16 +996,22 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
 
   const ambientLabels = useMemo(() => {
     const labels = new Set<string>();
+    if (ui.detail.labels === "off") return labels;
+    if (ui.detail.labels === "all") {
+      for (const node of visible.nodes) labels.add(node.id);
+      return labels;
+    }
     const ranked = [...visible.nodes].sort(
       (left, right) =>
         right.degree - left.degree || left.name.localeCompare(right.name),
     );
-    for (const node of ranked.slice(0, 18)) labels.add(node.id);
-    for (const node of visible.nodes) {
-      if (node.abstract) labels.add(node.id);
-    }
+    const hubCount = Math.max(
+      3,
+      Math.min(10, Math.ceil(visible.nodes.length * 0.12)),
+    );
+    for (const node of ranked.slice(0, hubCount)) labels.add(node.id);
     return labels;
-  }, [visible.nodes]);
+  }, [ui.detail.labels, visible.nodes]);
 
   // Label placement is a screen-space collision check. Selected, hovered and
   // focused labels are always kept; ambient labels yield when they would
@@ -1197,11 +1222,7 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
                     ? theme.accent
                     : link.kind === "containment"
                       ? theme.lineStrong
-                      : link.decisionStatus === "rejected"
-                        ? theme.critical
-                        : link.decisionStatus === "open"
-                          ? theme.medium
-                          : theme.edge;
+                      : theme.edge;
               const marker = selected
                 ? "url(#topology-arrow-selection)"
                 : hovered
@@ -1218,6 +1239,8 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
                     : incident
                       ? 0.8
                       : 0.55;
+              const midX = ((source.x ?? 0) + (target.x ?? 0)) / 2;
+              const midY = ((source.y ?? 0) + (target.y ?? 0)) / 2;
               return (
                 <g key={link.id}>
                   <path
@@ -1231,8 +1254,37 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
                     vectorEffect="non-scaling-stroke"
                     pointerEvents="none"
                   />
+                  {ui.detail.edgeLabels ? (
+                    <text
+                      x={midX}
+                      y={midY - 4}
+                      textAnchor="middle"
+                      fill={selected ? theme.selection : theme.muted}
+                      fontSize={9}
+                      fontFamily="var(--font-mono)"
+                      stroke={theme.page}
+                      strokeWidth={3}
+                      strokeLinejoin="round"
+                      paintOrder="stroke"
+                      pointerEvents="none"
+                    >
+                      {link.label}
+                    </text>
+                  ) : null}
+                  {ui.detail.semantics && link.hasSemantics ? (
+                    <circle
+                      cx={midX}
+                      cy={midY}
+                      r={2.2}
+                      fill={theme.accent}
+                      stroke={theme.page}
+                      strokeWidth={0.8}
+                      pointerEvents="none"
+                    />
+                  ) : null}
                   <path
                     data-topology-link={link.kind === "edge" ? link.edgeName : link.name}
+                    data-topology-link-kind={link.kind}
                     d={geometry.path}
                     fill="none"
                     stroke="transparent"
@@ -1268,13 +1320,7 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
                     }}
                   >
                     <title>
-                      {`${link.label} · ${link.sourceName} → ${link.targetName}${
-                        link.findings.total
-                          ? ` · ${link.findings.total} finding${
-                              link.findings.total === 1 ? "" : "s"
-                            }`
-                          : ""
-                      }${link.decisionStatus ? ` · decision ${link.decisionStatus}` : ""}`}
+                      {`${link.label} · ${link.sourceName} → ${link.targetName}`}
                     </title>
                   </path>
                 </g>
@@ -1298,7 +1344,7 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
                     ? theme.selection
                     : hovered || focused
                       ? theme.accentStrong
-                      : statusColor(node) ?? base;
+                      : base;
                   const showLabel = labelIds.has(node.id);
                   return (
                     <g
@@ -1310,7 +1356,7 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
                       tabIndex={0}
                       role="button"
                       aria-pressed={selected}
-                      aria-label={`${node.label}, ${node.abstract ? "abstract category" : "node"}, ${node.category}, ${node.degree} links, ${formatStatus(node)}`}
+                      aria-label={`${node.label}, ${node.abstract ? "abstract category" : "node"}, ${node.category}, ${node.degree} links, ${node.properties} properties`}
                       onClick={(event) => {
                         event.stopPropagation();
                         selectNode(node);
@@ -1343,7 +1389,7 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
                           node.abstract ? "abstract category" : "node"
                         } · ${node.category} · ${node.degree} links · ${
                           node.properties
-                        } properties · ${formatStatus(node)}`}
+                        } properties`}
                       </title>
                       {selected || hovered || focused ? (
                         <circle
@@ -1364,37 +1410,33 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
                         strokeDasharray={node.abstract ? "3 2" : undefined}
                         vectorEffect="non-scaling-stroke"
                       />
-                      {node.findings.total ? (
-                        <g
-                          transform={`translate(${radius * 0.72} ${-radius * 0.72})`}
-                          pointerEvents="none"
-                        >
-                          <circle
-                            r={Math.min(6.5, 2.5 + Math.log2(node.findings.total + 1))}
-                            fill={severityColor[node.findings.worst ?? "info"]}
-                            stroke={theme.page}
-                            strokeWidth={1}
-                          />
-                          <text
-                            textAnchor="middle"
-                            dominantBaseline="central"
-                            fill={theme.page}
-                            fontSize={Math.min(7, 4 + Math.log2(node.findings.total + 1))}
-                            fontFamily="var(--font-mono)"
-                          >
-                            {node.findings.total > 9 ? "9+" : node.findings.total}
-                          </text>
-                        </g>
-                      ) : node.decisionStatus ? (
+                      {ui.detail.semantics && node.hasSemantics ? (
                         <circle
                           cx={radius * 0.72}
-                          cy={radius * 0.72}
-                          r={2.5}
-                          fill={DECISION_COLOR[node.decisionStatus]}
+                          cy={-radius * 0.72}
+                          r={2.4}
+                          fill={theme.accent}
                           stroke={theme.page}
                           strokeWidth={0.8}
                           pointerEvents="none"
                         />
+                      ) : null}
+                      {ui.detail.properties ? (
+                        <text
+                          x={-radius - 3}
+                          y={-radius - 2}
+                          textAnchor="end"
+                          fill={theme.faint}
+                          fontSize={9}
+                          fontFamily="var(--font-mono)"
+                          stroke={theme.page}
+                          strokeWidth={3}
+                          strokeLinejoin="round"
+                          paintOrder="stroke"
+                          className="pointer-events-none select-none"
+                        >
+                          {`${node.properties}p`}
+                        </text>
                       ) : null}
                       {showLabel ? (
                         <text
@@ -1498,9 +1540,10 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
                   node · {hoverEntity.abstract ? "abstract" : "concrete"} ·{" "}
                   {hoverEntity.category}
                 </p>
-                <p>
-                  {hoverEntity.degree} links · {hoverEntity.properties} properties
-                </p>
+                <p>{hoverEntity.degree} links</p>
+                {ui.detail.properties ? (
+                  <p>{hoverEntity.properties} properties</p>
+                ) : null}
               </>
             ) : (
               <>
@@ -1511,18 +1554,8 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
                 {hoverEntity.edgeName ? <p>{hoverEntity.edgeName}</p> : null}
               </>
             )}
-            <p>
-              semantics {hoverEntity.hasSemantics ? "present" : "missing"} ·{" "}
-              {hoverEntity.findings.total} finding
-              {hoverEntity.findings.total === 1 ? "" : "s"}
-            </p>
-            {hoverEntity.decisionStatus ? (
-              <p>decision {hoverEntity.decisionStatus}</p>
-            ) : null}
-            {hoverEntity.findings.worst ? (
-              <p className="text-[8px]">
-                strongest finding {SEVERITY_LABEL[hoverEntity.findings.worst]}
-              </p>
+            {ui.detail.semantics ? (
+              <p>semantics {semanticsSummary(hoverEntity)}</p>
             ) : null}
           </div>
         </div>
@@ -1532,7 +1565,7 @@ export function TopologyEditor(props: FeatureProps): JSX.Element {
 }
 
 // ---------------------------------------------------------------------------
-// Bottom panel
+// Bottom panel: the selected design entity only
 // ---------------------------------------------------------------------------
 
 function SummaryField({
@@ -1554,67 +1587,11 @@ function SummaryField({
   );
 }
 
-function SemanticsBlock({ entity }: { entity: TopologyEntity }) {
-  const { semantics } = entity;
-  if (!semantics.present) {
-    return (
-      <p className="text-[10px] text-faint">
-        No semantics attached to this {entity.kind}.
-      </p>
-    );
-  }
-  return (
-    <div className="space-y-1 text-[10px] leading-relaxed text-muted">
-      {semantics.claims.length ? (
-        <div>
-          <p className="text-[9px] tracking-[0.06em] text-faint uppercase">
-            Claims · {semantics.claimCount}
-          </p>
-          {semantics.claims.slice(0, 3).map((claim) => (
-            <p key={claim} className="line-clamp-2">
-              {claim}
-            </p>
-          ))}
-        </div>
-      ) : null}
-      {semantics.frames.length ? (
-        <div>
-          <p className="text-[9px] tracking-[0.06em] text-faint uppercase">
-            Frames · {semantics.frameCount}
-          </p>
-          {semantics.frames.slice(0, 2).map((frame) => (
-            <p key={frame} className="line-clamp-2">
-              {frame}
-            </p>
-          ))}
-        </div>
-      ) : null}
-      {semantics.limitations.length ? (
-        <div>
-          <p className="text-[9px] tracking-[0.06em] text-faint uppercase">
-            Limitations · {semantics.limitationCount}
-          </p>
-          {semantics.limitations.slice(0, 2).map((limitation) => (
-            <p key={limitation} className="line-clamp-2">
-              {limitation}
-            </p>
-          ))}
-        </div>
-      ) : null}
-    </div>
-  );
-}
-
 export function TopologyBottom(props: FeatureProps): JSX.Element {
   const model = useTopologyModel(props);
+  const [ui] = useTopologyUi(props.state.snapshot.name);
   const selection = topologySelection(props);
   const entity = findTopologyEntity(model, selection);
-  const raw =
-    entity && isTopologyNode(entity)
-      ? props.state.index.topologyNodesByName.get(entity.name)
-      : entity
-        ? props.state.index.topologyEdgesByName.get(entity.edgeName ?? entity.name)
-        : undefined;
 
   if (!entity) {
     return (
@@ -1624,23 +1601,30 @@ export function TopologyBottom(props: FeatureProps): JSX.Element {
             Selection
           </h2>
           <span className="font-mono text-[9px] text-faint">
-            {model.stats.nodes} nodes · {model.stats.edgeLinks} relations ·{" "}
-            {model.stats.semantics} with semantics
+            {model.stats.nodes} nodes · {model.stats.edgeLinks} relations
+            {ui.detail.containment
+              ? ` · ${model.stats.containmentLinks} containment`
+              : ""}
           </span>
         </header>
         <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2">
           <p className="text-[10px] text-muted">
-            Select a node or relation in the force graph to inspect its labels,
-            semantics, findings and decision state. Clicking a node or edge also
-            sets the workbench selection for the other activities.
+            Select a node or relation in the force graph to inspect its design
+            details. Clicking a node or edge also sets the workbench selection
+            for the other activities.
           </p>
           <div className="mt-2 grid gap-1">
             <SummaryField label="Nodes" value={model.stats.nodes} />
             <SummaryField label="Abstract" value={model.stats.abstractNodes} />
             <SummaryField label="Relations" value={model.stats.edgeLinks} />
-            <SummaryField label="Containment" value={model.stats.containmentLinks} />
-            <SummaryField label="Findings" value={model.stats.findings} />
-            <SummaryField label="Decisions" value={model.stats.decisions} />
+            <SummaryField
+              label="Containment"
+              value={model.stats.containmentLinks}
+            />
+            <SummaryField
+              label="Semantics"
+              value={`${model.stats.semantics} present`}
+            />
           </div>
         </div>
       </div>
@@ -1652,7 +1636,7 @@ export function TopologyBottom(props: FeatureProps): JSX.Element {
       <header className="flex items-baseline justify-between gap-2 border-b border-line-soft px-3 py-1.5">
         <div className="flex min-w-0 items-baseline gap-2">
           <h2 className="text-[11px] font-semibold tracking-[0.08em] text-text uppercase">
-            {entity.kind === "node" ? "Node" : "Relation"}
+            {isTopologyNode(entity) ? "Node" : "Relation"}
           </h2>
           <span className="truncate font-mono text-[11px] text-accent-strong">
             {entity.label}
@@ -1670,81 +1654,43 @@ export function TopologyBottom(props: FeatureProps): JSX.Element {
         </button>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(220px,0.9fr)_minmax(260px,1.1fr)] gap-[2px] overflow-hidden bg-gutter">
-        <div className="thin-scrollbar min-h-0 overflow-y-auto bg-panel px-3 py-2">
-          <div className="grid gap-1">
-            <SummaryField
-              label="Kind"
-              value={
-                entity.kind === "node"
-                  ? entity.abstract
-                    ? "abstract node"
-                    : "node"
-                  : entity.kind === "containment"
-                    ? "containment"
-                    : "edge"
-              }
-            />
-            <SummaryField label="Category" value={entity.category} />
-            {entity.kind === "node" ? (
-              <>
-                <SummaryField label="Degree" value={entity.degree} />
-                <SummaryField label="Properties" value={entity.properties} />
-                <SummaryField label="Children" value={entity.children} />
-              </>
-            ) : (
-              <>
-                <SummaryField label="Source" value={entity.sourceName} />
-                <SummaryField label="Target" value={entity.targetName} />
-              </>
-            )}
-            <SummaryField
-              label="Labels"
-              value={entity.labels.length ? entity.labels.join(", ") : "—"}
-            />
+      <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto bg-panel px-3 py-2">
+        <div className="grid gap-1">
+          <SummaryField label="Kind" value={entityKindLabel(entity)} />
+          <SummaryField label="Name" value={entity.name} />
+          <SummaryField label="Category" value={entity.category} />
+          {isTopologyNode(entity) ? (
+            <>
+              <SummaryField label="Degree" value={entity.degree} />
+              <SummaryField label="Properties" value={entity.properties} />
+            </>
+          ) : (
+            <>
+              <SummaryField label="Source" value={entity.sourceName} />
+              <SummaryField label="Target" value={entity.targetName} />
+            </>
+          )}
+          <SummaryField
+            label="Labels"
+            value={entity.labels.length ? entity.labels.join(", ") : "—"}
+          />
+          {ui.detail.semantics ? (
             <SummaryField
               label="Semantics"
               value={
                 entity.hasSemantics
-                  ? `${entity.semantics.claimCount} claims · ${entity.semantics.frameCount} frames · ${entity.semantics.limitationCount} limitations`
-                  : "missing"
+                  ? semanticsSummary(entity)
+                  : "none revealed"
               }
             />
-            <SummaryField
-              label="Findings"
-              value={
-                entity.findings.total
-                  ? `${entity.findings.total} (${entity.findings.rules.join(", ")})`
-                  : "none"
-              }
-            />
-            <SummaryField
-              label="Decision"
-              value={
-                entity.decisionStatus
-                  ? `${entity.decisionStatus}${entity.decisionIds.length > 1 ? ` (+${entity.decisionIds.length - 1})` : ""}`
-                  : "none"
-              }
-            />
-          </div>
-          <div className="mt-2 border-t border-line-soft pt-2">
-            <SemanticsBlock entity={entity} />
-          </div>
+          ) : null}
         </div>
-        <div className="flex min-h-0 flex-col bg-inset">
-          <div className="flex items-center justify-between border-b border-line-soft px-2 py-1">
-            <span className="text-[9px] tracking-[0.08em] text-faint uppercase">
-              JSON
-            </span>
-            <span className="font-mono text-[9px] text-faint">
-              blueprint.graph.{entity.kind === "node" ? "nodes" : "edges"} ·{" "}
-              {entity.name}
-            </span>
-          </div>
-          <pre className="thin-scrollbar min-h-0 flex-1 overflow-auto px-2 py-1 font-mono text-[9px] leading-relaxed text-muted">
-            {JSON.stringify(raw ?? entity, null, 2)}
-          </pre>
-        </div>
+
+        {entity.description ? (
+          <p className="mt-2 border-t border-line-soft pt-2 text-[10px] leading-relaxed text-muted">
+            {entity.description}
+          </p>
+        ) : null}
       </div>
     </div>
   );

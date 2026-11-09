@@ -15,24 +15,21 @@ import type {
 import { DEFAULT_LAYOUT } from "./types";
 
 export const ACTIVITY_ORDER: ActivityId[] = [
-  "semantics",
-  "audit",
-  "proof",
   "topology",
+  "proof",
+  "meaning",
 ];
 
 export const ACTIVITY_LABELS: Record<ActivityId, string> = {
-  semantics: "Orient",
-  audit: "Audit",
-  proof: "Proof",
   topology: "Topology",
+  proof: "Proof",
+  meaning: "Meaning",
 };
 
 export const ACTIVITY_DESCRIPTIONS: Record<ActivityId, string> = {
-  semantics: "Understand the graph purpose, frames, claims and limits before auditing.",
-  audit: "Identity, grounding, type/presence and semantics findings.",
+  topology: "Force-directed view of the graph and its relations.",
   proof: "Multi-level value provenance with attached semantics.",
-  topology: "Force-directed orientation view of the graph.",
+  meaning: "Read the graph purpose, frames, claims and limits.",
 };
 
 export interface ActivityTabs {
@@ -42,38 +39,43 @@ export interface ActivityTabs {
 }
 
 export const DEFAULT_TABS: Record<ActivityId, ActivityTabs> = {
+  topology: {
+    bottomTabs: ["selection"],
+    openTabs: ["Graph"],
+    activeTab: "Graph",
+  },
   proof: {
-    bottomTabs: ["trace", "evidence", "data"],
+    bottomTabs: ["trace", "evidence"],
     openTabs: ["Provenance"],
     activeTab: "Provenance",
   },
-  audit: {
-    bottomTabs: ["problems", "evidence", "data"],
-    openTabs: ["Findings"],
-    activeTab: "Findings",
-  },
-  semantics: {
-    bottomTabs: ["decisions", "coverage", "data"],
-    openTabs: ["Ledger"],
-    activeTab: "Ledger",
-  },
-  topology: {
-    bottomTabs: ["selection", "data"],
-    openTabs: ["Graph"],
-    activeTab: "Graph",
+  meaning: {
+    bottomTabs: ["details"],
+    openTabs: ["Meaning"],
+    activeTab: "Meaning",
   },
 };
 
 export const BOTTOM_TAB_LABELS: Record<string, string> = {
-  problems: "Problems",
   output: "Output",
   trace: "Trace",
   evidence: "Evidence",
-  data: "Data",
-  decisions: "Decisions",
-  coverage: "Coverage",
+  details: "Details",
   selection: "Selection",
 };
+
+const RETIRED_BOTTOM_TABS = new Set([
+  "data",
+  "json",
+  "problems",
+  "decisions",
+  "coverage",
+]);
+
+/** A tab from an earlier workbench that is no longer a valid surface. */
+export function isRetiredBottomTab(tab: string): boolean {
+  return RETIRED_BOTTOM_TABS.has(tab);
+}
 
 export function bottomTabLabel(tab: string): string {
   return BOTTOM_TAB_LABELS[tab] ?? tab;
@@ -108,10 +110,9 @@ export function defaultFunctionState(activity: ActivityId): FunctionState {
 
 export function defaultFunctions(): Record<ActivityId, FunctionState> {
   return {
-    proof: defaultFunctionState("proof"),
-    audit: defaultFunctionState("audit"),
-    semantics: defaultFunctionState("semantics"),
     topology: defaultFunctionState("topology"),
+    proof: defaultFunctionState("proof"),
+    meaning: defaultFunctionState("meaning"),
   };
 }
 
@@ -125,5 +126,7 @@ export function bottomTabsFor(
   current: string,
 ): string[] {
   const tabs = DEFAULT_TABS[activity].bottomTabs;
-  return tabs.includes(current) ? [...tabs] : [current, ...tabs];
+  return tabs.includes(current) || isRetiredBottomTab(current)
+    ? [...tabs]
+    : [current, ...tabs];
 }

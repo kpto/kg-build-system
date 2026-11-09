@@ -1,10 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useSyncExternalStore } from "react";
 import { CircleDot, Database, Minus, Plus } from "lucide-react";
 
-import { buildSemanticLedger } from "@/semantics/model";
-import { getSemanticsState, subscribeSemantics } from "@/semantics/store";
 import { ACTIVITY_LABELS } from "./defaults";
 import { useWorkbench } from "./store";
 import type { WorkbenchSelection } from "./types";
@@ -16,15 +13,19 @@ export interface StatusBarProps {
   onZoomReset(): void;
 }
 
+function displayIdentity(value: string): string {
+  // Meaning selections carry their stable subject key; the NUL separator is an
+  // identity delimiter, not display text.
+  return value.replace(/\u0000/g, " / ");
+}
+
 function selectedSubject(selection: WorkbenchSelection): string {
   if (selection.stepId) return selection.stepId.join(" / ");
   if (selection.component && selection.property) {
-    return `${selection.component}.${selection.property}`;
+    return `${displayIdentity(selection.component)}.${selection.property}`;
   }
-  if (selection.component) return selection.component;
+  if (selection.component) return displayIdentity(selection.component);
   if (selection.name) return selection.name;
-  if (selection.findingId) return selection.findingId;
-  if (selection.unitKey) return selection.unitKey;
   if (selection.kind) return selection.kind;
   return "No subject selected";
 }
@@ -36,31 +37,7 @@ export function StatusBar({
   onZoomReset,
 }: StatusBarProps) {
   const { state } = useWorkbench();
-  const snapshotName = state.snapshot.name;
-  const local = useSyncExternalStore(
-    useCallback(
-      (listener: () => void) => subscribeSemantics(snapshotName, listener),
-      [snapshotName],
-    ),
-    useCallback(() => getSemanticsState(snapshotName), [snapshotName]),
-    useCallback(() => getSemanticsState(snapshotName), [snapshotName]),
-  );
-  const ledger = useMemo(
-    () => buildSemanticLedger(state.index, state.review, local.decisions),
-    [state.index, state.review, local.decisions],
-  );
-  const coverage = ledger.coverage;
-  const accepted = coverage.required.filter(
-    (entry) => entry.status === "accepted",
-  ).length;
-  const rejected = coverage.required.filter(
-    (entry) => entry.status === "rejected",
-  ).length;
-  const waived = coverage.required.filter(
-    (entry) => entry.status === "waived",
-  ).length;
-  const open = coverage.open;
-
+  const stats = state.index.stats;
   const selection = state.functions[state.activity].selection;
 
   return (
@@ -79,29 +56,14 @@ export function StatusBar({
       </div>
 
       <div className="wb-status-cluster wb-status-trailing">
-        <span
-          className="wb-status-item"
-          title="Required decisions in the semantic ledger"
-        >
-          <span className="wb-status-dot" data-state="accepted" aria-hidden />
-          {accepted} accepted
-          <span className="wb-status-dot" data-state="open" aria-hidden />
-          {open} open
-          <span className="wb-status-dot" data-state="rejected" aria-hidden />
-          {rejected} rejected
-          {waived ? (
-            <>
-              <span className="wb-status-dot" data-state="waived" aria-hidden />
-              {waived} waived
-            </>
-          ) : null}
+        <span className="wb-status-item wb-mono" title="Topology nodes">
+          {stats.topologyNodes} nodes
         </span>
-        <span className="wb-status-divider" aria-hidden />
-        <span
-          className="wb-status-item wb-mono"
-          title="Required decisions resolved / total required. The Semantics feature owns the ledger."
-        >
-          Coverage {coverage.resolved}/{coverage.total}
+        <span className="wb-status-item wb-mono" title="Topology edges">
+          {stats.topologyEdges} edges
+        </span>
+        <span className="wb-status-item wb-mono" title="Bindings">
+          {stats.bindings} bindings
         </span>
         <span className="wb-status-divider" aria-hidden />
         <span className="wb-status-item" title="Compile-only snapshot">

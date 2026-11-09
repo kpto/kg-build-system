@@ -1,25 +1,21 @@
-# KG Audit viewer
+# KG design viewer
 
-The viewer is the review surface for a `kg-build-system` blueprint and workflow
-contract. It is a Next.js application that reads a compile-time viewer snapshot;
-it does not import the Python framework at runtime, execute a build or call a
-model.
+A pure visualisation of a `kg-build-system` graph design. The viewer reads a
+compile-time viewer snapshot of a blueprint and workflow contract; it does not
+import the Python framework at runtime, execute a build or call a model.
 
-The app is a VS Code-style workbench with the Blender dark theme. It has four
-functions:
+The app is a VS Code-style workbench with the Blender dark theme. It has three
+functions, in reading order:
 
-| Function | Purpose |
+| Function | Question it answers |
 | --- | --- |
-| **Proof** | multi-level value provenance: asset → relation/projection → field → binding → post-processing → target, with attached semantics and a type/presence chain |
-| **Audit** | identity/key audit, grounding, semantics presence and type/presence findings, with evidence pointers and review state |
-| **Semantics** | graph purpose, claims, frames and limitations, the semantic ledger, decisions and sign-off readiness |
-| **Topology** | D3 force-directed orientation graph with zoom/pan/drag, filters and selection |
+| **Topology** | What exists in the graph, and how is it connected? |
+| **Proof** | Where does one value come from, and what does it pass through? |
+| **Meaning** | What does the graph claim, and within which frames and limits? |
 
-The workbench shell owns the snapshot, the review sidecar, the activity switch
-and a stable per-function layout. Each function owns its sidebar, editor and
-bottom-panel bodies. Sidebar width, bottom-panel height/tab, open tabs and
-selection are persisted per snapshot + activity in `localStorage`; switching
-functions restores the previous arrangement.
+Topology is the first and default surface. The viewer is a design reader, not
+an audit or review tool: there are no findings, decisions, coverage, sign-off or
+review sidecars.
 
 ## Run
 
@@ -36,6 +32,19 @@ npm run build
 npx next start --hostname 0.0.0.0 --port 3000
 ```
 
+## Low detail first
+
+The first paint shows the design, not its annotations.
+
+| Surface | Default | Revealed by |
+| --- | --- | --- |
+| Topology | circles, thin relation links, labels on hubs only | the sidebar **Detail** controls: labels off/hubs/all, edge labels, containment, semantics, properties |
+| Proof | the selected property's lanes and type chain | the level switch (Property, Node, Edge, Abstract, Asset) and the branch selector |
+| Meaning | graph purpose and counts | **Show claims**, **Expand frames**, **Show limitations**, **Show subjects** |
+
+The bottom panel starts hidden. Open it with the title-bar panel toggle or
+`Cmd/Ctrl+J`. It shows selection detail only; there is no JSON/Data tab.
+
 ## Snapshot
 
 The default snapshot is the current Open Targets 26.09 **compile-only** build:
@@ -44,7 +53,7 @@ The default snapshot is the current Open Targets 26.09 **compile-only** build:
 | --- | --- |
 | Blueprint | 63 nodes, 163 edges, 61 relations, 9 projections, 239 bindings |
 | Workflow | 998 steps, 1,419 connections |
-| Semantics | graph purpose, 5 frames, 9 claims; semantics on every node, edge, property and binding |
+| Meaning | graph purpose, 5 frames, 9 claims; semantics on every node, edge, property and binding |
 | Mode | compile-only; the graph was not executed |
 
 `viewer/public/data/opentargets.snapshot.json` is checked in (the `.gz` copy is
@@ -54,13 +63,11 @@ served through `/api/snapshot`). Regenerate it from the Open Targets project:
 cd ~/Repos/opentargets-kg
 uv run python ~/Repos/kg-build-system/viewer/scripts/compile_opentargets_snapshot.py \
   --project . \
-  --output ~/Repos/kg-build-system/viewer/public/data/opentargets.snapshot.json \
-  --review-output /tmp/opentargets.review.json
+  --output ~/Repos/kg-build-system/viewer/public/data/opentargets.snapshot.json
 ```
 
-The review sidecar is optional. `viewer/public/data/opentargets.review.json`
-carries accepted decisions from a previous review; the Semantics function keeps
-local decisions and approvals in `localStorage` and exports a JSON sidecar.
+The reference estate is available at `?snapshot=reference`; it is not the
+default dataset.
 
 ## Verification
 
@@ -75,31 +82,25 @@ Headless browser screenshots use Selenium + the system Firefox:
 ```console
 uv run --with selenium python scripts/screenshot.py \
   --url http://127.0.0.1:3000/ \
-  --output /tmp/opentargets-viewer.png \
+  --output /tmp/opentargets-topology.png \
   --width 1600 --height 1000
-
-uv run --with selenium python scripts/acceptance_redesign.py \
-  --url http://127.0.0.1:3000/ --output /tmp/opentargets-acceptance
 ```
-
-`acceptance_redesign.py` captures every activity, checks the D3 topology has
-nodes and links, and verifies that resizing Proof and switching away/back keeps
-its sidebar width and bottom-panel height stable.
 
 ## Layout
 
 ```
 viewer/
-  app/                 shell entry and global theme
+  app/                 shell entry, route handlers and global theme
   workbench/           VS Code layout, state, persistence, UI chrome
-  proof/               Proof model and view
-  audit/               Audit engine view and filters
-  semantics/           semantic ledger, decisions, sign-off
-  topology/            D3 force model and view
+  topology/            D3 force model, detail controls and view
+  proof/               proof model and view
+  meaning/             purpose, frames, claims and attached semantics
   lib/                 snapshot types, loader, indexes, shared models
-  scripts/             snapshot regeneration and browser acceptance
-  public/data/         checked-in snapshots and review sidecar
+  scripts/             snapshot regeneration and browser screenshots
+  public/data/         checked-in snapshots
   tests/               model and contract tests
 ```
 
-Design decisions and the feature cut are in [REDESIGN.md](REDESIGN.md).
+Design decisions and removed surfaces are in [HIERARCHY.md](HIERARCHY.md); the
+visual rules are in [DESIGN_LANGUAGE.md](DESIGN_LANGUAGE.md) and
+[DESIGN_BLENDER.md](DESIGN_BLENDER.md).

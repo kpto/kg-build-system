@@ -1,44 +1,28 @@
 /**
  * In-memory topology model for the D3 workbench function.
  *
- * The model owns the graph itself: stable identities, labels, degree, category
- * containment, attached semantics and the review/audit status of every entity.
- * Coordinates, hover, filters-as-applied and the simulation stay in the view.
+ * The model owns the design graph: stable identities, labels, degree, category
+ * containment, attached semantics and property counts. It is a pure
+ * visualisation model; coordinates, hover, applied filters and detail switches
+ * stay in the view.
  *
  * This is deliberately not a DTO: it contains maps and derived values and is
  * never serialised. The snapshot DTOs remain the source of truth.
  */
 
-import type {
-  AuditReport,
-  DecisionStatus,
-  DecisionView,
-  ReviewSidecar,
-  Severity,
-} from "@/lib/reviewTypes";
-
 export type TopologyEntityKind = "node" | "edge";
 export type TopologyLinkKind = "edge" | "containment";
 export type TopologyAbstractFilter = "all" | "concrete" | "abstract";
 export type TopologySemanticsFilter = "all" | "present" | "missing";
-export type TopologyFindingsFilter = "all" | "with" | "without";
-export type TopologyDecisionFilter = "all" | "none" | DecisionStatus;
+export type TopologyLabelDetail = "off" | "hubs" | "all";
+export type TopologyEdgeDetail = "off" | "relations";
 
+/** What a node or relation says about itself. */
 export interface TopologySemanticsSummary {
   present: boolean;
   claimCount: number;
   frameCount: number;
   limitationCount: number;
-  claims: string[];
-  frames: string[];
-  limitations: string[];
-}
-
-export interface TopologyFindingSummary {
-  total: number;
-  worst?: Severity;
-  rules: string[];
-  severities: Record<Severity, number>;
 }
 
 export interface TopologyNodeModel {
@@ -55,21 +39,17 @@ export interface TopologyNodeModel {
   parent?: string;
   labels: string[];
   description?: string;
+  /** Number of declared properties. */
   properties: number;
-  annotations: number;
   hasSemantics: boolean;
   semantics: TopologySemanticsSummary;
-  findings: TopologyFindingSummary;
-  decisionStatus?: DecisionStatus;
-  decisionStatuses: DecisionStatus[];
-  decisionIds: string[];
 }
 
 export interface TopologyLinkModel {
   id: string;
   name: string;
   label: string;
-  /** Relationship links are topology edge components; containment is category structure. */
+  /** Relationship links are topology edge components; containment is structure. */
   kind: TopologyLinkKind;
   /** Node ids, not names. */
   source: string;
@@ -84,10 +64,6 @@ export interface TopologyLinkModel {
   description?: string;
   hasSemantics: boolean;
   semantics: TopologySemanticsSummary;
-  findings: TopologyFindingSummary;
-  decisionStatus?: DecisionStatus;
-  decisionStatuses: DecisionStatus[];
-  decisionIds: string[];
   /** Present only on relationship links. */
   edgeName?: string;
 }
@@ -99,21 +75,32 @@ export interface TopologyFilters {
   };
   abstract: TopologyAbstractFilter;
   semantics: TopologySemanticsFilter;
-  findings: TopologyFindingsFilter;
-  decision: TopologyDecisionFilter;
 }
 
 export interface TopologyFilterCounts {
   kinds: { node: number; edge: number };
   abstract: Record<TopologyAbstractFilter, number>;
   semantics: Record<TopologySemanticsFilter, number>;
-  findings: Record<TopologyFindingsFilter, number>;
-  decision: Record<string, number>;
 }
 
 export interface TopologyFiltersModel {
   defaultState: TopologyFilters;
   counts: TopologyFilterCounts;
+}
+
+/**
+ * How much of the design graph is drawn.
+ *
+ * The defaults are the low-detail view: circles, thin relation links and labels
+ * only for the busiest nodes. Containment, semantics and properties are opt-in.
+ */
+export interface TopologyDetailOptions {
+  labels: TopologyLabelDetail;
+  edgeLabels: boolean;
+  containment: boolean;
+  semantics: boolean;
+  properties: boolean;
+  edges: TopologyEdgeDetail;
 }
 
 export interface TopologyModelStats {
@@ -123,8 +110,6 @@ export interface TopologyModelStats {
   containmentLinks: number;
   links: number;
   semantics: number;
-  findings: number;
-  decisions: number;
 }
 
 export interface TopologyGraphModel {
@@ -134,6 +119,7 @@ export interface TopologyGraphModel {
   nodes: TopologyNodeModel[];
   links: TopologyLinkModel[];
   filters: TopologyFiltersModel;
+  detail: TopologyDetailOptions;
   stats: TopologyModelStats;
   nodeById: Map<string, TopologyNodeModel>;
   linkById: Map<string, TopologyLinkModel>;
@@ -154,9 +140,8 @@ export interface TopologySelection {
 export type TopologyEntity = TopologyNodeModel | TopologyLinkModel;
 
 export interface BuildTopologyModelOptions {
-  review?: ReviewSidecar;
-  audit?: AuditReport;
-  decisions?: DecisionView[];
+  /** Include child -> parent category links. The view hides them by default. */
+  containment?: boolean;
 }
 
 export function createTopologyFilters(): TopologyFilters {
@@ -164,8 +149,6 @@ export function createTopologyFilters(): TopologyFilters {
     kinds: { node: true, edge: true },
     abstract: "all",
     semantics: "all",
-    findings: "all",
-    decision: "all",
   };
 }
 
@@ -174,9 +157,24 @@ export function cloneTopologyFilters(filters: TopologyFilters): TopologyFilters 
     kinds: { ...filters.kinds },
     abstract: filters.abstract,
     semantics: filters.semantics,
-    findings: filters.findings,
-    decision: filters.decision,
   };
+}
+
+export function createTopologyDetail(): TopologyDetailOptions {
+  return {
+    labels: "hubs",
+    edgeLabels: false,
+    containment: false,
+    semantics: false,
+    properties: false,
+    edges: "relations",
+  };
+}
+
+export function cloneTopologyDetail(
+  detail: TopologyDetailOptions,
+): TopologyDetailOptions {
+  return { ...detail };
 }
 
 function matchesAbstract(
@@ -195,47 +193,29 @@ function matchesSemantics(
   return filter === "present" ? value : !value;
 }
 
-function matchesFindings(
-  value: TopologyFindingSummary,
-  filter: TopologyFindingsFilter,
-): boolean {
-  if (filter === "all") return true;
-  return filter === "with" ? value.total > 0 : value.total === 0;
-}
-
-function matchesDecision(
-  value: DecisionStatus | undefined,
-  filter: TopologyDecisionFilter,
-): boolean {
-  if (filter === "all") return true;
-  if (filter === "none") return value === undefined;
-  return value === filter;
-}
-
 function statusVisible(
   entity: TopologyNodeModel | TopologyLinkModel,
   filters: TopologyFilters,
 ): boolean {
   return (
     matchesAbstract(entity.abstract, filters.abstract) &&
-    matchesSemantics(entity.hasSemantics, filters.semantics) &&
-    matchesFindings(entity.findings, filters.findings) &&
-    matchesDecision(entity.decisionStatus, filters.decision)
+    matchesSemantics(entity.hasSemantics, filters.semantics)
   );
 }
 
 /**
- * Apply the sidebar filters without touching the model.
+ * Apply the sidebar filters and the detail switches without touching the model.
  *
  * Node status filters decide which entities are eligible. The node kind switch
- * hides node markers; the edge kind switch hides relationship links. Containment
- * links follow the node switch because they describe category structure rather
- * than relations. When node markers are off but relations are on, endpoint
- * nodes stay in the visible graph so links still have geometry.
+ * hides node markers; the edge kind switch and the `edges` detail switch hide
+ * relationship links. Containment links follow both the node switch and the
+ * `containment` detail switch. When node markers are off but relations are on,
+ * endpoint nodes stay in the visible graph so links still have geometry.
  */
 export function applyTopologyFilters(
   model: TopologyGraphModel,
   filters: TopologyFilters,
+  detail: TopologyDetailOptions = model.detail,
 ): TopologyVisibleGraph {
   if (!filters.kinds.node && !filters.kinds.edge) {
     return {
@@ -249,24 +229,26 @@ export function applyTopologyFilters(
   const eligibleNodes = model.nodes.filter((node) => statusVisible(node, filters));
   const eligibleIds = new Set(eligibleNodes.map((node) => node.id));
 
-  const relationLinks = filters.kinds.edge
-    ? model.links.filter(
-        (link) =>
-          link.kind === "edge" &&
-          statusVisible(link, filters) &&
-          eligibleIds.has(link.source) &&
-          eligibleIds.has(link.target),
-      )
-    : [];
+  const relationLinks =
+    filters.kinds.edge && detail.edges === "relations"
+      ? model.links.filter(
+          (link) =>
+            link.kind === "edge" &&
+            statusVisible(link, filters) &&
+            eligibleIds.has(link.source) &&
+            eligibleIds.has(link.target),
+        )
+      : [];
 
-  const containmentLinks = filters.kinds.node
-    ? model.links.filter(
-        (link) =>
-          link.kind === "containment" &&
-          eligibleIds.has(link.source) &&
-          eligibleIds.has(link.target),
-      )
-    : [];
+  const containmentLinks =
+    filters.kinds.node && detail.containment
+      ? model.links.filter(
+          (link) =>
+            link.kind === "containment" &&
+            eligibleIds.has(link.source) &&
+            eligibleIds.has(link.target),
+        )
+      : [];
 
   let nodes: TopologyNodeModel[];
   if (filters.kinds.node) {
@@ -308,7 +290,8 @@ export function findTopologyEntity(
   return (
     model.linkById.get(selection.name) ??
     model.links.find(
-      (link) => link.kind === "edge" && (link.edgeName ?? link.name) === selection.name,
+      (link) =>
+        link.kind === "edge" && (link.edgeName ?? link.name) === selection.name,
     )
   );
 }

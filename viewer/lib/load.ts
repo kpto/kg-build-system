@@ -25,14 +25,6 @@ import type {
   WorkflowPlan,
   WorkflowStep,
 } from "./types";
-import type {
-  AuditSubject,
-  Decision,
-  DecisionStatus,
-  EvidenceRef,
-  ReviewApproval,
-  ReviewSidecar,
-} from "./reviewTypes";
 
 type JsonObject = Record<string, unknown>;
 
@@ -327,167 +319,6 @@ function oneOf<T extends string>(
     : fallback;
 }
 
-const EVIDENCE_ARTIFACTS = [
-  "blueprint",
-  "workflow",
-  "report",
-  "metaGraph",
-] as const;
-
-const AUDIT_SUBJECT_KINDS = [
-  "property",
-  "node",
-  "edge",
-  "binding",
-  "step",
-  "asset",
-  "relation",
-  "projection",
-] as const;
-
-const DECISION_STATUSES = [
-  "proposed",
-  "accepted",
-  "rejected",
-  "waived",
-  "open",
-] as const;
-
-const ENTITY_KINDS = ["node", "edge"] as const;
-
-function normalizeEvidenceRef(value: unknown): EvidenceRef | undefined {
-  if (!isObject(value)) return undefined;
-  const jsonPointer = asString(value.jsonPointer);
-  const label = asString(value.label, jsonPointer);
-  const ref = asStringArray(value.ref);
-  return {
-    label,
-    artifact: oneOf(value.artifact, EVIDENCE_ARTIFACTS, "blueprint"),
-    jsonPointer,
-    ...(ref.length ? { ref } : {}),
-  };
-}
-
-function normalizeAuditSubject(value: unknown): AuditSubject | undefined {
-  if (!isObject(value)) return undefined;
-  const kind = oneOf(value.kind, AUDIT_SUBJECT_KINDS, "property");
-  const name = asString(value.name);
-  if (!name) return undefined;
-  const stepId =
-    Array.isArray(value.stepId) &&
-    value.stepId.length >= 2 &&
-    typeof value.stepId[0] === "string" &&
-    typeof value.stepId[1] === "string"
-      ? ([value.stepId[0], value.stepId[1]] as [string, string])
-      : undefined;
-  return {
-    kind,
-    name,
-    ...(typeof value.component === "string" ? { component: value.component } : {}),
-    ...(typeof value.property === "string" ? { property: value.property } : {}),
-    ...(value.entityKind === "node" || value.entityKind === "edge"
-      ? { entityKind: oneOf(value.entityKind, ENTITY_KINDS, "node") }
-      : {}),
-    ...(typeof value.bindingIndex === "number" &&
-    Number.isFinite(value.bindingIndex)
-      ? { bindingIndex: value.bindingIndex }
-      : {}),
-    ...(stepId ? { stepId } : {}),
-  };
-}
-
-function normalizeDecision(value: unknown): Decision | undefined {  if (!isObject(value)) return undefined;
-  const id = asString(value.id);
-  if (!id) return undefined;
-  const status: DecisionStatus = oneOf(value.status, DECISION_STATUSES, "open");
-  const subject = normalizeAuditSubject(value.subject);
-  return {
-    id,
-    title: asString(value.title, id),
-    status,
-    rationale: asString(value.rationale),
-    evidence: asArray<unknown>(value.evidence)
-      .map(normalizeEvidenceRef)
-      .filter((entry): entry is EvidenceRef => Boolean(entry)),
-    ...(subject ? { subject } : {}),
-    ...(Array.isArray(value.tags) ? { tags: asStringArray(value.tags) } : {}),
-  };
-}
-
-function normalizeApproval(value: unknown): ReviewApproval | undefined {
-  if (!isObject(value)) return undefined;
-  const digest = asString(value.digest);
-  const reviewer = asString(value.reviewer);
-  const at = asString(value.at);
-  if (!digest || !reviewer || !at) return undefined;
-  const scope = asArray<unknown>(value.scope)
-    .map(normalizeAuditSubject)
-    .filter((entry): entry is AuditSubject => Boolean(entry));
-  const status = oneOf(
-    value.status, ["draft", "signed-off", "revoked"] as const, "draft",
-  );
-  return {
-    id: asString(value.id, `approval:${digest}:${at}`),
-    scope,
-    digest,
-    reviewer,
-    at,
-    status,
-    ...(typeof value.note === "string" ? { note: value.note } : {}),
-  };
-}
-
-
-/**
- * Validate and normalise a review sidecar.
- *
- * A sidecar is optional and purely descriptive. Anything that does not match
- * the documented shape is dropped rather than allowed to fail a snapshot load.
- */
-export function normalizeReviewSidecar(value: unknown): ReviewSidecar | undefined {  if (!isObject(value) || value.format !== "kg-viewer-review") return undefined;
-  const decisions = asArray<unknown>(value.decisions)
-    .map(normalizeDecision)
-    .filter((entry): entry is Decision => Boolean(entry));
-
-  const ai = isObject(value.ai)
-    ? {
-        ...(typeof value.ai.model === "string" ? { model: value.ai.model } : {}),
-        ...(typeof value.ai.runId === "string" ? { runId: value.ai.runId } : {}),
-        ...(typeof value.ai.generatedAt === "string"
-          ? { generatedAt: value.ai.generatedAt }
-          : {}),
-        ...(typeof value.ai.note === "string" ? { note: value.ai.note } : {}),
-      }
-    : undefined;
-
-  const approvals = asArray<unknown>(value.approvals)
-    .map(normalizeApproval)
-    .filter((entry): entry is ReviewApproval => Boolean(entry));
-
-  const notes = asArray<unknown>(value.notes)
-    .filter(isObject)
-    .map((note) => {
-      const subject = normalizeAuditSubject(note.subject);
-      return {
-        id: asString(note.id, asString(note.text)),
-        text: asString(note.text),
-        ...(typeof note.author === "string" ? { author: note.author } : {}),
-        ...(typeof note.createdAt === "string" ? { createdAt: note.createdAt } : {}),
-        ...(subject ? { subject } : {}),
-      };
-    })
-    .filter((note) => note.id && note.text);
-
-  return {
-    format: "kg-viewer-review",
-    version: 1,
-    ...(ai ? { ai } : {}),
-    decisions,
-    ...(approvals.length ? { approvals } : {}),
-    ...(notes.length ? { notes } : {}),
-  };
-}
-
 /**
  * Load a snapshot, a blueprint object, or a workflow plan object.
  *
@@ -501,7 +332,6 @@ export function loadSnapshotFromObject(value: unknown): ViewerSnapshot {
   }
 
   if (value.format === "kg-viewer-snapshot" || (value.blueprint && value.workflow)) {
-    const review = normalizeReviewSidecar(value.review);
     return {
       format: "kg-viewer-snapshot",
       version: asNumber(value.version, 1),
@@ -511,7 +341,6 @@ export function loadSnapshotFromObject(value: unknown): ViewerSnapshot {
       workflow: normalizeWorkflow(value.workflow),
       report: normalizeReport(value.report),
       metaGraph: normalizeMetaGraph(value.metaGraph),
-      ...(review ? { review } : {}),
     };
   }
 
@@ -688,47 +517,4 @@ export async function loadReferenceSnapshot(
       SNAPSHOT_TIMEOUT_MS,
     ),
   );
-}
-
-/** Load the reference review sidecar. */
-export async function loadReferenceReview(
-  baseUrl = "",
-): Promise<ReviewSidecar | undefined> {
-  const prefix = baseUrl && !baseUrl.endsWith("/") ? `${baseUrl}/` : baseUrl;
-  try {
-    return normalizeReviewSidecar(
-      await fetchJson(
-        `${prefix}data/reference.review.json`,
-        DEFAULT_FETCH_TIMEOUT_MS,
-      ),
-    );
-  } catch {
-    return undefined;
-  }
-}
-
-/**
- * Load the optional Open Targets review sidecar.
- *
- * A missing, malformed or unavailable sidecar is not a snapshot failure: the
- * viewer simply derives its ledger without one.
- */
-export async function loadReviewSidecar(
-  baseUrl = "",
-): Promise<ReviewSidecar | undefined> {
-  const prefix = baseUrl && !baseUrl.endsWith("/") ? `${baseUrl}/` : baseUrl;
-  const endpoints = baseUrl
-    ? [`${prefix}data/opentargets.review.json`]
-    : ["/api/review", "/data/opentargets.review.json"];
-  for (const url of endpoints) {
-    try {
-      const loaded = normalizeReviewSidecar(
-        await fetchJson(url, DEFAULT_FETCH_TIMEOUT_MS),
-      );
-      if (loaded) return loaded;
-    } catch {
-      // Try the next endpoint; a missing sidecar is allowed.
-    }
-  }
-  return undefined;
 }

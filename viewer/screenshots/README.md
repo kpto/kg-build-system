@@ -5,10 +5,11 @@ They are review aids, not golden images.
 
 | File | What it shows |
 | --- | --- |
-| `01-orient.png` | Orient: graph purpose, frames, claims and limits, the semantic ledger and the `Start with the Audit` action. |
-| `02-audit.png` | Audit: focused Identity queue, finding detail, evidence pointers and `Open in Proof`. |
-| `03-proof.png` | Proof: property-level lane proof for `adverse_event.event`, type/presence chain, branch selector and the `Semantics 7` count. |
-| `04-topology.png` | Topology: D3 force graph with filters, legend, selection and the selected-entity bottom panel. |
+| `01-topology.png` | Topology default: hub labels only, relation links, no edge labels, containment or semantics badges; bottom panel hidden. |
+| `02-topology-detail.png` | Topology with the detail controls revealed: all node labels and category containment. |
+| `03-proof.png` | Proof for `adverse_event.event`: branch selector, type/presence chain, lanes, attached semantics and connections. |
+| `04-meaning.png` | Meaning default: graph purpose and counts; frames, limitations, claims and subjects collapsed. |
+| `05-meaning-selected.png` | Meaning with `node/target` selected: claims, frames and limitations in the editor. |
 
 The reference estate is still available at `?snapshot=reference`; it is not the
 default dataset.

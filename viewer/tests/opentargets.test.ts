@@ -1,7 +1,5 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
-import { buildAudit } from "../lib/audit";
-import { computeImpact } from "../lib/impact";
 import { buildViewerIndex, openingMatchesStep } from "../lib/indexes";
 import { buildLineage, propertySelection } from "../lib/lineage";
 import { loadSnapshotFromObject } from "../lib/load";
@@ -112,47 +110,5 @@ describe("Open Targets snapshot", () => {
       "duckdb",
       "source.target",
     ]);
-  });
-
-  it("audits the release without stalling", () => {
-    const started = performance.now();
-    const audit = buildAudit(index, snapshot.review);
-    const elapsed = performance.now() - started;
-    expect(audit.findings.length).toBeGreaterThan(0);
-    expect(audit.score.value).toBeGreaterThanOrEqual(0);
-    expect(audit.score.value).toBeLessThanOrEqual(100);
-    expect(elapsed).toBeLessThan(30_000);
-  });
-
-  it("computes impact for every topology property within the UI budget", () => {
-    const started = performance.now();
-    let count = 0;
-    for (const node of index.topologyNodes) {
-      for (const property of node.properties ?? []) {
-        computeImpact(index, {
-          kind: "property",
-          name: node.name,
-          component: node.name,
-          property: property.name,
-          entityKind: "node",
-        });
-        count += 1;
-      }
-    }
-    for (const edge of index.topologyEdges) {
-      for (const property of edge.properties ?? []) {
-        computeImpact(index, {
-          kind: "property",
-          name: edge.name,
-          component: edge.name,
-          property: property.name,
-          entityKind: "edge",
-        });
-        count += 1;
-      }
-    }
-    const elapsed = performance.now() - started;
-    expect(count).toBeGreaterThan(1000);
-    expect(elapsed).toBeLessThan(20_000);
   });
 });

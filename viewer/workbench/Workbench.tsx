@@ -6,12 +6,9 @@ import { CircleExclamationPoint, LoaderCircle, RefreshCw } from "lucide-react";
 import { buildViewerIndex } from "@/lib/indexes";
 import {
   loadDefaultSnapshot,
-  loadReferenceReview,
   loadReferenceSnapshot,
-  loadReviewSidecar,
 } from "@/lib/load";
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
-import type { ReviewSidecar } from "@/lib/reviewTypes";
 import { ActivityBar } from "./ActivityBar";
 import { BottomPanel } from "./BottomPanel";
 import { CommandPalette } from "./CommandPalette";
@@ -22,14 +19,13 @@ import { SettingsDialog } from "./SettingsDialog";
 import { SideBar } from "./SideBar";
 import { Splitter } from "./Splitter";
 import { StatusBar } from "./StatusBar";
-import { EMPTY_REVIEW, WorkbenchProvider, useWorkbench } from "./store";
+import { WorkbenchProvider, useWorkbench } from "./store";
 import { TitleBar } from "./TitleBar";
 import { MAX_BOTTOM, MAX_SIDEBAR, MIN_BOTTOM, MIN_SIDEBAR } from "./types";
 
 interface LoadedWorkbench {
   snapshot: ViewerSnapshot;
   index: ViewerIndex;
-  review: ReviewSidecar;
 }
 
 function LoadingGate({ onRetry }: { onRetry(): void }) {
@@ -46,8 +42,8 @@ function LoadingGate({ onRetry }: { onRetry(): void }) {
         <span className="wb-brand-mark" aria-hidden>
           <span className="wb-brand-initial">K</span>
         </span>
-        <span className="wb-brand-name">KG Audit</span>
-        <span className="wb-gate-title-note">workbench</span>
+        <span className="wb-brand-name">KG Design</span>
+        <span className="wb-gate-title-note">viewer</span>
       </header>
       <div className="wb-gate-body">
         <div className="wb-gate-rail" aria-hidden>
@@ -67,10 +63,7 @@ function LoadingGate({ onRetry }: { onRetry(): void }) {
           <div className="wb-gate-card">
             <LoaderCircle aria-hidden className="size-5 animate-spin text-selection" />
             <h1>Loading snapshot</h1>
-            <p>
-              Reading the compile-only graph, building indexes and loading the
-              review sidecar.
-            </p>
+            <p>Reading the compile-only graph and building indexes.</p>
             <p className="wb-gate-hint">
               Open Targets is served gzipped; the first paint follows the
               decompression and index build.
@@ -90,7 +83,7 @@ function LoadingGate({ onRetry }: { onRetry(): void }) {
       </div>
       <footer className="wb-gate-status">
         <span>snapshot loading</span>
-        <span>review sidecar optional</span>
+        <span>compile-only</span>
       </footer>
     </div>
   );
@@ -109,8 +102,8 @@ function LoadErrorGate({
         <span className="wb-brand-mark" aria-hidden>
           <span className="wb-brand-initial">K</span>
         </span>
-        <span className="wb-brand-name">KG Audit</span>
-        <span className="wb-gate-title-note">workbench</span>
+        <span className="wb-brand-name">KG Design</span>
+        <span className="wb-gate-title-note">viewer</span>
       </header>
       <main className="wb-gate-main">
         <div className="wb-gate-card wb-gate-error">
@@ -140,7 +133,7 @@ function WorkbenchShell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
-  const [bottomVisible, setBottomVisible] = useState(true);
+  const [bottomVisible, setBottomVisible] = useState(false);
   const [zoom, setZoom] = useState(1);
 
   const activity = state.activity;
@@ -290,18 +283,12 @@ export function Workbench() {
         : new URLSearchParams(window.location.search).get("snapshot");
     const reference = requested === "reference";
 
-    Promise.all([
-      reference ? loadReferenceSnapshot() : loadDefaultSnapshot(),
-      (reference ? loadReferenceReview() : loadReviewSidecar()).catch(
-        () => undefined,
-      ),
-    ])
-      .then(([snapshot, sidecar]) => {
+    (reference ? loadReferenceSnapshot() : loadDefaultSnapshot())
+      .then((snapshot) => {
         if (!active) return;
         setLoaded({
           snapshot,
           index: buildViewerIndex(snapshot),
-          review: snapshot.review ?? sidecar ?? EMPTY_REVIEW,
         });
       })
       .catch((reason: unknown) => {
@@ -334,7 +321,6 @@ export function Workbench() {
       key={`${loaded.snapshot.name}:${attempt}`}
       snapshot={loaded.snapshot}
       index={loaded.index}
-      review={loaded.review}
     >
       <WorkbenchShell />
     </WorkbenchProvider>

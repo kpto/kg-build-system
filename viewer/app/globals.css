@@ -34,7 +34,7 @@
   --color-link: #5aa9e6;
   --color-on-accent: #ffffff;
 
-  /* Review and audit states. */
+  /* Semantic emphasis, reused by proof and graph state. */
   --color-accepted: #7ac77a;
   --color-open: #d7a84a;
   --color-rejected: #e06c75;

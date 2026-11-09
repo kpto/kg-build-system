@@ -1587,15 +1587,6 @@ function EvidenceTab({ model }: { model: ProofModel }) {
   );
 }
 
-function DataTab({ model }: { model: ProofModel }) {
-  const text = useMemo(() => JSON.stringify(model, null, 2), [model]);
-  return (
-    <div className={styles.dataTab}>
-      <pre>{text}</pre>
-    </div>
-  );
-}
-
 export function ProofBottom(props: FeatureProps) {
   const model = useProofModel(props);
   const tab = props.state.functions.proof.layout.bottomTab || "trace";
@@ -1603,8 +1594,6 @@ export function ProofBottom(props: FeatureProps) {
     <div className={styles.bottom} data-testid="proof-bottom" data-tab={tab}>
       {tab === "evidence" ? (
         <EvidenceTab model={model} />
-      ) : tab === "data" ? (
-        <DataTab model={model} />
       ) : (
         <TraceTab model={model} />
       )}

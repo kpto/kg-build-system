@@ -3,10 +3,9 @@
 /**
  * Workbench state and persistence.
  *
- * One state value owns the loaded snapshot, the review sidecar, the active
- * function and the stable per-function layout/selection. The reducer does only
- * layout, selection and review plumbing; feature meaning stays in the feature
- * modules.
+ * One state value owns the loaded snapshot, the active function and the stable
+ * per-function layout/selection. The reducer does only layout and selection
+ * plumbing; feature meaning stays in the feature modules.
  */
 
 import {
@@ -19,12 +18,12 @@ import {
   type ReactNode,
 } from "react";
 
-import type { ReviewSidecar } from "@/lib/reviewTypes";
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 import {
   ACTIVITY_ORDER,
   defaultFunctions,
   emptySelection,
+  isRetiredBottomTab,
 } from "./defaults";
 import type {
   ActivityId,
@@ -54,18 +53,10 @@ const SELECTION_KINDS = new Set<SelectionKind>([
   "edge",
   "property",
   "binding",
-  "finding",
-  "unit",
   "step",
 ]);
 
 const PROOF_LEVELS = new Set(["property", "node", "edge", "abstract", "asset"]);
-
-export const EMPTY_REVIEW: ReviewSidecar = {
-  format: "kg-viewer-review",
-  version: 1,
-  decisions: [],
-};
 
 /** The localStorage key for one snapshot's function layout and selection. */
 export function workbenchStorageKey(
@@ -122,7 +113,9 @@ function normalizeLayout(
       MAX_BOTTOM,
     ),
     bottomTab:
-      typeof candidate.bottomTab === "string" && candidate.bottomTab
+      typeof candidate.bottomTab === "string" &&
+      candidate.bottomTab &&
+      !isRetiredBottomTab(candidate.bottomTab)
         ? candidate.bottomTab
         : fallback.bottomTab,
     openTabs,
@@ -146,7 +139,7 @@ function normalizeSelection(
   ) {
     selection.kind = candidate.kind as SelectionKind;
   }
-  for (const field of ["name", "component", "property", "findingId", "unitKey"] as const) {
+  for (const field of ["name", "component", "property"] as const) {
     if (typeof candidate[field] === "string") selection[field] = candidate[field];
   }
   if (
@@ -244,7 +237,6 @@ type Action =
   | { type: "set-activity"; activity: ActivityId }
   | { type: "set-selection"; activity: ActivityId; selection: WorkbenchSelection }
   | { type: "set-layout"; activity: ActivityId; patch: Partial<FunctionLayout> }
-  | { type: "update-review"; review: ReviewSidecar }
   | { type: "open-tab"; activity: ActivityId; tab: string }
   | { type: "close-tab"; activity: ActivityId; tab: string }
   | { type: "set-active-tab"; activity: ActivityId; tab: string | null };
@@ -311,8 +303,6 @@ function reducer(state: WorkbenchState, action: Action): WorkbenchState {
         ...state.functions[action.activity],
         layout: mergeLayout(state.functions[action.activity].layout, action.patch),
       });
-    case "update-review":
-      return { ...state, review: action.review };
     case "open-tab": {
       if (!action.tab) return state;
       const current = state.functions[action.activity];
@@ -369,21 +359,18 @@ const WorkbenchContext = createContext<WorkbenchContextValue | null>(null);
 export interface WorkbenchProviderProps {
   snapshot: ViewerSnapshot;
   index: ViewerIndex;
-  review: ReviewSidecar;
   children: ReactNode;
 }
 
 export function WorkbenchProvider({
   snapshot,
   index,
-  review,
   children,
 }: WorkbenchProviderProps) {
   const [state, dispatch] = useReducer(reducer, undefined, () => ({
     snapshot,
     index,
-    review,
-    activity: "semantics" as ActivityId,
+    activity: "topology" as ActivityId,
     functions: defaultFunctions(),
   }));
   const [hydrated, setHydrated] = useState(false);
@@ -392,10 +379,9 @@ export function WorkbenchProvider({
     const name = snapshot.name;
     const fallback = defaultFunctions();
     const functions: Record<ActivityId, FunctionState> = {
-      proof: readFunctionState(name, "proof", fallback.proof),
-      audit: readFunctionState(name, "audit", fallback.audit),
-      semantics: readFunctionState(name, "semantics", fallback.semantics),
       topology: readFunctionState(name, "topology", fallback.topology),
+      proof: readFunctionState(name, "proof", fallback.proof),
+      meaning: readFunctionState(name, "meaning", fallback.meaning),
     };
     dispatch({ type: "hydrate", functions, activity: readActivity(name) });
     setHydrated(true);
@@ -423,7 +409,6 @@ export function WorkbenchProvider({
         dispatch({ type: "set-selection", activity, selection }),
       setLayout: (activity, patch) =>
         dispatch({ type: "set-layout", activity, patch }),
-      updateReview: (next) => dispatch({ type: "update-review", review: next }),
       openTab: (activity, tab) => dispatch({ type: "open-tab", activity, tab }),
       closeTab: (activity, tab) => dispatch({ type: "close-tab", activity, tab }),
       setActiveTab: (activity, tab) =>
