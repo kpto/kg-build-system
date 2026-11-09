@@ -263,6 +263,15 @@ export function buildSearchRecords(source: SearchSource): SearchRecord[] {
 
   for (const asset of source.assets) {
     const members = Object.entries(asset.layout?.members ?? {});
+    const legacy = asset.semantics as
+      | { subject?: string; coverage?: string; basis?: string; claims?: unknown[] }
+      | undefined;
+    const profile = asset.profile ?? legacy;
+    const claims = (asset.semantics?.claims ?? legacy?.claims ?? []).map((claim) =>
+      typeof claim === "string" ? claim : claim && typeof claim === "object" && "text" in claim
+        ? String((claim as { text?: unknown }).text ?? "")
+        : "",
+    );
     records.push(
       makeRecord({
         id: `asset:${asset.name}`,
@@ -270,19 +279,19 @@ export function buildSearchRecords(source: SearchSource): SearchRecord[] {
         name: asset.name,
         label: `Asset · ${asset.name}`,
         detail:
-          asset.semantics?.subject ??
+          profile?.subject ??
           asset.layout?.locator ??
           asset.layout?.kind ??
           "asset",
         tokens: tokensOf(
           asset.name,
-          asset.semantics?.subject,
-          asset.semantics?.coverage,
-          asset.semantics?.basis,
+          profile?.subject,
+          profile?.coverage,
+          profile?.basis,
           asset.layout?.kind,
           asset.layout?.locator,
           ...members.flatMap(([name, location]) => [name, location]),
-          ...(asset.semantics?.claims ?? []),
+          ...claims,
           "asset",
         ),
         ref: ["asset", "asset", asset.name],

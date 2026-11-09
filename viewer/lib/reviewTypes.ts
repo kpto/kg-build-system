@@ -26,7 +26,10 @@ export interface AuditSubject {
     | "step"
     | "asset"
     | "relation"
-    | "projection";
+    | "projection"
+    | "struct"
+    | "field"
+    | "graph";
   name: string;
   component?: string;
   property?: string;
@@ -106,7 +109,12 @@ export interface Impact {
   records?: number;
 }
 
-export type DecisionStatus = "proposed" | "accepted" | "rejected" | "open";
+export type DecisionStatus =
+  | "proposed"
+  | "accepted"
+  | "rejected"
+  | "waived"
+  | "open";
 
 export interface Decision {
   id: string;
@@ -116,6 +124,22 @@ export interface Decision {
   evidence: EvidenceRef[];
   subject?: AuditSubject;
   tags?: string[];
+}
+
+/**
+ * A sign-off record for one review scope.
+ *
+ * `digest` is the content digest of the snapshot the approval was read from.
+ * An approval is evidence of a human decision, never a build artifact.
+ */
+export interface ReviewApproval {
+  id: string;
+  scope: AuditSubject[];
+  digest: string;
+  reviewer: string;
+  at: string;
+  status: "draft" | "signed-off" | "revoked";
+  note?: string;
 }
 
 export interface ReviewSidecar {
@@ -128,6 +152,7 @@ export interface ReviewSidecar {
     note?: string;
   };
   decisions: Decision[];
+  approvals?: ReviewApproval[];
   notes?: Array<{
     id: string;
     author?: string;

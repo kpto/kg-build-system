@@ -1,4 +1,4 @@
-import type { Expression, Ref, WorkflowStep } from "./types";
+import type { Expression, LogicalType, Ref, WorkflowStep } from "./types";
 
 /** Stable string key for a reference tuple. Exported for tests and indexing. */
 export function refKey(parts: readonly string[] | undefined | null): string {
@@ -91,6 +91,70 @@ export function expressionTree(expression: Expression | undefined): string[] {
 export function stepSqlPreview(step: WorkflowStep | undefined): string | undefined {
   const sql = step?.instruction.payload?.sql;
   return typeof sql === "string" ? sql : undefined;
+}
+
+/**
+ * Render a canonical logical type.
+ *
+ * `Nullable[T]` is the one spelling for an optional value: `T | None` is the
+ * same type and is not emitted a second time. Unknown kinds fall back to their
+ * value or name so a new language type remains readable.
+ */
+export function logicalTypeName(type: LogicalType | undefined): string {
+  if (!type) return "unknown";
+  switch (type.kind) {
+    case "unit":
+      return type.name ?? "unit";
+    case "nullable":
+      return `Nullable[${logicalTypeName(type.value)}]`;
+    case "array":
+      return `${logicalTypeName(type.item)}[]`;
+    default: {
+      if (type.value) return `${type.kind}[${logicalTypeName(type.value)}]`;
+      if (type.item) return `${type.kind}<${logicalTypeName(type.item)}>`;
+      return type.name ?? type.kind;
+    }
+  }
+}
+
+/** The type with nullable wrappers removed, for compatibility checks. */
+export function logicalTypeBase(type: LogicalType | undefined): string {
+  if (!type) return "unknown";
+  if (type.kind === "nullable") return logicalTypeBase(type.value);
+  return logicalTypeName(type);
+}
+
+/**
+ * Presence of a value: the top-level nullable wrapper, never a nested field.
+ *
+ * A source access and a binding expression may be nullable; a declared
+ * topology property is present. The chain records both rather than collapsing
+ * them into one value.
+ */
+export function logicalTypePresence(
+  type: LogicalType | undefined,
+): "present" | "nullable" | "unknown" {
+  if (!type) return "unknown";
+  return type.kind === "nullable" ? "nullable" : "present";
+}
+
+/** Operations in an expression tree, depth-first, with their result type. */
+export function collectOperations(
+  expression: Expression | undefined,
+): Array<{ name: string; type?: LogicalType; depth: number }> {
+  const operations: Array<{ name: string; type?: LogicalType; depth: number }> = [];
+  const visit = (node: Expression, depth: number) => {
+    if (node.kind === "operation") {
+      operations.push({
+        name: operationName(node) ?? "operation",
+        type: node.logical_type,
+        depth,
+      });
+      for (const argument of node.arguments ?? []) visit(argument, depth + 1);
+    }
+  };
+  if (expression) visit(expression, 0);
+  return operations;
 }
 
 /** Field key from a data field ref: `relation.field`. */

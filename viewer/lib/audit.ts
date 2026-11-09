@@ -1,23 +1,26 @@
 /**
  * Deterministic audit engine.
  *
- * Every finding is a statement about the loaded snapshot with at least one
+ * A finding is one statement about the loaded snapshot with at least one
  * artifact pointer. The engine never executes a build, never reads a clock and
- * never calls a model. Findings are observations, not proof of correctness.
+ * never calls a model. It reports identity, grounding, type/presence and
+ * semantics-presence defects; it deliberately has no rubric or health score.
  *
- * The health score is a weighted rubric, not a confidence number:
- *
- *   score = round(sum(component.value * component.weight))
- *
- * `value` is a raw percentage in 0..100 for that rubric dimension and `weight`
- * is its share (the weights sum to 1). The UI must show the components so a
- * reviewer can recompute the score by hand.
+ * Finding identities are stable: `rule + subject + evidence pointers` hashed
+ * with FNV-1a. Reordering the snapshot does not renumber a finding that still
+ * refers to the same artifacts.
  */
 
 import type {
   EntityKind,
   Expression,
   IndexedBinding,
+  LogicalType,
+  Ref,
+  SemanticSubject,
+  SemanticsDTO,
+  TopologyEdge,
+  TopologyNode,
   TopologyProperty,
   ViewerIndex,
   WorkflowStep,
@@ -25,7 +28,6 @@ import type {
 import type {
   AuditFinding,
   AuditReport,
-  AuditScoreComponent,
   AuditSubject,
   EvidenceRef,
   ReviewSidecar,
@@ -33,18 +35,54 @@ import type {
 } from "./reviewTypes";
 import {
   findComponentPropertyBindings,
-  openingMatchesStep,
   relationNamesFromRowSource,
-  resolveAssetName,
-  stepKey,
 } from "./indexes";
-import {
-  collectFieldRefs,
-  expressionPreview,
-  fieldRefKey,
-  walkExpression,
-} from "./expressions";
-import { buildLineage, propertySelection } from "./lineage";
+import { collectFieldRefs, expressionPreview, fieldRefKey, walkExpression } from "./expressions";
+
+export type AuditRuleGroupId =
+  | "identity"
+  | "coverage"
+  | "semantics"
+  | "type"
+  | "graph";
+
+export const AUDIT_RULE_GROUPS: ReadonlyArray<{
+  id: AuditRuleGroupId;
+  label: string;
+  detail: string;
+}> = [
+  {
+    id: "identity",
+    label: "Identity",
+    detail: "Keys, endpoints, producers and inherited component contracts.",
+  },
+  {
+    id: "coverage",
+    label: "Grounding",
+    detail: "Properties and bindings that do not reach a source.",
+  },
+  {
+    id: "semantics",
+    label: "Semantics",
+    detail: "Declarations without an attached semantic unit.",
+  },
+  {
+    id: "type",
+    label: "Type & presence",
+    detail: "Lossy narrowing and incompatible logical-type shapes.",
+  },
+  {
+    id: "graph",
+    label: "Graph",
+    detail: "The graph declaration and its purpose.",
+  },
+];
+
+/** The group a rule belongs to; the rule id names its group as a prefix. */
+export function auditRuleGroup(rule: string): AuditRuleGroupId {
+  const prefix = rule.split(".")[0];
+  return (AUDIT_RULE_GROUPS.find((group) => group.id === prefix)?.id ?? "identity") as AuditRuleGroupId;
+}
 
 const SEVERITY_ORDER: Record<Severity, number> = {
   critical: 0,
@@ -56,9 +94,9 @@ const SEVERITY_ORDER: Record<Severity, number> = {
 
 const SEVERITIES: Severity[] = ["critical", "high", "medium", "low", "info"];
 
-const TERMINAL_COMPONENTS = new Set(["file", "meta_graph", "neo4j"]);
-
 const FALLBACK_OPERATORS = new Set(["coalesce", "default_to"]);
+
+const MAX_UPSTREAM_HOPS = 64;
 
 type PropertyEntry = {
   kind: EntityKind;
@@ -68,6 +106,10 @@ type PropertyEntry = {
   propertyPointer: string;
   abstract: boolean;
 };
+
+// ---------------------------------------------------------------------------
+// Deterministic identity helpers
+// ---------------------------------------------------------------------------
 
 function pointerSegment(value: string): string {
   return value.replace(/~/g, "~0").replace(/\//g, "~1");
@@ -139,43 +181,14 @@ function nonEmpty(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
 }
 
-function hasAnnotations(value: { annotations?: unknown } | undefined): boolean {
-  return Boolean(value && Array.isArray(value.annotations) && value.annotations.length > 0);
-}
+// ---------------------------------------------------------------------------
+// Types, expressions and semantics
+// ---------------------------------------------------------------------------
 
-function hasDocumentation(value: {
-  description?: unknown;
-  annotations?: unknown;
-} | undefined): boolean {
-  return Boolean(value && (nonEmpty(value.description) || hasAnnotations(value)));
-}
-
-function assetHasDocumentation(asset: {
-  description?: unknown;
-  annotations?: unknown;
-  semantics?: {
-    subject?: unknown;
-    coverage?: unknown;
-    authority?: unknown;
-    basis?: unknown;
-    title?: unknown;
-    description?: unknown;
-    claims?: unknown[];
-    limitations?: unknown[];
-  };
-}): boolean {
-  if (hasDocumentation(asset)) return true;
-  const semantics = asset.semantics;
-  if (!semantics) return false;
-  return (
-    nonEmpty(semantics.subject) ||
-    nonEmpty(semantics.coverage) ||
-    nonEmpty(semantics.authority) ||
-    nonEmpty(semantics.basis) ||
-    nonEmpty(semantics.title) ||
-    nonEmpty(semantics.description) ||
-    Boolean(semantics.claims?.length) ||
-    Boolean(semantics.limitations?.length)
+function hasSemanticUnits(semantics: SemanticsDTO | undefined): boolean {
+  return Boolean(
+    semantics &&
+      ((semantics.claims?.length ?? 0) > 0 || (semantics.frames?.length ?? 0) > 0),
   );
 }
 
@@ -184,9 +197,18 @@ function isNullableLogicalType(value: unknown): boolean {
   return (value as { kind?: unknown }).kind === "nullable";
 }
 
+function unwrapNullable(value: LogicalType | undefined): LogicalType | undefined {
+  let current = value;
+  const seen = new Set<LogicalType>();
+  while (current && current.kind === "nullable" && current.value && !seen.has(current)) {
+    seen.add(current);
+    current = current.value;
+  }
+  return current;
+}
+
 function expressionIsNullable(expression: Expression | undefined): boolean {
-  if (!expression) return false;
-  return isNullableLogicalType(expression.logical_type);
+  return Boolean(expression && isNullableLogicalType(expression.logical_type));
 }
 
 function expressionNarrowsNull(expression: Expression | undefined): boolean {
@@ -199,16 +221,65 @@ function expressionNarrowsNull(expression: Expression | undefined): boolean {
   return narrowed;
 }
 
-function fallbackLiterals(expression: Expression | undefined): unknown[] {
-  const values: unknown[] = [];
+function fallbackOperators(expression: Expression | undefined): string[] {
+  const operators = new Set<string>();
   walkExpression(expression, (node) => {
     if (node.kind !== "operation") return;
-    if (!FALLBACK_OPERATORS.has(node.operator.at(-1) ?? "")) return;
-    for (const argument of node.arguments ?? []) {
-      if (argument.kind === "literal") values.push(argument.value);
-    }
+    const name = node.operator.at(-1) ?? "";
+    if (FALLBACK_OPERATORS.has(name)) operators.add(name);
+  });
+  return [...operators].sort();
+}
+
+/**
+ * A key is a fallback when it uses `default_to`/`coalesce`, when it is a
+ * literal, or when it is a constant-only expression. A legitimate namespace
+ * literal inside a `concat` that still references a field is not a fallback.
+ */
+function keyUsesFallback(expression: Expression | undefined): {
+  operators: string[];
+  literalOnly: boolean;
+} {
+  if (!expression) return { operators: [], literalOnly: false };
+  const operators = fallbackOperators(expression);
+  const literals = collectLiteralValues(expression);
+  const fields = collectFieldRefs(expression);
+  const literalOnly =
+    literals.length > 0 && fields.length === 0 && expression.kind !== "field";
+  const fallbackWithLiteral =
+    operators.length > 0 &&
+    walkExpressionHasLiteralInsideFallback(expression);
+  return {
+    operators,
+    literalOnly: literalOnly || fallbackWithLiteral,
+  };
+}
+
+function collectLiteralValues(expression: Expression | undefined): unknown[] {
+  const values: unknown[] = [];
+  walkExpression(expression, (node) => {
+    if (node.kind === "literal") values.push(node.value);
   });
   return values;
+}
+
+function walkExpressionHasLiteralInsideFallback(expression: Expression): boolean {
+  let found = false;
+  const visit = (node: Expression) => {
+    if (found) return;
+    if (node.kind !== "operation") return;
+    const name = node.operator.at(-1) ?? "";
+    if (
+      FALLBACK_OPERATORS.has(name) &&
+      (node.arguments ?? []).some((argument) => argument.kind === "literal")
+    ) {
+      found = true;
+      return;
+    }
+    for (const argument of node.arguments ?? []) visit(argument);
+  };
+  visit(expression);
+  return found;
 }
 
 function formatLiteral(value: unknown): string {
@@ -221,6 +292,64 @@ function formatLiteral(value: unknown): string {
     return String(value);
   }
 }
+
+function describeType(type: LogicalType | undefined): string {
+  if (!type) return "unknown";
+  if (type.kind === "nullable") return `${describeType(type.value)} | None`;
+  if (type.kind === "unit") return type.name ? `unit<${type.name}>` : "unit";
+  if (type.kind === "array") return `array<${describeType(type.item)}>`;
+  if (type.kind === "struct") return type.name ? `struct<${type.name}>` : "struct";
+  return type.name ? `${type.kind}<${type.name}>` : type.kind;
+}
+
+function isAssignableType(
+  source: LogicalType | undefined,
+  target: LogicalType | undefined,
+  seen: Set<string> = new Set(),
+): boolean {
+  const from = unwrapNullable(source);
+  const to = unwrapNullable(target);
+  if (!from || !to) return true;
+  if (to.kind === "any" || to.kind === "unknown") return true;
+  if (from.kind === "any" || from.kind === "unknown") return true;
+  if (from.kind !== to.kind) return false;
+
+  const key = `${stableStringify(from)}->${stableStringify(to)}`;
+  if (seen.has(key)) return true;
+  seen.add(key);
+
+  if (from.kind === "unit") {
+    if (from.name && to.name && from.name !== to.name) return false;
+    return true;
+  }
+  if (from.kind === "array") {
+    if (!from.item || !to.item) return true;
+    return isAssignableType(from.item, to.item, seen);
+  }
+  if (from.kind === "struct") {
+    if (from.qualname && to.qualname && from.qualname !== to.qualname) return false;
+    if (from.name && to.name && from.name !== to.name) return false;
+    return true;
+  }
+  return true;
+}
+
+function expressionLogicalType(
+  index: ViewerIndex,
+  expression: Expression | undefined,
+): LogicalType | undefined {
+  if (!expression) return undefined;
+  if (expression.logical_type) return expression.logical_type;
+  for (const fieldRef of collectFieldRefs(expression)) {
+    const location = index.fieldsByKey.get(fieldRefKey(fieldRef));
+    if (location?.field.logical_type) return location.field.logical_type;
+  }
+  return undefined;
+}
+
+// ---------------------------------------------------------------------------
+// Topology and workflow helpers
+// ---------------------------------------------------------------------------
 
 function topologyEntries(index: ViewerIndex): PropertyEntry[] {
   const entries: PropertyEntry[] = [];
@@ -251,6 +380,30 @@ function topologyEntries(index: ViewerIndex): PropertyEntry[] {
   return entries;
 }
 
+function componentPointer(index: ViewerIndex, kind: EntityKind, name: string): string {
+  const list = kind === "node" ? index.blueprint.graph?.nodes : index.blueprint.graph?.edges;
+  const position = (list ?? []).findIndex((component) => component.name === name);
+  return `${kind === "node" ? "/graph/nodes" : "/graph/edges"}/${Math.max(position, 0)}`;
+}
+
+function propertyPointer(
+  index: ViewerIndex,
+  kind: EntityKind,
+  component: string,
+  property: string,
+): string {
+  const list = kind === "node" ? index.blueprint.graph?.nodes : index.blueprint.graph?.edges;
+  const componentIndex = (list ?? []).findIndex((entry) => entry.name === component);
+  const componentEntry = componentIndex >= 0 ? list?.[componentIndex] : undefined;
+  const propertyIndex = componentEntry?.properties?.findIndex(
+    (entry) => entry.name === property,
+  ) ?? -1;
+  return `${kind === "node" ? "/graph/nodes" : "/graph/edges"}/${Math.max(
+    componentIndex,
+    0,
+  )}/properties/${Math.max(propertyIndex, 0)}`;
+}
+
 function bindingPointer(index: number): string {
   return `/bindings/${index}`;
 }
@@ -259,86 +412,254 @@ function bindingPropertyPointer(index: number, property: string): string {
   return `/bindings/${index}/properties/${pointerSegment(property)}`;
 }
 
-function stepIndex(index: ViewerIndex, step: WorkflowStep | undefined): number {
-  return step ? index.workflow.steps.indexOf(step) : -1;
+function componentBindings(
+  index: ViewerIndex,
+  kind: EntityKind,
+  component: string,
+): IndexedBinding[] {
+  return index.bindings.filter(
+    (binding) => binding.kind === kind && binding.component === component,
+  );
 }
 
-function stepSubject(step: WorkflowStep): AuditSubject {
-  return {
-    kind: "step",
-    name: `${step.id[0]}/${step.id[1]}`,
-    component: step.id[0],
-    stepId: step.id,
-  };
+function bindingHasProperty(binding: IndexedBinding, property: string): boolean {
+  return Object.prototype.hasOwnProperty.call(
+    binding.binding.properties ?? {},
+    property,
+  );
 }
 
-function bindingSignature(binding: IndexedBinding): string {
-  const relations = [...relationNamesFromRowSource(binding.binding.rows)].sort();
-  const shape = stableStringify({
-    identity: binding.binding.identity ?? null,
-    sourceIdentity: binding.binding.source_identity ?? null,
-    targetIdentity: binding.binding.target_identity ?? null,
-    properties: binding.binding.properties ?? {},
-  });
-  return `${relations.join("|")}::${shape}`;
+function componentObject(
+  index: ViewerIndex,
+  kind: EntityKind,
+  name: string,
+): TopologyNode | TopologyEdge | undefined {
+  return kind === "node"
+    ? index.topologyNodesByName.get(name)
+    : index.topologyEdgesByName.get(name);
 }
 
-function failureText(failure: unknown): string {
-  if (typeof failure === "string") return failure;
-  if (failure && typeof failure === "object") {
-    const record = failure as Record<string, unknown>;
-    for (const key of ["message", "detail", "error", "reason"]) {
-      if (typeof record[key] === "string") return record[key] as string;
-    }
-    return stableStringify(failure).slice(0, 300);
+function parentName(component: TopologyNode | TopologyEdge | undefined): string | undefined {
+  return component?.parent?.[2];
+}
+
+/** Ancestor components, nearest first, with cycle protection. */
+function ancestorsOf(
+  index: ViewerIndex,
+  kind: EntityKind,
+  component: TopologyNode | TopologyEdge | undefined,
+): Array<TopologyNode | TopologyEdge> {
+  const result: Array<TopologyNode | TopologyEdge> = [];
+  const seen = new Set<string>();
+  let parent = parentName(component);
+  while (parent && !seen.has(parent)) {
+    seen.add(parent);
+    const ancestor = componentObject(index, kind, parent);
+    if (!ancestor) break;
+    result.push(ancestor);
+    parent = parentName(ancestor);
   }
-  return String(failure);
+  return result;
 }
 
-function failureSubject(failure: unknown): AuditSubject | undefined {
-  if (!failure || typeof failure !== "object") return undefined;
-  const record = failure as Record<string, unknown>;
-  const component =
-    typeof record.component === "string" ? record.component : undefined;
-  const step = typeof record.step === "string" ? record.step : undefined;
-  if (!component && !step) return undefined;
-  return {
-    kind: "step",
-    name: step ? `${component ?? ""}/${step}` : String(component),
-    ...(component ? { component } : {}),
-    ...(step ? { stepId: [component ?? "", step] as [string, string] } : {}),
-  };
+function isConcreteDescendant(
+  index: ViewerIndex,
+  kind: EntityKind,
+  name: string,
+  abstractName: string,
+): boolean {
+  const component = componentObject(index, kind, name);
+  if (!component || component.abstract === true) return false;
+  return ancestorsOf(index, kind, component).some(
+    (ancestor) => ancestor.name === abstractName,
+  );
 }
 
-function readVersionMap(
-  provenance: Record<string, unknown> | null | undefined,
-): Record<string, unknown> | undefined {
-  if (!provenance) return undefined;
-  for (const key of ["component_versions", "componentVersions", "versions", "components"]) {
-    const value = provenance[key];
-    if (value && typeof value === "object" && !Array.isArray(value)) {
-      return value as Record<string, unknown>;
+function hasUpstreamSourceStep(index: ViewerIndex, start: WorkflowStep | undefined): boolean {
+  if (!start) return false;
+  const queue: Array<{ step: WorkflowStep; hops: number }> = [{ step: start, hops: 0 }];
+  const visited = new Set<string>([`${start.id[0]}\u0000${start.id[1]}`]);
+  while (queue.length) {
+    const current = queue.shift();
+    if (!current || current.hops > MAX_UPSTREAM_HOPS) continue;
+    const step = current.step;
+    if (
+      (step.outputs ?? []).some(
+        (output) =>
+          output.type[2] === "table" ||
+          output.type[1] === "source" ||
+          output.type[0] === "source",
+      ) ||
+      step.instruction.kind[0] === "source_relation"
+    ) {
+      return true;
+    }
+    const key = `${step.id[0]}\u0000${step.id[1]}`;
+    for (const connection of index.incomingByStepId.get(key) ?? []) {
+      const upstream = index.stepsById.get(
+        `${connection.outputStepId[0]}\u0000${connection.outputStepId[1]}`,
+      );
+      if (!upstream) continue;
+      const upstreamKey = `${upstream.id[0]}\u0000${upstream.id[1]}`;
+      if (visited.has(upstreamKey)) continue;
+      visited.add(upstreamKey);
+      queue.push({ step: upstream, hops: current.hops + 1 });
     }
   }
-  return undefined;
+  return false;
 }
 
-function percentage(value: number, total: number): number {
-  return total > 0 ? (value / total) * 100 : 100;
+function allBindingExpressions(binding: IndexedBinding): Expression[] {
+  return [
+    binding.binding.identity,
+    binding.binding.source_identity,
+    binding.binding.target_identity,
+    ...Object.values(binding.binding.properties ?? {}),
+  ].filter((expression): expression is Expression => Boolean(expression));
 }
 
-function rounded(value: number): number {
-  return Math.round(value * 10) / 10;
+function sourceRelations(binding: IndexedBinding): string[] {
+  return relationNamesFromRowSource(binding.binding.rows).sort();
 }
+
+// ---------------------------------------------------------------------------
+// Semantic subject pointers
+// ---------------------------------------------------------------------------
+
+function semanticPointer(index: ViewerIndex, subject: SemanticSubject): string {
+  switch (subject.kind) {
+    case "graph":
+      return "/graph_declaration";
+    case "asset":
+      return `/assets/${Math.max(index.assets.findIndex((asset) => asset.name === subject.name), 0)}`;
+    case "relation":
+      return `/data/relations/${Math.max(
+        (index.blueprint.data?.relations ?? []).findIndex(
+          (relation) => relation.name === subject.name,
+        ),
+        0,
+      )}`;
+    case "projection":
+      return `/data/projections/${Math.max(
+        (index.blueprint.data?.projections ?? []).findIndex(
+          (projection) => projection.name === subject.name,
+        ),
+        0,
+      )}`;
+    case "struct":
+      return `/data/structs/${Math.max(
+        (index.blueprint.data?.structs ?? []).findIndex(
+          (struct) => struct.name === subject.name,
+        ),
+        0,
+      )}`;
+    case "field": {
+      const [, ownerKind, ownerName] = subject.key.split("\u0000");
+      const collection =
+        ownerKind === "projection"
+          ? index.blueprint.data?.projections
+          : ownerKind === "struct"
+            ? index.blueprint.data?.structs
+            : index.blueprint.data?.relations;
+      const base =
+        ownerKind === "projection"
+          ? "/data/projections"
+          : ownerKind === "struct"
+            ? "/data/structs"
+            : "/data/relations";
+      const ownerIndex = (collection ?? []).findIndex((owner) => owner.name === ownerName);
+      const owner = ownerIndex >= 0 ? collection?.[ownerIndex] : undefined;
+      const fieldIndex = owner?.columns?.findIndex((field) => field.name === subject.name) ?? -1;
+      return `${base}/${Math.max(ownerIndex, 0)}/columns/${Math.max(fieldIndex, 0)}`;
+    }
+    case "node":
+    case "edge":
+      return componentPointer(index, subject.kind, subject.name);
+    case "property": {
+      const [, entityKind, component, property] = subject.key.split("\u0000");
+      return propertyPointer(
+        index,
+        entityKind === "edge" ? "edge" : "node",
+        component,
+        property,
+      );
+    }
+    case "binding":
+      return bindingPointer(subject.bindingIndex ?? 0);
+  }
+}
+
+function semanticSubjectForFinding(subject: SemanticSubject): AuditSubject {
+  switch (subject.kind) {
+    case "graph":
+    case "struct":
+      return {
+        kind: subject.kind as AuditSubject["kind"],
+        name: subject.name,
+        component: subject.name,
+      };
+    case "field":
+      return {
+        kind: subject.kind as AuditSubject["kind"],
+        name: subject.name,
+        component: subject.ownerName ?? subject.name,
+      };
+    case "property":
+      return {
+        kind: "property",
+        name: subject.ownerName ?? subject.name,
+        component: subject.ownerName ?? subject.name,
+        property: subject.name,
+        ...(subject.entityKind ? { entityKind: subject.entityKind } : {}),
+      };
+    case "binding":
+      return {
+        kind: "binding",
+        name: subject.name,
+        component: subject.ref?.[2] ?? subject.name,
+        ...(subject.entityKind ? { entityKind: subject.entityKind } : {}),
+        ...(subject.bindingIndex !== undefined
+          ? { bindingIndex: subject.bindingIndex }
+          : {}),
+      };
+    case "node":
+    case "edge":
+      return {
+        kind: subject.kind,
+        name: subject.name,
+        component: subject.name,
+        entityKind: subject.kind,
+      };
+    case "asset":
+    case "relation":
+    case "projection":
+      return {
+        kind: subject.kind,
+        name: subject.name,
+        component: subject.name,
+      };
+  }
+}
+
+function semanticSeverity(kind: SemanticSubject["kind"]): Severity {
+  return kind === "field" || kind === "property" || kind === "binding"
+    ? "low"
+    : "medium";
+}
+
+// ---------------------------------------------------------------------------
+// Report
+// ---------------------------------------------------------------------------
 
 /**
- * Build the audit report for a loaded snapshot.
+ * Build the deterministic audit report for a loaded snapshot.
  *
- * `review` only contributes open design decisions: they become review questions
- * with the sidecar's own evidence. No sidecar claim is promoted to a finding
- * that the snapshot itself does not support.
+ * `review` is accepted for the ledger contract. Decisions are review state, not
+ * snapshot facts, so they never become audit findings; the view reads the same
+ * sidecar to show a decision status beside a finding.
  */
 export function buildAudit(index: ViewerIndex, review?: ReviewSidecar): AuditReport {
+  void review;
   const findings = new Map<string, AuditFinding>();
   const push = (draft: Omit<AuditFinding, "id">): void => {
     const id = stableFindingId(draft.rule, draft.subject, draft.evidence);
@@ -348,307 +669,274 @@ export function buildAudit(index: ViewerIndex, review?: ReviewSidecar): AuditRep
   const entries = topologyEntries(index);
 
   // -----------------------------------------------------------------------
-  // Property-level rules
+  // graph.purpose-missing
   // -----------------------------------------------------------------------
 
-  for (const entry of entries) {
-    const propertyEntries = findComponentPropertyBindings(
-      index,
-      entry.kind,
-      entry.component,
-      entry.property.name,
-    );
-
-    // literal-only-property
-    const expressions = propertyEntries
-      .map((candidate) => candidate.expression)
-      .filter((expression): expression is Expression => Boolean(expression));
-    if (expressions.length && expressions.every((expression) => collectFieldRefs(expression).length === 0)) {
-      const subject: AuditSubject = {
-        kind: "property",
-        name: entry.component,
-        component: entry.component,
-        property: entry.property.name,
-        entityKind: entry.kind,
-        ...(propertyEntries[0] ? { bindingIndex: propertyEntries[0].binding.index } : {}),
-      };
-      push({
-        rule: "literal-only-property",
-        severity: "medium",
-        title: `Property "${entry.component}.${entry.property.name}" is defined only by literals`,
-        detail: `The property has no field reference to a source relation: ${expressions
-          .map((expression) => expressionPreview(expression))
-          .join(", ")}.`,
-        subject,
-        evidence: [
-          evidence(
-            "property declaration",
-            "blueprint",
-            entry.propertyPointer,
-            entry.property.ref,
-          ),
-          ...propertyEntries.map((candidate) =>
-            evidence(
-              `binding ${candidate.binding.index} property expression`,
-              "blueprint",
-              bindingPropertyPointer(candidate.binding.index, entry.property.name),
-            ),
-          ),
-        ],
-        tags: ["literal", "traceability"],
-      });
-    }
-
-    // unreachable-lineage. Abstract components are intentionally unbound, so
-    // their inherited properties are not reported as broken lineage.
-    if (!propertyEntries.length) {
-      if (!entry.abstract) {
-        push({
-          rule: "unreachable-lineage",
-          severity: "high",
-          title: `Property "${entry.component}.${entry.property.name}" has no binding`,
-          detail:
-            "No blueprint binding declares an expression for this topology property, so its lineage cannot be resolved.",
-          question: `Property "${entry.component}.${entry.property.name}" has no binding. Is the property intentionally unbound, or was its binding omitted?`,
-          subject: {
-            kind: "property",
-            name: entry.component,
-            component: entry.component,
-            property: entry.property.name,
-            entityKind: entry.kind,
-          },
-          evidence: [
-            evidence(
-              "property declaration",
-              "blueprint",
-              entry.propertyPointer,
-              entry.property.ref,
-            ),
-          ],
-          tags: ["lineage", "traceability"],
-        });
-      }
-    } else if (!entry.abstract) {
-      const hasBindingStep = propertyEntries.some((candidate) => Boolean(candidate.binding.step));
-      const hasFieldRefs = propertyEntries.some(
-        (candidate) => candidate.fieldRefs.length > 0,
-      );
-      if (!hasBindingStep) {
-        push({
-          rule: "unreachable-lineage",
-          severity: "high",
-          title: `Property "${entry.component}.${entry.property.name}" has no binding step`,
-          detail:
-            "A blueprint binding exists but no workflow step produces its binding artifact, so the property cannot be traced to a source.",
-          question: `Property "${entry.component}.${entry.property.name}" has a binding but no workflow step. Which step is supposed to produce it?`,
-          subject: {
-            kind: "property",
-            name: entry.component,
-            component: entry.component,
-            property: entry.property.name,
-            entityKind: entry.kind,
-            bindingIndex: propertyEntries[0].binding.index,
-          },
-          evidence: propertyEntries.map((candidate) =>
-            evidence(
-              `binding ${candidate.binding.index}`,
-              "blueprint",
-              bindingPointer(candidate.binding.index),
-            ),
-          ),
-          tags: ["lineage", "traceability"],
-        });
-      } else if (hasFieldRefs) {
-        const graph = buildLineage(
-          index,
-          propertySelection(entry.kind, entry.component, entry.property.name),
-        );
-        const reachable = graph.branches.some(
-          (branch) =>
-            branch.sourceRelations.length > 0 || branch.sourceSteps.length > 0,
-        );
-        if (!reachable) {
-          push({
-            rule: "unreachable-lineage",
-            severity: "high",
-            title: `Property "${entry.component}.${entry.property.name}" has no path to a source`,
-            detail:
-              "The property expression references fields but no source relation or source step is reachable through the workflow.",
-            question: `Property "${entry.component}.${entry.property.name}" references fields without a reachable source. Where does this value actually come from?`,
-            subject: {
-              kind: "property",
-              name: entry.component,
-              component: entry.component,
-              property: entry.property.name,
-              entityKind: entry.kind,
-              bindingIndex: propertyEntries[0].binding.index,
-            },
-            evidence: propertyEntries.map((candidate) =>
-              evidence(
-                `binding ${candidate.binding.index} property expression`,
-                "blueprint",
-                bindingPropertyPointer(candidate.binding.index, entry.property.name),
-              ),
-            ),
-            tags: ["lineage", "traceability"],
-          });
-        }
-      }
-    }
-
-    // missing-description for properties
-    if (!hasDocumentation(entry.property)) {
-      push({
-        rule: "missing-description",
-        severity: "low",
-        title: `Property "${entry.component}.${entry.property.name}" has no description or annotation`,
-        detail:
-          "The topology property carries neither a description nor an annotation. A reviewer cannot tell what the field means from the snapshot alone.",
-        subject: {
-          kind: "property",
-          name: entry.component,
-          component: entry.component,
-          property: entry.property.name,
-          entityKind: entry.kind,
-        },
-        evidence: [
-          evidence(
-            "property declaration",
-            "blueprint",
-            entry.propertyPointer,
-            entry.property.ref,
-          ),
-        ],
-        tags: ["documentation"],
-      });
-    }
-  }
-
-  // -----------------------------------------------------------------------
-  // Binding-level rules
-  // -----------------------------------------------------------------------
-
-  // A fallback is a property-level observation, not a per-binding one. A
-  // multi-source property such as reading.summary is one review item with one
-  // evidence ref per contributing binding.
-  const fallbacks = new Map<
-    string,
-    {
-      component: string;
-      property: string;
-      entityKind: EntityKind;
-      bindings: Set<number>;
-      values: Set<string>;
-    }
-  >();
-  for (const binding of index.bindings) {
-    for (const [propertyName, expression] of Object.entries(
-      binding.binding.properties ?? {},
-    )) {
-      const literals = fallbackLiterals(expression);
-      if (!literals.length) continue;
-      const key = `${binding.component}\u0000${propertyName}\u0000${binding.kind}`;
-      const entry = fallbacks.get(key) ?? {
-        component: binding.component,
-        property: propertyName,
-        entityKind: binding.kind,
-        bindings: new Set<number>(),
-        values: new Set<string>(),
-      };
-      entry.bindings.add(binding.index);
-      for (const literal of literals) entry.values.add(formatLiteral(literal));
-      fallbacks.set(key, entry);
-    }
-  }
-
-  for (const entry of fallbacks.values()) {
-    const bindingIndexes = [...entry.bindings].sort((left, right) => left - right);
-    const values = [...entry.values].sort();
+  const declaration = index.graphDeclaration;
+  if (!declaration || !nonEmpty(declaration.semantics?.purpose?.text)) {
     const subject: AuditSubject = {
-      kind: "property",
-      name: entry.component,
-      component: entry.component,
-      property: entry.property,
-      entityKind: entry.entityKind,
-      ...(bindingIndexes.length === 1
-        ? { bindingIndex: bindingIndexes[0] }
-        : {}),
+      kind: "graph" as AuditSubject["kind"],
+      name: declaration?.name ?? index.snapshot.name,
+      component: declaration?.name ?? index.snapshot.name,
     };
     push({
-      rule: "hard-coded-fallback",
-      severity: "medium",
-      title: `Property "${entry.component}.${entry.property}" falls back to ${values.join(", ")}`,
-      detail: `The property supplies hard-coded fallback${values.length === 1 ? "" : "s"} when the source value is absent: ${values.join(", ")}.`,
-      question: `Property "${entry.component}.${entry.property}" falls back to ${values.join(", ")} when the source is missing. Is a visible default the intended semantic, or should the property stay absent?`,
+      rule: "graph.purpose-missing",
+      severity: "critical",
+      title: declaration
+        ? `Graph "${declaration.name}" has no purpose`
+        : "Snapshot has no graph declaration",
+      detail: declaration
+        ? "The graph declaration carries an empty or missing purpose. A consumer cannot tell what the graph is for."
+        : "The blueprint has no graph declaration, so the graph has no stated purpose.",
+      question: "What is this graph for, and which declaration states that purpose?",
       subject,
-      evidence: bindingIndexes.map((bindingIndex) =>
+      evidence: [
         evidence(
-          "binding property expression",
+          declaration ? "graph declaration" : "graph declaration (absent)",
           "blueprint",
-          bindingPropertyPointer(bindingIndex, entry.property),
+          "/graph_declaration",
         ),
-      ),
-      tags: ["fallback", "determinism"],
+      ],
+      tags: ["graph", "purpose", "semantics"],
     });
   }
 
+  // -----------------------------------------------------------------------
+  // Identity rules
+  // -----------------------------------------------------------------------
+
   for (const binding of index.bindings) {
-    // nullable-identity
+    const subject: AuditSubject = {
+      kind: binding.kind,
+      name: binding.component,
+      component: binding.component,
+      entityKind: binding.kind,
+      bindingIndex: binding.index,
+    };
     const identity = binding.binding.identity;
-    if (identity && expressionIsNullable(identity) && !expressionNarrowsNull(identity)) {
+    const identityEvidence = [
+      evidence("binding identity", "blueprint", `${bindingPointer(binding.index)}/identity`),
+    ];
+
+    const keyRoles = (
+      [
+        ["identity", binding.binding.identity],
+        ["source_identity", binding.binding.source_identity],
+        ["target_identity", binding.binding.target_identity],
+      ] as const
+    ).filter(([, expression]) => Boolean(expression));
+
+    const fallbackRoles: Array<{
+      role: string;
+      mechanism: string;
+      expression: Expression;
+    }> = [];
+    for (const [role, expression] of keyRoles) {
+      if (!expression) continue;
+      const fallback = keyUsesFallback(expression);
+      if (!fallback.operators.length && !fallback.literalOnly) continue;
+      const mechanism = [
+        ...fallback.operators,
+        ...(fallback.literalOnly && !fallback.operators.length ? ["literal key"] : []),
+      ].join(", ");
+      fallbackRoles.push({ role, mechanism, expression });
+    }
+    if (fallbackRoles.length) {
+      const roles = fallbackRoles.map((entry) => entry.role).join(", ");
+      const mechanisms = [...new Set(fallbackRoles.map((entry) => entry.mechanism))].join(", ");
       push({
-        rule: "nullable-identity",
+        rule: "identity.key-fallback",
         severity: "high",
-        title: `Identity of ${binding.kind} "${binding.component}" is not narrowed with drop_null`,
-        detail: `Binding ${binding.index} uses a nullable identity expression without drop_null: ${expressionPreview(identity)}.`,
-        question: `Binding ${binding.index} targets ${binding.kind} "${binding.component}" with an identity that can be null. Should rows with a missing identity be dropped, or is a null key meaningful?`,
-        subject: {
-          kind: binding.kind,
-          name: binding.component,
-          component: binding.component,
-          entityKind: binding.kind,
-          bindingIndex: binding.index,
-        },
-        evidence: [
-          evidence("binding identity", "blueprint", `${bindingPointer(binding.index)}/identity`),
-        ],
-        tags: ["identity", "nullability"],
+        title: `Identity of ${binding.kind} "${binding.component}" falls back to a constant`,
+        detail: `Binding ${binding.index} builds ${roles} with ${mechanisms}: ${fallbackRoles
+          .map((entry) => `${entry.role} = ${expressionPreview(entry.expression)}`)
+          .join("; ")}. A fallback constant lets distinct source rows share one identity.`,
+        question: `The ${binding.kind} "${binding.component}" key uses ${mechanisms}. Is a fallback identity intended, or should a row without a real key be rejected?`,
+        subject,
+        evidence: fallbackRoles.map((entry) =>
+          evidence(
+            `binding ${entry.role}`,
+            "blueprint",
+            `${bindingPointer(binding.index)}/${entry.role}`,
+          ),
+        ),
+        tags: ["identity", "fallback", "determinism"],
       });
     }
 
-    // shared-nullable-key
+    if (identity) {
+      if (expressionIsNullable(identity) && !expressionNarrowsNull(identity)) {
+        push({
+          rule: "identity.nullable-key",
+          severity: "high",
+          title: `Identity of ${binding.kind} "${binding.component}" is nullable`,
+          detail: `Binding ${binding.index} uses a nullable identity without drop_null: ${expressionPreview(identity)}.`,
+          question: `The ${binding.kind} "${binding.component}" identity can be null. Should rows with a missing identity be dropped?`,
+          subject,
+          evidence: identityEvidence,
+          tags: ["identity", "nullability"],
+        });
+      }
+    }
+
     if (binding.kind === "edge") {
-      for (const key of ["source_identity", "target_identity"] as const) {
-        const endpoint = binding.binding[key];
-        if (!endpoint || !expressionIsNullable(endpoint) || expressionNarrowsNull(endpoint)) {
+      const missing: string[] = [];
+      const endpointEvidence: EvidenceRef[] = [];
+      for (const role of ["source_identity", "target_identity"] as const) {
+        const endpoint = binding.binding[role];
+        const endpointName = role.replace("_identity", "");
+        if (!endpoint) {
+          missing.push(endpointName);
+          endpointEvidence.push(
+            evidence(`binding ${role} (absent)`, "blueprint", `${bindingPointer(binding.index)}/${role}`),
+          );
           continue;
         }
+        endpointEvidence.push(
+          evidence(`binding ${role}`, "blueprint", `${bindingPointer(binding.index)}/${role}`),
+        );
+        if (expressionIsNullable(endpoint) && !expressionNarrowsNull(endpoint)) {
+          push({
+            rule: "identity.edge-endpoint-nullable",
+            severity: "high",
+            title: `Edge "${binding.component}" has a nullable ${endpointName} identity`,
+            detail: `Binding ${binding.index} ${endpointName} identity is nullable and is not narrowed: ${expressionPreview(endpoint)}.`,
+            question: `The ${endpointName} endpoint of edge "${binding.component}" can be null. Should the relationship be dropped when either endpoint is absent?`,
+            subject: { ...subject, name: `${binding.component}.${endpointName}` },
+            evidence: [
+              evidence(
+                `binding ${role}`,
+                "blueprint",
+                `${bindingPointer(binding.index)}/${role}`,
+              ),
+            ],
+            tags: ["identity", "edge", "nullability"],
+          });
+        }
+      }
+      if (missing.length) {
         push({
-          rule: "shared-nullable-key",
-          severity: "medium",
-          title: `Edge "${binding.component}" has a nullable ${key.replace("_identity", "")} key`,
-          detail: `Binding ${binding.index} ${key.replace("_identity", "")} endpoint is not narrowed with drop_null: ${expressionPreview(endpoint)}.`,
-          subject: {
-            kind: "edge",
-            name: binding.component,
-            component: binding.component,
-            entityKind: "edge",
-            bindingIndex: binding.index,
-          },
-          evidence: [
-            evidence(
-              `binding ${key}`,
-              "blueprint",
-              `${bindingPointer(binding.index)}/${key}`,
-            ),
-          ],
-          tags: ["identity", "edge", "nullability"],
+          rule: "identity.missing-endpoint",
+          severity: "high",
+          title: `Edge "${binding.component}" has no ${missing.join(" or ")} identity`,
+          detail: `Binding ${binding.index} does not declare ${missing.join(" and ")} identity for the edge, so the relationship endpoint cannot be resolved.`,
+          question: `Edge "${binding.component}" is missing ${missing.join(" and ")} identity. Which fields identify its endpoints?`,
+          subject,
+          evidence: endpointEvidence,
+          tags: ["identity", "edge", "endpoint"],
         });
       }
     }
   }
 
-  // multi-source-component and duplicate-target
+  // Unbound concrete components.
+  const components = [...(index.blueprint.graph?.nodes ?? []), ...(index.blueprint.graph?.edges ?? [])];
+  for (const component of components) {
+    if (component.abstract === true) continue;
+    const kind: EntityKind = index.topologyNodesByName.has(component.name) &&
+      index.topologyNodesByName.get(component.name) === component
+      ? "node"
+      : "edge";
+    const bindings = componentBindings(index, kind, component.name);
+    if (bindings.length) continue;
+    push({
+      rule: "identity.unbound-component",
+      severity: "high",
+      title: `Concrete ${kind} "${component.name}" has no binding`,
+      detail: `No blueprint binding produces the concrete ${kind} "${component.name}", so it has no rows or identity.`,
+      question: `Concrete ${kind} "${component.name}" has no binding. Is it intentionally unpopulated, or was its producer omitted?`,
+      subject: {
+        kind,
+        name: component.name,
+        component: component.name,
+        entityKind: kind,
+      },
+      evidence: [
+        evidence(`${kind} declaration`, "blueprint", componentPointer(index, kind, component.name)),
+      ],
+      tags: ["identity", "binding", "coverage"],
+    });
+  }
+
+  // Abstract categories without a concrete producer.
+  for (const component of components) {
+    if (component.abstract !== true) continue;
+    const kind: EntityKind =
+      index.topologyNodesByName.get(component.name) === component ? "node" : "edge";
+    const ownBinding = componentBindings(index, kind, component.name).length > 0;
+    const descendant = components.some(
+      (candidate) =>
+        candidate !== component &&
+        isConcreteDescendant(index, kind, candidate.name, component.name),
+    );
+    if (ownBinding || descendant) continue;
+    push({
+      rule: "identity.abstract-no-producer",
+      severity: "medium",
+      title: `Abstract ${kind} "${component.name}" has no concrete producer`,
+      detail: `The abstract category "${component.name}" declares no binding and no concrete ${kind} descends from it.`,
+      question: `Abstract ${kind} "${component.name}" has no concrete child or binding. Is the category intentionally empty?`,
+      subject: {
+        kind,
+        name: component.name,
+        component: component.name,
+        entityKind: kind,
+      },
+      evidence: [
+        evidence(`${kind} declaration`, "blueprint", componentPointer(index, kind, component.name)),
+      ],
+      tags: ["identity", "abstract", "coverage"],
+    });
+  }
+
+  // Inherited properties on concrete components.
+  for (const component of components) {
+    if (component.abstract === true) continue;
+    const kind: EntityKind =
+      index.topologyNodesByName.get(component.name) === component ? "node" : "edge";
+    const bindings = componentBindings(index, kind, component.name);
+    const localProperties = new Set((component.properties ?? []).map((property) => property.name));
+    const seen = new Set<string>();
+    for (const ancestor of ancestorsOf(index, kind, component)) {
+      for (const property of ancestor.properties ?? []) {
+        if (localProperties.has(property.name) || seen.has(property.name)) continue;
+        seen.add(property.name);
+        if (bindings.some((binding) => bindingHasProperty(binding, property.name))) continue;
+        push({
+          rule: "identity.inherited-property-missing",
+          severity: "high",
+          title: `Concrete ${kind} "${component.name}" does not bind inherited property "${property.name}"`,
+          detail: `Property "${property.name}" is inherited from abstract ${kind} "${ancestor.name}", but no binding for "${component.name}" declares it.`,
+          question: `The ${kind} "${component.name}" inherits "${property.name}" from "${ancestor.name}". Which source expression supplies it?`,
+          subject: {
+            kind: "property",
+            name: component.name,
+            component: component.name,
+            property: property.name,
+            entityKind: kind,
+          },
+          evidence: [
+            evidence(
+              "concrete declaration",
+              "blueprint",
+              componentPointer(index, kind, component.name),
+            ),
+            evidence(
+              "inherited property",
+              "blueprint",
+              propertyPointer(index, kind, ancestor.name, property.name),
+            ),
+            ...bindings.map((binding) =>
+              evidence(`binding ${binding.index}`, "blueprint", bindingPointer(binding.index)),
+            ),
+          ],
+          tags: ["identity", "inheritance", "property"],
+        });
+      }
+    }
+  }
+
+  // Duplicate and multi-source producers.
   const bindingsByComponent = new Map<string, IndexedBinding[]>();
   for (const binding of index.bindings) {
     const key = `${binding.kind}\u0000${binding.component}`;
@@ -659,490 +947,269 @@ export function buildAudit(index: ViewerIndex, review?: ReviewSidecar): AuditRep
 
   for (const list of bindingsByComponent.values()) {
     if (list.length < 2) continue;
+    const first = list[0];
     const signatures = new Map<string, IndexedBinding[]>();
     for (const binding of list) {
-      const signature = bindingSignature(binding);
+      const signature = stableStringify(binding.binding.rows ?? null);
       const group = signatures.get(signature) ?? [];
       group.push(binding);
       signatures.set(signature, group);
     }
-    const first = list[0];
+    const subject: AuditSubject = {
+      kind: first.kind,
+      name: first.component,
+      component: first.component,
+      entityKind: first.kind,
+    };
     const bindingEvidence = list.map((binding) =>
       evidence(`binding ${binding.index}`, "blueprint", bindingPointer(binding.index)),
     );
 
     if (signatures.size > 1) {
-      const sourceNames = list
-        .map((binding) => relationNamesFromRowSource(binding.binding.rows).join("+") || "no relation")
-        .join(", ");
+      const relations = list.map((binding) => sourceRelations(binding).join("+") || "no relation");
+      const severity: Severity = new Set(relations).size > 1 ? "high" : "medium";
       push({
-        rule: "multi-source-component",
-        severity: "high",
-        title: `${first.kind === "node" ? "Node" : "Edge"} "${first.component}" is produced by ${list.length} bindings`,
-        detail: `Bindings ${list.map((binding) => binding.index).join(", ")} target the same ${first.kind} from different source branches (${sourceNames}).`,
-        question: `${first.kind === "node" ? "Node" : "Edge"} "${first.component}" is produced by ${list.length} bindings from different source branches. Are these intentionally one entity, or should they be separate ${first.kind === "node" ? "node types or entity spaces" : "relationship types"}?`,
-        subject: {
-          kind: first.kind,
-          name: first.component,
-          component: first.component,
-          entityKind: first.kind,
-        },
+        rule: "identity.multi-source-component",
+        severity,
+        title: `${first.kind === "node" ? "Node" : "Edge"} "${first.component}" is produced by ${list.length} source branches`,
+        detail: `Bindings ${list.map((binding) => binding.index).join(", ")} target the same ${first.kind} from different branches (${relations.join(", ")}).`,
+        question: `The ${first.kind} "${first.component}" is produced from multiple source branches. Are these intentionally one entity, or should they be separate ${first.kind} types?`,
+        subject,
         evidence: bindingEvidence,
-        tags: ["multi-source", "entity-identity"],
+        tags: ["identity", "multi-source", "cohesion"],
       });
     }
 
     for (const group of signatures.values()) {
       if (group.length < 2) continue;
       push({
-        rule: "duplicate-target",
+        rule: "identity.duplicate-producer",
         severity: "high",
         title: `${first.kind === "node" ? "Node" : "Edge"} "${first.component}" has ${group.length} bindings from the same branch`,
-        detail: `Bindings ${group.map((binding) => binding.index).join(", ")} produce the same ${first.kind} name from the same source signature and would merge.`,
-        question: `${first.kind === "node" ? "Node" : "Edge"} "${first.component}" is produced by ${group.length} bindings from the same source branch. Is one binding redundant, or do they differ in a way the snapshot does not show?`,
-        subject: {
-          kind: first.kind,
-          name: first.component,
-          component: first.component,
-          entityKind: first.kind,
-        },
+        detail: `Bindings ${group.map((binding) => binding.index).join(", ")} produce the same ${first.kind} from the same source branch and would merge.`,
+        question: `The ${first.kind} "${first.component}" has ${group.length} bindings from one branch. Is one binding redundant, or do they differ in a way the snapshot does not show?`,
+        subject,
         evidence: group.map((binding) =>
           evidence(`binding ${binding.index}`, "blueprint", bindingPointer(binding.index)),
         ),
-        tags: ["duplicate-target", "cohesion"],
+        tags: ["identity", "duplicate", "producer"],
       });
     }
   }
 
   // -----------------------------------------------------------------------
-  // Data and documentation rules
-  // -----------------------------------------------------------------------
-
-  const referencedOwners = new Set<string>();
-  for (const binding of index.bindings) {
-    for (const expression of Object.values(binding.binding.properties ?? {})) {
-      for (const fieldRef of collectFieldRefs(expression)) {
-        const key = fieldRefKey(fieldRef);
-        const owner = key.split(".")[0];
-        if (owner) referencedOwners.add(owner);
-      }
-    }
-  }
-
-  (index.blueprint.data?.relations ?? []).forEach((relation, relationIndex) => {
-    if (!hasDocumentation(relation)) {
-      push({
-        rule: "missing-description",
-        severity: "low",
-        title: `Relation "${relation.name}" has no description or annotation`,
-        detail:
-          "The relation carries neither a description nor an annotation.",
-        subject: { kind: "relation", name: relation.name, component: relation.name },
-        evidence: [
-          evidence("relation declaration", "blueprint", `/data/relations/${relationIndex}`),
-        ],
-        tags: ["documentation"],
-      });
-    }
-    if (!referencedOwners.has(relation.name)) {
-      push({
-        rule: "unused-relation",
-        severity: "medium",
-        title: `Relation "${relation.name}" is not referenced by any binding field`,
-        detail:
-          "No binding property expression references a field owned by this relation.",
-        subject: { kind: "relation", name: relation.name, component: relation.name },
-        evidence: [
-          evidence("relation declaration", "blueprint", `/data/relations/${relationIndex}`),
-        ],
-        tags: ["unused", "data"],
-      });
-    }
-  });
-
-  (index.blueprint.data?.projections ?? []).forEach((projection, projectionIndex) => {
-    if (!hasDocumentation(projection)) {
-      push({
-        rule: "missing-description",
-        severity: "low",
-        title: `Projection "${projection.name}" has no description or annotation`,
-        detail:
-          "The projection carries neither a description nor an annotation.",
-        subject: {
-          kind: "projection",
-          name: projection.name,
-          component: projection.name,
-        },
-        evidence: [
-          evidence(
-            "projection declaration",
-            "blueprint",
-            `/data/projections/${projectionIndex}`,
-          ),
-        ],
-        tags: ["documentation"],
-      });
-    }
-    if (!referencedOwners.has(projection.name)) {
-      push({
-        rule: "unused-relation",
-        severity: "medium",
-        title: `Projection "${projection.name}" is not referenced by any binding field`,
-        detail:
-          "No binding property expression references a field owned by this projection.",
-        subject: {
-          kind: "projection",
-          name: projection.name,
-          component: projection.name,
-        },
-        evidence: [
-          evidence(
-            "projection declaration",
-            "blueprint",
-            `/data/projections/${projectionIndex}`,
-          ),
-        ],
-        tags: ["unused", "data"],
-      });
-    }
-  });
-
-  (index.blueprint.assets ?? []).forEach((asset, assetIndex) => {
-    if (!assetHasDocumentation(asset)) {
-      push({
-        rule: "missing-description",
-        severity: "low",
-        title: `Asset "${asset.name}" has no description or annotation`,
-        detail:
-          "The asset carries neither a description, an annotation nor semantic metadata.",
-        subject: { kind: "asset", name: asset.name, component: asset.name },
-        evidence: [evidence("asset declaration", "blueprint", `/assets/${assetIndex}`)],
-        tags: ["documentation"],
-      });
-    }
-    const backsRelation = (index.blueprint.data?.relations ?? []).some(
-      (relation) =>
-        relation.asset?.[2] === asset.name ||
-        resolveAssetName(index, relation.name) === asset.name,
-    );
-    if (!backsRelation) {
-      push({
-        rule: "unused-asset",
-        severity: "low",
-        title: `Asset "${asset.name}" backs no relation`,
-        detail:
-          "No relation in the snapshot carries this asset as its source, so the asset contributes no data.",
-        subject: { kind: "asset", name: asset.name, component: asset.name },
-        evidence: [evidence("asset declaration", "blueprint", `/assets/${assetIndex}`)],
-        tags: ["unused", "asset"],
-      });
-    }
-  });
-
-  // Topology component documentation.
-  (index.blueprint.graph?.nodes ?? []).forEach((node, nodeIndex) => {
-    if (hasDocumentation(node)) return;
-    push({
-      rule: "missing-description",
-      severity: "low",
-      title: `Node "${node.name}" has no description or annotation`,
-      detail: "The topology node carries neither a description nor an annotation.",
-      subject: { kind: "node", name: node.name, component: node.name, entityKind: "node" },
-      evidence: [evidence("node declaration", "blueprint", `/graph/nodes/${nodeIndex}`)],
-      tags: ["documentation"],
-    });
-  });
-  (index.blueprint.graph?.edges ?? []).forEach((edge, edgeIndex) => {
-    if (hasDocumentation(edge)) return;
-    push({
-      rule: "missing-description",
-      severity: "low",
-      title: `Edge "${edge.name}" has no description or annotation`,
-      detail: "The topology edge carries neither a description nor an annotation.",
-      subject: { kind: "edge", name: edge.name, component: edge.name, entityKind: "edge" },
-      evidence: [evidence("edge declaration", "blueprint", `/graph/edges/${edgeIndex}`)],
-      tags: ["documentation"],
-    });
-  });
-
-  // -----------------------------------------------------------------------
-  // Workflow rules
-  // -----------------------------------------------------------------------
-
-  index.workflow.steps.forEach((step, indexPosition) => {
-    const outgoing = index.outgoingByStepId.get(stepKey(step.id)) ?? [];
-    const isTerminal =
-      TERMINAL_COMPONENTS.has(step.id[0]) ||
-      (step.outputs ?? []).some((output) => TERMINAL_COMPONENTS.has(output.type[0]));
-
-    if (!outgoing.length && !isTerminal) {
-      push({
-        rule: "orphan-step",
-        severity: "low",
-        title: `Step "${step.id[0]}/${step.id[1]}" has no consumer`,
-        detail:
-          "The step output feeds no connection and the step is not a file, meta-graph or Neo4j terminal.",
-        subject: stepSubject(step),
-        evidence: [
-          evidence("workflow step", "workflow", `/steps/${indexPosition}`, step.id),
-        ],
-        tags: ["workflow", "orphan"],
-      });
-    }
-
-    (step.outputs ?? []).forEach((output, outputIndex) => {
-      const openingName = output.opening_name ?? [];
-      const consumed = outgoing.some((connection) =>
-        openingMatchesStep(
-          connection.output,
-          step.id,
-          "output",
-          openingName,
-        ),
-      );
-      const published = (index.snapshot.report?.published_artifacts ?? []).some(
-        (artifact) => {
-          if (
-            artifact.opening[0] !== step.id[0] ||
-            artifact.opening[1] !== step.id[1]
-          ) {
-            return false;
-          }
-          if (!openingName.length) return true;
-          return openingName.every(
-            (value, position) => artifact.opening[3 + position] === value,
-          );
-        },
-      );
-      if (consumed || published) return;
-      push({
-        rule: "unconsumed-output",
-        severity: "low",
-        title: `Output "${(output.opening_name ?? []).join(".")}" of step "${step.id[0]}/${step.id[1]}" has no consumer`,
-        detail:
-          "The step output has no workflow connection and is not a published artifact.",
-        subject: stepSubject(step),
-        evidence: [
-          evidence(
-            "workflow step output",
-            "workflow",
-            `/steps/${indexPosition}/outputs/${outputIndex}`,
-            output.type,
-          ),
-        ],
-        tags: ["workflow", "unconsumed"],
-      });
-    });
-  });
-
-  // runtime-contract
-  (index.workflow.components ?? []).forEach((component, componentIndex) => {
-    const runtimeFields = component.runtime_fields ?? [];
-    if (!runtimeFields.length) return;
-    const descriptions = runtimeFields.map((field) => {
-      if (typeof field === "string") return field;
-      const record = field as Record<string, unknown>;
-      const key = typeof record.key === "string" ? record.key : "runtime field";
-      const description =
-        typeof record.description === "string" && record.description.trim()
-          ? `: ${record.description}`
-          : "";
-      const valueType =
-        typeof record.value_type === "string" ? record.value_type : "unknown type";
-      const required = record.required === true ? "required" : "optional";
-      return `${key} (${valueType}, ${required})${description}`;
-    });
-    push({
-      rule: "runtime-contract",
-      severity: "info",
-      title: `Component "${component.id}" declares ${runtimeFields.length} runtime field${runtimeFields.length === 1 ? "" : "s"}`,
-      detail: `The environment must supply or may override: ${descriptions.join("; ")}.`,
-      subject: {
-        kind: "step",
-        name: component.id,
-        component: component.id,
-      },
-      evidence: [
-        evidence(
-          "workflow component",
-          "workflow",
-          `/components/${componentIndex}`,
-        ),
-      ],
-      tags: ["runtime", "environment"],
-    });
-  });
-
-  // version-drift (only when provenance records component versions)
-  const versionMap = readVersionMap(
-    index.snapshot.report?.provenance as Record<string, unknown> | null | undefined,
-  );
-  if (versionMap) {
-    for (const [componentId, recordedVersion] of Object.entries(versionMap)) {
-      const component = index.componentsById.get(componentId);
-      if (!component?.version) continue;
-      if (String(component.version) === String(recordedVersion)) continue;
-      push({
-        rule: "version-drift",
-        severity: "info",
-        title: `Component "${componentId}" version differs from the report`,
-        detail: `The workflow declares version ${String(component.version)} but the report records ${String(recordedVersion)}.`,
-        subject: { kind: "step", name: componentId, component: componentId },
-        evidence: [
-          evidence("report provenance", "report", "/provenance"),
-        ],
-        tags: ["version", "provenance"],
-      });
-    }
-  }
-  const generatedBy = index.snapshot.metaGraph?.generated_by;
-  if (
-    generatedBy &&
-    typeof generatedBy.module_id === "string" &&
-    typeof generatedBy.module_version === "string"
-  ) {
-    const component = index.componentsById.get(generatedBy.module_id);
-    if (component?.version && String(component.version) !== String(generatedBy.module_version)) {
-      push({
-        rule: "version-drift",
-        severity: "info",
-        title: `Component "${generatedBy.module_id}" version differs from the meta graph`,
-        detail: `The workflow declares version ${String(component.version)} but the meta graph records ${String(generatedBy.module_version)}.`,
-        subject: {
-          kind: "step",
-          name: generatedBy.module_id,
-          component: generatedBy.module_id,
-        },
-        evidence: [evidence("meta graph generator", "metaGraph", "/generated_by")],
-        tags: ["version", "provenance"],
-      });
-    }
-  }
-
-  // -----------------------------------------------------------------------
-  // Observation rules from the meta graph
+  // Coverage rules
   // -----------------------------------------------------------------------
 
   for (const entry of entries) {
-    const metaComponent =
-      index.metaGraph.byKey.get(`${entry.kind}\u0000${entry.component}`) ??
-      index.metaGraph.byName
-        .get(entry.component)
-        ?.find((candidate) => candidate.kind === entry.kind);
-    if (!metaComponent) continue;
-    const metaProperty = metaComponent.properties?.find(
-      (candidate) => candidate.name === entry.property.name,
+    if (entry.abstract) continue;
+    const propertyEntries = findComponentPropertyBindings(
+      index,
+      entry.kind,
+      entry.component,
+      entry.property.name,
     );
-    if (!metaProperty) continue;
-    const observedKnown =
-      metaProperty.nullable !== undefined ||
-      metaProperty.logical_type !== undefined ||
-      typeof metaProperty.type === "string";
-    if (!observedKnown) continue;
-    const declaredNullable = isNullableLogicalType(entry.property.logical_type);
-    const observedNullable =
-      metaProperty.nullable === true ||
-      isNullableLogicalType(metaProperty.logical_type) ||
-      (typeof metaProperty.type === "string" && /None/.test(metaProperty.type));
-    if (declaredNullable === observedNullable) continue;
-    const metaIndex =
-      entry.kind === "node"
-        ? (index.snapshot.metaGraph?.nodes ?? []).indexOf(metaComponent)
-        : (index.snapshot.metaGraph?.edges ?? []).indexOf(metaComponent);
-    const metaPropertyIndex =
-      metaComponent.properties?.findIndex(
-        (candidate) => candidate.name === entry.property.name,
-      ) ?? -1;
-    push({
-      rule: "observe-vs-declare",
-      severity: "info",
-      title: `Property "${entry.component}.${entry.property.name}" observed nullability differs from its declaration`,
-      detail: `The blueprint declares ${declaredNullable ? "a nullable" : "a present"} value; the meta graph observes ${observedNullable ? "nullable" : "present"} values.`,
-      subject: {
+    const boundEntries = propertyEntries.filter((candidate) =>
+      Boolean(candidate.expression),
+    );
+    const expressions = boundEntries
+      .map((candidate) => candidate.expression)
+      .filter((expression): expression is Expression => Boolean(expression));
+
+    if (!boundEntries.length) {
+      push({
+        rule: "coverage.unbound-property",
+        severity: "high",
+        title: `Property "${entry.component}.${entry.property.name}" has no binding`,
+        detail: "No blueprint binding declares an expression for this topology property, so its lineage cannot be resolved.",
+        question: `Property "${entry.component}.${entry.property.name}" has no binding. Is it intentionally unbound, or was its binding omitted?`,
+        subject: {
+          kind: "property",
+          name: entry.component,
+          component: entry.component,
+          property: entry.property.name,
+          entityKind: entry.kind,
+        },
+        evidence: [
+          evidence("property declaration", "blueprint", entry.propertyPointer, entry.property.ref),
+        ],
+        tags: ["coverage", "lineage", "property"],
+      });
+      continue;
+    }
+
+    if (
+      expressions.length > 0 &&
+      expressions.every((expression) => collectFieldRefs(expression).length === 0)
+    ) {
+      push({
+        rule: "coverage.literal-only",
+        severity: "medium",
+        title: `Property "${entry.component}.${entry.property.name}" is defined only by literals`,
+        detail: `The property has no field reference to a source relation: ${expressions
+          .map((expression) => expressionPreview(expression))
+          .join(", ")}.`,
+        question: `Property "${entry.component}.${entry.property.name}" is a literal. Is this a constant the graph owns, or should it be read from a source?`,
+        subject: {
+          kind: "property",
+          name: entry.component,
+          component: entry.component,
+          property: entry.property.name,
+          entityKind: entry.kind,
+          ...(boundEntries[0] ? { bindingIndex: boundEntries[0].binding.index } : {}),
+        },
+        evidence: [
+          evidence("property declaration", "blueprint", entry.propertyPointer, entry.property.ref),
+          ...boundEntries.map((candidate) =>
+            evidence(
+              `binding ${candidate.binding.index} property expression`,
+              "blueprint",
+              bindingPropertyPointer(candidate.binding.index, entry.property.name),
+            ),
+          ),
+        ],
+        tags: ["coverage", "literal", "traceability"],
+      });
+    }
+
+    // Type and presence rules share the same property expression evidence.
+    for (const candidate of boundEntries) {
+      const expression = candidate.expression;
+      if (!expression) continue;
+      const bindingSubject: AuditSubject = {
         kind: "property",
         name: entry.component,
         component: entry.component,
         property: entry.property.name,
         entityKind: entry.kind,
+        bindingIndex: candidate.binding.index,
+      };
+      const expressionPointer = bindingPropertyPointer(
+        candidate.binding.index,
+        entry.property.name,
+      );
+      const declaredNullable = isNullableLogicalType(entry.property.logical_type);
+
+      if (
+        expressionIsNullable(expression) &&
+        !declaredNullable &&
+        !expressionNarrowsNull(expression)
+      ) {
+        push({
+          rule: "type.presence-mismatch",
+          severity: "high",
+          title: `Property "${entry.component}.${entry.property.name}" receives a nullable value`,
+          detail: `The property declares ${describeType(entry.property.logical_type)}, but binding ${candidate.binding.index} supplies a nullable ${describeType(
+            expression.logical_type,
+          )} without narrowing: ${expressionPreview(expression)}.`,
+          question: `Property "${entry.component}.${entry.property.name}" is required but its expression can be null. Should the binding drop or coalesce nulls?`,
+          subject: bindingSubject,
+          evidence: [
+            evidence("property declaration", "blueprint", entry.propertyPointer, entry.property.ref),
+            evidence("binding property expression", "blueprint", expressionPointer),
+          ],
+          tags: ["type", "presence", "nullability"],
+        });
+      }
+
+      const sourceType = expressionLogicalType(index, expression);
+      if (!isAssignableType(sourceType, entry.property.logical_type)) {
+        push({
+          rule: "type.shape-mismatch",
+          severity: "high",
+          title: `Property "${entry.component}.${entry.property.name}" expects ${describeType(
+            entry.property.logical_type,
+          )} but receives ${describeType(sourceType)}`,
+          detail: `Binding ${candidate.binding.index} supplies a ${describeType(
+            sourceType,
+          )} value into a ${describeType(entry.property.logical_type)} slot. The shapes are not assignable.`,
+          question: `Property "${entry.component}.${entry.property.name}" has an incompatible value shape. Is the property type wrong or the expression?`,
+          subject: bindingSubject,
+          evidence: [
+            evidence("property declaration", "blueprint", entry.propertyPointer, entry.property.ref),
+            evidence("binding property expression", "blueprint", expressionPointer),
+          ],
+          tags: ["type", "shape", "logical-type"],
+        });
+      }
+    }
+  }
+
+  // A binding that references fields but reaches no source relation or step.
+  for (const binding of index.bindings) {
+    const fieldRefs = allBindingExpressions(binding).flatMap((expression) =>
+      collectFieldRefs(expression),
+    );
+    if (!fieldRefs.length) continue;
+    const relations = sourceRelations(binding);
+    const knownRelation = relations.some((name) => index.relationByName.has(name));
+    const sourceStep = hasUpstreamSourceStep(index, binding.step);
+    if (knownRelation || sourceStep) continue;
+    push({
+      rule: "coverage.no-source",
+      severity: "medium",
+      title: `Binding ${binding.index} for ${binding.kind} "${binding.component}" has no source`,
+      detail: `The binding references ${fieldRefs.length} field${fieldRefs.length === 1 ? "" : "s"} but declares no known source relation and no upstream source step.`,
+      question: `Binding ${binding.index} reads fields without a source relation or step. Where do those fields come from?`,
+      subject: {
+        kind: "binding",
+        name: binding.binding.debug_name ?? `${binding.component}[${binding.index}]`,
+        component: binding.component,
+        entityKind: binding.kind,
+        bindingIndex: binding.index,
       },
       evidence: [
         evidence(
-          "property declaration",
+          "binding source rows",
           "blueprint",
-          entry.propertyPointer,
-          entry.property.ref,
+          `${bindingPointer(binding.index)}/rows`,
         ),
-        evidence(
-          "observed property",
-          "metaGraph",
-          `${entry.kind === "node" ? "/nodes" : "/edges"}/${Math.max(metaIndex, 0)}/properties/${Math.max(metaPropertyIndex, 0)}`,
+        ...fieldRefs.map((field) =>
+          evidence(
+            `field reference ${fieldRefKey(field)}`,
+            "blueprint",
+            bindingPointer(binding.index),
+            field,
+          ),
         ),
       ],
-      tags: ["observation", "nullability"],
+      tags: ["coverage", "source", "lineage"],
     });
   }
 
   // -----------------------------------------------------------------------
-  // Build report rules
+  // Semantics presence
   // -----------------------------------------------------------------------
 
-  (index.snapshot.report?.unresolved_failures ?? []).forEach((failure, failureIndex) => {
+  for (const subject of index.semanticSubjects) {
+    if (subject.kind === "graph") {
+      const hasPurpose = nonEmpty(index.graphDeclaration?.semantics?.purpose?.text);
+      if (hasPurpose || hasSemanticUnits(subject.semantics)) continue;
+      // A graph with neither purpose nor units is already critical above.
+      continue;
+    }
+    if (hasSemanticUnits(subject.semantics)) continue;
+    const severity = semanticSeverity(subject.kind);
     push({
-      rule: "build-failure",
-      severity: "critical",
-      title: `Unresolved build failure: ${failureText(failure).slice(0, 120)}`,
-      detail: failureText(failure),
-      ...(failureSubject(failure) ? { subject: failureSubject(failure) } : {}),
+      rule: "semantics.missing",
+      severity,
+      title: `${subject.kind} "${subject.ownerName ?? subject.name}" has no attached semantics`,
+      detail: `The ${subject.kind} carries no claims or frames. Its meaning is not stated in the snapshot.`,
+      subject: semanticSubjectForFinding(subject),
       evidence: [
         evidence(
-          "unresolved failure",
-          "report",
-          `/unresolved_failures/${failureIndex}`,
+          `${subject.kind} declaration`,
+          "blueprint",
+          semanticPointer(index, subject),
+          subject.ref,
         ),
       ],
-      tags: ["build", "failure"],
-    });
-  });
-
-  (index.snapshot.report?.recovered_failures ?? []).forEach((failure, failureIndex) => {
-    push({
-      rule: "recovered-failure",
-      severity: "high",
-      title: `Recovered build failure: ${failureText(failure).slice(0, 120)}`,
-      detail: failureText(failure),
-      ...(failureSubject(failure) ? { subject: failureSubject(failure) } : {}),
-      evidence: [
-        evidence(
-          "recovered failure",
-          "report",
-          `/recovered_failures/${failureIndex}`,
-        ),
-      ],
-      tags: ["build", "failure"],
-    });
-  });
-
-  // -----------------------------------------------------------------------
-  // Open sidecar decisions are review questions too
-  // -----------------------------------------------------------------------
-
-  for (const decision of review?.decisions ?? []) {
-    if (decision.status !== "open") continue;
-    const rationale = decision.rationale.trim();
-    push({
-      rule: "open-decision",
-      severity: "medium",
-      title: `Open decision: ${decision.title}`,
-      detail: rationale || "No rationale was captured for this open decision.",
-      question: `The review sidecar records an open decision: "${decision.title}".${rationale ? ` ${rationale}` : " No rationale was captured."} Should this decision be accepted, revised or rejected?`,
-      ...(decision.subject ? { subject: decision.subject } : {}),
-      evidence: decision.evidence,
-      tags: ["decision", "open", ...(decision.tags ?? [])],
+      tags: ["semantics", "presence"],
     });
   }
 
   // -----------------------------------------------------------------------
-  // Deterministic ordering, counts, questions and rubric
+  // Deterministic ordering and counts
   // -----------------------------------------------------------------------
 
   const sorted = [...findings.values()].sort((left, right) => {
@@ -1160,113 +1227,11 @@ export function buildAudit(index: ViewerIndex, review?: ReviewSidecar): AuditRep
   ) as Record<Severity, number>;
   for (const finding of sorted) counts[finding.severity] += 1;
 
-  const traceableEntries = entries.filter((entry) => !entry.abstract);
-  const totalProperties = traceableEntries.length;
-  const tracedProperties = traceableEntries.filter((entry) => {
-    const propertyEntries = findComponentPropertyBindings(
-      index,
-      entry.kind,
-      entry.component,
-      entry.property.name,
-    );
-    return propertyEntries.some((candidate) => candidate.fieldRefs.length > 0);
-  }).length;
-
-  const documentationSubjects: boolean[] = [
-    ...(index.blueprint.graph?.nodes ?? []).map((node) => hasDocumentation(node)),
-    ...(index.blueprint.graph?.edges ?? []).map((edge) => hasDocumentation(edge)),
-    ...entries.map((entry) => hasDocumentation(entry.property)),
-    ...(index.blueprint.data?.relations ?? []).map((relation) => hasDocumentation(relation)),
-    ...(index.blueprint.data?.projections ?? []).map((projection) =>
-      hasDocumentation(projection),
-    ),
-    ...(index.blueprint.assets ?? []).map((asset) => assetHasDocumentation(asset)),
-  ];
-  const documentedSubjects = documentationSubjects.filter(Boolean).length;
-
-  let expressionsTotal = 0;
-  let riskyExpressions = 0;
-  for (const binding of index.bindings) {
-    for (const expression of Object.values(binding.binding.properties ?? {})) {
-      expressionsTotal += 1;
-      const literalOnly = collectFieldRefs(expression).length === 0;
-      const fallback = fallbackLiterals(expression).length > 0;
-      if (literalOnly || fallback) riskyExpressions += 1;
-    }
-  }
-
-  const unresolvedFailures = index.snapshot.report?.unresolved_failures?.length ?? 0;
-  const recoveredFailures = index.snapshot.report?.recovered_failures?.length ?? 0;
-  const compileOnly =
-    Boolean(index.snapshot.report?.provenance) &&
-    typeof index.snapshot.report.provenance === "object" &&
-    (index.snapshot.report.provenance as Record<string, unknown>).mode ===
-      "compile-only";
-  const multiSourceCount = sorted.filter(
-    (finding) => finding.rule === "multi-source-component",
-  ).length;
-  const duplicateTargetCount = sorted.filter(
-    (finding) => finding.rule === "duplicate-target",
-  ).length;
-
-  const components: AuditScoreComponent[] = [
-    {
-      id: "traceability",
-      label: "Traceability",
-      value: rounded(percentage(tracedProperties, totalProperties)),
-      weight: 0.25,
-      detail: `${tracedProperties} of ${totalProperties} topology properties reference at least one field.`,
-    },
-    {
-      id: "documentation",
-      label: "Documentation",
-      value: rounded(percentage(documentedSubjects, documentationSubjects.length)),
-      weight: 0.2,
-      detail: `${documentedSubjects} of ${documentationSubjects.length} subjects carry a description or annotation.`,
-    },
-    {
-      id: "determinism",
-      label: "Determinism",
-      value: rounded(percentage(expressionsTotal - riskyExpressions, expressionsTotal)),
-      weight: 0.2,
-      detail: `${expressionsTotal - riskyExpressions} of ${expressionsTotal} property expressions avoid literal-only or fallback values.`,
-    },
-    {
-      id: "verification",
-      label: "Verification",
-      value: compileOnly
-        ? 0
-        : rounded(
-            Math.max(0, 100 - unresolvedFailures * 40 - recoveredFailures * 10),
-          ),
-      weight: 0.2,
-      detail: compileOnly
-        ? "Compile-only snapshot: the graph was not executed, so execution verification did not run."
-        : `${unresolvedFailures} unresolved and ${recoveredFailures} recovered failures in the build report.`,
-    },
-    {
-      id: "cohesion",
-      label: "Cohesion",
-      value: rounded(
-        Math.max(0, 100 - multiSourceCount * 12 - duplicateTargetCount * 18),
-      ),
-      weight: 0.15,
-      detail: `${multiSourceCount} multi-source components and ${duplicateTargetCount} duplicate targets.`,
-    },
-  ];
-
-  const weighted = components.reduce(
-    (total, component) => total + component.value * component.weight,
-    0,
-  );
-
   return {
     findings: sorted,
     counts,
-    score: {
-      value: Math.max(0, Math.min(100, Math.round(weighted))),
-      components,
-    },
+    // The type is retained for compatibility. Audit no longer computes a rubric.
+    score: { value: 0, components: [] },
     questions: sorted.filter((finding) => Boolean(finding.question)),
   };
 }

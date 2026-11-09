@@ -1,9 +1,11 @@
 import type {
   ArtifactType,
+  AssetProfileDTO,
   BindingDTO,
   BlueprintDTO,
   EntityKind,
   FieldLocation,
+  GraphDeclarationDTO,
   IndexedBinding,
   NormalizedConnection,
   OpeningRef,
@@ -12,6 +14,9 @@ import type {
   Ref,
   RelationDTO,
   SearchRecord,
+  SemanticSubject,
+  SemanticSubjectKind,
+  SemanticsDTO,
   StepId,
   StructDTO,
   TopologyEdge,
@@ -49,6 +54,19 @@ export function propertySelectionKey(
   property: string,
 ): string {
   return `${kind}\u0000${component}\u0000${property}`;
+}
+
+/**
+ * Deterministic viewer-side key for a semantic subject.
+ *
+ * The key is not a framework claim reference: it only identifies the subject
+ * whose attached units are being read.
+ */
+export function semanticSubjectKey(
+  kind: SemanticSubjectKind,
+  ...segments: Array<string | number>
+): string {
+  return [kind, ...segments.map((segment) => String(segment))].join("\u0000");
 }
 
 /** Human-readable artifact type, e.g. `core.data.table.surveys`. */
@@ -427,6 +445,170 @@ function buildPropertyIndex(
   return propertyIndex;
 }
 
+function graphSemantics(
+  declaration: GraphDeclarationDTO,
+): SemanticsDTO | undefined {
+  const claims = declaration.semantics.claims;
+  const frames = declaration.semantics.purpose?.frames;
+  if (!claims?.length && !frames?.length) return undefined;
+  return {
+    ...(claims?.length ? { claims } : {}),
+    ...(frames?.length ? { frames } : {}),
+  };
+}
+
+function buildSemanticIndexes(
+  blueprint: BlueprintDTO,
+  fields: FieldLocation[],
+  bindings: IndexedBinding[],
+): Pick<
+  ViewerIndex,
+  | "semanticSubjects"
+  | "semanticsByKey"
+  | "semanticsByKind"
+  | "assetProfilesByName"
+> {
+  const semanticSubjects: SemanticSubject[] = [];
+  const semanticsByKey = new Map<string, SemanticSubject>();
+  const semanticsByKind = new Map<SemanticSubjectKind, SemanticSubject[]>();
+  const assetProfilesByName = new Map<string, AssetProfileDTO>();
+
+  const add = (subject: SemanticSubject): void => {
+    semanticSubjects.push(subject);
+    semanticsByKey.set(subject.key, subject);
+    const group = semanticsByKind.get(subject.kind) ?? [];
+    group.push(subject);
+    semanticsByKind.set(subject.kind, group);
+  };
+
+  const declaration = blueprint.graph_declaration;
+  if (declaration) {
+    add({
+      kind: "graph",
+      key: semanticSubjectKey("graph", declaration.name),
+      name: declaration.name,
+      semantics: graphSemantics(declaration),
+      purpose: declaration.semantics.purpose,
+    });
+  }
+
+  for (const asset of blueprint.assets ?? []) {
+    if (asset.profile) assetProfilesByName.set(asset.name, asset.profile);
+    add({
+      kind: "asset",
+      key: semanticSubjectKey("asset", asset.name),
+      name: asset.name,
+      assetName: asset.name,
+      semantics: asset.semantics,
+    });
+  }
+
+  for (const relation of blueprint.data?.relations ?? []) {
+    add({
+      kind: "relation",
+      key: semanticSubjectKey("relation", relation.name),
+      name: relation.name,
+      semantics: relation.semantics,
+    });
+  }
+
+  for (const projection of blueprint.data?.projections ?? []) {
+    add({
+      kind: "projection",
+      key: semanticSubjectKey("projection", projection.name),
+      name: projection.name,
+      semantics: projection.semantics,
+    });
+  }
+
+  for (const struct of blueprint.data?.structs ?? []) {
+    add({
+      kind: "struct",
+      key: semanticSubjectKey("struct", struct.name),
+      name: struct.name,
+      semantics: struct.semantics,
+    });
+  }
+
+  for (const field of fields) {
+    add({
+      kind: "field",
+      key: semanticSubjectKey(
+        "field",
+        field.ownerKind,
+        field.ownerName,
+        field.field.name,
+      ),
+      name: field.field.name,
+      ownerName: field.ownerName,
+      ref: field.field.ref,
+      semantics: field.field.semantics,
+    });
+  }
+
+  for (const node of blueprint.graph?.nodes ?? []) {
+    add({
+      kind: "node",
+      key: semanticSubjectKey("node", node.name),
+      name: node.name,
+      ref: ["topology", "node", node.name],
+      semantics: node.semantics,
+    });
+    for (const property of node.properties ?? []) {
+      add({
+        kind: "property",
+        key: semanticSubjectKey("property", "node", node.name, property.name),
+        name: property.name,
+        ownerName: node.name,
+        entityKind: "node",
+        ref: property.ref,
+        semantics: property.semantics,
+      });
+    }
+  }
+
+  for (const edge of blueprint.graph?.edges ?? []) {
+    add({
+      kind: "edge",
+      key: semanticSubjectKey("edge", edge.name),
+      name: edge.name,
+      ref: ["topology", "edge", edge.name],
+      semantics: edge.semantics,
+    });
+    for (const property of edge.properties ?? []) {
+      add({
+        kind: "property",
+        key: semanticSubjectKey("property", "edge", edge.name, property.name),
+        name: property.name,
+        ownerName: edge.name,
+        entityKind: "edge",
+        ref: property.ref,
+        semantics: property.semantics,
+      });
+    }
+  }
+
+  for (const binding of bindings) {
+    add({
+      kind: "binding",
+      key: semanticSubjectKey("binding", binding.index),
+      name:
+        binding.binding.debug_name ?? `${binding.component}[${binding.index}]`,
+      ref: binding.componentRef,
+      entityKind: binding.kind,
+      bindingIndex: binding.index,
+      semantics: binding.binding.semantics,
+    });
+  }
+
+  return {
+    semanticSubjects,
+    semanticsByKey,
+    semanticsByKind,
+    assetProfilesByName,
+  };
+}
+
 function buildStats(
   blueprint: BlueprintDTO,
   workflow: WorkflowPlan,
@@ -504,6 +686,7 @@ export function buildViewerIndex(snapshot: ViewerSnapshot): ViewerIndex {
   const assetsByName = new Map(
     (blueprint.assets ?? []).map((asset) => [asset.name, asset] as const),
   );
+  const semantics = buildSemanticIndexes(blueprint, fields, bindings);
 
   const propertyIndex = buildPropertyIndex(blueprint, bindings, bindingByComponent);
   const metaGraph = buildMetaGraphIndex(snapshot.metaGraph);
@@ -526,8 +709,11 @@ export function buildViewerIndex(snapshot: ViewerSnapshot): ViewerIndex {
     snapshot,
     blueprint,
     workflow,
+    graphDeclaration: blueprint.graph_declaration,
+    graphSemantics: blueprint.graph_declaration?.semantics,
     ...workflowIndexes,
     ...searchSource,
+    ...semantics,
     bindings,
     bindingByComponent,
     bindingByOutputArtifactKey,

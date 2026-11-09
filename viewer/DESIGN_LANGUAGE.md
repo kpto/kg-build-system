@@ -1,5 +1,10 @@
 # Viewer design language
 
+> **Current structure:** the viewer is the four-function workbench described in
+> `REDESIGN.md` and `HIERARCHY.md`: Proof, Audit, Semantics and Topology. The
+> ladder and visual rules below still apply; references to the old Map /
+> Explore / Review campaign surfaces are historical.
+
 The complete visible hierarchy — every window, task, panel, section, row,
 field, control and owner — is in `HIERARCHY.md`. This document states the rules
 that hierarchy follows.

@@ -1,9 +1,10 @@
-import { ReviewCampaign } from "@/review/ReviewCampaign";
+import { Workbench } from "@/workbench/Workbench";
 
 /**
- * The page is the campaign entry point. The review campaign owns the snapshot,
- * review state and task switch; the domains own their panels and canvas bodies.
+ * The page is the workbench entry point. The shell owns snapshot loading, the
+ * activity switch, stable panel layouts and the review sidecar; each activity
+ * owns its side bar, editor and bottom-panel bodies.
  */
 export default function Page() {
-  return <ReviewCampaign />;
+  return <Workbench />;
 }

@@ -1,400 +1,358 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { buildAudit } from "../lib/audit";
-import { buildCoverage } from "../lib/coverage";
-import { decisionCoverage, deriveDecisions } from "../lib/decisions";
-import { diffSnapshots, hasChanges } from "../lib/diff";
-import { buildDossierJson, buildDossierMarkdown } from "../lib/dossier";
-import { computeImpact } from "../lib/impact";
-import { buildLineage, propertySelection } from "../lib/lineage";
-import {
-  loadReviewSidecar,
-  loadSnapshotFromObject,
-  normalizeReviewSidecar,
-} from "../lib/load";
+import type { ReviewSidecar } from "../lib/reviewTypes";
 import {
   KEY_PREFIX,
   loadReviewQueue,
   queueKey,
   saveReviewQueue,
   setReviewStatus,
+  setSemanticDecision,
   summarizeQueue,
 } from "../lib/reviewQueue";
 import {
-  formatReviewUrlState,
-  parseReviewUrlState,
-  readUrlState,
-} from "../lib/urlState";
-import type { ReviewUrlState } from "../lib/urlState";
-import { index, snapshot } from "./fixtures";
+  assessSignoff,
+  buildRequiredDecisions,
+  buildSemanticLedger,
+  buildSignoffApproval,
+  collectSemanticUnits,
+  fnv1a64,
+  semanticReviewExport,
+  semanticUnitKey,
+  shortKey,
+  snapshotDigest,
+} from "../semantics/model";
+import { buildViewerIndex } from "../lib/indexes";
+import { loadSnapshotFromObject } from "../lib/load";
+import { contractIndex } from "./fixtures";
 
-const reviewText = readFileSync(
-  new URL("../public/data/reference.review.json", import.meta.url),
+const openTargetsText = readFileSync(
+  new URL("../public/data/opentargets.snapshot.json", import.meta.url),
   "utf8",
 );
+const openTargetsSnapshot = loadSnapshotFromObject(JSON.parse(openTargetsText));
+const openTargetsIndex = buildViewerIndex(openTargetsSnapshot);
 
-function referenceReview() {
-  const review = normalizeReviewSidecar(JSON.parse(reviewText));
-  if (!review) throw new Error("reference review sidecar did not normalise");
-  return review;
-}
+const fixtureLedger = buildSemanticLedger(contractIndex);
 
-const review = referenceReview();
-const audit = buildAudit(index, review);
-const decisions = deriveDecisions(index, review);
+describe("stable semantic identity", () => {
+  it("uses 64-bit FNV-1a for keys and the snapshot digest", () => {
+    expect(fnv1a64("")).toBe("cbf29ce484222325");
+    expect(fnv1a64("a")).toBe("af63dc4c8601ec8c");
 
-function cloneSnapshot() {
-  return loadSnapshotFromObject(JSON.parse(JSON.stringify(snapshot)));
-}
+    const key = semanticUnitKey({
+      graphName: "fixture_graph",
+      subjectPath: "property:node:defect.title",
+      kind: "claim",
+      text: "The title is the defect's display name.",
+    });
+    expect(key).toMatch(/^[0-9a-f]{16}$/);
+    expect(shortKey(key)).toBe(key.slice(0, 8));
 
-describe("coverage matrix", () => {
-  it("traces defect.condition_rating to the surveys relation", () => {
-    const coverage = buildCoverage(index);
-    const row = coverage.rows.find(
-      (candidate) =>
-        candidate.component === "defect" &&
-        candidate.property === "condition_rating",
+    const same = semanticUnitKey({
+      graphName: "fixture_graph",
+      subjectPath: "property:node:defect.title",
+      kind: "claim",
+      text: "The title is the defect's display name.",
+    });
+    expect(same).toBe(key);
+
+    const framed = semanticUnitKey({
+      graphName: "fixture_graph",
+      subjectPath: "property:node:defect.title",
+      kind: "claim",
+      text: "The title is the defect's display name.",
+      frameText: "another frame",
+    });
+    expect(framed).not.toBe(key);
+
+    expect(snapshotDigest(contractIndex.snapshot)).toBe(
+      snapshotDigest(contractIndex.snapshot),
     );
-    expect(row).toBeDefined();
-    expect(row?.kind).toBe("node");
-    expect(row?.sourceRelations).toEqual(["surveys"]);
-    expect(row?.cells).toEqual([
-      { source: "surveys", fields: 1, literals: 1, bindings: 1 },
-    ]);
-    expect(row?.tracedFields).toBe(1);
-    expect(row?.steps).toEqual([["core", "binding.0"]]);
-    expect(coverage.sources).toContain("surveys");
-  });
-
-  it("keeps literal-only rows with zero source columns", () => {
-    const coverage = buildCoverage(index);
-    const row = coverage.rows.find(
-      (candidate) =>
-        candidate.component === "defect" &&
-        candidate.property === "source_version",
-    );
-    expect(row).toBeDefined();
-    expect(row?.sourceRelations).toEqual([]);
-    expect(row?.cells).toEqual([]);
-    expect(row?.literals).toBeGreaterThan(0);
-    expect(row?.steps).toEqual([["core", "binding.0"]]);
-  });
-
-  it("sorts rows and sources deterministically", () => {
-    const first = buildCoverage(index);
-    const second = buildCoverage(index);
-    expect(first).toEqual(second);
-    expect(first.sources).toEqual([...first.sources].sort());
-    const keys = first.rows.map(
-      (row) => `${row.kind}:${row.component}.${row.property}`,
-    );
-    expect(keys).toEqual([...keys].sort());
+    expect(snapshotDigest(contractIndex.snapshot)).toMatch(/^[0-9a-f]{16}$/);
   });
 });
 
-describe("impact radius", () => {
-  it("includes the full defect.condition_rating chain", () => {
-    const impact = computeImpact(index, {
-      kind: "property",
-      name: "defect",
-      component: "defect",
-      property: "condition_rating",
-      entityKind: "node",
-    });
-    const steps = [...impact.upstream, ...impact.downstream];
-    expect(steps).toEqual(
-      expect.arrayContaining([
-        ["duckdb", "source.surveys"],
-        ["core", "projection.defect"],
-        ["core", "binding.0"],
-        ["core", "aggregate.defect"],
-        ["deduplication", "defect"],
-        ["file", "write"],
-        ["meta_graph", "document"],
-      ]),
+describe("semantic ledger", () => {
+  it("includes the graph purpose, 9 claims, 5 frames and their limitations", () => {
+    const units = collectSemanticUnits(openTargetsIndex);
+    const graph = units.filter((unit) => unit.subject.kind === "graph");
+    expect(graph.filter((unit) => unit.kind === "purpose")).toHaveLength(1);
+    expect(graph.filter((unit) => unit.kind === "claim")).toHaveLength(9);
+    expect(graph.filter((unit) => unit.kind === "frame")).toHaveLength(5);
+    expect(graph.filter((unit) => unit.kind === "limitation")).toHaveLength(5);
+
+    const ledger = buildSemanticLedger(openTargetsIndex);
+    expect(ledger.units).toHaveLength(units.length);
+    expect(ledger.unitsByKey.size).toBe(units.length);
+    expect(ledger.counts.subjects).toBeGreaterThan(0);
+    expect(ledger.counts.units).toBeGreaterThan(graph.length);
+  });
+
+  it("collects every attached subject kind exactly once", () => {
+    const ledger = buildSemanticLedger(contractIndex);
+    const paths = ledger.units.map((unit) => unit.subjectPath);
+    expect(paths).toContain("graph:fixture_graph");
+    expect(paths).toContain("asset:estate");
+    expect(paths).toContain("relation:surveys");
+    expect(paths).toContain("projection:defect");
+    expect(paths).toContain("struct:reading");
+    expect(paths).toContain("field:surveys.title");
+    expect(paths).toContain("node:defect");
+    expect(paths).toContain("edge:has_observation");
+    expect(paths).toContain("property:node:defect.title");
+    expect(paths).toContain("binding:0");
+    expect(new Set(paths).size).toBe(
+      new Set(ledger.units.map((unit) => unit.subjectKey)).size,
     );
+    expect(ledger.counts.limitations).toBe(
+      ledger.units.filter((unit) => unit.kind === "limitation").length,
+    );
+  });
+
+  it("groups units by subject and preserves the attached-only rule", () => {
+    expect(fixtureLedger.groups.length).toBe(fixtureLedger.counts.subjects);
+    const attached = fixtureLedger.units.find(
+      (unit) => unit.subjectPath === "property:node:defect.title",
+    );
+    expect(attached?.attached).toBe(true);
+    expect(fixtureLedger.units.find((unit) => unit.kind === "purpose")?.attached).toBe(
+      false,
+    );
+  });
+});
+
+describe("required decision policy", () => {
+  it("requires every limitation", () => {
+    const required = buildRequiredDecisions(
+      contractIndex,
+      fixtureLedger.units,
+    );
+    const limitations = required.filter((entry) => entry.reason === "limitation");
+    expect(limitations).toHaveLength(fixtureLedger.counts.limitations);
     expect(
-      steps.some(
-        (step) =>
-          step[0] === "neo4j" && step[1].startsWith("export.node.defect"),
+      limitations.some((entry) => entry.detail === "It is not production data."),
+    ).toBe(true);
+  });
+
+  it("requires properties with no traced source and abstract producers", () => {
+    const required = fixtureLedger.required;
+    expect(
+      required.some(
+        (entry) =>
+          entry.reason === "untraced-property" &&
+          entry.subjectPath === "property:node:documented.summary",
       ),
     ).toBe(true);
-    expect(impact.targets).toEqual(["file", "meta_graph", "neo4j"]);
-    expect(impact.nodes).toEqual(["defect"]);
-    expect(impact.records).toBe(3);
+    expect(
+      required.some(
+        (entry) =>
+          entry.reason === "untraced-property" &&
+          entry.subjectPath === "property:edge:has_observation.as_at",
+      ),
+    ).toBe(true);
+    expect(
+      required.some(
+        (entry) =>
+          entry.reason === "abstract-producer" &&
+          entry.subjectPath === "node:documented",
+      ),
+    ).toBe(true);
+    expect(
+      required.some(
+        (entry) =>
+          entry.reason === "untraced-property" &&
+          entry.subjectPath === "property:node:defect.title",
+      ),
+    ).toBe(false);
   });
 
-  it("unions property impacts for a node subject", () => {
-    const impact = computeImpact(index, {
-      kind: "node",
-      name: "defect",
-      component: "defect",
-      entityKind: "node",
-    });
-    expect(impact.upstream).toEqual(
-      expect.arrayContaining([["core", "binding.0"]]),
+  it("requires identity and type findings reported by the audit", () => {
+    const required = buildRequiredDecisions(
+      openTargetsIndex,
+      collectSemanticUnits(openTargetsIndex),
+      openTargetsSnapshot.review,
     );
-    expect(impact.nodes).toEqual(["defect"]);
-    expect(impact.records).toBe(3);
-  });
-});
-
-describe("decision ledger", () => {
-  it("keeps sidecar decisions first and adds derived cards", () => {
-    const sidecar = decisions.filter((decision) => decision.source === "sidecar");
-    expect(sidecar).toHaveLength(review.decisions.length);
-    expect(sidecar.map((decision) => decision.id)).toEqual(
-      review.decisions.map((decision) => decision.id),
-    );
-    expect(sidecar.every((decision) => decision.rationaleSupplied)).toBe(true);
-
-    const derived = decisions.filter((decision) => decision.source === "derived");
-    expect(derived.length).toBeGreaterThan(0);
-    expect(derived.some((decision) => decision.id === "derived:asset:estate")).toBe(
-      true,
-    );
-    expect(decisions.some((decision) => !decision.rationaleSupplied)).toBe(true);
-
-    const coverage = decisionCoverage(decisions);
-    expect(coverage.total).toBe(decisions.length);
-    expect(coverage.sidecar).toBe(review.decisions.length);
-    expect(coverage.derived).toBe(derived.length);
-    expect(coverage.rationaleSupplied + coverage.rationaleMissing).toBe(
-      coverage.total,
-    );
-  });
-
-  it("turns every open sidecar decision into a question", () => {
-    const open = review.decisions.filter((decision) => decision.status === "open");
-    expect(open.length).toBeGreaterThan(0);
-    for (const decision of open) {
-      expect(
-        audit.questions.some(
-          (finding) =>
-            finding.rule === "open-decision" &&
-            finding.question?.includes(decision.title),
+    const audit = buildAudit(openTargetsIndex, openTargetsSnapshot.review);
+    const identityOrType = audit.findings.filter(
+      (finding) =>
+        /^(identity|type)\./.test(finding.rule) ||
+        finding.tags.some((tag) =>
+          ["identity", "type", "nullability", "presence", "shape"].includes(tag),
         ),
+    );
+    if (identityOrType.length) {
+      expect(
+        required.some((entry) => entry.reason === "identity" || entry.reason === "type"),
+      ).toBe(true);
+    }
+    for (const finding of identityOrType) {
+      expect(
+        required.some((entry) => entry.findingId === finding.id),
       ).toBe(true);
     }
   });
 });
 
-describe("snapshot diff", () => {
-  it("returns an empty diff for an identical snapshot", () => {
-    const diff = diffSnapshots(snapshot, snapshot);
-    expect(hasChanges(diff)).toBe(false);
-    expect(diff.summary).toEqual({
-      stepsAdded: 0,
-      stepsRemoved: 0,
-      connectionsAdded: 0,
-      connectionsRemoved: 0,
-      nodesAdded: 0,
-      nodesRemoved: 0,
-      edgesAdded: 0,
-      edgesRemoved: 0,
-      bindingsAdded: 0,
-      bindingsRemoved: 0,
-      propertiesChanged: 0,
+describe("coverage and sign-off", () => {
+  it("removes a required item once its decision is resolved", () => {
+    const first = fixtureLedger.required[0];
+    const local = setSemanticDecision({}, first.key, "accepted", {
+      rationale: "Reviewed against the declaration.",
+      reviewer: "Fixture reviewer",
     });
-    expect(diff.steps).toEqual({ added: [], removed: [], changed: [] });
-  });
-
-  it("detects an added workflow step", () => {
-    const next = cloneSnapshot();
-    next.workflow.steps.push({
-      id: ["x", "added"],
-      instruction: { kind: ["sql", "duckdb"], payload: {} },
-      outputs: [{ opening_name: ["output"], type: ["x", "thing"] }],
-    });
-
-    const diff = diffSnapshots(snapshot, next);
-    expect(diff.summary.stepsAdded).toBe(1);
-    expect(diff.steps.added).toEqual([["x", "added"]]);
-    expect(hasChanges(diff)).toBe(true);
-  });
-
-  it("detects a changed binding property without reordering arrays", () => {
-    const next = cloneSnapshot();
-    const properties = next.blueprint.bindings[0]?.properties;
-    expect(properties).toBeDefined();
-    if (properties) {
-      properties.condition_rating = { kind: "literal", value: "Changed" };
-    }
-
-    const diff = diffSnapshots(snapshot, next);
-    expect(diff.bindings.changed).toContain(0);
-    expect(diff.summary.propertiesChanged).toBeGreaterThan(0);
-    expect(diff.bindings.changed).toEqual(
-      [...diff.bindings.changed].sort((left, right) => left - right),
-    );
-  });
-});
-
-describe("review queue", () => {
-  it("refuses a waiver without a note", () => {
-    const records = {
-      "finding:one": { findingId: "finding:one", status: "open" as const },
-    };
-    expect(() => setReviewStatus(records, "finding:one", "waived")).toThrow(
-      /note/i,
-    );
-    expect(() =>
-      setReviewStatus(records, "finding:one", "waived", "   "),
-    ).toThrow(/note/i);
-
-    const waived = setReviewStatus(
-      records,
-      "finding:one",
-      "waived",
-      "accepted by the reviewer",
-    );
-    expect(waived["finding:one"].status).toBe("waived");
-    expect(waived["finding:one"].note).toBe("accepted by the reviewer");
-    expect(records["finding:one"].status).toBe("open");
-  });
-
-  it("summarizes progress against the audit findings", () => {
-    const first = audit.findings[0];
-    const second = audit.findings[1];
-    const records = setReviewStatus(
-      setReviewStatus({}, first.id, "acknowledged"),
-      second.id,
-      "waived",
-      "reviewed deliberately",
-    );
-    const summary = summarizeQueue(audit, records);
-    expect(summary.total).toBe(audit.findings.length);
-    expect(summary.acknowledged).toBe(1);
-    expect(summary.waived).toBe(1);
-    expect(summary.resolved).toBe(0);
-    expect(summary.open).toBe(audit.findings.length - 2);
-  });
-
-  it("is inert when no browser storage is available", () => {
-    expect(queueKey("reference-estate")).toBe(
-      `${KEY_PREFIX}reference-estate`,
-    );
-    expect(loadReviewQueue("reference-estate")).toEqual({});
-    expect(() => saveReviewQueue("reference-estate", {})).not.toThrow();
-  });
-});
-
-describe("review dossier", () => {
-  it("includes the required Markdown sections and finding ids", () => {
-    const selection = propertySelection("node", "defect", "condition_rating");
-    const lineage = buildLineage(index, selection);
-    const markdown = buildDossierMarkdown({
-      index,
-      audit,
-      decisions,
-      queue: setReviewStatus({}, audit.findings[0].id, "acknowledged"),
-      selection,
-      lineage,
-    });
-
-    expect(markdown).toContain("## Audit findings");
-    expect(markdown).toContain("## Design questions");
-    expect(markdown).toContain("## Decision ledger");
-    expect(markdown).toContain("## Build health");
-    expect(markdown).toContain("## Selected property receipt");
-    expect(markdown).toContain("defect.condition_rating");
-    expect(markdown).toContain(audit.findings[0].id);
-    expect(markdown).toContain("Findings are deterministic observations");
-    expect(markdown).toContain("Unrated");
-  });
-
-  it("produces valid JSON with the selected impact", () => {
-    const selection = propertySelection("node", "defect", "condition_rating");
-    const parsed = JSON.parse(
-      buildDossierJson({
-        index,
-        audit,
-        decisions,
-        queue: {},
-        selection,
-      }),
-    );
-    expect(parsed.format).toBe("kg-viewer-dossier");
-    expect(parsed.version).toBe(1);
-    expect(parsed.snapshot.name).toBe(snapshot.name);
-    expect(parsed.health.value).toBe(audit.score.value);
-    expect(parsed.findings.length).toBe(audit.findings.length);
-    expect(parsed.impact.records).toBe(3);
-    expect(parsed.impact.upstream).toEqual(
-      expect.arrayContaining([["core", "binding.0"]]),
-    );
-  });
-});
-
-describe("URL state", () => {
-  it("round trips known state and preserves unknown parameters", () => {
-    const state = parseReviewUrlState(
-      "?view=lineage&kind=node&component=defect&property=condition_rating&source=surveys&step=core,binding.0&finding=f1&embed=1&debug=true",
-    );
-    expect(state.view).toBe("lineage");
-    expect(state.kind).toBe("node");
-    expect(state.component).toBe("defect");
-    expect(state.property).toBe("condition_rating");
-    expect(state.source).toBe("surveys");
-    expect(state.step).toEqual(["core", "binding.0"]);
-    expect(state.finding).toBe("f1");
-    expect(state.params).toEqual({ embed: "1", debug: "true" });
-
-    const roundTrip = parseReviewUrlState(`?${formatReviewUrlState(state)}`);
-    expect(roundTrip).toEqual(state);
-  });
-
-  it("round trips an edge/source filter and rejects an invalid kind as state", () => {
-    const state: ReviewUrlState = {
-      view: "review",
-      kind: "edge",
-      component: "measures",
-      property: "as_at",
-      source: "temperature",
-      params: {},
-    };
-    const formatted = formatReviewUrlState(state);
-    expect(formatted).toContain("kind=edge");
-    expect(formatted).toContain("source=temperature");
-    expect(parseReviewUrlState(`?${formatted}`)).toEqual(state);
-
-    const invalid = parseReviewUrlState("?view=review&kind=property&source=surveys");
-    expect(invalid.kind).toBeUndefined();
-    expect(invalid.source).toBe("surveys");
-    expect(invalid.params).toEqual({});
-  });
-
-  it("defaults an unknown view and is safe without a window", () => {
-    expect(parseReviewUrlState("?view=unknown").view).toBe("map");
-    expect(readUrlState().view).toBe("map");
-    expect(readUrlState().params).toEqual({});
-  });
-});
-
-describe("review sidecar loading", () => {
-  it("loads and validates the bundled sidecar without failing", async () => {
-    const original = globalThis.fetch;
-    try {
-      globalThis.fetch = (async () =>
-        new Response(reviewText, { status: 200 })) as typeof fetch;
-      const loaded = await loadReviewSidecar();
-      expect(loaded?.format).toBe("kg-viewer-review");
-      expect(loaded?.decisions).toHaveLength(review.decisions.length);
-
-      globalThis.fetch = (async () =>
-        new Response("missing", { status: 404 })) as typeof fetch;
-      expect(await loadReviewSidecar()).toBeUndefined();
-    } finally {
-      globalThis.fetch = original;
+    const next = buildSemanticLedger(contractIndex, undefined, local);
+    expect(next.coverage.total).toBe(fixtureLedger.coverage.total);
+    expect(next.coverage.resolved).toBe(fixtureLedger.coverage.resolved + 1);
+    expect(next.coverage.open).toBe(fixtureLedger.coverage.open - 1);
+    const entry = next.coverage.required.find((candidate) => candidate.key === first.key);
+    expect(entry?.status).toBe("accepted");
+    expect(entry?.resolved).toBe(true);
+    if (first.unitKey) {
+      expect(next.statusByKey.get(first.unitKey)).toBe("accepted");
     }
   });
 
-  it("drops malformed sidecars instead of throwing", () => {
-    expect(normalizeReviewSidecar({ format: "other" })).toBeUndefined();
-    expect(normalizeReviewSidecar(JSON.parse('{"format":"kg-viewer-review"}'))).toEqual({
+  it("lists unresolved subjects and exports the ledger as JSON", () => {
+    const first = fixtureLedger.required[0];
+    const local = setSemanticDecision({}, first.key, "rejected", {
+      rationale: "The declaration is wrong.",
+      reviewer: "Fixture reviewer",
+    });
+    const next = buildSemanticLedger(contractIndex, undefined, local);
+    expect(next.coverage.subjects.length).toBeGreaterThan(0);
+    const exported = JSON.parse(
+      JSON.stringify(semanticReviewExport(next, { approvals: [] })),
+    );
+    expect(exported.format).toBe("kg-viewer-semantic-review");
+    expect(exported.snapshot.digest).toBe(next.digest);
+    expect(exported.coverage.total).toBe(next.coverage.total);
+    expect(exported.coverage.resolved).toBe(next.coverage.resolved);
+    expect(exported.units.length).toBe(next.units.length);
+  });
+
+  it("blocks sign-off until coverage is empty and a reviewer signs", () => {
+    const blocked = assessSignoff(fixtureLedger.coverage, fixtureLedger.digest);
+    expect(blocked.ready).toBe(false);
+    expect(blocked.blockers).toContain("No reviewer");
+    expect(blocked.coverageOpen).toBeGreaterThan(0);
+
+    const empty = {
+      required: [],
+      total: 0,
+      resolved: 0,
+      open: 0,
+      subjects: [],
+    };
+    const ready = assessSignoff(empty, fixtureLedger.digest, {
+      reviewer: "Reviewer One",
+      at: "2026-11-09T12:00:00.000Z",
+    });
+    expect(ready.ready).toBe(true);
+    expect(ready.approved).toBe(false);
+
+    const approval = buildSignoffApproval(
+      fixtureLedger.digest,
+      empty,
+      "Reviewer One",
+      "2026-11-09T12:00:00.000Z",
+      "All required decisions resolved.",
+    );
+    expect(approval.scope).toEqual([]);
+    const approved = assessSignoff(empty, fixtureLedger.digest, {
+      approvals: [approval],
+    });
+    expect(approved.ready).toBe(true);
+    expect(approved.approved).toBe(true);
+    expect(approved.approval?.reviewer).toBe("Reviewer One");
+  });
+
+  it("becomes ready after every required decision is resolved", () => {
+    let local = {};
+    for (const entry of fixtureLedger.required) {
+      local = setSemanticDecision(local, entry.key, "accepted", {
+        rationale: `Resolved ${entry.title}.`,
+        reviewer: "Fixture reviewer",
+      });
+    }
+    const resolved = buildSemanticLedger(contractIndex, undefined, local);
+    expect(resolved.coverage.open).toBe(0);
+    expect(resolved.coverage.resolved).toBe(resolved.coverage.total);
+    const readiness = assessSignoff(resolved.coverage, resolved.digest, {
+      reviewer: "Fixture reviewer",
+      at: "2026-11-09T12:00:00.000Z",
+    });
+    expect(readiness.ready).toBe(true);
+    expect(readiness.blockers).toEqual([]);
+  });
+});
+
+describe("review sidecar and queue", () => {
+  it("round-trips waived decisions and an approval", () => {
+    const sidecar: ReviewSidecar = {
       format: "kg-viewer-review",
       version: 1,
-      decisions: [],
+      decisions: [
+        {
+          id: "waive-fixture-purpose",
+          title: "The fixture purpose is synthetic",
+          status: "waived",
+          rationale: "The fixture exists only for contract tests.",
+          evidence: [],
+          subject: { kind: "graph", name: "fixture_graph" },
+          tags: ["fixture"],
+        },
+      ],
+      approvals: [
+        {
+          id: "approval:fixture",
+          scope: [{ kind: "graph", name: "fixture_graph" }],
+          digest: fixtureLedger.digest,
+          reviewer: "Fixture reviewer",
+          at: "2026-11-09T12:00:00.000Z",
+          status: "signed-off",
+        },
+      ],
+    };
+    const roundTrip = JSON.parse(JSON.stringify(sidecar)) as ReviewSidecar;
+    expect(roundTrip).toEqual(sidecar);
+    expect(roundTrip.decisions[0].status).toBe("waived");
+    expect(roundTrip.approvals?.[0].status).toBe("signed-off");
+
+    const ledger = buildSemanticLedger(contractIndex, sidecar);
+    const graphLimitation = ledger.coverage.required.find(
+      (entry) => entry.reason === "limitation" && entry.subject.kind === "graph",
+    );
+    expect(graphLimitation?.resolved).toBe(true);
+    expect(graphLimitation?.status).toBe("waived");
+  });
+
+  it("requires a rationale for a semantic waiver", () => {
+    expect(() => setSemanticDecision({}, "unit:one", "waived")).toThrow(/rationale/i);
+    const records = setSemanticDecision({}, "unit:one", "waived", {
+      rationale: "Accepted as a documented limit.",
+      reviewer: "Reviewer One",
+      at: "2026-11-09T12:00:00.000Z",
     });
+    expect(records["unit:one"]).toMatchObject({
+      key: "unit:one",
+      status: "waived",
+      rationale: "Accepted as a documented limit.",
+      reviewer: "Reviewer One",
+    });
+  });
+
+  it("keeps the audit review queue contract and SSR behaviour", () => {
+    const audit = buildAudit(contractIndex, undefined);
+    const first = audit.findings[0];
+    if (first) {
+      const records = setReviewStatus({}, first.id, "acknowledged");
+      expect(summarizeQueue(audit, records).acknowledged).toBe(1);
+      expect(() => setReviewStatus(records, first.id, "waived")).toThrow(/note/i);
+    }
+    expect(queueKey("fixture-estate")).toBe(`${KEY_PREFIX}fixture-estate`);
+    expect(loadReviewQueue("fixture-estate")).toEqual({});
+    expect(() => saveReviewQueue("fixture-estate", {})).not.toThrow();
   });
 });

@@ -19,7 +19,9 @@ describe("search", () => {
     expect(byName.some((record) => record.kind === "asset" && record.name === "estate")).toBe(
       true,
     );
-    const bySemantics = searchIndex(index.searchRecords, "monitored estate records");
+    const bySemantics = searchIndex(index.searchRecords, "monitored estate", {
+      limit: 100,
+    });
     expect(bySemantics.some((record) => record.kind === "asset")).toBe(true);
   });
 

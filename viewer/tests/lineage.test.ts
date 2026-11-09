@@ -1,11 +1,20 @@
+import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
+import { buildViewerIndex } from "../lib/indexes";
 import {
   buildLineage,
   lineageStepNodeId,
   propertySelection,
 } from "../lib/lineage";
+import { loadSnapshotFromObject } from "../lib/load";
 import type { LineageBranch, LineageGraph, StepId } from "../lib/types";
-import { index } from "./fixtures";
+import {
+  buildProof,
+  defaultProofSubject,
+  proofSubjectForLevel,
+  resolveProofSubject,
+} from "../proof/model";
+import { contractIndex, index } from "./fixtures";
 
 function hasStep(branch: LineageBranch, id: StepId): boolean {
   return (
@@ -194,4 +203,205 @@ describe("property lineage", () => {
     expect(lineage.nodes).toHaveLength(1);
     expect(lineage.nodes[0].id).toBe(lineage.terminalNodeId);
   });
+});
+
+describe("proof model", () => {
+  it("builds the property level with lanes, attached semantics and a type chain", () => {
+    const proof = buildProof(contractIndex, {
+      level: "property",
+      kind: "node",
+      component: "defect",
+      property: "title",
+    });
+
+    expect(proof.level).toBe("property");
+    expect(proof.branches).toHaveLength(1);
+    expect(proof.branches[0].branch.binding.index).toBe(0);
+
+    const branch = proof.branches[0];
+    const lanes = new Set(branch.nodes.map((node) => node.lane));
+    expect(lanes).toEqual(
+      new Set(["asset", "source", "transformation", "binding", "target"]),
+    );
+    expect(branch.nodes.some((node) => node.kind === "asset")).toBe(true);
+    expect(branch.nodes.some((node) => node.kind === "table")).toBe(true);
+    expect(branch.nodes.some((node) => node.kind === "field")).toBe(true);
+    expect(branch.nodes.some((node) => node.kind === "binding")).toBe(true);
+    expect(branch.nodes.some((node) => node.kind === "property")).toBe(true);
+
+    const attachedKinds = new Set(
+      [
+        ...proof.rootSemantics,
+        ...proof.subjectSemantics,
+        ...branch.semantics,
+      ].map((semantics) => semantics.kind),
+    );
+    for (const kind of ["graph", "asset", "property", "binding"] as const) {
+      expect(attachedKinds.has(kind)).toBe(true);
+    }
+    expect(
+      proof.rootSemantics.find((semantics) => semantics.kind === "graph")
+        ?.purpose?.text,
+    ).toContain("viewer data contract");
+
+    expect(branch.typeChain.steps.length).toBeGreaterThanOrEqual(3);
+    expect(branch.typeChain.steps.map((step) => step.stage)).toEqual(
+      expect.arrayContaining(["property", "binding", "source"]),
+    );
+    expect(branch.typeChain.steps[0].typeName).toBe("str");
+  });
+
+  it("shows every branch for a multi-source property", () => {
+    const proof = buildProof(index, {
+      level: "property",
+      kind: "node",
+      component: "reading",
+      property: "value",
+    });
+    expect(proof.branches).toHaveLength(2);
+    expect(proof.branches.map((branch) => branch.branch.binding.index)).toEqual([
+      4, 5,
+    ]);
+    expect(
+      proof.branches.map((branch) => branch.branch.sourceRelations),
+    ).toEqual([["temperature"], ["vibration"]]);
+    expect(proof.branches.every((branch) => branch.typeChain.steps.length > 0)).toBe(
+      true,
+    );
+  });
+
+  it("derives the node and edge levels from the same index", () => {
+    const node = buildProof(index, { level: "node", component: "defect" });
+    expect(node.component?.name).toBe("defect");
+    expect(node.component?.kind).toBe("node");
+    expect(node.properties.length).toBe(4);
+    const title = node.properties.find((property) => property.property === "title");
+    expect(title?.branchCount).toBe(1);
+    expect(title?.assets).toEqual(["estate"]);
+    expect(title?.sources).toEqual(["surveys"]);
+
+    const edge = buildProof(index, {
+      level: "edge",
+      component: "has_observation",
+    });
+    expect(edge.component?.kind).toBe("edge");
+    expect(edge.component?.provenance).toEqual({
+      source: "defect",
+      target: "observation",
+    });
+    expect(edge.properties.length).toBe(2);
+  });
+
+  it("derives the abstract and asset levels", () => {
+    const abstract = buildProof(index, {
+      level: "abstract",
+      component: "documented",
+    });
+    expect(abstract.abstract?.name).toBe("documented");
+    expect(abstract.abstract?.descendants.length).toBe(6);
+    expect(
+      abstract.abstract?.descendants.some(
+        (descendant) =>
+          descendant.name === "defect" &&
+          descendant.properties.some((property) => property.property === "title"),
+      ),
+    ).toBe(true);
+
+    const asset = buildProof(index, { level: "asset", component: "estate" });
+    expect(asset.asset?.name).toBe("estate");
+    expect(asset.asset?.relations.map((relation) => relation.name)).toEqual(
+      expect.arrayContaining(["surveys", "temperature", "vibration"]),
+    );
+    expect(asset.asset?.fields.length).toBeGreaterThan(0);
+    expect(asset.properties.length).toBeGreaterThan(0);
+
+    const contractAsset = buildProof(contractIndex, {
+      level: "asset",
+      component: "estate",
+    });
+    expect(contractAsset.asset?.profile?.subject).toBe("a monitored estate");
+    expect(contractAsset.asset?.semantics[0]?.claims[0]?.text).toContain(
+      "JSON asset",
+    );
+  });
+
+  it("resolves a default subject and workbench selections", () => {
+    const fallback = defaultProofSubject(index);
+    expect(fallback.level).toBe("property");
+    expect(fallback.kind).toBe("node");
+    expect(fallback.property).toBeTruthy();
+
+    expect(
+      resolveProofSubject(index, { kind: "asset", name: "estate" }),
+    ).toEqual({ level: "asset", kind: "asset", component: "estate" });
+    expect(
+      resolveProofSubject(index, {
+        kind: "property",
+        component: "defect",
+        property: "title",
+        level: "property",
+      }),
+    ).toEqual({
+      level: "property",
+      kind: "node",
+      component: "defect",
+      property: "title",
+      propertyRef: ["topology", "property", "defect.title"],
+    });
+
+    expect(proofSubjectForLevel(index, fallback, "node")).toEqual({
+      level: "node",
+      kind: "node",
+      component: fallback.component,
+    });
+    expect(proofSubjectForLevel(index, fallback, "abstract").kind).toBe(
+      "abstract",
+    );
+    expect(proofSubjectForLevel(index, fallback, "asset").level).toBe("asset");
+  });
+
+  it(
+    "reads the current Open Targets snapshot: target.approvedSymbol and the five cross_reference branches",
+    () => {
+      const text = readFileSync(
+        new URL("../public/data/opentargets.snapshot.json", import.meta.url),
+        "utf8",
+      );
+      const current = buildViewerIndex(
+        loadSnapshotFromObject(JSON.parse(text)),
+      );
+      const symbol = buildProof(current, {
+        level: "property",
+        kind: "node",
+        component: "target",
+        property: "approvedSymbol",
+      });
+      expect(symbol.branches).toHaveLength(1);
+      expect(symbol.branches[0].branch.binding.index).toBe(202);
+      expect(symbol.branches[0].nodes.some((node) => node.kind === "asset")).toBe(
+        true,
+      );
+
+      const crossReference = buildProof(current, {
+        level: "property",
+        kind: "node",
+        component: "cross_reference",
+        property: "identifier",
+      });
+      expect(crossReference.branches).toHaveLength(5);
+      expect(
+        new Set(crossReference.branches.map((branch) => branch.branch.binding.index)),
+      ).toEqual(new Set([18, 20, 147, 171, 215]));
+      expect(
+        crossReference.branches.every(
+          (branch) => branch.typeChain.steps.length > 0,
+        ),
+      ).toBe(true);
+
+      const fallback = defaultProofSubject(current);
+      expect(fallback.level).toBe("property");
+      expect(current.topologyNodesByName.get(fallback.component)).toBeTruthy();
+    },
+    30000,
+  );
 });

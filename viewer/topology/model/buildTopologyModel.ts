@@ -1,466 +1,520 @@
-import type { CampaignView } from "@/shared/model/campaign";
-import type { IconToken } from "@/shared/model/hierarchy";
-import type { LogicalType, TopologyEdge, TopologyNode } from "@/lib/types";
+/**
+ * Build the topology workbench model.
+ *
+ * Public API:
+ *   buildTopologyModel(snapshot, index, { review?, audit?, decisions? })
+ *
+ * The model is DOM-free and is what the D3 function consumes.
+ */
+
+import { buildAudit } from "@/lib/audit";
+import { deriveDecisions } from "@/lib/decisions";
 import type {
-  TopologyGroupModel,
+  AuditFinding,
+  AuditReport,
+  DecisionStatus,
+  DecisionView,
+  ReviewSidecar,
+  Severity,
+} from "@/lib/reviewTypes";
+import type {
+  EntityKind,
+  TopologyEdge,
+  TopologyNode,
+  ViewerIndex,
+  ViewerSnapshot,
+} from "@/lib/types";
+import type {  BuildTopologyModelOptions,
+  TopologyFindingSummary,
+  TopologyFilters,
+  TopologyFiltersModel,
+  TopologyGraphModel,
   TopologyLinkModel,
-  TopologyModel,
-  TopologyNavigatorRow,
-  TopologyNavigatorSection,
-  TopologyNeighbourModel,
   TopologyNodeModel,
-  TopologyPropertyModel,
-  TopologySelection,
-  TopologySelectionCommands,
-  TopologySelectionModel,
-} from "./TopologyModel";
-import { buildPropertyBadges } from "./propertyBadges";
+  TopologySemanticsSummary,
+} from "./TopologyGraphModel";
+import { createTopologyFilters } from "./TopologyGraphModel";
 
-function parentGroup(value: TopologyNode | TopologyEdge): string {
-  const parent = value.parent?.at(-1);
-  return parent && parent.trim() ? parent : "uncategorized";
+type TopologyComponent = TopologyNode | TopologyEdge;
+
+interface RawSemantics {
+  claims?: unknown;
+  frames?: unknown;
 }
 
-function typeLabel(type: LogicalType | undefined): string {
-  if (!type) return "";
-  if (type.kind === "array") {
-    return `${typeLabel(type.item) || "item"}[]`;
+interface RawSemanticsText {
+  text?: unknown;
+  limitations?: unknown;
+}
+
+const SEVERITY_ORDER: Severity[] = ["critical", "high", "medium", "low", "info"];
+const DECISION_RANK: Record<DecisionStatus, number> = {
+  accepted: 1,
+  waived: 2,
+  proposed: 3,
+  open: 4,
+  rejected: 5,
+};
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return Boolean(value) && typeof value === "object" && !Array.isArray(value);
+}
+
+function nonEmpty(value: unknown): value is string {
+  return typeof value === "string" && value.trim().length > 0;
+}
+
+function humanize(value: string): string {
+  const words = value
+    .replace(/[_-]+/g, " ")
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean);
+  if (!words.length) return value;
+  return words
+    .map((word, index) => {
+      const lower = word.toLowerCase();
+      return index === 0 ? lower.charAt(0).toUpperCase() + lower.slice(1) : lower;
+    })
+    .join(" ");
+}
+
+function emptySeverities(): Record<Severity, number> {
+  return { critical: 0, high: 0, medium: 0, low: 0, info: 0 };
+}
+
+function emptyFindings(): TopologyFindingSummary {
+  return { total: 0, rules: [], severities: emptySeverities() };
+}
+
+function emptySemantics(): TopologySemanticsSummary {
+  return {
+    present: false,
+    claimCount: 0,
+    frameCount: 0,
+    limitationCount: 0,
+    claims: [],
+    frames: [],
+    limitations: [],
+  };
+}
+
+function readSemantics(component: TopologyComponent): TopologySemanticsSummary {
+  const raw = (component as { semantics?: unknown }).semantics;
+  if (!isObject(raw)) return emptySemantics();
+  const semantics = raw as RawSemantics;
+
+  const claims: string[] = [];
+  for (const item of Array.isArray(semantics.claims) ? semantics.claims : []) {
+    if (isObject(item) && nonEmpty(item.text)) claims.push(item.text.trim());
   }
-  if (type.name) return type.name;
-  if (type.kind === "unit") return "value";
-  return type.kind;
+
+  const frames: string[] = [];
+  const limitations: string[] = [];
+  for (const item of Array.isArray(semantics.frames) ? semantics.frames : []) {
+    if (!isObject(item)) continue;
+    const frame = item as RawSemanticsText;
+    if (nonEmpty(frame.text)) frames.push(frame.text.trim());
+    for (const limitation of Array.isArray(frame.limitations)
+      ? frame.limitations
+      : []) {
+      if (isObject(limitation) && nonEmpty(limitation.text)) {
+        limitations.push(limitation.text.trim());
+      }
+    }
+  }
+
+  return {
+    present: claims.length + frames.length + limitations.length > 0,
+    claimCount: claims.length,
+    frameCount: frames.length,
+    limitationCount: limitations.length,
+    claims,
+    frames,
+    limitations,
+  };
 }
 
-function action(
-  id: string,
-  label: string,
-  icon: IconToken,
-  run: () => void,
-  title?: string,
-) {
-  return { id, label, icon, title, run };
+function summarizeFindings(items: AuditFinding[]): TopologyFindingSummary {
+  if (!items.length) return emptyFindings();
+  const severities = emptySeverities();
+  const rules = new Set<string>();
+  let worst: Severity | undefined;
+  for (const finding of items) {
+    severities[finding.severity] += 1;
+    rules.add(finding.rule);
+    if (
+      worst === undefined ||
+      SEVERITY_ORDER.indexOf(finding.severity) < SEVERITY_ORDER.indexOf(worst)
+    ) {
+      worst = finding.severity;
+    }
+  }
+  return {
+    total: items.length,
+    worst,
+    rules: [...rules].sort((left, right) => left.localeCompare(right)),
+    severities,
+  };
 }
 
-function field(id: string, label: string, value: string | number) {
-  return { id, label, value: String(value) };
+function summarizeDecisions(items: DecisionView[]): {
+  status?: DecisionStatus;
+  statuses: DecisionStatus[];
+  ids: string[];
+} {
+  if (!items.length) return { statuses: [], ids: [] };
+  const statuses = [...new Set(items.map((item) => item.status))].sort(
+    (left, right) =>
+      DECISION_RANK[right] - DECISION_RANK[left] ||
+      left.localeCompare(right),
+  );
+  return {
+    status: statuses[0],
+    statuses,
+    ids: [...new Set(items.map((item) => item.id))].sort((left, right) =>
+      left.localeCompare(right),
+    ),
+  };
+}
+
+function nodeId(name: string): string {
+  return `topology:node:${name}`;
+}
+
+function edgeId(name: string): string {
+  return `topology:edge:${name}`;
+}
+
+function containmentId(child: string, parent: string): string {
+  return `topology:contains:${child}->${parent}`;
+}
+
+function parentName(component: TopologyComponent): string | undefined {
+  const parent = component.parent?.at(-1);
+  return parent && parent.trim() ? parent : undefined;
+}
+
+function componentLabel(
+  index: ViewerIndex,
+  component: TopologyComponent,
+  kind: EntityKind,
+): string {
+  const meta = index.metaGraph?.byName.get(component.name);
+  const match =
+    meta?.find((entry) => entry.kind === kind && nonEmpty(entry.label)) ??
+    meta?.find((entry) => nonEmpty(entry.label));
+  if (match?.label) return match.label;
+  const label = component.labels?.find((value) => nonEmpty(value));
+  if (label) return label;
+  return humanize(component.name);
+}
+
+function resolveSubject(
+  subject: AuditFinding["subject"],
+  index: ViewerIndex,
+): { kind: EntityKind; name: string } | undefined {
+  if (!subject) return undefined;
+  const name = subject.component ?? subject.name;
+  if (!name) return undefined;
+
+  if (subject.kind === "node" && index.topologyNodesByName.has(name)) {
+    return { kind: "node", name };
+  }
+  if (subject.kind === "edge" && index.topologyEdgesByName.has(name)) {
+    return { kind: "edge", name };
+  }
+  if (subject.entityKind === "node" && index.topologyNodesByName.has(name)) {
+    return { kind: "node", name };
+  }
+  if (subject.entityKind === "edge" && index.topologyEdgesByName.has(name)) {
+    return { kind: "edge", name };
+  }
+  if (subject.kind === "property" || subject.kind === "binding") {
+    if (index.topologyNodesByName.has(name)) return { kind: "node", name };
+    if (index.topologyEdgesByName.has(name)) return { kind: "edge", name };
+  }
+  return undefined;
+}
+
+function entityKey(kind: EntityKind, name: string): string {
+  return `${kind}\u0000${name}`;
+}
+
+function groupByEntity<T>(
+  items: T[],
+  resolve: (item: T) => { kind: EntityKind; name: string } | undefined,
+): Map<string, T[]> {
+  const grouped = new Map<string, T[]>();
+  for (const item of items) {
+    const target = resolve(item);
+    if (!target) continue;
+    const key = entityKey(target.kind, target.name);
+    const bucket = grouped.get(key) ?? [];
+    bucket.push(item);
+    grouped.set(key, bucket);
+  }
+  return grouped;
+}
+
+function filterCounts(
+  nodes: TopologyNodeModel[],
+  edges: TopologyLinkModel[],
+): TopologyFiltersModel["counts"] {
+  const entities: Array<TopologyNodeModel | TopologyLinkModel> = [
+    ...nodes,
+    ...edges,
+  ];
+  const decision: Record<string, number> = {
+    all: entities.length,
+    none: entities.filter((entity) => !entity.decisionStatus).length,
+    accepted: 0,
+    waived: 0,
+    proposed: 0,
+    open: 0,
+    rejected: 0,
+  };
+  for (const entity of entities) {
+    if (entity.decisionStatus) {
+      decision[entity.decisionStatus] = (decision[entity.decisionStatus] ?? 0) + 1;
+    }
+  }
+  return {
+    kinds: { node: nodes.length, edge: edges.length },
+    abstract: {
+      all: nodes.length,
+      concrete: nodes.filter((node) => !node.abstract).length,
+      abstract: nodes.filter((node) => node.abstract).length,
+    },
+    semantics: {
+      all: entities.length,
+      present: entities.filter((entity) => entity.hasSemantics).length,
+      missing: entities.filter((entity) => !entity.hasSemantics).length,
+    },
+    findings: {
+      all: entities.length,
+      with: entities.filter((entity) => entity.findings.total > 0).length,
+      without: entities.filter((entity) => entity.findings.total === 0).length,
+    },
+    decision,
+  };
 }
 
 /**
- * Build the Orientation model.
+ * Build the force-graph model from a loaded snapshot and its index.
  *
- * Graph layout, viewport, pan/zoom, hover and the local group filter stay in
- * the view. This builder owns the topology nodes, links, groups, the selected
- * subject, its navigator sections and the commands that change the campaign
- * selection or open another panel.
+ * The builder is pure and deterministic for a given snapshot/index/review: ids,
+ * labels, link endpoints, ordering and counts do not depend on time, layout or
+ * DOM state.
  */
-export function buildTopologyModel(
-  campaign: CampaignView,
-  selectionOverride?: TopologySelection | null,
-): TopologyModel {
-  const index = campaign.record.index;
-  const audit = campaign.record.audit ?? undefined;
+export function buildTopologyGraphModel(
+  snapshot: ViewerSnapshot,
+  index: ViewerIndex,
+  options: BuildTopologyModelOptions = {},
+): TopologyGraphModel {
+  const audit =
+    options.audit ??
+    buildAudit(index, options.review);
+  const decisions =
+    options.decisions ??
+    deriveDecisions(index, options.review);
 
-  const nodes: TopologyNodeModel[] = index.topologyNodes.map((value) => ({
-    id: value.name,
-    name: value.name,
-    group: parentGroup(value),
-    abstract: Boolean(value.abstract),
-    degree: 0,
-  }));
-  const byName = new Map(nodes.map((node) => [node.name, node]));
-  const links: TopologyLinkModel[] = [];
-
-  for (const edge of index.topologyEdges) {
-    const source = edge.source?.[2];
-    const target = edge.target?.[2];
-    if (!source || !target || !byName.has(source) || !byName.has(target)) continue;
-    links.push({
-      id: `edge:${edge.name}`,
-      edgeName: edge.name,
-      source,
-      target,
-    });
-    byName.get(source)!.degree += 1;
-    byName.get(target)!.degree += 1;
-  }
-
-  const groupCounts = new Map<string, number>();
-  for (const node of nodes) {
-    groupCounts.set(node.group, (groupCounts.get(node.group) ?? 0) + 1);
-  }
-  const groups: TopologyGroupModel[] = [...groupCounts.entries()]
-    .sort(([left], [right]) => left.localeCompare(right))
-    .map(([name, count]) => ({ id: name, name, count }));
-
-  const busiestNode = nodes.reduce<TopologyNodeModel | undefined>(
-    (best, node) => (best && best.degree >= node.degree ? best : node),
-    undefined,
+  const findings = groupByEntity(audit.findings, (finding) =>
+    resolveSubject(finding.subject, index),
   );
-  const busiest: TopologySelection | undefined = busiestNode
-    ? { kind: "node", name: busiestNode.name }
-    : undefined;
-  const defaultSelection: TopologySelection | undefined = byName.has("target")
-    ? { kind: "node", name: "target" }
-    : undefined;
+  const decisionGroups = groupByEntity(decisions, (decision) =>
+    resolveSubject(decision.subject, index),
+  );
 
-  const requested: TopologySelection | undefined =
-    campaign.selection?.kind === "topology"
-      ? {
-          kind: campaign.selection.entityKind,
-          name: campaign.selection.name,
-        }
-      : undefined;
-  const exists = (value: TopologySelection | undefined): boolean =>
-    Boolean(
-      value &&
-        (value.kind === "node"
-          ? index.topologyNodesByName.has(value.name)
-          : index.topologyEdgesByName.has(value.name)),
+  const components = index.topologyNodes ?? [];
+  const edgeComponents = index.topologyEdges ?? [];
+  const componentByName = new Map(
+    components.map((component) => [component.name, component] as const),
+  );
+
+  const nodes: TopologyNodeModel[] = components.map((component) => {
+    const label = componentLabel(index, component, "node");
+    const semantics = readSemantics(component);
+    const findingSummary = summarizeFindings(
+      findings.get(entityKey("node", component.name)) ?? [],
     );
-  const selected =
-    selectionOverride === null
-      ? undefined
-      : selectionOverride
-        ? selectionOverride
-        : exists(requested)
-          ? requested
-          : defaultSelection;
-  const selectedEntity = selected
-    ? selected.kind === "node"
-      ? index.topologyNodesByName.get(selected.name)
-      : index.topologyEdgesByName.get(selected.name)
-    : undefined;
-
-  const commands: TopologySelectionCommands = {
-    selectNode: (name) =>
-      campaign.commands.select({ kind: "topology", entityKind: "node", name }),
-    selectEdge: (name) =>
-      campaign.commands.select({ kind: "topology", entityKind: "edge", name }),
-    clear: () => campaign.commands.select(null),
-  };
-
-  const neighbours: TopologyNeighbourModel[] = (() => {
-    if (!selected) return [];
-    if (selected.kind === "node") {
-      const connected: Array<{ name: string; edge: string; direction: "out" | "in" }> = [];
-      for (const link of links) {
-        if (link.source === selected.name) {
-          connected.push({ name: link.target, edge: link.edgeName, direction: "out" });
-        } else if (link.target === selected.name) {
-          connected.push({ name: link.source, edge: link.edgeName, direction: "in" });
-        }
-      }
-      return connected
-        .sort((left, right) => left.name.localeCompare(right.name))
-        .map((entry) => ({
-          id: `${entry.direction}:${entry.edge}:${entry.name}`,
-          ...entry,
-        }));
-    }
-    const link = links.find((candidate) => candidate.edgeName === selected.name);
-    if (!link) return [];
-    return [
-      {
-        id: `out:${link.edgeName}:${link.target}`,
-        name: link.target,
-        edge: link.edgeName,
-        direction: "out",
-      },
-      {
-        id: `in:${link.edgeName}:${link.source}`,
-        name: link.source,
-        edge: link.edgeName,
-        direction: "in",
-      },
-    ];
-  })();
-
-  const focusNames = new Set<string>();
-  if (selected) {
-    if (selected.kind === "node") focusNames.add(selected.name);
-    for (const neighbour of neighbours) focusNames.add(neighbour.name);
-  }
-  const focusedCount = focusNames.size;
-
-  const reviewCount =
-    audit && selectedEntity && selected
-      ? audit.findings.filter(
-          (finding) =>
-            finding.subject?.kind === selected.kind &&
-            (finding.subject.component ?? finding.subject.name) ===
-              selectedEntity.name,
-        ).length
-      : 0;
-
-  const propertyModels: TopologyPropertyModel[] = (selectedEntity?.properties ?? []).map(
-    (property) => ({
-      id: `property:${property.name}`,
-      name: property.name,
-      typeLabel: typeLabel(property.logical_type),
-      title: property.description ?? "Open property lineage",
-      badges: selected
-        ? buildPropertyBadges(
-            index,
-            audit,
-            selected.kind,
-            selectedEntity?.name ?? "",
-            property.name,
-          )
-        : [],
-    }),
-  );
-
-  const selectionModel: TopologySelectionModel | undefined =
-    selected && selectedEntity
-      ? (() => {
-          const edge =
-            selected.kind === "edge"
-              ? index.topologyEdgesByName.get(selected.name)
-              : undefined;
-          return {
-            kind: selected.kind,
-            name: selectedEntity.name,
-            group: selected.kind === "edge" ? "relationship" : parentGroup(selectedEntity),
-            abstract: selectedEntity.abstract,
-            description: selectedEntity.description,
-            labels: selectedEntity.labels ?? [],
-            annotations: selectedEntity.annotations ?? [],
-            properties: propertyModels,
-            neighbours,
-            reviewCount,
-            relationship:
-              edge?.source?.at(-1) && edge?.target?.at(-1)
-                ? {
-                    source: edge.source.at(-1) as string,
-                    target: edge.target.at(-1) as string,
-                  }
-                : undefined,
-            linkCount: neighbours.length,
-            propertyCount: propertyModels.length,
-            annotationCount: selectedEntity.annotations?.length ?? 0,
-          };
-        })()
-      : undefined;
-
-  const selectionSection: TopologyNavigatorSection = selectionModel
-    ? {
-        id: "selection",
-        title: "Selection",
-        question: "Which topology subject is selected?",
-        count: "1",
-        rows: [
-          {
-            id: `selection:${selectionModel.kind}:${selectionModel.name}`,
-            kind: "selection",
-            label: selectionModel.name,
-            meta: selectionModel.kind,
-            selected: true,
-            abstract: selectionModel.abstract,
-            actions: [
-              action(
-                "open-entity",
-                selectionModel.name,
-                "open",
-                () =>
-                  campaign.commands.select({
-                    kind: "topology",
-                    entityKind: selectionModel.kind,
-                    name: selectionModel.name,
-                  }),
-                `Open ${selectionModel.name} in Explorer`,
-              ),
-            ],
-          },
-        ],
-        fields: [
-          field("group", "group", selectionModel.group),
-          ...(selectionModel.relationship
-            ? [
-                field(
-                  "relationship",
-                  "relationship",
-                  `${selectionModel.relationship.source} → ${selectionModel.relationship.target}`,
-                ),
-              ]
-            : []),
-          field("links", "links", selectionModel.linkCount),
-          field("properties", "properties", selectionModel.propertyCount),
-          field("annotations", "annotations", selectionModel.annotationCount),
-        ],
-        actions: [
-          action(
-            "review",
-            "review",
-            "question",
-            () =>
-              campaign.commands.openReview({
-                kind: selectionModel.kind,
-                name: selectionModel.name,
-                component: selectionModel.name,
-                entityKind: selectionModel.kind,
-              }),
-            "Open this subject in review",
-          ),
-        ],
-        annotations: {
-          annotations: selectionModel.annotations,
-          context: {
-            kind: selectionModel.kind,
-            component: selectionModel.name,
-          },
-        },
-        description: selectionModel.description,
-        chips: selectionModel.labels,
-        reviewCount: selectionModel.reviewCount,
-      }
-    : {
-        id: "selection",
-        title: "Selection",
-        question: "Which topology subject is selected?",
-        count: "0",
-        rows: [],
-        fields: [
-          field("node-types", "node types", index.stats.topologyNodes),
-          field("edge-types", "edge types", index.stats.topologyEdges),
-        ],
-        actions: busiest
-          ? [
-              action(
-                "select-busiest",
-                "busiest node",
-                "navigator",
-                () => commands.selectNode(busiest.name),
-                `Select busiest node ${busiest.name}`,
-              ),
-            ]
-          : [],
-        empty: "nothing selected · pick a bubble or relationship wire",
-      };
-
-  const groupsSection: TopologyNavigatorSection = {
-    id: "groups",
-    title: "Groups",
-    question: "Which parent group filters the topology?",
-    count: String(groups.length),
-    rows: groups.map((group) => ({
-      id: `group:${group.id}`,
-      kind: "group",
-      label: group.name,
-      meta: String(group.count),
-    })),
-  };
-
-  const propertiesSection: TopologyNavigatorSection = {
-    id: "properties",
-    title: "Properties",
-    question: "Which properties define the selected subject?",
-    count: String(propertyModels.length),
-    rows: propertyModels.map((property) => ({
-      id: property.id,
-      kind: "property",
-      label: property.name,
-      meta: property.typeLabel,
-      title: property.title,
-      badges: property.badges,
-      actions:
-        selected && selectedEntity
-          ? [
-              action(
-                "open-property",
-                property.name,
-                "trace",
-                () =>
-                  campaign.commands.selectProperty(
-                    selected.kind,
-                    selectedEntity.name,
-                    property.name,
-                  ),
-                property.title,
-              ),
-            ]
-          : [],
-    })),
-    empty: "no properties",
-  };
-
-  const neighbourRows: TopologyNavigatorRow[] = neighbours.map((neighbour) => ({
-    id: neighbour.id,
-    kind: "neighbour",
-    label: neighbour.name,
-    meta: neighbour.edge,
-    edge: neighbour.edge,
-    direction: neighbour.direction,
-    actions: [
-      action(
-        "select-node",
-        neighbour.name,
-        neighbour.direction === "out" ? "navigator" : "branch",
-        () => commands.selectNode(neighbour.name),
-        `Select ${neighbour.name}`,
-      ),
-      action(
-        "select-edge",
-        neighbour.edge,
-        "branch",
-        () => commands.selectEdge(neighbour.edge),
-        `Select relationship ${neighbour.edge}`,
-      ),
-    ],
-  }));
-
-  const neighboursSection: TopologyNavigatorSection = {
-    id: "neighbours",
-    title: "Neighbours",
-    question: "Which entities and relationships are adjacent?",
-    count: String(neighbours.length),
-    rows: neighbourRows,
-    notice:
-      neighbours.length > 8
-        ? `${neighbours.length} neighbours · list scrolls with the panel`
-        : undefined,
-    empty: "no neighbours",
-  };
-
-  const navigatorSections: TopologyNavigatorSection[] = [
-    selectionSection,
-    groupsSection,
-    propertiesSection,
-    neighboursSection,
-  ];
-  const navigator = Object.assign(navigatorSections, {
-    id: "navigator" as const,
-    title: "Navigator" as const,
-    meta: `${nodes.length} nodes · ${links.length} links`,
-    sections: navigatorSections,
+    const decisionSummary = summarizeDecisions(
+      decisionGroups.get(entityKey("node", component.name)) ?? [],
+    );
+    const parent = parentName(component);
+    return {
+      id: nodeId(component.name),
+      name: component.name,
+      label,
+      kind: "node",
+      abstract: Boolean(component.abstract),
+      degree: 0,
+      relationDegree: 0,
+      children: 0,
+      category: parent ?? (component.abstract ? "root" : "uncategorized"),
+      parent,
+      labels: [...(component.labels ?? [])],
+      description: component.description,
+      properties: component.properties?.length ?? 0,
+      annotations: component.annotations?.length ?? 0,
+      hasSemantics: semantics.present,
+      semantics,
+      findings: findingSummary,
+      decisionStatus: decisionSummary.status,
+      decisionStatuses: decisionSummary.statuses,
+      decisionIds: decisionSummary.ids,
+    };
   });
+  const byName = new Map(nodes.map((node) => [node.name, node] as const));
+
+  const edgeLinks: TopologyLinkModel[] = [];
+  for (const component of edgeComponents) {
+    const sourceName = component.source?.at(-1);
+    const targetName = component.target?.at(-1);
+    if (
+      !sourceName ||
+      !targetName ||
+      !byName.has(sourceName) ||
+      !byName.has(targetName)
+    ) {
+      continue;
+    }
+    const semantics = readSemantics(component);
+    const findingSummary = summarizeFindings(
+      findings.get(entityKey("edge", component.name)) ?? [],
+    );
+    const decisionSummary = summarizeDecisions(
+      decisionGroups.get(entityKey("edge", component.name)) ?? [],
+    );
+    const parent = parentName(component);
+    edgeLinks.push({
+      id: edgeId(component.name),
+      name: component.name,
+      label: componentLabel(index, component, "edge"),
+      kind: "edge",
+      source: nodeId(sourceName),
+      target: nodeId(targetName),
+      sourceName,
+      targetName,
+      directed: true,
+      abstract: Boolean(component.abstract),
+      category: parent ?? "relationship",
+      parent,
+      labels: [...(component.labels ?? [])],
+      description: component.description,
+      hasSemantics: semantics.present,
+      semantics,
+      findings: findingSummary,
+      decisionStatus: decisionSummary.status,
+      decisionStatuses: decisionSummary.statuses,
+      decisionIds: decisionSummary.ids,
+      edgeName: component.name,
+    });
+  }
+
+  const containmentLinks: TopologyLinkModel[] = [];
+  for (const node of nodes) {
+    if (!node.parent || !byName.has(node.parent)) continue;
+    const parent = byName.get(node.parent)!;
+    containmentLinks.push({
+      id: containmentId(node.name, parent.name),
+      name: `is_a:${node.name}`,
+      label: `in ${parent.label}`,
+      kind: "containment",
+      source: node.id,
+      target: parent.id,
+      sourceName: node.name,
+      targetName: parent.name,
+      directed: true,
+      abstract: false,
+      category: "containment",
+      parent: parent.name,
+      labels: [],
+      hasSemantics: false,
+      semantics: emptySemantics(),
+      findings: emptyFindings(),
+      decisionStatuses: [],
+      decisionIds: [],
+    });
+  }
+
+  for (const link of edgeLinks) {
+    const source = byName.get(link.sourceName);
+    const target = byName.get(link.targetName);
+    if (source) {
+      source.degree += 1;
+      source.relationDegree += 1;
+    }
+    if (target) {
+      target.degree += 1;
+      target.relationDegree += 1;
+    }
+  }
+  for (const link of containmentLinks) {
+    const source = byName.get(link.sourceName);
+    const target = byName.get(link.targetName);
+    if (source) source.degree += 1;
+    if (target) {
+      target.degree += 1;
+      target.children += 1;
+    }
+  }
+
+  const links = [...edgeLinks, ...containmentLinks];
+  nodes.sort((left, right) => left.id.localeCompare(right.id));
+  links.sort((left, right) => left.id.localeCompare(right.id));
+
+  const entities: Array<TopologyNodeModel | TopologyLinkModel> = [
+    ...nodes,
+    ...edgeLinks,
+  ];
+  const graphKey = `${snapshot.name}:${nodes.length}:${edgeLinks.length}:${containmentLinks.length}`;
+  const stats = {
+    nodes: nodes.length,
+    abstractNodes: nodes.filter((node) => node.abstract).length,
+    edgeLinks: edgeLinks.length,
+    containmentLinks: containmentLinks.length,
+    links: links.length,
+    semantics: entities.filter((entity) => entity.hasSemantics).length,
+    findings: entities.reduce((total, entity) => total + entity.findings.total, 0),
+    decisions: entities.reduce(
+      (total, entity) => total + entity.decisionIds.length,
+      0,
+    ),
+  };
 
   return {
     id: "topology",
-    title: "Orientation",
-    icon: "map",
-    meta: "topology",
-    hint: "drag to pan · scroll to zoom",
-    stats: {
-      nodes: nodes.length,
-      links: links.length,
-      nodeTypes: index.stats.topologyNodes,
-      edgeTypes: index.stats.topologyEdges,
+    snapshot: snapshot.name,
+    graphKey,
+    nodes,
+    links,
+    filters: {
+      defaultState: createTopologyFilters(),
+      counts: filterCounts(nodes, edgeLinks),
     },
-    canvas: {
-      graphKey: `${campaign.record.snapshot.name}:${nodes.length}:${links.length}:${groups.length}`,
-      nodes,
-      links,
-      groups,
-      selected,
-      defaultSelection,
-      busiest,
-      focusedCount,
-      reviewCount,
-      selection: commands,
-    },
-    navigator,
-    navigatorFor: (selection) =>
-      buildTopologyModel(campaign, selection ?? null).navigator,
-    metaGraph: index.metaGraph,
+    stats,
+    nodeById: new Map(nodes.map((node) => [node.id, node] as const)),
+    linkById: new Map(links.map((link) => [link.id, link] as const)),
   };
 }
+
+
+function isViewerIndex(value: unknown): value is ViewerIndex {
+  return Boolean(
+    value &&
+      typeof value === "object" &&
+      "topologyNodesByName" in value &&
+      "topologyEdgesByName" in value,
+  );
+}
+
+export function buildTopologyModel(
+  snapshot: ViewerSnapshot,
+  index: ViewerIndex,
+  options: BuildTopologyModelOptions = {},
+): TopologyGraphModel {
+  return buildTopologyGraphModel(snapshot, index, options);
+}
+
+export type { TopologyFilters };

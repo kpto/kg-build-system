@@ -62,22 +62,26 @@ function assetDecision(
 ): DecisionView | undefined {
   const asset = index.blueprint.assets?.[assetIndex];
   if (!asset) return undefined;
+  const profile = asset.profile ?? index.assetProfilesByName.get(asset.name);
   const semantics = asset.semantics;
   const parts: string[] = [];
-  if (semantics) {
-    if (nonEmpty(semantics.subject)) parts.push(`subject: ${semantics.subject}`);
-    if (nonEmpty(semantics.coverage)) parts.push(`coverage: ${semantics.coverage}`);
-    if (nonEmpty(semantics.authority)) parts.push(`authority: ${semantics.authority}`);
-    if (nonEmpty(semantics.basis)) parts.push(`basis: ${semantics.basis}`);
-    if (nonEmpty(semantics.title)) parts.push(`title: ${semantics.title}`);
-    if (nonEmpty(semantics.description)) {
-      parts.push(`description: ${semantics.description}`);
+  if (profile) {
+    if (nonEmpty(profile.subject)) parts.push(`subject: ${profile.subject}`);
+    if (nonEmpty(profile.coverage)) parts.push(`coverage: ${profile.coverage}`);
+    if (nonEmpty(profile.authority)) parts.push(`authority: ${profile.authority}`);
+    if (nonEmpty(profile.basis)) parts.push(`basis: ${profile.basis}`);
+    if (nonEmpty(profile.title)) parts.push(`title: ${profile.title}`);
+    if (nonEmpty(profile.description)) {
+      parts.push(`description: ${profile.description}`);
     }
-    if (semantics.claims?.length) {
-      parts.push(`claims: ${semantics.claims.join("; ")}`);
-    }
-    if (semantics.limitations?.length) {
-      parts.push(`limitations: ${semantics.limitations.join("; ")}`);
+  }
+  if (semantics?.claims?.length) {
+    parts.push(`claims: ${semantics.claims.map((claim) => claim.text).join("; ")}`);
+  }
+  for (const frame of semantics?.frames ?? []) {
+    parts.push(`frame: ${frame.text}`);
+    for (const limitation of frame.limitations ?? []) {
+      parts.push(`limitation: ${limitation.text}`);
     }
   }
 
@@ -97,13 +101,14 @@ function assetDecision(
 
   return {
     id: `derived:asset:${asset.name}`,
-    title: nonEmpty(semantics?.subject)
-      ? `Asset "${asset.name}" covers ${semantics?.subject}`
+    title: nonEmpty(profile?.subject)
+      ? `Asset "${asset.name}" covers ${profile?.subject}`
       : `Asset "${asset.name}" declares no source semantics`,
     status: "accepted",
     rationale,
     evidence: [
       evidence("asset declaration", "blueprint", `/assets/${assetIndex}`),
+      evidence("asset profile", "blueprint", `/assets/${assetIndex}/profile`),
       evidence("asset semantics", "blueprint", `/assets/${assetIndex}/semantics`),
     ],
     subject,

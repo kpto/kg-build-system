@@ -295,7 +295,8 @@ function buildBranch(
         artifacts: [["asset", "asset", assetName]],
         annotations: asset?.annotations ?? [],
         annotationViews: enrichAnnotations(asset?.annotations, {}, index.metaGraph),
-        description: asset?.semantics?.subject ?? asset?.semantics?.description ?? undefined,
+        description:
+          asset?.profile?.description ?? asset?.profile?.subject ?? undefined,
         sourceLocation: asset?.layout?.locator ?? undefined,
       },
     });

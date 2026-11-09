@@ -28,6 +28,42 @@ describe("Open Targets snapshot", () => {
     expect(snapshot.metaGraph).toBeUndefined();
   });
 
+  it("carries the graph declaration, purpose and attached semantics", () => {
+    const declaration = snapshot.blueprint.graph_declaration;
+    expect(declaration?.name).toBe("open_targets");
+    expect(declaration?.semantics.claims).toHaveLength(9);
+    expect(declaration?.semantics.purpose.frames).toHaveLength(5);
+    expect(index.graphDeclaration?.name).toBe("open_targets");
+
+    const node = snapshot.blueprint.graph.nodes.find(
+      (candidate) => candidate.semantics,
+    );
+    expect(node?.semantics?.claims?.length).toBeGreaterThan(0);
+
+    const edge = snapshot.blueprint.graph.edges.find(
+      (candidate) => candidate.semantics,
+    );
+    expect(edge?.semantics?.claims?.length).toBeGreaterThan(0);
+
+    const property = [...snapshot.blueprint.graph.nodes, ...snapshot.blueprint.graph.edges]
+      .flatMap((candidate) => candidate.properties ?? [])
+      .find((candidate) => candidate.semantics);
+    expect(property?.semantics?.claims?.length).toBeGreaterThan(0);
+
+    const binding = snapshot.blueprint.bindings.find(
+      (candidate) => candidate.semantics,
+    );
+    expect(binding?.semantics?.claims?.length).toBeGreaterThan(0);
+
+    expect(snapshot.blueprint.assets[0]?.profile?.subject).toBe(
+      "target-disease associations and supporting evidence",
+    );
+    expect(index.semanticsByKind.get("node")).toHaveLength(63);
+    expect(index.semanticsByKind.get("edge")).toHaveLength(163);
+    expect(index.semanticsByKind.get("binding")).toHaveLength(239);
+    expect(index.assetProfilesByName.get("open_target")?.authority).toBe("primary");
+  });
+
   it("resolves every binding to its workflow step", () => {
     const unresolved = index.bindings.filter((binding) => !binding.step);
     expect(unresolved.map((binding) => binding.component)).toEqual([]);

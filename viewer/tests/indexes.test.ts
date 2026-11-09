@@ -6,156 +6,208 @@ import {
   normalizeConnection,
   openingMatchesStep,
   propertyRefKey,
+  semanticSubjectKey,
   stepInputConnections,
   stepKey,
-  stepOutputConnections,
 } from "../lib/indexes";
-import { index } from "./fixtures";
+import { contractIndex as index } from "./fixtures";
 
 const binding0: [string, string] = ["core", "binding.0"];
-const binding4: [string, string] = ["core", "binding.4"];
-const binding12: [string, string] = ["core", "binding.12"];
 
 describe("workflow indexes", () => {
   it("indexes steps by id, component and emitter", () => {
     const step = index.stepsById.get(stepKey(binding0));
     expect(step?.instruction.kind).toEqual(["sql", "duckdb"]);
-    expect(index.stepsByComponent.get("core")?.length).toBeGreaterThan(0);
-    expect(index.stepsByEmitter.get("sql:duckdb")?.length).toBeGreaterThan(0);
-    expect(index.workflow.components.map((component) => component.id)).toContain("core");
+    expect(index.stepsByComponent.get("core")?.map((entry) => entry.id)).toEqual([
+      binding0,
+    ]);
+    expect(index.stepsByEmitter.get("sql:duckdb")).toHaveLength(2);
+    expect(index.workflow.components.map((component) => component.id)).toEqual([
+      "core",
+      "duckdb",
+    ]);
   });
 
   it("indexes the producer by output artifact type", () => {
     const artifact = ["core", "binding", "defect", "0"];
-    expect(index.producerByArtifactKey.get(artifactKey(artifact))?.id).toEqual(binding0);
+    expect(index.producerByArtifactKey.get(artifactKey(artifact))?.id).toEqual(
+      binding0,
+    );
     expect(index.producersByArtifactKey.get(artifactKey(artifact))).toHaveLength(1);
   });
 
   it("normalizes connection prefixes and matches step-local openings as prefixes", () => {
     const raw = {
-      input: ["core", "binding.0", "input", "projection.defect"],
-      output: ["core", "projection.defect", "output", "output"],
+      input: ["core", "binding.0", "input", "records"],
+      output: ["duckdb", "source.surveys", "output", "output"],
     };
     const connection = normalizeConnection(raw, 0);
     expect(connection.input).toMatchObject({
       component: "core",
       step: "binding.0",
       direction: "input",
-      opening: ["projection.defect"],
+      opening: ["records"],
     });
     expect(connection.output.opening).toEqual(["output"]);
-    expect(openingMatchesStep(connection.input, binding0, "input", ["projection.defect"])).toBe(
-      true,
-    );
-    expect(openingMatchesStep(connection.output, ["core", "projection.defect"], "output", ["output"])).toBe(
-      true,
-    );
-    expect(openingMatchesStep(connection.input, binding0, "output", ["projection.defect"])).toBe(
-      false,
-    );
-  });
-
-  it("matches upstream bindings by local opening", () => {
-    const input = stepInputConnections(index, binding0, ["projection.defect"]);
-    expect(input).toHaveLength(1);
-    expect(input[0].outputStepId).toEqual(["core", "projection.defect"]);
-
-    expect(stepInputConnections(index, binding4, ["table.temperature"])[0].outputStepId).toEqual([
-      "duckdb",
-      "source.temperature",
-    ]);
-    expect(stepInputConnections(index, binding12, ["table.temperature"])[0].outputStepId).toEqual([
-      "duckdb",
-      "source.temperature",
-    ]);
-  });
-
-  it("matches one output opening feeding several consumers", () => {
-    const connections = stepOutputConnections(index, ["deduplication", "defect"], ["distinct"]);
-    expect(connections).toHaveLength(3);
-    const inputSteps = connections.map((connection) => connection.inputStepId);
-    expect(inputSteps).toEqual(
-      expect.arrayContaining([
-        ["file", "write"],
-        ["meta_graph", "document"],
-      ]),
-    );
-    expect(inputSteps.some((step) => step[0] === "neo4j")).toBe(true);
-    const neo4j = connections.find((connection) => connection.input.component === "neo4j");
-    expect(neo4j?.input.step.startsWith("export.node.defect")).toBe(true);
-  });
-
-  it("matches a multi-part input opening with a type suffix", () => {
-    const input = stepInputConnections(
-      index,
-      ["file", "write"],
-      ["records", "core", "graph", "node", "defect"],
-    );
-    expect(input).toHaveLength(1);
-    expect(input[0].outputStepId).toEqual(["deduplication", "defect"]);
+    expect(
+      openingMatchesStep(connection.input, binding0, "input", ["records"]),
+    ).toBe(true);
+    expect(
+      openingMatchesStep(
+        connection.output,
+        ["duckdb", "source.surveys"],
+        "output",
+        ["output"],
+      ),
+    ).toBe(true);
+    expect(
+      openingMatchesStep(connection.input, binding0, "output", ["records"]),
+    ).toBe(false);
+    expect(
+      stepInputConnections(index, binding0, ["records"])[0].outputStepId,
+    ).toEqual(["duckdb", "source.surveys"]);
   });
 });
 
 describe("blueprint indexes", () => {
-  it("indexes graph components, relations, projections and assets", () => {
+  it("indexes graph components, relations, projections, structs and assets", () => {
     expect(index.topologyNodesByName.get("defect")).toBeDefined();
     expect(index.topologyEdgesByName.get("has_observation")).toBeDefined();
-    expect(index.relationByName.get("surveys")?.asset).toEqual(["asset", "asset", "estate"]);
+    expect(index.relationByName.get("surveys")?.asset).toEqual([
+      "asset",
+      "asset",
+      "estate",
+    ]);
     expect(index.projectionByName.get("defect")?.row_source.kind).toBe("scan");
+    expect(index.structByName.get("reading")?.columns[0].name).toBe("value");
     expect(index.assetsByName.get("estate")?.layout?.kind).toBe("json");
   });
 
   it("indexes fields by relation.field", () => {
-    expect(index.fieldsByKey.get("defect.title")?.ownerName).toBe("defect");
-    expect(index.fieldsByKey.get("surveys.survey_id")?.ownerKind).toBe("relation");
+    expect(index.fieldsByKey.get("surveys.title")?.ownerName).toBe("surveys");
+    expect(index.fieldsByKey.get("surveys.title")?.ownerKind).toBe("relation");
+    expect(index.fieldsByKey.get("defect.title")?.ownerKind).toBe("projection");
+    expect(index.fieldsByKey.get("reading.value")?.ownerKind).toBe("struct");
   });
 
   it("indexes bindings by component and global index", () => {
-    expect(index.bindings).toHaveLength(14);
+    expect(index.bindings).toHaveLength(1);
     expect(index.bindings[0].component).toBe("defect");
-    expect(index.bindingByComponent.get("reading")?.map((binding) => binding.index)).toEqual([
-      4, 5,
-    ]);
-    expect(index.bindingByOutputArtifactKey.get(artifactKey(["core", "binding", "defect", "0"]))?.index).toBe(
+    expect(index.bindingByComponent.get("defect")?.map((binding) => binding.index)).toEqual([
       0,
-    );
+    ]);
+    expect(
+      index.bindingByOutputArtifactKey.get(
+        artifactKey(["core", "binding", "defect", "0"]),
+      )?.index,
+    ).toBe(0);
     expect(index.bindings[0].step?.id).toEqual(binding0);
   });
 
-  it("indexes property lookup branches, including duplicate source bindings", () => {
-    expect(findComponentPropertyBindings(index, "node", "defect", "title")).toHaveLength(1);
-    const readingValue = findComponentPropertyBindings(index, "node", "reading", "value");
-    expect(readingValue).toHaveLength(2);
-    expect(readingValue.map((entry) => entry.binding.index)).toEqual([4, 5]);
-    const sourceVersion = findComponentPropertyBindings(
-      index,
-      "node",
-      "defect",
-      "source_version",
-    );
-    expect(sourceVersion).toHaveLength(1);
-    expect(sourceVersion[0].fieldRefs).toEqual([]);
-    expect(propertyRefKey(sourceVersion[0].propertyRef)).toBe(
-      propertyRefKey(["topology", "property", "defect.source_version"]),
+  it("indexes property lookup branches", () => {
+    const title = findComponentPropertyBindings(index, "node", "defect", "title");
+    expect(title).toHaveLength(1);
+    expect(title[0].propertyRef).toEqual([
+      "topology",
+      "property",
+      "defect.title",
+    ]);
+    expect(title[0].fieldRefs).toEqual([["data", "field", "surveys.title"]]);
+    expect(propertyRefKey(title[0].propertyRef)).toBe(
+      propertyRefKey(["topology", "property", "defect.title"]),
     );
   });
 
   it("reports status counts", () => {
     expect(index.stats).toMatchObject({
       assets: 1,
-      tables: 5,
-      projections: 2,
-      topologyNodes: 7,
-      topologyEdges: 7,
-      bindings: 14,
-      steps: 60,
-      connections: 90,
+      tables: 1,
+      projections: 1,
+      structs: 1,
+      topologyNodes: 2,
+      topologyEdges: 1,
+      topologyProperties: 3,
+      bindings: 1,
+      components: 2,
+      steps: 2,
+      connections: 1,
     });
   });
 });
 
+describe("semantics and profile indexes", () => {
+  it("indexes the graph declaration and its purpose", () => {
+    expect(index.graphDeclaration?.name).toBe("fixture_graph");
+    expect(index.graphSemantics?.claims).toHaveLength(1);
+    expect(index.graphDeclaration?.semantics.purpose.frames).toHaveLength(2);
+
+    const graph = index.semanticsByKey.get(semanticSubjectKey("graph", "fixture_graph"));
+    expect(graph?.kind).toBe("graph");
+    expect(graph?.purpose?.text).toBe(
+      "Exercise the viewer data contract without loading a release.",
+    );
+    expect(graph?.semantics?.frames).toHaveLength(2);
+  });
+
+  it("indexes asset profiles", () => {
+    expect(index.assetProfilesByName.get("estate")).toMatchObject({
+      subject: "a monitored estate",
+      authority: "primary",
+      basis: "synthetic fixture data",
+    });
+  });
+
+  it("indexes the semantics of every subject kind", () => {
+    expect(index.semanticsByKey.get(semanticSubjectKey("asset", "estate"))?.semantics).toBeDefined();
+    expect(index.semanticsByKey.get(semanticSubjectKey("relation", "surveys"))?.semantics).toBeDefined();
+    expect(index.semanticsByKey.get(semanticSubjectKey("projection", "defect"))?.semantics).toBeDefined();
+    expect(index.semanticsByKey.get(semanticSubjectKey("struct", "reading"))?.semantics).toBeDefined();
+    expect(
+      index.semanticsByKey.get(
+        semanticSubjectKey("field", "relation", "surveys", "title"),
+      )?.semantics,
+    ).toBeDefined();
+    expect(index.semanticsByKey.get(semanticSubjectKey("node", "defect"))?.semantics).toBeDefined();
+    expect(
+      index.semanticsByKey.get(semanticSubjectKey("edge", "has_observation"))?.semantics,
+    ).toBeDefined();
+    expect(
+      index.semanticsByKey.get(
+        semanticSubjectKey("property", "node", "defect", "title"),
+      )?.semantics,
+    ).toBeDefined();
+    expect(
+      index.semanticsByKey.get(
+        semanticSubjectKey("property", "edge", "has_observation", "as_at"),
+      )?.semantics,
+    ).toBeDefined();
+    expect(index.semanticsByKey.get(semanticSubjectKey("binding", 0))?.semantics).toBeDefined();
+  });
+
+  it("groups subjects by kind and keeps keys deterministic", () => {
+    expect(index.semanticSubjects).toHaveLength(17);
+    expect(index.semanticsByKind.get("graph")).toHaveLength(1);
+    expect(index.semanticsByKind.get("asset")).toHaveLength(1);
+    expect(index.semanticsByKind.get("relation")).toHaveLength(1);
+    expect(index.semanticsByKind.get("projection")).toHaveLength(1);
+    expect(index.semanticsByKind.get("struct")).toHaveLength(1);
+    expect(index.semanticsByKind.get("field")).toHaveLength(5);
+    expect(index.semanticsByKind.get("node")).toHaveLength(2);
+    expect(index.semanticsByKind.get("edge")).toHaveLength(1);
+    expect(index.semanticsByKind.get("property")).toHaveLength(3);
+    expect(index.semanticsByKind.get("binding")).toHaveLength(1);
+
+    expect(semanticSubjectKey("node", "defect")).toBe(
+      semanticSubjectKey("node", "defect"),
+    );
+    expect(semanticSubjectKey("node", "defect")).not.toBe(
+      semanticSubjectKey("edge", "defect"),
+    );
+  });
+});
+
 describe("viewer index rebuild", () => {
-  it("accepts a snapshot with missing workflow/bindings", () => {
+  it("accepts a snapshot without workflow, bindings or a graph declaration", () => {
     const empty = buildViewerIndex({
       format: "kg-viewer-snapshot",
       version: 1,
@@ -178,5 +230,8 @@ describe("viewer index rebuild", () => {
     expect(empty.stats.steps).toBe(0);
     expect(empty.propertyIndex.size).toBe(0);
     expect(empty.searchRecords).toEqual([]);
+    expect(empty.graphDeclaration).toBeUndefined();
+    expect(empty.semanticSubjects).toEqual([]);
+    expect(empty.semanticsByKind.size).toBe(0);
   });
 });

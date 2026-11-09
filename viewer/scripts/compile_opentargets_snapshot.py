@@ -39,11 +39,48 @@ def read_optional(path: Path) -> Any:
         return None
 
 
-def build_review(project: Path) -> dict[str, Any]:
-    semantics = read_optional(project / "open_targets_kg" / "build" / "semantics.json")
-    release = semantics.get("release") if isinstance(semantics, dict) else None
-    description = semantics.get("description") if isinstance(semantics, dict) else None
-    coverage = semantics.get("coverage") if isinstance(semantics, dict) else None
+def build_review(
+    project: Path, blueprint_document: dict[str, Any]
+) -> dict[str, Any]:
+    """Minimal review sidecar derived from the current compile.
+
+    The catalogue document is read when present. Otherwise the graph
+    declaration's purpose is the only semantic source. The review sidecar is
+    viewer-owned and deliberately small: this script never derives decisions
+    from the old ``semantics.json`` release artifact.
+    """
+
+    catalogue = read_optional(
+        project / "open_targets_kg" / "build" / "catalogue.json"
+    )
+    graph_declaration = blueprint_document.get("graph_declaration")
+    graph_semantics = (
+        graph_declaration.get("semantics")
+        if isinstance(graph_declaration, dict)
+        else None
+    )
+    graph_description = (
+        graph_declaration.get("description")
+        if isinstance(graph_declaration, dict)
+        else None
+    )
+
+    release: Any = None
+    description: Any = graph_description
+    purpose: Any = None
+    coverage: Any = None
+    if isinstance(catalogue, dict):
+        release = catalogue.get("release")
+        description = catalogue.get("description") or graph_description
+        coverage = catalogue.get("coverage")
+        catalogue_purpose = catalogue.get("purpose")
+        if isinstance(catalogue_purpose, dict):
+            purpose = catalogue_purpose.get("text")
+    if purpose is None and isinstance(graph_semantics, dict):
+        graph_purpose = graph_semantics.get("purpose")
+        if isinstance(graph_purpose, dict):
+            purpose = graph_purpose.get("text")
+
     parts = []
     if release:
         parts.append(f"Release {release}.")
@@ -57,6 +94,25 @@ def build_review(project: Path) -> dict[str, Any]:
             parts.append(
                 f"Coverage: {components} components, {bindings} bindings and {properties} properties."
             )
+    if not parts and isinstance(purpose, str) and purpose:
+        parts.append(purpose)
+
+    evidence = [
+        {
+            "label": "graph declaration semantics",
+            "artifact": "blueprint",
+            "jsonPointer": "/graph_declaration/semantics",
+        }
+    ]
+    if isinstance(catalogue, dict):
+        evidence.append(
+            {
+                "label": "published catalogue",
+                "artifact": "blueprint",
+                "jsonPointer": "/graph_declaration",
+            }
+        )
+
     return {
         "format": "kg-viewer-review",
         "version": 1,
@@ -86,13 +142,7 @@ def build_review(project: Path) -> dict[str, Any]:
                 "rationale": " ".join(parts)
                 or "The release metadata is not available in this project.",
                 "subject": {"kind": "asset", "name": "open_target", "component": "open_target"},
-                "evidence": [
-                    {
-                        "label": "asset semantics",
-                        "artifact": "blueprint",
-                        "jsonPointer": "/assets/0/semantics",
-                    }
-                ],
+                "evidence": evidence,
                 "tags": ["release", "semantics"],
             },
         ],
@@ -118,7 +168,7 @@ def main() -> None:
         "--review-output",
         type=Path,
         default=None,
-        help="review sidecar path; defaults beside the snapshot",
+        help="optional review sidecar path; no sidecar is written when omitted",
     )
     parser.add_argument(
         "--title",
@@ -145,41 +195,41 @@ def main() -> None:
             "provenance": {"mode": "compile-only"},
         },
     }
-    review = build_review(args.project)
+    review = build_review(args.project, blueprint_document)
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
     payload = json.dumps(snapshot, separators=(",", ":"), ensure_ascii=False)
     args.output.write_text(payload, encoding="utf-8")
     gzip_path = args.output.with_suffix(args.output.suffix + ".gz")
-    with gzip.open(gzip_path, "wb", compresslevel=9) as stream:
-        stream.write(payload.encode("utf-8"))
+    # mtime=0 keeps the gzip bytes deterministic for the same source tree.
+    with gzip_path.open("wb") as raw:
+        with gzip.GzipFile(
+            filename="", mode="wb", fileobj=raw, compresslevel=9, mtime=0
+        ) as stream:
+            stream.write(payload.encode("utf-8"))
 
-    review_output = args.review_output or args.output.with_name(
-        args.output.name.replace(".snapshot.json", ".review.json")
-    )
-    review_output.write_text(
-        json.dumps(review, indent=2, ensure_ascii=False), encoding="utf-8"
-    )
-
-    print(
-        json.dumps(
-            {
-                "snapshot": str(args.output),
-                "bytes": args.output.stat().st_size,
-                "gzip": str(gzip_path),
-                "gzip_bytes": gzip_path.stat().st_size,
-                "review": str(review_output),
-                "nodes": len(blueprint_document["graph"]["nodes"]),
-                "edges": len(blueprint_document["graph"]["edges"]),
-                "relations": len(blueprint_document["data"]["relations"]),
-                "projections": len(blueprint_document["data"]["projections"]),
-                "bindings": len(blueprint_document["bindings"]),
-                "steps": len(workflow_document["steps"]),
-                "connections": len(workflow_document["connections"]),
-            },
-            indent=2,
+    if args.review_output is not None:
+        args.review_output.parent.mkdir(parents=True, exist_ok=True)
+        args.review_output.write_text(
+            json.dumps(review, indent=2, ensure_ascii=False), encoding="utf-8"
         )
-    )
+
+    result = {
+        "snapshot": str(args.output),
+        "bytes": args.output.stat().st_size,
+        "gzip": str(gzip_path),
+        "gzip_bytes": gzip_path.stat().st_size,
+        "nodes": len(blueprint_document["graph"]["nodes"]),
+        "edges": len(blueprint_document["graph"]["edges"]),
+        "relations": len(blueprint_document["data"]["relations"]),
+        "projections": len(blueprint_document["data"]["projections"]),
+        "bindings": len(blueprint_document["bindings"]),
+        "steps": len(workflow_document["steps"]),
+        "connections": len(workflow_document["connections"]),
+    }
+    if args.review_output is not None:
+        result["review"] = str(args.review_output)
+    print(json.dumps(result, indent=2))
 
 
 if __name__ == "__main__":

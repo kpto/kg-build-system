@@ -1,0 +1,100 @@
+/**
+ * Workbench contract shared by the shell and the four functions.
+ *
+ * The shell owns snapshot loading, the per-function layout/selection state and
+ * the review sidecar. A function owns its sidebar, editor and bottom-panel
+ * bodies and never resizes the workbench.
+ */
+
+import type { LucideIcon } from "lucide-react";
+
+import type { ReviewSidecar } from "@/lib/reviewTypes";
+import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
+
+export type ActivityId = "proof" | "audit" | "semantics" | "topology";
+
+export type SelectionKind =
+  | "asset"
+  | "relation"
+  | "projection"
+  | "field"
+  | "node"
+  | "edge"
+  | "property"
+  | "binding"
+  | "finding"
+  | "unit"
+  | "step";
+
+export type ProofLevel = "property" | "node" | "edge" | "abstract" | "asset";
+
+export interface WorkbenchSelection {
+  activity: ActivityId;
+  kind?: SelectionKind;
+  name?: string;
+  component?: string;
+  property?: string;
+  level?: ProofLevel;
+  findingId?: string;
+  unitKey?: string;
+  stepId?: [string, string];
+}
+
+export interface FunctionLayout {
+  sidebarWidth: number;
+  bottomHeight: number;
+  bottomTab: string;
+  openTabs: string[];
+  activeTab: string | null;
+}
+
+export interface FunctionState {
+  layout: FunctionLayout;
+  selection: WorkbenchSelection;
+}
+
+export interface WorkbenchState {
+  snapshot: ViewerSnapshot;
+  index: ViewerIndex;
+  review: ReviewSidecar;
+  activity: ActivityId;
+  functions: Record<ActivityId, FunctionState>;
+}
+
+export interface WorkbenchActions {
+  setActivity(activity: ActivityId): void;
+  setSelection(activity: ActivityId, selection: WorkbenchSelection): void;
+  setLayout(activity: ActivityId, patch: Partial<FunctionLayout>): void;
+  updateReview(review: ReviewSidecar): void;
+  openTab(activity: ActivityId, tab: string): void;
+  closeTab(activity: ActivityId, tab: string): void;
+  setActiveTab(activity: ActivityId, tab: string | null): void;
+}
+
+export interface FeatureProps {
+  state: WorkbenchState;
+  actions: WorkbenchActions;
+  activity: ActivityId;
+}
+
+export interface FeatureModule {
+  id: ActivityId;
+  label: string;
+  icon: LucideIcon;
+  Sidebar: React.ComponentType<FeatureProps>;
+  Editor: React.ComponentType<FeatureProps>;
+  Bottom: React.ComponentType<FeatureProps>;
+}
+
+export const DEFAULT_LAYOUT: FunctionLayout = {
+  sidebarWidth: 300,
+  bottomHeight: 240,
+  bottomTab: "problems",
+  openTabs: [],
+  activeTab: null,
+};
+
+export const MIN_SIDEBAR = 220;
+export const MAX_SIDEBAR = 520;
+export const MIN_BOTTOM = 120;
+export const MAX_BOTTOM = 480;

@@ -1,10 +1,10 @@
 import type { Metadata, Viewport } from "next";
-import "@xyflow/react/dist/style.css";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "kg-build-system viewer",
-  description: "Workflow, blueprint and property-lineage viewer for kg-build-system artifacts.",
+  title: "KG Audit workbench",
+  description:
+    "Proof, audit, semantics and topology workbench for kg-build-system snapshots.",
 };
 
 export const viewport: Viewport = {

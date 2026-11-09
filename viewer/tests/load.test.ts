@@ -1,20 +1,106 @@
 import { describe, expect, it } from "vitest";
 import { loadSnapshotFromObject, loadSnapshotFromText } from "../lib/load";
-import { snapshot } from "./fixtures";
+import { contractSnapshot as snapshot } from "./fixtures";
 
 describe("snapshot loading", () => {
-  it("loads the reference snapshot", () => {
+  it("loads the contract fixture with its graph declaration", () => {
     expect(snapshot.format).toBe("kg-viewer-snapshot");
     expect(snapshot.version).toBe(1);
-    expect(snapshot.name).toBe("reference-estate");
-    expect(snapshot.title).toBe("Monitored Estate Reference Build");
-    expect(snapshot.blueprint.graph.nodes).toHaveLength(7);
-    expect(snapshot.blueprint.graph.edges).toHaveLength(7);
-    expect(snapshot.blueprint.bindings).toHaveLength(14);
-    expect(snapshot.workflow.steps).toHaveLength(60);
-    expect(snapshot.workflow.connections).toHaveLength(90);
-    expect(snapshot.report.published_artifacts.length).toBeGreaterThan(0);
-    expect(snapshot.metaGraph?.nodes).toHaveLength(7);
+    expect(snapshot.name).toBe("fixture-estate");
+    expect(snapshot.title).toBe("Fixture Estate Build");
+    expect(snapshot.blueprint.graph.nodes).toHaveLength(2);
+    expect(snapshot.blueprint.graph.edges).toHaveLength(1);
+    expect(snapshot.blueprint.bindings).toHaveLength(1);
+    expect(snapshot.workflow.steps).toHaveLength(2);
+    expect(snapshot.workflow.connections).toHaveLength(1);
+
+    const declaration = snapshot.blueprint.graph_declaration;
+    expect(declaration?.name).toBe("fixture_graph");
+    expect(declaration?.description).toBe(
+      "A small graph used by the viewer contract tests.",
+    );
+    expect(declaration?.semantics.claims).toHaveLength(1);
+    expect(declaration?.semantics.purpose.frames).toHaveLength(2);
+    expect(declaration?.semantics.purpose.frames?.[0].limitations).toHaveLength(1);
+  });
+
+  it("loads asset profiles and attached semantics on every subject", () => {
+    const asset = snapshot.blueprint.assets[0];
+    expect(asset.profile).toMatchObject({
+      subject: "a monitored estate",
+      coverage: "the estate survey table",
+      authority: "primary",
+      basis: "synthetic fixture data",
+    });
+    expect(asset.semantics?.claims?.[0].text).toBe(
+      "The fixture estate is a JSON asset.",
+    );
+
+    const relation = snapshot.blueprint.data.relations[0];
+    expect(relation.semantics?.claims).toHaveLength(1);
+    expect(relation.columns[1].semantics?.claims).toHaveLength(1);
+
+    const projection = snapshot.blueprint.data.projections[0];
+    expect(projection.semantics?.claims).toHaveLength(1);
+    expect(projection.columns[1].semantics?.claims).toHaveLength(1);
+
+    const struct = snapshot.blueprint.data.structs[0];
+    expect(struct.semantics?.claims).toHaveLength(1);
+    expect(struct.columns[0].semantics?.claims).toHaveLength(1);
+
+    const node = snapshot.blueprint.graph.nodes.find((entry) => entry.name === "defect");
+    expect(node?.semantics?.claims).toHaveLength(1);
+    expect(node?.properties?.[0].semantics?.claims).toHaveLength(1);
+
+    const edge = snapshot.blueprint.graph.edges[0];
+    expect(edge.semantics?.claims).toHaveLength(1);
+    expect(edge.properties?.[0].semantics?.claims).toHaveLength(1);
+
+    const binding = snapshot.blueprint.bindings[0];
+    expect(binding.semantics?.claims?.[0].text).toBe(
+      "The binding projects the survey title.",
+    );
+    expect(binding.debug_name).toBe("defect.title");
+    expect(binding.mode).toBe("merge");
+    expect(binding.python_ref?.qualname).toBe("DefectTitle");
+  });
+
+  it("preserves unknown fields on the blueprint and on entities", () => {
+    expect(
+      (snapshot.blueprint as unknown as Record<string, unknown>).contract_extension,
+    ).toEqual({ generatedBy: "tests/fixtures.ts" });
+    const node = snapshot.blueprint.graph.nodes.find((entry) => entry.name === "defect");
+    expect((node as Record<string, unknown>).x_node_field).toBe("survives");
+    expect(
+      (snapshot.blueprint.assets[0] as Record<string, unknown>).x_asset_field,
+    ).toBe("survives");
+    expect(
+      (snapshot.blueprint.assets[0].semantics as unknown as Record<string, unknown>)
+        .x_semantics_field,
+    ).toBe("survives");
+  });
+
+  it("allows a snapshot without a graph declaration", () => {
+    const loaded = loadSnapshotFromObject({
+      format: "kg-viewer-snapshot",
+      version: 1,
+      name: "legacy",
+      title: "Legacy snapshot",
+      blueprint: {
+        graph: { nodes: [], edges: [] },
+        data: { structs: [], relations: [], projections: [] },
+        assets: [],
+        bindings: [],
+      },
+      workflow: { components: [], steps: [], connections: [], provenance: null },
+      report: {
+        published_artifacts: [],
+        recovered_failures: [],
+        unresolved_failures: [],
+        provenance: null,
+      },
+    });
+    expect(loaded.blueprint.graph_declaration).toBeUndefined();
   });
 
   it("accepts a bare workflow plan", () => {
@@ -29,16 +115,20 @@ describe("snapshot loading", () => {
     expect(loaded.blueprint.assets).toEqual([]);
   });
 
-  it("accepts a bare blueprint", () => {
+  it("accepts a bare blueprint and keeps unknown fields", () => {
     const loaded = loadSnapshotFromObject({
       graph: { nodes: [{ name: "site" }], edges: [] },
-      data: { structures: [], relations: [], projections: [] },
+      data: { structs: [], relations: [], projections: [] },
       assets: [{ name: "estate" }],
       bindings: [],
+      local_extension: { kept: true },
     });
     expect(loaded.title).toBe("Blueprint");
     expect(loaded.blueprint.graph.nodes[0].name).toBe("site");
     expect(loaded.workflow.steps).toEqual([]);
+    expect(
+      (loaded.blueprint as unknown as Record<string, unknown>).local_extension,
+    ).toEqual({ kept: true });
   });
 
   it("rejects malformed JSON text", () => {

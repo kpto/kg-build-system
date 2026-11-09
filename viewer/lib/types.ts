@@ -42,6 +42,56 @@ export interface AnnotationDTO {
   arguments?: Record<string, unknown>;
 }
 
+// ---------------------------------------------------------------------------
+// Semantics and graph declaration
+// ---------------------------------------------------------------------------
+
+/** A single attached semantic unit: one claim, limitation or purpose text. */
+export interface SemanticText {
+  text: string;
+}
+
+/** A frame gives a claim its scope and records the limitations it carries. */
+export interface SemanticsFrameDTO {
+  text: string;
+  limitations?: SemanticText[];
+}
+
+/** Semantics attached to any subject: a set of claims and framed statements. */
+export interface SemanticsDTO {
+  claims?: SemanticText[];
+  frames?: SemanticsFrameDTO[];
+}
+
+/** The graph-level purpose: one text with optional frames. */
+export interface PurposeDTO {
+  text: string;
+  frames?: SemanticsFrameDTO[];
+}
+
+/** Semantics of the graph declaration: claims plus the single purpose. */
+export interface GraphSemanticsDTO {
+  claims?: SemanticText[];
+  purpose: PurposeDTO;
+}
+
+/** The one graph declaration a project carries. */
+export interface GraphDeclarationDTO {
+  name: string;
+  description?: string | null;
+  semantics: GraphSemanticsDTO;
+}
+
+/** Descriptive asset profile; separate from attached semantics. */
+export interface AssetProfileDTO {
+  subject: string;
+  coverage: string;
+  authority: string;
+  basis: string;
+  title?: string | null;
+  description?: string | null;
+}
+
 export interface FieldExpression {
   kind: "field";
   field: Ref;
@@ -75,6 +125,7 @@ export interface DataField {
   annotations?: AnnotationDTO[];
   description?: string;
   expression?: Expression;
+  semantics?: SemanticsDTO;
   [key: string]: unknown;
 }
 
@@ -92,6 +143,7 @@ export interface RelationDTO {
   annotations?: AnnotationDTO[];
   description?: string;
   asset?: Ref;
+  semantics?: SemanticsDTO;
   [key: string]: unknown;
 }
 
@@ -102,6 +154,7 @@ export interface ProjectionDTO {
   description?: string;
   asset?: Ref;
   row_source: RowSource;
+  semantics?: SemanticsDTO;
   [key: string]: unknown;
 }
 
@@ -110,6 +163,7 @@ export interface StructDTO {
   columns: DataField[];
   annotations?: AnnotationDTO[];
   description?: string;
+  semantics?: SemanticsDTO;
   [key: string]: unknown;
 }
 
@@ -124,17 +178,16 @@ export interface AssetLayout {
   [key: string]: unknown;
 }
 
-export interface AssetSemantics {
-  subject?: string | null;
-  coverage?: string | null;
-  authority?: string | null;
-  basis?: string | null;
+/**
+ * @deprecated The current blueprint splits an asset into `profile`
+ * ({@link AssetProfileDTO}) and attached `semantics` ({@link SemanticsDTO}).
+ * This alias remains only for older documents and consumers.
+ */
+export type AssetSemantics = AssetProfileDTO & {
   claims?: string[];
   limitations?: string[];
-  title?: string | null;
-  description?: string | null;
   [key: string]: unknown;
-}
+};
 
 export interface AssetGovernance {
   license?: string | null;
@@ -148,7 +201,8 @@ export interface AssetDTO {
   website?: string | null;
   version?: string | null;
   layout?: AssetLayout;
-  semantics?: AssetSemantics;
+  profile?: AssetProfileDTO;
+  semantics?: SemanticsDTO;
   governance?: AssetGovernance;
   annotations?: AnnotationDTO[];
   [key: string]: unknown;
@@ -160,6 +214,7 @@ export interface TopologyProperty {
   ref: Ref;
   annotations?: AnnotationDTO[];
   description?: string;
+  semantics?: SemanticsDTO;
   [key: string]: unknown;
 }
 
@@ -171,6 +226,7 @@ export interface TopologyNode {
   annotations?: AnnotationDTO[];
   description?: string;
   parent?: Ref;
+  semantics?: SemanticsDTO;
   [key: string]: unknown;
 }
 
@@ -201,16 +257,19 @@ export interface BindingDTO {
   rows?: RowSource;
   annotations?: AnnotationDTO[];
   mode?: string;
+  debug_name?: string;
   python_ref?: {
     module?: string;
     qualname?: string;
     signature?: string;
     [key: string]: unknown;
   };
+  semantics?: SemanticsDTO;
   [key: string]: unknown;
 }
 
 export interface BlueprintDTO {
+  graph_declaration?: GraphDeclarationDTO;
   graph: TopologyGraph;
   data: BlueprintData;
   assets: AssetDTO[];
@@ -417,10 +476,49 @@ export interface SearchSource {
   workflowComponents: WorkflowComponent[];
 }
 
+/**
+ * Every subject kind that can carry attached semantics.
+ *
+ * `graph` is the graph declaration; its purpose is exposed beside the claims
+ * as `SemanticSubject.purpose`.
+ */
+export type SemanticSubjectKind =
+  | "graph"
+  | "asset"
+  | "relation"
+  | "projection"
+  | "struct"
+  | "field"
+  | "node"
+  | "edge"
+  | "property"
+  | "binding";
+
+/** One indexed semantic subject. The attached units are evidence, not inferred. */
+export interface SemanticSubject {
+  kind: SemanticSubjectKind;
+  /** Deterministic viewer-side key; see `semanticSubjectKey`. */
+  key: string;
+  /** Display name; for a field this is the field name. */
+  name: string;
+  /** Attached semantics, if the snapshot carries any. */
+  semantics?: SemanticsDTO;
+  /** Graph declaration purpose, on the `graph` subject only. */
+  purpose?: PurposeDTO;
+  ref?: Ref;
+  ownerName?: string;
+  entityKind?: EntityKind;
+  bindingIndex?: number;
+  assetName?: string;
+}
+
 export interface ViewerIndex extends SearchSource {
   snapshot: ViewerSnapshot;
   blueprint: BlueprintDTO;
   workflow: WorkflowPlan;
+  /** The graph declaration, absent when the snapshot does not carry one. */
+  graphDeclaration?: GraphDeclarationDTO;
+  graphSemantics?: GraphSemanticsDTO;
   stepsById: Map<string, WorkflowStep>;
   stepIdByKey: Map<string, StepId>;
   componentsById: Map<string, WorkflowComponent>;
@@ -441,10 +539,18 @@ export interface ViewerIndex extends SearchSource {
   dataEntityByName: Map<string, RelationDTO | ProjectionDTO | StructDTO>;
   fieldsByKey: Map<string, FieldLocation>;
   assetsByName: Map<string, AssetDTO>;
+  /** Asset profile by asset name; profiles are descriptive metadata. */
+  assetProfilesByName: Map<string, AssetProfileDTO>;
   bindings: IndexedBinding[];
   bindingByComponent: Map<string, IndexedBinding[]>;
   bindingByOutputArtifactKey: Map<string, IndexedBinding>;
   propertyIndex: Map<string, PropertyLookupEntry[]>;
+  /** Every subject that may carry semantics, in deterministic order. */
+  semanticSubjects: SemanticSubject[];
+  /** Semantic subjects keyed by `semanticSubjectKey`. */
+  semanticsByKey: Map<string, SemanticSubject>;
+  /** Semantic subjects grouped by kind. */
+  semanticsByKind: Map<SemanticSubjectKind, SemanticSubject[]>;
   metaGraph: MetaGraphIndex;
   searchRecords: SearchRecord[];
   stats: ViewerStats;

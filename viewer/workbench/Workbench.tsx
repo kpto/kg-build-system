@@ -1,0 +1,345 @@
+"use client";
+
+import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { CircleExclamationPoint, LoaderCircle, RefreshCw } from "lucide-react";
+
+import { buildViewerIndex } from "@/lib/indexes";
+import {
+  loadDefaultSnapshot,
+  loadReferenceReview,
+  loadReferenceSnapshot,
+  loadReviewSidecar,
+} from "@/lib/load";
+import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
+import type { ReviewSidecar } from "@/lib/reviewTypes";
+import { ActivityBar } from "./ActivityBar";
+import { BottomPanel } from "./BottomPanel";
+import { CommandPalette } from "./CommandPalette";
+import { ACTIVITY_LABELS, ACTIVITY_ORDER, defaultFunctionState } from "./defaults";
+import { EditorArea } from "./EditorArea";
+import { FEATURES } from "./features";
+import { SettingsDialog } from "./SettingsDialog";
+import { SideBar } from "./SideBar";
+import { Splitter } from "./Splitter";
+import { StatusBar } from "./StatusBar";
+import { EMPTY_REVIEW, WorkbenchProvider, useWorkbench } from "./store";
+import { TitleBar } from "./TitleBar";
+import { MAX_BOTTOM, MAX_SIDEBAR, MIN_BOTTOM, MIN_SIDEBAR } from "./types";
+
+interface LoadedWorkbench {
+  snapshot: ViewerSnapshot;
+  index: ViewerIndex;
+  review: ReviewSidecar;
+}
+
+function LoadingGate({ onRetry }: { onRetry(): void }) {
+  const [slow, setSlow] = useState(false);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setSlow(true), 6000);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  return (
+    <div className="wb-gate ui-grain" data-testid="loading">
+      <header className="wb-gate-title">
+        <span className="wb-brand-mark" aria-hidden>
+          <span className="wb-brand-initial">K</span>
+        </span>
+        <span className="wb-brand-name">KG Audit</span>
+        <span className="wb-gate-title-note">workbench</span>
+      </header>
+      <div className="wb-gate-body">
+        <div className="wb-gate-rail" aria-hidden>
+          {FEATURES.map((feature) => {
+            const Icon = feature.icon;
+            return <Icon key={feature.id} className="size-[18px]" />;
+          })}
+        </div>
+        <div className="wb-gate-side" aria-hidden>
+          <span className="wb-gate-block w-24" />
+          <span className="wb-gate-block w-full" />
+          <span className="wb-gate-block w-4/5" />
+          <span className="wb-gate-block w-full" />
+          <span className="wb-gate-block w-2/3" />
+        </div>
+        <main className="wb-gate-main" role="status" aria-live="polite">
+          <div className="wb-gate-card">
+            <LoaderCircle aria-hidden className="size-5 animate-spin text-selection" />
+            <h1>Loading snapshot</h1>
+            <p>
+              Reading the compile-only graph, building indexes and loading the
+              review sidecar.
+            </p>
+            <p className="wb-gate-hint">
+              Open Targets is served gzipped; the first paint follows the
+              decompression and index build.
+            </p>
+            {slow ? (
+              <p className="wb-gate-slow">
+                This is taking longer than usual. The page is still working; you
+                can retry the request.
+              </p>
+            ) : null}
+            <button type="button" className="wb-button" onClick={onRetry}>
+              <RefreshCw aria-hidden className="size-3" />
+              Retry now
+            </button>
+          </div>
+        </main>
+      </div>
+      <footer className="wb-gate-status">
+        <span>snapshot loading</span>
+        <span>review sidecar optional</span>
+      </footer>
+    </div>
+  );
+}
+
+function LoadErrorGate({
+  message,
+  onRetry,
+}: {
+  message: string;
+  onRetry(): void;
+}) {
+  return (
+    <div className="wb-gate ui-grain" data-testid="load-error">
+      <header className="wb-gate-title">
+        <span className="wb-brand-mark" aria-hidden>
+          <span className="wb-brand-initial">K</span>
+        </span>
+        <span className="wb-brand-name">KG Audit</span>
+        <span className="wb-gate-title-note">workbench</span>
+      </header>
+      <main className="wb-gate-main">
+        <div className="wb-gate-card wb-gate-error">
+          <CircleExclamationPoint aria-hidden className="size-6 text-rejected" />
+          <h1>Could not load the workbench</h1>
+          <p>{message}</p>
+          <p className="wb-gate-hint">
+            The default snapshot is served from <code>/api/snapshot</code> with a
+            plain JSON fallback. Retry after checking the route.
+          </p>
+          <button type="button" className="wb-button wb-button-primary" onClick={onRetry}>
+            <RefreshCw aria-hidden className="size-3" />
+            Retry snapshot
+          </button>
+        </div>
+      </main>
+      <footer className="wb-gate-status">
+        <span>snapshot unavailable</span>
+        <span>no graph loaded</span>
+      </footer>
+    </div>
+  );
+}
+
+function WorkbenchShell() {
+  const { state, actions } = useWorkbench();
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sidebarVisible, setSidebarVisible] = useState(true);
+  const [bottomVisible, setBottomVisible] = useState(true);
+  const [zoom, setZoom] = useState(1);
+
+  const activity = state.activity;
+  const layout = state.functions[activity].layout;
+
+  const openPalette = useCallback(() => {
+    setSettingsOpen(false);
+    setPaletteOpen(true);
+  }, []);
+
+  const openSettings = useCallback(() => {
+    setPaletteOpen(false);
+    setSettingsOpen(true);
+  }, []);
+
+  const resetLayout = useCallback(() => {
+    actions.setLayout(activity, defaultFunctionState(activity).layout);
+  }, [actions, activity]);
+
+  useEffect(() => {
+    const onKeyDown = (event: globalThis.KeyboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      const textEntry =
+        target?.closest("input, textarea, select, [contenteditable='true']") ?? null;
+      const command = event.metaKey || event.ctrlKey;
+
+      if (command && event.key.toLowerCase() === "k") {
+        event.preventDefault();
+        setSettingsOpen(false);
+        setPaletteOpen((open) => !open);
+        return;
+      }
+      if (command && event.key === ",") {
+        event.preventDefault();
+        setPaletteOpen(false);
+        setSettingsOpen(true);
+        return;
+      }
+      if (textEntry) {
+        if (event.key === "Escape") {
+          setPaletteOpen(false);
+          setSettingsOpen(false);
+        }
+        return;
+      }
+      if (command && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        setSidebarVisible((visible) => !visible);
+        return;
+      }
+      if (command && event.key.toLowerCase() === "j") {
+        event.preventDefault();
+        setBottomVisible((visible) => !visible);
+        return;
+      }
+      if (event.key === "Escape") {
+        setPaletteOpen(false);
+        setSettingsOpen(false);
+      }
+    };
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, []);
+
+  const bodyStyle = useMemo<CSSProperties | undefined>(() => {
+    if (zoom === 1) return undefined;
+    return {
+      zoom,
+      width: `calc(100% / ${zoom})`,
+      height: `calc((100vh - 60px) / ${zoom})`,
+    };
+  }, [zoom]);
+
+  return (
+    <div className="wb-shell ui-grain" data-testid="workbench">
+      <TitleBar
+        onOpenPalette={openPalette}
+        sidebarVisible={sidebarVisible}
+        bottomVisible={bottomVisible}
+        onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
+        onToggleBottom={() => setBottomVisible((visible) => !visible)}
+        onResetLayout={resetLayout}
+      />
+
+      <div className="wb-body" style={bodyStyle}>
+        <ActivityBar onOpenPalette={openPalette} onOpenSettings={openSettings} />
+        {sidebarVisible ? (
+          <>
+            <SideBar />
+            <Splitter
+              orientation="vertical"
+              value={layout.sidebarWidth}
+              min={MIN_SIDEBAR}
+              max={MAX_SIDEBAR}
+              label="Resize side bar"
+              onChange={(value) => actions.setLayout(activity, { sidebarWidth: value })}
+            />
+          </>
+        ) : null}
+
+        <div className="wb-main">
+          <EditorArea />
+          {bottomVisible ? (
+            <>
+              <Splitter
+                orientation="horizontal"
+                value={layout.bottomHeight}
+                min={MIN_BOTTOM}
+                max={MAX_BOTTOM}
+                label="Resize bottom panel"
+                onChange={(value) => actions.setLayout(activity, { bottomHeight: value })}
+              />
+              <BottomPanel onCollapse={() => setBottomVisible(false)} />
+            </>
+          ) : null}
+        </div>
+      </div>
+
+      <StatusBar
+        zoom={zoom}
+        onZoomIn={() => setZoom((value) => Math.min(1.3, Math.round((value + 0.1) * 10) / 10))}
+        onZoomOut={() => setZoom((value) => Math.max(0.8, Math.round((value - 0.1) * 10) / 10))}
+        onZoomReset={() => setZoom(1)}
+      />
+
+      {paletteOpen ? <CommandPalette onClose={() => setPaletteOpen(false)} /> : null}
+      {settingsOpen ? <SettingsDialog onClose={() => setSettingsOpen(false)} /> : null}
+    </div>
+  );
+}
+
+export function Workbench() {
+  const [attempt, setAttempt] = useState(0);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | undefined>();
+  const [loaded, setLoaded] = useState<LoadedWorkbench | null>(null);
+
+  useEffect(() => {
+    let active = true;
+    setLoading(true);
+    setError(undefined);
+    setLoaded(null);
+
+    const requested =
+      typeof window === "undefined"
+        ? null
+        : new URLSearchParams(window.location.search).get("snapshot");
+    const reference = requested === "reference";
+
+    Promise.all([
+      reference ? loadReferenceSnapshot() : loadDefaultSnapshot(),
+      (reference ? loadReferenceReview() : loadReviewSidecar()).catch(
+        () => undefined,
+      ),
+    ])
+      .then(([snapshot, sidecar]) => {
+        if (!active) return;
+        setLoaded({
+          snapshot,
+          index: buildViewerIndex(snapshot),
+          review: snapshot.review ?? sidecar ?? EMPTY_REVIEW,
+        });
+      })
+      .catch((reason: unknown) => {
+        if (!active) return;
+        setError(reason instanceof Error ? reason.message : String(reason));
+      })
+      .finally(() => {
+        if (active) setLoading(false);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [attempt]);
+
+  if (loading) {
+    return <LoadingGate onRetry={() => setAttempt((value) => value + 1)} />;
+  }
+  if (error || !loaded) {
+    return (
+      <LoadErrorGate
+        message={error ?? "No snapshot was loaded."}
+        onRetry={() => setAttempt((value) => value + 1)}
+      />
+    );
+  }
+
+  return (
+    <WorkbenchProvider
+      key={`${loaded.snapshot.name}:${attempt}`}
+      snapshot={loaded.snapshot}
+      index={loaded.index}
+      review={loaded.review}
+    >
+      <WorkbenchShell />
+    </WorkbenchProvider>
+  );
+}
+
+/** Exported for the workbench tests; the page only needs `Workbench`. */
+export { ACTIVITY_LABELS, ACTIVITY_ORDER };

@@ -1,5 +1,9 @@
 # Blender UI direction
 
+> **Current structure:** the application header is the workbench title bar; the
+> activity bar switches Proof, Audit, Semantics and Topology. The palette and
+> widget rules below still apply. See `REDESIGN.md` and `HIERARCHY.md`.
+
 This document is the **skin**: palette, widgets, node and viewport style.
 The hierarchy of Window → Workspace → Panel → Section → Row → Field and the
 rules for nesting, actions, selection and detail flow are in
