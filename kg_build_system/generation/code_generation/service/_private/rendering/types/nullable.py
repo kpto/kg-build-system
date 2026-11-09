@@ -7,7 +7,7 @@ from .....model._private.generated import GeneratedNullableType, GeneratedType
 
 
 def render(value: GeneratedNullableType, render_type: Callable[[GeneratedType], str]) -> str:
-    return f"{render_type(value.value)} | None"
+    return f"Nullable[{render_type(value.value)}]"
 
 
 def references(

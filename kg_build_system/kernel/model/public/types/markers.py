@@ -75,16 +75,16 @@ class Array(Generic[T_co]):
     """
 
 
-class Nullable(Generic[T_co]):
-    """Explicit nullable marker; ``T | None`` normalizes to the same value.
+type Nullable[T] = T | None
+"""Explicit nullable spelling; identical to ``T | None``.
 
-    Example:
-        ```python
-        from kg_build_system.kernel.model.public.types import Nullable
+Example:
+    ```python
+    from kg_build_system.kernel.model.public.types import Nullable
 
-        Nullable[str]
-        ```
-    """
+    Nullable[str]  # str | None
+    ```
+"""
 
 
 Date = datetime.date

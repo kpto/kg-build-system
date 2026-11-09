@@ -376,10 +376,10 @@ class CodegenNullabilityTests(unittest.TestCase):
         ))
 
         self.assertIn(
-            "labels: Field[Array[str | None]] = field(name='labels')",
+            "labels: Field[Array[Nullable[str]]] = field(name='labels')",
             rendered,
         )
-        self.assertNotIn("Field[Array[str | None] | None]", rendered)
+        self.assertNotIn("Field[Array[Nullable[str]] | None]", rendered)
 
     def test_an_explicitly_nullable_computed_value_keeps_its_type(self) -> None:
         rendered = self._render(GeneratedClass(
@@ -395,7 +395,7 @@ class CodegenNullabilityTests(unittest.TestCase):
             ),
         ))
 
-        self.assertIn("label: Field[str | None] = field(name='label')", rendered)
+        self.assertIn("label: Field[Nullable[str]] = field(name='label')", rendered)
 
     def test_a_nullability_override_changes_the_claim_not_the_value_type(self) -> None:
         item_type = GeneratedNullableType(GeneratedScalarType("str"))
