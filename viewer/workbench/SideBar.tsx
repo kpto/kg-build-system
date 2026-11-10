@@ -12,15 +12,18 @@ import { ChevronRight } from "lucide-react";
 
 import { DetailSidebar } from "@/detail/DetailFeature";
 import { TopologySidebar } from "@/topology/TopologyFeature";
+import { WorkflowSidebar } from "@/workflow/WorkflowFeature";
 import { cx } from "@/shared/ui/theme";
 import { useWorkbench } from "./store";
 import {
   MAX_SIDEBAR_SPLIT,
   MIN_SIDEBAR_SPLIT,
+  activeDocument,
+  type WorkspaceProps,
   type WorkbenchLayout,
 } from "./types";
 
-type SectionId = "topology" | "detail";
+type SectionId = "control" | "detail";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -99,15 +102,38 @@ function SideBarSplitter({
   );
 }
 
+function ControlBody({ state, actions }: WorkspaceProps) {
+  const document = activeDocument(state);
+  if (document.kind === "workflow") {
+    return <WorkflowSidebar state={state} actions={actions} />;
+  }
+  if (document.kind === "subject") {
+    return (
+      <p className="p-3 text-[10px] leading-relaxed text-faint">
+        This document has no view controls. Control applies to the Graph and
+        Workflow documents.
+      </p>
+    );
+  }
+  return <TopologySidebar state={state} actions={actions} />;
+}
+
 export function SideBar() {
   const { state, actions } = useWorkbench();
   const [open, setOpen] = useState<Record<SectionId, boolean>>({
-    topology: true,
+    control: true,
     detail: false,
   });
   const container = useRef<HTMLElement>(null);
   const stats = state.index.stats;
-  const bothOpen = open.topology && open.detail;
+  const document = activeDocument(state);
+  const controlMeta =
+    document.kind === "workflow"
+      ? `${state.index.workflow.steps.length} steps`
+      : document.kind === "subject"
+        ? "no view"
+        : `${stats.topologyNodes}N · ${stats.topologyEdges}E`;
+  const bothOpen = open.control && open.detail;
 
   const toggle = (section: SectionId) => {
     setOpen((current) => ({ ...current, [section]: !current[section] }));
@@ -115,7 +141,7 @@ export function SideBar() {
 
   const growth = (section: SectionId): number => {
     if (!bothOpen) return 1;
-    return section === "topology"
+    return section === "control"
       ? state.layout.sidebarSplit
       : 1 - state.layout.sidebarSplit;
   };
@@ -168,10 +194,10 @@ export function SideBar() {
       data-testid="sidebar"
     >
       {section(
-        "topology",
-        "Topology",
-        `${stats.topologyNodes}N · ${stats.topologyEdges}E`,
-        <TopologySidebar state={state} actions={actions} />,
+        "control",
+        "Control",
+        controlMeta,
+        <ControlBody state={state} actions={actions} />,
       )}
       {bothOpen ? (
         <SideBarSplitter

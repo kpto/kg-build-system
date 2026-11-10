@@ -8,6 +8,7 @@ import {
   Database,
   FileText,
   Network,
+  Workflow,
   X,
 } from "lucide-react";
 
@@ -16,17 +17,21 @@ import { documentTitle, type WorkbenchTab } from "./types";
 
 function tabIcon(tab: WorkbenchTab) {
   const kind =
-    tab.document.kind === "graph" ? "graph" : tab.document.selection.kind;
+    tab.document.kind === "subject"
+      ? tab.document.selection.kind
+      : tab.document.kind;
   const Icon =
     kind === "graph"
       ? Network
-      : kind === "property"
-        ? CircleDot
-        : kind === "asset"
-          ? Database
-          : kind === "node" || kind === "edge"
-            ? Boxes
-            : FileText;
+      : kind === "workflow"
+        ? Workflow
+        : kind === "property"
+          ? CircleDot
+          : kind === "asset"
+            ? Database
+            : kind === "node" || kind === "edge"
+              ? Boxes
+              : FileText;
   return <Icon aria-hidden className="size-3" />;
 }
 
@@ -73,6 +78,15 @@ export function EditorTabs() {
               data-active={active ? "true" : undefined}
               data-pinned={tab.pinned ? "true" : undefined}
               data-preview={tab.preview ? "true" : undefined}
+              onMouseDown={(event) => {
+                if (event.button === 1) event.preventDefault();
+              }}
+              onAuxClick={(event) => {
+                if (event.button === 1) {
+                  event.preventDefault();
+                  actions.closeTab(tab.id);
+                }
+              }}
             >
               <button
                 type="button"

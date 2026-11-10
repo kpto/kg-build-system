@@ -58,6 +58,7 @@ const SUBJECT_KINDS = new Set<SubjectKind>([
 const DETAIL_LEVELS = new Set(["property", "node", "edge", "abstract", "asset"]);
 
 const GRAPH_TAB_ID = "graph";
+const WORKFLOW_TAB_ID = "workflow";
 
 /** The one persisted value for a snapshot: its workbench geometry. */
 export function workbenchStorageKey(snapshotName: string): string {
@@ -169,18 +170,23 @@ function graphTab(): WorkbenchTab {
   return { id: GRAPH_TAB_ID, document: { kind: "graph" }, pinned: true };
 }
 
+function workflowTab(): WorkbenchTab {
+  return { id: WORKFLOW_TAB_ID, document: { kind: "workflow" }, pinned: true };
+}
+
 export function createWorkbenchState(
   snapshot: ViewerSnapshot,
   index: ViewerIndex,
 ): WorkbenchState {
-  const tab = graphTab();
+  const graph = graphTab();
+  const workflow = workflowTab();
   return {
     snapshot,
     index,
     layout: normalizeLayout(undefined),
-    tabs: [tab],
-    activeTabId: tab.id,
-    history: [tab.id],
+    tabs: [graph, workflow],
+    activeTabId: graph.id,
+    history: [graph.id],
     historyIndex: 0,
   };
 }
@@ -306,6 +312,7 @@ export function workbenchReducer(
       if (tab.document.kind === "graph") {
         return { ...state, inspection: selection };
       }
+      if (tab.document.kind === "workflow") return state;
       return {
         ...state,
         tabs: state.tabs.map((candidate) =>

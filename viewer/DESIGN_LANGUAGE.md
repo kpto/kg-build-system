@@ -23,8 +23,9 @@ Window        where am I, and what design am I reading?
 - **Window** owns identity: brand, snapshot, global search, zoom, panel
   visibility.
 - **Document** owns its editor content and pane state. The Graph document is
-  canonical; a subject document is a node, edge, property, asset or abstract
-  category opened from the Detail tree, a context menu or the command palette.
+  canonical; the Workflow document is the compiled plan; a subject document is a
+  node, edge, property, asset or abstract category opened from the Detail tree, a
+  context menu or the command palette.
 - **Panel** owns one region, one header and one body. A panel never contains
   another panel of the same kind.
 - **Section** owns one question inside a panel. If it needs "and", it is two
@@ -38,21 +39,23 @@ Window        where am I, and what design am I reading?
 
 | Section | Question | What it contains |
 | --- | --- | --- |
-| Topology | What does the canvas show? | graph filters, labels, Show controls, legend, layout |
+| Control | How is the current view configured? | graph filters, labels, Show controls, legend, layout; workflow component and instruction filters |
 | Detail | What does the design contain? | graph meaning and the design tree used to open documents |
 
 There is no mode switch. Opening a side-bar section changes the side bar, not
-the active document or its editor. A graph selection is transient inspection;
-a subject document is an explicit tab.
+the active document or its editor. Control follows the active view; a subject
+document has no view controls. A graph selection is transient inspection; a
+subject document is an explicit tab.
 
 ## Detail is earned
 
 The first paint states the design, not every annotation.
 
-- **Low detail is the default.** Topology labels hubs only; edge labels,
+- **Low detail is the default.** The Graph labels hubs only; edge labels,
   containment, semantics badges and property lists are off. A subject document
   shows its meaning and properties; graph claims and frames are revealed on
-  demand in the Detail section.
+  demand in the Detail section. The Workflow shows the selected step and reveals
+  complex payload values on demand.
 - **A reveal is explicit.** Every hidden layer has one control that names it.
   A control's state is visible; a revealed layer is one click away from hidden.
 - **A reveal does not change scope.** Turning on semantics labels adds evidence
@@ -84,18 +87,20 @@ opens or activates that document.
 - Geometry is one workbench value per snapshot. Opening a side-bar section or a
   tab never changes it.
 - The editor tab strip is one global document strip. Its tab views are **Graph**
-  (pinned) and **subject documents** (node, edge, property, asset, abstract). A
-  click on the canvas is transient inspection, not a document; it never opens a
-  tab. Every tab is mounted in its own pane and keeps its own editor state and
-  scroll position.
+  (pinned), **Workflow** (pinned) and subject documents (node, edge, property,
+  asset, abstract). A click on the canvas is transient inspection, not a
+  document; it never opens a tab. Every tab is mounted in its own pane and keeps
+  its own editor state and scroll position.
 - A single click in the Detail tree opens or reuses one preview tab, like VS
   Code. Double-clicking the row, using **Open Detail**, choosing **Go to Detail**
   in a context menu, or using the command palette opens a permanent tab.
   Preview tabs are reused by the next single click; double-clicking a preview
-  tab label pins it.
-- There is no mode and no automatic coupling. Topology and Detail are side-bar
-  sections; changing section never changes the active tab, and changing tab
-  never changes the open section or panel geometry. Opening the same subject
+  tab label pins it. Middle-clicking a subject tab closes it; pinned Graph and
+  Workflow tabs cannot be closed.
+- There is no mode and no automatic section switching. Control and Detail are
+  side-bar sections; changing section never changes the active tab, and changing
+  tab never opens, closes or switches the open sections or panel geometry. The
+  Control body shows controls for the active view. Opening the same subject
   again activates its existing tab.
 - Back and forward walk the activated-tab history (`Alt+←` / `Alt+→`, the arrows
   in the tab strip, or the mouse back/forward buttons). Opening, activating or
@@ -104,8 +109,8 @@ opens or activates that document.
 
 ## One region, one job
 
-- The side bar carries canvas controls (Topology) and design navigation
-  (Detail). It does not repeat the selected subject.
+- The side bar carries view controls (Control) and design navigation (Detail).
+  It does not repeat the selected subject.
 - The Graph document carries the graph inspection as a floating **Inspect**
   window. A subject document carries its own meaning and properties. The two
   never share a panel, so opening a tab cannot change inspection.
@@ -131,14 +136,18 @@ opens or activates that document.
 
 ## Reading flows
 
-**Orient.** Topology → filter or zoom → select a node or relation → read the
+**Orient.** Control → filter or zoom → select a node or relation → read the
 selection detail → open Detail for its properties, provenance and attached
 claims and limits.
 
-**Open detail.** Select a node or edge in Topology → read its properties and
+**Open detail.** Select a node or edge in the Graph → read its properties and
 meaning → **Open in Detail** → select a property to read its branches, lanes and
 type/presence chain. When the question widens, open the parent subject from the
 Detail tree; it becomes its own document tab.
+
+**Read the workflow.** Open **Workflow** → filter by component or instruction
+kind in Control → select a step → read its openings, instruction payload,
+connections and blueprint bindings.
 
 **Read the design.** Detail's sidebar states the graph purpose and its full
 claims and frames on demand; the editor states the selected subject's meaning

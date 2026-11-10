@@ -5,7 +5,7 @@
 
 Checks:
 - no left activity toolbar and no workbench bottom panel
-- Topology and Detail are collapsible side-bar headers, both can be open
+- Control and Detail are collapsible side-bar headers, both can be open
 - the two open sections have an adjustable separator
 - Detail tree groups start collapsed
 - clicking a node or property only inspects; it does not open a tab
@@ -98,7 +98,7 @@ def main() -> int:
                 el.get_attribute("data-testid"): el.get_attribute("aria-expanded")
                 for el in driver.find_elements(
                     By.CSS_SELECTOR,
-                    '[data-testid="sidebar-section-topology"],'
+                    '[data-testid="sidebar-section-control"],'
                     ' [data-testid="sidebar-section-detail"]',
                 )
             }
@@ -125,6 +125,14 @@ def main() -> int:
                     time.sleep(0.7)
                     return True
             return False
+
+        def middle_click(element) -> None:
+            driver.execute_script(
+                "arguments[0].dispatchEvent(new MouseEvent('auxclick',"
+                "{bubbles: true, cancelable: true, button: 1}))",
+                element,
+            )
+            time.sleep(0.6)
 
         def right_click(element) -> None:
             driver.execute_script(
@@ -167,6 +175,56 @@ def main() -> int:
         topology_geometry = geometry()
         shot("01-topology")
 
+        # The Workflow document is a pinned tab with its own view controls.
+        workflow_tab = next(
+            (
+                el
+                for el in driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="editor-tabs"] .wb-tab-label'
+                )
+                if el.text.strip() == "Workflow"
+            ),
+            None,
+        )
+        report["checks"]["workflow_tab"] = workflow_tab is not None
+        if workflow_tab:
+            workflow_tab.click()
+            time.sleep(1)
+            report["checks"]["workflow_editor"] = bool(
+                driver.find_elements(By.CSS_SELECTOR, '[data-testid="workflow-editor"]')
+            )
+            report["checks"]["workflow_sidebar"] = bool(
+                driver.find_elements(By.CSS_SELECTOR, '[data-testid="workflow-sidebar"]')
+            )
+            report["checks"]["workflow_steps"] = len(
+                driver.find_elements(By.CSS_SELECTOR, '[data-testid="workflow-step"]')
+            )
+            report["checks"]["workflow_step_detail"] = bool(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-step-detail"]'
+                )
+            )
+            report["checks"]["workflow_status"] = status()
+            shot("02-workflow")
+            query = driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-filter-query"]'
+            )
+            query.send_keys("binding")
+            time.sleep(0.7)
+            report["checks"]["workflow_filtered_steps"] = len(
+                driver.find_elements(By.CSS_SELECTOR, '[data-testid="workflow-step"]')
+            )
+            driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-reset"]'
+            ).click()
+            time.sleep(0.6)
+            workflow_wrapper = workflow_tab.find_element(By.XPATH, "..")
+            middle_click(workflow_wrapper)
+            report["checks"]["workflow_survives_middle_click"] = (
+                "Workflow" in tabs()
+            )
+            click_tab("Graph")
+
         nodes = driver.find_elements(By.CSS_SELECTOR, "[data-topology-node-id]")
         target = next(
             node
@@ -178,9 +236,9 @@ def main() -> int:
             target,
         )
         time.sleep(0.8)
-        report["checks"]["node_inspect_keeps_tabs"] = tabs() == ["Graph"]
+        report["checks"]["node_inspect_keeps_tabs"] = tabs() == ["Graph", "Workflow"]
         report["checks"]["node_status"] = status()
-        shot("02-inspect")
+        shot("03-inspect")
 
         inspector = driver.find_element(
             By.CSS_SELECTOR, '[data-testid="topology-inspector"]'
@@ -198,7 +256,7 @@ def main() -> int:
         report["checks"]["topology_property_rows"] = len(property_buttons)
         property_buttons[0].click()
         time.sleep(0.8)
-        report["checks"]["property_inspect_keeps_tabs"] = tabs() == ["Graph"]
+        report["checks"]["property_inspect_keeps_tabs"] = tabs() == ["Graph", "Workflow"]
         report["checks"]["property_status"] = status()
 
         # Close and reopen the floating inspector.
@@ -231,11 +289,17 @@ def main() -> int:
         choose_menu_item()
         report["checks"]["tabs_after_context_menu"] = tabs()
         report["checks"]["context_menu_permanent"] = (
-            tabs() == ["Graph", "target.approvedSymbol"]
-            and preview_flags() == [False, False]
+            tabs() == ["Graph", "Workflow", "target.approvedSymbol"]
+            and preview_flags() == [False, False, False]
         )
 
-        # Opening Detail while Topology is open leaves both open and adds an
+        report["checks"]["control_follows_subject"] = (
+            "no view controls" in driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="sidebar"]'
+            ).text
+        )
+
+        # Opening Detail while Control is open leaves both open and adds an
         # adjustable separator between them.
         driver.find_element(
             By.CSS_SELECTOR, '[data-testid="sidebar-section-detail"]'
@@ -248,7 +312,7 @@ def main() -> int:
             and "detail-group-projections" not in detail_groups()
         )
         report["checks"]["both_sections_open"] = (
-            expanded().get("sidebar-section-topology") == "true"
+            expanded().get("sidebar-section-control") == "true"
             and expanded().get("sidebar-section-detail") == "true"
         )
         splitter = driver.find_elements(
@@ -271,7 +335,7 @@ def main() -> int:
         )
         report["checks"]["geometry_unchanged"] = geometry() == topology_geometry
         report["checks"]["detail_status"] = status()
-        shot("03-detail-property")
+        shot("04-detail-property")
 
         # Detail tree groups start collapsed; expanding Nodes reveals rows.
         driver.find_element(By.CSS_SELECTOR, '[data-testid="detail-group-nodes"]').click()
@@ -338,9 +402,21 @@ def main() -> int:
             time.sleep(0.8)
         report["checks"]["tab_label_pin"] = not any(preview_flags())
 
+        # Middle-click closes a subject tab but not a pinned document.
+        before_middle = len(tabs())
+        tree_rows()[1].click()
+        time.sleep(0.9)
+        subject_label = driver.find_elements(
+            By.CSS_SELECTOR, '[data-testid="editor-tabs"] .wb-tab-label'
+        )[-1]
+        middle_click(subject_label.find_element(By.XPATH, ".."))
+        report["checks"]["middle_click_closes_subject"] = (
+            len(tabs()) == before_middle
+        )
+
         # A tab never changes the side bar and never brings back a bottom panel.
         report["checks"]["sidebar_unchanged_by_tabs"] = (
-            expanded().get("sidebar-section-topology") == "true"
+            expanded().get("sidebar-section-control") == "true"
             and expanded().get("sidebar-section-detail") == "true"
         )
         report["checks"]["no_bottom_panel_after_tabs"] = not driver.find_elements(
@@ -351,6 +427,11 @@ def main() -> int:
         click_tab("Graph")
         report["checks"]["graph_has_inspector"] = bool(
             driver.find_elements(By.CSS_SELECTOR, '[data-testid="topology-inspector"]')
+        )
+        report["checks"]["control_follows_graph"] = (
+            "KIND" in driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="sidebar"]'
+            ).text
         )
         click_tab("target.approvedSymbol")
         pane = driver.find_element(
@@ -389,7 +470,7 @@ def main() -> int:
             report["checks"]["node_property_matches"] = (
                 tabs()[-1] == f"{first_name}.{property_name}"
             )
-        shot("04-graph")
+        shot("05-graph")
 
         print(json.dumps(report, indent=2))
         return 0

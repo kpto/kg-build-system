@@ -2,8 +2,8 @@
  * Workbench contract.
  *
  * One frame owns snapshot loading, one geometry, one document tab strip and the
- * transient inspection of the canonical graph. The side bar exposes Topology
- * and Detail as collapsible sections; neither is a mode.
+ * transient inspection of the canonical graph. The side bar exposes Control and
+ * Detail as collapsible sections; neither is a mode.
  */
 
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
@@ -33,12 +33,13 @@ export interface SubjectSelection {
 
 export type WorkbenchDocument =
   | { kind: "graph" }
+  | { kind: "workflow" }
   | { kind: "subject"; selection: SubjectSelection };
 
 export interface WorkbenchTab {
   id: string;
   document: WorkbenchDocument;
-  /** The canonical graph tab is always available. */
+  /** The canonical Graph and Workflow tabs are always available. */
   pinned?: boolean;
   /** A preview tab is reused by the next single-click navigation. */
   preview?: boolean;
@@ -46,7 +47,7 @@ export interface WorkbenchTab {
 
 export interface WorkbenchLayout {
   sidebarWidth: number;
-  /** Share of the side bar height used by the Topology section when both are open. */
+  /** Share of the side bar height used by the Control section when both are open. */
   sidebarSplit: number;
 }
 
@@ -103,7 +104,8 @@ export function documentSelection(
 /** The Graph document uses transient inspection; a subject uses itself. */
 export function lensSelection(state: WorkbenchState): SubjectSelection | undefined {
   const document = activeDocument(state);
-  return document.kind === "graph" ? state.inspection : document.selection;
+  if (document.kind === "graph") return state.inspection;
+  return document.kind === "subject" ? document.selection : undefined;
 }
 
 export function subjectTitle(selection: SubjectSelection): string {
@@ -116,12 +118,15 @@ export function subjectTitle(selection: SubjectSelection): string {
 }
 
 export function documentTitle(document: WorkbenchDocument): string {
-  return document.kind === "graph" ? "Graph" : subjectTitle(document.selection);
+  if (document.kind === "graph") return "Graph";
+  if (document.kind === "workflow") return "Workflow";
+  return subjectTitle(document.selection);
 }
 
 /** Stable content identity used to remount a pane when a preview replaces it. */
 export function documentSignature(document: WorkbenchDocument): string {
   if (document.kind === "graph") return "graph";
+  if (document.kind === "workflow") return "workflow";
   const selection = document.selection;
   return [
     selection.kind ?? "",

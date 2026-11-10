@@ -9,19 +9,21 @@ frame, one document tab strip, and two collapsible side-bar sections:
 
 | Side-bar section | What it is for |
 | --- | --- |
-| **Topology** | Canvas controls: filters, labels, containment, semantics, legend and layout. |
+| **Control** | Controls for the active view: graph filters, labels, containment, semantics, legend and layout; workflow component and instruction filters. |
 | **Detail** | Graph meaning and the design tree used to open subject documents. |
 
 The tab strip is the document axis:
 
 - **Graph** — the canonical graph view, pinned;
+- **Workflow** — the compiled workflow plan, pinned;
 - **Subject documents** — a node, edge, property, asset or abstract category.
   A single click in the Detail tree or a context-menu action opens or reuses a
   preview tab; a double click, **Open Detail**, a right-click **Go to Detail**
   or the command palette opens a permanent tab.
 
-There is no mode switch. Topology and Detail are side-bar sections, both may be
-expanded at once, and their separator is adjustable. Opening or resizing a
+There is no mode switch. Control and Detail are side-bar sections, both may be
+expanded at once, and their separator is adjustable. The Control body shows the
+controls of the active view; a subject document has none. Opening or resizing a
 section changes the side bar, not the active document or its editor.
 
 The viewer is a design reader, not an audit or review tool: there are no
@@ -49,30 +51,34 @@ The first paint shows the design, not its annotations.
 | Surface | Default | Revealed by |
 | --- | --- | --- |
 | Graph document | graph canvas and floating **Inspect** window | selecting an entity fills Inspect with its description, properties and meaning |
+| Workflow document | step list and the selected step's instruction, openings and connections | filter by component or instruction kind in Control; select another step |
 | Subject document | meaning, properties and attached semantics of the subject | property rows, the branch selector and the Detail tree for another subject document |
 
-There is no bottom panel. The side bar carries the **Topology** and **Detail**
+There is no bottom panel. The side bar carries the **Control** and **Detail**
 sections; the Graph document owns its floating **Inspect** window. A tab changes
-only the editor. It does not open, close or switch the side-bar section or
-another tab. Side-bar width and the section split are one workbench geometry.
+its editor and, in Control, the controls applicable to that view. It never
+opens, closes or switches a side-bar section. Side-bar width and the section
+split are one workbench geometry.
 
 Single-clicking a node or a property in the Graph inspector only changes the
 transient inspection; it does not open a tab. Right-click any suitable node,
 edge or property and choose **Go to Detail** to open its document.
 
-The editor is one global tab strip. The viewer has two kinds of tab view:
+The editor is one global tab strip. The viewer has three kinds of tab view:
 
 - **Graph** — the pinned canonical graph document;
+- **Workflow** — the pinned compiled workflow plan;
 - **Subject documents** — a node, edge, property, asset or abstract category,
   opened explicitly from **Open Detail**, the Detail tree, a Detail property
   row, or the command palette.
 
 Single-clicking a node or a property row only changes the transient **Inspect**
 selection; it does not open a tab. Detail tree rows single-click into a reusable
-preview tab and double-click into a permanent tab. **Back** and **Forward**
-(arrows in the tab strip, `Alt+←` / `Alt+→`, or the mouse back/forward buttons)
-walk the document history. Every open tab keeps its own editor state and scroll
-position. There is no JSON/Data tab.
+preview tab and double-click into a permanent tab. **Middle-click** closes a
+subject tab; the pinned Graph and Workflow tabs cannot be closed. **Back** and
+**Forward** (arrows in the tab strip, `Alt+←` / `Alt+→`, or the mouse
+back/forward buttons) walk the document history. Every open tab keeps its own
+editor state and scroll position. There is no JSON/Data tab.
 
 ## Snapshot
 
@@ -122,6 +128,7 @@ viewer/
   app/                 shell entry, route handlers and global theme
   workbench/           VS Code layout, state, persistence, UI chrome
   topology/            canonical design graph, detail controls and view
+  workflow/            compiled workflow plan, step catalogue and step detail
   detail/              the merged design view: meaning, properties and provenance
   proof/               the provenance model used by Detail
   shared/design/       meaning value, graph/entity meaning, and its renderer

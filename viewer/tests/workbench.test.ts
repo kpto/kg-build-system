@@ -32,12 +32,17 @@ const defectProperty = {
 };
 
 describe("workbench documents and geometry", () => {
-  it("starts with the canonical graph document", () => {
+  it("starts with the canonical Graph and Workflow documents", () => {
     const initial = state();
-    expect(initial.tabs).toHaveLength(1);
+    expect(initial.tabs).toHaveLength(2);
     expect(initial.tabs[0]).toMatchObject({
       id: "graph",
       document: { kind: "graph" },
+      pinned: true,
+    });
+    expect(initial.tabs[1]).toMatchObject({
+      id: "workflow",
+      document: { kind: "workflow" },
       pinned: true,
     });
     expect(activeTitle(initial)).toBe("Graph");
@@ -68,20 +73,21 @@ describe("workbench documents and geometry", () => {
       type: "open-tab",
       input: { selection: defectNode, preview: true },
     });
-    expect(current.tabs).toHaveLength(2);
-    expect(current.tabs[1].preview).toBe(true);
+    expect(current.tabs).toHaveLength(3);
+    expect(current.tabs[2].preview).toBe(true);
 
     current = workbenchReducer(current, {
       type: "open-tab",
       input: { selection: defectProperty, preview: true },
     });
-    expect(current.tabs).toHaveLength(2);
+    expect(current.tabs).toHaveLength(3);
     expect(current.tabs.map((tab) => documentTitle(tab.document))).toEqual([
       "Graph",
+      "Workflow",
       "defect.title",
     ]);
     expect(activeTitle(current)).toBe("defect.title");
-    expect(current.tabs[1].preview).toBe(true);
+    expect(current.tabs[2].preview).toBe(true);
   });
 
   it("keeps preview ids unique when the shown subject changes", () => {
@@ -99,10 +105,11 @@ describe("workbench documents and geometry", () => {
     });
     expect(current.tabs.map((tab) => documentTitle(tab.document))).toEqual([
       "Graph",
+      "Workflow",
       "defect.title",
       "defect",
     ]);
-    expect(new Set(current.tabs.map((tab) => tab.id)).size).toBe(3);
+    expect(new Set(current.tabs.map((tab) => tab.id)).size).toBe(4);
   });
 
   it("promotes a preview tab when the document is opened explicitly", () => {
@@ -114,8 +121,8 @@ describe("workbench documents and geometry", () => {
       type: "open-tab",
       input: { selection: defectNode },
     });
-    expect(current.tabs).toHaveLength(2);
-    expect(current.tabs[1].preview).toBeUndefined();
+    expect(current.tabs).toHaveLength(3);
+    expect(current.tabs[2].preview).toBeUndefined();
   });
 
   it("pins a preview tab into a permanent document", () => {
@@ -125,14 +132,14 @@ describe("workbench documents and geometry", () => {
     });
     const previewId = current.activeTabId;
     current = workbenchReducer(current, { type: "pin-tab", tabId: previewId });
-    expect(current.tabs[1].preview).toBeUndefined();
+    expect(current.tabs[2].preview).toBeUndefined();
 
     current = workbenchReducer(current, {
       type: "open-tab",
       input: { selection: defectProperty, preview: true },
     });
     // The former preview was pinned, so the new preview needs its own tab.
-    expect(current.tabs).toHaveLength(3);
+    expect(current.tabs).toHaveLength(4);
   });
 
   it("inspects without opening a document", () => {
@@ -140,7 +147,7 @@ describe("workbench documents and geometry", () => {
       type: "inspect",
       selection: defectNode,
     });
-    expect(inspected.tabs).toHaveLength(1);
+    expect(inspected.tabs).toHaveLength(2);
     expect(inspected.inspection).toMatchObject(defectNode);
     expect(inspected.activeTabId).toBe("graph");
   });
@@ -152,13 +159,14 @@ describe("workbench documents and geometry", () => {
     });
     expect(opened.tabs.map((tab) => documentTitle(tab.document))).toEqual([
       "Graph",
+      "Workflow",
       "defect",
     ]);
     const again = workbenchReducer(opened, {
       type: "open-tab",
       input: { selection: defectNode },
     });
-    expect(again.tabs).toHaveLength(2);
+    expect(again.tabs).toHaveLength(3);
   });
 
   it("walks back and forward across documents", () => {
@@ -172,6 +180,7 @@ describe("workbench documents and geometry", () => {
     });
     expect(current.tabs.map((tab) => documentTitle(tab.document))).toEqual([
       "Graph",
+      "Workflow",
       "defect",
       "defect.title",
     ]);
@@ -210,8 +219,23 @@ describe("workbench documents and geometry", () => {
     current = workbenchReducer(current, { type: "close-tab", tabId: propertyId });
     expect(current.tabs.map((tab) => documentTitle(tab.document))).toEqual([
       "Graph",
+      "Workflow",
       "defect",
     ]);
     expect(activeTitle(current)).toBe("defect");
+  });
+
+  it("does not close the pinned Graph or Workflow document", () => {
+    const initial = state();
+    const afterGraph = workbenchReducer(initial, {
+      type: "close-tab",
+      tabId: "graph",
+    });
+    expect(afterGraph.tabs).toHaveLength(2);
+    const afterWorkflow = workbenchReducer(afterGraph, {
+      type: "close-tab",
+      tabId: "workflow",
+    });
+    expect(afterWorkflow.tabs).toHaveLength(2);
   });
 });

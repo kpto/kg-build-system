@@ -41,6 +41,16 @@ export function StatusBar({
   const stats = state.index.stats;
   const selection = lensSelection(state);
   const document = activeDocument(state);
+  const documentLabel =
+    document.kind === "graph"
+      ? "Graph"
+      : document.kind === "workflow"
+        ? "Workflow"
+        : "Subject";
+  const subjectLabel =
+    document.kind === "workflow"
+      ? `${state.index.workflow.steps.length} steps / ${state.index.workflow.connections.length} connections`
+      : selectedSubject(selection);
 
   return (
     <footer className="wb-statusbar" aria-label="Workbench status">
@@ -53,9 +63,9 @@ export function StatusBar({
         <span className="wb-status-item" title="Active document selection">
           <CircleDot aria-hidden className="size-3" />
           <span className="wb-status-label">
-            {document.kind === "graph" ? "Graph" : "Subject"}
+            {documentLabel}
           </span>
-          <span className="wb-mono wb-status-subject">{selectedSubject(selection)}</span>
+          <span className="wb-mono wb-status-subject">{subjectLabel}</span>
         </span>
       </div>
 
