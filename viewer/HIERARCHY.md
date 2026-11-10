@@ -32,16 +32,17 @@ A level may be absent. It is never reordered or nested inside the same kind.
 
 The side bar is 220–520 px, the bottom panel 120–480 px. One `WorkbenchLayout`
 is persisted per snapshot; switching function never changes the geometry. The
-editor is one global tab strip: tabs hold Graph and Detail subjects, and
-back/forward walk the activated-tab history. The bottom panel's visibility is
-shell state and starts true.
+editor is one global tab strip: a tab is a design document (Graph, node,
+property or asset). Topology and Detail are angles on that document; neither
+changes the other. Back/forward walk the activated-tab history. The bottom
+panel's visibility is shell state and starts true.
 
 ## Functions
 
 | Function | Side bar | Editor | Bottom |
 | --- | --- | --- | --- |
 | Topology | **View**: counts, filters, canvas detail controls, legend, fit/reset/pin | D3 force graph, zoom/pan/drag, selection | **Inspect**: graph purpose and selection instructions; when selected, identity, properties and meaning with **Open in Detail** |
-| Detail | **Browse**: graph meaning summary and design tree | design meaning, property table, provenance lanes and type/presence chain, attached semantics | Trace, Evidence |
+| Detail | **Browse**: graph meaning summary and design tree | design meaning, property table, provenance lanes and type/presence chain, attached semantics | Trace, Evidence; Graph counts on the Graph document |
 
 ## Display defaults
 

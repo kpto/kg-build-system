@@ -1,13 +1,30 @@
 "use client";
 
-import { ArrowLeft, ArrowRight, X } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  Boxes,
+  CircleDot,
+  Database,
+  FileText,
+  Network,
+  X,
+} from "lucide-react";
 
 import { useWorkbench } from "./store";
-import { getFeature } from "./features";
 import type { WorkbenchTab } from "./types";
 
 function tabIcon(tab: WorkbenchTab) {
-  const Icon = getFeature(tab.activity).icon;
+  const Icon =
+    tab.selection.kind === "graph"
+      ? Network
+      : tab.selection.kind === "property"
+        ? CircleDot
+        : tab.selection.kind === "asset"
+          ? Database
+          : tab.selection.kind === "node" || tab.selection.kind === "edge"
+            ? Boxes
+            : FileText;
   return <Icon aria-hidden className="size-3" />;
 }
 
@@ -58,7 +75,7 @@ export function EditorTabs() {
                 role="tab"
                 aria-selected={active}
                 className="wb-tab-label"
-                title={`${tab.title} · ${getFeature(tab.activity).label}`}
+                title={`${tab.title} · ${tab.selection.kind ?? "document"}`}
                 onClick={() => actions.activateTab(tab.id)}
                 data-testid={`tab-${tab.id}`}
               >

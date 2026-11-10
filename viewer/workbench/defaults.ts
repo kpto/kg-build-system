@@ -30,6 +30,7 @@ export const BOTTOM_TAB_LABELS: Record<string, string> = {
   trace: "Trace",
   evidence: "Evidence",
   details: "Details",
+  graph: "Graph",
   selection: "Inspect",
 };
 
@@ -56,8 +57,8 @@ export function defaultBottomTab(activity: ActivityId): string {
   return BOTTOM_TABS[activity][0] ?? "output";
 }
 
-export function emptySelection(activity: ActivityId): WorkbenchSelection {
-  return { activity };
+export function emptySelection(): WorkbenchSelection {
+  return { kind: "graph", name: "Graph" };
 }
 
 /** Resolve a tab list that includes a restored bottom tab from a newer build. */

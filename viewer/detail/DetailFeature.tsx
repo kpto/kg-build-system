@@ -31,7 +31,6 @@ import {
 } from "lucide-react";
 
 import type {
-  ActivityId,
   FeatureProps,
   WorkbenchSelection,
 } from "@/workbench/types";
@@ -76,12 +75,8 @@ import styles from "./detail.module.css";
 // Selection plumbing
 // ---------------------------------------------------------------------------
 
-function toWorkbenchSelection(
-  subject: ProofSubject,
-  activity: WorkbenchSelection["activity"],
-): WorkbenchSelection {
+function toWorkbenchSelection(subject: ProofSubject): WorkbenchSelection {
   const base: WorkbenchSelection = {
-    activity,
     name:
       subject.level === "property"
         ? `${subject.component}.${subject.property ?? ""}`
@@ -417,6 +412,7 @@ function SidebarRow({ label, meta, active, abstract, onSelect }: SidebarRowProps
 
 export function DetailSidebar(props: FeatureProps) {
   const { index } = props.state;
+  const selection = currentSelection(props.state);
   const subject = useCurrentSubject(props);
   const model = useProofModel(props);
   const [query, setQuery] = useState("");
@@ -427,10 +423,7 @@ export function DetailSidebar(props: FeatureProps) {
   const normalized = query.trim().toLowerCase();
 
   const select = (next: ProofSubject) => {
-    props.actions.openTab({
-      activity: props.activity,
-      selection: toWorkbenchSelection(next, props.activity),
-    });
+    props.actions.openTab({ selection: toWorkbenchSelection(next) });
   };
   const toggle = (id: string) => {
     setOpen((current) => {
@@ -765,7 +758,9 @@ export function DetailSidebar(props: FeatureProps) {
       </div>
       <footer className={styles.sideFooter}>
         <span className={styles.sideFooterLabel}>Selection</span>
-        <span className={styles.sideFooterValue}>{levelTitle(model)}</span>
+        <span className={styles.sideFooterValue}>
+          {selection.kind === "graph" ? "Graph" : levelTitle(model)}
+        </span>
       </footer>
     </div>
   );
@@ -1161,11 +1156,9 @@ function PropertyTable({
 function ComponentProofView({
   model,
   actions,
-  activity,
 }: {
   model: ProofModel;
   actions: FeatureProps["actions"];
-  activity: ActivityId;
 }) {
   const component = model.component;
   if (!component) {
@@ -1213,17 +1206,13 @@ function ComponentProofView({
           properties={component.properties}
           onSelect={(property) =>
             actions.openTab({
-              activity,
-              selection: toWorkbenchSelection(
-                {
-                  level: "property",
-                  kind: property.kind,
-                  component: property.component,
-                  property: property.property,
-                  propertyRef: property.propertyRef,
-                },
-                activity,
-              ),
+              selection: toWorkbenchSelection({
+                level: "property",
+                kind: property.kind,
+                component: property.component,
+                property: property.property,
+                propertyRef: property.propertyRef,
+              }),
             })
           }
         />
@@ -1239,11 +1228,9 @@ function ComponentProofView({
 function AbstractProofView({
   model,
   actions,
-  activity,
 }: {
   model: ProofModel;
   actions: FeatureProps["actions"];
-  activity: ActivityId;
 }) {
   const abstract = model.abstract;
   if (!abstract) {
@@ -1294,17 +1281,13 @@ function AbstractProofView({
               properties={descendant.properties}
               onSelect={(property) =>
                 actions.openTab({
-                  activity,
-                  selection: toWorkbenchSelection(
-                    {
-                      level: "property",
-                      kind: property.kind,
-                      component: property.component,
-                      property: property.property,
-                      propertyRef: property.propertyRef,
-                    },
-                    activity,
-                  ),
+                  selection: toWorkbenchSelection({
+                    level: "property",
+                    kind: property.kind,
+                    component: property.component,
+                    property: property.property,
+                    propertyRef: property.propertyRef,
+                  }),
                 })
               }
             />
@@ -1322,11 +1305,9 @@ function AbstractProofView({
 function AssetProofView({
   model,
   actions,
-  activity,
 }: {
   model: ProofModel;
   actions: FeatureProps["actions"];
-  activity: ActivityId;
 }) {
   const asset = model.asset;
   if (!asset) {
@@ -1380,17 +1361,13 @@ function AssetProofView({
           properties={asset.properties}
           onSelect={(property) =>
             actions.openTab({
-              activity,
-              selection: toWorkbenchSelection(
-                {
-                  level: "property",
-                  kind: property.kind,
-                  component: property.component,
-                  property: property.property,
-                  propertyRef: property.propertyRef,
-                },
-                activity,
-              ),
+              selection: toWorkbenchSelection({
+                level: "property",
+                kind: property.kind,
+                component: property.component,
+                property: property.property,
+                propertyRef: property.propertyRef,
+              }),
             })
           }
         />
@@ -1496,7 +1473,65 @@ function subjectMeaning(
   }
 }
 
+function GraphDetailView({ props }: { props: FeatureProps }) {
+  const graph = props.state.index.graphDeclaration;
+  const meaning = graphMeaning(props.state.index);
+  const stats = props.state.index.stats;
+
+  return (
+    <div className={styles.root} data-testid="detail-editor">
+      <header className={styles.topbar}>
+        <div className={styles.titleBlock}>
+          <p className={styles.kicker}>
+            <BadgeCheck aria-hidden className={styles.kickerIcon} />
+            Design · Graph
+          </p>
+          <h1 className={styles.title}>{graph?.name ?? props.state.snapshot.name}</h1>
+          <p className={styles.subtitle}>
+            {stats.topologyNodes} nodes · {stats.topologyEdges} edges ·{" "}
+            {stats.bindings} bindings
+          </p>
+        </div>
+      </header>
+
+      <div className={styles.body}>
+        <section className={styles.meaningPanel} aria-label="Graph meaning">
+          <header className={styles.meaningPanelHeader}>
+            <span className={styles.meaningPanelTitle}>Design meaning</span>
+            <span className={styles.meaningPanelMeta}>graph</span>
+          </header>
+          <DesignMeaning
+            claims={meaning.claims}
+            frames={meaning.frames}
+            purpose={meaning.purpose}
+            showPurpose
+            emptyText="No graph purpose is attached."
+          />
+        </section>
+
+      </div>
+    </div>
+  );
+}
+
+function SummaryLine({ label, value }: { label: string; value: number }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 border-b border-line-soft py-0.5">
+      <span className="text-[10px] text-faint">{label}</span>
+      <span className="font-mono text-[10px] text-text">{value}</span>
+    </div>
+  );
+}
+
 export function DetailEditor(props: FeatureProps) {
+  const selection = currentSelection(props.state);
+  if (selection.kind === "graph") {
+    return <GraphDetailView props={props} />;
+  }
+  return <SubjectDetailEditor {...props} />;
+}
+
+function SubjectDetailEditor(props: FeatureProps) {
   const model = useProofModel(props);
   const selection = currentSelection(props.state);
   const meaning = subjectMeaning(props.state.index, model);
@@ -1504,17 +1539,14 @@ export function DetailEditor(props: FeatureProps) {
   useEffect(() => {
     if (selection.kind || selection.component || selection.property) return;
     props.actions.setSelection(
-      props.activity,
-      toWorkbenchSelection(defaultProofSubject(props.state.index), props.activity),
+      toWorkbenchSelection(defaultProofSubject(props.state.index)),
     );
   }, [props.actions, props.activity, props.state.index, selection]);
 
   const changeLevel = (level: ProofLevel) => {
     props.actions.setSelection(
-      props.activity,
       toWorkbenchSelection(
         proofSubjectForLevel(props.state.index, model.subject, level),
-        props.activity,
       ),
     );
   };
@@ -1551,11 +1583,11 @@ export function DetailEditor(props: FeatureProps) {
         {model.level === "property" ? (
           <PropertyProofView model={model} />
         ) : model.level === "asset" ? (
-          <AssetProofView model={model} actions={props.actions} activity={props.activity} />
+          <AssetProofView model={model} actions={props.actions} />
         ) : model.level === "abstract" ? (
-          <AbstractProofView model={model} actions={props.actions} activity={props.activity} />
+          <AbstractProofView model={model} actions={props.actions} />
         ) : (
-          <ComponentProofView model={model} actions={props.actions} activity={props.activity} />
+          <ComponentProofView model={model} actions={props.actions} />
         )}
       </div>
     </div>
@@ -1681,7 +1713,35 @@ function EvidenceTab({ model }: { model: ProofModel }) {
   );
 }
 
+function GraphBottom({ props }: { props: FeatureProps }) {
+  const stats = props.state.index.stats;
+  return (
+    <div className={styles.bottom} data-testid="detail-bottom" data-tab="graph">
+      <div className="grid h-full grid-cols-2 gap-x-6 px-3 py-2">
+        <section className="thin-scrollbar min-h-0 overflow-y-auto">
+          <SummaryLine label="Assets" value={stats.assets} />
+          <SummaryLine label="Relations" value={stats.tables} />
+          <SummaryLine label="Projections" value={stats.projections} />
+          <SummaryLine label="Nodes" value={stats.topologyNodes} />
+        </section>
+        <section className="thin-scrollbar min-h-0 overflow-y-auto">
+          <SummaryLine label="Edges" value={stats.topologyEdges} />
+          <SummaryLine label="Properties" value={stats.topologyProperties} />
+          <SummaryLine label="Bindings" value={stats.bindings} />
+          <SummaryLine label="Steps" value={stats.steps} />
+        </section>
+      </div>
+    </div>
+  );
+}
+
 export function DetailBottom(props: FeatureProps) {
+  const selection = currentSelection(props.state);
+  if (selection.kind === "graph") return <GraphBottom props={props} />;
+  return <SubjectBottom {...props} />;
+}
+
+function SubjectBottom(props: FeatureProps) {
   const model = useProofModel(props);
   const tab =
     props.state.layout.bottomTabs[props.activity] ?? "trace";

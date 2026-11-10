@@ -127,7 +127,18 @@ def main() -> int:
         driver.find_elements(
             By.CSS_SELECTOR, "[data-testid='topology-properties'] button"
         )[0].click()
-        time.sleep(1.4)
+        time.sleep(1.0)
+        report["checks"]["property_tab_mode_stays_topology"] = (
+            driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="activity-topology"]'
+            ).get_attribute("data-active")
+            == "true"
+        )
+        report["checks"]["tabs_after_property"] = tabs()
+        driver.find_element(
+            By.CSS_SELECTOR, '[data-testid="topology-open-detail"]'
+        ).click()
+        time.sleep(1.2)
         report["checks"]["detail_active"] = (
             driver.find_element(
                 By.CSS_SELECTOR, '[data-testid="activity-detail"]'
@@ -141,6 +152,9 @@ def main() -> int:
             driver.find_elements(By.CSS_SELECTOR, '[data-testid="detail-editor"]')
         )
         report["checks"]["tabs_after_open"] = tabs()
+        report["checks"]["same_tab_after_mode_change"] = (
+            report["checks"]["tabs_after_property"] == report["checks"]["tabs_after_open"]
+        )
         report["checks"]["geometry_unchanged"] = geometry() == topology_geometry
         report["checks"]["back_enabled"] = (
             driver.find_element(By.CSS_SELECTOR, '[data-testid="tab-back"]').get_attribute(
@@ -158,6 +172,26 @@ def main() -> int:
         report["checks"]["forward_status"] = driver.find_element(
             By.CSS_SELECTOR, '[aria-label="Workbench status"]'
         ).text.replace("\n", " | ")
+
+        graph_tab = next(
+            (
+                el
+                for el in driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="editor-tabs"] .wb-tab-label'
+                )
+                if el.text.strip() == "Graph"
+            ),
+            None,
+        )
+        if graph_tab:
+            graph_tab.click()
+            time.sleep(0.8)
+            report["checks"]["graph_tab_keeps_detail_mode"] = (
+                driver.find_element(
+                    By.CSS_SELECTOR, '[data-testid="activity-detail"]'
+                ).get_attribute("data-active")
+                == "true"
+            )
         report["checks"]["detail_bottom_visible"] = bool(
             driver.find_elements(By.CSS_SELECTOR, '[data-testid="bottom-panel"]')
         )

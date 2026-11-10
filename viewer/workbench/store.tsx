@@ -23,7 +23,6 @@ import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 import {
   ACTIVITY_ORDER,
   defaultBottomTab,
-  emptySelection,
   isRetiredBottomTab,
 } from "./defaults";
 import type {
@@ -47,6 +46,7 @@ import {
 export const WORKBENCH_STORAGE_PREFIX = "kg-workbench:v2";
 
 const SELECTION_KINDS = new Set<SelectionKind>([
+  "graph",
   "asset",
   "relation",
   "projection",
@@ -135,15 +135,12 @@ function writeLayout(snapshotName: string, layout: WorkbenchLayout): void {
   }
 }
 
-function normalizeSelection(
-  value: unknown,
-  activity: ActivityId,
-): WorkbenchSelection {
+function normalizeSelection(value: unknown): WorkbenchSelection {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return emptySelection(activity);
+    return { kind: "graph", name: "Graph" };
   }
   const candidate = value as Record<string, unknown>;
-  const selection: WorkbenchSelection = { activity };
+  const selection: WorkbenchSelection = {};
 
   if (
     typeof candidate.kind === "string" &&
@@ -173,7 +170,6 @@ function normalizeSelection(
 
 function selectionSignature(selection: WorkbenchSelection): string {
   return [
-    selection.activity,
     selection.kind ?? "",
     selection.component ?? "",
     selection.name ?? "",
@@ -184,7 +180,7 @@ function selectionSignature(selection: WorkbenchSelection): string {
 }
 
 function tabTitle(selection: WorkbenchSelection): string {
-  if (selection.activity === "topology") return "Graph";
+  if (selection.kind === "graph") return "Graph";
   if (selection.kind === "property" && selection.component && selection.property) {
     return `${selection.component}.${selection.property}`;
   }
@@ -194,19 +190,13 @@ function tabTitle(selection: WorkbenchSelection): string {
 }
 
 function tabId(selection: WorkbenchSelection): string {
-  if (selection.activity === "topology") return GRAPH_TAB_ID;
-  return `detail:${selectionSignature(selection)}`;
+  if (selection.kind === "graph") return GRAPH_TAB_ID;
+  return `document:${selectionSignature(selection)}`;
 }
 
 function graphTab(): WorkbenchTab {
-  const selection: WorkbenchSelection = { activity: "topology" };
-  return {
-    id: GRAPH_TAB_ID,
-    activity: "topology",
-    title: "Graph",
-    selection,
-    pinned: true,
-  };
+  const selection: WorkbenchSelection = { kind: "graph", name: "Graph" };
+  return { id: GRAPH_TAB_ID, title: "Graph", selection, pinned: true };
 }
 
 export function createWorkbenchState(
@@ -244,7 +234,6 @@ function activate(
   if (!tab) return state;
   return {
     ...state,
-    activity: tab.activity,
     activeTabId: tab.id,
     ...(record ? pushHistory(state, tab.id) : {}),
   };
@@ -254,35 +243,25 @@ function appendTab(
   state: WorkbenchState,
   input: OpenTabInput,
 ): WorkbenchState {
-  const selection = normalizeSelection(input.selection, input.activity);
-  if (input.activity === "topology") {
+  const selection = normalizeSelection(input.selection);
+  if (selection.kind === "graph") {
     const existing = state.tabs.find((tab) => tab.id === GRAPH_TAB_ID);
-    const tab = existing
-      ? { ...existing, selection }
-      : { ...graphTab(), selection };
-    const tabs = existing
-      ? state.tabs.map((candidate) =>
-          candidate.id === GRAPH_TAB_ID ? tab : candidate,
-        )
-      : [tab, ...state.tabs];
-    return activate({ ...state, tabs }, GRAPH_TAB_ID);
+    if (existing) return activate(state, existing.id);
+    const tab = graphTab();
+    return activate({ ...state, tabs: [tab, ...state.tabs] }, tab.id);
   }
   const signature = selectionSignature(selection);
   const existing = state.tabs.find(
-    (tab) =>
-      tab.activity === input.activity &&
-      selectionSignature(tab.selection) === signature,
+    (tab) => selectionSignature(tab.selection) === signature,
   );
   if (existing) return activate(state, existing.id);
 
   const tab: WorkbenchTab = {
     id: tabId(selection),
-    activity: input.activity,
     title: input.title ?? tabTitle(selection),
     selection,
   };
-  const next = { ...state, tabs: [...state.tabs, tab] };
-  return activate(next, tab.id);
+  return activate({ ...state, tabs: [...state.tabs, tab] }, tab.id);
 }
 
 function nextActiveAfterClose(
@@ -298,7 +277,7 @@ function nextActiveAfterClose(
 export type WorkbenchAction =
   | { type: "hydrate"; layout: WorkbenchLayout }
   | { type: "set-activity"; activity: ActivityId }
-  | { type: "set-selection"; activity: ActivityId; selection: WorkbenchSelection }
+  | { type: "set-selection"; selection: WorkbenchSelection }
   | { type: "set-layout"; patch: Partial<Pick<WorkbenchLayout, "sidebarWidth" | "bottomHeight">> }
   | { type: "set-bottom-tab"; activity: ActivityId; tab: string }
   | { type: "open-tab"; input: OpenTabInput }
@@ -315,42 +294,19 @@ export function workbenchReducer(
     case "hydrate":
       return { ...state, layout: action.layout };
 
-    case "set-activity": {
-      if (action.activity === "topology") {
-        const graph = state.tabs.find((tab) => tab.id === GRAPH_TAB_ID);
-        if (graph) return activate(state, graph.id);
-        return activate({ ...state, tabs: [graphTab(), ...state.tabs] }, GRAPH_TAB_ID);
-      }
-      const lastDetailId = [...state.history]
-        .reverse()
-        .find(
-          (id) =>
-            state.tabs.find((tab) => tab.id === id)?.activity === "detail",
-        );
-      const detailTab =
-        state.tabs.find((tab) => tab.id === lastDetailId) ??
-        [...state.tabs].reverse().find((tab) => tab.activity === "detail");
-      if (detailTab) return activate(state, detailTab.id);
-      return appendTab(state, {
-        activity: "detail",
-        selection: { activity: "detail" },
-      });
-    }
+    case "set-activity":
+      // The activity is the viewing angle. It never changes the active document.
+      return { ...state, activity: action.activity };
 
     case "set-selection": {
       const tab = state.tabs.find((candidate) => candidate.id === state.activeTabId);
-      if (!tab || tab.activity !== action.activity) return state;
-      const selection = normalizeSelection(action.selection, action.activity);
+      if (!tab) return state;
+      const selection = normalizeSelection(action.selection);
       return {
         ...state,
         tabs: state.tabs.map((candidate) =>
           candidate.id === tab.id
-            ? {
-                ...candidate,
-                selection,
-                title:
-                  candidate.id === GRAPH_TAB_ID ? "Graph" : tabTitle(selection),
-              }
+            ? { ...candidate, selection, title: tabTitle(selection) }
             : candidate,
         ),
       };
@@ -410,7 +366,6 @@ export function workbenchReducer(
       return {
         ...state,
         tabs: remaining,
-        activity: nextActive.activity,
         activeTabId: nextActive.id,
         history,
         historyIndex: Math.max(0, historyIndex),
@@ -428,7 +383,6 @@ export function workbenchReducer(
           if (!tab) return state;
           return {
             ...state,
-            activity: tab.activity,
             activeTabId: tab.id,
             historyIndex: index,
           };
@@ -445,7 +399,6 @@ export function workbenchReducer(
           if (!tab) return state;
           return {
             ...state,
-            activity: tab.activity,
             activeTabId: tab.id,
             historyIndex: index,
           };
@@ -495,8 +448,8 @@ export function WorkbenchProvider({
   const actions = useMemo<WorkbenchActions>(
     () => ({
       setActivity: (activity) => dispatch({ type: "set-activity", activity }),
-      setSelection: (activity, selection) =>
-        dispatch({ type: "set-selection", activity, selection }),
+      setSelection: (selection) =>
+        dispatch({ type: "set-selection", selection }),
       setLayout: (patch) => dispatch({ type: "set-layout", patch }),
       setBottomTab: (activity, tab) =>
         dispatch({ type: "set-bottom-tab", activity, tab }),

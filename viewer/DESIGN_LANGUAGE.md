@@ -81,9 +81,11 @@ global setting, because each question has its own useful first level.
   bottom panel's visibility, not its purpose.
 - Geometry is one workbench value per snapshot, not one per function. Switching
   activity changes the content inside the same side bar and bottom panel.
-- The editor tab strip is one global document strip. Graph is a pinned tab;
-  Detail subjects are closable tabs. Opening the same subject again activates
-  its existing tab instead of duplicating it.
+- The editor tab strip is one global document strip. A tab is a design document
+  (Graph, node, property or asset), not a mode. Topology and Detail are two
+  angles on the active document: changing the angle keeps the tab, and changing
+  the tab keeps the angle. Graph is pinned; other documents are closable.
+  Opening the same subject again activates its existing tab.
 - Back and forward walk the activated-tab history (`Alt+←` / `Alt+→` or the
   arrows in the tab strip). Opening, activating or closing a tab records one
   navigation step; changing selection inside the active tab does not.

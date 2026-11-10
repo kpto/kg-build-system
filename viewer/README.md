@@ -43,7 +43,7 @@ The first paint shows the design, not its annotations.
 | Surface | Default | Revealed by |
 | --- | --- | --- |
 | Topology | graph; the **View** side bar holds the canvas controls | selecting an entity fills the **Inspect** bottom panel with its description, properties and meaning; **Open in Detail** |
-| Detail | meaning, properties and attached semantics of the selected subject | the level switch (Property, Node, Edge, Abstract, Asset), property rows and the branch selector; the bottom panel carries Trace and Evidence |
+| Detail | meaning, properties and attached semantics of the selected subject | the level switch (Property, Node, Edge, Abstract, Asset), property rows and the branch selector; the bottom panel carries Trace/Evidence; the Graph document shows graph meaning and counts |
 
 Both panels are shown by default. The side bar is the **View** (Topology) or
 **Browse** (Detail) region; the bottom panel is the **Inspect** or evidence
@@ -51,9 +51,12 @@ region. Each has one job, so a selected subject is not repeated across regions.
 Panel width and height are one workbench geometry: switching between Topology
 and Detail never changes them.
 
-The editor is one global tab strip. **Graph** is a pinned tab; opening a Detail
-subject adds or activates its tab. **Back** and **Forward** (arrows in the tab
-strip, or `Alt+←` / `Alt+→`) walk the tab history. There is no JSON/Data tab.
+The editor is one global tab strip. A tab is a **design document** — Graph, a
+node, a property or an asset — not a mode. Topology and Detail are two angles on
+the active document: switching the angle never changes the tab, and switching the
+tab never changes the angle. **Graph** is pinned; other documents are closable.
+**Back** and **Forward** (arrows in the tab strip, or `Alt+←` / `Alt+→`) walk the
+document history. There is no JSON/Data tab.
 
 ## Snapshot
 

@@ -27,12 +27,10 @@ type PaletteItem =
       group: "subject";
       label: string;
       detail: string;
-      activity: ActivityId;
       selection: WorkbenchSelection;
     };
 
 interface SubjectTarget {
-  activity: ActivityId;
   selection: WorkbenchSelection;
   tabLabel: string;
 }
@@ -48,34 +46,17 @@ const DESIGN_SEARCH_KINDS = new Set<SearchKind>([
   "asset",
 ]);
 
-const KIND_ACTIVITY: Record<SearchKind, ActivityId> = {
-  "topology-node": "topology",
-  "topology-edge": "topology",
-  property: "detail",
-  relation: "detail",
-  projection: "detail",
-  struct: "detail",
-  field: "detail",
-  asset: "detail",
-  binding: "detail",
-  step: "detail",
-  instruction: "detail",
-  "workflow-component": "detail",
-};
 
 function subjectTarget(
   record: SearchRecord,
-  activity: ActivityId,
   indexSteps: Array<{ id: [string, string]; instruction: { kind: [string, string] } }>,
 ): SubjectTarget {
-  const targetActivity = KIND_ACTIVITY[record.kind] ?? activity;
   const tabLabel = record.label || record.name;
-  const base = { activity: targetActivity } as WorkbenchSelection;
+  const base: WorkbenchSelection = {};
 
   switch (record.kind) {
     case "property":
       return {
-        activity: targetActivity,
         selection: {
           ...base,
           kind: "property",
@@ -89,7 +70,6 @@ function subjectTarget(
     case "topology-node":
     case "topology-edge":
       return {
-        activity: targetActivity,
         selection: {
           ...base,
           kind: record.kind === "topology-edge" ? "edge" : "node",
@@ -103,7 +83,6 @@ function subjectTarget(
     case "projection":
     case "struct":
       return {
-        activity: targetActivity,
         selection: {
           ...base,
           kind: record.kind === "projection" ? "projection" : "relation",
@@ -114,7 +93,6 @@ function subjectTarget(
       };
     case "field":
       return {
-        activity: targetActivity,
         selection: {
           ...base,
           kind: "field",
@@ -125,13 +103,11 @@ function subjectTarget(
       };
     case "asset":
       return {
-        activity: targetActivity,
         selection: { ...base, kind: "asset", name: record.name, component: record.name },
         tabLabel,
       };
     case "binding":
       return {
-        activity: targetActivity,
         selection: {
           ...base,
           kind: "binding",
@@ -142,7 +118,6 @@ function subjectTarget(
       };
     case "step":
       return {
-        activity: targetActivity,
         selection: {
           ...base,
           kind: "step",
@@ -157,7 +132,6 @@ function subjectTarget(
         (candidate) => candidate.instruction.kind.join(":") === record.name,
       );
       return {
-        activity: targetActivity,
         selection: {
           ...base,
           kind: "step",
@@ -170,7 +144,6 @@ function subjectTarget(
     case "workflow-component": {
       const step = indexSteps.find((candidate) => candidate.id[0] === record.name);
       return {
-        activity: targetActivity,
         selection: {
           ...base,
           kind: "step",
@@ -183,7 +156,6 @@ function subjectTarget(
     }
     default:
       return {
-        activity: targetActivity,
         selection: { ...base, name: record.name },
         tabLabel,
       };
@@ -224,13 +196,12 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
     return searchIndex(state.index.searchRecords, trimmed, { limit: 18 })
       .filter((record) => DESIGN_SEARCH_KINDS.has(record.kind))
       .map((record) => {
-        const target = subjectTarget(record, state.activity, state.index.steps);
+        const target = subjectTarget(record, state.index.steps);
         return {
           id: `subject:${record.kind}:${record.id}`,
           group: "subject" as const,
           label: record.label || record.name,
           detail: `${record.kind.replaceAll("-", " ")} · ${record.detail}`,
-          activity: target.activity,
           selection: target.selection,
         };
       },
@@ -248,10 +219,7 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
     if (item.group === "activity") {
       actions.setActivity(item.activity);
     } else {
-      actions.openTab({
-        activity: item.activity,
-        selection: item.selection,
-      });
+      actions.openTab({ selection: item.selection });
     }
     onClose();
   };
@@ -275,7 +243,10 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
   };
 
   const renderItem = (item: PaletteItem, index: number) => {
-    const feature = FEATURES.find((candidate) => candidate.id === item.activity);
+    const feature =
+      item.group === "activity"
+        ? FEATURES.find((candidate) => candidate.id === item.activity)
+        : undefined;
     const Icon = feature?.icon ?? CircleDot;
     const isActive = index === boundedActive;
     return (
@@ -297,7 +268,9 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
           <span className="wb-palette-result-detail">{item.detail}</span>
         </span>
         <span className="wb-palette-result-kind">
-          {item.group === "activity" ? "activity" : ACTIVITY_LABELS[item.activity]}
+          {item.group === "activity"
+            ? "mode"
+            : (item.selection.kind ?? "document")}
         </span>
       </button>
     );

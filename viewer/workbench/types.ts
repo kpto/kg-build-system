@@ -13,6 +13,7 @@ import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 export type ActivityId = "topology" | "detail";
 
 export type SelectionKind =
+  | "graph"
   | "asset"
   | "relation"
   | "projection"
@@ -26,7 +27,6 @@ export type SelectionKind =
 export type DetailLevel = "property" | "node" | "edge" | "abstract" | "asset";
 
 export interface WorkbenchSelection {
-  activity: ActivityId;
   kind?: SelectionKind;
   name?: string;
   component?: string;
@@ -44,7 +44,6 @@ export interface WorkbenchLayout {
 
 export interface WorkbenchTab {
   id: string;
-  activity: ActivityId;
   title: string;
   selection: WorkbenchSelection;
   /** The canonical graph tab is always available. */
@@ -64,14 +63,13 @@ export interface WorkbenchState {
 }
 
 export interface OpenTabInput {
-  activity: ActivityId;
   selection: WorkbenchSelection;
   title?: string;
 }
 
 export interface WorkbenchActions {
   setActivity(activity: ActivityId): void;
-  setSelection(activity: ActivityId, selection: WorkbenchSelection): void;
+  setSelection(selection: WorkbenchSelection): void;
   setLayout(patch: Partial<Pick<WorkbenchLayout, "sidebarWidth" | "bottomHeight">>): void;
   setBottomTab(activity: ActivityId, tab: string): void;
   openTab(tab: OpenTabInput): void;
@@ -86,7 +84,7 @@ export function activeTab(state: WorkbenchState): WorkbenchTab | undefined {
 }
 
 export function currentSelection(state: WorkbenchState): WorkbenchSelection {
-  return activeTab(state)?.selection ?? { activity: state.activity };
+  return activeTab(state)?.selection ?? { kind: "graph", name: "Graph" };
 }
 
 export interface FeatureProps {

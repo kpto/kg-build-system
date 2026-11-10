@@ -19,6 +19,7 @@ import { DesignMeaning, GraphMeaning } from "@/shared/design/DesignMeaning";
 import {
   componentMeaning,
   graphMeaning,
+  propertyMeaning,
 } from "@/shared/design/meaning";
 import { cx, theme } from "@/shared/ui/theme";
 import type {
@@ -44,11 +45,17 @@ import { getTopologyUiStore, type TopologyUiStore } from "./topologyUi";
 
 function topologySelection(props: FeatureProps): TopologySelection | undefined {
   const selection: WorkbenchSelection = currentSelection(props.state);
-  if (
-    (selection.kind === "node" || selection.kind === "edge") &&
-    selection.name
-  ) {
+  if ((selection.kind === "node" || selection.kind === "edge") && selection.name) {
     return { kind: selection.kind, name: selection.name };
+  }
+  if (selection.kind === "property" && selection.component) {
+    const component = selection.component;
+    const kind = props.state.index.topologyNodesByName.has(component)
+      ? "node"
+      : props.state.index.topologyEdgesByName.has(component)
+        ? "edge"
+        : undefined;
+    if (kind) return { kind, name: component };
   }
   return undefined;
 }
@@ -58,15 +65,11 @@ function writeSelection(
   kind: TopologySelection["kind"],
   name: string,
 ): void {
-  props.actions.setSelection("topology", {
-    activity: "topology",
-    kind,
-    name,
-  });
+  props.actions.openTab({ selection: { kind, name } });
 }
 
 function clearSelection(props: FeatureProps): void {
-  props.actions.setSelection("topology", { activity: "topology" });
+  props.actions.openTab({ selection: { kind: "graph", name: "Graph" } });
 }
 
 function entityComponentName(entity: TopologyEntity): string {
@@ -81,44 +84,37 @@ function entityProperties(props: FeatureProps, entity: TopologyEntity): Topology
   return component?.properties ?? [];
 }
 
-/** Open the selected design subject in the Detail activity. */
-function openInDetail(
+/** The design subject is shown from the other angle; the tab does not move. */
+function openInDetail(props: FeatureProps): void {
+  props.actions.setActivity("detail");
+}
+
+/** A property is a document of its own; open its tab without changing mode. */
+function openPropertyTab(
   props: FeatureProps,
   entity: TopologyEntity,
-  property?: string,
+  property: string,
 ): void {
   const component = entityComponentName(entity);
   props.actions.openTab({
-    activity: "detail",
-    selection: property
-      ? {
-          activity: "detail",
-          kind: "property",
-          level: "property",
-          component,
-          property,
-          name: `${component}.${property}`,
-        }
-      : {
-          activity: "detail",
-          kind: isTopologyNode(entity) ? "node" : "edge",
-          level: isTopologyNode(entity) && entity.abstract
-            ? "abstract"
-            : isTopologyNode(entity)
-              ? "node"
-              : "edge",
-          component,
-          name: component,
-        },
+    selection: {
+      kind: "property",
+      level: "property",
+      component,
+      property,
+      name: `${component}.${property}`,
+    },
   });
 }
 
 function PropertyRows({
   props,
   entity,
+  activeProperty,
 }: {
   props: FeatureProps;
   entity: TopologyEntity;
+  activeProperty?: string;
 }) {
   const properties = entityProperties(props, entity);
   if (!properties.length) {
@@ -130,9 +126,15 @@ function PropertyRows({
         <button
           key={property.name}
           type="button"
-          onClick={() => openInDetail(props, entity, property.name)}
+          onClick={() => openPropertyTab(props, entity, property.name)}
           className="flex min-h-6 w-full items-baseline justify-between gap-2 border border-transparent px-1 text-left hover:border-line-soft hover:bg-panel-soft/40"
-          title={`Open ${entityComponentName(entity)}.${property.name} in Detail`}
+          data-active={activeProperty === property.name ? "true" : undefined}
+          style={
+            activeProperty === property.name
+              ? { borderColor: "var(--color-accent)", color: "var(--color-text)" }
+              : undefined
+          }
+          title={`Open ${entityComponentName(entity)}.${property.name} as a tab`}
         >
           <span className="truncate font-mono text-[10px] text-text">
             {property.name}
@@ -1712,6 +1714,8 @@ export function TopologyBottom(props: FeatureProps): JSX.Element {
   const [ui] = useTopologyUi(props.state.snapshot.name);
   const selection = topologySelection(props);
   const entity = findTopologyEntity(model, selection);
+  const raw = currentSelection(props.state);
+  const activeProperty = raw.kind === "property" ? raw.property : undefined;
 
   if (!entity) {
     return (
@@ -1771,16 +1775,21 @@ export function TopologyBottom(props: FeatureProps): JSX.Element {
       <header className="flex items-baseline justify-between gap-2 border-b border-line-soft px-3 py-1.5">
         <div className="flex min-w-0 items-baseline gap-2">
           <span className="truncate font-mono text-[11px] font-semibold text-accent-strong">
-            {entity.name}
+            {activeProperty ? `${entity.name}.${activeProperty}` : entity.name}
           </span>
           <span className="truncate font-mono text-[9px] text-faint">
-            {isTopologyNode(entity) ? "node" : "relation"} · {entity.category}
+            {activeProperty
+              ? "property"
+              : isTopologyNode(entity)
+                ? "node"
+                : "relation"}{" "}
+            · {entity.category}
           </span>
         </div>
         <div className="flex shrink-0 items-center gap-1">
           <button
             type="button"
-            onClick={() => openInDetail(props, entity)}
+            onClick={() => openInDetail(props)}
             className="border border-accent/60 bg-accent/10 px-2 py-0.5 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
             data-testid="topology-open-detail"
           >
@@ -1813,6 +1822,9 @@ export function TopologyBottom(props: FeatureProps): JSX.Element {
                 <SummaryField label="Target" value={entity.targetName} />
               </>
             )}
+            {activeProperty ? (
+              <SummaryField label="Property" value={activeProperty} />
+            ) : null}
             <SummaryField
               label="Labels"
               value={entity.labels.length ? entity.labels.join(", ") : "—"}
@@ -1839,7 +1851,11 @@ export function TopologyBottom(props: FeatureProps): JSX.Element {
           <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
             Properties · {entityProperties(props, entity).length}
           </p>
-          <PropertyRows props={props} entity={entity} />
+          <PropertyRows
+            props={props}
+            entity={entity}
+            activeProperty={activeProperty}
+          />
         </section>
 
         <section className="thin-scrollbar min-h-0 overflow-y-auto px-3 py-2">
@@ -1848,24 +1864,42 @@ export function TopologyBottom(props: FeatureProps): JSX.Element {
           </p>
           <DesignMeaning
             claims={
-              isTopologyNode(entity)
-                ? componentMeaning(props.state.index, "node", entity.name).claims
-                : componentMeaning(
+              activeProperty
+                ? propertyMeaning(
                     props.state.index,
-                    "edge",
+                    isTopologyNode(entity) ? "node" : "edge",
                     entityComponentName(entity),
+                    activeProperty,
                   ).claims
+                : isTopologyNode(entity)
+                  ? componentMeaning(props.state.index, "node", entity.name).claims
+                  : componentMeaning(
+                      props.state.index,
+                      "edge",
+                      entityComponentName(entity),
+                    ).claims
             }
             frames={
-              isTopologyNode(entity)
-                ? componentMeaning(props.state.index, "node", entity.name).frames
-                : componentMeaning(
+              activeProperty
+                ? propertyMeaning(
                     props.state.index,
-                    "edge",
+                    isTopologyNode(entity) ? "node" : "edge",
                     entityComponentName(entity),
+                    activeProperty,
                   ).frames
+                : isTopologyNode(entity)
+                  ? componentMeaning(props.state.index, "node", entity.name).frames
+                  : componentMeaning(
+                      props.state.index,
+                      "edge",
+                      entityComponentName(entity),
+                    ).frames
             }
-            emptyText="No meaning is attached to this entity."
+            emptyText={
+              activeProperty
+                ? "No meaning is attached to this property."
+                : "No meaning is attached to this entity."
+            }
           />
         </section>
       </div>

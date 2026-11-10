@@ -10,6 +10,7 @@ import {
 } from "./defaults";
 import { getFeature } from "./features";
 import { useWorkbench } from "./store";
+import { currentSelection } from "./types";
 
 export interface BottomPanelProps {
   onCollapse(): void;
@@ -19,9 +20,12 @@ export function BottomPanel({ onCollapse }: BottomPanelProps) {
   const { state, actions } = useWorkbench();
   const activity = state.activity;
   const feature = getFeature(activity);
-  const activeTab =
-    state.layout.bottomTabs[activity] ?? defaultBottomTab(activity);
-  const tabs = bottomTabsFor(activity, activeTab);
+  const graphDocument =
+    activity === "detail" && currentSelection(state).kind === "graph";
+  const activeTab = graphDocument
+    ? "graph"
+    : (state.layout.bottomTabs[activity] ?? defaultBottomTab(activity));
+  const tabs = graphDocument ? ["graph"] : bottomTabsFor(activity, activeTab);
 
   return (
     <section

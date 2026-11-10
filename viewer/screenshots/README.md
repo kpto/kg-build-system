@@ -5,10 +5,12 @@ They are review aids, not golden images.
 
 | File | What it shows |
 | --- | --- |
-| `01-topology.png` | Topology default: both panels visible, **View** side bar, **Inspect** graph overview, pinned **Graph** tab and disabled back/forward at the start of history. |
-| `02-topology-tabs.png` | The same workbench geometry with three tabs open (Graph, target, target.approvedSymbol); Topology stays active with `target` inspected. |
-| `03-detail-tabs.png` | Detail for `target.approvedSymbol` in the same side bar and bottom panel; three tabs, active property tab and the Trace bottom panel. |
-| `04-detail-node.png` | The `target` node tab activated from the global tab strip. |
+| `01-topology.png` | Topology default: one shared workbench frame, both panels visible, pinned **Graph** document. |
+| `02-topology-node.png` | `target` opened as a document tab while staying in Topology. |
+| `03-detail-node.png` | The **same** `target` tab viewed in Detail; the tab did not change. |
+| `04-topology-property.png` | `target.approvedSymbol` opened as its own tab while staying in Topology. |
+| `05-detail-property.png` | The **same** property tab viewed in Detail. |
+| `06-detail-graph.png` | The pinned **Graph** document viewed in Detail: graph meaning in the editor and counts in the Graph bottom tab. |
 
-The reference estate is still available at `?snapshot=reference`; it is not the
-default dataset.
+A tab is a design document, not a mode. Switching tabs never changes the angle;
+switching Topology/Detail never changes the active tab.
