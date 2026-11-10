@@ -96,6 +96,27 @@
   font-size: 9px;
 }
 
+.bannerLicense {
+  display: inline-flex;
+  min-width: 0;
+  align-items: baseline;
+  gap: 6px;
+  max-width: 340px;
+  padding: 2px 7px;
+  border: 1px solid var(--color-line-soft);
+  background-color: var(--color-panel-raised);
+}
+
+.bannerLicenseValue {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .titleBlock {
   min-width: 0;
 }
@@ -260,38 +281,20 @@
   }
 }
 
-.provenanceLicense {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  padding: 6px 9px;
-  border-top: 1px solid var(--color-line-soft);
-  background-color: var(--color-panel-raised);
-}
-
-.provenanceLicenseLabel {
-  color: var(--color-faint);
-  font-size: 8.5px;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.provenanceLicenseValue {
-  min-width: 0;
-  overflow: hidden;
-  color: var(--color-text);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 .workflowGraph {
   display: block;
   width: 100%;
   height: 260px;
+  animation: wb-fade-in var(--motion-slow) var(--ease-instrument);
+  background:
+    radial-gradient(circle at 50% 50%, rgb(255 255 255 / 2%), transparent 70%),
+    var(--color-abyss);
+}
+
+.expressionTree {
+  display: block;
+  width: 100%;
+  height: 320px;
   animation: wb-fade-in var(--motion-slow) var(--ease-instrument);
   background:
     radial-gradient(circle at 50% 50%, rgb(255 255 255 / 2%), transparent 70%),

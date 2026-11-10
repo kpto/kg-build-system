@@ -14,12 +14,15 @@ import type {
   RelationDTO,
   RowSource,
 } from "@/lib/types";
+import { effectiveLicense } from "@/proof/license";
+import type { ProvenanceReferences } from "@/proof/references";
 import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import { attachedMeaning } from "@/shared/design/meaning";
 import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
 import { activeDocument, documentSelection, type WorkspaceProps } from "@/workbench/types";
 import { selectionForConceptTarget } from "@/workbench/conceptTarget";
 import { DetailDocument, DetailEmptyState, DetailPanel } from "./view/DetailChrome";
+import { ExpressionTree } from "./view/ExpressionTree";
 import styles from "./detail.module.css";
 
 type DataItemKind = "relation" | "projection";
@@ -84,6 +87,44 @@ export function DataItemEditor(props: WorkspaceProps) {
         target: { concept: "asset" as const, name: model.assetName },
       }
     : undefined;
+  const references = useMemo<ProvenanceReferences>(
+    () => ({
+      assets: model.assetName
+        ? [
+            {
+              concept: "asset",
+              name: model.assetName,
+              target: { concept: "asset", name: model.assetName },
+            },
+          ]
+        : [],
+      tables:
+        kind === "relation"
+          ? [
+              {
+                concept: "table",
+                name: model.name,
+                target: { concept: "table", name: model.name },
+              },
+            ]
+          : [],
+      projections:
+        kind === "projection"
+          ? [
+              {
+                concept: "projection",
+                name: model.name,
+                target: { concept: "projection", name: model.name },
+              },
+            ]
+          : [],
+    }),
+    [kind, model.assetName, model.name],
+  );
+  const license = effectiveLicense(
+    props.state.index,
+    model.assetName ? [model.assetName] : [],
+  );
 
   return (
     <DetailDocument
@@ -94,6 +135,12 @@ export function DataItemEditor(props: WorkspaceProps) {
       subtitle={`${model.columns.length} columns${
         model.assetName ? ` · asset ${model.assetName}` : ""
       }`}
+      license={{
+        value: license.value,
+        source: license.source,
+        title:
+          license.licenses.join(" · ") || "No asset declares a license.",
+      }}
     >
       <DetailPanel concept={concept} title="Identity">
         <div className={styles.dataItemFacts}>
@@ -130,6 +177,13 @@ export function DataItemEditor(props: WorkspaceProps) {
           </p>
         </DetailPanel>
       ) : null}
+
+      <ExpressionTree
+        index={props.state.index}
+        references={references}
+        item={{ concept, label: model.name }}
+        fields={model.columns.map((column) => column.name)}
+      />
 
       <DetailPanel concept="semantics" title="Attached semantics">
         <DesignMeaning

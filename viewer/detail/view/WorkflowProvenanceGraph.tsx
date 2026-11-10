@@ -6,6 +6,7 @@ import type { ViewerIndex } from "@/lib/types";
 import type { ProofModel } from "@/proof/model";
 import { narrowedWorkflowRows } from "@/proof/workflow";
 import { DetailPanel } from "@/detail/view/DetailChrome";
+import { GraphCanvas } from "@/shared/ui/GraphCanvas";
 import { groupPalette } from "@/shared/ui/theme";
 import {
   WorkflowGraphSceneView,
@@ -54,14 +55,13 @@ export function WorkflowProvenanceGraph({
       title="Workflow"
       meta={`${rows.length} steps · ${scene.stats?.internalEdges ?? 0} links`}
     >
-      <svg
+      <GraphCanvas
+        width={scene.width}
+        height={scene.height}
         className={styles.workflowGraph}
-        viewBox={`0 0 ${scene.width} ${scene.height}`}
-        preserveAspectRatio="xMidYMid meet"
-        role="img"
-        aria-label={`Narrowed workflow graph with ${rows.length} steps`}
-        data-testid="detail-workflow-graph"
-        onClick={() => setSelectedId(undefined)}
+        testId="detail-workflow-graph"
+        ariaLabel={`Narrowed workflow graph with ${rows.length} steps`}
+        onBackgroundClick={() => setSelectedId(undefined)}
       >
         <WorkflowGraphSceneView
           scene={scene}
@@ -73,7 +73,7 @@ export function WorkflowProvenanceGraph({
             if (node.row) onOpenStep(node.row);
           }}
         />
-      </svg>
+      </GraphCanvas>
       <p className={styles.workflowHint}>
         Click a step to select; double-click to open its document.
       </p>

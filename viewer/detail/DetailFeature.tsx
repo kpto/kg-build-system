@@ -38,8 +38,15 @@ import {
   getWorkflowUiStore,
   useWorkflowUi,
 } from "@/workflow/view/workflowUi";
-import { effectiveLicenseForModel } from "@/proof/license";
-import { provenanceReferences } from "@/proof/references";
+import {
+  effectiveLicense,
+  effectiveLicenseForModel,
+  type EffectiveLicense,
+} from "@/proof/license";
+import {
+  provenanceReferences,
+  type ProvenanceReferences,
+} from "@/proof/references";
 import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
 import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
 import { selectionForConceptTarget } from "@/workbench/conceptTarget";
@@ -52,6 +59,7 @@ import type {
 import { LINEAGE_LANES } from "@/lib/types";
 import { logicalTypeName } from "@/lib/expressions";
 import { DetailDocument, DetailPanel } from "./view/DetailChrome";
+import { ExpressionTree } from "./view/ExpressionTree";
 import { WorkflowProvenanceGraph } from "./view/WorkflowProvenanceGraph";
 import { DataItemEditor } from "./DataItemFeature";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
@@ -199,16 +207,12 @@ function ProvenanceGroup({
 }
 
 function ProvenanceSection({
-  index,
-  model,
+  provenance,
   onOpen,
 }: {
-  index: ViewerIndex;
-  model: ProofModel;
+  provenance: ProvenanceReferences;
   onOpen(reference: ConceptReference): void;
 }) {
-  const provenance = provenanceReferences(index, model);
-  const license = effectiveLicenseForModel(index, model);
   const count = (value: number, singular: string) =>
     `${value} ${value === 1 ? singular : `${singular}s`}`;
   return (
@@ -251,17 +255,6 @@ function ProvenanceSection({
           testId="detail-provenance-projections"
         />
       </div>
-      <footer className={styles.provenanceLicense}>
-        <span className={styles.provenanceLicenseLabel}>Effective license</span>
-        <span
-          className={styles.provenanceLicenseValue}
-          title={license.licenses.join(" · ") || "No asset declares a licence."}
-          data-testid="detail-effective-license"
-          data-license-source={license.source}
-        >
-          {license.value}
-        </span>
-      </footer>
     </section>
   );
 }
@@ -2008,10 +2001,35 @@ export function DetailEditor(props: WorkspaceProps) {
   return <SubjectDetailEditor {...props} />;
 }
 
+function subjectLicense(
+  index: ViewerIndex,
+  model: ProofModel,
+): EffectiveLicense {
+  if (model.level === "asset") {
+    return effectiveLicense(index, [
+      model.asset?.name ?? model.subject.component,
+    ]);
+  }
+  if (model.level === "abstract") {
+    return effectiveLicense(
+      index,
+      (model.abstract?.descendants ?? []).flatMap((descendant) =>
+        descendant.properties.flatMap((property) => property.assets),
+      ),
+    );
+  }
+  return effectiveLicenseForModel(index, model);
+}
+
 function SubjectDetailEditor(props: WorkspaceProps) {
   const model = useProofModel(props);
   const selection = documentSelection(activeDocument(props.state));
   const meaning = subjectMeaning(props.state.index, model);
+  const provenance = useMemo(
+    () => provenanceReferences(props.state.index, model),
+    [model, props.state.index],
+  );
+  const license = subjectLicense(props.state.index, model);
 
   useEffect(() => {
     if (selection) return;
@@ -2068,14 +2086,19 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       kicker={`Design · ${model.level}`}
       title={levelTitle(model)}
       subtitle={levelSubtitle(model)}
+      license={{
+        value: license.value,
+        source: license.source,
+        title:
+          license.licenses.join(" · ") || "No asset declares a license.",
+      }}
       banner={banner}
     >
       {model.level === "property" ||
       model.level === "node" ||
       model.level === "edge" ? (
         <ProvenanceSection
-          index={props.state.index}
-          model={model}
+          provenance={provenance}
           onOpen={openReference}
         />
       ) : null}
@@ -2095,6 +2118,21 @@ function SubjectDetailEditor(props: WorkspaceProps) {
               },
             })
           }
+        />
+      ) : null}
+      {model.level === "property" ||
+      model.level === "node" ||
+      model.level === "edge" ? (
+        <ExpressionTree
+          index={props.state.index}
+          references={provenance}
+          item={{
+            concept: model.level,
+            label:
+              model.level === "property"
+                ? `${model.subject.component}.${model.subject.property ?? ""}`
+                : model.subject.component,
+          }}
         />
       ) : null}
       <section className={styles.meaningPanel} aria-label="Design meaning">

@@ -1006,6 +1006,12 @@ def main() -> int:
             ).text
             == "Not declared"
         )
+        report["checks"]["detail_license_in_banner"] = bool(
+            driver.find_elements(
+                By.CSS_SELECTOR,
+                f'{active_detail} header [data-testid="detail-license"]',
+            )
+        )
         report["checks"]["provenance_group_icons"] = all(
             driver.find_elements(
                 By.CSS_SELECTOR,
@@ -1025,6 +1031,7 @@ def main() -> int:
             By.CSS_SELECTOR, '[data-testid="workflow-step-node"]'
         )
         report["checks"]["detail_workflow_graph"] = len(graph_steps) > 0
+        graph_background = workflow_graph.find_element(By.CSS_SELECTOR, "svg")
         if graph_steps:
             driver.execute_script(
                 "arguments[0].dispatchEvent(new MouseEvent('click',{bubbles:true}))",
@@ -1039,7 +1046,7 @@ def main() -> int:
             )
             driver.execute_script(
                 "arguments[0].dispatchEvent(new MouseEvent('click',{bubbles:true}))",
-                workflow_graph,
+                graph_background,
             )
             time.sleep(0.3)
             cleared_graph_step = len(
@@ -1051,6 +1058,59 @@ def main() -> int:
             report["checks"]["detail_workflow_clear"] = (
                 selected_graph_step == 1 and cleared_graph_step == 0
             )
+        workflow_scene = workflow_graph.find_element(
+            By.CSS_SELECTOR, '[data-testid="graph-scene"]'
+        )
+        before_zoom = workflow_scene.get_attribute("transform")
+        workflow_graph.find_element(
+            By.CSS_SELECTOR, '[data-testid="graph-canvas-zoom-in"]'
+        ).click()
+        time.sleep(0.2)
+        after_zoom = workflow_scene.get_attribute("transform")
+        report["checks"]["detail_workflow_zoom"] = before_zoom != after_zoom
+        driver.execute_script(
+            """
+            const svg = arguments[0];
+            const rect = svg.getBoundingClientRect();
+            const at = (dx, dy) => ({
+              bubbles: true,
+              button: 0,
+              pointerId: 11,
+              clientX: rect.left + 20 + dx,
+              clientY: rect.top + 20 + dy,
+            });
+            svg.dispatchEvent(new PointerEvent('pointerdown', at(0, 0)));
+            window.dispatchEvent(new PointerEvent('pointermove', at(60, 40)));
+            window.dispatchEvent(new PointerEvent('pointerup', at(60, 40)));
+            """,
+            graph_background,
+        )
+        time.sleep(0.2)
+        after_pan = workflow_scene.get_attribute("transform")
+        report["checks"]["detail_workflow_pan"] = after_zoom != after_pan
+        expression_tree = driver.find_element(
+            By.CSS_SELECTOR, f'{active_detail} [data-testid="expression-tree"]'
+        )
+        expression_nodes = expression_tree.find_elements(
+            By.CSS_SELECTOR, '[data-testid="expression-node"]'
+        )
+        report["checks"]["detail_expression_tree"] = len(expression_nodes) >= 3
+        report["checks"]["detail_expression_tree_edges"] = bool(
+            expression_tree.find_elements(
+                By.CSS_SELECTOR, '[data-testid="expression-edge"]'
+            )
+        )
+        tree_scene = expression_tree.find_element(
+            By.CSS_SELECTOR, '[data-testid="graph-scene"]'
+        )
+        tree_before_zoom = tree_scene.get_attribute("transform")
+        expression_tree.find_element(
+            By.CSS_SELECTOR, '[data-testid="graph-canvas-zoom-in"]'
+        ).click()
+        time.sleep(0.2)
+        report["checks"]["detail_expression_tree_zoom"] = (
+            tree_scene.get_attribute("transform") != tree_before_zoom
+        )
         report["checks"]["detail_tab_concept"] = (
             driver.find_element(
                 By.CSS_SELECTOR,
@@ -1111,6 +1171,19 @@ def main() -> int:
                 '[data-testid="editor-tabs"] .wb-tab[data-active="true"] .wb-tab-label',
             ).get_attribute("data-concept")
             == "table"
+        )
+        table_item = driver.find_element(
+            By.CSS_SELECTOR, '[data-testid="data-item-editor"]'
+        )
+        report["checks"]["table_expression_tree"] = bool(
+            table_item.find_elements(
+                By.CSS_SELECTOR, '[data-testid="expression-tree"]'
+            )
+        )
+        report["checks"]["table_license_in_banner"] = bool(
+            table_item.find_elements(
+                By.CSS_SELECTOR, 'header [data-testid="detail-license"]'
+            )
         )
         middle_click(
             driver.find_elements(
@@ -1187,6 +1260,62 @@ def main() -> int:
                     '[data-testid="editor-tabs"] .wb-tab[data-active="true"] .wb-tab-label',
                 ).get_attribute("data-concept")
                 == "table"
+            )
+            middle_click(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="editor-tabs"] .wb-tab-label'
+                )[-1].find_element(By.XPATH, "..")
+            )
+            click_tab(property_title)
+
+        projections_head = driver.find_element(
+            By.CSS_SELECTOR, '[data-testid="explorer-group-projections"]'
+        )
+        if projections_head.get_attribute("aria-expanded") != "true":
+            projections_head.click()
+            time.sleep(0.5)
+        projection_section = projections_head.find_element(By.XPATH, "..")
+        outline_projections = projection_section.find_elements(
+            By.CSS_SELECTOR, 'button[class*="sideRow"]'
+        )
+        if outline_projections:
+            outline_projections[0].click()
+            time.sleep(0.8)
+            projection_item = driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="data-item-editor"]'
+            )
+            projection_nodes = projection_item.find_elements(
+                By.CSS_SELECTOR, '[data-testid="expression-node"]'
+            )
+            field_names = {
+                row.find_element(By.CSS_SELECTOR, "span").text.strip()
+                for row in projection_item.find_elements(
+                    By.CSS_SELECTOR, '[class*="fieldRow"]'
+                )
+            }
+            projection_fields = [
+                node
+                for node in projection_nodes
+                if node.get_attribute("data-component") in field_names
+            ]
+            report["checks"]["outline_projection_selection"] = (
+                driver.find_element(
+                    By.CSS_SELECTOR,
+                    '[data-testid="editor-tabs"] .wb-tab[data-active="true"] .wb-tab-label',
+                ).get_attribute("data-concept")
+                == "projection"
+            )
+            report["checks"]["projection_expression_tree"] = (
+                len(projection_nodes) >= 2
+            )
+            report["checks"]["projection_expression_fields"] = bool(
+                projection_fields
+            )
+            report["checks"]["projection_license_in_banner"] = bool(
+                projection_item.find_elements(
+                    By.CSS_SELECTOR,
+                    'header [data-testid="detail-license"]',
+                )
             )
             middle_click(
                 driver.find_elements(

@@ -2,12 +2,9 @@
 
 import {
   useCallback,
-  useEffect,
   useMemo,
-  useRef,
   useState,
   type MouseEvent as ReactMouseEvent,
-  type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
 import {
@@ -26,6 +23,7 @@ import type {
 import { stepKey } from "@/lib/indexes";
 import { DetailDocument, DetailPanel } from "@/detail/view/DetailChrome";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
+import { useGraphViewport } from "@/shared/ui/GraphCanvas";
 import { cx, groupPalette, theme } from "@/shared/ui/theme";
 import { activeDocument, type WorkspaceProps } from "@/workbench/types";
 import {
@@ -549,19 +547,19 @@ export function WorkflowEditor(props: WorkspaceProps) {
   const activeScene = stepScene ?? componentScene;
   const inStepGroup = Boolean(stepScene && focusedNode);
 
-  const containerRef = useRef<HTMLDivElement>(null);
-  const [size, setSize] = useState({ width: 0, height: 0 });
-  const [view, setView] = useState({ scale: 1, x: 0, y: 0 });
-  const dragRef = useRef<{
-    pointerId: number;
-    startX: number;
-    startY: number;
-    x: number;
-    y: number;
-    moved: boolean;
-  } | null>(null);
-  const suppressClickRef = useRef(false);
-  const cleanupDragRef = useRef<(() => void) | null>(null);
+  const {
+    containerRef,
+    size,
+    view,
+    fitView,
+    zoomBy,
+    onPointerDown,
+    shouldSuppressClick,
+  } = useGraphViewport({
+    width: activeScene.width,
+    height: activeScene.height,
+  });
+
   const [menu, setMenu] = useState<
     | {
         x: number;
@@ -571,146 +569,6 @@ export function WorkflowEditor(props: WorkspaceProps) {
       }
     | undefined
   >(undefined);
-
-  useEffect(() => {
-    return () => cleanupDragRef.current?.();
-  }, []);
-
-  useEffect(() => {
-    const element = containerRef.current;
-    if (!element) return;
-    const observer = new ResizeObserver((entries) => {
-      const entry = entries[0];
-      if (!entry) return;
-      setSize({
-        width: entry.contentRect.width,
-        height: entry.contentRect.height,
-      });
-    });
-    observer.observe(element);
-    setSize({ width: element.clientWidth, height: element.clientHeight });
-    return () => observer.disconnect();
-  }, [activeScene.nodes.length]);
-
-  const fitView = useCallback(() => {
-    if (
-      !size.width ||
-      !size.height ||
-      !activeScene.width ||
-      !activeScene.height
-    ) {
-      return;
-    }
-    const pad = 30;
-    const scale = Math.max(
-      0.12,
-      Math.min(
-        1.4,
-        Math.min(
-          (size.width - pad * 2) / activeScene.width,
-          (size.height - pad * 2) / activeScene.height,
-        ),
-      ),
-    );
-    setView({
-      scale,
-      x: (size.width - activeScene.width * scale) / 2,
-      y: (size.height - activeScene.height * scale) / 2,
-    });
-  }, [size.width, size.height, activeScene.width, activeScene.height]);
-
-  useEffect(() => {
-    fitView();
-  }, [fitView]);
-
-  useEffect(() => {
-    const element = containerRef.current;
-    if (!element) return;
-    const onWheel = (event: WheelEvent) => {
-      event.preventDefault();
-      const rect = element.getBoundingClientRect();
-      const px = event.clientX - rect.left;
-      const py = event.clientY - rect.top;
-      setView((current) => {
-        const next = Math.max(
-          0.15,
-          Math.min(3, current.scale * Math.exp(-event.deltaY * 0.0015)),
-        );
-        const ratio = next / current.scale;
-        return {
-          scale: next,
-          x: px - ratio * (px - current.x),
-          y: py - ratio * (py - current.y),
-        };
-      });
-    };
-    element.addEventListener("wheel", onWheel, { passive: false });
-    return () => element.removeEventListener("wheel", onWheel);
-  }, [activeScene.nodes.length]);
-
-  const zoomBy = (factor: number) => {
-    setView((current) => {
-      const next = Math.max(0.15, Math.min(3, current.scale * factor));
-      const ratio = next / current.scale;
-      const px = size.width / 2;
-      const py = size.height / 2;
-      return {
-        scale: next,
-        x: px - ratio * (px - current.x),
-        y: py - ratio * (py - current.y),
-      };
-    });
-  };
-
-  const endDrag = () => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    dragRef.current = null;
-    cleanupDragRef.current?.();
-    cleanupDragRef.current = null;
-    if (drag.moved) {
-      suppressClickRef.current = true;
-      window.setTimeout(() => {
-        suppressClickRef.current = false;
-      }, 0);
-    }
-  };
-
-  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
-    if (event.button !== 0) return;
-    if (dragRef.current) endDrag();
-    dragRef.current = {
-      pointerId: event.pointerId,
-      startX: event.clientX,
-      startY: event.clientY,
-      x: view.x,
-      y: view.y,
-      moved: false,
-    };
-    suppressClickRef.current = false;
-
-    const onMove = (move: PointerEvent) => {
-      const drag = dragRef.current;
-      if (!drag || drag.pointerId !== move.pointerId) return;
-      const dx = move.clientX - drag.startX;
-      const dy = move.clientY - drag.startY;
-      if (!drag.moved) {
-        if (Math.abs(dx) <= 3 && Math.abs(dy) <= 3) return;
-        drag.moved = true;
-      }
-      setView((current) => ({ ...current, x: drag.x + dx, y: drag.y + dy }));
-    };
-    const onUp = () => endDrag();
-
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp, { once: true });
-    window.addEventListener("pointercancel", onUp, { once: true });
-    cleanupDragRef.current = () => {
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      window.removeEventListener("pointercancel", onUp);
-    };
-  };
 
   const openStepNode = (row: WorkflowStepRow, preview: boolean) => {
     props.actions.openTab({
@@ -860,6 +718,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
           }
           data-testid="workflow-map"
           onClick={() => {
+            if (shouldSuppressClick()) return;
             if (inStepGroup) store.selectNode(undefined);
           }}
         >
@@ -875,10 +734,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
                 inStepGroup || !filtering ? undefined : activeComponents
               }
               onSelect={(node) => {
-                if (suppressClickRef.current) {
-                  suppressClickRef.current = false;
-                  return;
-                }
+                if (shouldSuppressClick()) return;
                 if (inStepGroup) {
                   store.selectNode(node.id);
                   return;

@@ -4,12 +4,19 @@ import type { ConceptKind } from "@/lib/concepts";
 import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
 import styles from "../detail.module.css";
 
+export interface DetailLicense {
+  value: ReactNode;
+  source?: string;
+  title?: string;
+}
+
 export interface DetailDocumentProps {
   concept: ConceptKind;
   kicker: string;
   title: string;
   subtitle?: ReactNode;
   banner?: ReactNode;
+  license?: DetailLicense;
   testId?: string;
   children: ReactNode;
 }
@@ -25,6 +32,7 @@ export function DetailDocument({
   title,
   subtitle,
   banner,
+  license,
   testId,
   children,
 }: DetailDocumentProps) {
@@ -39,7 +47,27 @@ export function DetailDocument({
             {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
           </div>
         </div>
-        {banner ? <div className={styles.bannerExtra}>{banner}</div> : null}
+        {license || banner ? (
+          <div className={styles.bannerExtra}>
+            {license ? (
+              <span
+                className={styles.bannerLicense}
+                title={license.title}
+                data-testid="detail-license"
+              >
+                <span className={styles.bannerLabel}>license</span>
+                <span
+                  className={styles.bannerLicenseValue}
+                  data-testid="detail-effective-license"
+                  data-license-source={license.source}
+                >
+                  {license.value}
+                </span>
+              </span>
+            ) : null}
+            {banner}
+          </div>
+        ) : null}
       </header>
       <div className={styles.body}>{children}</div>
     </div>

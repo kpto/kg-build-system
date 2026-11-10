@@ -74,9 +74,14 @@ The first paint states the design, not every annotation.
 | Graph inspection | graph purpose and counts when nothing is selected; otherwise identity and description | properties with types | attached claims, frames and limitations |
 | Workflow document | one graph view with no banner: a compositor-style component graph, or a step-level flow graph where steps fill columns top-to-bottom after **Open step group**; selecting any node, including a boundary component, highlights its incident links and dims the other nodes in both; Back and the open actions sit in the canvas toolbar; drag to pan and wheel to zoom | aggregated connection counts and active components | the step catalogue in Explorer and its step documents |
 | Step document | identity, instruction and openings on the shared detail surface | payload values | connections and blueprint bindings |
-| Table document | identity, owning asset and columns on the shared detail surface | column types and descriptions | attached semantics |
-| Projection document | identity, owning asset, columns and row source | column types and descriptions | attached semantics |
-| Subject document | provenance references and the narrowed workflow graph for node, edge and property; then subject meaning and properties | attached semantics along the path | property provenance, type/presence chain and trace |
+| Table document | identity, owning asset, columns and an expression tree from asset to fields; the effective licence is in the banner | column types and descriptions | attached semantics |
+| Projection document | identity, owning asset, columns, row source and an expression tree from asset to fields; the effective licence is in the banner | column types and descriptions | attached semantics |
+| Subject document | provenance references, the narrowed workflow graph and an expression tree from asset to the current item for node, edge and property; the effective licence is in the banner; then subject meaning and properties | attached semantics along the path | property provenance, type/presence chain and trace |
+
+Every workflow graph, the narrowed detail graph and the expression tree use one
+scene renderer and one pan/zoom canvas. A graph's scene is data; the canvas owns
+only the viewport. Drag pans, the wheel zooms, Fit resets and clicking empty
+space clears the selection.
 
 Each subject or step document is a separate tab. There is no level switch in
 the editor; opening a parent node, edge, asset or abstract category from the
