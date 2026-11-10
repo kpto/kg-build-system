@@ -439,10 +439,32 @@ export function ExplorerSidebar(props: WorkspaceProps) {
   const { state: workflowUi } = useWorkflowUi(props.state.snapshot.name);
   const focusedComponent = workflowUi.filters.component;
   const sectionOpen = (id: string) => Boolean(normalized) || open.has(id);
-  const workflowSectionOpen =
-    sectionOpen("workflow") ||
-    focusedComponent !== "all" ||
-    Boolean(activeStepComponent);
+  const workflowSectionOpen = sectionOpen("workflow");
+
+  // Reveal the active workflow context once when it changes. The reveal is a
+  // one-shot state change, not a forced open: once the reader collapses the
+  // section or group it stays collapsed until the context changes again.
+  useEffect(() => {
+    if (normalized) return;
+    if (focusedComponent === "all" && !activeStepComponent) return;
+    setOpen((current) => {
+      if (current.has("workflow")) return current;
+      const next = new Set(current);
+      next.add("workflow");
+      return next;
+    });
+    const component =
+      activeStepComponent ??
+      (focusedComponent !== "all" ? focusedComponent : undefined);
+    if (!component) return;
+    const groupKey = `wf:${component}`;
+    setExpanded((current) => {
+      if (current.has(groupKey)) return current;
+      const next = new Set(current);
+      next.add(groupKey);
+      return next;
+    });
+  }, [normalized, focusedComponent, activeStepKey, activeStepComponent]);
 
   // Single-click navigation reuses one preview tab; an explicit open is permanent.
   const select = (next: ProofSubject) => {
@@ -909,11 +931,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
           {workflowGroups.length ? (
             workflowGroups.map((group) => {
               const groupKey = `wf:${group.component}`;
-              const groupOpen = normalized
-                ? true
-                : expanded.has(groupKey) ||
-                  group.component === focusedComponent ||
-                  group.component === activeStepComponent;
+              const groupOpen = normalized ? true : expanded.has(groupKey);
               return (
                 <div key={groupKey} className={styles.treeBlock}>
                   <div className={styles.treeRow}>
@@ -922,6 +940,8 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                       className={styles.treeToggle}
                       aria-label={`${groupOpen ? "Collapse" : "Expand"} ${group.component}`}
                       aria-expanded={groupOpen}
+                      data-testid="explorer-workflow-toggle"
+                      data-component={group.component}
                       onClick={() => toggleNode(groupKey)}
                     >
                       {groupOpen ? (

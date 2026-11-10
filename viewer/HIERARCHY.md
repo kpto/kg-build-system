@@ -37,7 +37,7 @@ Inspector window; there is no bottom panel.
 | Section | Contents |
 | --- | --- |
 | **Control** | controls for the active view: graph canvas filters, labels, Show controls, legend and fit/zoom/pin; workflow component, instruction and text filters. |
-| **Explorer** | everything in the design: assets, nodes, abstract categories, edges and their properties; workflow components and their step catalogue. A context menu jumps graph subjects to the Graph and workflow items to the Workflow. A selected workflow component expands its step group. Relations and projections are shown inside their asset document, not as tree rows that all resolve to that asset. |
+| **Explorer** | everything in the design: assets, nodes, abstract categories, edges and their properties; workflow components and their step catalogue. A context menu jumps graph subjects to the Graph and workflow items to the Workflow. A selected workflow component expands its step group; an explicit collapse sticks until the active subject changes. Relations and projections are shown inside their asset document, not as tree rows that all resolve to that asset. |
 
 The sections are collapsible and independent: both may be expanded at once.
 Each expanded body sits directly below its own header. When both are open, a

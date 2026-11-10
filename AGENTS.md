@@ -115,7 +115,8 @@ rule about what the framework is belongs to the framework model.
   replace the document that tab represents; navigating to another subject opens
   or activates that subject's document. Collapsible sections are independent:
   an expanded body sits below its own header, and two open sections share one
-  adjustable, persisted split.
+  adjustable, persisted split. An automatic reveal is one-shot: an explicit
+  collapse wins until the context changes again.
   Single-click navigation reuses one preview tab; only an explicit open pins a
   permanent tab. Inspection is transient and never opens a document; a document
   opens only on an explicit action and must show content that inspection does

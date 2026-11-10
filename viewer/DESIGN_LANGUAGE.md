@@ -99,7 +99,9 @@ Explorer tree opens or activates that document.
   in a context menu, or using the command palette opens a permanent tab. The
   context menu also offers **Go to Graph** for graph subjects and **Go to
   Workflow** for workflow items. A workflow component selected in Control or in
-  the Workflow graph expands its step group in Explorer.
+  the Workflow graph expands its step group in Explorer. That reveal is one-shot:
+  once the reader collapses the Workflow section or a component group, it stays
+  collapsed until the active subject changes again.
   Preview tabs are reused by the next single click; double-clicking a preview
   tab label pins it. Middle-clicking a subject or step tab closes it; pinned
   Graph and Workflow tabs cannot be closed.

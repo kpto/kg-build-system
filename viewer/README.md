@@ -78,7 +78,7 @@ selection; it does not open a tab. Explorer rows single-click into a reusable
 preview tab and double-click into a permanent tab. Right-clicking an Explorer
 item offers **Go to Graph** for graph subjects and **Go to Workflow** for
 workflow components and steps. A workflow component selected in Control or in
-the Workflow graph expands its step group in Explorer. **Middle-click** closes a
+the Workflow graph expands its step group in Explorer; an explicit collapse sticks until the active subject changes. **Middle-click** closes a
 subject or step tab; the pinned Graph and Workflow tabs cannot be closed. **Back** and
 **Forward** (arrows in the tab strip, `Alt+←` / `Alt+→`, or the mouse
 back/forward buttons) walk the document history. Every open tab keeps its own

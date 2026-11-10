@@ -706,6 +706,43 @@ def main() -> int:
                     By.CSS_SELECTOR, '[data-testid="workflow-step-editor"]'
                 )
             )
+            step_component = first_step.get_attribute("title").split(" · ")[0]
+            group_toggle = driver.find_element(
+                By.CSS_SELECTOR,
+                f'[data-testid="explorer-workflow-toggle"][data-component="{step_component}"]',
+            )
+            report["checks"]["explorer_workflow_group_auto_open"] = (
+                group_toggle.get_attribute("aria-expanded") == "true"
+            )
+            group_toggle.click()
+            time.sleep(0.4)
+            group_toggle = driver.find_element(
+                By.CSS_SELECTOR,
+                f'[data-testid="explorer-workflow-toggle"][data-component="{step_component}"]',
+            )
+            report["checks"]["explorer_workflow_group_collapsible"] = (
+                group_toggle.get_attribute("aria-expanded") == "false"
+            )
+            workflow_group = driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="explorer-group-workflow"]'
+            )
+            report["checks"]["explorer_workflow_section_open"] = (
+                workflow_group.get_attribute("aria-expanded") == "true"
+            )
+            workflow_group.click()
+            time.sleep(0.4)
+            workflow_group = driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="explorer-group-workflow"]'
+            )
+            report["checks"]["explorer_workflow_section_collapsible"] = (
+                workflow_group.get_attribute("aria-expanded") == "false"
+                and not driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="explorer-workflow-toggle"]'
+                )
+            )
+            workflow_group.click()
+            time.sleep(0.4)
+
             report["checks"]["explorer_after_step"] = bool(
                 driver.find_elements(
                     By.CSS_SELECTOR, '[data-testid="explorer-sidebar"]'
