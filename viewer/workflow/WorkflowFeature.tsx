@@ -8,6 +8,5 @@
 export {
   WorkflowControls,
   WorkflowEditor,
-  WorkflowOutline,
   WorkflowStepEditor,
 } from "./view/WorkflowFeature";

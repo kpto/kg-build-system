@@ -32,6 +32,12 @@ import {
 
 import type { WorkspaceProps, SubjectSelection } from "@/workbench/types";
 import { documentTitle } from "@/workbench/types";
+import { stepKey } from "@/lib/indexes";
+import {
+  buildWorkflowModel,
+  groupWorkflowRows,
+  type WorkflowStepRow,
+} from "@/workflow/model/WorkflowViewModel";
 import { activeDocument, documentSelection } from "@/workbench/types";
 import type {
   LineageLane,
@@ -353,7 +359,7 @@ function SideSection({
         className={styles.sideSectionHead}
         aria-expanded={open}
         onClick={() => onToggle(id)}
-        data-testid={`detail-group-${id}`}
+        data-testid={`explorer-group-${id}`}
       >
         {open ? (
           <ChevronDown aria-hidden className={styles.sideChevron} />
@@ -404,7 +410,7 @@ function SidebarRow({
   );
 }
 
-export function DetailSidebar(props: WorkspaceProps) {
+export function ExplorerSidebar(props: WorkspaceProps) {
   const { index } = props.state;
   const document = activeDocument(props.state);
   const active = documentSelection(document);
@@ -416,6 +422,21 @@ export function DetailSidebar(props: WorkspaceProps) {
     | undefined
   >(undefined);
   const normalized = query.trim().toLowerCase();
+  const workflowRows = useMemo(() => buildWorkflowModel(index).rows, [index]);
+  const filteredWorkflowRows = useMemo(
+    () =>
+      workflowRows.filter((row) =>
+        matches(normalized, row.name, row.component, row.kindLabel),
+      ),
+    [workflowRows, normalized],
+  );
+  const workflowGroups = useMemo(
+    () => groupWorkflowRows(filteredWorkflowRows),
+    [filteredWorkflowRows],
+  );
+  const activeStepKey =
+    active?.kind === "step" && active.stepId ? stepKey(active.stepId) : undefined;
+  const sectionOpen = (id: string) => Boolean(normalized) || open.has(id);
 
   // Single-click navigation reuses one preview tab; an explicit open is permanent.
   const select = (next: ProofSubject) => {
@@ -432,6 +453,17 @@ export function DetailSidebar(props: WorkspaceProps) {
     event.preventDefault();
     event.stopPropagation();
     setMenu({ x: event.clientX, y: event.clientY, label, run });
+  };
+  const openStep = (row: WorkflowStepRow, preview: boolean) => {
+    props.actions.openTab({
+      selection: {
+        kind: "step",
+        component: row.component,
+        name: row.name,
+        stepId: row.id,
+      },
+      preview,
+    });
   };
   const toggle = (id: string) => {
     setOpen((current) => {
@@ -701,14 +733,14 @@ export function DetailSidebar(props: WorkspaceProps) {
   };
 
   return (
-    <div className={styles.sidebar} data-testid="detail-sidebar">
+    <div className={styles.sidebar} data-testid="explorer-sidebar">
       <div className={styles.search}>
         <Search aria-hidden className={styles.searchIcon} />
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Filter assets, nodes, properties"
-          aria-label="Filter the design tree"
+          placeholder="Filter the design"
+          aria-label="Filter the explorer"
           spellCheck={false}
         />
       </div>
@@ -725,7 +757,7 @@ export function DetailSidebar(props: WorkspaceProps) {
           id="assets"
           title="Assets"
           count={assets.length}
-          open={open.has("assets")}
+          open={sectionOpen("assets")}
           onToggle={toggle}
         >
           {assets.map((asset) => (
@@ -761,7 +793,7 @@ export function DetailSidebar(props: WorkspaceProps) {
           id="nodes"
           title="Nodes"
           count={concreteNodes.length}
-          open={open.has("nodes")}
+          open={sectionOpen("nodes")}
           onToggle={toggle}
         >
           {concreteNodes.map(renderNode)}
@@ -771,7 +803,7 @@ export function DetailSidebar(props: WorkspaceProps) {
           id="abstract"
           title="Abstract"
           count={abstractNodes.length}
-          open={open.has("abstract")}
+          open={sectionOpen("abstract")}
           onToggle={toggle}
         >
           {abstractNodes.map(renderNode)}
@@ -781,10 +813,85 @@ export function DetailSidebar(props: WorkspaceProps) {
           id="edges"
           title="Edges"
           count={edges.length}
-          open={open.has("edges")}
+          open={sectionOpen("edges")}
           onToggle={toggle}
         >
           {edges.map(renderEdge)}
+        </SideSection>
+
+        <SideSection
+          id="workflow"
+          title="Workflow"
+          count={filteredWorkflowRows.length}
+          open={sectionOpen("workflow")}
+          onToggle={toggle}
+        >
+          {workflowGroups.length ? (
+            workflowGroups.map((group) => {
+              const groupKey = `wf:${group.component}`;
+              const groupOpen = normalized ? true : expanded.has(groupKey);
+              return (
+                <div key={groupKey} className={styles.treeBlock}>
+                  <div className={styles.treeRow}>
+                    <button
+                      type="button"
+                      className={styles.treeToggle}
+                      aria-label={`${groupOpen ? "Collapse" : "Expand"} ${group.component}`}
+                      aria-expanded={groupOpen}
+                      onClick={() => toggleNode(groupKey)}
+                    >
+                      {groupOpen ? (
+                        <ChevronDown aria-hidden className={styles.sideChevron} />
+                      ) : (
+                        <ChevronRight aria-hidden className={styles.sideChevron} />
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className={styles.treeLabel}
+                      data-testid="explorer-workflow-component"
+                      data-component={group.component}
+                      onClick={() => toggleNode(groupKey)}
+                      title={group.component}
+                    >
+                      <span>{group.component}</span>
+                      <span className={styles.treeMeta}>
+                        {group.rows.length}
+                      </span>
+                    </button>
+                  </div>
+                  {groupOpen ? (
+                    <div className={styles.treeChildren}>
+                      {group.rows.map((row) => (
+                        <button
+                          key={row.key}
+                          type="button"
+                          className={styles.propertyRow}
+                          data-testid="explorer-step"
+                          data-active={
+                            activeStepKey === row.key ? "true" : undefined
+                          }
+                          onClick={() => openStep(row, true)}
+                          onDoubleClick={() => openStep(row, false)}
+                          title={`${row.component} · ${row.name}`}
+                        >
+                          <CircleDot
+                            aria-hidden
+                            className={styles.propertyDot}
+                          />
+                          <span>{row.name}</span>
+                        </button>
+                      ))}
+                    </div>
+                  ) : null}
+                </div>
+              );
+            })
+          ) : (
+            <p className={styles.sideEmpty}>
+              No workflow steps match this filter.
+            </p>
+          )}
         </SideSection>
       </div>
 

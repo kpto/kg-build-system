@@ -93,7 +93,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             <h3>Workbench geometry</h3>
             <p>
               The workbench keeps one side-bar width, one split between the
-              Control and Detail sections, and one editor tab strip under one
+              Control and Explorer sections, and one editor tab strip under one
               key.
             </p>
             <dl className="wb-settings-facts">

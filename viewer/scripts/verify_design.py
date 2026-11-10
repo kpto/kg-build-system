@@ -99,7 +99,7 @@ def main() -> int:
                 for el in driver.find_elements(
                     By.CSS_SELECTOR,
                     '[data-testid="sidebar-section-control"],'
-                    ' [data-testid="sidebar-section-outline"]',
+                    ' [data-testid="sidebar-section-explorer"]',
                 )
             }
 
@@ -107,7 +107,7 @@ def main() -> int:
             return {
                 el.get_attribute("data-testid"): el.get_attribute("aria-expanded")
                 for el in driver.find_elements(
-                    By.CSS_SELECTOR, '[data-testid^="detail-group-"]'
+                    By.CSS_SELECTOR, '[data-testid^="explorer-group-"]'
                 )
             }
 
@@ -207,43 +207,50 @@ def main() -> int:
                     By.CSS_SELECTOR, '[data-testid="workflow-controls"]'
                 )
             )
-            report["checks"]["workflow_outline_closed"] = (
-                expanded().get("sidebar-section-outline") == "false"
+            report["checks"]["explorer_closed_initially"] = (
+                expanded().get("sidebar-section-explorer") == "false"
             )
 
             driver.find_element(
-                By.CSS_SELECTOR, '[data-testid="sidebar-section-outline"]'
+                By.CSS_SELECTOR, '[data-testid="sidebar-section-explorer"]'
             ).click()
             time.sleep(0.8)
-            report["checks"]["workflow_outline"] = bool(
+            report["checks"]["explorer_sidebar"] = bool(
                 driver.find_elements(
-                    By.CSS_SELECTOR, '[data-testid="workflow-outline"]'
+                    By.CSS_SELECTOR, '[data-testid="explorer-sidebar"]'
                 )
             )
-            report["checks"]["workflow_steps"] = len(
-                driver.find_elements(By.CSS_SELECTOR, '[data-testid="workflow-step"]')
+            explorer_groups = sorted(detail_groups())
+            report["checks"]["explorer_groups_on_workflow"] = explorer_groups
+            report["checks"]["explorer_has_workflow_item"] = (
+                "explorer-group-workflow" in explorer_groups
+            )
+            report["checks"]["explorer_has_graph_items"] = (
+                "explorer-group-assets" in explorer_groups
+                and "explorer-group-nodes" in explorer_groups
+                and "explorer-group-edges" in explorer_groups
+            )
+
+            driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="explorer-group-workflow"]'
+            ).click()
+            time.sleep(0.7)
+            components = driver.find_elements(
+                By.CSS_SELECTOR, '[data-testid="explorer-workflow-component"]'
+            )
+            report["checks"]["explorer_workflow_components"] = len(components)
+            components[0].click()
+            time.sleep(0.7)
+            report["checks"]["workflow_step_rows"] = len(
+                driver.find_elements(By.CSS_SELECTOR, '[data-testid="explorer-step"]')
             )
             report["checks"]["workflow_status"] = status()
-            shot("02-workflow")
-
-            query = driver.find_element(
-                By.CSS_SELECTOR, '[data-testid="workflow-filter-query"]'
-            )
-            query.send_keys("binding")
-            time.sleep(0.7)
-            report["checks"]["workflow_filtered_steps"] = len(
-                driver.find_elements(By.CSS_SELECTOR, '[data-testid="workflow-step"]')
-            )
-            driver.find_element(
-                By.CSS_SELECTOR, '[data-testid="workflow-reset"]'
-            ).click()
-            time.sleep(0.6)
+            shot("02-workflow-map")
 
             first_step = driver.find_elements(
-                By.CSS_SELECTOR, '[data-testid="workflow-step"]'
+                By.CSS_SELECTOR, '[data-testid="explorer-step"]'
             )[0]
-            step_key = first_step.get_attribute("data-step-key")
-            step_name = step_key.split("\u0000")[1]
+            step_name = first_step.text.strip()
             first_step.click()
             time.sleep(1)
             report["checks"]["workflow_step_tab"] = tabs()[-1]
@@ -253,9 +260,9 @@ def main() -> int:
                     By.CSS_SELECTOR, '[data-testid="workflow-step-editor"]'
                 )
             )
-            report["checks"]["workflow_outline_after_step"] = bool(
+            report["checks"]["explorer_after_step"] = bool(
                 driver.find_elements(
-                    By.CSS_SELECTOR, '[data-testid="workflow-outline"]'
+                    By.CSS_SELECTOR, '[data-testid="explorer-sidebar"]'
                 )
             )
             report["checks"]["workflow_step_status"] = status()
@@ -277,7 +284,7 @@ def main() -> int:
             )
 
             driver.find_element(
-                By.CSS_SELECTOR, '[data-testid="sidebar-section-outline"]'
+                By.CSS_SELECTOR, '[data-testid="sidebar-section-explorer"]'
             ).click()
             time.sleep(0.5)
             click_tab("Graph")
@@ -356,21 +363,24 @@ def main() -> int:
             ).text
         )
 
-        # Opening Detail while Control is open leaves both open and adds an
+        # Opening Explorer while Control is open leaves both open and adds an
         # adjustable separator between them.
         driver.find_element(
-            By.CSS_SELECTOR, '[data-testid="sidebar-section-outline"]'
+            By.CSS_SELECTOR, '[data-testid="sidebar-section-explorer"]'
         ).click()
         time.sleep(0.7)
         report["checks"]["sidebar_after_open"] = expanded()
         report["checks"]["detail_groups"] = sorted(detail_groups())
+        report["checks"]["explorer_groups_stable"] = (
+            sorted(detail_groups()) == report["checks"]["explorer_groups_on_workflow"]
+        )
         report["checks"]["no_data_groups"] = (
-            "detail-group-relations" not in detail_groups()
-            and "detail-group-projections" not in detail_groups()
+            "explorer-group-relations" not in detail_groups()
+            and "explorer-group-projections" not in detail_groups()
         )
         report["checks"]["both_sections_open"] = (
             expanded().get("sidebar-section-control") == "true"
-            and expanded().get("sidebar-section-outline") == "true"
+            and expanded().get("sidebar-section-explorer") == "true"
         )
         splitter = driver.find_elements(
             By.CSS_SELECTOR, '[data-testid="sidebar-splitter"]'
@@ -395,7 +405,7 @@ def main() -> int:
         shot("04-detail-property")
 
         # Detail tree groups start collapsed; expanding Nodes reveals rows.
-        driver.find_element(By.CSS_SELECTOR, '[data-testid="detail-group-nodes"]').click()
+        driver.find_element(By.CSS_SELECTOR, '[data-testid="explorer-group-nodes"]').click()
         time.sleep(0.6)
         def tree_rows():
             return driver.find_elements(
@@ -474,7 +484,7 @@ def main() -> int:
         # A tab never changes the side bar and never brings back a bottom panel.
         report["checks"]["sidebar_unchanged_by_tabs"] = (
             expanded().get("sidebar-section-control") == "true"
-            and expanded().get("sidebar-section-outline") == "true"
+            and expanded().get("sidebar-section-explorer") == "true"
         )
         report["checks"]["no_bottom_panel_after_tabs"] = not driver.find_elements(
             By.CSS_SELECTOR, '[data-testid="bottom-panel"]'

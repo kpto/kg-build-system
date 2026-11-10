@@ -1284,6 +1284,13 @@
   padding: 1px 4px 4px;
 }
 
+.sideEmpty {
+  padding: 6px 8px;
+  color: var(--color-faint);
+  font-size: 9.5px;
+  line-height: 1.5;
+}
+
 .sideRow {
   display: flex;
   width: 100%;

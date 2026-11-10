@@ -5,7 +5,6 @@ import {
   ArrowDownLeft,
   ArrowUpRight,
   Boxes,
-  ChevronRight,
   ListTree,
   RotateCcw,
   Search,
@@ -18,12 +17,8 @@ import type {
   WorkflowStep,
 } from "@/lib/types";
 import { stepKey } from "@/lib/indexes";
-import { cx, theme } from "@/shared/ui/theme";
-import {
-  activeDocument,
-  type SubjectSelection,
-  type WorkspaceProps,
-} from "@/workbench/types";
+import { cx, groupPalette, theme } from "@/shared/ui/theme";
+import { activeDocument, type WorkspaceProps } from "@/workbench/types";
 import {
   buildWorkflowComponentMap,
   buildWorkflowModel,
@@ -31,143 +26,11 @@ import {
   formatArtifactType,
   formatOpening,
   formatStepId,
-  groupWorkflowRows,
-  type WorkflowStepRow,
 } from "@/workflow/model/WorkflowViewModel";
 import { useWorkflowUi } from "./workflowUi";
 
 function workflowModel(state: WorkspaceProps["state"]) {
   return buildWorkflowModel(state.index);
-}
-
-function stepSelection(row: WorkflowStepRow): SubjectSelection {
-  return {
-    kind: "step",
-    component: row.component,
-    name: row.name,
-    stepId: row.id,
-  };
-}
-
-function stepKeyForSelection(selection: SubjectSelection | undefined) {
-  if (selection?.stepId) return stepKey(selection.stepId);
-  if (selection?.component && selection.name) {
-    return stepKey([selection.component, selection.name]);
-  }
-  return undefined;
-}
-
-// ---------------------------------------------------------------------------
-// Outline: the workflow step list
-// ---------------------------------------------------------------------------
-
-function GroupHeader({ component, count }: { component: string; count: number }) {
-  return (
-    <div className="sticky top-0 z-10 flex items-center gap-1.5 border-b border-line-soft bg-panel-raised px-2 py-1">
-      <ChevronRight aria-hidden className="size-3 text-faint" />
-      <span className="min-w-0 flex-1 truncate font-mono text-[9px] font-semibold tracking-[0.08em] text-muted uppercase">
-        {component}
-      </span>
-      <span className="font-mono text-[9px] text-faint">{count}</span>
-    </div>
-  );
-}
-
-function StepRow({
-  row,
-  active,
-  onSelect,
-  onOpenPermanent,
-}: {
-  row: WorkflowStepRow;
-  active: boolean;
-  onSelect(): void;
-  onOpenPermanent(): void;
-}) {
-  return (
-    <button
-      type="button"
-      className={cx(
-        "flex w-full items-center gap-2 border-b border-line-soft/50 px-2 py-1.5 text-left",
-        active
-          ? "bg-selection/10 text-text shadow-[inset_2px_0_0_var(--color-selection)]"
-          : "text-muted hover:bg-panel-soft/50 hover:text-text",
-      )}
-      onClick={onSelect}
-      onDoubleClick={onOpenPermanent}
-      data-testid="workflow-step"
-      data-step-key={row.key}
-      data-active={active ? "true" : undefined}
-      title={`${row.component} · ${row.name}`}
-    >
-      <span className="min-w-0 flex-1">
-        <span className="block truncate font-mono text-[10px]">{row.name}</span>
-        <span className="block truncate font-mono text-[8.5px] text-faint">
-          {row.kindLabel}
-        </span>
-      </span>
-      <span className="flex shrink-0 items-center gap-1">
-        <span className="font-mono text-[8.5px] text-faint">
-          {row.inputs} in
-        </span>
-        <span className="font-mono text-[8.5px] text-faint">
-          {row.outputs} out
-        </span>
-      </span>
-    </button>
-  );
-}
-
-export function WorkflowOutline(props: WorkspaceProps) {
-  const model = useMemo(() => workflowModel(props.state), [props.state.index]);
-  const { state: ui } = useWorkflowUi(props.state.snapshot.name);
-  const rows = useMemo(
-    () => filterWorkflowRows(model.rows, ui.filters),
-    [model.rows, ui.filters],
-  );
-  const groups = useMemo(() => groupWorkflowRows(rows), [rows]);
-  const active = activeDocument(props.state);
-  const activeStepKey =
-    active.kind === "subject" ? stepKeyForSelection(active.selection) : undefined;
-
-  const open = (row: WorkflowStepRow, preview: boolean) => {
-    props.actions.openTab({ selection: stepSelection(row), preview });
-  };
-
-  return (
-    <div className="flex h-full flex-col" data-testid="workflow-outline">
-      <div className="flex flex-none items-center justify-between border-b border-line-soft px-2 py-1.5">
-        <span className="text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
-          Steps
-        </span>
-        <span className="font-mono text-[9px] text-faint">
-          {rows.length} / {model.steps}
-        </span>
-      </div>
-      <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto">
-        {groups.length ? (
-          groups.map((group) => (
-            <section key={group.component}>
-              <GroupHeader component={group.component} count={group.rows.length} />
-              {group.rows.map((row) => (
-                <StepRow
-                  key={row.key}
-                  row={row}
-                  active={activeStepKey === row.key}
-                  onSelect={() => open(row, true)}
-                  onOpenPermanent={() => open(row, false)}
-                />
-              ))}
-            </section>
-          ))
-        ) : (
-          <p className="p-3 text-[10px] leading-relaxed text-faint">
-            No workflow steps match the Control filters.
-          </p>
-        )}
-      </div>
-    </div>
-  );
 }
 
 // ---------------------------------------------------------------------------
@@ -244,8 +107,8 @@ export function WorkflowControls({ state }: WorkspaceProps) {
         </div>
 
         <p className="text-[9px] leading-relaxed text-faint">
-          The filtered steps are listed in Outline. Select one to open its step
-          detail document.
+          Filters dim the compositor graph. Every step remains available in
+          Explorer; select one there to open its step detail document.
         </p>
 
         <button
@@ -590,71 +453,153 @@ export function WorkflowStepEditor({ state }: WorkspaceProps) {
 // Workflow document: component map
 // ---------------------------------------------------------------------------
 
-const MAP_WIDTH = 1000;
-const MAP_HEIGHT = 680;
-const MAP_CX = MAP_WIDTH / 2;
-const MAP_CY = MAP_HEIGHT / 2;
-const NODE_RADIUS = 52;
+const NODE_WIDTH = 208;
+const NODE_HEIGHT = 140;
+const HEADER_HEIGHT = 28;
+const COLUMN_GAP = 68;
+const ROW_GAP = 56;
+const MARGIN = 36;
+const SOCKET_Y = 50;
 
-function componentPositions(ids: string[]): Map<string, { x: number; y: number }> {
-  const positions = new Map<string, { x: number; y: number }>();
-  if (ids.length === 1) {
-    positions.set(ids[0], { x: MAP_CX, y: MAP_CY });
-    return positions;
-  }
-  const rx = 340;
-  const ry = 232;
-  ids.forEach((id, index) => {
-    const angle = -Math.PI / 2 + (index * Math.PI * 2) / ids.length;
-    positions.set(id, {
-      x: MAP_CX + rx * Math.cos(angle),
-      y: MAP_CY + ry * Math.sin(angle),
-    });
-  });
-  return positions;
+interface PlacedNode {
+  node: ReturnType<typeof buildWorkflowComponentMap>["nodes"][number];
+  x: number;
+  y: number;
+  color: string;
+  internal: number;
 }
 
-interface EdgeGeometry {
+interface PlacedEdge {
+  edge: ReturnType<typeof buildWorkflowComponentMap>["edges"][number];
   path: string;
   labelX: number;
   labelY: number;
 }
 
-function edgeGeometry(
-  source: { x: number; y: number },
-  target: { x: number; y: number },
-  sourceId: string,
-  targetId: string,
-): EdgeGeometry {
-  if (sourceId === targetId) {
-    const top = source.y - NODE_RADIUS;
-    return {
-      path: `M ${source.x - 22} ${top} C ${source.x - 92} ${top - 104}, ${
-        source.x + 92
-      } ${top - 104}, ${source.x + 22} ${top}`,
-      labelX: source.x,
-      labelY: top - 82,
-    };
+interface CompositorLayout {
+  nodes: PlacedNode[];
+  edges: PlacedEdge[];
+  width: number;
+  height: number;
+}
+
+function componentLayers(
+  ids: string[],
+  edges: ReturnType<typeof buildWorkflowComponentMap>["edges"],
+): Map<string, number> {
+  const known = new Set(ids);
+  const layer = new Map(ids.map((id) => [id, 0]));
+  const outgoing = new Map<string, Set<string>>();
+  for (const edge of edges) {
+    if (edge.source === edge.target) continue;
+    if (!known.has(edge.source) || !known.has(edge.target)) continue;
+    const targets = outgoing.get(edge.source) ?? new Set<string>();
+    targets.add(edge.target);
+    outgoing.set(edge.source, targets);
   }
-  const dx = target.x - source.x;
-  const dy = target.y - source.y;
-  const length = Math.max(1, Math.hypot(dx, dy));
-  const ux = dx / length;
-  const uy = dy / length;
-  const nx = -uy;
-  const ny = ux;
-  const bend = sourceId < targetId ? 26 : -26;
-  // Stop at the circle edges so the arrow marker stays visible above the node.
-  const startX = source.x + ux * NODE_RADIUS;
-  const startY = source.y + uy * NODE_RADIUS;
-  const endX = target.x - ux * (NODE_RADIUS + 4);
-  const endY = target.y - uy * (NODE_RADIUS + 4);
-  const cx = (startX + endX) / 2 + nx * bend;
-  const cy = (startY + endY) / 2 + ny * bend;
+  // Longest-path layering. Cycles are capped to one column step per node.
+  for (let pass = 0; pass < ids.length; pass += 1) {
+    let changed = false;
+    for (const [source, targets] of outgoing) {
+      for (const target of targets) {
+        const next = (layer.get(source) ?? 0) + 1;
+        if (next < ids.length && next > (layer.get(target) ?? 0)) {
+          layer.set(target, next);
+          changed = true;
+        }
+      }
+    }
+    if (!changed) break;
+  }
+  return layer;
+}
+
+function buildCompositorLayout(
+  map: ReturnType<typeof buildWorkflowComponentMap>,
+): CompositorLayout {
+  const ids = map.nodes.map((node) => node.id);
+  const layer = componentLayers(ids, map.edges);
+  const order = new Map(ids.map((id, index) => [id, index]));
+  const columns = new Map<number, typeof map.nodes>();
+  for (const node of map.nodes) {
+    const index = layer.get(node.id) ?? 0;
+    const column = columns.get(index) ?? [];
+    column.push(node);
+    columns.set(index, column);
+  }
+  for (const column of columns.values()) {
+    column.sort((left, right) => (order.get(left.id) ?? 0) - (order.get(right.id) ?? 0));
+  }
+
+  const internal = new Map<string, number>();
+  for (const edge of map.edges) {
+    if (edge.source !== edge.target) continue;
+    internal.set(edge.source, (internal.get(edge.source) ?? 0) + edge.count);
+  }
+
+  const layerIds = [...columns.keys()].sort((left, right) => left - right);
+  const maxRows = Math.max(1, ...layerIds.map((id) => columns.get(id)?.length ?? 0));
+  const width =
+    MARGIN * 2 +
+    layerIds.length * NODE_WIDTH +
+    Math.max(0, layerIds.length - 1) * COLUMN_GAP;
+  const height =
+    MARGIN * 2 +
+    maxRows * NODE_HEIGHT +
+    Math.max(0, maxRows - 1) * ROW_GAP;
+  const bodyHeight = maxRows * NODE_HEIGHT + Math.max(0, maxRows - 1) * ROW_GAP;
+
+  const placed = new Map<string, PlacedNode>();
+  layerIds.forEach((layerId, columnIndex) => {
+    const column = columns.get(layerId) ?? [];
+    const columnHeight =
+      column.length * NODE_HEIGHT +
+      Math.max(0, column.length - 1) * ROW_GAP;
+    const top = MARGIN + (bodyHeight - columnHeight) / 2;
+    column.forEach((node, rowIndex) => {
+      placed.set(node.id, {
+        node,
+        x: MARGIN + columnIndex * (NODE_WIDTH + COLUMN_GAP),
+        y: top + rowIndex * (NODE_HEIGHT + ROW_GAP),
+        color: groupPalette[(order.get(node.id) ?? 0) % groupPalette.length],
+        internal: internal.get(node.id) ?? 0,
+      });
+    });
+  });
+
+  const edges: PlacedEdge[] = [];
+  for (const edge of map.edges) {
+    if (edge.source === edge.target) continue;
+    const source = placed.get(edge.source);
+    const target = placed.get(edge.target);
+    if (!source || !target) continue;
+    const sx = source.x + NODE_WIDTH;
+    const sy = source.y + NODE_HEIGHT / 2;
+    const tx = target.x;
+    const ty = target.y + NODE_HEIGHT / 2;
+    const forward = tx >= sx;
+    const dx = forward
+      ? Math.max(56, (tx - sx) * 0.48)
+      : 96;
+    const c1x = sx + dx;
+    const c1y = sy;
+    const c2x = tx - dx;
+    const c2y = ty;
+    edges.push({
+      edge,
+      path: `M ${sx} ${sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${tx} ${ty}`,
+      labelX:
+        0.125 * sx + 0.375 * c1x + 0.375 * c2x + 0.125 * tx,
+      labelY:
+        0.125 * sy + 0.375 * c1y + 0.375 * c2y + 0.125 * ty,
+    });
+  }
+
   return {
-    path: `M ${startX} ${startY} Q ${cx} ${cy} ${endX} ${endY}`,
-    labelX: 0.25 * startX + 0.5 * cx + 0.25 * endX,
-    labelY: 0.25 * startY + 0.5 * cy + 0.25 * endY,
+    nodes: [...placed.values()],
+    edges,
+    width,
+    height,
   };
 }
 
@@ -664,6 +609,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
     () => buildWorkflowComponentMap(props.state.index, model),
     [props.state.index, model],
   );
+  const layout = useMemo(() => buildCompositorLayout(componentMap), [componentMap]);
   const { state: ui, store } = useWorkflowUi(props.state.snapshot.name);
   const filtered = useMemo(
     () => filterWorkflowRows(model.rows, ui.filters),
@@ -673,16 +619,12 @@ export function WorkflowEditor(props: WorkspaceProps) {
     () => new Set(filtered.map((row) => row.component)),
     [filtered],
   );
-  const positions = useMemo(
-    () => componentPositions(componentMap.nodes.map((node) => node.id)),
-    [componentMap.nodes],
-  );
   const filtering =
     Boolean(ui.filters.query.trim()) ||
     ui.filters.component !== "all" ||
     ui.filters.kind !== "all";
 
-  if (!componentMap.nodes.length) {
+  if (!layout.nodes.length) {
     return (
       <div
         className="flex h-full items-center justify-center p-6"
@@ -704,7 +646,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
         <div className="min-w-0">
           <p className="mb-1 flex items-center gap-1.5 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
             <ListTree aria-hidden className="size-3 text-selection" />
-            Design · workflow map
+            Design · workflow compositor
           </p>
           <h1 className="text-[15px] font-semibold tracking-tight text-text">
             Workflow
@@ -721,49 +663,15 @@ export function WorkflowEditor(props: WorkspaceProps) {
 
       <div className="relative min-h-0 flex-1">
         <svg
-          viewBox={`0 0 ${MAP_WIDTH} ${MAP_HEIGHT}`}
+          viewBox={`0 0 ${layout.width} ${layout.height}`}
           preserveAspectRatio="xMidYMid meet"
           className="block h-full w-full select-none"
           role="img"
-          aria-label={`Workflow component map with ${componentMap.nodes.length} components and ${componentMap.edges.length} aggregated connections`}
+          aria-label={`Workflow compositor graph with ${layout.nodes.length} component nodes and ${layout.edges.length} aggregated links`}
           data-testid="workflow-map"
         >
-          <defs>
-            <marker
-              id="workflow-arrow"
-              viewBox="0 0 8 8"
-              refX="7"
-              refY="4"
-              markerWidth="6"
-              markerHeight="6"
-              orient="auto"
-            >
-              <path d="M0,0 L8,4 L0,8 Z" fill={theme.edge} />
-            </marker>
-            <marker
-              id="workflow-arrow-selection"
-              viewBox="0 0 8 8"
-              refX="7"
-              refY="4"
-              markerWidth="6"
-              markerHeight="6"
-              orient="auto"
-            >
-              <path d="M0,0 L8,4 L0,8 Z" fill={theme.selection} />
-            </marker>
-          </defs>
-
           <g data-workflow-edges>
-            {componentMap.edges.map((edge) => {
-              const source = positions.get(edge.source);
-              const target = positions.get(edge.target);
-              if (!source || !target) return null;
-              const geometry = edgeGeometry(
-                source,
-                target,
-                edge.source,
-                edge.target,
-              );
+            {layout.edges.map(({ edge, path, labelX, labelY }) => {
               const incident =
                 ui.filters.component !== "all" &&
                 (edge.source === ui.filters.component ||
@@ -775,28 +683,24 @@ export function WorkflowEditor(props: WorkspaceProps) {
               return (
                 <g
                   key={edge.id}
-                  opacity={incident ? 1 : active ? 0.62 : 0.12}
+                  opacity={incident ? 1 : active ? 0.58 : 0.1}
                   data-testid="workflow-component-edge"
                   data-source={edge.source}
                   data-target={edge.target}
                 >
                   <path
-                    d={geometry.path}
+                    d={path}
                     fill="none"
                     stroke={incident ? theme.selection : theme.edge}
-                    strokeWidth={Math.min(3.4, 0.9 + Math.log2(edge.count + 1))}
-                    markerEnd={
-                      incident
-                        ? "url(#workflow-arrow-selection)"
-                        : "url(#workflow-arrow)"
-                    }
+                    strokeWidth={Math.min(2.6, 1 + Math.log2(edge.count + 1) * 0.45)}
+                    strokeLinecap="round"
                   />
                   <text
-                    x={geometry.labelX}
-                    y={geometry.labelY}
+                    x={labelX}
+                    y={labelY - 4}
                     textAnchor="middle"
                     fill={incident ? theme.selectionStrong : theme.faint}
-                    fontSize={9}
+                    fontSize={9.5}
                     fontFamily="var(--font-mono)"
                     stroke={theme.page}
                     strokeWidth={3}
@@ -811,24 +715,20 @@ export function WorkflowEditor(props: WorkspaceProps) {
           </g>
 
           <g data-workflow-nodes>
-            {componentMap.nodes.map((node) => {
-              const position = positions.get(node.id);
-              if (!position) return null;
+            {layout.nodes.map(({ node, x, y, color, internal }) => {
               const selected = ui.filters.component === node.id;
               const active = !filtering || activeComponents.has(node.id);
               return (
                 <g
                   key={node.id}
-                  transform={`translate(${position.x} ${position.y})`}
+                  transform={`translate(${x} ${y})`}
                   className="cursor-pointer"
-                  opacity={active ? 1 : 0.28}
-                  onClick={() =>
-                    store.setComponent(selected ? "all" : node.id)
-                  }
+                  opacity={active ? 1 : 0.3}
+                  onClick={() => store.setComponent(selected ? "all" : node.id)}
                   role="button"
                   tabIndex={0}
                   aria-pressed={selected}
-                  aria-label={`${node.id}: ${node.steps} steps, ${node.incoming} incoming and ${node.outgoing} outgoing connections`}
+                  aria-label={`${node.id}: ${node.steps} steps, ${node.kinds} instruction kinds, ${node.incoming} incoming and ${node.outgoing} outgoing links`}
                   onKeyDown={(event) => {
                     if (event.key === "Enter" || event.key === " ") {
                       event.preventDefault();
@@ -838,32 +738,104 @@ export function WorkflowEditor(props: WorkspaceProps) {
                   data-testid="workflow-component-node"
                   data-component={node.id}
                 >
-                  <circle
-                    r={NODE_RADIUS + (selected ? 5 : 0)}
-                    fill={selected ? theme.selectionSoft : theme.raised}
+                  <rect
+                    width={NODE_WIDTH}
+                    height={NODE_HEIGHT}
+                    rx={6}
+                    fill={theme.panel}
                     stroke={selected ? theme.selection : theme.lineStrong}
                     strokeWidth={selected ? 1.8 : 1}
                   />
+                  <path
+                    d={`M 0 6 Q 0 0 6 0 H ${NODE_WIDTH - 6} Q ${NODE_WIDTH} 0 ${NODE_WIDTH} 6 V ${HEADER_HEIGHT} H 0 Z`}
+                    fill={color}
+                    fillOpacity={selected ? 0.62 : 0.34}
+                    stroke="none"
+                  />
                   <text
-                    y={-3}
-                    textAnchor="middle"
-                    fill={selected ? theme.selectionStrong : theme.text}
-                    fontSize={10.5}
+                    x={12}
+                    y={19}
+                    fill={theme.text}
+                    fontSize={11.5}
+                    fontWeight={600}
                     fontFamily="var(--font-mono)"
                     pointerEvents="none"
                   >
                     {node.id}
                   </text>
+
+                  <circle
+                    cx={0}
+                    cy={SOCKET_Y}
+                    r={5}
+                    fill={theme.raised}
+                    stroke={selected ? theme.selection : color}
+                    strokeWidth={1.4}
+                    pointerEvents="none"
+                  />
                   <text
-                    y={14}
-                    textAnchor="middle"
+                    x={12}
+                    y={SOCKET_Y + 4}
                     fill={theme.faint}
                     fontSize={8.5}
                     fontFamily="var(--font-mono)"
                     pointerEvents="none"
                   >
-                    {node.steps} steps
+                    in
                   </text>
+                  <circle
+                    cx={NODE_WIDTH}
+                    cy={SOCKET_Y}
+                    r={5}
+                    fill={theme.raised}
+                    stroke={selected ? theme.selection : color}
+                    strokeWidth={1.4}
+                    pointerEvents="none"
+                  />
+                  <text
+                    x={NODE_WIDTH - 12}
+                    y={SOCKET_Y + 4}
+                    textAnchor="end"
+                    fill={theme.faint}
+                    fontSize={8.5}
+                    fontFamily="var(--font-mono)"
+                    pointerEvents="none"
+                  >
+                    out
+                  </text>
+
+                  <text
+                    x={12}
+                    y={HEADER_HEIGHT + 50}
+                    fill={theme.text}
+                    fontSize={10.5}
+                    fontFamily="var(--font-mono)"
+                    pointerEvents="none"
+                  >
+                    {node.steps} steps · {node.kinds} kinds
+                  </text>
+                  <text
+                    x={12}
+                    y={HEADER_HEIGHT + 72}
+                    fill={theme.faint}
+                    fontSize={9.5}
+                    fontFamily="var(--font-mono)"
+                    pointerEvents="none"
+                  >
+                    {node.incoming} in · {node.outgoing} out
+                  </text>
+                  {internal ? (
+                    <text
+                      x={12}
+                      y={HEADER_HEIGHT + 94}
+                      fill={theme.faint}
+                      fontSize={9.5}
+                      fontFamily="var(--font-mono)"
+                      pointerEvents="none"
+                    >
+                      {internal} internal
+                    </text>
+                  ) : null}
                 </g>
               );
             })}
@@ -871,8 +843,8 @@ export function WorkflowEditor(props: WorkspaceProps) {
         </svg>
 
         <div className="pointer-events-none absolute bottom-3 left-3 rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-faint">
-          node = component · arrow = aggregated connections · click a component
-          to filter Outline
+          compositor graph · node = component · link = aggregated step
+          connections · click a node to select it in Control
         </div>
       </div>
     </div>

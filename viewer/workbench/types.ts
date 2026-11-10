@@ -3,7 +3,7 @@
  *
  * One frame owns snapshot loading, one geometry, one document tab strip and the
  * transient inspection of the canonical graph. The side bar exposes Control and
- * Detail as collapsible sections; neither is a mode.
+ * Explorer as collapsible sections; neither is a mode.
  */
 
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";

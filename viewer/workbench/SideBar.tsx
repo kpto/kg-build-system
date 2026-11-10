@@ -10,12 +10,9 @@ import {
 } from "react";
 import { ChevronRight } from "lucide-react";
 
-import { DetailSidebar } from "@/detail/DetailFeature";
+import { ExplorerSidebar } from "@/detail/DetailFeature";
 import { TopologySidebar } from "@/topology/TopologyFeature";
-import {
-  WorkflowControls,
-  WorkflowOutline,
-} from "@/workflow/WorkflowFeature";
+import { WorkflowControls } from "@/workflow/WorkflowFeature";
 import { cx } from "@/shared/ui/theme";
 import { useWorkbench } from "./store";
 import {
@@ -26,7 +23,7 @@ import {
   type WorkbenchLayout,
 } from "./types";
 
-type SectionId = "control" | "outline";
+type SectionId = "control" | "explorer";
 
 function clamp(value: number, min: number, max: number): number {
   return Math.min(max, Math.max(min, value));
@@ -89,7 +86,7 @@ function SideBarSplitter({
       aria-valuemin={Math.round(MIN_SIDEBAR_SPLIT * 100)}
       aria-valuemax={Math.round(MAX_SIDEBAR_SPLIT * 100)}
       aria-valuenow={Math.round(ratio * 100)}
-      aria-valuetext={`Topology ${Math.round(ratio * 100)} percent`}
+      aria-valuetext={`Control ${Math.round(ratio * 100)} percent`}
       tabIndex={0}
       className="wb-splitter"
       data-orientation="horizontal"
@@ -128,19 +125,13 @@ function ControlBody({ state, actions }: WorkspaceProps) {
   return <TopologySidebar state={state} actions={actions} />;
 }
 
-function OutlineBody({ state, actions }: WorkspaceProps) {
-  const document = activeDocument(state);
-  if (workflowContext(document)) {
-    return <WorkflowOutline state={state} actions={actions} />;
-  }
-  return <DetailSidebar state={state} actions={actions} />;
-}
+
 
 export function SideBar() {
   const { state, actions } = useWorkbench();
   const [open, setOpen] = useState<Record<SectionId, boolean>>({
     control: true,
-    outline: false,
+    explorer: false,
   });
   const container = useRef<HTMLElement>(null);
   const stats = state.index.stats;
@@ -151,10 +142,8 @@ export function SideBar() {
     : document.kind === "subject"
       ? "no view"
       : `${stats.topologyNodes}N · ${stats.topologyEdges}E`;
-  const outlineMeta = workflow
-    ? `${state.index.workflow.steps.length} steps`
-    : `${stats.topologyNodes} subjects`;
-  const bothOpen = open.control && open.outline;
+  const explorerMeta = `${stats.topologyNodes} subjects · ${state.index.workflow.steps.length} steps`;
+  const bothOpen = open.control && open.explorer;
 
   const toggle = (section: SectionId) => {
     setOpen((current) => ({ ...current, [section]: !current[section] }));
@@ -228,10 +217,10 @@ export function SideBar() {
         />
       ) : null}
       {section(
-        "outline",
-        "Outline",
-        outlineMeta,
-        <OutlineBody state={state} actions={actions} />,
+        "explorer",
+        "Explorer",
+        explorerMeta,
+        <ExplorerSidebar state={state} actions={actions} />,
       )}
     </aside>
   );
