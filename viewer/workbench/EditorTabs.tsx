@@ -29,7 +29,7 @@ function tabIcon(tab: WorkbenchTab) {
           ? CircleDot
           : kind === "asset"
             ? Database
-            : kind === "node" || kind === "edge"
+            : kind === "node" || kind === "edge" || kind === "step"
               ? Boxes
               : FileText;
   return <Icon aria-hidden className="size-3" />;

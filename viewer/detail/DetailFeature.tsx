@@ -1823,8 +1823,8 @@ function SubjectDetailEditor(props: WorkspaceProps) {
   return (
     <DetailDocument
       testId="detail-editor"
+      kind={model.level}
       kicker={`Design · ${model.level}`}
-      icon={<BadgeCheck aria-hidden className={styles.kickerIcon} />}
       title={levelTitle(model)}
       subtitle={levelSubtitle(model)}
     >

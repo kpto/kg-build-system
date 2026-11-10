@@ -13,8 +13,6 @@ import {
 import {
   ArrowDownLeft,
   ArrowUpRight,
-  Boxes,
-  ListTree,
   RotateCcw,
   Search,
 } from "lucide-react";
@@ -120,8 +118,8 @@ export function WorkflowControls({ state }: WorkspaceProps) {
         </div>
 
         <p className="text-[9px] leading-relaxed text-faint">
-          Choosing a component selects it. Use Open step group in the header
-          to enter its step graph. Filters narrow that graph and dim the
+          Choosing a component selects it. Use Open step group in the canvas
+          toolbar to enter its step graph. Filters narrow that graph and dim the
           component overview; every step remains available in Explorer.
         </p>
 
@@ -315,8 +313,8 @@ function StepDetail({
   return (
     <DetailDocument
       testId="workflow-step-detail"
+      kind="step"
       kicker={`Design · step · ${step.id[0]}`}
-      icon={<Boxes aria-hidden className="size-3 text-selection" />}
       title={step.id[1]}
       subtitle={`${step.instruction.kind?.join(":") ?? "unknown"} · ${
         step.inputs?.length ?? 0
@@ -452,8 +450,8 @@ export function WorkflowStepEditor({ state }: WorkspaceProps) {
     return (
       <DetailDocument
         testId="workflow-step-editor"
+        kind="step"
         kicker="Design · step"
-        icon={<Boxes aria-hidden className="size-3 text-selection" />}
         title="Step unavailable"
         subtitle="This step is not present in the workflow plan."
       >
@@ -1410,75 +1408,6 @@ export function WorkflowEditor(props: WorkspaceProps) {
       className="relative flex h-full min-h-0 flex-col bg-abyss"
       data-testid="workflow-editor"
     >
-      <header className="flex flex-none items-start justify-between gap-4 border-b border-line-soft bg-panel px-4 py-3">
-        <div className="min-w-0">
-          <p className="mb-1 flex items-center gap-1.5 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
-            <ListTree aria-hidden className="size-3 text-selection" />
-            {inStepGroup ? "Design · workflow step group" : "Design · workflow compositor"}
-          </p>
-          <h1 className="truncate text-[15px] font-semibold tracking-tight text-text">
-            {inStepGroup ? focusedNode?.id ?? "Step group" : "Workflow"}
-          </h1>
-          <p className="mt-1 font-mono text-[10px] text-muted">
-            {inStepGroup && stepScene
-              ? `${stepScene.stats?.stepCount ?? 0} steps · ${stepScene.stats?.internalEdges ?? 0} internal links · ${stepScene.stats?.boundaryCount ?? 0} boundary component${(stepScene.stats?.boundaryCount ?? 0) === 1 ? "" : "s"}`
-              : `${model.steps} steps · ${model.connections} connections · ${componentMap.nodes.length} components`}
-          </p>
-        </div>
-        {inStepGroup && stepScene ? (
-          <div className="flex shrink-0 items-center gap-2">
-            <span className="rounded border border-line-soft bg-panel-raised px-2 py-1 font-mono text-[9px] text-faint">
-              {stepScene.stats?.stepCount ?? 0} steps
-            </span>
-            {selectedStepRow ? (
-              <button
-                type="button"
-                onClick={() => openStepNode(selectedStepRow, false)}
-                className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
-                data-testid="workflow-open-step"
-              >
-                Open step →
-              </button>
-            ) : selectedBoundaryNode?.component ? (
-              <button
-                type="button"
-                onClick={() =>
-                  store.focusComponent(selectedBoundaryNode.component)
-                }
-                className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
-                data-testid="workflow-open-step-group"
-              >
-                Open {selectedBoundaryNode.component} step group →
-              </button>
-            ) : null}
-            <button
-              type="button"
-              onClick={() => store.focusComponent(undefined)}
-              className="flex items-center gap-1 border border-line-soft px-2 py-1 font-mono text-[9px] text-muted hover:border-line-strong hover:text-text"
-              data-testid="workflow-back-components"
-            >
-              ← Components
-            </button>
-          </div>
-        ) : (
-          <div className="flex shrink-0 items-center gap-2">
-            {selectedNode ? (
-              <button
-                type="button"
-                onClick={() => store.focusComponent(selectedNode.id)}
-                className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
-                data-testid="workflow-open-step-group"
-              >
-                Open step group →
-              </button>
-            ) : null}
-            <span className="rounded border border-line-soft bg-panel-raised px-2 py-1 font-mono text-[9px] text-faint">
-              {activeComponents.size} / {componentMap.nodes.length} components active
-            </span>
-          </div>
-        )}
-      </header>
-
       <div
         ref={containerRef}
         className="relative min-h-0 flex-1 cursor-grab touch-none overflow-hidden select-none"
@@ -1520,6 +1449,73 @@ export function WorkflowEditor(props: WorkspaceProps) {
           });
         }}
       >
+        <div
+          className="absolute top-3 right-3 z-20 flex max-w-[65%] flex-wrap items-center justify-end gap-1.5"
+          data-testid="workflow-toolbar"
+          onPointerDown={(event) => event.stopPropagation()}
+          onPointerMove={(event) => event.stopPropagation()}
+          onPointerUp={(event) => event.stopPropagation()}
+        >
+          {inStepGroup && stepScene ? (
+            <>
+              <span
+                className="rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-faint"
+                data-testid="workflow-step-group-label"
+              >
+                {focusedNode?.id ?? "Step group"} ·{" "}
+                {stepScene.stats?.stepCount ?? 0} steps ·{" "}
+                {stepScene.stats?.boundaryCount ?? 0} boundary
+              </span>
+              {selectedStepRow ? (
+                <button
+                  type="button"
+                  onClick={() => openStepNode(selectedStepRow, false)}
+                  className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
+                  data-testid="workflow-open-step"
+                >
+                  Open step →
+                </button>
+              ) : selectedBoundaryNode?.component ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    store.focusComponent(selectedBoundaryNode.component)
+                  }
+                  className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
+                  data-testid="workflow-open-step-group"
+                >
+                  Open {selectedBoundaryNode.component} step group →
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => store.focusComponent(undefined)}
+                className="flex items-center gap-1 border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-muted hover:border-line-strong hover:text-text"
+                data-testid="workflow-back-components"
+              >
+                ← Components
+              </button>
+            </>
+          ) : (
+            <>
+              {selectedNode ? (
+                <button
+                  type="button"
+                  onClick={() => store.focusComponent(selectedNode.id)}
+                  className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
+                  data-testid="workflow-open-step-group"
+                >
+                  Open step group →
+                </button>
+              ) : null}
+              <span className="rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-faint">
+                {activeComponents.size} / {componentMap.nodes.length} components
+                active
+              </span>
+            </>
+          )}
+        </div>
+
         <svg
           className="block h-full w-full select-none"
           role="img"
@@ -1711,7 +1707,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
 
         <div className="pointer-events-none absolute bottom-3 left-3 rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-faint">
           {inStepGroup
-            ? "drag to pan · wheel to zoom · click a step to select · double-click to open · Open step in the header"
+            ? "drag to pan · wheel to zoom · click a step to select · double-click to open · Open step in the toolbar"
             : "drag to pan · wheel to zoom · right-click a component for actions · node = component · link = aggregated step connections"}
         </div>
       </div>

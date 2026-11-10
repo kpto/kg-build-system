@@ -72,13 +72,18 @@ The first paint states the design, not every annotation.
 | --- | --- | --- | --- |
 | Graph document | circles, thin relation links, hub labels | all labels, relation names | containment, semantics, property counts |
 | Graph inspection | graph purpose and counts when nothing is selected; otherwise identity and description | properties with types | attached claims, frames and limitations |
-| Workflow document | one graph view: a compositor-style component graph, or a step-level flow graph where steps fill columns top-to-bottom after **Open step group**; selecting any node, including a boundary component, highlights its incident links and dims the other nodes in both; drag to pan and wheel to zoom | aggregated connection counts and active components | the step catalogue in Explorer and its step documents |
+| Workflow document | one graph view with no banner: a compositor-style component graph, or a step-level flow graph where steps fill columns top-to-bottom after **Open step group**; selecting any node, including a boundary component, highlights its incident links and dims the other nodes in both; Back and the open actions sit in the canvas toolbar; drag to pan and wheel to zoom | aggregated connection counts and active components | the step catalogue in Explorer and its step documents |
 | Step document | identity, instruction and openings on the shared detail surface | payload values | connections and blueprint bindings |
 | Subject document | subject meaning and properties | attached semantics along the path | property provenance, type/presence chain and trace |
 
 Each subject or step document is a separate tab. There is no level switch in
 the editor; opening a parent node, edge, asset or abstract category from the
 Explorer tree opens or activates that document.
+
+A detail document banner leads with a large logo for its kind: node, edge,
+property, asset, abstract category or step. The Workflow and Graph documents are
+working surfaces; they have no banner, and their actions live in floating canvas
+toolbars. The tab already names the document.
 
 ## Panels and persistence
 

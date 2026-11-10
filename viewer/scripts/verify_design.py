@@ -217,6 +217,14 @@ def main() -> int:
             report["checks"]["workflow_editor"] = bool(
                 driver.find_elements(By.CSS_SELECTOR, '[data-testid="workflow-editor"]')
             )
+            report["checks"]["workflow_no_banner"] = not driver.find_elements(
+                By.CSS_SELECTOR, '[data-testid="workflow-editor"] header'
+            )
+            report["checks"]["workflow_toolbar"] = bool(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-toolbar"]'
+                )
+            )
             report["checks"]["workflow_map"] = bool(
                 driver.find_elements(By.CSS_SELECTOR, '[data-testid="workflow-map"]')
             )
@@ -706,6 +714,13 @@ def main() -> int:
                     By.CSS_SELECTOR, '[data-testid="workflow-step-editor"]'
                 )
             )
+            report["checks"]["workflow_step_banner_logo"] = bool(
+                driver.find_elements(
+                    By.CSS_SELECTOR,
+                    '[data-testid="workflow-step-editor"]'
+                    ' [data-detail-kind="step"] [role="img"]',
+                )
+            )
             step_component = first_step.get_attribute("title").split(" · ")[0]
             group_toggle = driver.find_element(
                 By.CSS_SELECTOR,
@@ -917,6 +932,13 @@ def main() -> int:
 
         report["checks"]["detail_editor"] = bool(
             driver.find_elements(By.CSS_SELECTOR, '[data-testid="detail-editor"]')
+        )
+        report["checks"]["detail_banner_logo"] = bool(
+            driver.find_elements(
+                By.CSS_SELECTOR,
+                '[data-testid="detail-editor"][data-detail-kind="property"]'
+                ' [role="img"]',
+            )
         )
         report["checks"]["geometry_unchanged"] = geometry() == topology_geometry
         report["checks"]["detail_status"] = status()
