@@ -106,6 +106,8 @@ rule about what the framework is belongs to the framework model.
   content; a subject's detail belongs to one region.
 - One workbench frame is shared by every view: switching view changes content,
   not panel geometry; documents live in one tab strip with back and forward.
+  A tab is a document, not a mode: switching tab and switching mode are
+  independent, and neither changes the other's content.
 - End every change report with the rule-promotion result: none, refined or
   added.
 
