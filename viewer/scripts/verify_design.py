@@ -399,6 +399,16 @@ def main() -> int:
             report["checks"]["workflow_selection_filter"] = driver.find_element(
                 By.CSS_SELECTOR, '[data-testid="workflow-filter-component"]'
             ).get_attribute("value")
+            report["checks"]["workflow_step_group"] = bool(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-step-group"]'
+                )
+            )
+            report["checks"]["workflow_group_steps"] = len(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-group-step"]'
+                )
+            )
             driver.find_element(
                 By.CSS_SELECTOR, '[data-testid="workflow-reset"]'
             ).click()

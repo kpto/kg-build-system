@@ -36,6 +36,8 @@ import {
   formatArtifactType,
   formatOpening,
   formatStepId,
+  type WorkflowComponentNode,
+  type WorkflowStepRow,
 } from "@/workflow/model/WorkflowViewModel";
 import { useWorkflowUi } from "./workflowUi";
 
@@ -631,6 +633,87 @@ function buildCompositorLayout(
   };
 }
 
+function WorkflowStepGroupPanel({
+  node,
+  rows,
+  onClose,
+  onOpen,
+}: {
+  node: WorkflowComponentNode;
+  rows: WorkflowStepRow[];
+  onClose(): void;
+  onOpen(row: WorkflowStepRow, preview: boolean): void;
+}) {
+  return (
+    <aside
+      className="absolute top-3 right-3 bottom-3 z-20 flex w-[340px] flex-col overflow-hidden rounded border border-line bg-panel/98 shadow-xl"
+      aria-label={`${node.id} step group`}
+      data-testid="workflow-step-group"
+      onPointerDown={(event) => event.stopPropagation()}
+      onPointerMove={(event) => event.stopPropagation()}
+      onPointerUp={(event) => event.stopPropagation()}
+    >
+      <header className="flex flex-none items-start justify-between gap-2 border-b border-line-soft bg-panel-raised px-2.5 py-2">
+        <div className="min-w-0">
+          <p className="mb-0.5 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+            Step group
+          </p>
+          <h2 className="truncate font-mono text-[12px] text-text">{node.id}</h2>
+          <p className="mt-0.5 truncate font-mono text-[9px] text-faint">
+            {rows.length} / {node.steps} steps · {node.kinds} kinds ·{" "}
+            {node.incoming} in / {node.outgoing} out
+          </p>
+        </div>
+        <button
+          type="button"
+          className="shrink-0 text-[12px] leading-none text-faint hover:text-text"
+          aria-label="Close step group"
+          title="Close step group"
+          onClick={onClose}
+        >
+          ×
+        </button>
+      </header>
+
+      <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto">
+        {rows.length ? (
+          rows.map((row) => (
+            <button
+              key={row.key}
+              type="button"
+              className="flex w-full items-center gap-2 border-b border-line-soft/50 px-2 py-1.5 text-left text-muted hover:bg-panel-soft/50 hover:text-text"
+              onClick={() => onOpen(row, true)}
+              onDoubleClick={() => onOpen(row, false)}
+              title={`${row.component} · ${row.name}`}
+              data-testid="workflow-group-step"
+            >
+              <span className="min-w-0 flex-1">
+                <span className="block truncate font-mono text-[10px]">
+                  {row.name}
+                </span>
+                <span className="block truncate font-mono text-[8.5px] text-faint">
+                  {row.kindLabel}
+                </span>
+              </span>
+              <span className="shrink-0 font-mono text-[8.5px] text-faint">
+                {row.inputs} in · {row.outputs} out
+              </span>
+            </button>
+          ))
+        ) : (
+          <p className="p-3 text-[10px] leading-relaxed text-faint">
+            No steps match the current query and instruction filters.
+          </p>
+        )}
+      </div>
+
+      <footer className="flex-none border-t border-line-soft px-2.5 py-1.5 font-mono text-[8.5px] text-faint">
+        click a step to open its document · double-click to pin
+      </footer>
+    </aside>
+  );
+}
+
 export function WorkflowEditor(props: WorkspaceProps) {
   const model = useMemo(() => workflowModel(props.state), [props.state.index]);
   const componentMap = useMemo(
@@ -807,6 +890,14 @@ export function WorkflowEditor(props: WorkspaceProps) {
       window.removeEventListener("pointercancel", onUp);
     };
   };
+
+  const selectedNode =
+    ui.filters.component === "all"
+      ? undefined
+      : componentMap.nodes.find((node) => node.id === ui.filters.component);
+  const selectedGroupRows = selectedNode
+    ? filtered.filter((row) => row.component === selectedNode.id)
+    : [];
 
   if (!layout.nodes.length) {
     return (
@@ -1100,7 +1191,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
         </svg>
 
         <div
-          className="absolute top-3 right-3 z-10 flex items-stretch border border-line-soft bg-panel/95"
+          className="absolute top-3 left-3 z-10 flex items-stretch border border-line-soft bg-panel/95"
           onPointerDown={(event) => event.stopPropagation()}
           onPointerMove={(event) => event.stopPropagation()}
           onPointerUp={(event) => event.stopPropagation()}
@@ -1142,6 +1233,25 @@ export function WorkflowEditor(props: WorkspaceProps) {
             Fit
           </button>
         </div>
+
+        {selectedNode ? (
+          <WorkflowStepGroupPanel
+            node={selectedNode}
+            rows={selectedGroupRows}
+            onClose={() => store.setComponent("all")}
+            onOpen={(row, preview) =>
+              props.actions.openTab({
+                selection: {
+                  kind: "step",
+                  component: row.component,
+                  name: row.name,
+                  stepId: row.id,
+                },
+                preview,
+              })
+            }
+          />
+        ) : null}
 
         <div className="pointer-events-none absolute bottom-3 left-3 rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-faint">
           drag to pan · wheel to zoom · right-click a component for actions ·
