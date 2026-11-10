@@ -1464,61 +1464,7 @@ function subjectMeaning(
   }
 }
 
-function GraphDetailView({ props }: { props: WorkspaceProps }) {
-  const graph = props.state.index.graphDeclaration;
-  const meaning = graphMeaning(props.state.index);
-  const stats = props.state.index.stats;
-
-  return (
-    <div className={styles.root} data-testid="detail-editor">
-      <header className={styles.topbar}>
-        <div className={styles.titleBlock}>
-          <p className={styles.kicker}>
-            <BadgeCheck aria-hidden className={styles.kickerIcon} />
-            Design · Graph
-          </p>
-          <h1 className={styles.title}>{graph?.name ?? props.state.snapshot.name}</h1>
-          <p className={styles.subtitle}>
-            {stats.topologyNodes} nodes · {stats.topologyEdges} edges ·{" "}
-            {stats.bindings} bindings
-          </p>
-        </div>
-      </header>
-
-      <div className={styles.body}>
-        <section className={styles.meaningPanel} aria-label="Graph meaning">
-          <header className={styles.meaningPanelHeader}>
-            <span className={styles.meaningPanelTitle}>Design meaning</span>
-            <span className={styles.meaningPanelMeta}>graph</span>
-          </header>
-          <DesignMeaning
-            claims={meaning.claims}
-            frames={meaning.frames}
-            purpose={meaning.purpose}
-            showPurpose
-            emptyText="No graph purpose is attached."
-          />
-        </section>
-
-      </div>
-    </div>
-  );
-}
-
-function SummaryLine({ label, value }: { label: string; value: number }) {
-  return (
-    <div className="flex items-baseline justify-between gap-3 border-b border-line-soft py-0.5">
-      <span className="text-[10px] text-faint">{label}</span>
-      <span className="font-mono text-[10px] text-text">{value}</span>
-    </div>
-  );
-}
-
 export function DetailEditor(props: WorkspaceProps) {
-  const selection = currentSelection(props.state);
-  if (selection.kind === "graph") {
-    return <GraphDetailView props={props} />;
-  }
   return <SubjectDetailEditor {...props} />;
 }
 
@@ -1704,31 +1650,7 @@ function EvidenceTab({ model }: { model: ProofModel }) {
   );
 }
 
-function GraphBottom({ props }: { props: WorkspaceProps }) {
-  const stats = props.state.index.stats;
-  return (
-    <div className={styles.bottom} data-testid="detail-bottom" data-tab="graph">
-      <div className="grid h-full grid-cols-2 gap-x-6 px-3 py-2">
-        <section className="thin-scrollbar min-h-0 overflow-y-auto">
-          <SummaryLine label="Assets" value={stats.assets} />
-          <SummaryLine label="Relations" value={stats.tables} />
-          <SummaryLine label="Projections" value={stats.projections} />
-          <SummaryLine label="Nodes" value={stats.topologyNodes} />
-        </section>
-        <section className="thin-scrollbar min-h-0 overflow-y-auto">
-          <SummaryLine label="Edges" value={stats.topologyEdges} />
-          <SummaryLine label="Properties" value={stats.topologyProperties} />
-          <SummaryLine label="Bindings" value={stats.bindings} />
-          <SummaryLine label="Steps" value={stats.steps} />
-        </section>
-      </div>
-    </div>
-  );
-}
-
 export function DetailBottom(props: WorkspaceProps) {
-  const selection = currentSelection(props.state);
-  if (selection.kind === "graph") return <GraphBottom props={props} />;
   return <SubjectBottom {...props} />;
 }
 

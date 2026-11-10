@@ -7,11 +7,6 @@
 
 import type { TabView } from "./types";
 
-export const VIEW_LABELS: Record<TabView, string> = {
-  graph: "Graph",
-  subject: "Subject",
-};
-
 export const BOTTOM_TABS: Record<TabView, string[]> = {
   graph: ["selection"],
   subject: ["trace", "evidence"],

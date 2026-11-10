@@ -241,15 +241,6 @@
     white-space: nowrap;
   }
 
-  .wb-brand-crumb {
-    padding-left: 6px;
-    border-left: 1px solid var(--color-line);
-    color: var(--color-selection);
-    font-size: 10.5px;
-    font-weight: 550;
-    white-space: nowrap;
-  }
-
   .wb-snapshot {
     display: flex;
     min-width: 0;
@@ -546,14 +537,6 @@
     display: none;
   }
 
-  .wb-tabbar-empty {
-    display: flex;
-    align-items: center;
-    padding: 0 12px;
-    color: var(--color-faint);
-    font-size: 10.5px;
-  }
-
   .wb-tab {
     display: flex;
     height: 100%;
@@ -792,30 +775,6 @@
     height: 11px;
     flex: none;
     background-color: var(--color-line);
-  }
-
-  .wb-status-dot {
-    width: 6px;
-    height: 6px;
-    flex: none;
-    border-radius: 999px;
-    background-color: var(--color-faint);
-  }
-
-  .wb-status-dot[data-state="accepted"] {
-    background-color: var(--color-accepted);
-  }
-
-  .wb-status-dot[data-state="open"] {
-    background-color: var(--color-open);
-  }
-
-  .wb-status-dot[data-state="rejected"] {
-    background-color: var(--color-rejected);
-  }
-
-  .wb-status-dot[data-state="waived"] {
-    background-color: var(--color-muted);
   }
 
   .wb-zoom {
@@ -1307,23 +1266,6 @@
     min-height: 0;
     overflow: hidden;
     background-color: var(--color-gutter);
-  }
-
-  .wb-gate-rail {
-    display: flex;
-    width: var(--wb-activitybar-w);
-    flex: none;
-    flex-direction: column;
-    align-items: center;
-    gap: 18px;
-    padding-top: 13px;
-    border-right: 1px solid var(--color-line-soft);
-    background-color: var(--color-abyss);
-    color: #5c5c5c;
-  }
-
-  .wb-gate-rail svg:first-child {
-    color: var(--color-selection);
   }
 
   .wb-gate-side {

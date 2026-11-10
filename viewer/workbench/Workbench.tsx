@@ -1,13 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
-import {
-  CircleExclamationPoint,
-  FileText,
-  LoaderCircle,
-  Network,
-  RefreshCw,
-} from "lucide-react";
+import { CircleExclamationPoint, LoaderCircle, RefreshCw } from "lucide-react";
 
 import { buildViewerIndex } from "@/lib/indexes";
 import {
@@ -48,18 +42,7 @@ function LoadingGate({ onRetry }: { onRetry(): void }) {
 
   return (
     <div className="wb-gate ui-grain" data-testid="loading">
-      <header className="wb-gate-title">
-        <span className="wb-brand-mark" aria-hidden>
-          <span className="wb-brand-initial">K</span>
-        </span>
-        <span className="wb-brand-name">KG Design</span>
-        <span className="wb-gate-title-note">viewer</span>
-      </header>
       <div className="wb-gate-body">
-        <div className="wb-gate-rail" aria-hidden>
-          <Network className="size-[18px]" />
-          <FileText className="size-[18px]" />
-        </div>
         <div className="wb-gate-side" aria-hidden>
           <span className="wb-gate-block w-24" />
           <span className="wb-gate-block w-full" />
