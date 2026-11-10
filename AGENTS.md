@@ -104,6 +104,8 @@ rule about what the framework is belongs to the framework model.
   with more evidence rather than starting a separate task.
 - Each region states one job in its header and does not repeat another region's
   content; a subject's detail belongs to one region.
+- One workbench frame is shared by every view: switching view changes content,
+  not panel geometry; documents live in one tab strip with back and forward.
 - End every change report with the rule-promotion result: none, refined or
   added.
 
