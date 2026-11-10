@@ -72,7 +72,7 @@ The first paint states the design, not every annotation.
 | --- | --- | --- | --- |
 | Graph document | circles, thin relation links, hub labels | all labels, relation names | containment, semantics, property counts |
 | Graph inspection | graph purpose and counts when nothing is selected; otherwise identity and description | properties with types | attached claims, frames and limitations |
-| Workflow document | compositor-style component graph; drag to pan and wheel to zoom; a selected component opens its step-group panel | aggregated connection counts and active components | the step catalogue in Explorer and its step documents |
+| Workflow document | compositor-style component graph; selecting a component drills into a step-level flow graph; drag to pan and wheel to zoom | aggregated connection counts and active components | the step catalogue in Explorer and its step documents |
 | Step document | identity, instruction and openings on the shared detail surface | payload values | connections and blueprint bindings |
 | Subject document | subject meaning and properties | attached semantics along the path | property provenance, type/presence chain and trace |
 
@@ -151,10 +151,10 @@ meaning → **Open in Detail** → select a property to read its branches, lanes
 type/presence chain. When the question widens, open the parent subject from the
 Explorer tree; it becomes its own document tab.
 
-**Read the workflow.** Open **Workflow** → read the component map → filter by
-component or instruction kind in Control → click a component to open its
-step-group panel in the Workflow tab → open a step → read its openings,
-instruction payload, connections and blueprint bindings.
+**Read the workflow.** Open **Workflow** → read the component map → click a
+component to enter its step-level flow graph → filter with Control → click a
+step node → read its openings, instruction payload, connections and blueprint
+bindings. **Back** returns to the component map.
 
 **Read the design.** Inspect states the graph purpose and its full claims and
 frames on demand when nothing is selected; the editor states the selected

@@ -119,8 +119,9 @@ export function WorkflowControls({ state }: WorkspaceProps) {
         </div>
 
         <p className="text-[9px] leading-relaxed text-faint">
-          Filters dim the compositor graph. Every step remains available in
-          Explorer; select one there to open its step detail document.
+          Choosing a component enters its step graph. Filters narrow that step
+          graph and dim the component overview. Every step remains available in
+          Explorer.
         </p>
 
         <button
@@ -633,85 +634,239 @@ function buildCompositorLayout(
   };
 }
 
-function WorkflowStepGroupPanel({
-  node,
-  rows,
-  onClose,
-  onOpen,
-}: {
-  node: WorkflowComponentNode;
-  rows: WorkflowStepRow[];
-  onClose(): void;
-  onOpen(row: WorkflowStepRow, preview: boolean): void;
-}) {
-  return (
-    <aside
-      className="absolute top-3 right-3 bottom-3 z-20 flex w-[340px] flex-col overflow-hidden rounded border border-line bg-panel/98 shadow-xl"
-      aria-label={`${node.id} step group`}
-      data-testid="workflow-step-group"
-      onPointerDown={(event) => event.stopPropagation()}
-      onPointerMove={(event) => event.stopPropagation()}
-      onPointerUp={(event) => event.stopPropagation()}
-    >
-      <header className="flex flex-none items-start justify-between gap-2 border-b border-line-soft bg-panel-raised px-2.5 py-2">
-        <div className="min-w-0">
-          <p className="mb-0.5 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
-            Step group
-          </p>
-          <h2 className="truncate font-mono text-[12px] text-text">{node.id}</h2>
-          <p className="mt-0.5 truncate font-mono text-[9px] text-faint">
-            {rows.length} / {node.steps} steps · {node.kinds} kinds ·{" "}
-            {node.incoming} in / {node.outgoing} out
-          </p>
-        </div>
-        <button
-          type="button"
-          className="shrink-0 text-[12px] leading-none text-faint hover:text-text"
-          aria-label="Close step group"
-          title="Close step group"
-          onClick={onClose}
-        >
-          ×
-        </button>
-      </header>
+const STEP_NODE_WIDTH = 190;
+const STEP_NODE_HEIGHT = 74;
+const STEP_HEADER_HEIGHT = 22;
+const STEP_GAP_X = 44;
+const STEP_GAP_Y = 30;
+const STEP_MARGIN = 32;
+const BOUNDARY_WIDTH = 150;
+const BOUNDARY_HEIGHT = 74;
 
-      <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto">
-        {rows.length ? (
-          rows.map((row) => (
-            <button
-              key={row.key}
-              type="button"
-              className="flex w-full items-center gap-2 border-b border-line-soft/50 px-2 py-1.5 text-left text-muted hover:bg-panel-soft/50 hover:text-text"
-              onClick={() => onOpen(row, true)}
-              onDoubleClick={() => onOpen(row, false)}
-              title={`${row.component} · ${row.name}`}
-              data-testid="workflow-group-step"
-            >
-              <span className="min-w-0 flex-1">
-                <span className="block truncate font-mono text-[10px]">
-                  {row.name}
-                </span>
-                <span className="block truncate font-mono text-[8.5px] text-faint">
-                  {row.kindLabel}
-                </span>
-              </span>
-              <span className="shrink-0 font-mono text-[8.5px] text-faint">
-                {row.inputs} in · {row.outputs} out
-              </span>
-            </button>
-          ))
-        ) : (
-          <p className="p-3 text-[10px] leading-relaxed text-faint">
-            No steps match the current query and instruction filters.
-          </p>
-        )}
-      </div>
+interface StepGraphNode {
+  key: string;
+  kind: "step" | "in" | "out";
+  label: string;
+  detail: string;
+  row?: WorkflowStepRow;
+  component?: string;
+  tint: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
-      <footer className="flex-none border-t border-line-soft px-2.5 py-1.5 font-mono text-[8.5px] text-faint">
-        click a step to open its document · double-click to pin
-      </footer>
-    </aside>
+interface StepGraphEdge {
+  id: string;
+  sourceKey: string;
+  targetKey: string;
+  path: string;
+  boundary: boolean;
+}
+
+interface StepGraphLayout {
+  nodes: StepGraphNode[];
+  edges: StepGraphEdge[];
+  width: number;
+  height: number;
+  internalEdges: number;
+  boundaryCount: number;
+  stepCount: number;
+}
+
+function buildStepGraphLayout(
+  index: ViewerIndex,
+  component: string,
+  rows: WorkflowStepRow[],
+  tintFor: (component: string) => string,
+): StepGraphLayout {
+  const visible = new Map(rows.map((row) => [row.key, row]));
+  const internal: Array<{ id: string; sourceKey: string; targetKey: string }> = [];
+  const edges: StepGraphEdge[] = [];
+  const incoming = new Map<string, number>();
+  const outgoing = new Map<string, number>();
+
+  for (const connection of index.connections) {
+    const sourceKey = stepKey(connection.outputStepId);
+    const targetKey = stepKey(connection.inputStepId);
+    const sourceIn = visible.has(sourceKey);
+    const targetIn = visible.has(targetKey);
+    if (sourceIn && targetIn) {
+      internal.push({ id: connection.id, sourceKey, targetKey });
+      continue;
+    }
+    if (sourceIn) {
+      const targetComponent = connection.inputStepId[0];
+      if (targetComponent === component) continue;
+      outgoing.set(targetComponent, (outgoing.get(targetComponent) ?? 0) + 1);
+    } else if (targetIn) {
+      const sourceComponent = connection.outputStepId[0];
+      if (sourceComponent === component) continue;
+      incoming.set(sourceComponent, (incoming.get(sourceComponent) ?? 0) + 1);
+    }
+  }
+
+  const count = rows.length;
+  const columns = Math.max(
+    3,
+    Math.min(8, Math.round(Math.sqrt(Math.max(count, 1) / 1.6))),
   );
+  const rowCount = Math.max(1, Math.ceil(count / columns));
+  const gridWidth =
+    columns * STEP_NODE_WIDTH + Math.max(0, columns - 1) * STEP_GAP_X;
+  const gridHeight =
+    rowCount * STEP_NODE_HEIGHT + Math.max(0, rowCount - 1) * STEP_GAP_Y;
+  const leftEntries = [...incoming.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const rightEntries = [...outgoing.entries()].sort(([a], [b]) => a.localeCompare(b));
+  const leftWidth = leftEntries.length ? BOUNDARY_WIDTH : 0;
+  const rightWidth = rightEntries.length ? BOUNDARY_WIDTH : 0;
+  const gridX = STEP_MARGIN + (leftEntries.length ? leftWidth + 40 : 0);
+  const gridY = STEP_MARGIN;
+  const rightX = gridX + gridWidth + (rightEntries.length ? 40 : 0);
+  const leftStackHeight =
+    leftEntries.length * BOUNDARY_HEIGHT +
+    Math.max(0, leftEntries.length - 1) * 22;
+  const rightStackHeight =
+    rightEntries.length * BOUNDARY_HEIGHT +
+    Math.max(0, rightEntries.length - 1) * 22;
+  const canvasHeight =
+    STEP_MARGIN * 2 + Math.max(gridHeight, leftStackHeight, rightStackHeight);
+  const canvasWidth =
+    gridX +
+    gridWidth +
+    (rightEntries.length ? 40 + rightWidth : 0) +
+    STEP_MARGIN;
+
+  const nodes: StepGraphNode[] = [];
+  const nodeByKey = new Map<string, StepGraphNode>();
+  rows.forEach((row, index) => {
+    const column = index % columns;
+    const line = Math.floor(index / columns);
+    const node: StepGraphNode = {
+      key: row.key,
+      kind: "step",
+      label: row.name,
+      detail: row.kindLabel,
+      row,
+      component,
+      tint: tintFor(component),
+      x: gridX + column * (STEP_NODE_WIDTH + STEP_GAP_X),
+      y: gridY + line * (STEP_NODE_HEIGHT + STEP_GAP_Y),
+      width: STEP_NODE_WIDTH,
+      height: STEP_NODE_HEIGHT,
+    };
+    nodes.push(node);
+    nodeByKey.set(node.key, node);
+  });
+
+  const leftStartY =
+    STEP_MARGIN + Math.max(0, (gridHeight - leftStackHeight) / 2);
+  leftEntries.forEach(([source, links], index) => {
+    const node: StepGraphNode = {
+      key: `boundary:in:${source}`,
+      kind: "in",
+      label: source,
+      detail: `${links} link${links === 1 ? "" : "s"}`,
+      component: source,
+      tint: tintFor(source),
+      x: STEP_MARGIN,
+      y: leftStartY + index * (BOUNDARY_HEIGHT + 22),
+      width: BOUNDARY_WIDTH,
+      height: BOUNDARY_HEIGHT,
+    };
+    nodes.push(node);
+    nodeByKey.set(node.key, node);
+  });
+
+  const rightStartY =
+    STEP_MARGIN + Math.max(0, (gridHeight - rightStackHeight) / 2);
+  rightEntries.forEach(([target, links], index) => {
+    const node: StepGraphNode = {
+      key: `boundary:out:${target}`,
+      kind: "out",
+      label: target,
+      detail: `${links} link${links === 1 ? "" : "s"}`,
+      component: target,
+      tint: tintFor(target),
+      x: rightX,
+      y: rightStartY + index * (BOUNDARY_HEIGHT + 22),
+      width: BOUNDARY_WIDTH,
+      height: BOUNDARY_HEIGHT,
+    };
+    nodes.push(node);
+    nodeByKey.set(node.key, node);
+  });
+
+  const pushEdge = (sourceKey: string, targetKey: string, id: string, boundary: boolean) => {
+    const source = nodeByKey.get(sourceKey);
+    const target = nodeByKey.get(targetKey);
+    if (!source || !target) return;
+    const sx = source.x + source.width;
+    const sy = source.y + source.height / 2;
+    const tx = target.x;
+    const ty = target.y + target.height / 2;
+    const dx = Math.max(42, Math.abs(tx - sx) * 0.5);
+    edges.push({
+      id,
+      sourceKey,
+      targetKey,
+      boundary,
+      path: `M ${sx} ${sy} C ${sx + dx} ${sy}, ${tx - dx} ${ty}, ${tx} ${ty}`,
+    });
+  };
+
+  for (const edge of internal) {
+    pushEdge(edge.sourceKey, edge.targetKey, edge.id, false);
+  }
+  for (const connection of index.connections) {
+    const sourceKey = stepKey(connection.outputStepId);
+    const targetKey = stepKey(connection.inputStepId);
+    const sourceIn = visible.has(sourceKey);
+    const targetIn = visible.has(targetKey);
+    if (sourceIn && targetIn) continue;
+    if (sourceIn && connection.inputStepId[0] !== component) {
+      pushEdge(
+        sourceKey,
+        `boundary:out:${connection.inputStepId[0]}`,
+        `boundary:${connection.id}`,
+        true,
+      );
+    } else if (targetIn && connection.outputStepId[0] !== component) {
+      pushEdge(
+        `boundary:in:${connection.outputStepId[0]}`,
+        targetKey,
+        `boundary:${connection.id}`,
+        true,
+      );
+    }
+  }
+
+  return {
+    nodes,
+    edges,
+    width: canvasWidth,
+    height: canvasHeight,
+    internalEdges: internal.length,
+    boundaryCount: leftEntries.length + rightEntries.length,
+    stepCount: count,
+  };
+}
+
+function truncateLabel(value: string, max: number): string {
+  return value.length > max ? `${value.slice(0, max - 1)}…` : value;
+}
+
+function splitStepName(value: string, max: number): [string, string?] {
+  if (value.length <= max) return [value];
+  let cut = max;
+  const underscore = value.lastIndexOf("_", max);
+  const dot = value.lastIndexOf(".", max);
+  if (underscore > max * 0.55) cut = underscore;
+  else if (dot > max * 0.55) cut = dot;
+  const first = value.slice(0, cut);
+  const rest = value.slice(cut).replace(/^[._]/, "");
+  return [first, truncateLabel(rest, max)];
 }
 
 export function WorkflowEditor(props: WorkspaceProps) {
@@ -734,6 +889,41 @@ export function WorkflowEditor(props: WorkspaceProps) {
     Boolean(ui.filters.query.trim()) ||
     ui.filters.component !== "all" ||
     ui.filters.kind !== "all";
+  const selectedNode =
+    ui.filters.component === "all"
+      ? undefined
+      : componentMap.nodes.find((node) => node.id === ui.filters.component);
+  const selectedGroupRows = selectedNode
+    ? filtered.filter((row) => row.component === selectedNode.id)
+    : [];
+  const tintByComponent = useMemo(
+    () =>
+      new Map(
+        componentMap.nodes.map((node, index) => [
+          node.id,
+          groupPalette[index % groupPalette.length],
+        ]),
+      ),
+    [componentMap.nodes],
+  );
+  const tintFor = useCallback(
+    (component: string) => tintByComponent.get(component) ?? theme.edge,
+    [tintByComponent],
+  );
+  const stepLayout = useMemo(
+    () =>
+      selectedNode
+        ? buildStepGraphLayout(
+            props.state.index,
+            selectedNode.id,
+            selectedGroupRows,
+            tintFor,
+          )
+        : undefined,
+    [props.state.index, selectedNode, selectedGroupRows, tintFor],
+  );
+  const activeLayout = stepLayout ?? layout;
+  const inStepGroup = Boolean(stepLayout && selectedNode);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -776,27 +966,34 @@ export function WorkflowEditor(props: WorkspaceProps) {
     observer.observe(element);
     setSize({ width: element.clientWidth, height: element.clientHeight });
     return () => observer.disconnect();
-  }, [layout.nodes.length]);
+  }, [activeLayout.nodes.length]);
 
   const fitView = useCallback(() => {
-    if (!size.width || !size.height || !layout.width || !layout.height) return;
+    if (
+      !size.width ||
+      !size.height ||
+      !activeLayout.width ||
+      !activeLayout.height
+    ) {
+      return;
+    }
     const pad = 30;
     const scale = Math.max(
       0.12,
       Math.min(
         1.4,
         Math.min(
-          (size.width - pad * 2) / layout.width,
-          (size.height - pad * 2) / layout.height,
+          (size.width - pad * 2) / activeLayout.width,
+          (size.height - pad * 2) / activeLayout.height,
         ),
       ),
     );
     setView({
       scale,
-      x: (size.width - layout.width * scale) / 2,
-      y: (size.height - layout.height * scale) / 2,
+      x: (size.width - activeLayout.width * scale) / 2,
+      y: (size.height - activeLayout.height * scale) / 2,
     });
-  }, [size.width, size.height, layout.width, layout.height]);
+  }, [size.width, size.height, activeLayout.width, activeLayout.height]);
 
   useEffect(() => {
     fitView();
@@ -825,7 +1022,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
     };
     element.addEventListener("wheel", onWheel, { passive: false });
     return () => element.removeEventListener("wheel", onWheel);
-  }, [layout.nodes.length]);
+  }, [activeLayout.nodes.length]);
 
   const zoomBy = (factor: number) => {
     setView((current) => {
@@ -891,13 +1088,17 @@ export function WorkflowEditor(props: WorkspaceProps) {
     };
   };
 
-  const selectedNode =
-    ui.filters.component === "all"
-      ? undefined
-      : componentMap.nodes.find((node) => node.id === ui.filters.component);
-  const selectedGroupRows = selectedNode
-    ? filtered.filter((row) => row.component === selectedNode.id)
-    : [];
+  const openStepNode = (row: WorkflowStepRow, preview: boolean) => {
+    props.actions.openTab({
+      selection: {
+        kind: "step",
+        component: row.component,
+        name: row.name,
+        stepId: row.id,
+      },
+      preview,
+    });
+  };
 
   if (!layout.nodes.length) {
     return (
@@ -921,19 +1122,36 @@ export function WorkflowEditor(props: WorkspaceProps) {
         <div className="min-w-0">
           <p className="mb-1 flex items-center gap-1.5 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
             <ListTree aria-hidden className="size-3 text-selection" />
-            Design · workflow compositor
+            {inStepGroup ? "Design · workflow step group" : "Design · workflow compositor"}
           </p>
-          <h1 className="text-[15px] font-semibold tracking-tight text-text">
-            Workflow
+          <h1 className="truncate text-[15px] font-semibold tracking-tight text-text">
+            {inStepGroup ? selectedNode?.id ?? "Step group" : "Workflow"}
           </h1>
           <p className="mt-1 font-mono text-[10px] text-muted">
-            {model.steps} steps · {model.connections} connections ·{" "}
-            {componentMap.nodes.length} components
+            {inStepGroup && stepLayout
+              ? `${stepLayout.stepCount} steps · ${stepLayout.internalEdges} internal links · ${stepLayout.boundaryCount} boundary component${stepLayout.boundaryCount === 1 ? "" : "s"}`
+              : `${model.steps} steps · ${model.connections} connections · ${componentMap.nodes.length} components`}
           </p>
         </div>
-        <span className="shrink-0 rounded border border-line-soft bg-panel-raised px-2 py-1 font-mono text-[9px] text-faint">
-          {activeComponents.size} / {componentMap.nodes.length} components active
-        </span>
+        {inStepGroup && stepLayout ? (
+          <div className="flex shrink-0 items-center gap-2">
+            <span className="rounded border border-line-soft bg-panel-raised px-2 py-1 font-mono text-[9px] text-faint">
+              {stepLayout.stepCount} steps
+            </span>
+            <button
+              type="button"
+              onClick={() => store.setComponent("all")}
+              className="flex items-center gap-1 border border-line-soft px-2 py-1 font-mono text-[9px] text-muted hover:border-line-strong hover:text-text"
+              data-testid="workflow-back-components"
+            >
+              ← Components
+            </button>
+          </div>
+        ) : (
+          <span className="shrink-0 rounded border border-line-soft bg-panel-raised px-2 py-1 font-mono text-[9px] text-faint">
+            {activeComponents.size} / {componentMap.nodes.length} components active
+          </span>
+        )}
       </header>
 
       <div
@@ -946,26 +1164,45 @@ export function WorkflowEditor(props: WorkspaceProps) {
           setMenu({
             x: event.clientX,
             y: event.clientY,
-            label: "Workflow graph",
-            items: [
-              {
-                label: "Show all components",
-                hint: "Reset filters",
-                run: () => store.resetFilters(),
-              },
-              {
-                label: "Fit graph",
-                hint: "Reset view",
-                run: fitView,
-              },
-            ],
+            label: inStepGroup
+              ? (selectedNode?.id ?? "Step group")
+              : "Workflow graph",
+            items: inStepGroup
+              ? [
+                  {
+                    label: "Back to components",
+                    hint: "Workflow",
+                    run: () => store.setComponent("all"),
+                  },
+                  {
+                    label: "Fit graph",
+                    hint: "Reset view",
+                    run: fitView,
+                  },
+                ]
+              : [
+                  {
+                    label: "Show all components",
+                    hint: "Reset filters",
+                    run: () => store.resetFilters(),
+                  },
+                  {
+                    label: "Fit graph",
+                    hint: "Reset view",
+                    run: fitView,
+                  },
+                ],
           });
         }}
       >
         <svg
           className="block h-full w-full select-none"
           role="img"
-          aria-label={`Workflow compositor graph with ${layout.nodes.length} component nodes and ${layout.edges.length} aggregated links`}
+          aria-label={
+            inStepGroup && stepLayout
+              ? `Workflow step graph for ${selectedNode?.id ?? "component"} with ${stepLayout.stepCount} steps and ${stepLayout.edges.length} links`
+              : `Workflow compositor graph with ${layout.nodes.length} component nodes and ${layout.edges.length} aggregated links`
+          }
           data-testid="workflow-map"
         >
           <g
@@ -973,7 +1210,9 @@ export function WorkflowEditor(props: WorkspaceProps) {
             transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}
             opacity={size.width ? 1 : 0}
           >
-            <g data-workflow-edges>
+            {!inStepGroup ? (
+              <>
+                <g data-workflow-edges>
               {layout.edges.map(
                 ({ edge, path, sourceX, sourceY, targetX, targetY, labelX, labelY }) => {
                 const incident =
@@ -1159,7 +1398,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
                       fontFamily="var(--font-mono)"
                       pointerEvents="none"
                     >
-                      {node.steps} steps · {node.kinds} kinds
+                      {`${node.steps} steps · ${node.kinds} kind${node.kinds === 1 ? "" : "s"}`}
                     </text>
                     <text
                       x={12}
@@ -1187,6 +1426,193 @@ export function WorkflowEditor(props: WorkspaceProps) {
                 );
               })}
             </g>
+              </>
+            ) : (
+              <>
+                <g data-workflow-step-edges>
+                  {stepLayout?.edges.map((edge) => (
+                    <path
+                      key={edge.id}
+                      d={edge.path}
+                      fill="none"
+                      stroke={theme.edge}
+                      strokeWidth={edge.boundary ? 0.7 : 1}
+                      strokeOpacity={edge.boundary ? 0.32 : 0.52}
+                      strokeLinecap="round"
+                      data-testid="workflow-step-edge"
+                      data-source={edge.sourceKey}
+                      data-target={edge.targetKey}
+                    />
+                  ))}
+                </g>
+                <g data-workflow-step-nodes>
+                  {stepLayout?.nodes.map((node) => {
+                    const isStep = node.kind === "step";
+                    return (
+                      <g
+                        key={node.key}
+                        transform={`translate(${node.x} ${node.y})`}
+                        className="cursor-pointer"
+                        role="button"
+                        tabIndex={0}
+                        aria-label={`${isStep ? "Step" : "Boundary"} ${node.label}, ${node.detail}`}
+                        onClick={() => {
+                          if (suppressClickRef.current) {
+                            suppressClickRef.current = false;
+                            return;
+                          }
+                          if (isStep && node.row) {
+                            openStepNode(node.row, true);
+                          } else if (node.component) {
+                            store.setComponent(node.component);
+                          }
+                        }}
+                        onDoubleClick={() => {
+                          if (isStep && node.row) openStepNode(node.row, false);
+                        }}
+                        onContextMenu={(event) => {
+                          event.preventDefault();
+                          event.stopPropagation();
+                          setMenu({
+                            x: event.clientX,
+                            y: event.clientY,
+                            label: node.label,
+                            items: [
+                              ...(isStep && node.row
+                                ? [
+                                    {
+                                      label: "Open step",
+                                      hint: "Document",
+                                      run: () => openStepNode(node.row!, false),
+                                    },
+                                  ]
+                                : node.component
+                                  ? [
+                                      {
+                                        label: `Show ${node.component} group`,
+                                        hint: "Workflow",
+                                        run: () => store.setComponent(node.component!),
+                                      },
+                                    ]
+                                  : []),
+                              {
+                                label: "Back to components",
+                                hint: "Workflow",
+                                run: () => store.setComponent("all"),
+                              },
+                              {
+                                label: "Fit graph",
+                                hint: "Reset view",
+                                run: fitView,
+                              },
+                            ],
+                          });
+                        }}
+                        onKeyDown={(event) => {
+                          if (event.key !== "Enter" && event.key !== " ") return;
+                          event.preventDefault();
+                          if (isStep && node.row) openStepNode(node.row, true);
+                          else if (node.component) store.setComponent(node.component);
+                        }}
+                        data-testid={
+                          isStep ? "workflow-step-node" : "workflow-boundary-node"
+                        }
+                        data-step-key={isStep ? node.key : undefined}
+                        data-component={node.component}
+                      >
+                        <title>{`${node.label} · ${node.detail}`}</title>
+                        <rect
+                          width={node.width}
+                          height={node.height}
+                          rx={5}
+                          fill={theme.panel}
+                          stroke={theme.lineStrong}
+                        />
+                        <path
+                          d={`M 0 5 Q 0 0 5 0 H ${node.width - 5} Q ${node.width} 0 ${node.width} 5 V ${STEP_HEADER_HEIGHT} H 0 Z`}
+                          fill={node.tint}
+                          fillOpacity={0.34}
+                        />
+                        {(() => {
+                          const [first, second] = splitStepName(node.label, 25);
+                          return (
+                            <>
+                              <text
+                                x={9}
+                                y={15}
+                                fill={theme.text}
+                                fontSize={9.5}
+                                fontWeight={600}
+                                fontFamily="var(--font-mono)"
+                                pointerEvents="none"
+                              >
+                                {first}
+                              </text>
+                              {second ? (
+                                <text
+                                  x={9}
+                                  y={28}
+                                  fill={theme.text}
+                                  fontSize={8.5}
+                                  fontFamily="var(--font-mono)"
+                                  pointerEvents="none"
+                                >
+                                  {second}
+                                </text>
+                              ) : null}
+                              <text
+                                x={9}
+                                y={54}
+                                fill={theme.faint}
+                                fontSize={8.5}
+                                fontFamily="var(--font-mono)"
+                                pointerEvents="none"
+                              >
+                                {isStep
+                                  ? truncateLabel(node.detail, 29)
+                                  : node.detail}
+                              </text>
+                              <text
+                                x={9}
+                                y={67}
+                                fill={theme.faint}
+                                fontSize={8}
+                                fontFamily="var(--font-mono)"
+                                pointerEvents="none"
+                              >
+                                {isStep && node.row
+                                  ? `${node.row.inputs} in · ${node.row.outputs} out`
+                                  : node.kind === "in"
+                                    ? "incoming boundary"
+                                    : "outgoing boundary"}
+                              </text>
+                            </>
+                          );
+                        })()}
+                        <circle
+                          cx={0}
+                          cy={node.height / 2}
+                          r={4}
+                          fill={theme.raised}
+                          stroke={node.tint}
+                          strokeWidth={1.2}
+                          pointerEvents="none"
+                        />
+                        <circle
+                          cx={node.width}
+                          cy={node.height / 2}
+                          r={4}
+                          fill={theme.raised}
+                          stroke={node.tint}
+                          strokeWidth={1.2}
+                          pointerEvents="none"
+                        />
+                      </g>
+                    );
+                  })}
+                </g>
+              </>
+            )}
           </g>
         </svg>
 
@@ -1234,28 +1660,18 @@ export function WorkflowEditor(props: WorkspaceProps) {
           </button>
         </div>
 
-        {selectedNode ? (
-          <WorkflowStepGroupPanel
-            node={selectedNode}
-            rows={selectedGroupRows}
-            onClose={() => store.setComponent("all")}
-            onOpen={(row, preview) =>
-              props.actions.openTab({
-                selection: {
-                  kind: "step",
-                  component: row.component,
-                  name: row.name,
-                  stepId: row.id,
-                },
-                preview,
-              })
-            }
-          />
+        {inStepGroup && stepLayout && stepLayout.stepCount === 0 ? (
+          <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
+            <p className="border border-line-soft bg-panel/95 px-3 py-2 font-mono text-[11px] text-muted">
+              No steps match the current query and instruction filters.
+            </p>
+          </div>
         ) : null}
 
         <div className="pointer-events-none absolute bottom-3 left-3 rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-faint">
-          drag to pan · wheel to zoom · right-click a component for actions ·
-          node = component · link = aggregated step connections
+          {inStepGroup
+            ? "drag to pan · wheel to zoom · node = step · link = workflow connection · click a step to open its document"
+            : "drag to pan · wheel to zoom · right-click a component for actions · node = component · link = aggregated step connections"}
         </div>
       </div>
 

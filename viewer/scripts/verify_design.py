@@ -393,20 +393,32 @@ def main() -> int:
             pointer.pointer_action.click(component_node, button=0)
             pointer.perform()
             time.sleep(0.7)
-            report["checks"]["workflow_selection_keeps_view"] = (
-                scene.get_attribute("transform") == before_select
-            )
             report["checks"]["workflow_selection_filter"] = driver.find_element(
                 By.CSS_SELECTOR, '[data-testid="workflow-filter-component"]'
             ).get_attribute("value")
-            report["checks"]["workflow_step_group"] = bool(
+            report["checks"]["workflow_step_graph"] = bool(
                 driver.find_elements(
-                    By.CSS_SELECTOR, '[data-testid="workflow-step-group"]'
+                    By.CSS_SELECTOR, '[data-testid="workflow-step-node"]'
                 )
             )
-            report["checks"]["workflow_group_steps"] = len(
+            report["checks"]["workflow_step_nodes"] = len(
                 driver.find_elements(
-                    By.CSS_SELECTOR, '[data-testid="workflow-group-step"]'
+                    By.CSS_SELECTOR, '[data-testid="workflow-step-node"]'
+                )
+            )
+            report["checks"]["workflow_step_edges"] = len(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-step-edge"]'
+                )
+            )
+            report["checks"]["workflow_boundary_nodes"] = len(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-boundary-node"]'
+                )
+            )
+            report["checks"]["workflow_back_components"] = bool(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-back-components"]'
                 )
             )
             driver.find_element(
