@@ -15,38 +15,13 @@ export interface DesignMeaningProps {
   compact?: boolean;
   /** Include the purpose text above claims and frames. */
   showPurpose?: boolean;
-  /** Counts and purpose only; used for the graph summary in sidebars. */
-  summaryOnly?: boolean;
+  /** Show every frame's limitations without requiring a second click. */
+  expandFrames?: boolean;
   emptyText?: string;
 }
 
 function countLabel(count: number, noun: string): string {
   return `${count} ${noun}${count === 1 ? "" : "s"}`;
-}
-
-export function GraphMeaning({
-  claims,
-  frames,
-  purpose,
-  emptyText = "No graph purpose is attached.",
-}: {
-  claims: SemanticText[];
-  frames: SemanticsFrameDTO[];
-  purpose?: string;
-  emptyText?: string;
-}) {
-  return (
-    <div className={styles.graphMeaning}>
-      <DesignMeaning
-        claims={claims}
-        frames={frames}
-        purpose={purpose}
-        showPurpose
-        summaryOnly
-        emptyText={emptyText}
-      />
-    </div>
-  );
 }
 
 export function DesignMeaning({
@@ -55,30 +30,12 @@ export function DesignMeaning({
   purpose,
   compact = false,
   showPurpose = false,
-  summaryOnly = false,
+  expandFrames = false,
   emptyText = "No meaning is attached to this subject.",
 }: DesignMeaningProps) {
   const [openFrames, setOpenFrames] = useState<string[]>([]);
   const limitations = frames.flatMap((frame) => frame.limitations ?? []);
   const visibleClaims = compact ? claims.slice(0, 4) : claims;
-
-  if (summaryOnly) {
-    if (!purpose && !claims.length && !frames.length) {
-      return <p className={styles.meaningEmpty}>{emptyText}</p>;
-    }
-    return (
-      <div className={cx(styles.meaning, styles.meaningCompact)}>
-        <div className={styles.meaningCounts}>
-          <span>{countLabel(claims.length, "claim")}</span>
-          <span>{countLabel(frames.length, "frame")}</span>
-          <span>{countLabel(limitations.length, "limitation")}</span>
-        </div>
-        {purpose ? (
-          <p className={styles.meaningPurpose}>{purpose}</p>
-        ) : null}
-      </div>
-    );
-  }
 
   if (!purpose && !claims.length && !frames.length) {
     return <p className={styles.meaningEmpty}>{emptyText}</p>;
@@ -120,7 +77,7 @@ export function DesignMeaning({
       {frames.length ? (
         <div className={styles.meaningFrames}>
           {frames.map((frame) => {
-            const open = openFrames.includes(frame.text);
+            const open = expandFrames || openFrames.includes(frame.text);
             const frameLimitations = frame.limitations ?? [];
             return (
               <div key={frame.text} className={styles.meaningFrame}>

@@ -895,6 +895,13 @@ def main() -> int:
             "LICENSE" in deselect_inspector
             and "CC0-1.0 · Open Targets" in deselect_inspector
         )
+        report["checks"]["graph_semantics_full"] = (
+            "CLAIMS" in deselect_inspector
+            and "FRAMES" in deselect_inspector
+            and "LIMITATIONS" in deselect_inspector
+            and "Target-disease evidence review" in deselect_inspector
+            and "Do not read this as" in deselect_inspector
+        )
 
         # Restore the target selection for the context-menu checks.
         target = next(
@@ -998,6 +1005,33 @@ def main() -> int:
         active_detail = (
             '[data-testid="editor-pane"][data-active="true"] '
             '[data-testid="detail-editor"]'
+        )
+        detail_spacing = driver.execute_script(
+            """
+            const root = document.querySelector(
+              '[data-testid="editor-pane"][data-active="true"] [data-testid="detail-editor"]'
+            );
+            const body = root?.children[root.children.length - 1];
+            if (!body) return null;
+            const kids = [...body.children];
+            const gaps = [];
+            for (let index = 1; index < kids.length; index += 1) {
+              gaps.push(
+                Math.round(
+                  kids[index].getBoundingClientRect().top -
+                  kids[index - 1].getBoundingClientRect().bottom
+                )
+              );
+            }
+            const style = getComputedStyle(body);
+            return { display: style.display, gap: style.gap, gaps };
+            """
+        )
+        report["checks"]["detail_section_spacing"] = bool(
+            detail_spacing
+            and detail_spacing["display"] == "flex"
+            and detail_spacing["gap"] == "11px"
+            and all(gap == 11 for gap in detail_spacing["gaps"])
         )
         report["checks"]["detail_provenance"] = bool(
             driver.find_elements(

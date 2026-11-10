@@ -23,6 +23,7 @@ import styles from "../detail.module.css";
 const NODE_WIDTH = 196;
 const NODE_HEIGHT = 64;
 const GAP_X = 64;
+const HUG_GAP_X = 12;
 const GAP_Y = 16;
 const MARGIN_X = 32;
 const HEADER_Y = 18;
@@ -554,10 +555,60 @@ function layoutScene(nodes: TreeNode[], edges: TreeEdge[]): TreeScene {
   );
   const bodyHeight =
     maxRows * NODE_HEIGHT + Math.max(0, maxRows - 1) * GAP_Y;
+
+  // A chain of unary operators is one visual unit: its operator columns hug
+  // each other. A fan-in, a skipped layer or any non-operator boundary keeps
+  // the normal gap so the crossing stays readable.
+  const gapBetween = (leftId: number, rightId: number): number => {
+    const left = new Set(columns.get(leftId) ?? []);
+    const right = new Set(columns.get(rightId) ?? []);
+    const leftNodes = [...left]
+      .map((id) => nodeById.get(id))
+      .filter((node): node is TreeNode => Boolean(node));
+    const rightNodes = [...right]
+      .map((id) => nodeById.get(id))
+      .filter((node): node is TreeNode => Boolean(node));
+    if (
+      !leftNodes.length ||
+      !rightNodes.length ||
+      !leftNodes.every((node) => node.kind === "expression") ||
+      !rightNodes.every((node) => node.kind === "expression")
+    ) {
+      return GAP_X;
+    }
+    const incoming = new Map<string, number>();
+    for (const edge of edges) {
+      if (right.has(edge.target)) {
+        if (!left.has(edge.source)) return GAP_X;
+        incoming.set(
+          edge.target,
+          (incoming.get(edge.target) ?? 0) + 1,
+        );
+      }
+      if (left.has(edge.source) && !right.has(edge.target)) {
+        return GAP_X;
+      }
+    }
+    if (
+      rightNodes.some(
+        (node) => (incoming.get(node.id) ?? 0) !== 1,
+      )
+    ) {
+      return GAP_X;
+    }
+    return HUG_GAP_X;
+  };
+
+  const columnX = [MARGIN_X];
+  for (let index = 1; index < layerIds.length; index += 1) {
+    columnX.push(
+      columnX[index - 1] +
+        NODE_WIDTH +
+        gapBetween(layerIds[index - 1], layerIds[index]),
+    );
+  }
   const width =
-    MARGIN_X * 2 +
-    layerIds.length * NODE_WIDTH +
-    Math.max(0, layerIds.length - 1) * GAP_X;
+    (columnX.at(-1) ?? MARGIN_X) + NODE_WIDTH + MARGIN_X;
   const height = BODY_TOP + bodyHeight + BODY_BOTTOM;
 
   const positioned: PositionedNode[] = [];
@@ -573,7 +624,7 @@ function layoutScene(nodes: TreeNode[], edges: TreeEdge[]): TreeScene {
       if (!node) return;
       const positionedNode: PositionedNode = {
         ...node,
-        x: MARGIN_X + columnIndex * (NODE_WIDTH + GAP_X),
+        x: columnX[columnIndex],
         y: top + rowIndex * (NODE_HEIGHT + GAP_Y),
       };
       positioned.push(positionedNode);
@@ -590,7 +641,7 @@ function layoutScene(nodes: TreeNode[], edges: TreeEdge[]): TreeScene {
         .filter((kind): kind is TreeKind => Boolean(kind)),
     );
     return {
-      x: MARGIN_X + index * (NODE_WIDTH + GAP_X),
+      x: columnX[index],
       title:
         kinds.size === 1
           ? visualFor([...kinds][0]).label

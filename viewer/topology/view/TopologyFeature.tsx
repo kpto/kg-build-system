@@ -14,7 +14,7 @@ import * as d3 from "d3";
 import type { WorkspaceProps, SubjectSelection } from "@/workbench/types";
 import type { TopologyProperty } from "@/lib/types";
 import { logicalTypeName } from "@/lib/expressions";
-import { DesignMeaning, GraphMeaning } from "@/shared/design/DesignMeaning";
+import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import {
   componentMeaning,
   graphMeaning,
@@ -660,8 +660,8 @@ function linkPath(
   target: SimNode,
   offset: number,
 ): { path: string; x: number; y: number } {
-  const sourceRadius = nodeRadius(source.model) + 2;
-  const targetRadius = nodeRadius(target.model) + 4;
+  const sourceRadius = nodeRadius(source.model) + 0.75;
+  const targetRadius = nodeRadius(target.model) + 0.75;
   const sourceX = source.x ?? 0;
   const sourceY = source.y ?? 0;
   const targetX = target.x ?? 0;
@@ -1324,7 +1324,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
           <marker
             id="topology-arrow"
             viewBox="0 -4 8 8"
-            refX="7"
+            refX="8"
             refY="0"
             markerWidth="5"
             markerHeight="5"
@@ -1335,7 +1335,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
           <marker
             id="topology-arrow-accent"
             viewBox="0 -4 8 8"
-            refX="7"
+            refX="8"
             refY="0"
             markerWidth="5"
             markerHeight="5"
@@ -1346,7 +1346,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
           <marker
             id="topology-arrow-selection"
             viewBox="0 -4 8 8"
-            refX="7"
+            refX="8"
             refY="0"
             markerWidth="5"
             markerHeight="5"
@@ -1357,7 +1357,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
           <marker
             id="topology-arrow-soft"
             viewBox="0 -4 8 8"
-            refX="7"
+            refX="8"
             refY="0"
             markerWidth="4"
             markerHeight="4"
@@ -1842,6 +1842,7 @@ export function TopologyInspector({
   const raw = props.state.inspection;
   const activeProperty = raw?.kind === "property" ? raw.property : undefined;
   const meaning = entity ? inspectorMeaning(props, entity, activeProperty) : undefined;
+  const graphSemantics = graphMeaning(props.state.index);
   const graphLicense = effectiveLicenseForGraph(props.state.index);
   const entityKind = entity
     ? isTopologyNode(entity)
@@ -1919,10 +1920,13 @@ export function TopologyInspector({
               <SummaryField label="License" value={graphLicense.value} />
             </div>
           </div>
-          <GraphMeaning
-            claims={graphMeaning(props.state.index).claims}
-            frames={graphMeaning(props.state.index).frames}
-            purpose={graphMeaning(props.state.index).purpose}
+          <DesignMeaning
+            claims={graphSemantics.claims}
+            frames={graphSemantics.frames}
+            purpose={graphSemantics.purpose}
+            showPurpose
+            expandFrames
+            emptyText="No graph purpose is attached."
           />
         </div>
       ) : (

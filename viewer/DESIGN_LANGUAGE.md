@@ -137,6 +137,9 @@ so an asset is the same green database mark wherever it appears.
 
 - The shell owns side-bar visibility, width and the split between its sections.
   A document never resizes the workbench.
+- Every detail document shares one section rhythm: the body is a column with the
+  same gap between provenance, workflow, expression tree, meaning and proof
+  regions. A view does not add its own section margins.
 - Both side-bar sections start expanded, split 50/50. Each body sits directly
   below its header; the separator between the two open sections is adjustable. The
   title-bar toggle and `Cmd/Ctrl+B` change side-bar visibility, not purpose.
