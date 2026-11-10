@@ -108,7 +108,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                     ? "Graph"
                     : document.kind === "workflow"
                       ? "Workflow"
-                      : "Subject"}
+                      : document.kind === "subject" &&
+                          document.selection.kind === "step"
+                        ? "Step"
+                        : "Subject"}
                 </dd>
               </div>
               <div>

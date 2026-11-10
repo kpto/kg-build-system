@@ -2,7 +2,10 @@
 
 import { DetailEditor } from "@/detail/DetailFeature";
 import { TopologyEditor } from "@/topology/TopologyFeature";
-import { WorkflowEditor } from "@/workflow/WorkflowFeature";
+import {
+  WorkflowEditor,
+  WorkflowStepEditor,
+} from "@/workflow/WorkflowFeature";
 import { EditorTabs } from "./EditorTabs";
 import { useWorkbench } from "./store";
 import { documentSignature, type WorkbenchState, type WorkbenchTab } from "./types";
@@ -22,12 +25,17 @@ export function EditorArea() {
           const active = tab.id === state.activeTabId;
           const fullBleed =
             tab.document.kind === "graph" || tab.document.kind === "workflow";
+          const step =
+            tab.document.kind === "subject" &&
+            tab.document.selection.kind === "step";
           const Editor =
             tab.document.kind === "graph"
               ? TopologyEditor
               : tab.document.kind === "workflow"
                 ? WorkflowEditor
-                : DetailEditor;
+                : step
+                  ? WorkflowStepEditor
+                  : DetailEditor;
           const current = paneState(state, tab);
           return (
             <div

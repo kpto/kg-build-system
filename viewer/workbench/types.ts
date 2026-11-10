@@ -109,6 +109,9 @@ export function lensSelection(state: WorkbenchState): SubjectSelection | undefin
 }
 
 export function subjectTitle(selection: SubjectSelection): string {
+  if (selection.kind === "step") {
+    return selection.name ?? selection.component ?? "Step";
+  }
   if (selection.kind === "property" && selection.component && selection.property) {
     return `${selection.component}.${selection.property}`;
   }

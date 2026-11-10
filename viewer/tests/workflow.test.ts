@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { contractIndex } from "./fixtures";
 import {
+  buildWorkflowComponentMap,
   buildWorkflowModel,
   DEFAULT_WORKFLOW_FILTERS,
   filterWorkflowRows,
@@ -53,6 +54,22 @@ describe("workflow view model", () => {
       {
         component: "duckdb",
         rows: [expect.objectContaining({ name: "source.surveys" })],
+      },
+    ]);
+  });
+
+  it("aggregates the plan into a component map", () => {
+    const map = buildWorkflowComponentMap(contractIndex, model);
+    expect(map.nodes).toEqual([
+      expect.objectContaining({ id: "core", steps: 1, outgoing: 0, incoming: 1 }),
+      expect.objectContaining({ id: "duckdb", steps: 1, outgoing: 1, incoming: 0 }),
+    ]);
+    expect(map.edges).toEqual([
+      {
+        id: "component-edge:duckdb:core",
+        source: "duckdb",
+        target: "core",
+        count: 1,
       },
     ]);
   });

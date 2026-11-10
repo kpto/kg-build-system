@@ -46,7 +46,9 @@ export function StatusBar({
       ? "Graph"
       : document.kind === "workflow"
         ? "Workflow"
-        : "Subject";
+        : selection?.kind === "step"
+          ? "Step"
+          : "Subject";
   const subjectLabel =
     document.kind === "workflow"
       ? `${state.index.workflow.steps.length} steps / ${state.index.workflow.connections.length} connections`

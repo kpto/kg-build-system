@@ -5,4 +5,9 @@
  * The workflow itself is a pinned document: it is a second artifact, not a mode.
  */
 
-export { WorkflowEditor, WorkflowSidebar } from "./view/WorkflowFeature";
+export {
+  WorkflowControls,
+  WorkflowEditor,
+  WorkflowOutline,
+  WorkflowStepEditor,
+} from "./view/WorkflowFeature";

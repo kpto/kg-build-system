@@ -106,20 +106,20 @@ rule about what the framework is belongs to the framework model.
   content; a subject's detail belongs to one region.
 - One workbench frame is shared by every view: panel geometry never changes
   with the document; documents live in one tab strip with back and forward.
-  Control and Detail are collapsible side-bar sections, not modes; a tab is a
-  standalone document. A tab changes its editor and the controls applicable to
-  that view: it never opens, closes or switches a side-bar section or another
-  tab, and it preserves its own editor state and scroll position. A pinned
-  document is unremovable: it has no close action and ignores close gestures. A
-  control inside a tab may not replace the document that tab represents;
-  navigating to another subject opens or activates that subject's document.
-  Collapsible sections are independent: an expanded body
-  sits below its own header, and two open sections share one adjustable,
-  persisted split. Single-click navigation reuses one preview tab; only an
-  explicit open pins a permanent tab. Inspection is transient and never opens a
-  document; a document opens only on an explicit action and must show content
-  that inspection does not. A navigation row must open the document it names; a
-  facet without its own document level belongs inside its owner's document.
+  Control and Outline are collapsible side-bar sections, not modes; a tab is a
+  standalone document. A tab changes its editor and the Control and Outline
+  bodies applicable to that view: it never opens, closes or switches a side-bar
+  section or another tab, and it preserves its own editor state and scroll
+  position. A pinned document is unremovable: it has no close action and ignores
+  close gestures. A control inside a tab may not replace the document that tab
+  represents; navigating to another subject opens or activates that subject's
+  document. Collapsible sections are independent: an expanded body sits below
+  its own header, and two open sections share one adjustable, persisted split.
+  Single-click navigation reuses one preview tab; only an explicit open pins a
+  permanent tab. Inspection is transient and never opens a document; a document
+  opens only on an explicit action and must show content that inspection does
+  not. A navigation row must open the document it names; a facet without its own
+  document level belongs inside its owner's document.
 - End every change report with the rule-promotion result: none, refined or
   added.
 

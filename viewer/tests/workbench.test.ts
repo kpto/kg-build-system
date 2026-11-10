@@ -4,6 +4,7 @@ import { contractIndex, contractSnapshot } from "./fixtures";
 import { createWorkbenchState, workbenchReducer } from "../workbench/store";
 import {
   documentTitle,
+  subjectTitle,
   type WorkbenchState,
 } from "../workbench/types";
 
@@ -223,6 +224,17 @@ describe("workbench documents and geometry", () => {
       "defect",
     ]);
     expect(activeTitle(current)).toBe("defect");
+  });
+
+  it("titles a step document by its step name", () => {
+    expect(
+      subjectTitle({
+        kind: "step",
+        component: "core",
+        name: "binding.0",
+        stepId: ["core", "binding.0"],
+      }),
+    ).toBe("binding.0");
   });
 
   it("does not close the pinned Graph or Workflow document", () => {

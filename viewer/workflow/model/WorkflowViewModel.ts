@@ -140,6 +140,89 @@ export function groupWorkflowRows(rows: WorkflowStepRow[]): WorkflowGroup[] {
   }));
 }
 
+export interface WorkflowComponentNode {
+  id: string;
+  steps: number;
+  kinds: number;
+  incoming: number;
+  outgoing: number;
+}
+
+export interface WorkflowComponentEdge {
+  id: string;
+  source: string;
+  target: string;
+  count: number;
+}
+
+export interface WorkflowComponentMap {
+  nodes: WorkflowComponentNode[];
+  edges: WorkflowComponentEdge[];
+}
+
+/** Aggregate the plan into a component map: nodes are components, edges are connections. */
+export function buildWorkflowComponentMap(
+  index: ViewerIndex,
+  model: WorkflowModel,
+): WorkflowComponentMap {
+  const nodes = new Map<
+    string,
+    WorkflowComponentNode & { kindKeys: Set<string> }
+  >();
+  const ensure = (id: string) => {
+    let node = nodes.get(id);
+    if (!node) {
+      node = {
+        id,
+        steps: 0,
+        kinds: 0,
+        incoming: 0,
+        outgoing: 0,
+        kindKeys: new Set<string>(),
+      };
+      nodes.set(id, node);
+    }
+    return node;
+  };
+
+  for (const component of model.components) ensure(component);
+  for (const row of model.rows) {
+    const node = ensure(row.component);
+    node.steps += 1;
+    node.kindKeys.add(row.kindKey);
+  }
+
+  const counts = new Map<string, number>();
+  for (const connection of index.connections) {
+    const source = connection.outputStepId[0];
+    const target = connection.inputStepId[0];
+    if (source !== target) {
+      ensure(source).outgoing += 1;
+      ensure(target).incoming += 1;
+    }
+    const key = `${source}\u0000${target}`;
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  return {
+    nodes: [...nodes.values()].map(({ kindKeys, ...node }) => ({
+      ...node,
+      kinds: kindKeys.size,
+    })),
+    edges: [...counts.entries()]
+      .map(([key, count]) => {
+        const [source, target] = key.split("\u0000");
+        return {
+          id: `component-edge:${source}:${target}`,
+          source,
+          target,
+          count,
+        };
+      })
+      .sort((left, right) => right.count - left.count),
+  };
+}
+
 export function formatStepId(id: StepId): string {
   return id.join(" / ");
 }

@@ -125,7 +125,7 @@ function subjectTarget(
         selection: {
           ...base,
           kind: "step",
-          name: record.name,
+          name: step?.id[1] ?? record.name,
           ...(step ? { component: step.id[0], stepId: step.id } : {}),
         },
         tabLabel,
@@ -137,7 +137,7 @@ function subjectTarget(
         selection: {
           ...base,
           kind: "step",
-          name: record.name,
+          name: step?.id[1] ?? record.name,
           component: record.name,
           ...(step ? { stepId: step.id } : {}),
         },

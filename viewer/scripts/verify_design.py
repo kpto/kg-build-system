@@ -99,7 +99,7 @@ def main() -> int:
                 for el in driver.find_elements(
                     By.CSS_SELECTOR,
                     '[data-testid="sidebar-section-control"],'
-                    ' [data-testid="sidebar-section-detail"]',
+                    ' [data-testid="sidebar-section-outline"]',
                 )
             }
 
@@ -175,7 +175,8 @@ def main() -> int:
         topology_geometry = geometry()
         shot("01-topology")
 
-        # The Workflow document is a pinned tab with its own view controls.
+        # The Workflow document is a pinned visualisation. Its step list lives
+        # in Outline and a step opens its own detail document.
         workflow_tab = next(
             (
                 el
@@ -193,19 +194,38 @@ def main() -> int:
             report["checks"]["workflow_editor"] = bool(
                 driver.find_elements(By.CSS_SELECTOR, '[data-testid="workflow-editor"]')
             )
-            report["checks"]["workflow_sidebar"] = bool(
-                driver.find_elements(By.CSS_SELECTOR, '[data-testid="workflow-sidebar"]')
+            report["checks"]["workflow_map"] = bool(
+                driver.find_elements(By.CSS_SELECTOR, '[data-testid="workflow-map"]')
+            )
+            report["checks"]["workflow_component_nodes"] = len(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-component-node"]'
+                )
+            )
+            report["checks"]["workflow_controls"] = bool(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-controls"]'
+                )
+            )
+            report["checks"]["workflow_outline_closed"] = (
+                expanded().get("sidebar-section-outline") == "false"
+            )
+
+            driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="sidebar-section-outline"]'
+            ).click()
+            time.sleep(0.8)
+            report["checks"]["workflow_outline"] = bool(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-outline"]'
+                )
             )
             report["checks"]["workflow_steps"] = len(
                 driver.find_elements(By.CSS_SELECTOR, '[data-testid="workflow-step"]')
             )
-            report["checks"]["workflow_step_detail"] = bool(
-                driver.find_elements(
-                    By.CSS_SELECTOR, '[data-testid="workflow-step-detail"]'
-                )
-            )
             report["checks"]["workflow_status"] = status()
             shot("02-workflow")
+
             query = driver.find_element(
                 By.CSS_SELECTOR, '[data-testid="workflow-filter-query"]'
             )
@@ -218,11 +238,48 @@ def main() -> int:
                 By.CSS_SELECTOR, '[data-testid="workflow-reset"]'
             ).click()
             time.sleep(0.6)
+
+            first_step = driver.find_elements(
+                By.CSS_SELECTOR, '[data-testid="workflow-step"]'
+            )[0]
+            step_key = first_step.get_attribute("data-step-key")
+            step_name = step_key.split("\u0000")[1]
+            first_step.click()
+            time.sleep(1)
+            report["checks"]["workflow_step_tab"] = tabs()[-1]
+            report["checks"]["workflow_step_title"] = tabs()[-1] == step_name
+            report["checks"]["workflow_step_editor"] = bool(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-step-editor"]'
+                )
+            )
+            report["checks"]["workflow_outline_after_step"] = bool(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-outline"]'
+                )
+            )
+            report["checks"]["workflow_step_status"] = status()
+
+            before_step_close = len(tabs())
+            middle_click(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="editor-tabs"] .wb-tab-label'
+                )[-1].find_element(By.XPATH, "..")
+            )
+            report["checks"]["workflow_step_tab_closes"] = (
+                len(tabs()) == before_step_close - 1
+            )
+
             workflow_wrapper = workflow_tab.find_element(By.XPATH, "..")
             middle_click(workflow_wrapper)
             report["checks"]["workflow_survives_middle_click"] = (
                 "Workflow" in tabs()
             )
+
+            driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="sidebar-section-outline"]'
+            ).click()
+            time.sleep(0.5)
             click_tab("Graph")
 
         nodes = driver.find_elements(By.CSS_SELECTOR, "[data-topology-node-id]")
@@ -302,7 +359,7 @@ def main() -> int:
         # Opening Detail while Control is open leaves both open and adds an
         # adjustable separator between them.
         driver.find_element(
-            By.CSS_SELECTOR, '[data-testid="sidebar-section-detail"]'
+            By.CSS_SELECTOR, '[data-testid="sidebar-section-outline"]'
         ).click()
         time.sleep(0.7)
         report["checks"]["sidebar_after_open"] = expanded()
@@ -313,7 +370,7 @@ def main() -> int:
         )
         report["checks"]["both_sections_open"] = (
             expanded().get("sidebar-section-control") == "true"
-            and expanded().get("sidebar-section-detail") == "true"
+            and expanded().get("sidebar-section-outline") == "true"
         )
         splitter = driver.find_elements(
             By.CSS_SELECTOR, '[data-testid="sidebar-splitter"]'
@@ -417,7 +474,7 @@ def main() -> int:
         # A tab never changes the side bar and never brings back a bottom panel.
         report["checks"]["sidebar_unchanged_by_tabs"] = (
             expanded().get("sidebar-section-control") == "true"
-            and expanded().get("sidebar-section-detail") == "true"
+            and expanded().get("sidebar-section-outline") == "true"
         )
         report["checks"]["no_bottom_panel_after_tabs"] = not driver.find_elements(
             By.CSS_SELECTOR, '[data-testid="bottom-panel"]'
