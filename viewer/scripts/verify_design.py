@@ -382,10 +382,6 @@ def main() -> int:
             ).click()
             time.sleep(0.5)
 
-            scene = driver.find_element(
-                By.CSS_SELECTOR, '[data-testid="workflow-scene"]'
-            )
-            before_select = scene.get_attribute("transform")
             component_node = driver.find_elements(
                 By.CSS_SELECTOR, '[data-testid="workflow-component-node"]'
             )[0]
@@ -396,6 +392,20 @@ def main() -> int:
             report["checks"]["workflow_selection_filter"] = driver.find_element(
                 By.CSS_SELECTOR, '[data-testid="workflow-filter-component"]'
             ).get_attribute("value")
+            report["checks"]["workflow_step_graph_before_expand"] = bool(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-step-node"]'
+                )
+            )
+            report["checks"]["workflow_open_step_group"] = bool(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-open-step-group"]'
+                )
+            )
+            driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-open-step-group"]'
+            ).click()
+            time.sleep(0.8)
             report["checks"]["workflow_step_graph"] = bool(
                 driver.find_elements(
                     By.CSS_SELECTOR, '[data-testid="workflow-step-node"]'
@@ -419,6 +429,19 @@ def main() -> int:
             report["checks"]["workflow_back_components"] = bool(
                 driver.find_elements(
                     By.CSS_SELECTOR, '[data-testid="workflow-back-components"]'
+                )
+            )
+            driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-back-components"]'
+            ).click()
+            time.sleep(0.7)
+            report["checks"]["workflow_back_keeps_selection"] = (
+                driver.find_element(
+                    By.CSS_SELECTOR, '[data-testid="workflow-filter-component"]'
+                ).get_attribute("value")
+                == "duckdb"
+                and not driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-step-node"]'
                 )
             )
             driver.find_element(

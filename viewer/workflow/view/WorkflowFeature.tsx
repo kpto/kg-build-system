@@ -119,9 +119,9 @@ export function WorkflowControls({ state }: WorkspaceProps) {
         </div>
 
         <p className="text-[9px] leading-relaxed text-faint">
-          Choosing a component enters its step graph. Filters narrow that step
-          graph and dim the component overview. Every step remains available in
-          Explorer.
+          Choosing a component selects it. Use **Open step group** in the header
+          to enter its step graph. Filters narrow that graph and dim the
+          component overview; every step remains available in Explorer.
         </p>
 
         <button
@@ -894,8 +894,11 @@ export function WorkflowEditor(props: WorkspaceProps) {
     ui.filters.component === "all"
       ? undefined
       : componentMap.nodes.find((node) => node.id === ui.filters.component);
-  const selectedGroupRows = selectedNode
-    ? filtered.filter((row) => row.component === selectedNode.id)
+  const focusedNode = ui.focusedComponent
+    ? componentMap.nodes.find((node) => node.id === ui.focusedComponent)
+    : undefined;
+  const focusedGroupRows = focusedNode
+    ? filtered.filter((row) => row.component === focusedNode.id)
     : [];
   const tintByComponent = useMemo(
     () =>
@@ -913,18 +916,18 @@ export function WorkflowEditor(props: WorkspaceProps) {
   );
   const stepLayout = useMemo(
     () =>
-      selectedNode
+      focusedNode
         ? buildStepGraphLayout(
             props.state.index,
-            selectedNode.id,
-            selectedGroupRows,
+            focusedNode.id,
+            focusedGroupRows,
             tintFor,
           )
         : undefined,
-    [props.state.index, selectedNode, selectedGroupRows, tintFor],
+    [props.state.index, focusedNode, focusedGroupRows, tintFor],
   );
   const activeLayout = stepLayout ?? layout;
-  const inStepGroup = Boolean(stepLayout && selectedNode);
+  const inStepGroup = Boolean(stepLayout && focusedNode);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -1126,7 +1129,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
             {inStepGroup ? "Design · workflow step group" : "Design · workflow compositor"}
           </p>
           <h1 className="truncate text-[15px] font-semibold tracking-tight text-text">
-            {inStepGroup ? selectedNode?.id ?? "Step group" : "Workflow"}
+            {inStepGroup ? focusedNode?.id ?? "Step group" : "Workflow"}
           </h1>
           <p className="mt-1 font-mono text-[10px] text-muted">
             {inStepGroup && stepLayout
@@ -1141,7 +1144,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
             </span>
             <button
               type="button"
-              onClick={() => store.setComponent("all")}
+              onClick={() => store.focusComponent(undefined)}
               className="flex items-center gap-1 border border-line-soft px-2 py-1 font-mono text-[9px] text-muted hover:border-line-strong hover:text-text"
               data-testid="workflow-back-components"
             >
@@ -1149,9 +1152,21 @@ export function WorkflowEditor(props: WorkspaceProps) {
             </button>
           </div>
         ) : (
-          <span className="shrink-0 rounded border border-line-soft bg-panel-raised px-2 py-1 font-mono text-[9px] text-faint">
-            {activeComponents.size} / {componentMap.nodes.length} components active
-          </span>
+          <div className="flex shrink-0 items-center gap-2">
+            {selectedNode ? (
+              <button
+                type="button"
+                onClick={() => store.focusComponent(selectedNode.id)}
+                className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
+                data-testid="workflow-open-step-group"
+              >
+                Open step group →
+              </button>
+            ) : null}
+            <span className="rounded border border-line-soft bg-panel-raised px-2 py-1 font-mono text-[9px] text-faint">
+              {activeComponents.size} / {componentMap.nodes.length} components active
+            </span>
+          </div>
         )}
       </header>
 
@@ -1173,7 +1188,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
                   {
                     label: "Back to components",
                     hint: "Workflow",
-                    run: () => store.setComponent("all"),
+                    run: () => store.focusComponent(undefined),
                   },
                   {
                     label: "Fit graph",
@@ -1302,6 +1317,11 @@ export function WorkflowEditor(props: WorkspaceProps) {
                             hint: selected ? "Show all" : "Filter",
                             run: () =>
                               store.setComponent(selected ? "all" : node.id),
+                          },
+                          {
+                            label: "Open step group",
+                            hint: "Expand",
+                            run: () => store.focusComponent(node.id),
                           },
                           {
                             label: "Show steps in Explorer",
@@ -1465,7 +1485,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
                           if (isStep && node.row) {
                             openStepNode(node.row, true);
                           } else if (node.component) {
-                            store.setComponent(node.component);
+                            store.focusComponent(node.component);
                           }
                         }}
                         onDoubleClick={() => {
@@ -1492,14 +1512,14 @@ export function WorkflowEditor(props: WorkspaceProps) {
                                       {
                                         label: `Show ${node.component} group`,
                                         hint: "Workflow",
-                                        run: () => store.setComponent(node.component!),
+                                        run: () => store.focusComponent(node.component!),
                                       },
                                     ]
                                   : []),
                               {
                                 label: "Back to components",
                                 hint: "Workflow",
-                                run: () => store.setComponent("all"),
+                                run: () => store.focusComponent(undefined),
                               },
                               {
                                 label: "Fit graph",
@@ -1513,7 +1533,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
                           if (event.key !== "Enter" && event.key !== " ") return;
                           event.preventDefault();
                           if (isStep && node.row) openStepNode(node.row, true);
-                          else if (node.component) store.setComponent(node.component);
+                          else if (node.component) store.focusComponent(node.component);
                         }}
                         data-testid={
                           isStep ? "workflow-step-node" : "workflow-boundary-node"

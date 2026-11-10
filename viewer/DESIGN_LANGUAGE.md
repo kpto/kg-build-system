@@ -72,7 +72,7 @@ The first paint states the design, not every annotation.
 | --- | --- | --- | --- |
 | Graph document | circles, thin relation links, hub labels | all labels, relation names | containment, semantics, property counts |
 | Graph inspection | graph purpose and counts when nothing is selected; otherwise identity and description | properties with types | attached claims, frames and limitations |
-| Workflow document | compositor-style component graph; selecting a component drills into a step-level flow graph where steps fill columns top-to-bottom; drag to pan and wheel to zoom | aggregated connection counts and active components | the step catalogue in Explorer and its step documents |
+| Workflow document | compositor-style component graph; selecting a component and using **Open step group** drills into a step-level flow graph where steps fill columns top-to-bottom; drag to pan and wheel to zoom | aggregated connection counts and active components | the step catalogue in Explorer and its step documents |
 | Step document | identity, instruction and openings on the shared detail surface | payload values | connections and blueprint bindings |
 | Subject document | subject meaning and properties | attached semantics along the path | property provenance, type/presence chain and trace |
 
@@ -152,7 +152,7 @@ type/presence chain. When the question widens, open the parent subject from the
 Explorer tree; it becomes its own document tab.
 
 **Read the workflow.** Open **Workflow** → read the component map → click a
-component to enter its step-level flow graph → filter with Control → click a
+component to select it → **Open step group** → filter with Control → click a
 step node → read its openings, instruction payload, connections and blueprint
 bindings. **Back** returns to the component map.
 

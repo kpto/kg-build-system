@@ -8,6 +8,8 @@ import {
 export interface WorkflowUiState {
   filters: WorkflowFilters;
   selectedStepKey?: string;
+  /** The component whose step graph is open, independent of filter selection. */
+  focusedComponent?: string;
 }
 
 const defaultState = (): WorkflowUiState => ({
@@ -39,7 +41,21 @@ class WorkflowUiStore {
   };
 
   setComponent = (component: string): void => {
-    this.patch({ filters: { ...this.state.filters, component } });
+    this.patch({
+      filters: { ...this.state.filters, component },
+      focusedComponent: undefined,
+    });
+  };
+
+  focusComponent = (component: string | undefined): void => {
+    if (!component) {
+      this.patch({ focusedComponent: undefined });
+      return;
+    }
+    this.patch({
+      filters: { ...this.state.filters, component },
+      focusedComponent: component,
+    });
   };
 
   setKind = (kind: string): void => {
@@ -47,7 +63,10 @@ class WorkflowUiStore {
   };
 
   resetFilters = (): void => {
-    this.patch({ filters: { ...DEFAULT_WORKFLOW_FILTERS } });
+    this.patch({
+      filters: { ...DEFAULT_WORKFLOW_FILTERS },
+      focusedComponent: undefined,
+    });
   };
 
   selectStep = (key: string | undefined): void => {
