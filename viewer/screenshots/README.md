@@ -17,6 +17,7 @@ They are review aids, not golden images.
 | `10-workflow-step-graph.png` | A selected workflow component opened with **Open step group**, showing its step-level flow graph inside the Workflow tab. The selected step highlights its incident boundary links and dims the other steps; **Open step** opens its detail document. Steps fill columns top-to-bottom without row wrapping. |
 | `11-workflow-selected-component.png` | Left-clicking a workflow component selects it without opening the step graph; its aggregated links highlight, the rest dim, and **Open step group** in the canvas toolbar is the explicit expansion control. |
 | `12-detail-node.png` | A node document opens with its **Provenance** section first: the asset, table and projection carry their canonical logo and colour and open their owning asset; design meaning and properties follow. |
+| `13-detail-edge.png` | An edge with no declared properties still states provenance from its binding identity and source/target expressions: asset `open_target` and table `clinical_report`. |
 
 A tab is a standalone document. It changes its editor and the applicable Control
 body; Explorer always states the whole design. Middle-click closes a subject or

@@ -89,7 +89,9 @@ Node, edge and property documents open with a **Provenance** section that lists
 the resolved assets, tables and projections behind the subject, before design
 meaning and properties. It is a summary; the property document's lineage canvas
 shows the full branch. Each provenance value is a reference: it carries the
-asset document that owns it and opens that document.
+asset document that owns it and opens that document. A node or edge with no
+declared properties still derives provenance from its binding identity, source
+and target expressions.
 
 One concept registry supplies the logo and representative colour for graph,
 workflow, node, edge, property, asset, table, projection, abstract category and

@@ -3,6 +3,8 @@ import { describe, expect, it } from "vitest";
 import { buildViewerIndex, openingMatchesStep } from "../lib/indexes";
 import { buildLineage, propertySelection } from "../lib/lineage";
 import { loadSnapshotFromObject } from "../lib/load";
+import { buildProof } from "../proof/model";
+import { provenanceReferences } from "../proof/references";
 
 const text = readFileSync(
   new URL("../public/data/opentargets.snapshot.json", import.meta.url),
@@ -60,6 +62,25 @@ describe("Open Targets snapshot", () => {
     expect(index.semanticsByKind.get("edge")).toHaveLength(163);
     expect(index.semanticsByKind.get("binding")).toHaveLength(239);
     expect(index.assetProfilesByName.get("open_target")?.authority).toBe("primary");
+  });
+
+  it("derives provenance for an edge without declared properties", () => {
+    const proof = buildProof(index, {
+      level: "edge",
+      kind: "edge",
+      component: "clinical_trial_studies_molecule",
+    });
+    expect(proof.properties).toEqual([]);
+
+    const provenance = provenanceReferences(index, proof);
+    expect(provenance.assets.map((reference) => reference.name)).toEqual([
+      "open_target",
+    ]);
+    expect(provenance.tables.map((reference) => reference.name)).toEqual([
+      "clinical_report",
+    ]);
+    expect(provenance.tables[0].assetName).toBe("open_target");
+    expect(provenance.projections).toEqual([]);
   });
 
   it("resolves every binding to its workflow step", () => {

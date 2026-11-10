@@ -1,7 +1,8 @@
-import { resolveAssetName } from "@/lib/indexes";
 import type { ConceptReference } from "@/lib/concepts";
+import { resolveAssetName } from "@/lib/indexes";
 import type { ViewerIndex } from "@/lib/types";
 import type { ProofModel } from "./model";
+import { resolveExpressionSources } from "./sources";
 
 export interface ProvenanceReferences {
   assets: ConceptReference[];
@@ -61,6 +62,23 @@ export function provenanceReferences(
       assets.push(...property.assets);
       tables.push(...property.sources);
       projections.push(...property.projections);
+    }
+    const kind = model.subject.kind;
+    if (kind === "node" || kind === "edge") {
+      for (const binding of index.bindings) {
+        if (binding.kind !== kind || binding.component !== model.subject.component) {
+          continue;
+        }
+        const resolved = resolveExpressionSources(index, [
+          binding.binding.identity,
+          binding.binding.source_identity,
+          binding.binding.target_identity,
+          ...Object.values(binding.binding.properties ?? {}),
+        ]);
+        assets.push(...resolved.assets);
+        tables.push(...resolved.sources);
+        projections.push(...resolved.projections);
+      }
     }
   }
 

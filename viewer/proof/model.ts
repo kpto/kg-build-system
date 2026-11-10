@@ -53,6 +53,7 @@ import {
   resolveAssetName,
   semanticSubjectKey,
 } from "@/lib/indexes";
+import { resolveFieldSources } from "./sources";
 
 export type ProofLevel = "property" | "node" | "edge" | "abstract" | "asset";
 
@@ -544,35 +545,7 @@ function entrySources(
   index: ViewerIndex,
   entry: ReturnType<typeof findComponentPropertyBindings>[number],
 ): { sources: string[]; assets: string[]; projections: string[] } {
-  const fieldRefs = expressionFieldRefs(entry);
-  const owners = fieldRefs
-    .map((fieldRef) => index.fieldsByKey.get(fieldRefKey(fieldRef))?.ownerName)
-    .filter((name): name is string => Boolean(name));
-  const projections = [
-    ...new Set(owners.filter((name) => index.projectionByName.has(name))),
-  ];
-  const sources = [
-    ...new Set(
-      owners.flatMap((name) => {
-        const projection = index.projectionByName.get(name);
-        const relations = projection
-          ? [
-              projection.row_source?.relation?.[2],
-              ...relationNamesFromRowSource(projection.row_source),
-            ].filter((candidate): candidate is string => Boolean(candidate))
-          : [name];
-        return relations;
-      }),
-    ),
-  ];
-  const assets = [
-    ...new Set(
-      [...owners, ...sources]
-        .map((name) => resolveAssetName(index, name))
-        .filter((name): name is string => Boolean(name)),
-    ),
-  ];
-  return { sources, assets, projections };
+  return resolveFieldSources(index, expressionFieldRefs(entry));
 }
 
 function summariseProperty(
