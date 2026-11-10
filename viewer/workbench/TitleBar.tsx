@@ -1,12 +1,13 @@
 "use client";
 
-import { Boxes, PanelLeft, RotateCcw, Search, Settings } from "lucide-react";
+import { Boxes, FolderOpen, PanelLeft, RotateCcw, Search, Settings } from "lucide-react";
 
 import { useWorkbench } from "./store";
 
 export interface TitleBarProps {
   onOpenPalette(): void;
   onOpenSettings(): void;
+  onOpenWorkflowFile(): void;
   sidebarVisible: boolean;
   onToggleSidebar(): void;
   onResetLayout(): void;
@@ -15,6 +16,7 @@ export interface TitleBarProps {
 export function TitleBar({
   onOpenPalette,
   onOpenSettings,
+  onOpenWorkflowFile,
   sidebarVisible,
   onToggleSidebar,
   onResetLayout,
@@ -50,6 +52,16 @@ export function TitleBar({
       </button>
 
       <div className="wb-layout-controls" role="group" aria-label="Layout controls">
+        <button
+          type="button"
+          className="wb-icon-button"
+          onClick={onOpenWorkflowFile}
+          aria-label="Open workflow file"
+          title="Open a workflow or snapshot JSON file"
+          data-testid="open-workflow-file"
+        >
+          <FolderOpen aria-hidden className="size-4" />
+        </button>
         <button
           type="button"
           className="wb-icon-button"

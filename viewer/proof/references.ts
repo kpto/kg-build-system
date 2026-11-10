@@ -33,7 +33,12 @@ function ownedReferences(
       concept,
       name,
       target: assetName
-        ? { concept: "asset" as const, name: assetName }
+        ? {
+            concept: "asset" as const,
+            name: assetName,
+            item: name,
+            itemKind: concept,
+          }
         : undefined,
     };
   });

@@ -11,6 +11,7 @@
 import {
   useEffect,
   useMemo,
+  useRef,
   useState,
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
@@ -38,6 +39,7 @@ import {
   getWorkflowUiStore,
   useWorkflowUi,
 } from "@/workflow/view/workflowUi";
+import { effectiveLicenseForModel } from "@/proof/license";
 import { provenanceReferences } from "@/proof/references";
 import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
 import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
@@ -206,6 +208,7 @@ function ProvenanceSection({
   onOpen(reference: ConceptReference): void;
 }) {
   const provenance = provenanceReferences(index, model);
+  const license = effectiveLicenseForModel(index, model);
   const count = (value: number, singular: string) =>
     `${value} ${value === 1 ? singular : `${singular}s`}`;
   return (
@@ -248,6 +251,17 @@ function ProvenanceSection({
           testId="detail-provenance-projections"
         />
       </div>
+      <footer className={styles.provenanceLicense}>
+        <span className={styles.provenanceLicenseLabel}>Effective license</span>
+        <span
+          className={styles.provenanceLicenseValue}
+          title={license.licenses.join(" · ") || "No asset declares a licence."}
+          data-testid="detail-effective-license"
+          data-license-source={license.source}
+        >
+          {license.value}
+        </span>
+      </footer>
     </section>
   );
 }
@@ -612,6 +626,23 @@ export function ExplorerSidebar(props: WorkspaceProps) {
         component: row.component,
         name: row.name,
         stepId: row.id,
+      },
+      preview,
+    });
+  };
+  const openAssetItem = (
+    component: string,
+    item: string,
+    itemKind: "table" | "projection",
+    preview: boolean,
+  ) => {
+    props.actions.openTab({
+      selection: {
+        level: "asset",
+        kind: "asset",
+        component,
+        item,
+        itemKind,
       },
       preview,
     });
@@ -1029,19 +1060,15 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                 active={
                   Boolean(assetName) &&
                   active?.level === "asset" &&
-                  active.component === assetName
+                  active.component === assetName &&
+                  active.itemKind === "table" &&
+                  active.item === table.name
                 }
                 onSelect={() =>
-                  assetName &&
-                  select({ level: "asset", kind: "asset", component: assetName })
+                  assetName && openAssetItem(assetName, table.name, "table", true)
                 }
                 onOpenPermanent={() =>
-                  assetName &&
-                  openPermanent({
-                    level: "asset",
-                    kind: "asset",
-                    component: assetName,
-                  })
+                  assetName && openAssetItem(assetName, table.name, "table", false)
                 }
               />
             );
@@ -1066,19 +1093,27 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                 active={
                   Boolean(assetName) &&
                   active?.level === "asset" &&
-                  active.component === assetName
+                  active.component === assetName &&
+                  active.itemKind === "projection" &&
+                  active.item === projection.name
                 }
                 onSelect={() =>
                   assetName &&
-                  select({ level: "asset", kind: "asset", component: assetName })
+                  openAssetItem(
+                    assetName,
+                    projection.name,
+                    "projection",
+                    true,
+                  )
                 }
                 onOpenPermanent={() =>
                   assetName &&
-                  openPermanent({
-                    level: "asset",
-                    kind: "asset",
-                    component: assetName,
-                  })
+                  openAssetItem(
+                    assetName,
+                    projection.name,
+                    "projection",
+                    false,
+                  )
                 }
               />
             );
@@ -1816,9 +1851,13 @@ function AbstractProofView({
 function AssetProofView({
   model,
   actions,
+  focusItem,
+  focusKind,
 }: {
   model: ProofModel;
   actions: WorkspaceProps["actions"];
+  focusItem?: string;
+  focusKind?: "table" | "projection";
 }) {
   const asset = model.asset;
   if (!asset) {
@@ -1858,10 +1897,16 @@ function AssetProofView({
 
       <div className={styles.assetGrid}>
         <Panel concept="table" title="Tables" meta={`${asset.relations.length}`}>
-          <AssetDataRows rows={asset.relations} />
+          <AssetDataRows
+            rows={asset.relations}
+            focusName={focusKind === "table" ? focusItem : undefined}
+          />
         </Panel>
         <Panel concept="projection" title="Projections" meta={`${asset.projections.length}`}>
-          <AssetDataRows rows={asset.projections} />
+          <AssetDataRows
+            rows={asset.projections}
+            focusName={focusKind === "projection" ? focusItem : undefined}
+          />
         </Panel>
       </div>
 
@@ -1931,6 +1976,7 @@ function ProfileField({ label, value }: { label: string; value?: string }) {
 
 function AssetDataRows({
   rows,
+  focusName,
 }: {
   rows: Array<{
     name: string;
@@ -1938,12 +1984,30 @@ function AssetDataRows({
     columns: number;
     semantics: ProofSemantics[];
   }>;
+  focusName?: string;
 }) {
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!focusName) return;
+    const target = ref.current?.querySelector<HTMLElement>('[data-focus="true"]');
+    if (!target) return;
+    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    target.scrollIntoView({
+      block: "nearest",
+      behavior: reduce ? "auto" : "smooth",
+    });
+  }, [focusName, rows]);
+
   if (!rows.length) return <EmptyState>No entries.</EmptyState>;
   return (
-    <div className={styles.dataRows}>
+    <div className={styles.dataRows} ref={ref}>
       {rows.map((row) => (
-        <div key={row.name} className={styles.dataRow}>
+        <div
+          key={row.name}
+          className={styles.dataRow}
+          data-focus={focusName === row.name ? "true" : undefined}
+        >
           <div>
             <span className={styles.dataName}>{row.name}</span>
             {row.description ? (
@@ -2107,7 +2171,12 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       {model.level === "property" ? (
         <PropertyProofView model={model} />
       ) : model.level === "asset" ? (
-        <AssetProofView model={model} actions={props.actions} />
+        <AssetProofView
+          model={model}
+          actions={props.actions}
+          focusItem={selection?.item}
+          focusKind={selection?.itemKind}
+        />
       ) : model.level === "abstract" ? (
         <AbstractProofView model={model} actions={props.actions} />
       ) : (

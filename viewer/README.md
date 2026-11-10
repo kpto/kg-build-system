@@ -10,7 +10,11 @@ frame, one document tab strip, and two collapsible side-bar sections:
 | Side-bar section | What it is for |
 | --- | --- |
 | **Control** | Controls for the active view: graph filters, labels, containment, semantics, legend and layout; workflow component and instruction filters. |
-| **Explorer** | Everything in the design: assets, tables, projections, nodes, abstract categories, edges and their properties, plus the workflow components and step catalogue. Right-clicking an item jumps to its Graph or Workflow view; a table or projection opens its owning asset. |
+| **Explorer** | Everything in the design: assets, tables, projections, nodes, abstract categories, edges and their properties, plus the workflow components and step catalogue. Right-clicking an item jumps to its Graph or Workflow view; a table or projection opens its owning asset and focuses that item. |
+
+The title-bar folder button opens another workflow or snapshot JSON file. The
+workbench frame stays; the loaded artifact and its indexes are replaced. An
+invalid file is reported in place and leaves the current artifact intact.
 
 The tab strip is the document axis:
 
@@ -52,7 +56,7 @@ The first paint shows the design, not its annotations.
 | --- | --- | --- |
 | Graph document | graph canvas and floating **Inspect** window showing graph purpose and counts | selecting an entity fills Inspect with its description, properties and meaning; clicking empty space returns to graph purpose |
 | Workflow document | compositor-style component graph with step counts and aggregated connections; no title banner, actions in a floating canvas toolbar; drag to pan, wheel to zoom, Fit to reset | filter by component or instruction kind in Control; click a component to select it, then use **Open step group** to enter its step-level flow graph with columns filling top-to-bottom; clicking a step node selects it, **Open step** opens its detail document, and **Back** returns to components. Selecting a component, step or boundary node highlights its incident links and dims the other nodes and links; entering another step group requires **Open step group** |
-| Subject document | provenance assets, tables and projections first for node, edge and property documents; each reference opens its owning asset; a narrowed workflow graph follows, then meaning, properties and attached semantics | property rows, the branch selector and the Explorer tree for another subject document |
+| Subject document | provenance assets, tables and projections first for node, edge and property documents; each reference opens its owning asset at the named item, and the effective licence follows those assets; a narrowed workflow graph follows, then meaning, properties and attached semantics | property rows, the branch selector and the Explorer tree for another subject document |
 
 There is no bottom panel. The side bar carries the **Control** and **Explorer**
 sections; the Graph document owns its floating **Inspect** window. A tab changes

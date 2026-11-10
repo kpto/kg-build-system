@@ -20,6 +20,8 @@ import {
   graphMeaning,
   propertyMeaning,
 } from "@/shared/design/meaning";
+import { effectiveLicenseForGraph, effectiveLicenseForModel } from "@/proof/license";
+import { buildProof } from "@/proof/model";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { cx, theme } from "@/shared/ui/theme";
 import type {
@@ -1417,6 +1419,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
               return (
                 <g
                   key={link.id}
+                  className="transition-opacity duration-150"
                   onContextMenu={(event) =>
                     openMenu(
                       event,
@@ -1531,6 +1534,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                   return (
                     <g
                       key={node.id}
+                      className="transition-opacity duration-150"
                       data-topology-node-id={node.id}
                       data-topology-node={node.name}
                       transform={`translate(${sim.x ?? 0} ${sim.y ?? 0})`}
@@ -1797,7 +1801,10 @@ function SummaryField({
       <span className="w-20 shrink-0 text-[9px] tracking-[0.06em] text-faint uppercase">
         {label}
       </span>
-      <span className="min-w-0 flex-1 truncate font-mono text-[10px] text-text">
+      <span
+        className="min-w-0 flex-1 truncate font-mono text-[10px] text-text"
+        title={String(value)}
+      >
         {value}
       </span>
     </div>
@@ -1835,6 +1842,38 @@ export function TopologyInspector({
   const raw = props.state.inspection;
   const activeProperty = raw?.kind === "property" ? raw.property : undefined;
   const meaning = entity ? inspectorMeaning(props, entity, activeProperty) : undefined;
+  const graphLicense = effectiveLicenseForGraph(props.state.index);
+  const entityKind = entity
+    ? isTopologyNode(entity)
+      ? "node"
+      : "edge"
+    : undefined;
+  const entityComponent = entity
+    ? isTopologyNode(entity)
+      ? entity.name
+      : entityComponentName(entity)
+    : undefined;
+  const entityLicense =
+    entity && entityKind && entityComponent
+      ? effectiveLicenseForModel(
+          props.state.index,
+          buildProof(
+            props.state.index,
+            activeProperty
+              ? {
+                  level: "property",
+                  kind: entityKind,
+                  component: entityComponent,
+                  property: activeProperty,
+                }
+              : {
+                  level: entityKind,
+                  kind: entityKind,
+                  component: entityComponent,
+                },
+          ),
+        )
+      : undefined;
   const [menu, setMenu] = useState<
     | {
         x: number;
@@ -1847,7 +1886,7 @@ export function TopologyInspector({
 
   return (
     <aside
-      className="absolute top-3 right-3 bottom-3 z-20 flex w-[326px] flex-col overflow-hidden rounded border border-line bg-panel/98 shadow-xl"
+      className="inspector-panel absolute top-3 right-3 bottom-3 z-20 flex w-[326px] flex-col overflow-hidden rounded border border-line bg-panel/98 shadow-xl"
       aria-label="Graph selection inspector"
       data-testid="topology-inspector"
     >
@@ -1876,6 +1915,9 @@ export function TopologyInspector({
             <SummaryField label="Abstract" value={model.stats.abstractNodes} />
             <SummaryField label="Relations" value={model.stats.edgeLinks} />
             <SummaryField label="Semantics" value={model.stats.semantics} />
+            <div className="col-span-2">
+              <SummaryField label="License" value={graphLicense.value} />
+            </div>
           </div>
           <GraphMeaning
             claims={graphMeaning(props.state.index).claims}
@@ -1925,6 +1967,10 @@ export function TopologyInspector({
             <div className="grid gap-1">
               <SummaryField label="Kind" value={entityKindLabel(entity)} />
               <SummaryField label="Category" value={entity.category} />
+              <SummaryField
+                label="Effective license"
+                value={entityLicense?.value ?? "Not declared"}
+              />
               {isTopologyNode(entity) ? (
                 <SummaryField label="Degree" value={entity.degree} />
               ) : (

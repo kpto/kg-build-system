@@ -660,6 +660,7 @@ export interface ProofAssetField {
 export interface ProofAsset {
   name: string;
   profile?: AssetProfileDTO;
+  license?: string | null;
   semantics: ProofSemantics[];
   relations: ProofAssetRelation[];
   projections: ProofAssetRelation[];
@@ -1060,6 +1061,7 @@ function buildAssetProof(
   const assetModel: ProofAsset = {
     name: asset.name,
     profile: asset.profile,
+    license: asset.governance?.license ?? null,
     semantics,
     relations,
     projections,

@@ -21,7 +21,7 @@ A level may be absent. It is never reordered or nested inside the same kind.
 
 | Region | Contents | Owner |
 | --- | --- | --- |
-| Title bar | brand, snapshot, command trigger, side-bar toggle, layout reset, settings | `workbench/TitleBar` |
+| Title bar | brand, snapshot, open-workflow-file, command trigger, side-bar toggle, layout reset, settings | `workbench/TitleBar` |
 | Side bar | collapsible **Control** and **Explorer** sections | `workbench/SideBar` |
 | Editor | global document tabs + one mounted pane per document | `workbench/EditorArea` |
 | Status bar | snapshot, document view, selected subject, counts, compile-only, zoom | `workbench/StatusBar` |
@@ -37,7 +37,7 @@ Inspector window; there is no bottom panel.
 | Section | Contents |
 | --- | --- |
 | **Control** | controls for the active view: graph canvas filters, labels, Show controls, legend and fit/zoom/pin; workflow component, instruction and text filters. |
-| **Explorer** | everything in the design: assets, nodes, abstract categories, edges and their properties; workflow components and their step catalogue. A context menu jumps graph subjects to the Graph and workflow items to the Workflow. A selected workflow component expands its step group; an explicit collapse sticks until the active subject changes. Tables and projections are outline groups; a row opens the asset document that exposes it. |
+| **Explorer** | everything in the design: assets, nodes, abstract categories, edges and their properties; workflow components and their step catalogue. A context menu jumps graph subjects to the Graph and workflow items to the Workflow. A selected workflow component expands its step group; an explicit collapse sticks until the active subject changes. Tables and projections are outline groups; a row opens the asset document that exposes it and focuses that table or projection. |
 
 The sections are collapsible and independent: both may be expanded at once.
 Each expanded body sits directly below its own header. When both are open, a
@@ -55,7 +55,7 @@ position.
 | **Graph** (pinned) | D3 force canvas, zoom/pan/drag and the floating **Inspect** window: graph purpose/overview when nothing is selected, or the selected entity's identity, properties and meaning; clicking empty space deselects |
 | **Workflow** (pinned) | compositor-style component graph with no title banner and a floating canvas toolbar; selecting a component and using **Open step group** drills into its step-level flow graph with column flow and boundary components; selecting a component, step or boundary node highlights its incident links and dims the other nodes in the same graph view, and entering another step group requires **Open step group**; drag to pan, wheel to zoom, Fit to reset; Back returns to components; filters from Control narrow the step graph |
 | **Step** | one workflow step's instruction, payload, openings, connections and blueprint bindings on the same detail surface as node and subject documents; opened from the workflow section of Explorer |
-| **Subject** (node, edge, property, asset, abstract) | provenance assets, tables and projections first for node, edge and property; each reference is navigable to its owning asset; then design meaning, properties, attached semantics and, for a property, provenance lanes and type/presence |
+| **Subject** (node, edge, property, asset, abstract) | provenance assets, tables and projections first for node, edge and property; each reference is navigable to its owning asset item; the effective licence follows the provenance assets; then design meaning, properties, attached semantics and, for a property, provenance lanes and type/presence |
 
 A node or property click in the canvas only changes transient inspection.
 Single-clicking an Explorer row opens or reuses one preview tab; double-clicking

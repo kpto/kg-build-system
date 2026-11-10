@@ -133,14 +133,17 @@ rule about what the framework is belongs to the framework model.
   or workflow has no banner and carries its actions in a floating toolbar. A
   data-derived detail states its provenance and the narrowed workflow that
   produces it before its meaning; provenance is read from the bindings, including
-  identity, source and target expressions, not only declared properties. One
-  concept registry supplies the logo, colour and label for every concept; a
-  banner, a tab, a section header and a reference read it rather than declaring
-  their own visual; repeated items omit the header's mark, and a reference
-  carries its target. A graph view uses one renderer and one selection
+  identity, source and target expressions, not only declared properties. The
+  effective licence follows the provenance assets. One concept registry supplies
+  the logo, colour and label for every concept; a banner, a tab, a section header
+  and a reference read it rather than declaring their own visual; repeated items
+  omit the header's mark, and a reference carries its target, including an item
+  inside the target document. A graph view uses one renderer and one selection
   rule for every node and link kind; selecting a node dims every other node and
-  non-incident link and never moves a settled node. A new level or kind adds
-  data, not a second renderer.
+  non-incident link and never moves a settled node; empty space clears the
+  selection. A new level or kind adds data, not a second renderer.
+- Motion is feedback, not decoration: short ease-out transitions on transform and
+  opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or
   added.
 

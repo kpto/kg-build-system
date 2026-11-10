@@ -127,8 +127,11 @@ function normalizeSelection(value: unknown): SubjectSelection | undefined {
   ) {
     selection.kind = candidate.kind as SubjectKind;
   }
-  for (const field of ["name", "component", "property"] as const) {
+  for (const field of ["name", "component", "property", "item"] as const) {
     if (typeof candidate[field] === "string") selection[field] = candidate[field];
+  }
+  if (candidate.itemKind === "table" || candidate.itemKind === "projection") {
+    selection.itemKind = candidate.itemKind;
   }
   if (
     typeof candidate.level === "string" &&
@@ -227,19 +230,18 @@ function appendTab(
       selectionSignature(tab.document.selection) === signature,
   );
   if (existing) {
-    // Opening a subject explicitly promotes a preview tab to permanent.
-    if (!input.preview && existing.preview) {
-      return activate(
-        {
-          ...state,
-          tabs: state.tabs.map((tab) =>
-            tab.id === existing.id ? { ...tab, preview: undefined } : tab,
-          ),
-        },
-        existing.id,
-      );
-    }
-    return activate(state, existing.id);
+    // The document signature ignores a table/projection focus so one asset
+    // document can move its focus without spawning another tab.
+    const tabs = state.tabs.map((tab) =>
+      tab.id === existing.id
+        ? {
+            ...tab,
+            document: { kind: "subject" as const, selection },
+            ...(input.preview ? {} : { preview: undefined }),
+          }
+        : tab,
+    );
+    return activate({ ...state, tabs }, existing.id);
   }
 
   if (input.preview) {

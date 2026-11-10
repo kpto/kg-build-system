@@ -566,6 +566,7 @@ export function WorkflowGraphSceneView({
               transform={`translate(${node.x} ${node.y})`}
               className="cursor-pointer"
               opacity={opacity}
+              style={{ transition: "opacity 140ms var(--ease-instrument)" }}
               role="button"
               tabIndex={0}
               aria-pressed={selected}

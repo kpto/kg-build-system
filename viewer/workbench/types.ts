@@ -29,6 +29,9 @@ export interface SubjectSelection {
   property?: string;
   level?: DetailLevel;
   stepId?: [string, string];
+  /** The table or projection item to focus inside an asset document. */
+  item?: string;
+  itemKind?: "table" | "projection";
 }
 
 export type WorkbenchDocument =
@@ -140,6 +143,8 @@ export function documentSignature(document: WorkbenchDocument): string {
     selection.property ?? "",
     selection.level ?? "",
     selection.stepId?.join("/") ?? "",
+    selection.item ?? "",
+    selection.itemKind ?? "",
   ].join("\u0000");
 }
 

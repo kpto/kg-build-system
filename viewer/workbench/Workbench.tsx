@@ -1,12 +1,13 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import { CircleExclamationPoint, LoaderCircle, RefreshCw } from "lucide-react";
 
 import { buildViewerIndex } from "@/lib/indexes";
 import {
   loadDefaultSnapshot,
   loadReferenceSnapshot,
+  loadSnapshotFromText,
 } from "@/lib/load";
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 import { CommandPalette } from "./CommandPalette";
@@ -111,12 +112,40 @@ function LoadErrorGate({
   );
 }
 
-function WorkbenchShell() {
+function WorkbenchShell({
+  onOpenSnapshot,
+}: {
+  onOpenSnapshot(snapshot: ViewerSnapshot): void;
+}) {
   const { state, actions } = useWorkbench();
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
   const [zoom, setZoom] = useState(1);
+  const [fileError, setFileError] = useState<string>();
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const openFilePicker = useCallback(() => {
+    fileInputRef.current?.click();
+  }, []);
+
+  const readWorkflowFile = useCallback(
+    async (file: File | undefined) => {
+      if (!file) return;
+      try {
+        const snapshot = loadSnapshotFromText(await file.text());
+        setFileError(undefined);
+        onOpenSnapshot(snapshot);
+      } catch (reason) {
+        setFileError(
+          reason instanceof Error ? reason.message : String(reason),
+        );
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    },
+    [onOpenSnapshot],
+  );
 
   const layout = state.layout;
 
@@ -220,9 +249,30 @@ function WorkbenchShell() {
 
   return (
     <div className="wb-shell ui-grain" data-testid="workbench">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json,application/json"
+        className="hidden"
+        data-testid="open-workflow-file-input"
+        onChange={(event) => readWorkflowFile(event.target.files?.[0])}
+      />
+      {fileError ? (
+        <div className="wb-file-notice" role="alert" data-testid="open-file-error">
+          <span>{fileError}</span>
+          <button
+            type="button"
+            aria-label="Dismiss file error"
+            onClick={() => setFileError(undefined)}
+          >
+            ×
+          </button>
+        </div>
+      ) : null}
       <TitleBar
         onOpenPalette={openPalette}
         onOpenSettings={openSettings}
+        onOpenWorkflowFile={openFilePicker}
         sidebarVisible={sidebarVisible}
         onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
         onResetLayout={resetLayout}
@@ -266,6 +316,14 @@ export function Workbench() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
   const [loaded, setLoaded] = useState<LoadedWorkbench | null>(null);
+  const [revision, setRevision] = useState(0);
+
+  const openSnapshot = useCallback((snapshot: ViewerSnapshot) => {
+    setError(undefined);
+    setLoading(false);
+    setLoaded({ snapshot, index: buildViewerIndex(snapshot) });
+    setRevision((value) => value + 1);
+  }, []);
 
   useEffect(() => {
     let active = true;
@@ -314,11 +372,11 @@ export function Workbench() {
 
   return (
     <WorkbenchProvider
-      key={`${loaded.snapshot.name}:${attempt}`}
+      key={`${loaded.snapshot.name}:${attempt}:${revision}`}
       snapshot={loaded.snapshot}
       index={loaded.index}
     >
-      <WorkbenchShell />
+      <WorkbenchShell onOpenSnapshot={openSnapshot} />
     </WorkbenchProvider>
   );
 }

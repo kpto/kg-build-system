@@ -25,6 +25,9 @@ export type ConceptKind =
 export interface ConceptTarget {
   concept: ConceptKind;
   name: string;
+  /** A table or projection item to focus inside its asset document. */
+  item?: string;
+  itemKind?: "table" | "projection";
 }
 
 export interface ConceptReference {

@@ -94,9 +94,11 @@ the resolved assets, tables and projections behind the subject, before design
 meaning and properties. It is a summary; the property document's lineage canvas
 shows the full branch. Each provenance group header carries its concept mark;
 the values are text references, and each reference opens the asset document that
-owns it. A table or projection therefore lands on its asset. A node or edge with
+owns it and focuses the named table or projection item. A node or edge with
 no declared properties still derives provenance from its binding identity,
-source and target expressions.
+source and target expressions. The section ends with the **effective licence**
+resolved from those provenance assets: one declared licence, a mixed list, or
+`Not declared`.
 
 Below provenance, a narrowed **Workflow** graph shows the steps that produce the
 subject. It uses the same step scene and selection rule as the Workflow
@@ -107,6 +109,18 @@ One concept registry supplies the logo and representative colour for graph,
 workflow, node, edge, property, asset, table, projection, abstract category and
 step. A detail banner, a tab and a provenance reference read the same registry,
 so an asset is the same green database mark wherever it appears.
+
+## Interaction motion
+
+- Motion is feedback, not decoration. Hover, selection and press changes use
+  short transitions; entrance layers use opacity plus a small transform.
+- The workbench curve is `--ease-instrument`. Micro-interactions stay under
+  200ms; a settings dialog may take 200ms.
+- Buttons press with a subtle scale. Tabs transition their surface and active
+  indicator. Context menus enter from the pointer origin; the Graph inspector
+  enters from the right.
+- A graph node's dim or highlight fades; a settled node never moves.
+- `prefers-reduced-motion` keeps the state change and removes movement.
 
 ## Panels and persistence
 
@@ -127,7 +141,9 @@ so an asset is the same green database mark wherever it appears.
   in a context menu, or using the command palette opens a permanent tab. The
   context menu also offers **Go to Graph** for graph subjects and **Go to
   Workflow** for workflow items. A workflow component selected in Control or in
-  the Workflow graph expands its step group in Explorer. That reveal is one-shot:
+  the Workflow graph expands its step group in Explorer. The title-bar folder button
+opens another workflow or snapshot JSON without changing the workbench frame.
+That reveal is one-shot:
   once the reader collapses the Workflow section or a component group, it stays
   collapsed until the active subject changes again.
   Preview tabs are reused by the next single click; double-clicking a preview

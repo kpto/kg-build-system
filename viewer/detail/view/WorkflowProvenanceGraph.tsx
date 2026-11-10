@@ -61,6 +61,7 @@ export function WorkflowProvenanceGraph({
         role="img"
         aria-label={`Narrowed workflow graph with ${rows.length} steps`}
         data-testid="detail-workflow-graph"
+        onClick={() => setSelectedId(undefined)}
       >
         <WorkflowGraphSceneView
           scene={scene}

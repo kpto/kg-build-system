@@ -225,6 +225,15 @@ def main() -> int:
                     By.CSS_SELECTOR, '[data-testid="workflow-toolbar"]'
                 )
             )
+            report["checks"]["motion_tab_transition"] = (
+                "background-color"
+                in driver.execute_script(
+                    "return getComputedStyle(arguments[0]).transitionProperty;",
+                    driver.find_element(
+                        By.CSS_SELECTOR, '[data-testid="editor-tabs"] .wb-tab'
+                    ),
+                )
+            )
             report["checks"]["workflow_map"] = bool(
                 driver.find_elements(By.CSS_SELECTOR, '[data-testid="workflow-map"]')
             )
@@ -622,6 +631,15 @@ def main() -> int:
                     By.CSS_SELECTOR, '[data-testid="context-menu-item"]'
                 )
             ]
+            report["checks"]["motion_context_menu"] = (
+                driver.execute_script(
+                    "return getComputedStyle(arguments[0]).animationName;",
+                    driver.find_element(
+                        By.CSS_SELECTOR, '[data-testid="context-menu"]'
+                    ),
+                )
+                == "wb-context-in"
+            )
             ActionChains(driver).send_keys("\ue00c").perform()
             time.sleep(0.4)
 
@@ -637,6 +655,17 @@ def main() -> int:
                 driver.find_elements(
                     By.CSS_SELECTOR, '[data-testid="explorer-sidebar"]'
                 )
+            )
+            report["checks"]["motion_section_reveal"] = (
+                driver.execute_script(
+                    "return getComputedStyle(arguments[0]).animationName;",
+                    driver.find_element(
+                        By.CSS_SELECTOR,
+                        '[data-testid="sidebar-section-body-explorer"]'
+                        ' .wb-side-section-body',
+                    ),
+                )
+                == "wb-fade-in"
             )
             explorer_groups = sorted(detail_groups())
             report["checks"]["explorer_groups_on_workflow"] = explorer_groups
@@ -840,11 +869,15 @@ def main() -> int:
         )
         time.sleep(0.7)
         report["checks"]["empty_click_deselects"] = "No subject selected" in status()
+        deselect_inspector = driver.find_element(
+            By.CSS_SELECTOR, '[data-testid="topology-inspector"]'
+        ).text
         report["checks"]["inspect_purpose_after_deselect"] = (
-            "GRAPH OVERVIEW"
-            in driver.find_element(
-                By.CSS_SELECTOR, '[data-testid="topology-inspector"]'
-            ).text
+            "GRAPH OVERVIEW" in deselect_inspector
+        )
+        report["checks"]["graph_effective_license"] = (
+            "LICENSE" in deselect_inspector
+            and "Not declared" in deselect_inspector
         )
 
         # Restore the target selection for the context-menu checks.
@@ -967,6 +1000,12 @@ def main() -> int:
             "tables": "table",
             "projections": "projection",
         }
+        report["checks"]["detail_effective_license"] = (
+            driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="detail-effective-license"]'
+            ).text
+            == "Not declared"
+        )
         report["checks"]["provenance_group_icons"] = all(
             driver.find_elements(
                 By.CSS_SELECTOR,
@@ -979,16 +1018,39 @@ def main() -> int:
             By.CSS_SELECTOR,
             '[data-testid="detail-provenance"] button svg',
         )
-        report["checks"]["detail_workflow_graph"] = (
-            len(
-                driver.find_elements(
+        workflow_graph = driver.find_element(
+            By.CSS_SELECTOR, '[data-testid="detail-workflow-graph"]'
+        )
+        graph_steps = workflow_graph.find_elements(
+            By.CSS_SELECTOR, '[data-testid="workflow-step-node"]'
+        )
+        report["checks"]["detail_workflow_graph"] = len(graph_steps) > 0
+        if graph_steps:
+            driver.execute_script(
+                "arguments[0].dispatchEvent(new MouseEvent('click',{bubbles:true}))",
+                graph_steps[0],
+            )
+            time.sleep(0.3)
+            selected_graph_step = len(
+                workflow_graph.find_elements(
                     By.CSS_SELECTOR,
-                    '[data-testid="detail-workflow-graph"]'
-                    ' [data-testid="workflow-step-node"]',
+                    '[data-testid="workflow-step-node"][data-active="true"]',
                 )
             )
-            > 0
-        )
+            driver.execute_script(
+                "arguments[0].dispatchEvent(new MouseEvent('click',{bubbles:true}))",
+                workflow_graph,
+            )
+            time.sleep(0.3)
+            cleared_graph_step = len(
+                workflow_graph.find_elements(
+                    By.CSS_SELECTOR,
+                    '[data-testid="workflow-step-node"][data-active="true"]',
+                )
+            )
+            report["checks"]["detail_workflow_clear"] = (
+                selected_graph_step == 1 and cleared_graph_step == 0
+            )
         report["checks"]["detail_tab_concept"] = (
             driver.find_element(
                 By.CSS_SELECTOR,
@@ -1028,6 +1090,7 @@ def main() -> int:
             f'{active_detail} [data-testid="detail-provenance-tables"]'
             ' button[data-concept="table"]',
         )
+        table_name = table_reference.text.strip()
         table_reference.click()
         time.sleep(0.8)
         report["checks"]["provenance_table_navigable"] = (
@@ -1035,6 +1098,13 @@ def main() -> int:
                 By.CSS_SELECTOR, active_detail
             ).get_attribute("data-concept")
             == "asset"
+        )
+        report["checks"]["provenance_table_focus"] = any(
+            table_name in row.text
+            for row in driver.find_elements(
+                By.CSS_SELECTOR,
+                f'{active_detail} [data-focus="true"]',
+            )
         )
         middle_click(
             driver.find_elements(
@@ -1083,6 +1153,36 @@ def main() -> int:
             )[-1].find_element(By.XPATH, "..")
         )
         click_tab(property_title)
+
+        tables_head = driver.find_element(
+            By.CSS_SELECTOR, '[data-testid="explorer-group-tables"]'
+        )
+        if tables_head.get_attribute("aria-expanded") != "true":
+            tables_head.click()
+            time.sleep(0.5)
+        table_section = tables_head.find_element(By.XPATH, "..")
+        outline_tables = table_section.find_elements(
+            By.CSS_SELECTOR, 'button[class*="sideRow"]'
+        )
+        if outline_tables:
+            outline_tables[0].click()
+            time.sleep(0.8)
+            report["checks"]["outline_table_selection"] = (
+                outline_tables[0].get_attribute("data-active") == "true"
+                and bool(
+                    driver.find_elements(
+                        By.CSS_SELECTOR,
+                        '[data-testid="editor-pane"][data-active="true"]'
+                        ' [data-focus="true"]',
+                    )
+                )
+            )
+            middle_click(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="editor-tabs"] .wb-tab-label'
+                )[-1].find_element(By.XPATH, "..")
+            )
+            click_tab(property_title)
         report["checks"]["geometry_unchanged"] = geometry() == topology_geometry
         report["checks"]["detail_status"] = status()
         shot("04-detail-property")

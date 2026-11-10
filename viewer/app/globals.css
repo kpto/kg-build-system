@@ -192,6 +192,35 @@
     isolation: isolate;
   }
 
+  .wb-file-notice {
+    position: fixed;
+    top: 38px;
+    right: 12px;
+    z-index: 130;
+    display: flex;
+    max-width: min(440px, calc(100vw - 24px));
+    align-items: flex-start;
+    gap: 8px;
+    border: 1px solid color-mix(in srgb, var(--color-critical) 55%, var(--color-line));
+    border-radius: 4px;
+    background-color: var(--color-panel);
+    color: var(--color-text);
+    box-shadow: 0 12px 30px rgb(0 0 0 / 35%);
+    padding: 7px 9px;
+    font-size: 10px;
+    line-height: 1.4;
+    animation: wb-pop-in var(--motion-base) var(--ease-instrument);
+  }
+
+  .wb-file-notice button {
+    flex: none;
+    border: 0;
+    background: transparent;
+    color: var(--color-faint);
+    font-size: 13px;
+    line-height: 1;
+  }
+
   .wb-titlebar {
     display: flex;
     min-width: 0;
@@ -363,6 +392,7 @@
     min-height: 0;
     flex: 1;
     overflow: hidden;
+    animation: wb-fade-in var(--motion-base) var(--ease-instrument);
   }
 
   .wb-side-section-header:hover {
@@ -387,6 +417,7 @@
     min-height: 0;
     flex: 1;
     overflow: hidden;
+    animation: wb-fade-in var(--motion-base) var(--ease-instrument);
   }
 
   .wb-sidebar-header {
@@ -562,6 +593,9 @@
     align-items: stretch;
     border-right: 1px solid var(--color-line-soft);
     background-color: var(--color-abyss);
+    transition:
+      background-color var(--motion-base) var(--ease-instrument),
+      box-shadow var(--motion-base) var(--ease-instrument);
   }
 
   .wb-tab:hover {
@@ -1086,6 +1120,8 @@
   .wb-dialog {
     width: min(640px, 92vw);
     max-height: 80vh;
+    transform-origin: top center;
+    animation: wb-pop-in var(--motion-slow) var(--ease-instrument);
   }
 
   .wb-dialog-head {
@@ -1968,11 +2004,63 @@
     border-color var(--motion-base) var(--ease-instrument),
     color var(--motion-base) var(--ease-instrument),
     box-shadow var(--motion-base) var(--ease-instrument),
-    opacity var(--motion-base) var(--ease-instrument);
+    opacity var(--motion-base) var(--ease-instrument),
+    transform var(--motion-fast) var(--ease-instrument);
 }
 
 :where(button, [role="button"], summary):not(svg *):not(:disabled):active {
   transform: translateY(1px);
+}
+
+.context-menu-pop {
+  transform-origin: top left;
+  animation: wb-context-in var(--motion-base) var(--ease-instrument);
+}
+
+.inspector-panel {
+  animation: wb-slide-in-right var(--motion-slow) var(--ease-instrument);
+}
+
+@keyframes wb-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes wb-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(-5px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes wb-context-in {
+  from {
+    opacity: 0;
+    transform: translateY(-3px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes wb-slide-in-right {
+  from {
+    opacity: 0;
+    transform: translateX(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

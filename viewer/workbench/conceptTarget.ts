@@ -7,7 +7,13 @@ export function selectionForConceptTarget(
 ): SubjectSelection | undefined {
   switch (target.concept) {
     case "asset":
-      return { kind: "asset", level: "asset", component: target.name };
+      return {
+        kind: "asset",
+        level: "asset",
+        component: target.name,
+        item: target.item,
+        itemKind: target.itemKind,
+      };
     case "node":
       return { kind: "node", level: "node", component: target.name };
     case "edge":
