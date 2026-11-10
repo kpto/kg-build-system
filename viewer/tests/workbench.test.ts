@@ -93,6 +93,17 @@ describe("workbench tabs and geometry", () => {
     );
   });
 
+  it("inspects a node without opening a document tab", () => {
+    const inspected = workbenchReducer(state(), {
+      type: "inspect",
+      selection: { kind: "node", name: "defect" },
+    });
+    expect(inspected.tabs).toHaveLength(1);
+    expect(inspected.tabs[0].selection).toMatchObject({ kind: "graph" });
+    expect(inspected.inspection).toMatchObject({ kind: "node", name: "defect" });
+    expect(inspected.activeTabId).toBe("graph");
+  });
+
   it("keeps the graph tab as a graph document when a subject opens", () => {
     const opened = workbenchReducer(state(), {
       type: "open-tab",

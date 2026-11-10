@@ -51,12 +51,19 @@ region. Each has one job, so a selected subject is not repeated across regions.
 Panel width and height are one workbench geometry: switching between Topology
 and Detail never changes them.
 
-The editor is one global tab strip. A tab is a **design document** — Graph, a
-node, a property or an asset — not a mode. Topology and Detail are two angles on
-the active document: switching the angle never changes the tab, and switching the
-tab never changes the angle. **Graph** is pinned; other documents are closable.
-**Back** and **Forward** (arrows in the tab strip, or `Alt+←` / `Alt+→`) walk the
-document history. There is no JSON/Data tab.
+The editor is one global tab strip. The viewer has two kinds of tab view:
+
+- **Graph** — the pinned canonical graph document;
+- **Subject documents** — a node, edge, property, asset or abstract category,
+  opened explicitly from **Open Detail**, a property row, the Detail tree or the
+  command palette.
+
+Single-clicking a node only changes the transient **Inspect** selection; it does
+not open a tab. A tab is a document, not a mode. Topology and Detail are two
+angles on the active document, so switching the angle never changes the tab and
+switching the tab never changes the angle. **Back** and **Forward** (arrows in
+the tab strip, or `Alt+←` / `Alt+→`) walk the document history. There is no
+JSON/Data tab.
 
 ## Snapshot
 

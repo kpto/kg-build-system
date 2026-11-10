@@ -32,9 +32,11 @@ A level may be absent. It is never reordered or nested inside the same kind.
 
 The side bar is 220–520 px, the bottom panel 120–480 px. One `WorkbenchLayout`
 is persisted per snapshot; switching function never changes the geometry. The
-editor is one global tab strip: a tab is a design document (Graph, node,
-property or asset). Topology and Detail are angles on that document; neither
-changes the other. Back/forward walk the activated-tab history. The bottom
+editor is one global tab strip. Its tab views are **Graph** (pinned) and
+explicitly opened **subject documents** (node, edge, property, asset, abstract).
+A single-click inspection does not open a tab. Topology and Detail are angles on
+the active document; neither changes the other. Back/forward walk the
+activated-tab history. The bottom
 panel's visibility is shell state and starts true.
 
 ## Functions

@@ -58,6 +58,8 @@ export interface WorkbenchState {
   activity: ActivityId;
   tabs: WorkbenchTab[];
   activeTabId: string;
+  /** Transient canvas selection; it never becomes a document by itself. */
+  inspection: WorkbenchSelection;
   history: string[];
   historyIndex: number;
 }
@@ -70,6 +72,7 @@ export interface OpenTabInput {
 export interface WorkbenchActions {
   setActivity(activity: ActivityId): void;
   setSelection(selection: WorkbenchSelection): void;
+  inspect(selection: WorkbenchSelection): void;
   setLayout(patch: Partial<Pick<WorkbenchLayout, "sidebarWidth" | "bottomHeight">>): void;
   setBottomTab(activity: ActivityId, tab: string): void;
   openTab(tab: OpenTabInput): void;
@@ -85,6 +88,15 @@ export function activeTab(state: WorkbenchState): WorkbenchTab | undefined {
 
 export function currentSelection(state: WorkbenchState): WorkbenchSelection {
   return activeTab(state)?.selection ?? { kind: "graph", name: "Graph" };
+}
+
+/**
+ * The document is the active tab; the inspection is transient canvas state.
+ * The Graph document uses the inspection, a subject document uses itself.
+ */
+export function currentLensSelection(state: WorkbenchState): WorkbenchSelection {
+  const selection = currentSelection(state);
+  return selection.kind === "graph" ? state.inspection : selection;
 }
 
 export interface FeatureProps {

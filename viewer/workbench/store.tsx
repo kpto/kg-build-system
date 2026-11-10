@@ -211,6 +211,7 @@ export function createWorkbenchState(
     activity: "topology",
     tabs: [tab],
     activeTabId: tab.id,
+    inspection: { kind: "graph", name: "Graph" },
     history: [tab.id],
     historyIndex: 0,
   };
@@ -278,6 +279,7 @@ export type WorkbenchAction =
   | { type: "hydrate"; layout: WorkbenchLayout }
   | { type: "set-activity"; activity: ActivityId }
   | { type: "set-selection"; selection: WorkbenchSelection }
+  | { type: "inspect"; selection: WorkbenchSelection }
   | { type: "set-layout"; patch: Partial<Pick<WorkbenchLayout, "sidebarWidth" | "bottomHeight">> }
   | { type: "set-bottom-tab"; activity: ActivityId; tab: string }
   | { type: "open-tab"; input: OpenTabInput }
@@ -311,6 +313,9 @@ export function workbenchReducer(
         ),
       };
     }
+
+    case "inspect":
+      return { ...state, inspection: normalizeSelection(action.selection) };
 
     case "set-layout":
       return {
@@ -450,6 +455,7 @@ export function WorkbenchProvider({
       setActivity: (activity) => dispatch({ type: "set-activity", activity }),
       setSelection: (selection) =>
         dispatch({ type: "set-selection", selection }),
+      inspect: (selection) => dispatch({ type: "inspect", selection }),
       setLayout: (patch) => dispatch({ type: "set-layout", patch }),
       setBottomTab: (activity, tab) =>
         dispatch({ type: "set-bottom-tab", activity, tab }),

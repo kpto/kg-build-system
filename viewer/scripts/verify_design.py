@@ -112,6 +112,7 @@ def main() -> int:
         )
         time.sleep(1)
         bottom = driver.find_element(By.CSS_SELECTOR, '[data-testid="bottom-panel"]')
+        report["checks"]["node_click_keeps_tabs"] = tabs() == ["Graph"]
         report["checks"]["topology_property_rows"] = len(
             bottom.find_elements(By.CSS_SELECTOR, "[data-testid='topology-properties'] button")
         )

@@ -12,7 +12,7 @@ import type { JSX, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import * as d3 from "d3";
 
 import type { FeatureProps, WorkbenchSelection } from "@/workbench/types";
-import { currentSelection } from "@/workbench/types";
+import { currentLensSelection, currentSelection } from "@/workbench/types";
 import type { TopologyProperty } from "@/lib/types";
 import { logicalTypeName } from "@/lib/expressions";
 import { DesignMeaning, GraphMeaning } from "@/shared/design/DesignMeaning";
@@ -44,7 +44,7 @@ import { getTopologyUiStore, type TopologyUiStore } from "./topologyUi";
 // ---------------------------------------------------------------------------
 
 function topologySelection(props: FeatureProps): TopologySelection | undefined {
-  const selection: WorkbenchSelection = currentSelection(props.state);
+  const selection: WorkbenchSelection = currentLensSelection(props.state);
   if ((selection.kind === "node" || selection.kind === "edge") && selection.name) {
     return { kind: selection.kind, name: selection.name };
   }
@@ -65,10 +65,17 @@ function writeSelection(
   kind: TopologySelection["kind"],
   name: string,
 ): void {
-  props.actions.openTab({ selection: { kind, name } });
+  if (currentSelection(props.state).kind === "graph") {
+    // The Graph document stays the Graph document; this is transient inspection.
+    props.actions.inspect({ kind, name });
+  } else {
+    // A subject document follows navigation inside the canvas.
+    props.actions.setSelection({ kind, name });
+  }
 }
 
 function clearSelection(props: FeatureProps): void {
+  props.actions.inspect({ kind: "graph", name: "Graph" });
   props.actions.openTab({ selection: { kind: "graph", name: "Graph" } });
 }
 
@@ -84,8 +91,16 @@ function entityProperties(props: FeatureProps, entity: TopologyEntity): Topology
   return component?.properties ?? [];
 }
 
-/** The design subject is shown from the other angle; the tab does not move. */
+/**
+ * The Graph document has no subject of its own. Opening Detail from an
+ * inspected subject explicitly creates that subject document first.
+ */
 function openInDetail(props: FeatureProps): void {
+  const document = currentSelection(props.state);
+  const lens = currentLensSelection(props.state);
+  if (document.kind === "graph" && lens.kind && lens.kind !== "graph") {
+    props.actions.openTab({ selection: lens });
+  }
   props.actions.setActivity("detail");
 }
 
@@ -1714,7 +1729,7 @@ export function TopologyBottom(props: FeatureProps): JSX.Element {
   const [ui] = useTopologyUi(props.state.snapshot.name);
   const selection = topologySelection(props);
   const entity = findTopologyEntity(model, selection);
-  const raw = currentSelection(props.state);
+  const raw = currentLensSelection(props.state);
   const activeProperty = raw.kind === "property" ? raw.property : undefined;
 
   if (!entity) {

@@ -81,11 +81,13 @@ global setting, because each question has its own useful first level.
   bottom panel's visibility, not its purpose.
 - Geometry is one workbench value per snapshot, not one per function. Switching
   activity changes the content inside the same side bar and bottom panel.
-- The editor tab strip is one global document strip. A tab is a design document
-  (Graph, node, property or asset), not a mode. Topology and Detail are two
-  angles on the active document: changing the angle keeps the tab, and changing
-  the tab keeps the angle. Graph is pinned; other documents are closable.
-  Opening the same subject again activates its existing tab.
+- The editor tab strip is one global document strip. Its tab views are **Graph**
+  (pinned) and explicitly opened **subject documents** (node, edge, property,
+  asset, abstract). A click on the canvas is transient inspection, not a
+  document; it never opens a tab.
+- A tab is a document, not a mode. Topology and Detail are angles on the active
+  document: changing the angle keeps the tab, and changing the tab keeps the
+  angle. Opening the same subject again activates its existing tab.
 - Back and forward walk the activated-tab history (`Alt+←` / `Alt+→` or the
   arrows in the tab strip). Opening, activating or closing a tab records one
   navigation step; changing selection inside the active tab does not.
@@ -109,8 +111,12 @@ global setting, because each question has its own useful first level.
 - Selection is one subject plus the function that owns its current reading.
 - Orange is the selected graph item; blue is focus, active tab and primary
   action. They are not interchangeable.
-- Selecting a row highlights the same subject in the side bar, editor and
-  status bar. It does not open the bottom panel by itself.
+- Selecting in the canvas highlights the same subject in the editor and status
+  bar. It does not open a document tab or change the panel geometry.
+- Inspection and documents are different: inspection is transient state on the
+  canvas or Inspect region; a document is an explicit tab. A click updates
+  inspection. **Open Detail**, a property row, the Browse tree or the command
+  palette opens a document.
 - A selection that a function cannot resolve falls back to that function's
   first valid subject, rather than an empty editor.
 
