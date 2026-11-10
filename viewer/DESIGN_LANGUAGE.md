@@ -72,7 +72,7 @@ The first paint states the design, not every annotation.
 | --- | --- | --- | --- |
 | Graph document | circles, thin relation links, hub labels | all labels, relation names | containment, semantics, property counts |
 | Graph inspection | graph purpose and counts when nothing is selected; otherwise identity and description | properties with types | attached claims, frames and limitations |
-| Workflow document | one graph view: a compositor-style component graph, or a step-level flow graph where steps fill columns top-to-bottom after **Open step group**; selecting a node highlights its incident links in both; drag to pan and wheel to zoom | aggregated connection counts and active components | the step catalogue in Explorer and its step documents |
+| Workflow document | one graph view: a compositor-style component graph, or a step-level flow graph where steps fill columns top-to-bottom after **Open step group**; selecting any node, including a boundary component, highlights its incident links in both; drag to pan and wheel to zoom | aggregated connection counts and active components | the step catalogue in Explorer and its step documents |
 | Step document | identity, instruction and openings on the shared detail surface | payload values | connections and blueprint bindings |
 | Subject document | subject meaning and properties | attached semantics along the path | property provenance, type/presence chain and trace |
 
@@ -155,7 +155,8 @@ Explorer tree; it becomes its own document tab.
 component to select it; its aggregated links highlight → **Open step group** →
 filter with Control → click a step node; its connections highlight the same way
 → **Open step** → read its openings, instruction payload, connections and
-blueprint bindings. **Back** returns to the component map.
+blueprint bindings. A boundary node selects like any other node; **Open step
+group** enters that component. **Back** returns to the component map.
 
 **Read the design.** Inspect states the graph purpose and its full claims and
 frames on demand when nothing is selected; the editor states the selected

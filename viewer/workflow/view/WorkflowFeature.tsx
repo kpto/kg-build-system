@@ -1003,7 +1003,7 @@ function WorkflowGraphSceneView({
 
   return (
     <>
-      <g data-workflow-edges>
+      <g data-workflow-edges pointerEvents="none">
         {scene.edges.filter((edge) => !incident.has(edge.id)).map(renderEdge)}
       </g>
       <g data-workflow-nodes>
@@ -1133,7 +1133,7 @@ function WorkflowGraphSceneView({
         })}
       </g>
       {incident.size ? (
-        <g data-workflow-active-edges>
+        <g data-workflow-active-edges pointerEvents="none">
           {scene.edges.filter((edge) => incident.has(edge.id)).map(renderEdge)}
         </g>
       ) : null}
@@ -1171,8 +1171,8 @@ export function WorkflowEditor(props: WorkspaceProps) {
   const focusedGroupRows = focusedNode
     ? filtered.filter((row) => row.component === focusedNode.id)
     : [];
-  const selectedStepRow = ui.selectedStepKey
-    ? focusedGroupRows.find((row) => row.key === ui.selectedStepKey)
+  const selectedStepRow = ui.selectedNodeKey
+    ? focusedGroupRows.find((row) => row.key === ui.selectedNodeKey)
     : undefined;
   const tintByComponent = useMemo(
     () =>
@@ -1200,6 +1200,11 @@ export function WorkflowEditor(props: WorkspaceProps) {
         : undefined,
     [props.state.index, focusedNode, focusedGroupRows, tintFor],
   );
+  const selectedBoundaryNode = ui.selectedNodeKey
+    ? stepScene?.nodes.find(
+        (node) => node.id === ui.selectedNodeKey && node.kind !== "step",
+      )
+    : undefined;
   const activeScene = stepScene ?? componentScene;
   const inStepGroup = Boolean(stepScene && focusedNode);
 
@@ -1425,6 +1430,17 @@ export function WorkflowEditor(props: WorkspaceProps) {
               >
                 Open step →
               </button>
+            ) : selectedBoundaryNode?.component ? (
+              <button
+                type="button"
+                onClick={() =>
+                  store.focusComponent(selectedBoundaryNode.component)
+                }
+                className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
+                data-testid="workflow-open-step-group"
+              >
+                Open {selectedBoundaryNode.component} step group →
+              </button>
             ) : null}
             <button
               type="button"
@@ -1505,7 +1521,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
           }
           data-testid="workflow-map"
           onClick={() => {
-            if (inStepGroup) store.selectStep(undefined);
+            if (inStepGroup) store.selectNode(undefined);
           }}
         >
           <g
@@ -1515,7 +1531,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
           >
             <WorkflowGraphSceneView
               scene={inStepGroup ? (stepScene ?? componentScene) : componentScene}
-              selectedId={inStepGroup ? ui.selectedStepKey : selectedNode?.id}
+              selectedId={inStepGroup ? ui.selectedNodeKey : selectedNode?.id}
               activeIds={
                 inStepGroup || !filtering ? undefined : activeComponents
               }
@@ -1525,8 +1541,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
                   return;
                 }
                 if (inStepGroup) {
-                  if (node.kind === "step") store.selectStep(node.id);
-                  else if (node.component) store.focusComponent(node.component);
+                  store.selectNode(node.id);
                   return;
                 }
                 store.setComponent(
@@ -1537,7 +1552,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
                 inStepGroup
                   ? (node) => {
                       if (node.kind !== "step" || !node.row) return;
-                      store.selectStep(node.id);
+                      store.selectNode(node.id);
                       openStepNode(node.row, false);
                     }
                   : undefined
@@ -1556,7 +1571,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
                           hint: "Document",
                           run: () => {
                             if (!node.row) return;
-                            store.selectStep(node.id);
+                            store.selectNode(node.id);
                             openStepNode(node.row, false);
                           },
                         },
@@ -1609,8 +1624,8 @@ export function WorkflowEditor(props: WorkspaceProps) {
                           ...(node.component
                             ? [
                                 {
-                                  label: `Show ${node.component} group`,
-                                  hint: "Workflow",
+                                  label: `Open ${node.component} step group`,
+                                  hint: "Expand",
                                   run: () =>
                                     store.focusComponent(node.component!),
                                 },

@@ -7,7 +7,8 @@ import {
 
 export interface WorkflowUiState {
   filters: WorkflowFilters;
-  selectedStepKey?: string;
+  /** Selected node in the open step graph: a step key or a boundary node id. */
+  selectedNodeKey?: string;
   /** The component whose step graph is open, independent of filter selection. */
   focusedComponent?: string;
 }
@@ -44,7 +45,7 @@ class WorkflowUiStore {
     this.patch({
       filters: { ...this.state.filters, component },
       focusedComponent: undefined,
-      selectedStepKey: undefined,
+      selectedNodeKey: undefined,
     });
   };
 
@@ -56,7 +57,7 @@ class WorkflowUiStore {
     this.patch({
       filters: { ...this.state.filters, component },
       focusedComponent: component,
-      selectedStepKey: undefined,
+      selectedNodeKey: undefined,
     });
   };
 
@@ -68,12 +69,12 @@ class WorkflowUiStore {
     this.patch({
       filters: { ...DEFAULT_WORKFLOW_FILTERS },
       focusedComponent: undefined,
-      selectedStepKey: undefined,
+      selectedNodeKey: undefined,
     });
   };
 
-  selectStep = (key: string | undefined): void => {
-    this.patch({ selectedStepKey: key });
+  selectNode = (key: string | undefined): void => {
+    this.patch({ selectedNodeKey: key });
   };
 }
 

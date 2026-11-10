@@ -473,6 +473,37 @@ def main() -> int:
                     ),
                     None,
                 )
+            boundary_node = driver.find_elements(
+                By.CSS_SELECTOR, '[data-testid="workflow-boundary-node"]'
+            )[0]
+            pointer = ActionBuilder(driver)
+            pointer.pointer_action.click(boundary_node, button=0)
+            pointer.perform()
+            time.sleep(0.6)
+            report["checks"]["workflow_boundary_selected"] = (
+                len(
+                    driver.find_elements(
+                        By.CSS_SELECTOR,
+                        '[data-testid="workflow-boundary-node"][data-active="true"]',
+                    )
+                )
+                == 1
+                and driver.find_element(
+                    By.CSS_SELECTOR, '[data-testid="workflow-filter-component"]'
+                ).get_attribute("value")
+                == "duckdb"
+                and bool(
+                    driver.find_elements(
+                        By.CSS_SELECTOR, '[data-testid="workflow-step-node"]'
+                    )
+                )
+            )
+            report["checks"]["workflow_open_boundary_group"] = bool(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-open-step-group"]'
+                )
+            )
+
             first_step_node = next(
                 node
                 for node in step_nodes
