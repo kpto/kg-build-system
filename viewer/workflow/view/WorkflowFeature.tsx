@@ -9,6 +9,7 @@ import {
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
+import * as d3 from "d3";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -637,9 +638,7 @@ function buildCompositorLayout(
 const STEP_NODE_WIDTH = 190;
 const STEP_NODE_HEIGHT = 74;
 const STEP_HEADER_HEIGHT = 22;
-const STEP_GAP_X = 44;
-const STEP_GAP_Y = 30;
-const STEP_MARGIN = 32;
+const STEP_MARGIN = 36;
 const BOUNDARY_WIDTH = 150;
 const BOUNDARY_HEIGHT = 74;
 
@@ -683,7 +682,6 @@ function buildStepGraphLayout(
 ): StepGraphLayout {
   const visible = new Map(rows.map((row) => [row.key, row]));
   const internal: Array<{ id: string; sourceKey: string; targetKey: string }> = [];
-  const edges: StepGraphEdge[] = [];
   const incoming = new Map<string, number>();
   const outgoing = new Map<string, number>();
 
@@ -708,41 +706,20 @@ function buildStepGraphLayout(
   }
 
   const count = rows.length;
-  const columns = Math.max(
-    3,
-    Math.min(8, Math.round(Math.sqrt(Math.max(count, 1) / 1.6))),
-  );
-  const rowCount = Math.max(1, Math.ceil(count / columns));
-  const gridWidth =
-    columns * STEP_NODE_WIDTH + Math.max(0, columns - 1) * STEP_GAP_X;
-  const gridHeight =
-    rowCount * STEP_NODE_HEIGHT + Math.max(0, rowCount - 1) * STEP_GAP_Y;
   const leftEntries = [...incoming.entries()].sort(([a], [b]) => a.localeCompare(b));
   const rightEntries = [...outgoing.entries()].sort(([a], [b]) => a.localeCompare(b));
-  const leftWidth = leftEntries.length ? BOUNDARY_WIDTH : 0;
-  const rightWidth = rightEntries.length ? BOUNDARY_WIDTH : 0;
-  const gridX = STEP_MARGIN + (leftEntries.length ? leftWidth + 40 : 0);
-  const gridY = STEP_MARGIN;
-  const rightX = gridX + gridWidth + (rightEntries.length ? 40 : 0);
-  const leftStackHeight =
-    leftEntries.length * BOUNDARY_HEIGHT +
-    Math.max(0, leftEntries.length - 1) * 22;
-  const rightStackHeight =
-    rightEntries.length * BOUNDARY_HEIGHT +
-    Math.max(0, rightEntries.length - 1) * 22;
-  const canvasHeight =
-    STEP_MARGIN * 2 + Math.max(gridHeight, leftStackHeight, rightStackHeight);
-  const canvasWidth =
-    gridX +
-    gridWidth +
-    (rightEntries.length ? 40 + rightWidth : 0) +
-    STEP_MARGIN;
+  const estimatedSide = Math.max(680, Math.sqrt(Math.max(count, 1)) * 118);
+  const estimatedWidth = Math.max(1000, estimatedSide * 1.4);
+  const estimatedHeight = Math.max(640, estimatedSide * 0.95);
+  const centerX = estimatedWidth / 2;
+  const centerY = estimatedHeight / 2;
 
   const nodes: StepGraphNode[] = [];
   const nodeByKey = new Map<string, StepGraphNode>();
+
   rows.forEach((row, index) => {
-    const column = index % columns;
-    const line = Math.floor(index / columns);
+    const angle = index * 2.399963229728653;
+    const distance = 28 * Math.sqrt(index + 1);
     const node: StepGraphNode = {
       key: row.key,
       kind: "step",
@@ -751,8 +728,8 @@ function buildStepGraphLayout(
       row,
       component,
       tint: tintFor(component),
-      x: gridX + column * (STEP_NODE_WIDTH + STEP_GAP_X),
-      y: gridY + line * (STEP_NODE_HEIGHT + STEP_GAP_Y),
+      x: centerX + Math.cos(angle) * distance,
+      y: centerY + Math.sin(angle) * distance,
       width: STEP_NODE_WIDTH,
       height: STEP_NODE_HEIGHT,
     };
@@ -760,8 +737,11 @@ function buildStepGraphLayout(
     nodeByKey.set(node.key, node);
   });
 
+  const leftStackHeight =
+    leftEntries.length * BOUNDARY_HEIGHT +
+    Math.max(0, leftEntries.length - 1) * 22;
   const leftStartY =
-    STEP_MARGIN + Math.max(0, (gridHeight - leftStackHeight) / 2);
+    STEP_MARGIN + Math.max(0, (estimatedHeight - leftStackHeight) / 2);
   leftEntries.forEach(([source, links], index) => {
     const node: StepGraphNode = {
       key: `boundary:in:${source}`,
@@ -779,8 +759,11 @@ function buildStepGraphLayout(
     nodeByKey.set(node.key, node);
   });
 
+  const rightStackHeight =
+    rightEntries.length * BOUNDARY_HEIGHT +
+    Math.max(0, rightEntries.length - 1) * 22;
   const rightStartY =
-    STEP_MARGIN + Math.max(0, (gridHeight - rightStackHeight) / 2);
+    STEP_MARGIN + Math.max(0, (estimatedHeight - rightStackHeight) / 2);
   rightEntries.forEach(([target, links], index) => {
     const node: StepGraphNode = {
       key: `boundary:out:${target}`,
@@ -789,7 +772,7 @@ function buildStepGraphLayout(
       detail: `${links} link${links === 1 ? "" : "s"}`,
       component: target,
       tint: tintFor(target),
-      x: rightX,
+      x: estimatedWidth - BOUNDARY_WIDTH - STEP_MARGIN,
       y: rightStartY + index * (BOUNDARY_HEIGHT + 22),
       width: BOUNDARY_WIDTH,
       height: BOUNDARY_HEIGHT,
@@ -798,27 +781,12 @@ function buildStepGraphLayout(
     nodeByKey.set(node.key, node);
   });
 
-  const pushEdge = (sourceKey: string, targetKey: string, id: string, boundary: boolean) => {
-    const source = nodeByKey.get(sourceKey);
-    const target = nodeByKey.get(targetKey);
-    if (!source || !target) return;
-    const sx = source.x + source.width;
-    const sy = source.y + source.height / 2;
-    const tx = target.x;
-    const ty = target.y + target.height / 2;
-    const dx = Math.max(42, Math.abs(tx - sx) * 0.5);
-    edges.push({
-      id,
-      sourceKey,
-      targetKey,
-      boundary,
-      path: `M ${sx} ${sy} C ${sx + dx} ${sy}, ${tx - dx} ${ty}, ${tx} ${ty}`,
-    });
-  };
-
-  for (const edge of internal) {
-    pushEdge(edge.sourceKey, edge.targetKey, edge.id, false);
-  }
+  const edgeDefs: Array<{
+    id: string;
+    sourceKey: string;
+    targetKey: string;
+    boundary: boolean;
+  }> = internal.map((edge) => ({ ...edge, boundary: false }));
   for (const connection of index.connections) {
     const sourceKey = stepKey(connection.outputStepId);
     const targetKey = stepKey(connection.inputStepId);
@@ -826,20 +794,117 @@ function buildStepGraphLayout(
     const targetIn = visible.has(targetKey);
     if (sourceIn && targetIn) continue;
     if (sourceIn && connection.inputStepId[0] !== component) {
-      pushEdge(
+      edgeDefs.push({
+        id: `boundary:${connection.id}`,
         sourceKey,
-        `boundary:out:${connection.inputStepId[0]}`,
-        `boundary:${connection.id}`,
-        true,
-      );
+        targetKey: `boundary:out:${connection.inputStepId[0]}`,
+        boundary: true,
+      });
     } else if (targetIn && connection.outputStepId[0] !== component) {
-      pushEdge(
-        `boundary:in:${connection.outputStepId[0]}`,
+      edgeDefs.push({
+        id: `boundary:${connection.id}`,
+        sourceKey: `boundary:in:${connection.outputStepId[0]}`,
         targetKey,
-        `boundary:${connection.id}`,
-        true,
-      );
+        boundary: true,
+      });
     }
+  }
+
+  interface ForceNode extends d3.SimulationNodeDatum {
+    key: string;
+    width: number;
+    height: number;
+    boundary: boolean;
+  }
+  interface ForceLink extends d3.SimulationLinkDatum<ForceNode> {
+    boundary: boolean;
+  }
+
+  const forceNodes: ForceNode[] = nodes.map((node) => ({
+    key: node.key,
+    width: node.width,
+    height: node.height,
+    boundary: node.kind !== "step",
+    x: node.x,
+    y: node.y,
+    fx: node.kind === "step" ? null : node.x,
+    fy: node.kind === "step" ? null : node.y,
+  }));
+  const forceByKey = new Map(forceNodes.map((node) => [node.key, node]));
+  const forceLinks: ForceLink[] = edgeDefs
+    .filter(
+      (edge) => forceByKey.has(edge.sourceKey) && forceByKey.has(edge.targetKey),
+    )
+    .map((edge) => ({
+      source: edge.sourceKey,
+      target: edge.targetKey,
+      boundary: edge.boundary,
+    }));
+
+  const simulation = d3
+    .forceSimulation<ForceNode>(forceNodes)
+    .force(
+      "link",
+      d3
+        .forceLink<ForceNode, ForceLink>(forceLinks)
+        .id((node) => node.key)
+        .distance((link) => (link.boundary ? 118 : 108))
+        .strength((link) => (link.boundary ? 0.12 : 0.36)),
+    )
+    .force("charge", d3.forceManyBody<ForceNode>().strength(-65))
+    .force("center", d3.forceCenter<ForceNode>(centerX, centerY))
+    .force(
+      "collide",
+      d3
+        .forceCollide<ForceNode>()
+        .radius((node) => Math.max(node.width, node.height) * 0.55),
+    )
+    .force("x", d3.forceX<ForceNode>(centerX).strength(0.08))
+    .force("y", d3.forceY<ForceNode>(centerY).strength(0.08))
+    .alphaDecay(0.055)
+    .velocityDecay(0.4)
+    .randomSource(d3.randomLcg(0.42));
+  simulation.stop();
+  const ticks = count > 220 ? 90 : count > 100 ? 140 : 200;
+  for (let tick = 0; tick < ticks; tick += 1) simulation.tick();
+  simulation.alpha(0).stop();
+
+  let minX = Infinity;
+  let minY = Infinity;
+  let maxX = -Infinity;
+  let maxY = -Infinity;
+  for (const node of forceNodes) {
+    const x = node.x ?? 0;
+    const y = node.y ?? 0;
+    minX = Math.min(minX, x);
+    minY = Math.min(minY, y);
+    maxX = Math.max(maxX, x + node.width);
+    maxY = Math.max(maxY, y + node.height);
+  }
+  const offsetX = STEP_MARGIN - minX;
+  const offsetY = STEP_MARGIN - minY;
+  for (const node of nodes) {
+    const position = forceByKey.get(node.key);
+    node.x = (position?.x ?? 0) + offsetX;
+    node.y = (position?.y ?? 0) + offsetY;
+  }
+  const canvasWidth = maxX - minX + STEP_MARGIN * 2;
+  const canvasHeight = maxY - minY + STEP_MARGIN * 2;
+
+  const edges: StepGraphEdge[] = [];
+  for (const edge of edgeDefs) {
+    const source = nodeByKey.get(edge.sourceKey);
+    const target = nodeByKey.get(edge.targetKey);
+    if (!source || !target) continue;
+    const sx = source.x + source.width;
+    const sy = source.y + source.height / 2;
+    const tx = target.x;
+    const ty = target.y + target.height / 2;
+    const dx = Math.max(54, Math.abs(tx - sx) * 0.5);
+    edges.push({
+      ...edge,
+      path: `M ${sx} ${sy} C ${sx + dx} ${sy}, ${tx - dx} ${ty}, ${tx} ${ty}`,
+    });
   }
 
   return {
