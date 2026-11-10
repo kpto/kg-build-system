@@ -6,7 +6,7 @@ import { CircleDot, FileText, Search, X } from "lucide-react";
 import { searchIndex } from "@/lib/search";
 import type { SearchKind, SearchRecord } from "@/lib/types";
 import { useWorkbench } from "./store";
-import type { WorkbenchSelection } from "./types";
+import type { SubjectSelection } from "./types";
 
 export interface CommandPaletteProps {
   onClose(): void;
@@ -17,11 +17,11 @@ interface PaletteItem {
   group: "subject";
   label: string;
   detail: string;
-  selection: WorkbenchSelection;
+  selection: SubjectSelection;
 }
 
 interface SubjectTarget {
-  selection: WorkbenchSelection;
+  selection: SubjectSelection;
   tabLabel: string;
 }
 
@@ -42,7 +42,7 @@ function subjectTarget(
   indexSteps: Array<{ id: [string, string]; instruction: { kind: [string, string] } }>,
 ): SubjectTarget {
   const tabLabel = record.label || record.name;
-  const base: WorkbenchSelection = {};
+  const base: SubjectSelection = {};
 
   switch (record.kind) {
     case "property":

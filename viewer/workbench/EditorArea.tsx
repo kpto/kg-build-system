@@ -4,11 +4,12 @@ import { DetailEditor } from "@/detail/DetailFeature";
 import { TopologyEditor } from "@/topology/TopologyFeature";
 import { EditorTabs } from "./EditorTabs";
 import { useWorkbench } from "./store";
-import { currentSelection } from "./types";
+import { activeDocument } from "./types";
 
 export function EditorArea() {
   const { state, actions } = useWorkbench();
-  const graph = currentSelection(state).kind === "graph";
+  const document = activeDocument(state);
+  const graph = document.kind === "graph";
   const Editor = graph ? TopologyEditor : DetailEditor;
 
   return (

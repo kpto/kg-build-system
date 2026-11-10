@@ -3,8 +3,8 @@
 import { CircleDot, Database, Minus, Plus } from "lucide-react";
 
 import { useWorkbench } from "./store";
-import { currentLensSelection, currentSelection, tabView } from "./types";
-import type { WorkbenchSelection } from "./types";
+import { activeDocument, lensSelection } from "./types";
+import type { SubjectSelection } from "./types";
 
 export interface StatusBarProps {
   zoom: number;
@@ -19,7 +19,8 @@ function displayIdentity(value: string): string {
   return value.replace(/\u0000/g, " / ");
 }
 
-function selectedSubject(selection: WorkbenchSelection): string {
+function selectedSubject(selection: SubjectSelection | undefined): string {
+  if (!selection) return "No subject selected";
   if (selection.stepId) return selection.stepId.join(" / ");
   if (selection.component && selection.property) {
     return `${displayIdentity(selection.component)}.${selection.property}`;
@@ -38,8 +39,8 @@ export function StatusBar({
 }: StatusBarProps) {
   const { state } = useWorkbench();
   const stats = state.index.stats;
-  const selection = currentLensSelection(state);
-  const view = tabView(currentSelection(state));
+  const selection = lensSelection(state);
+  const document = activeDocument(state);
 
   return (
     <footer className="wb-statusbar" aria-label="Workbench status">
@@ -52,7 +53,7 @@ export function StatusBar({
         <span className="wb-status-item" title="Active document selection">
           <CircleDot aria-hidden className="size-3" />
           <span className="wb-status-label">
-            {view === "graph" ? "Graph" : "Subject"}
+            {document.kind === "graph" ? "Graph" : "Subject"}
           </span>
           <span className="wb-mono wb-status-subject">{selectedSubject(selection)}</span>
         </span>

@@ -12,17 +12,19 @@ import {
 } from "lucide-react";
 
 import { useWorkbench } from "./store";
-import type { WorkbenchTab } from "./types";
+import { documentTitle, type WorkbenchTab } from "./types";
 
 function tabIcon(tab: WorkbenchTab) {
+  const kind =
+    tab.document.kind === "graph" ? "graph" : tab.document.selection.kind;
   const Icon =
-    tab.selection.kind === "graph"
+    kind === "graph"
       ? Network
-      : tab.selection.kind === "property"
+      : kind === "property"
         ? CircleDot
-        : tab.selection.kind === "asset"
+        : kind === "asset"
           ? Database
-          : tab.selection.kind === "node" || tab.selection.kind === "edge"
+          : kind === "node" || kind === "edge"
             ? Boxes
             : FileText;
   return <Icon aria-hidden className="size-3" />;
@@ -63,6 +65,7 @@ export function EditorTabs() {
       <div className="wb-tabs" role="tablist" aria-label="Open editors">
         {state.tabs.map((tab) => {
           const active = tab.id === state.activeTabId;
+          const title = documentTitle(tab.document);
           return (
             <div
               key={tab.id}
@@ -75,19 +78,19 @@ export function EditorTabs() {
                 role="tab"
                 aria-selected={active}
                 className="wb-tab-label"
-                title={`${tab.title} · ${tab.selection.kind ?? "document"}`}
+                title={`${title} · ${tab.document.kind}`}
                 onClick={() => actions.activateTab(tab.id)}
                 data-testid={`tab-${tab.id}`}
               >
                 {tabIcon(tab)}
-                <span className="wb-tab-title">{tab.title}</span>
+                <span className="wb-tab-title">{title}</span>
               </button>
               {tab.pinned ? null : (
                 <button
                   type="button"
                   className="wb-tab-close"
-                  aria-label={`Close ${tab.title}`}
-                  title={`Close ${tab.title}`}
+                  aria-label={`Close ${title}`}
+                  title={`Close ${title}`}
                   onClick={() => actions.closeTab(tab.id)}
                 >
                   <X aria-hidden className="size-3" />

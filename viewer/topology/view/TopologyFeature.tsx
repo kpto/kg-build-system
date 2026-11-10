@@ -11,8 +11,7 @@ import {
 import type { JSX, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import * as d3 from "d3";
 
-import type { WorkspaceProps, WorkbenchSelection } from "@/workbench/types";
-import { currentSelection } from "@/workbench/types";
+import type { WorkspaceProps, SubjectSelection } from "@/workbench/types";
 import type { TopologyProperty } from "@/lib/types";
 import { logicalTypeName } from "@/lib/expressions";
 import { DesignMeaning, GraphMeaning } from "@/shared/design/DesignMeaning";
@@ -44,11 +43,11 @@ import { getTopologyUiStore, type TopologyUiStore } from "./topologyUi";
 // ---------------------------------------------------------------------------
 
 function topologySelection(props: WorkspaceProps): TopologySelection | undefined {
-  const selection: WorkbenchSelection = props.state.inspection;
-  if ((selection.kind === "node" || selection.kind === "edge") && selection.name) {
+  const selection: SubjectSelection | undefined = props.state.inspection;
+  if ((selection?.kind === "node" || selection?.kind === "edge") && selection.name) {
     return { kind: selection.kind, name: selection.name };
   }
-  if (selection.kind === "property" && selection.component) {
+  if (selection?.kind === "property" && selection.component) {
     const component = selection.component;
     const kind = props.state.index.topologyNodesByName.has(component)
       ? "node"
@@ -60,30 +59,16 @@ function topologySelection(props: WorkspaceProps): TopologySelection | undefined
   return undefined;
 }
 
-function inspectOrUpdate(
-  props: WorkspaceProps,
-  selection: WorkbenchSelection,
-): void {
-  if (currentSelection(props.state).kind === "graph") {
-    // The Graph document stays the Graph document; this is transient inspection.
-    props.actions.inspect(selection);
-  } else {
-    // A subject document follows navigation inside the canvas.
-    props.actions.setSelection(selection);
-  }
-}
-
 function writeSelection(
   props: WorkspaceProps,
   kind: TopologySelection["kind"],
   name: string,
 ): void {
-  inspectOrUpdate(props, { kind, name });
+  props.actions.inspect({ kind, name });
 }
 
 function clearSelection(props: WorkspaceProps): void {
-  props.actions.inspect({ kind: "graph", name: "Graph" });
-  props.actions.openTab({ selection: { kind: "graph", name: "Graph" } });
+  props.actions.inspect(undefined);
 }
 
 function entityComponentName(entity: TopologyEntity): string {
@@ -104,9 +89,7 @@ function entityProperties(props: WorkspaceProps, entity: TopologyEntity): Topolo
  */
 function openInDetail(props: WorkspaceProps): void {
   const inspection = props.state.inspection;
-  if (inspection.kind && inspection.kind !== "graph") {
-    props.actions.openTab({ selection: inspection });
-  }
+  if (inspection?.kind) props.actions.openTab({ selection: inspection });
 }
 
 function PropertyRows({
@@ -129,7 +112,7 @@ function PropertyRows({
           key={property.name}
           type="button"
           onClick={() =>
-            inspectOrUpdate(props, {
+            props.actions.inspect({
               kind: "property",
               level: "property",
               component: entityComponentName(entity),
@@ -1718,7 +1701,7 @@ export function TopologyBottom(props: WorkspaceProps): JSX.Element {
   const selection = topologySelection(props);
   const entity = findTopologyEntity(model, selection);
   const raw = props.state.inspection;
-  const activeProperty = raw.kind === "property" ? raw.property : undefined;
+  const activeProperty = raw?.kind === "property" ? raw.property : undefined;
 
   if (!entity) {
     return (

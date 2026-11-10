@@ -29,11 +29,9 @@ import {
   Waypoints,
 } from "lucide-react";
 
-import type {
-  WorkspaceProps,
-  WorkbenchSelection,
-} from "@/workbench/types";
-import { currentSelection } from "@/workbench/types";
+import type { WorkspaceProps, SubjectSelection } from "@/workbench/types";
+import { documentTitle } from "@/workbench/types";
+import { activeDocument, documentSelection } from "@/workbench/types";
 import type {
   LineageLane,
   SemanticSubjectKind,
@@ -48,7 +46,6 @@ import {
   collectProofSemantics,
   defaultProofSubject,
   proofSubjectForLevel,
-  resolveProofSubject,
   traceArtifactLabel,
   type ProofBranch,
   type ProofLevel,
@@ -74,8 +71,8 @@ import styles from "./detail.module.css";
 // Selection plumbing
 // ---------------------------------------------------------------------------
 
-function toWorkbenchSelection(subject: ProofSubject): WorkbenchSelection {
-  const base: WorkbenchSelection = {
+function toWorkbenchSelection(subject: ProofSubject): SubjectSelection {
+  const base: SubjectSelection = {
     name:
       subject.level === "property"
         ? `${subject.component}.${subject.property ?? ""}`
@@ -102,17 +99,9 @@ function toWorkbenchSelection(subject: ProofSubject): WorkbenchSelection {
 }
 
 function useProofModel(props: WorkspaceProps): ProofModel {
-  const selection = currentSelection(props.state);
+  const selection = documentSelection(activeDocument(props.state));
   return useMemo(
     () => buildProof(props.state.index, selection),
-    [props.state.index, selection],
-  );
-}
-
-function useCurrentSubject(props: WorkspaceProps): ProofSubject {
-  const selection = currentSelection(props.state);
-  return useMemo(
-    () => resolveProofSubject(props.state.index, selection),
     [props.state.index, selection],
   );
 }
@@ -411,9 +400,8 @@ function SidebarRow({ label, meta, active, abstract, onSelect }: SidebarRowProps
 
 export function DetailSidebar(props: WorkspaceProps) {
   const { index } = props.state;
-  const selection = currentSelection(props.state);
-  const subject = useCurrentSubject(props);
-  const model = useProofModel(props);
+  const document = activeDocument(props.state);
+  const active = documentSelection(document);
   const [query, setQuery] = useState("");
   const [open, setOpen] = useState<Set<string>>(
     () => new Set(["assets", "nodes", "abstract", "edges"]),
@@ -461,14 +449,12 @@ export function DetailSidebar(props: WorkspaceProps) {
 
   const isActive = (
     level: ProofLevel,
-    kind: string,
     component: string,
     property?: string,
   ): boolean =>
-    subject.level === level &&
-    subject.kind === kind &&
-    subject.component === component &&
-    (property === undefined || subject.property === property);
+    active?.level === level &&
+    active.component === component &&
+    (property === undefined || active.property === property);
 
   const renderNode = (node: (typeof nodes)[number]) => {
     const nodeOpen = normalized ? true : expanded.has(`node:${node.name}`);
@@ -482,7 +468,7 @@ export function DetailSidebar(props: WorkspaceProps) {
         <div
           className={styles.treeRow}
           data-active={
-            isActive(nodeLevel, nodeKind, node.name) ? "true" : undefined
+            isActive(nodeLevel, node.name) ? "true" : undefined
           }
         >
           <button
@@ -524,7 +510,7 @@ export function DetailSidebar(props: WorkspaceProps) {
                 type="button"
                 className={styles.propertyRow}
                 data-active={
-                  isActive("property", "node", node.name, property.name)
+                  isActive("property", node.name, property.name)
                     ? "true"
                     : undefined
                 }
@@ -558,7 +544,7 @@ export function DetailSidebar(props: WorkspaceProps) {
         <div
           className={styles.treeRow}
           data-active={
-            isActive("edge", "edge", edge.name) ? "true" : undefined
+            isActive("edge", edge.name) ? "true" : undefined
           }
         >
           <button
@@ -600,7 +586,7 @@ export function DetailSidebar(props: WorkspaceProps) {
                 type="button"
                 className={styles.propertyRow}
                 data-active={
-                  isActive("property", "edge", edge.name, property.name)
+                  isActive("property", edge.name, property.name)
                     ? "true"
                     : undefined
                 }
@@ -657,7 +643,7 @@ export function DetailSidebar(props: WorkspaceProps) {
               key={asset.name}
               label={asset.name}
               meta={index.assetProfilesByName.get(asset.name)?.subject}
-              active={isActive("asset", "asset", asset.name)}
+              active={isActive("asset", asset.name)}
               onSelect={() =>
                 select({ level: "asset", kind: "asset", component: asset.name })
               }
@@ -750,7 +736,7 @@ export function DetailSidebar(props: WorkspaceProps) {
       <footer className={styles.sideFooter}>
         <span className={styles.sideFooterLabel}>Selection</span>
         <span className={styles.sideFooterValue}>
-          {selection.kind === "graph" ? "Graph" : levelTitle(model)}
+          {document.kind === "graph" ? "Graph" : documentTitle(document)}
         </span>
       </footer>
     </div>
@@ -1470,11 +1456,11 @@ export function DetailEditor(props: WorkspaceProps) {
 
 function SubjectDetailEditor(props: WorkspaceProps) {
   const model = useProofModel(props);
-  const selection = currentSelection(props.state);
+  const selection = documentSelection(activeDocument(props.state));
   const meaning = subjectMeaning(props.state.index, model);
 
   useEffect(() => {
-    if (selection.kind || selection.component || selection.property) return;
+    if (selection) return;
     props.actions.setSelection(
       toWorkbenchSelection(defaultProofSubject(props.state.index)),
     );

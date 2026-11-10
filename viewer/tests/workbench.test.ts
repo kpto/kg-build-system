@@ -2,10 +2,18 @@ import { describe, expect, it } from "vitest";
 
 import { contractIndex, contractSnapshot } from "./fixtures";
 import { createWorkbenchState, workbenchReducer } from "../workbench/store";
-import type { WorkbenchState } from "../workbench/types";
+import {
+  documentTitle,
+  type WorkbenchState,
+} from "../workbench/types";
 
 function state(): WorkbenchState {
   return createWorkbenchState(contractSnapshot, contractIndex);
+}
+
+function activeTitle(current: WorkbenchState): string | undefined {
+  const tab = current.tabs.find((candidate) => candidate.id === current.activeTabId);
+  return tab ? documentTitle(tab.document) : undefined;
 }
 
 const defectNode = {
@@ -29,10 +37,11 @@ describe("workbench documents and geometry", () => {
     expect(initial.tabs).toHaveLength(1);
     expect(initial.tabs[0]).toMatchObject({
       id: "graph",
-      title: "Graph",
-      selection: { kind: "graph" },
+      document: { kind: "graph" },
       pinned: true,
     });
+    expect(activeTitle(initial)).toBe("Graph");
+    expect(initial.inspection).toBeUndefined();
     expect(initial.layout.sidebarWidth).toBe(300);
     expect(initial.layout.bottomHeight).toBe(240);
   });
@@ -61,7 +70,10 @@ describe("workbench documents and geometry", () => {
       type: "open-tab",
       input: { selection: defectNode },
     });
-    expect(opened.tabs.map((tab) => tab.title)).toEqual(["Graph", "defect"]);
+    expect(opened.tabs.map((tab) => documentTitle(tab.document))).toEqual([
+      "Graph",
+      "defect",
+    ]);
     const again = workbenchReducer(opened, {
       type: "open-tab",
       input: { selection: defectNode },
@@ -78,21 +90,17 @@ describe("workbench documents and geometry", () => {
       type: "open-tab",
       input: { selection: defectProperty },
     });
-    expect(current.tabs.map((tab) => tab.title)).toEqual([
+    expect(current.tabs.map((tab) => documentTitle(tab.document))).toEqual([
       "Graph",
       "defect",
       "defect.title",
     ]);
 
     current = workbenchReducer(current, { type: "back" });
-    expect(current.tabs.find((tab) => tab.id === current.activeTabId)?.title).toBe(
-      "defect",
-    );
+    expect(activeTitle(current)).toBe("defect");
 
     current = workbenchReducer(current, { type: "forward" });
-    expect(current.tabs.find((tab) => tab.id === current.activeTabId)?.title).toBe(
-      "defect.title",
-    );
+    expect(activeTitle(current)).toBe("defect.title");
   });
 
   it("updates the active document without a history step", () => {
@@ -106,9 +114,7 @@ describe("workbench documents and geometry", () => {
       selection: defectProperty,
     });
     expect(current.history).toHaveLength(historyLength);
-    expect(current.tabs.find((tab) => tab.id === current.activeTabId)?.title).toBe(
-      "defect.title",
-    );
+    expect(activeTitle(current)).toBe("defect.title");
   });
 
   it("closes a subject document and falls back to the previous document", () => {
@@ -122,9 +128,10 @@ describe("workbench documents and geometry", () => {
     });
     const propertyId = current.activeTabId;
     current = workbenchReducer(current, { type: "close-tab", tabId: propertyId });
-    expect(current.tabs.map((tab) => tab.title)).toEqual(["Graph", "defect"]);
-    expect(current.tabs.find((tab) => tab.id === current.activeTabId)?.title).toBe(
+    expect(current.tabs.map((tab) => documentTitle(tab.document))).toEqual([
+      "Graph",
       "defect",
-    );
+    ]);
+    expect(activeTitle(current)).toBe("defect");
   });
 });

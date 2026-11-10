@@ -7,7 +7,7 @@ import {
   useWorkbench,
   workbenchStorageKey,
 } from "./store";
-import { DEFAULT_LAYOUT, currentSelection, tabView } from "./types";
+import { DEFAULT_LAYOUT, activeDocument } from "./types";
 
 export interface SettingsDialogProps {
   onClose(): void;
@@ -32,7 +32,7 @@ const SHORTCUTS = [
 
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const { state, actions } = useWorkbench();
-  const view = tabView(currentSelection(state));
+  const document = activeDocument(state);
 
   const resetLayout = () => {
     actions.setLayout({
@@ -102,7 +102,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               </div>
               <div>
                 <dt>Document</dt>
-                <dd>{view === "graph" ? "Graph" : "Subject"}</dd>
+                <dd>{document.kind === "graph" ? "Graph" : "Subject"}</dd>
               </div>
               <div>
                 <dt>Storage key</dt>

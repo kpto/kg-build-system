@@ -8,7 +8,7 @@ side-bar sections. The visual rules are in `DESIGN_LANGUAGE.md` and
 
 ```text
 Window        the KG design viewer
-  Document    Graph | subject document: what the editor renders
+  Document    Graph | Subject document: what the editor renders
     Side bar  Topology | Detail: collapsible sections, not modes
       Section one question inside the active side-bar section
         Row   one node, relation, property, step, claim, frame or asset

@@ -23,12 +23,15 @@ import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 
 import type {
   OpenTabInput,
-  SelectionKind,
+  SubjectKind,
   WorkbenchActions,
   WorkbenchLayout,
-  WorkbenchSelection,
+  SubjectSelection,
   WorkbenchState,
   WorkbenchTab,
+  activeDocument,
+  documentTitle,
+  subjectTitle,
 } from "./types";
 import {
   DEFAULT_LAYOUT,
@@ -40,8 +43,7 @@ import {
 
 export const WORKBENCH_STORAGE_PREFIX = "kg-workbench:v2";
 
-const SELECTION_KINDS = new Set<SelectionKind>([
-  "graph",
+const SUBJECT_KINDS = new Set<SubjectKind>([
   "asset",
   "relation",
   "projection",
@@ -111,18 +113,18 @@ function writeLayout(snapshotName: string, layout: WorkbenchLayout): void {
   }
 }
 
-function normalizeSelection(value: unknown): WorkbenchSelection {
+function normalizeSelection(value: unknown): SubjectSelection | undefined {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return { kind: "graph", name: "Graph" };
+    return undefined;
   }
   const candidate = value as Record<string, unknown>;
-  const selection: WorkbenchSelection = {};
+  const selection: SubjectSelection = {};
 
   if (
     typeof candidate.kind === "string" &&
-    SELECTION_KINDS.has(candidate.kind as SelectionKind)
+    SUBJECT_KINDS.has(candidate.kind as SubjectKind)
   ) {
-    selection.kind = candidate.kind as SelectionKind;
+    selection.kind = candidate.kind as SubjectKind;
   }
   for (const field of ["name", "component", "property"] as const) {
     if (typeof candidate[field] === "string") selection[field] = candidate[field];
@@ -131,7 +133,7 @@ function normalizeSelection(value: unknown): WorkbenchSelection {
     typeof candidate.level === "string" &&
     DETAIL_LEVELS.has(candidate.level)
   ) {
-    selection.level = candidate.level as WorkbenchSelection["level"];
+    selection.level = candidate.level as SubjectSelection["level"];
   }
   if (
     Array.isArray(candidate.stepId) &&
@@ -144,7 +146,7 @@ function normalizeSelection(value: unknown): WorkbenchSelection {
   return selection;
 }
 
-function selectionSignature(selection: WorkbenchSelection): string {
+function selectionSignature(selection: SubjectSelection): string {
   return [
     selection.kind ?? "",
     selection.component ?? "",
@@ -155,24 +157,12 @@ function selectionSignature(selection: WorkbenchSelection): string {
   ].join("\u0000");
 }
 
-function tabTitle(selection: WorkbenchSelection): string {
-  if (selection.kind === "graph") return "Graph";
-  if (selection.kind === "property" && selection.component && selection.property) {
-    return `${selection.component}.${selection.property}`;
-  }
-  if (selection.component) return selection.component;
-  if (selection.name) return selection.name;
-  return "Detail";
-}
-
-function tabId(selection: WorkbenchSelection): string {
-  if (selection.kind === "graph") return GRAPH_TAB_ID;
+function subjectId(selection: SubjectSelection): string {
   return `document:${selectionSignature(selection)}`;
 }
 
 function graphTab(): WorkbenchTab {
-  const selection: WorkbenchSelection = { kind: "graph", name: "Graph" };
-  return { id: GRAPH_TAB_ID, title: "Graph", selection, pinned: true };
+  return { id: GRAPH_TAB_ID, document: { kind: "graph" }, pinned: true };
 }
 
 export function createWorkbenchState(
@@ -186,7 +176,6 @@ export function createWorkbenchState(
     layout: normalizeLayout(undefined),
     tabs: [tab],
     activeTabId: tab.id,
-    inspection: { kind: "graph", name: "Graph" },
     history: [tab.id],
     historyIndex: 0,
   };
@@ -220,22 +209,18 @@ function appendTab(
   input: OpenTabInput,
 ): WorkbenchState {
   const selection = normalizeSelection(input.selection);
-  if (selection.kind === "graph") {
-    const existing = state.tabs.find((tab) => tab.id === GRAPH_TAB_ID);
-    if (existing) return activate(state, existing.id);
-    const tab = graphTab();
-    return activate({ ...state, tabs: [tab, ...state.tabs] }, tab.id);
-  }
+  if (!selection || !selection.kind) return state;
   const signature = selectionSignature(selection);
   const existing = state.tabs.find(
-    (tab) => selectionSignature(tab.selection) === signature,
+    (tab) =>
+      tab.document.kind === "subject" &&
+      selectionSignature(tab.document.selection) === signature,
   );
   if (existing) return activate(state, existing.id);
 
   const tab: WorkbenchTab = {
-    id: tabId(selection),
-    title: input.title ?? tabTitle(selection),
-    selection,
+    id: subjectId(selection),
+    document: { kind: "subject", selection },
   };
   return activate({ ...state, tabs: [...state.tabs, tab] }, tab.id);
 }
@@ -252,8 +237,8 @@ function nextActiveAfterClose(
 
 export type WorkbenchAction =
   | { type: "hydrate"; layout: WorkbenchLayout }
-  | { type: "set-selection"; selection: WorkbenchSelection }
-  | { type: "inspect"; selection: WorkbenchSelection }
+  | { type: "set-selection"; selection: SubjectSelection }
+  | { type: "inspect"; selection: SubjectSelection | undefined }
   | { type: "set-layout"; patch: Partial<Pick<WorkbenchLayout, "sidebarWidth" | "bottomHeight">> }
   | { type: "open-tab"; input: OpenTabInput }
   | { type: "close-tab"; tabId: string }
@@ -273,11 +258,15 @@ export function workbenchReducer(
       const tab = state.tabs.find((candidate) => candidate.id === state.activeTabId);
       if (!tab) return state;
       const selection = normalizeSelection(action.selection);
+      if (!selection) return state;
+      if (tab.document.kind === "graph") {
+        return { ...state, inspection: selection };
+      }
       return {
         ...state,
         tabs: state.tabs.map((candidate) =>
           candidate.id === tab.id
-            ? { ...candidate, selection, title: tabTitle(selection) }
+            ? { ...candidate, document: { kind: "subject", selection } }
             : candidate,
         ),
       };

@@ -2,14 +2,13 @@
  * Workbench contract.
  *
  * One frame owns snapshot loading, one geometry, one document tab strip and the
- * transient inspection of the canonical graph. The side bar exposes the
- * Topology and Detail sections; neither is a mode and neither changes a tab.
+ * transient inspection of the canonical graph. The side bar exposes Topology
+ * and Detail as collapsible sections; neither is a mode.
  */
 
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 
-export type SelectionKind =
-  | "graph"
+export type SubjectKind =
   | "asset"
   | "relation"
   | "projection"
@@ -22,10 +21,9 @@ export type SelectionKind =
 
 export type DetailLevel = "property" | "node" | "edge" | "abstract" | "asset";
 
-export type TabView = "graph" | "subject";
-
-export interface WorkbenchSelection {
-  kind?: SelectionKind;
+/** A subject the viewer can open or inspect. There is no graph subject. */
+export interface SubjectSelection {
+  kind?: SubjectKind;
   name?: string;
   component?: string;
   property?: string;
@@ -33,17 +31,20 @@ export interface WorkbenchSelection {
   stepId?: [string, string];
 }
 
-export interface WorkbenchLayout {
-  sidebarWidth: number;
-  bottomHeight: number;
-}
+export type WorkbenchDocument =
+  | { kind: "graph" }
+  | { kind: "subject"; selection: SubjectSelection };
 
 export interface WorkbenchTab {
   id: string;
-  title: string;
-  selection: WorkbenchSelection;
+  document: WorkbenchDocument;
   /** The canonical graph tab is always available. */
   pinned?: boolean;
+}
+
+export interface WorkbenchLayout {
+  sidebarWidth: number;
+  bottomHeight: number;
 }
 
 export interface WorkbenchState {
@@ -54,19 +55,18 @@ export interface WorkbenchState {
   tabs: WorkbenchTab[];
   activeTabId: string;
   /** Transient graph inspection; it never becomes a document by itself. */
-  inspection: WorkbenchSelection;
+  inspection?: SubjectSelection;
   history: string[];
   historyIndex: number;
 }
 
 export interface OpenTabInput {
-  selection: WorkbenchSelection;
-  title?: string;
+  selection: SubjectSelection;
 }
 
 export interface WorkbenchActions {
-  setSelection(selection: WorkbenchSelection): void;
-  inspect(selection: WorkbenchSelection): void;
+  setSelection(selection: SubjectSelection): void;
+  inspect(selection: SubjectSelection | undefined): void;
   setLayout(patch: Partial<Pick<WorkbenchLayout, "sidebarWidth" | "bottomHeight">>): void;
   openTab(tab: OpenTabInput): void;
   closeTab(tabId: string): void;
@@ -84,18 +84,33 @@ export function activeTab(state: WorkbenchState): WorkbenchTab | undefined {
   return state.tabs.find((tab) => tab.id === state.activeTabId);
 }
 
-export function currentSelection(state: WorkbenchState): WorkbenchSelection {
-  return activeTab(state)?.selection ?? { kind: "graph", name: "Graph" };
+export function activeDocument(state: WorkbenchState): WorkbenchDocument {
+  return activeTab(state)?.document ?? { kind: "graph" };
 }
 
-export function tabView(selection: WorkbenchSelection): TabView {
-  return selection.kind === "graph" ? "graph" : "subject";
+export function documentSelection(
+  document: WorkbenchDocument,
+): SubjectSelection | undefined {
+  return document.kind === "subject" ? document.selection : undefined;
 }
 
 /** The Graph document uses transient inspection; a subject uses itself. */
-export function currentLensSelection(state: WorkbenchState): WorkbenchSelection {
-  const selection = currentSelection(state);
-  return selection.kind === "graph" ? state.inspection : selection;
+export function lensSelection(state: WorkbenchState): SubjectSelection | undefined {
+  const document = activeDocument(state);
+  return document.kind === "graph" ? state.inspection : document.selection;
+}
+
+export function subjectTitle(selection: SubjectSelection): string {
+  if (selection.kind === "property" && selection.component && selection.property) {
+    return `${selection.component}.${selection.property}`;
+  }
+  if (selection.component) return selection.component;
+  if (selection.name) return selection.name;
+  return "Detail";
+}
+
+export function documentTitle(document: WorkbenchDocument): string {
+  return document.kind === "graph" ? "Graph" : subjectTitle(document.selection);
 }
 
 export const DEFAULT_LAYOUT: WorkbenchLayout = {
