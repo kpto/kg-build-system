@@ -109,7 +109,9 @@ rule about what the framework is belongs to the framework model.
   Topology and Detail are collapsible side-bar sections, not modes; a tab is a
   standalone document. A tab changes only its editor: it never opens, closes or
   switches the side bar, bottom panel or another tab, and it preserves its own
-  editor state and scroll position. Inspection is transient and never opens a
+  editor state and scroll position. A control inside a tab may not replace the
+  document that tab represents; navigating to another subject opens or
+  activates that subject's document. Inspection is transient and never opens a
   document; a document opens only on an explicit action and must show content
   that inspection does not.
 - End every change report with the rule-promotion result: none, refined or
