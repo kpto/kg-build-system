@@ -53,8 +53,8 @@ position.
 | Document | Editor |
 | --- | --- |
 | **Graph** (pinned) | D3 force canvas, zoom/pan/drag and the floating **Inspect** window: graph purpose/overview, or the selected entity's identity, properties and meaning |
-| **Workflow** (pinned) | compositor-style component graph with step counts, sockets and aggregated step connections; filters from Control dim the graph |
-| **Step** | one workflow step's instruction, payload, openings, connections and blueprint bindings; opened from the workflow section of Explorer |
+| **Workflow** (pinned) | compositor-style component graph with step counts, sockets and aggregated step connections; drag to pan, wheel to zoom, Fit to reset; filters from Control dim the graph |
+| **Step** | one workflow step's instruction, payload, openings, connections and blueprint bindings on the same detail surface as node and subject documents; opened from the workflow section of Explorer |
 | **Subject** (node, edge, property, asset, abstract) | design meaning, properties, attached semantics and, for a property, provenance lanes and type/presence |
 
 A node or property click in the canvas only changes transient inspection.

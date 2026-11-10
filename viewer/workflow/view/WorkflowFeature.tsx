@@ -1,6 +1,14 @@
 "use client";
 
-import { useMemo, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+  type ReactNode,
+} from "react";
 import {
   ArrowDownLeft,
   ArrowUpRight,
@@ -17,6 +25,7 @@ import type {
   WorkflowStep,
 } from "@/lib/types";
 import { stepKey } from "@/lib/indexes";
+import { DetailDocument, DetailPanel } from "@/detail/view/DetailChrome";
 import { cx, groupPalette, theme } from "@/shared/ui/theme";
 import { activeDocument, type WorkspaceProps } from "@/workbench/types";
 import {
@@ -276,6 +285,14 @@ function ConnectionLine({
   );
 }
 
+function DetailSubhead({ children }: { children: ReactNode }) {
+  return (
+    <h3 className="mb-1.5 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+      {children}
+    </h3>
+  );
+}
+
 function StepDetail({
   index,
   step,
@@ -291,130 +308,127 @@ function StepDetail({
   );
 
   return (
-    <article className="min-h-full p-4" data-testid="workflow-step-detail">
-      <header className="mb-4 border-b border-line-soft pb-3">
-        <p className="mb-1 flex items-center gap-1.5 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
-          <Boxes aria-hidden className="size-3 text-selection" />
-          Design · step · {step.id[0]}
-        </p>
-        <h2 className="truncate font-mono text-[15px] text-text">
-          {step.id[1]}
-        </h2>
-        <p className="mt-1 font-mono text-[10px] text-muted">
-          {step.instruction.kind?.join(":") ?? "unknown"} · {step.inputs?.length ?? 0}{" "}
-          inputs · {step.outputs?.length ?? 0} outputs · {incoming.length} in /{" "}
-          {outgoing.length} out
-        </p>
-      </header>
-
-      <div className="mb-4 grid grid-cols-2 gap-x-6 gap-y-1">
-        <Fact label="Step id">{formatStepId(step.id)}</Fact>
-        <Fact label="Component">{step.id[0]}</Fact>
-        <Fact label="Instruction">
-          {step.instruction.kind?.join(":") ?? "unknown"}
-        </Fact>
-        <Fact label="Bindings">{bindings.length}</Fact>
-      </div>
-
-      <section className="mb-4">
-        <h3 className="mb-1.5 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
-          Inputs
-        </h3>
-        <Openings step={step} direction="input" />
-      </section>
-
-      <section className="mb-4">
-        <h3 className="mb-1.5 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
-          Outputs
-        </h3>
-        <Openings step={step} direction="output" />
-      </section>
-
-      <section className="mb-4">
-        <h3 className="mb-1.5 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
-          Instruction payload
-        </h3>
-        <PayloadFacts step={step} />
-      </section>
-
-      <section className="mb-4 grid gap-3 xl:grid-cols-2">
-        <div>
-          <h3 className="mb-1.5 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
-            Incoming · {incoming.length}
-          </h3>
-          {incoming.length ? (
-            <div className="rounded border border-line-soft bg-panel px-2">
-              {incoming.slice(0, 24).map((connection) => (
-                <ConnectionLine
-                  key={connection.id}
-                  connection={connection}
-                  direction="in"
-                />
-              ))}
-              {incoming.length > 24 ? (
-                <p className="py-1 font-mono text-[8.5px] text-faint">
-                  showing 24 of {incoming.length}
-                </p>
-              ) : null}
-            </div>
-          ) : (
-            <p className="text-[10px] text-faint">This step has no inputs.</p>
-          )}
-        </div>
-        <div>
-          <h3 className="mb-1.5 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
-            Outgoing · {outgoing.length}
-          </h3>
-          {outgoing.length ? (
-            <div className="rounded border border-line-soft bg-panel px-2">
-              {outgoing.slice(0, 24).map((connection) => (
-                <ConnectionLine
-                  key={connection.id}
-                  connection={connection}
-                  direction="out"
-                />
-              ))}
-              {outgoing.length > 24 ? (
-                <p className="py-1 font-mono text-[8.5px] text-faint">
-                  showing 24 of {outgoing.length}
-                </p>
-              ) : null}
-            </div>
-          ) : (
-            <p className="text-[10px] text-faint">This step has no outputs.</p>
-          )}
-        </div>
-      </section>
-
-      {bindings.length ? (
-        <section>
-          <h3 className="mb-1.5 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
-            Blueprint bindings · {bindings.length}
-          </h3>
-          <div className="grid gap-1">
-            {bindings.slice(0, 16).map((binding) => (
-              <div
-                key={binding.index}
-                className="flex items-baseline gap-2 font-mono text-[9.5px]"
-              >
-                <span className="w-12 shrink-0 text-faint">#{binding.index}</span>
-                <span className="min-w-0 flex-1 truncate text-text">
-                  {binding.component}
-                </span>
-                <span className="shrink-0 text-faint">
-                  {binding.binding.debug_name ?? binding.kind}
-                </span>
-              </div>
-            ))}
-            {bindings.length > 16 ? (
-              <p className="font-mono text-[8.5px] text-faint">
-                showing 16 of {bindings.length}
-              </p>
-            ) : null}
+    <DetailDocument
+      testId="workflow-step-detail"
+      kicker={`Design · step · ${step.id[0]}`}
+      icon={<Boxes aria-hidden className="size-3 text-selection" />}
+      title={step.id[1]}
+      subtitle={`${step.instruction.kind?.join(":") ?? "unknown"} · ${
+        step.inputs?.length ?? 0
+      } inputs · ${step.outputs?.length ?? 0} outputs · ${incoming.length} in / ${
+        outgoing.length
+      } out`}
+    >
+      <div className="flex flex-col gap-[11px]">
+        <DetailPanel title="Identity" meta={formatStepId(step.id)}>
+          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
+            <Fact label="Step id">{formatStepId(step.id)}</Fact>
+            <Fact label="Component">{step.id[0]}</Fact>
+            <Fact label="Instruction">
+              {step.instruction.kind?.join(":") ?? "unknown"}
+            </Fact>
+            <Fact label="Bindings">{bindings.length}</Fact>
           </div>
-        </section>
-      ) : null}
-    </article>
+        </DetailPanel>
+
+        <DetailPanel title="Inputs" meta={`${step.inputs?.length ?? 0}`}>
+          <Openings step={step} direction="input" />
+        </DetailPanel>
+
+        <DetailPanel title="Outputs" meta={`${step.outputs?.length ?? 0}`}>
+          <Openings step={step} direction="output" />
+        </DetailPanel>
+
+        <DetailPanel
+          title="Instruction payload"
+          meta={`${Object.keys(step.instruction.payload ?? {}).length} fields`}
+        >
+          <PayloadFacts step={step} />
+        </DetailPanel>
+
+        <DetailPanel
+          title="Connections"
+          meta={`${incoming.length} in · ${outgoing.length} out`}
+        >
+          <div className="grid gap-3 xl:grid-cols-2">
+            <div>
+              <DetailSubhead>Incoming · {incoming.length}</DetailSubhead>
+              {incoming.length ? (
+                <div className="rounded border border-line-soft bg-panel px-2">
+                  {incoming.slice(0, 24).map((connection) => (
+                    <ConnectionLine
+                      key={connection.id}
+                      connection={connection}
+                      direction="in"
+                    />
+                  ))}
+                  {incoming.length > 24 ? (
+                    <p className="py-1 font-mono text-[8.5px] text-faint">
+                      showing 24 of {incoming.length}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="text-[10px] text-faint">
+                  This step has no inputs.
+                </p>
+              )}
+            </div>
+            <div>
+              <DetailSubhead>Outgoing · {outgoing.length}</DetailSubhead>
+              {outgoing.length ? (
+                <div className="rounded border border-line-soft bg-panel px-2">
+                  {outgoing.slice(0, 24).map((connection) => (
+                    <ConnectionLine
+                      key={connection.id}
+                      connection={connection}
+                      direction="out"
+                    />
+                  ))}
+                  {outgoing.length > 24 ? (
+                    <p className="py-1 font-mono text-[8.5px] text-faint">
+                      showing 24 of {outgoing.length}
+                    </p>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="text-[10px] text-faint">
+                  This step has no outputs.
+                </p>
+              )}
+            </div>
+          </div>
+        </DetailPanel>
+
+        {bindings.length ? (
+          <DetailPanel title="Blueprint bindings" meta={`${bindings.length}`}>
+            <div className="grid gap-1">
+              {bindings.slice(0, 16).map((binding) => (
+                <div
+                  key={binding.index}
+                  className="flex items-baseline gap-2 font-mono text-[9.5px]"
+                >
+                  <span className="w-12 shrink-0 text-faint">
+                    #{binding.index}
+                  </span>
+                  <span className="min-w-0 flex-1 truncate text-text">
+                    {binding.component}
+                  </span>
+                  <span className="shrink-0 text-faint">
+                    {binding.binding.debug_name ?? binding.kind}
+                  </span>
+                </div>
+              ))}
+              {bindings.length > 16 ? (
+                <p className="font-mono text-[8.5px] text-faint">
+                  showing 16 of {bindings.length}
+                </p>
+              ) : null}
+            </div>
+          </DetailPanel>
+        ) : null}
+      </div>
+    </DetailDocument>
   );
 }
 
@@ -431,14 +445,19 @@ export function WorkflowStepEditor({ state }: WorkspaceProps) {
 
   if (!step) {
     return (
-      <div
-        className="flex h-full items-center justify-center p-6"
-        data-testid="workflow-step-editor"
+      <DetailDocument
+        testId="workflow-step-editor"
+        kicker="Design · step"
+        icon={<Boxes aria-hidden className="size-3 text-selection" />}
+        title="Step unavailable"
+        subtitle="This step is not present in the workflow plan."
       >
-        <p className="max-w-[42ch] text-center text-[11px] leading-relaxed text-muted">
-          This step is not present in the workflow plan.
-        </p>
-      </div>
+        <DetailPanel title="Step">
+          <p className="text-[10.5px] leading-relaxed text-faint">
+            The selected workflow step could not be resolved from the snapshot.
+          </p>
+        </DetailPanel>
+      </DetailDocument>
     );
   }
 
@@ -472,6 +491,10 @@ interface PlacedNode {
 interface PlacedEdge {
   edge: ReturnType<typeof buildWorkflowComponentMap>["edges"][number];
   path: string;
+  sourceX: number;
+  sourceY: number;
+  targetX: number;
+  targetY: number;
   labelX: number;
   labelY: number;
 }
@@ -588,6 +611,10 @@ function buildCompositorLayout(
     edges.push({
       edge,
       path: `M ${sx} ${sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${tx} ${ty}`,
+      sourceX: sx,
+      sourceY: sy,
+      targetX: tx,
+      targetY: ty,
       labelX:
         0.125 * sx + 0.375 * c1x + 0.375 * c2x + 0.125 * tx,
       labelY:
@@ -623,6 +650,136 @@ export function WorkflowEditor(props: WorkspaceProps) {
     Boolean(ui.filters.query.trim()) ||
     ui.filters.component !== "all" ||
     ui.filters.kind !== "all";
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [size, setSize] = useState({ width: 0, height: 0 });
+  const [view, setView] = useState({ scale: 1, x: 0, y: 0 });
+  const dragRef = useRef<{
+    pointerId: number;
+    startX: number;
+    startY: number;
+    x: number;
+    y: number;
+    moved: boolean;
+  } | null>(null);
+  const suppressClickRef = useRef(false);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    const observer = new ResizeObserver((entries) => {
+      const entry = entries[0];
+      if (!entry) return;
+      setSize({
+        width: entry.contentRect.width,
+        height: entry.contentRect.height,
+      });
+    });
+    observer.observe(element);
+    setSize({ width: element.clientWidth, height: element.clientHeight });
+    return () => observer.disconnect();
+  }, [layout.nodes.length]);
+
+  const fitView = useCallback(() => {
+    if (!size.width || !size.height || !layout.width || !layout.height) return;
+    const pad = 30;
+    const scale = Math.max(
+      0.12,
+      Math.min(
+        1.4,
+        Math.min(
+          (size.width - pad * 2) / layout.width,
+          (size.height - pad * 2) / layout.height,
+        ),
+      ),
+    );
+    setView({
+      scale,
+      x: (size.width - layout.width * scale) / 2,
+      y: (size.height - layout.height * scale) / 2,
+    });
+  }, [size.width, size.height, layout.width, layout.height]);
+
+  useEffect(() => {
+    fitView();
+  }, [fitView]);
+
+  useEffect(() => {
+    const element = containerRef.current;
+    if (!element) return;
+    const onWheel = (event: WheelEvent) => {
+      event.preventDefault();
+      const rect = element.getBoundingClientRect();
+      const px = event.clientX - rect.left;
+      const py = event.clientY - rect.top;
+      setView((current) => {
+        const next = Math.max(
+          0.15,
+          Math.min(3, current.scale * Math.exp(-event.deltaY * 0.0015)),
+        );
+        const ratio = next / current.scale;
+        return {
+          scale: next,
+          x: px - ratio * (px - current.x),
+          y: py - ratio * (py - current.y),
+        };
+      });
+    };
+    element.addEventListener("wheel", onWheel, { passive: false });
+    return () => element.removeEventListener("wheel", onWheel);
+  }, [layout.nodes.length]);
+
+  const zoomBy = (factor: number) => {
+    setView((current) => {
+      const next = Math.max(0.15, Math.min(3, current.scale * factor));
+      const ratio = next / current.scale;
+      const px = size.width / 2;
+      const py = size.height / 2;
+      return {
+        scale: next,
+        x: px - ratio * (px - current.x),
+        y: py - ratio * (py - current.y),
+      };
+    });
+  };
+
+  const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    event.currentTarget.setPointerCapture(event.pointerId);
+    dragRef.current = {
+      pointerId: event.pointerId,
+      startX: event.clientX,
+      startY: event.clientY,
+      x: view.x,
+      y: view.y,
+      moved: false,
+    };
+    suppressClickRef.current = false;
+  };
+
+  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag || drag.pointerId !== event.pointerId) return;
+    const dx = event.clientX - drag.startX;
+    const dy = event.clientY - drag.startY;
+    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
+    setView((current) => ({ ...current, x: drag.x + dx, y: drag.y + dy }));
+  };
+
+  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    dragRef.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+    if (drag.moved) {
+      suppressClickRef.current = true;
+      window.setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 0);
+    }
+  };
 
   if (!layout.nodes.length) {
     return (
@@ -661,190 +818,261 @@ export function WorkflowEditor(props: WorkspaceProps) {
         </span>
       </header>
 
-      <div className="relative min-h-0 flex-1">
+      <div
+        ref={containerRef}
+        className="relative min-h-0 flex-1 cursor-grab touch-none overflow-hidden select-none"
+        data-testid="workflow-canvas"
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+      >
         <svg
-          viewBox={`0 0 ${layout.width} ${layout.height}`}
-          preserveAspectRatio="xMidYMid meet"
           className="block h-full w-full select-none"
           role="img"
           aria-label={`Workflow compositor graph with ${layout.nodes.length} component nodes and ${layout.edges.length} aggregated links`}
           data-testid="workflow-map"
         >
-          <g data-workflow-edges>
-            {layout.edges.map(({ edge, path, labelX, labelY }) => {
-              const incident =
-                ui.filters.component !== "all" &&
-                (edge.source === ui.filters.component ||
-                  edge.target === ui.filters.component);
-              const active =
-                !filtering ||
-                (activeComponents.has(edge.source) &&
-                  activeComponents.has(edge.target));
-              return (
-                <g
-                  key={edge.id}
-                  opacity={incident ? 1 : active ? 0.58 : 0.1}
-                  data-testid="workflow-component-edge"
-                  data-source={edge.source}
-                  data-target={edge.target}
-                >
-                  <path
-                    d={path}
-                    fill="none"
-                    stroke={incident ? theme.selection : theme.edge}
-                    strokeWidth={Math.min(2.6, 1 + Math.log2(edge.count + 1) * 0.45)}
-                    strokeLinecap="round"
-                  />
-                  <text
-                    x={labelX}
-                    y={labelY - 4}
-                    textAnchor="middle"
-                    fill={incident ? theme.selectionStrong : theme.faint}
-                    fontSize={9.5}
-                    fontFamily="var(--font-mono)"
-                    stroke={theme.page}
-                    strokeWidth={3}
-                    paintOrder="stroke"
-                    pointerEvents="none"
+          <g
+            data-testid="workflow-scene"
+            transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}
+            opacity={size.width ? 1 : 0}
+          >
+            <g data-workflow-edges>
+              {layout.edges.map(
+                ({ edge, path, sourceX, sourceY, targetX, targetY, labelX, labelY }) => {
+                const incident =
+                  ui.filters.component !== "all" &&
+                  (edge.source === ui.filters.component ||
+                    edge.target === ui.filters.component);
+                const active =
+                  !filtering ||
+                  (activeComponents.has(edge.source) &&
+                    activeComponents.has(edge.target));
+                return (
+                  <g
+                    key={edge.id}
+                    opacity={incident ? 1 : active ? 0.58 : 0.1}
+                    data-testid="workflow-component-edge"
+                    data-source={edge.source}
+                    data-target={edge.target}
+                    data-source-x={sourceX}
+                    data-source-y={sourceY}
+                    data-target-x={targetX}
+                    data-target-y={targetY}
                   >
-                    {edge.count}
-                  </text>
-                </g>
-              );
-            })}
-          </g>
+                    <path
+                      d={path}
+                      fill="none"
+                      stroke={incident ? theme.selection : theme.edge}
+                      strokeWidth={Math.min(
+                        2.6,
+                        1 + Math.log2(edge.count + 1) * 0.45,
+                      )}
+                      strokeLinecap="round"
+                    />
+                    <text
+                      x={labelX}
+                      y={labelY - 4}
+                      textAnchor="middle"
+                      fill={incident ? theme.selectionStrong : theme.faint}
+                      fontSize={9.5}
+                      fontFamily="var(--font-mono)"
+                      stroke={theme.page}
+                      strokeWidth={3}
+                      paintOrder="stroke"
+                      pointerEvents="none"
+                    >
+                      {edge.count}
+                    </text>
+                  </g>
+                  );
+                },
+              )}
+            </g>
 
-          <g data-workflow-nodes>
-            {layout.nodes.map(({ node, x, y, color, internal }) => {
-              const selected = ui.filters.component === node.id;
-              const active = !filtering || activeComponents.has(node.id);
-              return (
-                <g
-                  key={node.id}
-                  transform={`translate(${x} ${y})`}
-                  className="cursor-pointer"
-                  opacity={active ? 1 : 0.3}
-                  onClick={() => store.setComponent(selected ? "all" : node.id)}
-                  role="button"
-                  tabIndex={0}
-                  aria-pressed={selected}
-                  aria-label={`${node.id}: ${node.steps} steps, ${node.kinds} instruction kinds, ${node.incoming} incoming and ${node.outgoing} outgoing links`}
-                  onKeyDown={(event) => {
-                    if (event.key === "Enter" || event.key === " ") {
-                      event.preventDefault();
+            <g data-workflow-nodes>
+              {layout.nodes.map(({ node, x, y, color, internal }) => {
+                const selected = ui.filters.component === node.id;
+                const active = !filtering || activeComponents.has(node.id);
+                return (
+                  <g
+                    key={node.id}
+                    transform={`translate(${x} ${y})`}
+                    className="cursor-pointer"
+                    opacity={active ? 1 : 0.3}
+                    onClick={() => {
+                      if (suppressClickRef.current) {
+                        suppressClickRef.current = false;
+                        return;
+                      }
                       store.setComponent(selected ? "all" : node.id);
-                    }
-                  }}
-                  data-testid="workflow-component-node"
-                  data-component={node.id}
-                >
-                  <rect
-                    width={NODE_WIDTH}
-                    height={NODE_HEIGHT}
-                    rx={6}
-                    fill={theme.panel}
-                    stroke={selected ? theme.selection : theme.lineStrong}
-                    strokeWidth={selected ? 1.8 : 1}
-                  />
-                  <path
-                    d={`M 0 6 Q 0 0 6 0 H ${NODE_WIDTH - 6} Q ${NODE_WIDTH} 0 ${NODE_WIDTH} 6 V ${HEADER_HEIGHT} H 0 Z`}
-                    fill={color}
-                    fillOpacity={selected ? 0.62 : 0.34}
-                    stroke="none"
-                  />
-                  <text
-                    x={12}
-                    y={19}
-                    fill={theme.text}
-                    fontSize={11.5}
-                    fontWeight={600}
-                    fontFamily="var(--font-mono)"
-                    pointerEvents="none"
+                    }}
+                    role="button"
+                    tabIndex={0}
+                    aria-pressed={selected}
+                    aria-label={`${node.id}: ${node.steps} steps, ${node.kinds} instruction kinds, ${node.incoming} incoming and ${node.outgoing} outgoing links`}
+                    onKeyDown={(event) => {
+                      if (event.key === "Enter" || event.key === " ") {
+                        event.preventDefault();
+                        store.setComponent(selected ? "all" : node.id);
+                      }
+                    }}
+                    data-testid="workflow-component-node"
+                    data-component={node.id}
                   >
-                    {node.id}
-                  </text>
-
-                  <circle
-                    cx={0}
-                    cy={SOCKET_Y}
-                    r={5}
-                    fill={theme.raised}
-                    stroke={selected ? theme.selection : color}
-                    strokeWidth={1.4}
-                    pointerEvents="none"
-                  />
-                  <text
-                    x={12}
-                    y={SOCKET_Y + 4}
-                    fill={theme.faint}
-                    fontSize={8.5}
-                    fontFamily="var(--font-mono)"
-                    pointerEvents="none"
-                  >
-                    in
-                  </text>
-                  <circle
-                    cx={NODE_WIDTH}
-                    cy={SOCKET_Y}
-                    r={5}
-                    fill={theme.raised}
-                    stroke={selected ? theme.selection : color}
-                    strokeWidth={1.4}
-                    pointerEvents="none"
-                  />
-                  <text
-                    x={NODE_WIDTH - 12}
-                    y={SOCKET_Y + 4}
-                    textAnchor="end"
-                    fill={theme.faint}
-                    fontSize={8.5}
-                    fontFamily="var(--font-mono)"
-                    pointerEvents="none"
-                  >
-                    out
-                  </text>
-
-                  <text
-                    x={12}
-                    y={HEADER_HEIGHT + 50}
-                    fill={theme.text}
-                    fontSize={10.5}
-                    fontFamily="var(--font-mono)"
-                    pointerEvents="none"
-                  >
-                    {node.steps} steps · {node.kinds} kinds
-                  </text>
-                  <text
-                    x={12}
-                    y={HEADER_HEIGHT + 72}
-                    fill={theme.faint}
-                    fontSize={9.5}
-                    fontFamily="var(--font-mono)"
-                    pointerEvents="none"
-                  >
-                    {node.incoming} in · {node.outgoing} out
-                  </text>
-                  {internal ? (
+                    <rect
+                      width={NODE_WIDTH}
+                      height={NODE_HEIGHT}
+                      rx={6}
+                      fill={theme.panel}
+                      stroke={selected ? theme.selection : theme.lineStrong}
+                      strokeWidth={selected ? 1.8 : 1}
+                    />
+                    <path
+                      d={`M 0 6 Q 0 0 6 0 H ${NODE_WIDTH - 6} Q ${NODE_WIDTH} 0 ${NODE_WIDTH} 6 V ${HEADER_HEIGHT} H 0 Z`}
+                      fill={color}
+                      fillOpacity={selected ? 0.62 : 0.34}
+                      stroke="none"
+                    />
                     <text
                       x={12}
-                      y={HEADER_HEIGHT + 94}
+                      y={19}
+                      fill={theme.text}
+                      fontSize={11.5}
+                      fontWeight={600}
+                      fontFamily="var(--font-mono)"
+                      pointerEvents="none"
+                    >
+                      {node.id}
+                    </text>
+
+                    <circle
+                      cx={0}
+                      cy={SOCKET_Y}
+                      r={5}
+                      fill={theme.raised}
+                      stroke={selected ? theme.selection : color}
+                      strokeWidth={1.4}
+                      pointerEvents="none"
+                    />
+                    <text
+                      x={12}
+                      y={SOCKET_Y + 4}
+                      fill={theme.faint}
+                      fontSize={8.5}
+                      fontFamily="var(--font-mono)"
+                      pointerEvents="none"
+                    >
+                      in
+                    </text>
+                    <circle
+                      cx={NODE_WIDTH}
+                      cy={SOCKET_Y}
+                      r={5}
+                      fill={theme.raised}
+                      stroke={selected ? theme.selection : color}
+                      strokeWidth={1.4}
+                      pointerEvents="none"
+                    />
+                    <text
+                      x={NODE_WIDTH - 12}
+                      y={SOCKET_Y + 4}
+                      textAnchor="end"
+                      fill={theme.faint}
+                      fontSize={8.5}
+                      fontFamily="var(--font-mono)"
+                      pointerEvents="none"
+                    >
+                      out
+                    </text>
+
+                    <text
+                      x={12}
+                      y={HEADER_HEIGHT + 50}
+                      fill={theme.text}
+                      fontSize={10.5}
+                      fontFamily="var(--font-mono)"
+                      pointerEvents="none"
+                    >
+                      {node.steps} steps · {node.kinds} kinds
+                    </text>
+                    <text
+                      x={12}
+                      y={HEADER_HEIGHT + 72}
                       fill={theme.faint}
                       fontSize={9.5}
                       fontFamily="var(--font-mono)"
                       pointerEvents="none"
                     >
-                      {internal} internal
+                      {node.incoming} in · {node.outgoing} out
                     </text>
-                  ) : null}
-                </g>
-              );
-            })}
+                    {internal ? (
+                      <text
+                        x={12}
+                        y={HEADER_HEIGHT + 94}
+                        fill={theme.faint}
+                        fontSize={9.5}
+                        fontFamily="var(--font-mono)"
+                        pointerEvents="none"
+                      >
+                        {internal} internal
+                      </text>
+                    ) : null}
+                  </g>
+                );
+              })}
+            </g>
           </g>
         </svg>
 
+        <div
+          className="absolute top-3 right-3 z-10 flex items-stretch border border-line-soft bg-panel/95"
+          onPointerDown={(event) => event.stopPropagation()}
+          onPointerMove={(event) => event.stopPropagation()}
+          onPointerUp={(event) => event.stopPropagation()}
+        >
+          <button
+            type="button"
+            onClick={() => zoomBy(1 / 1.25)}
+            className="flex size-6 items-center justify-center border-r border-line text-muted hover:bg-panel-soft hover:text-text"
+            aria-label="Zoom out workflow"
+            title="Zoom out"
+            data-testid="workflow-zoom-out"
+          >
+            −
+          </button>
+          <span
+            className="flex w-12 items-center justify-center border-r border-line font-mono text-[10px] text-muted tabular-nums"
+            data-testid="workflow-zoom"
+          >
+            {Math.round(view.scale * 100)}%
+          </span>
+          <button
+            type="button"
+            onClick={() => zoomBy(1.25)}
+            className="flex size-6 items-center justify-center border-r border-line text-muted hover:bg-panel-soft hover:text-text"
+            aria-label="Zoom in workflow"
+            title="Zoom in"
+            data-testid="workflow-zoom-in"
+          >
+            +
+          </button>
+          <button
+            type="button"
+            onClick={fitView}
+            className="flex h-6 items-center justify-center px-2 text-muted hover:bg-panel-soft hover:text-text"
+            aria-label="Fit workflow graph"
+            title="Fit graph"
+            data-testid="workflow-fit"
+          >
+            Fit
+          </button>
+        </div>
+
         <div className="pointer-events-none absolute bottom-3 left-3 rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-faint">
-          compositor graph · node = component · link = aggregated step
-          connections · click a node to select it in Control
+          drag to pan · wheel to zoom · node = component · link = aggregated
+          step connections
         </div>
       </div>
     </div>

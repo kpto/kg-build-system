@@ -45,6 +45,7 @@ import type {
 } from "@/lib/types";
 import { LINEAGE_LANES } from "@/lib/types";
 import { logicalTypeName } from "@/lib/expressions";
+import { DetailDocument, DetailPanel } from "./view/DetailChrome";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { laneColor } from "@/shared/ui/theme";
 import {
@@ -166,26 +167,13 @@ function Badge({
   );
 }
 
-function Panel({
-  title,
-  meta,
-  children,
-  className,
-}: {
+function Panel(props: {
   title: string;
   meta?: ReactNode;
   children: ReactNode;
   className?: string;
 }) {
-  return (
-    <section className={`${styles.panel} ${className ?? ""}`}>
-      <header className={styles.panelHead}>
-        <h2>{title}</h2>
-        {meta ? <span className={styles.panelMeta}>{meta}</span> : null}
-      </header>
-      <div className={styles.panelBody}>{children}</div>
-    </section>
-  );
+  return <DetailPanel {...props} />;
 }
 
 function EmptyState({ children }: { children: ReactNode }) {
@@ -1687,43 +1675,36 @@ function SubjectDetailEditor(props: WorkspaceProps) {
   }, [props.actions, props.state.index, selection]);
 
   return (
-    <div className={styles.root} data-testid="detail-editor">
-      <header className={styles.topbar}>
-        <div className={styles.titleBlock}>
-          <p className={styles.kicker}>
-            <BadgeCheck aria-hidden className={styles.kickerIcon} />
-            Design · {model.level}
-          </p>
-          <h1 className={styles.title}>{levelTitle(model)}</h1>
-          <p className={styles.subtitle}>{levelSubtitle(model)}</p>
-        </div>
-      </header>
-
-      <div className={styles.body}>
-        <section className={styles.meaningPanel} aria-label="Design meaning">
-          <header className={styles.meaningPanelHeader}>
-            <span className={styles.meaningPanelTitle}>Design meaning</span>
-            <span className={styles.meaningPanelMeta}>
-              {model.subject.component}
-              {model.subject.property ? `.${model.subject.property}` : ""}
-            </span>
-          </header>
-          <DesignMeaning
-            claims={meaning.claims}
-            frames={meaning.frames}
-            emptyText="No meaning is attached to this subject."
-          />
-        </section>
-        {model.level === "property" ? (
-          <PropertyProofView model={model} />
-        ) : model.level === "asset" ? (
-          <AssetProofView model={model} actions={props.actions} />
-        ) : model.level === "abstract" ? (
-          <AbstractProofView model={model} actions={props.actions} />
-        ) : (
-          <ComponentProofView model={model} actions={props.actions} />
-        )}
-      </div>
-    </div>
+    <DetailDocument
+      testId="detail-editor"
+      kicker={`Design · ${model.level}`}
+      icon={<BadgeCheck aria-hidden className={styles.kickerIcon} />}
+      title={levelTitle(model)}
+      subtitle={levelSubtitle(model)}
+    >
+      <section className={styles.meaningPanel} aria-label="Design meaning">
+        <header className={styles.meaningPanelHeader}>
+          <span className={styles.meaningPanelTitle}>Design meaning</span>
+          <span className={styles.meaningPanelMeta}>
+            {model.subject.component}
+            {model.subject.property ? `.${model.subject.property}` : ""}
+          </span>
+        </header>
+        <DesignMeaning
+          claims={meaning.claims}
+          frames={meaning.frames}
+          emptyText="No meaning is attached to this subject."
+        />
+      </section>
+      {model.level === "property" ? (
+        <PropertyProofView model={model} />
+      ) : model.level === "asset" ? (
+        <AssetProofView model={model} actions={props.actions} />
+      ) : model.level === "abstract" ? (
+        <AbstractProofView model={model} actions={props.actions} />
+      ) : (
+        <ComponentProofView model={model} actions={props.actions} />
+      )}
+    </DetailDocument>
   );
 }

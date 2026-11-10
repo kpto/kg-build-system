@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 import time
 from pathlib import Path
 
@@ -207,6 +208,97 @@ def main() -> int:
                     By.CSS_SELECTOR, '[data-testid="workflow-controls"]'
                 )
             )
+
+            # Links must start and end on the two socket centres.
+            edge = next(
+                (
+                    candidate
+                    for candidate in driver.find_elements(
+                        By.CSS_SELECTOR,
+                        '[data-testid="workflow-component-edge"]',
+                    )
+                    if candidate.get_attribute("data-source")
+                    != candidate.get_attribute("data-target")
+                ),
+                None,
+            )
+            if edge:
+                path = edge.find_element(By.TAG_NAME, "path")
+                numbers = [
+                    float(value)
+                    for value in re.findall(r"-?\d+(?:\.\d+)?", path.get_attribute("d"))
+                ]
+                report["checks"]["workflow_link_endpoints"] = {
+                    "start": numbers[:2],
+                    "expectedStart": [
+                        float(edge.get_attribute("data-source-x")),
+                        float(edge.get_attribute("data-source-y")),
+                    ],
+                    "end": numbers[-2:],
+                    "expectedEnd": [
+                        float(edge.get_attribute("data-target-x")),
+                        float(edge.get_attribute("data-target-y")),
+                    ],
+                }
+                report["checks"]["workflow_links_connect_sockets"] = (
+                    abs(numbers[0] - float(edge.get_attribute("data-source-x"))) < 0.01
+                    and abs(numbers[1] - float(edge.get_attribute("data-source-y"))) < 0.01
+                    and abs(numbers[-2] - float(edge.get_attribute("data-target-x"))) < 0.01
+                    and abs(numbers[-1] - float(edge.get_attribute("data-target-y"))) < 0.01
+                )
+
+            zoom_before = driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-zoom"]'
+            ).text
+            driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-zoom-in"]'
+            ).click()
+            time.sleep(0.5)
+            zoom_after = driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-zoom"]'
+            ).text
+            report["checks"]["workflow_zoom_in"] = (
+                zoom_before, zoom_after, zoom_before != zoom_after
+            )
+
+            canvas = driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-canvas"]'
+            )
+            driver.execute_script(
+                """
+                const el = arguments[0];
+                const rect = el.getBoundingClientRect();
+                el.dispatchEvent(new WheelEvent('wheel', {
+                  bubbles: true,
+                  cancelable: true,
+                  deltaY: -160,
+                  clientX: rect.left + rect.width / 2,
+                  clientY: rect.top + rect.height / 2,
+                }));
+                """,
+                canvas,
+            )
+            time.sleep(0.5)
+            zoom_wheel = driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-zoom"]'
+            ).text
+            report["checks"]["workflow_wheel_zoom"] = zoom_wheel != zoom_after
+
+            scene = driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-scene"]'
+            )
+            before_pan = scene.get_attribute("transform")
+            ActionChains(driver).move_to_element_with_offset(
+                canvas, 20, -40
+            ).click_and_hold().move_by_offset(70, 40).release().perform()
+            time.sleep(0.6)
+            after_pan = scene.get_attribute("transform")
+            report["checks"]["workflow_pan"] = before_pan != after_pan
+            driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-fit"]'
+            ).click()
+            time.sleep(0.5)
+
             report["checks"]["explorer_closed_initially"] = (
                 expanded().get("sidebar-section-explorer") == "false"
             )
