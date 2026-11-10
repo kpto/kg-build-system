@@ -14,7 +14,7 @@ They are review aids, not golden images.
 | `07-preview-tab.png` | A single click in the graph Explorer opened one preview tab (`adverse_event`, italic). |
 | `08-detail-property.png` | **Go to Detail** on a property opened a permanent document while the preview tab remained. |
 | `09-explorer-menu.png` | Right-clicking an Explorer row offers **Go to Detail** and **Go to Graph**; workflow items offer **Go to Workflow**. |
-| `10-workflow-step-graph.png` | Selecting a workflow component drills into its step-level flow graph inside the Workflow tab; boundary components show the external links, and step nodes open detail documents. |
+| `10-workflow-step-graph.png` | Selecting a workflow component drills into its step-level flow graph inside the Workflow tab; steps fill columns top-to-bottom without row wrapping, boundary components show external links, and step nodes open detail documents. |
 
 A tab is a standalone document. It changes its editor and the applicable Control
 body; Explorer always states the whole design. Middle-click closes a subject or
