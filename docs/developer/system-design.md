@@ -219,10 +219,14 @@ root and closure policy.
    names first and is the single authority.
 4. Assemble open inputs to outputs, publications to the report, and return one
    `WorkflowPlan`. A wiring with no producer or with a cycle is refused.
+5. In the composition root (`api.compile`), encode the source blueprint document
+   and record it at `plan.provenance["blueprint"]`. The kernel planner stage
+   stays model-agnostic and does not encode a distribution model.
 
 `compile` does not call `build` and does not read data. The composition root
 (`api.compile`) may call `create_blueprint` and then `compile`; the kernel
-method never does.
+method never does. A serialised plan is self-contained: its provenance carries
+the source blueprint document.
 
 ### `execute(plan, *, output_directory, configuration=None, listeners=()) -> WorkflowReport`
 

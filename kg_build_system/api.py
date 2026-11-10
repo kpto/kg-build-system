@@ -45,6 +45,7 @@ from .distribution import (
     core_planners,
 )
 from .distribution.interpreter import GraphBlueprint, create_blueprint as _create_blueprint
+from .distribution.interpreter.service.internal.codec import blueprint_to_document
 from .distribution.languages.binding import Binding
 from .distribution.model.public.runtime import BuildRuntime
 from .frontend import Monitor, resolve_monitor
@@ -184,6 +185,9 @@ def compile(
 
     This is the canonical shortcut: it creates the blueprint when one is not
     supplied, then compiles it with the default toolchain or the supplied one.
+    The returned plan records the source blueprint document under
+    ``plan.provenance["blueprint"]``, so the plan can be read without a second
+    artifact.
 
     Example:
         ```python
@@ -218,7 +222,13 @@ def compile(
             if not planners
             else toolchain.with_planners((*toolchain.planners, *planners))
         )
-    return selected.compile(prepared)
+    plan = selected.compile(prepared)
+    existing = plan.provenance
+    provenance = dict(existing) if isinstance(existing, dict) else (
+        {} if existing is None else {"plan": existing}
+    )
+    provenance["blueprint"] = blueprint_to_document(prepared)
+    return replace(plan, provenance=provenance)
 
 
 def execute(

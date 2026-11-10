@@ -1,8 +1,9 @@
 # KG design viewer
 
 A pure visualisation of a `kg-build-system` graph design. The viewer reads a
-compile-time viewer snapshot of a blueprint and workflow contract; it does not
-import the Python framework at runtime, execute a build or call a model.
+compile-time snapshot whose workflow plan carries its source blueprint document;
+it does not import the Python framework at runtime, execute a build or call a
+model.
 
 The app is a VS Code-style workbench with the Blender dark theme. It has one
 frame, one document tab strip, and two collapsible side-bar sections:
@@ -100,7 +101,9 @@ The default snapshot is the current Open Targets 26.09 **compile-only** build:
 | Mode | compile-only; the graph was not executed |
 
 `viewer/public/data/opentargets.snapshot.json` is checked in (the `.gz` copy is
-served through `/api/snapshot`). Regenerate it from the Open Targets project:
+served through `/api/snapshot`). The snapshot contains only the workflow plan;
+its `provenance.blueprint` member is the source blueprint, so no second artifact
+is needed. Regenerate it from the Open Targets project:
 
 ```console
 cd ~/Repos/opentargets-kg

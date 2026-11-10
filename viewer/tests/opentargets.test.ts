@@ -24,8 +24,12 @@ describe("Open Targets snapshot", () => {
     expect(index.stats.steps).toBe(998);
     expect(index.stats.connections).toBe(1419);
     expect(index.blueprint.assets?.[0]?.name).toBe("open_target");
-    expect(snapshot.report.provenance).toMatchObject({ mode: "compile-only" });
+    expect(snapshot.report.published_artifacts).toEqual([]);
+    expect(snapshot.report.provenance).toBeNull();
     expect(snapshot.metaGraph).toBeUndefined();
+    expect(
+      snapshot.workflow.provenance?.blueprint,
+    ).toBeDefined();
   });
 
   it("carries the graph declaration, purpose and attached semantics", () => {

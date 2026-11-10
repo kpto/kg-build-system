@@ -571,7 +571,9 @@ class WorkflowPlan:
     """An assembled instruction DAG and the components that declared it.
 
     `StepId` and `OpeningId` identify every step and port. A step must be
-    resolved before the plan is executable. Provenance is opaque to the kernel.
+    resolved before the plan is executable. Provenance is opaque to the kernel;
+    the composition root records the source model document there when it
+    serialises a plan.
 
     Example:
     ```python

@@ -120,6 +120,11 @@ then appends the planners you pass. When `toolchain` is supplied, it appends the
 plan = compile(blueprint=blueprint, planners=planners)
 ```
 
+`plan.provenance["blueprint"]` is the source blueprint document. It is attached
+by the composition root (`compile()`), not by the kernel planner stage. A plan
+serialised with `workflow_plan_to_document` therefore carries the blueprint that
+produced it and can be read without a second artifact.
+
 Compilation checks everything that does not need data:
 
 - every binding targets a concrete component;
@@ -138,7 +143,7 @@ Compilation checks everything that does not need data:
 | `components` | One component per distinct component id, with its id, version and runtime fields |
 | `steps` | The scheduled instructions with typed inputs and outputs |
 | `connections` | Resolved connections between step openings |
-| `provenance` | Opaque JSON recorded by compilation |
+| `provenance` | The source blueprint document under `blueprint`, plus any planner provenance; the plan is self-contained |
 
 A `Step` owns its inputs, outputs, `assembly_preference` and one
 `Instruction(kind, payload)`. `Step.component` and `Step.name` are the facts;
@@ -230,7 +235,7 @@ only plan component ids; `duckdb` is not a plan component.
 | `published_artifacts` | One entry per publication, with its `OpeningId`, type and value |
 | `recovered_failures` | Failures that a later step handled |
 | `unresolved_failures` | Failures that blocked a publication |
-| `provenance` | The plan provenance |
+| `provenance` | The plan provenance, including the source blueprint document |
 | `succeeded` | True when `unresolved_failures` is empty |
 
 Each failure exposes `message`, a typed `step_id` and `exception_type`.

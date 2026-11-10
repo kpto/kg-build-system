@@ -429,8 +429,9 @@ rule about what the framework is belongs to the framework model.
   never an identity. Direction is part of an opening identity when one name
   can denote more than one port.
 - The workflow plan owns structure: steps, inputs, outputs, connections and
-  provenance. A step owns its instruction. SQL is one instruction kind, not a
-  plan field.
+  provenance. The composition root records the source blueprint document under
+  plan provenance, so a serialized plan carries the model that produced it. A
+  step owns its instruction. SQL is one instruction kind, not a plan field.
 - A planner emits steps and an executor executes one exact instruction kind. SQL
   and Python are instruction kinds; a Python instruction is a stable reference,
   not a live callable.

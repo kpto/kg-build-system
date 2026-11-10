@@ -319,6 +319,13 @@ function oneOf<T extends string>(
     : fallback;
 }
 
+function embeddedBlueprint(value: unknown): unknown {
+  if (!isObject(value)) return undefined;
+  const provenance = isObject(value.provenance) ? value.provenance : undefined;
+  if (!provenance) return undefined;
+  return isObject(provenance.blueprint) ? provenance.blueprint : undefined;
+}
+
 /**
  * Load a snapshot, a blueprint object, or a workflow plan object.
  *
@@ -337,7 +344,9 @@ export function loadSnapshotFromObject(value: unknown): ViewerSnapshot {
       version: asNumber(value.version, 1),
       name: asString(value.name, "snapshot"),
       title: asString(value.title, asString(value.name, "Untitled snapshot")),
-      blueprint: normalizeBlueprint(value.blueprint),
+      blueprint: normalizeBlueprint(
+        value.blueprint ?? embeddedBlueprint(value.workflow),
+      ),
       workflow: normalizeWorkflow(value.workflow),
       report: normalizeReport(value.report),
       metaGraph: normalizeMetaGraph(value.metaGraph),
@@ -354,7 +363,7 @@ export function loadSnapshotFromObject(value: unknown): ViewerSnapshot {
       version: 1,
       name: asString(value.name, "workflow"),
       title: asString(value.title, "Workflow plan"),
-      blueprint: normalizeBlueprint(undefined),
+      blueprint: normalizeBlueprint(embeddedBlueprint(value)),
       workflow: normalizeWorkflow(value),
       report: normalizeReport(undefined),
     };

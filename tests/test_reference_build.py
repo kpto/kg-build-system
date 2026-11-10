@@ -7,6 +7,9 @@ from pathlib import Path
 from kg_build_system import execute
 from kg_build_system.distribution.interpreter import GraphBlueprint
 from kg_build_system.kernel import WorkflowPlan
+from kg_build_system.kernel.service.internal.workflow_codec import (
+    workflow_plan_to_document,
+)
 from reference_project.build import (
     compile_reference_build,
     create_reference_blueprint,
@@ -21,6 +24,19 @@ class ReferenceBuildTests(unittest.TestCase):
         self.assertTrue(blueprint.graph.nodes)
         self.assertTrue(blueprint.bindings)
         self.assertTrue(blueprint.assets.assets)
+
+    def test_the_compiled_plan_carries_its_source_blueprint(self) -> None:
+        plan = compile_reference_build()
+        provenance = plan.provenance
+        self.assertIsInstance(provenance, dict)
+        blueprint_document = provenance["blueprint"]
+        self.assertIsInstance(blueprint_document, dict)
+        self.assertTrue(blueprint_document["graph"]["nodes"])
+
+        document = workflow_plan_to_document(plan)
+        self.assertEqual(
+            document["provenance"]["blueprint"], blueprint_document,
+        )
 
     def test_the_reference_project_compiles_and_builds(self) -> None:
         plan = compile_reference_build()

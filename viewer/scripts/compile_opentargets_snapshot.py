@@ -10,9 +10,11 @@ Run inside the Open Targets project environment:
     cd ~/Repos/opentargets-kg
     uv run python /home/paul/Repos/kg-build-system/viewer/scripts/compile_opentargets_snapshot.py
 
-The output is deterministic for the same source tree. It intentionally omits
-the meta graph and build report because those describe a previous execution,
-not the current compile. The viewer labels the result as compile-only.
+The workflow plan carries the source blueprint document in its provenance, so
+the output has no separate blueprint artifact. The output is deterministic for
+the same source tree. It intentionally omits the meta graph and build report
+because those describe a previous execution, not the current compile. The viewer
+labels the result as compile-only.
 """
 
 from __future__ import annotations
@@ -22,9 +24,6 @@ import gzip
 import json
 from pathlib import Path
 
-from kg_build_system.distribution.interpreter.service.internal import (
-    blueprint_to_document,
-)
 from kg_build_system.kernel.service._private.workflow_codec import (
     workflow_plan_to_document,
 )
@@ -53,22 +52,24 @@ def main() -> None:
 
     blueprint = create_kg_blueprint()
     plan = compile_kg(blueprint)
-    blueprint_document = blueprint_to_document(blueprint)
     workflow_document = workflow_plan_to_document(plan)
+    provenance = plan.provenance
+    if not isinstance(provenance, dict) or not isinstance(
+        provenance.get("blueprint"), dict
+    ):
+        raise RuntimeError(
+            "compiled plan does not carry its source blueprint in provenance"
+        )
+    blueprint_document = provenance["blueprint"]
 
+    # The workflow document is the only source. Its provenance carries the
+    # blueprint, so the viewer does not need a second artifact.
     snapshot = {
         "format": "kg-viewer-snapshot",
         "version": 1,
         "name": "open-targets-26.09",
         "title": args.title,
-        "blueprint": blueprint_document,
         "workflow": workflow_document,
-        "report": {
-            "published_artifacts": [],
-            "recovered_failures": [],
-            "unresolved_failures": [],
-            "provenance": {"mode": "compile-only"},
-        },
     }
 
     args.output.parent.mkdir(parents=True, exist_ok=True)
@@ -82,15 +83,17 @@ def main() -> None:
         ) as stream:
             stream.write(payload.encode("utf-8"))
 
+    graph = blueprint_document["graph"]
+    data = blueprint_document["data"]
     result = {
         "snapshot": str(args.output),
         "bytes": args.output.stat().st_size,
         "gzip": str(gzip_path),
         "gzip_bytes": gzip_path.stat().st_size,
-        "nodes": len(blueprint_document["graph"]["nodes"]),
-        "edges": len(blueprint_document["graph"]["edges"]),
-        "relations": len(blueprint_document["data"]["relations"]),
-        "projections": len(blueprint_document["data"]["projections"]),
+        "nodes": len(graph["nodes"]),
+        "edges": len(graph["edges"]),
+        "relations": len(data["relations"]),
+        "projections": len(data["projections"]),
         "bindings": len(blueprint_document["bindings"]),
         "steps": len(workflow_document["steps"]),
         "connections": len(workflow_document["connections"]),

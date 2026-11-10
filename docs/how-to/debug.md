@@ -223,10 +223,10 @@ same-key facts only when the rows really are one fact.
 | File or value | What it tells you |
 | --- | --- |
 | `build/build_report.json` | the same failures, artifacts and provenance as the returned report |
-| `build/workflow_plan.json` | the components, steps, instruction kinds and connections that ran |
+| `build/workflow_plan.json` | the source blueprint document, components, steps, instruction kinds and connections that ran |
 | `build/graph.jsonl` | node and edge records, build keys and endpoint keys |
 | `build/meta_graph.json` | effective topology, exact record counts and example values |
-| `plan.components` and `plan.connections` | the compiled steps and their wiring |
+| `plan.components` and `plan.connections` | the compiled steps and their wiring; `plan.provenance["blueprint"]` is the source blueprint |
 | `blueprint.graph.nodes`, `blueprint.graph.edges` and `blueprint.bindings` | what the build will target and read |
 
 Inspect the blueprint when a component or binding is missing:

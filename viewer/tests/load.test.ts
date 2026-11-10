@@ -115,6 +115,27 @@ describe("snapshot loading", () => {
     expect(loaded.blueprint.assets).toEqual([]);
   });
 
+  it("reads the source blueprint from workflow provenance", () => {
+    const loaded = loadSnapshotFromObject({
+      name: "embedded",
+      title: "Embedded blueprint",
+      components: [{ id: "core", version: "1" }],
+      steps: [],
+      connections: [],
+      provenance: {
+        blueprint: {
+          graph: { nodes: [{ name: "site" }], edges: [] },
+          data: { structs: [], relations: [], projections: [] },
+          assets: [{ name: "estate" }],
+          bindings: [],
+        },
+      },
+    });
+    expect(loaded.blueprint.graph.nodes[0].name).toBe("site");
+    expect(loaded.blueprint.assets[0].name).toBe("estate");
+    expect(loaded.workflow.provenance?.blueprint).toBeDefined();
+  });
+
   it("accepts a bare blueprint and keeps unknown fields", () => {
     const loaded = loadSnapshotFromObject({
       graph: { nodes: [{ name: "site" }], edges: [] },

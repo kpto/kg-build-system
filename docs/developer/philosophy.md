@@ -65,9 +65,9 @@ the delivered model.
 The workflow plan then carries the structure needed to execute the graph:
 components, steps, inputs, outputs, connections and provenance.
 
-This is why the blueprint and the workflow plan are the two serialisable
-artifacts. They are the two points where meaning leaves one system and enters
-another.
+The workflow plan records the source blueprint document under its provenance,
+so the two artifacts are not alternatives: the plan is the durable unit of work
+and carries its source model with it.
 
 ## Explicit boundaries
 

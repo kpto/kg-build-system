@@ -122,7 +122,7 @@ Compilation checks everything that can be checked without reading data:
 | `components` | One component per distinct component id, with its id, version and runtime fields |
 | `steps` | The scheduled instructions with typed inputs and outputs |
 | `connections` | Resolved connections between step openings |
-| `provenance` | Opaque JSON recorded by compilation |
+| `provenance` | The source blueprint document under `blueprint`, plus any planner provenance; the plan is self-contained |
 
 A `Step` owns its inputs, outputs, `assembly_preference` and one
 `Instruction(kind, payload)`. SQL is one instruction kind, not a plan field. The
@@ -239,7 +239,7 @@ if not report.succeeded:
 - `unresolved_failures` lists failures that blocked a publication.
 - `recovered_failures` lists failures that a later step handled.
 - `published_artifacts` lists one entry per published value.
-- `provenance` records the plan provenance.
+- `provenance` records the plan provenance, including the source blueprint document.
 
 Each failure exposes `message`, a typed `step_id` and `exception_type`. A problem inside
 a step becomes a failure in the report. A failure before execution raises.
