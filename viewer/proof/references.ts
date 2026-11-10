@@ -27,21 +27,11 @@ function ownedReferences(
   concept: "table" | "projection",
   names: Iterable<string>,
 ): ConceptReference[] {
-  return sortedNames(names).map((name) => {
-    const assetName = resolveAssetName(index, name);
-    return {
-      concept,
-      name,
-      target: assetName
-        ? {
-            concept: "asset" as const,
-            name: assetName,
-            item: name,
-            itemKind: concept,
-          }
-        : undefined,
-    };
-  });
+  return sortedNames(names).map((name) => ({
+    concept,
+    name,
+    target: { concept, name },
+  }));
 }
 
 /**

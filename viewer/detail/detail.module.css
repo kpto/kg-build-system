@@ -1163,12 +1163,6 @@
   flex-direction: column;
 }
 
-.dataRow[data-focus="true"] {
-  border-color: color-mix(in srgb, var(--color-selection) 70%, var(--color-line));
-  background-color: color-mix(in srgb, var(--color-selection) 9%, transparent);
-  box-shadow: inset 2px 0 0 var(--color-selection);
-}
-
 .dataRow {
   display: flex;
   min-height: 27px;
@@ -1248,6 +1242,45 @@
   color: var(--color-muted);
   font-family: var(--font-mono);
   font-size: 9px;
+}
+
+.fieldDescription {
+  overflow: hidden;
+  color: var(--color-faint);
+  font-size: 9px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.dataItemFacts {
+  display: grid;
+  grid-template-columns: 74px minmax(0, 1fr);
+  gap: 5px 10px;
+  align-items: baseline;
+}
+
+.dataItemFacts > span {
+  color: var(--color-faint);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.dataItemFacts > strong {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: 400;
+}
+
+.dataItemRowSource {
+  margin: 0;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
 }
 
 .descendantGrid {

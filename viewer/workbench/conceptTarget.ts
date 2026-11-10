@@ -11,8 +11,6 @@ export function selectionForConceptTarget(
         kind: "asset",
         level: "asset",
         component: target.name,
-        item: target.item,
-        itemKind: target.itemKind,
       };
     case "node":
       return { kind: "node", level: "node", component: target.name };
@@ -20,6 +18,10 @@ export function selectionForConceptTarget(
       return { kind: "edge", level: "edge", component: target.name };
     case "abstract":
       return { kind: "node", level: "abstract", component: target.name };
+    case "table":
+      return { kind: "relation", name: target.name, component: target.name };
+    case "projection":
+      return { kind: "projection", name: target.name, component: target.name };
     case "step":
       return { kind: "step", name: target.name };
     default:

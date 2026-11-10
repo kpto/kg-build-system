@@ -112,6 +112,17 @@ function LoadErrorGate({
   );
 }
 
+const GENERIC_SNAPSHOT_NAMES = new Set(["workflow", "blueprint", "snapshot"]);
+
+function snapshotForFile(
+  snapshot: ViewerSnapshot,
+  file: File,
+): ViewerSnapshot {
+  if (!GENERIC_SNAPSHOT_NAMES.has(snapshot.name)) return snapshot;
+  const stem = file.name.replace(/\.json$/i, "").trim();
+  return stem && stem !== snapshot.name ? { ...snapshot, name: stem } : snapshot;
+}
+
 function WorkbenchShell({
   onOpenSnapshot,
 }: {
@@ -133,7 +144,10 @@ function WorkbenchShell({
     async (file: File | undefined) => {
       if (!file) return;
       try {
-        const snapshot = loadSnapshotFromText(await file.text());
+        const snapshot = snapshotForFile(
+          loadSnapshotFromText(await file.text()),
+          file,
+        );
         setFileError(undefined);
         onOpenSnapshot(snapshot);
       } catch (reason) {

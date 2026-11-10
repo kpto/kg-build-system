@@ -1095,16 +1095,22 @@ def main() -> int:
         time.sleep(0.8)
         report["checks"]["provenance_table_navigable"] = (
             driver.find_element(
-                By.CSS_SELECTOR, active_detail
-            ).get_attribute("data-concept")
-            == "asset"
-        )
-        report["checks"]["provenance_table_focus"] = any(
-            table_name in row.text
-            for row in driver.find_elements(
                 By.CSS_SELECTOR,
-                f'{active_detail} [data-focus="true"]',
+                '[data-testid="editor-pane"][data-active="true"] [data-concept]',
+            ).get_attribute("data-concept")
+            == "table"
+            and tabs()[-1] == table_name
+            and bool(
+                driver.find_elements(
+                    By.CSS_SELECTOR,
+                    '[data-testid="data-item-editor"]',
+                )
             )
+            and driver.find_element(
+                By.CSS_SELECTOR,
+                '[data-testid="editor-tabs"] .wb-tab[data-active="true"] .wb-tab-label',
+            ).get_attribute("data-concept")
+            == "table"
         )
         middle_click(
             driver.find_elements(
@@ -1173,9 +1179,14 @@ def main() -> int:
                     driver.find_elements(
                         By.CSS_SELECTOR,
                         '[data-testid="editor-pane"][data-active="true"]'
-                        ' [data-focus="true"]',
+                        ' [data-testid="data-item-editor"]',
                     )
                 )
+                and driver.find_element(
+                    By.CSS_SELECTOR,
+                    '[data-testid="editor-tabs"] .wb-tab[data-active="true"] .wb-tab-label',
+                ).get_attribute("data-concept")
+                == "table"
             )
             middle_click(
                 driver.find_elements(

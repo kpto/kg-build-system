@@ -137,8 +137,8 @@ rule about what the framework is belongs to the framework model.
   effective licence follows the provenance assets. One concept registry supplies
   the logo, colour and label for every concept; a banner, a tab, a section header
   and a reference read it rather than declaring their own visual; repeated items
-  omit the header's mark, and a reference carries its target, including an item
-  inside the target document. A graph view uses one renderer and one selection
+  omit the header's mark, and a reference carries its target document, not a
+  focus inside another document. A graph view uses one renderer and one selection
   rule for every node and link kind; selecting a node dims every other node and
   non-incident link and never moves a settled node; empty space clears the
   selection. A new level or kind adds data, not a second renderer.

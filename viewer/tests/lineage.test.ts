@@ -289,11 +289,11 @@ describe("proof model", () => {
     expect(provenance.tables.map((reference) => reference.name)).toEqual([
       "surveys",
     ]);
-    expect(provenance.tables[0].target?.name).toBe("estate");
+    expect(provenance.tables[0].target).toMatchObject({ concept: "table", name: "surveys" });
     expect(provenance.projections.map((reference) => reference.name)).toEqual([
       "defect",
     ]);
-    expect(provenance.projections[0].target?.name).toBe("estate");
+    expect(provenance.projections[0].target).toMatchObject({ concept: "projection", name: "defect" });
 
     const edge = buildProof(index, {
       level: "edge",

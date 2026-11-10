@@ -11,7 +11,6 @@
 import {
   useEffect,
   useMemo,
-  useRef,
   useState,
   type CSSProperties,
   type MouseEvent as ReactMouseEvent,
@@ -29,7 +28,7 @@ import {
 import type { ConceptKind, ConceptReference } from "@/lib/concepts";
 import type { WorkspaceProps, SubjectSelection } from "@/workbench/types";
 import { documentTitle } from "@/workbench/types";
-import { resolveAssetName, stepKey } from "@/lib/indexes";
+import { stepKey } from "@/lib/indexes";
 import {
   buildWorkflowModel,
   groupWorkflowRows,
@@ -54,6 +53,7 @@ import { LINEAGE_LANES } from "@/lib/types";
 import { logicalTypeName } from "@/lib/expressions";
 import { DetailDocument, DetailPanel } from "./view/DetailChrome";
 import { WorkflowProvenanceGraph } from "./view/WorkflowProvenanceGraph";
+import { DataItemEditor } from "./DataItemFeature";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { laneColor } from "@/shared/ui/theme";
 import {
@@ -630,20 +630,13 @@ export function ExplorerSidebar(props: WorkspaceProps) {
       preview,
     });
   };
-  const openAssetItem = (
-    component: string,
-    item: string,
-    itemKind: "table" | "projection",
+  const openDataItem = (
+    kind: "relation" | "projection",
+    name: string,
     preview: boolean,
   ) => {
     props.actions.openTab({
-      selection: {
-        level: "asset",
-        kind: "asset",
-        component,
-        item,
-        itemKind,
-      },
+      selection: { kind, name, component: name },
       preview,
     });
   };
@@ -1050,7 +1043,6 @@ export function ExplorerSidebar(props: WorkspaceProps) {
           onToggle={toggle}
         >
           {tables.map((table) => {
-            const assetName = resolveAssetName(index, table.name);
             return (
               <SidebarRow
                 key={table.name}
@@ -1058,17 +1050,12 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                 concept="table"
                 meta={`${table.columns?.length ?? 0} columns`}
                 active={
-                  Boolean(assetName) &&
-                  active?.level === "asset" &&
-                  active.component === assetName &&
-                  active.itemKind === "table" &&
-                  active.item === table.name
+                  active?.kind === "relation" &&
+                  active.component === table.name
                 }
-                onSelect={() =>
-                  assetName && openAssetItem(assetName, table.name, "table", true)
-                }
+                onSelect={() => openDataItem("relation", table.name, true)}
                 onOpenPermanent={() =>
-                  assetName && openAssetItem(assetName, table.name, "table", false)
+                  openDataItem("relation", table.name, false)
                 }
               />
             );
@@ -1083,7 +1070,6 @@ export function ExplorerSidebar(props: WorkspaceProps) {
           onToggle={toggle}
         >
           {projections.map((projection) => {
-            const assetName = resolveAssetName(index, projection.name);
             return (
               <SidebarRow
                 key={projection.name}
@@ -1091,29 +1077,14 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                 concept="projection"
                 meta={`${projection.columns?.length ?? 0} columns`}
                 active={
-                  Boolean(assetName) &&
-                  active?.level === "asset" &&
-                  active.component === assetName &&
-                  active.itemKind === "projection" &&
-                  active.item === projection.name
+                  active?.kind === "projection" &&
+                  active.component === projection.name
                 }
                 onSelect={() =>
-                  assetName &&
-                  openAssetItem(
-                    assetName,
-                    projection.name,
-                    "projection",
-                    true,
-                  )
+                  openDataItem("projection", projection.name, true)
                 }
                 onOpenPermanent={() =>
-                  assetName &&
-                  openAssetItem(
-                    assetName,
-                    projection.name,
-                    "projection",
-                    false,
-                  )
+                  openDataItem("projection", projection.name, false)
                 }
               />
             );
@@ -1851,13 +1822,9 @@ function AbstractProofView({
 function AssetProofView({
   model,
   actions,
-  focusItem,
-  focusKind,
 }: {
   model: ProofModel;
   actions: WorkspaceProps["actions"];
-  focusItem?: string;
-  focusKind?: "table" | "projection";
 }) {
   const asset = model.asset;
   if (!asset) {
@@ -1897,16 +1864,10 @@ function AssetProofView({
 
       <div className={styles.assetGrid}>
         <Panel concept="table" title="Tables" meta={`${asset.relations.length}`}>
-          <AssetDataRows
-            rows={asset.relations}
-            focusName={focusKind === "table" ? focusItem : undefined}
-          />
+          <AssetDataRows rows={asset.relations} />
         </Panel>
         <Panel concept="projection" title="Projections" meta={`${asset.projections.length}`}>
-          <AssetDataRows
-            rows={asset.projections}
-            focusName={focusKind === "projection" ? focusItem : undefined}
-          />
+          <AssetDataRows rows={asset.projections} />
         </Panel>
       </div>
 
@@ -1976,7 +1937,6 @@ function ProfileField({ label, value }: { label: string; value?: string }) {
 
 function AssetDataRows({
   rows,
-  focusName,
 }: {
   rows: Array<{
     name: string;
@@ -1984,30 +1944,12 @@ function AssetDataRows({
     columns: number;
     semantics: ProofSemantics[];
   }>;
-  focusName?: string;
 }) {
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!focusName) return;
-    const target = ref.current?.querySelector<HTMLElement>('[data-focus="true"]');
-    if (!target) return;
-    const reduce = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    target.scrollIntoView({
-      block: "nearest",
-      behavior: reduce ? "auto" : "smooth",
-    });
-  }, [focusName, rows]);
-
   if (!rows.length) return <EmptyState>No entries.</EmptyState>;
   return (
-    <div className={styles.dataRows} ref={ref}>
+    <div className={styles.dataRows}>
       {rows.map((row) => (
-        <div
-          key={row.name}
-          className={styles.dataRow}
-          data-focus={focusName === row.name ? "true" : undefined}
-        >
+        <div key={row.name} className={styles.dataRow}>
           <div>
             <span className={styles.dataName}>{row.name}</span>
             {row.description ? (
@@ -2059,6 +2001,10 @@ function subjectMeaning(
 }
 
 export function DetailEditor(props: WorkspaceProps) {
+  const selection = documentSelection(activeDocument(props.state));
+  if (selection?.kind === "relation" || selection?.kind === "projection") {
+    return <DataItemEditor {...props} />;
+  }
   return <SubjectDetailEditor {...props} />;
 }
 
@@ -2171,12 +2117,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       {model.level === "property" ? (
         <PropertyProofView model={model} />
       ) : model.level === "asset" ? (
-        <AssetProofView
-          model={model}
-          actions={props.actions}
-          focusItem={selection?.item}
-          focusKind={selection?.itemKind}
-        />
+        <AssetProofView model={model} actions={props.actions} />
       ) : model.level === "abstract" ? (
         <AbstractProofView model={model} actions={props.actions} />
       ) : (

@@ -16,9 +16,10 @@ They are review aids, not golden images.
 | `09-explorer-menu.png` | Right-clicking an Explorer row offers **Go to Detail** and **Go to Graph**; workflow items offer **Go to Workflow**. |
 | `10-workflow-step-graph.png` | A selected workflow component opened with **Open step group**, showing its step-level flow graph inside the Workflow tab. The selected step highlights its incident boundary links and dims the other steps; **Open step** opens its detail document. Steps fill columns top-to-bottom without row wrapping. |
 | `11-workflow-selected-component.png` | Left-clicking a workflow component selects it without opening the step graph; its aggregated links highlight, the rest dim, and **Open step group** in the canvas toolbar is the explicit expansion control. |
-| `12-detail-node.png` | A node document opens with provenance, then a narrowed workflow graph, then meaning and properties. Provenance group headers carry the asset, table and projection marks; each reference opens its owning asset. |
+| `12-detail-node.png` | A node document opens with provenance, then a narrowed workflow graph, then meaning and properties. Provenance group headers carry the asset, table and projection marks; asset references open assets and table/projection references open their own documents. |
 | `13-detail-edge.png` | An edge with no declared properties states provenance from its binding identity and source/target expressions, names its source and target nodes as navigable banner references, shows the effective licence, and shows the narrowed workflow graph below. |
-| `14-table-focus.png` | A table from provenance or the Explorer opens its owning asset at that table: the outline row is selected and the matching table row is highlighted. |
+| `14-table-detail.png` | A table opens its own Table document: concept banner, owning asset reference, columns and attached semantics. |
+| `16-projection-detail.png` | A projection opens its own Projection document with its owning asset, columns and row source. |
 | `15-other-workflow.png` | The title-bar folder button loaded another workflow JSON; the frame stayed and the Workflow document now shows the loaded component and its step catalogue. |
 
 A tab is a standalone document. It changes its editor and the applicable Control

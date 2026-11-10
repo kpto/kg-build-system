@@ -58,9 +58,9 @@ export function conceptForSelection(
     case "step":
       return kind;
     case "relation":
+      return "table";
     case "projection":
-      // A relation or projection resolves to its owning asset document.
-      return "asset";
+      return "projection";
     case "field":
       return "property";
     default:
