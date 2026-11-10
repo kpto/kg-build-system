@@ -116,7 +116,8 @@ rule about what the framework is belongs to the framework model.
   persisted split. Single-click navigation reuses one preview tab; only an
   explicit open pins a permanent tab. Inspection is transient and never opens a
   document; a document opens only on an explicit action and must show content
-  that inspection does not.
+  that inspection does not. A navigation row must open the document it names; a
+  facet without its own document level belongs inside its owner's document.
 - End every change report with the rule-promotion result: none, refined or
   added.
 
