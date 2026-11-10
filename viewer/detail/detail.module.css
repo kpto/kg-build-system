@@ -43,43 +43,19 @@
   align-items: center;
   justify-content: center;
   border: 1px solid
-    color-mix(in srgb, var(--detail-kind) 55%, var(--color-line));
+    color-mix(in srgb, var(--concept-color) 55%, var(--color-line));
   border-radius: 6px;
   background:
     linear-gradient(
       180deg,
-      color-mix(in srgb, var(--detail-kind) 22%, transparent),
-      color-mix(in srgb, var(--detail-kind) 10%, transparent)
+      color-mix(in srgb, var(--concept-color) 22%, transparent),
+      color-mix(in srgb, var(--concept-color) 10%, transparent)
     ),
     var(--color-panel-raised);
-  color: var(--detail-kind);
+  color: var(--concept-color);
 }
 
-.logo[data-kind="node"] {
-  --detail-kind: var(--color-target);
-}
-
-.logo[data-kind="edge"] {
-  --detail-kind: var(--color-binding);
-}
-
-.logo[data-kind="property"] {
-  --detail-kind: var(--color-transform);
-}
-
-.logo[data-kind="asset"] {
-  --detail-kind: var(--color-asset);
-}
-
-.logo[data-kind="abstract"] {
-  --detail-kind: var(--color-post);
-}
-
-.logo[data-kind="step"] {
-  --detail-kind: var(--color-source);
-}
-
-.logoIcon {
+.logo > svg {
   width: 24px;
   height: 24px;
 }
@@ -209,21 +185,6 @@
   flex-wrap: wrap;
   gap: 4px;
   margin-top: 6px;
-}
-
-.provenanceChip {
-  display: inline-block;
-  max-width: 100%;
-  overflow: hidden;
-  padding: 2px 5px;
-  border: 1px solid var(--color-line-soft);
-  border-radius: 3px;
-  background-color: var(--color-panel-soft);
-  color: var(--color-muted);
-  font-family: var(--font-mono);
-  font-size: 9px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .provenanceEmpty {
@@ -942,11 +903,10 @@
   white-space: nowrap;
 }
 
-.propertyDot {
-  width: 6px;
-  height: 6px;
+.conceptDot {
+  width: 8px;
+  height: 8px;
   flex: none;
-  color: var(--color-accent-strong);
 }
 
 .propertyType {
@@ -993,31 +953,20 @@
   flex: none;
   align-items: center;
   justify-content: center;
-  border: 1px solid var(--color-line);
+  border: 1px solid
+    color-mix(in srgb, var(--concept-color) 45%, var(--color-line));
   border-radius: 3px;
-  background-color: var(--color-panel-raised);
-  color: var(--color-muted);
+  background: color-mix(
+    in srgb,
+    var(--concept-color) 10%,
+    var(--color-panel-raised)
+  );
+  color: var(--concept-color);
 }
 
 .subjectIcon > svg {
   width: 17px;
   height: 17px;
-}
-
-.subjectIcon[data-kind="node"] {
-  color: var(--color-source);
-}
-
-.subjectIcon[data-kind="edge"] {
-  color: var(--color-transform);
-}
-
-.subjectIcon[data-kind="asset"] {
-  color: var(--color-asset);
-}
-
-.subjectIcon[data-kind="abstract"] {
-  color: var(--color-target);
 }
 
 .subjectCopy {

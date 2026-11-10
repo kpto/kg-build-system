@@ -14,6 +14,7 @@ import {
   proofSubjectForLevel,
   resolveProofSubject,
 } from "../proof/model";
+import { provenanceReferences } from "../proof/references";
 import { contractIndex, index } from "./fixtures";
 
 function hasStep(branch: LineageBranch, id: StepId): boolean {
@@ -280,6 +281,19 @@ describe("proof model", () => {
     expect(title?.assets).toEqual(["estate"]);
     expect(title?.sources).toEqual(["surveys"]);
     expect(title?.projections).toEqual(["defect"]);
+
+    const provenance = provenanceReferences(index, node);
+    expect(provenance.assets.map((reference) => reference.name)).toEqual([
+      "estate",
+    ]);
+    expect(provenance.tables.map((reference) => reference.name)).toEqual([
+      "surveys",
+    ]);
+    expect(provenance.tables[0].assetName).toBe("estate");
+    expect(provenance.projections.map((reference) => reference.name)).toEqual([
+      "defect",
+    ]);
+    expect(provenance.projections[0].assetName).toBe("estate");
 
     const edge = buildProof(index, {
       level: "edge",

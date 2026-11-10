@@ -88,7 +88,13 @@ toolbars. The tab already names the document.
 Node, edge and property documents open with a **Provenance** section that lists
 the resolved assets, tables and projections behind the subject, before design
 meaning and properties. It is a summary; the property document's lineage canvas
-shows the full branch.
+shows the full branch. Each provenance value is a reference: it carries the
+asset document that owns it and opens that document.
+
+One concept registry supplies the logo and representative colour for graph,
+workflow, node, edge, property, asset, table, projection, abstract category and
+step. A detail banner, a tab and a provenance reference read the same registry,
+so an asset is the same green database mark wherever it appears.
 
 ## Panels and persistence
 

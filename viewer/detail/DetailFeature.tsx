@@ -21,15 +21,11 @@ import {
   BadgeCheck,
   ChevronDown,
   ChevronRight,
-  CircleDot,
-  Database,
-  GitBranch,
-  Layers,
-  Network,
   Search,
   Waypoints,
 } from "lucide-react";
 
+import type { ConceptReference } from "@/lib/concepts";
 import type { WorkspaceProps, SubjectSelection } from "@/workbench/types";
 import { documentTitle } from "@/workbench/types";
 import { stepKey } from "@/lib/indexes";
@@ -42,10 +38,14 @@ import {
   getWorkflowUiStore,
   useWorkflowUi,
 } from "@/workflow/view/workflowUi";
+import { provenanceReferences } from "@/proof/references";
+import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
+import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
 import { activeDocument, documentSelection } from "@/workbench/types";
 import type {
   LineageLane,
   SemanticSubjectKind,
+  ViewerIndex,
 } from "@/lib/types";
 import { LINEAGE_LANES } from "@/lib/types";
 import { logicalTypeName } from "@/lib/expressions";
@@ -152,71 +152,33 @@ function levelSubtitle(model: ProofModel): string {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Provenance summary
-// ---------------------------------------------------------------------------
-
-interface ProvenanceSummary {
-  assets: string[];
-  tables: string[];
-  projections: string[];
-}
-
-function sortedNames(values: Iterable<string>): string[] {
-  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
-}
-
-function provenanceSummary(model: ProofModel): ProvenanceSummary {
-  const assets: string[] = [];
-  const tables: string[] = [];
-  const projections: string[] = [];
-
-  if (model.level === "property") {
-    for (const { branch, nodes } of model.branches) {
-      assets.push(...branch.assetNames);
-      tables.push(...branch.sourceRelations);
-      for (const node of nodes) {
-        if (node.kind === "projection" && node.component) {
-          projections.push(node.component);
-        }
-      }
-    }
-  } else if (model.level === "node" || model.level === "edge") {
-    for (const property of model.component?.properties ?? []) {
-      assets.push(...property.assets);
-      tables.push(...property.sources);
-      projections.push(...property.projections);
-    }
-  }
-
-  return {
-    assets: sortedNames(assets),
-    tables: sortedNames(tables),
-    projections: sortedNames(projections),
-  };
-}
-
 function ProvenanceGroup({
   label,
-  items,
+  references,
+  onOpen,
   testId,
 }: {
   label: string;
-  items: string[];
+  references: ConceptReference[];
+  onOpen(reference: ConceptReference): void;
   testId: string;
 }) {
   return (
     <div className={styles.provenanceGroup} data-testid={testId}>
       <p className={styles.provenanceGroupLabel}>
         {label}
-        <span>{items.length}</span>
+        <span>{references.length}</span>
       </p>
-      {items.length ? (
+      {references.length ? (
         <div className={styles.provenanceItems}>
-          {items.map((item) => (
-            <span key={item} className={styles.provenanceChip} title={item}>
-              {item}
-            </span>
+          {references.map((reference) => (
+            <ConceptReferenceChip
+              key={`${reference.concept}:${reference.name}`}
+              reference={reference}
+              onOpen={
+                reference.assetName ? () => onOpen(reference) : undefined
+              }
+            />
           ))}
         </div>
       ) : (
@@ -226,8 +188,16 @@ function ProvenanceGroup({
   );
 }
 
-function ProvenanceSection({ model }: { model: ProofModel }) {
-  const provenance = provenanceSummary(model);
+function ProvenanceSection({
+  index,
+  model,
+  onOpen,
+}: {
+  index: ViewerIndex;
+  model: ProofModel;
+  onOpen(reference: ConceptReference): void;
+}) {
+  const provenance = provenanceReferences(index, model);
   const count = (value: number, singular: string) =>
     `${value} ${value === 1 ? singular : `${singular}s`}`;
   return (
@@ -247,17 +217,20 @@ function ProvenanceSection({ model }: { model: ProofModel }) {
       <div className={styles.provenanceGrid}>
         <ProvenanceGroup
           label="Assets"
-          items={provenance.assets}
+          references={provenance.assets}
+          onOpen={onOpen}
           testId="detail-provenance-assets"
         />
         <ProvenanceGroup
           label="Tables"
-          items={provenance.tables}
+          references={provenance.tables}
+          onOpen={onOpen}
           testId="detail-provenance-tables"
         />
         <ProvenanceGroup
           label="Projections"
-          items={provenance.projections}
+          references={provenance.projections}
+          onOpen={onOpen}
           testId="detail-provenance-projections"
         />
       </div>
@@ -799,7 +772,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                   ])
                 }
               >
-                <CircleDot aria-hidden className={styles.propertyDot} />
+                <ConceptGlyph concept="property" className={styles.conceptDot} />
                 <span>{property.name}</span>
               </button>
             ))}
@@ -945,7 +918,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                   ])
                 }
               >
-                <CircleDot aria-hidden className={styles.propertyDot} />
+                <ConceptGlyph concept="property" className={styles.conceptDot} />
                 <span>{property.name}</span>
               </button>
             ))}
@@ -1115,9 +1088,9 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                           }
                           title={`${row.component} · ${row.name}`}
                         >
-                          <CircleDot
-                            aria-hidden
-                            className={styles.propertyDot}
+                          <ConceptGlyph
+                            concept="step"
+                            className={styles.conceptDot}
                           />
                           <span>{row.name}</span>
                         </button>
@@ -1529,7 +1502,7 @@ function PropertyTable({
           }}
         >
           <span className={styles.propertyName}>
-            <CircleDot aria-hidden className={styles.propertyDot} />
+            <ConceptGlyph concept="property" className={styles.conceptDot} />
             {property.property}
           </span>
           <span className={styles.propertyType}>
@@ -1576,13 +1549,7 @@ function ComponentProofView({
   return (
     <div className={styles.levelBody}>
       <header className={styles.subjectHeader}>
-        <div className={styles.subjectIcon} data-kind={component.kind}>
-          {component.kind === "node" ? (
-            <Network aria-hidden />
-          ) : (
-            <GitBranch aria-hidden />
-          )}
-        </div>
+        <ConceptMark concept={component.kind} className={styles.subjectIcon} />
         <div className={styles.subjectCopy}>
           <div className={styles.subjectBadges}>
             <Badge tone="lane">{component.kind}</Badge>
@@ -1660,9 +1627,7 @@ function AbstractProofView({
   return (
     <div className={styles.levelBody}>
       <header className={styles.subjectHeader}>
-        <div className={styles.subjectIcon} data-kind="abstract">
-          <Layers aria-hidden />
-        </div>
+        <ConceptMark concept="abstract" className={styles.subjectIcon} />
         <div className={styles.subjectCopy}>
           <div className={styles.subjectBadges}>
             <Badge tone="lane">abstract</Badge>
@@ -1750,9 +1715,7 @@ function AssetProofView({
   return (
     <div className={styles.levelBody}>
       <header className={styles.subjectHeader}>
-        <div className={styles.subjectIcon} data-kind="asset">
-          <Database aria-hidden />
-        </div>
+        <ConceptMark concept="asset" className={styles.subjectIcon} />
         <div className={styles.subjectCopy}>
           <div className={styles.subjectBadges}>
             <Badge tone="lane">asset</Badge>
@@ -1936,7 +1899,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
   return (
     <DetailDocument
       testId="detail-editor"
-      kind={model.level}
+      concept={model.level}
       kicker={`Design · ${model.level}`}
       title={levelTitle(model)}
       subtitle={levelSubtitle(model)}
@@ -1944,7 +1907,21 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       {model.level === "property" ||
       model.level === "node" ||
       model.level === "edge" ? (
-        <ProvenanceSection model={model} />
+        <ProvenanceSection
+          index={props.state.index}
+          model={model}
+          onOpen={(reference) => {
+            if (!reference.assetName) return;
+            props.actions.openTab({
+              selection: {
+                kind: "asset",
+                level: "asset",
+                component: reference.assetName,
+              },
+              preview: true,
+            });
+          }}
+        />
       ) : null}
       <section className={styles.meaningPanel} aria-label="Design meaning">
         <header className={styles.meaningPanelHeader}>

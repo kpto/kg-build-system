@@ -1,38 +1,19 @@
 "use client";
 
-import {
-  ArrowLeft,
-  ArrowRight,
-  Boxes,
-  CircleDot,
-  Database,
-  FileText,
-  Network,
-  Workflow,
-  X,
-} from "lucide-react";
+import { ArrowLeft, ArrowRight, X } from "lucide-react";
 
+import { ConceptGlyph } from "@/shared/ui/ConceptMark";
+import { conceptForSelection } from "@/shared/ui/concepts";
 import { useWorkbench } from "./store";
 import { documentTitle, type WorkbenchTab } from "./types";
 
-function tabIcon(tab: WorkbenchTab) {
-  const kind =
-    tab.document.kind === "subject"
-      ? tab.document.selection.kind
-      : tab.document.kind;
-  const Icon =
-    kind === "graph"
-      ? Network
-      : kind === "workflow"
-        ? Workflow
-        : kind === "property"
-          ? CircleDot
-          : kind === "asset"
-            ? Database
-            : kind === "node" || kind === "edge" || kind === "step"
-              ? Boxes
-              : FileText;
-  return <Icon aria-hidden className="size-3" />;
+function tabConcept(tab: WorkbenchTab) {
+  const selection =
+    tab.document.kind === "subject" ? tab.document.selection : undefined;
+  return conceptForSelection(
+    selection?.kind ?? tab.document.kind,
+    selection?.level,
+  );
 }
 
 export function EditorTabs() {
@@ -71,6 +52,7 @@ export function EditorTabs() {
         {state.tabs.map((tab) => {
           const active = tab.id === state.activeTabId;
           const title = documentTitle(tab.document);
+          const concept = tabConcept(tab);
           return (
             <div
               key={tab.id}
@@ -97,8 +79,9 @@ export function EditorTabs() {
                 onClick={() => actions.activateTab(tab.id)}
                 onDoubleClick={() => actions.pinTab(tab.id)}
                 data-testid={`tab-${tab.id}`}
+                data-concept={concept}
               >
-                {tabIcon(tab)}
+                <ConceptGlyph concept={concept} className="size-3" />
                 <span className="wb-tab-title">{title}</span>
               </button>
               {tab.pinned ? null : (

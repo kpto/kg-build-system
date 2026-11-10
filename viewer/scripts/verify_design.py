@@ -718,7 +718,7 @@ def main() -> int:
                 driver.find_elements(
                     By.CSS_SELECTOR,
                     '[data-testid="workflow-step-editor"]'
-                    ' [data-detail-kind="step"] [role="img"]',
+                    ' [data-concept="step"] [role="img"]',
                 )
             )
             step_component = first_step.get_attribute("title").split(" · ")[0]
@@ -936,19 +936,61 @@ def main() -> int:
         report["checks"]["detail_banner_logo"] = bool(
             driver.find_elements(
                 By.CSS_SELECTOR,
-                '[data-testid="detail-editor"][data-detail-kind="property"]'
+                '[data-testid="editor-pane"][data-active="true"]'
+                ' [data-testid="detail-editor"][data-concept="property"]'
                 ' [role="img"]',
             )
         )
+        active_detail = (
+            '[data-testid="editor-pane"][data-active="true"] '
+            '[data-testid="detail-editor"]'
+        )
         report["checks"]["detail_provenance"] = bool(
-            driver.find_elements(By.CSS_SELECTOR, '[data-testid="detail-provenance"]')
+            driver.find_elements(
+                By.CSS_SELECTOR, f'{active_detail} [data-testid="detail-provenance"]'
+            )
         )
         report["checks"]["detail_provenance_groups"] = all(
             driver.find_elements(
-                By.CSS_SELECTOR, f'[data-testid="detail-provenance-{group}"]'
+                By.CSS_SELECTOR,
+                f'{active_detail} [data-testid="detail-provenance-{group}"]',
             )
             for group in ("assets", "tables", "projections")
         )
+        report["checks"]["detail_tab_concept"] = (
+            driver.find_element(
+                By.CSS_SELECTOR,
+                '[data-testid="editor-tabs"] .wb-tab[data-active="true"] .wb-tab-label',
+            ).get_attribute("data-concept")
+            == "property"
+        )
+        property_title = tabs()[-1] if tabs() else ""
+        asset_reference = driver.find_element(
+            By.CSS_SELECTOR,
+            f'{active_detail} [data-testid="detail-provenance-assets"]'
+            ' button[data-concept="asset"]',
+        )
+        asset_name = asset_reference.text.strip()
+        asset_reference.click()
+        time.sleep(0.8)
+        report["checks"]["provenance_asset_navigable"] = (
+            driver.find_element(
+                By.CSS_SELECTOR, active_detail
+            ).get_attribute("data-concept")
+            == "asset"
+            and tabs()[-1] == asset_name
+            and driver.find_element(
+                By.CSS_SELECTOR,
+                '[data-testid="editor-tabs"] .wb-tab[data-active="true"] .wb-tab-label',
+            ).get_attribute("data-concept")
+            == "asset"
+        )
+        middle_click(
+            driver.find_elements(
+                By.CSS_SELECTOR, '[data-testid="editor-tabs"] .wb-tab-label'
+            )[-1].find_element(By.XPATH, "..")
+        )
+        click_tab(property_title)
         report["checks"]["geometry_unchanged"] = geometry() == topology_geometry
         report["checks"]["detail_status"] = status()
         shot("04-detail-property")
@@ -973,10 +1015,16 @@ def main() -> int:
             len(tabs()) == len(before_preview) + 1 and preview_flags()[-1]
         )
         report["checks"]["preview_detail_kind"] = driver.find_element(
-            By.CSS_SELECTOR, '[data-testid="detail-editor"]'
-        ).get_attribute("data-detail-kind")
+            By.CSS_SELECTOR,
+            '[data-testid="editor-pane"][data-active="true"] '
+            '[data-testid="detail-editor"]',
+        ).get_attribute("data-concept")
         report["checks"]["preview_provenance"] = bool(
-            driver.find_elements(By.CSS_SELECTOR, '[data-testid="detail-provenance"]')
+            driver.find_elements(
+                By.CSS_SELECTOR,
+                '[data-testid="editor-pane"][data-active="true"] '
+                '[data-testid="detail-provenance"]',
+            )
         )
 
         # The next single-click replaces the preview instead of adding a tab.

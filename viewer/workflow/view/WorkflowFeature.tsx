@@ -313,7 +313,7 @@ function StepDetail({
   return (
     <DetailDocument
       testId="workflow-step-detail"
-      kind="step"
+      concept="step"
       kicker={`Design · step · ${step.id[0]}`}
       title={step.id[1]}
       subtitle={`${step.instruction.kind?.join(":") ?? "unknown"} · ${
@@ -450,7 +450,7 @@ export function WorkflowStepEditor({ state }: WorkspaceProps) {
     return (
       <DetailDocument
         testId="workflow-step-editor"
-        kind="step"
+        concept="step"
         kicker="Design · step"
         title="Step unavailable"
         subtitle="This step is not present in the workflow plan."

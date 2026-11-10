@@ -131,10 +131,12 @@ rule about what the framework is belongs to the framework model.
   a new kind adds content, not chrome. A detail banner leads with the kind's
   large logo and the tab names the document; a working surface such as the graph
   or workflow has no banner and carries its actions in a floating toolbar. A
-  data-derived detail states its provenance before its meaning. A
-  graph view uses one renderer and one selection rule for every node and link
-  kind; selecting a node dims every other node and non-incident link. A new level
-  or kind adds data, not a second renderer.
+  data-derived detail states its provenance before its meaning. One concept
+  registry supplies the logo, colour and label for every concept; a banner, a
+  tab and a reference read it rather than declaring their own visual, and a
+  reference carries its target. A graph view uses one renderer and one selection
+  rule for every node and link kind; selecting a node dims every other node and
+  non-incident link. A new level or kind adds data, not a second renderer.
 - End every change report with the rule-promotion result: none, refined or
   added.
 

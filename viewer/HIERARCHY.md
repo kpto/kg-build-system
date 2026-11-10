@@ -55,7 +55,7 @@ position.
 | **Graph** (pinned) | D3 force canvas, zoom/pan/drag and the floating **Inspect** window: graph purpose/overview when nothing is selected, or the selected entity's identity, properties and meaning; clicking empty space deselects |
 | **Workflow** (pinned) | compositor-style component graph with no title banner and a floating canvas toolbar; selecting a component and using **Open step group** drills into its step-level flow graph with column flow and boundary components; selecting a component, step or boundary node highlights its incident links and dims the other nodes in the same graph view, and entering another step group requires **Open step group**; drag to pan, wheel to zoom, Fit to reset; Back returns to components; filters from Control narrow the step graph |
 | **Step** | one workflow step's instruction, payload, openings, connections and blueprint bindings on the same detail surface as node and subject documents; opened from the workflow section of Explorer |
-| **Subject** (node, edge, property, asset, abstract) | provenance assets, tables and projections first for node, edge and property; then design meaning, properties, attached semantics and, for a property, provenance lanes and type/presence |
+| **Subject** (node, edge, property, asset, abstract) | provenance assets, tables and projections first for node, edge and property; each reference is navigable to its owning asset; then design meaning, properties, attached semantics and, for a property, provenance lanes and type/presence |
 
 A node or property click in the canvas only changes transient inspection.
 Single-clicking an Explorer row opens or reuses one preview tab; double-clicking
