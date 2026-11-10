@@ -64,11 +64,10 @@ import {
   type ProofTrace,
   type ProofTypeChain,
 } from "@/proof/model";
-import { DesignMeaning, GraphMeaning } from "@/shared/design/DesignMeaning";
+import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import {
   attachedMeaning,
   componentMeaning,
-  graphMeaning,
   propertyMeaning,
   type DesignMeaningValue,
 } from "@/shared/design/meaning";
@@ -733,14 +732,6 @@ export function ExplorerSidebar(props: WorkspaceProps) {
         />
       </div>
       <div className={`${styles.sideScroll} thin-scrollbar`}>
-      <section className={styles.graphMeaning} aria-label="Graph meaning">
-        <p className={styles.sideSectionTitle}>Graph purpose</p>
-        <GraphMeaning
-          claims={graphMeaning(index).claims}
-          frames={graphMeaning(index).frames}
-          purpose={graphMeaning(index).purpose}
-        />
-      </section>
         <SideSection
           id="assets"
           title="Assets"

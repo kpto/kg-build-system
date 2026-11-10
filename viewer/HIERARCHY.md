@@ -37,7 +37,7 @@ Inspector window; there is no bottom panel.
 | Section | Contents |
 | --- | --- |
 | **Control** | controls for the active view: graph canvas filters, labels, Show controls, legend and fit/zoom/pin; workflow component, instruction and text filters. |
-| **Explorer** | everything in the design: graph meaning; assets, nodes, abstract categories, edges and their properties; workflow components and their step catalogue. Relations and projections are shown inside their asset document, not as tree rows that all resolve to that asset. |
+| **Explorer** | everything in the design: assets, nodes, abstract categories, edges and their properties; workflow components and their step catalogue. Relations and projections are shown inside their asset document, not as tree rows that all resolve to that asset. |
 
 The sections are collapsible and independent: both may be expanded at once.
 Each expanded body sits directly below its own header. When both are open, a
@@ -52,7 +52,7 @@ position.
 
 | Document | Editor |
 | --- | --- |
-| **Graph** (pinned) | D3 force canvas, zoom/pan/drag and the floating **Inspect** window: graph purpose/overview, or the selected entity's identity, properties and meaning |
+| **Graph** (pinned) | D3 force canvas, zoom/pan/drag and the floating **Inspect** window: graph purpose/overview when nothing is selected, or the selected entity's identity, properties and meaning; clicking empty space deselects |
 | **Workflow** (pinned) | compositor-style component graph with step counts, sockets and aggregated step connections; drag to pan, wheel to zoom, Fit to reset; filters from Control dim the graph |
 | **Step** | one workflow step's instruction, payload, openings, connections and blueprint bindings on the same detail surface as node and subject documents; opened from the workflow section of Explorer |
 | **Subject** (node, edge, property, asset, abstract) | design meaning, properties, attached semantics and, for a property, provenance lanes and type/presence |

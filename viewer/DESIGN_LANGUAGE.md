@@ -41,7 +41,7 @@ Window        where am I, and what design am I reading?
 | Section | Question | What it contains |
 | --- | --- | --- |
 | Control | How is the current view configured? | graph filters, labels, Show controls, legend, layout; workflow component and instruction filters |
-| Explorer | What does the design contain? | graph meaning, assets, nodes, abstract categories, edges, properties and the workflow components and steps; it always states the whole design |
+| Explorer | What does the design contain? | assets, nodes, abstract categories, edges, properties and the workflow components and steps; it always lists the whole design |
 
 There is no mode switch. Opening a side-bar section changes the side bar, not
 the active document or its editor. Control follows the active view; a subject
@@ -71,7 +71,7 @@ The first paint states the design, not every annotation.
 | Surface | Level 1 (default) | Level 2 | Level 3 |
 | --- | --- | --- | --- |
 | Graph document | circles, thin relation links, hub labels | all labels, relation names | containment, semantics, property counts |
-| Graph inspection | identity and description | properties with types | attached claims, frames and limitations |
+| Graph inspection | graph purpose and counts when nothing is selected; otherwise identity and description | properties with types | attached claims, frames and limitations |
 | Workflow document | compositor-style component graph; drag to pan and wheel to zoom | aggregated connection counts and active components | the step catalogue in Explorer and its step documents |
 | Step document | identity, instruction and openings on the shared detail surface | payload values | connections and blueprint bindings |
 | Subject document | subject meaning and properties | attached semantics along the path | property provenance, type/presence chain and trace |
@@ -153,9 +153,9 @@ component or instruction kind in Control → open a step from the workflow secti
 of Explorer → read its openings, instruction payload, connections and blueprint
 bindings.
 
-**Read the design.** Explorer's graph meaning states the graph purpose and its
-full claims and frames on demand; the editor states the selected subject's
-meaning and properties before its provenance.
+**Read the design.** Inspect states the graph purpose and its full claims and
+frames on demand when nothing is selected; the editor states the selected
+subject's meaning and properties before its provenance.
 
 ## Writing rules for the UI
 

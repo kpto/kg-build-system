@@ -1309,6 +1309,10 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         className="block h-full w-full touch-none cursor-grab select-none"
         role="img"
         aria-label={`Topology force graph with ${visible.nodes.length} nodes and ${visible.links.length} links`}
+        onClick={() => {
+          if (suppressClickRef.current) return;
+          clearSelection(props);
+        }}
       >
         <defs>
           <pattern id="topology-grid" width="24" height="24" patternUnits="userSpaceOnUse">

@@ -173,6 +173,14 @@ def main() -> int:
         report["checks"]["inspector_initial"] = bool(
             driver.find_elements(By.CSS_SELECTOR, '[data-testid="topology-inspector"]')
         )
+        if report["checks"]["inspector_initial"]:
+            inspector_text = driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="topology-inspector"]'
+            ).text
+            report["checks"]["inspect_graph_purpose"] = (
+                "GRAPH OVERVIEW" in inspector_text
+                and "Show full purpose" in inspector_text
+            )
         topology_geometry = geometry()
         shot("01-topology")
 
@@ -383,6 +391,12 @@ def main() -> int:
                 and "explorer-group-nodes" in explorer_groups
                 and "explorer-group-edges" in explorer_groups
             )
+            report["checks"]["explorer_has_no_graph_purpose"] = (
+                "GRAPH PURPOSE"
+                not in driver.find_element(
+                    By.CSS_SELECTOR, '[data-testid="explorer-sidebar"]'
+                ).text
+            )
 
             driver.find_element(
                 By.CSS_SELECTOR, '[data-testid="explorer-group-workflow"]'
@@ -475,6 +489,35 @@ def main() -> int:
         time.sleep(0.8)
         report["checks"]["property_inspect_keeps_tabs"] = tabs() == ["Graph", "Workflow"]
         report["checks"]["property_status"] = status()
+
+        # Clicking empty canvas space clears the transient inspection and
+        # restores the graph purpose in Inspect.
+        driver.execute_script(
+            "arguments[0].dispatchEvent(new MouseEvent('click',{bubbles:true}))",
+            driver.find_element(By.CSS_SELECTOR, '[data-testid="topology-canvas"]'),
+        )
+        time.sleep(0.7)
+        report["checks"]["empty_click_deselects"] = "No subject selected" in status()
+        report["checks"]["inspect_purpose_after_deselect"] = (
+            "GRAPH OVERVIEW"
+            in driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="topology-inspector"]'
+            ).text
+        )
+
+        # Restore the target selection for the context-menu checks.
+        target = next(
+            node
+            for node in driver.find_elements(
+                By.CSS_SELECTOR, "[data-topology-node-id]"
+            )
+            if node.get_attribute("data-topology-node") == "target"
+        )
+        driver.execute_script(
+            "arguments[0].dispatchEvent(new MouseEvent('click',{bubbles:true}))",
+            target,
+        )
+        time.sleep(0.7)
 
         # Close and reopen the floating inspector.
         driver.find_element(

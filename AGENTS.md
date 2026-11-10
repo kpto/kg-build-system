@@ -108,7 +108,7 @@ rule about what the framework is belongs to the framework model.
   with the document; documents live in one tab strip with back and forward.
   Control and Explorer are collapsible side-bar sections, not modes; a tab is a
   standalone document. A tab changes its editor and the Control body applicable
-  to that view; the Explorer always states the whole design. A tab never opens,
+  to that view; the Explorer always lists the whole design. A tab never opens,
   closes or switches a side-bar section or another tab, and it preserves its own
   editor state and scroll position. A pinned document is unremovable: it has no
   close action and ignores close gestures. A control inside a tab may not

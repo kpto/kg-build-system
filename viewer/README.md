@@ -10,7 +10,7 @@ frame, one document tab strip, and two collapsible side-bar sections:
 | Side-bar section | What it is for |
 | --- | --- |
 | **Control** | Controls for the active view: graph filters, labels, containment, semantics, legend and layout; workflow component and instruction filters. |
-| **Explorer** | Everything in the design: graph meaning, assets, nodes, abstract categories, edges and their properties, plus the workflow components and step catalogue. |
+| **Explorer** | Everything in the design: assets, nodes, abstract categories, edges and their properties, plus the workflow components and step catalogue. |
 
 The tab strip is the document axis:
 
@@ -50,7 +50,7 @@ The first paint shows the design, not its annotations.
 
 | Surface | Default | Revealed by |
 | --- | --- | --- |
-| Graph document | graph canvas and floating **Inspect** window | selecting an entity fills Inspect with its description, properties and meaning |
+| Graph document | graph canvas and floating **Inspect** window showing graph purpose and counts | selecting an entity fills Inspect with its description, properties and meaning; clicking empty space returns to graph purpose |
 | Workflow document | compositor-style component graph with step counts and aggregated connections; drag to pan, wheel to zoom, Fit to reset | filter by component or instruction kind in Control; open a step from Explorer for its detail document |
 | Subject document | meaning, properties and attached semantics of the subject | property rows, the branch selector and the Explorer tree for another subject document |
 
