@@ -246,6 +246,67 @@ def main() -> int:
                     and abs(numbers[-2] - float(edge.get_attribute("data-target-x"))) < 0.01
                     and abs(numbers[-1] - float(edge.get_attribute("data-target-y"))) < 0.01
                 )
+                socket_check = driver.execute_script(
+                    """
+                    const edge = arguments[0];
+                    const source = edge.getAttribute("data-source");
+                    const target = edge.getAttribute("data-target");
+                    const nodes = [...document.querySelectorAll(
+                      '[data-testid="workflow-component-node"]'
+                    )];
+                    const sourceNode = nodes.find(
+                      (node) => node.getAttribute("data-component") === source
+                    );
+                    const targetNode = nodes.find(
+                      (node) => node.getAttribute("data-component") === target
+                    );
+                    if (!sourceNode || !targetNode) return null;
+                    const out = sourceNode.querySelectorAll("circle")[1];
+                    const input = targetNode.querySelectorAll("circle")[0];
+                    if (!out || !input) return null;
+                    const outRect = out.getBoundingClientRect();
+                    const inputRect = input.getBoundingClientRect();
+                    const path = edge.querySelector("path");
+                    const start = path.getPointAtLength(0);
+                    const end = path.getPointAtLength(path.getTotalLength());
+                    const matrix = path.getScreenCTM();
+                    const screen = (point) => ({
+                      x: point.x * matrix.a + point.y * matrix.c + matrix.e,
+                      y: point.x * matrix.b + point.y * matrix.d + matrix.f,
+                    });
+                    const startPoint = screen(start);
+                    const endPoint = screen(end);
+                    const outCenter = {
+                      x: outRect.left + outRect.width / 2,
+                      y: outRect.top + outRect.height / 2,
+                    };
+                    const inputCenter = {
+                      x: inputRect.left + inputRect.width / 2,
+                      y: inputRect.top + inputRect.height / 2,
+                    };
+                    return {
+                      startDistance: Math.hypot(
+                        startPoint.x - outCenter.x,
+                        startPoint.y - outCenter.y,
+                      ),
+                      endDistance: Math.hypot(
+                        endPoint.x - inputCenter.x,
+                        endPoint.y - inputCenter.y,
+                      ),
+                      startPoint,
+                      endPoint,
+                      outCenter,
+                      inputCenter,
+                    };
+                    """,
+                    edge,
+                )
+                report["checks"]["workflow_socket_centers"] = socket_check
+                report["checks"]["workflow_links_match_socket_centers"] = bool(
+                    socket_check
+                    and socket_check["startDistance"] < 2
+                    and socket_check["endDistance"] < 2
+                )
 
             zoom_before = driver.find_element(
                 By.CSS_SELECTOR, '[data-testid="workflow-zoom"]'

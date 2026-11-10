@@ -597,9 +597,9 @@ function buildCompositorLayout(
     const target = placed.get(edge.target);
     if (!source || !target) continue;
     const sx = source.x + NODE_WIDTH;
-    const sy = source.y + NODE_HEIGHT / 2;
+    const sy = source.y + SOCKET_Y;
     const tx = target.x;
-    const ty = target.y + NODE_HEIGHT / 2;
+    const ty = target.y + SOCKET_Y;
     const forward = tx >= sx;
     const dx = forward
       ? Math.max(56, (tx - sx) * 0.48)
