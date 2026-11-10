@@ -107,9 +107,10 @@ rule about what the framework is belongs to the framework model.
 - One workbench frame is shared by every view: panel geometry never changes
   with the document; documents live in one tab strip with back and forward.
   Topology and Detail are collapsible side-bar sections, not modes; a tab is a
-  document. Inspection is transient and never opens a document; a document
-  opens only on an explicit action and must show content that inspection does
-  not.
+  standalone document. A tab changes only its editor: it never opens, closes or
+  switches the side bar, bottom panel or another tab. Inspection is transient
+  and never opens a document; a document opens only on an explicit action and
+  must show content that inspection does not.
 - End every change report with the rule-promotion result: none, refined or
   added.
 
