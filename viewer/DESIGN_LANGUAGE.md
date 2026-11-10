@@ -85,6 +85,11 @@ property, asset, abstract category or step. The Workflow and Graph documents are
 working surfaces; they have no banner, and their actions live in floating canvas
 toolbars. The tab already names the document.
 
+Node, edge and property documents open with a **Provenance** section that lists
+the resolved assets, tables and projections behind the subject, before design
+meaning and properties. It is a summary; the property document's lineage canvas
+shows the full branch.
+
 ## Panels and persistence
 
 - The shell owns side-bar visibility, width and the split between its sections.

@@ -153,6 +153,119 @@ function levelSubtitle(model: ProofModel): string {
 }
 
 // ---------------------------------------------------------------------------
+// Provenance summary
+// ---------------------------------------------------------------------------
+
+interface ProvenanceSummary {
+  assets: string[];
+  tables: string[];
+  projections: string[];
+}
+
+function sortedNames(values: Iterable<string>): string[] {
+  return [...new Set(values)].sort((left, right) => left.localeCompare(right));
+}
+
+function provenanceSummary(model: ProofModel): ProvenanceSummary {
+  const assets: string[] = [];
+  const tables: string[] = [];
+  const projections: string[] = [];
+
+  if (model.level === "property") {
+    for (const { branch, nodes } of model.branches) {
+      assets.push(...branch.assetNames);
+      tables.push(...branch.sourceRelations);
+      for (const node of nodes) {
+        if (node.kind === "projection" && node.component) {
+          projections.push(node.component);
+        }
+      }
+    }
+  } else if (model.level === "node" || model.level === "edge") {
+    for (const property of model.component?.properties ?? []) {
+      assets.push(...property.assets);
+      tables.push(...property.sources);
+      projections.push(...property.projections);
+    }
+  }
+
+  return {
+    assets: sortedNames(assets),
+    tables: sortedNames(tables),
+    projections: sortedNames(projections),
+  };
+}
+
+function ProvenanceGroup({
+  label,
+  items,
+  testId,
+}: {
+  label: string;
+  items: string[];
+  testId: string;
+}) {
+  return (
+    <div className={styles.provenanceGroup} data-testid={testId}>
+      <p className={styles.provenanceGroupLabel}>
+        {label}
+        <span>{items.length}</span>
+      </p>
+      {items.length ? (
+        <div className={styles.provenanceItems}>
+          {items.map((item) => (
+            <span key={item} className={styles.provenanceChip} title={item}>
+              {item}
+            </span>
+          ))}
+        </div>
+      ) : (
+        <p className={styles.provenanceEmpty}>None resolved</p>
+      )}
+    </div>
+  );
+}
+
+function ProvenanceSection({ model }: { model: ProofModel }) {
+  const provenance = provenanceSummary(model);
+  const count = (value: number, singular: string) =>
+    `${value} ${value === 1 ? singular : `${singular}s`}`;
+  return (
+    <section
+      className={styles.provenance}
+      data-testid="detail-provenance"
+      aria-label="Provenance"
+    >
+      <header className={styles.provenanceHead}>
+        <span className={styles.provenanceTitle}>Provenance</span>
+        <span className={styles.provenanceMeta}>
+          {count(provenance.assets.length, "asset")} ·{" "}
+          {count(provenance.tables.length, "table")} ·{" "}
+          {count(provenance.projections.length, "projection")}
+        </span>
+      </header>
+      <div className={styles.provenanceGrid}>
+        <ProvenanceGroup
+          label="Assets"
+          items={provenance.assets}
+          testId="detail-provenance-assets"
+        />
+        <ProvenanceGroup
+          label="Tables"
+          items={provenance.tables}
+          testId="detail-provenance-tables"
+        />
+        <ProvenanceGroup
+          label="Projections"
+          items={provenance.projections}
+          testId="detail-provenance-projections"
+        />
+      </div>
+    </section>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Small shared pieces
 // ---------------------------------------------------------------------------
 
@@ -1387,7 +1500,7 @@ function PropertyTable({
         <span>Property</span>
         <span>Type</span>
         <span>Branches</span>
-        <span>Sources</span>
+        <span>Tables</span>
         <span>Bindings</span>
       </div>
       {properties.map((property) => (
@@ -1828,6 +1941,11 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       title={levelTitle(model)}
       subtitle={levelSubtitle(model)}
     >
+      {model.level === "property" ||
+      model.level === "node" ||
+      model.level === "edge" ? (
+        <ProvenanceSection model={model} />
+      ) : null}
       <section className={styles.meaningPanel} aria-label="Design meaning">
         <header className={styles.meaningPanelHeader}>
           <span className={styles.meaningPanelTitle}>Design meaning</span>

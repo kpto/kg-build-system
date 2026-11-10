@@ -940,6 +940,15 @@ def main() -> int:
                 ' [role="img"]',
             )
         )
+        report["checks"]["detail_provenance"] = bool(
+            driver.find_elements(By.CSS_SELECTOR, '[data-testid="detail-provenance"]')
+        )
+        report["checks"]["detail_provenance_groups"] = all(
+            driver.find_elements(
+                By.CSS_SELECTOR, f'[data-testid="detail-provenance-{group}"]'
+            )
+            for group in ("assets", "tables", "projections")
+        )
         report["checks"]["geometry_unchanged"] = geometry() == topology_geometry
         report["checks"]["detail_status"] = status()
         shot("04-detail-property")
@@ -962,6 +971,12 @@ def main() -> int:
         report["checks"]["preview_flags"] = preview_flags()
         report["checks"]["preview_opened"] = (
             len(tabs()) == len(before_preview) + 1 and preview_flags()[-1]
+        )
+        report["checks"]["preview_detail_kind"] = driver.find_element(
+            By.CSS_SELECTOR, '[data-testid="detail-editor"]'
+        ).get_attribute("data-detail-kind")
+        report["checks"]["preview_provenance"] = bool(
+            driver.find_elements(By.CSS_SELECTOR, '[data-testid="detail-provenance"]')
         )
 
         # The next single-click replaces the preview instead of adding a tab.

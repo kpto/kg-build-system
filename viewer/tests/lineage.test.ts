@@ -279,6 +279,7 @@ describe("proof model", () => {
     expect(title?.branchCount).toBe(1);
     expect(title?.assets).toEqual(["estate"]);
     expect(title?.sources).toEqual(["surveys"]);
+    expect(title?.projections).toEqual(["defect"]);
 
     const edge = buildProof(index, {
       level: "edge",

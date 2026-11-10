@@ -525,6 +525,7 @@ export interface ProofPropertySummary {
   branchCount: number;
   sources: string[];
   assets: string[];
+  projections: string[];
   bindingIndexes: number[];
   steps: StepId[];
   semantics: ProofSemantics[];
@@ -542,11 +543,14 @@ function expressionFieldRefs(
 function entrySources(
   index: ViewerIndex,
   entry: ReturnType<typeof findComponentPropertyBindings>[number],
-): { sources: string[]; assets: string[] } {
+): { sources: string[]; assets: string[]; projections: string[] } {
   const fieldRefs = expressionFieldRefs(entry);
   const owners = fieldRefs
     .map((fieldRef) => index.fieldsByKey.get(fieldRefKey(fieldRef))?.ownerName)
     .filter((name): name is string => Boolean(name));
+  const projections = [
+    ...new Set(owners.filter((name) => index.projectionByName.has(name))),
+  ];
   const sources = [
     ...new Set(
       owners.flatMap((name) => {
@@ -568,7 +572,7 @@ function entrySources(
         .filter((name): name is string => Boolean(name)),
     ),
   ];
-  return { sources, assets };
+  return { sources, assets, projections };
 }
 
 function summariseProperty(
@@ -591,10 +595,12 @@ function summariseProperty(
   );
   const sources = new Set<string>();
   const assets = new Set<string>();
+  const projections = new Set<string>();
   for (const entry of uniqueEntries) {
     const resolved = entrySources(index, entry);
     for (const source of resolved.sources) sources.add(source);
     for (const asset of resolved.assets) assets.add(asset);
+    for (const projection of resolved.projections) projections.add(projection);
   }
   const semantics = dedupeSemantics(
     [
@@ -613,6 +619,7 @@ function summariseProperty(
     branchCount: uniqueEntries.length,
     sources: [...sources],
     assets: [...assets],
+    projections: [...projections],
     bindingIndexes: uniqueEntries.map((entry) => entry.binding.index),
     steps: uniqueEntries
       .map((entry) => entry.binding.step?.id)

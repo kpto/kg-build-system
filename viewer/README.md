@@ -52,7 +52,7 @@ The first paint shows the design, not its annotations.
 | --- | --- | --- |
 | Graph document | graph canvas and floating **Inspect** window showing graph purpose and counts | selecting an entity fills Inspect with its description, properties and meaning; clicking empty space returns to graph purpose |
 | Workflow document | compositor-style component graph with step counts and aggregated connections; no title banner, actions in a floating canvas toolbar; drag to pan, wheel to zoom, Fit to reset | filter by component or instruction kind in Control; click a component to select it, then use **Open step group** to enter its step-level flow graph with columns filling top-to-bottom; clicking a step node selects it, **Open step** opens its detail document, and **Back** returns to components. Selecting a component, step or boundary node highlights its incident links and dims the other nodes and links; entering another step group requires **Open step group** |
-| Subject document | meaning, properties and attached semantics of the subject | property rows, the branch selector and the Explorer tree for another subject document |
+| Subject document | provenance assets, tables and projections first for node, edge and property documents; then meaning, properties and attached semantics | property rows, the branch selector and the Explorer tree for another subject document |
 
 There is no bottom panel. The side bar carries the **Control** and **Explorer**
 sections; the Graph document owns its floating **Inspect** window. A tab changes
