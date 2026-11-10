@@ -1,4 +1,4 @@
-import type { ViewerIndex } from "@/lib/types";
+import type { AssetLicense, ViewerIndex } from "@/lib/types";
 import type { ProofModel } from "./model";
 import { provenanceReferences } from "./references";
 
@@ -6,6 +6,17 @@ export interface EffectiveLicense {
   value: string;
   licenses: string[];
   source: "declared" | "mixed" | "unknown";
+}
+
+function licenseLabel(value: AssetLicense | string | null | undefined): string | undefined {
+  if (typeof value === "string") return value.trim() || undefined;
+  if (!value || typeof value !== "object") return undefined;
+  const identifier =
+    typeof value.identifier === "string" ? value.identifier.trim() : "";
+  const attribution =
+    typeof value.attribution === "string" ? value.attribution.trim() : "";
+  if (!identifier) return undefined;
+  return attribution ? `${identifier} · ${attribution}` : identifier;
 }
 
 /** The licence declared by the assets that back a set of provenance references. */
@@ -16,7 +27,7 @@ export function effectiveLicense(
   const licenses = [
     ...new Set(
       [...assetNames]
-        .map((name) => index.assetsByName.get(name)?.governance?.license?.trim())
+        .map((name) => licenseLabel(index.assetsByName.get(name)?.governance?.license))
         .filter((license): license is string => Boolean(license)),
     ),
   ].sort((left, right) => left.localeCompare(right));

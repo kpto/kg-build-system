@@ -8,6 +8,7 @@
  */
 
 import type {
+  AssetLicense,
   AssetProfileDTO,
   ArtifactType,
   DataField,
@@ -660,7 +661,7 @@ export interface ProofAssetField {
 export interface ProofAsset {
   name: string;
   profile?: AssetProfileDTO;
-  license?: string | null;
+  license?: AssetLicense | string | null;
   semantics: ProofSemantics[];
   relations: ProofAssetRelation[];
   projections: ProofAssetRelation[];

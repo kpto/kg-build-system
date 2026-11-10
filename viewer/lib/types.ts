@@ -187,8 +187,16 @@ export type AssetSemantics = AssetProfileDTO & {
   [key: string]: unknown;
 };
 
+export interface AssetLicense {
+  identifier: string;
+  url?: string | null;
+  attribution?: string | null;
+  [key: string]: unknown;
+}
+
 export interface AssetGovernance {
-  license?: string | null;
+  /** A structured licence, or the older plain-string form. */
+  license?: AssetLicense | string | null;
   owner?: string | null;
   metadata?: Record<string, unknown>;
   [key: string]: unknown;

@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import type { ViewerIndex } from "../lib/types";
 import { effectiveLicense } from "../proof/license";
 
-function indexWith(licenses: Record<string, string | null>): ViewerIndex {
+function indexWith(licenses: Record<string, unknown>): ViewerIndex {
   return {
     assetsByName: new Map(
       Object.entries(licenses).map(([name, license]) => [
@@ -28,6 +28,19 @@ describe("effective licence", () => {
     expect(effectiveLicense(index, ["open_target"])).toMatchObject({
       value: "Not declared",
       source: "unknown",
+    });
+  });
+
+  it("reads the structured licence document", () => {
+    const index = indexWith({
+      open_target: {
+        identifier: "CC-BY-4.0",
+        attribution: "Open Targets",
+      },
+    });
+    expect(effectiveLicense(index, ["open_target"])).toMatchObject({
+      value: "CC-BY-4.0 · Open Targets",
+      source: "declared",
     });
   });
 
