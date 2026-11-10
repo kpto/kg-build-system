@@ -37,7 +37,7 @@ Inspector window; there is no bottom panel.
 | Section | Contents |
 | --- | --- |
 | **Topology** | canvas filters, labels, Show controls, legend, fit/zoom/pin |
-| **Detail** | graph meaning, design tree of assets, relations, projections, nodes, edges and properties |
+| **Detail** | graph meaning and the design tree of assets, nodes, abstract categories, edges and their properties. Relations and projections are shown inside their asset document, not as tree rows that all resolve to that asset. |
 
 The sections are collapsible and independent: both may be expanded at once.
 Each expanded body sits directly below its own header. When both are open, a

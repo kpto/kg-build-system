@@ -242,6 +242,11 @@ def main() -> int:
         ).click()
         time.sleep(0.7)
         report["checks"]["sidebar_after_open"] = expanded()
+        report["checks"]["detail_groups"] = sorted(detail_groups())
+        report["checks"]["no_data_groups"] = (
+            "detail-group-relations" not in detail_groups()
+            and "detail-group-projections" not in detail_groups()
+        )
         report["checks"]["both_sections_open"] = (
             expanded().get("sidebar-section-topology") == "true"
             and expanded().get("sidebar-section-detail") == "true"
@@ -363,6 +368,27 @@ def main() -> int:
             == before_scroll
         )
         report["checks"]["geometry_after_tabs"] = geometry() == topology_geometry
+
+        # A tree row opens the subject it names, and node properties expand.
+        first_node = tree_rows()[0]
+        first_name = first_node.text.strip().split("\n")[0]
+        node_row = first_node.find_element(By.XPATH, "..")
+        node_row.find_element(
+            By.CSS_SELECTOR, 'button[aria-label^="Expand"]'
+        ).click()
+        time.sleep(0.6)
+        node_properties = first_node.find_element(
+            By.XPATH, "../.."
+        ).find_elements(By.CSS_SELECTOR, '[data-testid="detail-tree-property"]')
+        report["checks"]["node_property_rows"] = len(node_properties)
+        if node_properties:
+            property_name = node_properties[0].text.strip()
+            node_properties[0].click()
+            time.sleep(0.9)
+            report["checks"]["node_property_tab"] = tabs()[-1]
+            report["checks"]["node_property_matches"] = (
+                tabs()[-1] == f"{first_name}.{property_name}"
+            )
         shot("04-graph")
 
         print(json.dumps(report, indent=2))

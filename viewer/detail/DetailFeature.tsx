@@ -39,7 +39,6 @@ import type {
 } from "@/lib/types";
 import { LINEAGE_LANES } from "@/lib/types";
 import { logicalTypeName } from "@/lib/expressions";
-import { resolveAssetName } from "@/lib/indexes";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { laneColor } from "@/shared/ui/theme";
 import {
@@ -452,12 +451,6 @@ export function DetailSidebar(props: WorkspaceProps) {
   };
 
   const assets = index.assets.filter((asset) => matches(normalized, asset.name));
-  const relations = index.relations.filter((relation) =>
-    matches(normalized, relation.name),
-  );
-  const projections = index.projections.filter((projection) =>
-    matches(normalized, projection.name),
-  );
   const nodes = index.topologyNodes.filter((node) =>
     matches(normalized, node.name) ||
     (node.properties ?? []).some((property) => matches(normalized, property.name)),
@@ -498,7 +491,7 @@ export function DetailSidebar(props: WorkspaceProps) {
             className={styles.treeToggle}
             aria-label={`${nodeOpen ? "Collapse" : "Expand"} ${node.name}`}
             aria-expanded={nodeOpen}
-            onClick={() => toggleNode(node.name)}
+            onClick={() => toggleNode(`node:${node.name}`)}
           >
             {nodeOpen ? (
               <ChevronDown aria-hidden className={styles.sideChevron} />
@@ -759,102 +752,6 @@ export function DetailSidebar(props: WorkspaceProps) {
                     component: asset.name,
                   }),
                 )
-              }
-            />
-          ))}
-        </SideSection>
-
-        <SideSection
-          id="relations"
-          title="Relations"
-          count={relations.length}
-          open={open.has("relations")}
-          onToggle={toggle}
-        >
-          {relations.map((relation) => (
-            <SidebarRow
-              key={relation.name}
-              label={relation.name}
-              meta={relation.columns?.length ?? 0}
-              onSelect={() => {
-                const assetName = resolveAssetName(index, relation.name);
-                if (assetName) {
-                  select({
-                    level: "asset",
-                    kind: "asset",
-                    component: assetName,
-                  });
-                }
-              }}
-              onOpenPermanent={() => {
-                const assetName = resolveAssetName(index, relation.name);
-                if (assetName) {
-                  openPermanent({
-                    level: "asset",
-                    kind: "asset",
-                    component: assetName,
-                  });
-                }
-              }}
-              onContextMenu={(event) =>
-                openMenu(event, relation.name, () => {
-                  const assetName = resolveAssetName(index, relation.name);
-                  if (assetName) {
-                    openPermanent({
-                      level: "asset",
-                      kind: "asset",
-                      component: assetName,
-                    });
-                  }
-                })
-              }
-            />
-          ))}
-        </SideSection>
-
-        <SideSection
-          id="projections"
-          title="Projections"
-          count={projections.length}
-          open={open.has("projections")}
-          onToggle={toggle}
-        >
-          {projections.map((projection) => (
-            <SidebarRow
-              key={projection.name}
-              label={projection.name}
-              meta={projection.columns?.length ?? 0}
-              onSelect={() => {
-                const assetName = resolveAssetName(index, projection.name);
-                if (assetName) {
-                  select({
-                    level: "asset",
-                    kind: "asset",
-                    component: assetName,
-                  });
-                }
-              }}
-              onOpenPermanent={() => {
-                const assetName = resolveAssetName(index, projection.name);
-                if (assetName) {
-                  openPermanent({
-                    level: "asset",
-                    kind: "asset",
-                    component: assetName,
-                  });
-                }
-              }}
-              onContextMenu={(event) =>
-                openMenu(event, projection.name, () => {
-                  const assetName = resolveAssetName(index, projection.name);
-                  if (assetName) {
-                    openPermanent({
-                      level: "asset",
-                      kind: "asset",
-                      component: assetName,
-                    });
-                  }
-                })
               }
             />
           ))}
