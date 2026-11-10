@@ -1145,9 +1145,10 @@ def main() -> int:
             By.CSS_SELECTOR, '[data-testid="expression-node"]'
         )
         report["checks"]["detail_expression_tree"] = len(expression_nodes) >= 3
-        report["checks"]["detail_expression_tree_edges"] = bool(
+        report["checks"]["detail_expression_tree_outline"] = bool(
             expression_tree.find_elements(
-                By.CSS_SELECTOR, '[data-testid="expression-edge"]'
+                By.CSS_SELECTOR,
+                '[data-testid="expression-node"][data-depth="1"]',
             )
         )
         report["checks"]["detail_expression_tree_chain"] = bool(
@@ -1156,17 +1157,27 @@ def main() -> int:
                 '[data-testid="expression-node"][data-kind="field"]',
             )
         )
-        tree_scene = expression_tree.find_element(
-            By.CSS_SELECTOR, '[data-testid="graph-scene"]'
+        tree_toggles = expression_tree.find_elements(
+            By.CSS_SELECTOR, '[data-testid="expression-toggle"]'
         )
-        tree_before_zoom = tree_scene.get_attribute("transform")
-        expression_tree.find_element(
-            By.CSS_SELECTOR, '[data-testid="graph-canvas-zoom-in"]'
-        ).click()
-        time.sleep(0.2)
-        report["checks"]["detail_expression_tree_zoom"] = (
-            tree_scene.get_attribute("transform") != tree_before_zoom
+        report["checks"]["detail_expression_tree_collapsible"] = bool(
+            tree_toggles
         )
+        if tree_toggles:
+            before_collapse = len(expression_nodes)
+            driver.execute_script(
+                "arguments[0].dispatchEvent(new MouseEvent('click',{bubbles:true}))",
+                tree_toggles[0],
+            )
+            time.sleep(0.3)
+            after_collapse = len(
+                expression_tree.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="expression-node"]'
+                )
+            )
+            report["checks"]["detail_expression_tree_collapse"] = (
+                after_collapse < before_collapse
+            )
         report["checks"]["detail_tab_concept"] = (
             driver.find_element(
                 By.CSS_SELECTOR,

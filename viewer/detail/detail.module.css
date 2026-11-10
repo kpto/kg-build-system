@@ -293,14 +293,106 @@
     var(--color-abyss);
 }
 
-.expressionTree {
-  display: block;
-  width: 100%;
-  height: 320px;
-  animation: wb-fade-in var(--motion-slow) var(--ease-instrument);
-  background:
-    radial-gradient(circle at 50% 50%, rgb(255 255 255 / 2%), transparent 70%),
-    var(--color-abyss);
+.expressionOutline {
+  max-height: 420px;
+  overflow: auto;
+  padding: 5px 4px 8px;
+  overscroll-behavior: contain;
+}
+
+.expressionRoot {
+  padding: 2px 0;
+}
+
+.expressionRoot + .expressionRoot {
+  margin-top: 8px;
+  padding-top: 10px;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.expressionRow {
+  display: flex;
+  min-width: 0;
+  min-height: 24px;
+  align-items: center;
+  gap: 6px;
+  border-radius: 3px;
+  padding: 1px 6px 1px 0;
+}
+
+.expressionRow:hover {
+  background-color: var(--color-panel-soft);
+}
+
+.expressionRow[data-root="true"] {
+  margin-bottom: 2px;
+  border: 1px solid var(--color-line-soft);
+  background-color: var(--color-panel-raised);
+  padding-right: 8px;
+}
+
+.expressionToggle {
+  display: flex;
+  width: 14px;
+  height: 14px;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  color: var(--color-faint);
+}
+
+button.expressionToggle:hover {
+  color: var(--color-text);
+}
+
+.expressionChevron {
+  width: 11px;
+  height: 11px;
+  transition: transform 140ms var(--ease-instrument);
+}
+
+.expressionChevronOpen {
+  transform: rotate(90deg);
+}
+
+.expressionKindIcon {
+  width: 12px;
+  height: 12px;
+  flex: none;
+}
+
+.expressionLabel {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.expressionRow[data-kind="expression"] .expressionLabel {
+  color: var(--color-transform);
+}
+
+.expressionDetail {
+  min-width: 0;
+  max-width: 48%;
+  margin-left: auto;
+  overflow: hidden;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.expressionChildren {
+  margin-left: 7px;
+  padding-left: 11px;
+  border-left: 1px solid var(--color-line-soft);
 }
 
 .workflowHint,
