@@ -55,11 +55,11 @@ The editor is one global tab strip. The viewer has two kinds of tab view:
 
 - **Graph** — the pinned canonical graph document;
 - **Subject documents** — a node, edge, property, asset or abstract category,
-  opened explicitly from **Open Detail**, a property row, the Detail tree or the
-  command palette.
+  opened explicitly from **Open Detail**, the Detail tree, a Detail property
+  row, or the command palette.
 
-Single-clicking a node only changes the transient **Inspect** selection; it does
-not open a tab. A tab is a document, not a mode. Topology and Detail are two
+Single-clicking a node or a property row only changes the transient **Inspect**
+selection; it does not open a tab. A tab is a document, not a mode. Topology and Detail are two
 angles on the active document, so switching the angle never changes the tab and
 switching the tab never changes the angle. **Back** and **Forward** (arrows in
 the tab strip, or `Alt+←` / `Alt+→`) walk the document history. There is no

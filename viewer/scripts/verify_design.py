@@ -136,6 +136,7 @@ def main() -> int:
             == "true"
         )
         report["checks"]["tabs_after_property"] = tabs()
+        report["checks"]["property_click_keeps_tabs"] = tabs() == ["Graph"]
         driver.find_element(
             By.CSS_SELECTOR, '[data-testid="topology-open-detail"]'
         ).click()
@@ -153,8 +154,9 @@ def main() -> int:
             driver.find_elements(By.CSS_SELECTOR, '[data-testid="detail-editor"]')
         )
         report["checks"]["tabs_after_open"] = tabs()
-        report["checks"]["same_tab_after_mode_change"] = (
-            report["checks"]["tabs_after_property"] == report["checks"]["tabs_after_open"]
+        report["checks"]["property_document_after_open"] = (
+            report["checks"]["tabs_after_open"]
+            == ["Graph", "target.approvedSymbol"]
         )
         report["checks"]["geometry_unchanged"] = geometry() == topology_geometry
         report["checks"]["back_enabled"] = (

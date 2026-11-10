@@ -115,8 +115,8 @@ global setting, because each question has its own useful first level.
   bar. It does not open a document tab or change the panel geometry.
 - Inspection and documents are different: inspection is transient state on the
   canvas or Inspect region; a document is an explicit tab. A click updates
-  inspection. **Open Detail**, a property row, the Browse tree or the command
-  palette opens a document.
+  inspection. **Open Detail**, the Browse tree, a Detail property row or the
+  command palette opens a document.
 - A selection that a function cannot resolve falls back to that function's
   first valid subject, rather than an empty editor.
 

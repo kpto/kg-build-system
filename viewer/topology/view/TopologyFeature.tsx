@@ -60,18 +60,25 @@ function topologySelection(props: FeatureProps): TopologySelection | undefined {
   return undefined;
 }
 
+function inspectOrUpdate(
+  props: FeatureProps,
+  selection: WorkbenchSelection,
+): void {
+  if (currentSelection(props.state).kind === "graph") {
+    // The Graph document stays the Graph document; this is transient inspection.
+    props.actions.inspect(selection);
+  } else {
+    // A subject document follows navigation inside the canvas.
+    props.actions.setSelection(selection);
+  }
+}
+
 function writeSelection(
   props: FeatureProps,
   kind: TopologySelection["kind"],
   name: string,
 ): void {
-  if (currentSelection(props.state).kind === "graph") {
-    // The Graph document stays the Graph document; this is transient inspection.
-    props.actions.inspect({ kind, name });
-  } else {
-    // A subject document follows navigation inside the canvas.
-    props.actions.setSelection({ kind, name });
-  }
+  inspectOrUpdate(props, { kind, name });
 }
 
 function clearSelection(props: FeatureProps): void {
@@ -104,24 +111,6 @@ function openInDetail(props: FeatureProps): void {
   props.actions.setActivity("detail");
 }
 
-/** A property is a document of its own; open its tab without changing mode. */
-function openPropertyTab(
-  props: FeatureProps,
-  entity: TopologyEntity,
-  property: string,
-): void {
-  const component = entityComponentName(entity);
-  props.actions.openTab({
-    selection: {
-      kind: "property",
-      level: "property",
-      component,
-      property,
-      name: `${component}.${property}`,
-    },
-  });
-}
-
 function PropertyRows({
   props,
   entity,
@@ -141,7 +130,15 @@ function PropertyRows({
         <button
           key={property.name}
           type="button"
-          onClick={() => openPropertyTab(props, entity, property.name)}
+          onClick={() =>
+            inspectOrUpdate(props, {
+              kind: "property",
+              level: "property",
+              component: entityComponentName(entity),
+              property: property.name,
+              name: `${entityComponentName(entity)}.${property.name}`,
+            })
+          }
           className="flex min-h-6 w-full items-baseline justify-between gap-2 border border-transparent px-1 text-left hover:border-line-soft hover:bg-panel-soft/40"
           data-active={activeProperty === property.name ? "true" : undefined}
           style={
@@ -149,7 +146,7 @@ function PropertyRows({
               ? { borderColor: "var(--color-accent)", color: "var(--color-text)" }
               : undefined
           }
-          title={`Open ${entityComponentName(entity)}.${property.name} as a tab`}
+          title={`Inspect ${entityComponentName(entity)}.${property.name}`}
         >
           <span className="truncate font-mono text-[10px] text-text">
             {property.name}
