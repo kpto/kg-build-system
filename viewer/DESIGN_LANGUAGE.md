@@ -74,11 +74,15 @@ The first paint states the design, not every annotation.
 | Graph inspection | graph purpose and counts when nothing is selected; otherwise identity and description | properties with types | attached claims, frames and limitations |
 | Workflow document | one graph view with no banner: a compositor-style component graph, or a step-level flow graph where steps fill columns top-to-bottom after **Open step group**; selecting any node, including a boundary component, highlights its incident links and dims the other nodes in both; Back and the open actions sit in the canvas toolbar; drag to pan and wheel to zoom | aggregated connection counts and active components | the step catalogue in Explorer and its step documents |
 | Step document | identity, instruction and openings on the shared detail surface | payload values | connections and blueprint bindings |
-| Subject document | subject meaning and properties | attached semantics along the path | property provenance, type/presence chain and trace |
+| Subject document | provenance references and the narrowed workflow graph for node, edge and property; then subject meaning and properties | attached semantics along the path | property provenance, type/presence chain and trace |
 
 Each subject or step document is a separate tab. There is no level switch in
 the editor; opening a parent node, edge, asset or abstract category from the
 Explorer tree opens or activates that document.
+
+A graph layout settles to a stable map. Selecting or inspecting a node never
+restarts the layout or moves the node; only a drag changes a node position, and
+only an explicit fit, zoom or navigation control changes the viewport.
 
 A detail document banner leads with a large logo for its kind: node, edge,
 property, asset, abstract category or step. The Workflow and Graph documents are
@@ -88,10 +92,16 @@ toolbars. The tab already names the document.
 Node, edge and property documents open with a **Provenance** section that lists
 the resolved assets, tables and projections behind the subject, before design
 meaning and properties. It is a summary; the property document's lineage canvas
-shows the full branch. Each provenance value is a reference: it carries the
-asset document that owns it and opens that document. A node or edge with no
-declared properties still derives provenance from its binding identity, source
-and target expressions.
+shows the full branch. Each provenance group header carries its concept mark;
+the values are text references, and each reference opens the asset document that
+owns it. A table or projection therefore lands on its asset. A node or edge with
+no declared properties still derives provenance from its binding identity,
+source and target expressions.
+
+Below provenance, a narrowed **Workflow** graph shows the steps that produce the
+subject. It uses the same step scene and selection rule as the Workflow
+document. An edge banner also names its source and target nodes as navigable
+references. Section headers carry the concept mark of their subject.
 
 One concept registry supplies the logo and representative colour for graph,
 workflow, node, edge, property, asset, table, projection, abstract category and

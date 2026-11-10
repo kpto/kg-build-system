@@ -793,11 +793,16 @@ def main() -> int:
             for node in nodes
             if node.get_attribute("data-topology-node") == "target"
         )
+        position_before = target.get_attribute("transform")
         driver.execute_script(
             "arguments[0].dispatchEvent(new MouseEvent('click',{bubbles:true}))",
             target,
         )
-        time.sleep(0.8)
+        time.sleep(1.0)
+        position_after = target.get_attribute("transform")
+        report["checks"]["node_click_keeps_position"] = (
+            position_before == position_after
+        )
         report["checks"]["node_inspect_keeps_tabs"] = tabs() == ["Graph", "Workflow"]
         report["checks"]["node_status"] = status()
         report["checks"]["selected_node_no_focus_box"] = (
@@ -907,9 +912,9 @@ def main() -> int:
         report["checks"]["explorer_groups_stable"] = (
             sorted(detail_groups()) == report["checks"]["explorer_groups_on_workflow"]
         )
-        report["checks"]["no_data_groups"] = (
-            "explorer-group-relations" not in detail_groups()
-            and "explorer-group-projections" not in detail_groups()
+        report["checks"]["outline_data_groups"] = (
+            "explorer-group-tables" in detail_groups()
+            and "explorer-group-projections" in detail_groups()
         )
         report["checks"]["both_sections_open"] = (
             expanded().get("sidebar-section-control") == "true"
@@ -957,6 +962,33 @@ def main() -> int:
             )
             for group in ("assets", "tables", "projections")
         )
+        group_concepts = {
+            "assets": "asset",
+            "tables": "table",
+            "projections": "projection",
+        }
+        report["checks"]["provenance_group_icons"] = all(
+            driver.find_elements(
+                By.CSS_SELECTOR,
+                f'[data-testid="detail-provenance-{group}"]'
+                f' [data-concept="{concept}"]',
+            )
+            for group, concept in group_concepts.items()
+        )
+        report["checks"]["provenance_item_icons_removed"] = not driver.find_elements(
+            By.CSS_SELECTOR,
+            '[data-testid="detail-provenance"] button svg',
+        )
+        report["checks"]["detail_workflow_graph"] = (
+            len(
+                driver.find_elements(
+                    By.CSS_SELECTOR,
+                    '[data-testid="detail-workflow-graph"]'
+                    ' [data-testid="workflow-step-node"]',
+                )
+            )
+            > 0
+        )
         report["checks"]["detail_tab_concept"] = (
             driver.find_element(
                 By.CSS_SELECTOR,
@@ -984,6 +1016,66 @@ def main() -> int:
                 '[data-testid="editor-tabs"] .wb-tab[data-active="true"] .wb-tab-label',
             ).get_attribute("data-concept")
             == "asset"
+        )
+        middle_click(
+            driver.find_elements(
+                By.CSS_SELECTOR, '[data-testid="editor-tabs"] .wb-tab-label'
+            )[-1].find_element(By.XPATH, "..")
+        )
+        click_tab(property_title)
+        table_reference = driver.find_element(
+            By.CSS_SELECTOR,
+            f'{active_detail} [data-testid="detail-provenance-tables"]'
+            ' button[data-concept="table"]',
+        )
+        table_reference.click()
+        time.sleep(0.8)
+        report["checks"]["provenance_table_navigable"] = (
+            driver.find_element(
+                By.CSS_SELECTOR, active_detail
+            ).get_attribute("data-concept")
+            == "asset"
+        )
+        middle_click(
+            driver.find_elements(
+                By.CSS_SELECTOR, '[data-testid="editor-tabs"] .wb-tab-label'
+            )[-1].find_element(By.XPATH, "..")
+        )
+        click_tab(property_title)
+
+        edges_head = driver.find_element(
+            By.CSS_SELECTOR, '[data-testid="explorer-group-edges"]'
+        )
+        if edges_head.get_attribute("aria-expanded") != "true":
+            edges_head.click()
+            time.sleep(0.6)
+        edge_section = edges_head.find_element(By.XPATH, "..")
+        edge_rows = edge_section.find_elements(
+            By.CSS_SELECTOR, 'button[class*="treeLabel"]'
+        )
+        next(
+            row
+            for row in edge_rows
+            if row.text.strip().split("\n")[0]
+            == "clinical_trial_studies_molecule"
+        ).click()
+        time.sleep(0.9)
+        edge_banner = driver.find_element(
+            By.CSS_SELECTOR,
+            '[data-testid="editor-pane"][data-active="true"]'
+            ' [aria-label="Edge endpoints"]',
+        )
+        edge_endpoints = edge_banner.find_elements(
+            By.CSS_SELECTOR, 'button[data-concept="node"]'
+        )
+        report["checks"]["edge_banner_endpoints"] = len(edge_endpoints) == 2
+        edge_endpoints[0].click()
+        time.sleep(0.8)
+        report["checks"]["edge_banner_source_navigable"] = (
+            driver.find_element(
+                By.CSS_SELECTOR, active_detail
+            ).get_attribute("data-concept")
+            == "node"
         )
         middle_click(
             driver.find_elements(

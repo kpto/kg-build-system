@@ -16,12 +16,19 @@ export type ConceptKind =
   | "table"
   | "projection"
   | "abstract"
-  | "step";
+  | "step"
+  | "semantics"
+  | "field";
 
 /** One named reference to a concept, with the asset document that owns it. */
+/** The document a concept reference opens. */
+export interface ConceptTarget {
+  concept: ConceptKind;
+  name: string;
+}
+
 export interface ConceptReference {
   concept: ConceptKind;
   name: string;
-  /** Every provenance reference resolves to an asset document. */
-  assetName?: string;
+  target?: ConceptTarget;
 }

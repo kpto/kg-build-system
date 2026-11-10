@@ -79,7 +79,7 @@ describe("Open Targets snapshot", () => {
     expect(provenance.tables.map((reference) => reference.name)).toEqual([
       "clinical_report",
     ]);
-    expect(provenance.tables[0].assetName).toBe("open_target");
+    expect(provenance.tables[0].target?.name).toBe("open_target");
     expect(provenance.projections).toEqual([]);
   });
 

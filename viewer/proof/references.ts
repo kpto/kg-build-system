@@ -18,7 +18,7 @@ function assetReferences(names: Iterable<string>): ConceptReference[] {
   return sortedNames(names).map((name) => ({
     concept: "asset",
     name,
-    assetName: name,
+    target: { concept: "asset", name },
   }));
 }
 
@@ -27,11 +27,16 @@ function ownedReferences(
   concept: "table" | "projection",
   names: Iterable<string>,
 ): ConceptReference[] {
-  return sortedNames(names).map((name) => ({
-    concept,
-    name,
-    assetName: resolveAssetName(index, name),
-  }));
+  return sortedNames(names).map((name) => {
+    const assetName = resolveAssetName(index, name);
+    return {
+      concept,
+      name,
+      target: assetName
+        ? { concept: "asset" as const, name: assetName }
+        : undefined,
+    };
+  });
 }
 
 /**

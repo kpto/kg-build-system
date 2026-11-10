@@ -60,6 +60,42 @@
   height: 24px;
 }
 
+.bannerExtra {
+  display: flex;
+  flex: none;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.bannerRelations {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 5px;
+}
+
+.bannerLabel {
+  color: var(--color-faint);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.bannerArrow {
+  width: 11px;
+  height: 11px;
+  color: var(--color-faint);
+}
+
+.bannerEmpty {
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: 9px;
+}
+
 .titleBlock {
   min-width: 0;
 }
@@ -130,6 +166,9 @@
 }
 
 .provenanceTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--color-text);
   font-size: 10px;
   font-weight: 600;
@@ -174,7 +213,20 @@
   text-transform: uppercase;
 }
 
-.provenanceGroupLabel > span {
+.provenanceGroupTitle {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
+}
+
+.provenanceGroupIcon {
+  width: 11px;
+  height: 11px;
+  flex: none;
+}
+
+.provenanceGroupLabel > span:last-child {
   color: var(--color-muted);
   font-family: var(--font-mono);
   letter-spacing: 0;
@@ -208,6 +260,22 @@
   }
 }
 
+.workflowGraph {
+  display: block;
+  width: 100%;
+  height: 260px;
+  background:
+    radial-gradient(circle at 50% 50%, rgb(255 255 255 / 2%), transparent 70%),
+    var(--color-abyss);
+}
+
+.workflowHint,
+.workflowEmpty {
+  margin: 6px 0 0;
+  color: var(--color-faint);
+  font-size: 9px;
+}
+
 /* ---- Shared panel and badges ----------------------------------------- */
 
 .panel {
@@ -230,12 +298,22 @@
 }
 
 .panelHead h2 {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 4px;
   margin: 0;
   color: var(--color-muted);
   font-size: 9.5px;
   font-weight: 600;
   letter-spacing: 0.045em;
   text-transform: uppercase;
+}
+
+.panelIcon {
+  width: 11px;
+  height: 11px;
+  flex: none;
 }
 
 .panelMeta {
@@ -1309,6 +1387,9 @@
 }
 
 .meaningPanelTitle {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
   color: var(--color-text);
   font-size: 10px;
   font-weight: 600;
@@ -1411,6 +1492,12 @@
   color: #ffffff;
 }
 
+.sideRowIcon {
+  width: 11px;
+  height: 11px;
+  flex: none;
+}
+
 .sideRowLabel {
   min-width: 0;
   flex: 1;
@@ -1494,7 +1581,7 @@
   text-align: left;
 }
 
-.treeLabel > span:first-child {
+.treeLabel > span:first-of-type {
   min-width: 0;
   flex: 1;
   overflow: hidden;

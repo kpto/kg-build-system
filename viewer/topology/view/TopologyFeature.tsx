@@ -1025,7 +1025,6 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         if (!node) return;
         dragMovedRef.current = false;
         suppressClickRef.current = false;
-        if (!event.active) simulation.alphaTarget(0.22).restart();
         node.fx = node.x;
         node.fy = node.y;
       })
@@ -1049,13 +1048,15 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         if (!node) return;
         if (!event.active) simulation.alphaTarget(0);
         if (uiRef.current.pinned) {
-          node.fx = node.x;
-          node.fy = node.y;
-          store.setPosition(node.id, { x: node.x ?? 0, y: node.y ?? 0 });
+          if (dragMovedRef.current) {
+            node.fx = node.x;
+            node.fy = node.y;
+            store.setPosition(node.id, { x: node.x ?? 0, y: node.y ?? 0 });
+          }
         } else {
           node.fx = null;
           node.fy = null;
-          simulation.alpha(0.12).restart();
+          if (dragMovedRef.current) simulation.alpha(0.12).restart();
         }
         if (dragMovedRef.current) {
           suppressClickRef.current = true;

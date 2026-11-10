@@ -25,10 +25,10 @@ import {
   Waypoints,
 } from "lucide-react";
 
-import type { ConceptReference } from "@/lib/concepts";
+import type { ConceptKind, ConceptReference } from "@/lib/concepts";
 import type { WorkspaceProps, SubjectSelection } from "@/workbench/types";
 import { documentTitle } from "@/workbench/types";
-import { stepKey } from "@/lib/indexes";
+import { resolveAssetName, stepKey } from "@/lib/indexes";
 import {
   buildWorkflowModel,
   groupWorkflowRows,
@@ -41,6 +41,7 @@ import {
 import { provenanceReferences } from "@/proof/references";
 import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
 import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
+import { selectionForConceptTarget } from "@/workbench/conceptTarget";
 import { activeDocument, documentSelection } from "@/workbench/types";
 import type {
   LineageLane,
@@ -50,6 +51,7 @@ import type {
 import { LINEAGE_LANES } from "@/lib/types";
 import { logicalTypeName } from "@/lib/expressions";
 import { DetailDocument, DetailPanel } from "./view/DetailChrome";
+import { WorkflowProvenanceGraph } from "./view/WorkflowProvenanceGraph";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { laneColor } from "@/shared/ui/theme";
 import {
@@ -153,11 +155,13 @@ function levelSubtitle(model: ProofModel): string {
 }
 
 function ProvenanceGroup({
+  concept,
   label,
   references,
   onOpen,
   testId,
 }: {
+  concept: ConceptKind;
   label: string;
   references: ConceptReference[];
   onOpen(reference: ConceptReference): void;
@@ -166,7 +170,10 @@ function ProvenanceGroup({
   return (
     <div className={styles.provenanceGroup} data-testid={testId}>
       <p className={styles.provenanceGroupLabel}>
-        {label}
+        <span className={styles.provenanceGroupTitle}>
+          <ConceptGlyph concept={concept} className={styles.provenanceGroupIcon} />
+          {label}
+        </span>
         <span>{references.length}</span>
       </p>
       {references.length ? (
@@ -175,8 +182,9 @@ function ProvenanceGroup({
             <ConceptReferenceChip
               key={`${reference.concept}:${reference.name}`}
               reference={reference}
+              showIcon={false}
               onOpen={
-                reference.assetName ? () => onOpen(reference) : undefined
+                reference.target ? () => onOpen(reference) : undefined
               }
             />
           ))}
@@ -207,7 +215,10 @@ function ProvenanceSection({
       aria-label="Provenance"
     >
       <header className={styles.provenanceHead}>
-        <span className={styles.provenanceTitle}>Provenance</span>
+        <span className={styles.provenanceTitle}>
+          <ConceptGlyph concept="graph" className={styles.panelIcon} />
+          Provenance
+        </span>
         <span className={styles.provenanceMeta}>
           {count(provenance.assets.length, "asset")} ·{" "}
           {count(provenance.tables.length, "table")} ·{" "}
@@ -216,18 +227,21 @@ function ProvenanceSection({
       </header>
       <div className={styles.provenanceGrid}>
         <ProvenanceGroup
+          concept="asset"
           label="Assets"
           references={provenance.assets}
           onOpen={onOpen}
           testId="detail-provenance-assets"
         />
         <ProvenanceGroup
+          concept="table"
           label="Tables"
           references={provenance.tables}
           onOpen={onOpen}
           testId="detail-provenance-tables"
         />
         <ProvenanceGroup
+          concept="projection"
           label="Projections"
           references={provenance.projections}
           onOpen={onOpen}
@@ -259,6 +273,7 @@ function Badge({
 function Panel(props: {
   title: string;
   meta?: ReactNode;
+  concept?: ConceptKind;
   children: ReactNode;
   className?: string;
 }) {
@@ -351,6 +366,7 @@ function FrameList({
 function TypeChainView({ chain }: { chain: ProofTypeChain }) {
   return (
     <Panel
+      concept="property"
       title="Type & presence"
       meta={
         <span className={styles.chainMeta}>
@@ -454,6 +470,7 @@ function SideSection({
 interface SidebarRowProps {
   label: string;
   meta?: ReactNode;
+  concept?: ConceptKind;
   active?: boolean;
   abstract?: boolean;
   onSelect(): void;
@@ -464,6 +481,7 @@ interface SidebarRowProps {
 function SidebarRow({
   label,
   meta,
+  concept,
   active,
   abstract,
   onSelect,
@@ -480,6 +498,9 @@ function SidebarRow({
       onContextMenu={onContextMenu}
       title={label}
     >
+      {concept ? (
+        <ConceptGlyph concept={concept} className={styles.sideRowIcon} />
+      ) : null}
       <span className={styles.sideRowLabel}>{label}</span>
       {abstract ? <span className={styles.sideAbstract}>abstract</span> : null}
       {meta ? <span className={styles.sideRowMeta}>{meta}</span> : null}
@@ -613,6 +634,12 @@ export function ExplorerSidebar(props: WorkspaceProps) {
   };
 
   const assets = index.assets.filter((asset) => matches(normalized, asset.name));
+  const tables = index.relations.filter((relation) =>
+    matches(normalized, relation.name, relation.description),
+  );
+  const projections = index.projections.filter((projection) =>
+    matches(normalized, projection.name, projection.description),
+  );
   const nodes = index.topologyNodes.filter((node) =>
     matches(normalized, node.name) ||
     (node.properties ?? []).some((property) => matches(normalized, property.name)),
@@ -665,6 +692,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
             type="button"
             className={styles.treeLabel}
             data-testid={node.abstract ? "detail-tree-abstract" : "detail-tree-node"}
+            data-concept={node.abstract ? "abstract" : "node"}
             onClick={() =>
               select({
                 level: nodeLevel,
@@ -706,6 +734,10 @@ export function ExplorerSidebar(props: WorkspaceProps) {
             }
             title={node.name}
           >
+            <ConceptGlyph
+              concept={node.abstract ? "abstract" : "node"}
+              className={styles.sideRowIcon}
+            />
             <span>{node.name}</span>
             <span className={styles.treeMeta}>
               {node.properties?.length ?? 0}
@@ -853,6 +885,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
             }
             title={edge.name}
           >
+            <ConceptGlyph concept="edge" className={styles.sideRowIcon} />
             <span>{edge.name}</span>
             <span className={styles.treeMeta}>
               {edge.properties?.length ?? 0}
@@ -952,6 +985,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
             <SidebarRow
               key={asset.name}
               label={asset.name}
+              concept="asset"
               meta={index.assetProfilesByName.get(asset.name)?.subject}
               active={isActive("asset", asset.name)}
               onSelect={() =>
@@ -975,6 +1009,80 @@ export function ExplorerSidebar(props: WorkspaceProps) {
               }
             />
           ))}
+        </SideSection>
+
+        <SideSection
+          id="tables"
+          title="Tables"
+          count={tables.length}
+          open={sectionOpen("tables")}
+          onToggle={toggle}
+        >
+          {tables.map((table) => {
+            const assetName = resolveAssetName(index, table.name);
+            return (
+              <SidebarRow
+                key={table.name}
+                label={table.name}
+                concept="table"
+                meta={`${table.columns?.length ?? 0} columns`}
+                active={
+                  Boolean(assetName) &&
+                  active?.level === "asset" &&
+                  active.component === assetName
+                }
+                onSelect={() =>
+                  assetName &&
+                  select({ level: "asset", kind: "asset", component: assetName })
+                }
+                onOpenPermanent={() =>
+                  assetName &&
+                  openPermanent({
+                    level: "asset",
+                    kind: "asset",
+                    component: assetName,
+                  })
+                }
+              />
+            );
+          })}
+        </SideSection>
+
+        <SideSection
+          id="projections"
+          title="Projections"
+          count={projections.length}
+          open={sectionOpen("projections")}
+          onToggle={toggle}
+        >
+          {projections.map((projection) => {
+            const assetName = resolveAssetName(index, projection.name);
+            return (
+              <SidebarRow
+                key={projection.name}
+                label={projection.name}
+                concept="projection"
+                meta={`${projection.columns?.length ?? 0} columns`}
+                active={
+                  Boolean(assetName) &&
+                  active?.level === "asset" &&
+                  active.component === assetName
+                }
+                onSelect={() =>
+                  assetName &&
+                  select({ level: "asset", kind: "asset", component: assetName })
+                }
+                onOpenPermanent={() =>
+                  assetName &&
+                  openPermanent({
+                    level: "asset",
+                    kind: "asset",
+                    component: assetName,
+                  })
+                }
+              />
+            );
+          })}
         </SideSection>
 
         <SideSection
@@ -1053,6 +1161,10 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                       }
                       title={group.component}
                     >
+                      <ConceptGlyph
+                        concept="workflow"
+                        className={styles.sideRowIcon}
+                      />
                       <span>{group.component}</span>
                       <span className={styles.treeMeta}>
                         {group.rows.length}
@@ -1349,6 +1461,7 @@ function ConnectionLedger({ branch }: { branch: ProofBranch }) {
   const labels = new Map(branch.nodes.map((node) => [node.id, node.label]));
   return (
     <Panel
+      concept="edge"
       title="Connections"
       meta={`${branch.edges.length} edges`}
       className={styles.connectionPanel}
@@ -1431,6 +1544,7 @@ function PropertyProofView({ model }: { model: ProofModel }) {
 
       <div className={styles.lowerGrid}>
         <Panel
+          concept="semantics"
           title="Attached semantics"
           meta={`${attachments.length} attached`}
         >
@@ -1576,7 +1690,7 @@ function ComponentProofView({
         </span>
       </header>
 
-      <Panel title="Properties" meta={`${component.properties.length} rows`}>
+      <Panel concept="property" title="Properties" meta={`${component.properties.length} rows`}>
         <PropertyTable
           properties={component.properties}
           onSelect={(property) =>
@@ -1605,7 +1719,7 @@ function ComponentProofView({
         />
       </Panel>
 
-      <Panel title="Attached semantics" meta={`${attachments.length} attached`}>
+      <Panel concept="semantics" title="Attached semantics" meta={`${attachments.length} attached`}>
         <SemanticCards attachments={attachments} />
       </Panel>
     </div>
@@ -1692,7 +1806,7 @@ function AbstractProofView({
         ))}
       </div>
 
-      <Panel title="Attached semantics" meta={`${attachments.length} attached`}>
+      <Panel concept="semantics" title="Attached semantics" meta={`${attachments.length} attached`}>
         <SemanticCards attachments={attachments} />
       </Panel>
     </div>
@@ -1743,15 +1857,15 @@ function AssetProofView({
       </header>
 
       <div className={styles.assetGrid}>
-        <Panel title="Tables" meta={`${asset.relations.length}`}>
+        <Panel concept="table" title="Tables" meta={`${asset.relations.length}`}>
           <AssetDataRows rows={asset.relations} />
         </Panel>
-        <Panel title="Projections" meta={`${asset.projections.length}`}>
+        <Panel concept="projection" title="Projections" meta={`${asset.projections.length}`}>
           <AssetDataRows rows={asset.projections} />
         </Panel>
       </div>
 
-      <Panel title="Properties resolving to this asset" meta={`${asset.properties.length} rows`}>
+      <Panel concept="property" title="Properties resolving to this asset" meta={`${asset.properties.length} rows`}>
         <PropertyTable
           properties={asset.properties}
           onSelect={(property) =>
@@ -1781,7 +1895,7 @@ function AssetProofView({
       </Panel>
 
       <div className={styles.assetGrid}>
-        <Panel title="Fields" meta={`${asset.fields.length}`}>
+        <Panel concept="field" title="Fields" meta={`${asset.fields.length}`}>
           {asset.fields.length ? (
             <div className={styles.fieldList}>
               {asset.fields.map((field) => (
@@ -1798,7 +1912,7 @@ function AssetProofView({
             <EmptyState>No fields resolve to this asset.</EmptyState>
           )}
         </Panel>
-        <Panel title="Attached semantics" meta={`${attachments.length} attached`}>
+        <Panel concept="semantics" title="Attached semantics" meta={`${attachments.length} attached`}>
           <SemanticCards attachments={attachments} />
         </Panel>
       </div>
@@ -1896,6 +2010,47 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     );
   }, [props.actions, props.state.index, selection]);
 
+  const openReference = (reference: ConceptReference) => {
+    if (!reference.target) return;
+    const selection = selectionForConceptTarget(reference.target);
+    if (!selection) return;
+    props.actions.openTab({ selection, preview: true });
+  };
+  const endpoint = (name?: string): ConceptReference | undefined =>
+    name
+      ? {
+          concept: "node",
+          name,
+          target: { concept: "node", name },
+        }
+      : undefined;
+  const source = endpoint(model.component?.provenance?.source);
+  const target = endpoint(model.component?.provenance?.target);
+  const banner =
+    model.level === "edge" && (source || target) ? (
+      <div className={styles.bannerRelations} aria-label="Edge endpoints">
+        <span className={styles.bannerLabel}>source</span>
+        {source ? (
+          <ConceptReferenceChip
+            reference={source}
+            onOpen={() => openReference(source)}
+          />
+        ) : (
+          <span className={styles.bannerEmpty}>not resolved</span>
+        )}
+        <ArrowRight aria-hidden className={styles.bannerArrow} />
+        {target ? (
+          <ConceptReferenceChip
+            reference={target}
+            onOpen={() => openReference(target)}
+          />
+        ) : (
+          <span className={styles.bannerEmpty}>not resolved</span>
+        )}
+        <span className={styles.bannerLabel}>target</span>
+      </div>
+    ) : undefined;
+
   return (
     <DetailDocument
       testId="detail-editor"
@@ -1903,6 +2058,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       kicker={`Design · ${model.level}`}
       title={levelTitle(model)}
       subtitle={levelSubtitle(model)}
+      banner={banner}
     >
       {model.level === "property" ||
       model.level === "node" ||
@@ -1910,22 +2066,33 @@ function SubjectDetailEditor(props: WorkspaceProps) {
         <ProvenanceSection
           index={props.state.index}
           model={model}
-          onOpen={(reference) => {
-            if (!reference.assetName) return;
+          onOpen={openReference}
+        />
+      ) : null}
+      {model.level === "property" ||
+      model.level === "node" ||
+      model.level === "edge" ? (
+        <WorkflowProvenanceGraph
+          index={props.state.index}
+          model={model}
+          onOpenStep={(row) =>
             props.actions.openTab({
               selection: {
-                kind: "asset",
-                level: "asset",
-                component: reference.assetName,
+                kind: "step",
+                component: row.component,
+                name: row.name,
+                stepId: row.id,
               },
-              preview: true,
-            });
-          }}
+            })
+          }
         />
       ) : null}
       <section className={styles.meaningPanel} aria-label="Design meaning">
         <header className={styles.meaningPanelHeader}>
-          <span className={styles.meaningPanelTitle}>Design meaning</span>
+          <span className={styles.meaningPanelTitle}>
+            <ConceptGlyph concept="semantics" className={styles.panelIcon} />
+            Design meaning
+          </span>
           <span className={styles.meaningPanelMeta}>
             {model.subject.component}
             {model.subject.property ? `.${model.subject.property}` : ""}

@@ -13,10 +13,12 @@ export function ConceptReferenceChip({
   reference,
   onOpen,
   className,
+  showIcon = true,
 }: {
   reference: ConceptReference;
   onOpen?(): void;
   className?: string;
+  showIcon?: boolean;
 }) {
   const definition = concepts[reference.concept];
   const style = {
@@ -36,10 +38,12 @@ export function ConceptReferenceChip({
     .join(" ");
   const content = (
     <>
-      <ConceptGlyph
-        concept={reference.concept}
-        className="size-3 shrink-0"
-      />
+      {showIcon ? (
+        <ConceptGlyph
+          concept={reference.concept}
+          className="size-3 shrink-0"
+        />
+      ) : null}
       <span className="min-w-0 truncate">{reference.name}</span>
     </>
   );

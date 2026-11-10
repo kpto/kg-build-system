@@ -1,7 +1,7 @@
 import type { ReactNode } from "react";
 
 import type { ConceptKind } from "@/lib/concepts";
-import { ConceptMark } from "@/shared/ui/ConceptMark";
+import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
 import styles from "../detail.module.css";
 
 export interface DetailDocumentProps {
@@ -9,6 +9,7 @@ export interface DetailDocumentProps {
   kicker: string;
   title: string;
   subtitle?: ReactNode;
+  banner?: ReactNode;
   testId?: string;
   children: ReactNode;
 }
@@ -23,6 +24,7 @@ export function DetailDocument({
   kicker,
   title,
   subtitle,
+  banner,
   testId,
   children,
 }: DetailDocumentProps) {
@@ -37,6 +39,7 @@ export function DetailDocument({
             {subtitle ? <p className={styles.subtitle}>{subtitle}</p> : null}
           </div>
         </div>
+        {banner ? <div className={styles.bannerExtra}>{banner}</div> : null}
       </header>
       <div className={styles.body}>{children}</div>
     </div>
@@ -46,6 +49,7 @@ export function DetailDocument({
 export interface DetailPanelProps {
   title: string;
   meta?: ReactNode;
+  concept?: ConceptKind;
   className?: string;
   children: ReactNode;
 }
@@ -53,13 +57,19 @@ export interface DetailPanelProps {
 export function DetailPanel({
   title,
   meta,
+  concept,
   className,
   children,
 }: DetailPanelProps) {
   return (
     <section className={`${styles.panel} ${className ?? ""}`}>
       <header className={styles.panelHead}>
-        <h2>{title}</h2>
+        <h2>
+          {concept ? (
+            <ConceptGlyph concept={concept} className={styles.panelIcon} />
+          ) : null}
+          {title}
+        </h2>
         {meta ? <span className={styles.panelMeta}>{meta}</span> : null}
       </header>
       <div className={styles.panelBody}>{children}</div>

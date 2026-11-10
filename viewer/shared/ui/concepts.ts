@@ -1,9 +1,11 @@
 import {
+  BadgeCheck,
   Boxes,
   CircleDot,
   Columns3,
   Database,
   GitBranch,
+  Hash,
   Layers,
   Network,
   Table2,
@@ -33,6 +35,8 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
   projection: { label: "Projection", icon: Columns3, color: theme.post },
   abstract: { label: "Abstract category", icon: Layers, color: theme.group8 },
   step: { label: "Step", icon: Boxes, color: theme.group10 },
+  semantics: { label: "Semantics", icon: BadgeCheck, color: theme.accent },
+  field: { label: "Field", icon: Hash, color: theme.group7 },
 };
 
 /**
