@@ -141,7 +141,9 @@ rule about what the framework is belongs to the framework model.
   focus inside another document. A visualisation kind has one renderer and one
   selection rule for every node and link kind; workflow surfaces share one
   renderer and the provenance tree has its own, while every graph surface shares
-  one pan/zoom viewport. Selecting a node dims every other node and non-incident
+  one pan/zoom viewport. A view named for a model renders that model's
+  structure; an expression tree shows fields, operators and literals, not an
+  ownership summary. Selecting a node dims every other node and non-incident
   link and never moves a settled node; empty space clears the selection. A new
   level or kind adds data, not a second renderer within a visualisation kind.
 - Motion is feedback, not decoration: short ease-out transitions on transform and

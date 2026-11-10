@@ -22,7 +22,10 @@ import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
 import { activeDocument, documentSelection, type WorkspaceProps } from "@/workbench/types";
 import { selectionForConceptTarget } from "@/workbench/conceptTarget";
 import { DetailDocument, DetailEmptyState, DetailPanel } from "./view/DetailChrome";
-import { ExpressionTree } from "./view/ExpressionTree";
+import {
+  ExpressionTree,
+  type ExpressionChain,
+} from "./view/ExpressionTree";
 import styles from "./detail.module.css";
 
 type DataItemKind = "relation" | "projection";
@@ -125,6 +128,18 @@ export function DataItemEditor(props: WorkspaceProps) {
     props.state.index,
     model.assetName ? [model.assetName] : [],
   );
+  const expressionChains = useMemo<ExpressionChain[]>(() => {
+    if (kind !== "projection" || !projection) return [];
+    return projection.columns.map((column) => ({
+      id: `projection:${projection.name}.${column.name}`,
+      target: {
+        concept: "field" as const,
+        label: column.name,
+        detail: "projection column",
+      },
+      expression: column.expression,
+    }));
+  }, [kind, projection]);
 
   return (
     <DetailDocument
@@ -183,6 +198,7 @@ export function DataItemEditor(props: WorkspaceProps) {
         references={references}
         item={{ concept, label: model.name }}
         fields={model.columns.map((column) => column.name)}
+        chains={expressionChains}
       />
 
       <DetailPanel concept="semantics" title="Attached semantics">

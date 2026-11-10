@@ -1116,6 +1116,12 @@ def main() -> int:
                 By.CSS_SELECTOR, '[data-testid="expression-edge"]'
             )
         )
+        report["checks"]["detail_expression_tree_chain"] = bool(
+            expression_tree.find_elements(
+                By.CSS_SELECTOR,
+                '[data-testid="expression-node"][data-kind="field"]',
+            )
+        )
         tree_scene = expression_tree.find_element(
             By.CSS_SELECTOR, '[data-testid="graph-scene"]'
         )
@@ -1326,6 +1332,12 @@ def main() -> int:
             )
             report["checks"]["projection_expression_fields"] = bool(
                 projection_fields
+            )
+            report["checks"]["projection_expression_operators"] = bool(
+                projection_item.find_elements(
+                    By.CSS_SELECTOR,
+                    '[data-testid="expression-node"][data-kind="expression"]',
+                )
             )
             report["checks"]["projection_license_in_banner"] = bool(
                 projection_item.find_elements(

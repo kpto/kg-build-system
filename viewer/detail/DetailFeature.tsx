@@ -59,7 +59,10 @@ import type {
 import { LINEAGE_LANES } from "@/lib/types";
 import { logicalTypeName } from "@/lib/expressions";
 import { DetailDocument, DetailPanel } from "./view/DetailChrome";
-import { ExpressionTree } from "./view/ExpressionTree";
+import {
+  ExpressionTree,
+  type ExpressionChain,
+} from "./view/ExpressionTree";
 import { WorkflowProvenanceGraph } from "./view/WorkflowProvenanceGraph";
 import { DataItemEditor } from "./DataItemFeature";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
@@ -2021,12 +2024,52 @@ function subjectLicense(
   return effectiveLicenseForModel(index, model);
 }
 
+function subjectExpressionChains(
+  index: ViewerIndex,
+  model: ProofModel,
+): ExpressionChain[] {
+  const component = model.subject.component;
+  if (model.level === "property") {
+    return model.branches.map((branch) => ({
+      id: branch.key,
+      target: {
+        concept: "property" as const,
+        label: `${component}.${model.subject.property ?? ""}`,
+        detail: "property expression",
+      },
+      expression: branch.branch.expression,
+    }));
+  }
+  if (model.level === "node" || model.level === "edge") {
+    const level = model.level;
+    return index.bindings
+      .filter(
+        (binding) =>
+          binding.kind === level && binding.component === component,
+      )
+      .map((binding) => ({
+        id: `binding:${binding.index}`,
+        target: {
+          concept: level,
+          label: component,
+          detail: "identity expression",
+        },
+        expression: binding.binding.identity,
+      }));
+  }
+  return [];
+}
+
 function SubjectDetailEditor(props: WorkspaceProps) {
   const model = useProofModel(props);
   const selection = documentSelection(activeDocument(props.state));
   const meaning = subjectMeaning(props.state.index, model);
   const provenance = useMemo(
     () => provenanceReferences(props.state.index, model),
+    [model, props.state.index],
+  );
+  const expressionChains = useMemo(
+    () => subjectExpressionChains(props.state.index, model),
     [model, props.state.index],
   );
   const license = subjectLicense(props.state.index, model);
@@ -2126,6 +2169,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
         <ExpressionTree
           index={props.state.index}
           references={provenance}
+          chains={expressionChains}
           item={{
             concept: model.level,
             label:
