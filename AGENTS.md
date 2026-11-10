@@ -104,12 +104,12 @@ rule about what the framework is belongs to the framework model.
   with more evidence rather than starting a separate task.
 - Each region states one job in its header and does not repeat another region's
   content; a subject's detail belongs to one region.
-- One workbench frame is shared by every view: switching view changes content,
-  not panel geometry; documents live in one tab strip with back and forward.
-  A tab is a document, not a mode: switching tab and switching mode are
-  independent, and neither changes the other's content. Inspection is transient
-  and never opens a document; a document opens only on an explicit action and
-  must show content that inspection does not.
+- One workbench frame is shared by every view: panel geometry never changes
+  with the document; documents live in one tab strip with back and forward.
+  Topology and Detail are collapsible side-bar sections, not modes; a tab is a
+  document. Inspection is transient and never opens a document; a document
+  opens only on an explicit action and must show content that inspection does
+  not.
 - End every change report with the rule-promotion result: none, refined or
   added.
 
