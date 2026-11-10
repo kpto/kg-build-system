@@ -52,7 +52,7 @@ export function StatusBar({
         <span className="wb-status-item" title="Active document selection">
           <CircleDot aria-hidden className="size-3" />
           <span className="wb-status-label">
-            {view === "graph" ? "Graph" : "Detail"}
+            {view === "graph" ? "Graph" : "Subject"}
           </span>
           <span className="wb-mono wb-status-subject">{selectedSubject(selection)}</span>
         </span>
