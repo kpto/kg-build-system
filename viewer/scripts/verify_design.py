@@ -136,6 +136,16 @@ def main() -> int:
         time.sleep(1.2)
         report["checks"]["tabs_after_open"] = tabs()
         report["checks"]["sidebar_after_open"] = expanded()
+        report["checks"]["sidebar_order"] = driver.execute_script(
+            """
+            const nodes = [...document.querySelectorAll(
+              '[data-testid="sidebar-section-topology"], [data-testid="sidebar-section-detail"], .wb-side-section-body'
+            )];
+            return nodes.map((node) =>
+              node.getAttribute("data-testid") || node.className.split(" ")[0]
+            );
+            """
+        )
         report["checks"]["sidebar_independent_of_tab"] = (
             expanded().get("sidebar-section-topology") == "true"
             and expanded().get("sidebar-section-detail") == "false"
@@ -172,8 +182,67 @@ def main() -> int:
             None,
         )
         if graph_tab:
+            # Tab state: scroll position belongs to the tab pane.
+            pane = driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="editor-pane"][data-active="true"]'
+            )
+            driver.execute_script("arguments[0].scrollTop = 240", pane)
+            before_scroll = driver.execute_script(
+                "return arguments[0].scrollTop", pane
+            )
             graph_tab.click()
-            time.sleep(0.8)
+            time.sleep(0.7)
+            property_tab = next(
+                (
+                    el
+                    for el in driver.find_elements(
+                        By.CSS_SELECTOR, '[data-testid="editor-tabs"] .wb-tab-label'
+                    )
+                    if el.text.strip() == "target.approvedSymbol"
+                ),
+                None,
+            )
+            if property_tab:
+                property_tab.click()
+                time.sleep(0.7)
+                restored = driver.find_element(
+                    By.CSS_SELECTOR,
+                    '[data-testid="editor-pane"][data-active="true"]',
+                )
+                report["checks"]["tab_scroll_restored"] = (
+                    driver.execute_script("return arguments[0].scrollTop", restored)
+                    == before_scroll
+                )
+            # Mouse back/forward dispatch through the native mouse handlers.
+            driver.execute_script(
+                "window.dispatchEvent(new MouseEvent('mousedown',{button:3,bubbles:true}));"
+                "window.dispatchEvent(new MouseEvent('mouseup',{button:3,bubbles:true}))"
+            )
+            time.sleep(0.6)
+            report["checks"]["mouse_back_status"] = driver.find_element(
+                By.CSS_SELECTOR, '[aria-label="Workbench status"]'
+            ).text.replace("\n", " | ")
+            driver.execute_script(
+                "window.dispatchEvent(new MouseEvent('mousedown',{button:4,bubbles:true}));"
+                "window.dispatchEvent(new MouseEvent('mouseup',{button:4,bubbles:true}))"
+            )
+            time.sleep(0.6)
+            report["checks"]["mouse_forward_status"] = driver.find_element(
+                By.CSS_SELECTOR, '[aria-label="Workbench status"]'
+            ).text.replace("\n", " | ")
+            graph_tab = next(
+                (
+                    el
+                    for el in driver.find_elements(
+                        By.CSS_SELECTOR, '[data-testid="editor-tabs"] .wb-tab-label'
+                    )
+                    if el.text.strip() == "Graph"
+                ),
+                None,
+            )
+            if graph_tab:
+                graph_tab.click()
+                time.sleep(0.7)
             report["checks"]["graph_tab_keeps_tabs"] = tabs() == [
                 "Graph",
                 "target.approvedSymbol",

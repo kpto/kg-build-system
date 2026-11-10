@@ -84,7 +84,8 @@ The detail switch belongs to the subject document, not to the workbench.
 - The editor tab strip is one global document strip. Its tab views are **Graph**
   (pinned) and explicitly opened **subject documents** (node, edge, property,
   asset, abstract). A click on the canvas is transient inspection, not a
-  document; it never opens a tab.
+  document; it never opens a tab. Every tab keeps its own editor state and
+  scroll position.
 - There is no mode and no automatic coupling. Topology and Detail are side-bar
   sections; changing section never changes the active tab, and changing tab
   never changes the open section, bottom panel or panel geometry. Opening the

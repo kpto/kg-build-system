@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, type JSX } from "react";
 import { ChevronRight } from "lucide-react";
 
 import { DetailSidebar } from "@/detail/DetailFeature";
@@ -19,27 +19,38 @@ export function SideBar() {
     setOpen((current) => (current === section ? null : section));
   };
 
-  const sectionHeader = (
-    section: SectionId,
+  const section = (
+    id: SectionId,
     label: string,
     meta: string,
+    Body: () => JSX.Element,
   ) => {
-    const expanded = open === section;
+    const expanded = open === id;
     return (
-      <button
-        type="button"
-        className="wb-side-section-header"
-        aria-expanded={expanded}
-        onClick={() => toggle(section)}
-        data-testid={`sidebar-section-${section}`}
+      <section
+        className="wb-side-section"
+        data-open={expanded ? "true" : undefined}
       >
-        <ChevronRight
-          aria-hidden
-          className={cx("size-3 transition-transform", expanded && "rotate-90")}
-        />
-        <span className="wb-side-section-title">{label}</span>
-        <span className="wb-side-section-meta">{meta}</span>
-      </button>
+        <button
+          type="button"
+          className="wb-side-section-header"
+          aria-expanded={expanded}
+          onClick={() => toggle(id)}
+          data-testid={`sidebar-section-${id}`}
+        >
+          <ChevronRight
+            aria-hidden
+            className={cx("size-3 transition-transform", expanded && "rotate-90")}
+          />
+          <span className="wb-side-section-title">{label}</span>
+          <span className="wb-side-section-meta">{meta}</span>
+        </button>
+        {expanded ? (
+          <div className="wb-side-section-body thin-scrollbar">
+            <Body />
+          </div>
+        ) : null}
+      </section>
     );
   };
 
@@ -50,23 +61,18 @@ export function SideBar() {
       aria-label="Workbench side bar"
       data-testid="sidebar"
     >
-      {sectionHeader(
+      {section(
         "topology",
         "Topology",
         `${stats.topologyNodes}N · ${stats.topologyEdges}E`,
+        () => <TopologySidebar state={state} actions={actions} />,
       )}
-      {sectionHeader("detail", "Detail", `${stats.topologyNodes} subjects`)}
-      <div className="wb-side-section-body thin-scrollbar">
-        {open === "topology" ? (
-          <TopologySidebar state={state} actions={actions} />
-        ) : open === "detail" ? (
-          <DetailSidebar state={state} actions={actions} />
-        ) : (
-          <p className="p-3 text-[10px] text-faint">
-            Expand Topology or Detail to work with the design.
-          </p>
-        )}
-      </div>
+      {section(
+        "detail",
+        "Detail",
+        `${stats.topologyNodes} subjects`,
+        () => <DetailSidebar state={state} actions={actions} />,
+      )}
     </aside>
   );
 }

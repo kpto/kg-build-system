@@ -27,6 +27,7 @@ const SHORTCUTS = [
   { keys: "Ctrl/Cmd B", action: "Toggle side bar" },
   { keys: "Ctrl/Cmd J", action: "Toggle bottom panel" },
   { keys: "Alt ← / Alt →", action: "Back / forward" },
+  { keys: "Mouse 3 / 4", action: "Back / forward documents" },
   { keys: "Ctrl/Cmd ,", action: "Settings" },
 ];
 

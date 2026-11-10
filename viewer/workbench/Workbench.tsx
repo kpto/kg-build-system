@@ -200,6 +200,28 @@ function WorkbenchShell() {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [actions]);
 
+  // Mouse back/forward buttons are document navigation, like a browser.
+  useEffect(() => {
+    const onMouseDown = (event: globalThis.MouseEvent) => {
+      if (event.button === 3 || event.button === 4) event.preventDefault();
+    };
+    const onMouseUp = (event: globalThis.MouseEvent) => {
+      if (event.button === 3) {
+        event.preventDefault();
+        actions.back();
+      } else if (event.button === 4) {
+        event.preventDefault();
+        actions.forward();
+      }
+    };
+    window.addEventListener("mousedown", onMouseDown);
+    window.addEventListener("mouseup", onMouseUp);
+    return () => {
+      window.removeEventListener("mousedown", onMouseDown);
+      window.removeEventListener("mouseup", onMouseUp);
+    };
+  }, [actions]);
+
   const bodyStyle = useMemo<CSSProperties | undefined>(() => {
     if (zoom === 1) return undefined;
     return {

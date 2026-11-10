@@ -4,23 +4,38 @@ import { DetailEditor } from "@/detail/DetailFeature";
 import { TopologyEditor } from "@/topology/TopologyFeature";
 import { EditorTabs } from "./EditorTabs";
 import { useWorkbench } from "./store";
-import { activeDocument } from "./types";
+import type { WorkbenchState, WorkbenchTab } from "./types";
+
+function paneState(state: WorkbenchState, tab: WorkbenchTab): WorkbenchState {
+  return tab.id === state.activeTabId ? state : { ...state, activeTabId: tab.id };
+}
 
 export function EditorArea() {
   const { state, actions } = useWorkbench();
-  const document = activeDocument(state);
-  const graph = document.kind === "graph";
-  const Editor = graph ? TopologyEditor : DetailEditor;
 
   return (
     <section className="wb-editor" aria-label="Design editor">
       <EditorTabs />
-      <div
-        className="wb-editor-body thin-scrollbar"
-        data-full-bleed={graph ? "true" : undefined}
-        data-testid="editor-body"
-      >
-        <Editor state={state} actions={actions} />
+      <div className="wb-editor-body thin-scrollbar" data-testid="editor-body">
+        {state.tabs.map((tab) => {
+          const active = tab.id === state.activeTabId;
+          const graph = tab.document.kind === "graph";
+          const Editor = graph ? TopologyEditor : DetailEditor;
+          const current = paneState(state, tab);
+          return (
+            <div
+              key={tab.id}
+              className="wb-editor-pane"
+              data-active={active ? "true" : undefined}
+              data-full-bleed={graph ? "true" : undefined}
+              data-testid="editor-pane"
+              data-tab-id={tab.id}
+              aria-hidden={!active}
+            >
+              <Editor state={current} actions={actions} />
+            </div>
+          );
+        })}
       </div>
     </section>
   );

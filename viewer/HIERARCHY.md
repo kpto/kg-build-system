@@ -39,10 +39,11 @@ not panel purpose.
 | **Topology** | canvas filters, labels, Show controls, legend, fit/zoom/pin |
 | **Detail** | graph meaning, design tree of assets, relations, projections, nodes, edges and properties |
 
-The sections are collapsible; opening one collapses the other. The open section
-is user state: opening or activating a tab never changes it, and opening a
-section never changes the active document or its editor. A tab is a standalone
-document.
+The sections are collapsible; each expanded body sits directly below its own
+header. Opening one collapses the other. The open section is user state: opening
+or activating a tab never changes it, and opening a section never changes the
+active document or its editor. A tab is a standalone document that retains its
+editor state and scroll position.
 
 ## Documents and tabs
 
