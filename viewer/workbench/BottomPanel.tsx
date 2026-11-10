@@ -2,15 +2,15 @@
 
 import { ChevronDown } from "lucide-react";
 
+import { DetailBottom } from "@/detail/DetailFeature";
+import { TopologyBottom } from "@/topology/TopologyFeature";
 import {
-  ACTIVITY_LABELS,
   bottomTabLabel,
   bottomTabsFor,
   defaultBottomTab,
 } from "./defaults";
-import { getFeature } from "./features";
 import { useWorkbench } from "./store";
-import { currentSelection } from "./types";
+import { currentSelection, tabView } from "./types";
 
 export interface BottomPanelProps {
   onCollapse(): void;
@@ -18,20 +18,17 @@ export interface BottomPanelProps {
 
 export function BottomPanel({ onCollapse }: BottomPanelProps) {
   const { state, actions } = useWorkbench();
-  const activity = state.activity;
-  const feature = getFeature(activity);
-  const graphDocument =
-    activity === "detail" && currentSelection(state).kind === "graph";
-  const activeTab = graphDocument
-    ? "graph"
-    : (state.layout.bottomTabs[activity] ?? defaultBottomTab(activity));
-  const tabs = graphDocument ? ["graph"] : bottomTabsFor(activity, activeTab);
+  const view = tabView(currentSelection(state));
+  const activeTab =
+    state.layout.bottomTabs[view] ?? defaultBottomTab(view);
+  const tabs = bottomTabsFor(view, activeTab);
+  const Bottom = view === "graph" ? TopologyBottom : DetailBottom;
 
   return (
     <section
       className="wb-bottom"
       style={{ height: state.layout.bottomHeight }}
-      aria-label={`${ACTIVITY_LABELS[activity]} bottom panel`}
+      aria-label="Workbench bottom panel"
       data-testid="bottom-panel"
     >
       <div className="wb-bottom-tabs" role="tablist" aria-label="Bottom panel tabs">
@@ -43,7 +40,7 @@ export function BottomPanel({ onCollapse }: BottomPanelProps) {
             aria-selected={activeTab === tab}
             className="wb-bottom-tab"
             data-active={activeTab === tab ? "true" : undefined}
-            onClick={() => actions.setBottomTab(activity, tab)}
+            onClick={() => actions.setBottomTab(view, tab)}
           >
             {bottomTabLabel(tab)}
           </button>
@@ -60,7 +57,7 @@ export function BottomPanel({ onCollapse }: BottomPanelProps) {
         </button>
       </div>
       <div className="wb-bottom-body thin-scrollbar" data-testid="bottom-body">
-        <feature.Bottom state={state} actions={actions} activity={activity} />
+        <Bottom state={state} actions={actions} />
       </div>
     </section>
   );

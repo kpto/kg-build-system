@@ -2,9 +2,8 @@
 
 import { CircleDot, Database, Minus, Plus } from "lucide-react";
 
-import { ACTIVITY_LABELS } from "./defaults";
 import { useWorkbench } from "./store";
-import { currentLensSelection, currentSelection } from "./types";
+import { currentLensSelection, currentSelection, tabView } from "./types";
 import type { WorkbenchSelection } from "./types";
 
 export interface StatusBarProps {
@@ -39,10 +38,8 @@ export function StatusBar({
 }: StatusBarProps) {
   const { state } = useWorkbench();
   const stats = state.index.stats;
-  const selection =
-    state.activity === "topology"
-      ? currentLensSelection(state)
-      : currentSelection(state);
+  const selection = currentLensSelection(state);
+  const view = tabView(currentSelection(state));
 
   return (
     <footer className="wb-statusbar" aria-label="Workbench status">
@@ -52,9 +49,11 @@ export function StatusBar({
           <span className="wb-mono">{state.snapshot.name}</span>
         </span>
         <span className="wb-status-divider" aria-hidden />
-        <span className="wb-status-item" title={`${ACTIVITY_LABELS[state.activity]} selection`}>
+        <span className="wb-status-item" title="Active document selection">
           <CircleDot aria-hidden className="size-3" />
-          <span className="wb-status-label">{ACTIVITY_LABELS[state.activity]}</span>
+          <span className="wb-status-label">
+            {view === "graph" ? "Graph" : "Detail"}
+          </span>
           <span className="wb-mono wb-status-subject">{selectedSubject(selection)}</span>
         </span>
       </div>

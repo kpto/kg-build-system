@@ -13,9 +13,9 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
   rectangular regions separated by a 2px dark seam. Regions are plates, not
   cards: no glass, no floating panel stacks, no shadow between regions.
 - **Application header** is a single line on the `inset` surface: brand,
-  active function, snapshot, search, panel toggles and layout reset.
-- **Activity bar** is a 48px vertical rail: Topology, Detail, then Search and
-  Settings. The active item carries the orange selection edge.
+  snapshot, search, panel toggles, layout reset and settings.
+- **Side-bar sections** are collapsible 30px headers: **Topology** for canvas
+  controls, **Detail** for design navigation.
 - **Area headers** are 30–32px bands on `panel-raised` with an icon, a
   sentence-case title, optional counts and right-aligned controls.
 - **Editor tabs** belong to the main area, not the window. They name the
@@ -34,7 +34,6 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
 | Region | Size |
 | --- | ---: |
 | title bar | 38px |
-| activity bar | 48px |
 | side bar | 220–520px, default 300px |
 | bottom panel | 120–480px, default 240px |
 | status bar | 22px |

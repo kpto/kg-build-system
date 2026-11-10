@@ -1,9 +1,8 @@
 /**
- * Entry point for the Topology workbench function.
+ * Topology document view.
  *
- * The shell imports this module and mounts the three bodies it owns. The
- * implementation lives in the view zone; this file is only the stable feature
- * entry point alongside the workbench activity table.
+ * The shell mounts these bodies from the Topology side-bar section and from the
+ * Graph document. Consistency is defined by the record, not by a mode.
  */
 
 export {

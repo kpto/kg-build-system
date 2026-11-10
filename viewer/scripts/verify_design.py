@@ -4,11 +4,11 @@
         --url http://127.0.0.1:3000/ --output /tmp/opencode/design
 
 Checks:
-- two activities: topology (default) and detail
-- the bottom panel starts hidden and no data/JSON tab exists
-- selecting a node shows its properties and attached meaning in Topology
-- a property row opens Detail at property level with the provenance layout
-- Detail presents design meaning and the property table before provenance
+- no left activity toolbar
+- Topology and Detail are collapsible side-bar headers
+- clicking a node or property only inspects; it does not open a tab
+- Open Detail opens a document and the Detail section follows the document
+- one workbench geometry survives every document change
 """
 
 from __future__ import annotations
@@ -78,26 +78,24 @@ def main() -> int:
                 )
             ]
 
-        report["checks"]["activities"] = [
-            el.get_attribute("data-testid")
-            for el in driver.find_elements(
-                By.CSS_SELECTOR, "[data-testid^='activity-']"
-            )
-        ]
-        report["checks"]["topology_default"] = (
-            driver.find_element(
-                By.CSS_SELECTOR, '[data-testid="activity-topology"]'
-            ).get_attribute("data-active")
-            == "true"
+        def expanded() -> dict[str, str | None]:
+            return {
+                el.get_attribute("data-testid"): el.get_attribute("aria-expanded")
+                for el in driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid^="sidebar-section-"]'
+                )
+            }
+
+        report["checks"]["no_activity_toolbar"] = not driver.find_elements(
+            By.CSS_SELECTOR, ".wb-activitybar"
         )
+        report["checks"]["sections"] = sorted(expanded())
+        report["checks"]["initial_expanded"] = expanded()
+        report["checks"]["tabs_initial"] = tabs()
         report["checks"]["bottom_visible"] = bool(
             driver.find_elements(By.CSS_SELECTOR, '[data-testid="bottom-panel"]')
         )
         topology_geometry = geometry()
-        report["checks"]["tabs_initial"] = tabs()
-        report["checks"]["sidebar_label"] = driver.find_element(
-            By.CSS_SELECTOR, '[data-testid="sidebar"]'
-        ).text.split("\n")[0]
         shot("01-topology")
 
         nodes = driver.find_elements(By.CSS_SELECTOR, "[data-topology-node-id]")
@@ -110,71 +108,44 @@ def main() -> int:
             "arguments[0].dispatchEvent(new MouseEvent('click',{bubbles:true}))",
             target,
         )
-        time.sleep(1)
+        time.sleep(0.8)
+        report["checks"]["node_inspect_keeps_tabs"] = tabs() == ["Graph"]
+        report["checks"]["node_status"] = driver.find_element(
+            By.CSS_SELECTOR, '[aria-label="Workbench status"]'
+        ).text.replace("\n", " | ")
+        shot("02-inspect")
+
         bottom = driver.find_element(By.CSS_SELECTOR, '[data-testid="bottom-panel"]')
-        report["checks"]["node_click_keeps_tabs"] = tabs() == ["Graph"]
         report["checks"]["topology_property_rows"] = len(
-            bottom.find_elements(By.CSS_SELECTOR, "[data-testid='topology-properties'] button")
-        )
-        report["checks"]["sidebar_repeats_properties"] = bool(
-            driver.find_elements(
-                By.CSS_SELECTOR,
-                "[data-testid='sidebar'] [data-testid='topology-properties']",
+            bottom.find_elements(
+                By.CSS_SELECTOR, "[data-testid='topology-properties'] button"
             )
         )
-        report["checks"]["bottom_label"] = bottom.text.split("\n")[0]
-        shot("02-topology-selected")
-
-        driver.find_elements(
+        bottom.find_elements(
             By.CSS_SELECTOR, "[data-testid='topology-properties'] button"
         )[0].click()
-        time.sleep(1.0)
-        report["checks"]["property_tab_mode_stays_topology"] = (
-            driver.find_element(
-                By.CSS_SELECTOR, '[data-testid="activity-topology"]'
-            ).get_attribute("data-active")
-            == "true"
-        )
-        report["checks"]["tabs_after_property"] = tabs()
-        report["checks"]["property_click_keeps_tabs"] = tabs() == ["Graph"]
+        time.sleep(0.8)
+        report["checks"]["property_inspect_keeps_tabs"] = tabs() == ["Graph"]
+        report["checks"]["property_status"] = driver.find_element(
+            By.CSS_SELECTOR, '[aria-label="Workbench status"]'
+        ).text.replace("\n", " | ")
+
         driver.find_element(
             By.CSS_SELECTOR, '[data-testid="topology-open-detail"]'
         ).click()
         time.sleep(1.2)
-        report["checks"]["detail_active"] = (
-            driver.find_element(
-                By.CSS_SELECTOR, '[data-testid="activity-detail"]'
-            ).get_attribute("data-active")
-            == "true"
+        report["checks"]["tabs_after_open"] = tabs()
+        report["checks"]["detail_section_after_open"] = expanded().get(
+            "sidebar-section-detail"
         )
-        report["checks"]["detail_status"] = driver.find_element(
-            By.CSS_SELECTOR, '[aria-label="Workbench status"]'
-        ).text.replace("\n", " | ")
         report["checks"]["detail_editor"] = bool(
             driver.find_elements(By.CSS_SELECTOR, '[data-testid="detail-editor"]')
         )
-        report["checks"]["tabs_after_open"] = tabs()
-        report["checks"]["property_document_after_open"] = (
-            report["checks"]["tabs_after_open"]
-            == ["Graph", "target.approvedSymbol"]
-        )
         report["checks"]["geometry_unchanged"] = geometry() == topology_geometry
-        report["checks"]["back_enabled"] = (
-            driver.find_element(By.CSS_SELECTOR, '[data-testid="tab-back"]').get_attribute(
-                "disabled"
-            )
-            is None
-        )
-        driver.find_element(By.CSS_SELECTOR, '[data-testid="tab-back"]').click()
-        time.sleep(0.7)
-        report["checks"]["back_status"] = driver.find_element(
+        report["checks"]["detail_status"] = driver.find_element(
             By.CSS_SELECTOR, '[aria-label="Workbench status"]'
         ).text.replace("\n", " | ")
-        driver.find_element(By.CSS_SELECTOR, '[data-testid="tab-forward"]').click()
-        time.sleep(0.7)
-        report["checks"]["forward_status"] = driver.find_element(
-            By.CSS_SELECTOR, '[aria-label="Workbench status"]'
-        ).text.replace("\n", " | ")
+        shot("03-detail-property")
 
         graph_tab = next(
             (
@@ -189,26 +160,27 @@ def main() -> int:
         if graph_tab:
             graph_tab.click()
             time.sleep(0.8)
-            report["checks"]["graph_tab_keeps_detail_mode"] = (
-                driver.find_element(
-                    By.CSS_SELECTOR, '[data-testid="activity-detail"]'
-                ).get_attribute("data-active")
-                == "true"
+            report["checks"]["graph_tab_keeps_tabs"] = tabs() == [
+                "Graph",
+                "target.approvedSymbol",
+            ]
+            report["checks"]["topology_section_after_graph"] = expanded().get(
+                "sidebar-section-topology"
             )
-        report["checks"]["detail_bottom_visible"] = bool(
-            driver.find_elements(By.CSS_SELECTOR, '[data-testid="bottom-panel"]')
-        )
-        shot("03-detail-property")
+            report["checks"]["graph_status"] = driver.find_element(
+                By.CSS_SELECTOR, '[aria-label="Workbench status"]'
+            ).text.replace("\n", " | ")
+            shot("04-graph")
+            report["checks"]["geometry_after_graph"] = geometry() == topology_geometry
 
-        report["checks"]["no_audit_activity"] = not driver.find_elements(
-            By.CSS_SELECTOR, '[data-testid="activity-audit"]'
-        )
-        report["checks"]["editor_tabs"] = [
-            el.text.strip().lower()
-            for el in driver.find_elements(
-                By.CSS_SELECTOR, '[data-testid="editor-tabs"] button'
-            )
-        ]
+        back = driver.find_element(By.CSS_SELECTOR, '[data-testid="tab-back"]')
+        if back.get_attribute("disabled") is None:
+            back.click()
+            time.sleep(0.7)
+            report["checks"]["back_status"] = driver.find_element(
+                By.CSS_SELECTOR, '[aria-label="Workbench status"]'
+            ).text.replace("\n", " | ")
+
         print(json.dumps(report, indent=2))
         return 0
     finally:

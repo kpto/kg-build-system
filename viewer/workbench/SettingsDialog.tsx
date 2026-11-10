@@ -2,17 +2,13 @@
 
 import { RotateCcw, Trash2, X } from "lucide-react";
 
-import {
-  ACTIVITY_LABELS,
-  defaultBottomTab,
-} from "./defaults";
+import { defaultBottomTab } from "./defaults";
 import {
   clearWorkbenchStorage,
   useWorkbench,
   workbenchStorageKey,
 } from "./store";
-import { ACTIVITY_ORDER } from "./defaults";
-import { DEFAULT_LAYOUT } from "./types";
+import { DEFAULT_LAYOUT, currentSelection, tabView } from "./types";
 
 export interface SettingsDialogProps {
   onClose(): void;
@@ -37,14 +33,15 @@ const SHORTCUTS = [
 
 export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const { state, actions } = useWorkbench();
-  const activity = state.activity;
+  const view = tabView(currentSelection(state));
 
-  const resetActivity = () => {
+  const resetLayout = () => {
     actions.setLayout({
       sidebarWidth: DEFAULT_LAYOUT.sidebarWidth,
       bottomHeight: DEFAULT_LAYOUT.bottomHeight,
     });
-    actions.setBottomTab(activity, defaultBottomTab(activity));
+    actions.setBottomTab("graph", defaultBottomTab("graph"));
+    actions.setBottomTab("subject", defaultBottomTab("subject"));
     onClose();
   };
 
@@ -54,9 +51,8 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
       sidebarWidth: DEFAULT_LAYOUT.sidebarWidth,
       bottomHeight: DEFAULT_LAYOUT.bottomHeight,
     });
-    for (const id of ACTIVITY_ORDER) {
-      actions.setBottomTab(id, defaultBottomTab(id));
-    }
+    actions.setBottomTab("graph", defaultBottomTab("graph"));
+    actions.setBottomTab("subject", defaultBottomTab("subject"));
     onClose();
   };
 
@@ -101,8 +97,8 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
           <section className="wb-settings-section">
             <h3>Stable panels</h3>
             <p>
-              Every function keeps its side bar width, bottom height, chosen
-              bottom tab and open editor tabs under one workbench key.
+              The workbench keeps one side bar width, bottom height, bottom tab
+              per document view and one editor tab strip under one key.
             </p>
             <dl className="wb-settings-facts">
               <div>
@@ -110,8 +106,8 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 <dd className="wb-mono">{state.snapshot.name}</dd>
               </div>
               <div>
-                <dt>Function</dt>
-                <dd>{ACTIVITY_LABELS[activity]}</dd>
+                <dt>Document</dt>
+                <dd>{view === "graph" ? "Graph" : "Subject"}</dd>
               </div>
               <div>
                 <dt>Storage key</dt>
@@ -127,7 +123,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
                 <dt>Bottom panel</dt>
                 <dd className="wb-mono">
                   {state.layout.bottomHeight}px ·{" "}
-                  {state.layout.bottomTabs[activity] ?? defaultBottomTab(activity)}
+                  {state.layout.bottomTabs[view] ?? defaultBottomTab(view)}
                 </dd>
               </div>
             </dl>
@@ -167,7 +163,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             <h3>Reset layout</h3>
             <p>The reset changes layout and tabs; it never changes the snapshot.</p>
             <div className="wb-settings-actions">
-              <button type="button" className="wb-button" onClick={resetActivity}>
+              <button type="button" className="wb-button" onClick={resetLayout}>
                 <RotateCcw aria-hidden className="size-3" />
                 Reset workbench layout
               </button>

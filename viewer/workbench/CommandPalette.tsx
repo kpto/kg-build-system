@@ -5,30 +5,20 @@ import { CircleDot, FileText, Search, X } from "lucide-react";
 
 import { searchIndex } from "@/lib/search";
 import type { SearchKind, SearchRecord } from "@/lib/types";
-import { ACTIVITY_DESCRIPTIONS, ACTIVITY_LABELS } from "./defaults";
-import { FEATURES } from "./features";
 import { useWorkbench } from "./store";
-import type { ActivityId, WorkbenchSelection } from "./types";
+import type { WorkbenchSelection } from "./types";
 
 export interface CommandPaletteProps {
   onClose(): void;
 }
 
-type PaletteItem =
-  | {
-      id: string;
-      group: "activity";
-      label: string;
-      detail: string;
-      activity: ActivityId;
-    }
-  | {
-      id: string;
-      group: "subject";
-      label: string;
-      detail: string;
-      selection: WorkbenchSelection;
-    };
+interface PaletteItem {
+  id: string;
+  group: "subject";
+  label: string;
+  detail: string;
+  selection: WorkbenchSelection;
+}
 
 interface SubjectTarget {
   selection: WorkbenchSelection;
@@ -172,24 +162,6 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
     inputRef.current?.focus();
   }, []);
 
-  const activityItems = useMemo<PaletteItem[]>(() => {
-    const normalized = query.trim().toLowerCase();
-    return FEATURES.filter((feature) => {
-      if (!normalized) return true;
-      const label = ACTIVITY_LABELS[feature.id].toLowerCase();
-      return (
-        label.includes(normalized) ||
-        ACTIVITY_DESCRIPTIONS[feature.id].toLowerCase().includes(normalized)
-      );
-    }).map((feature) => ({
-      id: `activity:${feature.id}`,
-      group: "activity" as const,
-      label: ACTIVITY_LABELS[feature.id],
-      detail: ACTIVITY_DESCRIPTIONS[feature.id],
-      activity: feature.id,
-    }));
-  }, [query]);
-
   const subjectItems = useMemo<PaletteItem[]>(() => {
     const trimmed = query.trim();
     if (!trimmed) return [];
@@ -206,21 +178,14 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
         };
       },
     );
-  }, [query, state.activity, state.index]);
+  }, [query, state.index]);
 
-  const items = useMemo(
-    () => [...activityItems, ...subjectItems],
-    [activityItems, subjectItems],
-  );
+  const items = subjectItems;
   const boundedActive = items.length === 0 ? 0 : Math.min(active, items.length - 1);
 
   const choose = (item: PaletteItem | undefined) => {
     if (!item) return;
-    if (item.group === "activity") {
-      actions.setActivity(item.activity);
-    } else {
-      actions.openTab({ selection: item.selection });
-    }
+    actions.openTab({ selection: item.selection });
     onClose();
   };
 
@@ -243,11 +208,7 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
   };
 
   const renderItem = (item: PaletteItem, index: number) => {
-    const feature =
-      item.group === "activity"
-        ? FEATURES.find((candidate) => candidate.id === item.activity)
-        : undefined;
-    const Icon = feature?.icon ?? CircleDot;
+    const Icon = CircleDot;
     const isActive = index === boundedActive;
     return (
       <button
@@ -268,9 +229,7 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
           <span className="wb-palette-result-detail">{item.detail}</span>
         </span>
         <span className="wb-palette-result-kind">
-          {item.group === "activity"
-            ? "mode"
-            : (item.selection.kind ?? "document")}
+          {item.selection.kind ?? "document"}
         </span>
       </button>
     );
@@ -300,8 +259,8 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
               setQuery(event.target.value);
               setActive(0);
             }}
-            placeholder="Search activities and subjects"
-            aria-label="Search activities and subjects"
+            placeholder="Search subjects"
+            aria-label="Search subjects"
             autoComplete="off"
             spellCheck={false}
           />
@@ -317,24 +276,20 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
         </div>
 
         <div className="wb-palette-results thin-scrollbar" role="listbox" aria-label="Results">
-          {activityItems.length > 0 ? (
-            <div className="wb-palette-group">
-              <p className="wb-palette-group-label">Activities</p>
-              {activityItems.map((item, index) => renderItem(item, index))}
-            </div>
-          ) : null}
           {subjectItems.length > 0 ? (
             <div className="wb-palette-group">
               <p className="wb-palette-group-label">Subjects</p>
-              {subjectItems.map((item, index) =>
-                renderItem(item, activityItems.length + index),
-              )}
+              {subjectItems.map((item, index) => renderItem(item, index))}
             </div>
           ) : null}
           {items.length === 0 ? (
             <div className="wb-palette-empty">
               <FileText aria-hidden className="size-5" />
-              <p>No activity or subject matches “{query.trim()}”.</p>
+              <p>
+                {query.trim()
+                  ? `No subject matches “${query.trim()}”.`
+                  : "Type a subject to open its document."}
+              </p>
             </div>
           ) : null}
         </div>

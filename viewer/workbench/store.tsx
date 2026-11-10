@@ -5,7 +5,7 @@
  *
  * One state value owns the loaded snapshot, one global panel geometry, one
  * global editor-tab strip, and the navigation history over that strip. The
- * geometry is never per activity: switching activity changes content, not the
+ * geometry is never per document: switching document changes content, not the
  * shape of the workbench.
  */
 
@@ -20,15 +20,11 @@ import {
 } from "react";
 
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
-import {
-  ACTIVITY_ORDER,
-  defaultBottomTab,
-  isRetiredBottomTab,
-} from "./defaults";
+import { defaultBottomTab, isRetiredBottomTab } from "./defaults";
 import type {
-  ActivityId,
   OpenTabInput,
   SelectionKind,
+  TabView,
   WorkbenchActions,
   WorkbenchLayout,
   WorkbenchSelection,
@@ -75,8 +71,10 @@ function numberOr(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
+const VIEWS: TabView[] = ["graph", "subject"];
+
 function defaultBottomTabs(): WorkbenchLayout["bottomTabs"] {
-  return { topology: "selection", detail: "trace" };
+  return { graph: "selection", subject: "trace" };
 }
 
 function normalizeLayout(value: unknown): WorkbenchLayout {
@@ -91,12 +89,12 @@ function normalizeLayout(value: unknown): WorkbenchLayout {
       ? (candidate.bottomTabs as Record<string, unknown>)
       : {};
   const bottomTabs: WorkbenchLayout["bottomTabs"] = { ...DEFAULT_LAYOUT.bottomTabs };
-  for (const activity of ACTIVITY_ORDER) {
-    const tab = rawTabs[activity];
-    bottomTabs[activity] =
+  for (const view of VIEWS) {
+    const tab = rawTabs[view];
+    bottomTabs[view] =
       typeof tab === "string" && tab && !isRetiredBottomTab(tab)
         ? tab
-        : defaultBottomTab(activity);
+        : defaultBottomTab(view);
   }
   return {
     sidebarWidth: clamp(
@@ -208,7 +206,6 @@ export function createWorkbenchState(
     snapshot,
     index,
     layout: normalizeLayout(undefined),
-    activity: "topology",
     tabs: [tab],
     activeTabId: tab.id,
     inspection: { kind: "graph", name: "Graph" },
@@ -277,11 +274,10 @@ function nextActiveAfterClose(
 
 export type WorkbenchAction =
   | { type: "hydrate"; layout: WorkbenchLayout }
-  | { type: "set-activity"; activity: ActivityId }
   | { type: "set-selection"; selection: WorkbenchSelection }
   | { type: "inspect"; selection: WorkbenchSelection }
   | { type: "set-layout"; patch: Partial<Pick<WorkbenchLayout, "sidebarWidth" | "bottomHeight">> }
-  | { type: "set-bottom-tab"; activity: ActivityId; tab: string }
+  | { type: "set-bottom-tab"; view: TabView; tab: string }
   | { type: "open-tab"; input: OpenTabInput }
   | { type: "close-tab"; tabId: string }
   | { type: "activate-tab"; tabId: string }
@@ -295,10 +291,6 @@ export function workbenchReducer(
   switch (action.type) {
     case "hydrate":
       return { ...state, layout: action.layout };
-
-    case "set-activity":
-      // The activity is the viewing angle. It never changes the active document.
-      return { ...state, activity: action.activity };
 
     case "set-selection": {
       const tab = state.tabs.find((candidate) => candidate.id === state.activeTabId);
@@ -342,7 +334,7 @@ export function workbenchReducer(
           ...state.layout,
           bottomTabs: {
             ...state.layout.bottomTabs,
-            [action.activity]: action.tab,
+            [action.view]: action.tab,
           },
         },
       };
@@ -452,13 +444,12 @@ export function WorkbenchProvider({
 
   const actions = useMemo<WorkbenchActions>(
     () => ({
-      setActivity: (activity) => dispatch({ type: "set-activity", activity }),
       setSelection: (selection) =>
         dispatch({ type: "set-selection", selection }),
       inspect: (selection) => dispatch({ type: "inspect", selection }),
       setLayout: (patch) => dispatch({ type: "set-layout", patch }),
-      setBottomTab: (activity, tab) =>
-        dispatch({ type: "set-bottom-tab", activity, tab }),
+      setBottomTab: (view, tab) =>
+        dispatch({ type: "set-bottom-tab", view, tab }),
       openTab: (input) => dispatch({ type: "open-tab", input }),
       closeTab: (tabId) => dispatch({ type: "close-tab", tabId }),
       activateTab: (tabId) => dispatch({ type: "activate-tab", tabId }),
@@ -491,7 +482,7 @@ export function clearWorkbenchStorage(snapshotName: string): void {
   try {
     window.localStorage.removeItem(workbenchStorageKey(snapshotName));
     // Remove the v1 per-activity layout and last-activity keys.
-    for (const activity of ACTIVITY_ORDER) {
+    for (const activity of ["topology", "detail"]) {
       window.localStorage.removeItem(
         `kg-workbench:v1:${snapshotName}:${activity}`,
       );

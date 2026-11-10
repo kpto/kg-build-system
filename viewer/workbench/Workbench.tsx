@@ -1,7 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState, type CSSProperties } from "react";
-import { CircleExclamationPoint, LoaderCircle, RefreshCw } from "lucide-react";
+import {
+  CircleExclamationPoint,
+  FileText,
+  LoaderCircle,
+  Network,
+  RefreshCw,
+} from "lucide-react";
 
 import { buildViewerIndex } from "@/lib/indexes";
 import {
@@ -9,12 +15,10 @@ import {
   loadReferenceSnapshot,
 } from "@/lib/load";
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
-import { ActivityBar } from "./ActivityBar";
 import { BottomPanel } from "./BottomPanel";
 import { CommandPalette } from "./CommandPalette";
-import { ACTIVITY_LABELS, ACTIVITY_ORDER, defaultBottomTab } from "./defaults";
+import { defaultBottomTab } from "./defaults";
 import { EditorArea } from "./EditorArea";
-import { FEATURES } from "./features";
 import { SettingsDialog } from "./SettingsDialog";
 import { SideBar } from "./SideBar";
 import { Splitter } from "./Splitter";
@@ -53,10 +57,8 @@ function LoadingGate({ onRetry }: { onRetry(): void }) {
       </header>
       <div className="wb-gate-body">
         <div className="wb-gate-rail" aria-hidden>
-          {FEATURES.map((feature) => {
-            const Icon = feature.icon;
-            return <Icon key={feature.id} className="size-[18px]" />;
-          })}
+          <Network className="size-[18px]" />
+          <FileText className="size-[18px]" />
         </div>
         <div className="wb-gate-side" aria-hidden>
           <span className="wb-gate-block w-24" />
@@ -142,7 +144,6 @@ function WorkbenchShell() {
   const [bottomVisible, setBottomVisible] = useState(true);
   const [zoom, setZoom] = useState(1);
 
-  const activity = state.activity;
   const layout = state.layout;
 
   const openPalette = useCallback(() => {
@@ -160,8 +161,9 @@ function WorkbenchShell() {
       sidebarWidth: DEFAULT_LAYOUT.sidebarWidth,
       bottomHeight: DEFAULT_LAYOUT.bottomHeight,
     });
-    actions.setBottomTab(activity, defaultBottomTab(activity));
-  }, [actions, activity]);
+    actions.setBottomTab("graph", defaultBottomTab("graph"));
+    actions.setBottomTab("subject", defaultBottomTab("subject"));
+  }, [actions]);
 
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -231,6 +233,7 @@ function WorkbenchShell() {
     <div className="wb-shell ui-grain" data-testid="workbench">
       <TitleBar
         onOpenPalette={openPalette}
+        onOpenSettings={openSettings}
         sidebarVisible={sidebarVisible}
         bottomVisible={bottomVisible}
         onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
@@ -239,7 +242,6 @@ function WorkbenchShell() {
       />
 
       <div className="wb-body" style={bodyStyle}>
-        <ActivityBar onOpenPalette={openPalette} onOpenSettings={openSettings} />
         {sidebarVisible ? (
           <>
             <SideBar />
@@ -347,5 +349,3 @@ export function Workbench() {
   );
 }
 
-/** Exported for the workbench tests; the page only needs `Workbench`. */
-export { ACTIVITY_LABELS, ACTIVITY_ORDER };

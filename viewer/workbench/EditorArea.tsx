@@ -1,24 +1,25 @@
 "use client";
 
-import { ACTIVITY_LABELS } from "./defaults";
+import { DetailEditor } from "@/detail/DetailFeature";
+import { TopologyEditor } from "@/topology/TopologyFeature";
 import { EditorTabs } from "./EditorTabs";
-import { getFeature } from "./features";
 import { useWorkbench } from "./store";
+import { currentSelection } from "./types";
 
 export function EditorArea() {
   const { state, actions } = useWorkbench();
-  const activity = state.activity;
-  const feature = getFeature(activity);
+  const graph = currentSelection(state).kind === "graph";
+  const Editor = graph ? TopologyEditor : DetailEditor;
 
   return (
-    <section className="wb-editor" aria-label={`${ACTIVITY_LABELS[activity]} editor`}>
+    <section className="wb-editor" aria-label="Design editor">
       <EditorTabs />
       <div
         className="wb-editor-body thin-scrollbar"
-        data-full-bleed={activity === "topology" ? "true" : undefined}
+        data-full-bleed={graph ? "true" : undefined}
         data-testid="editor-body"
       >
-        <feature.Editor state={state} actions={actions} activity={activity} />
+        <Editor state={state} actions={actions} />
       </div>
     </section>
   );

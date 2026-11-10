@@ -4,19 +4,23 @@ A pure visualisation of a `kg-build-system` graph design. The viewer reads a
 compile-time viewer snapshot of a blueprint and workflow contract; it does not
 import the Python framework at runtime, execute a build or call a model.
 
-The app is a VS Code-style workbench with the Blender dark theme. It has two
-angles on the same design:
+The app is a VS Code-style workbench with the Blender dark theme. It has one
+frame, one document tab strip, and two collapsible side-bar sections:
 
-| Function | Question it answers |
+| Side-bar section | What it is for |
 | --- | --- |
-| **Topology** | What exists, how is it connected, and what does each entity declare? |
-| **Detail** | One subject in full: its meaning, properties and provenance. |
+| **Topology** | Canvas controls: filters, labels, containment, semantics, legend and layout. |
+| **Detail** | Graph meaning and the design tree used to open subject documents. |
 
-Topology is the first and canonical surface. It shows the things an author must
-know immediately — purpose, identity, description, properties and attached
-meaning — when an entity is selected. Detail is the same design seen closer:
-graph meaning, the selected subject's claims and limits, its property table and,
-for a property, the full provenance chain.
+The tab strip is the document axis:
+
+- **Graph** — the canonical graph view, pinned;
+- **Subject documents** — a node, edge, property, asset or abstract category
+  opened explicitly from the Detail tree, **Open Detail**, a Detail property
+  row or the command palette.
+
+There is no mode switch. Topology and Detail are side-bar sections; opening one
+changes the side bar, not the active document or its editor.
 
 The viewer is a design reader, not an audit or review tool: there are no
 findings, decisions, coverage, sign-off or review sidecars.
@@ -42,14 +46,14 @@ The first paint shows the design, not its annotations.
 
 | Surface | Default | Revealed by |
 | --- | --- | --- |
-| Topology | graph; the **View** side bar holds the canvas controls | selecting an entity fills the **Inspect** bottom panel with its description, properties and meaning; **Open in Detail** |
-| Detail | meaning, properties and attached semantics of the selected subject | the level switch (Property, Node, Edge, Abstract, Asset), property rows and the branch selector; the bottom panel carries Trace/Evidence; the Graph document shows graph meaning and counts |
+| Graph document | graph canvas and **Inspect** bottom panel | selecting an entity fills Inspect with its description, properties and meaning |
+| Subject document | meaning, properties and attached semantics of the subject | the level switch (Property, Node, Edge, Abstract, Asset), property rows and the branch selector; the bottom panel carries Trace/Evidence |
 
-Both panels are shown by default. The side bar is the **View** (Topology) or
-**Browse** (Detail) region; the bottom panel is the **Inspect** or evidence
-region. Each has one job, so a selected subject is not repeated across regions.
-Panel width and height are one workbench geometry: switching between Topology
-and Detail never changes them.
+Both panels are shown by default. The side bar carries the **Topology** and
+**Detail** sections; the bottom panel is the **Inspect** or Trace/Evidence
+region for the active document. Each has one job, so a selected subject is not
+repeated across regions. Panel width and height are one workbench geometry:
+opening either side-bar section never changes them.
 
 The editor is one global tab strip. The viewer has two kinds of tab view:
 
@@ -59,11 +63,9 @@ The editor is one global tab strip. The viewer has two kinds of tab view:
   row, or the command palette.
 
 Single-clicking a node or a property row only changes the transient **Inspect**
-selection; it does not open a tab. A tab is a document, not a mode. Topology and Detail are two
-angles on the active document, so switching the angle never changes the tab and
-switching the tab never changes the angle. **Back** and **Forward** (arrows in
-the tab strip, or `Alt+←` / `Alt+→`) walk the document history. There is no
-JSON/Data tab.
+selection; it does not open a tab. **Back** and **Forward** (arrows in the tab
+strip, or `Alt+←` / `Alt+→`) walk the document history. There is no JSON/Data
+tab.
 
 ## Snapshot
 

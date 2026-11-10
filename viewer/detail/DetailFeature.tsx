@@ -1,12 +1,11 @@
 "use client";
 
 /**
- * Detail activity: one design subject read in full.
+ * Detail document view: one design subject read in full.
  *
  * The sidebar selects a design subject; the editor presents its meaning,
  * properties and, for a property, its provenance; the bottom panel exposes the
- * workflow trace and evidence. Provenance is a section of this view,
- * not a separate activity.
+ * workflow trace and evidence. Provenance is a section of this view.
  */
 
 import {
@@ -31,7 +30,7 @@ import {
 } from "lucide-react";
 
 import type {
-  FeatureProps,
+  WorkspaceProps,
   WorkbenchSelection,
 } from "@/workbench/types";
 import { currentSelection } from "@/workbench/types";
@@ -102,7 +101,7 @@ function toWorkbenchSelection(subject: ProofSubject): WorkbenchSelection {
   }
 }
 
-function useProofModel(props: FeatureProps): ProofModel {
+function useProofModel(props: WorkspaceProps): ProofModel {
   const selection = currentSelection(props.state);
   return useMemo(
     () => buildProof(props.state.index, selection),
@@ -110,7 +109,7 @@ function useProofModel(props: FeatureProps): ProofModel {
   );
 }
 
-function useCurrentSubject(props: FeatureProps): ProofSubject {
+function useCurrentSubject(props: WorkspaceProps): ProofSubject {
   const selection = currentSelection(props.state);
   return useMemo(
     () => resolveProofSubject(props.state.index, selection),
@@ -410,7 +409,7 @@ function SidebarRow({ label, meta, active, abstract, onSelect }: SidebarRowProps
   );
 }
 
-export function DetailSidebar(props: FeatureProps) {
+export function DetailSidebar(props: WorkspaceProps) {
   const { index } = props.state;
   const selection = currentSelection(props.state);
   const subject = useCurrentSubject(props);
@@ -627,14 +626,6 @@ export function DetailSidebar(props: FeatureProps) {
 
   return (
     <div className={styles.sidebar} data-testid="detail-sidebar">
-      <header className="flex items-baseline justify-between border-b border-line-soft px-2.5 py-1.5">
-        <p className="text-[9px] font-semibold tracking-[0.1em] text-text uppercase">
-          Browse
-        </p>
-        <span className="font-mono text-[9px] text-faint tabular-nums">
-          {index.stats.topologyNodes} nodes · {index.stats.topologyEdges} edges
-        </span>
-      </header>
       <div className={styles.search}>
         <Search aria-hidden className={styles.searchIcon} />
         <input
@@ -1158,7 +1149,7 @@ function ComponentProofView({
   actions,
 }: {
   model: ProofModel;
-  actions: FeatureProps["actions"];
+  actions: WorkspaceProps["actions"];
 }) {
   const component = model.component;
   if (!component) {
@@ -1230,7 +1221,7 @@ function AbstractProofView({
   actions,
 }: {
   model: ProofModel;
-  actions: FeatureProps["actions"];
+  actions: WorkspaceProps["actions"];
 }) {
   const abstract = model.abstract;
   if (!abstract) {
@@ -1307,7 +1298,7 @@ function AssetProofView({
   actions,
 }: {
   model: ProofModel;
-  actions: FeatureProps["actions"];
+  actions: WorkspaceProps["actions"];
 }) {
   const asset = model.asset;
   if (!asset) {
@@ -1444,7 +1435,7 @@ function AssetDataRows({
 // ---------------------------------------------------------------------------
 
 function subjectMeaning(
-  index: FeatureProps["state"]["index"],
+  index: WorkspaceProps["state"]["index"],
   model: ProofModel,
 ): DesignMeaningValue {
   switch (model.level) {
@@ -1473,7 +1464,7 @@ function subjectMeaning(
   }
 }
 
-function GraphDetailView({ props }: { props: FeatureProps }) {
+function GraphDetailView({ props }: { props: WorkspaceProps }) {
   const graph = props.state.index.graphDeclaration;
   const meaning = graphMeaning(props.state.index);
   const stats = props.state.index.stats;
@@ -1523,7 +1514,7 @@ function SummaryLine({ label, value }: { label: string; value: number }) {
   );
 }
 
-export function DetailEditor(props: FeatureProps) {
+export function DetailEditor(props: WorkspaceProps) {
   const selection = currentSelection(props.state);
   if (selection.kind === "graph") {
     return <GraphDetailView props={props} />;
@@ -1531,7 +1522,7 @@ export function DetailEditor(props: FeatureProps) {
   return <SubjectDetailEditor {...props} />;
 }
 
-function SubjectDetailEditor(props: FeatureProps) {
+function SubjectDetailEditor(props: WorkspaceProps) {
   const model = useProofModel(props);
   const selection = currentSelection(props.state);
   const meaning = subjectMeaning(props.state.index, model);
@@ -1541,7 +1532,7 @@ function SubjectDetailEditor(props: FeatureProps) {
     props.actions.setSelection(
       toWorkbenchSelection(defaultProofSubject(props.state.index)),
     );
-  }, [props.actions, props.activity, props.state.index, selection]);
+  }, [props.actions, props.state.index, selection]);
 
   const changeLevel = (level: ProofLevel) => {
     props.actions.setSelection(
@@ -1713,7 +1704,7 @@ function EvidenceTab({ model }: { model: ProofModel }) {
   );
 }
 
-function GraphBottom({ props }: { props: FeatureProps }) {
+function GraphBottom({ props }: { props: WorkspaceProps }) {
   const stats = props.state.index.stats;
   return (
     <div className={styles.bottom} data-testid="detail-bottom" data-tab="graph">
@@ -1735,16 +1726,15 @@ function GraphBottom({ props }: { props: FeatureProps }) {
   );
 }
 
-export function DetailBottom(props: FeatureProps) {
+export function DetailBottom(props: WorkspaceProps) {
   const selection = currentSelection(props.state);
   if (selection.kind === "graph") return <GraphBottom props={props} />;
   return <SubjectBottom {...props} />;
 }
 
-function SubjectBottom(props: FeatureProps) {
+function SubjectBottom(props: WorkspaceProps) {
   const model = useProofModel(props);
-  const tab =
-    props.state.layout.bottomTabs[props.activity] ?? "trace";
+  const tab = props.state.layout.bottomTabs.subject ?? "trace";
   return (
     <div className={styles.bottom} data-testid="detail-bottom" data-tab={tab}>
       {tab === "evidence" ? (

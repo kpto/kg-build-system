@@ -1,12 +1,12 @@
 "use client";
 
-import { Boxes, PanelBottom, PanelLeft, RotateCcw, Search } from "lucide-react";
+import { Boxes, PanelBottom, PanelLeft, RotateCcw, Search, Settings } from "lucide-react";
 
-import { ACTIVITY_LABELS } from "./defaults";
 import { useWorkbench } from "./store";
 
 export interface TitleBarProps {
   onOpenPalette(): void;
+  onOpenSettings(): void;
   sidebarVisible: boolean;
   bottomVisible: boolean;
   onToggleSidebar(): void;
@@ -16,6 +16,7 @@ export interface TitleBarProps {
 
 export function TitleBar({
   onOpenPalette,
+  onOpenSettings,
   sidebarVisible,
   bottomVisible,
   onToggleSidebar,
@@ -32,7 +33,6 @@ export function TitleBar({
           <Boxes className="size-4" />
         </span>
         <span className="wb-brand-name">KG Design</span>
-        <span className="wb-brand-crumb">{ACTIVITY_LABELS[state.activity]}</span>
       </div>
 
       <div className="wb-snapshot" title={snapshot.title}>
@@ -78,10 +78,19 @@ export function TitleBar({
           type="button"
           className="wb-icon-button"
           onClick={onResetLayout}
-          aria-label="Reset this function's layout"
-          title="Reset this function's layout"
+          aria-label="Reset the workbench layout"
+          title="Reset the workbench layout"
         >
           <RotateCcw aria-hidden className="size-4" />
+        </button>
+        <button
+          type="button"
+          className="wb-icon-button"
+          onClick={onOpenSettings}
+          aria-label="Settings"
+          title="Settings (Ctrl/Cmd+,)"
+        >
+          <Settings aria-hidden className="size-4" />
         </button>
       </div>
     </header>

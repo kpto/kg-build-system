@@ -73,7 +73,6 @@
   --selection: #ff9f43;
   --wb-titlebar-h: 38px;
   --wb-statusbar-h: 22px;
-  --wb-activitybar-w: 48px;
   --motion-fast: 110ms;
   --motion-base: 150ms;
   --motion-slow: 200ms;
@@ -332,83 +331,6 @@
     background-color: var(--color-abyss);
   }
 
-  /* ---- Activity bar --------------------------------------------------- */
-
-  .wb-activitybar {
-    display: flex;
-    width: var(--wb-activitybar-w);
-    flex: none;
-    flex-direction: column;
-    justify-content: space-between;
-    padding: 5px 0 6px;
-    border-right: 1px solid var(--color-line-soft);
-    background-color: var(--color-abyss);
-  }
-
-  .wb-activity-group {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 2px;
-  }
-
-  .wb-activity-footer {
-    padding-top: 5px;
-    border-top: 1px solid var(--color-line-soft);
-  }
-
-  .wb-activity-button {
-    position: relative;
-    display: flex;
-    width: 36px;
-    height: 36px;
-    align-items: center;
-    justify-content: center;
-    border: 0;
-    border-radius: 3px;
-    background-color: transparent;
-    color: #a7a7a7;
-  }
-
-  .wb-activity-button:hover {
-    background-color: var(--color-panel-raised);
-    color: var(--color-text);
-  }
-
-  .wb-activity-button[data-active="true"] {
-    background-color: var(--color-panel-raised);
-    color: var(--color-selection);
-    box-shadow: inset 2px 0 0 var(--color-selection);
-  }
-
-  .wb-activity-tooltip {
-    position: absolute;
-    top: 50%;
-    left: 42px;
-    z-index: 90;
-    padding: 4px 7px;
-    border: 1px solid var(--color-line-strong);
-    border-radius: 3px;
-    background-color: var(--color-panel-raised);
-    color: var(--color-text);
-    font-size: 10px;
-    line-height: 1;
-    opacity: 0;
-    pointer-events: none;
-    transform: translateY(-50%);
-    transition: opacity var(--motion-fast) var(--ease-instrument);
-    white-space: nowrap;
-  }
-
-  .wb-activity-button:hover .wb-activity-tooltip,
-  .wb-activity-button:focus-visible .wb-activity-tooltip {
-    opacity: 1;
-  }
-
-  .wb-activity-button[data-active="true"] .wb-activity-tooltip {
-    display: none;
-  }
-
   /* ---- Side bar ------------------------------------------------------- */
 
   .wb-sidebar {
@@ -418,6 +340,44 @@
     flex-direction: column;
     overflow: hidden;
     background-color: var(--color-panel);
+  }
+
+  .wb-side-section-header {
+    display: flex;
+    height: 30px;
+    flex: none;
+    align-items: center;
+    gap: 5px;
+    border: 0;
+    border-bottom: 1px solid var(--color-line-soft);
+    background-color: var(--color-panel-raised);
+    padding: 0 9px;
+    color: var(--color-text);
+    text-align: left;
+  }
+
+  .wb-side-section-header:hover {
+    background-color: var(--color-panel-soft);
+  }
+
+  .wb-side-section-title {
+    font-size: 10px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+  }
+
+  .wb-side-section-meta {
+    margin-left: auto;
+    color: var(--color-faint);
+    font-family: var(--font-mono);
+    font-size: 9px;
+  }
+
+  .wb-side-section-body {
+    min-height: 0;
+    flex: 1;
+    overflow: hidden;
   }
 
   .wb-sidebar-header {

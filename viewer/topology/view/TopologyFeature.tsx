@@ -11,7 +11,7 @@ import {
 import type { JSX, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import * as d3 from "d3";
 
-import type { FeatureProps, WorkbenchSelection } from "@/workbench/types";
+import type { WorkspaceProps, WorkbenchSelection } from "@/workbench/types";
 import { currentLensSelection, currentSelection } from "@/workbench/types";
 import type { TopologyProperty } from "@/lib/types";
 import { logicalTypeName } from "@/lib/expressions";
@@ -43,7 +43,7 @@ import { getTopologyUiStore, type TopologyUiStore } from "./topologyUi";
 // Shared reading of the workbench contract
 // ---------------------------------------------------------------------------
 
-function topologySelection(props: FeatureProps): TopologySelection | undefined {
+function topologySelection(props: WorkspaceProps): TopologySelection | undefined {
   const selection: WorkbenchSelection = currentLensSelection(props.state);
   if ((selection.kind === "node" || selection.kind === "edge") && selection.name) {
     return { kind: selection.kind, name: selection.name };
@@ -61,7 +61,7 @@ function topologySelection(props: FeatureProps): TopologySelection | undefined {
 }
 
 function inspectOrUpdate(
-  props: FeatureProps,
+  props: WorkspaceProps,
   selection: WorkbenchSelection,
 ): void {
   if (currentSelection(props.state).kind === "graph") {
@@ -74,14 +74,14 @@ function inspectOrUpdate(
 }
 
 function writeSelection(
-  props: FeatureProps,
+  props: WorkspaceProps,
   kind: TopologySelection["kind"],
   name: string,
 ): void {
   inspectOrUpdate(props, { kind, name });
 }
 
-function clearSelection(props: FeatureProps): void {
+function clearSelection(props: WorkspaceProps): void {
   props.actions.inspect({ kind: "graph", name: "Graph" });
   props.actions.openTab({ selection: { kind: "graph", name: "Graph" } });
 }
@@ -90,7 +90,7 @@ function entityComponentName(entity: TopologyEntity): string {
   return isTopologyNode(entity) ? entity.name : (entity.edgeName ?? entity.name);
 }
 
-function entityProperties(props: FeatureProps, entity: TopologyEntity): TopologyProperty[] {
+function entityProperties(props: WorkspaceProps, entity: TopologyEntity): TopologyProperty[] {
   const name = entityComponentName(entity);
   const component = isTopologyNode(entity)
     ? props.state.index.topologyNodesByName.get(name)
@@ -102,13 +102,14 @@ function entityProperties(props: FeatureProps, entity: TopologyEntity): Topology
  * The Graph document has no subject of its own. Opening Detail from an
  * inspected subject explicitly creates that subject document first.
  */
-function openInDetail(props: FeatureProps): void {
+function openInDetail(props: WorkspaceProps): void {
   const document = currentSelection(props.state);
   const lens = currentLensSelection(props.state);
   if (document.kind === "graph" && lens.kind && lens.kind !== "graph") {
     props.actions.openTab({ selection: lens });
+  } else if (document.kind !== "graph") {
+    props.actions.openTab({ selection: document });
   }
-  props.actions.setActivity("detail");
 }
 
 function PropertyRows({
@@ -116,7 +117,7 @@ function PropertyRows({
   entity,
   activeProperty,
 }: {
-  props: FeatureProps;
+  props: WorkspaceProps;
   entity: TopologyEntity;
   activeProperty?: string;
 }) {
@@ -160,7 +161,7 @@ function PropertyRows({
   );
 }
 
-function useTopologyModel(props: FeatureProps): TopologyGraphModel {
+function useTopologyModel(props: WorkspaceProps): TopologyGraphModel {
   const { snapshot, index } = props.state;
   return useMemo(() => topologyModelFor(snapshot, index), [snapshot, index]);
 }
@@ -312,7 +313,7 @@ function LegendRow({
   );
 }
 
-export function TopologySidebar(props: FeatureProps): JSX.Element {
+export function TopologySidebar(props: WorkspaceProps): JSX.Element {
   const model = useTopologyModel(props);
   const [ui, store] = useTopologyUi(props.state.snapshot.name);
   const visible = useMemo(
@@ -351,19 +352,12 @@ export function TopologySidebar(props: FeatureProps): JSX.Element {
   return (
     <div className="flex h-full min-h-0 flex-col bg-panel">
       <header className="border-b border-line-soft px-3 py-2">
-        <div className="flex items-baseline justify-between gap-2">
-          <p className="text-[9px] font-semibold tracking-[0.1em] text-text uppercase">
-            View
-          </p>
-          <p className="font-mono text-[9px] text-faint tabular-nums">
-            {model.stats.nodes} nodes · {model.stats.edgeLinks} edges
-          </p>
-        </div>
-        <p className="mt-1 text-[10px] text-muted">
+        <p className="text-[10px] text-muted">
           {visible.nodes.length} visible · {relationLinks} relations
           {containmentLinks ? ` · ${containmentLinks} containment` : ""}
         </p>
         <p className="mt-0.5 font-mono text-[9px] text-faint tabular-nums">
+          {model.stats.nodes} nodes · {model.stats.edgeLinks} edges ·{" "}
           {model.stats.semantics} with semantics
         </p>
       </header>
@@ -710,7 +704,7 @@ function linkPath(
   };
 }
 
-export function TopologyEditor(props: FeatureProps): JSX.Element {
+export function TopologyEditor(props: WorkspaceProps): JSX.Element {
   const model = useTopologyModel(props);
   const [ui, store] = useTopologyUi(props.state.snapshot.name);
   const selection = topologySelection(props);
@@ -1721,7 +1715,7 @@ function SummaryField({
   );
 }
 
-export function TopologyBottom(props: FeatureProps): JSX.Element {
+export function TopologyBottom(props: WorkspaceProps): JSX.Element {
   const model = useTopologyModel(props);
   const [ui] = useTopologyUi(props.state.snapshot.name);
   const selection = topologySelection(props);

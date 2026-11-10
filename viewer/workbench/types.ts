@@ -1,16 +1,12 @@
 /**
- * Workbench contract shared by the shell and the two angles.
+ * Workbench contract.
  *
- * The shell owns snapshot loading, one workbench geometry and the global tab strip.
- * A function owns its sidebar, editor and bottom-panel bodies and never resizes
- * the workbench.
+ * One frame owns snapshot loading, one geometry, one document tab strip and the
+ * transient inspection of the canonical graph. The side bar exposes the
+ * Topology and Detail sections; neither is a mode and neither changes a tab.
  */
 
-import type { LucideIcon } from "lucide-react";
-
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
-
-export type ActivityId = "topology" | "detail";
 
 export type SelectionKind =
   | "graph"
@@ -26,6 +22,8 @@ export type SelectionKind =
 
 export type DetailLevel = "property" | "node" | "edge" | "abstract" | "asset";
 
+export type TabView = "graph" | "subject";
+
 export interface WorkbenchSelection {
   kind?: SelectionKind;
   name?: string;
@@ -38,8 +36,8 @@ export interface WorkbenchSelection {
 export interface WorkbenchLayout {
   sidebarWidth: number;
   bottomHeight: number;
-  /** The active bottom tab is content, not geometry, so it stays per activity. */
-  bottomTabs: Partial<Record<ActivityId, string>>;
+  /** The active bottom tab is content per document view. */
+  bottomTabs: Record<TabView, string>;
 }
 
 export interface WorkbenchTab {
@@ -53,12 +51,11 @@ export interface WorkbenchTab {
 export interface WorkbenchState {
   snapshot: ViewerSnapshot;
   index: ViewerIndex;
-  /** Geometry is one workbench value, shared by every activity. */
+  /** Geometry is one workbench value, shared by every document. */
   layout: WorkbenchLayout;
-  activity: ActivityId;
   tabs: WorkbenchTab[];
   activeTabId: string;
-  /** Transient canvas selection; it never becomes a document by itself. */
+  /** Transient graph inspection; it never becomes a document by itself. */
   inspection: WorkbenchSelection;
   history: string[];
   historyIndex: number;
@@ -70,16 +67,20 @@ export interface OpenTabInput {
 }
 
 export interface WorkbenchActions {
-  setActivity(activity: ActivityId): void;
   setSelection(selection: WorkbenchSelection): void;
   inspect(selection: WorkbenchSelection): void;
   setLayout(patch: Partial<Pick<WorkbenchLayout, "sidebarWidth" | "bottomHeight">>): void;
-  setBottomTab(activity: ActivityId, tab: string): void;
+  setBottomTab(view: TabView, tab: string): void;
   openTab(tab: OpenTabInput): void;
   closeTab(tabId: string): void;
   activateTab(tabId: string): void;
   back(): void;
   forward(): void;
+}
+
+export interface WorkspaceProps {
+  state: WorkbenchState;
+  actions: WorkbenchActions;
 }
 
 export function activeTab(state: WorkbenchState): WorkbenchTab | undefined {
@@ -90,34 +91,20 @@ export function currentSelection(state: WorkbenchState): WorkbenchSelection {
   return activeTab(state)?.selection ?? { kind: "graph", name: "Graph" };
 }
 
-/**
- * The document is the active tab; the inspection is transient canvas state.
- * The Graph document uses the inspection, a subject document uses itself.
- */
+export function tabView(selection: WorkbenchSelection): TabView {
+  return selection.kind === "graph" ? "graph" : "subject";
+}
+
+/** The Graph document uses transient inspection; a subject uses itself. */
 export function currentLensSelection(state: WorkbenchState): WorkbenchSelection {
   const selection = currentSelection(state);
   return selection.kind === "graph" ? state.inspection : selection;
 }
 
-export interface FeatureProps {
-  state: WorkbenchState;
-  actions: WorkbenchActions;
-  activity: ActivityId;
-}
-
-export interface FeatureModule {
-  id: ActivityId;
-  label: string;
-  icon: LucideIcon;
-  Sidebar: React.ComponentType<FeatureProps>;
-  Editor: React.ComponentType<FeatureProps>;
-  Bottom: React.ComponentType<FeatureProps>;
-}
-
 export const DEFAULT_LAYOUT: WorkbenchLayout = {
   sidebarWidth: 300,
   bottomHeight: 240,
-  bottomTabs: {},
+  bottomTabs: { graph: "selection", subject: "trace" },
 };
 
 export const MIN_SIDEBAR = 220;
