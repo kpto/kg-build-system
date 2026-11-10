@@ -35,6 +35,7 @@ import type {
   FeatureProps,
   WorkbenchSelection,
 } from "@/workbench/types";
+import { currentSelection } from "@/workbench/types";
 import type {
   LineageLane,
   SemanticSubjectKind,
@@ -107,7 +108,7 @@ function toWorkbenchSelection(
 }
 
 function useProofModel(props: FeatureProps): ProofModel {
-  const selection = props.state.functions[props.activity].selection;
+  const selection = currentSelection(props.state);
   return useMemo(
     () => buildProof(props.state.index, selection),
     [props.state.index, selection],
@@ -115,7 +116,7 @@ function useProofModel(props: FeatureProps): ProofModel {
 }
 
 function useCurrentSubject(props: FeatureProps): ProofSubject {
-  const selection = props.state.functions[props.activity].selection;
+  const selection = currentSelection(props.state);
   return useMemo(
     () => resolveProofSubject(props.state.index, selection),
     [props.state.index, selection],
@@ -426,7 +427,10 @@ export function DetailSidebar(props: FeatureProps) {
   const normalized = query.trim().toLowerCase();
 
   const select = (next: ProofSubject) => {
-    props.actions.setSelection(props.activity, toWorkbenchSelection(next, props.activity));
+    props.actions.openTab({
+      activity: props.activity,
+      selection: toWorkbenchSelection(next, props.activity),
+    });
   };
   const toggle = (id: string) => {
     setOpen((current) => {
@@ -1118,7 +1122,7 @@ function PropertyTable({
     return <EmptyState>No properties are declared for this subject.</EmptyState>;
   }
   return (
-    <div className={styles.propertyTable}>
+    <div className={styles.propertyTable} data-testid="detail-properties">
       <div className={styles.propertyHead}>
         <span>Property</span>
         <span>Type</span>
@@ -1131,6 +1135,7 @@ function PropertyTable({
           key={`${property.kind}:${property.component}.${property.property}`}
           type="button"
           className={styles.propertyTableRow}
+          data-testid="detail-property"
           onClick={() => onSelect(property)}
         >
           <span className={styles.propertyName}>
@@ -1207,16 +1212,19 @@ function ComponentProofView({
         <PropertyTable
           properties={component.properties}
           onSelect={(property) =>
-            actions.setSelection(
+            actions.openTab({
               activity,
-              toWorkbenchSelection({
-                level: "property",
-                kind: property.kind,
-                component: property.component,
-                property: property.property,
-                propertyRef: property.propertyRef,
-              }, activity),
-            )
+              selection: toWorkbenchSelection(
+                {
+                  level: "property",
+                  kind: property.kind,
+                  component: property.component,
+                  property: property.property,
+                  propertyRef: property.propertyRef,
+                },
+                activity,
+              ),
+            })
           }
         />
       </Panel>
@@ -1285,16 +1293,19 @@ function AbstractProofView({
             <PropertyTable
               properties={descendant.properties}
               onSelect={(property) =>
-                actions.setSelection(
+                actions.openTab({
                   activity,
-                  toWorkbenchSelection({
-                    level: "property",
-                    kind: property.kind,
-                    component: property.component,
-                    property: property.property,
-                    propertyRef: property.propertyRef,
-                  }, activity),
-                )
+                  selection: toWorkbenchSelection(
+                    {
+                      level: "property",
+                      kind: property.kind,
+                      component: property.component,
+                      property: property.property,
+                      propertyRef: property.propertyRef,
+                    },
+                    activity,
+                  ),
+                })
               }
             />
           </section>
@@ -1368,16 +1379,19 @@ function AssetProofView({
         <PropertyTable
           properties={asset.properties}
           onSelect={(property) =>
-            actions.setSelection(
+            actions.openTab({
               activity,
-              toWorkbenchSelection({
-                level: "property",
-                kind: property.kind,
-                component: property.component,
-                property: property.property,
-                propertyRef: property.propertyRef,
-              }, activity),
-            )
+              selection: toWorkbenchSelection(
+                {
+                  level: "property",
+                  kind: property.kind,
+                  component: property.component,
+                  property: property.property,
+                  propertyRef: property.propertyRef,
+                },
+                activity,
+              ),
+            })
           }
         />
       </Panel>
@@ -1484,7 +1498,7 @@ function subjectMeaning(
 
 export function DetailEditor(props: FeatureProps) {
   const model = useProofModel(props);
-  const selection = props.state.functions[props.activity].selection;
+  const selection = currentSelection(props.state);
   const meaning = subjectMeaning(props.state.index, model);
 
   useEffect(() => {
@@ -1669,7 +1683,8 @@ function EvidenceTab({ model }: { model: ProofModel }) {
 
 export function DetailBottom(props: FeatureProps) {
   const model = useProofModel(props);
-  const tab = props.state.functions[props.activity].layout.bottomTab || "trace";
+  const tab =
+    props.state.layout.bottomTabs[props.activity] ?? "trace";
   return (
     <div className={styles.bottom} data-testid="detail-bottom" data-tab={tab}>
       {tab === "evidence" ? (

@@ -1,7 +1,7 @@
 /**
- * Workbench contract shared by the shell and the three functions.
+ * Workbench contract shared by the shell and the two angles.
  *
- * The shell owns snapshot loading and the per-function layout/selection state.
+ * The shell owns snapshot loading, one workbench geometry and the global tab strip.
  * A function owns its sidebar, editor and bottom-panel bodies and never resizes
  * the workbench.
  */
@@ -35,33 +35,58 @@ export interface WorkbenchSelection {
   stepId?: [string, string];
 }
 
-export interface FunctionLayout {
+export interface WorkbenchLayout {
   sidebarWidth: number;
   bottomHeight: number;
-  bottomTab: string;
-  openTabs: string[];
-  activeTab: string | null;
+  /** The active bottom tab is content, not geometry, so it stays per activity. */
+  bottomTabs: Partial<Record<ActivityId, string>>;
 }
 
-export interface FunctionState {
-  layout: FunctionLayout;
+export interface WorkbenchTab {
+  id: string;
+  activity: ActivityId;
+  title: string;
   selection: WorkbenchSelection;
+  /** The canonical graph tab is always available. */
+  pinned?: boolean;
 }
 
 export interface WorkbenchState {
   snapshot: ViewerSnapshot;
   index: ViewerIndex;
+  /** Geometry is one workbench value, shared by every activity. */
+  layout: WorkbenchLayout;
   activity: ActivityId;
-  functions: Record<ActivityId, FunctionState>;
+  tabs: WorkbenchTab[];
+  activeTabId: string;
+  history: string[];
+  historyIndex: number;
+}
+
+export interface OpenTabInput {
+  activity: ActivityId;
+  selection: WorkbenchSelection;
+  title?: string;
 }
 
 export interface WorkbenchActions {
   setActivity(activity: ActivityId): void;
   setSelection(activity: ActivityId, selection: WorkbenchSelection): void;
-  setLayout(activity: ActivityId, patch: Partial<FunctionLayout>): void;
-  openTab(activity: ActivityId, tab: string): void;
-  closeTab(activity: ActivityId, tab: string): void;
-  setActiveTab(activity: ActivityId, tab: string | null): void;
+  setLayout(patch: Partial<Pick<WorkbenchLayout, "sidebarWidth" | "bottomHeight">>): void;
+  setBottomTab(activity: ActivityId, tab: string): void;
+  openTab(tab: OpenTabInput): void;
+  closeTab(tabId: string): void;
+  activateTab(tabId: string): void;
+  back(): void;
+  forward(): void;
+}
+
+export function activeTab(state: WorkbenchState): WorkbenchTab | undefined {
+  return state.tabs.find((tab) => tab.id === state.activeTabId);
+}
+
+export function currentSelection(state: WorkbenchState): WorkbenchSelection {
+  return activeTab(state)?.selection ?? { activity: state.activity };
 }
 
 export interface FeatureProps {
@@ -79,12 +104,10 @@ export interface FeatureModule {
   Bottom: React.ComponentType<FeatureProps>;
 }
 
-export const DEFAULT_LAYOUT: FunctionLayout = {
+export const DEFAULT_LAYOUT: WorkbenchLayout = {
   sidebarWidth: 300,
   bottomHeight: 240,
-  bottomTab: "selection",
-  openTabs: [],
-  activeTab: null,
+  bottomTabs: {},
 };
 
 export const MIN_SIDEBAR = 220;

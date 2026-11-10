@@ -58,6 +58,26 @@ def main() -> int:
             driver.save_screenshot(str(path))
             report["screens"][name] = str(path)
 
+        def geometry() -> dict[str, int]:
+            return driver.execute_script(
+                """
+                const sidebar = document.querySelector('[data-testid="sidebar"]');
+                const bottom = document.querySelector('[data-testid="bottom-panel"]');
+                return {
+                  sidebar: Math.round(sidebar.getBoundingClientRect().width),
+                  bottom: Math.round(bottom.getBoundingClientRect().height),
+                };
+                """
+            )
+
+        def tabs() -> list[str]:
+            return [
+                el.text.strip()
+                for el in driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="editor-tabs"] .wb-tab-label'
+                )
+            ]
+
         report["checks"]["activities"] = [
             el.get_attribute("data-testid")
             for el in driver.find_elements(
@@ -73,6 +93,8 @@ def main() -> int:
         report["checks"]["bottom_visible"] = bool(
             driver.find_elements(By.CSS_SELECTOR, '[data-testid="bottom-panel"]')
         )
+        topology_geometry = geometry()
+        report["checks"]["tabs_initial"] = tabs()
         report["checks"]["sidebar_label"] = driver.find_element(
             By.CSS_SELECTOR, '[data-testid="sidebar"]'
         ).text.split("\n")[0]
@@ -118,6 +140,24 @@ def main() -> int:
         report["checks"]["detail_editor"] = bool(
             driver.find_elements(By.CSS_SELECTOR, '[data-testid="detail-editor"]')
         )
+        report["checks"]["tabs_after_open"] = tabs()
+        report["checks"]["geometry_unchanged"] = geometry() == topology_geometry
+        report["checks"]["back_enabled"] = (
+            driver.find_element(By.CSS_SELECTOR, '[data-testid="tab-back"]').get_attribute(
+                "disabled"
+            )
+            is None
+        )
+        driver.find_element(By.CSS_SELECTOR, '[data-testid="tab-back"]').click()
+        time.sleep(0.7)
+        report["checks"]["back_status"] = driver.find_element(
+            By.CSS_SELECTOR, '[aria-label="Workbench status"]'
+        ).text.replace("\n", " | ")
+        driver.find_element(By.CSS_SELECTOR, '[data-testid="tab-forward"]').click()
+        time.sleep(0.7)
+        report["checks"]["forward_status"] = driver.find_element(
+            By.CSS_SELECTOR, '[aria-label="Workbench status"]'
+        ).text.replace("\n", " | ")
         report["checks"]["detail_bottom_visible"] = bool(
             driver.find_elements(By.CSS_SELECTOR, '[data-testid="bottom-panel"]')
         )

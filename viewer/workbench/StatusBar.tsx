@@ -4,6 +4,7 @@ import { CircleDot, Database, Minus, Plus } from "lucide-react";
 
 import { ACTIVITY_LABELS } from "./defaults";
 import { useWorkbench } from "./store";
+import { currentSelection } from "./types";
 import type { WorkbenchSelection } from "./types";
 
 export interface StatusBarProps {
@@ -38,7 +39,7 @@ export function StatusBar({
 }: StatusBarProps) {
   const { state } = useWorkbench();
   const stats = state.index.stats;
-  const selection = state.functions[state.activity].selection;
+  const selection = currentSelection(state);
 
   return (
     <footer className="wb-statusbar" aria-label="Workbench status">

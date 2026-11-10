@@ -4,7 +4,7 @@
  * Workbench feature registry.
  *
  * Each function owns its sidebar, editor and bottom-panel bodies; the shell owns
- * the snapshot, the stable per-function layout and the selection. This file is
+ * the snapshot, the global workbench layout and the active tab selection. This file is
  * the only place that maps an activity id to those bodies.
  */
 

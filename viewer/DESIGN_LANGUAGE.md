@@ -79,8 +79,14 @@ global setting, because each question has its own useful first level.
 - Both panels are shown by default. The side bar is View/Browse; the bottom
   panel is Inspect/Evidence. The title bar toggle and `Cmd/Ctrl+J` change the
   bottom panel's visibility, not its purpose.
-- Sizes and selection persist per snapshot and function. Switching function
-  restores that function's arrangement; content changes never resize a panel.
+- Geometry is one workbench value per snapshot, not one per function. Switching
+  activity changes the content inside the same side bar and bottom panel.
+- The editor tab strip is one global document strip. Graph is a pinned tab;
+  Detail subjects are closable tabs. Opening the same subject again activates
+  its existing tab instead of duplicating it.
+- Back and forward walk the activated-tab history (`Alt+←` / `Alt+→` or the
+  arrows in the tab strip). Opening, activating or closing a tab records one
+  navigation step; changing selection inside the active tab does not.
 - The bottom panel is selection detail, not output. It has no Data tab.
 
 ## One region, one job

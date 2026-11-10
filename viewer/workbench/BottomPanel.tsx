@@ -6,6 +6,7 @@ import {
   ACTIVITY_LABELS,
   bottomTabLabel,
   bottomTabsFor,
+  defaultBottomTab,
 } from "./defaults";
 import { getFeature } from "./features";
 import { useWorkbench } from "./store";
@@ -18,13 +19,14 @@ export function BottomPanel({ onCollapse }: BottomPanelProps) {
   const { state, actions } = useWorkbench();
   const activity = state.activity;
   const feature = getFeature(activity);
-  const layout = state.functions[activity].layout;
-  const tabs = bottomTabsFor(activity, layout.bottomTab);
+  const activeTab =
+    state.layout.bottomTabs[activity] ?? defaultBottomTab(activity);
+  const tabs = bottomTabsFor(activity, activeTab);
 
   return (
     <section
       className="wb-bottom"
-      style={{ height: layout.bottomHeight }}
+      style={{ height: state.layout.bottomHeight }}
       aria-label={`${ACTIVITY_LABELS[activity]} bottom panel`}
       data-testid="bottom-panel"
     >
@@ -34,10 +36,10 @@ export function BottomPanel({ onCollapse }: BottomPanelProps) {
             key={tab}
             type="button"
             role="tab"
-            aria-selected={layout.bottomTab === tab}
+            aria-selected={activeTab === tab}
             className="wb-bottom-tab"
-            data-active={layout.bottomTab === tab ? "true" : undefined}
-            onClick={() => actions.setLayout(activity, { bottomTab: tab })}
+            data-active={activeTab === tab ? "true" : undefined}
+            onClick={() => actions.setBottomTab(activity, tab)}
           >
             {bottomTabLabel(tab)}
           </button>

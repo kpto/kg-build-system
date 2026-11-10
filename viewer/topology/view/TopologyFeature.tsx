@@ -12,6 +12,7 @@ import type { JSX, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import * as d3 from "d3";
 
 import type { FeatureProps, WorkbenchSelection } from "@/workbench/types";
+import { currentSelection } from "@/workbench/types";
 import type { TopologyProperty } from "@/lib/types";
 import { logicalTypeName } from "@/lib/expressions";
 import { DesignMeaning, GraphMeaning } from "@/shared/design/DesignMeaning";
@@ -42,8 +43,7 @@ import { getTopologyUiStore, type TopologyUiStore } from "./topologyUi";
 // ---------------------------------------------------------------------------
 
 function topologySelection(props: FeatureProps): TopologySelection | undefined {
-  const selection: WorkbenchSelection =
-    props.state.functions.topology.selection;
+  const selection: WorkbenchSelection = currentSelection(props.state);
   if (
     (selection.kind === "node" || selection.kind === "edge") &&
     selection.name
@@ -88,26 +88,29 @@ function openInDetail(
   property?: string,
 ): void {
   const component = entityComponentName(entity);
-  if (property) {
-    props.actions.setSelection("detail", {
-      activity: "detail",
-      kind: "property",
-      level: "property",
-      component,
-      property,
-      name: `${component}.${property}`,
-    });
-  } else {
-    const node = isTopologyNode(entity);
-    props.actions.setSelection("detail", {
-      activity: "detail",
-      kind: node ? "node" : "edge",
-      level: node && entity.abstract ? "abstract" : node ? "node" : "edge",
-      component,
-      name: component,
-    });
-  }
-  props.actions.setActivity("detail");
+  props.actions.openTab({
+    activity: "detail",
+    selection: property
+      ? {
+          activity: "detail",
+          kind: "property",
+          level: "property",
+          component,
+          property,
+          name: `${component}.${property}`,
+        }
+      : {
+          activity: "detail",
+          kind: isTopologyNode(entity) ? "node" : "edge",
+          level: isTopologyNode(entity) && entity.abstract
+            ? "abstract"
+            : isTopologyNode(entity)
+              ? "node"
+              : "edge",
+          component,
+          name: component,
+        },
+  });
 }
 
 function PropertyRows({

@@ -30,9 +30,11 @@ A level may be absent. It is never reordered or nested inside the same kind.
 | Bottom panel | selected subject detail; shown by default | feature `Bottom` |
 | Status bar | snapshot, selected subject, node/edge/binding counts, compile-only, zoom | `workbench/StatusBar` |
 
-The side bar is 220–520 px, the bottom panel 120–480 px. Each function owns a
-persisted `FunctionLayout` and selection; switching functions restores both.
-The bottom panel's visibility is shell state and starts true.
+The side bar is 220–520 px, the bottom panel 120–480 px. One `WorkbenchLayout`
+is persisted per snapshot; switching function never changes the geometry. The
+editor is one global tab strip: tabs hold Graph and Detail subjects, and
+back/forward walk the activated-tab history. The bottom panel's visibility is
+shell state and starts true.
 
 ## Functions
 

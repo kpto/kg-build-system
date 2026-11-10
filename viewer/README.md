@@ -48,7 +48,12 @@ The first paint shows the design, not its annotations.
 Both panels are shown by default. The side bar is the **View** (Topology) or
 **Browse** (Detail) region; the bottom panel is the **Inspect** or evidence
 region. Each has one job, so a selected subject is not repeated across regions.
-There is no JSON/Data tab.
+Panel width and height are one workbench geometry: switching between Topology
+and Detail never changes them.
+
+The editor is one global tab strip. **Graph** is a pinned tab; opening a Detail
+subject adds or activates its tab. **Back** and **Forward** (arrows in the tab
+strip, or `Alt+←` / `Alt+→`) walk the tab history. There is no JSON/Data tab.
 
 ## Snapshot
 

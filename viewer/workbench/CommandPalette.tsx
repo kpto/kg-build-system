@@ -5,7 +5,7 @@ import { CircleDot, FileText, Search, X } from "lucide-react";
 
 import { searchIndex } from "@/lib/search";
 import type { SearchKind, SearchRecord } from "@/lib/types";
-import { ACTIVITY_DESCRIPTIONS, ACTIVITY_LABELS, selectionTab } from "./defaults";
+import { ACTIVITY_DESCRIPTIONS, ACTIVITY_LABELS } from "./defaults";
 import { FEATURES } from "./features";
 import { useWorkbench } from "./store";
 import type { ActivityId, WorkbenchSelection } from "./types";
@@ -29,7 +29,6 @@ type PaletteItem =
       detail: string;
       activity: ActivityId;
       selection: WorkbenchSelection;
-      tab: string;
     };
 
 interface SubjectTarget {
@@ -37,6 +36,17 @@ interface SubjectTarget {
   selection: WorkbenchSelection;
   tabLabel: string;
 }
+
+const DESIGN_SEARCH_KINDS = new Set<SearchKind>([
+  "topology-node",
+  "topology-edge",
+  "property",
+  "relation",
+  "projection",
+  "struct",
+  "field",
+  "asset",
+]);
 
 const KIND_ACTIVITY: Record<SearchKind, ActivityId> = {
   "topology-node": "topology",
@@ -211,8 +221,9 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
   const subjectItems = useMemo<PaletteItem[]>(() => {
     const trimmed = query.trim();
     if (!trimmed) return [];
-    return searchIndex(state.index.searchRecords, trimmed, { limit: 18 }).map(
-      (record) => {
+    return searchIndex(state.index.searchRecords, trimmed, { limit: 18 })
+      .filter((record) => DESIGN_SEARCH_KINDS.has(record.kind))
+      .map((record) => {
         const target = subjectTarget(record, state.activity, state.index.steps);
         return {
           id: `subject:${record.kind}:${record.id}`,
@@ -221,7 +232,6 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
           detail: `${record.kind.replaceAll("-", " ")} · ${record.detail}`,
           activity: target.activity,
           selection: target.selection,
-          tab: selectionTab(record.kind, target.tabLabel),
         };
       },
     );
@@ -235,10 +245,13 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
 
   const choose = (item: PaletteItem | undefined) => {
     if (!item) return;
-    actions.setActivity(item.activity);
-    if (item.group === "subject") {
-      actions.setSelection(item.activity, item.selection);
-      actions.openTab(item.activity, item.tab);
+    if (item.group === "activity") {
+      actions.setActivity(item.activity);
+    } else {
+      actions.openTab({
+        activity: item.activity,
+        selection: item.selection,
+      });
     }
     onClose();
   };

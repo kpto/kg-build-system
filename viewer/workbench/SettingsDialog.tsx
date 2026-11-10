@@ -4,7 +4,7 @@ import { RotateCcw, Trash2, X } from "lucide-react";
 
 import {
   ACTIVITY_LABELS,
-  defaultFunctionState,
+  defaultBottomTab,
 } from "./defaults";
 import {
   clearWorkbenchStorage,
@@ -12,6 +12,7 @@ import {
   workbenchStorageKey,
 } from "./store";
 import { ACTIVITY_ORDER } from "./defaults";
+import { DEFAULT_LAYOUT } from "./types";
 
 export interface SettingsDialogProps {
   onClose(): void;
@@ -30,6 +31,7 @@ const SHORTCUTS = [
   { keys: "Ctrl/Cmd K", action: "Command palette" },
   { keys: "Ctrl/Cmd B", action: "Toggle side bar" },
   { keys: "Ctrl/Cmd J", action: "Toggle bottom panel" },
+  { keys: "Alt ← / Alt →", action: "Back / forward" },
   { keys: "Ctrl/Cmd ,", action: "Settings" },
 ];
 
@@ -38,14 +40,22 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const activity = state.activity;
 
   const resetActivity = () => {
-    actions.setLayout(activity, defaultFunctionState(activity).layout);
+    actions.setLayout({
+      sidebarWidth: DEFAULT_LAYOUT.sidebarWidth,
+      bottomHeight: DEFAULT_LAYOUT.bottomHeight,
+    });
+    actions.setBottomTab(activity, defaultBottomTab(activity));
     onClose();
   };
 
   const resetAll = () => {
     clearWorkbenchStorage(state.snapshot.name);
+    actions.setLayout({
+      sidebarWidth: DEFAULT_LAYOUT.sidebarWidth,
+      bottomHeight: DEFAULT_LAYOUT.bottomHeight,
+    });
     for (const id of ACTIVITY_ORDER) {
-      actions.setLayout(id, defaultFunctionState(id).layout);
+      actions.setBottomTab(id, defaultBottomTab(id));
     }
     onClose();
   };
@@ -92,7 +102,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             <h3>Stable panels</h3>
             <p>
               Every function keeps its side bar width, bottom height, chosen
-              bottom tab, open editor tabs and selection under one key.
+              bottom tab and open editor tabs under one workbench key.
             </p>
             <dl className="wb-settings-facts">
               <div>
@@ -105,19 +115,19 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               </div>
               <div>
                 <dt>Storage key</dt>
-                <dd className="wb-mono">{workbenchStorageKey(state.snapshot.name, activity)}</dd>
+                <dd className="wb-mono">{workbenchStorageKey(state.snapshot.name)}</dd>
               </div>
               <div>
                 <dt>Side bar</dt>
                 <dd className="wb-mono">
-                  {state.functions[activity].layout.sidebarWidth}px
+                  {state.layout.sidebarWidth}px
                 </dd>
               </div>
               <div>
                 <dt>Bottom panel</dt>
                 <dd className="wb-mono">
-                  {state.functions[activity].layout.bottomHeight}px ·{" "}
-                  {state.functions[activity].layout.bottomTab}
+                  {state.layout.bottomHeight}px ·{" "}
+                  {state.layout.bottomTabs[activity] ?? defaultBottomTab(activity)}
                 </dd>
               </div>
             </dl>
@@ -159,7 +169,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
             <div className="wb-settings-actions">
               <button type="button" className="wb-button" onClick={resetActivity}>
                 <RotateCcw aria-hidden className="size-3" />
-                Reset {ACTIVITY_LABELS[activity]}
+                Reset workbench layout
               </button>
               <button type="button" className="wb-button wb-button-danger" onClick={resetAll}>
                 <Trash2 aria-hidden className="size-3" />

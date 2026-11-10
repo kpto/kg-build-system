@@ -12,7 +12,7 @@ import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 import { ActivityBar } from "./ActivityBar";
 import { BottomPanel } from "./BottomPanel";
 import { CommandPalette } from "./CommandPalette";
-import { ACTIVITY_LABELS, ACTIVITY_ORDER, defaultFunctionState } from "./defaults";
+import { ACTIVITY_LABELS, ACTIVITY_ORDER, defaultBottomTab } from "./defaults";
 import { EditorArea } from "./EditorArea";
 import { FEATURES } from "./features";
 import { SettingsDialog } from "./SettingsDialog";
@@ -21,7 +21,13 @@ import { Splitter } from "./Splitter";
 import { StatusBar } from "./StatusBar";
 import { WorkbenchProvider, useWorkbench } from "./store";
 import { TitleBar } from "./TitleBar";
-import { MAX_BOTTOM, MAX_SIDEBAR, MIN_BOTTOM, MIN_SIDEBAR } from "./types";
+import {
+  DEFAULT_LAYOUT,
+  MAX_BOTTOM,
+  MAX_SIDEBAR,
+  MIN_BOTTOM,
+  MIN_SIDEBAR,
+} from "./types";
 
 interface LoadedWorkbench {
   snapshot: ViewerSnapshot;
@@ -137,7 +143,7 @@ function WorkbenchShell() {
   const [zoom, setZoom] = useState(1);
 
   const activity = state.activity;
-  const layout = state.functions[activity].layout;
+  const layout = state.layout;
 
   const openPalette = useCallback(() => {
     setSettingsOpen(false);
@@ -150,7 +156,11 @@ function WorkbenchShell() {
   }, []);
 
   const resetLayout = useCallback(() => {
-    actions.setLayout(activity, defaultFunctionState(activity).layout);
+    actions.setLayout({
+      sidebarWidth: DEFAULT_LAYOUT.sidebarWidth,
+      bottomHeight: DEFAULT_LAYOUT.bottomHeight,
+    });
+    actions.setBottomTab(activity, defaultBottomTab(activity));
   }, [actions, activity]);
 
   useEffect(() => {
@@ -189,6 +199,16 @@ function WorkbenchShell() {
         setBottomVisible((visible) => !visible);
         return;
       }
+      if (event.altKey && event.key === "ArrowLeft") {
+        event.preventDefault();
+        actions.back();
+        return;
+      }
+      if (event.altKey && event.key === "ArrowRight") {
+        event.preventDefault();
+        actions.forward();
+        return;
+      }
       if (event.key === "Escape") {
         setPaletteOpen(false);
         setSettingsOpen(false);
@@ -196,7 +216,7 @@ function WorkbenchShell() {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, []);
+  }, [actions]);
 
   const bodyStyle = useMemo<CSSProperties | undefined>(() => {
     if (zoom === 1) return undefined;
@@ -229,7 +249,7 @@ function WorkbenchShell() {
               min={MIN_SIDEBAR}
               max={MAX_SIDEBAR}
               label="Resize side bar"
-              onChange={(value) => actions.setLayout(activity, { sidebarWidth: value })}
+              onChange={(value) => actions.setLayout({ sidebarWidth: value })}
             />
           </>
         ) : null}
@@ -244,7 +264,7 @@ function WorkbenchShell() {
                 min={MIN_BOTTOM}
                 max={MAX_BOTTOM}
                 label="Resize bottom panel"
-                onChange={(value) => actions.setLayout(activity, { bottomHeight: value })}
+                onChange={(value) => actions.setLayout({ bottomHeight: value })}
               />
               <BottomPanel onCollapse={() => setBottomVisible(false)} />
             </>
