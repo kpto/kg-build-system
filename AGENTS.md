@@ -127,7 +127,9 @@ rule about what the framework is belongs to the framework model.
   explicit control. Entering a group is a navigation action, and the group graph
   is fitted on entry. A detail document uses
   one shared surface: header, body and panel chrome do not vary by subject kind;
-  a new kind adds content, not chrome.
+  a new kind adds content, not chrome. A graph view uses one renderer and one
+  selection rule for every node and link kind; a new level or kind adds data,
+  not a second renderer.
 - End every change report with the rule-promotion result: none, refined or
   added.
 

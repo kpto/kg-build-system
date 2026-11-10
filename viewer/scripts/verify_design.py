@@ -392,6 +392,21 @@ def main() -> int:
             report["checks"]["workflow_selection_filter"] = driver.find_element(
                 By.CSS_SELECTOR, '[data-testid="workflow-filter-component"]'
             ).get_attribute("value")
+            report["checks"]["workflow_component_selected"] = (
+                len(
+                    driver.find_elements(
+                        By.CSS_SELECTOR,
+                        '[data-testid="workflow-component-node"][data-active="true"]',
+                    )
+                )
+                == 1
+            )
+            report["checks"]["workflow_component_active_edges"] = len(
+                driver.find_elements(
+                    By.CSS_SELECTOR,
+                    '[data-testid="workflow-component-edge"][data-active="true"]',
+                )
+            )
             report["checks"]["workflow_step_graph_before_expand"] = bool(
                 driver.find_elements(
                     By.CSS_SELECTOR, '[data-testid="workflow-step-node"]'
@@ -432,9 +447,37 @@ def main() -> int:
                 )
             )
 
-            first_step_node = driver.find_elements(
+            step_nodes = driver.find_elements(
                 By.CSS_SELECTOR, '[data-testid="workflow-step-node"]'
-            )[0]
+            )
+            step_edges = driver.find_elements(
+                By.CSS_SELECTOR, '[data-testid="workflow-step-edge"]'
+            )
+            step_keys = {
+                node.get_attribute("data-step-key") for node in step_nodes
+            }
+            incident_key = next(
+                (
+                    edge.get_attribute("data-source")
+                    for edge in step_edges
+                    if edge.get_attribute("data-source") in step_keys
+                ),
+                None,
+            )
+            if incident_key is None:
+                incident_key = next(
+                    (
+                        edge.get_attribute("data-target")
+                        for edge in step_edges
+                        if edge.get_attribute("data-target") in step_keys
+                    ),
+                    None,
+                )
+            first_step_node = next(
+                node
+                for node in step_nodes
+                if node.get_attribute("data-step-key") == incident_key
+            )
             step_key = first_step_node.get_attribute("data-step-key")
             step_name = step_key.split("\u0000")[1]
             tabs_before_step = tabs()
@@ -451,6 +494,12 @@ def main() -> int:
                 )
                 == 1
                 and tabs() == tabs_before_step
+            )
+            report["checks"]["workflow_step_active_edges"] = len(
+                driver.find_elements(
+                    By.CSS_SELECTOR,
+                    '[data-testid="workflow-step-edge"][data-active="true"]',
+                )
             )
             report["checks"]["workflow_open_step_button"] = bool(
                 driver.find_elements(

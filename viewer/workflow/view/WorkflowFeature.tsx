@@ -6,6 +6,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
   type ReactNode,
 } from "react";
@@ -484,30 +485,70 @@ const ROW_GAP = 56;
 const MARGIN = 36;
 const SOCKET_Y = 50;
 
-interface PlacedNode {
-  node: ReturnType<typeof buildWorkflowComponentMap>["nodes"][number];
+const STEP_NODE_WIDTH = 220;
+const STEP_NODE_HEIGHT = 72;
+const STEP_HEADER_HEIGHT = 22;
+const STEP_GAP_X = 46;
+const STEP_GAP_Y = 24;
+const STEP_MARGIN = 36;
+const BOUNDARY_WIDTH = 150;
+const BOUNDARY_HEIGHT = 72;
+
+type WorkflowGraphNodeKind = "component" | "step" | "in" | "out";
+
+/**
+ * One node in the workflow scene. A component, a step and a boundary node are
+ * the same value; only the facts and the size differ.
+ */
+interface WorkflowGraphNode {
+  id: string;
+  kind: WorkflowGraphNodeKind;
+  label: string;
+  detail: string;
+  meta: string;
+  note?: string;
+  tint: string;
   x: number;
   y: number;
-  color: string;
-  internal: number;
-}
-
-interface PlacedEdge {
-  edge: ReturnType<typeof buildWorkflowComponentMap>["edges"][number];
-  path: string;
-  sourceX: number;
-  sourceY: number;
-  targetX: number;
-  targetY: number;
-  labelX: number;
-  labelY: number;
-}
-
-interface CompositorLayout {
-  nodes: PlacedNode[];
-  edges: PlacedEdge[];
   width: number;
   height: number;
+  headerHeight: number;
+  socketY: number;
+  dataTestId: string;
+  row?: WorkflowStepRow;
+  component?: string;
+}
+
+/** One link in the workflow scene; the same renderer draws every link kind. */
+interface WorkflowGraphEdge {
+  id: string;
+  source: string;
+  target: string;
+  path: string;
+  dataTestId: string;
+  boundary?: boolean;
+  weight?: number;
+  label?: string;
+  labelX?: number;
+  labelY?: number;
+  sourceX?: number;
+  sourceY?: number;
+  targetX?: number;
+  targetY?: number;
+}
+
+interface WorkflowGraphStats {
+  stepCount: number;
+  internalEdges: number;
+  boundaryCount: number;
+}
+
+interface WorkflowGraphScene {
+  nodes: WorkflowGraphNode[];
+  edges: WorkflowGraphEdge[];
+  width: number;
+  height: number;
+  stats?: WorkflowGraphStats;
 }
 
 function componentLayers(
@@ -541,9 +582,9 @@ function componentLayers(
   return layer;
 }
 
-function buildCompositorLayout(
+function buildCompositorScene(
   map: ReturnType<typeof buildWorkflowComponentMap>,
-): CompositorLayout {
+): WorkflowGraphScene {
   const ids = map.nodes.map((node) => node.id);
   const layer = componentLayers(ids, map.edges);
   const order = new Map(ids.map((id, index) => [id, index]));
@@ -576,7 +617,16 @@ function buildCompositorLayout(
     Math.max(0, maxRows - 1) * ROW_GAP;
   const bodyHeight = maxRows * NODE_HEIGHT + Math.max(0, maxRows - 1) * ROW_GAP;
 
-  const placed = new Map<string, PlacedNode>();
+  const placed = new Map<
+    string,
+    {
+      node: ReturnType<typeof buildWorkflowComponentMap>["nodes"][number];
+      x: number;
+      y: number;
+      color: string;
+      internal: number;
+    }
+  >();
   layerIds.forEach((layerId, columnIndex) => {
     const column = columns.get(layerId) ?? [];
     const columnHeight =
@@ -594,7 +644,27 @@ function buildCompositorLayout(
     });
   });
 
-  const edges: PlacedEdge[] = [];
+  const nodes: WorkflowGraphNode[] = [...placed.values()].map(
+    ({ node, x, y, color, internal: inner }) => ({
+      id: node.id,
+      kind: "component",
+      label: node.id,
+      detail: `${node.steps} steps · ${node.kinds} kind${node.kinds === 1 ? "" : "s"}`,
+      meta: `${node.incoming} in · ${node.outgoing} out`,
+      note: inner ? `${inner} internal` : undefined,
+      tint: color,
+      x,
+      y,
+      width: NODE_WIDTH,
+      height: NODE_HEIGHT,
+      headerHeight: HEADER_HEIGHT,
+      socketY: SOCKET_Y,
+      dataTestId: "workflow-component-node",
+      component: node.id,
+    }),
+  );
+
+  const edges: WorkflowGraphEdge[] = [];
   for (const edge of map.edges) {
     if (edge.source === edge.target) continue;
     const source = placed.get(edge.source);
@@ -613,74 +683,31 @@ function buildCompositorLayout(
     const c2x = tx - dx;
     const c2y = ty;
     edges.push({
-      edge,
+      id: edge.id,
+      source: edge.source,
+      target: edge.target,
       path: `M ${sx} ${sy} C ${c1x} ${c1y}, ${c2x} ${c2y}, ${tx} ${ty}`,
+      dataTestId: "workflow-component-edge",
+      weight: edge.count,
+      label: String(edge.count),
+      labelX: 0.125 * sx + 0.375 * c1x + 0.375 * c2x + 0.125 * tx,
+      labelY: 0.125 * sy + 0.375 * c1y + 0.375 * c2y + 0.125 * ty,
       sourceX: sx,
       sourceY: sy,
       targetX: tx,
       targetY: ty,
-      labelX:
-        0.125 * sx + 0.375 * c1x + 0.375 * c2x + 0.125 * tx,
-      labelY:
-        0.125 * sy + 0.375 * c1y + 0.375 * c2y + 0.125 * ty,
     });
   }
 
-  return {
-    nodes: [...placed.values()],
-    edges,
-    width,
-    height,
-  };
+  return { nodes, edges, width, height };
 }
 
-const STEP_NODE_WIDTH = 220;
-const STEP_NODE_HEIGHT = 58;
-const STEP_HEADER_HEIGHT = 20;
-const STEP_GAP_X = 46;
-const STEP_GAP_Y = 24;
-const STEP_MARGIN = 36;
-const BOUNDARY_WIDTH = 150;
-const BOUNDARY_HEIGHT = 58;
-
-interface StepGraphNode {
-  key: string;
-  kind: "step" | "in" | "out";
-  label: string;
-  detail: string;
-  row?: WorkflowStepRow;
-  component?: string;
-  tint: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-}
-
-interface StepGraphEdge {
-  id: string;
-  sourceKey: string;
-  targetKey: string;
-  path: string;
-  boundary: boolean;
-}
-
-interface StepGraphLayout {
-  nodes: StepGraphNode[];
-  edges: StepGraphEdge[];
-  width: number;
-  height: number;
-  internalEdges: number;
-  boundaryCount: number;
-  stepCount: number;
-}
-
-function buildStepGraphLayout(
+function buildStepScene(
   index: ViewerIndex,
   component: string,
   rows: WorkflowStepRow[],
   tintFor: (component: string) => string,
-): StepGraphLayout {
+): WorkflowGraphScene {
   const visible = new Map(rows.map((row) => [row.key, row]));
   const internal: Array<{ id: string; sourceKey: string; targetKey: string }> = [];
   const incoming = new Map<string, number>();
@@ -741,85 +768,98 @@ function buildStepGraphLayout(
     (rightEntries.length ? 42 + rightWidth : 0) +
     STEP_MARGIN;
 
-  const nodes: StepGraphNode[] = [];
-  const nodeByKey = new Map<string, StepGraphNode>();
+  const nodes: WorkflowGraphNode[] = [];
+  const nodeByKey = new Map<string, WorkflowGraphNode>();
 
-  rows.forEach((row, index) => {
+  rows.forEach((row, rowIndex) => {
     // Columns fill top-to-bottom, then advance to the next column. The flow
     // never wraps back to a new row.
-    const column = Math.floor(index / rowsPerColumn);
-    const line = index % rowsPerColumn;
-    const node: StepGraphNode = {
-      key: row.key,
+    const column = Math.floor(rowIndex / rowsPerColumn);
+    const line = rowIndex % rowsPerColumn;
+    const node: WorkflowGraphNode = {
+      id: row.key,
       kind: "step",
       label: row.name,
       detail: row.kindLabel,
-      row,
-      component,
+      meta: `${row.inputs} in · ${row.outputs} out`,
       tint: tintFor(component),
       x: gridX + column * (STEP_NODE_WIDTH + STEP_GAP_X),
       y: gridY + line * (STEP_NODE_HEIGHT + STEP_GAP_Y),
       width: STEP_NODE_WIDTH,
       height: STEP_NODE_HEIGHT,
+      headerHeight: STEP_HEADER_HEIGHT,
+      socketY: STEP_NODE_HEIGHT / 2,
+      dataTestId: "workflow-step-node",
+      row,
+      component,
     };
     nodes.push(node);
-    nodeByKey.set(node.key, node);
+    nodeByKey.set(node.id, node);
   });
 
   const leftStartY =
     STEP_MARGIN + Math.max(0, (gridHeight - leftStackHeight) / 2);
-  leftEntries.forEach(([source, links], index) => {
-    const node: StepGraphNode = {
-      key: `boundary:in:${source}`,
+  leftEntries.forEach(([source, links], entryIndex) => {
+    const node: WorkflowGraphNode = {
+      id: `boundary:in:${source}`,
       kind: "in",
       label: source,
       detail: `${links} link${links === 1 ? "" : "s"}`,
-      component: source,
+      meta: "incoming boundary",
       tint: tintFor(source),
       x: STEP_MARGIN,
-      y: leftStartY + index * (BOUNDARY_HEIGHT + 22),
+      y: leftStartY + entryIndex * (BOUNDARY_HEIGHT + 22),
       width: BOUNDARY_WIDTH,
       height: BOUNDARY_HEIGHT,
+      headerHeight: STEP_HEADER_HEIGHT,
+      socketY: BOUNDARY_HEIGHT / 2,
+      dataTestId: "workflow-boundary-node",
+      component: source,
     };
     nodes.push(node);
-    nodeByKey.set(node.key, node);
+    nodeByKey.set(node.id, node);
   });
 
   const rightStartY =
     STEP_MARGIN + Math.max(0, (gridHeight - rightStackHeight) / 2);
-  rightEntries.forEach(([target, links], index) => {
-    const node: StepGraphNode = {
-      key: `boundary:out:${target}`,
+  rightEntries.forEach(([target, links], entryIndex) => {
+    const node: WorkflowGraphNode = {
+      id: `boundary:out:${target}`,
       kind: "out",
       label: target,
       detail: `${links} link${links === 1 ? "" : "s"}`,
-      component: target,
+      meta: "outgoing boundary",
       tint: tintFor(target),
       x: rightX,
-      y: rightStartY + index * (BOUNDARY_HEIGHT + 22),
+      y: rightStartY + entryIndex * (BOUNDARY_HEIGHT + 22),
       width: BOUNDARY_WIDTH,
       height: BOUNDARY_HEIGHT,
+      headerHeight: STEP_HEADER_HEIGHT,
+      socketY: BOUNDARY_HEIGHT / 2,
+      dataTestId: "workflow-boundary-node",
+      component: target,
     };
     nodes.push(node);
-    nodeByKey.set(node.key, node);
+    nodeByKey.set(node.id, node);
   });
 
-  const edges: StepGraphEdge[] = [];
+  const edges: WorkflowGraphEdge[] = [];
   const pushEdge = (sourceKey: string, targetKey: string, id: string, boundary: boolean) => {
     const source = nodeByKey.get(sourceKey);
     const target = nodeByKey.get(targetKey);
     if (!source || !target) return;
     const sx = source.x + source.width;
-    const sy = source.y + source.height / 2;
+    const sy = source.y + source.socketY;
     const tx = target.x;
-    const ty = target.y + target.height / 2;
+    const ty = target.y + target.socketY;
     const dx = Math.max(48, Math.abs(tx - sx) * 0.5);
     edges.push({
       id,
-      sourceKey,
-      targetKey,
-      boundary,
+      source: sourceKey,
+      target: targetKey,
       path: `M ${sx} ${sy} C ${sx + dx} ${sy}, ${tx - dx} ${ty}, ${tx} ${ty}`,
+      dataTestId: "workflow-step-edge",
+      boundary,
     });
   };
 
@@ -854,9 +894,11 @@ function buildStepGraphLayout(
     edges,
     width: canvasWidth,
     height: canvasHeight,
-    internalEdges: internal.length,
-    boundaryCount: leftEntries.length + rightEntries.length,
-    stepCount: count,
+    stats: {
+      stepCount: count,
+      internalEdges: internal.length,
+      boundaryCount: leftEntries.length + rightEntries.length,
+    },
   };
 }
 
@@ -869,6 +911,235 @@ function stepDisplayName(value: string): string {
   return dot >= 0 ? value.slice(dot + 1) : value;
 }
 
+/**
+ * One renderer for every workflow scene. Component nodes, step nodes and
+ * boundary nodes share the same chrome; one selected id drives the same
+ * incident-link highlight and dimming in both the component and step views.
+ */
+function WorkflowGraphSceneView({
+  scene,
+  selectedId,
+  activeIds,
+  onSelect,
+  onOpen,
+  onContextMenu,
+}: {
+  scene: WorkflowGraphScene;
+  selectedId?: string;
+  activeIds?: Set<string>;
+  onSelect(node: WorkflowGraphNode): void;
+  onOpen?(node: WorkflowGraphNode): void;
+  onContextMenu(node: WorkflowGraphNode, event: ReactMouseEvent<SVGGElement>): void;
+}) {
+  const incident = useMemo(() => {
+    if (!selectedId) return new Set<string>();
+    return new Set(
+      scene.edges
+        .filter((edge) => edge.source === selectedId || edge.target === selectedId)
+        .map((edge) => edge.id),
+    );
+  }, [scene.edges, selectedId]);
+
+  const renderEdge = (edge: WorkflowGraphEdge) => {
+    const highlighted = incident.has(edge.id);
+    const active =
+      !activeIds ||
+      (activeIds.has(edge.source) && activeIds.has(edge.target));
+    const baseWidth = edge.boundary
+      ? 0.7
+      : edge.weight
+        ? Math.min(2.6, 1 + Math.log2(edge.weight + 1) * 0.45)
+        : 1;
+    const opacity = highlighted
+      ? 1
+      : selectedId
+        ? active
+          ? 0.16
+          : 0.05
+        : active
+          ? edge.boundary
+            ? 0.32
+            : 0.58
+          : 0.1;
+    return (
+      <g
+        key={edge.id}
+        opacity={opacity}
+        data-testid={edge.dataTestId}
+        data-active={highlighted ? "true" : undefined}
+        data-source={edge.source}
+        data-target={edge.target}
+        data-source-x={edge.sourceX}
+        data-source-y={edge.sourceY}
+        data-target-x={edge.targetX}
+        data-target-y={edge.targetY}
+      >
+        <path
+          d={edge.path}
+          fill="none"
+          stroke={highlighted ? theme.selection : theme.edge}
+          strokeWidth={highlighted ? baseWidth + 0.7 : baseWidth}
+          strokeLinecap="round"
+        />
+        {edge.label && edge.labelX !== undefined && edge.labelY !== undefined ? (
+          <text
+            x={edge.labelX}
+            y={edge.labelY - 4}
+            textAnchor="middle"
+            fill={highlighted ? theme.selectionStrong : theme.faint}
+            fontSize={9.5}
+            fontFamily="var(--font-mono)"
+            stroke={theme.page}
+            strokeWidth={3}
+            paintOrder="stroke"
+            pointerEvents="none"
+          >
+            {edge.label}
+          </text>
+        ) : null}
+      </g>
+    );
+  };
+
+  return (
+    <>
+      <g data-workflow-edges>
+        {scene.edges.filter((edge) => !incident.has(edge.id)).map(renderEdge)}
+      </g>
+      <g data-workflow-nodes>
+        {scene.nodes.map((node) => {
+          const selected = node.id === selectedId;
+          const active = !activeIds || activeIds.has(node.id);
+          const isStep = node.kind === "step";
+          const isComponent = node.kind === "component";
+          const title = isStep ? stepDisplayName(node.label) : node.label;
+          const maxTitle = isComponent ? 30 : isStep ? 34 : 20;
+          const detail = truncateLabel(node.detail, isComponent ? 30 : 36);
+          return (
+            <g
+              key={node.id}
+              transform={`translate(${node.x} ${node.y})`}
+              className="cursor-pointer"
+              opacity={active ? 1 : 0.3}
+              role="button"
+              tabIndex={0}
+              aria-pressed={selected}
+              aria-label={`${isComponent ? "Component" : isStep ? "Step" : "Boundary"} ${node.label}, ${node.detail}`}
+              onClick={(event) => {
+                event.stopPropagation();
+                onSelect(node);
+              }}
+              onDoubleClick={
+                onOpen
+                  ? (event) => {
+                      event.stopPropagation();
+                      onOpen(node);
+                    }
+                  : undefined
+              }
+              onContextMenu={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+                onContextMenu(node, event);
+              }}
+              onKeyDown={(event) => {
+                if (event.key !== "Enter" && event.key !== " ") return;
+                event.preventDefault();
+                onSelect(node);
+              }}
+              data-testid={node.dataTestId}
+              data-active={selected ? "true" : undefined}
+              data-step-key={node.row ? node.id : undefined}
+              data-component={node.component}
+            >
+              <title>{`${node.label} · ${node.detail}`}</title>
+              <rect
+                width={node.width}
+                height={node.height}
+                rx={6}
+                fill={theme.panel}
+                stroke={selected ? theme.selection : theme.lineStrong}
+                strokeWidth={selected ? 1.8 : 1}
+              />
+              <path
+                d={`M 0 6 Q 0 0 6 0 H ${node.width - 6} Q ${node.width} 0 ${node.width} 6 V ${node.headerHeight} H 0 Z`}
+                fill={node.tint}
+                fillOpacity={selected ? 0.62 : 0.34}
+                stroke="none"
+              />
+              <text
+                x={12}
+                y={node.headerHeight - 8}
+                fill={theme.text}
+                fontSize={isComponent ? 11.5 : 9.5}
+                fontWeight={600}
+                fontFamily="var(--font-mono)"
+                pointerEvents="none"
+              >
+                {truncateLabel(title, maxTitle)}
+              </text>
+              <text
+                x={12}
+                y={node.headerHeight + 24}
+                fill={theme.text}
+                fontSize={isComponent ? 10.5 : 8.5}
+                fontFamily="var(--font-mono)"
+                pointerEvents="none"
+              >
+                {detail}
+              </text>
+              <text
+                x={12}
+                y={node.headerHeight + 46}
+                fill={theme.faint}
+                fontSize={isComponent ? 9.5 : 8}
+                fontFamily="var(--font-mono)"
+                pointerEvents="none"
+              >
+                {node.meta}
+              </text>
+              {node.note ? (
+                <text
+                  x={12}
+                  y={node.headerHeight + 68}
+                  fill={theme.faint}
+                  fontSize={isComponent ? 9.5 : 8}
+                  fontFamily="var(--font-mono)"
+                  pointerEvents="none"
+                >
+                  {node.note}
+                </text>
+              ) : null}
+              <circle
+                cx={0}
+                cy={node.socketY}
+                r={5}
+                fill={theme.raised}
+                stroke={selected ? theme.selection : node.tint}
+                strokeWidth={1.4}
+                pointerEvents="none"
+              />
+              <circle
+                cx={node.width}
+                cy={node.socketY}
+                r={5}
+                fill={theme.raised}
+                stroke={selected ? theme.selection : node.tint}
+                strokeWidth={1.4}
+                pointerEvents="none"
+              />
+            </g>
+          );
+        })}
+      </g>
+      {incident.size ? (
+        <g data-workflow-active-edges>
+          {scene.edges.filter((edge) => incident.has(edge.id)).map(renderEdge)}
+        </g>
+      ) : null}
+    </>
+  );
+}
 
 export function WorkflowEditor(props: WorkspaceProps) {
   const model = useMemo(() => workflowModel(props.state), [props.state.index]);
@@ -876,7 +1147,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
     () => buildWorkflowComponentMap(props.state.index, model),
     [props.state.index, model],
   );
-  const layout = useMemo(() => buildCompositorLayout(componentMap), [componentMap]);
+  const componentScene = useMemo(() => buildCompositorScene(componentMap), [componentMap]);
   const { state: ui, store } = useWorkflowUi(props.state.snapshot.name);
   const filtered = useMemo(
     () => filterWorkflowRows(model.rows, ui.filters),
@@ -917,10 +1188,10 @@ export function WorkflowEditor(props: WorkspaceProps) {
     (component: string) => tintByComponent.get(component) ?? theme.edge,
     [tintByComponent],
   );
-  const stepLayout = useMemo(
+  const stepScene = useMemo(
     () =>
       focusedNode
-        ? buildStepGraphLayout(
+        ? buildStepScene(
             props.state.index,
             focusedNode.id,
             focusedGroupRows,
@@ -929,8 +1200,8 @@ export function WorkflowEditor(props: WorkspaceProps) {
         : undefined,
     [props.state.index, focusedNode, focusedGroupRows, tintFor],
   );
-  const activeLayout = stepLayout ?? layout;
-  const inStepGroup = Boolean(stepLayout && focusedNode);
+  const activeScene = stepScene ?? componentScene;
+  const inStepGroup = Boolean(stepScene && focusedNode);
 
   const containerRef = useRef<HTMLDivElement>(null);
   const [size, setSize] = useState({ width: 0, height: 0 });
@@ -973,14 +1244,14 @@ export function WorkflowEditor(props: WorkspaceProps) {
     observer.observe(element);
     setSize({ width: element.clientWidth, height: element.clientHeight });
     return () => observer.disconnect();
-  }, [activeLayout.nodes.length]);
+  }, [activeScene.nodes.length]);
 
   const fitView = useCallback(() => {
     if (
       !size.width ||
       !size.height ||
-      !activeLayout.width ||
-      !activeLayout.height
+      !activeScene.width ||
+      !activeScene.height
     ) {
       return;
     }
@@ -990,17 +1261,17 @@ export function WorkflowEditor(props: WorkspaceProps) {
       Math.min(
         1.4,
         Math.min(
-          (size.width - pad * 2) / activeLayout.width,
-          (size.height - pad * 2) / activeLayout.height,
+          (size.width - pad * 2) / activeScene.width,
+          (size.height - pad * 2) / activeScene.height,
         ),
       ),
     );
     setView({
       scale,
-      x: (size.width - activeLayout.width * scale) / 2,
-      y: (size.height - activeLayout.height * scale) / 2,
+      x: (size.width - activeScene.width * scale) / 2,
+      y: (size.height - activeScene.height * scale) / 2,
     });
-  }, [size.width, size.height, activeLayout.width, activeLayout.height]);
+  }, [size.width, size.height, activeScene.width, activeScene.height]);
 
   useEffect(() => {
     fitView();
@@ -1029,7 +1300,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
     };
     element.addEventListener("wheel", onWheel, { passive: false });
     return () => element.removeEventListener("wheel", onWheel);
-  }, [activeLayout.nodes.length]);
+  }, [activeScene.nodes.length]);
 
   const zoomBy = (factor: number) => {
     setView((current) => {
@@ -1107,7 +1378,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
     });
   };
 
-  if (!layout.nodes.length) {
+  if (!componentScene.nodes.length) {
     return (
       <div
         className="flex h-full items-center justify-center p-6"
@@ -1135,15 +1406,15 @@ export function WorkflowEditor(props: WorkspaceProps) {
             {inStepGroup ? focusedNode?.id ?? "Step group" : "Workflow"}
           </h1>
           <p className="mt-1 font-mono text-[10px] text-muted">
-            {inStepGroup && stepLayout
-              ? `${stepLayout.stepCount} steps · ${stepLayout.internalEdges} internal links · ${stepLayout.boundaryCount} boundary component${stepLayout.boundaryCount === 1 ? "" : "s"}`
+            {inStepGroup && stepScene
+              ? `${stepScene.stats?.stepCount ?? 0} steps · ${stepScene.stats?.internalEdges ?? 0} internal links · ${stepScene.stats?.boundaryCount ?? 0} boundary component${(stepScene.stats?.boundaryCount ?? 0) === 1 ? "" : "s"}`
               : `${model.steps} steps · ${model.connections} connections · ${componentMap.nodes.length} components`}
           </p>
         </div>
-        {inStepGroup && stepLayout ? (
+        {inStepGroup && stepScene ? (
           <div className="flex shrink-0 items-center gap-2">
             <span className="rounded border border-line-soft bg-panel-raised px-2 py-1 font-mono text-[9px] text-faint">
-              {stepLayout.stepCount} steps
+              {stepScene.stats?.stepCount ?? 0} steps
             </span>
             {selectedStepRow ? (
               <button
@@ -1194,7 +1465,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
             x: event.clientX,
             y: event.clientY,
             label: inStepGroup
-              ? (selectedNode?.id ?? "Step group")
+              ? (focusedNode?.id ?? "Step group")
               : "Workflow graph",
             items: inStepGroup
               ? [
@@ -1228,9 +1499,9 @@ export function WorkflowEditor(props: WorkspaceProps) {
           className="block h-full w-full select-none"
           role="img"
           aria-label={
-            inStepGroup && stepLayout
-              ? `Workflow step graph for ${selectedNode?.id ?? "component"} with ${stepLayout.stepCount} steps and ${stepLayout.edges.length} links`
-              : `Workflow compositor graph with ${layout.nodes.length} component nodes and ${layout.edges.length} aggregated links`
+            inStepGroup && stepScene
+              ? `Workflow step graph for ${focusedNode?.id ?? "component"} with ${stepScene.stats?.stepCount ?? 0} steps and ${stepScene.edges.length} links`
+              : `Workflow compositor graph with ${componentScene.nodes.length} component nodes and ${componentScene.edges.length} aggregated links`
           }
           data-testid="workflow-map"
           onClick={() => {
@@ -1242,97 +1513,81 @@ export function WorkflowEditor(props: WorkspaceProps) {
             transform={`translate(${view.x} ${view.y}) scale(${view.scale})`}
             opacity={size.width ? 1 : 0}
           >
-            {!inStepGroup ? (
-              <>
-                <g data-workflow-edges>
-              {layout.edges.map(
-                ({ edge, path, sourceX, sourceY, targetX, targetY, labelX, labelY }) => {
-                const incident =
-                  ui.filters.component !== "all" &&
-                  (edge.source === ui.filters.component ||
-                    edge.target === ui.filters.component);
-                const active =
-                  !filtering ||
-                  (activeComponents.has(edge.source) &&
-                    activeComponents.has(edge.target));
-                return (
-                  <g
-                    key={edge.id}
-                    opacity={incident ? 1 : active ? 0.58 : 0.1}
-                    data-testid="workflow-component-edge"
-                    data-source={edge.source}
-                    data-target={edge.target}
-                    data-source-x={sourceX}
-                    data-source-y={sourceY}
-                    data-target-x={targetX}
-                    data-target-y={targetY}
-                  >
-                    <path
-                      d={path}
-                      fill="none"
-                      stroke={incident ? theme.selection : theme.edge}
-                      strokeWidth={Math.min(
-                        2.6,
-                        1 + Math.log2(edge.count + 1) * 0.45,
-                      )}
-                      strokeLinecap="round"
-                    />
-                    <text
-                      x={labelX}
-                      y={labelY - 4}
-                      textAnchor="middle"
-                      fill={incident ? theme.selectionStrong : theme.faint}
-                      fontSize={9.5}
-                      fontFamily="var(--font-mono)"
-                      stroke={theme.page}
-                      strokeWidth={3}
-                      paintOrder="stroke"
-                      pointerEvents="none"
-                    >
-                      {edge.count}
-                    </text>
-                  </g>
-                  );
-                },
-              )}
-            </g>
-
-            <g data-workflow-nodes>
-              {layout.nodes.map(({ node, x, y, color, internal }) => {
-                const selected = ui.filters.component === node.id;
-                const active = !filtering || activeComponents.has(node.id);
-                return (
-                  <g
-                    key={node.id}
-                    transform={`translate(${x} ${y})`}
-                    className="cursor-pointer"
-                    opacity={active ? 1 : 0.3}
-                    onClick={() => {
-                      if (suppressClickRef.current) {
-                        suppressClickRef.current = false;
-                        return;
-                      }
-                      store.setComponent(selected ? "all" : node.id);
-                    }}
-                    role="button"
-                    tabIndex={0}
-                    aria-pressed={selected}
-                    aria-label={`${node.id}: ${node.steps} steps, ${node.kinds} instruction kinds, ${node.incoming} incoming and ${node.outgoing} outgoing links`}
-                    onContextMenu={(event) => {
-                      event.preventDefault();
-                      event.stopPropagation();
-                      setMenu({
-                        x: event.clientX,
-                        y: event.clientY,
-                        label: node.id,
-                        items: [
+            <WorkflowGraphSceneView
+              scene={inStepGroup ? (stepScene ?? componentScene) : componentScene}
+              selectedId={inStepGroup ? ui.selectedStepKey : selectedNode?.id}
+              activeIds={
+                inStepGroup || !filtering ? undefined : activeComponents
+              }
+              onSelect={(node) => {
+                if (suppressClickRef.current) {
+                  suppressClickRef.current = false;
+                  return;
+                }
+                if (inStepGroup) {
+                  if (node.kind === "step") store.selectStep(node.id);
+                  else if (node.component) store.focusComponent(node.component);
+                  return;
+                }
+                store.setComponent(
+                  ui.filters.component === node.id ? "all" : node.id,
+                );
+              }}
+              onOpen={
+                inStepGroup
+                  ? (node) => {
+                      if (node.kind !== "step" || !node.row) return;
+                      store.selectStep(node.id);
+                      openStepNode(node.row, false);
+                    }
+                  : undefined
+              }
+              onContextMenu={(node, event) => {
+                const isStep = node.kind === "step";
+                const isComponent = node.kind === "component";
+                setMenu({
+                  x: event.clientX,
+                  y: event.clientY,
+                  label: node.label,
+                  items: isStep
+                    ? [
+                        {
+                          label: "Open step",
+                          hint: "Document",
+                          run: () => {
+                            if (!node.row) return;
+                            store.selectStep(node.id);
+                            openStepNode(node.row, false);
+                          },
+                        },
+                        {
+                          label: "Back to components",
+                          hint: "Workflow",
+                          run: () => store.focusComponent(undefined),
+                        },
+                        {
+                          label: "Fit graph",
+                          hint: "Reset view",
+                          run: fitView,
+                        },
+                      ]
+                    : isComponent
+                      ? [
                           {
-                            label: selected
-                              ? "Clear component filter"
-                              : "Select component",
-                            hint: selected ? "Show all" : "Filter",
+                            label:
+                              ui.filters.component === node.id
+                                ? "Clear component filter"
+                                : "Select component",
+                            hint:
+                              ui.filters.component === node.id
+                                ? "Show all"
+                                : "Filter",
                             run: () =>
-                              store.setComponent(selected ? "all" : node.id),
+                              store.setComponent(
+                                ui.filters.component === node.id
+                                  ? "all"
+                                  : node.id,
+                              ),
                           },
                           {
                             label: "Open step group",
@@ -1349,296 +1604,32 @@ export function WorkflowEditor(props: WorkspaceProps) {
                             hint: "Reset view",
                             run: fitView,
                           },
+                        ]
+                      : [
+                          ...(node.component
+                            ? [
+                                {
+                                  label: `Show ${node.component} group`,
+                                  hint: "Workflow",
+                                  run: () =>
+                                    store.focusComponent(node.component!),
+                                },
+                              ]
+                            : []),
+                          {
+                            label: "Back to components",
+                            hint: "Workflow",
+                            run: () => store.focusComponent(undefined),
+                          },
+                          {
+                            label: "Fit graph",
+                            hint: "Reset view",
+                            run: fitView,
+                          },
                         ],
-                      });
-                    }}
-                    onKeyDown={(event) => {
-                      if (event.key === "Enter" || event.key === " ") {
-                        event.preventDefault();
-                        store.setComponent(selected ? "all" : node.id);
-                      }
-                    }}
-                    data-testid="workflow-component-node"
-                    data-component={node.id}
-                  >
-                    <rect
-                      width={NODE_WIDTH}
-                      height={NODE_HEIGHT}
-                      rx={6}
-                      fill={theme.panel}
-                      stroke={selected ? theme.selection : theme.lineStrong}
-                      strokeWidth={selected ? 1.8 : 1}
-                    />
-                    <path
-                      d={`M 0 6 Q 0 0 6 0 H ${NODE_WIDTH - 6} Q ${NODE_WIDTH} 0 ${NODE_WIDTH} 6 V ${HEADER_HEIGHT} H 0 Z`}
-                      fill={color}
-                      fillOpacity={selected ? 0.62 : 0.34}
-                      stroke="none"
-                    />
-                    <text
-                      x={12}
-                      y={19}
-                      fill={theme.text}
-                      fontSize={11.5}
-                      fontWeight={600}
-                      fontFamily="var(--font-mono)"
-                      pointerEvents="none"
-                    >
-                      {node.id}
-                    </text>
-
-                    <circle
-                      cx={0}
-                      cy={SOCKET_Y}
-                      r={5}
-                      fill={theme.raised}
-                      stroke={selected ? theme.selection : color}
-                      strokeWidth={1.4}
-                      pointerEvents="none"
-                    />
-                    <text
-                      x={12}
-                      y={SOCKET_Y + 4}
-                      fill={theme.faint}
-                      fontSize={8.5}
-                      fontFamily="var(--font-mono)"
-                      pointerEvents="none"
-                    >
-                      in
-                    </text>
-                    <circle
-                      cx={NODE_WIDTH}
-                      cy={SOCKET_Y}
-                      r={5}
-                      fill={theme.raised}
-                      stroke={selected ? theme.selection : color}
-                      strokeWidth={1.4}
-                      pointerEvents="none"
-                    />
-                    <text
-                      x={NODE_WIDTH - 12}
-                      y={SOCKET_Y + 4}
-                      textAnchor="end"
-                      fill={theme.faint}
-                      fontSize={8.5}
-                      fontFamily="var(--font-mono)"
-                      pointerEvents="none"
-                    >
-                      out
-                    </text>
-
-                    <text
-                      x={12}
-                      y={HEADER_HEIGHT + 50}
-                      fill={theme.text}
-                      fontSize={10.5}
-                      fontFamily="var(--font-mono)"
-                      pointerEvents="none"
-                    >
-                      {`${node.steps} steps · ${node.kinds} kind${node.kinds === 1 ? "" : "s"}`}
-                    </text>
-                    <text
-                      x={12}
-                      y={HEADER_HEIGHT + 72}
-                      fill={theme.faint}
-                      fontSize={9.5}
-                      fontFamily="var(--font-mono)"
-                      pointerEvents="none"
-                    >
-                      {node.incoming} in · {node.outgoing} out
-                    </text>
-                    {internal ? (
-                      <text
-                        x={12}
-                        y={HEADER_HEIGHT + 94}
-                        fill={theme.faint}
-                        fontSize={9.5}
-                        fontFamily="var(--font-mono)"
-                        pointerEvents="none"
-                      >
-                        {internal} internal
-                      </text>
-                    ) : null}
-                  </g>
-                );
-              })}
-            </g>
-              </>
-            ) : (
-              <>
-                <g data-workflow-step-edges>
-                  {stepLayout?.edges.map((edge) => (
-                    <path
-                      key={edge.id}
-                      d={edge.path}
-                      fill="none"
-                      stroke={theme.edge}
-                      strokeWidth={edge.boundary ? 0.7 : 1}
-                      strokeOpacity={edge.boundary ? 0.32 : 0.52}
-                      strokeLinecap="round"
-                      data-testid="workflow-step-edge"
-                      data-source={edge.sourceKey}
-                      data-target={edge.targetKey}
-                    />
-                  ))}
-                </g>
-                <g data-workflow-step-nodes>
-                  {stepLayout?.nodes.map((node) => {
-                    const isStep = node.kind === "step";
-                    const stepSelected =
-                      isStep && ui.selectedStepKey === node.key;
-                    return (
-                      <g
-                        key={node.key}
-                        transform={`translate(${node.x} ${node.y})`}
-                        className="cursor-pointer"
-                        role="button"
-                        tabIndex={0}
-                        aria-pressed={isStep ? stepSelected : undefined}
-                        aria-label={`${isStep ? "Step" : "Boundary"} ${node.label}, ${node.detail}`}
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          if (suppressClickRef.current) {
-                            suppressClickRef.current = false;
-                            return;
-                          }
-                          if (isStep && node.row) {
-                            store.selectStep(node.key);
-                          } else if (node.component) {
-                            store.focusComponent(node.component);
-                          }
-                        }}
-                        onDoubleClick={(event) => {
-                          event.stopPropagation();
-                          if (isStep && node.row) {
-                            store.selectStep(node.key);
-                            openStepNode(node.row, false);
-                          }
-                        }}
-                        onContextMenu={(event) => {
-                          event.preventDefault();
-                          event.stopPropagation();
-                          setMenu({
-                            x: event.clientX,
-                            y: event.clientY,
-                            label: node.label,
-                            items: [
-                              ...(isStep && node.row
-                                ? [
-                                    {
-                                      label: "Open step",
-                                      hint: "Document",
-                                      run: () => openStepNode(node.row!, false),
-                                    },
-                                  ]
-                                : node.component
-                                  ? [
-                                      {
-                                        label: `Show ${node.component} group`,
-                                        hint: "Workflow",
-                                        run: () => store.focusComponent(node.component!),
-                                      },
-                                    ]
-                                  : []),
-                              {
-                                label: "Back to components",
-                                hint: "Workflow",
-                                run: () => store.focusComponent(undefined),
-                              },
-                              {
-                                label: "Fit graph",
-                                hint: "Reset view",
-                                run: fitView,
-                              },
-                            ],
-                          });
-                        }}
-                        onKeyDown={(event) => {
-                          if (event.key !== "Enter" && event.key !== " ") return;
-                          event.preventDefault();
-                          if (isStep && node.row) openStepNode(node.row, true);
-                          else if (node.component) store.focusComponent(node.component);
-                        }}
-                        data-testid={
-                          isStep ? "workflow-step-node" : "workflow-boundary-node"
-                        }
-                        data-active={stepSelected ? "true" : undefined}
-                        data-step-key={isStep ? node.key : undefined}
-                        data-component={node.component}
-                      >
-                        <title>{`${node.label} · ${node.detail}`}</title>
-                        <rect
-                          width={node.width}
-                          height={node.height}
-                          rx={5}
-                          fill={theme.panel}
-                          stroke={stepSelected ? theme.selection : theme.lineStrong}
-                          strokeWidth={stepSelected ? 1.8 : 1}
-                        />
-                        <path
-                          d={`M 0 5 Q 0 0 5 0 H ${node.width - 5} Q ${node.width} 0 ${node.width} 5 V ${STEP_HEADER_HEIGHT} H 0 Z`}
-                          fill={node.tint}
-                          fillOpacity={0.34}
-                        />
-                        <text
-                          x={9}
-                          y={14}
-                          fill={theme.text}
-                          fontSize={9.5}
-                          fontWeight={600}
-                          fontFamily="var(--font-mono)"
-                          pointerEvents="none"
-                        >
-                          {truncateLabel(stepDisplayName(node.label), 34)}
-                        </text>
-                        <text
-                          x={9}
-                          y={34}
-                          fill={theme.faint}
-                          fontSize={8.5}
-                          fontFamily="var(--font-mono)"
-                          pointerEvents="none"
-                        >
-                          {isStep ? truncateLabel(node.detail, 36) : node.detail}
-                        </text>
-                        <text
-                          x={9}
-                          y={50}
-                          fill={theme.faint}
-                          fontSize={8}
-                          fontFamily="var(--font-mono)"
-                          pointerEvents="none"
-                        >
-                          {isStep && node.row
-                            ? `${node.row.inputs} in · ${node.row.outputs} out`
-                            : node.kind === "in"
-                              ? "incoming boundary"
-                              : "outgoing boundary"}
-                        </text>
-                        <circle
-                          cx={0}
-                          cy={node.height / 2}
-                          r={4}
-                          fill={theme.raised}
-                          stroke={node.tint}
-                          strokeWidth={1.2}
-                          pointerEvents="none"
-                        />
-                        <circle
-                          cx={node.width}
-                          cy={node.height / 2}
-                          r={4}
-                          fill={theme.raised}
-                          stroke={node.tint}
-                          strokeWidth={1.2}
-                          pointerEvents="none"
-                        />
-                      </g>
-                    );
-                  })}
-                </g>
-              </>
-            )}
+                });
+              }}
+            />
           </g>
         </svg>
 
@@ -1686,7 +1677,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
           </button>
         </div>
 
-        {inStepGroup && stepLayout && stepLayout.stepCount === 0 ? (
+        {inStepGroup && stepScene && (stepScene.stats?.stepCount ?? 0) === 0 ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <p className="border border-line-soft bg-panel/95 px-3 py-2 font-mono text-[11px] text-muted">
               No steps match the current query and instruction filters.
