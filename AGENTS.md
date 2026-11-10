@@ -122,7 +122,8 @@ rule about what the framework is belongs to the framework model.
   not. A navigation row must open the document it names; a facet without its own
   document level belongs inside its owner's document. Selection changes state,
   not geometry: selecting an item never pans, zooms or reflows the view; only an
-  explicit fit, zoom or navigation control moves it. A detail document uses
+  explicit fit, zoom or navigation control moves it. Entering a group is a
+  navigation action, and the group graph is fitted on entry. A detail document uses
   one shared surface: header, body and panel chrome do not vary by subject kind;
   a new kind adds content, not chrome.
 - End every change report with the rule-promotion result: none, refined or
