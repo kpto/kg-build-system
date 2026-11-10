@@ -45,7 +45,6 @@ import {
   buildProof,
   collectProofSemantics,
   defaultProofSubject,
-  proofSubjectForLevel,
   traceArtifactLabel,
   type ProofBranch,
   type ProofLevel,
@@ -106,13 +105,6 @@ function useProofModel(props: WorkspaceProps): ProofModel {
   );
 }
 
-const LEVELS: Array<{ id: ProofLevel; label: string }> = [
-  { id: "property", label: "Property" },
-  { id: "node", label: "Node" },
-  { id: "edge", label: "Edge" },
-  { id: "abstract", label: "Abstract" },
-  { id: "asset", label: "Asset" },
-];
 
 function levelTitle(model: ProofModel): string {
   switch (model.level) {
@@ -746,32 +738,6 @@ export function DetailSidebar(props: WorkspaceProps) {
 // ---------------------------------------------------------------------------
 // Editor header
 // ---------------------------------------------------------------------------
-
-function LevelSelector({
-  level,
-  onChange,
-}: {
-  level: ProofLevel;
-  onChange(level: ProofLevel): void;
-}) {
-  return (
-    <div className={styles.levelSelector} role="tablist" aria-label="Design level">
-      {LEVELS.map((entry) => (
-        <button
-          key={entry.id}
-          type="button"
-          role="tab"
-          aria-selected={entry.id === level}
-          className={styles.levelButton}
-          data-active={entry.id === level ? "true" : undefined}
-          onClick={() => onChange(entry.id)}
-        >
-          {entry.label}
-        </button>
-      ))}
-    </div>
-  );
-}
 
 // ---------------------------------------------------------------------------
 // Canvas
@@ -1466,14 +1432,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     );
   }, [props.actions, props.state.index, selection]);
 
-  const changeLevel = (level: ProofLevel) => {
-    props.actions.setSelection(
-      toWorkbenchSelection(
-        proofSubjectForLevel(props.state.index, model.subject, level),
-      ),
-    );
-  };
-
   return (
     <div className={styles.root} data-testid="detail-editor">
       <header className={styles.topbar}>
@@ -1485,7 +1443,6 @@ function SubjectDetailEditor(props: WorkspaceProps) {
           <h1 className={styles.title}>{levelTitle(model)}</h1>
           <p className={styles.subtitle}>{levelSubtitle(model)}</p>
         </div>
-        <LevelSelector level={model.level} onChange={changeLevel} />
       </header>
 
       <div className={styles.body}>

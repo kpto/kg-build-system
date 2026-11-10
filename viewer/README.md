@@ -47,7 +47,7 @@ The first paint shows the design, not its annotations.
 | Surface | Default | Revealed by |
 | --- | --- | --- |
 | Graph document | graph canvas and **Inspect** bottom panel | selecting an entity fills Inspect with its description, properties and meaning |
-| Subject document | meaning, properties and attached semantics of the subject | the level switch (Property, Node, Edge, Abstract, Asset), property rows and the branch selector |
+| Subject document | meaning, properties and attached semantics of the subject | property rows, the branch selector and the Detail tree for another subject document |
 
 Both panels are shown by default. The side bar carries the **Topology** and
 **Detail** sections; the bottom panel is always the **Inspect** region for the

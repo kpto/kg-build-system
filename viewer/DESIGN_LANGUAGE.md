@@ -70,7 +70,9 @@ The first paint states the design, not every annotation.
 | Graph inspection | identity and description | properties with types | attached claims, frames and limitations |
 | Subject document | subject meaning and properties | attached semantics along the path | property provenance, type/presence chain and trace |
 
-The detail switch belongs to the subject document, not to the workbench.
+Each subject document is a separate tab. There is no level switch in the editor;
+opening a parent node, edge, asset or abstract category from the Detail tree
+opens or activates that document.
 
 ## Panels and persistence
 
@@ -129,8 +131,8 @@ claims and limits.
 
 **Open detail.** Select a node or edge in Topology → read its properties and
 meaning → **Open in Detail** → select a property to read its branches, lanes and
-type/presence chain, or switch level (node, edge, abstract, asset) when the
-question widens.
+type/presence chain. When the question widens, open the parent subject from the
+Detail tree; it becomes its own document tab.
 
 **Read the design.** Detail's sidebar states the graph purpose and its full
 claims and frames on demand; the editor states the selected subject's meaning
