@@ -10,7 +10,7 @@ frame, one document tab strip, and two collapsible side-bar sections:
 | Side-bar section | What it is for |
 | --- | --- |
 | **Control** | Controls for the active view: graph filters, labels, containment, semantics, legend and layout; workflow component and instruction filters. |
-| **Explorer** | Everything in the design: assets, nodes, abstract categories, edges and their properties, plus the workflow components and step catalogue. |
+| **Explorer** | Everything in the design: assets, nodes, abstract categories, edges and their properties, plus the workflow components and step catalogue. Right-clicking an item jumps to its Graph or Workflow view. |
 
 The tab strip is the document axis:
 
@@ -75,7 +75,10 @@ The editor is one global tab strip. The viewer has three kinds of tab view:
 
 Single-clicking a node or a property row only changes the transient **Inspect**
 selection; it does not open a tab. Explorer rows single-click into a reusable
-preview tab and double-click into a permanent tab. **Middle-click** closes a
+preview tab and double-click into a permanent tab. Right-clicking an Explorer
+item offers **Go to Graph** for graph subjects and **Go to Workflow** for
+workflow components and steps. A workflow component selected in Control or in
+the Workflow graph expands its step group in Explorer. **Middle-click** closes a
 subject or step tab; the pinned Graph and Workflow tabs cannot be closed. **Back** and
 **Forward** (arrows in the tab strip, `Alt+←` / `Alt+→`, or the mouse
 back/forward buttons) walk the document history. Every open tab keeps its own

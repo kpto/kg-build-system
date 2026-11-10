@@ -151,10 +151,20 @@ def main() -> int:
             )
             time.sleep(0.4)
 
-        def choose_menu_item() -> None:
-            driver.find_element(
+        def choose_menu_item(label: str | None = None) -> None:
+            items = driver.find_elements(
                 By.CSS_SELECTOR, '[data-testid="context-menu-item"]'
-            ).click()
+            )
+            target = next(
+                (
+                    item
+                    for item in items
+                    if label is None or label.lower() in item.text.lower()
+                ),
+                None,
+            )
+            if target is not None:
+                target.click()
             time.sleep(0.9)
 
         report["checks"]["no_activity_toolbar"] = not driver.find_elements(
@@ -179,7 +189,10 @@ def main() -> int:
             ).text
             report["checks"]["inspect_graph_purpose"] = (
                 "GRAPH OVERVIEW" in inspector_text
-                and "Show full purpose" in inspector_text
+            )
+            report["checks"]["inspect_has_no_show_buttons"] = (
+                "Show full purpose" not in inspector_text
+                and "Show claims and frames" not in inspector_text
             )
         topology_geometry = geometry()
         shot("01-topology")
@@ -368,6 +381,29 @@ def main() -> int:
             ).click()
             time.sleep(0.5)
 
+            scene = driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-scene"]'
+            )
+            before_select = scene.get_attribute("transform")
+            component_node = driver.find_elements(
+                By.CSS_SELECTOR, '[data-testid="workflow-component-node"]'
+            )[0]
+            driver.execute_script(
+                "arguments[0].dispatchEvent(new MouseEvent('click',{bubbles:true}))",
+                component_node,
+            )
+            time.sleep(0.6)
+            report["checks"]["workflow_selection_keeps_view"] = (
+                scene.get_attribute("transform") == before_select
+            )
+            report["checks"]["workflow_selection_filter"] = driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-filter-component"]'
+            ).get_attribute("value")
+            driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-reset"]'
+            ).click()
+            time.sleep(0.5)
+
             report["checks"]["explorer_closed_initially"] = (
                 expanded().get("sidebar-section-explorer") == "false"
             )
@@ -406,8 +442,38 @@ def main() -> int:
                 By.CSS_SELECTOR, '[data-testid="explorer-workflow-component"]'
             )
             report["checks"]["explorer_workflow_components"] = len(components)
-            components[0].click()
-            time.sleep(0.7)
+            right_click(components[0])
+            choose_menu_item("Go to Workflow")
+            report["checks"]["workflow_go_to_workflow_filter"] = driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-filter-component"]'
+            ).get_attribute("value")
+            report["checks"]["workflow_go_to_workflow_tab"] = (
+                driver.find_element(
+                    By.CSS_SELECTOR,
+                    '[data-testid="editor-tabs"] .wb-tab[data-active="true"] .wb-tab-label',
+                ).text.strip()
+                == "Workflow"
+            )
+            report["checks"]["workflow_auto_opens_steps"] = (
+                len(
+                    driver.find_elements(
+                        By.CSS_SELECTOR, '[data-testid="explorer-step"]'
+                    )
+                )
+                > 0
+            )
+            driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-reset"]'
+            ).click()
+            time.sleep(0.5)
+            components = driver.find_elements(
+                By.CSS_SELECTOR, '[data-testid="explorer-workflow-component"]'
+            )
+            if not driver.find_elements(
+                By.CSS_SELECTOR, '[data-testid="explorer-step"]'
+            ):
+                components[0].click()
+                time.sleep(0.7)
             report["checks"]["workflow_step_rows"] = len(
                 driver.find_elements(By.CSS_SELECTOR, '[data-testid="explorer-step"]')
             )
@@ -469,6 +535,12 @@ def main() -> int:
         time.sleep(0.8)
         report["checks"]["node_inspect_keeps_tabs"] = tabs() == ["Graph", "Workflow"]
         report["checks"]["node_status"] = status()
+        report["checks"]["selected_node_no_focus_box"] = (
+            driver.execute_script(
+                "return getComputedStyle(arguments[0]).outlineStyle", target
+            )
+            == "none"
+        )
         shot("03-inspect")
 
         inspector = driver.find_element(
@@ -733,6 +805,23 @@ def main() -> int:
             report["checks"]["node_property_matches"] = (
                 tabs()[-1] == f"{first_name}.{property_name}"
             )
+
+        # Right-click a graph item in Explorer and jump back to the Graph with
+        # that subject inspected.
+        node_label = tree_rows()[0]
+        node_name = node_label.text.strip().split("\n")[0]
+        tabs_before = tabs()
+        right_click(node_label)
+        choose_menu_item("Go to Graph")
+        report["checks"]["explorer_go_to_graph_tab"] = (
+            driver.find_element(
+                By.CSS_SELECTOR,
+                '[data-testid="editor-tabs"] .wb-tab[data-active="true"] .wb-tab-label',
+            ).text.strip()
+            == "Graph"
+        )
+        report["checks"]["explorer_go_to_graph_subject"] = node_name in status()
+        report["checks"]["explorer_go_to_graph_keeps_tabs"] = tabs() == tabs_before
         shot("05-graph")
 
         print(json.dumps(report, indent=2))

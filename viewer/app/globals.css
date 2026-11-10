@@ -1626,6 +1626,15 @@
 
 
 
+  /* SVG node editors draw their own selection state; the browser focus box is
+     visual noise around a selected node, edge or component. */
+  .wb-editor svg [role="button"]:focus,
+  .wb-editor svg [role="button"]:focus-visible,
+  .wb-editor svg [tabindex]:focus,
+  .wb-editor svg [tabindex]:focus-visible {
+    outline: none;
+  }
+
   /* ---- Shared UI primitives -------------------------------------------
      Feature modules may use these Blender primitives; the shell defines the
      palette once so a feature never invents a local colour. */

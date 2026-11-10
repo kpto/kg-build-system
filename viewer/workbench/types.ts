@@ -75,6 +75,8 @@ export interface WorkbenchActions {
   inspect(selection: SubjectSelection | undefined): void;
   setLayout(patch: Partial<WorkbenchLayout>): void;
   openTab(tab: OpenTabInput): void;
+  showGraph(selection: SubjectSelection): void;
+  showWorkflow(): void;
   pinTab(tabId: string): void;
   closeTab(tabId: string): void;
   activateTab(tabId: string): void;

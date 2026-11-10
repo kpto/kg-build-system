@@ -1410,6 +1410,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                     : incident
                       ? 0.8
                       : 0.55;
+              const markerEnd = selectedNodeName && incident ? undefined : marker;
               const midX = ((source.x ?? 0) + (target.x ?? 0)) / 2;
               const midY = ((source.y ?? 0) + (target.y ?? 0)) / 2;
               return (
@@ -1430,7 +1431,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                     strokeWidth={selected ? 2.6 : hovered || incident ? 1.8 : 1}
                     strokeOpacity={opacity}
                     strokeDasharray={link.kind === "containment" ? "4 3" : undefined}
-                    markerEnd={marker}
+                    markerEnd={markerEnd}
                     vectorEffect="non-scaling-stroke"
                     pointerEvents="none"
                   />

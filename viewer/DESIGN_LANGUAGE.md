@@ -96,7 +96,10 @@ Explorer tree opens or activates that document.
   own pane and keeps its own editor state and scroll position.
 - A single click in the Explorer tree opens or reuses one preview tab, like VS
   Code. Double-clicking the row, using **Open Detail**, choosing **Go to Detail**
-  in a context menu, or using the command palette opens a permanent tab.
+  in a context menu, or using the command palette opens a permanent tab. The
+  context menu also offers **Go to Graph** for graph subjects and **Go to
+  Workflow** for workflow items. A workflow component selected in Control or in
+  the Workflow graph expands its step group in Explorer.
   Preview tabs are reused by the next single click; double-clicking a preview
   tab label pins it. Middle-clicking a subject or step tab closes it; pinned
   Graph and Workflow tabs cannot be closed.
@@ -149,9 +152,9 @@ type/presence chain. When the question widens, open the parent subject from the
 Explorer tree; it becomes its own document tab.
 
 **Read the workflow.** Open **Workflow** → read the component map → filter by
-component or instruction kind in Control → open a step from the workflow section
-of Explorer → read its openings, instruction payload, connections and blueprint
-bindings.
+component or instruction kind in Control → the component expands its step group
+in Explorer → open a step → read its openings, instruction payload, connections
+and blueprint bindings.
 
 **Read the design.** Inspect states the graph purpose and its full claims and
 frames on demand when nothing is selected; the editor states the selected

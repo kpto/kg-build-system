@@ -13,6 +13,7 @@ They are review aids, not golden images.
 | `06-both-sections.png` | **Control** and **Explorer** are open together with an adjustable separator; Explorer still states the whole design, including Workflow. |
 | `07-preview-tab.png` | A single click in the graph Explorer opened one preview tab (`adverse_event`, italic). |
 | `08-detail-property.png` | **Go to Detail** on a property opened a permanent document while the preview tab remained. |
+| `09-explorer-menu.png` | Right-clicking an Explorer row offers **Go to Detail** and **Go to Graph**; workflow items offer **Go to Workflow**. |
 
 A tab is a standalone document. It changes its editor and the applicable Control
 body; Explorer always states the whole design. Middle-click closes a subject or

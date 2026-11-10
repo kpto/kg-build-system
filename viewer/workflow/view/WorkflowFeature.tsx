@@ -762,7 +762,10 @@ export function WorkflowEditor(props: WorkspaceProps) {
     if (!drag || drag.pointerId !== event.pointerId) return;
     const dx = event.clientX - drag.startX;
     const dy = event.clientY - drag.startY;
-    if (Math.abs(dx) > 3 || Math.abs(dy) > 3) drag.moved = true;
+    if (!drag.moved) {
+      if (Math.abs(dx) <= 3 && Math.abs(dy) <= 3) return;
+      drag.moved = true;
+    }
     setView((current) => ({ ...current, x: drag.x + dx, y: drag.y + dy }));
   };
 

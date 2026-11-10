@@ -61,27 +61,6 @@
   content: "·";
 }
 
-.meaningPurposeClamped {
-  display: -webkit-box;
-  overflow: hidden;
-  -webkit-box-orient: vertical;
-  -webkit-line-clamp: 5;
-}
-
-.meaningPurposeToggle {
-  align-self: flex-start;
-  border: 0;
-  background: transparent;
-  padding: 0;
-  color: var(--color-accent-strong);
-  font-family: var(--font-mono);
-  font-size: 9px;
-}
-
-.meaningPurposeToggle:hover {
-  color: var(--color-text);
-}
-
 .meaningCompact .meaningClaims li {
   display: -webkit-box;
   overflow: hidden;

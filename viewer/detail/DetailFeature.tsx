@@ -38,6 +38,10 @@ import {
   groupWorkflowRows,
   type WorkflowStepRow,
 } from "@/workflow/model/WorkflowViewModel";
+import {
+  getWorkflowUiStore,
+  useWorkflowUi,
+} from "@/workflow/view/workflowUi";
 import { activeDocument, documentSelection } from "@/workbench/types";
 import type {
   LineageLane,
@@ -405,7 +409,12 @@ export function ExplorerSidebar(props: WorkspaceProps) {
   const [open, setOpen] = useState<Set<string>>(() => new Set());
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
   const [menu, setMenu] = useState<
-    | { x: number; y: number; label: string; run(): void }
+    | {
+        x: number;
+        y: number;
+        label: string;
+        items: Array<{ label: string; hint?: string; run(): void }>;
+      }
     | undefined
   >(undefined);
   const normalized = query.trim().toLowerCase();
@@ -423,7 +432,17 @@ export function ExplorerSidebar(props: WorkspaceProps) {
   );
   const activeStepKey =
     active?.kind === "step" && active.stepId ? stepKey(active.stepId) : undefined;
+  const activeStepComponent =
+    active?.kind === "step"
+      ? active.component ?? active.stepId?.[0]
+      : undefined;
+  const { state: workflowUi } = useWorkflowUi(props.state.snapshot.name);
+  const focusedComponent = workflowUi.filters.component;
   const sectionOpen = (id: string) => Boolean(normalized) || open.has(id);
+  const workflowSectionOpen =
+    sectionOpen("workflow") ||
+    focusedComponent !== "all" ||
+    Boolean(activeStepComponent);
 
   // Single-click navigation reuses one preview tab; an explicit open is permanent.
   const select = (next: ProofSubject) => {
@@ -432,14 +451,30 @@ export function ExplorerSidebar(props: WorkspaceProps) {
   const openPermanent = (next: ProofSubject) => {
     props.actions.openTab({ selection: toWorkbenchSelection(next) });
   };
+  const openActions = (
+    event: ReactMouseEvent,
+    label: string,
+    items: Array<{ label: string; hint?: string; run(): void }>,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setMenu({ x: event.clientX, y: event.clientY, label, items });
+  };
   const openMenu = (
     event: ReactMouseEvent,
     label: string,
     run: () => void,
   ) => {
-    event.preventDefault();
-    event.stopPropagation();
-    setMenu({ x: event.clientX, y: event.clientY, label, run });
+    openActions(event, label, [
+      { label: "Go to Detail", hint: "Open document", run },
+    ]);
+  };
+  const goToGraph = (selection: SubjectSelection) => {
+    props.actions.showGraph(selection);
+  };
+  const goToWorkflow = (component: string) => {
+    getWorkflowUiStore(props.state.snapshot.name).setComponent(component);
+    props.actions.showWorkflow();
   };
   const openStep = (row: WorkflowStepRow, preview: boolean) => {
     props.actions.openTab({
@@ -537,13 +572,29 @@ export function ExplorerSidebar(props: WorkspaceProps) {
               })
             }
             onContextMenu={(event) =>
-              openMenu(event, node.name, () =>
-                openPermanent({
-                  level: nodeLevel,
-                  kind: nodeKind,
-                  component: node.name,
-                }),
-              )
+              openActions(event, node.name, [
+                {
+                  label: "Go to Detail",
+                  hint: "Open document",
+                  run: () =>
+                    openPermanent({
+                      level: nodeLevel,
+                      kind: nodeKind,
+                      component: node.name,
+                    }),
+                },
+                {
+                  label: "Go to Graph",
+                  hint: "Inspect",
+                  run: () =>
+                    goToGraph({
+                      kind: "node",
+                      level: nodeLevel,
+                      component: node.name,
+                      name: node.name,
+                    }),
+                },
+              ])
             }
             title={node.name}
           >
@@ -585,15 +636,32 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                   })
                 }
                 onContextMenu={(event) =>
-                  openMenu(event, `${node.name}.${property.name}`, () =>
-                    openPermanent({
-                      level: "property",
-                      kind: "node",
-                      component: node.name,
-                      property: property.name,
-                      propertyRef: property.ref,
-                    }),
-                  )
+                  openActions(event, `${node.name}.${property.name}`, [
+                    {
+                      label: "Go to Detail",
+                      hint: "Open document",
+                      run: () =>
+                        openPermanent({
+                          level: "property",
+                          kind: "node",
+                          component: node.name,
+                          property: property.name,
+                          propertyRef: property.ref,
+                        }),
+                    },
+                    {
+                      label: "Go to Graph",
+                      hint: "Inspect",
+                      run: () =>
+                        goToGraph({
+                          kind: "property",
+                          level: "property",
+                          component: node.name,
+                          property: property.name,
+                          name: `${node.name}.${property.name}`,
+                        }),
+                    },
+                  ])
                 }
               >
                 <CircleDot aria-hidden className={styles.propertyDot} />
@@ -651,13 +719,29 @@ export function ExplorerSidebar(props: WorkspaceProps) {
               })
             }
             onContextMenu={(event) =>
-              openMenu(event, edge.name, () =>
-                openPermanent({
-                  level: "edge",
-                  kind: "edge",
-                  component: edge.name,
-                }),
-              )
+              openActions(event, edge.name, [
+                {
+                  label: "Go to Detail",
+                  hint: "Open document",
+                  run: () =>
+                    openPermanent({
+                      level: "edge",
+                      kind: "edge",
+                      component: edge.name,
+                    }),
+                },
+                {
+                  label: "Go to Graph",
+                  hint: "Inspect",
+                  run: () =>
+                    goToGraph({
+                      kind: "edge",
+                      level: "edge",
+                      component: edge.name,
+                      name: edge.name,
+                    }),
+                },
+              ])
             }
             title={edge.name}
           >
@@ -698,15 +782,32 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                   })
                 }
                 onContextMenu={(event) =>
-                  openMenu(event, `${edge.name}.${property.name}`, () =>
-                    openPermanent({
-                      level: "property",
-                      kind: "edge",
-                      component: edge.name,
-                      property: property.name,
-                      propertyRef: property.ref,
-                    }),
-                  )
+                  openActions(event, `${edge.name}.${property.name}`, [
+                    {
+                      label: "Go to Detail",
+                      hint: "Open document",
+                      run: () =>
+                        openPermanent({
+                          level: "property",
+                          kind: "edge",
+                          component: edge.name,
+                          property: property.name,
+                          propertyRef: property.ref,
+                        }),
+                    },
+                    {
+                      label: "Go to Graph",
+                      hint: "Inspect",
+                      run: () =>
+                        goToGraph({
+                          kind: "property",
+                          level: "property",
+                          component: edge.name,
+                          property: property.name,
+                          name: `${edge.name}.${property.name}`,
+                        }),
+                    },
+                  ])
                 }
               >
                 <CircleDot aria-hidden className={styles.propertyDot} />
@@ -802,13 +903,17 @@ export function ExplorerSidebar(props: WorkspaceProps) {
           id="workflow"
           title="Workflow"
           count={filteredWorkflowRows.length}
-          open={sectionOpen("workflow")}
+          open={workflowSectionOpen}
           onToggle={toggle}
         >
           {workflowGroups.length ? (
             workflowGroups.map((group) => {
               const groupKey = `wf:${group.component}`;
-              const groupOpen = normalized ? true : expanded.has(groupKey);
+              const groupOpen = normalized
+                ? true
+                : expanded.has(groupKey) ||
+                  group.component === focusedComponent ||
+                  group.component === activeStepComponent;
               return (
                 <div key={groupKey} className={styles.treeBlock}>
                   <div className={styles.treeRow}>
@@ -831,6 +936,15 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                       data-testid="explorer-workflow-component"
                       data-component={group.component}
                       onClick={() => toggleNode(groupKey)}
+                      onContextMenu={(event) =>
+                        openActions(event, group.component, [
+                          {
+                            label: "Go to Workflow",
+                            hint: "Show component",
+                            run: () => goToWorkflow(group.component),
+                          },
+                        ])
+                      }
                       title={group.component}
                     >
                       <span>{group.component}</span>
@@ -852,6 +966,20 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                           }
                           onClick={() => openStep(row, true)}
                           onDoubleClick={() => openStep(row, false)}
+                          onContextMenu={(event) =>
+                            openActions(event, row.name, [
+                              {
+                                label: "Go to Detail",
+                                hint: "Open document",
+                                run: () => openStep(row, false),
+                              },
+                              {
+                                label: "Go to Workflow",
+                                hint: "Show component",
+                                run: () => goToWorkflow(row.component),
+                              },
+                            ])
+                          }
                           title={`${row.component} · ${row.name}`}
                         >
                           <CircleDot
@@ -879,13 +1007,11 @@ export function ExplorerSidebar(props: WorkspaceProps) {
           x={menu.x}
           y={menu.y}
           label={menu.label}
-          items={[
-            {
-              label: "Go to Detail",
-              hint: "Open document",
-              onSelect: menu.run,
-            },
-          ]}
+          items={menu.items.map((item) => ({
+            label: item.label,
+            hint: item.hint,
+            onSelect: item.run,
+          }))}
           onClose={() => setMenu(undefined)}
         />
       ) : null}
@@ -1224,7 +1350,12 @@ function PropertyTable({
   onOpenPermanent(property: ProofPropertySummary): void;
 }) {
   const [menu, setMenu] = useState<
-    | { x: number; y: number; label: string; run(): void }
+    | {
+        x: number;
+        y: number;
+        label: string;
+        items: Array<{ label: string; hint?: string; run(): void }>;
+      }
     | undefined
   >(undefined);
   if (!properties.length) {
@@ -1254,7 +1385,13 @@ function PropertyTable({
               x: event.clientX,
               y: event.clientY,
               label: `${property.component}.${property.property}`,
-              run: () => onOpenPermanent(property),
+              items: [
+                {
+                  label: "Go to Detail",
+                  hint: "Open document",
+                  run: () => onOpenPermanent(property),
+                },
+              ],
             });
           }}
         >
@@ -1279,13 +1416,11 @@ function PropertyTable({
           x={menu.x}
           y={menu.y}
           label={menu.label}
-          items={[
-            {
-              label: "Go to Detail",
-              hint: "Open document",
-              onSelect: menu.run,
-            },
-          ]}
+          items={menu.items.map((item) => ({
+            label: item.label,
+            hint: item.hint,
+            onSelect: item.run,
+          }))}
           onClose={() => setMenu(undefined)}
         />
       ) : null}

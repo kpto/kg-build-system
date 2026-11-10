@@ -290,6 +290,8 @@ export type WorkbenchAction =
   | { type: "inspect"; selection: SubjectSelection | undefined }
   | { type: "set-layout"; patch: Partial<WorkbenchLayout> }
   | { type: "open-tab"; input: OpenTabInput }
+  | { type: "show-graph"; selection: SubjectSelection }
+  | { type: "show-workflow" }
   | { type: "pin-tab"; tabId: string }
   | { type: "close-tab"; tabId: string }
   | { type: "activate-tab"; tabId: string }
@@ -346,6 +348,21 @@ export function workbenchReducer(
 
     case "open-tab":
       return appendTab(state, action.input);
+
+    case "show-graph": {
+      const graphTab = state.tabs.find((tab) => tab.document.kind === "graph");
+      if (!graphTab) return state;
+      const selection = normalizeSelection(action.selection);
+      const next = activate(state, graphTab.id);
+      return selection ? { ...next, inspection: selection } : next;
+    }
+
+    case "show-workflow": {
+      const workflowTab = state.tabs.find(
+        (tab) => tab.document.kind === "workflow",
+      );
+      return workflowTab ? activate(state, workflowTab.id) : state;
+    }
 
     case "pin-tab":
       return {
@@ -462,6 +479,8 @@ export function WorkbenchProvider({
       inspect: (selection) => dispatch({ type: "inspect", selection }),
       setLayout: (patch) => dispatch({ type: "set-layout", patch }),
       openTab: (input) => dispatch({ type: "open-tab", input }),
+      showGraph: (selection) => dispatch({ type: "show-graph", selection }),
+      showWorkflow: () => dispatch({ type: "show-workflow" }),
       pinTab: (tabId) => dispatch({ type: "pin-tab", tabId }),
       closeTab: (tabId) => dispatch({ type: "close-tab", tabId }),
       activateTab: (tabId) => dispatch({ type: "activate-tab", tabId }),

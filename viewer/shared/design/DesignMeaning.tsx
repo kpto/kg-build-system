@@ -35,7 +35,6 @@ export function GraphMeaning({
   purpose?: string;
   emptyText?: string;
 }) {
-  const [open, setOpen] = useState(false);
   return (
     <div className={styles.graphMeaning}>
       <DesignMeaning
@@ -43,18 +42,9 @@ export function GraphMeaning({
         frames={frames}
         purpose={purpose}
         showPurpose
-        summaryOnly={!open}
+        summaryOnly
         emptyText={emptyText}
       />
-      {claims.length || frames.length ? (
-        <button
-          type="button"
-          className={styles.meaningPurposeToggle}
-          onClick={() => setOpen((value) => !value)}
-        >
-          {open ? "Hide claims and frames" : "Show claims and frames"}
-        </button>
-      ) : null}
     </div>
   );
 }
@@ -69,7 +59,6 @@ export function DesignMeaning({
   emptyText = "No meaning is attached to this subject.",
 }: DesignMeaningProps) {
   const [openFrames, setOpenFrames] = useState<string[]>([]);
-  const [purposeOpen, setPurposeOpen] = useState(false);
   const limitations = frames.flatMap((frame) => frame.limitations ?? []);
   const visibleClaims = compact ? claims.slice(0, 4) : claims;
 
@@ -85,25 +74,7 @@ export function DesignMeaning({
           <span>{countLabel(limitations.length, "limitation")}</span>
         </div>
         {purpose ? (
-          <>
-            <p
-              className={cx(
-                styles.meaningPurpose,
-                !purposeOpen && styles.meaningPurposeClamped,
-              )}
-            >
-              {purpose}
-            </p>
-            {purpose.length > 220 ? (
-              <button
-                type="button"
-                className={styles.meaningPurposeToggle}
-                onClick={() => setPurposeOpen((value) => !value)}
-              >
-                {purposeOpen ? "Show less" : "Show full purpose"}
-              </button>
-            ) : null}
-          </>
+          <p className={styles.meaningPurpose}>{purpose}</p>
         ) : null}
       </div>
     );
