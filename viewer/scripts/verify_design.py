@@ -28,6 +28,7 @@ from selenium import webdriver
 from selenium.webdriver.common.by import By
 from selenium.webdriver.firefox.options import Options
 from selenium.webdriver.common.action_chains import ActionChains
+from selenium.webdriver.common.actions.action_builder import ActionBuilder
 from selenium.webdriver.support.ui import WebDriverWait
 
 FIREFOX = "/snap/firefox/current/usr/lib/firefox/firefox"
@@ -388,11 +389,10 @@ def main() -> int:
             component_node = driver.find_elements(
                 By.CSS_SELECTOR, '[data-testid="workflow-component-node"]'
             )[0]
-            driver.execute_script(
-                "arguments[0].dispatchEvent(new MouseEvent('click',{bubbles:true}))",
-                component_node,
-            )
-            time.sleep(0.6)
+            pointer = ActionBuilder(driver)
+            pointer.pointer_action.click(component_node, button=0)
+            pointer.perform()
+            time.sleep(0.7)
             report["checks"]["workflow_selection_keeps_view"] = (
                 scene.get_attribute("transform") == before_select
             )
@@ -403,6 +403,22 @@ def main() -> int:
                 By.CSS_SELECTOR, '[data-testid="workflow-reset"]'
             ).click()
             time.sleep(0.5)
+
+            component_node = driver.find_elements(
+                By.CSS_SELECTOR, '[data-testid="workflow-component-node"]'
+            )[0]
+            pointer = ActionBuilder(driver)
+            pointer.pointer_action.click(component_node, button=2)
+            pointer.perform()
+            time.sleep(0.5)
+            report["checks"]["workflow_context_menu"] = [
+                item.text.split("\n")[0]
+                for item in driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="context-menu-item"]'
+                )
+            ]
+            ActionChains(driver).send_keys("\ue00c").perform()
+            time.sleep(0.4)
 
             report["checks"]["explorer_closed_initially"] = (
                 expanded().get("sidebar-section-explorer") == "false"

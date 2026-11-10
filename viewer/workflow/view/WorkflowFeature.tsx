@@ -26,6 +26,7 @@ import type {
 } from "@/lib/types";
 import { stepKey } from "@/lib/indexes";
 import { DetailDocument, DetailPanel } from "@/detail/view/DetailChrome";
+import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { cx, groupPalette, theme } from "@/shared/ui/theme";
 import { activeDocument, type WorkspaceProps } from "@/workbench/types";
 import {
@@ -663,6 +664,20 @@ export function WorkflowEditor(props: WorkspaceProps) {
     moved: boolean;
   } | null>(null);
   const suppressClickRef = useRef(false);
+  const cleanupDragRef = useRef<(() => void) | null>(null);
+  const [menu, setMenu] = useState<
+    | {
+        x: number;
+        y: number;
+        label: string;
+        items: Array<{ label: string; hint?: string; run(): void }>;
+      }
+    | undefined
+  >(undefined);
+
+  useEffect(() => {
+    return () => cleanupDragRef.current?.();
+  }, []);
 
   useEffect(() => {
     const element = containerRef.current;
@@ -743,9 +758,23 @@ export function WorkflowEditor(props: WorkspaceProps) {
     });
   };
 
+  const endDrag = () => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    dragRef.current = null;
+    cleanupDragRef.current?.();
+    cleanupDragRef.current = null;
+    if (drag.moved) {
+      suppressClickRef.current = true;
+      window.setTimeout(() => {
+        suppressClickRef.current = false;
+      }, 0);
+    }
+  };
+
   const onPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (event.button !== 0) return;
-    event.currentTarget.setPointerCapture(event.pointerId);
+    if (dragRef.current) endDrag();
     dragRef.current = {
       pointerId: event.pointerId,
       startX: event.clientX,
@@ -755,33 +784,28 @@ export function WorkflowEditor(props: WorkspaceProps) {
       moved: false,
     };
     suppressClickRef.current = false;
-  };
 
-  const onPointerMove = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    if (!drag || drag.pointerId !== event.pointerId) return;
-    const dx = event.clientX - drag.startX;
-    const dy = event.clientY - drag.startY;
-    if (!drag.moved) {
-      if (Math.abs(dx) <= 3 && Math.abs(dy) <= 3) return;
-      drag.moved = true;
-    }
-    setView((current) => ({ ...current, x: drag.x + dx, y: drag.y + dy }));
-  };
+    const onMove = (move: PointerEvent) => {
+      const drag = dragRef.current;
+      if (!drag || drag.pointerId !== move.pointerId) return;
+      const dx = move.clientX - drag.startX;
+      const dy = move.clientY - drag.startY;
+      if (!drag.moved) {
+        if (Math.abs(dx) <= 3 && Math.abs(dy) <= 3) return;
+        drag.moved = true;
+      }
+      setView((current) => ({ ...current, x: drag.x + dx, y: drag.y + dy }));
+    };
+    const onUp = () => endDrag();
 
-  const onPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
-    const drag = dragRef.current;
-    if (!drag) return;
-    dragRef.current = null;
-    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
-      event.currentTarget.releasePointerCapture(event.pointerId);
-    }
-    if (drag.moved) {
-      suppressClickRef.current = true;
-      window.setTimeout(() => {
-        suppressClickRef.current = false;
-      }, 0);
-    }
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp, { once: true });
+    window.addEventListener("pointercancel", onUp, { once: true });
+    cleanupDragRef.current = () => {
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      window.removeEventListener("pointercancel", onUp);
+    };
   };
 
   if (!layout.nodes.length) {
@@ -826,9 +850,26 @@ export function WorkflowEditor(props: WorkspaceProps) {
         className="relative min-h-0 flex-1 cursor-grab touch-none overflow-hidden select-none"
         data-testid="workflow-canvas"
         onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
+        onContextMenu={(event) => {
+          event.preventDefault();
+          setMenu({
+            x: event.clientX,
+            y: event.clientY,
+            label: "Workflow graph",
+            items: [
+              {
+                label: "Show all components",
+                hint: "Reset filters",
+                run: () => store.resetFilters(),
+              },
+              {
+                label: "Fit graph",
+                hint: "Reset view",
+                run: fitView,
+              },
+            ],
+          });
+        }}
       >
         <svg
           className="block h-full w-full select-none"
@@ -915,6 +956,35 @@ export function WorkflowEditor(props: WorkspaceProps) {
                     tabIndex={0}
                     aria-pressed={selected}
                     aria-label={`${node.id}: ${node.steps} steps, ${node.kinds} instruction kinds, ${node.incoming} incoming and ${node.outgoing} outgoing links`}
+                    onContextMenu={(event) => {
+                      event.preventDefault();
+                      event.stopPropagation();
+                      setMenu({
+                        x: event.clientX,
+                        y: event.clientY,
+                        label: node.id,
+                        items: [
+                          {
+                            label: selected
+                              ? "Clear component filter"
+                              : "Select component",
+                            hint: selected ? "Show all" : "Filter",
+                            run: () =>
+                              store.setComponent(selected ? "all" : node.id),
+                          },
+                          {
+                            label: "Show steps in Explorer",
+                            hint: "Focus",
+                            run: () => store.setComponent(node.id),
+                          },
+                          {
+                            label: "Fit graph",
+                            hint: "Reset view",
+                            run: fitView,
+                          },
+                        ],
+                      });
+                    }}
                     onKeyDown={(event) => {
                       if (event.key === "Enter" || event.key === " ") {
                         event.preventDefault();
@@ -1074,10 +1144,24 @@ export function WorkflowEditor(props: WorkspaceProps) {
         </div>
 
         <div className="pointer-events-none absolute bottom-3 left-3 rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-faint">
-          drag to pan · wheel to zoom · node = component · link = aggregated
-          step connections
+          drag to pan · wheel to zoom · right-click a component for actions ·
+          node = component · link = aggregated step connections
         </div>
       </div>
+
+      {menu ? (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          label={menu.label}
+          items={menu.items.map((item) => ({
+            label: item.label,
+            hint: item.hint,
+            onSelect: item.run,
+          }))}
+          onClose={() => setMenu(undefined)}
+        />
+      ) : null}
     </div>
   );
 }
