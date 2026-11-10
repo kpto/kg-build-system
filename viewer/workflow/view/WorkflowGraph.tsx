@@ -14,7 +14,10 @@ const STEP_NODE_WIDTH = 220;
 const STEP_NODE_HEIGHT = 72;
 const STEP_HEADER_HEIGHT = 22;
 const STEP_GAP_X = 46;
+const STEP_LAYER_GAP_X = 76;
 const STEP_GAP_Y = 24;
+const STEP_MIN_ROWS = 6;
+const STEP_MAX_ROWS = 28;
 const STEP_MARGIN = 36;
 const BOUNDARY_WIDTH = 150;
 const BOUNDARY_HEIGHT = 72;
@@ -84,9 +87,9 @@ const ROW_GAP = 56;
 const MARGIN = 36;
 const SOCKET_Y = 50;
 
-function componentLayers(
+function dependencyLayers(
   ids: string[],
-  edges: ReturnType<typeof buildWorkflowComponentMap>["edges"],
+  edges: ReadonlyArray<{ source: string; target: string }>,
 ): Map<string, number> {
   const known = new Set(ids);
   const layer = new Map(ids.map((id) => [id, 0]));
@@ -113,6 +116,105 @@ function componentLayers(
     if (!changed) break;
   }
   return layer;
+}
+
+function componentLayers(
+  ids: string[],
+  edges: ReturnType<typeof buildWorkflowComponentMap>["edges"],
+): Map<string, number> {
+  return dependencyLayers(ids, edges);
+}
+
+/**
+ * Group ids by dependency layer and order each layer by the barycentre of its
+ * neighbours in the adjacent layer. The original order breaks ties, so the
+ * result is deterministic and a repeated input never reshuffles settled nodes.
+ */
+function layeredOrder(
+  ids: string[],
+  edges: ReadonlyArray<{ source: string; target: string }>,
+  layer: Map<string, number>,
+): string[][] {
+  const known = new Set(ids);
+  const original = new Map(ids.map((id, index) => [id, index]));
+  const predecessors = new Map<string, Set<string>>();
+  const successors = new Map<string, Set<string>>();
+  for (const edge of edges) {
+    if (edge.source === edge.target) continue;
+    if (!known.has(edge.source) || !known.has(edge.target)) continue;
+    const sources = predecessors.get(edge.target) ?? new Set<string>();
+    sources.add(edge.source);
+    predecessors.set(edge.target, sources);
+    const targets = successors.get(edge.source) ?? new Set<string>();
+    targets.add(edge.target);
+    successors.set(edge.source, targets);
+  }
+
+  const columns = new Map<number, string[]>();
+  for (const id of ids) {
+    const index = layer.get(id) ?? 0;
+    const column = columns.get(index) ?? [];
+    column.push(id);
+    columns.set(index, column);
+  }
+  const layerIds = [...columns.keys()].sort((left, right) => left - right);
+  for (const column of columns.values()) {
+    column.sort(
+      (left, right) =>
+        (original.get(left) ?? 0) - (original.get(right) ?? 0),
+    );
+  }
+
+  const position = new Map<string, number>();
+  for (const layerId of layerIds) {
+    (columns.get(layerId) ?? []).forEach((id, index) => position.set(id, index));
+  }
+
+  const order = (
+    column: string[],
+    neighbours: Map<string, Set<string>>,
+  ) => {
+    const score = new Map<string, number>();
+    for (const id of column) {
+      const values = [...(neighbours.get(id) ?? [])]
+        .map((neighbour) => position.get(neighbour))
+        .filter((value): value is number => value !== undefined);
+      if (values.length) {
+        score.set(
+          id,
+          values.reduce((total, value) => total + value, 0) / values.length,
+        );
+      }
+    }
+    column.sort((left, right) => {
+      const leftScore = score.get(left);
+      const rightScore = score.get(right);
+      if (leftScore !== undefined && rightScore !== undefined) {
+        if (leftScore !== rightScore) return leftScore - rightScore;
+      } else if (leftScore !== undefined) {
+        return -1;
+      } else if (rightScore !== undefined) {
+        return 1;
+      }
+      return (original.get(left) ?? 0) - (original.get(right) ?? 0);
+    });
+  };
+
+  // Alternate direction so both predecessor and successor barycentres settle.
+  for (let pass = 0; pass < 4; pass += 1) {
+    const forward = pass % 2 === 0;
+    const passLayers = forward
+      ? layerIds.slice(1)
+      : [...layerIds.slice(0, -1)].reverse();
+    for (const layerId of passLayers) {
+      const column = columns.get(layerId);
+      if (!column) continue;
+      order(column, forward ? predecessors : successors);
+      column.forEach((id, index) => position.set(id, index));
+    }
+  }
+
+  return layerIds.map((layerId) => columns.get(layerId) ?? []);
 }
 
 export function buildCompositorScene(
@@ -245,6 +347,8 @@ export function buildStepScene(
   const internal: Array<{ id: string; sourceKey: string; targetKey: string }> = [];
   const incoming = new Map<string, number>();
   const outgoing = new Map<string, number>();
+  const leftTargets = new Map<string, Set<string>>();
+  const rightSources = new Map<string, Set<string>>();
 
   for (const connection of index.connections) {
     const sourceKey = stepKey(connection.outputStepId);
@@ -259,42 +363,64 @@ export function buildStepScene(
       const targetComponent = connection.inputStepId[0];
       if (targetComponent === component) continue;
       outgoing.set(targetComponent, (outgoing.get(targetComponent) ?? 0) + 1);
+      const sources = rightSources.get(targetComponent) ?? new Set<string>();
+      sources.add(sourceKey);
+      rightSources.set(targetComponent, sources);
     } else if (targetIn) {
       const sourceComponent = connection.outputStepId[0];
       if (sourceComponent === component) continue;
       incoming.set(sourceComponent, (incoming.get(sourceComponent) ?? 0) + 1);
+      const targets = leftTargets.get(sourceComponent) ?? new Set<string>();
+      targets.add(targetKey);
+      leftTargets.set(sourceComponent, targets);
     }
   }
 
   const count = rows.length;
   const leftEntries = [...incoming.entries()].sort(([a], [b]) => a.localeCompare(b));
   const rightEntries = [...outgoing.entries()].sort(([a], [b]) => a.localeCompare(b));
-  const columns = Math.max(
-    3,
-    Math.min(
-      18,
-      Math.ceil(Math.sqrt((Math.max(count, 1) * 1.7) / 3.8)),
-    ),
+  const stepIds = rows.map((row) => row.key);
+  const internalLinks = internal.map((edge) => ({
+    source: edge.sourceKey,
+    target: edge.targetKey,
+  }));
+  const layers = dependencyLayers(stepIds, internalLinks);
+  const columns = layeredOrder(stepIds, internalLinks, layers);
+  const maxLayerSize = columns.length
+    ? Math.max(...columns.map((column) => column.length))
+    : 0;
+  // A dependency layer may contain hundreds of parallel steps. Keep the layer
+  // order, but wrap a large layer into a block of sub-columns so the graph
+  // stays compact. Within a block the flat order is row-major, so a step and
+  // its neighbour share a row across layer blocks.
+  const rowsPerBlock = Math.min(
+    STEP_MAX_ROWS,
+    Math.max(STEP_MIN_ROWS, Math.ceil(Math.sqrt(Math.max(count, 1)))),
   );
-  const rowsPerColumn = Math.max(1, Math.ceil(count / columns));
+  const visibleRows = Math.min(rowsPerBlock, Math.max(1, maxLayerSize));
+  const blocks = columns.map((column) => {
+    const blockColumns = Math.max(1, Math.ceil(column.length / visibleRows));
+    return {
+      column,
+      blockColumns,
+      width:
+        blockColumns * STEP_NODE_WIDTH +
+        Math.max(0, blockColumns - 1) * STEP_GAP_X,
+    };
+  });
   const gridWidth =
-    columns * STEP_NODE_WIDTH + Math.max(0, columns - 1) * STEP_GAP_X;
+    blocks.reduce((total, block) => total + block.width, 0) +
+    Math.max(0, blocks.length - 1) * STEP_LAYER_GAP_X;
   const gridHeight =
-    rowsPerColumn * STEP_NODE_HEIGHT +
-    Math.max(0, rowsPerColumn - 1) * STEP_GAP_Y;
+    maxLayerSize === 0
+      ? 0
+      : visibleRows * STEP_NODE_HEIGHT +
+        Math.max(0, visibleRows - 1) * STEP_GAP_Y;
   const leftWidth = leftEntries.length ? BOUNDARY_WIDTH : 0;
   const rightWidth = rightEntries.length ? BOUNDARY_WIDTH : 0;
   const gridX = STEP_MARGIN + (leftEntries.length ? leftWidth + 42 : 0);
   const gridY = STEP_MARGIN;
   const rightX = gridX + gridWidth + (rightEntries.length ? 42 : 0);
-  const leftStackHeight =
-    leftEntries.length * BOUNDARY_HEIGHT +
-    Math.max(0, leftEntries.length - 1) * 22;
-  const rightStackHeight =
-    rightEntries.length * BOUNDARY_HEIGHT +
-    Math.max(0, rightEntries.length - 1) * 22;
-  const canvasHeight =
-    STEP_MARGIN * 2 + Math.max(gridHeight, leftStackHeight, rightStackHeight);
   const canvasWidth =
     gridX +
     gridWidth +
@@ -303,78 +429,127 @@ export function buildStepScene(
 
   const nodes: WorkflowGraphNode[] = [];
   const nodeByKey = new Map<string, WorkflowGraphNode>();
+  const rowByKey = new Map(rows.map((row) => [row.key, row]));
 
-  rows.forEach((row, rowIndex) => {
-    // Columns fill top-to-bottom, then advance to the next column. The flow
-    // never wraps back to a new row.
-    const column = Math.floor(rowIndex / rowsPerColumn);
-    const line = rowIndex % rowsPerColumn;
-    const node: WorkflowGraphNode = {
-      id: row.key,
-      kind: "step",
-      label: row.name,
-      detail: row.kindLabel,
-      meta: `${row.inputs} in · ${row.outputs} out`,
-      tint: tintFor(row.component),
-      x: gridX + column * (STEP_NODE_WIDTH + STEP_GAP_X),
-      y: gridY + line * (STEP_NODE_HEIGHT + STEP_GAP_Y),
-      width: STEP_NODE_WIDTH,
-      height: STEP_NODE_HEIGHT,
-      headerHeight: STEP_HEADER_HEIGHT,
-      socketY: STEP_NODE_HEIGHT / 2,
-      dataTestId: "workflow-step-node",
-      row,
-      component: row.component,
-    };
-    nodes.push(node);
-    nodeByKey.set(node.id, node);
+  // One block per dependency layer. Parallel steps share the block and wrap
+  // into sub-columns; rows align across blocks so a chain reads left to right.
+  let cursorX = gridX;
+  blocks.forEach(({ column, blockColumns }) => {
+    column.forEach((key, index) => {
+      const row = rowByKey.get(key);
+      if (!row) return;
+      const subColumn = Math.floor(index / visibleRows);
+      const rowIndex = index % visibleRows;
+      const node: WorkflowGraphNode = {
+        id: row.key,
+        kind: "step",
+        label: row.name,
+        detail: row.kindLabel,
+        meta: `${row.inputs} in · ${row.outputs} out`,
+        tint: tintFor(row.component),
+        x: cursorX + subColumn * (STEP_NODE_WIDTH + STEP_GAP_X),
+        y: gridY + rowIndex * (STEP_NODE_HEIGHT + STEP_GAP_Y),
+        width: STEP_NODE_WIDTH,
+        height: STEP_NODE_HEIGHT,
+        headerHeight: STEP_HEADER_HEIGHT,
+        socketY: STEP_NODE_HEIGHT / 2,
+        dataTestId: "workflow-step-node",
+        row,
+        component: row.component,
+      };
+      nodes.push(node);
+      nodeByKey.set(node.id, node);
+    });
+    cursorX +=
+      blockColumns * STEP_NODE_WIDTH +
+      Math.max(0, blockColumns - 1) * STEP_GAP_X +
+      STEP_LAYER_GAP_X;
   });
 
-  const leftStartY =
-    STEP_MARGIN + Math.max(0, (gridHeight - leftStackHeight) / 2);
-  leftEntries.forEach(([source, links], entryIndex) => {
+  const stepCenterY = (keys: Iterable<string>): number => {
+    const values = [...keys]
+      .map((key) => nodeByKey.get(key))
+      .filter((node): node is WorkflowGraphNode => Boolean(node))
+      .map((node) => node.y + node.height / 2);
+    return values.length
+      ? values.reduce((total, value) => total + value, 0) / values.length
+      : gridY + gridHeight / 2;
+  };
+
+  const placeBoundaryStack = (
+    entries: Array<[string, number]>,
+    keys: Map<string, Set<string>>,
+  ) => {
+    let previousBottom = -Infinity;
+    return entries
+      .map(([name, links]) => ({
+        name,
+        links,
+        desired: stepCenterY(keys.get(name) ?? []) - BOUNDARY_HEIGHT / 2,
+      }))
+      .sort((left, right) => left.desired - right.desired)
+      .map((entry) => {
+        const y = Math.max(
+          STEP_MARGIN,
+          entry.desired,
+          previousBottom + 22,
+        );
+        previousBottom = y + BOUNDARY_HEIGHT;
+        return { ...entry, y };
+      });
+  };
+
+  const leftPlacements = placeBoundaryStack(leftEntries, leftTargets);
+  const rightPlacements = placeBoundaryStack(rightEntries, rightSources);
+
+  leftPlacements.forEach(({ name, links, y }) => {
     const node: WorkflowGraphNode = {
-      id: `boundary:in:${source}`,
+      id: `boundary:in:${name}`,
       kind: "in",
-      label: source,
+      label: name,
       detail: `${links} link${links === 1 ? "" : "s"}`,
       meta: "incoming boundary",
-      tint: tintFor(source),
+      tint: tintFor(name),
       x: STEP_MARGIN,
-      y: leftStartY + entryIndex * (BOUNDARY_HEIGHT + 22),
+      y,
       width: BOUNDARY_WIDTH,
       height: BOUNDARY_HEIGHT,
       headerHeight: STEP_HEADER_HEIGHT,
       socketY: BOUNDARY_HEIGHT / 2,
       dataTestId: "workflow-boundary-node",
-      component: source,
+      component: name,
     };
     nodes.push(node);
     nodeByKey.set(node.id, node);
   });
 
-  const rightStartY =
-    STEP_MARGIN + Math.max(0, (gridHeight - rightStackHeight) / 2);
-  rightEntries.forEach(([target, links], entryIndex) => {
+  rightPlacements.forEach(({ name, links, y }) => {
     const node: WorkflowGraphNode = {
-      id: `boundary:out:${target}`,
+      id: `boundary:out:${name}`,
       kind: "out",
-      label: target,
+      label: name,
       detail: `${links} link${links === 1 ? "" : "s"}`,
       meta: "outgoing boundary",
-      tint: tintFor(target),
+      tint: tintFor(name),
       x: rightX,
-      y: rightStartY + entryIndex * (BOUNDARY_HEIGHT + 22),
+      y,
       width: BOUNDARY_WIDTH,
       height: BOUNDARY_HEIGHT,
       headerHeight: STEP_HEADER_HEIGHT,
       socketY: BOUNDARY_HEIGHT / 2,
       dataTestId: "workflow-boundary-node",
-      component: target,
+      component: name,
     };
     nodes.push(node);
     nodeByKey.set(node.id, node);
   });
+
+  const canvasHeight =
+    Math.max(
+      STEP_MARGIN + gridHeight,
+      ...leftPlacements.map((entry) => entry.y + BOUNDARY_HEIGHT),
+      ...rightPlacements.map((entry) => entry.y + BOUNDARY_HEIGHT),
+    ) + STEP_MARGIN;
 
   const edges: WorkflowGraphEdge[] = [];
   const pushEdge = (sourceKey: string, targetKey: string, id: string, boundary: boolean) => {

@@ -138,11 +138,12 @@ rule about what the framework is belongs to the framework model.
   the logo, colour and label for every concept; a banner, a tab, a section header
   and a reference read it rather than declaring their own visual; repeated items
   omit the header's mark, and a reference carries its target document, not a
-  focus inside another document. A graph view uses one renderer, one selection
-  rule and one pan/zoom viewport for every node and link kind; selecting a node
-  dims every other node and non-incident link and never moves a settled node;
-  empty space clears the selection. A new level or kind adds data, not a second
-  renderer or viewport.
+  focus inside another document. A visualisation kind has one renderer and one
+  selection rule for every node and link kind; workflow surfaces share one
+  renderer and the provenance tree has its own, while every graph surface shares
+  one pan/zoom viewport. Selecting a node dims every other node and non-incident
+  link and never moves a settled node; empty space clears the selection. A new
+  level or kind adds data, not a second renderer within a visualisation kind.
 - Motion is feedback, not decoration: short ease-out transitions on transform and
   opacity, origin-aware entrances, and reduced motion removes movement.
 - End every change report with the rule-promotion result: none, refined or

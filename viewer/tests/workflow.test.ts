@@ -10,6 +10,7 @@ import {
   formatStepId,
   groupWorkflowRows,
 } from "../workflow/model/WorkflowViewModel";
+import { buildStepScene } from "../workflow/view/WorkflowGraph";
 
 const model = buildWorkflowModel(contractIndex);
 
@@ -79,5 +80,15 @@ describe("workflow view model", () => {
     expect(formatArtifactType(["core", "binding", "defect"])).toBe(
       "core:binding:defect",
     );
+  });
+
+  it("places a step to the right of its dependency", () => {
+    const scene = buildStepScene(contractIndex, "", model.rows, () => "#fff");
+    const source = scene.nodes.find((node) => node.label === "source.surveys");
+    const target = scene.nodes.find((node) => node.label === "binding.0");
+    expect(source).toBeDefined();
+    expect(target).toBeDefined();
+    expect(target!.x).toBeGreaterThan(source!.x);
+    expect(target!.y).toBe(source!.y);
   });
 });
