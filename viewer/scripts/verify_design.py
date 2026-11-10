@@ -877,7 +877,7 @@ def main() -> int:
         )
         report["checks"]["graph_effective_license"] = (
             "LICENSE" in deselect_inspector
-            and "Not declared" in deselect_inspector
+            and "CC0-1.0 · Open Targets" in deselect_inspector
         )
 
         # Restore the target selection for the context-menu checks.
@@ -1004,7 +1004,7 @@ def main() -> int:
             driver.find_element(
                 By.CSS_SELECTOR, '[data-testid="detail-effective-license"]'
             ).text
-            == "Not declared"
+            == "CC0-1.0 · Open Targets"
         )
         report["checks"]["detail_license_in_banner"] = bool(
             driver.find_elements(

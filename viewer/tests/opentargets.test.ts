@@ -24,6 +24,10 @@ describe("Open Targets snapshot", () => {
     expect(index.stats.steps).toBe(998);
     expect(index.stats.connections).toBe(1419);
     expect(index.blueprint.assets?.[0]?.name).toBe("open_target");
+    expect(index.assetsByName.get("open_target")?.governance?.license).toMatchObject({
+      identifier: "CC0-1.0",
+      attribution: "Open Targets",
+    });
     expect(snapshot.report.published_artifacts).toEqual([]);
     expect(snapshot.report.provenance).toBeNull();
     expect(snapshot.metaGraph).toBeUndefined();
