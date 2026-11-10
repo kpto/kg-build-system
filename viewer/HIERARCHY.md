@@ -24,7 +24,7 @@ A level may be absent. It is never reordered or nested inside the same kind.
 | Title bar | brand, snapshot, command trigger, sidebar/bottom toggles, layout reset, settings | `workbench/TitleBar` |
 | Side bar | collapsible **Topology** and **Detail** sections | `workbench/SideBar` |
 | Editor | global document tabs + active document body | `workbench/EditorArea` |
-| Bottom panel | Inspect for the Graph document; Trace/Evidence for a subject document | `workbench/BottomPanel` |
+| Bottom panel | independent **Inspect** region for the graph selection | `workbench/BottomPanel` |
 | Status bar | snapshot, document view, selected subject, counts, compile-only, zoom | `workbench/StatusBar` |
 
 The side bar is 220–520 px, the bottom panel 120–480 px. One `WorkbenchLayout`
@@ -39,16 +39,17 @@ not panel purpose.
 | **Topology** | canvas filters, labels, Show controls, legend, fit/zoom/pin |
 | **Detail** | graph meaning, design tree of assets, relations, projections, nodes, edges and properties |
 
-The sections are collapsible; opening one collapses the other. The section
-follows the active document type by default, but selecting a section never
-changes the active document or its editor. A tab is a document, not a mode.
+The sections are collapsible; opening one collapses the other. The open section
+is user state: opening or activating a tab never changes it, and opening a
+section never changes the active document or its editor. A tab is a standalone
+document.
 
 ## Documents and tabs
 
 | Document | Editor | Bottom |
 | --- | --- | --- |
 | **Graph** (pinned) | D3 force canvas, zoom/pan/drag, inspection | Inspect: graph purpose/overview, or selected entity identity, properties and meaning |
-| **Subject** (node, edge, property, asset, abstract) | design meaning, properties, attached semantics and, for a property, provenance lanes and type/presence | Trace, Evidence |
+| **Subject** (node, edge, property, asset, abstract) | design meaning, properties, attached semantics and, for a property, provenance lanes and type/presence | unchanged Inspect region |
 
 A node or property click only changes transient inspection. A document opens
 only through an explicit action: **Open Detail**, the Detail tree, a Detail

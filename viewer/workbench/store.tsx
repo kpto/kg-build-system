@@ -20,11 +20,10 @@ import {
 } from "react";
 
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
-import { defaultBottomTab, isRetiredBottomTab } from "./defaults";
+
 import type {
   OpenTabInput,
   SelectionKind,
-  TabView,
   WorkbenchActions,
   WorkbenchLayout,
   WorkbenchSelection,
@@ -71,31 +70,11 @@ function numberOr(value: unknown, fallback: number): number {
   return typeof value === "number" && Number.isFinite(value) ? value : fallback;
 }
 
-const VIEWS: TabView[] = ["graph", "subject"];
-
-function defaultBottomTabs(): WorkbenchLayout["bottomTabs"] {
-  return { graph: "selection", subject: "trace" };
-}
-
 function normalizeLayout(value: unknown): WorkbenchLayout {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
-    return { ...DEFAULT_LAYOUT, bottomTabs: defaultBottomTabs() };
+    return { ...DEFAULT_LAYOUT };
   }
   const candidate = value as Record<string, unknown>;
-  const rawTabs =
-    candidate.bottomTabs &&
-    typeof candidate.bottomTabs === "object" &&
-    !Array.isArray(candidate.bottomTabs)
-      ? (candidate.bottomTabs as Record<string, unknown>)
-      : {};
-  const bottomTabs: WorkbenchLayout["bottomTabs"] = { ...DEFAULT_LAYOUT.bottomTabs };
-  for (const view of VIEWS) {
-    const tab = rawTabs[view];
-    bottomTabs[view] =
-      typeof tab === "string" && tab && !isRetiredBottomTab(tab)
-        ? tab
-        : defaultBottomTab(view);
-  }
   return {
     sidebarWidth: clamp(
       numberOr(candidate.sidebarWidth, DEFAULT_LAYOUT.sidebarWidth),
@@ -107,7 +86,6 @@ function normalizeLayout(value: unknown): WorkbenchLayout {
       MIN_BOTTOM,
       MAX_BOTTOM,
     ),
-    bottomTabs,
   };
 }
 
@@ -277,7 +255,6 @@ export type WorkbenchAction =
   | { type: "set-selection"; selection: WorkbenchSelection }
   | { type: "inspect"; selection: WorkbenchSelection }
   | { type: "set-layout"; patch: Partial<Pick<WorkbenchLayout, "sidebarWidth" | "bottomHeight">> }
-  | { type: "set-bottom-tab"; view: TabView; tab: string }
   | { type: "open-tab"; input: OpenTabInput }
   | { type: "close-tab"; tabId: string }
   | { type: "activate-tab"; tabId: string }
@@ -324,18 +301,6 @@ export function workbenchReducer(
             MIN_BOTTOM,
             MAX_BOTTOM,
           ),
-        },
-      };
-
-    case "set-bottom-tab":
-      return {
-        ...state,
-        layout: {
-          ...state.layout,
-          bottomTabs: {
-            ...state.layout.bottomTabs,
-            [action.view]: action.tab,
-          },
         },
       };
 
@@ -448,8 +413,6 @@ export function WorkbenchProvider({
         dispatch({ type: "set-selection", selection }),
       inspect: (selection) => dispatch({ type: "inspect", selection }),
       setLayout: (patch) => dispatch({ type: "set-layout", patch }),
-      setBottomTab: (view, tab) =>
-        dispatch({ type: "set-bottom-tab", view, tab }),
       openTab: (input) => dispatch({ type: "open-tab", input }),
       closeTab: (tabId) => dispatch({ type: "close-tab", tabId }),
       activateTab: (tabId) => dispatch({ type: "activate-tab", tabId }),

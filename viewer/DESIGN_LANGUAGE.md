@@ -77,18 +77,18 @@ The detail switch belongs to the subject document, not to the workbench.
 - The shell owns panel visibility, width and height. A document never resizes
   the workbench.
 - Both panels are shown by default. The side bar carries the Topology and Detail
-  sections; the bottom panel is Inspect for Graph and Trace/Evidence for a
-  subject. The title bar toggle and `Cmd/Ctrl+J` change visibility, not purpose.
+  sections; the bottom panel is the independent Inspect region. The title bar
+  toggle and `Cmd/Ctrl+J` change visibility, not purpose.
 - Geometry is one workbench value per snapshot. Opening a side-bar section never
   changes it.
 - The editor tab strip is one global document strip. Its tab views are **Graph**
   (pinned) and explicitly opened **subject documents** (node, edge, property,
   asset, abstract). A click on the canvas is transient inspection, not a
   document; it never opens a tab.
-- There is no mode. Topology and Detail are side-bar sections; changing section
-  never changes the active tab, and changing tab never changes the section by
-  content (it may follow the document type). Opening the same subject again
-  activates its existing tab.
+- There is no mode and no automatic coupling. Topology and Detail are side-bar
+  sections; changing section never changes the active tab, and changing tab
+  never changes the open section, bottom panel or panel geometry. Opening the
+  same subject again activates its existing tab.
 - Back and forward walk the activated-tab history (`Alt+←` / `Alt+→` or the
   arrows in the tab strip). Opening, activating or closing a tab records one
   navigation step; changing selection inside the active tab does not.
@@ -98,9 +98,8 @@ The detail switch belongs to the subject document, not to the workbench.
 
 - The side bar carries either canvas controls (Topology) or design navigation
   (Detail). It does not repeat the selected subject.
-- The bottom panel carries the selected inspection: **Inspect** for the Graph
-  document, **Trace/Evidence** for a subject document. It is the only place
-  where a graph inspection's properties and meaning are expanded.
+- The bottom panel carries the graph inspection: **Inspect**. It is independent
+  of the active document, so opening a tab never changes it.
 - Cognitive Load (Laws of UX): repeating the same properties in two regions is
   extraneous load — it consumes attention without adding understanding.
 - Law of Common Region (Laws of UX): a boundary is a promise about what belongs

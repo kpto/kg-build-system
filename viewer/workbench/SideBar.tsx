@@ -1,13 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { ChevronRight } from "lucide-react";
 
 import { DetailSidebar } from "@/detail/DetailFeature";
 import { TopologySidebar } from "@/topology/TopologyFeature";
 import { cx } from "@/shared/ui/theme";
 import { useWorkbench } from "./store";
-import { currentSelection, tabView } from "./types";
 
 type SectionId = "topology" | "detail";
 
@@ -15,11 +14,6 @@ export function SideBar() {
   const { state, actions } = useWorkbench();
   const [open, setOpen] = useState<SectionId | null>("topology");
   const stats = state.index.stats;
-  const view = tabView(currentSelection(state));
-
-  useEffect(() => {
-    setOpen(view === "graph" ? "topology" : "detail");
-  }, [view, state.activeTabId]);
 
   const toggle = (section: SectionId) => {
     setOpen((current) => (current === section ? null : section));

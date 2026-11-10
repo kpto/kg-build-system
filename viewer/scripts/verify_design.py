@@ -135,9 +135,14 @@ def main() -> int:
         ).click()
         time.sleep(1.2)
         report["checks"]["tabs_after_open"] = tabs()
-        report["checks"]["detail_section_after_open"] = expanded().get(
-            "sidebar-section-detail"
+        report["checks"]["sidebar_after_open"] = expanded()
+        report["checks"]["sidebar_independent_of_tab"] = (
+            expanded().get("sidebar-section-topology") == "true"
+            and expanded().get("sidebar-section-detail") == "false"
         )
+        report["checks"]["bottom_after_open"] = driver.find_element(
+            By.CSS_SELECTOR, '[data-testid="bottom-panel"]'
+        ).text.split("\n")[:2]
         report["checks"]["detail_editor"] = bool(
             driver.find_elements(By.CSS_SELECTOR, '[data-testid="detail-editor"]')
         )
@@ -146,6 +151,15 @@ def main() -> int:
             By.CSS_SELECTOR, '[aria-label="Workbench status"]'
         ).text.replace("\n", " | ")
         shot("03-detail-property")
+
+        # Opening a section is a user action; a tab never changes it.
+        driver.find_element(
+            By.CSS_SELECTOR, '[data-testid="sidebar-section-detail"]'
+        ).click()
+        time.sleep(0.7)
+        report["checks"]["detail_section_user_open"] = expanded().get(
+            "sidebar-section-detail"
+        )
 
         graph_tab = next(
             (
@@ -164,8 +178,14 @@ def main() -> int:
                 "Graph",
                 "target.approvedSymbol",
             ]
-            report["checks"]["topology_section_after_graph"] = expanded().get(
-                "sidebar-section-topology"
+            report["checks"]["sidebar_unchanged_by_graph_tab"] = expanded().get(
+                "sidebar-section-detail"
+            ) == "true"
+            report["checks"]["bottom_unchanged_by_graph_tab"] = (
+                driver.find_element(
+                    By.CSS_SELECTOR, '[data-testid="bottom-panel"]'
+                ).text.split("\n")[:2]
+                == report["checks"]["bottom_after_open"]
             )
             report["checks"]["graph_status"] = driver.find_element(
                 By.CSS_SELECTOR, '[aria-label="Workbench status"]'

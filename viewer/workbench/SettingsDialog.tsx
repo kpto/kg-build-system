@@ -2,7 +2,6 @@
 
 import { RotateCcw, Trash2, X } from "lucide-react";
 
-import { defaultBottomTab } from "./defaults";
 import {
   clearWorkbenchStorage,
   useWorkbench,
@@ -40,8 +39,6 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
       sidebarWidth: DEFAULT_LAYOUT.sidebarWidth,
       bottomHeight: DEFAULT_LAYOUT.bottomHeight,
     });
-    actions.setBottomTab("graph", defaultBottomTab("graph"));
-    actions.setBottomTab("subject", defaultBottomTab("subject"));
     onClose();
   };
 
@@ -51,8 +48,6 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
       sidebarWidth: DEFAULT_LAYOUT.sidebarWidth,
       bottomHeight: DEFAULT_LAYOUT.bottomHeight,
     });
-    actions.setBottomTab("graph", defaultBottomTab("graph"));
-    actions.setBottomTab("subject", defaultBottomTab("subject"));
     onClose();
   };
 
@@ -121,10 +116,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               </div>
               <div>
                 <dt>Bottom panel</dt>
-                <dd className="wb-mono">
-                  {state.layout.bottomHeight}px ·{" "}
-                  {state.layout.bottomTabs[view] ?? defaultBottomTab(view)}
-                </dd>
+                <dd className="wb-mono">{state.layout.bottomHeight}px</dd>
               </div>
             </dl>
           </section>

@@ -36,8 +36,6 @@ export interface WorkbenchSelection {
 export interface WorkbenchLayout {
   sidebarWidth: number;
   bottomHeight: number;
-  /** The active bottom tab is content per document view. */
-  bottomTabs: Record<TabView, string>;
 }
 
 export interface WorkbenchTab {
@@ -70,7 +68,6 @@ export interface WorkbenchActions {
   setSelection(selection: WorkbenchSelection): void;
   inspect(selection: WorkbenchSelection): void;
   setLayout(patch: Partial<Pick<WorkbenchLayout, "sidebarWidth" | "bottomHeight">>): void;
-  setBottomTab(view: TabView, tab: string): void;
   openTab(tab: OpenTabInput): void;
   closeTab(tabId: string): void;
   activateTab(tabId: string): void;
@@ -104,7 +101,6 @@ export function currentLensSelection(state: WorkbenchState): WorkbenchSelection 
 export const DEFAULT_LAYOUT: WorkbenchLayout = {
   sidebarWidth: 300,
   bottomHeight: 240,
-  bottomTabs: { graph: "selection", subject: "trace" },
 };
 
 export const MIN_SIDEBAR = 220;

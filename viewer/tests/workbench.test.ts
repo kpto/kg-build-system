@@ -35,10 +35,6 @@ describe("workbench documents and geometry", () => {
     });
     expect(initial.layout.sidebarWidth).toBe(300);
     expect(initial.layout.bottomHeight).toBe(240);
-    expect(initial.layout.bottomTabs).toEqual({
-      graph: "selection",
-      subject: "trace",
-    });
   });
 
   it("resizes one geometry for every document", () => {

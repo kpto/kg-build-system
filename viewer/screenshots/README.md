@@ -5,10 +5,11 @@ They are review aids, not golden images.
 
 | File | What it shows |
 | --- | --- |
-| `01-topology.png` | No left toolbar. **Topology** and **Detail** are collapsible side-bar headers; the Graph document is active. |
+| `01-topology.png` | No left toolbar; **Topology** and **Detail** are collapsible side-bar headers; Graph document active. |
 | `02-inspect.png` | `target` inspected in the Graph document. The tab strip still has only **Graph**. |
-| `03-detail-node.png` | **Open Detail** opens the `target` document; the Detail side-bar section follows the document type. |
-| `04-detail-property.png` | `target.approvedSymbol` opened as a property document. |
-| `05-graph.png` | The pinned Graph document active again; Topology section expanded. |
+| `03-detail-tab-sidebar-topology.png` | **Open Detail** opens the `target` document; the side bar remains on **Topology**. The tab did not change another region. |
+| `04-property-tab-detail-sidebar.png` | The user opened **Detail** manually and then a property document; the side bar stays on Detail. |
+| `05-graph-tab-detail-sidebar.png` | Activating the Graph tab leaves the Detail side bar open and the Inspect bottom panel unchanged. |
 
-There is no mode. Tabs are documents; the side bar has two collapsible sections.
+A tab is a standalone document. It does not change the side bar, bottom panel,
+panel geometry or another tab.

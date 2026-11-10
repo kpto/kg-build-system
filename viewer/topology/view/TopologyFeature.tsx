@@ -12,7 +12,7 @@ import type { JSX, MouseEvent as ReactMouseEvent, ReactNode } from "react";
 import * as d3 from "d3";
 
 import type { WorkspaceProps, WorkbenchSelection } from "@/workbench/types";
-import { currentLensSelection, currentSelection } from "@/workbench/types";
+import { currentSelection } from "@/workbench/types";
 import type { TopologyProperty } from "@/lib/types";
 import { logicalTypeName } from "@/lib/expressions";
 import { DesignMeaning, GraphMeaning } from "@/shared/design/DesignMeaning";
@@ -44,7 +44,7 @@ import { getTopologyUiStore, type TopologyUiStore } from "./topologyUi";
 // ---------------------------------------------------------------------------
 
 function topologySelection(props: WorkspaceProps): TopologySelection | undefined {
-  const selection: WorkbenchSelection = currentLensSelection(props.state);
+  const selection: WorkbenchSelection = props.state.inspection;
   if ((selection.kind === "node" || selection.kind === "edge") && selection.name) {
     return { kind: selection.kind, name: selection.name };
   }
@@ -103,12 +103,9 @@ function entityProperties(props: WorkspaceProps, entity: TopologyEntity): Topolo
  * inspected subject explicitly creates that subject document first.
  */
 function openInDetail(props: WorkspaceProps): void {
-  const document = currentSelection(props.state);
-  const lens = currentLensSelection(props.state);
-  if (document.kind === "graph" && lens.kind && lens.kind !== "graph") {
-    props.actions.openTab({ selection: lens });
-  } else if (document.kind !== "graph") {
-    props.actions.openTab({ selection: document });
+  const inspection = props.state.inspection;
+  if (inspection.kind && inspection.kind !== "graph") {
+    props.actions.openTab({ selection: inspection });
   }
 }
 
@@ -1720,7 +1717,7 @@ export function TopologyBottom(props: WorkspaceProps): JSX.Element {
   const [ui] = useTopologyUi(props.state.snapshot.name);
   const selection = topologySelection(props);
   const entity = findTopologyEntity(model, selection);
-  const raw = currentLensSelection(props.state);
+  const raw = props.state.inspection;
   const activeProperty = raw.kind === "property" ? raw.property : undefined;
 
   if (!entity) {

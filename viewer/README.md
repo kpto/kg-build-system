@@ -47,13 +47,13 @@ The first paint shows the design, not its annotations.
 | Surface | Default | Revealed by |
 | --- | --- | --- |
 | Graph document | graph canvas and **Inspect** bottom panel | selecting an entity fills Inspect with its description, properties and meaning |
-| Subject document | meaning, properties and attached semantics of the subject | the level switch (Property, Node, Edge, Abstract, Asset), property rows and the branch selector; the bottom panel carries Trace/Evidence |
+| Subject document | meaning, properties and attached semantics of the subject | the level switch (Property, Node, Edge, Abstract, Asset), property rows and the branch selector |
 
 Both panels are shown by default. The side bar carries the **Topology** and
-**Detail** sections; the bottom panel is the **Inspect** or Trace/Evidence
-region for the active document. Each has one job, so a selected subject is not
-repeated across regions. Panel width and height are one workbench geometry:
-opening either side-bar section never changes them.
+**Detail** sections; the bottom panel is always the **Inspect** region for the
+graph selection. A tab changes only the editor. It does not open, close or
+switch the side-bar section, bottom panel or another tab. Panel width and height
+are one workbench geometry.
 
 The editor is one global tab strip. The viewer has two kinds of tab view:
 

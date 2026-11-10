@@ -11,7 +11,6 @@ import {
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
 import { BottomPanel } from "./BottomPanel";
 import { CommandPalette } from "./CommandPalette";
-import { defaultBottomTab } from "./defaults";
 import { EditorArea } from "./EditorArea";
 import { SettingsDialog } from "./SettingsDialog";
 import { SideBar } from "./SideBar";
@@ -144,8 +143,6 @@ function WorkbenchShell() {
       sidebarWidth: DEFAULT_LAYOUT.sidebarWidth,
       bottomHeight: DEFAULT_LAYOUT.bottomHeight,
     });
-    actions.setBottomTab("graph", defaultBottomTab("graph"));
-    actions.setBottomTab("subject", defaultBottomTab("subject"));
   }, [actions]);
 
   useEffect(() => {
