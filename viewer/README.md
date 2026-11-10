@@ -26,9 +26,9 @@ The tab strip is the document axis:
   preview tab; a double click, **Open Detail**, a right-click **Go to Detail**
   or the command palette opens a permanent tab.
 
-There is no mode switch. Control and Explorer are side-bar sections, both may be
-expanded at once, and their separator is adjustable. The Control body shows the
-controls of the active view; a subject document has none. Opening or resizing a
+There is no mode switch. Control and Explorer are side-bar sections, both open
+by default at a 50/50 split, and their separator is adjustable. The Control body
+shows the controls of the active view; a subject document has none. Opening or resizing a
 section changes the side bar, not the active document or its editor.
 
 The viewer is a design reader, not an audit or review tool: there are no

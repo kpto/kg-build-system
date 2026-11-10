@@ -131,7 +131,7 @@ export function SideBar() {
   const { state, actions } = useWorkbench();
   const [open, setOpen] = useState<Record<SectionId, boolean>>({
     control: true,
-    explorer: false,
+    explorer: true,
   });
   const container = useRef<HTMLElement>(null);
   const stats = state.index.stats;

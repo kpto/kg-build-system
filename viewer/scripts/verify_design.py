@@ -643,10 +643,26 @@ def main() -> int:
             ActionChains(driver).send_keys("\ue00c").perform()
             time.sleep(0.4)
 
-            report["checks"]["explorer_closed_initially"] = (
-                expanded().get("sidebar-section-explorer") == "false"
+            report["checks"]["both_sections_open_initially"] = (
+                expanded().get("sidebar-section-control") == "true"
+                and expanded().get("sidebar-section-explorer") == "true"
+            )
+            report["checks"]["sidebar_split_50_50_initially"] = (
+                driver.find_element(
+                    By.CSS_SELECTOR, '[data-testid="sidebar-splitter"]'
+                ).get_attribute("aria-valuenow")
+                == "50"
             )
 
+            # Collapse and reopen Explorer; Control stays open.
+            driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="sidebar-section-explorer"]'
+            ).click()
+            time.sleep(0.4)
+            report["checks"]["explorer_collapses"] = (
+                expanded().get("sidebar-section-explorer") == "false"
+                and expanded().get("sidebar-section-control") == "true"
+            )
             driver.find_element(
                 By.CSS_SELECTOR, '[data-testid="sidebar-section-explorer"]'
             ).click()

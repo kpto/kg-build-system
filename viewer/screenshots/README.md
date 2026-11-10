@@ -5,7 +5,7 @@ They are review aids, not golden images.
 
 | File | What it shows |
 | --- | --- |
-| `01-topology.png` | **Control** and **Explorer** are collapsible side-bar headers; the pinned **Graph** and **Workflow** documents share one tab strip. The Graph owns its floating **Inspect** window, and the graph overview states the effective CC0 licence. |
+| `01-topology.png` | **Control** and **Explorer** are open together by default at a 50/50 split; the pinned **Graph** and **Workflow** documents share one tab strip. The Graph owns its floating **Inspect** window, and the graph overview states the effective CC0 licence. |
 | `02-workflow-map.png` | The pinned **Workflow** document as a compositor-style component graph with no title banner; zoom and expansion controls float over the canvas. Explorer keeps the whole design, including explicit **Tables** and **Projections** groups, and the workflow step catalogue. |
 | `03-step-detail.png` | A single click on a workflow step opened a step document tab; its banner leads with a large step logo, and each section header carries its concept mark. Explorer keeps the workflow list. |
 | `04-inspect.png` | `target` inspected in the Graph document with its effective licence in Inspect. The tab strip still has only the pinned Graph and Workflow documents. |

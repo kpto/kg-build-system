@@ -39,9 +39,9 @@ Inspector window; there is no bottom panel.
 | **Control** | controls for the active view: graph canvas filters, labels, Show controls, legend and fit/zoom/pin; workflow component, instruction and text filters. |
 | **Explorer** | everything in the design: assets, nodes, abstract categories, edges and their properties; workflow components and their step catalogue. A context menu jumps graph subjects to the Graph and workflow items to the Workflow. A selected workflow component expands its step group; an explicit collapse sticks until the active subject changes. Tables and projections are outline groups; each row opens its own **Table** or **Projection** document. |
 
-The sections are collapsible and independent: both may be expanded at once.
-Each expanded body sits directly below its own header. When both are open, a
-horizontal separator sets their shares and the split is persisted. The open
+The sections are collapsible and independent: both are expanded by default at
+a 50/50 split. Each expanded body sits directly below its own header. When both
+are open, a horizontal separator sets their shares and the split is persisted. The open
 sections are user state: opening or activating a tab never opens, closes or
 switches them, and opening a section never changes the active document or its
 editor. Control follows the active view; Explorer always states the whole
