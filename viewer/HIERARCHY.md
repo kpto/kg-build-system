@@ -21,16 +21,16 @@ A level may be absent. It is never reordered or nested inside the same kind.
 
 | Region | Contents | Owner |
 | --- | --- | --- |
-| Title bar | brand, snapshot, command trigger, sidebar/bottom toggles, layout reset, settings | `workbench/TitleBar` |
+| Title bar | brand, snapshot, command trigger, side-bar toggle, layout reset, settings | `workbench/TitleBar` |
 | Side bar | collapsible **Topology** and **Detail** sections | `workbench/SideBar` |
-| Editor | global document tabs + active document body | `workbench/EditorArea` |
-| Bottom panel | independent **Inspect** region for the graph selection | `workbench/BottomPanel` |
+| Editor | global document tabs + one mounted pane per document | `workbench/EditorArea` |
 | Status bar | snapshot, document view, selected subject, counts, compile-only, zoom | `workbench/StatusBar` |
 
-The side bar is 220–520 px, the bottom panel 120–480 px. One `WorkbenchLayout`
-is persisted per snapshot. Panel visibility is shell state; both panels start
-visible. The title-bar toggles and `Cmd/Ctrl+J`/`Cmd/Ctrl+B` change visibility,
-not panel purpose.
+The side bar is 220–520 px wide and is the only resizable panel. One
+`WorkbenchLayout` is persisted per snapshot: the side-bar width and the split
+between the Topology and Detail sections. Side-bar visibility is shell state;
+`Cmd/Ctrl+B` changes it, not panel purpose. The Graph document owns its floating
+Inspector window; there is no bottom panel.
 
 ## Side-bar sections
 
@@ -39,22 +39,25 @@ not panel purpose.
 | **Topology** | canvas filters, labels, Show controls, legend, fit/zoom/pin |
 | **Detail** | graph meaning, design tree of assets, relations, projections, nodes, edges and properties |
 
-The sections are collapsible; each expanded body sits directly below its own
-header. Opening one collapses the other. The open section is user state: opening
-or activating a tab never changes it, and opening a section never changes the
-active document or its editor. A tab is a standalone document that retains its
-editor state and scroll position.
+The sections are collapsible and independent: both may be expanded at once.
+Each expanded body sits directly below its own header. When both are open, a
+horizontal separator sets their shares and the split is persisted. The open
+sections are user state: opening or activating a tab never changes them, and
+opening a section never changes the active document or its editor. A tab is a
+standalone document that retains its editor state and scroll position.
 
 ## Documents and tabs
 
-| Document | Editor | Bottom |
-| --- | --- | --- |
-| **Graph** (pinned) | D3 force canvas, zoom/pan/drag, inspection | Inspect: graph purpose/overview, or selected entity identity, properties and meaning |
-| **Subject** (node, edge, property, asset, abstract) | design meaning, properties, attached semantics and, for a property, provenance lanes and type/presence | unchanged Inspect region |
+| Document | Editor |
+| --- | --- |
+| **Graph** (pinned) | D3 force canvas, zoom/pan/drag and the floating **Inspect** window: graph purpose/overview, or the selected entity's identity, properties and meaning |
+| **Subject** (node, edge, property, asset, abstract) | design meaning, properties, attached semantics and, for a property, provenance lanes and type/presence |
 
-A node or property click only changes transient inspection. A document opens
-only through an explicit action: **Open Detail**, the Detail tree, a Detail
-property row, or the command palette. Back/forward walk the document history.
+A node or property click in the canvas only changes transient inspection.
+Single-clicking a Detail tree row opens or reuses one preview tab; double-clicking
+it, **Open Detail**, a right-click **Go to Detail**, or the command palette opens
+a permanent tab. Every tab's pane stays mounted. Back/forward walk the document
+history.
 
 ## Removed surfaces
 

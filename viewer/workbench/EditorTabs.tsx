@@ -72,14 +72,16 @@ export function EditorTabs() {
               className="wb-tab"
               data-active={active ? "true" : undefined}
               data-pinned={tab.pinned ? "true" : undefined}
+              data-preview={tab.preview ? "true" : undefined}
             >
               <button
                 type="button"
                 role="tab"
                 aria-selected={active}
                 className="wb-tab-label"
-                title={`${title} · ${tab.document.kind}`}
+                title={`${title} · ${tab.document.kind}${tab.preview ? " · preview" : ""}`}
                 onClick={() => actions.activateTab(tab.id)}
+                onDoubleClick={() => actions.pinTab(tab.id)}
                 data-testid={`tab-${tab.id}`}
               >
                 {tabIcon(tab)}

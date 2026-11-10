@@ -5,11 +5,12 @@ They are review aids, not golden images.
 
 | File | What it shows |
 | --- | --- |
-| `01-topology.png` | No left toolbar; **Topology** and **Detail** are collapsible side-bar headers; Graph document active. |
+| `01-topology.png` | No left toolbar and no bottom panel; **Topology** and **Detail** are collapsible side-bar headers; the Graph document owns the floating **Inspect** window. |
 | `02-inspect.png` | `target` inspected in the Graph document. The tab strip still has only **Graph**. |
-| `03-detail-tab-sidebar-topology.png` | **Open Detail** opens the `target` document; the side bar remains on **Topology**. The tab did not change another region. |
-| `04-property-tab-detail-sidebar.png` | The user opened **Detail** manually and then a property document; the side bar stays on Detail. |
-| `05-graph-tab-detail-sidebar.png` | Activating the Graph tab leaves the Detail side bar open and the Inspect bottom panel unchanged. |
+| `03-context-menu.png` | Right-clicking a node opens **Go to Detail**. |
+| `04-both-sections.png` | **Topology** and **Detail** are open together with an adjustable separator; every Detail tree group is collapsed. |
+| `05-preview-tab.png` | A single click in the Detail tree opened one preview tab (`adverse_event`, italic). |
+| `06-detail-property.png` | **Go to Detail** on a property opened a permanent document while the preview tab remained. |
 
-A tab is a standalone document. It does not change the side bar, bottom panel,
-panel geometry or another tab.
+A tab is a standalone document. It changes only its editor and never opens,
+closes or switches the side bar or another tab.

@@ -20,6 +20,7 @@ import {
   graphMeaning,
   propertyMeaning,
 } from "@/shared/design/meaning";
+import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { cx, theme } from "@/shared/ui/theme";
 import type {
   TopologyDetailOptions,
@@ -92,14 +93,43 @@ function openInDetail(props: WorkspaceProps): void {
   if (inspection?.kind) props.actions.openTab({ selection: inspection });
 }
 
+function propertySelection(
+  entity: TopologyEntity,
+  property: TopologyProperty,
+): SubjectSelection {
+  const component = entityComponentName(entity);
+  return {
+    kind: "property",
+    level: "property",
+    component,
+    property: property.name,
+    name: `${component}.${property.name}`,
+  };
+}
+
+function componentSelection(entity: TopologyEntity): SubjectSelection {
+  const component = entityComponentName(entity);
+  if (isTopologyNode(entity)) {
+    return {
+      kind: "node",
+      level: entity.abstract ? "abstract" : "node",
+      component,
+      name: component,
+    };
+  }
+  return { kind: "edge", level: "edge", component, name: component };
+}
+
 function PropertyRows({
   props,
   entity,
   activeProperty,
+  onContextMenu,
 }: {
   props: WorkspaceProps;
   entity: TopologyEntity;
   activeProperty?: string;
+  onContextMenu?(property: TopologyProperty, event: ReactMouseEvent): void;
 }) {
   const properties = entityProperties(props, entity);
   if (!properties.length) {
@@ -111,14 +141,9 @@ function PropertyRows({
         <button
           key={property.name}
           type="button"
-          onClick={() =>
-            props.actions.inspect({
-              kind: "property",
-              level: "property",
-              component: entityComponentName(entity),
-              property: property.name,
-              name: `${entityComponentName(entity)}.${property.name}`,
-            })
+          onClick={() => props.actions.inspect(propertySelection(entity, property))}
+          onContextMenu={(event) =>
+            onContextMenu ? onContextMenu(property, event) : undefined
           }
           className="flex min-h-6 w-full items-baseline justify-between gap-2 border border-transparent px-1 text-left hover:border-line-soft hover:bg-panel-soft/40"
           data-active={activeProperty === property.name ? "true" : undefined}
@@ -724,6 +749,16 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
   const [hoveredLinkId, setHoveredLinkId] = useState<string | undefined>(
     undefined,
   );
+  const [inspectorOpen, setInspectorOpen] = useState(true);
+  const [menu, setMenu] = useState<
+    | {
+        x: number;
+        y: number;
+        selection: SubjectSelection;
+        label: string;
+      }
+    | undefined
+  >(undefined);
 
   useEffect(() => {
     uiRef.current = ui;
@@ -1233,6 +1268,30 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
     writeSelection(props, "edge", link.edgeName ?? link.name);
   };
 
+  const openMenu = (
+    event: ReactMouseEvent,
+    selection: SubjectSelection,
+    label: string,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setMenu({ x: event.clientX, y: event.clientY, selection, label });
+  };
+
+  const linkSelection = (link: TopologyLinkModel): SubjectSelection => {
+    if (link.kind === "containment") {
+      const node = model.nodeById.get(link.target);
+      return {
+        kind: "node",
+        level: node?.abstract ? "abstract" : "node",
+        component: link.targetName,
+        name: link.targetName,
+      };
+    }
+    const component = link.edgeName ?? link.name;
+    return { kind: "edge", level: "edge", component, name: component };
+  };
+
   const showNodeMarkers = ui.filters.kinds.node;
   const visibleCount = visible.nodes.length + visible.links.length;
 
@@ -1350,7 +1409,16 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
               const midX = ((source.x ?? 0) + (target.x ?? 0)) / 2;
               const midY = ((source.y ?? 0) + (target.y ?? 0)) / 2;
               return (
-                <g key={link.id}>
+                <g
+                  key={link.id}
+                  onContextMenu={(event) =>
+                    openMenu(
+                      event,
+                      linkSelection(link),
+                      link.edgeName ?? link.name,
+                    )
+                  }
+                >
                   <path
                     d={geometry.path}
                     fill="none"
@@ -1474,6 +1542,9 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                         selectNode(node);
                         focusNode(sim);
                       }}
+                      onContextMenu={(event) =>
+                        openMenu(event, componentSelection(node), node.name)
+                      }
                       onKeyDown={(event) => {
                         if (event.key === "Enter" || event.key === " ") {
                           event.preventDefault();
@@ -1630,6 +1701,38 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         </div>
       ) : null}
 
+      {inspectorOpen ? (
+        <TopologyInspector props={props} onClose={() => setInspectorOpen(false)} />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setInspectorOpen(true)}
+          className="absolute top-2 right-2 z-20 border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-muted hover:border-line-strong hover:text-text"
+          aria-label="Open inspector"
+          title="Open inspector"
+          data-testid="topology-open-inspector"
+        >
+          Inspect
+        </button>
+      )}
+
+      {menu ? (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          label={menu.label}
+          items={[
+            {
+              label: "Go to Detail",
+              hint: "Open document",
+              onSelect: () =>
+                props.actions.openTab({ selection: menu.selection }),
+            },
+          ]}
+          onClose={() => setMenu(undefined)}
+        />
+      ) : null}
+
       {hover && hoverEntity ? (
         <div
           className="pointer-events-none absolute z-30 w-[270px] overflow-hidden border border-line-soft bg-panel/98 shadow-lg"
@@ -1673,7 +1776,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
 }
 
 // ---------------------------------------------------------------------------
-// Bottom panel: the selected design entity only
+// Floating Graph inspector: the selected design entity
 // ---------------------------------------------------------------------------
 
 function SummaryField({
@@ -1695,200 +1798,203 @@ function SummaryField({
   );
 }
 
-export function TopologyBottom(props: WorkspaceProps): JSX.Element {
+function inspectorMeaning(
+  props: WorkspaceProps,
+  entity: TopologyEntity,
+  activeProperty?: string,
+): { claims: ReturnType<typeof propertyMeaning>["claims"]; frames: ReturnType<typeof propertyMeaning>["frames"] } {
+  if (activeProperty) {
+    return propertyMeaning(
+      props.state.index,
+      isTopologyNode(entity) ? "node" : "edge",
+      entityComponentName(entity),
+      activeProperty,
+    );
+  }
+  return isTopologyNode(entity)
+    ? componentMeaning(props.state.index, "node", entity.name)
+    : componentMeaning(props.state.index, "edge", entityComponentName(entity));
+}
+
+export function TopologyInspector({
+  props,
+  onClose,
+}: {
+  props: WorkspaceProps;
+  onClose(): void;
+}) {
   const model = useTopologyModel(props);
-  const [ui] = useTopologyUi(props.state.snapshot.name);
   const selection = topologySelection(props);
   const entity = findTopologyEntity(model, selection);
   const raw = props.state.inspection;
   const activeProperty = raw?.kind === "property" ? raw.property : undefined;
-
-  if (!entity) {
-    return (
-      <div className="flex h-full min-h-0 flex-col bg-panel">
-        <header className="flex items-baseline justify-between border-b border-line-soft px-3 py-1.5">
-          <h2 className="text-[11px] font-semibold tracking-[0.08em] text-text uppercase">
-            Graph overview
-          </h2>
-          <span className="font-mono text-[9px] text-faint">
-            {model.stats.nodes} nodes · {model.stats.edgeLinks} relations
-            {ui.detail.containment
-              ? ` · ${model.stats.containmentLinks} containment`
-              : ""}
-          </span>
-        </header>
-        <div className="grid min-h-0 flex-1 grid-cols-[minmax(340px,1.5fr)_minmax(260px,1fr)] divide-x divide-line-soft">
-          <section className="thin-scrollbar min-h-0 overflow-y-auto px-3 py-2">
-            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
-              Graph purpose
-            </p>
-            <GraphMeaning
-              claims={graphMeaning(props.state.index).claims}
-              frames={graphMeaning(props.state.index).frames}
-              purpose={graphMeaning(props.state.index).purpose}
-            />
-          </section>
-          <section className="thin-scrollbar min-h-0 overflow-y-auto px-3 py-2">
-            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
-              Selection
-            </p>
-            <p className="text-[10px] leading-relaxed text-muted">
-              Select a node or relation in the canvas. Its identity, properties
-              and attached meaning appear here; Open Detail adds provenance and
-              the full record.
-            </p>
-            <div className="mt-2 grid grid-cols-2 gap-x-3 gap-y-1">
-              <SummaryField label="Nodes" value={model.stats.nodes} />
-              <SummaryField label="Abstract" value={model.stats.abstractNodes} />
-              <SummaryField label="Relations" value={model.stats.edgeLinks} />
-              <SummaryField
-                label="Containment"
-                value={model.stats.containmentLinks}
-              />
-              <SummaryField
-                label="Semantics"
-                value={`${model.stats.semantics} present`}
-              />
-            </div>
-          </section>
-        </div>
-      </div>
-    );
-  }
+  const meaning = entity ? inspectorMeaning(props, entity, activeProperty) : undefined;
+  const [menu, setMenu] = useState<
+    | {
+        x: number;
+        y: number;
+        selection: SubjectSelection;
+        label: string;
+      }
+    | undefined
+  >(undefined);
 
   return (
-    <div className="flex h-full min-h-0 flex-col bg-panel">
-      <header className="flex items-baseline justify-between gap-2 border-b border-line-soft px-3 py-1.5">
-        <div className="flex min-w-0 items-baseline gap-2">
-          <span className="truncate font-mono text-[11px] font-semibold text-accent-strong">
-            {activeProperty ? `${entity.name}.${activeProperty}` : entity.name}
-          </span>
-          <span className="truncate font-mono text-[9px] text-faint">
-            {activeProperty
-              ? "property"
-              : isTopologyNode(entity)
-                ? "node"
-                : "relation"}{" "}
-            · {entity.category}
-          </span>
-        </div>
-        <div className="flex shrink-0 items-center gap-1">
-          <button
-            type="button"
-            onClick={() => openInDetail(props)}
-            className="border border-accent/60 bg-accent/10 px-2 py-0.5 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
-            data-testid="topology-open-detail"
-          >
-            Open Detail →
-          </button>
-          <button
-            type="button"
-            onClick={() => clearSelection(props)}
-            className="border border-line-soft px-1.5 py-0.5 font-mono text-[9px] text-muted hover:border-line-strong hover:text-text"
-          >
-            Clear
-          </button>
-        </div>
+    <aside
+      className="absolute top-3 right-3 bottom-3 z-20 flex w-[326px] flex-col overflow-hidden rounded border border-line bg-panel/98 shadow-xl"
+      aria-label="Graph selection inspector"
+      data-testid="topology-inspector"
+    >
+      <header className="flex flex-none items-center justify-between gap-2 border-b border-line-soft bg-panel-raised px-2.5 py-1.5">
+        <span className="text-[10px] font-semibold tracking-[0.08em] text-text uppercase">
+          Inspect
+        </span>
+        <button
+          type="button"
+          className="text-[10px] text-faint hover:text-text"
+          onClick={onClose}
+          aria-label="Close inspector"
+          title="Close inspector"
+        >
+          ×
+        </button>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-[minmax(210px,0.9fr)_minmax(240px,1fr)_minmax(280px,1.15fr)] divide-x divide-line-soft">
-        <section className="thin-scrollbar min-h-0 overflow-y-auto px-3 py-2">
+      {!entity ? (
+        <div className="thin-scrollbar min-h-0 flex-1 overflow-y-auto px-3 py-2">
           <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
-            Identity
+            Graph overview
           </p>
-          <div className="grid gap-1">
-            <SummaryField label="Kind" value={entityKindLabel(entity)} />
-            <SummaryField label="Name" value={entity.name} />
-            <SummaryField label="Category" value={entity.category} />
-            {isTopologyNode(entity) ? (
-              <SummaryField label="Degree" value={entity.degree} />
-            ) : (
-              <>
-                <SummaryField label="Source" value={entity.sourceName} />
-                <SummaryField label="Target" value={entity.targetName} />
-              </>
-            )}
-            {activeProperty ? (
-              <SummaryField label="Property" value={activeProperty} />
-            ) : null}
-            <SummaryField
-              label="Labels"
-              value={entity.labels.length ? entity.labels.join(", ") : "—"}
-            />
-            {ui.detail.semantics ? (
-              <SummaryField
-                label="Semantics"
-                value={
-                  entity.hasSemantics
-                    ? semanticsSummary(entity)
-                    : "none revealed"
-                }
-              />
-            ) : null}
+          <div className="mb-2 grid grid-cols-2 gap-x-3 gap-y-1">
+            <SummaryField label="Nodes" value={model.stats.nodes} />
+            <SummaryField label="Abstract" value={model.stats.abstractNodes} />
+            <SummaryField label="Relations" value={model.stats.edgeLinks} />
+            <SummaryField label="Semantics" value={model.stats.semantics} />
           </div>
-          {entity.description ? (
-            <p className="mt-2 border-t border-line-soft pt-2 text-[10px] leading-relaxed text-muted">
-              {entity.description}
+          <GraphMeaning
+            claims={graphMeaning(props.state.index).claims}
+            frames={graphMeaning(props.state.index).frames}
+            purpose={graphMeaning(props.state.index).purpose}
+          />
+        </div>
+      ) : (
+        <div className="thin-scrollbar min-h-0 flex-1 space-y-3 overflow-y-auto px-3 py-2">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0">
+              <p className="truncate font-mono text-[11px] text-accent-strong">
+                {activeProperty ? `${entity.name}.${activeProperty}` : entity.name}
+              </p>
+              <p className="truncate text-[9px] text-faint">
+                {activeProperty
+                  ? "property"
+                  : isTopologyNode(entity)
+                    ? "node"
+                    : "relation"}{" "}
+                · {entity.category}
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-1">
+              <button
+                type="button"
+                onClick={() => openInDetail(props)}
+                className="border border-accent/60 bg-accent/10 px-1.5 py-0.5 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
+                data-testid="topology-open-detail"
+              >
+                Detail
+              </button>
+              <button
+                type="button"
+                onClick={() => clearSelection(props)}
+                className="border border-line-soft px-1.5 py-0.5 font-mono text-[9px] text-muted hover:border-line-strong hover:text-text"
+              >
+                Clear
+              </button>
+            </div>
+          </div>
+
+          <section>
+            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+              Identity
             </p>
-          ) : null}
-        </section>
+            <div className="grid gap-1">
+              <SummaryField label="Kind" value={entityKindLabel(entity)} />
+              <SummaryField label="Category" value={entity.category} />
+              {isTopologyNode(entity) ? (
+                <SummaryField label="Degree" value={entity.degree} />
+              ) : (
+                <>
+                  <SummaryField label="Source" value={entity.sourceName} />
+                  <SummaryField label="Target" value={entity.targetName} />
+                </>
+              )}
+              {activeProperty ? (
+                <SummaryField label="Property" value={activeProperty} />
+              ) : null}
+              <SummaryField
+                label="Labels"
+                value={entity.labels.length ? entity.labels.join(", ") : "—"}
+              />
+            </div>
+            {entity.description ? (
+              <p className="mt-1.5 text-[10px] leading-relaxed text-muted">
+                {entity.description}
+              </p>
+            ) : null}
+          </section>
 
-        <section className="thin-scrollbar min-h-0 overflow-y-auto px-3 py-2">
-          <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
-            Properties · {entityProperties(props, entity).length}
-          </p>
-          <PropertyRows
-            props={props}
-            entity={entity}
-            activeProperty={activeProperty}
-          />
-        </section>
+          <section>
+            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+              Properties · {entityProperties(props, entity).length}
+            </p>
+            <PropertyRows
+              props={props}
+              entity={entity}
+              activeProperty={activeProperty}
+              onContextMenu={(property, event) => {
+                const selection = propertySelection(entity, property);
+                setMenu({
+                  x: event.clientX,
+                  y: event.clientY,
+                  selection,
+                  label: selection.name ?? property.name,
+                });
+              }}
+            />
+          </section>
 
-        <section className="thin-scrollbar min-h-0 overflow-y-auto px-3 py-2">
-          <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
-            Meaning
-          </p>
-          <DesignMeaning
-            claims={
-              activeProperty
-                ? propertyMeaning(
-                    props.state.index,
-                    isTopologyNode(entity) ? "node" : "edge",
-                    entityComponentName(entity),
-                    activeProperty,
-                  ).claims
-                : isTopologyNode(entity)
-                  ? componentMeaning(props.state.index, "node", entity.name).claims
-                  : componentMeaning(
-                      props.state.index,
-                      "edge",
-                      entityComponentName(entity),
-                    ).claims
-            }
-            frames={
-              activeProperty
-                ? propertyMeaning(
-                    props.state.index,
-                    isTopologyNode(entity) ? "node" : "edge",
-                    entityComponentName(entity),
-                    activeProperty,
-                  ).frames
-                : isTopologyNode(entity)
-                  ? componentMeaning(props.state.index, "node", entity.name).frames
-                  : componentMeaning(
-                      props.state.index,
-                      "edge",
-                      entityComponentName(entity),
-                    ).frames
-            }
-            emptyText={
-              activeProperty
-                ? "No meaning is attached to this property."
-                : "No meaning is attached to this entity."
-            }
-          />
-        </section>
-      </div>
-    </div>
+          <section>
+            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+              Meaning
+            </p>
+            <DesignMeaning
+              claims={meaning?.claims ?? []}
+              frames={meaning?.frames ?? []}
+              emptyText={
+                activeProperty
+                  ? "No meaning is attached to this property."
+                  : "No meaning is attached to this entity."
+              }
+            />
+          </section>
+        </div>
+      )}
+
+      {menu ? (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          label={menu.label}
+          items={[
+            {
+              label: "Go to Detail",
+              hint: "Open document",
+              onSelect: () =>
+                props.actions.openTab({ selection: menu.selection }),
+            },
+          ]}
+          onClose={() => setMenu(undefined)}
+        />
+      ) : null}
+    </aside>
   );
 }

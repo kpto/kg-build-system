@@ -1,6 +1,6 @@
 "use client";
 
-import { Boxes, PanelBottom, PanelLeft, RotateCcw, Search, Settings } from "lucide-react";
+import { Boxes, PanelLeft, RotateCcw, Search, Settings } from "lucide-react";
 
 import { useWorkbench } from "./store";
 
@@ -8,9 +8,7 @@ export interface TitleBarProps {
   onOpenPalette(): void;
   onOpenSettings(): void;
   sidebarVisible: boolean;
-  bottomVisible: boolean;
   onToggleSidebar(): void;
-  onToggleBottom(): void;
   onResetLayout(): void;
 }
 
@@ -18,9 +16,7 @@ export function TitleBar({
   onOpenPalette,
   onOpenSettings,
   sidebarVisible,
-  bottomVisible,
   onToggleSidebar,
-  onToggleBottom,
   onResetLayout,
 }: TitleBarProps) {
   const { state } = useWorkbench();
@@ -63,16 +59,6 @@ export function TitleBar({
           title={sidebarVisible ? "Hide side bar (Ctrl/Cmd+B)" : "Show side bar (Ctrl/Cmd+B)"}
         >
           <PanelLeft aria-hidden className="size-4" />
-        </button>
-        <button
-          type="button"
-          className="wb-icon-button"
-          onClick={onToggleBottom}
-          aria-label={bottomVisible ? "Hide bottom panel" : "Show bottom panel"}
-          aria-pressed={bottomVisible}
-          title={bottomVisible ? "Hide bottom panel (Ctrl/Cmd+J)" : "Show bottom panel (Ctrl/Cmd+J)"}
-        >
-          <PanelBottom aria-hidden className="size-4" />
         </button>
         <button
           type="button"

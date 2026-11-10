@@ -35,10 +35,10 @@ import type {
 } from "./types";
 import {
   DEFAULT_LAYOUT,
-  MAX_BOTTOM,
   MAX_SIDEBAR,
-  MIN_BOTTOM,
+  MAX_SIDEBAR_SPLIT,
   MIN_SIDEBAR,
+  MIN_SIDEBAR_SPLIT,
 } from "./types";
 
 export const WORKBENCH_STORAGE_PREFIX = "kg-workbench:v2";
@@ -83,10 +83,10 @@ function normalizeLayout(value: unknown): WorkbenchLayout {
       MIN_SIDEBAR,
       MAX_SIDEBAR,
     ),
-    bottomHeight: clamp(
-      numberOr(candidate.bottomHeight, DEFAULT_LAYOUT.bottomHeight),
-      MIN_BOTTOM,
-      MAX_BOTTOM,
+    sidebarSplit: clamp(
+      numberOr(candidate.sidebarSplit, DEFAULT_LAYOUT.sidebarSplit),
+      MIN_SIDEBAR_SPLIT,
+      MAX_SIDEBAR_SPLIT,
     ),
   };
 }
@@ -161,6 +161,10 @@ function subjectId(selection: SubjectSelection): string {
   return `document:${selectionSignature(selection)}`;
 }
 
+function previewId(selection: SubjectSelection): string {
+  return `preview:${selectionSignature(selection)}`;
+}
+
 function graphTab(): WorkbenchTab {
   return { id: GRAPH_TAB_ID, document: { kind: "graph" }, pinned: true };
 }
@@ -216,11 +220,50 @@ function appendTab(
       tab.document.kind === "subject" &&
       selectionSignature(tab.document.selection) === signature,
   );
-  if (existing) return activate(state, existing.id);
+  if (existing) {
+    // Opening a subject explicitly promotes a preview tab to permanent.
+    if (!input.preview && existing.preview) {
+      return activate(
+        {
+          ...state,
+          tabs: state.tabs.map((tab) =>
+            tab.id === existing.id ? { ...tab, preview: undefined } : tab,
+          ),
+        },
+        existing.id,
+      );
+    }
+    return activate(state, existing.id);
+  }
+
+  if (input.preview) {
+    const preview = state.tabs.find((tab) => tab.preview && !tab.pinned);
+    if (preview) {
+      // Reuse one preview tab, like a browser or VS Code. The id tracks the
+      // shown selection so a later permanent document cannot collide with it.
+      const nextId = previewId(selection);
+      const tabs = state.tabs.map((tab) =>
+        tab.id === preview.id
+          ? {
+              ...tab,
+              id: nextId,
+              document: { kind: "subject" as const, selection },
+            }
+          : tab,
+      );
+      const history = state.history.map((id) =>
+        id === preview.id ? nextId : id,
+      );
+      const activeTabId =
+        state.activeTabId === preview.id ? nextId : state.activeTabId;
+      return activate({ ...state, tabs, history, activeTabId }, nextId);
+    }
+  }
 
   const tab: WorkbenchTab = {
-    id: subjectId(selection),
+    id: input.preview ? previewId(selection) : subjectId(selection),
     document: { kind: "subject", selection },
+    ...(input.preview ? { preview: true } : {}),
   };
   return activate({ ...state, tabs: [...state.tabs, tab] }, tab.id);
 }
@@ -239,8 +282,9 @@ export type WorkbenchAction =
   | { type: "hydrate"; layout: WorkbenchLayout }
   | { type: "set-selection"; selection: SubjectSelection }
   | { type: "inspect"; selection: SubjectSelection | undefined }
-  | { type: "set-layout"; patch: Partial<Pick<WorkbenchLayout, "sidebarWidth" | "bottomHeight">> }
+  | { type: "set-layout"; patch: Partial<WorkbenchLayout> }
   | { type: "open-tab"; input: OpenTabInput }
+  | { type: "pin-tab"; tabId: string }
   | { type: "close-tab"; tabId: string }
   | { type: "activate-tab"; tabId: string }
   | { type: "back" }
@@ -285,16 +329,24 @@ export function workbenchReducer(
             MIN_SIDEBAR,
             MAX_SIDEBAR,
           ),
-          bottomHeight: clamp(
-            numberOr(action.patch.bottomHeight, state.layout.bottomHeight),
-            MIN_BOTTOM,
-            MAX_BOTTOM,
+          sidebarSplit: clamp(
+            numberOr(action.patch.sidebarSplit, state.layout.sidebarSplit),
+            MIN_SIDEBAR_SPLIT,
+            MAX_SIDEBAR_SPLIT,
           ),
         },
       };
 
     case "open-tab":
       return appendTab(state, action.input);
+
+    case "pin-tab":
+      return {
+        ...state,
+        tabs: state.tabs.map((tab) =>
+          tab.id === action.tabId ? { ...tab, preview: undefined } : tab,
+        ),
+      };
 
     case "close-tab": {
       const tab = state.tabs.find((candidate) => candidate.id === action.tabId);
@@ -403,6 +455,7 @@ export function WorkbenchProvider({
       inspect: (selection) => dispatch({ type: "inspect", selection }),
       setLayout: (patch) => dispatch({ type: "set-layout", patch }),
       openTab: (input) => dispatch({ type: "open-tab", input }),
+      pinTab: (tabId) => dispatch({ type: "pin-tab", tabId }),
       closeTab: (tabId) => dispatch({ type: "close-tab", tabId }),
       activateTab: (tabId) => dispatch({ type: "activate-tab", tabId }),
       back: () => dispatch({ type: "back" }),

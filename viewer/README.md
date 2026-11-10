@@ -15,12 +15,14 @@ frame, one document tab strip, and two collapsible side-bar sections:
 The tab strip is the document axis:
 
 - **Graph** — the canonical graph view, pinned;
-- **Subject documents** — a node, edge, property, asset or abstract category
-  opened explicitly from the Detail tree, **Open Detail**, a Detail property
-  row or the command palette.
+- **Subject documents** — a node, edge, property, asset or abstract category.
+  A single click in the Detail tree or a context-menu action opens or reuses a
+  preview tab; a double click, **Open Detail**, a right-click **Go to Detail**
+  or the command palette opens a permanent tab.
 
-There is no mode switch. Topology and Detail are side-bar sections; opening one
-changes the side bar, not the active document or its editor.
+There is no mode switch. Topology and Detail are side-bar sections, both may be
+expanded at once, and their separator is adjustable. Opening or resizing a
+section changes the side bar, not the active document or its editor.
 
 The viewer is a design reader, not an audit or review tool: there are no
 findings, decisions, coverage, sign-off or review sidecars.
@@ -46,14 +48,17 @@ The first paint shows the design, not its annotations.
 
 | Surface | Default | Revealed by |
 | --- | --- | --- |
-| Graph document | graph canvas and **Inspect** bottom panel | selecting an entity fills Inspect with its description, properties and meaning |
+| Graph document | graph canvas and floating **Inspect** window | selecting an entity fills Inspect with its description, properties and meaning |
 | Subject document | meaning, properties and attached semantics of the subject | property rows, the branch selector and the Detail tree for another subject document |
 
-Both panels are shown by default. The side bar carries the **Topology** and
-**Detail** sections; the bottom panel is always the **Inspect** region for the
-graph selection. A tab changes only the editor. It does not open, close or
-switch the side-bar section, bottom panel or another tab. Panel width and height
-are one workbench geometry.
+There is no bottom panel. The side bar carries the **Topology** and **Detail**
+sections; the Graph document owns its floating **Inspect** window. A tab changes
+only the editor. It does not open, close or switch the side-bar section or
+another tab. Side-bar width and the section split are one workbench geometry.
+
+Single-clicking a node or a property in the Graph inspector only changes the
+transient inspection; it does not open a tab. Right-click any suitable node,
+edge or property and choose **Go to Detail** to open its document.
 
 The editor is one global tab strip. The viewer has two kinds of tab view:
 
@@ -63,9 +68,11 @@ The editor is one global tab strip. The viewer has two kinds of tab view:
   row, or the command palette.
 
 Single-clicking a node or a property row only changes the transient **Inspect**
-selection; it does not open a tab. **Back** and **Forward** (arrows in the tab
-strip, or `Alt+←` / `Alt+→`) walk the document history. There is no JSON/Data
-tab.
+selection; it does not open a tab. Detail tree rows single-click into a reusable
+preview tab and double-click into a permanent tab. **Back** and **Forward**
+(arrows in the tab strip, `Alt+←` / `Alt+→`, or the mouse back/forward buttons)
+walk the document history. Every open tab keeps its own editor state and scroll
+position. There is no JSON/Data tab.
 
 ## Snapshot
 

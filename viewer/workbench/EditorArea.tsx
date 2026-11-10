@@ -4,7 +4,7 @@ import { DetailEditor } from "@/detail/DetailFeature";
 import { TopologyEditor } from "@/topology/TopologyFeature";
 import { EditorTabs } from "./EditorTabs";
 import { useWorkbench } from "./store";
-import type { WorkbenchState, WorkbenchTab } from "./types";
+import { documentSignature, type WorkbenchState, type WorkbenchTab } from "./types";
 
 function paneState(state: WorkbenchState, tab: WorkbenchTab): WorkbenchState {
   return tab.id === state.activeTabId ? state : { ...state, activeTabId: tab.id };
@@ -24,7 +24,7 @@ export function EditorArea() {
           const current = paneState(state, tab);
           return (
             <div
-              key={tab.id}
+              key={`${tab.id}:${documentSignature(tab.document)}`}
               className="wb-editor-pane"
               data-active={active ? "true" : undefined}
               data-full-bleed={graph ? "true" : undefined}

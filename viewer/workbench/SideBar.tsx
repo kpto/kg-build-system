@@ -1,35 +1,142 @@
 "use client";
 
-import { useState, type JSX } from "react";
+import {
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type PointerEvent,
+  type ReactNode,
+  type RefObject,
+} from "react";
 import { ChevronRight } from "lucide-react";
 
 import { DetailSidebar } from "@/detail/DetailFeature";
 import { TopologySidebar } from "@/topology/TopologyFeature";
 import { cx } from "@/shared/ui/theme";
 import { useWorkbench } from "./store";
+import {
+  MAX_SIDEBAR_SPLIT,
+  MIN_SIDEBAR_SPLIT,
+  type WorkbenchLayout,
+} from "./types";
 
 type SectionId = "topology" | "detail";
 
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(max, Math.max(min, value));
+}
+
+/** A ratio separator between two open side-bar sections. */
+function SideBarSplitter({
+  ratio,
+  container,
+  onChange,
+}: {
+  ratio: number;
+  container: RefObject<HTMLElement | null>;
+  onChange(value: number): void;
+}) {
+  const drag = useRef<{ start: number; ratio: number; height: number } | null>(
+    null,
+  );
+
+  const onPointerDown = (event: PointerEvent<HTMLDivElement>) => {
+    if (event.button !== 0) return;
+    event.preventDefault();
+    drag.current = {
+      start: event.clientY,
+      ratio,
+      height: container.current?.getBoundingClientRect().height ?? 600,
+    };
+    event.currentTarget.setPointerCapture(event.pointerId);
+  };
+
+  const onPointerMove = (event: PointerEvent<HTMLDivElement>) => {
+    if (!drag.current) return;
+    const delta = (event.clientY - drag.current.start) / drag.current.height;
+    onChange(clamp(drag.current.ratio + delta, MIN_SIDEBAR_SPLIT, MAX_SIDEBAR_SPLIT));
+  };
+
+  const endDrag = (event: PointerEvent<HTMLDivElement>) => {
+    drag.current = null;
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+  };
+
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    let next: number | undefined;
+    if (event.key === "ArrowUp") next = ratio - 0.03;
+    else if (event.key === "ArrowDown") next = ratio + 0.03;
+    else if (event.key === "Home") next = MIN_SIDEBAR_SPLIT;
+    else if (event.key === "End") next = MAX_SIDEBAR_SPLIT;
+    if (next === undefined) return;
+    event.preventDefault();
+    onChange(clamp(next, MIN_SIDEBAR_SPLIT, MAX_SIDEBAR_SPLIT));
+  };
+
+  return (
+    <div
+      role="separator"
+      aria-label="Resize side-bar sections"
+      aria-orientation="horizontal"
+      aria-valuemin={Math.round(MIN_SIDEBAR_SPLIT * 100)}
+      aria-valuemax={Math.round(MAX_SIDEBAR_SPLIT * 100)}
+      aria-valuenow={Math.round(ratio * 100)}
+      aria-valuetext={`Topology ${Math.round(ratio * 100)} percent`}
+      tabIndex={0}
+      className="wb-splitter"
+      data-orientation="horizontal"
+      data-testid="sidebar-splitter"
+      onPointerDown={onPointerDown}
+      onPointerMove={onPointerMove}
+      onPointerUp={endDrag}
+      onPointerCancel={endDrag}
+      onKeyDown={onKeyDown}
+    >
+      <span className="wb-splitter-grip" aria-hidden />
+    </div>
+  );
+}
+
 export function SideBar() {
   const { state, actions } = useWorkbench();
-  const [open, setOpen] = useState<SectionId | null>("topology");
+  const [open, setOpen] = useState<Record<SectionId, boolean>>({
+    topology: true,
+    detail: false,
+  });
+  const container = useRef<HTMLElement>(null);
   const stats = state.index.stats;
+  const bothOpen = open.topology && open.detail;
 
   const toggle = (section: SectionId) => {
-    setOpen((current) => (current === section ? null : section));
+    setOpen((current) => ({ ...current, [section]: !current[section] }));
+  };
+
+  const growth = (section: SectionId): number => {
+    if (!bothOpen) return 1;
+    return section === "topology"
+      ? state.layout.sidebarSplit
+      : 1 - state.layout.sidebarSplit;
+  };
+
+  const setSplit = (value: number) => {
+    actions.setLayout({ sidebarSplit: value } satisfies Partial<WorkbenchLayout>);
   };
 
   const section = (
     id: SectionId,
     label: string,
     meta: string,
-    Body: () => JSX.Element,
+    body: ReactNode,
   ) => {
-    const expanded = open === id;
+    const expanded = open[id];
     return (
       <section
         className="wb-side-section"
         data-open={expanded ? "true" : undefined}
+        data-testid={`sidebar-section-body-${id}`}
+        style={expanded ? { flexGrow: growth(id) } : undefined}
       >
         <button
           type="button"
@@ -46,9 +153,7 @@ export function SideBar() {
           <span className="wb-side-section-meta">{meta}</span>
         </button>
         {expanded ? (
-          <div className="wb-side-section-body thin-scrollbar">
-            <Body />
-          </div>
+          <div className="wb-side-section-body thin-scrollbar">{body}</div>
         ) : null}
       </section>
     );
@@ -56,6 +161,7 @@ export function SideBar() {
 
   return (
     <aside
+      ref={container}
       className="wb-sidebar"
       style={{ width: state.layout.sidebarWidth }}
       aria-label="Workbench side bar"
@@ -65,13 +171,20 @@ export function SideBar() {
         "topology",
         "Topology",
         `${stats.topologyNodes}N · ${stats.topologyEdges}E`,
-        () => <TopologySidebar state={state} actions={actions} />,
+        <TopologySidebar state={state} actions={actions} />,
       )}
+      {bothOpen ? (
+        <SideBarSplitter
+          ratio={state.layout.sidebarSplit}
+          container={container}
+          onChange={setSplit}
+        />
+      ) : null}
       {section(
         "detail",
         "Detail",
         `${stats.topologyNodes} subjects`,
-        () => <DetailSidebar state={state} actions={actions} />,
+        <DetailSidebar state={state} actions={actions} />,
       )}
     </aside>
   );

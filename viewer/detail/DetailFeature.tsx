@@ -4,8 +4,8 @@
  * Detail document view: one design subject read in full.
  *
  * The sidebar selects a design subject; the editor presents its meaning,
- * properties and, for a property, its provenance; the bottom panel exposes the
- * workflow trace and evidence. Provenance is a section of this view.
+ * properties and, for a property, its provenance. Provenance is a section of
+ * this view.
  */
 
 import {
@@ -13,6 +13,7 @@ import {
   useMemo,
   useState,
   type CSSProperties,
+  type MouseEvent as ReactMouseEvent,
   type ReactNode,
 } from "react";
 import {
@@ -39,6 +40,7 @@ import type {
 import { LINEAGE_LANES } from "@/lib/types";
 import { logicalTypeName } from "@/lib/expressions";
 import { resolveAssetName } from "@/lib/indexes";
+import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { laneColor } from "@/shared/ui/theme";
 import {
   branchLaneNodes,
@@ -352,6 +354,7 @@ function SideSection({
         className={styles.sideSectionHead}
         aria-expanded={open}
         onClick={() => onToggle(id)}
+        data-testid={`detail-group-${id}`}
       >
         {open ? (
           <ChevronDown aria-hidden className={styles.sideChevron} />
@@ -372,15 +375,27 @@ interface SidebarRowProps {
   active?: boolean;
   abstract?: boolean;
   onSelect(): void;
+  onOpenPermanent?(): void;
+  onContextMenu?(event: ReactMouseEvent): void;
 }
 
-function SidebarRow({ label, meta, active, abstract, onSelect }: SidebarRowProps) {
+function SidebarRow({
+  label,
+  meta,
+  active,
+  abstract,
+  onSelect,
+  onOpenPermanent,
+  onContextMenu,
+}: SidebarRowProps) {
   return (
     <button
       type="button"
       className={styles.sideRow}
       data-active={active ? "true" : undefined}
       onClick={onSelect}
+      onDoubleClick={onOpenPermanent ?? onSelect}
+      onContextMenu={onContextMenu}
       title={label}
     >
       <span className={styles.sideRowLabel}>{label}</span>
@@ -395,14 +410,29 @@ export function DetailSidebar(props: WorkspaceProps) {
   const document = activeDocument(props.state);
   const active = documentSelection(document);
   const [query, setQuery] = useState("");
-  const [open, setOpen] = useState<Set<string>>(
-    () => new Set(["assets", "nodes", "abstract", "edges"]),
-  );
+  const [open, setOpen] = useState<Set<string>>(() => new Set());
   const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [menu, setMenu] = useState<
+    | { x: number; y: number; label: string; run(): void }
+    | undefined
+  >(undefined);
   const normalized = query.trim().toLowerCase();
 
+  // Single-click navigation reuses one preview tab; an explicit open is permanent.
   const select = (next: ProofSubject) => {
+    props.actions.openTab({ selection: toWorkbenchSelection(next), preview: true });
+  };
+  const openPermanent = (next: ProofSubject) => {
     props.actions.openTab({ selection: toWorkbenchSelection(next) });
+  };
+  const openMenu = (
+    event: ReactMouseEvent,
+    label: string,
+    run: () => void,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    setMenu({ x: event.clientX, y: event.clientY, label, run });
   };
   const toggle = (id: string) => {
     setOpen((current) => {
@@ -479,12 +509,29 @@ export function DetailSidebar(props: WorkspaceProps) {
           <button
             type="button"
             className={styles.treeLabel}
+            data-testid={node.abstract ? "detail-tree-abstract" : "detail-tree-node"}
             onClick={() =>
               select({
                 level: nodeLevel,
                 kind: nodeKind,
                 component: node.name,
               })
+            }
+            onDoubleClick={() =>
+              openPermanent({
+                level: nodeLevel,
+                kind: nodeKind,
+                component: node.name,
+              })
+            }
+            onContextMenu={(event) =>
+              openMenu(event, node.name, () =>
+                openPermanent({
+                  level: nodeLevel,
+                  kind: nodeKind,
+                  component: node.name,
+                }),
+              )
             }
             title={node.name}
           >
@@ -501,6 +548,7 @@ export function DetailSidebar(props: WorkspaceProps) {
                 key={`${node.name}.${property.name}`}
                 type="button"
                 className={styles.propertyRow}
+                data-testid="detail-tree-property"
                 data-active={
                   isActive("property", node.name, property.name)
                     ? "true"
@@ -514,6 +562,26 @@ export function DetailSidebar(props: WorkspaceProps) {
                     property: property.name,
                     propertyRef: property.ref,
                   })
+                }
+                onDoubleClick={() =>
+                  openPermanent({
+                    level: "property",
+                    kind: "node",
+                    component: node.name,
+                    property: property.name,
+                    propertyRef: property.ref,
+                  })
+                }
+                onContextMenu={(event) =>
+                  openMenu(event, `${node.name}.${property.name}`, () =>
+                    openPermanent({
+                      level: "property",
+                      kind: "node",
+                      component: node.name,
+                      property: property.name,
+                      propertyRef: property.ref,
+                    }),
+                  )
                 }
               >
                 <CircleDot aria-hidden className={styles.propertyDot} />
@@ -555,12 +623,29 @@ export function DetailSidebar(props: WorkspaceProps) {
           <button
             type="button"
             className={styles.treeLabel}
+            data-testid="detail-tree-edge"
             onClick={() =>
               select({
                 level: "edge",
                 kind: "edge",
                 component: edge.name,
               })
+            }
+            onDoubleClick={() =>
+              openPermanent({
+                level: "edge",
+                kind: "edge",
+                component: edge.name,
+              })
+            }
+            onContextMenu={(event) =>
+              openMenu(event, edge.name, () =>
+                openPermanent({
+                  level: "edge",
+                  kind: "edge",
+                  component: edge.name,
+                }),
+              )
             }
             title={edge.name}
           >
@@ -590,6 +675,26 @@ export function DetailSidebar(props: WorkspaceProps) {
                     property: property.name,
                     propertyRef: property.ref,
                   })
+                }
+                onDoubleClick={() =>
+                  openPermanent({
+                    level: "property",
+                    kind: "edge",
+                    component: edge.name,
+                    property: property.name,
+                    propertyRef: property.ref,
+                  })
+                }
+                onContextMenu={(event) =>
+                  openMenu(event, `${edge.name}.${property.name}`, () =>
+                    openPermanent({
+                      level: "property",
+                      kind: "edge",
+                      component: edge.name,
+                      property: property.name,
+                      propertyRef: property.ref,
+                    }),
+                  )
                 }
               >
                 <CircleDot aria-hidden className={styles.propertyDot} />
@@ -639,6 +744,22 @@ export function DetailSidebar(props: WorkspaceProps) {
               onSelect={() =>
                 select({ level: "asset", kind: "asset", component: asset.name })
               }
+              onOpenPermanent={() =>
+                openPermanent({
+                  level: "asset",
+                  kind: "asset",
+                  component: asset.name,
+                })
+              }
+              onContextMenu={(event) =>
+                openMenu(event, asset.name, () =>
+                  openPermanent({
+                    level: "asset",
+                    kind: "asset",
+                    component: asset.name,
+                  }),
+                )
+              }
             />
           ))}
         </SideSection>
@@ -665,6 +786,28 @@ export function DetailSidebar(props: WorkspaceProps) {
                   });
                 }
               }}
+              onOpenPermanent={() => {
+                const assetName = resolveAssetName(index, relation.name);
+                if (assetName) {
+                  openPermanent({
+                    level: "asset",
+                    kind: "asset",
+                    component: assetName,
+                  });
+                }
+              }}
+              onContextMenu={(event) =>
+                openMenu(event, relation.name, () => {
+                  const assetName = resolveAssetName(index, relation.name);
+                  if (assetName) {
+                    openPermanent({
+                      level: "asset",
+                      kind: "asset",
+                      component: assetName,
+                    });
+                  }
+                })
+              }
             />
           ))}
         </SideSection>
@@ -691,6 +834,28 @@ export function DetailSidebar(props: WorkspaceProps) {
                   });
                 }
               }}
+              onOpenPermanent={() => {
+                const assetName = resolveAssetName(index, projection.name);
+                if (assetName) {
+                  openPermanent({
+                    level: "asset",
+                    kind: "asset",
+                    component: assetName,
+                  });
+                }
+              }}
+              onContextMenu={(event) =>
+                openMenu(event, projection.name, () => {
+                  const assetName = resolveAssetName(index, projection.name);
+                  if (assetName) {
+                    openPermanent({
+                      level: "asset",
+                      kind: "asset",
+                      component: assetName,
+                    });
+                  }
+                })
+              }
             />
           ))}
         </SideSection>
@@ -725,6 +890,23 @@ export function DetailSidebar(props: WorkspaceProps) {
           {edges.map(renderEdge)}
         </SideSection>
       </div>
+
+      {menu ? (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          label={menu.label}
+          items={[
+            {
+              label: "Go to Detail",
+              hint: "Open document",
+              onSelect: menu.run,
+            },
+          ]}
+          onClose={() => setMenu(undefined)}
+        />
+      ) : null}
+
       <footer className={styles.sideFooter}>
         <span className={styles.sideFooterLabel}>Selection</span>
         <span className={styles.sideFooterValue}>
@@ -1052,10 +1234,16 @@ function PropertyProofView({ model }: { model: ProofModel }) {
 function PropertyTable({
   properties,
   onSelect,
+  onOpenPermanent,
 }: {
   properties: ProofPropertySummary[];
   onSelect(property: ProofPropertySummary): void;
+  onOpenPermanent(property: ProofPropertySummary): void;
 }) {
+  const [menu, setMenu] = useState<
+    | { x: number; y: number; label: string; run(): void }
+    | undefined
+  >(undefined);
   if (!properties.length) {
     return <EmptyState>No properties are declared for this subject.</EmptyState>;
   }
@@ -1075,6 +1263,17 @@ function PropertyTable({
           className={styles.propertyTableRow}
           data-testid="detail-property"
           onClick={() => onSelect(property)}
+          onDoubleClick={() => onOpenPermanent(property)}
+          onContextMenu={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            setMenu({
+              x: event.clientX,
+              y: event.clientY,
+              label: `${property.component}.${property.property}`,
+              run: () => onOpenPermanent(property),
+            });
+          }}
         >
           <span className={styles.propertyName}>
             <CircleDot aria-hidden className={styles.propertyDot} />
@@ -1092,6 +1291,21 @@ function PropertyTable({
           </span>
         </button>
       ))}
+      {menu ? (
+        <ContextMenu
+          x={menu.x}
+          y={menu.y}
+          label={menu.label}
+          items={[
+            {
+              label: "Go to Detail",
+              hint: "Open document",
+              onSelect: menu.run,
+            },
+          ]}
+          onClose={() => setMenu(undefined)}
+        />
+      ) : null}
     </div>
   );
 }
@@ -1148,6 +1362,18 @@ function ComponentProofView({
         <PropertyTable
           properties={component.properties}
           onSelect={(property) =>
+            actions.openTab({
+              selection: toWorkbenchSelection({
+                level: "property",
+                kind: property.kind,
+                component: property.component,
+                property: property.property,
+                propertyRef: property.propertyRef,
+              }),
+              preview: true,
+            })
+          }
+          onOpenPermanent={(property) =>
             actions.openTab({
               selection: toWorkbenchSelection({
                 level: "property",
@@ -1231,6 +1457,18 @@ function AbstractProofView({
                     property: property.property,
                     propertyRef: property.propertyRef,
                   }),
+                  preview: true,
+                })
+              }
+              onOpenPermanent={(property) =>
+                actions.openTab({
+                  selection: toWorkbenchSelection({
+                    level: "property",
+                    kind: property.kind,
+                    component: property.component,
+                    property: property.property,
+                    propertyRef: property.propertyRef,
+                  }),
                 })
               }
             />
@@ -1303,6 +1541,18 @@ function AssetProofView({
         <PropertyTable
           properties={asset.properties}
           onSelect={(property) =>
+            actions.openTab({
+              selection: toWorkbenchSelection({
+                level: "property",
+                kind: property.kind,
+                component: property.component,
+                property: property.property,
+                propertyRef: property.propertyRef,
+              }),
+              preview: true,
+            })
+          }
+          onOpenPermanent={(property) =>
             actions.openTab({
               selection: toWorkbenchSelection({
                 level: "property",
@@ -1473,7 +1723,3 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     </div>
   );
 }
-
-// ---------------------------------------------------------------------------
-// Bottom panel
-// ---------------------------------------------------------------------------

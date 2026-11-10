@@ -9,7 +9,6 @@ import {
   loadReferenceSnapshot,
 } from "@/lib/load";
 import type { ViewerIndex, ViewerSnapshot } from "@/lib/types";
-import { BottomPanel } from "./BottomPanel";
 import { CommandPalette } from "./CommandPalette";
 import { EditorArea } from "./EditorArea";
 import { SettingsDialog } from "./SettingsDialog";
@@ -18,13 +17,7 @@ import { Splitter } from "./Splitter";
 import { StatusBar } from "./StatusBar";
 import { WorkbenchProvider, useWorkbench } from "./store";
 import { TitleBar } from "./TitleBar";
-import {
-  DEFAULT_LAYOUT,
-  MAX_BOTTOM,
-  MAX_SIDEBAR,
-  MIN_BOTTOM,
-  MIN_SIDEBAR,
-} from "./types";
+import { DEFAULT_LAYOUT, MAX_SIDEBAR, MIN_SIDEBAR } from "./types";
 
 interface LoadedWorkbench {
   snapshot: ViewerSnapshot;
@@ -123,7 +116,6 @@ function WorkbenchShell() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [sidebarVisible, setSidebarVisible] = useState(true);
-  const [bottomVisible, setBottomVisible] = useState(true);
   const [zoom, setZoom] = useState(1);
 
   const layout = state.layout;
@@ -141,7 +133,7 @@ function WorkbenchShell() {
   const resetLayout = useCallback(() => {
     actions.setLayout({
       sidebarWidth: DEFAULT_LAYOUT.sidebarWidth,
-      bottomHeight: DEFAULT_LAYOUT.bottomHeight,
+      sidebarSplit: DEFAULT_LAYOUT.sidebarSplit,
     });
   }, [actions]);
 
@@ -174,11 +166,6 @@ function WorkbenchShell() {
       if (command && event.key.toLowerCase() === "b") {
         event.preventDefault();
         setSidebarVisible((visible) => !visible);
-        return;
-      }
-      if (command && event.key.toLowerCase() === "j") {
-        event.preventDefault();
-        setBottomVisible((visible) => !visible);
         return;
       }
       if (event.altKey && event.key === "ArrowLeft") {
@@ -237,9 +224,7 @@ function WorkbenchShell() {
         onOpenPalette={openPalette}
         onOpenSettings={openSettings}
         sidebarVisible={sidebarVisible}
-        bottomVisible={bottomVisible}
         onToggleSidebar={() => setSidebarVisible((visible) => !visible)}
-        onToggleBottom={() => setBottomVisible((visible) => !visible)}
         onResetLayout={resetLayout}
       />
 
@@ -260,19 +245,6 @@ function WorkbenchShell() {
 
         <div className="wb-main">
           <EditorArea />
-          {bottomVisible ? (
-            <>
-              <Splitter
-                orientation="horizontal"
-                value={layout.bottomHeight}
-                min={MIN_BOTTOM}
-                max={MAX_BOTTOM}
-                label="Resize bottom panel"
-                onChange={(value) => actions.setLayout({ bottomHeight: value })}
-              />
-              <BottomPanel onCollapse={() => setBottomVisible(false)} />
-            </>
-          ) : null}
         </div>
       </div>
 

@@ -19,8 +19,8 @@ function clamp(value: number, min: number, max: number): number {
  * A keyboard-accessible panel splitter.
  *
  * `vertical` sits between the side bar and the editor and returns a width.
- * `horizontal` sits above the bottom panel and returns a height, so dragging
- * upward grows the panel.
+ * `horizontal` sits between an upper and a lower region and returns a height,
+ * so dragging upward grows the upper region.
  */
 export function Splitter({
   orientation,

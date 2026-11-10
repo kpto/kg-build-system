@@ -6,7 +6,7 @@
  */
 
 export {
-  TopologyBottom,
+  TopologyInspector,
   TopologyEditor,
   TopologySidebar,
 } from "./view/TopologyFeature";

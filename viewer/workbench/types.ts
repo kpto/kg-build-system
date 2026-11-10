@@ -40,11 +40,14 @@ export interface WorkbenchTab {
   document: WorkbenchDocument;
   /** The canonical graph tab is always available. */
   pinned?: boolean;
+  /** A preview tab is reused by the next single-click navigation. */
+  preview?: boolean;
 }
 
 export interface WorkbenchLayout {
   sidebarWidth: number;
-  bottomHeight: number;
+  /** Share of the side bar height used by the Topology section when both are open. */
+  sidebarSplit: number;
 }
 
 export interface WorkbenchState {
@@ -62,13 +65,16 @@ export interface WorkbenchState {
 
 export interface OpenTabInput {
   selection: SubjectSelection;
+  /** Single-click navigation opens a reusable preview tab. */
+  preview?: boolean;
 }
 
 export interface WorkbenchActions {
   setSelection(selection: SubjectSelection): void;
   inspect(selection: SubjectSelection | undefined): void;
-  setLayout(patch: Partial<Pick<WorkbenchLayout, "sidebarWidth" | "bottomHeight">>): void;
+  setLayout(patch: Partial<WorkbenchLayout>): void;
   openTab(tab: OpenTabInput): void;
+  pinTab(tabId: string): void;
   closeTab(tabId: string): void;
   activateTab(tabId: string): void;
   back(): void;
@@ -113,12 +119,26 @@ export function documentTitle(document: WorkbenchDocument): string {
   return document.kind === "graph" ? "Graph" : subjectTitle(document.selection);
 }
 
+/** Stable content identity used to remount a pane when a preview replaces it. */
+export function documentSignature(document: WorkbenchDocument): string {
+  if (document.kind === "graph") return "graph";
+  const selection = document.selection;
+  return [
+    selection.kind ?? "",
+    selection.component ?? "",
+    selection.name ?? "",
+    selection.property ?? "",
+    selection.level ?? "",
+    selection.stepId?.join("/") ?? "",
+  ].join("\u0000");
+}
+
 export const DEFAULT_LAYOUT: WorkbenchLayout = {
   sidebarWidth: 300,
-  bottomHeight: 240,
+  sidebarSplit: 0.5,
 };
 
 export const MIN_SIDEBAR = 220;
 export const MAX_SIDEBAR = 520;
-export const MIN_BOTTOM = 120;
-export const MAX_BOTTOM = 480;
+export const MIN_SIDEBAR_SPLIT = 0.2;
+export const MAX_SIDEBAR_SPLIT = 0.8;

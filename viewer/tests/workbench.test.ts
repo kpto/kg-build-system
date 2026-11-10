@@ -43,16 +43,96 @@ describe("workbench documents and geometry", () => {
     expect(activeTitle(initial)).toBe("Graph");
     expect(initial.inspection).toBeUndefined();
     expect(initial.layout.sidebarWidth).toBe(300);
-    expect(initial.layout.bottomHeight).toBe(240);
+    expect(initial.layout.sidebarSplit).toBe(0.5);
   });
 
   it("resizes one geometry for every document", () => {
     const current = workbenchReducer(state(), {
       type: "set-layout",
-      patch: { sidebarWidth: 348, bottomHeight: 276 },
+      patch: { sidebarWidth: 348, sidebarSplit: 0.62 },
     });
     expect(current.layout.sidebarWidth).toBe(348);
-    expect(current.layout.bottomHeight).toBe(276);
+    expect(current.layout.sidebarSplit).toBe(0.62);
+  });
+
+  it("clamps the side-bar section split", () => {
+    const current = workbenchReducer(state(), {
+      type: "set-layout",
+      patch: { sidebarSplit: 0.95 },
+    });
+    expect(current.layout.sidebarSplit).toBe(0.8);
+  });
+
+  it("reuses one preview tab for single-click navigation", () => {
+    let current = workbenchReducer(state(), {
+      type: "open-tab",
+      input: { selection: defectNode, preview: true },
+    });
+    expect(current.tabs).toHaveLength(2);
+    expect(current.tabs[1].preview).toBe(true);
+
+    current = workbenchReducer(current, {
+      type: "open-tab",
+      input: { selection: defectProperty, preview: true },
+    });
+    expect(current.tabs).toHaveLength(2);
+    expect(current.tabs.map((tab) => documentTitle(tab.document))).toEqual([
+      "Graph",
+      "defect.title",
+    ]);
+    expect(activeTitle(current)).toBe("defect.title");
+    expect(current.tabs[1].preview).toBe(true);
+  });
+
+  it("keeps preview ids unique when the shown subject changes", () => {
+    let current = workbenchReducer(state(), {
+      type: "open-tab",
+      input: { selection: defectNode, preview: true },
+    });
+    current = workbenchReducer(current, {
+      type: "open-tab",
+      input: { selection: defectProperty, preview: true },
+    });
+    current = workbenchReducer(current, {
+      type: "open-tab",
+      input: { selection: defectNode },
+    });
+    expect(current.tabs.map((tab) => documentTitle(tab.document))).toEqual([
+      "Graph",
+      "defect.title",
+      "defect",
+    ]);
+    expect(new Set(current.tabs.map((tab) => tab.id)).size).toBe(3);
+  });
+
+  it("promotes a preview tab when the document is opened explicitly", () => {
+    let current = workbenchReducer(state(), {
+      type: "open-tab",
+      input: { selection: defectNode, preview: true },
+    });
+    current = workbenchReducer(current, {
+      type: "open-tab",
+      input: { selection: defectNode },
+    });
+    expect(current.tabs).toHaveLength(2);
+    expect(current.tabs[1].preview).toBeUndefined();
+  });
+
+  it("pins a preview tab into a permanent document", () => {
+    let current = workbenchReducer(state(), {
+      type: "open-tab",
+      input: { selection: defectNode, preview: true },
+    });
+    const previewId = current.activeTabId;
+    current = workbenchReducer(current, { type: "pin-tab", tabId: previewId });
+    expect(current.tabs[1].preview).toBeUndefined();
+
+    current = workbenchReducer(current, {
+      type: "open-tab",
+      input: { selection: defectProperty, preview: true },
+    });
+    // The former preview was pinned, so the new preview needs its own tab.
+    expect(current.tabs).toHaveLength(3);
   });
 
   it("inspects without opening a document", () => {

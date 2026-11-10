@@ -25,7 +25,6 @@ const THEME_SWATCHES = [
 const SHORTCUTS = [
   { keys: "Ctrl/Cmd K", action: "Command palette" },
   { keys: "Ctrl/Cmd B", action: "Toggle side bar" },
-  { keys: "Ctrl/Cmd J", action: "Toggle bottom panel" },
   { keys: "Alt ← / Alt →", action: "Back / forward" },
   { keys: "Mouse 3 / 4", action: "Back / forward documents" },
   { keys: "Ctrl/Cmd ,", action: "Settings" },
@@ -38,7 +37,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
   const resetLayout = () => {
     actions.setLayout({
       sidebarWidth: DEFAULT_LAYOUT.sidebarWidth,
-      bottomHeight: DEFAULT_LAYOUT.bottomHeight,
+      sidebarSplit: DEFAULT_LAYOUT.sidebarSplit,
     });
     onClose();
   };
@@ -47,7 +46,7 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
     clearWorkbenchStorage(state.snapshot.name);
     actions.setLayout({
       sidebarWidth: DEFAULT_LAYOUT.sidebarWidth,
-      bottomHeight: DEFAULT_LAYOUT.bottomHeight,
+      sidebarSplit: DEFAULT_LAYOUT.sidebarSplit,
     });
     onClose();
   };
@@ -91,10 +90,11 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
         <div className="wb-dialog-body thin-scrollbar">
           <section className="wb-settings-section">
-            <h3>Stable panels</h3>
+            <h3>Workbench geometry</h3>
             <p>
-              The workbench keeps one side bar width, bottom height, bottom tab
-              per document view and one editor tab strip under one key.
+              The workbench keeps one side-bar width, one split between the
+              Topology and Detail sections, and one editor tab strip under one
+              key.
             </p>
             <dl className="wb-settings-facts">
               <div>
@@ -112,12 +112,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
               <div>
                 <dt>Side bar</dt>
                 <dd className="wb-mono">
-                  {state.layout.sidebarWidth}px
+                  {state.layout.sidebarWidth}px · sections{" "}
+                  {Math.round(state.layout.sidebarSplit * 100)}/
+                  {Math.round((1 - state.layout.sidebarSplit) * 100)}
                 </dd>
-              </div>
-              <div>
-                <dt>Bottom panel</dt>
-                <dd className="wb-mono">{state.layout.bottomHeight}px</dd>
               </div>
             </dl>
           </section>
@@ -154,7 +152,10 @@ export function SettingsDialog({ onClose }: SettingsDialogProps) {
 
           <section className="wb-settings-section">
             <h3>Reset layout</h3>
-            <p>The reset changes layout and tabs; it never changes the snapshot.</p>
+            <p>
+              The reset changes side-bar geometry; it never changes the snapshot
+              or the open tabs.
+            </p>
             <div className="wb-settings-actions">
               <button type="button" className="wb-button" onClick={resetLayout}>
                 <RotateCcw aria-hidden className="size-3" />
