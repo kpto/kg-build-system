@@ -119,7 +119,7 @@ export function WorkflowControls({ state }: WorkspaceProps) {
         </div>
 
         <p className="text-[9px] leading-relaxed text-faint">
-          Choosing a component selects it. Use **Open step group** in the header
+          Choosing a component selects it. Use Open step group in the header
           to enter its step graph. Filters narrow that graph and dim the
           component overview; every step remains available in Explorer.
         </p>
@@ -900,6 +900,9 @@ export function WorkflowEditor(props: WorkspaceProps) {
   const focusedGroupRows = focusedNode
     ? filtered.filter((row) => row.component === focusedNode.id)
     : [];
+  const selectedStepRow = ui.selectedStepKey
+    ? focusedGroupRows.find((row) => row.key === ui.selectedStepKey)
+    : undefined;
   const tintByComponent = useMemo(
     () =>
       new Map(
@@ -1142,6 +1145,16 @@ export function WorkflowEditor(props: WorkspaceProps) {
             <span className="rounded border border-line-soft bg-panel-raised px-2 py-1 font-mono text-[9px] text-faint">
               {stepLayout.stepCount} steps
             </span>
+            {selectedStepRow ? (
+              <button
+                type="button"
+                onClick={() => openStepNode(selectedStepRow, false)}
+                className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[9px] text-accent-strong hover:border-accent hover:text-text"
+                data-testid="workflow-open-step"
+              >
+                Open step →
+              </button>
+            ) : null}
             <button
               type="button"
               onClick={() => store.focusComponent(undefined)}
@@ -1220,6 +1233,9 @@ export function WorkflowEditor(props: WorkspaceProps) {
               : `Workflow compositor graph with ${layout.nodes.length} component nodes and ${layout.edges.length} aggregated links`
           }
           data-testid="workflow-map"
+          onClick={() => {
+            if (inStepGroup) store.selectStep(undefined);
+          }}
         >
           <g
             data-testid="workflow-scene"
@@ -1469,6 +1485,8 @@ export function WorkflowEditor(props: WorkspaceProps) {
                 <g data-workflow-step-nodes>
                   {stepLayout?.nodes.map((node) => {
                     const isStep = node.kind === "step";
+                    const stepSelected =
+                      isStep && ui.selectedStepKey === node.key;
                     return (
                       <g
                         key={node.key}
@@ -1476,20 +1494,26 @@ export function WorkflowEditor(props: WorkspaceProps) {
                         className="cursor-pointer"
                         role="button"
                         tabIndex={0}
+                        aria-pressed={isStep ? stepSelected : undefined}
                         aria-label={`${isStep ? "Step" : "Boundary"} ${node.label}, ${node.detail}`}
-                        onClick={() => {
+                        onClick={(event) => {
+                          event.stopPropagation();
                           if (suppressClickRef.current) {
                             suppressClickRef.current = false;
                             return;
                           }
                           if (isStep && node.row) {
-                            openStepNode(node.row, true);
+                            store.selectStep(node.key);
                           } else if (node.component) {
                             store.focusComponent(node.component);
                           }
                         }}
-                        onDoubleClick={() => {
-                          if (isStep && node.row) openStepNode(node.row, false);
+                        onDoubleClick={(event) => {
+                          event.stopPropagation();
+                          if (isStep && node.row) {
+                            store.selectStep(node.key);
+                            openStepNode(node.row, false);
+                          }
                         }}
                         onContextMenu={(event) => {
                           event.preventDefault();
@@ -1538,6 +1562,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
                         data-testid={
                           isStep ? "workflow-step-node" : "workflow-boundary-node"
                         }
+                        data-active={stepSelected ? "true" : undefined}
                         data-step-key={isStep ? node.key : undefined}
                         data-component={node.component}
                       >
@@ -1547,7 +1572,8 @@ export function WorkflowEditor(props: WorkspaceProps) {
                           height={node.height}
                           rx={5}
                           fill={theme.panel}
-                          stroke={theme.lineStrong}
+                          stroke={stepSelected ? theme.selection : theme.lineStrong}
+                          strokeWidth={stepSelected ? 1.8 : 1}
                         />
                         <path
                           d={`M 0 5 Q 0 0 5 0 H ${node.width - 5} Q ${node.width} 0 ${node.width} 5 V ${STEP_HEADER_HEIGHT} H 0 Z`}
@@ -1670,7 +1696,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
 
         <div className="pointer-events-none absolute bottom-3 left-3 rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[9px] text-faint">
           {inStepGroup
-            ? "drag to pan · wheel to zoom · node = step · link = workflow connection · click a step to open its document"
+            ? "drag to pan · wheel to zoom · click a step to select · double-click to open · Open step in the header"
             : "drag to pan · wheel to zoom · right-click a component for actions · node = component · link = aggregated step connections"}
         </div>
       </div>

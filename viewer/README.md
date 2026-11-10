@@ -51,7 +51,7 @@ The first paint shows the design, not its annotations.
 | Surface | Default | Revealed by |
 | --- | --- | --- |
 | Graph document | graph canvas and floating **Inspect** window showing graph purpose and counts | selecting an entity fills Inspect with its description, properties and meaning; clicking empty space returns to graph purpose |
-| Workflow document | compositor-style component graph with step counts and aggregated connections; drag to pan, wheel to zoom, Fit to reset | filter by component or instruction kind in Control; click a component to select it, then use **Open step group** to enter its step-level flow graph with columns filling top-to-bottom; **Back** returns to components; click a step node to open its detail document |
+| Workflow document | compositor-style component graph with step counts and aggregated connections; drag to pan, wheel to zoom, Fit to reset | filter by component or instruction kind in Control; click a component to select it, then use **Open step group** to enter its step-level flow graph with columns filling top-to-bottom; clicking a step node selects it, **Open step** opens its detail document, and **Back** returns to components |
 | Subject document | meaning, properties and attached semantics of the subject | property rows, the branch selector and the Explorer tree for another subject document |
 
 There is no bottom panel. The side bar carries the **Control** and **Explorer**

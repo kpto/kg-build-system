@@ -431,6 +431,52 @@ def main() -> int:
                     By.CSS_SELECTOR, '[data-testid="workflow-back-components"]'
                 )
             )
+
+            first_step_node = driver.find_elements(
+                By.CSS_SELECTOR, '[data-testid="workflow-step-node"]'
+            )[0]
+            step_key = first_step_node.get_attribute("data-step-key")
+            step_name = step_key.split("\u0000")[1]
+            tabs_before_step = tabs()
+            pointer = ActionBuilder(driver)
+            pointer.pointer_action.click(first_step_node, button=0)
+            pointer.perform()
+            time.sleep(0.6)
+            report["checks"]["workflow_step_selected"] = (
+                len(
+                    driver.find_elements(
+                        By.CSS_SELECTOR,
+                        '[data-testid="workflow-step-node"][data-active="true"]',
+                    )
+                )
+                == 1
+                and tabs() == tabs_before_step
+            )
+            report["checks"]["workflow_open_step_button"] = bool(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-open-step"]'
+                )
+            )
+            driver.find_element(
+                By.CSS_SELECTOR, '[data-testid="workflow-open-step"]'
+            ).click()
+            time.sleep(0.8)
+            report["checks"]["workflow_open_step_title"] = tabs()[-1] == step_name
+            report["checks"]["workflow_open_step_editor"] = bool(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="workflow-step-editor"]'
+                )
+            )
+            before_step_close = len(tabs())
+            middle_click(
+                driver.find_elements(
+                    By.CSS_SELECTOR, '[data-testid="editor-tabs"] .wb-tab-label'
+                )[-1].find_element(By.XPATH, "..")
+            )
+            report["checks"]["workflow_step_tab_closes_from_graph"] = (
+                len(tabs()) == before_step_close - 1
+            )
+
             driver.find_element(
                 By.CSS_SELECTOR, '[data-testid="workflow-back-components"]'
             ).click()

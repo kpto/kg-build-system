@@ -44,6 +44,7 @@ class WorkflowUiStore {
     this.patch({
       filters: { ...this.state.filters, component },
       focusedComponent: undefined,
+      selectedStepKey: undefined,
     });
   };
 
@@ -55,6 +56,7 @@ class WorkflowUiStore {
     this.patch({
       filters: { ...this.state.filters, component },
       focusedComponent: component,
+      selectedStepKey: undefined,
     });
   };
 
@@ -66,6 +68,7 @@ class WorkflowUiStore {
     this.patch({
       filters: { ...DEFAULT_WORKFLOW_FILTERS },
       focusedComponent: undefined,
+      selectedStepKey: undefined,
     });
   };
 
