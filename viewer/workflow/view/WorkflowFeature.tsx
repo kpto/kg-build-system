@@ -916,6 +916,8 @@ function stepDisplayName(value: string): string {
  * boundary nodes share the same chrome; one selected id drives the same
  * incident-link highlight and dimming in both the component and step views.
  */
+const DIM_NODE_OPACITY = 0.3;
+
 function WorkflowGraphSceneView({
   scene,
   selectedId,
@@ -1010,6 +1012,13 @@ function WorkflowGraphSceneView({
         {scene.nodes.map((node) => {
           const selected = node.id === selectedId;
           const active = !activeIds || activeIds.has(node.id);
+          // Selection dims every other node in both the component and step
+          // scenes; filters dim inactive nodes only when nothing is selected.
+          const opacity = selected
+            ? 1
+            : selectedId || !active
+              ? DIM_NODE_OPACITY
+              : 1;
           const isStep = node.kind === "step";
           const isComponent = node.kind === "component";
           const title = isStep ? stepDisplayName(node.label) : node.label;
@@ -1020,7 +1029,7 @@ function WorkflowGraphSceneView({
               key={node.id}
               transform={`translate(${node.x} ${node.y})`}
               className="cursor-pointer"
-              opacity={active ? 1 : 0.3}
+              opacity={opacity}
               role="button"
               tabIndex={0}
               aria-pressed={selected}

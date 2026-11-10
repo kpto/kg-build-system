@@ -407,6 +407,17 @@ def main() -> int:
                     '[data-testid="workflow-component-edge"][data-active="true"]',
                 )
             )
+            component_nodes = driver.find_elements(
+                By.CSS_SELECTOR, '[data-testid="workflow-component-node"]'
+            )
+            report["checks"]["workflow_component_dimmed"] = all(
+                node.get_attribute("opacity") == "0.3"
+                for node in component_nodes
+                if node.get_attribute("data-active") != "true"
+            ) and any(
+                node.get_attribute("data-active") != "true"
+                for node in component_nodes
+            )
             report["checks"]["workflow_step_graph_before_expand"] = bool(
                 driver.find_elements(
                     By.CSS_SELECTOR, '[data-testid="workflow-step-node"]'
@@ -530,6 +541,21 @@ def main() -> int:
                 driver.find_elements(
                     By.CSS_SELECTOR,
                     '[data-testid="workflow-step-edge"][data-active="true"]',
+                )
+            )
+            selected_steps = driver.find_elements(
+                By.CSS_SELECTOR,
+                '[data-testid="workflow-step-node"][data-active="true"]',
+            )
+            report["checks"]["workflow_step_dimmed"] = (
+                len(selected_steps) == 1
+                and selected_steps[0].get_attribute("opacity") == "1"
+                and all(
+                    node.get_attribute("opacity") == "0.3"
+                    for node in driver.find_elements(
+                        By.CSS_SELECTOR, '[data-testid="workflow-step-node"]'
+                    )
+                    if node.get_attribute("data-active") != "true"
                 )
             )
             report["checks"]["workflow_open_step_button"] = bool(
