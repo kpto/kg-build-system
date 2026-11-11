@@ -194,6 +194,10 @@ rule about what the framework is belongs to the framework model.
   planner, workflow plan, runtime, executor and resource. The distribution uses
   domain vocabulary: graph, blueprint, node, edge, binding, projection and
   asset. The kernel model is opaque; the distribution implements it.
+- A default distribution is one composition of the kernel protocols. Do not
+  state that the framework cannot express a concept until the kernel protocol
+  set has been checked; name the extension point and its cost. "Not in the
+  default distribution" is not "not in the framework."
 - A language and its package share one name: `DataLanguage`, language `data`,
   package `languages/data`. The authoring class names the syntax (`Table`,
   `Node`); the language is named for the model it produces.

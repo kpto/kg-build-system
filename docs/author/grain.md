@@ -82,6 +82,9 @@ active_units = units.where(
 - `unnest` is the row-source spelling of an array grain. `Selection.expand` is a row effect inside a product; do not use both for the same fan-out.
 - Null keys silently produce no join rows or no group. Narrow or default the key first when absence is a data error.
 
+> [!note] Extension point
+> A model rule is not an extension point. Everything else names the object that replaces it; the ladder is in [Extend the toolchain](/operate/extend#extension-ladder).
+
 ## Next
 
 [Project rows](/author/projections) — give a derived grain a name and typed outputs.

@@ -196,17 +196,17 @@
 
 - slug: extension
   title: Extending the toolchain
-  summary: Languages, linkers, planners, executors, emitters and providers composed as values.
+  summary: Kernel protocols, composition values and the object that carries each extension.
   order: 130
   spec: SPEC-013
   contract:
-    - "There MUST be no extension registry; a caller MUST compose a `Toolchain`."
-    - "A language MUST transcribe one declaration to one symbol; there is no batch protocol."
+    - "The kernel protocol set MUST be the extension surface; a language, linker, planner or executor MUST be an ordinary value passed to `Toolchain`, and a provider MUST be passed to the runtime."
+    - "A new source, syntax, derivation, engine or resource MUST compose a different `Toolchain`; no registry exists as the consequence."
     - "A new engine MUST implement the neutral `SqlEmitter`, not edit core."
   guide: [operate/extend]
   api: reference/api
   philosophy: [philosophy/design-in-semantics]
-  review: [review/architecture]
+  review: [review/architecture, review/limits]
   upstream: [architecture, plan]
   downstream: []
 

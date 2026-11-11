@@ -388,3 +388,8 @@ Each argument must be a `Selection[bool]`. A null predicate is not true, so a `w
 | Nulls propagate through calculations | `default_to` keeps the row; `drop_null` removes it |
 | `lookup` states no join mode | The caller composes left, inner or one-per-match |
 | `zip` is a value operation | It pairs arrays; it does not join rows |
+
+### Limits
+
+> [!note] Extension point
+> A model rule is not an extension point. Everything else names the object that replaces it; the ladder is in [Extend the toolchain](/operate/extend#extension-ladder).

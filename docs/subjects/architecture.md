@@ -47,7 +47,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 
 ## Where it sits
 
-Upstream: Top of the dependency story.. Downstream: [extension](/subjects/extension), [identity](/subjects/identity).
+Upstream: Top of the dependency story. Downstream: [extension](/subjects/extension), [identity](/subjects/identity).
 
 ## Next
 

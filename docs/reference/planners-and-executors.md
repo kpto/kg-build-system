@@ -333,3 +333,8 @@ toolchain = toolchain.with_executors((*toolchain.executors, MyExecutor()))
 `with_planners` and `with_executors` replace the sequence. `default_toolchain` adds the generic DuckDB source planner, the four core planners and the default executors. Register any new `ResourceProvider` on the runtime that executes the plan.
 
 Continue with [Extend the toolchain](/operate/extend), the [Modules specification](/spec/modules), the [Modules subject](/subjects/modules), [Publish outputs](/operate/outputs), [Guard quality](/operate/quality), [Compile a plan](/pipeline/plan), [Execute a plan](/pipeline/execute), [Plan specification](/spec/plan), [Execution specification](/spec/execution), [Plan subject](/subjects/plan), [Execution subject](/subjects/execution) and [Failures](/reference/failures).
+
+### Limits
+
+> [!note] Extension point
+> A model rule is not an extension point. Everything else names the object that replaces it; the ladder is in [Extend the toolchain](/operate/extend#extension-ladder).

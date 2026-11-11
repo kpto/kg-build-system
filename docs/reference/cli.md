@@ -4,7 +4,7 @@ summary: The sole console command, its flags and exit codes, and the Python call
 section: reference
 order: 20
 status: normative
-verified: 2026-11-10
+verified: 2026-11-11
 sources:
   - pyproject.toml
   - kg_build_system/cli/service/_private/main.py

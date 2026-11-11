@@ -4,7 +4,7 @@ summary: Create one Python environment, run the test suite and prove the referen
 section: start
 order: 10
 status: normative
-verified: 2026-11-10
+verified: 2026-11-11
 sources:
   - pyproject.toml
   - tests/test_reference_build.py
@@ -39,9 +39,9 @@ The package requires Python `>=3.12`. Node 22 is only needed to build this knowl
 <!-- BEGIN GENERATED:status -->
 | Measure | Value |
 | --- | --- |
-| Test suite | 354 tests, 1957 subtests, 6.83s — passes |
+| Test suite | 354 tests, 1957 subtests, 6.89s — passes |
 | Static types | 1 error |
-| Source | `77f008e` (2026-11-10) |
+| Source | `2454d28` (2026-11-11) |
 | Docs build | `npx quartz build` runs separately in this repository |
 <!-- END GENERATED:status -->
 

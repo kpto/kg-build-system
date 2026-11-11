@@ -77,6 +77,9 @@ The plan this run consumes is described in [Compile a plan](/pipeline/plan).
 - A plan runs only where an executor exists for every exact instruction kind. There is no migration path; change a planner or executor and compile again.
 - Runtime values and resources do not carry from one run to the next.
 
+> [!note] Extension point
+> A model rule is not an extension point. Everything else names the object that replaces it; the ladder is in [Extend the toolchain](/operate/extend#extension-ladder).
+
 ## Next
 
 [Debug a build](/operate/debug) — start from the report and read the failing step.

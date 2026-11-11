@@ -1,7 +1,6 @@
 ---
 title: Extending the toolchain
-summary: Languages, linkers, planners, executors, emitters and providers composed
-  as values.
+summary: Kernel protocols, composition values and the object that carries each extension.
 section: subjects
 perspective: hub
 subject: extension
@@ -24,7 +23,7 @@ generated: true
 
 ## In one view
 
-Languages, linkers, planners, executors, emitters and providers composed as values.
+Kernel protocols, composition values and the object that carries each extension.
 
 This subject has one overview and up to five views: guide, spec, API, philosophy and review.
 
@@ -37,17 +36,17 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | Spec | [SPEC-013](/spec/extension) | Binding requirements, API and evidence. |
 | API | [API surface](/reference/api) | Exact public names and document shapes. |
 | Philosophy | [Design in semantics](/philosophy/design-in-semantics) | Why it is designed this way. |
-| Review | [Architecture](/review/architecture) | Invariants, limits and measured evidence. |
+| Review | [Architecture](/review/architecture), [Limits](/review/limits) | Invariants, limits and measured evidence. |
 
 ## Contract
 
-- There MUST be no extension registry; a caller MUST compose a `Toolchain`.
-- A language MUST transcribe one declaration to one symbol; there is no batch protocol.
+- The kernel protocol set MUST be the extension surface; a language, linker, planner or executor MUST be an ordinary value passed to `Toolchain`, and a provider MUST be passed to the runtime.
+- A new source, syntax, derivation, engine or resource MUST compose a different `Toolchain`; no registry exists as the consequence.
 - A new engine MUST implement the neutral `SqlEmitter`, not edit core.
 
 ## Where it sits
 
-Upstream: [architecture](/subjects/architecture), [plan](/subjects/plan). Downstream: End of the dependency story..
+Upstream: [architecture](/subjects/architecture), [plan](/subjects/plan). Downstream: End of the dependency story.
 
 ## Next
 

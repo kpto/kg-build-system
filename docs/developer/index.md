@@ -34,7 +34,7 @@ Author pages and developer pages can cover one subject for different readers. An
 
 ### Kernel and distribution
 
-The kernel is domain-agnostic. It owns the toolchain vocabulary and the protocols that cannot be omitted or replaced; it imports no graph, data, topology, binding, SQL, DuckDB, Python or generation package.
+The kernel is domain-agnostic. The extension surface is stated in [Kernel protocols](/kernel/protocols); this page states the full internal interface. It owns the toolchain vocabulary and the protocols that cannot be omitted or replaced; it imports no graph, data, topology, binding, SQL, DuckDB, Python or generation package.
 
 | Group | Names |
 | --- | --- |

@@ -85,7 +85,7 @@ Kernel boundary violations: none.
 
 ## Limits
 
-- The kernel is not a plugin system. There is no extension registry; a toolchain is composed explicitly. [Extend the toolchain](/operate/extend) owns that contract.
+- The kernel is a protocol set, not a registry. A contribution is an explicit value in a toolchain or runtime; [Kernel protocols](/kernel/protocols) states the surface and [Extend the toolchain](/operate/extend) owns the task.
 - The distribution is not optional for a graph build. A custom language can run on the kernel alone; nodes, edges, bindings and the blueprint cannot.
 - Zones are a source layout, not a runtime sandbox; they make an illegal import visible, not impossible.
 - The map aggregates by leaf and reports its strongest edges, not every file.

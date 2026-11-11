@@ -7,7 +7,7 @@ subject: verification
 spec: SPEC-016
 order: 160
 status: normative
-verified: 2026-11-10
+verified: 2026-11-11
 sources:
   - FRAMEWORK_STATE.md
   - pyproject.toml

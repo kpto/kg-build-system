@@ -1,6 +1,6 @@
 ---
 title: Extension specification
-summary: Compose a toolchain from explicit language, planner, executor and provider objects; there is no extension registry.
+summary: The kernel protocol set is the extension surface; contributions are ordinary objects composed into a toolchain or runtime.
 section: spec
 perspective: spec
 subject: extension
@@ -26,7 +26,7 @@ evidence:
 
 ## Requirement
 
-- **R1.** A contribution MUST be an ordinary object passed explicitly to `Toolchain` or `default_toolchain`. No `Extension` class, extension registry, plugin entry point, or discovery-by-name path may exist.
+- **R1.** A contribution MUST be an ordinary object passed explicitly to the composition that owns it: a language, linker, planner, or executor to `Toolchain` or `default_toolchain`; a `ResourceProvider` to the runtime. No `Extension` class, extension registry, plugin entry point, or discovery-by-name path may exist.
 - **R2.** `Toolchain` MUST compose `languages`, `linker`, `planners`, `executors`, and `runtime`. `default_toolchain` MUST accept planners and executors and MUST add the generic source planner unless a supplied planner claims `duckdb`, and the core planners unless one claims `core`.
 - **R3.** A `Language` MUST implement `discover_declarations`, `compute_key`, `get_kind`, `get_identity`, `get_references`, `transcribe`, and `render`. The linker MUST call `transcribe` once per reachable declaration.
 - **R4.** A `Planner` MUST declare `component_id`, `version`, and `runtime_fields`, and `plan(model, context)` MUST return a sequence of steps. Planners that share a component MUST agree on version and runtime fields.
@@ -57,6 +57,9 @@ evidence:
 | `InstructionKind` | role type | Exact `(operation, engine)` dispatch key. |
 | `SqlEmitter` | protocol | Engine-neutral relation and row-source emission. |
 | `PythonExecutor` | built-in executor | `("python", "cpython")` with a `{module, qualname}` payload. |
+
+> [!note] Worked example
+> [A consensus module](/operate/extend#example-a-consensus-module) composes a `Planner` and a `StepExecutor` into a `Toolchain`. It is a composed module, not a shipped default.
 
 ## Limits
 

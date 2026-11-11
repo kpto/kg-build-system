@@ -92,6 +92,9 @@ one_tag_per_row = Site.row_source().unnest(lambda row: row.tags)
 - A nullable receiver is accepted by some text, array and boolean helpers at runtime although the public type surface presents them on present selections. Numeric `add` and `sub` still refuse a nullable operand.
 - The `order_by` documented for selections is not the row-source `order_by`; the row-source form is the supported one.
 
+> [!note] Extension point
+> A model rule is not an extension point. Everything else names the object that replaces it; the ladder is in [Extend the toolchain](/operate/extend#extension-ladder).
+
 ## Next
 
 [Set the grain](/author/grain) — combine values into a relation and decide what one row means.

@@ -4,7 +4,7 @@ summary: Test the public calls, run the manual checks, tune runtime configuratio
 section: operate
 order: 50
 status: normative
-verified: 2026-11-10
+verified: 2026-11-11
 sources:
   - reference_project/build.py
   - tests/test_reference_build.py

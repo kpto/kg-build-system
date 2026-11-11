@@ -2,17 +2,19 @@
 
 The canonical developer documentation is [docs/developer/](../docs/developer/).
 It states the current model, interfaces, source regeneration and contract tests.
-This directory does not duplicate it.
+This directory is a pointer and a historical note, not a second copy.
 
+- [Kernel](../docs/kernel/index.md) is the extension surface.
+- [Framework](../docs/framework/index.md) is the default graph composition.
 - [ARCHITECTURE.md](../ARCHITECTURE.md) is the short implementation map.
 - [FRAMEWORK_STATE.md](../FRAMEWORK_STATE.md) is the reviewer briefing.
-- [DESIGN_ISSUES.md](../DESIGN_ISSUES.md) records the remaining design limits.
+- [DESIGN_ISSUES.md](../DESIGN_ISSUES.md) points at the canonical limits table.
 
 ## Model and service boundaries
 
 | Package | Model surface | Service surface |
 | --- | --- | --- |
-| `kernel` | canonical types; declaration, symbol, key, workflow and runtime values | `Language`, `Declaration`, `Symbol`, `SymbolRef`, `Key`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `Resource`, `ResourceProvider`, `ResourceView`, `Toolchain`, `Extension`, `WorkflowRuntime` |
+| `kernel` | canonical types; declaration, symbol, key, workflow and runtime values | `Language`, `Declaration`, `Symbol`, `SymbolRef`, `Key`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `Resource`, `ResourceProvider`, `ResourceView`, `Toolchain`, `WorkflowRuntime` |
 | `distribution/languages/annotations` | annotation values and labels | codec and source rendering |
 | `distribution/languages/expressions` | `Selection[T]`, `NullableSelection[T]`, one-shot row-effect handles and `Pair`; expression DTOs | construction, operation specifications, lookup/zip and source rendering |
 | `distribution/languages/semantics` | `Claim`, `Limitation`, `Frame`, `Purpose`, `Semantics`, `GraphSemantics`; semantics DTOs | transcription, document codec and source rendering |

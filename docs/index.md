@@ -23,7 +23,7 @@ sources:
 </div>
 
 <!-- BEGIN GENERATED:status-strip -->
-<div class="kb-stats"><span><b>354</b> tests</span><span><b>1957</b> subtests</span><span><b>1 error</b> pyright</span><span><b>77f008e</b> source</span><span><b>2026-11-10</b> checked</span></div>
+<div class="kb-stats"><span><b>354</b> tests</span><span><b>1957</b> subtests</span><span><b>1 error</b> pyright</span><span><b>2454d28</b> source</span><span><b>2026-11-11</b> checked</span></div>
 <!-- END GENERATED:status-strip -->
 
 <figure class="kb-plate">
@@ -42,6 +42,13 @@ sources:
   <strong>Philosophy: meaning before mechanism</strong>
   <span>Topology first, semantics as a hierarchy, explainability authored, the binding as a seam.</span>
 </a>
+
+## Two layers
+
+<div class="kb-grid kb-layers">
+  <a class="kb-card" href="/kernel/index"><span class="kb-num">Layer 1</span><h3>Kernel</h3><p>Domain-agnostic protocols and the extension surface: language, linker, planner, executor, runtime and resource provider.</p></a>
+  <a class="kb-card" href="/framework/index"><span class="kb-num">Layer 2</span><h3>Framework</h3><p>The graph distribution and the authoring and review paths; the default distribution is one composition.</p></a>
+</div>
 
 ## Three doors
 
@@ -63,6 +70,8 @@ sources:
   </a>
 </div>
 
+The default distribution is one composition of the kernel protocols; a new source, language, module or engine is a value passed to a `Toolchain`, and a new provider is added to the runtime.
+
 ## The guide
 
 <div class="kb-grid">
@@ -80,6 +89,7 @@ sources:
 - **Review path.** [Philosophy](/philosophy/index) → [Architecture](/review/architecture) → [Contracts](/review/contracts) → [Limits](/review/limits) → [Verification](/review/verification) → [Drift](/review/drift). Evidence blocks are generated from the source checkout, not typed by hand.
 - **Subject path.** [Subjects](/subjects/index) → pick one subject → switch between its guide, [spec](/spec/index), API, philosophy and review. The spec is the binding view; the guide explains it and the API names it.
 - **Developer path.** [Framework philosophy](/developer/philosophy) → [System design](/developer/system-design) → [Data and expressions](/developer/data-and-expressions) → [Testing](/developer/testing) → [Reference](/reference/index).
+- **Extension path.** [Operate](/operate/index) → [Extend](/operate/extend) → [Extension spec](/spec/extension) → [Developer system design](/developer/system-design) → [Review architecture](/review/architecture). A custom language, planner, executor or emitter composes a different `Toolchain`; a provider is added to the runtime.
 
 > [!note] What this is not
 > This guide describes one checkout, not a compatibility promise. The framework is experimental; there is no schema version, migration path or stable plan format. Recompile when a declaration, planner or executor changes.

@@ -8,7 +8,7 @@ subject: verification
 spec: SPEC-016
 order: 160
 status: normative
-verified: '2026-11-10'
+verified: '2026-11-11'
 sources:
 - FRAMEWORK_STATE.md
 - pyproject.toml
@@ -47,7 +47,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 
 ## Where it sits
 
-Upstream: [execution](/subjects/execution), [modules](/subjects/modules). Downstream: End of the dependency story..
+Upstream: [execution](/subjects/execution), [modules](/subjects/modules). Downstream: End of the dependency story.
 
 ## Next
 

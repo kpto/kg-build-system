@@ -31,8 +31,11 @@ perspective: review
 | Drift | The latest commit touching any source path after `verified`. |
 | Clean page | No source path has a later commit. |
 | Review candidate | A drifted page; its claim may still be true. |
+| Code source | A source outside `docs/`, `specs/` and the root Markdown briefings. |
 
 A drifted page is a review candidate, not automatically false. The change may touch an unrelated line. Regenerate evidence, re-read the source, then correct the claim or move `verified` forward. A limit removed in code without a docs change remains a review defect. The measurement side is [Verification](/review/verification).
+
+Drift is computed from code sources: a path under `kg_build_system/`, `tests/`, `reference_project/` or a packaging file. A documentation path is a cross-reference, not code drift; review it through the link and its own `verified` date.
 
 ## Rules
 
@@ -44,12 +47,13 @@ A drifted page is a review candidate, not automatically false. The change may to
 - A code change that removes a documented limit without a docs change is a defect.
 - Generated blocks are measured when generated; they do not inherit `verified`.
 - A directory source includes every commit under it.
+- A documentation source does not trigger drift; it is a cross-reference.
 - An untracked source path counts as unverified.
 
 ## Evidence
 
 <!-- BEGIN GENERATED:drift -->
-Source HEAD: 77f008e · 2026-11-10. Pages checked: 90; clean: 90; drifted: 0.
+Source HEAD: 2454d28 · 2026-11-11. Pages checked: 93; clean: 93; drifted: 0.
 
 No page has a source commit after its `verified` date.
 <!-- END GENERATED:drift -->

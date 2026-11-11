@@ -72,6 +72,9 @@ class DefectProjection(Projection(SurveysTable.row_source())):
 - A projection name collision with a table is refused; the language keys both by their graph name.
 - Expanding three nested arrays in one plan is three fan-outs, not a join. If the document nests arrays, expand the levels in order and name the result once.
 
+> [!note] Extension point
+> A model rule is not an extension point. Everything else names the object that replaces it; the ladder is in [Extend the toolchain](/operate/extend#extension-ladder).
+
 ## Next
 
 [Declare topology](/author/topology) — the node and edge meanings the rows will become.

@@ -20,11 +20,13 @@ sources:
 | Import | Use |
 | --- | --- |
 | `kg_build_system` | Authoring names, `compile`, `create_blueprint`, `execute`, `GraphBlueprint`, `BuildRuntime`, `WorkflowReport`. |
-| `kg_build_system.kernel` | Kernel protocols (`Language`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `Toolchain`, `WorkflowRuntime`) and workflow values (`WorkflowPlan`, `Step`, `Instruction`, `Key`, `SymbolRef`, `RuntimeConfiguration`). |
+| `kg_build_system.kernel` | Kernel protocols, workflow values and the `Toolchain` composition value: `Language`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `WorkflowRuntime`, `Toolchain`, `WorkflowPlan`, `Step`, `Instruction`, `Key`, `SymbolRef`, `RuntimeConfiguration`. |
 | `kg_build_system.distribution` | Planners and executors, plus `GraphBlueprint`, `create_blueprint` and typed references. |
 | `kg_build_system.generation` | Generation names: `asset_contract`, discovery, `generate`, `watch`, sessions, results and errors. |
 
 The canonical path is `create_blueprint` → `compile` → `execute`: create an immutable `GraphBlueprint`, compile it to a `WorkflowPlan`, then execute it to a `WorkflowReport`. `BuildRuntime` carries execution settings; `WorkflowReport` carries the published artifacts and failures. See [Documents](/reference/documents) for the plan and report shapes, and [CLI](/reference/cli) for the console command that writes declarations before this path.
+
+This table is the **default facade**. The kernel protocols are exported from `kg_build_system.kernel`; a custom language, planner or executor is a value passed to a `Toolchain`; a provider is added to the runtime. None is a name in this table. See [Extend the toolchain](/operate/extend) and [SPEC-013](/spec/extension). `SqlEmitter` is a distribution service protocol, not a facade name or a kernel protocol: core planners consume it, and a new engine supplies an implementation.
 
 ## Details
 

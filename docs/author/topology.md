@@ -94,6 +94,9 @@ The direction lives in the generic parameters, not in a property.
 - A component that mixes node and edge lineage, or inherits a concrete component, is refused.
 - Two concrete components in different families may share a property name; they do not share a slot.
 
+> [!note] Extension point
+> A model rule is not an extension point. Everything else names the object that replaces it; the ladder is in [Extend the toolchain](/operate/extend#extension-ladder).
+
 ## Next
 
 [Bind records](/author/bindings) — map one row context onto one concrete node or edge.

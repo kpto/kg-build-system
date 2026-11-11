@@ -18,6 +18,8 @@ sources:
 
 The framework has a domain-agnostic kernel and one distribution. The kernel is a toolchain: it links language declarations into an opaque model, compiles that model into a workflow plan and executes the plan through exact instruction-kind executors. The distribution supplies the graph domain: the blueprint, its planning and execution modules, and their resources.
 
+The canonical extension surface is [/kernel/protocols](/kernel/protocols).
+
 The kernel model is opaque `ModelT`; it never reads an instruction payload or artifact value.
 
 ### Package tree
@@ -53,22 +55,24 @@ kg_build_system/
 
 A **module** is a feature package under `distribution/modules/` grouping one feature's planners, executors, resources and configuration; it is not a protocol or registry entry.
 
-### Kernel protocols
+### Kernel interface
 
-| Protocol | Contract |
-| --- | --- |
-| `Namespace` | `values() -> Sequence[object]`; the authoring objects a build may collect declarations from. |
-| `ReferenceResolver` | `get_identity(value: Any) -> SymbolRef \| None`; resolves an authoring value to the symbol it denotes. |
-| `RenderContext` | Opaque render context; a language passes it to dependency renderers and does not inspect it. |
-| `Language` | `discover_declarations`, `compute_key`, `get_kind`, `get_identity`, `get_references`, `transcribe` and `render`; the full signature is below. |
-| `Linker` | `link(languages, namespace) -> LinkerModelT`; owns roots, language order, the closure and model assembly. |
-| `Planner` | `component_id`, `version`, `runtime_fields` and `plan(model, context) -> Sequence[Step]`. |
-| `Resource` | `close() -> None`; a live capability with a lifecycle. |
-| `ResourceProvider` | `on_event(event: PipelineEvent) -> None`; publishes resources on `PipelineStarted` and disposes them on finish or halt. |
-| `Executor` | `kinds: tuple[InstructionKind, ...]` and `execute(context, instruction) -> StepOutcome`. |
-| `StepExecutor` | `Executor` plus `resources: tuple[type, ...] = ()`; the exact resource types it reads. |
-| `Runtime` | `execute(plan, executors, *, configuration, listeners=()) -> WorkflowReport`. |
-| `Toolchain` | Frozen composition of languages, linker, runtime, planners and executors. |
+| Name | Kind | Contract |
+| --- | --- | --- |
+| `Namespace` | supporting protocol | `values() -> Sequence[object]`; the authoring objects a build may collect declarations from. |
+| `ReferenceResolver` | supporting protocol | `get_identity(value: Any) -> SymbolRef \| None`; resolves an authoring value to the symbol it denotes. |
+| `RenderContext` | supporting protocol | Opaque render context; a language passes it to dependency renderers and does not inspect it. |
+| `Language` | protocol | `discover_declarations`, `compute_key`, `get_kind`, `get_identity`, `get_references`, `transcribe` and `render`; the full signature is below. |
+| `Linker` | protocol | `link(languages, namespace) -> LinkerModelT`; owns roots, language order, the closure and model assembly. |
+| `Planner` | protocol | `component_id`, `version`, `runtime_fields` and `plan(model, context) -> Sequence[Step]`. |
+| `Resource` | protocol | `close() -> None`; a live capability with a lifecycle. |
+| `ResourceProvider` | protocol | `on_event(event: PipelineEvent) -> None`; publishes resources on `PipelineStarted` and disposes them on finish or halt. |
+| `Executor` | protocol | `kinds: tuple[InstructionKind, ...]` and `execute(context, instruction) -> StepOutcome`. |
+| `StepExecutor` | protocol | `Executor` plus `resources: tuple[type, ...] = ()`; the exact resource types it reads. |
+| `Runtime` | protocol | `execute(plan, executors, *, configuration, listeners=()) -> WorkflowReport`. |
+| `Toolchain` | composition value | Frozen composition of languages, linker, runtime, planners and executors; not a protocol. |
+
+`SqlEmitter` is a neutral distribution service protocol under `distribution/service/internal`, not a kernel protocol. Core planners consume it; the kernel never imports it.
 
 ```python
 class Language(Protocol):
@@ -150,6 +154,23 @@ class Toolchain(Generic[ModelT]):
         listeners: Sequence[Listener] = (),
     ) -> WorkflowReport: ...
 ```
+
+### Capability ledger
+
+| Need | Default distribution | Extension point | Cost |
+| --- | --- | --- | --- |
+| Majority vote over assertions | Not in the row algebra | `Planner` + `StepExecutor` | Module + tests |
+| Semicolon-delimited source lists | Not in the row algebra | Source planner or executor, or a language operation | Decoding |
+| ID translation / orthology | Not built in | A module or graph facts | Mapping input + module |
+| Another SQL engine | DuckDB only | `SqlEmitter` + executor | Adapter |
+| Another source format | parquet, json, csv | Another planner | Module |
+| A new declaration syntax | The graph languages | `Language` | Language work |
+| A new lifecycle resource | The runtime providers | `ResourceProvider` | Provider |
+| Incremental update | Whole-plan rebuild | A runtime or planner extension | Runtime work |
+
+### What the framework does not decide
+
+The kernel defines protocols; a composition chooses acquisition, identifier translation, orthology, the storage engine, scheduling policy, licence enforcement and incremental strategy. Acquisition is a `ResourceProvider` plus an executor, or a frontend script kept outside for reproducibility. Identifier translation and orthology are modules or graph facts. The storage engine is a `SqlEmitter` plus an executor; scheduling policy is a `Runtime` or `Linker`; licence enforcement is a filter module over `Resource` facts; incremental strategy is a runtime or planner extension. None is a kernel decision.
 
 ### Declarations, symbols and references
 
@@ -282,12 +303,12 @@ Generation and the toolchain are separate lanes. `build` imports the resulting d
 
 ## Limits
 
-- A toolchain is the only composition unit; there is no registry.
-- DuckDB is the default SQL emitter. `DuckDbSqlEmitter` implements the neutral `SqlEmitter` protocol; another engine supplies another emitter and executor.
+- A toolchain is the composition unit: languages, planners and executors are explicit values, and providers are owned by the runtime.
+- `SqlEmitter` is a distribution-neutral service protocol, not a kernel protocol. DuckDB is the default emitter; `DuckDbSqlEmitter` implements that protocol, and another engine supplies another emitter and executor. [Extend the toolchain](/operate/extend) names the composition.
 - A Python instruction is a reference: `("python", "cpython")` carries `{module, qualname}`, not a live callable.
 - Public `GraphBlueprint` fields reference internal language DTOs that are not exported public names.
 - A repeated struct graph name takes its qualified Python name as an extra key segment.
-- No adapter concept or registry exists.
+- A module contributes an ordinary relation-producing planner; `DuckDbSourcePlanner` resolves parquet, json and csv. No adapter registry is needed.
 - [Limits](/review/limits) records the consumer-facing boundary and [Contracts](/review/contracts) the invariants that guard it.
 
 ## Next

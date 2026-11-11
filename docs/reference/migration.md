@@ -73,25 +73,25 @@ This page is the redirect and parity map for the docs replacement. `docs/` now c
 
 ### The replacement rule
 
-- The KB is the source of knowledge. `docs/` becomes redirects or is deleted after parity.
+- `docs/` is the source of knowledge. Old docs URLs become redirects to the KB.
 - `README.md` stays as the repository entry point and links to the KB.
 - `AGENTS.md` stays because it governs agents, not user knowledge.
 - Public docstrings stay because `tests/test_public_docstrings.py` enforces them; the KB links to the API surface and reference.
-- `ARCHITECTURE.md`, `FRAMEWORK_STATE.md`, `DESIGN_ISSUES.md` and `specs/` are merged into the KB pages above; do not keep a second copy.
+- `ARCHITECTURE.md`, `FRAMEWORK_STATE.md` and `DESIGN_ISSUES.md` are merged into the KB pages above; `specs/README.md` points to the canonical developer docs and does not duplicate them.
 
-### Move checklist
+### Replacement status
 
-1. Move `kg-build-kb/content/` into `kg-build-system/docs/` (or `docs/guide/`) and keep one content root.
-2. Move `scripts/kb.py`, `scripts/diagrams.py`, `quartz.config.yaml`, `package.json` and `quartz/` into the framework repository, or build the KB as a pinned release artifact with a CI drift gate.
-3. Add the build gate: `uv run pytest -q`, `uv run pyright`, `python3 scripts/kb.py check`, `npx quartz build -d ../kg-build-system/docs`.
-4. Install redirects for every row above. A redirect may be a static HTML page or a host rule; a bare 404 is not a replacement.
+1. `docs/` is the one content root in `kg-build-system`; the builder reads it directly.
+2. `scripts/kb.py`, `scripts/diagrams.py`, `quartz.config.yaml`, `package.json` and `quartz/` remain in `kg-build-kb`; it builds `../kg-build-system/docs`. Pin the builder by commit, or move it into the framework repository.
+3. The build gate is `uv run pytest -q`, `uv run pyright`, `python3 scripts/kb.py check` and `npx quartz build -d ../kg-build-system/docs`.
+4. Redirects for every row above are the remaining host step. A redirect may be a static HTML page or a host rule; a bare 404 is not a replacement.
 5. `README.md`, `AGENTS.md`, `STYLE.md` and the verification section are updated; the review surface is `/spec/` and `/developer/`.
-6. `docs/` is the KB content and `mkdocs.yml` is removed. Keep redirects for old URLs.
-7. Run `python3 scripts/kb.py check`, `npx quartz build`, `uv run pytest -q` and `uv run pyright`; record the source commit in the status block.
+6. `docs/` is the KB content and `mkdocs.yml` is removed.
+7. Run `python3 scripts/kb.py check`, `npx quartz build -d ../kg-build-system/docs`, `uv run pytest -q` and `uv run pyright`; record the source commit in the status block.
 
 ### What is still not automated
 
 - Examples in guide pages are checked by hand; the source tests remain the executable truth.
-- `content/spec-map.yml` names the owning spec for each source area. A changed-files CI check is the remaining automation: it should fail when a mapped source changes and its spec page does not.
-- The KB is still a separate repository in this checkout. A spec that is the source of truth must move into the framework repository or be pinned by CI.
+- `docs/spec-map.yml` names the owning spec for each source area. A changed-files CI check is the remaining automation: it should fail when a mapped source changes and its spec page does not.
+- The builder is still a separate repository in this checkout. The content is in the framework repository; the builder is pinned by commit or moved as one unit.
 

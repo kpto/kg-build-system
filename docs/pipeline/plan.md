@@ -97,6 +97,9 @@ The blueprint side of this handoff is described in [Assemble the blueprint](/pip
 - SQL is payload under one instruction kind, not a plan field. The plan promises no particular engine.
 - Assembly validates structure, not executor availability. [Execute a plan](/pipeline/execute) checks the kinds.
 
+> [!note] Extension point
+> A model rule is not an extension point. Everything else names the object that replaces it; the ladder is in [Extend the toolchain](/operate/extend#extension-ladder).
+
 ## Next
 
 [Execute a plan](/pipeline/execute) — resources, exact kinds and the report.

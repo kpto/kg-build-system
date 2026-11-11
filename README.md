@@ -85,6 +85,8 @@ pkg/
 ## Documentation
 
 - Author-facing documentation starts at `docs/index.md`.
+- The extension surface starts at `docs/kernel/index.md`; the default graph
+  composition starts at `docs/framework/index.md`.
 - Developer documentation starts at `docs/developer/index.md`.
 - The content is built by the companion site builder in `../kg-build-kb`:
   `npx quartz build -d ../kg-build-system/docs`.

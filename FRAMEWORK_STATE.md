@@ -108,23 +108,19 @@ only; the top-level lazy export table and `__getattr__` live in
 
 ## Remaining limits
 
-- A toolchain is the only composition unit. There is no registry.
-- DuckDB is the default SQL emitter. `DuckDbSqlEmitter` implements the neutral
-  `SqlEmitter` protocol; it is a library, not part of the kernel. Core consumes
-  the protocol and imports no DuckDB module.
-- There is no adapter concept and no adapter registry. A module contributes an
-  ordinary planner; `DuckDbSourcePlanner` handles `parquet`, `json` and `csv`.
-- A Python instruction is a reference: `("python", "cpython")` carries
-  `{module, qualname}`, not a live callable.
-- Public `GraphBlueprint` fields reference internal language DTOs. The handle is
-  public; those language DTOs are not exported public names.
-- A repeated struct graph name takes its qualified Python name as an extra key
-  segment.
+[docs/review/limits.md](docs/review/limits.md), published at `/review/limits`,
+is the canonical classified table. Each row names its kind — model rule,
+replaceable default, current algorithm, not implemented, interface limit or
+empirical — and its extension point or model reason. Verification status stays
+in the section above; this page does not duplicate the table.
 
 ## Documentation
 
-- `docs/developer/` is the canonical developer guide.
+- Author docs start at [docs/index.md](docs/index.md).
+- Developer interfaces start at [docs/developer/index.md](docs/developer/index.md).
+- The kernel surface is at [docs/kernel/index.md](docs/kernel/index.md).
 - `ARCHITECTURE.md` is the short implementation map.
-- `DESIGN_ISSUES.md` states the remaining design limits.
+- `DESIGN_ISSUES.md` points at the canonical limits table and lists the model
+  rules.
 - `specs/README.md` points at the developer docs and states the model/service
   boundaries.

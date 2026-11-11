@@ -1,6 +1,6 @@
 ---
 title: Limits
-summary: The product boundaries a consumer must accept, and the evidence that keeps them honest.
+summary: The current composition boundaries, classified by kind, with the object that replaces each one.
 section: review
 order: 30
 status: normative
@@ -20,28 +20,46 @@ perspective: review
 <!-- END GENERATED:views -->
 
 > [!lede]
-> A limit is a boundary the framework chose, not a defect it forgot. Read it as part of the interface: if a consumer needs the missing behaviour, the composition changes before the kernel does.
+> A limit is a boundary the current composition chose. Read it as an interface: most limits name the object that replaces them; a model rule names why no composition should. The kernel changes only when the protocol set cannot carry the concept.
 
 ## What it is
 
-A limit is a product boundary stated where a consumer meets it. The boundary is normative: the code refuses the unsupported case instead of approximating it. [Architecture](/review/architecture) explains why the split falls here; [Quality](/operate/quality) and [Outputs](/operate/outputs) show what the boundary costs in practice.
+A limit is a product boundary stated where a consumer meets it: the code refuses the unsupported case instead of approximating it. [Architecture](/review/architecture) explains the split; [Kernel protocols](/kernel/protocols) states the extension surface; [Quality](/operate/quality) and [Outputs](/operate/outputs) show its cost.
 
-| Boundary | The limit |
-| --- | --- |
-| Composition | A `Toolchain` is the only composition unit. There is no registry; a caller passes planners and executors. |
-| SQL engine | DuckDB is the default emitter. `DuckDbSqlEmitter` implements the neutral `SqlEmitter`; core imports no DuckDB module. |
-| Python step | A Python instruction is a reference `("python", "cpython")` carrying `{module, qualname}`, not a live callable. There is no isolation, timeout or retry. |
-| Blueprint fields | Public `GraphBlueprint` fields use internal language DTOs: `graph`, `data`, `assets`, `bindings` and `graph_declaration`. Those DTOs are not exported public names. |
-| Source formats | There is no adapter registry. `DuckDbSourcePlanner` reads parquet, json and csv; another format is another ordinary planner. |
-| Asset layout | `AssetLayout` is descriptive. It opens no file and proves no relation. |
-| Struct keys | A repeated struct graph name takes its qualified Python name as an extra key segment. |
-| Instructions | `execute` builds the exact-kind map before the first step and refuses an unregistered kind with `ValueError`. |
-| Dedup | Deduplication removes only rows identical in every column. A repeated key with different values survives. |
-| Merge | Merging groups by build key and keeps the SQL `min()` per property. It needs an explicit component scope and is not aggregation. |
-| Conflict checks | Validation is blind to null-vs-value, edge endpoints, `_kg_binding_symbol`, unbound components and extra columns. Run after a merge, it finds nothing. |
-| Neo4j | Neo4j output is export-only: Parquet files, an import script and a summary. There is no driver and no write-back. |
-| CLI | `kbs` generates source. It does not build, compile or execute. |
-| Versioning | There is no schema version, plan migration or blueprint migration. |
+- **Model rule** — a semantic constraint; changing it is a model change. Example: a nested property is reified as nodes and edges.
+- **Replaceable default** — the composition's choice, replaced by another implementation of the same protocol. Example: `DuckDbSqlEmitter` implements `SqlEmitter`.
+- **Current algorithm** — the default implementation's method, replaced by another planner. Example: `group_by` collects but does not aggregate.
+- **Not implemented** — absent from the current objects; a new object carries it. Example: no per-step timeout or retry.
+- **Interface limit** — the public surface does not carry the concept; a public view or model change does. Example: public blueprint fields use internal language DTOs.
+- **Empirical** — an unmeasured question, not an expressive boundary. Example: 5.9M annotations are unproven at scale.
+
+| Boundary | Current choice | Kind | Extension point / why it is a model rule |
+| --- | --- | --- | --- |
+| Composition | `Toolchain` only; no registry | model rule | Compose another `Toolchain`; a language, planner or executor is a value, not a registry entry; a provider is added to the runtime. |
+| SQL engine | DuckDB default emitter | replaceable default | Implement `SqlEmitter` and compose the executor. |
+| Source formats | parquet, json, csv | replaceable default | Another ordinary planner; no adapter registry. |
+| Row algebra | `group_by` collects; no aggregation or majority vote | current algorithm | A module: `Planner` + `StepExecutor`. |
+| Source decoding | No semicolon-list decoder | not implemented | Source planner/executor or a language operation. |
+| Python instruction payload | `{module, qualname}` reference | model rule | A new executor kind or external service. |
+| Python execution | No isolation, timeout or retry | not implemented | A new executor or runtime. |
+| Blueprint fields | Public fields use internal language DTOs | interface limit | Public view or opaque token; interface change. |
+| Asset layout | Descriptive, not an access contract | model rule | No extension; a planner may interpret it. |
+| Struct keys | Repeated struct names take a qualified key segment | model rule | No extension. |
+| Instructions | Exact-kind map; unknown kind refused | model rule | Another executor claims another exact kind. |
+| Dedup | Removes only identical rows | current algorithm | Another planner. |
+| Merge | Build-key groups, `min()` per property, explicit scope | current algorithm | Another planner. |
+| Conflict checks | Blind to null-vs-value, endpoints, `_kg_binding_symbol`, unbound components, extra columns | current algorithm | A new planner. |
+| Neo4j | Export-only Parquet and import script | current algorithm | Another output module. |
+| CLI | `kbs generate` only | interface limit | Compose Python calls; a new frontend adds commands. |
+| Versioning | No schema version, plan or blueprint migration | not implemented | Versioned codec envelope; no compatibility promise. |
+| Undirected edges | Directed `Edge[Source, Target]` only | model rule | Reify the assertion or add a language declaration kind; a model change. |
+| Download/ingest | No network acquisition step | not implemented | `ResourceProvider` + executor, or an external script for reproducibility. |
+| Licence enforcement | No built-in filter | not implemented | Resource facts + a filter module. |
+| Incremental update | Whole-plan rebuild | not implemented | Runtime/planner extension. |
+| Scale | 5.9M annotations unproven | empirical | Benchmark question, not an expressive limit. |
+| CI | No CI configuration | empirical | Delivery gap, not a framework limit. |
+
+Every row is one of the six kinds; the ladder is in [Extend the toolchain](/operate/extend#extension-ladder).
 
 ## Rules
 
@@ -49,6 +67,7 @@ A limit is a product boundary stated where a consumer meets it. The boundary is 
 - State the boundary where the consumer meets it, not as an implementation excuse.
 - Refuse the unsupported case: exact instruction kinds, exact dedup, explicit merge scope.
 - A new engine or format is an ordinary emitter or planner, never a registry entry.
+- A model rule is not an extension point: no doc may say "the framework cannot" before checking the kernel protocol set; name the extension point and its cost.
 - Keep the boundary out of the kernel; the dependency spine belongs to [Architecture](/review/architecture).
 - Measure the cost before claiming a capability; [Quality](/operate/quality) and [Outputs](/operate/outputs) are the consumer-facing evidence.
 
@@ -65,6 +84,7 @@ A limit is a product boundary stated where a consumer meets it. The boundary is 
 
 ## Limits
 
+- This page describes the current composition, not the framework's expressive boundary.
 - This page describes the boundary at the source HEAD shown in [Verification](/review/verification); a checkout with local changes can differ.
 - A limit can be intentional and still hurt. The table records the cost, not a promise to remove it.
 - The conflict blind spots are structural, not a bug list; a new check is a new planner.
