@@ -48,6 +48,11 @@ rule about what the framework is belongs to the framework model.
 
 ### Writing
 
+- A knowledge base is a book: a linear argument in parts and chapters, with
+  exact specifications and reference as appendices. A chapter may repeat a
+  concept when the argument needs it; do not split a subject into parallel views.
+  Order an explanation from meaning and design to data and implementation where
+  the model permits, and say that the order is a reading order, not a law.
 - A document states the current model as if it were the only one.
 - Write for a reviewer who has not seen the conversation, an earlier version or
   the review: define terms, name the interface, file or type, and state the
@@ -62,8 +67,9 @@ rule about what the framework is belongs to the framework model.
 
 - A change that crosses a subpackage boundary is proposed as an interface change
   before it is implemented.
-- Author-facing interfaces are reviewed through `docs/`; internal interfaces are
-  reviewed through `docs/developer/`. The site is built by `../kg-build-kb`.
+- Author-facing interfaces are reviewed through the book and appendices in `docs/`;
+  internal interfaces are reviewed through `docs/appendix/developer/`. The site is
+  built by `../kg-build-kb`.
 - Docs are author-facing, not simplified. Include anything an author might need
   to know: semantics, edge cases, limits, examples and the reasons behind a
   rule. Structure makes them readable, not the amount of detail.
@@ -89,7 +95,7 @@ rule about what the framework is belongs to the framework model.
 | Surface | Reader | What it states |
 | --- | --- | --- |
 | `docs/` | graph author | what to write, what the graph does, and the semantics and limits an author needs |
-| `docs/developer/` | framework reviewer | internal interface, boundaries and invariants |
+| `docs/appendix/developer/` | framework reviewer | internal interface, boundaries and invariants |
 
 - If the interface delta does not explain the change, the change is not ready.
 - A visual change is reviewed with a real browser screenshot at the target
@@ -194,6 +200,10 @@ rule about what the framework is belongs to the framework model.
   planner, workflow plan, runtime, executor and resource. The distribution uses
   domain vocabulary: graph, blueprint, node, edge, binding, projection and
   asset. The kernel model is opaque; the distribution implements it.
+- A default distribution is one composition of the kernel protocols. Do not
+  state that the framework cannot express a concept until the kernel protocol
+  set has been checked; name the extension point and its cost. "Not in the
+  default distribution" is not "not in the framework."
 - A language and its package share one name: `DataLanguage`, language `data`,
   package `languages/data`. The authoring class names the syntax (`Table`,
   `Node`); the language is named for the model it produces.
@@ -255,6 +265,11 @@ rule about what the framework is belongs to the framework model.
 - The graph's meaning is part of the delivered contract, not a comment or an
   implementation detail.
 - A node or edge type states its meaning, direction, identity, absence and limits.
+- A source adapter bridges a physical source to a relation and the SQL boundary;
+  it does not carry domain joins, identity translation, aggregation or graph
+  meaning. A data operation belongs in an expression operation and becomes graph
+  meaning only as a named, referenceable projection with semantics; a
+  pipeline-local relation is not a projection.
 - The build preserves those statements and publishes them for consumers.
 - A meaning that cannot be stated is recorded as a limit; it is not invented.
 - A project attaches the framework semantics units directly. A project-local

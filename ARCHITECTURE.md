@@ -1,7 +1,9 @@
 # Architecture
 
 This file is the implementation map. The model, interfaces and design decisions
-are in [docs/developer/system-design.md](docs/developer/system-design.md).
+are in [docs/appendix/developer/system-design.md](docs/appendix/developer/system-design.md). The
+extension surface is [docs/appendix/kernel/index.md](docs/appendix/kernel/index.md); the default
+graph composition is [docs/appendix/framework/index.md](docs/appendix/framework/index.md).
 
 ## Current tree
 
@@ -27,7 +29,7 @@ kg_build_system/
     service/
       public/
         pipeline.py      Linker, Planner, StepExecutor, Runtime, Resource,
-                         ResourceProvider, Toolchain, Extension, PlanContext
+                         ResourceProvider, Toolchain, PlanContext
         runtime.py       WorkflowRuntime
       internal/
         pipeline.py
