@@ -46,9 +46,9 @@ Two generated blocks carry the measurement. `status` runs the suite and pyright 
 <!-- BEGIN GENERATED:status -->
 | Measure | Value |
 | --- | --- |
-| Test suite | 354 tests, 1957 subtests, 6.85s — passes |
-| Static types | 1 error |
-| Source | `aa73759` (2026-11-11) |
+| Test suite | 363 tests, 1957 subtests, 7.74s — passes |
+| Static types | 0 errors |
+| Source | `ad53fa7` (2026-11-11) |
 | Docs build | `npx quartz build -d ../kg-build-system/docs` runs separately in this repository |
 <!-- END GENERATED:status -->
 

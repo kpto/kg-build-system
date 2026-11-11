@@ -43,16 +43,17 @@ The architecture says where code belongs; the contracts say what a change must n
 | 5 | Cross-symbol fields are role-typed refs, never bare strings. | `tests/distribution/test_typed_refs.py`; a string where `NodeRef`, `FieldRef` or `PropertyRef` is required is a type error. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
 | 6 | `Selection[T]` is the only authoring value. `Field[T]` never declares absence; the owner supplies nullability. | `tests/test_authoring_api.py`, `tests/typecheck/authoring.py`; an optional-union annotation on `Field` is a static type error. | [Data](/book/part-2/03-source-and-rows) |
 | 7 | A row source is a value; a projection pins exactly one; `alter_rows` is one-shot. | `tests/test_authoring_api.py`; `Projection()` without a source is refused, and a second effect on one handle is absent. | [Grain](/book/part-2/05-grain-and-projections) |
-| 8 | Topology declares meaning without importing a table; a binding is the only place that imports both sides. | `tests/test_architecture.py`; a topology-to-data import is refused, and an unbound endpoint fails. | [Bindings](/book/part-2/07-binding) |
+| 8 | Topology declares meaning without importing a table; a binding is the only place that imports both sides. | `tests/test_architecture.py`; a topology-to-data import is refused, and an unbound endpoint fails. | [Bindings](/book/part-2/08-binding) |
 | 9 | Semantics is a fragment on declarations; one Graph declaration owns the project purpose. | `tests/distribution/test_semantics_language.py`; a second graph declaration is refused. | [Meaning](/book/part-2/01-meaning-and-purpose) |
 | 10 | A planner emits; an executor owns one exact instruction kind and declares its resources. | `tests/kernel/test_kernel.py`; a duplicate kind, an unfed input or an unread output is refused, and a planner that executes fails. | [Extend](/book/part-4/01-the-kernel-and-extension) |
 | 11 | The runtime owns resource providers; a toolchain has no `resources` field. | `tests/kernel/test_runtime_resources.py`; a missing resource or a listener error fails the run. | [Execute](/book/part-3/03-execution-and-outputs) |
-| 12 | Generation is upstream and inert; the build never invokes it. | `tests/test_codegen_discovery.py`; an asset carries no generation field and `create_blueprint` never calls the generator. | [Generation](/book/part-2/08-generation) |
-| 13 | No schema version or migration path. | No version field exists; a plan document is recompiled, not migrated. | [Limits](/appendix/review/limits) |
+| 12 | Generation is upstream and inert; the build never invokes it. | `tests/test_codegen_discovery.py`; an asset carries no generation field and `create_blueprint` never calls the generator. | [Generation](/book/part-2/09-generation) |
+| 13 | Steps declare artifact ports; consumers declare types or patterns; priority orders assembly, not data dependency. | `tests/kernel/test_composition_contract.py`; a pattern consumer sees every matching producer, adding a producer leaves its declaration unchanged, and two same-type producers are refused. | [Composition](/book/part-2/07-composition) |
+| 14 | No schema version or migration path. | No version field exists; a plan document is recompiled, not migrated. | [Limits](/appendix/review/limits) |
 
 ## Evidence
 
-`tests/kernel/test_toolchain_flow.py` runs the three verbs in order; `tests/test_architecture.py` enforces the imports behind row 8; `tests/kernel/test_kernel.py` covers rows 2 and 10; `tests/kernel/test_runtime_resources.py` covers row 11. A rule without a current test is still normative, but it is reviewed by reading rather than by a green run.
+`tests/kernel/test_toolchain_flow.py` runs the three verbs in order; `tests/test_architecture.py` enforces the imports behind row 8; `tests/kernel/test_kernel.py` covers rows 2 and 10; `tests/kernel/test_runtime_resources.py` covers row 11; `tests/kernel/test_composition_contract.py` covers row 13. A rule without a current test is still normative, but it is reviewed by reading rather than by a green run.
 
 Artifacts that cross a boundary are documents before they are objects. Their shapes are in [Documents](/appendix/reference/documents).
 

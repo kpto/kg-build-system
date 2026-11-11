@@ -1,6 +1,6 @@
 ---
 title: Anti-patterns
-summary: "Twelve smells that pass the compiler and fail the design, with the move that corrects each one."
+summary: "Design smells that pass the compiler and fail the model, with the move that corrects each one."
 section: philosophy
 order: 70
 status: normative
@@ -28,6 +28,9 @@ sources:
 - **Model-the-file** — nested JSON becomes nested properties or a 1:1 tree of nodes. **Move:** model the domain; flatten only what the consumer needs.
 - **Defaulted identity** — `build_key=row.id.default_to("unknown")`. **Move:** drop the row or fail; a placeholder collapses distinct records into one identity.
 - **Over-modelled schema** — every column becomes a property; every join becomes an edge. **Move:** model what the consumer must know; leave the rest in the source.
+- **Composition as procedure** — a dependency list, producer barrier, producer-enumerating consumer or phase-as-chain. **Move:** declare ports and patterns; let the assembler derive connections.
+- **Exact artifact as an ordering device** — a consumer pins one type only to make its producer run first. **Move:** use assembly priority; an exact input seals only when one producer owns the type.
+- **Same-type producer ambiguity** — two producers publish one type and priority is expected to choose. **Move:** distinguish the type or replace the producer; priority is not a tie-break.
 
 ## Rules
 
@@ -36,6 +39,7 @@ sources:
 - Keep the design above the binding and the SQL below it. A technical name is fine in a plan step; it is a leak in the blueprint.
 - A source-shaped graph is legitimate only when the source is the domain and you say so. It is a choice, not a default.
 - A projection may expand several levels; a binding may not hide that expansion. The seam is thin by construction.
+- A workflow composes by artifact type; a dependency list, a producer-naming barrier or a consumer that enumerates producers is a composition smell, not a design.
 - An anti-pattern is a review finding, not a compiler error. Do not expect `create_blueprint` to catch it.
 - When two smells conflict, keep the one that preserves identity and meaning; drop the one that only preserves convenience.
 

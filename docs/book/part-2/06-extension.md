@@ -274,4 +274,4 @@ An extension is therefore part of the semantic model when it survives that test.
 
 ## Next
 
-[10. Binding as implementation detail](/book/part-2/07-binding) — from a named relation to the node and edge records it populates.
+[10. A workflow is a chain of reactions](/book/part-2/07-composition) — from a domain operation to the reactions that carry its result.

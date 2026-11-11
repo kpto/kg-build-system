@@ -16,7 +16,9 @@ sources:
 
 `create_blueprint` collects declarations into a `GraphBlueprint`. `compile` compiles a blueprint with a planner composition into a `WorkflowPlan`. `execute` runs the plan and writes its outputs.
 
-The calls separate inspection from execution. A blueprint describes the graph model; a workflow plan describes the ordered work of one planner composition. Neither reads data.
+The calls separate inspection from execution. A blueprint describes the graph model; a workflow plan describes the resolved reaction graph of one planner composition. Neither reads data.
+
+The plan is assembled by artifact matching, not by declared step dependencies. Consumers name artifact types or patterns; the assembler derives connections. See [A workflow is a chain of reactions](/book/part-2/07-composition) for the contract and [Plan](/book/part-3/02-planning) for the mechanics.
 
 ## Surface
 

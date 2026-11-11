@@ -23,7 +23,7 @@ sources:
 </div>
 
 <!-- BEGIN GENERATED:status-strip -->
-<div class="kb-stats"><span><b>354</b> tests</span><span><b>1957</b> subtests</span><span><b>1 error</b> pyright</span><span><b>aa73759</b> source</span><span><b>2026-11-11</b> checked</span></div>
+<div class="kb-stats"><span><b>363</b> tests</span><span><b>1957</b> subtests</span><span><b>0 errors</b> pyright</span><span><b>ad53fa7</b> source</span><span><b>2026-11-11</b> checked</span></div>
 <!-- END GENERATED:status-strip -->
 
 ## One argument, four parts
@@ -37,9 +37,9 @@ Exact signatures, requirement tables and refusal messages live in the **appendic
 | Part | Question | Chapters |
 | --- | --- | --- |
 | [I — The build](/book/part-1/index) | What does a build produce, and what does it mean to run one? | 1–3 |
-| [II — Authoring a graph](/book/part-2/index) | How do meaning, topology and extension frame the data and binding that implement them? | 4–11 |
-| [III — From declarations to records](/book/part-3/index) | How does a declaration become a checked plan and a published result? | 12–16 |
-| [IV — Extending and reviewing](/book/part-4/index) | How does the kernel carry a new capability, and how is a change judged? | 17–20 |
+| [II — Authoring a graph](/book/part-2/index) | How do meaning, topology, extension and reaction compose the data and binding that implement them? | 4–12 |
+| [III — From declarations to records](/book/part-3/index) | How does a declaration become a checked plan and a published result? | 13–17 |
+| [IV — Extending and reviewing](/book/part-4/index) | How does the kernel carry a new capability, and how is a change judged? | 18–21 |
 
 ## How to read it
 

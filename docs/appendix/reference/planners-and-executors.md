@@ -24,6 +24,8 @@ A planner emits workflow steps; an executor owns one exact instruction kind. The
 | Executor | `kinds`, `resources`, `execute(context, instruction) -> StepOutcome` |
 | Composition | `default_toolchain(planners=..., executors=..., engine=...)`, then `compile` and `execute` |
 
+A step declares artifact ports, not producer identities or a dependency edge. A consumer's input is an `ArtifactPattern`; it matches every compatible producer, and assembly derives the connection. `assembly_preference` is `eager` or `deferred`; it orders the assembly scan, not the run. Two producers of one artifact type are refused as ambiguous unless the declaration distinguishes them. The contract is [A workflow is a chain of reactions](/book/part-2/07-composition).
+
 ```python
 from kg_build_system import compile, execute
 from kg_build_system.distribution import (

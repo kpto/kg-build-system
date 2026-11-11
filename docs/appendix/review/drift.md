@@ -53,9 +53,22 @@ Drift is computed from code sources: a path under `kg_build_system/`, `tests/`, 
 ## Evidence
 
 <!-- BEGIN GENERATED:drift -->
-Source HEAD: aa73759 · 2026-11-11. Pages checked: 92; clean: 92; drifted: 0.
+Source HEAD: ad53fa7 · 2026-11-11. Pages checked: 93; clean: 81; drifted: 12.
 
-No page has a source commit after its `verified` date.
+| Page | Verified | Latest source change | Action |
+| --- | --- | --- | --- |
+| `appendix/developer/system-design` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/kernel/boundaries` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/kernel/protocols` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/reference/api` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/reference/compile` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/review/verification` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/spec/execution` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/spec/extension` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/spec/plan` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/subjects/execution` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/subjects/extension` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/subjects/plan` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
 <!-- END GENERATED:drift -->
 
 The block lists the page, its verified date, the latest source change and the action.

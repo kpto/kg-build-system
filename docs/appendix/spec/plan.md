@@ -18,6 +18,7 @@ evidence:
   - tests/kernel/test_toolchain_flow.py
   - tests/pipeline/test_pipeline_identity.py
   - tests/distribution/planners/test_plan_assembly.py
+  - tests/kernel/test_composition_contract.py
   - tests/test_reference_build.py
 ---
 
@@ -35,6 +36,11 @@ evidence:
 - **R6.** `InstructionKind` MUST have exactly two non-empty segments, operation and engine, with no prefix matching. A `Step` MUST own exactly one `Instruction`.
 - **R7.** Wiring SHOULD be deterministic: sole writer and sole reader first, then justified ports. Ranking MUST prefer eager over deferred and MUST NOT define runtime order.
 - **R8.** `api.compile` MUST record the source blueprint document at `plan.provenance["blueprint"]`; a serialized plan MUST remain self-contained.
+- **R9.** A `Step` MUST declare inputs as artifact types or patterns; it MUST NOT declare a producer step identity or a dependency edge.
+- **R10.** A pattern input MUST expand to every compatible producer. An exact input MUST restrict eligibility to that type and MUST NOT be used solely to force execution order.
+- **R11.** Assembly priority MUST derive from planner/component order and `assembly_preference`; an input type MUST NOT encode ordering. An exact input MAY seal an interception boundary when one producer owns the type, and the decision MUST be stated.
+- **R12.** Adding a producer of a new artifact type MUST NOT require editing a consumer declaration; a pattern consumer MUST receive the new compatible output.
+- **R13.** Two producers of one artifact type MUST be refused as ambiguous unless the model distinguishes them; assembly priority MUST NOT be used as a same-type tie-break.
 
 ## Evidence
 
@@ -43,6 +49,7 @@ evidence:
 | `tests/kernel/test_toolchain_flow.py` | Shared planners produce one component; version and runtime-field disagreement are refused; a duplicate step id is refused; the plan round-trips. |
 | `tests/pipeline/test_pipeline_identity.py` | Duplicate step ids are refused; kinds are exact and two-segment; the plan codec preserves identity. |
 | `tests/distribution/planners/test_plan_assembly.py` | An unread deduplication output is refused, while a consumer lets the plan assemble. |
+| `tests/kernel/test_composition_contract.py` | A pattern consumer sees every matching producer, adding a producer leaves its declaration unchanged, an exact input narrows eligibility, and two producers of one type are refused. |
 | `tests/test_reference_build.py` | The compiled plan carries the source blueprint document at `provenance["blueprint"]` and builds. |
 
 ## API

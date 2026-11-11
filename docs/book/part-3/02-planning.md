@@ -1,11 +1,11 @@
 ---
-title: "13. Planning the work"
+title: "14. Planning the work"
 summary: "Planners turn one semantic model into components, steps and a plan whose wiring is already checked."
 section: book
 perspective: book
 part: III
-chapter: 13
-order: 33
+chapter: 14
+order: 32
 status: normative
 verified: 2026-11-11
 sources:
@@ -20,6 +20,8 @@ The blueprint says that a `site` node exists, that `sites` is its source relatio
 
 `compile` is the stage that asks every planner for its work and assembles the answers into one `WorkflowPlan`. Compilation is pure. It reads the blueprint and the planner composition, reads no source rows, opens no files and returns a plan whose wiring is already checked. The same blueprint can produce different plans under different compositions; a plan is one answer, not the only possible one.
 
+The contract this chapter implements is [A workflow is a chain of reactions](/book/part-2/07-composition): steps declare ports, consumers declare artifact types or patterns, and assembly derives the connections. A plan is the resolved reaction graph, not a sequence of tasks.
+
 ## A blueprint is meaning; a plan is work
 
 The planner boundary is deliberately narrow. A planner receives one opaque model and a `PlanContext`. The kernel does not inspect the model or tell the planner what it contains; the distribution's planners happen to receive a `GraphBlueprint`, but the contract would be the same for any other model. This is what lets a custom planner read its own model without teaching the kernel about nodes and relations.
@@ -28,7 +30,7 @@ The planner boundary is deliberately narrow. A planner receives one opaque model
 
 The four core planners use that scratch space. `RowSourcePlanner`, `ProjectionPlanner`, `BindingPlanner` and `RecordsPlanner` all declare `component_id="core"` and share one `CorePlan` under `core.plan`. The row-source planner builds the relation plan, the projection planner adds projections, the binding planner materialises each binding's rows, and the records planner aggregates those rows into one node or edge stream. They are separate objects because they answer separate questions, but they describe one component because the plan's component identity is the unit a runtime configures and an operator reasons about.
 
-The site chain crosses three components:
+The site reactions cross three components. This is a reaction trace, not a task sequence:
 
 | Step | Component | Instruction kind | Consumes | Produces |
 | --- | --- | --- | --- | --- |
@@ -126,7 +128,9 @@ A connection is always a resolved output opening to a resolved input opening. Th
 }
 ```
 
-The opening key includes the step, the direction and the name. A consumer reading the file connection can tell that the site records came from `aggregate.site`, and that the file step's input was expanded for the `core/graph/node/site` type. It does not have to parse the dotted display name of an artifact to recover that fact.
+The opening key includes the step, the direction and the name. The file connection records that the site records came from `aggregate.site`, and that the file step's input was expanded for the `core/graph/node/site` type. That producer identity is a fact of the resolved plan, not of the file consumer's declaration: the file planner declared the pattern `core/graph/**`, and assembly found every match.
+
+The connection is derived. The declaration that produced it named a type or pattern, never a step.
 
 An ordinary `Output` is internal to the run. A `Publication` is an output that is also a final artifact. The file step's `file/write_result` is a publication; `aggregate.site`'s `core/graph/node/site` is an ordinary output. A publication is addressable downstream like any output and also appears in the workflow report. An ordinary output has no report entry.
 
@@ -190,4 +194,4 @@ What the plan cannot know is whether the data exists, whether a source file is r
 
 ## Next
 
-[14. Executing and publishing](/book/part-3/03-execution-and-outputs) — how checked work becomes rows, resources and a report.
+[15. Executing and publishing](/book/part-3/03-execution-and-outputs) — how checked work becomes rows, resources and a report.

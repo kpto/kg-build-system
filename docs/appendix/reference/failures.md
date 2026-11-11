@@ -42,11 +42,11 @@ Read the report first. `execute` returns a `WorkflowReport`; `report.succeeded` 
 | --- | --- | --- |
 | `<key> must be non-nullable` | A build key is nullable; `<key>` is `build_key`, `source_build_key` or `target_build_key`. | [Values](/book/part-2/04-values-and-nullability) |
 | `<key> must be scalar` | A build key is an array or struct. | [Values](/book/part-2/04-values-and-nullability) |
-| `target must be a concrete <kind> component, not <name>` | A binding names an abstract category or the wrong component kind. | [Bindings](/book/part-2/07-binding) |
+| `target must be a concrete <kind> component, not <name>` | A binding names an abstract category or the wrong component kind. | [Bindings](/book/part-2/08-binding) |
 | `<side>_node must name the declared endpoint category <category>: pass endpoint(...) for that side` | An abstract edge endpoint has no concrete node token. | [Topology](/book/part-2/02-topology) |
-| `<side>_node <node> must equal or descend from the declared endpoint category <category>` | The concrete endpoint is outside the declared category. | [Bindings](/book/part-2/07-binding) |
-| `<target> has no declared property <names>` | A property value names a property the target does not declare. | [Bindings](/book/part-2/07-binding) |
-| `<target>.<attribute> must be assigned a value selection or expression` | A declared property, including an inherited one, has no value. | [Bindings](/book/part-2/07-binding) |
+| `<side>_node <node> must equal or descend from the declared endpoint category <category>` | The concrete endpoint is outside the declared category. | [Bindings](/book/part-2/08-binding) |
+| `<target> has no declared property <names>` | A property value names a property the target does not declare. | [Bindings](/book/part-2/08-binding) |
+| `<target>.<attribute> must be assigned a value selection or expression` | A declared property, including an inherited one, has no value. | [Bindings](/book/part-2/08-binding) |
 | `<target>.<attribute> expects <type>, but the selection resolves to <type>` | A property value has an incompatible logical type. | [Values](/book/part-2/04-values-and-nullability) |
 | `projections must declare at least one computed_field` | A projection has no output field. | [Projections](/book/part-2/05-grain-and-projections) |
 | `Projection(source) requires a row source; declare outputs on a named subclass` | A projection class is not pinned to a row source. | [Projections](/book/part-2/05-grain-and-projections) |
@@ -101,15 +101,15 @@ Read the report first. `execute` returns a `WorkflowReport`; `report.succeeded` 
 | `relation '<relation>' column '<column>' does not carry <ref>` | A relation column's reference is not its own field identity. | [Data](/book/part-2/03-source-and-rows) |
 | `projection '<projection>' column '<column>' does not carry <ref>` | A projection column's reference is not its own field identity. | [Projections](/book/part-2/05-grain-and-projections) |
 | `component '<component>' property '<property>' does not carry <ref>` | A property's reference is not its own property identity. | [Topology](/book/part-2/02-topology) |
-| `binding targets an unknown component '<component>'` | A binding target is absent from topology. | [Bindings](/book/part-2/07-binding) |
-| `node binding targets an unknown node '<component>'` | A node binding names an edge or a missing node. | [Bindings](/book/part-2/07-binding) |
-| `edge binding targets an unknown edge '<component>'` | An edge binding names a node or a missing edge. | [Bindings](/book/part-2/07-binding) |
-| `edge binding targets an unknown endpoint '<node>'` | A bound endpoint is absent from topology. | [Bindings](/book/part-2/07-binding) |
+| `binding targets an unknown component '<component>'` | A binding target is absent from topology. | [Bindings](/book/part-2/08-binding) |
+| `node binding targets an unknown node '<component>'` | A node binding names an edge or a missing node. | [Bindings](/book/part-2/08-binding) |
+| `edge binding targets an unknown edge '<component>'` | An edge binding names a node or a missing edge. | [Bindings](/book/part-2/08-binding) |
+| `edge binding targets an unknown endpoint '<node>'` | A bound endpoint is absent from topology. | [Bindings](/book/part-2/08-binding) |
 | `the graph declaration requires GraphSemantics semantics` | The graph root lacks graph semantics. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
 | `the graph declaration requires a purpose` | Graph semantics has no purpose. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
 | `the graph declaration purpose must be non-empty` | The purpose text is empty. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
-| `bindings require a node or edge reference` | A binding target is neither a node nor an edge. | [Bindings](/book/part-2/07-binding) |
-| `bindings require a target component name` | A binding has an empty component name. | [Bindings](/book/part-2/07-binding) |
+| `bindings require a node or edge reference` | A binding target is neither a node nor an edge. | [Bindings](/book/part-2/08-binding) |
+| `bindings require a target component name` | A binding has an empty component name. | [Bindings](/book/part-2/08-binding) |
 | `graph components, relations and assets require a name` | A layer object has no usable name. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
 
 **Document decoding.** The codecs check document shape, not model invariants. See [Documents](/appendix/reference/documents) for the canonical members.
@@ -183,7 +183,7 @@ Read the report first. `execute` returns a `WorkflowReport`; `report.succeeded` 
 | `runtime file output path must be a string` | The file output override is not text. | [Debug](/book/part-3/04-quality-and-failure) |
 | `runtime Neo4j output directory must be a string` | The Neo4j directory override is not text. | [Debug](/book/part-3/04-quality-and-failure) |
 | `duckdb threads must be a positive integer` | A DuckDB provider setting is not a positive integer. | [Debug](/book/part-3/04-quality-and-failure) |
-| `edge component '<edge>' requires bound source and target node components` | The Neo4j export has no binding for an endpoint node. | [Bindings](/book/part-2/07-binding) |
+| `edge component '<edge>' requires bound source and target node components` | The Neo4j export has no binding for an endpoint node. | [Bindings](/book/part-2/08-binding) |
 | `graph property of type <type> has no canonical form in the file target` | A property value cannot be written by the file target. | [Execute](/book/part-3/03-execution-and-outputs) |
 | `validation found <n> conflicting non-null value(s)` | Conflict validation found contradictions and `fail_on_error` is on. | [Debug](/book/part-3/04-quality-and-failure) |
 

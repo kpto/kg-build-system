@@ -27,7 +27,7 @@ sources:
 | `BindingOptions(annotations=..., semantics=...)` | Frozen options value | Portable metadata for one binding. |
 | `endpoint(target)` | `Endpoint[N]` | A concrete node token for an abstract edge side. |
 
-Read [Bind records](/book/part-2/07-binding) for the authoring path, [Binding specification](/appendix/spec/binding) for the requirement and [Bindings subject](/appendix/subjects/binding) for the views.
+Read [Bind records](/book/part-2/08-binding) for the authoring path, [Binding specification](/appendix/spec/binding) for the requirement and [Bindings subject](/appendix/subjects/binding) for the views.
 
 ## Details
 

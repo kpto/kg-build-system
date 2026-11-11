@@ -32,7 +32,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | View | Page | Answers |
 | --- | --- | --- |
 | Overview | [This page](/appendix/subjects/extension) | The subject in one place. |
-| Guide | [9. Extending the semantics model](/book/part-2/06-extension), [17. The kernel and the extension surface](/book/part-4/01-the-kernel-and-extension) | How to use it. |
+| Guide | [9. Extending the semantics model](/book/part-2/06-extension), [18. The kernel and the extension surface](/book/part-4/01-the-kernel-and-extension) | How to use it. |
 | Spec | [SPEC-013](/appendix/spec/extension) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/api) | Exact public names and document shapes. |
 | Philosophy | [Design in semantics](/appendix/philosophy/design-in-semantics) | Why it is designed this way. |

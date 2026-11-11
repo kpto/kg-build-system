@@ -1,11 +1,11 @@
 ---
-title: "12. Linking and the blueprint"
+title: "13. Linking and the blueprint"
 summary: "A declaration becomes a keyed symbol, and only the reachable symbols become the blueprint."
 section: book
 perspective: book
 part: III
-chapter: 12
-order: 32
+chapter: 13
+order: 31
 status: normative
 verified: 2026-11-11
 sources:
@@ -162,4 +162,4 @@ That is the handoff. The blueprint states what exists and how it relates, in a v
 
 ## Next
 
-[13. Planning the work](/book/part-3/02-planning) — how one blueprint becomes components, steps and a checked plan.
+[14. Planning the work](/book/part-3/02-planning) — how one blueprint becomes components, steps and a checked plan.

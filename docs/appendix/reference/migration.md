@@ -32,7 +32,7 @@ This page is the redirect and parity map for the docs replacement. `docs/` now c
 | `docs/concepts/row-sources.md` | /book/part-2/05-grain-and-projections | Rewrite |
 | `docs/concepts/projections.md` | /book/part-2/05-grain-and-projections | Rewrite |
 | `docs/concepts/topology.md` | /book/part-2/02-topology | Rewrite |
-| `docs/concepts/bindings.md` | /book/part-2/07-binding | Rewrite |
+| `docs/concepts/bindings.md` | /book/part-2/08-binding | Rewrite |
 | `docs/concepts/semantics.md` | /book/part-2/01-meaning-and-purpose | Rewrite |
 | `docs/concepts/semantics-language.md` | /book/part-2/01-meaning-and-purpose | Redirect |
 | `docs/concepts/planners-and-executors.md` | /book/part-3/03-execution-and-outputs | Rewrite |

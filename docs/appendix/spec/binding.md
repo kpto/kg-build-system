@@ -22,7 +22,7 @@ evidence:
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Bindings</span><a href="/appendix/subjects/binding">Overview</a><a href="/book/part-2/07-binding">Guide</a><a href="/appendix/spec/binding" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/binding-is-the-seam">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Bindings</span><a href="/appendix/subjects/binding">Overview</a><a href="/book/part-2/08-binding">Guide</a><a href="/appendix/spec/binding" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/binding-is-the-seam">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## Requirement

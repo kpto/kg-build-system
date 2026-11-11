@@ -32,7 +32,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | View | Page | Answers |
 | --- | --- | --- |
 | Overview | [This page](/appendix/subjects/execution) | The subject in one place. |
-| Guide | [14. Executing and publishing](/book/part-3/03-execution-and-outputs) | How to use it. |
+| Guide | [15. Executing and publishing](/book/part-3/03-execution-and-outputs) | How to use it. |
 | Spec | [SPEC-011](/appendix/spec/execution) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/documents) | Exact public names and document shapes. |
 | Philosophy | [Explainability is authored](/appendix/philosophy/explainability-is-authored) | Why it is designed this way. |

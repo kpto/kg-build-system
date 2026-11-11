@@ -25,7 +25,7 @@ The book carries the argument; this appendix carries the binding requirements. E
 - **[SPEC-007](/appendix/spec/meaning)** — [Semantics and graph purpose](/appendix/subjects/meaning) · 10 requirements · 4 evidence paths · normative
 - **[SPEC-008](/appendix/spec/generation)** — [Source generation and CLI](/appendix/subjects/generation) · 10 requirements · 3 evidence paths · normative
 - **[SPEC-009](/appendix/spec/linking)** — [Linking and the blueprint](/appendix/subjects/linking) · 10 requirements · 4 evidence paths · normative
-- **[SPEC-010](/appendix/spec/plan)** — [Workflow plan](/appendix/subjects/plan) · 8 requirements · 4 evidence paths · normative
+- **[SPEC-010](/appendix/spec/plan)** — [Workflow plan](/appendix/subjects/plan) · 13 requirements · 5 evidence paths · normative
 - **[SPEC-011](/appendix/spec/execution)** — [Runtime and execution](/appendix/subjects/execution) · 9 requirements · 4 evidence paths · normative
 - **[SPEC-012](/appendix/spec/modules)** — [Modules, outputs and quality](/appendix/subjects/modules) · 10 requirements · 4 evidence paths · normative
 - **[SPEC-013](/appendix/spec/extension)** — [Extending the toolchain](/appendix/subjects/extension) · 9 requirements · 3 evidence paths · normative

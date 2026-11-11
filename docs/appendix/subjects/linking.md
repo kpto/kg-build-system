@@ -32,7 +32,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | View | Page | Answers |
 | --- | --- | --- |
 | Overview | [This page](/appendix/subjects/linking) | The subject in one place. |
-| Guide | [12. Linking and the blueprint](/book/part-3/01-linking-and-blueprint) | How to use it. |
+| Guide | [13. Linking and the blueprint](/book/part-3/01-linking-and-blueprint) | How to use it. |
 | Spec | [SPEC-009](/appendix/spec/linking) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/documents) | Exact public names and document shapes. |
 | Philosophy | [One purpose, read downward](/appendix/philosophy/semantic-hierarchy) | Why it is designed this way. |

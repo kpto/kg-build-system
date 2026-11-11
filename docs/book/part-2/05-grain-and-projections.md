@@ -347,4 +347,4 @@ means.
 
 ## Next
 
-[10. Binding as implementation detail](/book/part-2/07-binding) — from a named grain to the node and edge records it produces.
+[9. Extending the semantics model](/book/part-2/06-extension) — from a named grain to the vocabulary the domain still needs.

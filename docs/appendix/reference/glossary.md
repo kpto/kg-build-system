@@ -26,6 +26,12 @@ Many names in the framework are adjacent, not synonymous. The table gives the on
 | Component vs module | A component is a planner group in a plan, with an id, version and runtime fields; a module is a distribution package that contributes planners, executors and resources. |
 | Planner vs executor | A planner reads the blueprint and emits steps; an executor owns one exact instruction kind and runs those steps. |
 | Artifact type vs pattern | An artifact type is a concrete key; a pattern is an input key with `*` and `**` matching. |
+| Step vs reaction | A step is a reaction with ports and one instruction, not a task with a semantic goal. Its meaning is carried by the artifact it publishes, not by the step name. |
+| Producer vs consumer | A producer declares an output artifact type; a consumer declares an input type or pattern. Neither names the other. |
+| Input vs dependency | An input is an artifact request; a dependency is a relation between steps. The workflow has inputs, not declared step dependencies. |
+| Priority vs rank vs preference | Priority is the assembly order of reactions; rank is the derived assembly integer; preference is `eager`/`deferred`. None is a runtime schedule or a data dependency. |
+| Phase vs barrier | A phase is a group of producers and artifact types; a barrier is a step that names producers. A phase is not a dependency chain. |
+| Exact input vs sealed boundary | An exact input narrows eligibility to one artifact type; it seals a boundary only when one producer owns that type. Exactness alone does not name a producer. |
 | Publication vs output | An output is a step port that must be consumed downstream; a publication is an output that is also a final artifact and appears in the workflow report. |
 | Asset vs table | An asset is a logical source-data unit; a table is a logical relation with columns and one asset. Several tables may name one asset. |
 | Projection vs row source | A projection is a named logical row product with computed fields; a row source is any value that produces rows of a known shape. A projection is also a row source. |
@@ -45,5 +51,7 @@ The distinction that matters most is **document identity versus runtime identity
 The second distinction is **value presence versus member presence**. Nullable belongs to a selection or logical type. Optional belongs to a codec: the member may be absent from the JSON object. The blueprint codec is deliberately asymmetric: `graph_declaration` is omitted when absent, binding `rows` is explicit `null`, and topology `parent`, `description` and `semantics` are omitted. Use [Documents](/appendix/reference/documents) for the full table.
 
 The third distinction is **wiring versus execution**. A plan fixes steps and connections; an instruction is opaque until an executor claims its exact kind. A component id names the planner group, while a module is the package that ships it. Use [Plan](/book/part-3/02-planning) for assembly and [Execute](/book/part-3/03-execution-and-outputs) for the run.
+
+The fourth is **composition versus procedure**. A producer declares an output type and a consumer declares an input type or pattern; the assembler derives the connection. Priority orders the assembly scan, not the data dependency, and two producers of one type are refused unless the declaration distinguishes them. A phase is a group of producers, not a barrier. See [A workflow is a chain of reactions](/book/part-2/07-composition).
 
 For the names exported by the facade, use [API surface](/appendix/reference/api). For the command that writes declarations before a build, use [CLI](/appendix/reference/cli).

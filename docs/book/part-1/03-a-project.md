@@ -13,7 +13,7 @@ sources:
   - kg_build_system/distribution/interpreter/service/_private/create.py
   - kg_build_system/generation/code_generation/service/_private/command.py
   - reference_project/build.py
-  - docs/book/part-2/08-generation.md
+  - docs/book/part-2/09-generation.md
 ---
 
 The first build passed `reference_project` to `create_blueprint` as a path. This chapter explains what that path means. A project is not a folder of files that a build happens to read. It is an importable package whose public module-level values are the declarations a build can see. Everything outside the package is outside the build.

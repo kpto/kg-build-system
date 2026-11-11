@@ -32,7 +32,7 @@ Read [Declare topology](/book/part-2/02-topology) for the authoring path, [Topol
 
 ## Details
 
-Topology is data-independent: it names a component, its properties and, for an edge, its endpoints. Values arrive only through a binding. See [Declare topology](/book/part-2/02-topology) for the model, [Bind records](/book/part-2/07-binding) and [Bindings reference](/appendix/reference/bindings) for the values, and [Semantics reference](/appendix/reference/semantics) for annotations and labels.
+Topology is data-independent: it names a component, its properties and, for an edge, its endpoints. Values arrive only through a binding. See [Declare topology](/book/part-2/02-topology) for the model, [Bind records](/book/part-2/08-binding) and [Bindings reference](/appendix/reference/bindings) for the values, and [Semantics reference](/appendix/reference/semantics) for annotations and labels.
 
 ```python
 from kg_build_system import (

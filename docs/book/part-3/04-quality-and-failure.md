@@ -1,11 +1,11 @@
 ---
-title: "15. Quality, failures and debugging"
+title: "16. Quality, failures and debugging"
 summary: "What the quality modules guarantee, and how to find the stage that refused a build."
 section: book
 perspective: book
 part: III
-chapter: 15
-order: 35
+chapter: 16
+order: 34
 status: normative
 verified: 2026-11-11
 sources:
@@ -260,4 +260,4 @@ These limits do not disappear when the build is handed to someone else. They are
 
 ## Next
 
-[16. Shipping a build](/book/part-3/05-shipping) — turn a run into a bundle another person can reproduce, with its guarantees and its limits stated.
+[17. Shipping a build](/book/part-3/05-shipping) — turn a run into a bundle another person can reproduce, with its guarantees and its limits stated.

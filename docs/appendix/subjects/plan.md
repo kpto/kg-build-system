@@ -32,7 +32,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | View | Page | Answers |
 | --- | --- | --- |
 | Overview | [This page](/appendix/subjects/plan) | The subject in one place. |
-| Guide | [13. Planning the work](/book/part-3/02-planning) | How to use it. |
+| Guide | [14. Planning the work](/book/part-3/02-planning) | How to use it. |
 | Spec | [SPEC-010](/appendix/spec/plan) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/documents) | Exact public names and document shapes. |
 | Philosophy | [Design in semantics](/appendix/philosophy/design-in-semantics) | Why it is designed this way. |

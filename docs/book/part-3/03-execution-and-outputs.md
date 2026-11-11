@@ -1,11 +1,11 @@
 ---
-title: "14. Executing and publishing"
+title: "15. Executing and publishing"
 summary: "A run resolves exact kinds, opens resources, walks dependency waves and reports what it published."
 section: book
 perspective: book
 part: III
-chapter: 14
-order: 34
+chapter: 15
+order: 33
 status: normative
 verified: 2026-11-11
 sources:
@@ -214,4 +214,4 @@ That account is where the next question starts. A run can succeed structurally a
 
 ## Next
 
-[15. Quality, failures and debugging](/book/part-3/04-quality-and-failure) — how to choose which records reach a target and how to read a failed run.
+[16. Quality, failures and debugging](/book/part-3/04-quality-and-failure) — how to choose which records reach a target and how to read a failed run.

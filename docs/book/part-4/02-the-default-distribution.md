@@ -1,11 +1,11 @@
 ---
-title: "18. The default distribution"
+title: "19. The default distribution"
 summary: "The shipped graph system is one composition of the kernel protocols; its defaults are replaceable choices, while graph meaning stays a model rule."
 section: book
 perspective: book
 part: IV
-chapter: 18
-order: 43
+chapter: 19
+order: 42
 status: normative
 verified: 2026-11-11
 sources:
@@ -88,7 +88,7 @@ Keeping generation and the CLI outside the build protects a simple invariant: an
 
 ## What is replaceable and what is a model rule
 
-The useful review question is not "is this the default?" but "what kind of default is it?" The table below separates a replaceable choice from a model rule. The distinction returns in Chapter 20 as the first two limit kinds.
+The useful review question is not "is this the default?" but "what kind of default is it?" The table below separates a replaceable choice from a model rule. The distinction returns in Chapter 21 as the first two limit kinds.
 
 | Concern | Default composition | Kind | Replacement |
 | --- | --- | --- | --- |
@@ -129,8 +129,8 @@ assert report.succeeded
 
 A project that wants a different composition calls `default_toolchain` with its planners and executors, or constructs a `Toolchain` directly. The shortcut functions accept a supplied toolchain and a supplied engine. The composition root is therefore not a gatekeeper; it is the place where the default choices are written down once.
 
-The default distribution is a product, not a boundary. It is the composition a graph project receives when it asks for the default graph build. The boundary is the six protocols and the values they exchange. Chapter 19 turns to the source layout and the tests that keep that boundary visible.
+The default distribution is a product, not a boundary. It is the composition a graph project receives when it asks for the default graph build. The boundary is the six protocols and the values they exchange. Chapter 20 turns to the source layout and the tests that keep that boundary visible.
 
 ## Next
 
-[19. Architecture and tests](/book/part-4/03-architecture-and-tests) — how zones, imports and contract tests make the boundary reviewable.
+[20. Architecture and tests](/book/part-4/03-architecture-and-tests) — how zones, imports and contract tests make the boundary reviewable.

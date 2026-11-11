@@ -1,6 +1,6 @@
 ---
 title: "Part II — Authoring a graph"
-summary: "Meaning, topology and extension frame the source rows, values, grain and binding that implement the design."
+summary: "Meaning, topology, extension and reaction frame the source rows, values, grain and binding that implement the design."
 section: book
 perspective: meta
 part: II
@@ -70,7 +70,8 @@ carry joins, identity translation, aggregation or graph meaning.
 
 **Treat the workflow as a chain of reactions.** A step does not own a semantic
 goal. It reacts to artifact types and publishes an artifact; the assembler
-derives the connection, and priority orders the reactions that are eligible.
+derives the connection, and priority orders the assembly scan of eligible
+reactions. Priority does not choose between two producers of one type.
 Interception is deliberate: another producer or consumer should be insertable at
 an artifact boundary without editing the steps around it. An exact input can
 refuse interception, but that is a sealed boundary and must be named as one.
@@ -111,15 +112,17 @@ of artifact matching and execution belong to Part III; the direction belongs her
 | [7. Values and nullability](/book/part-2/04-values-and-nullability) | What does a field read return, and who decides that a value may be absent? |
 | [8. Grain and projections](/book/part-2/05-grain-and-projections) | What is one row after a filter, a join, a group or an expansion? |
 | [9. Extending the semantics model](/book/part-2/06-extension) | Where do source adaptation, domain operations and named derived relations live? |
-| [10. Binding as implementation detail](/book/part-2/07-binding) | How does a row source populate the record the design already declared? |
-| [11. Generating declarations](/book/part-2/08-generation) | How is a declaration package generated without taking over the model? |
+| [10. A workflow is a chain of reactions](/book/part-2/07-composition) | How do artifact types, priority and interception compose work without a dependency chain? |
+| [11. Binding as implementation detail](/book/part-2/08-binding) | How does a row source populate the record the design already declared? |
+| [12. Generating declarations](/book/part-2/09-generation) | How is a declaration package generated without taking over the model? |
 
-The chapters divide into four movements. Chapters 4 and 5 state the design:
+The chapters divide into five movements. Chapters 4 and 5 state the design:
 meaning, purpose, records, properties and direction. Chapters 6 to 8 settle the
 row that will supply it: source, value and grain. Chapter 9 states how the
 supplied vocabulary is extended when the domain needs an operation the framework
-does not ship. Chapters 10 and 11 turn the design into a mapping, and then into a
-generated package that reproduces the declarations.
+does not ship. Chapter 10 states how reactions compose by artifact type,
+priority and interception. Chapters 11 and 12 turn the design into a mapping, and
+then into a generated package that reproduces the declarations.
 
 ## How to read
 
