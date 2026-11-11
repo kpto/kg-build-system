@@ -91,7 +91,7 @@
     - "A binding MUST supply a present scalar build key and every declared property exactly once."
     - "An edge binding MUST supply its own key, a source key and a target key."
     - "Binding identity MUST be content-derived; `debug_name` MUST NOT change the digest."
-  guide: [book/part-2/06-binding]
+  guide: [book/part-2/07-binding]
   api: appendix/reference/api
   philosophy: [appendix/philosophy/binding-is-the-seam]
   review: [appendix/review/contracts]
@@ -123,7 +123,7 @@
     - "`@asset_contract` MUST be inert and MUST NOT enter `AssetOptions` or the blueprint."
     - "Discovery MUST NOT import the author module; it MUST find a static request."
     - "Generated source MUST render `Field[T]`; observed nullability is provenance, not absence."
-  guide: [book/part-2/07-generation]
+  guide: [book/part-2/08-generation]
   api: appendix/reference/api
   philosophy: [appendix/philosophy/explainability-is-authored]
   review: [appendix/review/limits]
@@ -203,7 +203,7 @@
     - "The kernel protocol set MUST be the extension surface; a language, linker, planner or executor MUST be an ordinary value passed to `Toolchain`, and a provider MUST be passed to the runtime."
     - "A new source, syntax, derivation, engine or resource MUST compose a different `Toolchain`; no registry exists as the consequence."
     - "A new engine MUST implement the neutral `SqlEmitter`, not edit core."
-  guide: [book/part-4/01-the-kernel-and-extension]
+  guide: [book/part-2/06-extension, book/part-4/01-the-kernel-and-extension]
   api: appendix/reference/api
   philosophy: [appendix/philosophy/design-in-semantics]
   review: [appendix/review/architecture, appendix/review/limits]

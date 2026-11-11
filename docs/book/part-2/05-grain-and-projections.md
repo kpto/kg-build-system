@@ -347,4 +347,4 @@ means.
 
 ## Next
 
-[9. Binding as implementation detail](/book/part-2/06-binding) — from a named grain to the node and edge records it produces.
+[10. Binding as implementation detail](/book/part-2/07-binding) — from a named grain to the node and edge records it produces.

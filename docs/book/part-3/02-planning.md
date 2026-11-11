@@ -1,11 +1,11 @@
 ---
-title: "12. Planning the work"
+title: "13. Planning the work"
 summary: "Planners turn one semantic model into components, steps and a plan whose wiring is already checked."
 section: book
 perspective: book
 part: III
-chapter: 12
-order: 32
+chapter: 13
+order: 33
 status: normative
 verified: 2026-11-11
 sources:
@@ -190,4 +190,4 @@ What the plan cannot know is whether the data exists, whether a source file is r
 
 ## Next
 
-[12. Executing and publishing](/book/part-3/03-execution-and-outputs) — how checked work becomes rows, resources and a report.
+[14. Executing and publishing](/book/part-3/03-execution-and-outputs) — how checked work becomes rows, resources and a report.

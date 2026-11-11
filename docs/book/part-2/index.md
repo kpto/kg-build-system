@@ -1,6 +1,6 @@
 ---
 title: "Part II — Authoring a graph"
-summary: "Meaning and topology come first; source rows, values, grain and binding implement that design."
+summary: "Meaning, topology and extension frame the source rows, values, grain and binding that implement the design."
 section: book
 perspective: meta
 part: II
@@ -54,14 +54,16 @@ the decision, and shows the public names you write.
 | [6. Source and rows](/book/part-2/03-source-and-rows) | Which source do the rows represent, and what shape does one row have? |
 | [7. Values and nullability](/book/part-2/04-values-and-nullability) | What does a field read return, and who decides that a value may be absent? |
 | [8. Grain and projections](/book/part-2/05-grain-and-projections) | What is one row after a filter, a join, a group or an expansion? |
-| [9. Binding as implementation detail](/book/part-2/06-binding) | How does a row source populate the record the design already declared? |
-| [10. Generating declarations](/book/part-2/07-generation) | How is a declaration package generated without taking over the model? |
+| [9. Extending the semantics model](/book/part-2/06-extension) | Where do source adaptation, domain operations and named derived relations live? |
+| [10. Binding as implementation detail](/book/part-2/07-binding) | How does a row source populate the record the design already declared? |
+| [11. Generating declarations](/book/part-2/08-generation) | How is a declaration package generated without taking over the model? |
 
-The chapters divide into three movements. Chapters 4 and 5 state the design:
+The chapters divide into four movements. Chapters 4 and 5 state the design:
 meaning, purpose, records, properties and direction. Chapters 6 to 8 settle the
-row that will supply it: source, value and grain. Chapters 9 and 10 turn the
-design into a mapping, and then into a generated package that reproduces the
-declarations.
+row that will supply it: source, value and grain. Chapter 9 states how the
+supplied vocabulary is extended when the domain needs an operation the framework
+does not ship. Chapters 10 and 11 turn the design into a mapping, and then into a
+generated package that reproduces the declarations.
 
 ## How to read
 

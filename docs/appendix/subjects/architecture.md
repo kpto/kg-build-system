@@ -33,7 +33,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | View | Page | Answers |
 | --- | --- | --- |
 | Overview | [This page](/appendix/subjects/architecture) | The subject in one place. |
-| Guide | [18. Architecture and tests](/book/part-4/03-architecture-and-tests) | How to use it. |
+| Guide | [19. Architecture and tests](/book/part-4/03-architecture-and-tests) | How to use it. |
 | Spec | [SPEC-014](/appendix/spec/architecture) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/api) | Exact public names and document shapes. |
 | Philosophy | [Review top-down](/appendix/philosophy/review-top-down) | Why it is designed this way. |

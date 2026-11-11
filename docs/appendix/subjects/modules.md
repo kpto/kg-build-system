@@ -33,7 +33,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | View | Page | Answers |
 | --- | --- | --- |
 | Overview | [This page](/appendix/subjects/modules) | The subject in one place. |
-| Guide | [13. Executing and publishing](/book/part-3/03-execution-and-outputs), [14. Quality, failures and debugging](/book/part-3/04-quality-and-failure) | How to use it. |
+| Guide | [14. Executing and publishing](/book/part-3/03-execution-and-outputs), [15. Quality, failures and debugging](/book/part-3/04-quality-and-failure) | How to use it. |
 | Spec | [SPEC-012](/appendix/spec/modules) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/api) | Exact public names and document shapes. |
 | Philosophy | [Anti-patterns](/appendix/philosophy/anti-patterns) | Why it is designed this way. |

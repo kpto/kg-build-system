@@ -53,7 +53,7 @@ Drift is computed from code sources: a path under `kg_build_system/`, `tests/`, 
 ## Evidence
 
 <!-- BEGIN GENERATED:drift -->
-Source HEAD: edeb2fc · 2026-11-11. Pages checked: 91; clean: 91; drifted: 0.
+Source HEAD: aa73759 · 2026-11-11. Pages checked: 92; clean: 92; drifted: 0.
 
 No page has a source commit after its `verified` date.
 <!-- END GENERATED:drift -->

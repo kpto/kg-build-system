@@ -1,15 +1,15 @@
 ---
-title: "9. Binding as implementation detail"
+title: "10. Binding as implementation detail"
 summary: "A binding is the one place where a row source becomes a concrete node or edge record."
 section: book
 perspective: book
 part: II
-chapter: 9
-order: 26
+chapter: 10
+order: 27
 status: normative
 verified: 2026-11-11
 sources:
-  - docs/book/part-2/06-binding.md
+  - docs/book/part-2/07-binding.md
   - docs/appendix/reference/bindings.md
   - docs/appendix/spec/binding.md
 ---
@@ -151,4 +151,4 @@ Python mode does not escape the model. It carries a `{module, qualname}` referen
 
 ## Next
 
-[10. Generating declarations](/book/part-2/07-generation) — turn an observed source schema into ordinary declarations without making generation part of the build.
+[11. Generating declarations](/book/part-2/08-generation) — turn an observed source schema into ordinary declarations without making generation part of the build.

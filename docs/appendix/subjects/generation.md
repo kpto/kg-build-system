@@ -19,7 +19,7 @@ generated: true
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Source generation and CLI</span><a href="/appendix/subjects/generation" class="active">Overview</a><a href="/book/part-2/07-generation">Guide</a><a href="/appendix/spec/generation">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/explainability-is-authored">Philosophy</a><a href="/appendix/review/limits">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Source generation and CLI</span><a href="/appendix/subjects/generation" class="active">Overview</a><a href="/book/part-2/08-generation">Guide</a><a href="/appendix/spec/generation">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/explainability-is-authored">Philosophy</a><a href="/appendix/review/limits">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## In one view
@@ -33,7 +33,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | View | Page | Answers |
 | --- | --- | --- |
 | Overview | [This page](/appendix/subjects/generation) | The subject in one place. |
-| Guide | [10. Generating declarations](/book/part-2/07-generation) | How to use it. |
+| Guide | [11. Generating declarations](/book/part-2/08-generation) | How to use it. |
 | Spec | [SPEC-008](/appendix/spec/generation) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/api) | Exact public names and document shapes. |
 | Philosophy | [Explainability is authored](/appendix/philosophy/explainability-is-authored) | Why it is designed this way. |

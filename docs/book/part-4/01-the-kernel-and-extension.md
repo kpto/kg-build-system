@@ -1,11 +1,11 @@
 ---
-title: "16. The kernel and the extension surface"
+title: "17. The kernel and the extension surface"
 summary: "The kernel is six protocols and a handful of composition values; an extension is an ordinary object placed in a toolchain or a runtime."
 section: book
 perspective: book
 part: IV
-chapter: 16
-order: 41
+chapter: 17
+order: 42
 status: normative
 verified: 2026-11-11
 sources:
@@ -92,7 +92,7 @@ The first six rungs are composition. The seventh is not. A model change alters w
 
 The ladder changes the answer to "the framework cannot do X." If X is a new source format, the answer is a planner and an executor. If X is a new syntax, the answer is a language. If X is a new engine, the answer is an emitter and an executor. If X is a new lifecycle resource, the answer is a provider. Only when the protocol set cannot carry the concept is the kernel the right place to change.
 
-There is a second class of answer, developed in Chapter 19: a model rule. A graph property is scalar, so a nested object is reified as nodes and edges. An edge is directed. An instruction kind is exact. These are not rungs on the ladder because no composition should carry them. A reviewer who treats a model rule as a missing extension asks for a second meaning of the graph, not for another implementation.
+There is a second class of answer, developed in Chapter 20: a model rule. A graph property is scalar, so a nested object is reified as nodes and edges. An edge is directed. An instruction kind is exact. These are not rungs on the ladder because no composition should carry them. A reviewer who treats a model rule as a missing extension asks for a second meaning of the graph, not for another implementation.
 
 ## A consensus module, composed
 
@@ -199,7 +199,7 @@ toolchain = default_toolchain(
 
 A SQL-backed variant would claim `("consensus", "duckdb")`, take a `SqlEmitter` in its planner and declare the DuckDB resource type in its executor. That variant is a second module, not an edit to the core planners. It changes the engine boundary and the resource declaration, but not the graph model, the plan vocabulary or the kernel protocols.
 
-The module is not shipped. The default distribution has no `ConsensusPlanner`, no `("consensus", "default")` kind and no voting code. The sketch is a composition a reader writes, and the rest of Part IV uses it as a test case: Chapter 17 asks why the shipped composition stops where it does, Chapter 18 asks what tests guard the module's interface, and Chapter 19 asks which kind of limit its absence represents.
+The module is not shipped. The default distribution has no `ConsensusPlanner`, no `("consensus", "default")` kind and no voting code. The sketch is a composition a reader writes, and the rest of Part IV uses it as a test case: Chapter 18 asks why the shipped composition stops where it does, Chapter 19 asks what tests guard the module's interface, and Chapter 20 asks which kind of limit its absence represents.
 
 ## The contract tests belong to the module
 
@@ -217,4 +217,4 @@ A green module therefore says something narrow and useful: the composition loads
 
 ## Next
 
-[17. The default distribution](/book/part-4/02-the-default-distribution) — read the shipped graph system as one composition of these protocols.
+[18. The default distribution](/book/part-4/02-the-default-distribution) — read the shipped graph system as one composition of these protocols.

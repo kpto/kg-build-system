@@ -21,7 +21,7 @@ evidence:
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Source generation and CLI</span><a href="/appendix/subjects/generation">Overview</a><a href="/book/part-2/07-generation">Guide</a><a href="/appendix/spec/generation" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/explainability-is-authored">Philosophy</a><a href="/appendix/review/limits">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Source generation and CLI</span><a href="/appendix/subjects/generation">Overview</a><a href="/book/part-2/08-generation">Guide</a><a href="/appendix/spec/generation" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/explainability-is-authored">Philosophy</a><a href="/appendix/review/limits">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## Requirement

@@ -18,7 +18,7 @@ generated: true
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Bindings</span><a href="/appendix/subjects/binding" class="active">Overview</a><a href="/book/part-2/06-binding">Guide</a><a href="/appendix/spec/binding">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/binding-is-the-seam">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Bindings</span><a href="/appendix/subjects/binding" class="active">Overview</a><a href="/book/part-2/07-binding">Guide</a><a href="/appendix/spec/binding">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/binding-is-the-seam">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## In one view
@@ -32,7 +32,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | View | Page | Answers |
 | --- | --- | --- |
 | Overview | [This page](/appendix/subjects/binding) | The subject in one place. |
-| Guide | [9. Binding as implementation detail](/book/part-2/06-binding) | How to use it. |
+| Guide | [10. Binding as implementation detail](/book/part-2/07-binding) | How to use it. |
 | Spec | [SPEC-006](/appendix/spec/binding) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/api) | Exact public names and document shapes. |
 | Philosophy | [The binding is the seam](/appendix/philosophy/binding-is-the-seam) | Why it is designed this way. |

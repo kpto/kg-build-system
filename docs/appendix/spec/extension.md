@@ -21,7 +21,7 @@ evidence:
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Extending the toolchain</span><a href="/appendix/subjects/extension">Overview</a><a href="/book/part-4/01-the-kernel-and-extension">Guide</a><a href="/appendix/spec/extension" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/design-in-semantics">Philosophy</a><a href="/appendix/review/architecture">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Extending the toolchain</span><a href="/appendix/subjects/extension">Overview</a><a href="/book/part-2/06-extension">Guide</a><a href="/appendix/spec/extension" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/design-in-semantics">Philosophy</a><a href="/appendix/review/architecture">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## Requirement
