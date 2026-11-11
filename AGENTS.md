@@ -48,6 +48,9 @@ rule about what the framework is belongs to the framework model.
 
 ### Writing
 
+- A knowledge base is a book: a linear argument in parts and chapters, with
+  exact specifications and reference as appendices. A chapter may repeat a
+  concept when the argument needs it; do not split a subject into parallel views.
 - A document states the current model as if it were the only one.
 - Write for a reviewer who has not seen the conversation, an earlier version or
   the review: define terms, name the interface, file or type, and state the
@@ -62,8 +65,9 @@ rule about what the framework is belongs to the framework model.
 
 - A change that crosses a subpackage boundary is proposed as an interface change
   before it is implemented.
-- Author-facing interfaces are reviewed through `docs/`; internal interfaces are
-  reviewed through `docs/developer/`. The site is built by `../kg-build-kb`.
+- Author-facing interfaces are reviewed through the book and appendices in `docs/`;
+  internal interfaces are reviewed through `docs/appendix/developer/`. The site is
+  built by `../kg-build-kb`.
 - Docs are author-facing, not simplified. Include anything an author might need
   to know: semantics, edge cases, limits, examples and the reasons behind a
   rule. Structure makes them readable, not the amount of detail.
@@ -89,7 +93,7 @@ rule about what the framework is belongs to the framework model.
 | Surface | Reader | What it states |
 | --- | --- | --- |
 | `docs/` | graph author | what to write, what the graph does, and the semantics and limits an author needs |
-| `docs/developer/` | framework reviewer | internal interface, boundaries and invariants |
+| `docs/appendix/developer/` | framework reviewer | internal interface, boundaries and invariants |
 
 - If the interface delta does not explain the change, the change is not ready.
 - A visual change is reviewed with a real browser screenshot at the target

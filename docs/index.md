@@ -1,97 +1,55 @@
 ---
-title: kg-build-system field guide
-summary: A visual field guide to declaring, compiling and running a knowledge-graph build whose meaning survives it.
+title: kg-build-system
+summary: A book about declaring, compiling and running a knowledge-graph build whose meaning survives it.
 section: meta
 order: 0
 status: normative
-verified: 2026-11-10
+verified: 2026-11-11
 sources:
   - README.md
-  - docs/developer/system-design.md
   - reference_project/
+  - docs/book/index.md
 ---
 
 <div class="kb-hero">
-  <p class="kb-kicker">kg-build-system · field guide</p>
+  <p class="kb-kicker">kg-build-system · a book</p>
   <div class="kb-display">Build a graph whose meaning survives the build.</div>
-  <p class="kb-lede">Typed Python declarations become a checked blueprint, a workflow plan and published records. The model, the evidence and the limits travel with the result.</p>
+  <p class="kb-lede">Typed Python declarations become a checked blueprint, a workflow plan and published records. This book follows one estate graph from the first source file to the published result, and then into the machine that builds it.</p>
   <div class="kb-actions">
-    <a class="kb-button kb-button-primary" href="/start/walkthrough">Run the estate build</a>
-    <a class="kb-button" href="/review/architecture">Review the model</a>
-    <a class="kb-button" href="/reference/api">Look up a name</a>
+    <a class="kb-button kb-button-primary" href="/book/index">Read the book</a>
+    <a class="kb-button" href="/appendix/index">Use the appendices</a>
+    <a class="kb-button" href="/appendix/reference/api">Look up a name</a>
   </div>
 </div>
 
 <!-- BEGIN GENERATED:status-strip -->
-<div class="kb-stats"><span><b>354</b> tests</span><span><b>1957</b> subtests</span><span><b>1 error</b> pyright</span><span><b>2454d28</b> source</span><span><b>2026-11-11</b> checked</span></div>
+<div class="kb-stats"><span><b>354</b> tests</span><span><b>1957</b> subtests</span><span><b>1 error</b> pyright</span><span><b>f57a752</b> source</span><span><b>2026-11-11</b> checked</span></div>
 <!-- END GENERATED:status-strip -->
 
-<figure class="kb-plate">
-  <img src="/_assets/system.svg" alt="A build moves from declarations through link, blueprint, plan and execute to published records, with an edit-time generation lane above.">
-  <figcaption>The whole system on one page. Generation feeds declarations; three verbs take it from there.</figcaption>
-</figure>
+## One argument, four parts
 
-<a class="kb-band" href="/subjects/index">
-  <span class="kb-band-kicker">Subject map</span>
-  <strong>16 subjects, five perspectives</strong>
-  <span>Every subject links its guide, binding spec, API view, philosophy and review evidence. Start with the map or go straight to the normative index.</span>
-</a>
+The book has one argument and four parts. It starts with what a build is, then how to author the declarations it consumes, then how those declarations become records, and finally how the machinery can be extended and reviewed. Chapters return to the same estate example and repeat a rule when the argument needs it; a later chapter does not send you to a separate subject page to understand the earlier idea.
 
-<a class="kb-band" href="/philosophy/index">
-  <span class="kb-band-kicker">The lens</span>
-  <strong>Philosophy: meaning before mechanism</strong>
-  <span>Topology first, semantics as a hierarchy, explainability authored, the binding as a seam.</span>
-</a>
+Exact signatures, requirement tables and refusal messages live in the **appendices**. They are written for lookup, not for reading from front to back. The book can state a rule in context; the appendix states the same rule precisely.
 
-## Two layers
+## The four parts
 
-<div class="kb-grid kb-layers">
-  <a class="kb-card" href="/kernel/index"><span class="kb-num">Layer 1</span><h3>Kernel</h3><p>Domain-agnostic protocols and the extension surface: language, linker, planner, executor, runtime and resource provider.</p></a>
-  <a class="kb-card" href="/framework/index"><span class="kb-num">Layer 2</span><h3>Framework</h3><p>The graph distribution and the authoring and review paths; the default distribution is one composition.</p></a>
-</div>
+| Part | Question | Chapters |
+| --- | --- | --- |
+| [I — The build](/book/part-1/index) | What does a build produce, and what does it mean to run one? | 1–3 |
+| [II — Authoring a graph](/book/part-2/index) | How does a source become a typed row, a value, a grain and a record? | 4–9 |
+| [III — From declarations to records](/book/part-3/index) | How does a declaration become a checked plan and a published result? | 10–14 |
+| [IV — Extending and reviewing](/book/part-4/index) | How does the kernel carry a new capability, and how is a change judged? | 15–18 |
 
-## Three doors
+## How to read it
 
-<div class="kb-doors">
-  <a class="kb-door" href="/start/index">
-    <span class="kb-door-kicker">I want to build</span>
-    <strong>Start with the estate</strong>
-    <span>Install, run the reference build, then declare your own asset, rows, topology and bindings.</span>
-  </a>
-  <a class="kb-door" href="/review/index">
-    <span class="kb-door-kicker">I want to judge</span>
-    <strong>Review the model</strong>
-    <span>Read the kernel boundary, the contracts, the product limits and the measured evidence.</span>
-  </a>
-  <a class="kb-door" href="/reference/index">
-    <span class="kb-door-kicker">I know what I need</span>
-    <strong>Look it up</strong>
-    <span>Public names, the one CLI command, document shapes and the failure catalogue.</span>
-  </a>
-</div>
+- **First time through.** Read in order. The running example grows from one table to a published graph; each chapter assumes the previous decisions.
+- **You need to build now.** Start with [A first build](/book/part-1/02-a-first-build), then [A project](/book/part-1/03-a-project). Return to the authoring part when the reference project stops being enough.
+- **You need an exact name.** Use [Reference](/appendix/reference/index) or [API surface](/appendix/reference/api).
+- **You need a normative requirement.** Use [Specifications](/appendix/spec/index).
+- **You are reviewing the framework.** Read Part IV, then [Architecture](/appendix/review/architecture), [Contracts](/appendix/review/contracts) and [Limits](/appendix/review/limits).
 
-The default distribution is one composition of the kernel protocols; a new source, language, module or engine is a value passed to a `Toolchain`, and a new provider is added to the runtime.
+> [!note] What this book is not
+> It describes one checkout, not a compatibility promise. The framework is experimental; there is no schema version, migration path or stable plan format. Recompile when a declaration, planner or executor changes.
 
-## The guide
-
-<div class="kb-grid">
-  <a class="kb-card" href="/start/index"><span class="kb-num">01</span><h3>Start</h3><p>Install, run the full build, and place declarations in a project.</p></a>
-  <a class="kb-card" href="/author/index"><span class="kb-num">02</span><h3>Author</h3><p>Asset, rows, values, grain, projections, topology, bindings and meaning.</p></a>
-  <a class="kb-card" href="/pipeline/index"><span class="kb-num">03</span><h3>Pipeline</h3><p>Link declarations, assemble the blueprint, plan the work, execute it.</p></a>
-  <a class="kb-card" href="/operate/index"><span class="kb-num">04</span><h3>Operate</h3><p>Publish, validate quality, debug a run, extend it and ship it.</p></a>
-  <a class="kb-card" href="/review/index"><span class="kb-num">05</span><h3>Review</h3><p>Architecture, invariants, limits, decisions, verification and drift.</p></a>
-  <a class="kb-card" href="/reference/index"><span class="kb-num">06</span><h3>Reference</h3><p>API surface, CLI, documents, failures and the glossary.</p></a>
-</div>
-
-## Two ways to read
-
-- **Author path.** [Install](/start/install) → [walkthrough](/start/walkthrough) → [project shape](/start/project) → [Philosophy](/philosophy/index) → [Author](/author/index). The walkthrough is the shortest route to a published graph; Philosophy is the lens for changing it.
-- **Review path.** [Philosophy](/philosophy/index) → [Architecture](/review/architecture) → [Contracts](/review/contracts) → [Limits](/review/limits) → [Verification](/review/verification) → [Drift](/review/drift). Evidence blocks are generated from the source checkout, not typed by hand.
-- **Subject path.** [Subjects](/subjects/index) → pick one subject → switch between its guide, [spec](/spec/index), API, philosophy and review. The spec is the binding view; the guide explains it and the API names it.
-- **Developer path.** [Framework philosophy](/developer/philosophy) → [System design](/developer/system-design) → [Data and expressions](/developer/data-and-expressions) → [Testing](/developer/testing) → [Reference](/reference/index).
-- **Extension path.** [Operate](/operate/index) → [Extend](/operate/extend) → [Extension spec](/spec/extension) → [Developer system design](/developer/system-design) → [Review architecture](/review/architecture). A custom language, planner, executor or emitter composes a different `Toolchain`; a provider is added to the runtime.
-
-> [!note] What this is not
-> This guide describes one checkout, not a compatibility promise. The framework is experimental; there is no schema version, migration path or stable plan format. Recompile when a declaration, planner or executor changes.
-
-<p class="kb-attribution">Interface choices follow <a href="https://lawsofux.com">Laws of UX</a> (Jon Yablonski). The mapping is in <a href="/review/design-notes">Design notes</a>.</p>
+<p class="kb-attribution">Interface choices follow <a href="https://lawsofux.com">Laws of UX</a> (Jon Yablonski). The mapping is in <a href="/appendix/review/design-notes">Design notes</a>.</p>

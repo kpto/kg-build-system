@@ -3,7 +3,7 @@
 The toolchain kernel and the distribution are implemented. These are the
 current choices, not compatibility promises.
 
-The canonical, classified table is [docs/review/limits.md](docs/review/limits.md),
+The canonical, classified table is [docs/appendix/review/limits.md](docs/appendix/review/limits.md),
 published at `/review/limits`. Every row there is one of six kinds: model rule,
 replaceable default, current algorithm, not implemented, interface limit or
 empirical; most name the object that replaces them.

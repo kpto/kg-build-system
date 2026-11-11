@@ -108,7 +108,7 @@ only; the top-level lazy export table and `__getattr__` live in
 
 ## Remaining limits
 
-[docs/review/limits.md](docs/review/limits.md), published at `/review/limits`,
+[docs/appendix/review/limits.md](docs/appendix/review/limits.md), published at `/appendix/review/limits`,
 is the canonical classified table. Each row names its kind — model rule,
 replaceable default, current algorithm, not implemented, interface limit or
 empirical — and its extension point or model reason. Verification status stays
@@ -116,9 +116,9 @@ in the section above; this page does not duplicate the table.
 
 ## Documentation
 
-- Author docs start at [docs/index.md](docs/index.md).
-- Developer interfaces start at [docs/developer/index.md](docs/developer/index.md).
-- The kernel surface is at [docs/kernel/index.md](docs/kernel/index.md).
+- The book starts at [docs/book/index.md](docs/book/index.md).
+- Developer interfaces start at [docs/appendix/developer/index.md](docs/appendix/developer/index.md).
+- The kernel surface is at [docs/appendix/kernel/index.md](docs/appendix/kernel/index.md).
 - `ARCHITECTURE.md` is the short implementation map.
 - `DESIGN_ISSUES.md` points at the canonical limits table and lists the model
   rules.

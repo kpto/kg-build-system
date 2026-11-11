@@ -1,6 +1,6 @@
-# The subject map is the primary information architecture.
-# Each subject has one hub, one normative spec and one or more perspective pages.
-# Add or move a perspective here; the hub, views bars and registry are generated.
+# The subject index is an appendix lookup over the book.
+# Each subject links to its book chapter, normative spec and appendix pages.
+# Add or move a link here; the index hubs, views bars and registry are generated.
 
 - slug: asset
   title: Assets and source data
@@ -11,10 +11,10 @@
     - "A table MUST name its logical asset with `Table[Asset]`."
     - "`AssetProfile` MUST be present; `AssetLayout` is descriptive and opens no file."
     - "One asset MAY back many tables; a table MUST NOT invent a second source."
-  guide: [author/assets, start/project]
-  api: reference/api
-  philosophy: [philosophy/meaning-first]
-  review: [review/limits]
+  guide: [book/part-2/01-source-and-rows, book/part-1/03-a-project]
+  api: appendix/reference/api
+  philosophy: [appendix/philosophy/meaning-first]
+  review: [appendix/review/limits]
   upstream: []
   downstream: [data, generation]
 
@@ -27,10 +27,10 @@
     - "A `Table` MUST name its asset; a `Struct` MUST describe a nested source record."
     - "`Field[T]` MUST declare a value type, never `T | None`."
     - "The owner MUST decide presence: source reads are nullable, computed reads follow their selection."
-  guide: [author/data]
-  api: reference/api
-  philosophy: [philosophy/meaning-first]
-  review: [review/contracts]
+  guide: [book/part-2/01-source-and-rows]
+  api: appendix/reference/api
+  philosophy: [appendix/philosophy/meaning-first]
+  review: [appendix/review/contracts]
   upstream: [asset]
   downstream: [selection, topology, binding]
 
@@ -43,10 +43,10 @@
     - "`Selection[T]` MUST be the only authoring value; `NullableSelection[T]` MUST be an alias."
     - "A row effect MUST be reached through a one-shot `alter_rows()` handle."
     - "A null key MUST NOT match in a lookup or a join."
-  guide: [author/values]
-  api: reference/api
-  philosophy: [philosophy/meaning-first]
-  review: [review/contracts]
+  guide: [book/part-2/02-values-and-nullability]
+  api: appendix/reference/api
+  philosophy: [appendix/philosophy/meaning-first]
+  review: [appendix/review/contracts]
   upstream: [data]
   downstream: [grain, binding]
 
@@ -59,10 +59,10 @@
     - "A binding MUST read a row-source value, never a declaration class."
     - "A projection MUST pin exactly one row source and publish at least one computed field."
     - "A join MUST name one key expression per side; a null key never matches."
-  guide: [author/grain, author/projections]
-  api: reference/api
-  philosophy: [philosophy/design-in-semantics]
-  review: [review/contracts]
+  guide: [book/part-2/03-grain-and-projections]
+  api: appendix/reference/api
+  philosophy: [appendix/philosophy/design-in-semantics]
+  review: [appendix/review/contracts]
   upstream: [data, selection]
   downstream: [binding]
 
@@ -75,10 +75,10 @@
     - "A concrete `Node` or `Edge` MUST be the binding target; a category MUST produce no records."
     - "An edge MUST declare both endpoints, and `Edge[Source, Target]` is directed."
     - "A property MUST be a scalar or a flat, non-null array of scalars."
-  guide: [author/topology]
-  api: reference/api
-  philosophy: [philosophy/meaning-first]
-  review: [review/contracts]
+  guide: [book/part-2/04-topology-and-bindings]
+  api: appendix/reference/api
+  philosophy: [appendix/philosophy/meaning-first]
+  review: [appendix/review/contracts]
   upstream: [data]
   downstream: [binding, meaning]
 
@@ -91,10 +91,10 @@
     - "A binding MUST supply a present scalar build key and every declared property exactly once."
     - "An edge binding MUST supply its own key, a source key and a target key."
     - "Binding identity MUST be content-derived; `debug_name` MUST NOT change the digest."
-  guide: [author/bindings]
-  api: reference/api
-  philosophy: [philosophy/binding-is-the-seam]
-  review: [review/contracts]
+  guide: [book/part-2/04-topology-and-bindings]
+  api: appendix/reference/api
+  philosophy: [appendix/philosophy/binding-is-the-seam]
+  review: [appendix/review/contracts]
   upstream: [grain, topology]
   downstream: [meaning, execution]
 
@@ -107,10 +107,10 @@
     - "A project MUST have at most one `Graph`, and a `Graph` MUST carry one `Purpose`."
     - "A declaration MUST attach `Semantics`, never `GraphSemantics`."
     - "A `Limitation` MUST live under a `Frame`; a claim MUST NOT live under a frame."
-  guide: [author/meaning]
-  api: reference/api
-  philosophy: [philosophy/semantic-hierarchy]
-  review: [review/contracts]
+  guide: [book/part-2/05-meaning-and-purpose]
+  api: appendix/reference/api
+  philosophy: [appendix/philosophy/semantic-hierarchy]
+  review: [appendix/review/contracts]
   upstream: [topology, binding]
   downstream: [linking]
 
@@ -123,10 +123,10 @@
     - "`@asset_contract` MUST be inert and MUST NOT enter `AssetOptions` or the blueprint."
     - "Discovery MUST NOT import the author module; it MUST find a static request."
     - "Generated source MUST render `Field[T]`; observed nullability is provenance, not absence."
-  guide: [author/generation, reference/cli]
-  api: reference/api
-  philosophy: [philosophy/explainability-is-authored]
-  review: [review/limits]
+  guide: [book/part-2/06-generation]
+  api: appendix/reference/api
+  philosophy: [appendix/philosophy/explainability-is-authored]
+  review: [appendix/review/limits]
   upstream: [asset, data]
   downstream: [linking]
 
@@ -139,10 +139,10 @@
     - "A declaration MUST NOT carry a key; `compute_key` MUST derive it."
     - "The linker MUST own roots, closure and dependencies-first order."
     - "`GraphBlueprint` MUST have graph, data, assets, bindings and optional graph declaration."
-  guide: [pipeline/link, pipeline/blueprint]
-  api: reference/documents
-  philosophy: [philosophy/semantic-hierarchy]
-  review: [review/contracts]
+  guide: [book/part-3/01-linking-and-blueprint]
+  api: appendix/reference/documents
+  philosophy: [appendix/philosophy/semantic-hierarchy]
+  review: [appendix/review/contracts]
   upstream: [asset, data, topology, binding, meaning]
   downstream: [plan]
 
@@ -155,10 +155,10 @@
     - "Planners that share a component MUST agree on version and runtime fields."
     - "Every step input MUST be fed and every ordinary output MUST be read; a publication is exempt."
     - "`InstructionKind` MUST be exact; there is no prefix matching."
-  guide: [pipeline/plan]
-  api: reference/documents
-  philosophy: [philosophy/design-in-semantics]
-  review: [review/contracts]
+  guide: [book/part-3/02-planning]
+  api: appendix/reference/documents
+  philosophy: [appendix/philosophy/design-in-semantics]
+  review: [appendix/review/contracts]
   upstream: [linking]
   downstream: [execution]
 
@@ -171,10 +171,10 @@
     - "Execution MUST refuse a duplicate kind and a plan kind with no executor before any step."
     - "A provider MUST publish on `PipelineStarted` and dispose on finish or halt."
     - "A failure MUST be a `StepOutcome`; a listener error MUST halt the run."
-  guide: [pipeline/execute]
-  api: reference/documents
-  philosophy: [philosophy/explainability-is-authored]
-  review: [review/verification]
+  guide: [book/part-3/03-execution-and-outputs]
+  api: appendix/reference/documents
+  philosophy: [appendix/philosophy/explainability-is-authored]
+  review: [appendix/review/verification]
   upstream: [plan]
   downstream: [modules]
 
@@ -187,10 +187,10 @@
     - "A planner MUST emit steps; an executor MUST own one exact instruction kind."
     - "Deduplication MUST remove only exact full-row duplicates."
     - "Merging MUST take an explicit component scope; it is not a conflict check."
-  guide: [operate/outputs, operate/quality]
-  api: reference/api
-  philosophy: [philosophy/anti-patterns]
-  review: [review/limits]
+  guide: [book/part-3/03-execution-and-outputs, book/part-3/04-quality-and-failure]
+  api: appendix/reference/api
+  philosophy: [appendix/philosophy/anti-patterns]
+  review: [appendix/review/limits]
   upstream: [execution]
   downstream: [verification]
 
@@ -203,10 +203,10 @@
     - "The kernel protocol set MUST be the extension surface; a language, linker, planner or executor MUST be an ordinary value passed to `Toolchain`, and a provider MUST be passed to the runtime."
     - "A new source, syntax, derivation, engine or resource MUST compose a different `Toolchain`; no registry exists as the consequence."
     - "A new engine MUST implement the neutral `SqlEmitter`, not edit core."
-  guide: [operate/extend]
-  api: reference/api
-  philosophy: [philosophy/design-in-semantics]
-  review: [review/architecture, review/limits]
+  guide: [book/part-4/01-the-kernel-and-extension]
+  api: appendix/reference/api
+  philosophy: [appendix/philosophy/design-in-semantics]
+  review: [appendix/review/architecture, appendix/review/limits]
   upstream: [architecture, plan]
   downstream: []
 
@@ -219,10 +219,10 @@
     - "The kernel MUST import no distribution, SQL, DuckDB or generation package."
     - "A package MUST NOT import another package's `_private` zone."
     - "The dependency spine MUST run from kernel outward; a new edge is a model change."
-  guide: [review/architecture, review/contracts]
-  api: reference/api
-  philosophy: [philosophy/review-top-down]
-  review: [review/limits]
+  guide: [book/part-4/03-architecture-and-tests]
+  api: appendix/reference/api
+  philosophy: [appendix/philosophy/review-top-down]
+  review: [appendix/review/architecture, appendix/review/contracts, appendix/review/limits]
   upstream: []
   downstream: [extension, identity]
 
@@ -235,10 +235,10 @@
     - "A cross-symbol field MUST be a role-typed reference, never a bare string."
     - "`StepId`, `OpeningId`, `ArtifactType`, `ArtifactPattern` and `InstructionKind` MUST wrap `Key`."
     - "A codec round trip MUST preserve the canonical document, not the original text."
-  guide: [reference/documents]
-  api: reference/documents
-  philosophy: [philosophy/semantic-hierarchy]
-  review: [review/contracts]
+  guide: [book/part-3/01-linking-and-blueprint]
+  api: appendix/reference/documents
+  philosophy: [appendix/philosophy/semantic-hierarchy]
+  review: [appendix/review/contracts]
   upstream: [architecture]
   downstream: [linking, plan, execution]
 
@@ -251,9 +251,9 @@
     - "Counts MUST be reported as properties of a checkout, not as promises."
     - "A limit MUST be stated where a consumer meets it, not hidden as an implementation note."
     - "A green build MUST NOT be accepted as a design review."
-  guide: [review/verification, review/limits, review/drift, operate/debug, reference/failures]
-  api: reference/failures
-  philosophy: [philosophy/explainability-is-authored]
-  review: [review/decisions]
+  guide: [book/part-4/04-limits-and-evidence, appendix/review/verification, appendix/review/limits, appendix/review/drift, appendix/reference/failures]
+  api: appendix/reference/failures
+  philosophy: [appendix/philosophy/explainability-is-authored]
+  review: [appendix/review/decisions]
   upstream: [execution, modules]
   downstream: []
