@@ -265,6 +265,11 @@ rule about what the framework is belongs to the framework model.
 - The graph's meaning is part of the delivered contract, not a comment or an
   implementation detail.
 - A node or edge type states its meaning, direction, identity, absence and limits.
+- A source adapter bridges a physical source to a relation and the SQL boundary;
+  it does not carry domain joins, identity translation, aggregation or graph
+  meaning. A data operation belongs in an expression operation and becomes graph
+  meaning only as a named, referenceable projection with semantics; a
+  pipeline-local relation is not a projection.
 - The build preserves those statements and publishes them for consumers.
 - A meaning that cannot be stated is recorded as a limit; it is not invented.
 - A project attaches the framework semantics units directly. A project-local
