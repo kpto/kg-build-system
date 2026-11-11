@@ -40,6 +40,62 @@ an earlier idea when the argument needs it. Exact signatures, refusal messages
 and the full type table belong to the appendices; a chapter states the model and
 the decision, and shows the public names you write.
 
+## The mentality
+
+Part II is not a tour of the API. It is a way to decide what the graph is before
+deciding how to produce it. The supplied operations are a baseline, not a domain
+vocabulary; the work is to state the model, not to write a sequence of steps that
+happens to produce data.
+
+Four habits set the direction.
+
+**Start from meaning.** A source describes bytes. A node, an edge and a claim
+describe what those bytes are taken to mean. If the column list defines the
+record, the source owns the model and every schema change becomes a change of
+meaning. Start with the claim, then choose the record, then choose the rows.
+
+**Design the record before the row.** A source supplies a shape; topology states
+a design. A table names the source and its fields, a node names a record and its
+properties, and a binding is the one place where a row becomes that record. The
+binding is implementation detail: it must not invent the grain, the identity or
+the property set it is supposed to populate.
+
+**Keep data operations semantic.** A domain calculation is not a step that does
+something and disappears. It belongs in the expression language, and it becomes
+graph meaning only when a named projection publishes the result with a grain and
+a claim. If a claimed projection cannot be named and referenced outside the
+pipeline, it is a data operation, not a semantics unit. A source adapter is thin:
+it bridges a physical format to a relation and the SQL boundary, and it does not
+carry joins, identity translation, aggregation or graph meaning.
+
+**Treat the workflow as a chain of reactions.** A step does not own a semantic
+goal. It reacts to artifact types and publishes an artifact; the assembler
+derives the connection, and priority orders the reactions that are eligible.
+Interception is deliberate: another producer or consumer should be insertable at
+an artifact boundary without editing the steps around it. An exact input can
+refuse interception, but that is a sealed boundary and must be named as one.
+Start from the artifact the graph needs and ask which producers can make it; do
+not start from a procedure and ask which steps to run.
+
+The same domain sentence can be implemented at several levels. The level is
+chosen by the kind of fact being added, not by convenience.
+
+| Level | Question | A common wrong answer |
+| --- | --- | --- |
+| Meaning | What does the graph claim? | A step invents a purpose. |
+| Topology | What is one record, property and direction? | A source column list becomes the record. |
+| Data | What is one row, value and grain? | A field type hides absence or a row operation hides a fan-out. |
+| Extension | What domain operation is missing? | A SQL string or lambda is buried in a reader. |
+| Projection | Which named relation carries the result? | A pipeline-local relation is called a projection. |
+| Binding | How does a row become the declared record? | The binding invents the model. |
+| Workflow | Which reactions make the artifact available? | A dependency list or barrier orders the steps. |
+
+The order of the chapters is a reading order, not a rule for how a project
+evolves. A source reveals a property; a property suggests a claim; a claim
+changes which records are worth declaring. The point of the separation is to make
+each decision reviewable, not to pretend that authoring is one-way. The mechanics
+of artifact matching and execution belong to Part III; the direction belongs here.
+
 <figure class="kb-plate">
   <img src="/_assets/authoring.svg" alt="Asset feeds Table, Field and Selection; row sources feed projections; topology and bindings meet at the graph; semantics attaches to every declaration.">
   <figcaption>The authoring dependencies. The book reads meaning and topology first; the arrows show what supplies what, not the order to learn it.</figcaption>

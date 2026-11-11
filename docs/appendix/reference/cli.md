@@ -9,10 +9,7 @@ sources:
   - pyproject.toml
   - kg_build_system/cli/service/_private/main.py
   - kg_build_system/cli/service/_private/view.py
-  - hatch_build.py
-  - viewer/next.config.ts
   - kg_build_system/generation/code_generation/service/_private/command.py
-  - kg_build_system/generation/code_generation/model/public/results.py
   - kg_build_system/generation/code_generation/service/_private/watcher.py
 subject: generation
 perspective: reference
