@@ -1,82 +1,87 @@
-# kg-build-system documentation
+---
+title: kg-build-system field guide
+summary: A visual field guide to declaring, compiling and running a knowledge-graph build whose meaning survives it.
+section: meta
+order: 0
+status: normative
+verified: 2026-11-10
+sources:
+  - README.md
+  - docs/developer/system-design.md
+  - reference_project/
+---
 
-Build a knowledge graph whose meaning survives the build.
+<div class="kb-hero">
+  <p class="kb-kicker">kg-build-system · field guide</p>
+  <div class="kb-display">Build a graph whose meaning survives the build.</div>
+  <p class="kb-lede">Typed Python declarations become a checked blueprint, a workflow plan and published records. The model, the evidence and the limits travel with the result.</p>
+  <div class="kb-actions">
+    <a class="kb-button kb-button-primary" href="/start/walkthrough">Run the estate build</a>
+    <a class="kb-button" href="/review/architecture">Review the model</a>
+    <a class="kb-button" href="/reference/api">Look up a name</a>
+  </div>
+</div>
 
-kg-build-system turns typed Python declarations into an inspectable knowledge
-graph. You describe the rows you read, declare what the graph means, and connect
-the two with bindings. The framework compiles those declarations into a
-`WorkflowPlan`, executes it, and publishes the graph together with the meaning
-you declared for it.
+<!-- BEGIN GENERATED:status-strip -->
+<div class="kb-stats"><span><b>354</b> tests</span><span><b>1957</b> subtests</span><span><b>1 error</b> pyright</span><span><b>77f008e</b> source</span><span><b>2026-11-10</b> checked</span></div>
+<!-- END GENERATED:status-strip -->
 
-Read the [philosophy](philosophy.md) for the problem the framework addresses and
-the values behind its design.
+<figure class="kb-plate">
+  <img src="/_assets/system.svg" alt="A build moves from declarations through link, blueprint, plan and execute to published records, with an edit-time generation lane above.">
+  <figcaption>The whole system on one page. Generation feeds declarations; three verbs take it from there.</figcaption>
+</figure>
 
-## Get started
+<a class="kb-band" href="/subjects/index">
+  <span class="kb-band-kicker">Subject map</span>
+  <strong>16 subjects, five perspectives</strong>
+  <span>Every subject links its guide, binding spec, API view, philosophy and review evidence. Start with the map or go straight to the normative index.</span>
+</a>
 
-- [Install](get-started/install.md) — set up the package and verify it.
-- [Build your first graph](get-started/first-graph.md) — a complete walkthrough.
-- [Project layout](get-started/project-layout.md) — where declarations,
-  assets, bindings and outputs live.
+<a class="kb-band" href="/philosophy/index">
+  <span class="kb-band-kicker">The lens</span>
+  <strong>Philosophy: meaning before mechanism</strong>
+  <span>Topology first, semantics as a hierarchy, explainability authored, the binding as a seam.</span>
+</a>
 
-## How a build works
+## Three doors
 
-```text
-assets and layouts
-    │
-    ▼
-data contracts ──► expressions ──► row sources ──► projections
-    │                                                │
-    └──────────────► topology ◄── bindings ◄─────────┘
-                           │
-                           ▼
-                  compile ──► WorkflowPlan ──► execute ──► graph and reports
-```
+<div class="kb-doors">
+  <a class="kb-door" href="/start/index">
+    <span class="kb-door-kicker">I want to build</span>
+    <strong>Start with the estate</strong>
+    <span>Install, run the reference build, then declare your own asset, rows, topology and bindings.</span>
+  </a>
+  <a class="kb-door" href="/review/index">
+    <span class="kb-door-kicker">I want to judge</span>
+    <strong>Review the model</strong>
+    <span>Read the kernel boundary, the contracts, the product limits and the measured evidence.</span>
+  </a>
+  <a class="kb-door" href="/reference/index">
+    <span class="kb-door-kicker">I know what I need</span>
+    <strong>Look it up</strong>
+    <span>Public names, the one CLI command, document shapes and the failure catalogue.</span>
+  </a>
+</div>
 
-A build has four parts. **Data contracts** describe the rows: their fields,
-types and nested records. **Expressions and row sources** turn those rows into
-the values and the grain a record needs. **Topology** declares the graph:
-nodes, edges, properties and their meaning. **Bindings** map one row context
-onto one node or edge record.
+## The guide
 
-`compile()` checks the declarations and produces one `WorkflowPlan`. `execute()`
-runs it and writes the outputs selected by the planners. The same plan can be
-reviewed before data is read, executed repeatedly, or sent to several targets.
+<div class="kb-grid">
+  <a class="kb-card" href="/start/index"><span class="kb-num">01</span><h3>Start</h3><p>Install, run the full build, and place declarations in a project.</p></a>
+  <a class="kb-card" href="/author/index"><span class="kb-num">02</span><h3>Author</h3><p>Asset, rows, values, grain, projections, topology, bindings and meaning.</p></a>
+  <a class="kb-card" href="/pipeline/index"><span class="kb-num">03</span><h3>Pipeline</h3><p>Link declarations, assemble the blueprint, plan the work, execute it.</p></a>
+  <a class="kb-card" href="/operate/index"><span class="kb-num">04</span><h3>Operate</h3><p>Publish, validate quality, debug a run, extend it and ship it.</p></a>
+  <a class="kb-card" href="/review/index"><span class="kb-num">05</span><h3>Review</h3><p>Architecture, invariants, limits, decisions, verification and drift.</p></a>
+  <a class="kb-card" href="/reference/index"><span class="kb-num">06</span><h3>Reference</h3><p>API surface, CLI, documents, failures and the glossary.</p></a>
+</div>
 
-## Learn the model
+## Two ways to read
 
-Read these in order for the complete story, or jump to the concept you need:
+- **Author path.** [Install](/start/install) → [walkthrough](/start/walkthrough) → [project shape](/start/project) → [Philosophy](/philosophy/index) → [Author](/author/index). The walkthrough is the shortest route to a published graph; Philosophy is the lens for changing it.
+- **Review path.** [Philosophy](/philosophy/index) → [Architecture](/review/architecture) → [Contracts](/review/contracts) → [Limits](/review/limits) → [Verification](/review/verification) → [Drift](/review/drift). Evidence blocks are generated from the source checkout, not typed by hand.
+- **Subject path.** [Subjects](/subjects/index) → pick one subject → switch between its guide, [spec](/spec/index), API, philosophy and review. The spec is the binding view; the guide explains it and the API names it.
+- **Developer path.** [Framework philosophy](/developer/philosophy) → [System design](/developer/system-design) → [Data and expressions](/developer/data-and-expressions) → [Testing](/developer/testing) → [Reference](/reference/index).
 
-1. [Data contracts](concepts/data-contracts.md) — rows as typed Python classes.
-2. [Types and nullability](concepts/types.md) — the vocabulary every value
-   carries.
-3. [Assets](concepts/assets.md) — the logical source package and its layout.
-4. [Expressions](concepts/expressions.md) — reading, transforming and filtering
-   values.
-5. [Row sources and grain](concepts/row-sources.md) — what one row means.
-6. [Projections](concepts/projections.md) — naming a reusable relation.
-7. [Topology](concepts/topology.md) — the meaning of nodes and edges.
-8. [Bindings](concepts/bindings.md) — turning rows into records.
-9. [Semantics and annotations](concepts/semantics.md) — making the meaning part
-   of the delivered graph.
-10. [Planners and executors](concepts/planners-and-executors.md) — composing build stages.
-11. [Compile, execute and outputs](concepts/build-and-outputs.md) — from
-    declarations to artifacts.
+> [!note] What this is not
+> This guide describes one checkout, not a compatibility promise. The framework is experimental; there is no schema version, migration path or stable plan format. Recompile when a declaration, planner or executor changes.
 
-## Do a task
-
-- [Join, group and union](how-to/relations.md) — choose and combine grains.
-- [Write an extension](how-to/custom-extensions.md) — add a planner or executor.
-- [Debug a build](how-to/debug.md) — read error messages and reports.
-- [Modelling patterns](how-to/patterns.md) — recurring graph shapes.
-
-## For framework developers
-
-- [Developer guide](developer/index.md) — internal model, toolchain design,
-  data and expressions, and the contract tests that guard each interface.
-
-## Reference
-
-- [Authoring API reference](reference/index.md) — the surface you write.
-- [Types reference](reference/types.md) — canonical types, nullability and
-  limits.
-- [Glossary](reference/glossary.md) — terms used across the guide.
+<p class="kb-attribution">Interface choices follow <a href="https://lawsofux.com">Laws of UX</a> (Jon Yablonski). The mapping is in <a href="/review/design-notes">Design notes</a>.</p>

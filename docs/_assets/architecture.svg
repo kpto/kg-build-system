@@ -1,0 +1,68 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+<title id="title">The dependency spine</title>
+<desc id="desc">The kernel knows no graph; the distribution points inward.</desc>
+<defs><marker id="arrow-6d4b9b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#6d4b9b"/></marker><marker id="arrow-8a5a00" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8a5a00"/></marker><marker id="arrow-b4532a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b4532a"/></marker><marker id="arrow-2454a6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2454a6"/></marker><marker id="arrow-b4431f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b4431f"/></marker><marker id="arrow-4d7c4a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4d7c4a"/></marker><marker id="arrow-a47813" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a47813"/></marker><marker id="arrow-2f67a8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2f67a8"/></marker><marker id="arrow-0f6f68" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0f6f68"/></marker><marker id="arrow-a64d6b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a64d6b"/></marker><marker id="arrow-b36716" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b36716"/></marker><marker id="arrow-5c5c66" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5c5c66"/></marker><marker id="arrow-7a5a3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7a5a3a"/></marker></defs>
+<rect width="1200" height="640" fill="#fbf8f1"/>
+<text x="38" y="44" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#b4431f" text-anchor="start" font-weight="700">ARCHITECTURE</text>
+<text x="38" y="72" font-family="Inter, Segoe UI, sans-serif" font-size="24" fill="#1d232a" text-anchor="start" font-weight="700">The dependency spine</text>
+<rect x="38" y="88" width="1124" height="1" rx="0" fill="#ded6c7" stroke="#ded6c7" stroke-width="1"/>
+<rect x="38" y="116" width="250" height="330" rx="12" fill="#ffffff" stroke="#2f67a866" stroke-width="1"/>
+<text x="54" y="142" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#2f67a8" text-anchor="start" font-weight="700">KERNEL</text>
+<text x="54" y="164" font-family="Inter, Segoe UI, sans-serif" font-size="12" fill="#5f6b76" text-anchor="start" font-weight="400">domain-agnostic toolchain</text>
+<text x="54" y="188" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" fill="#1d232a" text-anchor="start" font-weight="700">types</text>
+<text x="132" y="188" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">canonical ontology</text>
+<text x="54" y="236" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" fill="#1d232a" text-anchor="start" font-weight="700">language</text>
+<text x="132" y="236" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">discover · key · transcribe</text>
+<text x="54" y="284" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" fill="#1d232a" text-anchor="start" font-weight="700">linker</text>
+<text x="132" y="284" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">roots · closure · model</text>
+<text x="54" y="332" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" fill="#1d232a" text-anchor="start" font-weight="700">workflow</text>
+<text x="132" y="332" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">plan · step · kind</text>
+<text x="54" y="380" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12.5" fill="#1d232a" text-anchor="start" font-weight="700">runtime</text>
+<text x="132" y="380" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">events · resources · report</text>
+<rect x="330" y="116" width="300" height="196" rx="12" fill="#ffffff" stroke="#4d7c4a66" stroke-width="1"/>
+<text x="346" y="142" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#4d7c4a" text-anchor="start" font-weight="700">LANGUAGES</text>
+<text x="346" y="164" font-family="Inter, Segoe UI, sans-serif" font-size="12" fill="#5f6b76" text-anchor="start" font-weight="400">authoring frontends</text>
+<text x="346" y="190" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">annotations · expressions</text>
+<text x="346" y="208" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">asset · data · topology</text>
+<text x="346" y="226" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">binding · graph · semantics</text>
+<text x="346" y="244" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">each: discover → transcribe</text>
+<text x="346" y="262" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">one declaration → one symbol</text>
+<rect x="672" y="116" width="220" height="130" rx="12" fill="#ffffff" stroke="#6d4b9b66" stroke-width="1"/>
+<text x="688" y="142" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#6d4b9b" text-anchor="start" font-weight="700">INTERPRETER</text>
+<text x="688" y="168" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">link the six languages</text>
+<text x="688" y="186" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">assemble the blueprint</text>
+<text x="688" y="204" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">validate; render source</text>
+<rect x="672" y="270" width="220" height="176" rx="12" fill="#ffffff" stroke="#b4532a66" stroke-width="1"/>
+<text x="688" y="296" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#b4532a" text-anchor="start" font-weight="700">MODULES</text>
+<text x="688" y="322" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">core · duckdb</text>
+<text x="688" y="340" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">dedup · merge · conflict</text>
+<text x="688" y="358" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">file · meta-graph · neo4j</text>
+<text x="688" y="376" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">python · runtime</text>
+<text x="688" y="394" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">planner + executor + resources</text>
+<rect x="934" y="116" width="228" height="130" rx="12" fill="#ffffff" stroke="#b4431f66" stroke-width="1"/>
+<text x="950" y="142" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#b4431f" text-anchor="start" font-weight="700">COMPOSITION</text>
+<text x="950" y="168" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">api.py</text>
+<text x="950" y="186" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">default_toolchain</text>
+<text x="950" y="204" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">create · compile · execute</text>
+<rect x="934" y="270" width="228" height="90" rx="12" fill="#ffffff" stroke="#0f6f6866" stroke-width="1"/>
+<text x="950" y="296" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#0f6f68" text-anchor="start" font-weight="700">GENERATION</text>
+<text x="950" y="322" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">edit-time frontend</text>
+<text x="950" y="340" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">never imported by build</text>
+<rect x="934" y="384" width="228" height="62" rx="12" fill="#ffffff" stroke="#5c5c6666" stroke-width="1"/>
+<text x="950" y="410" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#5c5c66" text-anchor="start" font-weight="700">CLI</text>
+<text x="950" y="432" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">kbs generate --check</text>
+<path d="M 288 200 L 326 200" fill="none" stroke="#2f67a8" stroke-width="1.6" marker-end="url(#arrow-2f67a8)"/>
+<path d="M 630 200 L 668 180" fill="none" stroke="#2f67a8" stroke-width="1.6" marker-end="url(#arrow-2f67a8)"/>
+<path d="M 630 250 L 668 300" fill="none" stroke="#2f67a8" stroke-width="1.6" marker-end="url(#arrow-2f67a8)"/>
+<path d="M 892 180 L 930 180" fill="none" stroke="#6d4b9b" stroke-width="1.6" marker-end="url(#arrow-6d4b9b)"/>
+<path d="M 892 330 L 930 330" fill="none" stroke="#b4532a" stroke-width="1.6" marker-end="url(#arrow-b4532a)"/>
+<path d="M 892 350 L 930 350" fill="none" stroke="#b4532a" stroke-width="1.6" marker-end="url(#arrow-b4532a)"/>
+<path d="M 288 310 Q 478.0 350.0 668 310" fill="none" stroke="#2f67a8" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#arrow-2f67a8)"/>
+<path d="M 934 350 L 892 350" fill="none" stroke="#0f6f68" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#arrow-0f6f68)"/>
+<text x="54" y="486" font-family="Inter, Segoe UI, sans-serif" font-size="12" fill="#1d232a" text-anchor="start" font-weight="700">The kernel has no edge into the distribution.</text>
+<text x="54" y="508" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">A new edge is a model change, proposed with its reason.</text>
+<rect x="38" y="530" width="1124" height="78" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="52" y="554" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#b4431f" text-anchor="start" font-weight="700">ZONES</text>
+<text x="52" y="576" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">model/public · model/internal · model/_private    service/public · service/internal · service/_private</text>
+<text x="52" y="594" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">A leaf keeps only the zones it uses. No package imports another package&#x27;s _private zone.</text>
+</svg>

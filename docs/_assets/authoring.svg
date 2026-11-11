@@ -1,0 +1,89 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="640" viewBox="0 0 1200 640" role="img" aria-labelledby="title desc">
+<title id="title">The authoring model</title>
+<desc id="desc">Seven objects, one direction: source, value, grain, meaning, mapping.</desc>
+<defs><marker id="arrow-6d4b9b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#6d4b9b"/></marker><marker id="arrow-8a5a00" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8a5a00"/></marker><marker id="arrow-b4532a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b4532a"/></marker><marker id="arrow-2454a6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2454a6"/></marker><marker id="arrow-b4431f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b4431f"/></marker><marker id="arrow-4d7c4a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4d7c4a"/></marker><marker id="arrow-a47813" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a47813"/></marker><marker id="arrow-2f67a8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2f67a8"/></marker><marker id="arrow-0f6f68" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0f6f68"/></marker><marker id="arrow-a64d6b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a64d6b"/></marker><marker id="arrow-b36716" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b36716"/></marker><marker id="arrow-5c5c66" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5c5c66"/></marker><marker id="arrow-7a5a3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7a5a3a"/></marker></defs>
+<rect width="1200" height="640" fill="#fbf8f1"/>
+<text x="38" y="44" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#b4431f" text-anchor="start" font-weight="700">AUTHORING MAP</text>
+<text x="38" y="72" font-family="Inter, Segoe UI, sans-serif" font-size="24" fill="#1d232a" text-anchor="start" font-weight="700">The authoring model</text>
+<rect x="38" y="88" width="1124" height="1" rx="0" fill="#ded6c7" stroke="#ded6c7" stroke-width="1"/>
+<rect x="38" y="116" width="200" height="128" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="38" y="116" width="200" height="4" rx="2" fill="#4d7c4a" stroke="#4d7c4a" stroke-width="1"/>
+<text x="52" y="140" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#4d7c4a" text-anchor="start" font-weight="700">SOURCE</text>
+<text x="52" y="158" font-family="Inter, Segoe UI, sans-serif" font-size="15" fill="#1d232a" text-anchor="start" font-weight="700">Asset</text>
+<text x="52" y="182" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">one logical source unit</text>
+<text x="52" y="198" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">profile · layout · governance</text>
+<rect x="278" y="116" width="220" height="128" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="278" y="116" width="220" height="4" rx="2" fill="#2f67a8" stroke="#2f67a8" stroke-width="1"/>
+<text x="292" y="140" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#2f67a8" text-anchor="start" font-weight="700">ROWS</text>
+<text x="292" y="158" font-family="Inter, Segoe UI, sans-serif" font-size="15" fill="#1d232a" text-anchor="start" font-weight="700">Table[Asset] · Struct</text>
+<text x="292" y="182" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">row shape</text>
+<text x="292" y="198" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">Field[T] · canonical types</text>
+<rect x="538" y="116" width="200" height="128" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="538" y="116" width="200" height="4" rx="2" fill="#2f67a8" stroke="#2f67a8" stroke-width="1"/>
+<text x="552" y="140" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#2f67a8" text-anchor="start" font-weight="700">VALUE</text>
+<text x="552" y="158" font-family="Inter, Segoe UI, sans-serif" font-size="15" fill="#1d232a" text-anchor="start" font-weight="700">Selection[T]</text>
+<text x="552" y="182" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">one typed value</text>
+<text x="552" y="198" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">owner decides absence</text>
+<rect x="778" y="116" width="180" height="128" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="778" y="116" width="180" height="4" rx="2" fill="#a64d6b" stroke="#a64d6b" stroke-width="1"/>
+<text x="792" y="140" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#a64d6b" text-anchor="start" font-weight="700">GRAIN</text>
+<text x="792" y="158" font-family="Inter, Segoe UI, sans-serif" font-size="15" fill="#1d232a" text-anchor="start" font-weight="700">RowSource</text>
+<text x="792" y="182" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">shape + plan</text>
+<text x="792" y="198" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">where · join · group</text>
+<rect x="998" y="116" width="164" height="128" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="998" y="116" width="164" height="4" rx="2" fill="#a64d6b" stroke="#a64d6b" stroke-width="1"/>
+<text x="1012" y="140" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#a64d6b" text-anchor="start" font-weight="700">GRAIN</text>
+<text x="1012" y="158" font-family="Inter, Segoe UI, sans-serif" font-size="15" fill="#1d232a" text-anchor="start" font-weight="700">Projection</text>
+<text x="1012" y="182" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">pinned named grain</text>
+<text x="1012" y="198" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">computed_field outputs</text>
+<path d="M 238 180 L 274 180" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<path d="M 498 180 L 534 180" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<path d="M 738 180 L 774 180" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<path d="M 958 180 L 994 180" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<rect x="538" y="288" width="200" height="118" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="538" y="288" width="200" height="4" rx="2" fill="#a47813" stroke="#a47813" stroke-width="1"/>
+<text x="552" y="312" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#a47813" text-anchor="start" font-weight="700">MEANING</text>
+<text x="552" y="330" font-family="Inter, Segoe UI, sans-serif" font-size="15" fill="#1d232a" text-anchor="start" font-weight="700">Topology</text>
+<text x="552" y="354" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">Node · Edge · Property</text>
+<text x="552" y="370" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">templates · categories</text>
+<rect x="778" y="288" width="180" height="118" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="778" y="288" width="180" height="4" rx="2" fill="#b4532a" stroke="#b4532a" stroke-width="1"/>
+<text x="792" y="312" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#b4532a" text-anchor="start" font-weight="700">MAPPING</text>
+<text x="792" y="330" font-family="Inter, Segoe UI, sans-serif" font-size="15" fill="#1d232a" text-anchor="start" font-weight="700">Binding</text>
+<text x="792" y="354" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">rows + build key</text>
+<text x="792" y="370" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">one record per row</text>
+<rect x="998" y="288" width="164" height="118" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="998" y="288" width="164" height="4" rx="2" fill="#0f6f68" stroke="#0f6f68" stroke-width="1"/>
+<text x="1012" y="312" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#0f6f68" text-anchor="start" font-weight="700">MEANING</text>
+<text x="1012" y="330" font-family="Inter, Segoe UI, sans-serif" font-size="15" fill="#1d232a" text-anchor="start" font-weight="700">Graph</text>
+<text x="1012" y="354" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">≤ 1 declaration</text>
+<text x="1012" y="370" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">one purpose</text>
+<path d="M 638 244 L 638 284" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<path d="M 738 347 L 774 347" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<path d="M 958 347 L 994 347" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<rect x="38" y="288" width="460" height="118" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="52" y="312" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#0f6f68" text-anchor="start" font-weight="700">SEMANTICS</text>
+<text x="52" y="336" font-family="Inter, Segoe UI, sans-serif" font-size="13" fill="#1d232a" text-anchor="start" font-weight="600">claims · frames · limitations · purpose</text>
+<text x="52" y="360" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">attaches to any declaration as a fragment</text>
+<text x="52" y="378" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">the Graph declaration owns the project purpose</text>
+<path d="M 498 347 L 534 347" fill="none" stroke="#0f6f68" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#arrow-0f6f68)"/>
+<path d="M 498 330 Q 748.0 300.0 998 330" fill="none" stroke="#0f6f68" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#arrow-0f6f68)"/>
+<text x="620" y="322" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#0f6f68" text-anchor="start" font-weight="400">attaches</text>
+<text x="38" y="452" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#5f6b76" text-anchor="start" font-weight="700">HOW THE PIECES READ</text>
+<text x="38" y="468" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#2f67a8" text-anchor="start" font-weight="700">Table[Asset]</text>
+<text x="180" y="468" font-family="Inter, Segoe UI, sans-serif" font-size="12" fill="#5f6b76" text-anchor="start" font-weight="400">names the asset; the relation carries an AssetRef</text>
+<text x="38" y="496" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#2f67a8" text-anchor="start" font-weight="700">Selection</text>
+<text x="180" y="496" font-family="Inter, Segoe UI, sans-serif" font-size="12" fill="#5f6b76" text-anchor="start" font-weight="400">reads a field, computes a value, or navigates a record</text>
+<text x="38" y="524" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#a64d6b" text-anchor="start" font-weight="700">RowSource</text>
+<text x="180" y="524" font-family="Inter, Segoe UI, sans-serif" font-size="12" fill="#5f6b76" text-anchor="start" font-weight="400">decides what one row means; a projection pins one grain</text>
+<text x="38" y="552" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#a47813" text-anchor="start" font-weight="700">Topology</text>
+<text x="180" y="552" font-family="Inter, Segoe UI, sans-serif" font-size="12" fill="#5f6b76" text-anchor="start" font-weight="400">states the node and edge types without importing a table</text>
+<text x="38" y="580" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#b4532a" text-anchor="start" font-weight="700">Binding</text>
+<text x="180" y="580" font-family="Inter, Segoe UI, sans-serif" font-size="12" fill="#5f6b76" text-anchor="start" font-weight="400">imports both sides; supplies key, properties and endpoints</text>
+<rect x="748" y="452" width="414" height="130" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="762" y="476" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#b4431f" text-anchor="start" font-weight="700">THE GUARD</text>
+<text x="762" y="500" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">A field declares a value type, never absence.</text>
+<text x="762" y="519" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">A binding takes a row-source value, never a class.</text>
+<text x="762" y="538" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">A row effect is one shot; a second needs a second handle.</text>
+<text x="762" y="557" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">A projection is pinned; its outputs share one row plan.</text>
+</svg>

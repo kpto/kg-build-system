@@ -1,0 +1,259 @@
+# The subject map is the primary information architecture.
+# Each subject has one hub, one normative spec and one or more perspective pages.
+# Add or move a perspective here; the hub, views bars and registry are generated.
+
+- slug: asset
+  title: Assets and source data
+  summary: One logical source unit, its profile, its descriptive layout and the tables that name it.
+  order: 10
+  spec: SPEC-001
+  contract:
+    - "A table MUST name its logical asset with `Table[Asset]`."
+    - "`AssetProfile` MUST be present; `AssetLayout` is descriptive and opens no file."
+    - "One asset MAY back many tables; a table MUST NOT invent a second source."
+  guide: [author/assets, start/project]
+  api: reference/api
+  philosophy: [philosophy/meaning-first]
+  review: [review/limits]
+  upstream: []
+  downstream: [data, generation]
+
+- slug: data
+  title: Data contracts and types
+  summary: The row shape, the canonical value types and where nullability belongs.
+  order: 20
+  spec: SPEC-002
+  contract:
+    - "A `Table` MUST name its asset; a `Struct` MUST describe a nested source record."
+    - "`Field[T]` MUST declare a value type, never `T | None`."
+    - "The owner MUST decide presence: source reads are nullable, computed reads follow their selection."
+  guide: [author/data]
+  api: reference/api
+  philosophy: [philosophy/meaning-first]
+  review: [review/contracts]
+  upstream: [asset]
+  downstream: [selection, topology, binding]
+
+- slug: selection
+  title: Selection and nullability
+  summary: One typed value, its operations, its null policy and its explicit row effects.
+  order: 30
+  spec: SPEC-003
+  contract:
+    - "`Selection[T]` MUST be the only authoring value; `NullableSelection[T]` MUST be an alias."
+    - "A row effect MUST be reached through a one-shot `alter_rows()` handle."
+    - "A null key MUST NOT match in a lookup or a join."
+  guide: [author/values]
+  api: reference/api
+  philosophy: [philosophy/meaning-first]
+  review: [review/contracts]
+  upstream: [data]
+  downstream: [grain, binding]
+
+- slug: grain
+  title: Grain, row sources and projections
+  summary: What one row means, how a row source changes it, and where a named projection pins it.
+  order: 40
+  spec: SPEC-004
+  contract:
+    - "A binding MUST read a row-source value, never a declaration class."
+    - "A projection MUST pin exactly one row source and publish at least one computed field."
+    - "A join MUST name one key expression per side; a null key never matches."
+  guide: [author/grain, author/projections]
+  api: reference/api
+  philosophy: [philosophy/design-in-semantics]
+  review: [review/contracts]
+  upstream: [data, selection]
+  downstream: [binding]
+
+- slug: topology
+  title: Topology
+  summary: The node and edge types, their properties, their hierarchy and their direction.
+  order: 50
+  spec: SPEC-005
+  contract:
+    - "A concrete `Node` or `Edge` MUST be the binding target; a category MUST produce no records."
+    - "An edge MUST declare both endpoints, and `Edge[Source, Target]` is directed."
+    - "A property MUST be a scalar or a flat, non-null array of scalars."
+  guide: [author/topology]
+  api: reference/api
+  philosophy: [philosophy/meaning-first]
+  review: [review/contracts]
+  upstream: [data]
+  downstream: [binding, meaning]
+
+- slug: binding
+  title: Bindings
+  summary: The single place where a row context becomes a concrete node or edge record.
+  order: 60
+  spec: SPEC-006
+  contract:
+    - "A binding MUST supply a present scalar build key and every declared property exactly once."
+    - "An edge binding MUST supply its own key, a source key and a target key."
+    - "Binding identity MUST be content-derived; `debug_name` MUST NOT change the digest."
+  guide: [author/bindings]
+  api: reference/api
+  philosophy: [philosophy/binding-is-the-seam]
+  review: [review/contracts]
+  upstream: [grain, topology]
+  downstream: [meaning, execution]
+
+- slug: meaning
+  title: Semantics and graph purpose
+  summary: Claims, frames, limitations and the one purpose every declaration is read under.
+  order: 70
+  spec: SPEC-007
+  contract:
+    - "A project MUST have at most one `Graph`, and a `Graph` MUST carry one `Purpose`."
+    - "A declaration MUST attach `Semantics`, never `GraphSemantics`."
+    - "A `Limitation` MUST live under a `Frame`; a claim MUST NOT live under a frame."
+  guide: [author/meaning]
+  api: reference/api
+  philosophy: [philosophy/semantic-hierarchy]
+  review: [review/contracts]
+  upstream: [topology, binding]
+  downstream: [linking]
+
+- slug: generation
+  title: Source generation and CLI
+  summary: An inert asset contract, static discovery and an owned package of ordinary declarations.
+  order: 80
+  spec: SPEC-008
+  contract:
+    - "`@asset_contract` MUST be inert and MUST NOT enter `AssetOptions` or the blueprint."
+    - "Discovery MUST NOT import the author module; it MUST find a static request."
+    - "Generated source MUST render `Field[T]`; observed nullability is provenance, not absence."
+  guide: [author/generation, reference/cli]
+  api: reference/api
+  philosophy: [philosophy/explainability-is-authored]
+  review: [review/limits]
+  upstream: [asset, data]
+  downstream: [linking]
+
+- slug: linking
+  title: Linking and the blueprint
+  summary: How declarations become symbols, reachable closure and the semantic blueprint.
+  order: 90
+  spec: SPEC-009
+  contract:
+    - "A declaration MUST NOT carry a key; `compute_key` MUST derive it."
+    - "The linker MUST own roots, closure and dependencies-first order."
+    - "`GraphBlueprint` MUST have graph, data, assets, bindings and optional graph declaration."
+  guide: [pipeline/link, pipeline/blueprint]
+  api: reference/documents
+  philosophy: [philosophy/semantic-hierarchy]
+  review: [review/contracts]
+  upstream: [asset, data, topology, binding, meaning]
+  downstream: [plan]
+
+- slug: plan
+  title: Workflow plan
+  summary: Components, steps, openings and the checked wiring between them.
+  order: 100
+  spec: SPEC-010
+  contract:
+    - "Planners that share a component MUST agree on version and runtime fields."
+    - "Every step input MUST be fed and every ordinary output MUST be read; a publication is exempt."
+    - "`InstructionKind` MUST be exact; there is no prefix matching."
+  guide: [pipeline/plan]
+  api: reference/documents
+  philosophy: [philosophy/design-in-semantics]
+  review: [review/contracts]
+  upstream: [linking]
+  downstream: [execution]
+
+- slug: execution
+  title: Runtime and execution
+  summary: Resources, events, exact-kind executors and the report that records a run.
+  order: 110
+  spec: SPEC-011
+  contract:
+    - "Execution MUST refuse a duplicate kind and a plan kind with no executor before any step."
+    - "A provider MUST publish on `PipelineStarted` and dispose on finish or halt."
+    - "A failure MUST be a `StepOutcome`; a listener error MUST halt the run."
+  guide: [pipeline/execute]
+  api: reference/documents
+  philosophy: [philosophy/explainability-is-authored]
+  review: [review/verification]
+  upstream: [plan]
+  downstream: [modules]
+
+- slug: modules
+  title: Modules, outputs and quality
+  summary: Source, core, quality and target modules, and the exact instruction kinds they own.
+  order: 120
+  spec: SPEC-012
+  contract:
+    - "A planner MUST emit steps; an executor MUST own one exact instruction kind."
+    - "Deduplication MUST remove only exact full-row duplicates."
+    - "Merging MUST take an explicit component scope; it is not a conflict check."
+  guide: [operate/outputs, operate/quality]
+  api: reference/api
+  philosophy: [philosophy/anti-patterns]
+  review: [review/limits]
+  upstream: [execution]
+  downstream: [verification]
+
+- slug: extension
+  title: Extending the toolchain
+  summary: Languages, linkers, planners, executors, emitters and providers composed as values.
+  order: 130
+  spec: SPEC-013
+  contract:
+    - "There MUST be no extension registry; a caller MUST compose a `Toolchain`."
+    - "A language MUST transcribe one declaration to one symbol; there is no batch protocol."
+    - "A new engine MUST implement the neutral `SqlEmitter`, not edit core."
+  guide: [operate/extend]
+  api: reference/api
+  philosophy: [philosophy/design-in-semantics]
+  review: [review/architecture]
+  upstream: [architecture, plan]
+  downstream: []
+
+- slug: architecture
+  title: Kernel, distribution and contracts
+  summary: The domain-agnostic toolchain, the graph distribution, the zones and the dependency spine.
+  order: 140
+  spec: SPEC-014
+  contract:
+    - "The kernel MUST import no distribution, SQL, DuckDB or generation package."
+    - "A package MUST NOT import another package's `_private` zone."
+    - "The dependency spine MUST run from kernel outward; a new edge is a model change."
+  guide: [review/architecture, review/contracts]
+  api: reference/api
+  philosophy: [philosophy/review-top-down]
+  review: [review/limits]
+  upstream: []
+  downstream: [extension, identity]
+
+- slug: identity
+  title: Identity, references and documents
+  summary: Keys, typed references, role identities and the stored blueprint, plan and report.
+  order: 150
+  spec: SPEC-015
+  contract:
+    - "A cross-symbol field MUST be a role-typed reference, never a bare string."
+    - "`StepId`, `OpeningId`, `ArtifactType`, `ArtifactPattern` and `InstructionKind` MUST wrap `Key`."
+    - "A codec round trip MUST preserve the canonical document, not the original text."
+  guide: [reference/documents]
+  api: reference/documents
+  philosophy: [philosophy/semantic-hierarchy]
+  review: [review/contracts]
+  upstream: [architecture]
+  downstream: [linking, plan, execution]
+
+- slug: verification
+  title: Verification, limits and debugging
+  summary: The measured status, the review order and the boundaries the framework refuses to cross.
+  order: 160
+  spec: SPEC-016
+  contract:
+    - "Counts MUST be reported as properties of a checkout, not as promises."
+    - "A limit MUST be stated where a consumer meets it, not hidden as an implementation note."
+    - "A green build MUST NOT be accepted as a design review."
+  guide: [review/verification, review/limits, review/drift, operate/debug, reference/failures]
+  api: reference/failures
+  philosophy: [philosophy/explainability-is-authored]
+  review: [review/decisions]
+  upstream: [execution, modules]
+  downstream: []

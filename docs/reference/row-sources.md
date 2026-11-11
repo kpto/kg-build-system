@@ -1,23 +1,45 @@
-# Row sources
+---
+title: Row sources reference
+summary: "The exact row-source algebra: where, unnest, union, join, group_by, distinct, order_by and generated shapes."
+section: reference
+perspective: reference
+order: 100
+status: normative
+verified: 2026-11-10
+sources:
+  - kg_build_system/distribution/languages/data/model/public/row_sources.py
+  - kg_build_system/distribution/languages/data/model/public/declarations.py
+  - kg_build_system/distribution/languages/data/model/public/shapes.py
+  - kg_build_system/distribution/languages/data/service/_private/rows.py
+  - kg_build_system/distribution/languages/data/service/_private/shapes.py
+---
 
-A row source names the rows a binding or projection reads and the typed shape of
-one row.
+## Surface
 
-`row_source()`, `where`, `unnest`, `union`, `join`, `group_by`, `distinct` and
-`order_by` are the authoring algebra. The model is explained on
-[Row sources and grain](../concepts/row-sources.md); the values that read a row
-are on [Expressions and selections](expressions.md); naming a plan is on
-[Projections](projections.md).
+A row source names the rows a binding or projection reads and the typed shape of one row. `row_source()`, `where`, `unnest`, `union`, `join`, `group_by`, `distinct` and `order_by` are the authoring algebra; every derived operation returns another row source, so calls compose. A row source is a value, not a declaration class or a schema.
 
-## `row_source()`
+| Operation | Grain effect | Result shape |
+| --- | --- | --- |
+| `where(predicate)` | Keeps rows whose predicate is true | Unchanged |
+| `unnest(selector)` | One row per array item | Selected member narrowed |
+| `union(other, all=True)` | Stacks same-shaped rows; `all=False` removes duplicates | Unchanged |
+| `join(other, on=..., how="inner")` | Combines two row sources on one equality | `{on, left, right}` |
+| `group_by(by=...)` | One row per key; null keys are dropped | `{by, members}` |
+| `distinct()` | Removes duplicate rows | Unchanged |
+| `order_by(*keys, ascending=True)` | Orders rows | Unchanged |
+
+The model and the choice of grain are on [Set the grain](/author/grain), the binding rules on the [Grain spec](/spec/grain), and the subject hub on [Grain](/subjects/grain). The values that read a row are on [Expressions reference](/reference/expressions); naming a plan is on [Projections reference](/reference/projections). Declarations are on [Declarations](/reference/declarations), a binding consumes a row-source value on [Bindings](/reference/bindings), and binding targets are on [Topology](/reference/topology).
+
+## Details
+
+### `row_source()`
 
 ```text
 Table.row_source() -> RelationRowSource[Self]
 Projection.row_source() -> RelationRowSource[Any]
 ```
 
-Returns the relation row source for a table or projection. The relation's
-`.shape` is the shape class of one row.
+Returns the relation row source for a table or projection. The relation's `.shape` is the shape class of one row.
 
 ```python
 from kg_build_system import Field, Table, TableOptions, field
@@ -43,16 +65,14 @@ class ReadingTable(Table[Estate]):
 sites = SiteTable.row_source()       # RelationRowSource[SiteTable]
 ```
 
-A binding takes a row-source **value**. It does not accept a declaration class
-such as `Table` or `Projection`. A `Struct` or `ComputedStruct` is not a row
-source.
+A binding takes a row-source **value**. It does not accept a declaration class such as `Table` or `Projection`. A `Struct` or `ComputedStruct` is not a row source.
 
 | Error | Trigger |
 | --- | --- |
 | `rows must be a row source value; use Table.row_source() or Projection.row_source()` | A row-source operation receives a declaration class or other non-value |
 | `rows must be a row source value; use Table.row_source()` | A binding factory receives a non-row-source value |
 
-## The algebra
+### The algebra
 
 Every derived operation returns another row source, so calls compose.
 
@@ -66,7 +86,7 @@ Every derived operation returns another row source, so calls compose.
 | `distinct` | `distinct()` | `DerivedRowSource[S]` | Unchanged |
 | `order_by` | `order_by(*keys, ascending: bool = True)` | `DerivedRowSource[S]` | Unchanged |
 
-## `where()`
+### `where()`
 
 ```text
 RowSource.where(
@@ -74,8 +94,7 @@ RowSource.where(
 ) -> DerivedRowSource[S]
 ```
 
-Keeps rows whose predicate is true. The predicate receives a typed row proxy, not
-the declaration class, and must return a `Selection[bool]`.
+Keeps rows whose predicate is true. The predicate receives a typed row proxy, not the declaration class, and must return a `Selection[bool]`.
 
 | Parameter | Type | Meaning |
 | --- | --- | --- |
@@ -87,15 +106,14 @@ depots = SiteTable.row_source().where(
 )
 ```
 
-A source field reads as nullable, so narrow or default it before comparing. A
-null predicate is not true, so its row is dropped.
+A source field reads as nullable, so narrow or default it before comparing. A null predicate is not true, so its row is dropped.
 
 | Error | Trigger |
 | --- | --- |
 | `where requires a callable predicate` | A bare selection is passed |
 | `where predicates must return a Selection[bool]` | The callable returns another type |
 
-## `unnest()`
+### `unnest()`
 
 ```text
 RowSource.unnest(
@@ -103,9 +121,7 @@ RowSource.unnest(
 ) -> DerivedRowSource[S]
 ```
 
-Expands one direct array member into rows, one row per item. The result keeps every
-other field and narrows the selected field to its item shape. A null or empty
-array produces no rows.
+Expands one direct array member into rows, one row per item. The result keeps every other field and narrows the selected field to its item shape. A null or empty array produces no rows.
 
 ```python
 one_tag_per_row = SiteTable.row_source().unnest(lambda site: site.tags)
@@ -121,8 +137,7 @@ class TagProjection(Projection(one_tag_per_row)):
     tag = computed_field(one_tag_per_row.shape.tags)
 ```
 
-`unnest` is the row-source spelling of expansion. `Selection.expand` remains a
-selection row effect for a product that already reads the row.
+`unnest` is the row-source spelling of expansion. `Selection.expand` remains a selection row effect for a product that already reads the row.
 
 | Error | Trigger |
 | --- | --- |
@@ -131,7 +146,7 @@ selection row effect for a product that already reads the row.
 | `unnest requires a selector that reads one declared field` | The selector reads a computed expression rather than a direct field |
 | `unnest field 'x' is not a member of its input shape` | The selected field is not a member of the source shape |
 
-## `union()`
+### `union()`
 
 ```text
 RowSource.union(
@@ -141,16 +156,14 @@ RowSource.union(
 ) -> DerivedRowSource[S]
 ```
 
-Concatenates two row sources with the same shape. `all=False` removes duplicate
-rows.
+Concatenates two row sources with the same shape. `all=False` removes duplicate rows.
 
 | Parameter | Type | Meaning | Default |
 | --- | --- | --- | --- |
 | `other` | row-source value | The right operand | Required |
 | `all` | `bool` | Keep duplicates | `True` |
 
-Shapes are compared member by member: external name and full logical type,
-including nullability. A union never renames, casts or reorders columns.
+Shapes are compared member by member: external name and full logical type, including nullability. A union never renames, casts or reorders columns.
 
 ```python
 # ArchivedSiteTable declares the same fields as SiteTable.
@@ -161,7 +174,7 @@ everyone = SiteTable.row_source().union(ArchivedSiteTable.row_source())
 | --- | --- |
 | `union row sources must have the same shape` | A member name, type or nullability differs |
 
-## `join()`
+### `join()`
 
 ```text
 RowSource.join(
@@ -172,8 +185,7 @@ RowSource.join(
 ) -> DerivedRowSource[Any]
 ```
 
-Combines two row sources on one equality. `on` receives one row proxy per side
-and returns either:
+Combines two row sources on one equality. `on` receives one row proxy per side and returns either:
 
 - `(left_key, right_key)`, a pair of scalar selections; or
 - one `equals` selection, the text-only equality operation.
@@ -184,9 +196,7 @@ and returns either:
 | `on` | callable | Returns a key pair or one `equals` selection | Required |
 | `how` | `"inner"`, `"left"`, `"right"` or `"full"` | Which side may be unmatched | `"inner"` |
 
-The key pair is the general form. Keys must resolve to the same base logical
-type; their nullability may differ. Arrays and structs are refused. Null keys
-never match in any join mode.
+The key pair is the general form. Keys must resolve to the same base logical type; their nullability may differ. Arrays and structs are refused. Null keys never match in any join mode.
 
 ```python
 site_readings = SiteTable.row_source().join(
@@ -196,8 +206,7 @@ site_readings = SiteTable.row_source().join(
 )
 ```
 
-The `equals` form needs present text on both sides. Defaulting makes null keys
-compare equal, unlike the pair form:
+The `equals` form needs present text on both sides. Defaulting makes null keys compare equal, unlike the pair form:
 
 ```python
 matched = SiteTable.row_source().join(
@@ -217,7 +226,7 @@ matched = SiteTable.row_source().join(
 | `join keys must be scalar expressions` | A key is an array or struct |
 | `join how must be 'inner', 'left', 'right', or 'full'` | `how` is another value |
 
-## `group_by()`
+### `group_by()`
 
 ```text
 RowSource.group_by(
@@ -226,8 +235,7 @@ RowSource.group_by(
 ) -> DerivedRowSource[Any]
 ```
 
-Groups rows by one or more scalar selections. `by` returns one key selection
-(named `key`), a mapping of names to selections, or `(name, selection)` pairs.
+Groups rows by one or more scalar selections. `by` returns one key selection (named `key`), a mapping of names to selections, or `(name, selection)` pairs.
 
 ```python
 by_region = SiteTable.row_source().group_by(
@@ -238,14 +246,9 @@ region = by_region.shape.by.extract(lambda key: key.region)
 members = by_region.shape.members
 ```
 
-Rows whose key tuple contains a null are dropped before grouping, so every
-generated `by` member is present. Key names must be public Python identifiers and
-unique within the group; keys must be scalar selections.
+Rows whose key tuple contains a null are dropped before grouping, so every generated `by` member is present. Key names must be public Python identifiers and unique within the group; keys must be scalar selections.
 
-`members` is an array of generated record mirrors of the input row. Member order
-is unspecified, and grouping only collects members: count, sum and having
-aggregates do not exist. A binding over a grouped source emits one record per
-group, not one per input row.
+`members` is an array of generated record mirrors of the input row. Member order is unspecified, and grouping only collects members: count, sum and having aggregates do not exist. A binding over a grouped source emits one record per group, not one per input row.
 
 | Error | Trigger |
 | --- | --- |
@@ -256,7 +259,7 @@ group, not one per input row.
 | `group_by keys must be scalar expressions` | A key is an array or struct |
 | `generated shape member '_name' must be a public Python identifier` | A key name starts with `_` |
 
-## `distinct()` and `order_by()`
+### `distinct()` and `order_by()`
 
 ```text
 RowSource.distinct() -> DerivedRowSource[S]
@@ -269,10 +272,7 @@ RowSource.order_by(
 
 `distinct()` removes duplicate rows without changing the shape.
 
-`order_by()` orders rows by one or more keys. A key may be a column name, a
-selection, or a callable receiving the row proxy. One direction applies to every
-key. Row order is observable only through later ordering or a materialised
-relation.
+`order_by()` orders rows by one or more keys. A key may be a column name, a selection, or a callable receiving the row proxy. One direction applies to every key. Row order is observable only through later ordering or a materialised relation.
 
 ```python
 recent = (
@@ -289,7 +289,7 @@ recent = (
 | `order_by column 'x' is not a member of the row source` | A string key is not an external member name |
 | `order_by keys must be expressions or column names` | A key is another value |
 
-## Generated shapes
+### Generated shapes
 
 `join` produces `{on, left, right}`:
 
@@ -299,8 +299,7 @@ recent = (
 | `left` | A record mirror of the left row | Nullable for `right` and `full`; present for `inner` and `left` |
 | `right` | A record mirror of the right row | Nullable for `left` and `full`; present for `inner` and `right` |
 
-`left` and `right` are generated records; read their members with `extract`.
-A join may consume another join or group and nest its generated records.
+`left` and `right` are generated records; read their members with `extract`. A join may consume another join or group and nest its generated records.
 
 ```python
 key = site_readings.shape.on
@@ -315,8 +314,7 @@ reading_value = site_readings.shape.right.extract(lambda right: right.value)
 | `by` | A record of the named keys | Every key member is present |
 | `members` | An array of record mirrors of the input row | Present array; item order unspecified |
 
-`row.by.extract(...)` needs no `drop_null()`. The `members` array is read like
-any other array:
+`row.by.extract(...)` needs no `drop_null()`. The `members` array is read like any other array:
 
 ```python
 site_ids = by_region.shape.members.transform_items(
@@ -324,14 +322,11 @@ site_ids = by_region.shape.members.transform_items(
 ).drop_null_items()
 ```
 
-`unnest` keeps the input shape and narrows the selected member to the array item.
-Read the narrowed member through `.shape`.
+`unnest` keeps the input shape and narrows the selected member to the array item. Read the narrowed member through `.shape`.
 
-## Types and limits
+### Types and limits
 
-`Table.row_source()` and `Projection.row_source()` return a
-`RelationRowSource[Self]` or `RelationRowSource[Any]`. Every derived operation
-returns a `DerivedRowSource`; both are frozen row-source values with a `.shape`.
+`Table.row_source()` and `Projection.row_source()` return a `RelationRowSource[Self]` or `RelationRowSource[Any]`. Every derived operation returns a `DerivedRowSource`; both are frozen row-source values with a `.shape`.
 
 | Operation | Static result |
 | --- | --- |
@@ -339,21 +334,4 @@ returns a `DerivedRowSource`; both are frozen row-source values with a `.shape`.
 | `unnest` | `DerivedRowSource[S]` with a generated narrowed shape |
 | `join`, `group_by` | `DerivedRowSource[Any]` with a generated shape |
 
-A generated `join`, `group_by` or `unnest` shape is correct at runtime, but a
-static type checker sees its members through `.shape` as `Any`. Input shapes
-remain statically typed. Use `.shape.on`, `.shape.left`, `.shape.right`,
-`.shape.by`, `.shape.members` and the narrowed `.shape` member explicitly.
-
-## What to remember
-
-- `row_source()` starts the algebra; the algebra requires a value. A binding does
-  not accept a declaration class.
-- `where`, `union`, `distinct` and `order_by` preserve shape; `unnest` narrows
-  one member; `join` and `group_by` generate a shape.
-- Join keys are scalar and share a base type. Null keys never match.
-- Group keys are scalar and present; null-key rows are dropped.
-- `join`, `group_by` and `unnest` return generated shapes; read them through
-  `.shape`.
-- A row source is a value, not a schema or a class.
-
-Next: [Projections](projections.md) give a row plan a name and typed outputs.
+A generated `join`, `group_by` or `unnest` shape is correct at runtime, but a static type checker sees its members through `.shape` as `Any`. Input shapes remain statically typed. Use `.shape.on`, `.shape.left`, `.shape.right`, `.shape.by`, `.shape.members` and the narrowed `.shape` member explicitly.

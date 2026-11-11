@@ -1,23 +1,44 @@
-# Expressions and selections
+---
+title: Expressions reference
+summary: "The exact Selection surface: access, navigation, row effects, array and scalar operations, literals and errors."
+section: reference
+perspective: reference
+order: 90
+status: normative
+verified: 2026-11-10
+sources:
+  - kg_build_system/distribution/languages/expressions/model/public/selection.py
+  - kg_build_system/distribution/languages/expressions/model/public/selections/effects.py
+  - kg_build_system/distribution/languages/expressions/service/public/expression.py
+  - kg_build_system/distribution/languages/expressions/service/public/boolean.py
+  - kg_build_system/distribution/languages/expressions/service/_private/selections.py
+---
 
-`Selection[T]` is the single authoring type. It navigates a row shape, calculates
-a typed value, and owns the decision about absence. `NullableSelection[T]` is the
-alias `Selection[Nullable[T]]`.
+## Surface
 
-There is no expression family and no `.expression`, `.value` or `.model`
-accessor. Every operation is a method on the selection, and the compiler
-expression tree stays private.
+`Selection[T]` is the single authoring type. It navigates a row shape, calculates a typed value, and owns the decision about absence. `NullableSelection[T]` is the alias `Selection[Nullable[T]]`.
 
-The names on this page come from `kg_build_system`; canonical types such as
-`STR`, `INT`, `NullableType` and `ArrayType` also come from there. The model is
-explained on [Expressions](../concepts/expressions.md); declared value types are
-on [Types](types.md); the row plan that carries a selection is on
-[Row sources](row-sources.md).
+There is no expression family and no `.expression`, `.value` or `.model` accessor. Every operation is a method on the selection, and the compiler expression tree stays private. Every selection exposes `.logical_type`, the canonical logical type of the selected position; it does not expose the compiler node behind it.
 
-## Source and computed access
+| Need | Operation |
+| --- | --- |
+| Read a declared struct member | `extract(selector)` |
+| Keep the row and replace absence | `default_to(value)` |
+| Reach a row effect | `alter_rows()`, then `drop_if`, `drop_null` or `expand` |
+| Index or range an array | `at(index)`, `slice(start, end)` |
+| Read another relation by key | `lookup(relation, key, target_key=...)` |
+| Work on array values | `drop_null_items`, `sort`, `unique`, `concat`, `transform_items`, `zip` |
+| Work on present scalars | `to_string`, `prepend`, `append`, `replace`, `equals`, `before_separator`, `after_separator`, `add`, `sub`, `not_`, `and_`, `or_` |
+| Build a typed literal | `value_expression(value, logical_type=...)` |
+| Combine predicates | `any_of(*predicates)`, `all_of(*predicates)` |
 
-A field declaration names a value type, never `T | None`. Presence is decided by
-the owner that supplies the value:
+Canonical types such as `STR`, `INT`, `NullableType` and `ArrayType` are on [Types](/reference/types); declared value types are on [Declarations](/reference/declarations). The authoring model is on [Select values](/author/values), the binding rules on the [Selection spec](/spec/selection), and the subject hub on [Selection](/subjects/selection). The row plan that carries a selection is on [Row sources](/reference/row-sources); naming a plan is on [Projections](/reference/projections).
+
+## Details
+
+### Source and computed access
+
+A field declaration names a value type, never `T | None`. Presence is decided by the owner that supplies the value:
 
 | Owner | Declaration | Read as |
 | --- | --- | --- |
@@ -66,19 +87,14 @@ aliases = SiteTable.aliases      # Selection[Nullable[Array[Nullable[str]]]]
 contact = SiteTable.contact      # Selection[Nullable[ContactStruct]]
 ```
 
-Every selection exposes `.logical_type`, the canonical logical type of the
-selected position. It does not expose the compiler node behind it.
-
-## `extract`
+### `extract`
 
 ```text
 Selection[S].extract(selector: Callable[[S], Selection[U]]) -> Selection[U]
 Selection[Nullable[S]].extract(selector) -> Selection[Nullable[U]]
 ```
 
-`extract` reads one declared member of a struct. The selector receives a typed
-instance of the struct shape and returns one of that shape's field selections. It
-is navigation: it adds no row effect and does not change the row count.
+`extract` reads one declared member of a struct. The selector receives a typed instance of the struct shape and returns one of that shape's field selections. It is navigation: it adds no row effect and does not change the row count.
 
 Presence composes:
 
@@ -99,9 +115,7 @@ email = (
 # source field, so the result stays nullable.
 ```
 
-A source struct member is always nullable because the source may omit it. A
-`ComputedStruct` member keeps the type of its witness; a nullable carrier makes
-it nullable.
+A source struct member is always nullable because the source may omit it. A `ComputedStruct` member keeps the type of its witness; a nullable carrier makes it nullable.
 
 | Error | Trigger |
 | --- | --- |
@@ -110,35 +124,28 @@ it nullable.
 | `struct selectors must return a field from their input declaration` | The selector returns a field from another declaration |
 | `a struct member selection is only valid inside extract` | A member selection is read outside an `extract` selector |
 
-## `default_to`
+### `default_to`
 
 ```text
 Selection[Nullable[T]].default_to(value: T | Selection[T]) -> Selection[T]
 ```
 
-Replaces an absent value with a fallback and keeps the row. The result is
-present. A nullable array becomes a present array; a nullable struct becomes a
-present struct. On a present selection the method is not exposed.
+Replaces an absent value with a fallback and keeps the row. The result is present. A nullable array becomes a present array; a nullable struct becomes a present struct. On a present selection the method is not exposed.
 
 ```python
 period = SiteTable.survey_period.default_to("Unrecorded period")
 labels = SiteTable.tags.default_to([])
 ```
 
-The fallback must have the member's exact value type. A mismatch raises
-`expression input has logical type ...; expected ...` when `default_to` is
-called.
+The fallback must have the member's exact value type. A mismatch raises `expression input has logical type ...; expected ...` when `default_to` is called.
 
-## `alter_rows()`
+### `alter_rows()`
 
 ```python
 selection.alter_rows()
 ```
 
-Returns a one-shot handle exposing only the row effects valid for that
-selection. Each effect returns a selection, not another handle, so a second
-effect needs a second `alter_rows()`. Reusing a consumed handle raises
-`TypeError` with `already consumed`.
+Returns a one-shot handle exposing only the row effects valid for that selection. Each effect returns a selection, not another handle, so a second effect needs a second `alter_rows()`. Reusing a consumed handle raises `TypeError` with `already consumed`.
 
 | Effect | Available on | Returns | Row behaviour |
 | --- | --- | --- | --- |
@@ -146,8 +153,7 @@ effect needs a second `alter_rows()`. Reusing a consumed handle raises
 | `drop_null()` | Nullable selection | A present selection | Drops rows whose value is null |
 | `expand()` | Present or nullable array | The item selection | One row per item; absent or empty array produces no rows |
 
-`drop_if(predicate)` receives the selection itself and must return
-`Selection[bool]`. A false or null predicate drops the row.
+`drop_if(predicate)` receives the selection itself and must return `Selection[bool]`. A false or null predicate drops the row.
 
 ```python
 active = (
@@ -157,9 +163,7 @@ active = (
 )
 ```
 
-A selection exposes no direct `drop_null()`, `drop_if()` or `expand()`. An effect
-that is not valid for the selection is absent from the handle type; the type
-checker reports the missing method.
+A selection exposes no direct `drop_null()`, `drop_if()` or `expand()`. An effect that is not valid for the selection is absent from the handle type; the type checker reports the missing method.
 
 | Error | Trigger |
 | --- | --- |
@@ -167,15 +171,14 @@ checker reports the missing method.
 | `drop_if predicates must return a Selection[bool]` | The predicate returns something else |
 | `row effect handle has already been consumed` | The same handle is used twice |
 
-## Navigation
+### Navigation
 
 | Method | Available on | Returns | Notes |
 | --- | --- | --- | --- |
 | `at(index)` | Array selection | `Selection[Nullable[item]]` | `index` is an int or integer selection; 0-based; out of bounds gives null |
 | `slice(start, end)` | Array selection | The same array type | `start` and `end` are ints or integer selections; 0-based, end-exclusive |
 
-`at` and `slice` are navigation. They do not change the row count and do not need
-`alter_rows()`.
+`at` and `slice` are navigation. They do not change the row count and do not need `alter_rows()`.
 
 ```python
 tags = SiteTable.tags.alter_rows().drop_null()
@@ -183,7 +186,7 @@ first = tags.at(0)             # Selection[Nullable[str]]
 window = tags.slice(0, 2)      # Selection[Array[str]]
 ```
 
-## `lookup`
+### `lookup`
 
 ```text
 Selection.lookup(
@@ -194,16 +197,11 @@ Selection.lookup(
 ) -> Selection[Nullable[Array[S]]]
 ```
 
-Reads every target record whose key equals this row's key. The result is a value:
-an array of target records, or null when no target matches. A null key never
-matches. The target may be a `Table` or a `Projection`.
+Reads every target record whose key equals this row's key. The result is a value: an array of target records, or null when no target matches. A null key never matches. The target may be a `Table` or a `Projection`.
 
-`key` defaults to the source selection; pass it explicitly when the source key is
-not `self`. `target_key` defaults to the column name of a direct field key; pass
-it explicitly when the target column has a different name.
+`key` defaults to the source selection; pass it explicitly when the source key is not `self`. `target_key` defaults to the column name of a direct field key; pass it explicitly when the target column has a different name.
 
-`lookup` itself is ungated: it does not choose a join mode. Row behaviour is
-composed from the result:
+`lookup` itself is ungated: it does not choose a join mode. Row behaviour is composed from the result:
 
 | Grain | Write |
 | --- | --- |
@@ -221,10 +219,9 @@ one_per_match = inner.alter_rows().expand()
 
 `lookup` has no `how` argument. Passing one raises `TypeError`.
 
-## Array operations
+### Array operations
 
-A source array reads as a nullable array because the source may omit it. Narrow
-it before using the value operations.
+A source array reads as a nullable array because the source may omit it. Narrow it before using the value operations.
 
 | Method | Available on | Returns | Notes |
 | --- | --- | --- | --- |
@@ -244,24 +241,18 @@ tag = tags.alter_rows().expand()
 aliases = SiteTable.aliases.alter_rows().drop_null().drop_null_items()
 ```
 
-`concat(separator)` refuses an array whose items may be null; call
-`drop_null_items()` first. `transform_items(selector)` preserves the item's
-nullability and may not contain a row effect.
+`concat(separator)` refuses an array whose items may be null; call `drop_null_items()` first. `transform_items(selector)` preserves the item's nullability and may not contain a row effect.
 
-### `zip`
+#### `zip`
 
 ```text
 Selection[Array[L]].zip(other: Selection[Array[R]]) -> Selection[Array[Pair[L, R]]]
 Selection[Nullable[Array[L]]].zip(...) -> Selection[Nullable[Array[Pair[L, R]]]]
 ```
 
-`zip` pairs two arrays by position. The arrays must have the same length; a
-mismatch is refused at execution with a message naming `equal length`. An absent
-input makes the result absent. This is a value operation, not a row-level cross
-or zip.
+`zip` pairs two arrays by position. The arrays must have the same length; a mismatch is refused at execution with a message naming `equal length`. An absent input makes the result absent. This is a value operation, not a row-level cross or zip.
 
-`Pair[L, R]` is a value record with present `left` and `right` members. Expand
-the paired array first, then read a member with `extract`:
+`Pair[L, R]` is a value record with present `left` and `right` members. Expand the paired array first, then read a member with `extract`:
 
 ```python
 paired = (
@@ -278,10 +269,9 @@ right = paired.alter_rows().expand().extract(lambda pair: pair.right)
 | `transform_items selectors must not contain row effects` | The selector contains `expand`, `drop_null` or another row effect |
 | `zip requires two arrays of equal length` | The two arrays differ in length at execution |
 
-## String, number and boolean operations
+### String, number and boolean operations
 
-Every method below exists only on the matching present selection. A nullable
-selection exposes no family operation, so narrow or default it first.
+Every method below exists only on the matching present selection. A nullable selection exposes no family operation, so narrow or default it first.
 
 | Family | Methods | Result |
 | --- | --- | --- |
@@ -294,8 +284,7 @@ selection exposes no family operation, so narrow or default it first.
 | `int`, `float` | `add(other)`, `sub(other)` | The same numeric type |
 | `bool` | `not_()`, `and_(other)`, `or_(other)` | `Selection[bool]` |
 
-`prepend`, `append`, `replace`, `equals`, `add` and `sub` accept a Python value
-of the right type or a `Selection` of that type.
+`prepend`, `append`, `replace`, `equals`, `add` and `sub` accept a Python value of the right type or a `Selection` of that type.
 
 ```python
 label = SiteTable.name.alter_rows().drop_null().prepend("site::")
@@ -304,19 +293,11 @@ count = SiteTable.count.alter_rows().drop_null().add(1)
 active = SiteTable.active.alter_rows().drop_null().and_(True)
 ```
 
-`to_string()` accepts the eight canonical unit scalars — `bool`, `int`, `float`,
-`str`, `date`, `time`, `timestamp` and `uuid`. A timestamp keeps the `T`
-separator; a uuid is lowercase and hyphenated. Arrays, structs and custom scalars
-are refused with `to_string() requires a scalar unit`.
+`to_string()` accepts the eight canonical unit scalars — `bool`, `int`, `float`, `str`, `date`, `time`, `timestamp` and `uuid`. A timestamp keeps the `T` separator; a uuid is lowercase and hyphenated. Arrays, structs and custom scalars are refused with `to_string() requires a scalar unit`.
 
-`before_separator` and `after_separator` count occurrences from `1`; the
-separator at the cut is excluded unless `include_separator=True`. If the
-separator does not occur that many times, `before` returns the whole string and
-`after` returns `""`.
+`before_separator` and `after_separator` count occurrences from `1`; the separator at the cut is excluded unless `include_separator=True`. If the separator does not occur that many times, `before` returns the whole string and `after` returns `""`.
 
-`equals` is the only comparison and exists on text only. Numbers have addition
-and subtraction, not comparison. Boolean combinations follow three-valued logic:
-true if any predicate is true, false if all are false, and null otherwise.
+`equals` is the only comparison and exists on text only. Numbers have addition and subtraction, not comparison. Boolean combinations follow three-valued logic: true if any predicate is true, false if all are false, and null otherwise.
 
 | Error | Trigger |
 | --- | --- |
@@ -324,7 +305,7 @@ true if any predicate is true, false if all are false, and null otherwise.
 | `occurrence must be at least 1` | `occurrence=0` or a negative occurrence |
 | `to_string() requires a scalar unit` | The selection is an array, struct or custom scalar |
 
-## Literals
+### Literals
 
 ```python
 def value_expression(
@@ -334,9 +315,7 @@ def value_expression(
 ) -> Selection[Any]: ...
 ```
 
-`value_expression()` constructs a typed literal and checks the Python class at
-that point. It returns a `Selection`, so a constant can be used wherever a
-selection is accepted.
+`value_expression()` constructs a typed literal and checks the Python class at that point. It returns a `Selection`, so a constant can be used wherever a selection is accepted.
 
 | Python value | Inferred result |
 | --- | --- |
@@ -357,8 +336,7 @@ nothing = value_expression(None, logical_type=NullableType(STR))
 numbers = value_expression([1, 2], logical_type=ArrayType(INT))
 ```
 
-`logical_type` takes a canonical logical type, not a Python annotation:
-`NullableType(STR)` and `ArrayType(INT)` are canonical; `str | None` is not.
+`logical_type` takes a canonical logical type, not a Python annotation: `NullableType(STR)` and `ArrayType(INT)` are canonical; `str | None` is not.
 
 | Error | Trigger |
 | --- | --- |
@@ -371,11 +349,9 @@ numbers = value_expression([1, 2], logical_type=ArrayType(INT))
 | `literal cannot embed struct or custom-type values` | A struct or custom value is used as a literal |
 | `expression input has logical type ...; expected ...` | An operation receives a value of the wrong type |
 
-A literal array may contain null items when its item type allows them. A struct,
-`ComputedStruct` or custom scalar is not a literal; build it from row selections
-instead.
+A literal array may contain null items when its item type allows them. A struct, `ComputedStruct` or custom scalar is not a literal; build it from row selections instead.
 
-## `any_of()` and `all_of()`
+### `any_of()` and `all_of()`
 
 ```text
 any_of(*predicates: Selection[bool]) -> Selection[bool]
@@ -398,10 +374,9 @@ active_sites = SiteTable.row_source().where(
 )
 ```
 
-Each argument must be a `Selection[bool]`. A null predicate is not true, so a
-`where` that keeps only true rows drops that row.
+Each argument must be a `Selection[bool]`. A null predicate is not true, so a `where` that keeps only true rows drops that row.
 
-## Type and error rules
+### Type and error rules
 
 | Rule | Consequence |
 | --- | --- |
@@ -413,19 +388,3 @@ Each argument must be a `Selection[bool]`. A null predicate is not true, so a
 | Nulls propagate through calculations | `default_to` keeps the row; `drop_null` removes it |
 | `lookup` states no join mode | The caller composes left, inner or one-per-match |
 | `zip` is a value operation | It pairs arrays; it does not join rows |
-
-## What to remember
-
-- `Selection[T]` is the only authoring type; `NullableSelection[T]` is
-  `Selection[Nullable[T]]`.
-- Source fields read nullable; computed fields read exactly the declared
-  selection type. `extract` composes carrier presence.
-- `alter_rows()` is a one-shot opt-in, and each effect returns a selection.
-- `expand()` produces one row per item; `drop_null()` and `drop_if()` reduce the
-  rows; `default_to()` keeps the row.
-- `lookup` reads another relation, `zip` pairs arrays, and `RowSource.unnest`
-  expands an array as the grain of a relation.
-- A binding or projection has one row plan; effects do not leak into another
-  product.
-
-Next: [Row sources](row-sources.md) choose the grain a binding reads.

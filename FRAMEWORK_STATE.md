@@ -5,16 +5,16 @@ implementation.
 
 ## Verification
 
-- **259 tests**, **1858 subtests**.
-- Pyright: **0 errors**.
-- `uv run mkdocs build --strict`: passes.
+- **354 tests**, **1957 subtests**.
+- Pyright: **1 error** in `api.py`.
+- `npx quartz build -d ../kg-build-system/docs`: passes.
 - The reference build passes.
 - Open Targets KG: **7 tests** pass.
 
 ```console
 uv run pytest -q
 uv run pyright
-uv run mkdocs build --strict
+cd ../kg-build-kb && python3 scripts/kb.py check && npx quartz build -d ../kg-build-system/docs
 cd ~/Repos/opentargets-kg && uv run pytest -q
 ```
 

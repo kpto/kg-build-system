@@ -1,73 +1,76 @@
-# Developer guide
+---
+title: Developer guide
+summary: The internal model developers review, from kernel protocols to distribution boundaries.
+section: developer
+perspective: developer
+order: 10
+status: normative
+verified: 2026-11-10
+sources:
+  - docs/developer/index.md
+  - AGENTS.md
+  - ARCHITECTURE.md
+  - FRAMEWORK_STATE.md
+---
 
-This section is for developers who change the framework, review its interfaces,
-or add a language, linker, planner, executor or resource. It describes the
-internal model behind the authoring guide.
+## In this section
 
-Graph authors should read the [authoring guide](../index.md). Developer docs and
-author docs may cover the same subject for different readers: author docs state
-what a graph author writes and observes; developer docs state the interfaces,
-boundaries and design decisions the framework is built from.
+The developer section is the internal interface guide: the model, boundaries and contract tests a framework reviewer may depend on.
 
-## How to read this section
+## Interface
 
-Read the pages in this order:
+The developer section states the framework's internal interfaces for the reader who changes the framework, reviews an interface, or adds a language, linker, planner, executor or resource. It assumes the authoring surface and explains the model beneath it.
 
-1. [Framework philosophy](philosophy.md) — the values that decide where code
-   belongs: anemic models, semantics as contract, explicit boundaries, the
-   toolchain, DTOs, source regeneration and transformation verbs.
-2. [System design](system-design.md) — the package tree, the module layout, the
-   kernel interfaces, declarations and symbols, the blueprint and the
-   planner/executor/resource split.
-3. [Data and expressions](data-and-expressions.md) — where row sources, joins,
-   projections, selections and operations live, and how the blueprint DTOs,
-   typed references and source round trip work.
-4. [Testing](testing.md) — the contract tests that guard each interface.
+Author pages and developer pages can cover one subject for different readers. An author page states what an author writes and observes. A developer page states the names, signatures, invariants, allowed dependencies and boundaries a framework reviewer may depend on.
 
-The developer docs are the canonical internal documentation. They state the
-framework model, the package boundaries and the contract tests.
+## Pages
 
-## Current state
+| Page | States |
+| --- | --- |
+| [Framework philosophy](/developer/philosophy) | The commitments that decide where code belongs and what an interface may expose. |
+| [System design](/developer/system-design) | The package tree, kernel protocols, linker, blueprint, plan, runtime, zones and dependency spine. |
+| [Data and expressions](/developer/data-and-expressions) | The DTOs, typed refs, row-source plan, neutral emission boundary and source round trip. |
+| [Testing](/developer/testing) | The contract-test groups, commands, guards and the gaps the suite leaves. |
 
-The implemented tree is `kernel`, `distribution`, `frontend`, `generation`,
-`api.py` and `cli`. The kernel type vocabulary is re-exported by the package
-root. Every leaf uses the zones it needs from `model/` and `service/`; shared
-mechanisms live in the package that consumes them, for example JSON freezing in
-`kernel/model/internal/json.py`, the scheduler in
-`kernel/service/_private/runtime.py`, the pipeline event model in
-`kernel/model/public/events.py`, frontend monitors in `frontend/monitor.py`, and
-naming and docstring helpers in
-`distribution/languages/data/service/_private/`.
+### Kernel and distribution
 
-| Area | Implementation | Remaining limit |
+The kernel is domain-agnostic. It owns the toolchain vocabulary and the protocols that cannot be omitted or replaced; it imports no graph, data, topology, binding, SQL, DuckDB, Python or generation package.
+
+| Group | Names |
+| --- | --- |
+| Frontend | `Language`, `Declaration`, `Symbol`, `SymbolRef`, `Key`, `Namespace`, `ReferenceResolver`, `RenderContext`, `SourceFragment` |
+| Linking and planning | `Linker`, `SymbolContext`, `PlanContext`, `Planner`, `Component`, `WorkflowPlan`, `Step`, `Instruction`, `InstructionKind`, `StepId`, `OpeningId`, `ArtifactType`, `ArtifactPattern` |
+| Execution | `Runtime`, `Resource`, `ResourceProvider`, `ResourceView`, `ResourceRegistry`, `PipelineEvent`, `EventBus`, `StepOutcome`, `WorkflowReport`, `RuntimeConfiguration` |
+| Composition | `Toolchain`, `WorkflowRuntime` |
+
+The distribution owns the graph domain: `GraphBlueprint`, the graph languages, the interpreter, the modules that plan and execute graph, file, meta-graph and Neo4j work, and the resources those executors read. The kernel model is opaque; the distribution implements it.
+
+The toolchain has three verbs:
+
+| Verb | Input | Output |
 | --- | --- | --- |
-| Kernel | `Language`, `Declaration`, `Symbol`, `SymbolRef`, `Key`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `Resource`, `ResourceProvider`, `ResourceView`, `Toolchain` in `kernel/service/public`; the workflow, runtime and event values in `kernel/model/public`; canonical types in `kernel/model/public/types` | A toolchain is the only composition unit |
-| Languages | `discover_declarations`, `compute_key`, `get_kind`, `get_identity`, `get_references`, per-declaration `transcribe` and `render` in the expressions, asset, data, topology and binding services; annotations remain inline | Custom operations outside the static registry are not symbol declarations |
-| Authoring model | `Selection[T]` and `NullableSelection[T]` in expressions; `Field[T]` with owner-derived source or computed presence in data; `Table.row_source()` and pinned `Projection(source)`; one-shot `alter_rows()` effects; `lookup`, `zip` and `RowSource.unnest` | A field annotation never names absence |
-| Blueprint | `create_blueprint(...) -> GraphBlueprint`; `BlueprintLinker` implements the kernel `Linker` protocol through `service/internal/adapters/kernel_linker.py`; typed references in `distribution/model/public/refs.py` | Public `GraphBlueprint` fields reference internal language DTOs |
-| Planning | `compile(model) -> WorkflowPlan`; the generic `DuckDbSourcePlanner` has `component_id="duckdb"` and the core module has four planners sharing `component_id="core"`, plus deduplication, merging and conflict-validation planners. Core planners live under `modules/core/<feature>/service/public/planner.py`; shared planning is in `core/service/_private/planning/`, and core imports the neutral relation plan and `SqlEmitter` protocol rather than DuckDB | The core planners require an injected `SqlEmitter`; `default_toolchain` injects DuckDB's |
-| Execution | `execute(plan, output_directory=..., monitor=...) -> WorkflowReport`; the kernel emits `PipelineEvent`s and dispatches by exact `instruction.kind`; providers subscribe to the run and publish resources on `PipelineStarted`; `DuckDbResourceProvider`, `DuckDbService` and `RuntimeResources` own the live resources | DuckDB is the default engine |
-| Frontend | `Monitor`, `NullMonitor`, `ConsoleMonitor` and `resolve_monitor` in `frontend/monitor.py`; `api.execute(monitor=...)` subscribes the selected listener | `rich` is optional and loaded lazily |
-| DTO names | `*DTO` names; cross-symbol fields carry role-typed refs such as `NodeRef` and `FieldRef`, never a bare name or `symbol_id` | None |
-| Source regeneration | Each language renders its own DTO; the blueprint source service delegates to the language renderers | Python binding source is a reference, not the callable body |
-| Distribution | `kg_build_system.api` exports `DEFAULT_TOOLCHAIN` and `default_toolchain`; the distribution supplies implementations; planners and executors are opt-in | None |
-| SQL emission | The core planners emit the injected emitter's kind; the DuckDB module implements the neutral `SqlEmitter` protocol and owns the executor and resource provider | DuckDB is the default SQL emitter |
+| `build` | a `Namespace` of declarations through a `Linker` | one opaque model |
+| `compile` | the linked model | `WorkflowPlan` |
+| `execute` | the workflow plan and an output directory | `WorkflowReport` |
 
-## Verification
+## Rules
 
-- 259 tests passed, 1858 subtests.
-- Pyright: 0 errors.
-- `uv run mkdocs build --strict`: passes.
-- The reference build passes.
-- Open Targets: 7 tests passed.
+- **The model is the decision.** Code is reported against the model; it does not redefine it. An interface change is a model change, stated before implementation and reviewed through this section. [Contracts](/review/contracts) owns the invariants.
+- **State the interface.** A developer page names the public and internal names, their signatures and invariants, the allowed dependency edges and the authoring surface. Implementation route is out of scope.
+- **Keep the vocabulary split.** Language, declaration, symbol, linker, planner, workflow plan, step, executor, resource and toolchain are kernel words. Graph, blueprint, node, edge, binding, projection, table, asset and operation are distribution words.
+- **Use one verb per transformation.** A language discovers, keys, transcribes and renders; a linker links; a planner plans; assembly assembles; an emitter emits; the runtime executes. `lower` names none of them.
+- **Name the artifact.** A serialisable member of the blueprint or the workflow plan is a DTO. A value outside those artifacts is an in-memory model, plan or result.
+- **Bound the section.** This section documents the framework, not the graph a project builds. A graph author's rule belongs in the authoring pages; a framework interface belongs here. [Architecture specification](/spec/architecture) states the package boundary that makes the split enforceable.
 
-## What to remember
+## Limits
 
-- Developer docs describe the framework's internal interfaces; author docs
-  describe the authoring surface.
-- The framework model is the decision. Current code is reported against it, not
-  used to redefine it.
-- A change to an interface is a model change and is reviewed before it is
-  implemented.
+- A developer page states interfaces and invariants, not a tutorial, a change report or a migration guide.
+- The pages describe the model at `verified: 2026-11-10`; a source change after that date is drift, not a silent revision.
+- Counts and measured behaviour belong to [Limits](/review/limits), not to an interface page.
+- A toolchain is the only composition unit. There is no registry and no single extension interface to implement.
+- The distribution is not optional for a graph build. A custom language can run on the kernel alone; nodes, edges, bindings and the blueprint cannot.
+- The kernel boundary is enforced by import tests, which make an illegal edge visible rather than impossible in a running process.
 
-Next: [Framework philosophy](philosophy.md).
+## Next
+
+[Architecture specification](/spec/architecture) — the normative boundary for the kernel, distribution and dependency spine.

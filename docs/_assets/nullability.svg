@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1120" height="640" viewBox="0 0 1120 640" role="img" aria-labelledby="title desc">
+<title id="title">Where absence comes from</title>
+<desc id="desc">The owner decides; the field annotation never writes it.</desc>
+<defs><marker id="arrow-6d4b9b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#6d4b9b"/></marker><marker id="arrow-8a5a00" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8a5a00"/></marker><marker id="arrow-b4532a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b4532a"/></marker><marker id="arrow-2454a6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2454a6"/></marker><marker id="arrow-b4431f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b4431f"/></marker><marker id="arrow-4d7c4a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4d7c4a"/></marker><marker id="arrow-a47813" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a47813"/></marker><marker id="arrow-2f67a8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2f67a8"/></marker><marker id="arrow-0f6f68" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0f6f68"/></marker><marker id="arrow-a64d6b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a64d6b"/></marker><marker id="arrow-b36716" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b36716"/></marker><marker id="arrow-5c5c66" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5c5c66"/></marker><marker id="arrow-7a5a3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7a5a3a"/></marker></defs>
+<rect width="1120" height="640" fill="#fbf8f1"/>
+<text x="38" y="44" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#b4431f" text-anchor="start" font-weight="700">NULLABILITY</text>
+<text x="38" y="72" font-family="Inter, Segoe UI, sans-serif" font-size="24" fill="#1d232a" text-anchor="start" font-weight="700">Where absence comes from</text>
+<rect x="38" y="88" width="1044" height="1" rx="0" fill="#ded6c7" stroke="#ded6c7" stroke-width="1"/>
+<rect x="360" y="110" width="400" height="52" rx="26" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="560" y="142" font-family="Inter, Segoe UI, sans-serif" font-size="15" fill="#1d232a" text-anchor="middle" font-weight="700">Where is the value supplied?</text>
+<path d="M 470 162 L 300 210" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<path d="M 650 162 L 820 210" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<rect x="120" y="210" width="340" height="118" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="120" y="210" width="340" height="4" rx="2" fill="#2f67a8" stroke="#2f67a8" stroke-width="1"/>
+<text x="134" y="234" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#2f67a8" text-anchor="start" font-weight="700">OWNER: SOURCE</text>
+<text x="134" y="252" font-family="Inter, Segoe UI, sans-serif" font-size="15" fill="#1d232a" text-anchor="start" font-weight="700">Source read</text>
+<text x="134" y="276" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">Table or source Struct</text>
+<text x="134" y="292" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">Field[T] → Selection[Nullable[T]]</text>
+<rect x="660" y="210" width="340" height="118" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="660" y="210" width="340" height="4" rx="2" fill="#a64d6b" stroke="#a64d6b" stroke-width="1"/>
+<text x="674" y="234" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#a64d6b" text-anchor="start" font-weight="700">OWNER: COMPUTED</text>
+<text x="674" y="252" font-family="Inter, Segoe UI, sans-serif" font-size="15" fill="#1d232a" text-anchor="start" font-weight="700">Computed read</text>
+<text x="674" y="276" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">Projection or ComputedStruct</text>
+<text x="674" y="292" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">follows the computed_field selection</text>
+<text x="560" y="300" font-family="Inter, Segoe UI, sans-serif" font-size="12" fill="#5f6b76" text-anchor="middle" font-weight="400">Absence is a fact about the owner, not the declared type.</text>
+<path d="M 560 316 L 560 356" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<rect x="360" y="356" width="400" height="44" rx="8" fill="#b4431f14" stroke="#b4431f55" stroke-width="1"/>
+<text x="560" y="384" font-family="Inter, Segoe UI, sans-serif" font-size="14" fill="#b4431f" text-anchor="middle" font-weight="700">What must happen to the row?</text>
+<rect x="38" y="432" width="244" height="106" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="38" y="432" width="244" height="4" rx="2" fill="#2f67a8" stroke="#2f67a8" stroke-width="1"/>
+<text x="52" y="464" font-family="Inter, Segoe UI, sans-serif" font-size="13" fill="#1d232a" text-anchor="start" font-weight="700">keep the row</text>
+<text x="52" y="490" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#2f67a8" text-anchor="start" font-weight="400">default_to(value)</text>
+<text x="52" y="514" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">a present value</text>
+<rect x="300" y="432" width="244" height="106" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="300" y="432" width="244" height="4" rx="2" fill="#b4532a" stroke="#b4532a" stroke-width="1"/>
+<text x="314" y="464" font-family="Inter, Segoe UI, sans-serif" font-size="13" fill="#1d232a" text-anchor="start" font-weight="700">drop the row</text>
+<text x="314" y="490" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#b4532a" text-anchor="start" font-weight="400">alter_rows().drop_null()</text>
+<text x="314" y="514" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">an explicit row decision</text>
+<rect x="562" y="432" width="244" height="106" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="562" y="432" width="244" height="4" rx="2" fill="#a64d6b" stroke="#a64d6b" stroke-width="1"/>
+<text x="576" y="464" font-family="Inter, Segoe UI, sans-serif" font-size="13" fill="#1d232a" text-anchor="start" font-weight="700">one row per item</text>
+<text x="576" y="490" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#a64d6b" text-anchor="start" font-weight="400">alter_rows().expand()</text>
+<text x="576" y="514" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">an explicit row decision</text>
+<rect x="824" y="432" width="244" height="106" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="824" y="432" width="244" height="4" rx="2" fill="#8a5a00" stroke="#8a5a00" stroke-width="1"/>
+<text x="838" y="464" font-family="Inter, Segoe UI, sans-serif" font-size="13" fill="#1d232a" text-anchor="start" font-weight="700">conditional row</text>
+<text x="838" y="490" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="10.5" fill="#8a5a00" text-anchor="start" font-weight="400">drop_if(predicate)</text>
+<text x="838" y="514" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5f6b76" text-anchor="start" font-weight="400">an explicit row decision</text>
+<path d="M 282 485 L 298 485" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<path d="M 544 485 L 560 485" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<path d="M 806 485 L 822 485" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<rect x="38" y="566" width="1044" height="50" rx="8" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="52" y="590" font-family="Inter, Segoe UI, sans-serif" font-size="12" fill="#1d232a" text-anchor="start" font-weight="700">Field[T] never declares T | None.</text>
+<text x="52" y="608" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">Item absence stays in the value: Array[Nullable[T]]. Nested owner absence is refused.</text>
+<rect x="850" y="578" width="150" height="24" rx="12" fill="#b4532a14" stroke="#b4532a55" stroke-width="1"/>
+<text x="925.0" y="594" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#b4532a" text-anchor="middle" font-weight="600">one-shot handle</text>
+</svg>

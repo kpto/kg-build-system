@@ -1,8 +1,38 @@
-# Topology declarations
+---
+title: Topology reference
+summary: Exact declarations, options, property slots, templates, base order and endpoint rules for node and edge topology.
+section: reference
+perspective: reference
+order: 120
+status: normative
+verified: 2026-11-10
+sources:
+  - kg_build_system/distribution/languages/topology/model/public/declarations.py
+  - kg_build_system/distribution/languages/topology/model/public/options.py
+  - kg_build_system/distribution/languages/topology/service/_private/class_creation.py
+  - kg_build_system/distribution/languages/topology/model/_private/properties.py
+  - docs/reference/topology.md
+---
+
+## Surface
 
 `Node`, `AbstractNode`, `Edge` and `AbstractEdge` declare graph components, while `NodeTemplate` and `EdgeTemplate` share properties and annotations without entering the graph.
 
-Topology is data-independent: it names a component, its properties and, for an edge, its endpoints. Values arrive only through a binding. See [Topology](../concepts/topology.md) for the model and [Bindings](bindings.md) for the values.
+| Declaration | Form | Role |
+| --- | --- | --- |
+| `Node` | `class SiteNode(Node)` | Concrete, terminal and bindable node record. |
+| `AbstractNode` | `class AssetNode(AbstractNode)` | Graph-visible node category; produces no records. |
+| `Edge[S, D]` | `class LinkedEdge(Edge[AssetNode, AssetNode])` | Directed, concrete and bindable edge. |
+| `AbstractEdge[S, D]` | `class LinkAbstractEdge(AbstractEdge[AssetNode, AssetNode])` | Graph-visible relationship family; never a binding target. |
+| `NodeTemplate` / `EdgeTemplate` | `class ProvenancedNodeTemplate(NodeTemplate)` | Inert property and annotation mixin; never a graph component. |
+| `PropertySlot[T]` + `property()` | `name: PropertySlot[str] = property()` | One declared graph property and its value type. |
+| `endpoint(target)` | `endpoint(SiteNode)` | One concrete node token for an abstract edge side. |
+
+Read [Declare topology](/author/topology) for the authoring path, [Topology specification](/spec/topology) for the requirement and [Topology subject](/subjects/topology) for the views.
+
+## Details
+
+Topology is data-independent: it names a component, its properties and, for an edge, its endpoints. Values arrive only through a binding. See [Declare topology](/author/topology) for the model, [Bind records](/author/bindings) and [Bindings reference](/reference/bindings) for the values, and [Semantics reference](/reference/semantics) for annotations and labels.
 
 ```python
 from kg_build_system import (
@@ -26,7 +56,7 @@ class LinkedEdge(Edge[AssetNode, AssetNode]):
     """When the link was asserted, when the source records it."""
 ```
 
-## Component bases
+### Component bases
 
 | Name | Declaration form | Graph-visible | Bindable |
 | --- | --- | --- | --- |
@@ -41,19 +71,21 @@ class LinkedEdge(Edge[AssetNode, AssetNode]):
 
 A concrete component is terminal. A class declared as a concrete `Node` or `Edge` may not be subclassed. An abstract component is graph-visible and may be an edge endpoint, but it is never a binding target and produces no records of its own.
 
-## `NodeOptions` and `EdgeOptions`
+### `NodeOptions` and `EdgeOptions`
 
 ```python
 NodeOptions(
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
+    semantics: Semantics | None = None,
 )
 
 EdgeOptions(
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
+    semantics: Semantics | None = None,
 )
 ```
 
@@ -64,6 +96,7 @@ Assign the value to the class variable `options`.
 | `name` | Logical graph name; unique across nodes and edges | Inferred from the class name |
 | `description` | Prose description of the component | The class docstring, if present |
 | `annotations` | Portable metadata, including at most one matching label | Empty |
+| `semantics` | One declaration fragment attached under the graph purpose | `None` |
 
 The inferred name removes one tier suffix and converts the remainder to snake case:
 
@@ -76,14 +109,14 @@ The inferred name removes one tier suffix and converts the remainder to snake ca
 
 An abstract class strips `AbstractNode` or `AbstractEdge` before the plain tier suffix, so `DocumentedAbstractNode` does not become `documented_abstract`.
 
-An explicit `options.name` replaces the inference completely. Component names must be unique across all reached nodes and edges. A concrete component does not inherit its category's `description` or label; see [Semantics](semantics.md).
+An explicit `options.name` replaces the inference completely. Component names must be unique across all reached nodes and edges. A concrete component does not inherit its category's `description` or label; see [Semantics reference](/reference/semantics) and [Semantic hierarchy](/philosophy/semantic-hierarchy).
 
 ```python
 class UnitNode(Node):
     options = NodeOptions(name="equipment", description="Installed equipment.")
 ```
 
-## `property()`
+### `property()`
 
 ```python
 property(
@@ -91,6 +124,7 @@ property(
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
+    semantics: Semantics | None = None,
 ) -> PropertySlot[T]
 ```
 
@@ -110,8 +144,9 @@ class UnitNode(Node):
 | `name` | External property name | The attribute name in snake case, with one trailing underscore removed |
 | `description` | Property description | The docstring directly below the assignment |
 | `annotations` | Portable metadata for the property | Empty |
+| `semantics` | One declaration fragment attached under the graph purpose | `None` |
 
-`PropertySlot[T]` accepts a scalar, `T | None`, a flat `Array[T]`, or `Array[T] | None`. Scalars are `bool`, `int`, `float`, `str`, `Date`, `Time`, `Timestamp`, `Uuid` and `CustomDataType`. Arrays are one level deep and hold non-null scalars. Structs, nested arrays and arrays with null items are not graph properties. See [Type vocabulary](types.md).
+`PropertySlot[T]` accepts a scalar, `T | None`, a flat `Array[T]`, or `Array[T] | None`. Scalars are `bool`, `int`, `float`, `str`, `Date`, `Time`, `Timestamp`, `Uuid` and `CustomDataType`. Arrays are one level deep and hold non-null scalars. Structs, nested arrays and arrays with null items are not graph properties. See [Type vocabulary](/reference/types).
 
 `options_` is the escape for a name collision with the framework's `options` class variable: the external name is `options`. Two properties on one component may not share an external name.
 
@@ -127,7 +162,7 @@ class ReadingNode(Node):
     values: PropertySlot[Array[float]] = property()
 ```
 
-### Errors
+#### Errors
 
 | Condition | Error |
 | --- | --- |
@@ -137,10 +172,11 @@ class ReadingNode(Node):
 | An array item is an array, struct or nullable | `TypeError` naming the property; flatten or use `drop_null_items()` |
 | Two attributes resolve to one external name | `TypeError: <Class> properties '<a>' and '<b>' share external name '<name>'` |
 | `annotations` contains a non-`Annotation` value | `TypeError: annotations must contain only Annotation values` |
+| `semantics` is `GraphSemantics` | `TypeError: <Class>.<attr> semantics must be a Semantics value, not GraphSemantics` |
 
 A docstring is read from the declaration's source when the class is created. A class built from a string or typed directly into a REPL has no readable source, so its docstring yields no description; the `description=` argument always works.
 
-## Templates
+### Templates
 
 `NodeTemplate` and `EdgeTemplate` are inert mixins. They share property slots and annotations with their hosts, but they never become graph components, receive a logical name, become a binding target or become an edge endpoint.
 
@@ -161,8 +197,14 @@ class MeterNode(ProvenancedNodeTemplate, Node):
 A template's options are annotations-only:
 
 ```python
-NodeOptionsTemplate(annotations: Sequence[Annotation] = ())
-EdgeOptionsTemplate(annotations: Sequence[Annotation] = ())
+NodeOptionsTemplate(
+    annotations: Sequence[Annotation] = (),
+    semantics: Semantics | None = None,
+)
+EdgeOptionsTemplate(
+    annotations: Sequence[Annotation] = (),
+    semantics: Semantics | None = None,
+)
 ```
 
 | Class | Required options type |
@@ -174,7 +216,7 @@ A template has no `name` or `description`. Passing `NodeOptions` or `EdgeOptions
 
 A declaration may mix in any number of templates of its own kind. Keep one property slot per name: redeclaring an inherited slot at another type is a static type error.
 
-## Base order
+### Base order
 
 The base order is normative:
 
@@ -199,7 +241,7 @@ Templates are read from the ancestry and the category parent is the one direct a
 
 A category may chain: `class PlaceNode(DocumentedAbstractNode, Node)` records `DocumentedAbstractNode` as its nearest category parent. Categories are siblings of the concrete bases, not concrete bases themselves.
 
-## Edge endpoints
+### Edge endpoints
 
 An edge declares its endpoints with two node-side type arguments. An abstract edge may declare categories; a concrete edge under it may keep those endpoints or narrow them.
 
@@ -228,7 +270,7 @@ class UnnarrowedAssetAtEdge(MonitoredAbstractEdge, Edge):
     ...
 ```
 
-## `endpoint()`
+### `endpoint()`
 
 ```python
 endpoint(target: type[N]) -> Endpoint[N]
@@ -246,16 +288,16 @@ from kg_build_system import endpoint
 site_endpoint = endpoint(SiteNode)
 ```
 
-An endpoint token is required exactly when the declared side is an abstract category. A concrete declared side needs no token, but supplying one still documents the concrete component used. See [Bindings](bindings.md#endpoint-tokens).
+An endpoint token is required exactly when the declared side is an abstract category. A concrete declared side needs no token, but supplying one still documents the concrete component used. See [Bindings reference](/reference/bindings#endpoint-tokens).
 
-### Errors
+#### Errors
 
 | Condition | Error |
 | --- | --- |
 | `target` is not a class | `TypeError: <value> is not a concrete node` |
 | `target` is abstract, a template, an edge or a plain class | `TypeError: '<name>' is not a concrete node` |
 
-## Category reachability
+### Category reachability
 
 Only reached categories enter the blueprint. A category is reached when:
 
@@ -299,7 +341,7 @@ Binding `SiteNode` reaches `DocumentedAbstractNode`; both appear in the blueprin
 
 A category does not create records. Its record count in the meta-graph is the sum of its own and its descendants' records. The nearest category parent is recorded on each concrete component, so a category chain is preserved.
 
-## What to remember
+### What to remember
 
 - A node is a thing; an edge is a directed assertion between two node components.
 - A concrete component is terminal and bindable; a category is graph-visible and never a target.
@@ -308,4 +350,4 @@ A category does not create records. Its record count in the meta-graph is the su
 - Base order is templates, category parent, terminal base.
 - Only categories reached by a binding or endpoint are published.
 
-Related: [Topology](../concepts/topology.md), [Bindings](bindings.md), [Semantics](semantics.md), [Type vocabulary](types.md), [Reference index](index.md).
+For the declaration surface that supplies the rows, see [Declarations](/reference/declarations). For the binding that supplies the values, see [Bindings reference](/reference/bindings). For the pipeline that consumes the blueprint, see [Compile](/reference/compile).

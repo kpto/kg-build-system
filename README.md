@@ -86,6 +86,8 @@ pkg/
 
 - Author-facing documentation starts at `docs/index.md`.
 - Developer documentation starts at `docs/developer/index.md`.
+- The content is built by the companion site builder in `../kg-build-kb`:
+  `npx quartz build -d ../kg-build-system/docs`.
 - The implementation map is `ARCHITECTURE.md`.
 - Reviewer state and design limits are `FRAMEWORK_STATE.md` and
   `DESIGN_ISSUES.md`.
@@ -97,12 +99,12 @@ pkg/
 ```console
 uv run pytest -q
 uv run pyright
-uv run mkdocs build --strict
+cd ../kg-build-kb && python3 scripts/kb.py check && npx quartz build -d ../kg-build-system/docs
 ```
 
-Current verification: 259 tests passed, 1858 subtests; pyright 0 errors; the
-reference build passes; the Open Targets project passes 7 tests; the strict
-documentation build passes.
+Current verification: 354 tests passed, 1957 subtests; pyright 1 known error in
+`api.py`; the reference build passes; the Open Targets project is external; the
+Quartz documentation build passes.
 
 The framework is experimental; the guide describes the current model, not a
 compatibility promise.

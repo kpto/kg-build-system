@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="560" viewBox="0 0 1200 560" role="img" aria-labelledby="title desc">
+<title id="title">Modules and exact kinds</title>
+<desc id="desc">Each planner emits steps; each executor owns one exact instruction kind.</desc>
+<defs><marker id="arrow-6d4b9b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#6d4b9b"/></marker><marker id="arrow-8a5a00" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8a5a00"/></marker><marker id="arrow-b4532a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b4532a"/></marker><marker id="arrow-2454a6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2454a6"/></marker><marker id="arrow-b4431f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b4431f"/></marker><marker id="arrow-4d7c4a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4d7c4a"/></marker><marker id="arrow-a47813" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a47813"/></marker><marker id="arrow-2f67a8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2f67a8"/></marker><marker id="arrow-0f6f68" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0f6f68"/></marker><marker id="arrow-a64d6b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a64d6b"/></marker><marker id="arrow-b36716" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b36716"/></marker><marker id="arrow-5c5c66" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5c5c66"/></marker><marker id="arrow-7a5a3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7a5a3a"/></marker></defs>
+<rect width="1200" height="560" fill="#fbf8f1"/>
+<text x="38" y="44" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#b4431f" text-anchor="start" font-weight="700">MODULES</text>
+<text x="38" y="72" font-family="Inter, Segoe UI, sans-serif" font-size="24" fill="#1d232a" text-anchor="start" font-weight="700">Modules and exact kinds</text>
+<rect x="38" y="88" width="1124" height="1" rx="0" fill="#ded6c7" stroke="#ded6c7" stroke-width="1"/>
+<rect x="38" y="122" width="150" height="110" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="50" y="146" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#4d7c4a" text-anchor="start" font-weight="700">SOURCE</text>
+<text x="50" y="170" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">duckdb planner</text>
+<text x="50" y="187" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">source_relation/duckdb</text>
+<rect x="208" y="122" width="150" height="110" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="220" y="146" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#2f67a8" text-anchor="start" font-weight="700">ROWS</text>
+<text x="220" y="170" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">core row_source</text>
+<text x="220" y="187" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">sql/duckdb</text>
+<rect x="378" y="122" width="150" height="110" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="390" y="146" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#a64d6b" text-anchor="start" font-weight="700">PROJECT</text>
+<text x="390" y="170" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">core projection</text>
+<text x="390" y="187" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">sql/duckdb</text>
+<rect x="548" y="122" width="150" height="110" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="560" y="146" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#b4532a" text-anchor="start" font-weight="700">BIND</text>
+<text x="560" y="170" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">core binding</text>
+<text x="560" y="187" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">sql/duckdb</text>
+<rect x="718" y="122" width="150" height="110" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="730" y="146" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#8a5a00" text-anchor="start" font-weight="700">RECORDS</text>
+<text x="730" y="170" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">core records</text>
+<text x="730" y="187" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">aggregate/duckdb</text>
+<rect x="888" y="122" width="150" height="110" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="900" y="146" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#8a5a00" text-anchor="start" font-weight="700">QUALITY</text>
+<text x="900" y="170" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">dedup · merge</text>
+<text x="900" y="187" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">conflict/duckdb</text>
+<rect x="1058" y="122" width="150" height="110" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="1070" y="146" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#5c5c66" text-anchor="start" font-weight="700">TARGETS</text>
+<text x="1070" y="170" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">file · meta-graph</text>
+<text x="1070" y="187" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5f6b76" text-anchor="start" font-weight="400">neo4j/default</text>
+<path d="M 188 176 L 208 176" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<path d="M 358 176 L 378 176" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<path d="M 528 176 L 548 176" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<path d="M 698 176 L 718 176" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<path d="M 868 176 L 888 176" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<path d="M 1038 176 L 1058 176" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<rect x="38" y="270" width="1124" height="120" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="52" y="294" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#b4431f" text-anchor="start" font-weight="700">THE CONTRACT</text>
+<text x="52" y="318" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">A planner declares component_id, version and runtime_fields. Planners that share a component must agree on all three.</text>
+<text x="52" y="338" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">A planner emits steps and connections by opening; compile assembles and refuses an unfed input, an unread output or a cycle.</text>
+<text x="52" y="358" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">An executor declares kinds and resources. Execute refuses a duplicate kind and a plan kind no executor claims.</text>
+<text x="52" y="378" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">A component that needs both planning and a side effect is two objects: one planner, one executor.</text>
+<rect x="38" y="414" width="548" height="106" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="52" y="438" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#2454a6" text-anchor="start" font-weight="700">DEFAULT COMPONENTS</text>
+<text x="52" y="462" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">duckdb · core · deduplication</text>
+<text x="52" y="480" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">merging · conflict_validation</text>
+<text x="52" y="498" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">file · meta_graph · neo4j</text>
+<rect x="614" y="414" width="548" height="106" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="628" y="438" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#5c5c66" text-anchor="start" font-weight="700">WHAT A TARGET OWNS</text>
+<text x="628" y="462" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">the file it writes, not the plan shape</text>
+<text x="628" y="480" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">its executor, its resources, its configuration</text>
+<text x="628" y="498" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">a runtime field is replaceable at execute time</text>
+</svg>

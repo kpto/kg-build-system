@@ -1,13 +1,30 @@
-# Compile and execute
+---
+title: Compile and execute reference
+summary: Exact signatures for create_blueprint, compile, execute, BuildRuntime and WorkflowReport.
+section: reference
+perspective: reference
+order: 150
+status: normative
+verified: 2026-11-10
+sources:
+  - kg_build_system/api.py
+  - kg_build_system/kernel/model/public/workflow.py
+  - kg_build_system/kernel/service/_private/pipeline.py
+  - kg_build_system/kernel/service/_private/assembly.py
+  - tests/kernel/test_toolchain_flow.py
+---
 
-`create_blueprint` collects declarations into a `GraphBlueprint`. `compile`
-compiles a blueprint with a planner composition into a `WorkflowPlan`. `execute`
-runs the plan and writes its outputs.
+`create_blueprint` collects declarations into a `GraphBlueprint`. `compile` compiles a blueprint with a planner composition into a `WorkflowPlan`. `execute` runs the plan and writes its outputs.
 
-The calls separate inspection from execution. A blueprint describes the graph
-model; a workflow plan describes the ordered work of one planner composition.
-Neither reads data. See
-[Compile, execute and outputs](../concepts/build-and-outputs.md).
+The calls separate inspection from execution. A blueprint describes the graph model; a workflow plan describes the ordered work of one planner composition. Neither reads data.
+
+## Surface
+
+| Call | Inputs | Returns | Reads data | Writes files |
+| --- | --- | --- | --- | --- |
+| `create_blueprint` | One declaration mode and optional languages | `GraphBlueprint` | No | No |
+| `compile` | One declaration mode or a blueprint, plus planners or a toolchain | `WorkflowPlan` | No | No |
+| `execute` | A plan, an output directory and an optional runtime or toolchain | `WorkflowReport` | Yes | Yes |
 
 ```python
 from pathlib import Path
@@ -26,13 +43,9 @@ plan = compile(namespace_path=Path("graph_pipeline"), planners=planners)
 report = execute(plan, output_directory=Path("build"))
 ```
 
-| Call | Inputs | Returns | Reads data | Writes files |
-| --- | --- | --- | --- | --- |
-| `create_blueprint` | One declaration mode and optional languages | `GraphBlueprint` | No | No |
-| `compile` | One declaration mode or a blueprint, plus planners or a toolchain | `WorkflowPlan` | No | No |
-| `execute` | A plan, an output directory and an optional runtime or toolchain | `WorkflowReport` | Yes | Yes |
+## Details
 
-## `create_blueprint`
+**`create_blueprint`.**
 
 ```python
 create_blueprint(
@@ -43,15 +56,13 @@ create_blueprint(
 ) -> GraphBlueprint
 ```
 
-`create_blueprint` takes no planners. It collects declarations through the
-selected languages, links the language declarations into symbols and one model,
-and validates the result.
+`create_blueprint` takes no planners. It collects declarations through the selected languages, links the language declarations into symbols and one model, and validates the result.
 
 | Argument | Meaning |
 | --- | --- |
 | `namespace_path` | An importable package name or directory to discover |
 | `bindings` | Explicit bindings |
-| `languages` | Language composition; defaults to expressions, asset, data, topology and binding |
+| `languages` | Language composition; defaults to expressions, asset, data, topology, binding and graph |
 
 There are three declaration modes:
 
@@ -61,7 +72,7 @@ There are three declaration modes:
 | Explicit namespace | `namespace_path=...` | Imports that package or directory |
 | Explicit declarations | `bindings=(...)` | Uses exactly the supplied bindings |
 
-`namespace_path` cannot be combined with `bindings`.
+`namespace_path` cannot be combined with `bindings`. The exact refusal is `ValueError: namespace_path cannot be combined with bindings`.
 
 ```python
 blueprint = create_blueprint(
@@ -69,9 +80,7 @@ blueprint = create_blueprint(
 )
 ```
 
-Only reached declarations enter the blueprint: the tables and projections a
-binding reads, the components it targets and their ancestors and endpoints, the
-structs those types use, and the assets those tables name.
+Only reached declarations enter the blueprint: the tables and projections a binding reads, the components it targets and their ancestors and endpoints, the structs those types use, and the assets those tables name.
 
 `GraphBlueprint` has four fields:
 
@@ -82,14 +91,9 @@ structs those types use, and the assets those tables name.
 | `assets` | `AssetPartDTO`: the logical source-data units relations name |
 | `bindings` | `NodeBindingDTO` and `EdgeBindingDTO` values |
 
-The language DTOs are internal to the language packages. `GraphBlueprint` is the
-public handle; `graph`, `data`, `assets` and `bindings` reference internal
-language DTOs. `BindingDTO` is the shared binding DTO used by the blueprint and
-the core planners; it is not exported from the interpreter facade. Cross-symbol
-fields carry role-typed references such as `NodeRef`, `FieldRef`, `AssetRef` and
-`OperationRef`.
+The language DTOs are internal to the language packages. `GraphBlueprint` is the public handle; `graph`, `data`, `assets` and `bindings` reference internal language DTOs. `BindingDTO` is the shared binding DTO used by the blueprint and the core planners; it is not exported from the interpreter facade. Cross-symbol fields carry role-typed references such as `NodeRef`, `FieldRef`, `AssetRef` and `OperationRef`.
 
-## `compile`
+**`compile`.**
 
 ```python
 compile(
@@ -103,27 +107,17 @@ compile(
 ) -> WorkflowPlan
 ```
 
-`SqlEmitter` is the engine-neutral protocol in
-`distribution/service/internal/emission.py`. `DuckDbSqlEmitter` implements it;
-the core planners import only the neutral relation plan and protocol, never the
-DuckDB module.
+`SqlEmitter` is the engine-neutral protocol in `distribution/service/internal/emission.py`. `DuckDbSqlEmitter` implements it; the core planners import only the neutral relation plan and protocol, never the DuckDB module.
 
-`compile` reads the blueprint exactly as given, or creates one from the
-declaration mode. It never reads data.
+`compile` reads the blueprint exactly as given, or creates one from the declaration mode. It never reads data. A blueprint cannot be combined with `namespace_path` or `bindings`: `ValueError: blueprint cannot be combined with namespace_path or bindings`.
 
-When `toolchain` is omitted, `compile` uses `default_toolchain`, adding the four
-core planners unless a supplied planner already reports `component_id == "core"`,
-then appends the planners you pass. When `toolchain` is supplied, it appends the
-`planners` argument to that toolchain's planners.
+When `toolchain` is omitted, `compile` uses `default_toolchain`, adding the generic DuckDB source planner unless a supplied planner reports `component_id == "duckdb"`, and adding the four core planners unless a supplied planner reports `component_id == "core"`, then appending the planners passed. When `toolchain` is supplied, it appends the `planners` argument to that toolchain's planners. The `engine` argument selects the SQL emitter for the default toolchain path.
 
 ```python
 plan = compile(blueprint=blueprint, planners=planners)
 ```
 
-`plan.provenance["blueprint"]` is the source blueprint document. It is attached
-by the composition root (`compile()`), not by the kernel planner stage. A plan
-serialised with `workflow_plan_to_document` therefore carries the blueprint that
-produced it and can be read without a second artifact.
+`plan.provenance["blueprint"]` is the source blueprint document. It is attached by the composition root (`compile()`), not by the kernel planner stage. A plan serialised with `workflow_plan_to_document` therefore carries the blueprint that produced it and can be read without a second artifact.
 
 Compilation checks everything that does not need data:
 
@@ -145,20 +139,11 @@ Compilation checks everything that does not need data:
 | `connections` | Resolved connections between step openings |
 | `provenance` | The source blueprint document under `blueprint`, plus any planner provenance; the plan is self-contained |
 
-A `Step` owns its inputs, outputs, `assembly_preference` and one
-`Instruction(kind, payload)`. `Step.component` and `Step.name` are the facts;
-`Step.id` derives a `StepId`. An `OpeningId` is a `StepId`, a direction and an
-opening name (`Key`); the direction is part of the key, so an input and an
-output with the same name stay distinct. An input declares an
-`ArtifactPattern`, an output and a publication name a concrete `ArtifactType`.
-A `Connection` holds one input `OpeningId` and one output `OpeningId`.
+A `Step` owns its inputs, outputs, `assembly_preference` and one `Instruction(kind, payload)`. `Step.component` and `Step.name` are the facts; `Step.id` derives a `StepId`. An `OpeningId` is a `StepId`, a direction and an opening name (`Key`); the direction is part of the key, so an input and an output with the same name stay distinct. An input declares an `ArtifactPattern`; an output and a publication name a concrete `ArtifactType`. A `Connection` holds one input `OpeningId` and one output `OpeningId`. `assembly_preference` is `"eager"` or `"deferred"`.
 
-`InstructionKind(operation, engine)` is the exact executor key. `Instruction.kind`
-is that value; SQL is one instruction kind, not a plan field. `workflow_plan.json`
-writes every identity as its `Key` array; `build_report.json` uses the same
-form for `step_id` and a publication `opening`.
+`InstructionKind(operation, engine)` is the exact executor key. `Instruction.kind` is that value; SQL is one instruction kind, not a plan field. `workflow_plan.json` writes every identity as its `Key` array; `build_report.json` uses the same form for `step_id` and a publication `opening`.
 
-## `execute`
+**`execute`.**
 
 ```python
 execute(
@@ -179,14 +164,9 @@ execute(
 | `toolchain` | The executors, resources and runtime; defaults to `DEFAULT_TOOLCHAIN` |
 | `monitor` | `None`/`False` presents nothing; `True` selects `ConsoleMonitor`; a monitor is used as supplied |
 
-A monitor is a frontend listener on the pipeline event stream: `PipelineStarted`,
-`StepStarted`, `StepFinished`, `StepLogged`, `PipelineFinished` and
-`PipelineHalted`. It cannot change scheduling, resources or the report.
+A monitor is a frontend listener on the pipeline event stream: `PipelineStarted`, `StepStarted`, `StepFinished`, `StepLogged`, `PipelineFinished` and `PipelineHalted`. It cannot change scheduling, resources or the report.
 
-`execute` writes the plan before execution starts and the report after it
-finishes. It dispatches each step by the exact `InstructionKind` in
-`step.instruction.kind`. A kind the toolchain does not implement is refused
-before any step runs.
+`execute` writes the plan before execution starts and the report after it finishes. It dispatches each step by the exact `InstructionKind` in `step.instruction.kind`. A kind the toolchain does not implement is refused before any step runs with `no executor for instruction kind(s): <kinds>`.
 
 ```python
 report = execute(
@@ -199,10 +179,9 @@ if not report.succeeded:
         print(failure.step_id, failure.message)
 ```
 
-A failure before execution raises. A failure inside a step becomes a report
-entry.
+A failure before execution raises. A failure inside a step becomes a report entry. A raised run leaves `workflow_plan.json` but no `build_report.json`.
 
-## `BuildRuntime`
+**`BuildRuntime`.**
 
 ```python
 BuildRuntime(
@@ -219,16 +198,11 @@ BuildRuntime(
 )
 ```
 
-`BuildRuntime` supplies credentials, per-component runtime overrides and engine
-settings. Runtime values are not part of the plan. A relative working directory
-resolves beneath the output directory. `to_configuration()` returns the kernel
-`RuntimeConfiguration` that execution reads.
+`BuildRuntime` supplies credentials, per-component runtime overrides and engine settings. Runtime values are not part of the plan. A relative working directory resolves beneath the output directory. `to_configuration()` returns the kernel `RuntimeConfiguration` that execution reads.
 
-The engine settings are published under the `duckdb` provider id in
-`RuntimeConfiguration.provider_configuration`. `component_configuration` holds
-only plan component ids; `duckdb` is not a plan component.
+The engine settings are published under the `duckdb` provider id in `RuntimeConfiguration.provider_configuration`. `component_configuration` holds only plan component ids; `duckdb` is not a plan component.
 
-## `WorkflowReport`
+**`WorkflowReport`.**
 
 | Attribute | Meaning |
 | --- | --- |
@@ -240,7 +214,7 @@ only plan component ids; `duckdb` is not a plan component.
 
 Each failure exposes `message`, a typed `step_id` and `exception_type`.
 
-## Required inputs
+**Required inputs.**
 
 | Requirement | Enforced by |
 | --- | --- |
@@ -252,19 +226,4 @@ Each failure exposes `message`, a typed `step_id` and `exception_type`.
 | An executor for every instruction kind | `Toolchain.execute` |
 | Matching plans and executors at execution | `execute` |
 
-## What to remember
-
-- `create_blueprint` takes no planners and returns `GraphBlueprint`.
-- `compile` reads a blueprint and takes planners or a toolchain; it returns a
-  `WorkflowPlan`.
-- `execute` runs the plan, dispatches by `step.instruction.kind` and returns a
-  `WorkflowReport`.
-- A step owns its `Instruction`; SQL is one `InstructionKind`.
-- An identity crossing the plan, runtime or report is a typed role over `Key`;
-  a formatted string is display only.
-- `execute` writes `workflow_plan.json` before the run and `build_report.json`
-  after it.
-
-Related: [Compile, execute and outputs](../concepts/build-and-outputs.md),
-[Planners and executors](planners-and-executors.md), [Bindings](bindings.md),
-[Reference index](index.md).
+Continue with [Compile a plan](/pipeline/plan), [Execute a plan](/pipeline/execute), [Publish outputs](/operate/outputs), [Extend the toolchain](/operate/extend), [Plan specification](/spec/plan), [Execution specification](/spec/execution), [Plan subject](/subjects/plan), [Execution subject](/subjects/execution), [Planners and executors](/reference/planners-and-executors), [Documents](/reference/documents) and [Failures](/reference/failures).

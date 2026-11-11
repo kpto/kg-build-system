@@ -1,9 +1,26 @@
-# Assets
+---
+title: Assets reference
+summary: The exact asset, profile, layout, governance and contract surface, plus DuckDB location resolution.
+section: reference
+perspective: reference
+order: 70
+status: normative
+verified: 2026-11-10
+sources:
+  - kg_build_system/distribution/languages/asset/model/public/options.py
+  - kg_build_system/distribution/languages/asset/model/public/declarations.py
+  - kg_build_system/distribution/modules/duckdb/service/public/planner.py
+  - kg_build_system/generation/code_generation/service/public/contract.py
+  - tests/distribution/test_asset_language.py
+---
 
-An asset is one logical unit of source data. One asset may back many tables. An
-`Asset` subclass declares its profile, optional semantics, optional layout,
-governance and annotations; each table names the asset through `Table[Asset]`.
-See [Assets](../concepts/assets.md) for the model.
+## Surface
+
+An asset is one logical unit of source data. One asset may back many tables. An `Asset` subclass declares its profile, optional semantics, optional layout, governance and annotations; each table names the asset through `Table[Asset]`.
+
+Read [Declare an asset](/author/assets) for the authoring path, [Asset specification](/spec/asset) for the contract, and [Assets and source data](/subjects/asset) for the subject hub. The row shape that names the asset is on [Declare data](/author/data), and the compile step that consumes it is on [Compile](/reference/compile).
+
+## Details
 
 ```python
 from kg_build_system import (
@@ -44,7 +61,7 @@ class TargetTable(Table[OpenTargets]):
     target_id: Field[str] = field()
 ```
 
-## Import paths
+**Import paths**
 
 | Surface | Import from |
 | --- | --- |
@@ -55,17 +72,14 @@ class TargetTable(Table[OpenTargets]):
 | `DuckDbSourcePlanner` | `kg_build_system.distribution` or `kg_build_system.distribution.modules.duckdb` |
 | `asset_contract` and `AssetContractOptions` | `kg_build_system.generation` |
 
-## `Asset`
+**`Asset`**
 
 ```python
 class Asset:
     options: ClassVar[AssetOptions]
 ```
 
-Declare an asset by subclassing `Asset` and assigning exactly one
-`options = AssetOptions(...)` at class level. Discovery finds every concrete
-`Asset` subclass in a namespace. The class itself carries no name, key or
-description outside its options.
+Declare an asset by subclassing `Asset` and assigning exactly one `options = AssetOptions(...)` at class level. Discovery finds every concrete `Asset` subclass in a namespace. The class itself carries no name, key or description outside its options.
 
 ```python
 class OpenTargets(Asset):
@@ -73,8 +87,7 @@ class OpenTargets(Asset):
 ```
 
 - The class name becomes the default logical name.
-- The class is terminal: a subclass must declare its own `options`; inherited
-  options are not accepted.
+- The class is terminal: a subclass must declare its own `options`; inherited options are not accepted.
 - The asset has no content model and no adapter. Tables carry the shapes.
 
 | Error | Trigger |
@@ -83,7 +96,7 @@ class OpenTargets(Asset):
 | `asset 'X' has no usable name` | The class name produces no snake-case name and `options.name` is unset |
 | duplicate `asset` symbols | Two assets resolve to one logical name in one blueprint |
 
-## `AssetOptions`
+**`AssetOptions`**
 
 ```python
 AssetOptions(
@@ -109,18 +122,13 @@ AssetOptions(
 | `governance` | License, owner and portable metadata | Empty `AssetGovernance()` |
 | `annotations` | Portable annotations on the asset | `()` |
 
-`website` is a project or publisher page. It is not a download URL, a
-documentation link, a dataset card or the location rows are read from. A machine
-location belongs in `layout.locator`.
+`website` is a project or publisher page. It is not a download URL, a documentation link, a dataset card or the location rows are read from. A machine location belongs in `layout.locator`.
 
-`version` is recorded, not resolved. It selects no file, pins no commit and
-triggers no download.
+`version` is recorded, not resolved. It selects no file, pins no commit and triggers no download.
 
-`name` must be non-empty when supplied. `website`, `version` and the layout text
-fields must be non-empty when present. `annotations` is normalised to a tuple.
-`semantics` must be a `Semantics` value, never `GraphSemantics`.
+`name` must be non-empty when supplied. `website`, `version` and the layout text fields must be non-empty when present. `annotations` is normalised to a tuple. `semantics` must be a `Semantics` value, never `GraphSemantics`.
 
-## `AssetProfile`
+**`AssetProfile`**
 
 ```python
 AssetProfile(
@@ -142,11 +150,9 @@ AssetProfile(
 | `title` | Human-facing title |
 | `description` | Longer explanation |
 
-`subject`, `coverage` and `basis` must be non-empty. `profile` has no `claims` or
-`limitations`: those are semantics units declared through
-`AssetOptions(semantics=...)`. See [Semantics language](../concepts/semantics-language.md).
+`subject`, `coverage` and `basis` must be non-empty. `profile` has no `claims` or `limitations`: those are semantics units declared through `AssetOptions(semantics=...)`. See [Asset specification](/spec/asset).
 
-### `AssetAuthority`
+**`AssetAuthority`**
 
 | Member | Value | Meaning |
 | --- | --- | --- |
@@ -155,7 +161,7 @@ AssetProfile(
 | `REFERENCE` | `"reference"` | The asset is a lookup or reference set |
 | `INFERRED` | `"inferred"` | The asset contains predictions or inference |
 
-## `AssetGovernance`
+**`AssetGovernance`**
 
 ```python
 AssetGovernance(
@@ -165,11 +171,9 @@ AssetGovernance(
 )
 ```
 
-`owner` is free text naming a team or organisation. `metadata` is a string
-mapping normalised to sorted, read-only order. `license` is either `None` or an
-`AssetLicense`.
+`owner` is free text naming a team or organisation. `metadata` is a string mapping normalised to sorted, read-only order. `license` is either `None` or an `AssetLicense`.
 
-### `AssetLicense`
+**`AssetLicense`**
 
 ```python
 AssetLicense(
@@ -179,10 +183,9 @@ AssetLicense(
 )
 ```
 
-`identifier` is required and non-empty. `url` and `attribution` are optional and
-non-empty when present.
+`identifier` is required and non-empty. `url` and `attribution` are optional and non-empty when present.
 
-## `AssetLayout`
+**`AssetLayout`**
 
 ```python
 AssetLayout(
@@ -206,15 +209,11 @@ AssetLayout(
 | `members` | Per-relation paths keyed by relation name; relative values join `locator` |
 | `properties` | Portable reader hints |
 
-Layout is optional descriptive metadata, not an access contract. Declaring one
-opens no file, resolves no credential and proves no relation exists. It is not a
-Hive, catalog, schema or partition-style model; every value is an open string.
+Layout is optional descriptive metadata, not an access contract. Declaring one opens no file, resolves no credential and proves no relation exists. It is not a Hive, catalog, schema or partition-style model; every value is an open string.
 
-`partition_by` entries and every `members` key and value must be non-empty.
-`partition_by` is a tuple; `members` and `properties` are read-only mappings
-sorted by key.
+`partition_by` entries and every `members` key and value must be non-empty. `partition_by` is a tuple; `members` and `properties` are read-only mappings sorted by key.
 
-### Location resolution
+**Location resolution**
 
 `DuckDbSourcePlanner` resolves one relation's location as follows:
 
@@ -222,9 +221,7 @@ sorted by key.
 2. otherwise `selector.format(table=relation_name, table_path=relation_name.replace(".", "/"))`;
 3. otherwise `locator`.
 
-A relative member or selector result is joined to `locator` with `/`. An
-absolute path or a value with a URI scheme is used as written. `{table}` is the
-relation's logical name and `{table_path}` replaces dots with `/`.
+A relative member or selector result is joined to `locator` with `/`. An absolute path or a value with a URI scheme is used as written. `{table}` is the relation's logical name and `{table_path}` replaces dots with `/`.
 
 ```python
 AssetLayout(
@@ -235,15 +232,11 @@ AssetLayout(
 )
 ```
 
-For relation `readings.vibration`, the planner reads
-`s3://open-targets/releases/24.09/readings/vibration/readings.vibration.parquet`.
+For relation `readings.vibration`, the planner reads `s3://open-targets/releases/24.09/readings/vibration/readings.vibration.parquet`.
 
-The generic planner accepts only `parquet`, `json` and `csv`. It reads
-`properties["credentials"]` as the credential reference for the location. The
-credential value is supplied through `BuildRuntime(credentials=...)` at build
-time and never enters the layout, blueprint or report.
+The generic planner accepts only `parquet`, `json` and `csv`. It reads `properties["credentials"]` as the credential reference for the location. The credential value is supplied through `BuildRuntime(credentials=...)` at build time and never enters the layout, blueprint or report.
 
-## `Table[Asset]`
+**`Table[Asset]`**
 
 ```python
 class Table[AssetT: Asset]:
@@ -260,9 +253,7 @@ class TargetTable(Table[OpenTargets]):
     target_id: Field[str] = field()
 ```
 
-`TableOptions` has only `name`, `description`, `annotations` and an optional
-`semantics` fragment. There is no asset option and no location, format,
-credential or version option.
+`TableOptions` has only `name`, `description`, `annotations` and an optional `semantics` fragment. There is no asset option and no location, format, credential or version option.
 
 | Error | Trigger |
 | --- | --- |
@@ -270,11 +261,9 @@ credential or version option.
 | `X must name an Asset subclass: Table[Asset]` | The parameter is not an `Asset` subclass |
 | `Table.options must be a TableOptions value` | `options` is not a `TableOptions` |
 
-Every relation in the blueprint carries an `AssetRef` such as
-`["asset", "asset", "open_targets"]`. Validation refuses a relation whose asset
-is absent from `GraphBlueprint.assets`.
+Every relation in the blueprint carries an `AssetRef` such as `["asset", "asset", "open_targets"]`. Validation refuses a relation whose asset is absent from `GraphBlueprint.assets`.
 
-## `@asset_contract`
+**`@asset_contract`**
 
 ```python
 @asset_contract(
@@ -288,21 +277,13 @@ class Estate(Asset):
     options = AssetOptions(...)
 ```
 
-`asset_contract` is a class decorator on an `Asset` subclass. It validates the
-class, stores the request as `_asset_contract` and does no work: it does not
-read a source, import a project module, invoke a provider or write a file.
-Discovery finds the decorated class statically and the generated product is
-`<package>/<asset name>`.
+`asset_contract` is a class decorator on an `Asset` subclass. It validates the class, stores the request as `_asset_contract` and does no work: it does not read a source, import a project module, invoke a provider or write a file. Discovery finds the decorated class statically and the generated product is `<package>/<asset name>`.
 
-The decorator is external to the asset model. `AssetOptions` and `AssetDTO` have
-no code-generation field; an asset states its data, a contract states how its
-table declarations are generated. Generated tables use `Table[Asset]`.
+The decorator is external to the asset model. `AssetOptions` and `AssetDTO` have no code-generation field; an asset states its data, a contract states how its table declarations are generated. Generated tables use `Table[Asset]`.
 
-`AssetContractOptions` has exactly three keyword fields: `provider`,
-`configuration` and `package`. See [Generation](generation.md) for the discovery
-rules, ownership record and generated product model.
+`AssetContractOptions` has exactly three keyword fields: `provider`, `configuration` and `package`. See [Compile](/reference/compile) for the discovery rules, ownership record and generated product model.
 
-## `DuckDbSourcePlanner`
+**`DuckDbSourcePlanner`**
 
 ```python
 DuckDbSourcePlanner(
@@ -312,9 +293,7 @@ DuckDbSourcePlanner(
 )
 ```
 
-A generic module planner for `parquet`, `json` and `csv` assets. It reads the
-blueprint, asks which asset-backed relations the graph actually uses and emits
-one step per compatible relation:
+A generic module planner for `parquet`, `json` and `csv` assets. It reads the blueprint, asks which asset-backed relations the graph actually uses and emits one step per compatible relation:
 
 | Property | Value |
 | --- | --- |
@@ -340,36 +319,22 @@ The instruction payload carries:
 Rules:
 
 - One asset may produce many source steps.
-- A relation is included only when a binding selection, a binding row plan, a
-  projection selection or a projection row plan reads it.
-- A relation with no layout, an unsupported format or no resolvable location
-  produces no step. If the graph reads it, compilation reports an unresolved
-  plan opening.
+- A relation is included only when a binding selection, a binding row plan, a projection selection or a projection row plan reads it.
+- A relation with no layout, an unsupported format or no resolvable location produces no step. If the graph reads it, compilation reports an unresolved plan opening.
 - Two producers for one relation artifact are refused, not resolved silently.
 - `formats` restricts which layouts this planner accepts.
-- `union_by_name` is accepted and currently does not change the emitted step;
-  the generic planner resolves one location per relation.
+- `union_by_name` is accepted and does not change the emitted step; the generic planner resolves one location per relation.
 
-`default_toolchain` adds one `DuckDbSourcePlanner` before the core planners
-unless a supplied planner already reports `component_id == "duckdb"`.
+`default_toolchain` adds one `DuckDbSourcePlanner` before the core planners unless a supplied planner already reports `component_id == "duckdb"`.
 
-## What to remember
+**What to remember**
 
 - An asset is a logical unit of source data; one asset may back many tables.
-- A table names its asset through `Table[Asset]`; `TableOptions` has no source
-  fields.
-- `website` is the human-facing reference; `layout.locator` is the machine
-  location.
+- A table names its asset through `Table[Asset]`; `TableOptions` has no source fields.
+- `website` is the human-facing reference; `layout.locator` is the machine location.
 - Layout is optional descriptive metadata, not an access contract.
-- `AssetProfile`, optional `Semantics` and `AssetGovernance` are published with
-  the asset.
+- `AssetProfile`, optional `Semantics` and `AssetGovernance` are published with the asset.
 - `@asset_contract` is a generation frontend; it is not an asset field.
-- The generic DuckDB source planner handles `parquet`, `json` and `csv` layouts.
-  Another module contributes another ordinary planner; there is no adapter
-  registry.
+- The generic DuckDB source planner handles `parquet`, `json` and `csv` layouts. Another module contributes another ordinary planner; there is no adapter registry.
 
-Related: [Assets](../concepts/assets.md),
-[Assets and ingest](ingest.md),
-[Generation](generation.md),
-[Declarations](declarations.md),
-[Planners and executors](planners-and-executors.md).
+Related: [Declare an asset](/author/assets), [Asset specification](/spec/asset), [Assets and source data](/subjects/asset), [Declarations](/reference/declarations), [Compile](/reference/compile).

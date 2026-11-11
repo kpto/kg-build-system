@@ -1,0 +1,46 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="600" viewBox="0 0 1200 600" role="img" aria-labelledby="title desc">
+<title id="title">One run</title>
+<desc id="desc">The runtime opens resources, dispatches exact kinds and closes the run.</desc>
+<defs><marker id="arrow-6d4b9b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#6d4b9b"/></marker><marker id="arrow-8a5a00" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8a5a00"/></marker><marker id="arrow-b4532a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b4532a"/></marker><marker id="arrow-2454a6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2454a6"/></marker><marker id="arrow-b4431f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b4431f"/></marker><marker id="arrow-4d7c4a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4d7c4a"/></marker><marker id="arrow-a47813" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a47813"/></marker><marker id="arrow-2f67a8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2f67a8"/></marker><marker id="arrow-0f6f68" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0f6f68"/></marker><marker id="arrow-a64d6b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a64d6b"/></marker><marker id="arrow-b36716" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b36716"/></marker><marker id="arrow-5c5c66" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5c5c66"/></marker><marker id="arrow-7a5a3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7a5a3a"/></marker></defs>
+<rect width="1200" height="600" fill="#fbf8f1"/>
+<text x="38" y="44" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#b4431f" text-anchor="start" font-weight="700">EXECUTION</text>
+<text x="38" y="72" font-family="Inter, Segoe UI, sans-serif" font-size="24" fill="#1d232a" text-anchor="start" font-weight="700">One run</text>
+<rect x="38" y="88" width="1124" height="1" rx="0" fill="#ded6c7" stroke="#ded6c7" stroke-width="1"/>
+<text x="38" y="120" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#5f6b76" text-anchor="start" font-weight="700">RUNTIME</text>
+<rect x="38" y="130" width="1" height="360" rx="0" fill="#eee7d8" stroke="#eee7d8" stroke-width="1"/>
+<text x="260" y="120" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#5f6b76" text-anchor="start" font-weight="700">PROVIDERS</text>
+<rect x="260" y="130" width="1" height="360" rx="0" fill="#eee7d8" stroke="#eee7d8" stroke-width="1"/>
+<text x="520" y="120" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#5f6b76" text-anchor="start" font-weight="700">EXECUTOR</text>
+<rect x="520" y="130" width="1" height="360" rx="0" fill="#eee7d8" stroke="#eee7d8" stroke-width="1"/>
+<text x="800" y="120" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#5f6b76" text-anchor="start" font-weight="700">EVENT BUS</text>
+<rect x="800" y="130" width="1" height="360" rx="0" fill="#eee7d8" stroke="#eee7d8" stroke-width="1"/>
+<rect x="38" y="136" width="1124" height="38" rx="6" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="54" y="159" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#2454a6" text-anchor="start" font-weight="700">PipelineStarted</text>
+<text x="240" y="159" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">fresh EventBus + ResourceRegistry</text>
+<rect x="38" y="190" width="1124" height="38" rx="6" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="54" y="213" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#4d7c4a" text-anchor="start" font-weight="700">open resources</text>
+<text x="240" y="213" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">output · working · temp · DuckDB</text>
+<rect x="38" y="244" width="1124" height="38" rx="6" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="54" y="267" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#7a5a3a" text-anchor="start" font-weight="700">StepStarted</text>
+<text x="240" y="267" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">dependency wave</text>
+<rect x="38" y="298" width="1124" height="38" rx="6" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="54" y="321" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#b4532a" text-anchor="start" font-weight="700">execute(instruction)</text>
+<text x="240" y="321" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">exact (operation, engine) kind</text>
+<rect x="38" y="352" width="1124" height="38" rx="6" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="54" y="375" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#8a5a00" text-anchor="start" font-weight="700">StepFinished</text>
+<text x="240" y="375" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">succeeded · warning · failed · skipped</text>
+<rect x="38" y="406" width="1124" height="38" rx="6" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="54" y="429" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#5c5c66" text-anchor="start" font-weight="700">PipelineFinished</text>
+<text x="240" y="429" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">publish report; dispose resources</text>
+<rect x="38" y="406" width="1124" height="38" rx="6" fill="#5c5c6614" stroke="#5c5c6655" stroke-width="1"/>
+<text x="54" y="429" font-family="ui-monospace, SFMono-Regular, Menlo, monospace" font-size="12" fill="#5c5c66" text-anchor="start" font-weight="700">PipelineFinished</text>
+<text x="240" y="429" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">publish report; dispose resources</text>
+<rect x="38" y="466" width="548" height="100" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="52" y="490" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#b4431f" text-anchor="start" font-weight="700">FAILURE</text>
+<text x="52" y="512" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">A failed step becomes a FAILED outcome, not an exception.</text>
+<text x="52" y="529" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">A disrupting input skips the step; a listener error halts the run.</text>
+<rect x="614" y="466" width="548" height="100" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="628" y="490" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#0f6f68" text-anchor="start" font-weight="700">RESOURCES</text>
+<text x="628" y="512" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">A provider publishes on PipelineStarted and disposes on finish or halt.</text>
+<text x="628" y="529" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">An executor sees only the exact resources it declared.</text>
+</svg>

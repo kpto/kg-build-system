@@ -1,18 +1,30 @@
-# Declarations
+---
+title: Declarations
+summary: The exact field, table, struct, projection and table-group declarations, options and refusal messages.
+section: reference
+perspective: reference
+order: 60
+status: normative
+verified: 2026-11-10
+sources:
+  - kg_build_system/distribution/languages/data/model/public/declarations.py
+  - kg_build_system/distribution/languages/data/model/public/fields.py
+  - kg_build_system/distribution/languages/data/service/_private/declarations.py
+  - kg_build_system/distribution/languages/data/service/_private/descriptors.py
+  - tests/test_authoring_api.py
+---
 
-Declarations state the shape of one row, the shape of a nested record, the name
-of a relation, a table catalog and the asset those rows come from.
+## Surface
 
-The declaration names come from `kg_build_system`; the representative and
-canonical types come from `kg_build_system`. The meaning of each
-declaration is on [Data contracts](../concepts/data-contracts.md); the asset
-model is on [Assets](../concepts/assets.md) and the
-[assets reference](assets.md). Selections are on
-[Expressions and selections](expressions.md), row plans on
-[Row sources](row-sources.md), and named relations on
-[Projections](projections.md).
+Declarations state the shape of one row, the shape of a nested record, the name of a relation, a table catalog and the asset those rows come from. The declaration set is `Table`, `Struct`, `ComputedStruct`, `Projection`, `TableGroup` and `StructTemplate`; `field()` and `computed_field()` are the only member constructors.
 
-## The declaration set
+Read [Declare data](/author/data) for the authoring path, [Data specification](/spec/data) for the relation contract, [Types reference](/reference/types) for value types, and [Row sources](/reference/row-sources) for the algebra that turns a declaration into rows. The asset model is on [Declare an asset](/author/assets) and [Asset specification](/spec/asset).
+
+## Details
+
+The declaration names come from `kg_build_system`; the representative and canonical types come from `kg_build_system`. Selections are on [Expressions and selections](/reference/expressions), row plans on [Row sources](/reference/row-sources), and named relations on [Declare data](/author/data).
+
+**The declaration set**
 
 | Declaration | What it declares | Row source | Names an asset |
 | --- | --- | --- | --- |
@@ -23,14 +35,12 @@ model is on [Assets](../concepts/assets.md) and the
 | `TableGroup` | A named catalog of final tables and nested groups | No | Through its members |
 | `StructTemplate` | A mixin sharing fields and annotations | No | No |
 
-`Table`, `TableGroup` and `Projection` are final: a final declaration may not
-inherit from another final declaration of the same kind. `Struct` and
-`ComputedStruct` are composable value records and have no finality guard.
+`Table`, `TableGroup` and `Projection` are final: a final declaration may not inherit from another final declaration of the same kind. `Struct` and `ComputedStruct` are composable value records and have no finality guard.
 
-## `field()`
+**`field()`**
 
 ```python
-def field[T: DeclaredValue](
+def field[T: DeclaredValue] (
     *,
     name: str | None = None,
     description: str | None = None,
@@ -38,9 +48,7 @@ def field[T: DeclaredValue](
 ) -> Field[T]: ...
 ```
 
-`field()` declares a source-backed member: a table column or a source struct
-member. The type argument is written in the annotation, as
-`Field[T] = field()`.
+`field()` declares a source-backed member: a table column or a source struct member. The type argument is written in the annotation, as `Field[T] = field()`.
 
 | Parameter | Type | Meaning | Default |
 | --- | --- | --- | --- |
@@ -48,8 +56,7 @@ member. The type argument is written in the annotation, as
 | `description` | `str or None` | Member description | The string written directly below the assignment |
 | `annotations` | `Sequence[Annotation]` | Portable metadata carried by the field | `()` |
 
-Returns a `Field[T]` descriptor. Do not construct `Field` directly; the two
-constructors decide the backing kind.
+Returns a `Field[T]` descriptor. Do not construct `Field` directly; the two constructors decide the backing kind.
 
 ```python
 from kg_build_system import Field, Table, TableOptions, field
@@ -68,14 +75,9 @@ class VisitTable(Table[Estate]):
     display_name: Field[str] = field(name="name")
 ```
 
-`Field[T]` accepts the eight canonical scalar types, `Array[...]` of a supported
-type, a declared `Struct` or `ComputedStruct`, and a declared `CustomDataType`.
-A field type must be one of those value types; `Field[SomeTable]` and
-`Field[SomeProjection]` are not legal. The full type table is on
-[Types](types.md).
+`Field[T]` accepts the eight canonical scalar types, `Array[...]` of a supported type, a declared `Struct` or `ComputedStruct`, and a declared `CustomDataType`. A field type must be one of those value types; `Field[SomeTable]` and `Field[SomeProjection]` are not legal. The full type table is on [Types reference](/reference/types).
 
-A source `Field[T]` read yields `Selection[Nullable[T]]`. The declaration names
-the value type; the source owner decides presence.
+A source `Field[T]` read yields `Selection[Nullable[T]]`. The declaration names the value type; the source owner decides presence.
 
 | Error | Trigger |
 | --- | --- |
@@ -90,10 +92,10 @@ the value type; the source owner decides presence.
 | `<Class>.<attribute> is a source field and must be declared with field(), not T \| None` | The annotation includes absence |
 | `unsupported logical type annotation: ...` | `list[T]`, `dict[K, V]` or another unsupported annotation |
 
-## `computed_field()`
+**`computed_field()`**
 
 ```python
-def computed_field[T: DeclaredValue](
+def computed_field[T: DeclaredValue] (
     value: Selection[T],
     *,
     name: str | None = None,
@@ -102,9 +104,7 @@ def computed_field[T: DeclaredValue](
 ) -> Field[T]: ...
 ```
 
-`computed_field()` declares a selection-backed member. It is legal on a
-`Projection` output and on a `ComputedStruct` member; the host decides what the
-selection means.
+`computed_field()` declares a selection-backed member. It is legal on a `Projection` output and on a `ComputedStruct` member; the host decides what the selection means.
 
 | Parameter | Type | Meaning | Default |
 | --- | --- | --- | --- |
@@ -113,10 +113,7 @@ selection means.
 | `description` | `str or None` | Output description | The string written directly below the assignment |
 | `annotations` | `Sequence[Annotation]` | Portable metadata carried by the output | `()` |
 
-Returns a `Field[T]` descriptor. On a `Projection`, the field is an output typed
-by `value`; on a `ComputedStruct`, the field is a type witness. See
-[Projections](projections.md) and [ComputedStruct](#computedstruct). The
-examples use the `SiteTable` declared under [Table](#table).
+Returns a `Field[T]` descriptor. On a `Projection`, the field is an output typed by `value`; on a `ComputedStruct`, the field is a type witness. See [Declare data](/author/data) and [Row sources](/reference/row-sources). The examples use the `SiteTable` declared under `Table`.
 
 ```python
 from kg_build_system import ComputedStruct, Projection, computed_field
@@ -143,10 +140,9 @@ class SiteSummaryStruct(ComputedStruct):
 | `<Class>.<attribute> is a source field and must be declared with field(), not computed_field()` | `computed_field(...)` used in a `Table` or `Struct` |
 | `<Class> fields 'x' and 'y' share external name 'name'` | Two outputs or members resolve to the same external name |
 
-## `Field[T]`
+**`Field[T]`**
 
-`Field[T]` is the member descriptor. The annotation names the value type; the
-constructor names the backing.
+`Field[T]` is the member descriptor. The annotation names the value type; the constructor names the backing.
 
 | Host | Declaration | Read result |
 | --- | --- | --- |
@@ -154,11 +150,9 @@ constructor names the backing.
 | `Projection` | `computed_field(selection)` | Selection typed by the field's selection |
 | `ComputedStruct` | `computed_field(selection)` | Read only through `extract`; the witness type composed with the carrier's presence |
 
-A field annotation never includes absence. Source access is nullable because the
-source may omit the value; array item and nested value nullability stay in the
-value type, as in `Field[Array[Nullable[str]]]`. See [Types](types.md).
+A field annotation never includes absence. Source access is nullable because the source may omit the value; array item and nested value nullability stay in the value type, as in `Field[Array[Nullable[str]]]`. See [Types reference](/reference/types).
 
-## `Table`
+**`Table`**
 
 ```python
 class Table[AssetT: Asset]:
@@ -169,9 +163,7 @@ class Table[AssetT: Asset]:
     def row_source(cls) -> RelationRowSource[Self]: ...
 ```
 
-A `Table` is a typed shape, a row source provider and the name of the asset its
-rows come from. It is final and becomes a relation only when a binding or
-projection reads it.
+A `Table` is a typed shape, a row source provider and the name of the asset its rows come from. It is final and becomes a relation only when a [binding](/reference/bindings) or projection reads it.
 
 ```python
 from estate.assets import Estate
@@ -180,18 +172,14 @@ class SiteTable(Table[Estate]):
     site_id: Field[str] = field()
 ```
 
-The asset parameter is part of the declaration. A concrete table without one is
-refused when the class is created.
+The asset parameter is part of the declaration. A concrete table without one is refused when the class is created.
 
 | Member | Returns | Use |
 | --- | --- | --- |
 | `options` | `TableOptions` | Identity, description and annotations |
 | `row_source()` | `RelationRowSource[Self]` | Start the row-source algebra |
 
-The name defaults to the class name with one `Table` suffix removed and
-converted to snake case, so `VisitTable` becomes `visit`. `description` defaults
-to the class's own docstring; `options.description` wins. Description is not
-inherited.
+The name defaults to the class name with one `Table` suffix removed and converted to snake case, so `VisitTable` becomes `visit`. `description` defaults to the class's own docstring; `options.description` wins. Description is not inherited.
 
 ```python
 from kg_build_system import Field, Table, TableOptions, field
@@ -208,10 +196,7 @@ class SiteTable(Table[Estate]):
     region: Field[str] = field()
 ```
 
-`SiteTable.site_id` is a `Selection[Nullable[str]]` because source access is
-nullable; `SiteTable.row_source()` is the relation a binding reads. See
-[Row sources](row-sources.md) for the algebra and [Projections](projections.md)
-for named relations.
+`SiteTable.site_id` is a `Selection[Nullable[str]]` because source access is nullable; `SiteTable.row_source()` is the relation a binding reads. See [Row sources](/reference/row-sources) for the algebra and [Bindings](/reference/bindings) for named relations.
 
 | Error | Trigger |
 | --- | --- |
@@ -222,7 +207,7 @@ for named relations.
 | `<Class> is a Table declaration: declare TableOptions, not template options` | `options = StructOptionsTemplate(...)` on a table |
 | `table names must be non-empty` | `TableOptions(name="")` |
 
-## `Struct`
+**`Struct`**
 
 ```python
 class Struct:
@@ -230,10 +215,7 @@ class Struct:
     # field members
 ```
 
-A `Struct` is a nested-record shape. It is used as `Field[SomeStruct]`, never as
-a row source, table-group member or table declaration. Its identity is the
-`(module, qualname)` pair, so two structs with the same name in different modules
-are distinct.
+A `Struct` is a nested-record shape. It is used as `Field[SomeStruct]`, never as a row source, table-group member or table declaration. Its identity is the `(module, qualname)` pair, so two structs with the same name in different modules are distinct.
 
 ```python
 from kg_build_system import Field, Struct, StructOptions, field
@@ -247,9 +229,7 @@ class ContactStruct(Struct):
     phone: Field[str] = field()
 ```
 
-A source struct member read yields `Selection[Nullable[T]]`; a nullable carrier
-also makes every member nullable. Reach members with `extract`; see
-[Expressions and selections](expressions.md#extract).
+A source struct member read yields `Selection[Nullable[T]]`; a nullable carrier also makes every member nullable. Reach members with `extract`; see [Expressions and selections](/reference/expressions#extract).
 
 | Error | Trigger |
 | --- | --- |
@@ -257,7 +237,7 @@ also makes every member nullable. Reach members with `extract`; see
 | `struct names must be non-empty` | `StructOptions(name="")` |
 | `<Class> is a Struct declaration: declare StructOptions, not template options` | `options = StructOptionsTemplate(...)` on a struct |
 
-## `ComputedStruct`
+**`ComputedStruct`**
 
 ```python
 class ComputedStruct:
@@ -265,14 +245,9 @@ class ComputedStruct:
     # computed_field members
 ```
 
-A `ComputedStruct` is a value-record declaration built from `computed_field`
-members. It is usable as `Field[SomeComputedStruct]` and through `extract`, but
-it has no `row_source()`, cannot be bound and cannot be a table-group member.
+A `ComputedStruct` is a value-record declaration built from `computed_field` members. It is usable as `Field[SomeComputedStruct]` and through `extract`, but it has no `row_source()`, cannot be bound and cannot be a table-group member.
 
-As a field type its member selections are **type witnesses**: they fix each
-member's logical type, are not evaluated, and do not add a row plan. The carrier
-record supplies the value. A present carrier leaves a present witness present; a
-nullable carrier makes the member nullable.
+As a field type its member selections are **type witnesses**: they fix each member's logical type, are not evaluated, and do not add a row plan. The carrier record supplies the value. A present carrier leaves a present witness present; a nullable carrier makes the member nullable.
 
 ```python
 from kg_build_system import (
@@ -300,19 +275,15 @@ class SummaryTable(Table[Estate]):
 | `<Class>.<attribute> must be declared with computed_field()` | A `field()` member is declared on a computed struct |
 | `<Class> is a ComputedStruct declaration: declare StructOptions, not template options` | Template options are used as the host options |
 
-## `Projection`
+**`Projection`**
 
 ```text
 Projection(source: RowSource[S]) -> type[Projection]
 ```
 
-`Projection(source)` returns a base pinned to one row source. Subclass it, give
-the class a name and declare at least one output with `computed_field`. A
-projection is a shape and a row source, but it is not a `Table` and names no
-asset of its own.
+`Projection(source)` returns a base pinned to one row source. Subclass it, give the class a name and declare at least one output with `computed_field`. A projection is a shape and a row source, but it is not a `Table` and names no asset of its own.
 
-There is no unpinned projection. `Projection()` and `class P(Projection)` are
-refused when the class is created.
+There is no unpinned projection. `Projection()` and `class P(Projection)` are refused when the class is created.
 
 ```python
 from kg_build_system import Projection, ProjectionOptions, computed_field
@@ -334,10 +305,9 @@ class SiteProjection(Projection(SiteTable.row_source())):
 | `projection names must be non-empty` | `ProjectionOptions(name="")` |
 | `<Class>.<attribute> must be declared with computed_field()` | `field()` is used for an output |
 
-The pin, outputs and dependency rules are on
-[Projections](projections.md).
+The pin, outputs and dependency rules are on [Row sources](/reference/row-sources) and [Bindings](/reference/bindings).
 
-## `TableGroup`
+**`TableGroup`**
 
 ```python
 class TableGroup:
@@ -345,9 +315,7 @@ class TableGroup:
     # member attributes, or options.members
 ```
 
-A `TableGroup` is a final named catalog of final tables and nested groups. It is
-not a shape and not a row source. Members may be class attributes or the
-`members` argument of `TableGroupOptions`.
+A `TableGroup` is a final named catalog of final tables and nested groups. It is not a shape and not a row source. Members may be class attributes or the `members` argument of `TableGroupOptions`.
 
 ```python
 from kg_build_system import TableGroup, TableGroupOptions
@@ -361,9 +329,7 @@ class ReadingsTableGroup(TableGroup):
     mechanical = MechanicalTableGroup
 ```
 
-The group name defaults to the class name with one `TableGroup` suffix removed
-and converted to snake case. A group is a catalog, not a source declaration: each
-member table names its own asset. See [Assets](../concepts/assets.md).
+The group name defaults to the class name with one `TableGroup` suffix removed and converted to snake case. A group is a catalog, not a source declaration: each member table names its own asset. See [Asset specification](/spec/asset).
 
 | Error | Trigger |
 | --- | --- |
@@ -377,7 +343,7 @@ member table names its own asset. See [Assets](../concepts/assets.md).
 | `table-group names must be non-empty` | `TableGroupOptions(name="")` |
 | `<Class> is a TableGroup declaration: declare TableGroupOptions, not template options` | `options = StructOptionsTemplate(...)` on a group |
 
-## `StructTemplate`
+**`StructTemplate`**
 
 ```python
 class StructTemplate:
@@ -385,16 +351,9 @@ class StructTemplate:
     # field members
 ```
 
-`StructTemplate` shares field slots and annotation flow with `Table`, `Struct`
-and `ComputedStruct`. It never becomes a declaration, has no name or description
-and never enters the blueprint. Templates come first in the base list:
-`class SiteTable(ProvenancedTemplate, Table[Estate])`.
+`StructTemplate` shares field slots and annotation flow with `Table`, `Struct` and `ComputedStruct`. It never becomes a declaration, has no name or description and never enters the blueprint. Templates come first in the base list: `class SiteTable(ProvenancedTemplate, Table[Estate])`.
 
-A template's options must be `StructOptionsTemplate`, which carries annotations
-only. A template may extend another template by naming it as its base. Mixing a
-template into `Projection` or `TableGroup` is refused. A `ComputedStruct` host
-accepts a template's annotations, but a source-backed template field fails there
-because a computed host requires `computed_field`.
+A template's options must be `StructOptionsTemplate`, which carries annotations only. A template may extend another template by naming it as its base. Mixing a template into `Projection` or `TableGroup` is refused. A `ComputedStruct` host accepts a template's annotations, but a source-backed template field fails there because a computed host requires `computed_field`.
 
 ```python
 from kg_build_system import (
@@ -418,7 +377,7 @@ class SiteTable(ProvenancedTemplate, Table[Estate]):
 | `<Class> mixes StructTemplate into a non-record declaration: ...` | A template is mixed into `Projection` or `TableGroup` |
 | `<Class>.<attribute> must be declared with computed_field()` | A source-backed template field reaches a `ComputedStruct` host |
 
-## Options
+**Options**
 
 | Option value | Signature | Fields |
 | --- | --- | --- |
@@ -428,24 +387,15 @@ class SiteTable(ProvenancedTemplate, Table[Estate]):
 | `TableGroupOptions` | `TableGroupOptions(members=(), name=None, description=None, annotations=())` | Group members plus identity, description and annotations; no semantics |
 | `StructOptionsTemplate` | `StructOptionsTemplate(annotations=())` | Template annotations only; no name or description |
 
-Every option value is frozen. `name` must be non-empty when supplied.
-`description` defaults to the declaration's own docstring and is never
-inherited. `annotations` is a sequence of `Annotation` values; see
-[Semantics and annotations](../concepts/semantics.md).
+Every option value is frozen. `name` must be non-empty when supplied. `description` defaults to the declaration's own docstring and is never inherited. `annotations` is a sequence of `Annotation` values; see [Data specification](/spec/data).
 
-## What to remember
+**What to remember**
 
-- `field()` declares source backing; `computed_field(selection)` declares
-  selection backing. The host decides which is legal.
-- `Field[T]` names a value type. Source `Table` and `Struct` reads are
-  `Selection[Nullable[T]]`; projection and computed-struct reads follow their
-  selection.
-- `Table`, `TableGroup` and `Projection` are final. `Struct` and
-  `ComputedStruct` are value records, not row sources.
-- `Table[Asset]` names the logical source of a table; the asset and its
-  optional layout carry location, format and credential reference.
+- `field()` declares source backing; `computed_field(selection)` declares selection backing. The host decides which is legal.
+- `Field[T]` names a value type. Source `Table` and `Struct` reads are `Selection[Nullable[T]]`; projection and computed-struct reads follow their selection.
+- `Table`, `TableGroup` and `Projection` are final. `Struct` and `ComputedStruct` are value records, not row sources.
+- `Table[Asset]` names the logical source of a table; the asset and its optional layout carry location, format and credential reference.
 - A projection is always pinned to a row-source value.
-- A name, description and annotation are declaration metadata; they never
-  become fields or graph properties.
+- A name, description and annotation are declaration metadata; they never become fields or graph properties.
 
-Next: [Expressions and selections](expressions.md) turn these rows into values.
+For the step that turns declarations into a plan, see [Compile](/reference/compile). For the data subject as a whole, start at [Data contracts](/subjects/data).

@@ -1,0 +1,56 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="520" viewBox="0 0 1200 520" role="img" aria-labelledby="title desc">
+<title id="title">Three artifacts</title>
+<desc id="desc">The blueprint is semantic, the plan is executable, the report is evidence.</desc>
+<defs><marker id="arrow-6d4b9b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#6d4b9b"/></marker><marker id="arrow-8a5a00" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#8a5a00"/></marker><marker id="arrow-b4532a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b4532a"/></marker><marker id="arrow-2454a6" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2454a6"/></marker><marker id="arrow-b4431f" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b4431f"/></marker><marker id="arrow-4d7c4a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#4d7c4a"/></marker><marker id="arrow-a47813" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a47813"/></marker><marker id="arrow-2f67a8" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#2f67a8"/></marker><marker id="arrow-0f6f68" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#0f6f68"/></marker><marker id="arrow-a64d6b" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#a64d6b"/></marker><marker id="arrow-b36716" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#b36716"/></marker><marker id="arrow-5c5c66" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#5c5c66"/></marker><marker id="arrow-7a5a3a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M 0 0 L 10 5 L 0 10 z" fill="#7a5a3a"/></marker></defs>
+<rect width="1200" height="520" fill="#fbf8f1"/>
+<text x="38" y="44" font-family="Inter, Segoe UI, sans-serif" font-size="11" fill="#b4431f" text-anchor="start" font-weight="700">ARTIFACTS</text>
+<text x="38" y="72" font-family="Inter, Segoe UI, sans-serif" font-size="24" fill="#1d232a" text-anchor="start" font-weight="700">Three artifacts</text>
+<rect x="38" y="88" width="1124" height="1" rx="0" fill="#ded6c7" stroke="#ded6c7" stroke-width="1"/>
+<rect x="38" y="116" width="330" height="210" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="38" y="116" width="330" height="4" rx="2" fill="#6d4b9b" stroke="#6d4b9b" stroke-width="1"/>
+<text x="52" y="140" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#6d4b9b" text-anchor="start" font-weight="700">COMPILE INPUT</text>
+<text x="52" y="158" font-family="Inter, Segoe UI, sans-serif" font-size="15" fill="#1d232a" text-anchor="start" font-weight="700">GraphBlueprint</text>
+<text x="52" y="182" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">semantic model of the graph</text>
+<text x="52" y="198" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">graph · data · assets · bindings</text>
+<text x="52" y="214" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">graph_declaration (0 or 1)</text>
+<text x="52" y="230" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">typed refs: [language, role, *key]</text>
+<text x="52" y="246" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">public handle; DTOs are internal</text>
+<rect x="414" y="116" width="330" height="210" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="414" y="116" width="330" height="4" rx="2" fill="#2454a6" stroke="#2454a6" stroke-width="1"/>
+<text x="428" y="140" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#2454a6" text-anchor="start" font-weight="700">COMPILE OUTPUT</text>
+<text x="428" y="158" font-family="Inter, Segoe UI, sans-serif" font-size="15" fill="#1d232a" text-anchor="start" font-weight="700">WorkflowPlan</text>
+<text x="428" y="182" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">components · steps · connections</text>
+<text x="428" y="198" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">each step owns one instruction</text>
+<text x="428" y="214" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">exact kind: (operation, engine)</text>
+<text x="428" y="230" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">provenance carries the blueprint</text>
+<text x="428" y="246" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">stored as workflow_plan.json</text>
+<rect x="790" y="116" width="372" height="210" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<rect x="790" y="116" width="372" height="4" rx="2" fill="#5c5c66" stroke="#5c5c66" stroke-width="1"/>
+<text x="804" y="140" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#5c5c66" text-anchor="start" font-weight="700">EXECUTE OUTPUT</text>
+<text x="804" y="158" font-family="Inter, Segoe UI, sans-serif" font-size="15" fill="#1d232a" text-anchor="start" font-weight="700">WorkflowReport</text>
+<text x="804" y="182" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">published artifacts by opening</text>
+<text x="804" y="198" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">recovered and unresolved failures</text>
+<text x="804" y="214" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">provenance from the run</text>
+<text x="804" y="230" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">stored as build_report.json</text>
+<text x="804" y="246" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">succeeded is not &#x27;all steps ok&#x27;</text>
+<path d="M 368 220 L 410 220" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<path d="M 744 220 L 786 220" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
+<rect x="38" y="366" width="1124" height="72" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
+<text x="52" y="390" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#b4431f" text-anchor="start" font-weight="700">THE CHAIN</text>
+<rect x="52" y="400" width="106" height="24" rx="12" fill="#4d7c4a14" stroke="#4d7c4a55" stroke-width="1"/>
+<text x="105.0" y="416" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#4d7c4a" text-anchor="middle" font-weight="600">declarations</text>
+<path d="M 160 412 L 174 412" fill="none" stroke="#b4431f" stroke-width="1.2" marker-end="url(#arrow-b4431f)"/>
+<rect x="180" y="400" width="190" height="24" rx="12" fill="#2f67a814" stroke="#2f67a855" stroke-width="1"/>
+<text x="275.0" y="416" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#2f67a8" text-anchor="middle" font-weight="600">symbol graph (linker IR)</text>
+<path d="M 372 412 L 386 412" fill="none" stroke="#b4431f" stroke-width="1.2" marker-end="url(#arrow-b4431f)"/>
+<rect x="392" y="400" width="85" height="24" rx="12" fill="#6d4b9b14" stroke="#6d4b9b55" stroke-width="1"/>
+<text x="434.5" y="416" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#6d4b9b" text-anchor="middle" font-weight="600">blueprint</text>
+<path d="M 479 412 L 493 412" fill="none" stroke="#b4431f" stroke-width="1.2" marker-end="url(#arrow-b4431f)"/>
+<rect x="499" y="400" width="50" height="24" rx="12" fill="#2454a614" stroke="#2454a655" stroke-width="1"/>
+<text x="524.0" y="416" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#2454a6" text-anchor="middle" font-weight="600">plan</text>
+<path d="M 551 412 L 565 412" fill="none" stroke="#b4431f" stroke-width="1.2" marker-end="url(#arrow-b4431f)"/>
+<rect x="571" y="400" width="64" height="24" rx="12" fill="#5c5c6614" stroke="#5c5c6655" stroke-width="1"/>
+<text x="603.0" y="416" font-family="Inter, Segoe UI, sans-serif" font-size="10.5" fill="#5c5c66" text-anchor="middle" font-weight="600">report</text>
+<text x="38" y="474" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">Round trip: blueprint → rendered source → create_blueprint → equivalent blueprint (canonical document equality).</text>
+<text x="38" y="492" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">Not promised: original text, module layout, callable bodies, or validity after a raw decode.</text>
+</svg>

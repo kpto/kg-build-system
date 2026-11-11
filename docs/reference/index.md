@@ -1,65 +1,49 @@
-# Authoring API reference
+---
+title: Reference
+summary: The exact public names, CLI command, document shapes, failure catalogue and vocabulary.
+section: reference
+order: 0
+status: normative
+verified: 2026-11-10
+sources:
+  - kg_build_system/__init__.py
+  - kg_build_system/cli/
+  - docs/reference/
+---
 
-The reference states the exact author-facing signature, arguments, errors and
-examples for the kg-build-system authoring API.
+<div class="kb-section-head">
+  <p class="kb-kicker">06 · Reference</p>
+  <p class="kb-lede">Look things up here after the concept pages have given you the model. Signatures are exact; examples are small; the API table is generated from the lazy facade.</p>
+</div>
 
-Use a concept page to learn what a declaration means, then use the matching
-reference page for the exact name, argument and failure. The reference states
-the rules; it does not repeat the explanation of why the model works that way.
+## In this section
 
-## Reference pages
-
-| Reference page | What it covers | Concept page |
-| --- | --- | --- |
-| [Declarations](declarations.md) | Fields, `Table[Asset]`, `Struct`, `ComputedStruct`, `TableGroup`, `StructTemplate` and options | [Data contracts](../concepts/data-contracts.md) |
-| [Assets](assets.md) | `Asset`, options, layout, semantics, governance, `Table[Asset]`, `@asset_contract` and the generic source planner | [Assets](../concepts/assets.md) |
-| [Expressions and selections](expressions.md) | Selections, `extract`, null policy, row effects, array and value operations, literals and Boolean composition | [Expressions](../concepts/expressions.md) |
-| [Row sources](row-sources.md) | `row_source()`, `where`, `union`, `join`, `group_by`, `distinct`, `order_by` and generated shapes | [Row sources and grain](../concepts/row-sources.md) |
-| [Projections](projections.md) | Pinning a source, `computed_field`, outputs and dependencies | [Projections](../concepts/projections.md) |
-| [Topology declarations](topology.md) | `Node`, `Edge`, properties, categories, templates and endpoints | [Topology](../concepts/topology.md) |
-| [Bindings](bindings.md) | `node_binding`, `edge_binding`, keys, properties and endpoint tokens | [Bindings](../concepts/bindings.md) |
-| [Semantics](semantics.md) | `Annotation`, labels and descriptions | [Semantics and annotations](../concepts/semantics.md) |
-| [Types](types.md) | Canonical types, nullability, property shapes and key rules | [Types and nullability](../concepts/types.md) |
-| [Assets and ingest](ingest.md) | `AssetLayout`, the generic source planner, source checks and trust rules | [Assets](../concepts/assets.md) |
-| [Generation](generation.md) | `@asset_contract`, generated packages and source nullability claims | [Data contracts](../concepts/data-contracts.md) |
-| [Compile and execute](compile.md) | `create_blueprint`, `compile`, `execute`, runtime and report | [Compile, execute and outputs](../concepts/build-and-outputs.md) |
-| [Planners and executors](planners-and-executors.md) | supplied planners and executors, configuration, kinds and composition | [Planners and executors](../concepts/planners-and-executors.md) |
-| [Glossary](glossary.md) | The vocabulary used across the guide | [How a build works](../concepts/index.md) |
-
-## How to read a signature
-
-- Signatures use Python type syntax. Single-letter names such as `T`, `S` and
-  `R` are type parameters; a default shown after `=` applies when the argument
-  is omitted.
-- A parameter marked `*` is keyword-only.
-- `refused` means the framework raises at declaration, compile or build time;
-  the error tables on each page give the message and the trigger.
-- `Value` means a row-source value such as `SiteTable.row_source()`, not the
-  declaration class `SiteTable`.
-- A field declaration names a value type, never absence. A source `Table` or
-  source `Struct` read is a `NullableSelection[T]`; a `Projection` output or
-  `ComputedStruct` member follows its `computed_field` selection. The reference
-  says when an operation removes or preserves a null.
-
-## Import paths
-
-| Surface | Import from |
+| Page | Lookup |
 | --- | --- |
-| Declarations, selections, row sources and projections | `kg_build_system` |
-| `compile`, `create_blueprint` and `execute` | `kg_build_system` |
-| `BuildRuntime` and `WorkflowReport` | `kg_build_system` (also `kg_build_system.distribution`) |
-| `WorkflowPlan`, `Step`, `StepId`, `OpeningId`, `ArtifactType`, `ArtifactPattern`, `InstructionKind` and the kernel protocols | `kg_build_system.kernel` |
-| Representative types and canonical logical types | `kg_build_system` |
-| Supplied planners and executors | `kg_build_system.distribution` |
-| Generation contracts and commands | `kg_build_system.generation` |
+| [API surface](/reference/api) | Every name exported by `kg_build_system`, grouped by import. |
+| [CLI](/reference/cli) | `kbs generate`, its flags and exit codes. |
+| [Documents](/reference/documents) | Blueprint, plan and report shapes; omit versus null; provenance. |
+| [Declarations](/reference/declarations) | Table, Struct, Field and the constructors. |
+| [Assets](/reference/assets) | Asset options, layout, profile, governance and Table[Asset]. |
+| [Types](/reference/types) | Canonical types, nullability, property shape and DuckDB dispositions. |
+| [Expressions](/reference/expressions) | The Selection surface, row effects, operations and errors. |
+| [Row sources](/reference/row-sources) | row_source, where, join, group_by, union, distinct, order_by and unnest. |
+| [Projections](/reference/projections) | Pinned sources, computed fields and outputs. |
+| [Topology](/reference/topology) | Node, Edge, properties, templates, categories and endpoints. |
+| [Bindings](/reference/bindings) | node_binding, edge_binding, keys, properties and endpoints. |
+| [Semantics](/reference/semantics) | Claim, Frame, Limitation, Purpose, Semantics and GraphSemantics. |
+| [Compile and execute](/reference/compile) | create_blueprint, compile, execute, plan and report. |
+| [Planners and executors](/reference/planners-and-executors) | Supplied planners, executors, configuration and kinds. |
+| [Ingest](/reference/ingest) | AssetLayout, the generic source planner and source checks. |
+| [Generation](/reference/generation) | @asset_contract, providers, discovery and ownership. |
+| [Failures](/reference/failures) | Error messages by stage, with the first place to look. |
+| [Glossary](/reference/glossary) | Terms that look alike and the distinction that matters. |
+| [Migration](/reference/migration) | Old docs page → KB destination, redirects and the replacement plan. |
 
-## What to remember
+## Pages
 
-- Read the concept page for meaning; read the reference page for the exact
-  interface.
-- Every declaration and selection is a typed authoring construct, not a schema
-  document or a dictionary.
-- Errors are quoted so they can be matched against the message the framework
-  emits.
+Use [API surface](/reference/api) for names, [Documents](/reference/documents) for stored shapes and [Failures](/reference/failures) for a message. The exact authoring pages start at [Declarations](/reference/declarations); [Migration](/reference/migration) maps the old docs to this reference. [Glossary](/reference/glossary) resolves vocabulary before a review.
 
-Start with [Declarations](declarations.md) for row shapes and [Assets](assets.md) for the logical source they name.
+## Next
+
+[API surface](/reference/api) — the public names, grouped as the package groups them.

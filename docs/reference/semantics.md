@@ -1,12 +1,37 @@
-# Semantics
+---
+title: Semantics reference
+summary: Exact annotations, labels, descriptions, template annotation flow and the errors a declaration raises.
+section: reference
+perspective: reference
+order: 140
+status: normative
+verified: 2026-11-10
+sources:
+  - kg_build_system/distribution/languages/annotations/model/public/base.py
+  - kg_build_system/distribution/languages/annotations/model/public/labels.py
+  - kg_build_system/distribution/languages/annotations/service/_private/validation.py
+  - kg_build_system/distribution/languages/topology/service/_private/class_creation.py
+  - docs/reference/semantics.md
+---
+
+## Surface
 
 `Annotation`, `NodeLabel` and `EdgeLabel` carry the portable meaning and target-neutral naming of a declaration into the blueprint and the graph outputs.
 
-Semantics are independent of the data: a description is prose for a reader, an annotation is a typed payload for a tool, and a label names the component in a target. See [Semantics and annotations](../concepts/semantics.md).
+| Surface | Kind | Carries |
+| --- | --- | --- |
+| `Annotation` | Frozen dataclass | A stable namespace, a stable identifier and a JSON-compatible payload. |
+| `NodeLabel` / `EdgeLabel` | Framework annotation | One label string for a node or edge component. |
+| Description | Prose | `options.description` or the docstring, never a typed payload. |
+| `semantics` | Declaration fragment | Claims and frames attached by an options value. See [Declare meaning](/author/meaning). |
 
-This page covers annotations, labels and descriptions. Meaning units (`Claim`,
-`Limitation`, `Frame`, `Purpose`, `Semantics` and `GraphSemantics`) are the
-separate semantics language; see [Semantics language](../concepts/semantics-language.md).
+Read [Declare meaning](/author/meaning) for the meaning-unit language, [Meaning specification](/spec/meaning) for the requirement and [Meaning subject](/subjects/meaning) for the views.
+
+## Details
+
+Semantics are independent of the data: a description is prose for a reader, an annotation is a typed payload for a tool, and a label names the component in a target. See [Declare meaning](/author/meaning) for the model and [Semantic hierarchy](/philosophy/semantic-hierarchy) for the design rationale.
+
+This page covers annotations, labels and descriptions. Meaning units (`Claim`, `Limitation`, `Frame`, `Purpose`, `Semantics` and `GraphSemantics`) are the separate semantics language; see [Declare meaning](/author/meaning) and [Meaning specification](/spec/meaning).
 
 ```python
 from dataclasses import dataclass
@@ -26,7 +51,7 @@ class SiteNode(Node):
     options = NodeOptions(annotations=(NodeLabel("Site"), Provenance("bound")))
 ```
 
-## `Annotation`
+### `Annotation`
 
 An annotation is a frozen dataclass with a stable namespace, a stable identifier and payload fields:
 
@@ -69,16 +94,17 @@ options = NodeOptions(
 )
 ```
 
-### Errors
+#### Errors
 
 | Condition | Error |
 | --- | --- |
 | An `annotations=` sequence contains a non-`Annotation` value | `TypeError: annotations must contain only Annotation values` |
 | The annotation is not a dataclass | Blueprint creation fails when `asdict()` is called; declare the payload with `@dataclass(frozen=True)` |
+| `semantics` is `GraphSemantics` | `TypeError: <context> must be a Semantics value, not GraphSemantics` |
 
 Declare the payload with `@dataclass(frozen=True)` and stable class variables. The framework treats every `Annotation` instance as portable data.
 
-## Labels
+### Labels
 
 ```python
 NodeLabel(label: str)
@@ -119,7 +145,7 @@ At most one label of the matching kind may appear in the effective annotations. 
 
 A wrong-kind label remains an ordinary annotation in the blueprint; it is not a label for that component.
 
-## Descriptions
+### Descriptions
 
 A description is prose attached to a declaration, field or property. It is not an annotation and carries no typed payload.
 
@@ -150,7 +176,7 @@ A property description belongs to the declaring class and travels with the inher
 
 An attribute docstring is recovered from the declaration's source when the class is created. If the source cannot be read — a class built from a string or typed into a REPL, for example — the string yields no description; `description=` always works.
 
-## Annotation flow
+### Annotation flow
 
 A template records its own annotations as one frozen tuple when the template class is created. A host's effective annotations are:
 
@@ -160,6 +186,8 @@ followed by the host's own options.annotations
 ```
 
 ```python
+from dataclasses import dataclass
+
 from kg_build_system import (
     AbstractNode, Annotation, Node, NodeLabel, NodeOptions,
     NodeOptionsTemplate, NodeTemplate, PropertySlot, property,
@@ -191,7 +219,7 @@ class RecordNode(AuditedTemplate, EquipmentNode, Node):
 
 A category's own annotations are not copied down. `RecordNode` does not receive the `Equipment` label. Label uniqueness is checked against the complete effective set, so a template cannot accidentally give a component two labels.
 
-## Where annotations attach
+### Where annotations attach
 
 | Declaration | Argument |
 | --- | --- |
@@ -205,9 +233,9 @@ A category's own annotations are not copied down. `RecordNode` does not receive 
 | Binding | `BindingOptions(annotations=...)` |
 | Asset | `AssetOptions(annotations=...)` |
 
-A binding has no description. Use `debug_name` for its human handle and annotations for its metadata; see [Bindings](bindings.md).
+A binding has no description. Use `debug_name` for its human handle and annotations for its metadata; see [Bindings reference](/reference/bindings).
 
-## What consumers see
+### What consumers see
 
 | Output | Semantic content |
 | --- | --- |
@@ -217,7 +245,7 @@ A binding has no description. Use `debug_name` for its human handle and annotati
 
 Only declarations the build reaches enter the blueprint: the tables and projections read by a binding, the components a binding targets and their ancestors and endpoints, the structs those types use, and the sources those tables need. An annotation on an unrelated declaration is valid Python but is not published.
 
-## Errors
+### Errors
 
 | Condition | Error |
 | --- | --- |
@@ -227,8 +255,10 @@ Only declarations the build reaches enter the blueprint: the tables and projecti
 | A component has two labels of its kind | `TypeError: <Class> has <n> <kind> labels in its effective annotations; a graph component carries at most one` |
 | A template uses `NodeOptions` or `EdgeOptions` | `TypeError: <Class> is a node template: its options must be NodeOptionsTemplate, which carries no identity fields` (the edge form names `EdgeOptionsTemplate`) |
 | A component uses template options | `TypeError: <Class> is a graph component declaration: declare NodeOptions, not template options` (the edge form names `EdgeOptions`) |
+| `semantics` is `GraphSemantics` | `TypeError: <context> must be a Semantics value, not GraphSemantics` |
+| `semantics` is another non-`Semantics` value | `TypeError: <context> must be a Semantics value` |
 
-## What to remember
+### What to remember
 
 - Descriptions are prose for humans; annotations are typed payloads for tools.
 - An explicit `description=` wins over the docstring; component descriptions are not inherited.
@@ -237,4 +267,4 @@ Only declarations the build reaches enter the blueprint: the tables and projecti
 - Template annotations flow to the host in order; category annotations do not.
 - Only annotations on reached declarations enter the blueprint.
 
-Related: [Semantics and annotations](../concepts/semantics.md), [Topology](topology.md), [Bindings](bindings.md), [Compile](compile.md), [Reference index](index.md).
+For the declaration that receives a label, see [Topology reference](/reference/topology). For a binding's annotations and `debug_name`, see [Bindings reference](/reference/bindings). For the attachment forms on data declarations, see [Declarations](/reference/declarations). For the pipeline that publishes the blueprint, see [Compile](/reference/compile).
