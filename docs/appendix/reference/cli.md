@@ -8,6 +8,9 @@ verified: 2026-11-11
 sources:
   - pyproject.toml
   - kg_build_system/cli/service/_private/main.py
+  - kg_build_system/cli/service/_private/view.py
+  - hatch_build.py
+  - viewer/next.config.ts
   - kg_build_system/generation/code_generation/service/_private/command.py
   - kg_build_system/generation/code_generation/model/public/results.py
   - kg_build_system/generation/code_generation/service/_private/watcher.py
@@ -19,7 +22,9 @@ perspective: reference
 <div class="kb-views"><span class="kb-views-subject">Source generation and CLI</span><a href="/appendix/subjects/generation">Overview</a><a href="/book/part-2/08-generation">Guide</a><a href="/appendix/spec/generation">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/explainability-is-authored">Philosophy</a><a href="/appendix/review/limits">Review</a></div>
 <!-- END GENERATED:views -->
 
-`kbs` is a console script for edit-time declaration generation. Its only command is `kbs generate`. There is no build, run, validate or version command.
+`kbs` is a console script for edit-time declaration generation and local design
+inspection. It has two commands: `kbs generate` and `kbs view`. There is no build,
+run, validate or version command. `compile` and `execute` remain Python calls.
 
 ## Surface
 
@@ -29,6 +34,9 @@ kbs generate --project . --check
 kbs generate --project . --regenerate
 kbs generate --project . --check --regenerate
 kbs generate --project . --watch --debounce 500
+kbs view
+kbs view --snapshot build/workflow_plan.json
+kbs view --snapshot reference.snapshot.json --port 8002 --no-open
 ```
 
 | Flag | Effect |
@@ -41,9 +49,33 @@ kbs generate --project . --watch --debounce 500
 
 | Exit code | Meaning |
 | --- | --- |
-| `0` | `CURRENT` or `CHANGED`; also a watch session stopped with Ctrl+C. |
+| `0` | `CURRENT` or `CHANGED`; also a watch or view session stopped with Ctrl+C. |
 | `1` | `STALE` or a generation failure. |
 | `2` | Usage error, including a refused flag combination. |
+
+## `kbs view`
+
+`kbs view` serves the bundled design viewer for one project artifact. A wheel
+ships a static viewer build under `kg_build_system/viewer_dist`; the command
+starts a local HTTP server and opens the browser. Node is not required at
+runtime.
+
+| Flag | Effect |
+| --- | --- |
+| `--snapshot PATH` | Workflow plan, blueprint, viewer snapshot or gzip of one. Defaults to `build/workflow_plan.json`. |
+| `--title TEXT` | Display title for a bare workflow plan or blueprint. |
+| `--host ADDRESS` | Bind address; defaults to `127.0.0.1`. |
+| `--port PORT` | Port; defaults to `8001`. |
+| `--no-open` | Do not open a browser. |
+
+`kbs view` serves the snapshot at `/snapshot`; the viewer app is compiled for
+static export. The command never falls back to a bundled sample. With no
+`--snapshot` and no `build/workflow_plan.json`, it exits with an error and asks
+for a plan.
+
+The wheel build compiles the viewer with `npm ci` and `npm run build:static`.
+`KBS_SKIP_VIEWER_BUILD=1` uses an existing `viewer/out`, `KBS_SKIP_VIEWER_INSTALL=1`
+reuses `viewer/node_modules`, and `KBS_NPM` selects an npm executable.
 
 `compile` and `execute` are Python calls, not console commands. Use `compile` to turn a blueprint into a plan and `execute` to run it; the calls are listed on [API surface](/appendix/reference/api) and walked through on [Generation](/book/part-2/08-generation).
 

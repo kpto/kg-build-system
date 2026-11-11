@@ -224,7 +224,7 @@ def compile(
         )
     plan = selected.compile(prepared)
     existing = plan.provenance
-    provenance = dict(existing) if isinstance(existing, dict) else (
+    provenance: dict[str, Any] = dict(existing) if isinstance(existing, dict) else (
         {} if existing is None else {"plan": existing}
     )
     provenance["blueprint"] = blueprint_to_document(prepared)

@@ -476,9 +476,10 @@ async function fetchGzipJson(url: string, timeoutMs: number): Promise<unknown> {
 /**
  * Load the default Open Targets snapshot.
  *
- * `/api/snapshot` serves committed gzip bytes (`application/gzip`); the client
- * decompresses them, so the transfer is roughly 450 KB. The plain public JSON
- * is a fallback for static hosting. A base URL selects the plain file directly.
+ * `/snapshot` serves committed gzip bytes or plain JSON; the client detects the
+ * gzip magic and decompresses, so the transfer is roughly 450 KB. The plain
+ * public JSON is a fallback for static hosting. A base URL selects the plain
+ * file directly.
  */
 export async function loadDefaultSnapshot(baseUrl = ""): Promise<ViewerSnapshot> {
   const prefix = baseUrl && !baseUrl.endsWith("/") ? `${baseUrl}/` : baseUrl;
@@ -487,11 +488,11 @@ export async function loadDefaultSnapshot(baseUrl = ""): Promise<ViewerSnapshot>
   if (!baseUrl) {
     try {
       return loadSnapshotFromObject(
-        await fetchGzipJson("/api/snapshot", SNAPSHOT_TIMEOUT_MS),
+        await fetchGzipJson("/snapshot", SNAPSHOT_TIMEOUT_MS),
       );
     } catch (error) {
       failures.push(
-        `/api/snapshot: ${error instanceof Error ? error.message : String(error)}`,
+        `/snapshot: ${error instanceof Error ? error.message : String(error)}`,
       );
     }
   }
@@ -510,7 +511,7 @@ export async function loadDefaultSnapshot(baseUrl = ""): Promise<ViewerSnapshot>
   }
   throw new Error(
     `Could not load the Open Targets snapshot. ${failures.join("; ")}. ` +
-      "The default data is served from /api/snapshot (gzip) or the plain public JSON. " +
+      "The default data is served from /snapshot (gzip or JSON) or the plain public JSON. " +
       "A remote proxy can block either path; use Import to open a snapshot file directly.",
   );
 }

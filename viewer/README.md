@@ -34,7 +34,29 @@ section changes the side bar, not the active document or its editor.
 The viewer is a design reader, not an audit or review tool: there are no
 findings, decisions, coverage, sign-off or review sidecars.
 
-## Run
+## Run from a project
+
+A published `kg-build-system` wheel bundles the compiled viewer. Run it from the
+project root:
+
+```console
+uv run kbs view
+```
+
+The command reads `build/workflow_plan.json` by default. It opens the browser and
+serves the project’s own design at <http://127.0.0.1:8001/>. It never falls back
+to a bundled demo.
+
+```console
+kbs view --snapshot path/to/workflow_plan.json
+kbs view --snapshot path/to/reference.snapshot.json --port 8002
+kbs view --no-open
+```
+
+The snapshot may be a workflow plan, a blueprint, a viewer snapshot, or gzip of
+one. A bare workflow plan is wrapped with the current directory as its title.
+
+## Develop the viewer
 
 ```console
 cd viewer
@@ -48,6 +70,28 @@ Open <http://127.0.0.1:3000>. For a production build:
 npm run build
 npx next start --hostname 0.0.0.0 --port 3000
 ```
+
+## Bundle in the Python wheel
+
+`hatch_build.py` compiles the viewer during a wheel build:
+
+```text
+npm ci
+npm run build:static
+viewer/out -> kg_build_system/viewer_dist
+```
+
+`kbs view` serves `kg_build_system/viewer_dist`; Node is not required at runtime.
+Node and network access are required at build time. For a local wheel build with
+an existing `viewer/out`:
+
+```console
+KBS_SKIP_VIEWER_BUILD=1 uv build --wheel
+```
+
+`KBS_SKIP_VIEWER_INSTALL=1` reuses `viewer/node_modules`. `KBS_NPM` selects an npm
+executable. The wheel excludes `viewer/out/data`; project snapshots are served by
+`kbs view`, not bundled into the package.
 
 ## Low detail first
 
