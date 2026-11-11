@@ -204,6 +204,10 @@ rule about what the framework is belongs to the framework model.
   state that the framework cannot express a concept until the kernel protocol
   set has been checked; name the extension point and its cost. "Not in the
   default distribution" is not "not in the framework."
+- A workflow composes by artifact ports, not step dependencies. A consumer
+  declares an artifact type or pattern, never a producer identity; assembly
+  derives the connection. Priority orders the assembly scan, not data
+  availability, and it does not resolve two producers of one artifact type.
 - A language and its package share one name: `DataLanguage`, language `data`,
   package `languages/data`. The authoring class names the syntax (`Table`,
   `Node`); the language is named for the model it produces.
