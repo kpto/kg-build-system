@@ -18,7 +18,7 @@ generated: true
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Topology</span><a href="/appendix/subjects/topology" class="active">Overview</a><a href="/book/part-2/04-topology-and-bindings">Guide</a><a href="/appendix/spec/topology">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/meaning-first">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Topology</span><a href="/appendix/subjects/topology" class="active">Overview</a><a href="/book/part-2/02-topology">Guide</a><a href="/appendix/spec/topology">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/meaning-first">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## In one view
@@ -32,7 +32,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | View | Page | Answers |
 | --- | --- | --- |
 | Overview | [This page](/appendix/subjects/topology) | The subject in one place. |
-| Guide | [7. Topology and bindings](/book/part-2/04-topology-and-bindings) | How to use it. |
+| Guide | [5. Topology](/book/part-2/02-topology) | How to use it. |
 | Spec | [SPEC-005](/appendix/spec/topology) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/api) | Exact public names and document shapes. |
 | Philosophy | [Meaning before mechanism](/appendix/philosophy/meaning-first) | Why it is designed this way. |

@@ -18,11 +18,11 @@ sources:
 
 Declarations state the shape of one row, the shape of a nested record, the name of a relation, a table catalog and the asset those rows come from. The declaration set is `Table`, `Struct`, `ComputedStruct`, `Projection`, `TableGroup` and `StructTemplate`; `field()` and `computed_field()` are the only member constructors.
 
-Read [Declare data](/book/part-2/01-source-and-rows) for the authoring path, [Data specification](/appendix/spec/data) for the relation contract, [Types reference](/appendix/reference/types) for value types, and [Row sources](/appendix/reference/row-sources) for the algebra that turns a declaration into rows. The asset model is on [Declare an asset](/book/part-2/01-source-and-rows) and [Asset specification](/appendix/spec/asset).
+Read [Declare data](/book/part-2/03-source-and-rows) for the authoring path, [Data specification](/appendix/spec/data) for the relation contract, [Types reference](/appendix/reference/types) for value types, and [Row sources](/appendix/reference/row-sources) for the algebra that turns a declaration into rows. The asset model is on [Declare an asset](/book/part-2/03-source-and-rows) and [Asset specification](/appendix/spec/asset).
 
 ## Details
 
-The declaration names come from `kg_build_system`; the representative and canonical types come from `kg_build_system`. Selections are on [Expressions and selections](/appendix/reference/expressions), row plans on [Row sources](/appendix/reference/row-sources), and named relations on [Declare data](/book/part-2/01-source-and-rows).
+The declaration names come from `kg_build_system`; the representative and canonical types come from `kg_build_system`. Selections are on [Expressions and selections](/appendix/reference/expressions), row plans on [Row sources](/appendix/reference/row-sources), and named relations on [Declare data](/book/part-2/03-source-and-rows).
 
 **The declaration set**
 
@@ -113,7 +113,7 @@ def computed_field[T: DeclaredValue] (
 | `description` | `str or None` | Output description | The string written directly below the assignment |
 | `annotations` | `Sequence[Annotation]` | Portable metadata carried by the output | `()` |
 
-Returns a `Field[T]` descriptor. On a `Projection`, the field is an output typed by `value`; on a `ComputedStruct`, the field is a type witness. See [Declare data](/book/part-2/01-source-and-rows) and [Row sources](/appendix/reference/row-sources). The examples use the `SiteTable` declared under `Table`.
+Returns a `Field[T]` descriptor. On a `Projection`, the field is an output typed by `value`; on a `ComputedStruct`, the field is a type witness. See [Declare data](/book/part-2/03-source-and-rows) and [Row sources](/appendix/reference/row-sources). The examples use the `SiteTable` declared under `Table`.
 
 ```python
 from kg_build_system import ComputedStruct, Projection, computed_field

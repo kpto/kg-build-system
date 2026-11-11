@@ -1,10 +1,10 @@
 ---
-title: "18. Limits and evidence"
+title: "19. Limits and evidence"
 summary: "A limit is a classified boundary, a decision is an accepted model choice, and verification and drift are dated evidence rather than approval."
 section: book
 perspective: book
 part: IV
-chapter: 18
+chapter: 19
 order: 44
 status: normative
 verified: 2026-11-11

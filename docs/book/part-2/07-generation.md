@@ -1,15 +1,15 @@
 ---
-title: "9. Generating declarations"
+title: "10. Generating declarations"
 summary: "An inert contract observes a source once and writes an owned package of ordinary declarations."
 section: book
 perspective: book
 part: II
-chapter: 9
-order: 26
+chapter: 10
+order: 27
 status: normative
 verified: 2026-11-11
 sources:
-  - docs/book/part-2/06-generation.md
+  - docs/book/part-2/07-generation.md
   - docs/appendix/reference/generation.md
   - docs/appendix/spec/generation.md
   - docs/appendix/reference/cli.md

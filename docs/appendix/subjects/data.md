@@ -13,12 +13,12 @@ sources:
 - kg_build_system/distribution/languages/data/model/public/fields.py
 - kg_build_system/distribution/languages/data/model/public/row_sources.py
 - kg_build_system/distribution/languages/topology/model/public/values.py
-- docs/book/part-2/01-source-and-rows.md
+- docs/book/part-2/03-source-and-rows.md
 generated: true
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Data contracts and types</span><a href="/appendix/subjects/data" class="active">Overview</a><a href="/book/part-2/01-source-and-rows">Guide</a><a href="/appendix/spec/data">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/meaning-first">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Data contracts and types</span><a href="/appendix/subjects/data" class="active">Overview</a><a href="/book/part-2/03-source-and-rows">Guide</a><a href="/appendix/spec/data">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/meaning-first">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## In one view
@@ -32,7 +32,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | View | Page | Answers |
 | --- | --- | --- |
 | Overview | [This page](/appendix/subjects/data) | The subject in one place. |
-| Guide | [4. Source and rows](/book/part-2/01-source-and-rows) | How to use it. |
+| Guide | [6. Source and rows](/book/part-2/03-source-and-rows) | How to use it. |
 | Spec | [SPEC-002](/appendix/spec/data) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/api) | Exact public names and document shapes. |
 | Philosophy | [Meaning before mechanism](/appendix/philosophy/meaning-first) | Why it is designed this way. |

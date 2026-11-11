@@ -1,10 +1,10 @@
 ---
-title: "17. Architecture and tests"
+title: "18. Architecture and tests"
 summary: "Zones place code, the dependency spine gives it a direction, and contract tests make the interface visible before implementation is read."
 section: book
 perspective: book
 part: IV
-chapter: 17
+chapter: 18
 order: 43
 status: normative
 verified: 2026-11-11
@@ -22,7 +22,7 @@ A change proposes to move SQL text into the kernel so that a planner can build q
 
 The change is still wrong. The kernel is defined as domain-agnostic, and SQL is a distribution concern. The boundary is not a comment in a style guide; it is the set of names another subpackage may depend on, the direction dependencies may run, and the tests that refuse an illegal edge. A reviewer who reads the interface sees the violation before reading the implementation. That is why the interface, not the code, is the review surface.
 
-The same logic applies to the consensus module from Chapter 15. A reviewer does not need to inspect `majority` to decide whether the module belongs. The reviewer needs the responsibility, the names it adds, the dependency edges it creates, the authoring surface it changes and the tests that guard it. If those are coherent, the implementation is replaceable. If they are not, a green test suite does not rescue the design.
+The same logic applies to the consensus module from Chapter 16. A reviewer does not need to inspect `majority` to decide whether the module belongs. The reviewer needs the responsibility, the names it adds, the dependency edges it creates, the authoring surface it changes and the tests that guard it. If those are coherent, the implementation is replaceable. If they are not, a green test suite does not rescue the design.
 
 ## Zones are a reading order
 
@@ -124,4 +124,4 @@ The consensus module is a good example of the limit. Its interface is small enou
 
 ## Next
 
-[18. Limits and evidence](/book/part-4/04-limits-and-evidence) — classify what the composition refuses, and read the evidence behind the claim.
+[19. Limits and evidence](/book/part-4/04-limits-and-evidence) — classify what the composition refuses, and read the evidence behind the claim.

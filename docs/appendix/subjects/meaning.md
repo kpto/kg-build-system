@@ -19,7 +19,7 @@ generated: true
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Semantics and graph purpose</span><a href="/appendix/subjects/meaning" class="active">Overview</a><a href="/book/part-2/05-meaning-and-purpose">Guide</a><a href="/appendix/spec/meaning">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/semantic-hierarchy">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Semantics and graph purpose</span><a href="/appendix/subjects/meaning" class="active">Overview</a><a href="/book/part-2/01-meaning-and-purpose">Guide</a><a href="/appendix/spec/meaning">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/semantic-hierarchy">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## In one view
@@ -33,7 +33,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | View | Page | Answers |
 | --- | --- | --- |
 | Overview | [This page](/appendix/subjects/meaning) | The subject in one place. |
-| Guide | [8. Meaning and purpose](/book/part-2/05-meaning-and-purpose) | How to use it. |
+| Guide | [4. Meaning and purpose](/book/part-2/01-meaning-and-purpose) | How to use it. |
 | Spec | [SPEC-007](/appendix/spec/meaning) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/api) | Exact public names and document shapes. |
 | Philosophy | [One purpose, read downward](/appendix/philosophy/semantic-hierarchy) | Why it is designed this way. |

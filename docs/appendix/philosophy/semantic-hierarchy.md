@@ -6,8 +6,8 @@ order: 20
 status: normative
 verified: 2026-11-10
 sources:
-  - docs/book/part-2/05-meaning-and-purpose.md
-  - docs/book/part-2/05-meaning-and-purpose.md
+  - docs/book/part-2/01-meaning-and-purpose.md
+  - docs/book/part-2/01-meaning-and-purpose.md
   - kg_build_system/distribution/languages/semantics/model/public/units.py
   - kg_build_system/distribution/languages/topology/
 ---

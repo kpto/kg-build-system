@@ -18,7 +18,7 @@ sources:
 
 ## What it is
 
-The book serves two jobs: an author builds a graph without reading the implementation; a reviewer judges the model and its evidence. The [home page](/index) is a cover and a route into one argument, not a dashboard of parallel views. The [contents](/book/index) names four parts and eighteen chapters; the [appendices](/appendix/index) hold the exact material. A chapter can repeat an idea when the argument needs it. An appendix states the same idea precisely. Every chapter starts with a problem and ends with one next chapter.
+The book serves two jobs: an author builds a graph without reading the implementation; a reviewer judges the model and its evidence. The [home page](/index) is a cover and a route into one argument, not a dashboard of parallel views. The [contents](/book/index) names four parts and nineteen chapters; the [appendices](/appendix/index) hold the exact material. A chapter can repeat an idea when the argument needs it. An appendix states the same idea precisely. Every chapter starts with a problem and ends with one next chapter.
 
 ## Rules
 
@@ -27,7 +27,7 @@ The layout follows the Laws of UX, attributed to Jon Yablonski at <https://lawso
 | Law | Choice | Cost accepted |
 | --- | --- | --- |
 | Hick's Law | Two primary surfaces: the book and the appendices. The four-part contents is the only reading tree. | The reference tail is behind one appendices entry; search and the appendix map carry it. |
-| Miller's Law / chunking | Four parts and eighteen chapters; each chapter is one movement of the argument. | A chapter may be longer; it must earn its length. |
+| Miller's Law / chunking | Four parts and nineteen chapters; each chapter is one movement of the argument. | A chapter may be longer; it must earn its length. |
 | Jakob's Law | Familiar book frame: explorer, search, breadcrumb, chapter title, right contents. | It must beat other books on content, not chrome. |
 | Common region / proximity | Parts, chapters and appendix groups are separated by boundary and spacing. | Grouping needs whitespace; density erases it. |
 | Similarity | One concept colour and glyph across plates, badges, tables and cards. | A large palette is noise; colour stays inside plates. |

@@ -28,7 +28,7 @@ A row source names the rows a binding or projection reads and the typed shape of
 | `distinct()` | Removes duplicate rows | Unchanged |
 | `order_by(*keys, ascending=True)` | Orders rows | Unchanged |
 
-The model and the choice of grain are on [Set the grain](/book/part-2/03-grain-and-projections), the binding rules on the [Grain spec](/appendix/spec/grain), and the subject index entry for [Grain](/appendix/subjects/grain). The values that read a row are on [Expressions reference](/appendix/reference/expressions); naming a plan is on [Projections reference](/appendix/reference/projections). Declarations are on [Declarations](/appendix/reference/declarations), a binding consumes a row-source value on [Bindings](/appendix/reference/bindings), and binding targets are on [Topology](/appendix/reference/topology).
+The model and the choice of grain are on [Set the grain](/book/part-2/05-grain-and-projections), the binding rules on the [Grain spec](/appendix/spec/grain), and the subject index entry for [Grain](/appendix/subjects/grain). The values that read a row are on [Expressions reference](/appendix/reference/expressions); naming a plan is on [Projections reference](/appendix/reference/projections). Declarations are on [Declarations](/appendix/reference/declarations), a binding consumes a row-source value on [Bindings](/appendix/reference/bindings), and binding targets are on [Topology](/appendix/reference/topology).
 
 ## Details
 

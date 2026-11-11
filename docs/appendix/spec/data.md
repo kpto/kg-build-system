@@ -13,7 +13,7 @@ sources:
   - kg_build_system/distribution/languages/data/model/public/fields.py
   - kg_build_system/distribution/languages/data/model/public/row_sources.py
   - kg_build_system/distribution/languages/topology/model/public/values.py
-  - docs/book/part-2/01-source-and-rows.md
+  - docs/book/part-2/03-source-and-rows.md
 evidence:
   - tests/test_authoring_api.py
   - tests/typecheck/authoring.py
@@ -22,7 +22,7 @@ evidence:
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Data contracts and types</span><a href="/appendix/subjects/data">Overview</a><a href="/book/part-2/01-source-and-rows">Guide</a><a href="/appendix/spec/data" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/meaning-first">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Data contracts and types</span><a href="/appendix/subjects/data">Overview</a><a href="/book/part-2/03-source-and-rows">Guide</a><a href="/appendix/spec/data" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/meaning-first">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## Requirement

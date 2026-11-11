@@ -27,11 +27,11 @@ sources:
 | `BindingOptions(annotations=..., semantics=...)` | Frozen options value | Portable metadata for one binding. |
 | `endpoint(target)` | `Endpoint[N]` | A concrete node token for an abstract edge side. |
 
-Read [Bind records](/book/part-2/04-topology-and-bindings) for the authoring path, [Binding specification](/appendix/spec/binding) for the requirement and [Bindings subject](/appendix/subjects/binding) for the views.
+Read [Bind records](/book/part-2/06-binding) for the authoring path, [Binding specification](/appendix/spec/binding) for the requirement and [Bindings subject](/appendix/subjects/binding) for the views.
 
 ## Details
 
-A binding is the only place data shape and graph meaning meet. The declaration stays in [Topology reference](/appendix/reference/topology); the rows come from a table, projection or derived row source. See [Declare topology](/book/part-2/04-topology-and-bindings) for the declaration model and [Declare meaning](/book/part-2/05-meaning-and-purpose) for the semantics fragment.
+A binding is the only place data shape and graph meaning meet. The declaration stays in [Topology reference](/appendix/reference/topology); the rows come from a table, projection or derived row source. See [Declare topology](/book/part-2/02-topology) for the declaration model and [Declare meaning](/book/part-2/01-meaning-and-purpose) for the semantics fragment.
 
 ```python
 from kg_build_system import Edge, Field, Node, PropertySlot, Table, field, property

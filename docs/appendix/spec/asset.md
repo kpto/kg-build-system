@@ -13,14 +13,14 @@ sources:
   - kg_build_system/distribution/languages/asset/model/public/declarations.py
   - kg_build_system/distribution/languages/asset/service/_private/declarations.py
   - kg_build_system/distribution/modules/duckdb/service/public/planner.py
-  - docs/book/part-2/01-source-and-rows.md
+  - docs/book/part-2/03-source-and-rows.md
 evidence:
   - tests/distribution/test_asset_language.py
   - tests/distribution/planners/test_duckdb_source_planner.py
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Assets and source data</span><a href="/appendix/subjects/asset">Overview</a><a href="/book/part-2/01-source-and-rows">Guide</a><a href="/appendix/spec/asset" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/meaning-first">Philosophy</a><a href="/appendix/review/limits">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Assets and source data</span><a href="/appendix/subjects/asset">Overview</a><a href="/book/part-2/03-source-and-rows">Guide</a><a href="/appendix/spec/asset" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/meaning-first">Philosophy</a><a href="/appendix/review/limits">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## Requirement

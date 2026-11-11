@@ -28,11 +28,11 @@ sources:
 | `PropertySlot[T]` + `property()` | `name: PropertySlot[str] = property()` | One declared graph property and its value type. |
 | `endpoint(target)` | `endpoint(SiteNode)` | One concrete node token for an abstract edge side. |
 
-Read [Declare topology](/book/part-2/04-topology-and-bindings) for the authoring path, [Topology specification](/appendix/spec/topology) for the requirement and [Topology subject](/appendix/subjects/topology) for the views.
+Read [Declare topology](/book/part-2/02-topology) for the authoring path, [Topology specification](/appendix/spec/topology) for the requirement and [Topology subject](/appendix/subjects/topology) for the views.
 
 ## Details
 
-Topology is data-independent: it names a component, its properties and, for an edge, its endpoints. Values arrive only through a binding. See [Declare topology](/book/part-2/04-topology-and-bindings) for the model, [Bind records](/book/part-2/04-topology-and-bindings) and [Bindings reference](/appendix/reference/bindings) for the values, and [Semantics reference](/appendix/reference/semantics) for annotations and labels.
+Topology is data-independent: it names a component, its properties and, for an edge, its endpoints. Values arrive only through a binding. See [Declare topology](/book/part-2/02-topology) for the model, [Bind records](/book/part-2/06-binding) and [Bindings reference](/appendix/reference/bindings) for the values, and [Semantics reference](/appendix/reference/semantics) for annotations and labels.
 
 ```python
 from kg_build_system import (

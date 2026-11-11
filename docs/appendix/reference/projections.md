@@ -25,7 +25,7 @@ A projection names one row plan and publishes typed outputs computed from that r
 | Name and describe the projection | `options = ProjectionOptions(name=..., description=..., annotations=...)` |
 | Read the projection as a relation | `P.row_source()` |
 
-The model and the choice of grain are on [Project rows](/book/part-2/03-grain-and-projections), the binding rules on the [Grain spec](/appendix/spec/grain), and the subject index entry for [Grain](/appendix/subjects/grain). Selection typing is on the [Selection spec](/appendix/spec/selection), the subject index entry for [Selection](/appendix/subjects/selection), and the exact value surface on [Expressions reference](/appendix/reference/expressions). The source algebra is on [Row sources reference](/appendix/reference/row-sources); declarations are on [Declarations](/appendix/reference/declarations); a projection is consumed by [Bindings](/appendix/reference/bindings) that target [Topology](/appendix/reference/topology).
+The model and the choice of grain are on [Project rows](/book/part-2/05-grain-and-projections), the binding rules on the [Grain spec](/appendix/spec/grain), and the subject index entry for [Grain](/appendix/subjects/grain). Selection typing is on the [Selection spec](/appendix/spec/selection), the subject index entry for [Selection](/appendix/subjects/selection), and the exact value surface on [Expressions reference](/appendix/reference/expressions). The source algebra is on [Row sources reference](/appendix/reference/row-sources); declarations are on [Declarations](/appendix/reference/declarations); a projection is consumed by [Bindings](/appendix/reference/bindings) that target [Topology](/appendix/reference/topology).
 
 ## Details
 

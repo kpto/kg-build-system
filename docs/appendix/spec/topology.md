@@ -21,7 +21,7 @@ evidence:
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Topology</span><a href="/appendix/subjects/topology">Overview</a><a href="/book/part-2/04-topology-and-bindings">Guide</a><a href="/appendix/spec/topology" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/meaning-first">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Topology</span><a href="/appendix/subjects/topology">Overview</a><a href="/book/part-2/02-topology">Guide</a><a href="/appendix/spec/topology" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/meaning-first">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## Requirement

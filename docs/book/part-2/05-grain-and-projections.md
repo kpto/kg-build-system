@@ -1,16 +1,16 @@
 ---
-title: "6. Grain and projections"
+title: "8. Grain and projections"
 summary: "A row source makes one row a value; a filter, join, group or expansion derives a grain, and a projection names the result."
 section: book
 perspective: book
 part: II
-chapter: 6
-order: 23
+chapter: 8
+order: 25
 status: normative
 verified: 2026-11-11
 sources:
-  - docs/book/part-2/03-grain-and-projections.md
-  - docs/book/part-2/03-grain-and-projections.md
+  - docs/book/part-2/05-grain-and-projections.md
+  - docs/book/part-2/05-grain-and-projections.md
   - docs/appendix/reference/row-sources.md
   - docs/appendix/spec/grain.md
 ---
@@ -347,4 +347,4 @@ means.
 
 ## Next
 
-[7. Topology and bindings](/book/part-2/04-topology-and-bindings) — from a named grain to the nodes and edges it produces.
+[9. Binding as implementation detail](/book/part-2/06-binding) — from a named grain to the node and edge records it produces.

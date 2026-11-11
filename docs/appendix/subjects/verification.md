@@ -33,7 +33,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | View | Page | Answers |
 | --- | --- | --- |
 | Overview | [This page](/appendix/subjects/verification) | The subject in one place. |
-| Guide | [18. Limits and evidence](/book/part-4/04-limits-and-evidence), [Verification](/appendix/review/verification), [Limits](/appendix/review/limits), [Drift](/appendix/review/drift), [Failures](/appendix/reference/failures) | How to use it. |
+| Guide | [19. Limits and evidence](/book/part-4/04-limits-and-evidence), [Verification](/appendix/review/verification), [Limits](/appendix/review/limits), [Drift](/appendix/review/drift), [Failures](/appendix/reference/failures) | How to use it. |
 | Spec | [SPEC-016](/appendix/spec/verification) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/failures) | Exact public names and document shapes. |
 | Philosophy | [Explainability is authored](/appendix/philosophy/explainability-is-authored) | Why it is designed this way. |

@@ -18,7 +18,7 @@ sources:
 
 An asset is one logical unit of source data. One asset may back many tables. An `Asset` subclass declares its profile, optional semantics, optional layout, governance and annotations; each table names the asset through `Table[Asset]`.
 
-Read [Declare an asset](/book/part-2/01-source-and-rows) for the authoring path, [Asset specification](/appendix/spec/asset) for the contract, and [Assets and source data](/appendix/subjects/asset) for the subject index entry. The row shape that names the asset is on [Declare data](/book/part-2/01-source-and-rows), and the compile step that consumes it is on [Compile](/appendix/reference/compile).
+Read [Declare an asset](/book/part-2/03-source-and-rows) for the authoring path, [Asset specification](/appendix/spec/asset) for the contract, and [Assets and source data](/appendix/subjects/asset) for the subject index entry. The row shape that names the asset is on [Declare data](/book/part-2/03-source-and-rows), and the compile step that consumes it is on [Compile](/appendix/reference/compile).
 
 ## Details
 
@@ -337,4 +337,4 @@ Rules:
 - `@asset_contract` is a generation frontend; it is not an asset field.
 - The generic DuckDB source planner handles `parquet`, `json` and `csv` layouts. Another module contributes another ordinary planner; there is no adapter registry.
 
-Related: [Declare an asset](/book/part-2/01-source-and-rows), [Asset specification](/appendix/spec/asset), [Assets and source data](/appendix/subjects/asset), [Declarations](/appendix/reference/declarations), [Compile](/appendix/reference/compile).
+Related: [Declare an asset](/book/part-2/03-source-and-rows), [Asset specification](/appendix/spec/asset), [Assets and source data](/appendix/subjects/asset), [Declarations](/appendix/reference/declarations), [Compile](/appendix/reference/compile).

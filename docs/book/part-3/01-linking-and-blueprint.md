@@ -1,10 +1,10 @@
 ---
-title: "10. Linking and the blueprint"
+title: "11. Linking and the blueprint"
 summary: "A declaration becomes a keyed symbol, and only the reachable symbols become the blueprint."
 section: book
 perspective: book
 part: III
-chapter: 10
+chapter: 11
 order: 31
 status: normative
 verified: 2026-11-11

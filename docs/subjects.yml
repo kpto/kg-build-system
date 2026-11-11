@@ -11,7 +11,7 @@
     - "A table MUST name its logical asset with `Table[Asset]`."
     - "`AssetProfile` MUST be present; `AssetLayout` is descriptive and opens no file."
     - "One asset MAY back many tables; a table MUST NOT invent a second source."
-  guide: [book/part-2/01-source-and-rows, book/part-1/03-a-project]
+  guide: [book/part-2/03-source-and-rows, book/part-1/03-a-project]
   api: appendix/reference/api
   philosophy: [appendix/philosophy/meaning-first]
   review: [appendix/review/limits]
@@ -27,7 +27,7 @@
     - "A `Table` MUST name its asset; a `Struct` MUST describe a nested source record."
     - "`Field[T]` MUST declare a value type, never `T | None`."
     - "The owner MUST decide presence: source reads are nullable, computed reads follow their selection."
-  guide: [book/part-2/01-source-and-rows]
+  guide: [book/part-2/03-source-and-rows]
   api: appendix/reference/api
   philosophy: [appendix/philosophy/meaning-first]
   review: [appendix/review/contracts]
@@ -43,7 +43,7 @@
     - "`Selection[T]` MUST be the only authoring value; `NullableSelection[T]` MUST be an alias."
     - "A row effect MUST be reached through a one-shot `alter_rows()` handle."
     - "A null key MUST NOT match in a lookup or a join."
-  guide: [book/part-2/02-values-and-nullability]
+  guide: [book/part-2/04-values-and-nullability]
   api: appendix/reference/api
   philosophy: [appendix/philosophy/meaning-first]
   review: [appendix/review/contracts]
@@ -59,7 +59,7 @@
     - "A binding MUST read a row-source value, never a declaration class."
     - "A projection MUST pin exactly one row source and publish at least one computed field."
     - "A join MUST name one key expression per side; a null key never matches."
-  guide: [book/part-2/03-grain-and-projections]
+  guide: [book/part-2/05-grain-and-projections]
   api: appendix/reference/api
   philosophy: [appendix/philosophy/design-in-semantics]
   review: [appendix/review/contracts]
@@ -75,7 +75,7 @@
     - "A concrete `Node` or `Edge` MUST be the binding target; a category MUST produce no records."
     - "An edge MUST declare both endpoints, and `Edge[Source, Target]` is directed."
     - "A property MUST be a scalar or a flat, non-null array of scalars."
-  guide: [book/part-2/04-topology-and-bindings]
+  guide: [book/part-2/02-topology]
   api: appendix/reference/api
   philosophy: [appendix/philosophy/meaning-first]
   review: [appendix/review/contracts]
@@ -91,7 +91,7 @@
     - "A binding MUST supply a present scalar build key and every declared property exactly once."
     - "An edge binding MUST supply its own key, a source key and a target key."
     - "Binding identity MUST be content-derived; `debug_name` MUST NOT change the digest."
-  guide: [book/part-2/04-topology-and-bindings]
+  guide: [book/part-2/06-binding]
   api: appendix/reference/api
   philosophy: [appendix/philosophy/binding-is-the-seam]
   review: [appendix/review/contracts]
@@ -107,7 +107,7 @@
     - "A project MUST have at most one `Graph`, and a `Graph` MUST carry one `Purpose`."
     - "A declaration MUST attach `Semantics`, never `GraphSemantics`."
     - "A `Limitation` MUST live under a `Frame`; a claim MUST NOT live under a frame."
-  guide: [book/part-2/05-meaning-and-purpose]
+  guide: [book/part-2/01-meaning-and-purpose]
   api: appendix/reference/api
   philosophy: [appendix/philosophy/semantic-hierarchy]
   review: [appendix/review/contracts]
@@ -123,7 +123,7 @@
     - "`@asset_contract` MUST be inert and MUST NOT enter `AssetOptions` or the blueprint."
     - "Discovery MUST NOT import the author module; it MUST find a static request."
     - "Generated source MUST render `Field[T]`; observed nullability is provenance, not absence."
-  guide: [book/part-2/06-generation]
+  guide: [book/part-2/07-generation]
   api: appendix/reference/api
   philosophy: [appendix/philosophy/explainability-is-authored]
   review: [appendix/review/limits]

@@ -18,7 +18,7 @@ generated: true
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Selection and nullability</span><a href="/appendix/subjects/selection" class="active">Overview</a><a href="/book/part-2/02-values-and-nullability">Guide</a><a href="/appendix/spec/selection">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/meaning-first">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Selection and nullability</span><a href="/appendix/subjects/selection" class="active">Overview</a><a href="/book/part-2/04-values-and-nullability">Guide</a><a href="/appendix/spec/selection">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/meaning-first">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## In one view
@@ -32,7 +32,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | View | Page | Answers |
 | --- | --- | --- |
 | Overview | [This page](/appendix/subjects/selection) | The subject in one place. |
-| Guide | [5. Values and nullability](/book/part-2/02-values-and-nullability) | How to use it. |
+| Guide | [7. Values and nullability](/book/part-2/04-values-and-nullability) | How to use it. |
 | Spec | [SPEC-003](/appendix/spec/selection) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/api) | Exact public names and document shapes. |
 | Philosophy | [Meaning before mechanism](/appendix/philosophy/meaning-first) | Why it is designed this way. |

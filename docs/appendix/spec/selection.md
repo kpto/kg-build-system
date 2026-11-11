@@ -22,7 +22,7 @@ evidence:
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Selection and nullability</span><a href="/appendix/subjects/selection">Overview</a><a href="/book/part-2/02-values-and-nullability">Guide</a><a href="/appendix/spec/selection" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/meaning-first">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Selection and nullability</span><a href="/appendix/subjects/selection">Overview</a><a href="/book/part-2/04-values-and-nullability">Guide</a><a href="/appendix/spec/selection" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/meaning-first">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## Requirement

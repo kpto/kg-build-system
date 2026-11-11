@@ -6,7 +6,7 @@ order: 50
 status: normative
 verified: 2026-11-10
 sources:
-  - docs/book/part-2/04-topology-and-bindings.md
+  - docs/book/part-2/02-topology.md
   - kg_build_system/distribution/languages/binding/
   - reference_project/bindings/
   - reference_project/table/projections/defects.py

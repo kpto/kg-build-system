@@ -1,15 +1,15 @@
 ---
-title: "8. Meaning and purpose"
+title: "4. Meaning and purpose"
 summary: "A graph publishes one purpose, contextless claims and framed limitations, so its meaning is part of the contract."
 section: book
 perspective: book
 part: II
-chapter: 8
-order: 25
+chapter: 4
+order: 21
 status: normative
 verified: 2026-11-11
 sources:
-  - docs/book/part-2/05-meaning-and-purpose.md
+  - docs/book/part-2/01-meaning-and-purpose.md
   - docs/appendix/spec/meaning.md
   - docs/appendix/philosophy/semantic-hierarchy.md
 ---
@@ -197,4 +197,4 @@ The result is a model that a consumer can use without a conversation. A query ab
 
 ## Next
 
-[9. Generating declarations](/book/part-2/06-generation) — turn an observed source schema into ordinary declarations without making generation part of the build.
+[5. Topology](/book/part-2/02-topology) — turn the purpose into the record kinds and properties the graph will assert.

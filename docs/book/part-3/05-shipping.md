@@ -1,10 +1,10 @@
 ---
-title: "14. Shipping a build"
+title: "15. Shipping a build"
 summary: "What a shipworthy build contains, what to pin, and what the measured checkout does not promise."
 section: book
 perspective: book
 part: III
-chapter: 14
+chapter: 15
 order: 35
 status: normative
 verified: 2026-11-11
@@ -69,7 +69,7 @@ Neo4j is export only. The executor writes Parquet files under `nodes/` and `rela
 
 None of these targets validates. The file target writes what it receives, the meta-graph describes what reached it, and Neo4j exports what it was given. An edge whose endpoints match no node is exported and fails later at import. Quality is an upstream decision, made by the planners composed before the targets and by the checks a project adds itself.
 
-Artifact presence is therefore evidence of publication, not of correctness. The shipping question is not "did the target write a file?" but "which planner composed the stream that the target wrote, and what does that planner guarantee?" Chapter 13 states those guarantees; the bundle repeats them as limits.
+Artifact presence is therefore evidence of publication, not of correctness. The shipping question is not "did the target write a file?" but "which planner composed the stream that the target wrote, and what does that planner guarantee?" Chapter 14 states those guarantees; the bundle repeats them as limits.
 
 ## The test suite guards interfaces, not the graph
 

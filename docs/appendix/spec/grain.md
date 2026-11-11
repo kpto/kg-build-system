@@ -21,7 +21,7 @@ evidence:
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Grain, row sources and projections</span><a href="/appendix/subjects/grain">Overview</a><a href="/book/part-2/03-grain-and-projections">Guide</a><a href="/appendix/spec/grain" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/design-in-semantics">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Grain, row sources and projections</span><a href="/appendix/subjects/grain">Overview</a><a href="/book/part-2/05-grain-and-projections">Guide</a><a href="/appendix/spec/grain" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/design-in-semantics">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## Requirement

@@ -32,7 +32,7 @@ There is no expression family and no `.expression`, `.value` or `.model` accesso
 | Build a typed literal | `value_expression(value, logical_type=...)` |
 | Combine predicates | `any_of(*predicates)`, `all_of(*predicates)` |
 
-Canonical types such as `STR`, `INT`, `NullableType` and `ArrayType` are on [Types](/appendix/reference/types); declared value types are on [Declarations](/appendix/reference/declarations). The authoring model is on [Select values](/book/part-2/02-values-and-nullability), the binding rules on the [Selection spec](/appendix/spec/selection), and the subject index entry for [Selection](/appendix/subjects/selection). The row plan that carries a selection is on [Row sources](/appendix/reference/row-sources); naming a plan is on [Projections](/appendix/reference/projections).
+Canonical types such as `STR`, `INT`, `NullableType` and `ArrayType` are on [Types](/appendix/reference/types); declared value types are on [Declarations](/appendix/reference/declarations). The authoring model is on [Select values](/book/part-2/04-values-and-nullability), the binding rules on the [Selection spec](/appendix/spec/selection), and the subject index entry for [Selection](/appendix/subjects/selection). The row plan that carries a selection is on [Row sources](/appendix/reference/row-sources); naming a plan is on [Projections](/appendix/reference/projections).
 
 ## Details
 

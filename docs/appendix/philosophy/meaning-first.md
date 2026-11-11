@@ -7,7 +7,7 @@ status: normative
 verified: 2026-11-10
 sources:
   - docs/appendix/philosophy/index.md
-  - docs/book/part-2/04-topology-and-bindings.md
+  - docs/book/part-2/02-topology.md
   - reference_project/topology/
   - reference_project/table/
 ---

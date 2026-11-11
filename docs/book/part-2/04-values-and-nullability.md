@@ -1,15 +1,15 @@
 ---
-title: "5. Values and nullability"
+title: "7. Values and nullability"
 summary: "A field read is a typed selection; absence belongs to the owner, nulls travel through calculations, and every row effect is one explicit decision."
 section: book
 perspective: book
 part: II
-chapter: 5
-order: 22
+chapter: 7
+order: 24
 status: normative
 verified: 2026-11-11
 sources:
-  - docs/book/part-2/02-values-and-nullability.md
+  - docs/book/part-2/04-values-and-nullability.md
   - docs/appendix/reference/expressions.md
   - docs/appendix/spec/selection.md
 ---
@@ -172,7 +172,7 @@ depots = (
 `expand()` is the only fan-out among value operations. It produces one row per
 array item, returns the item selection, and produces no rows for a null or empty
 array. Expanding an array is a grain decision, so it is worth asking whether the
-expansion belongs to the value plan at all; chapter 6 returns to that question
+expansion belongs to the value plan at all; chapter 8 returns to that question
 when it introduces the row-source spelling.
 
 ## Nulls travel through calculations
@@ -295,7 +295,7 @@ form.
 
 Do not use both for the same fan-out. Expand a nested array once, at the level
 where the grain should change, and read the result from there. Expanding two
-arrays in one plan is two fan-outs multiplied together, not a join; chapter 6
+arrays in one plan is two fan-outs multiplied together, not a join; chapter 8
 returns to that trap when it names a projection.
 
 ## Absence is a decision a reader can audit
@@ -314,4 +314,4 @@ relation.
 
 ## Next
 
-[6. Grain and projections](/book/part-2/03-grain-and-projections) — from one typed value to the meaning of one row.
+[8. Grain and projections](/book/part-2/05-grain-and-projections) — from one typed value to the meaning of one row.

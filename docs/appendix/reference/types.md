@@ -18,7 +18,7 @@ sources:
 
 This page lists the canonical logical types an author writes and the rules that decide how a value is stored, bound and exported.
 
-Every annotation normalizes to one logical type before it reaches the workflow plan. The canonical name is lowercase; a capitalised name such as `Date` is a representative type, not a second type. The authoring contract is on [Declare data](/book/part-2/01-source-and-rows), the binding side is on [Data specification](/appendix/spec/data), and property shape is on [Topology](/appendix/reference/topology). Selections and row effects are on [Expressions and selections](/appendix/reference/expressions); keys are on [Bindings](/appendix/reference/bindings).
+Every annotation normalizes to one logical type before it reaches the workflow plan. The canonical name is lowercase; a capitalised name such as `Date` is a representative type, not a second type. The authoring contract is on [Declare data](/book/part-2/03-source-and-rows), the binding side is on [Data specification](/appendix/spec/data), and property shape is on [Topology](/appendix/reference/topology). Selections and row effects are on [Expressions and selections](/appendix/reference/expressions); keys are on [Bindings](/appendix/reference/bindings).
 
 ```python
 from kg_build_system import Array, Date, Time, Timestamp, Uuid
@@ -174,7 +174,7 @@ postcode = (
 )
 ```
 
-A generated package renders every source field as `Field[T]` from its value type. The observed source claim is provenance for the manifest, statistics and notes; it never adds absence to the rendered field. Access then follows the owner: a generated source field reads as nullable because it belongs to a source table. See [Declare an asset](/book/part-2/01-source-and-rows).
+A generated package renders every source field as `Field[T]` from its value type. The observed source claim is provenance for the manifest, statistics and notes; it never adds absence to the rendered field. Access then follows the owner: a generated source field reads as nullable because it belongs to a source table. See [Declare an asset](/book/part-2/03-source-and-rows).
 
 **Graph property shape**
 
@@ -220,7 +220,7 @@ An array of strings becomes key material through `concat(...)`. Narrow the array
 
 **DuckDB dispositions**
 
-The generation digest gate classifies every DuckDB type it understands into one of three dispositions. The full mapping is below; the gate's effect on a generated package is on [Declare an asset](/book/part-2/01-source-and-rows).
+The generation digest gate classifies every DuckDB type it understands into one of three dispositions. The full mapping is below; the gate's effect on a generated package is on [Declare an asset](/book/part-2/03-source-and-rows).
 
 | Disposition | Meaning |
 | --- | --- |
@@ -349,4 +349,4 @@ Every source field reads as nullable, so each required property narrows it. The 
 - The digest gate widens canonical types, requires a declaration for a declared-only type, and refuses a type with no canonical meaning.
 - Generated fields always render `Field[T]`; observed nullability is provenance.
 
-[Assets reference](/appendix/reference/assets) attaches these types to physical data. See also [Declare data](/book/part-2/01-source-and-rows), [Data specification](/appendix/spec/data) and [Data contracts](/appendix/subjects/data).
+[Assets reference](/appendix/reference/assets) attaches these types to physical data. See also [Declare data](/book/part-2/03-source-and-rows), [Data specification](/appendix/spec/data) and [Data contracts](/appendix/subjects/data).

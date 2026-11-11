@@ -1,10 +1,10 @@
 ---
-title: "11. Planning the work"
+title: "12. Planning the work"
 summary: "Planners turn one semantic model into components, steps and a plan whose wiring is already checked."
 section: book
 perspective: book
 part: III
-chapter: 11
+chapter: 12
 order: 32
 status: normative
 verified: 2026-11-11

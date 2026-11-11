@@ -1,16 +1,16 @@
 ---
-title: "4. Source and rows"
+title: "6. Source and rows"
 summary: "An asset names where rows come from; a table names their shape, and the source decides which values may be absent."
 section: book
 perspective: book
 part: II
-chapter: 4
-order: 21
+chapter: 6
+order: 23
 status: normative
 verified: 2026-11-11
 sources:
-  - docs/book/part-2/01-source-and-rows.md
-  - docs/book/part-2/01-source-and-rows.md
+  - docs/book/part-2/03-source-and-rows.md
+  - docs/book/part-2/03-source-and-rows.md
   - docs/appendix/reference/types.md
   - docs/appendix/spec/data.md
 ---
@@ -332,4 +332,4 @@ it, and explains how an author answers absence without hiding the decision.
 
 ## Next
 
-[5. Values and nullability](/book/part-2/02-values-and-nullability) — from a nullable read to a typed value with an explicit decision.
+[7. Values and nullability](/book/part-2/04-values-and-nullability) — from a nullable read to a typed value with an explicit decision.
