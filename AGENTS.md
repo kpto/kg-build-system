@@ -51,6 +51,8 @@ rule about what the framework is belongs to the framework model.
 - A knowledge base is a book: a linear argument in parts and chapters, with
   exact specifications and reference as appendices. A chapter may repeat a
   concept when the argument needs it; do not split a subject into parallel views.
+  Order an explanation from meaning and design to data and implementation where
+  the model permits, and say that the order is a reading order, not a law.
 - A document states the current model as if it were the only one.
 - Write for a reviewer who has not seen the conversation, an earlier version or
   the review: define terms, name the interface, file or type, and state the

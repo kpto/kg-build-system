@@ -13,6 +13,9 @@
 - Do not split a subject into a hub, a guide, a spec and a view unless the reader
   has a reason to switch. A chapter can cover several related ideas when they
   form one argument.
+- Order an explanation from meaning and design to data and implementation where
+  the model permits. Say that the order is a reading order, not a claim that a
+  real project evolves one way.
 
 ## Appendices are for lookup
 
