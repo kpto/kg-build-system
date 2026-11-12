@@ -20,7 +20,7 @@
 ## Appendices are for lookup
 
 - Exact signatures, requirement tables, document shapes and refusal messages
-  belong in `docs/appendix/`. They are written for checking, not for reading
+  belong in `docs/content/appendix/`. They are written for checking, not for reading
   from front to back.
 - An appendix may repeat a rule from the book. That is deliberate: the book
   explains it, the appendix states it precisely.

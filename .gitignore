@@ -15,6 +15,6 @@ reference_project/build/
 site/
 
 # Documentation site
-docs-site/node_modules/
-docs-site/public/
-docs-site/.quartz-cache/
+docs/node_modules/
+docs/public/
+docs/.quartz-cache/

@@ -7,14 +7,14 @@ implementation.
 
 - **363 tests**, **1957 subtests**.
 - Pyright: **0 errors**.
-- `./docs-site/build.sh`: passes.
+- `./docs/build.sh`: passes.
 - The reference build passes.
 - Open Targets KG: **7 tests** pass.
 
 ```console
 uv run pytest -q
 uv run pyright
-./docs-site/check.sh && ./docs-site/build.sh
+./docs/check.sh && ./docs/build.sh
 cd ~/Repos/opentargets-kg && uv run pytest -q
 ```
 
@@ -108,7 +108,7 @@ only; the top-level lazy export table and `__getattr__` live in
 
 ## Remaining limits
 
-[docs/appendix/review/limits.md](docs/appendix/review/limits.md), published at `/appendix/review/limits`,
+[docs/content/appendix/review/limits.md](docs/content/appendix/review/limits.md), published at `/appendix/review/limits`,
 is the canonical classified table. Each row names its kind — model rule,
 replaceable default, current algorithm, not implemented, interface limit or
 empirical — and its extension point or model reason. Verification status stays
@@ -116,9 +116,9 @@ in the section above; this page does not duplicate the table.
 
 ## Documentation
 
-- The book starts at [docs/book/index.md](docs/book/index.md).
-- Developer interfaces start at [docs/appendix/developer/index.md](docs/appendix/developer/index.md).
-- The kernel surface is at [docs/appendix/kernel/index.md](docs/appendix/kernel/index.md).
+- The book starts at [docs/content/book/index.md](docs/content/book/index.md).
+- Developer interfaces start at [docs/content/appendix/developer/index.md](docs/content/appendix/developer/index.md).
+- The kernel surface is at [docs/content/appendix/kernel/index.md](docs/content/appendix/kernel/index.md).
 - `ARCHITECTURE.md` is the short implementation map.
 - `DESIGN_ISSUES.md` points at the canonical limits table and lists the model
   rules.

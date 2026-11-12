@@ -68,8 +68,8 @@ rule about what the framework is belongs to the framework model.
 - A change that crosses a subpackage boundary is proposed as an interface change
   before it is implemented.
 - Author-facing interfaces are reviewed through the book and appendices in `docs/`;
-  internal interfaces are reviewed through `docs/appendix/developer/`. The site is
-  built by `docs-site/` in this repository.
+  internal interfaces are reviewed through `docs/content/appendix/developer/`. The site is
+  built by `docs/` in this repository.
 - Docs are author-facing, not simplified. Include anything an author might need
   to know: semantics, edge cases, limits, examples and the reasons behind a
   rule. Structure makes them readable, not the amount of detail.
@@ -94,8 +94,8 @@ rule about what the framework is belongs to the framework model.
 
 | Surface | Reader | What it states |
 | --- | --- | --- |
-| `docs/` | graph author | what to write, what the graph does, and the semantics and limits an author needs |
-| `docs/appendix/developer/` | framework reviewer | internal interface, boundaries and invariants |
+| `docs/content/` | graph author | what to write, what the graph does, and the semantics and limits an author needs |
+| `docs/content/appendix/developer/` | framework reviewer | internal interface, boundaries and invariants |
 
 - If the interface delta does not explain the change, the change is not ready.
 - A visual change is reviewed with a real browser screenshot at the target

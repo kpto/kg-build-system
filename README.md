@@ -84,13 +84,13 @@ pkg/
 
 ## Documentation
 
-- The book starts at `docs/index.md` and `docs/book/index.md`.
-- Exact appendices start at `docs/appendix/index.md`.
-- The extension surface starts at `docs/appendix/kernel/index.md`; the default graph
-  composition starts at `docs/appendix/framework/index.md`.
-- Developer documentation starts at `docs/appendix/developer/index.md`.
-- The content is built by `docs-site/` in this repository:
-  `cd docs-site && make build`.
+- The book starts at `docs/content/index.md` and `docs/content/book/index.md`.
+- Exact appendices start at `docs/content/appendix/index.md`.
+- The extension surface starts at `docs/content/appendix/kernel/index.md`; the default graph
+  composition starts at `docs/content/appendix/framework/index.md`.
+- Developer documentation starts at `docs/content/appendix/developer/index.md`.
+- The content and its builder are both under `docs/`:
+  `./docs/build.sh`.
 - The implementation map is `ARCHITECTURE.md`.
 - Reviewer state and design limits are `FRAMEWORK_STATE.md` and
   `DESIGN_ISSUES.md`.
@@ -102,7 +102,7 @@ pkg/
 ```console
 uv run pytest -q
 uv run pyright
-./docs-site/check.sh && ./docs-site/build.sh
+./docs/check.sh && ./docs/build.sh
 ```
 
 Current verification: 363 tests passed, 1957 subtests; pyright 0 errors; the reference build passes; the Open Targets project is external; the

@@ -1,9 +1,9 @@
 # Architecture
 
 This file is the implementation map. The model, interfaces and design decisions
-are in [docs/appendix/developer/system-design.md](docs/appendix/developer/system-design.md). The
-extension surface is [docs/appendix/kernel/index.md](docs/appendix/kernel/index.md); the default
-graph composition is [docs/appendix/framework/index.md](docs/appendix/framework/index.md).
+are in [docs/content/appendix/developer/system-design.md](docs/content/appendix/developer/system-design.md). The
+extension surface is [docs/content/appendix/kernel/index.md](docs/content/appendix/kernel/index.md); the default
+graph composition is [docs/content/appendix/framework/index.md](docs/content/appendix/framework/index.md).
 
 ## Current tree
 
