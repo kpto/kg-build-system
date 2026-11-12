@@ -36,7 +36,7 @@ Run the checks for the area changed:
 ```console
 uv run pytest -q
 uv run pyright
-cd ../kg-build-kb && python3 scripts/kb.py check && npx quartz build -d ../kg-build-system/docs
+./docs-site/check.sh && ./docs-site/build.sh
 ```
 
 The document build is part of verification because the developer pages state

@@ -46,10 +46,10 @@ Two generated blocks carry the measurement. `status` runs the suite and pyright 
 <!-- BEGIN GENERATED:status -->
 | Measure | Value |
 | --- | --- |
-| Test suite | 363 tests, 1957 subtests, 7.74s — passes |
+| Test suite | 363 tests, 1957 subtests, 7.46s — passes |
 | Static types | 0 errors |
-| Source | `ad53fa7` (2026-11-11) |
-| Docs build | `npx quartz build -d ../kg-build-system/docs` runs separately in this repository |
+| Source | `1b20440` (2026-11-11) |
+| Docs build | `./docs-site/build.sh` from the repository root |
 <!-- END GENERATED:status -->
 
 <!-- BEGIN GENERATED:reference -->
@@ -67,8 +67,7 @@ Known doc/code drift measured at the source HEAD in the status block:
 
 | Doc claim | Measured in source |
 | --- | --- |
-| 259 tests and 1,858 subtests | 354 tests and 1,957 subtests |
-| Pyright: 0 errors | 1 error, in `kg_build_system/api.py` |
+| 259 tests and 1,858 subtests | 363 tests and 1,957 subtests |
 | `GraphBlueprint` has four fields | Five fields, including `graph_declaration` |
 | The linker order sometimes omits graph | `expressions`, `asset`, `data`, `topology`, `binding`, `graph` |
 | The default languages sometimes omit graph | The default includes `GraphLanguage` |

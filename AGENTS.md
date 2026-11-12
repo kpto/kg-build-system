@@ -69,7 +69,7 @@ rule about what the framework is belongs to the framework model.
   before it is implemented.
 - Author-facing interfaces are reviewed through the book and appendices in `docs/`;
   internal interfaces are reviewed through `docs/appendix/developer/`. The site is
-  built by `../kg-build-kb`.
+  built by `docs-site/` in this repository.
 - Docs are author-facing, not simplified. Include anything an author might need
   to know: semantics, edge cases, limits, examples and the reasons behind a
   rule. Structure makes them readable, not the amount of detail.

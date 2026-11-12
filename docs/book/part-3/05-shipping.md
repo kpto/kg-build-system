@@ -73,9 +73,9 @@ Artifact presence is therefore evidence of publication, not of correctness. The 
 
 ## The test suite guards interfaces, not the graph
 
-The checkout measures itself. A run of `uv run pytest -q` on 2026-11-11 reports 354 tests and 1,957 subtests passing in about 6.9 seconds. `uv run pyright` reports one error, in `kg_build_system/api.py`, where `compile` stores the blueprint document into plan provenance. The repository has no CI configuration; every check is a command someone runs.
+The checkout measures itself. A run of `uv run pytest -q` on 2026-11-11 reports 363 tests and 1,957 subtests passing in about 7 seconds. `uv run pyright` reports no errors. The repository has no CI configuration; every check is a command someone runs.
 
-Those numbers are properties of the checkout, not promises about the next one. A test count, subtest count or duration varies with the machine and dependency versions. The stable claims are the pass or fail result and the measured type error count. Quoting 354 and 1,957 is honest only with the date and the command; quoting them as a guarantee is not.
+Those numbers are properties of the checkout, not promises about the next one. A test count, subtest count or duration varies with the machine and dependency versions. The stable claims are the pass or fail result and the measured type state. Quoting 363 and 1,957 is honest only with the date and the command; quoting them as a guarantee is not.
 
 What the suite guards is worth stating precisely, because a green run is often asked to prove more than it can.
 

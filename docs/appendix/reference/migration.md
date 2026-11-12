@@ -82,12 +82,12 @@ This page is the redirect and parity map for the docs replacement. `docs/` now c
 ### Replacement status
 
 1. `docs/` is the one content root in `kg-build-system`; the builder reads it directly.
-2. `scripts/kb.py`, `scripts/diagrams.py`, `quartz.config.yaml`, `package.json` and `quartz/` remain in `kg-build-kb`; it builds `../kg-build-system/docs`. Pin the builder by commit, or move it into the framework repository.
-3. The build gate is `uv run pytest -q`, `uv run pyright`, `python3 scripts/kb.py check` and `npx quartz build -d ../kg-build-system/docs`.
+2. The builder lives in `docs-site/` inside this repository; it builds `../docs`. No sibling repository is required.
+3. The build gate is `uv run pytest -q`, `uv run pyright`, `./docs-site/check.sh` and `./docs-site/build.sh`.
 4. Redirects for every row above are the remaining host step. A redirect may be a static HTML page or a host rule; a bare 404 is not a replacement.
 5. `README.md`, `AGENTS.md`, `STYLE.md` and the verification section are updated; the review surface is the book and `/appendix/spec/`, `/appendix/developer/` and `/appendix/review/`.
 6. `docs/` is the KB content and `mkdocs.yml` is removed.
-7. Run `python3 scripts/kb.py check`, `npx quartz build -d ../kg-build-system/docs`, `uv run pytest -q` and `uv run pyright`; record the source commit in the status block.
+7. Run `./docs-site/check.sh`, `./docs-site/build.sh`, `uv run pytest -q` and `uv run pyright`; record the source commit in the status block.
 
 ### What is still not automated
 

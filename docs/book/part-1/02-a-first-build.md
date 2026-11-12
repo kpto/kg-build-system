@@ -34,9 +34,9 @@ uv run pytest -q
 uv run pyright
 ```
 
-The suite reports 354 tests and 1957 subtests passing in roughly seven seconds. Those numbers describe this checkout, not a promise about another revision. A failure here is an environment or checkout problem, not a graph problem, and chasing it through a build error is wasted work.
+The suite reports 363 tests and 1957 subtests passing in roughly seven seconds. Those numbers describe this checkout, not a promise about another revision. A failure here is an environment or checkout problem, not a graph problem, and chasing it through a build error is wasted work.
 
-Pyright reports one error in `kg_build_system/api.py`. The project does not claim a clean type report, and the measured count is the honest number to quote. Read the error before changing a public type; do not treat zero as the pass condition for a checkout that does not have zero. Pyright analyzes the package and two authoring fixtures, not the whole of `tests/`, `reference_project/` or `legacy/`.
+Pyright reports no errors in this checkout. The measured count is the honest number to quote; do not treat a clean run as a design approval. Pyright analyzes the package and two authoring fixtures, not the whole of `tests/`, `reference_project/` or `legacy/`.
 
 Node is needed to build this knowledge base, not to run the framework. The docs build is a separate concern and does not belong in a first build.
 

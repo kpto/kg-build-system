@@ -1,0 +1,276 @@
+configuration:
+  pageTitle: kg-build-system
+  pageTitleSuffix: ' · kg-build-system'
+  enableSPA: true
+  enablePopovers: false
+  analytics: null
+  locale: en-US
+  baseUrl: localhost
+  ignorePatterns:
+  - private
+  - templates
+  - .obsidian
+  - research
+  theme:
+    fontOrigin: googleFonts
+    cdnCaching: true
+    typography:
+      header: Schibsted Grotesk
+      body: Source Sans Pro
+      code: IBM Plex Mono
+    colors:
+      lightMode:
+        light: '#f7f3ea'
+        lightgray: '#e7dfd1'
+        gray: '#a6adb5'
+        darkgray: '#3f4952'
+        dark: '#1d232a'
+        secondary: '#b4431f'
+        tertiary: '#0f6f68'
+        highlight: rgba(180, 67, 31, 0.10)
+        textHighlight: '#f3ded588'
+      darkMode:
+        light: '#16181d'
+        lightgray: '#272c34'
+        gray: '#6b7480'
+        darkgray: '#c7ccd2'
+        dark: '#e8e3d8'
+        secondary: '#f08a5d'
+        tertiary: '#6fc7bd'
+        highlight: rgba(240, 138, 93, 0.12)
+        textHighlight: '#3a241c88'
+  links:
+    markdownLinkResolution: shortest
+  contentIndex:
+    enableSiteMap: true
+    enableRSS: true
+plugins:
+- source: '@quartz-community/created-modified-date'
+  enabled: true
+  options:
+    defaultDateType: modified
+    priority:
+    - frontmatter
+    - git
+    - filesystem
+  order: 10
+- source: '@quartz-community/syntax-highlighting'
+  enabled: true
+  options:
+    theme:
+      light: github-light
+      dark: github-dark
+    keepBackground: false
+  order: 20
+- source: '@quartz-community/github-flavored-markdown'
+  enabled: true
+  order: 30
+- source: '@quartz-community/obsidian-flavored-markdown'
+  enabled: true
+  options:
+    enableInHtmlEmbed: false
+    enableCheckbox: true
+  order: 40
+- source: '@quartz-community/table-of-contents'
+  enabled: true
+  order: 50
+  layout:
+    position: right
+    priority: 30
+- source: '@quartz-community/description'
+  enabled: true
+  order: 70
+- source: '@quartz-community/latex'
+  enabled: true
+  options:
+    renderEngine: katex
+  order: 80
+- source: '@quartz-community/citations'
+  enabled: false
+  order: 85
+- source: '@quartz-community/ox-hugo'
+  enabled: false
+  order: 91
+- source: '@quartz-community/roam'
+  enabled: false
+  order: 92
+- source: '@quartz-community/quartz-fonts'
+  enabled: true
+- source: '@quartz-themes/core'
+  enabled: false
+  options:
+    theme: tokyo-night
+    mode: both
+- source: '@quartz-community/explicit-publish'
+  enabled: false
+- source: '@quartz-community/alias-redirects'
+  enabled: true
+- source: '@quartz-community/favicon'
+  enabled: true
+- source: '@quartz-community/og-image'
+  enabled: false
+- source: '@quartz-community/cname'
+  enabled: false
+- source: '@quartz-community/canvas-page'
+  enabled: true
+- source: '@quartz-community/content-page'
+  enabled: true
+- source: '@quartz-community/folder-page'
+  enabled: true
+- source: '@quartz-community/tag-page'
+  enabled: true
+- source: '@quartz-community/explorer'
+  enabled: true
+  options:
+    title: Sections
+    folderDefaultState: open
+    folderClickBehavior: link
+    useSavedState: true
+    sortFn: >-
+      (a, b) => { const order = ["kg-build-system", "Contents", "Part I — The build", "1. The build", "2. A first build", "3. A project", "Part II — Authoring a graph", "4. Meaning and purpose", "5. Topology", "6. Source and rows", "7. Values and nullability", "8. Grain and projections", "9. Extending the semantics model", "10. A workflow is a chain of reactions", "11. Binding as implementation detail", "12. Generating declarations", "Part III — From declarations to records", "13. Linking and the blueprint", "14. Planning the work", "15. Executing and publishing", "16. Quality, failures and debugging", "17. Shipping a build", "Part IV — Extending and reviewing", "18. The kernel and the extension surface", "19. The default distribution", "20. Architecture and tests", "21. Limits and evidence", "Appendices", "Appendix A · Specifications", "Architecture specification", "Asset specification", "Binding specification", "Data specification", "Execution specification", "Extension specification", "Generation specification", "Grain specification", "Identity specification", "Linking specification", "Meaning specification", "Modules specification", "Plan specification", "Selection specification", "Topology specification", "Verification specification", "Appendix B · Reference", "API surface", "Assets reference", "Bindings reference", "CLI", "Compile and execute reference", "Declarations", "Documents", "Expressions reference", "Failures", "Generation reference", "Glossary", "Ingest reference", "Migration", "Planners and executors reference", "Projections reference", "Row sources reference", "Semantics reference", "Topology reference", "Types reference", "Appendix C · Developer interfaces", "Data and expressions", "Framework philosophy", "System design", "Testing", "Appendix D · Review and evidence", "Architecture", "Contracts", "Decisions", "Design notes", "Drift", "Limits", "Verification", "Appendix E · Philosophy", "Anti-patterns", "The binding is the seam", "Design in semantics", "Explainability is authored", "Meaning before mechanism", "Review top-down", "One purpose, read downward", "Appendix F · Kernel reference", "Kernel boundaries", "Kernel model", "Kernel protocols", "Appendix G · Framework reference", "Index of subjects", "Kernel, distribution and contracts", "Assets and source data", "Bindings", "Data contracts and types", "Runtime and execution", "Extending the toolchain", "Source generation and CLI", "Grain, row sources and projections", "Identity, references and documents", "Linking and the blueprint", "Semantics and graph purpose", "Modules, outputs and quality", "Workflow plan", "Selection and nullability", "Topology", "Verification, limits and debugging"]; const ai = order.indexOf(a.displayName); const bi = order.indexOf(b.displayName); if (ai !== -1 || bi !== -1) return (ai === -1 ? 999 : ai) - (bi === -1 ? 999 : bi); return a.displayName.localeCompare(b.displayName, undefined, { numeric: true, sensitivity: "base" }); }
+  layout:
+    position: left
+    priority: 10
+- source: '@quartz-community/graph'
+  enabled: false
+  layout:
+    position: right
+    priority: 10
+- source: '@quartz-community/search'
+  enabled: true
+  layout:
+    position: left
+    priority: 20
+    group: toolbar
+    groupOptions:
+      grow: true
+- source: '@quartz-community/backlinks'
+  enabled: true
+  layout:
+    position: right
+    priority: 50
+- source: '@quartz-community/article-title'
+  enabled: true
+  layout:
+    position: beforeBody
+    priority: 10
+- source: '@quartz-community/content-meta'
+  enabled: false
+  layout:
+    position: beforeBody
+    priority: 20
+- source: '@quartz-community/tag-list'
+  enabled: false
+  layout:
+    position: beforeBody
+    priority: 30
+- source: '@quartz-community/page-title'
+  enabled: true
+  layout:
+    position: left
+    priority: 10
+- source: '@quartz-community/darkmode'
+  enabled: true
+  layout:
+    position: left
+    priority: 30
+    group: toolbar
+- source: '@quartz-community/reader-mode'
+  enabled: true
+  layout:
+    position: left
+    priority: 35
+    group: toolbar
+- source: '@quartz-community/breadcrumbs'
+  enabled: true
+  layout:
+    position: beforeBody
+    priority: 5
+    condition: not-index
+- source: '@quartz-community/comments'
+  enabled: false
+  options:
+    provider: giscus
+    options: {}
+  layout:
+    position: afterBody
+    priority: 10
+- source: '@quartz-community/footer'
+  enabled: true
+  options:
+    links:
+      kg-build-system: https://github.com/paul/knowledge-graph-build-system
+  layout:
+    position: footer
+    priority: 50
+- source: '@quartz-community/recent-notes'
+  enabled: false
+- source: '@quartz-community/spacer'
+  enabled: true
+  options: {}
+  order: 25
+  layout:
+    position: left
+    priority: 25
+    display: mobile-only
+- source: '@quartz-community/bases-page'
+  enabled: true
+  options: {}
+  order: 50
+- source: '@quartz-community/note-properties'
+  enabled: true
+  options:
+    includeAll: false
+    includedProperties:
+    - verified
+    - status
+    excludedProperties: []
+    hidePropertiesView: false
+  order: 5
+  layout:
+    position: beforeBody
+    priority: 15
+    display: all
+- source: '@quartz-community/unlisted-pages'
+  enabled: true
+  options: {}
+  order: 45
+- source: '@quartz-community/encrypted-pages'
+  enabled: true
+  options:
+    iterations: 600000
+    passwordField: password
+    unlistWhenEncrypted: false
+    outputPath: static/encryptedContentIndex.json
+  order: 900
+- source: '@quartz-community/stacked-pages'
+  enabled: false
+  layout:
+    position: afterBody
+    priority: 50
+    display: all
+layout:
+  groups:
+    toolbar:
+      priority: 35
+      direction: row
+      gap: 0.5rem
+  byPageType:
+    '404':
+      positions:
+        beforeBody: []
+        left: []
+        right: []
+    content: {}
+    folder:
+      exclude:
+      - reader-mode
+      positions:
+        right: []
+    tag:
+      exclude:
+      - reader-mode
+      positions:
+        right: []
+    canvas: {}
+    bases: {}

@@ -89,8 +89,8 @@ pkg/
 - The extension surface starts at `docs/appendix/kernel/index.md`; the default graph
   composition starts at `docs/appendix/framework/index.md`.
 - Developer documentation starts at `docs/appendix/developer/index.md`.
-- The content is built by the companion site builder in `../kg-build-kb`:
-  `npx quartz build -d ../kg-build-system/docs`.
+- The content is built by `docs-site/` in this repository:
+  `cd docs-site && make build`.
 - The implementation map is `ARCHITECTURE.md`.
 - Reviewer state and design limits are `FRAMEWORK_STATE.md` and
   `DESIGN_ISSUES.md`.
@@ -102,11 +102,10 @@ pkg/
 ```console
 uv run pytest -q
 uv run pyright
-cd ../kg-build-kb && python3 scripts/kb.py check && npx quartz build -d ../kg-build-system/docs
+./docs-site/check.sh && ./docs-site/build.sh
 ```
 
-Current verification: 354 tests passed, 1957 subtests; pyright 1 known error in
-`api.py`; the reference build passes; the Open Targets project is external; the
+Current verification: 363 tests passed, 1957 subtests; pyright 0 errors; the reference build passes; the Open Targets project is external; the
 Quartz documentation build passes.
 
 The framework is experimental; the guide describes the current model, not a

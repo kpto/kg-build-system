@@ -30,7 +30,7 @@ evidence:
 
 - **R1.** MUST run `uv run pytest -q` before quoting any test or subtest count. The result and the count belong to the measured checkout and its source commit.
 - **R2.** MUST run `uv run pyright` and report the measured error count. The checkout reports one error, in `kg_build_system/api.py`; a claim of zero contradicts the measurement.
-- **R3.** MUST run `python3 scripts/kb.py check` and build the documentation with `npx quartz build -d ../kg-build-system/docs`. A structural pass in one does not verify the other.
+- **R3.** MUST run `./docs-site/check.sh` and build the documentation with `./docs-site/build.sh`. A structural pass in one does not verify the other.
 - **R4.** MUST NOT restate a measured count as a product guarantee. Test and subtest counts, duration and reference counts are checkout properties.
 - **R5.** MUST keep each measured table in a generated block owned by `scripts/kb.py generate`; prose MAY cite a value, but the block is the record and its content MUST NOT be hand-edited.
 - **R6.** MUST NOT claim continuous integration. The source repository has no CI configuration; every check is manual.
@@ -57,7 +57,7 @@ evidence:
 | --- | --- |
 | `uv run pytest -q` | Runs `tests/`; the pass/fail result and counts describe the checkout. |
 | `uv run pyright` | Checks `kg_build_system` plus two authoring fixtures; reports one error in `api.py`. |
-| `npx quartz build -d ../kg-build-system/docs` | Builds the documentation site; broken links fail the build. |
+| `./docs-site/build.sh` | Builds the documentation site; broken links fail the build. |
 | `scripts/kb.py generate` | Rewrites generated blocks; the `check` command validates markers, links and word limits. |
 | `WorkflowReport` | Frozen result of `execute`: published artifacts, failures and provenance. |
 | `published_artifacts` | Tuple of `PublishedArtifact`; final artifacts only, with intermediate records excluded. |
