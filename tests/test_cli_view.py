@@ -11,7 +11,12 @@ from pathlib import Path
 from kg_build_system.cli.service._private.view import (
     ViewerHandler,
     ViewerServer,
+    _api_url,
+    _discovery_path,
+    _remove_discovery,
     _snapshot,
+    _viewer_source,
+    _write_discovery,
 )
 
 
@@ -79,6 +84,28 @@ class ViewerSnapshotTests(unittest.TestCase):
     def test_missing_snapshot_is_refused(self) -> None:
         with self.assertRaises(ValueError):
             _snapshot(Path("/no/such/snapshot.json"), None)
+
+
+class ViewerDiscoveryTests(unittest.TestCase):
+    def test_the_discovery_file_is_the_minimal_api_record(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = _discovery_path(root)
+            _write_discovery(path, "http://127.0.0.1:8001")
+            self.assertEqual(
+                json.loads(path.read_text()),
+                {"api": "http://127.0.0.1:8001"},
+            )
+            self.assertEqual(path.stat().st_mode & 0o777, 0o600)
+            _remove_discovery(path)
+            self.assertFalse(path.exists())
+
+    def test_a_wildcard_bind_publishes_loopback(self) -> None:
+        self.assertEqual(_api_url("0.0.0.0", 8001), "http://127.0.0.1:8001")
+        self.assertEqual(_api_url("127.0.0.1", 8001), "http://127.0.0.1:8001")
+
+    def test_the_source_viewer_is_detected(self) -> None:
+        self.assertIsNotNone(_viewer_source())
 
 
 class ViewerServerTests(unittest.TestCase):

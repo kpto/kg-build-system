@@ -56,6 +56,17 @@ kbs view --no-open
 The snapshot may be a workflow plan, a blueprint, a viewer snapshot, or gzip of
 one. A bare workflow plan is wrapped with the current directory as its title.
 
+When `kbs view` runs from a source checkout, it also writes a minimal discovery
+file while it is running:
+
+```text
+<project>/.kbs/viewer.json
+{"api": "http://127.0.0.1:8001"}
+```
+
+The file is removed on exit. A wheel has no source viewer, so it never writes
+one.
+
 ## Develop the viewer
 
 ```console
@@ -70,6 +81,33 @@ Open <http://127.0.0.1:3000>. For a production build:
 npm run build
 npx next start --hostname 0.0.0.0 --port 3000
 ```
+
+## Develop against a project
+
+Start the project API with `kbs view` from the project root, then start Next dev
+against its discovery file:
+
+```console
+# terminal 1, in the project
+uv run kbs view --snapshot build/workflow_plan.json
+
+# terminal 2
+cd viewer
+npm run dev:discovery -- --discovery /abs/project/.kbs/viewer.json --port 3001
+```
+
+or:
+
+```console
+KBS_DISCOVERY=/abs/project/.kbs/viewer.json npm run dev
+```
+
+Next reads the discovery file once at startup and hard-codes the API origin. It
+proxies `/snapshot` and `/api/*` to that server. Restart Next if the Python
+server moves to another port.
+
+Run one Next dev instance per project. Each project discovers its own API from
+its own `.kbs/viewer.json`.
 
 ## Bundle in the Python wheel
 

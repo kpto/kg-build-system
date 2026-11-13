@@ -6,6 +6,7 @@
   "description": "Independent viewer for kg-build-system workflow and blueprint snapshots.",
   "scripts": {
     "dev": "next dev",
+    "dev:discovery": "node scripts/dev.mjs",
     "build": "next build",
     "build:static": "KBS_VIEWER_STATIC=1 next build",
     "start": "next start",

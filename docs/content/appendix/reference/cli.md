@@ -70,6 +70,19 @@ static export. The command never falls back to a bundled sample. With no
 `--snapshot` and no `build/workflow_plan.json`, it exits with an error and asks
 for a plan.
 
+When run from a source checkout, the command also writes a minimal discovery
+file while the server is running:
+
+```text
+<working-directory>/.kbs/viewer.json
+{"api": "http://127.0.0.1:8001"}
+```
+
+The file is removed on exit. It contains only the API base URL. A wheel has no
+source viewer and writes no discovery file. Next dev reads the file from the
+working directory, or from the absolute path in `KBS_DISCOVERY`, and proxies
+`/snapshot` and `/api/*` to it. There is no CLI debug flag.
+
 The wheel build compiles the viewer with `npm ci` and `npm run build:static`.
 `KBS_SKIP_VIEWER_BUILD=1` uses an existing `viewer/out`, `KBS_SKIP_VIEWER_INSTALL=1`
 reuses `viewer/node_modules`, and `KBS_NPM` selects an npm executable.

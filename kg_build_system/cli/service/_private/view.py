@@ -4,6 +4,8 @@ from __future__ import annotations
 import argparse
 import gzip
 import json
+import os
+import sys
 import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from importlib.resources import files
@@ -16,6 +18,7 @@ SNAPSHOT_CANDIDATES = (
     Path("viewer.snapshot.json"),
     Path(".kbs/viewer.snapshot.json"),
 )
+DISCOVERY_FILE = Path(".kbs/viewer.json")
 
 
 class ViewerServer(ThreadingHTTPServer):
@@ -56,6 +59,39 @@ class ViewerHandler(SimpleHTTPRequestHandler):
         super().do_GET()
 
     def log_message(self, format: str, *args: Any) -> None:
+        return
+
+
+def _viewer_source() -> Path | None:
+    source = Path(__file__).resolve().parents[4] / "viewer"
+    if (source / "next.config.ts").exists() and (source / "package.json").exists():
+        return source
+    return None
+
+
+def _discovery_path(root: Path | None = None) -> Path:
+    return (root or Path.cwd()) / DISCOVERY_FILE
+
+
+def _api_url(host: str, port: int) -> str:
+    display = "127.0.0.1" if host in {"0.0.0.0", "::", "[::]"} else host
+    if ":" in display and not display.startswith("["):
+        display = f"[{display}]"
+    return f"http://{display}:{port}"
+
+
+def _write_discovery(path: Path, api: str) -> None:
+    path.parent.mkdir(parents=True, exist_ok=True)
+    temporary = path.with_suffix(".tmp")
+    temporary.write_text(json.dumps({"api": api}), encoding="utf-8")
+    os.chmod(temporary, 0o600)
+    temporary.replace(path)
+
+
+def _remove_discovery(path: Path) -> None:
+    try:
+        path.unlink()
+    except FileNotFoundError:
         return
 
 
@@ -150,8 +186,22 @@ def run_view(arguments: argparse.Namespace) -> int:
     server.assets = assets
     server.snapshot_bytes = snapshot
     server.snapshot_type = snapshot_type
-    url = f"http://{arguments.host}:{server.server_port}/"
+    api = _api_url(arguments.host, server.server_port)
+    url = f"{api}/"
+    discovery = _discovery_path()
+    wrote_discovery = False
+    if _viewer_source() is not None:
+        try:
+            _write_discovery(discovery, api)
+            wrote_discovery = True
+        except OSError as error:
+            print(
+                f"warning: could not write viewer discovery file {discovery}: {error}",
+                file=sys.stderr,
+            )
     print(f"Serving {url}")
+    if wrote_discovery:
+        print(f"Discovery {discovery}")
     print("Press Ctrl+C to stop.")
     if not arguments.no_open:
         webbrowser.open(url)
@@ -161,6 +211,8 @@ def run_view(arguments: argparse.Namespace) -> int:
         pass
     finally:
         server.server_close()
+        if wrote_discovery:
+            _remove_discovery(discovery)
     return 0
 
 
