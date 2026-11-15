@@ -354,7 +354,7 @@ Rendering rules:
 - Canonical `date`, `time`, `timestamp` and `uuid` render as `Date`, `Time`, `Timestamp` and `Uuid`; the builtin scalars use their Python names. Every file that declares anything imports the whole representative set.
 - A generated source relation carries a `GeneratedAsset`; the renderer emits `SourceRelation[Asset]` and imports the authored asset module.
 - Generated declarations use only the public authoring surface: `Contract`, `Definition`, `FieldDefinition`, `Field`, `field`, `SourceRelation`, `Struct`, `SourceRelationGroup`, `SourceRelationOptions` and `SourceRelationGroupOptions`.
-- A generated source relation is ordinary: it may omit a contract, exactly like a handwritten source relation, and its field definitions are optional. The provider never invents a purpose or a meaning. A generated source relation read by a binding should declare a contract; the audit reports the absence.
+- A generated source relation is ordinary: it may omit a contract, exactly like a handwritten source relation, and its field definitions are optional. The provider never invents a purpose or a meaning. A generated source relation read by a binding should declare a contract; the absence is a review finding.
 - Generated code has no generation-specific compilation path. It is imported by `compile` exactly like handwritten declarations.
 
 **Built-in inference provider.**

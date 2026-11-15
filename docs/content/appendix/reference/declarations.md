@@ -217,7 +217,7 @@ A `Contract` is the whole statement a relation makes about itself. It has two pa
 | `Definition` | Grain and identity | Yes |
 | `Meaning` | Purpose, claims and limitations | Yes; at least one unit, and a purpose on a `DerivedRelation` |
 
-A `DerivedRelation` requires a contract, because it offers a relation to consumers. A `SourceRelation` may omit one: the asset and its field definitions state what the source contains. When a source relation declares a contract it is complete, like any other contract. When a binding reads a source relation directly, declare the contract so the binding has a grain and identity to check; the audit reports a source relation read by a binding that declares none.
+A `DerivedRelation` requires a contract, because it offers a relation to consumers. A `SourceRelation` may omit one: the asset and its field definitions state what the source contains. When a source relation declares a contract it is complete, like any other contract. When a binding reads a source relation directly, declare the contract so the binding has a grain and identity to check; a source relation read by a binding that declares none is a review finding.
 
 ```python
 from kg_build_system import Claim, Contract, Definition, Meaning, Purpose

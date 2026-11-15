@@ -115,8 +115,8 @@ class TargetAnnotation(DerivedRelation(TargetStage.row_source())):
   definitions already state what the source contains; a generated source
   relation must remain reproducible from its contract options. When a source
   relation is read directly by a binding, declare its contract so the binding has
-  a grain and identity to check against; the audit reports a source relation
-  read by a binding that declares none.
+  a grain and identity to check against; a source relation read by a binding
+  that declares none is a review finding.
 - **A declared contract is complete.** Whenever a source relation declares a
   `contract`, it has both halves like any other contract; an incomplete contract
   is refused, not partially accepted.

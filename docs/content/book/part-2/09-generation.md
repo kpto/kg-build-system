@@ -182,7 +182,7 @@ part is stated. Generation writes the parts the request carries and leaves the r
 absent. A generated source relation with no contract is a skeleton: it compiles and
 its row shape is checked. It remains bindable, because a source relation's contract
 is optional; the binding states the grain, identity and coverage it relies on, and
-the audit reports the absent contract. Structural completeness is what generation
+the absence is a review finding. Structural completeness is what generation
 guarantees; contractual completeness is what the author states. A generated derived
 relation is different: it is a published contract and must state one, so it is not
 generated as a skeleton.
