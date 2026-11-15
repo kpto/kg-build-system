@@ -475,6 +475,9 @@ rule about what the framework is belongs to the framework model.
   **executes** a `WorkflowPlan`; an engine **emits** SQL from a plan; source
   generation **renders** a DTO or symbol value to authoring source. Do not use
   `lower` for any of them.
+- A derived row source attributes its surviving fields to the relation it scans.
+  An unnest narrows one field; it does not move the shape onto an anonymous
+  digest, and provenance resolves through the scan.
 - A relation is a source relation or a derived relation; `projection` names the
   SQL/plan operator only, and `table` a physical or generated table only.
 - A project directory states the axes: `asset/`, `graph/`, `relation/source/`,
