@@ -242,7 +242,6 @@ estate_project/
       sites.py
       equipment.py
       surveys.py
-      policy/
     derived/
       site_score/
         relation.py
@@ -251,7 +250,6 @@ estate_project/
     site/
       binding.py
       has_unit__unit.py
-  policy/
   pipeline/
   modules/
   build.py
@@ -264,7 +262,7 @@ estate_project/
 | `relation/source/` | One file per `SourceRelation`. |
 | `relation/derived/` | One package per `DerivedRelation`, with `relation.py` and its `_stage_*.py` files. |
 | `binding/` | The bindings, grouped by the node they target. |
-| `policy/`, `pipeline/`, `modules/` | Project modules and workflow contributions, outside the three declaration languages. |
+| `pipeline/`, `modules/` | Optional machinery outside the declaration languages. |
 
 Four rules make the tree mean what it looks like.
 

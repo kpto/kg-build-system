@@ -31,7 +31,6 @@ project/
   relation/
     source/
       <source_relation>.py
-      policy/
     derived/
       <derived_relation>/
         relation.py
@@ -40,9 +39,8 @@ project/
     <node>/
       binding.py
       <predicate>__<target>.py
-  policy/
-  pipeline/
-  modules/
+  pipeline/            # optional machinery, not a declaration layer
+  modules/             # optional machinery, not a declaration layer
   build.py
 ```
 
@@ -50,12 +48,11 @@ project/
 | --- | --- | --- |
 | `asset/` | `Asset` declarations and their layout metadata | The framework only. |
 | `graph/` | The one graph declaration, concrete nodes and edges, categories and templates | The framework and `graph/`; never `relation/` or `binding/`. |
-| `relation/source/` | One `SourceRelation` per file, plus source-specific policy | `asset/`, `policy/`, its own `policy/`, the framework. |
+| `relation/source/` | One `SourceRelation` per file | `asset/`, the framework. |
 | `relation/derived/` | One package per `DerivedRelation`; `relation.py` publishes, `_stage_*.py` composes | `relation/source/`, `asset/`, the framework. |
 | `binding/` | One node or edge binding per file, grouped by the source node | `relation/`, `graph/`, the framework. |
-| `policy/` | Project policy values read by declarations and the pipeline | The framework and `asset/`. |
-| `pipeline/` | Run configuration, output targets, monitors and other composition values | Every declaration directory. |
-| `modules/` | Project-local planners, executors and resources | The framework only; never the project's declarations. |
+| `pipeline/` | Optional: run configuration, output targets and monitors | Every declaration directory. |
+| `modules/` | Optional: project-local planners, executors and resources | The framework only; never the project's declarations. |
 | `build.py` | The composition root: `create_blueprint` and `compile` | Every declaration directory. |
 
 A binding directory mirrors the graph node it binds. `graph/site/has_unit__unit.py` declares the edge from `Site` to `Unit`; `binding/site/has_unit__unit.py` binds that edge. The node's own binding is `binding/site/binding.py`. A reader can move between the record and its fulfilment without searching the project.
@@ -249,7 +246,7 @@ The test uses the import graph and the declaration values, not a text search. It
 - The structure does not make a declaration meaningful. It makes the two axes and the fulfilment visible enough to review.
 - A category or template may share a file because it produces no record. A concrete declaration may not.
 - A project may keep a generated source file outside `relation/source/` when its provider owns the file; the provider's ownership record names it, and the generated file still holds one declaration.
-- `policy/` holds project values, not graph meaning. A policy that a consumer must read belongs in the blueprint only when it is attached to the declaration it governs.
+- Measured release values, policy tables and other project content are not a framework layer. Keep them in a project-owned module beside the declarations they inform, or in the project's documentation; the framework does not prescribe a directory for them, and they never become graph meaning unless attached to a declaration.
 - The structure test proves the import direction and the declaration sites, not the honesty of a binding. [Review top-down](/appendix/philosophy/review-top-down) carries that judgment.
 
 ## Next
