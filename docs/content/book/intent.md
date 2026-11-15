@@ -42,8 +42,8 @@ The answer is not a description of the data. It is the author's reason for
 building the graph. A graph that cannot state that reason has no test for
 whether a query is inside its scope.
 
-The root intention is singular. A graph may have many local purposes under it,
-but they all narrow one expected use. If two purposes cannot be read under the
+The root intention is singular. A graph may have many local purposes under it on
+the record axis, but they all narrow one expected use. If two purposes cannot be read under the
 same root, they are two graphs or one graph with a stated limitation.
 
 ## Three questions, three units
@@ -126,8 +126,8 @@ exists only in its pipeline has no contract to preserve.
 
 ## How to read the rest
 
-This preface names no API on purpose. It is the mentality the rest of
-the book assumes, not an API.
+This preface names no API on purpose. It is the mentality the rest of the book
+assumes.
 
 The book then shows one way to make that mentality executable: typed
 declarations, a checked blueprint, a plan and published records. Read the
