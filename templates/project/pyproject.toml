@@ -7,7 +7,9 @@ dependencies = ["kg-build-system"]
 
 [tool.uv.sources]
 # The template lives inside the framework checkout. `kbs init` rewrites this to
-# the framework location used by the project.
+# the framework location used by the project; if you copy the template by hand,
+# point this at your kg-build-system checkout or remove it after installing the
+# package.
 kg-build-system = { path = "../.." }
 
 [dependency-groups]
@@ -20,5 +22,3 @@ testpaths = ["tests"]
 [tool.pyright]
 include = ["project", "tests"]
 typeCheckingMode = "basic"
-venvPath = "../.."
-venv = ".venv"
