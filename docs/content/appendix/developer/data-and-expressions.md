@@ -119,12 +119,12 @@ Equivalence means the same semantic model, not the same source text.
   instance or a dictionary.
 - A derived relation is a named relation pinned to one row-source value, not a
   SQL string and not a second kind of source relation.
-- A relation is a contract: `Definition` states the grain and identity, `Meaning`
-  states the purpose, claims and limitations. A field states its own
-  `FieldDefinition`; name, type and provenance are derived.
-- Only a published relation is a contract. A stage composes inside one published
-  relation, carries a definition and no contract meaning, and a binding never
-  reads it.
+- A derived relation is a contract: `Definition` states the grain and identity,
+  `Meaning` states the purpose, claims and limitations. A source relation may
+  state the same contract; a declared contract is always complete. A field states
+  its own `FieldDefinition`; name, type and provenance are derived.
+- A stage has no contract. It composes inside one published relation, carries a
+  definition and no contract meaning, and a binding never reads it.
 - Joins, unions, filters, groups, distinct, ordering and unnest are row-source
   operations. Their semantics, generated shapes and plan DTOs belong to the
   row-source package, not to a core planner special case.
