@@ -169,6 +169,8 @@ A declaration fragment does not repeat "estate asset management". It states the 
 
 A `TableGroupOptions` carries no fragment, because a table group is a catalogue rather than a blueprint part. A binding carries one fragment for the whole mapping; there are no per-property binding semantics. A binding also has no description, so `debug_name` is its human handle and annotations are its metadata.
 
+Write the value at the declaration. A project helper may assemble structure such as labels, options and defaults, but it must not take purpose, claim or limitation text as parameters. If a helper composes options, it accepts a `Semantics` value and passes it through. The reader must see the declaration and its meaning in one place; a parameter that sends the reader to another module for the meaning is an adaptation, not a convenience.
+
 ## Meaning is read downward, not copied
 
 The semantic hierarchy is a reading order:
