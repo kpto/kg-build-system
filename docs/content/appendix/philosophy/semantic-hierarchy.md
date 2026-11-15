@@ -44,6 +44,7 @@ The two axes meet at the binding. A relation's purpose is not a local purpose un
 - A limitation belongs inside the purpose it bounds. A claim is contextless and never owns a limitation.
 - Topology states what the graph asserts. Data states the relation the graph reads; the binding states how that relation fulfils the record's purpose. A relation's purpose is not a local purpose under the graph; the binding is the link. A lower record purpose must not contradict its parent; if it does, the design changes, not the sentence.
 - A projection is a relation, not a row-source step. Its purpose can be stated without naming the graph, a node, a binding or a pipeline step; a derived row source has no such purpose.
+- A projection must not know the record. It must not name the record's properties, key or endpoints; if it does, the binding is a copy and the design has collapsed onto the relation axis.
 - Structural inheritance is not semantic inheritance. A category’s label and description do not flow to a concrete child; a template’s annotations do. Attach the concrete component’s semantics explicitly.
 - Do not repeat the root purpose in every fragment. State the shared meaning at the level that owns it; state only the local purpose below.
 - The framework does not check consistency between levels. The author makes the hierarchy coherent; the reviewer reads it from the top.

@@ -215,6 +215,16 @@ class ContactProjection(Projection(SiteTable.row_source())):
 
 `SiteTable.contacts` is expanded once, so every output sees one row per contact. Expanding two unrelated arrays multiplies the two fan-outs. A further new grain needs its own projection, not a second expansion in the same class.
 
+### A projection is record-agnostic
+
+- A published projection must be stateable without the graph record it feeds.
+- It must not name the record's property names, build key, endpoint tokens or
+  component class.
+- If a projection exists only to produce one record's fields, it is a
+  record-shaped staging relation: keep it private or move the decision to the
+  binding.
+- The binding is the only place that knows both the relation and the record.
+
 ### Naming and options
 
 ```python

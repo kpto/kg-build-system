@@ -48,7 +48,7 @@ Two generated blocks carry the measurement. `status` runs the suite and pyright 
 | --- | --- |
 | Test suite | 363 tests, 1951 subtests, 6.41s — passes |
 | Static types | 0 errors |
-| Source | `532efe5` (2026-11-15) |
+| Source | `c54fd47` (2026-11-15) |
 | Docs build | `./docs/build.sh` from the repository root |
 <!-- END GENERATED:status -->
 

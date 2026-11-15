@@ -52,6 +52,8 @@ The first two are structural. The last two are where the semantics live. A bindi
 - If the relation carries a meaning the record does not assert, the binding is using the wrong relation.
 - Keep `debug_name` for display. It is excluded from the identity digest, so it cannot carry the design.
 - If the binding needs a source column the record does not declare, either the record is incomplete or the source is wrong. Resolve it on the record side.
+- A simple binding is not a failure; a vacuous binding is. If the relation already chose the record's grain, key and properties, the design happened on the relation side. Move it back.
+- The projection must not name the record's properties, key or endpoints. If it does, the binding is a copy; the relation is the record in disguise.
 
 ## Example
 

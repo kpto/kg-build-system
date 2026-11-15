@@ -53,7 +53,7 @@ Drift is computed from code sources: a path under `kg_build_system/`, `tests/`, 
 ## Evidence
 
 <!-- BEGIN GENERATED:drift -->
-Source HEAD: 532efe5 · 2026-11-15. Pages checked: 94; clean: 66; drifted: 28.
+Source HEAD: c54fd47 · 2026-11-15. Pages checked: 94; clean: 66; drifted: 28.
 
 | Page | Verified | Latest source change | Action |
 | --- | --- | --- | --- |

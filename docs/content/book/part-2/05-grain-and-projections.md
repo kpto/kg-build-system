@@ -325,6 +325,35 @@ step that produced it. It may have several consumers; the graph is one of them.
 The binding is what makes the relation relevant to a record, and the binding
 states the fulfilment rather than borrowing the relation's meaning.
 
+### A projection must not know the record
+
+A published projection may contain as much domain processing as it needs. What
+it must not contain is the record's contract.
+
+- It must be stateable without the record.
+- It must not name the record's property names, build key, endpoint tokens, node
+  or edge class.
+- If it does, the projection is the record in disguise. The binding is then a
+  copy, not a fulfilment.
+
+The test has two sides:
+
+1. **Relation:** can I state this relation without naming the record, its
+   properties, its key or its endpoints?
+2. **Binding:** what does this relation not guarantee for the record — identity,
+   coverage, property selection, null meaning, endpoint resolution?
+
+A simple binding is allowed when the relation genuinely has the record's grain
+and the source is the relation. A vacuous binding is not: if the relation already
+chose the record's grain, key and properties, the design happened on the wrong
+axis. Move the record knowledge back to topology and the binding; do not add more
+processing to the projection.
+
+| Shape | Reading |
+| --- | --- |
+| `TargetNodeData`: one row per target, fields id/symbol/name/biotype, purpose “the data for TargetNode” | The node's table with a relation name. The binding copies. |
+| `TargetAnnotation`: one gene-annotation record per Ensembl gene, with symbol, name, biotype and the release's source | A domain relation. The binding resolves the key, selects the fields the node asserts, and states the coverage and gaps. |
+
 ## The grain is a decision, not an accident
 
 Each operation answers the same question differently:

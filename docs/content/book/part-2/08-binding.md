@@ -29,6 +29,8 @@ A binding answers four questions:
 
 The first two are structural. The last two are where the semantics live. A binding can therefore fail: if the grain is wrong, or the identity is absent, or the coverage contradicts the purpose, field mapping does not repair it. The design changes, not the binding.
 
+A simple binding is not a failure. If the relation genuinely has the record's grain and identity, the fulfilment can be one-to-one. What is a failure is a vacuous binding: if the relation already chose the record's grain, key and properties, the design happened on the relation side, and the binding is a copy. Move the record knowledge back to topology and the binding; do not add more processing to the projection.
+
 The mechanical mapping is still real, and the rest of this chapter states it. The point is what the mapping is for: it is the evidence that the relation is adequate for the record, not a recipe that gives the record its meaning.
 
 ## The binding is the only place a relation meets a record
