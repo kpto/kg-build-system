@@ -7,8 +7,8 @@ from __future__ import annotations
 
 from kg_build_system.kernel import SourceFragment
 
-from ...model.internal.dto.semantics_dto import GraphSemanticsDTO, SemanticsDTO
-from ...model.public.units import GraphSemantics, Semantics
+from ...model.internal.dto.semantics_dto import SemanticsDTO
+from ...model.public.units import Semantics
 
 
 def render_semantics_expression(value: Semantics | SemanticsDTO) -> str:
@@ -57,32 +57,4 @@ def render_semantics(value: Semantics | SemanticsDTO) -> SourceFragment:
     return render(value)
 
 
-def render_graph_semantics(
-    value: GraphSemantics | GraphSemanticsDTO,
-) -> SourceFragment:
-    """Render a graph semantics value as an embeddable fragment.
-
-    Example:
-        ```python
-        from kg_build_system.distribution.languages.semantics.model.public import (
-            GraphSemantics, Purpose,
-        )
-        from kg_build_system.distribution.languages.semantics.service.internal import (
-            render_graph_semantics,
-        )
-
-        fragment = render_graph_semantics(
-            GraphSemantics(purpose=Purpose("A purpose.")),
-        )
-        assert fragment.body.startswith("semantics=GraphSemantics(")
-        ```
-    """
-    from .._private.source import render_graph_semantics as render
-
-    return render(value)
-
-
-__all__ = [
-    "render_graph_semantics", "render_semantics",
-    "render_semantics_expression",
-]
+__all__ = ["render_semantics", "render_semantics_expression"]

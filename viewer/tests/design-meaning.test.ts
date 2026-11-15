@@ -10,7 +10,7 @@ import {
 import { contractIndex } from "./fixtures";
 
 describe("design meaning", () => {
-  it("reads the graph purpose, claims and frames", () => {
+  it("reads the graph purpose, limitations and claims", () => {
     const meaning = graphMeaning(contractIndex);
     expect(meaning.purpose).toBe(
       "Exercise the viewer data contract without loading a release.",
@@ -18,8 +18,8 @@ describe("design meaning", () => {
     expect(meaning.claims.map((claim) => claim.text)).toContain(
       "The fixture graph contains one observed estate.",
     );
-    expect(meaning.frames).toHaveLength(2);
-    expect(meaningCount(meaning)).toBe(5);
+    expect(meaning.limitations).toHaveLength(2);
+    expect(meaningCount(meaning)).toBe(4);
     expect(meaningLimitations(meaning)).toHaveLength(2);
   });
 
@@ -28,7 +28,7 @@ describe("design meaning", () => {
     expect(meaning.claims.map((claim) => claim.text)).toEqual([
       "A defect is observed on an estate survey.",
     ]);
-    expect(meaning.frames).toHaveLength(0);
+    expect(meaning.limitations).toHaveLength(0);
   });
 
   it("reads the meaning attached to one property", () => {
@@ -40,6 +40,8 @@ describe("design meaning", () => {
 
   it("returns empty meaning for a subject without semantics", () => {
     expect(componentMeaning(contractIndex, "node", "missing").claims).toEqual([]);
-    expect(componentMeaning(contractIndex, "node", "missing").frames).toEqual([]);
+    expect(componentMeaning(contractIndex, "node", "missing").limitations).toEqual(
+      [],
+    );
   });
 });

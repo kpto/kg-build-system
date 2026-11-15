@@ -5,8 +5,8 @@ from collections.abc import Mapping
 from typing import Any
 
 from kg_build_system.distribution.languages.semantics.service.internal import (
-    graph_semantics_from_document,
-    graph_semantics_to_document,
+    semantics_from_document,
+    semantics_to_document,
 )
 
 from ...model.internal.dto.graph_dto import GraphDeclarationDTO
@@ -39,7 +39,7 @@ def graph_declaration_to_document(
     document: dict[str, Any] = {"name": value.name}
     if value.description is not None:
         document["description"] = value.description
-    document["semantics"] = graph_semantics_to_document(value.semantics)
+    document["semantics"] = semantics_to_document(value.semantics)
     return document
 
 
@@ -48,10 +48,15 @@ def graph_declaration_from_document(value: Any) -> GraphDeclarationDTO:
     document = _object(value, "a graph declaration")
     if "semantics" not in document:
         raise ValueError("a graph declaration requires semantics")
+    semantics = semantics_from_document(document["semantics"])
+    if semantics.purpose is None:
+        raise ValueError(
+            "a graph declaration semantics document requires a purpose"
+        )
     return GraphDeclarationDTO(
         name=_text(document, "name"),
         description=_optional_text(document, "description"),
-        semantics=graph_semantics_from_document(document["semantics"]),
+        semantics=semantics,
     )
 
 

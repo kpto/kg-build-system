@@ -216,10 +216,8 @@ function semanticsSummary(entity: TopologyEntity): string {
       `${semantics.claimCount} claim${semantics.claimCount === 1 ? "" : "s"}`,
     );
   }
-  if (semantics.frameCount) {
-    parts.push(
-      `${semantics.frameCount} frame${semantics.frameCount === 1 ? "" : "s"}`,
-    );
+  if (semantics.purposePresent) {
+    parts.push("purpose");
   }
   if (semantics.limitationCount) {
     parts.push(
@@ -1815,7 +1813,11 @@ function inspectorMeaning(
   props: WorkspaceProps,
   entity: TopologyEntity,
   activeProperty?: string,
-): { claims: ReturnType<typeof propertyMeaning>["claims"]; frames: ReturnType<typeof propertyMeaning>["frames"] } {
+): {
+  claims: ReturnType<typeof propertyMeaning>["claims"];
+  limitations: ReturnType<typeof propertyMeaning>["limitations"];
+  purpose?: string;
+} {
   if (activeProperty) {
     return propertyMeaning(
       props.state.index,
@@ -1922,10 +1924,8 @@ export function TopologyInspector({
           </div>
           <DesignMeaning
             claims={graphSemantics.claims}
-            frames={graphSemantics.frames}
+            limitations={graphSemantics.limitations}
             purpose={graphSemantics.purpose}
-            showPurpose
-            expandFrames
             emptyText="No graph purpose is attached."
           />
         </div>
@@ -2024,7 +2024,8 @@ export function TopologyInspector({
             </p>
             <DesignMeaning
               claims={meaning?.claims ?? []}
-              frames={meaning?.frames ?? []}
+              limitations={meaning?.limitations ?? []}
+              purpose={meaning?.purpose}
               emptyText={
                 activeProperty
                   ? "No meaning is attached to this property."

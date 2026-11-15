@@ -34,16 +34,14 @@ from kg_build_system.distribution.languages.binding.service.internal import (
 from kg_build_system.distribution.languages.data import Field, Table, field
 from kg_build_system.distribution.languages.semantics import (
     Claim,
-    Frame,
-    GraphSemantics,
     Limitation,
     Purpose,
     Semantics,
 )
 from kg_build_system.distribution.languages.semantics.model.internal.dto import (
     ClaimDTO,
-    FrameDTO,
     LimitationDTO,
+    PurposeDTO,
     SemanticsDTO,
 )
 from kg_build_system.distribution.languages.topology import (
@@ -83,33 +81,27 @@ class HasUnitEdge(Edge[SiteNode, UnitNode]):
 
 
 SEMANTICS = Semantics(
-    claims=(Claim("Sites are monitored premises."),),
-    frames=(
-        Frame(
-            "Estate scope.",
-            limitations=(Limitation("Units are not sites."),),
-        ),
+    purpose=Purpose(
+        "Estate scope.",
+        limitations=(Limitation("Units are not sites."),),
     ),
+    claims=(Claim("Sites are monitored premises."),),
 )
 
 SEMANTICS_DTO = SemanticsDTO(
-    claims=(ClaimDTO("Sites are monitored premises."),),
-    frames=(
-        FrameDTO(
-            "Estate scope.",
-            limitations=(LimitationDTO("Units are not sites."),),
-        ),
+    purpose=PurposeDTO(
+        "Estate scope.",
+        limitations=(LimitationDTO("Units are not sites."),),
     ),
+    claims=(ClaimDTO("Sites are monitored premises."),),
 )
 
 SEMANTICS_DOCUMENT = {
+    "purpose": {
+        "text": "Estate scope.",
+        "limitations": [{"text": "Units are not sites."}],
+    },
     "claims": [{"text": "Sites are monitored premises."}],
-    "frames": [
-        {
-            "text": "Estate scope.",
-            "limitations": [{"text": "Units are not sites."}],
-        },
-    ],
 }
 
 
@@ -155,10 +147,10 @@ class BindingSemanticsTests(unittest.TestCase):
         self.assertIn("site_binding = node_binding(", fragment.body)
         self.assertIn("semantics=Semantics(", fragment.body)
         self.assertIn("Claim('Sites are monitored premises.')", fragment.body)
-        self.assertIn("Frame(", fragment.body)
+        self.assertIn("purpose=Purpose(", fragment.body)
         self.assertIn("Limitation('Units are not sites.')", fragment.body)
         self.assertIn(
-            "from kg_build_system import Claim, Frame, Limitation, Semantics",
+            "from kg_build_system import Claim, Limitation, Purpose, Semantics",
             fragment.imports,
         )
         ast.parse(fragment.body)
@@ -184,7 +176,7 @@ class BindingSemanticsTests(unittest.TestCase):
         self.assertIn("Claim('Sites are monitored premises.')", fragment.body)
         self.assertIn("Limitation('Units are not sites.')", fragment.body)
         self.assertIn(
-            "from kg_build_system import Claim, Frame, Limitation, Semantics",
+            "from kg_build_system import Claim, Limitation, Purpose, Semantics",
             fragment.imports,
         )
         ast.parse(fragment.body)
@@ -199,16 +191,14 @@ class BindingSemanticsTests(unittest.TestCase):
                     binding_to_document(dto),
                 ).semantics)
 
-    def test_a_binding_rejects_graph_semantics(self) -> None:
-        graph_semantics = GraphSemantics(purpose=Purpose("Target triage."))
-
+    def test_a_binding_rejects_a_non_semantics_value(self) -> None:
         for build in (_node_binding, _edge_binding):
             with self.subTest(binding=build.__name__):
                 with self.assertRaisesRegex(
                     TypeError,
                     "binding semantics must be a Semantics value",
                 ):
-                    build(graph_semantics)  # type: ignore[arg-type]
+                    build(object())  # type: ignore[arg-type]
 
 
 if __name__ == "__main__":

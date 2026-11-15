@@ -2,7 +2,7 @@
 from __future__ import annotations
 
 from kg_build_system.distribution.languages.semantics.service.internal import (
-    render_graph_semantics,
+    render_semantics,
 )
 from kg_build_system.distribution.service.internal.rendering import class_name
 from kg_build_system.kernel import SourceFragment
@@ -18,7 +18,7 @@ def _options_lines(
     lines = ["    options = GraphOptions(", f"{indent}name={value.name!r},"]
     if value.description is not None:
         lines.append(f"{indent}description={value.description!r},")
-    semantics: SourceFragment = render_graph_semantics(value.semantics)
+    semantics: SourceFragment = render_semantics(value.semantics)
     imports.update(semantics.imports)
     semantics_lines = semantics.body.splitlines()
     semantics_lines[-1] = f"{semantics_lines[-1]},"

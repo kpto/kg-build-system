@@ -14,17 +14,15 @@ from kg_build_system.distribution.languages.graph.service.internal import (
 )
 from kg_build_system.distribution.languages.semantics.model.internal.dto import (
     ClaimDTO,
-    FrameDTO,
-    GraphSemanticsDTO,
     LimitationDTO,
     PurposeDTO,
+    SemanticsDTO,
 )
 from kg_build_system.distribution.languages.semantics.model.public import (
     Claim,
-    Frame,
-    GraphSemantics,
     Limitation,
     Purpose,
+    Semantics,
 )
 from kg_build_system.kernel import (
     Declaration,
@@ -35,33 +33,23 @@ from kg_build_system.kernel import (
 )
 
 
-def _semantics() -> GraphSemantics:
-    return GraphSemantics(
-        claims=(Claim("associations are scored per datatype"),),
+def _semantics() -> Semantics:
+    return Semantics(
         purpose=Purpose(
             text="rank targets for a disease",
-            frames=(
-                Frame(
-                    text="curated evidence only",
-                    limitations=(Limitation("no literature mining"),),
-                ),
-            ),
+            limitations=(Limitation("no literature mining"),),
         ),
+        claims=(Claim("associations are scored per datatype"),),
     )
 
 
-def _semantics_dto() -> GraphSemanticsDTO:
-    return GraphSemanticsDTO(
-        claims=(ClaimDTO("associations are scored per datatype"),),
+def _semantics_dto() -> SemanticsDTO:
+    return SemanticsDTO(
         purpose=PurposeDTO(
             text="rank targets for a disease",
-            frames=(
-                FrameDTO(
-                    text="curated evidence only",
-                    limitations=(LimitationDTO("no literature mining"),),
-                ),
-            ),
+            limitations=(LimitationDTO("no literature mining"),),
         ),
+        claims=(ClaimDTO("associations are scored per datatype"),),
     )
 
 
@@ -99,16 +87,15 @@ class GraphOptionsTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             GraphOptions()  # type: ignore[call-arg]
 
-    def test_semantics_must_be_graph_semantics(self) -> None:
+    def test_semantics_must_be_a_semantics_value(self) -> None:
         with self.assertRaises(TypeError):
             GraphOptions(semantics=object())  # type: ignore[arg-type]
 
     def test_semantics_must_carry_a_purpose(self) -> None:
-        semantics = _semantics()
-        object.__setattr__(semantics, "purpose", object())
-
-        with self.assertRaises(TypeError):
-            GraphOptions(semantics=semantics)
+        with self.assertRaisesRegex(TypeError, "requires a Semantics with a purpose"):
+            GraphOptions(
+                semantics=Semantics(claims=(Claim("A claim."),)),
+            )
 
     def test_name_and_description_are_optional_non_empty_text(self) -> None:
         options = GraphOptions(semantics=_semantics())
@@ -255,7 +242,7 @@ class GraphCodecTests(unittest.TestCase):
             [{"text": "associations are scored per datatype"}],
         )
         self.assertEqual(
-            document["semantics"]["purpose"]["frames"][0]["limitations"],
+            document["semantics"]["purpose"]["limitations"],
             [{"text": "no literature mining"}],
         )
         self.assertEqual(graph_declaration_from_document(document), value)
@@ -274,7 +261,7 @@ class GraphCodecTests(unittest.TestCase):
         value = GraphDeclarationDTO(
             name="open_targets",
             description=None,
-            semantics=GraphSemanticsDTO(
+            semantics=SemanticsDTO(
                 purpose=PurposeDTO(text="rank targets for a disease"),
             ),
         )
@@ -298,6 +285,23 @@ class GraphCodecTests(unittest.TestCase):
                 {"name": "open_targets", "semantics": 1}
             )
 
+    def test_a_graph_declaration_document_requires_a_purpose(self) -> None:
+        with self.assertRaisesRegex(ValueError, "requires a purpose"):
+            graph_declaration_from_document(
+                {
+                    "name": "open_targets",
+                    "semantics": {"claims": [{"text": "A claim."}]},
+                }
+            )
+
+    def test_a_graph_dto_rejects_semantics_without_a_purpose(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Semantics with a purpose"):
+            GraphDeclarationDTO(
+                name="open_targets",
+                description=None,
+                semantics=SemanticsDTO(claims=(ClaimDTO("A claim."),)),
+            )
+
 
 class GraphSourceTests(unittest.TestCase):
     def test_the_source_render_is_a_graph_option_declaration(self) -> None:
@@ -310,14 +314,14 @@ class GraphSourceTests(unittest.TestCase):
         self.assertIn(
             "description='Curated target-disease evidence.'", fragment.body,
         )
-        self.assertIn("semantics=GraphSemantics(", fragment.body)
+        self.assertIn("semantics=Semantics(", fragment.body)
         self.assertIn("purpose=Purpose(", fragment.body)
         self.assertIn("from kg_build_system import Graph", fragment.imports)
         self.assertIn(
             "from kg_build_system import GraphOptions", fragment.imports,
         )
         self.assertTrue(
-            any("GraphSemantics" in item for item in fragment.imports)
+            any("Semantics" in item for item in fragment.imports)
         )
         self.assertTrue(any("Purpose" in item for item in fragment.imports))
 

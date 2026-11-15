@@ -330,7 +330,7 @@ function SemanticCards({ attachments }: { attachments: ProofSemantics[] }) {
             <div className={styles.purpose}>
               <p className={styles.purposeLabel}>Purpose</p>
               <p className={styles.purposeText}>{attachment.purpose.text}</p>
-              <FrameList frames={attachment.purpose.frames ?? []} />
+              <LimitationList limitations={attachment.limitations} />
             </div>
           ) : null}
           {attachment.claims.length ? (
@@ -340,34 +340,22 @@ function SemanticCards({ attachments }: { attachments: ProofSemantics[] }) {
               ))}
             </ul>
           ) : null}
-          <FrameList frames={attachment.frames} />
         </article>
       ))}
     </div>
   );
 }
 
-function FrameList({
-  frames,
+function LimitationList({
+  limitations,
 }: {
-  frames: Array<{ text: string; limitations?: Array<{ text: string }> }>;
+  limitations: Array<{ text: string }>;
 }) {
-  if (!frames.length) return null;
+  if (!limitations.length) return null;
   return (
-    <ul className={styles.frameList}>
-      {frames.map((frame, index) => (
-        <li key={`${frame.text}:${index}`}>
-          <span className={styles.frameText}>{frame.text}</span>
-          {frame.limitations?.length ? (
-            <ul className={styles.limitList}>
-              {frame.limitations.map((limitation, limitIndex) => (
-                <li key={`${limitation.text}:${limitIndex}`}>
-                  {limitation.text}
-                </li>
-              ))}
-            </ul>
-          ) : null}
-        </li>
+    <ul className={styles.limitList}>
+      {limitations.map((limitation, index) => (
+        <li key={`${limitation.text}:${index}`}>{limitation.text}</li>
       ))}
     </ul>
   );
@@ -2192,7 +2180,8 @@ function SubjectDetailEditor(props: WorkspaceProps) {
         </header>
         <DesignMeaning
           claims={meaning.claims}
-          frames={meaning.frames}
+          limitations={meaning.limitations}
+          purpose={meaning.purpose}
           emptyText="No meaning is attached to this subject."
         />
       </section>

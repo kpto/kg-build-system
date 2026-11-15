@@ -40,7 +40,9 @@ describe("Open Targets snapshot", () => {
     const declaration = snapshot.blueprint.graph_declaration;
     expect(declaration?.name).toBe("open_targets");
     expect(declaration?.semantics.claims).toHaveLength(9);
-    expect(declaration?.semantics.purpose.frames).toHaveLength(5);
+    expect(declaration?.semantics.purpose?.text).toContain(
+      "Target-disease evidence review",
+    );
     expect(index.graphDeclaration?.name).toBe("open_targets");
 
     const node = snapshot.blueprint.graph.nodes.find(

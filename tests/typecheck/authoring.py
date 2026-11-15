@@ -5,10 +5,8 @@ from typing import assert_type
 
 from kg_build_system import (
     Claim,
-    Frame,
     Graph,
     GraphOptions,
-    GraphSemantics,
     Limitation,
     Purpose,
     Semantics,
@@ -84,21 +82,16 @@ class FixtureGraph(Graph):
     options = GraphOptions(
         name="fixture_graph",
         description="A typecheck fixture graph.",
-        semantics=GraphSemantics(
-            claims=(Claim("Fixture rows describe sites and regions."),),
+        semantics=Semantics(
             purpose=Purpose(
                 text="Exercise the authoring surface.",
-                frames=(
-                    Frame(
-                        text="Declared fixture declarations only.",
-                        limitations=(
-                            Limitation(
-                                "The fixture does not build graph records.",
-                            ),
-                        ),
+                limitations=(
+                    Limitation(
+                        "The fixture does not build graph records.",
                     ),
                 ),
             ),
+            claims=(Claim("Fixture rows describe sites and regions."),),
         ),
     )
 
@@ -152,12 +145,10 @@ class SiteNode(Node):
     options = NodeOptions(name="site_node")
     label: PropertySlot[str] = property(
         semantics=Semantics(
-            frames=(
-                Frame(
-                    text="Site display labels.",
-                    limitations=(
-                        Limitation("Labels are not unique across sites."),
-                    ),
+            purpose=Purpose(
+                text="Use the label as the site display name.",
+                limitations=(
+                    Limitation("Labels are not unique across sites."),
                 ),
             ),
         ),

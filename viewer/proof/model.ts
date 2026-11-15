@@ -28,7 +28,6 @@ import type {
   RelationDTO,
   SemanticSubject,
   SemanticSubjectKind,
-  SemanticsFrameDTO,
   SemanticText,
   StepId,
   TopologyEdge,
@@ -89,9 +88,9 @@ export interface ProofSemantics {
   ownerName?: string;
   entityKind?: EntityKind;
   claims: SemanticText[];
-  frames: SemanticsFrameDTO[];
-  /** The graph declaration's purpose, present on the graph subject only. */
+  /** The subject's purpose and the limitations it owns. */
   purpose?: PurposeDTO;
+  limitations: SemanticText[];
 }
 
 function semanticsFromSubject(subject: SemanticSubject): ProofSemantics {
@@ -103,8 +102,8 @@ function semanticsFromSubject(subject: SemanticSubject): ProofSemantics {
     ownerName: subject.ownerName,
     entityKind: subject.entityKind,
     claims: subject.semantics?.claims ?? [],
-    frames: subject.semantics?.frames ?? [],
-    purpose: subject.purpose,
+    purpose: subject.semantics?.purpose,
+    limitations: subject.semantics?.purpose?.limitations ?? [],
   };
 }
 

@@ -21,7 +21,7 @@ export type TopologyEdgeDetail = "off" | "relations";
 export interface TopologySemanticsSummary {
   present: boolean;
   claimCount: number;
-  frameCount: number;
+  purposePresent: boolean;
   limitationCount: number;
 }
 

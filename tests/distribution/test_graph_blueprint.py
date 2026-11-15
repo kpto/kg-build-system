@@ -53,16 +53,15 @@ try:
     )
     from kg_build_system.distribution.languages.semantics.model.internal import (
         ClaimDTO,
-        FrameDTO,
-        GraphSemanticsDTO,
         LimitationDTO,
         PurposeDTO,
         SemanticsDTO,
     )
     from kg_build_system.distribution.languages.semantics.model.public import (
         Claim,
-        GraphSemantics,
+        Limitation,
         Purpose,
+        Semantics,
     )
     from kg_build_system.distribution.languages.topology.model.internal import (
         GraphPartDTO, NodeDTO,
@@ -76,20 +75,15 @@ except ImportError as error:  # pragma: no cover - concurrent package guard
     ) from error
 
 
-def _semantics() -> GraphSemanticsDTO:
-    return GraphSemanticsDTO(
-        claims=(ClaimDTO("The graph is a curated target-disease model."),),
+def _semantics() -> SemanticsDTO:
+    return SemanticsDTO(
         purpose=PurposeDTO(
             text="Prioritise targets for disease evidence review.",
-            frames=(
-                FrameDTO(
-                    text="Curated evidence only.",
-                    limitations=(
-                        LimitationDTO("Uncurated literature is out of scope."),
-                    ),
-                ),
+            limitations=(
+                LimitationDTO("Uncurated literature is out of scope."),
             ),
         ),
+        claims=(ClaimDTO("The graph is a curated target-disease model."),),
     )
 
 
@@ -112,9 +106,9 @@ class _Namespace:
 class FixtureGraph(Graph):
     options = GraphOptions(
         name="fixture",
-        semantics=GraphSemantics(
-            claims=(Claim("The fixture graph describes one thing."),),
+        semantics=Semantics(
             purpose=Purpose("Exercise the interpreter."),
+            claims=(Claim("The fixture graph describes one thing."),),
         ),
     )
 
@@ -198,7 +192,7 @@ class GraphBlueprintSourceTests(unittest.TestCase):
         source = blueprint_to_source(blueprint, None)
 
         self.assertIn("class OpenTargetsGraph(Graph):", source)
-        self.assertIn("semantics=GraphSemantics(", source)
+        self.assertIn("semantics=Semantics(", source)
         self.assertTrue(source.startswith("from kg_build_system import"))
         self.assertLess(
             source.index("class OpenTargetsGraph(Graph):"),
@@ -220,19 +214,6 @@ class GraphBlueprintSourceTests(unittest.TestCase):
 
 
 class GraphBlueprintValidationTests(unittest.TestCase):
-    def test_a_graph_declaration_requires_graph_semantics(self) -> None:
-        blueprint = _empty_blueprint(_declaration())
-        declaration = blueprint.graph_declaration
-        assert declaration is not None
-        object.__setattr__(
-            declaration,
-            "semantics",
-            SemanticsDTO(claims=(ClaimDTO("A declaration fragment."),)),
-        )
-
-        with self.assertRaisesRegex(ValueError, "GraphSemantics"):
-            validate_blueprint(blueprint)
-
     def test_a_graph_declaration_requires_a_purpose(self) -> None:
         blueprint = _empty_blueprint(_declaration())
         declaration = blueprint.graph_declaration
@@ -241,6 +222,54 @@ class GraphBlueprintValidationTests(unittest.TestCase):
 
         with self.assertRaisesRegex(ValueError, "purpose"):
             validate_blueprint(blueprint)
+
+    def test_a_graph_declaration_semantics_must_be_a_semantics_value(self) -> None:
+        blueprint = _empty_blueprint(_declaration())
+        declaration = blueprint.graph_declaration
+        assert declaration is not None
+        object.__setattr__(declaration, "semantics", object())
+
+        with self.assertRaisesRegex(ValueError, "Semantics with a purpose"):
+            validate_blueprint(blueprint)
+
+    def test_a_local_purpose_requires_a_graph_purpose(self) -> None:
+        blueprint = GraphBlueprint(
+            graph=GraphPartDTO(
+                nodes=(
+                    NodeDTO(
+                        "site",
+                        semantics=SemanticsDTO(
+                            purpose=PurposeDTO("The published register."),
+                        ),
+                    ),
+                ),
+            ),
+            data=DataPartDTO(structs=(), relations=(), projections=()),
+            assets=AssetPartDTO(),
+            bindings=(),
+        )
+
+        with self.assertRaisesRegex(ValueError, "local purpose"):
+            validate_blueprint(blueprint)
+
+    def test_claims_are_allowed_without_a_graph_purpose(self) -> None:
+        blueprint = GraphBlueprint(
+            graph=GraphPartDTO(
+                nodes=(
+                    NodeDTO(
+                        "site",
+                        semantics=SemanticsDTO(
+                            claims=(ClaimDTO("A site holds units."),),
+                        ),
+                    ),
+                ),
+            ),
+            data=DataPartDTO(structs=(), relations=(), projections=()),
+            assets=AssetPartDTO(),
+            bindings=(),
+        )
+
+        validate_blueprint(blueprint)
 
 
 if __name__ == "__main__":

@@ -20,20 +20,16 @@ const contractDocument = {
       name: "fixture_graph",
       description: "A small graph used by the viewer contract tests.",
       semantics: {
-        claims: [{ text: "The fixture graph contains one observed estate." }],
         purpose: {
           text: "Exercise the viewer data contract without loading a release.",
-          frames: [
+          limitations: [
+            { text: "The fixture is synthetic and is not production data." },
             {
-              text: "The fixture is synthetic.",
-              limitations: [{ text: "It is not production data." }],
-            },
-            {
-              text: "Only one asset is represented.",
-              limitations: [{ text: "No cross-asset joins are exercised." }],
+              text: "Only one asset is represented; no cross-asset joins are exercised.",
             },
           ],
         },
+        claims: [{ text: "The fixture graph contains one observed estate." }],
       },
     },
     graph: {
@@ -56,13 +52,11 @@ const contractDocument = {
           annotations: [],
           description: "An abstract category with a summary property.",
           semantics: {
+            purpose: {
+              text: "Use the documented node as an abstract category.",
+              limitations: [{ text: "No concrete descendant is bound." }],
+            },
             claims: [{ text: "Every documented entity carries a summary." }],
-            frames: [
-              {
-                text: "Documented entities are abstract.",
-                limitations: [{ text: "No concrete descendant is bound." }],
-              },
-            ],
           },
         },
         {
@@ -216,13 +210,11 @@ const contractDocument = {
         governance: { license: null, owner: null, metadata: {} },
         annotations: [],
         semantics: {
+          purpose: {
+            text: "Use the fixture estate as the JSON source asset.",
+            limitations: [{ text: "The asset has no release history." }],
+          },
           claims: [{ text: "The fixture estate is a JSON asset." }],
-          frames: [
-            {
-              text: "The asset is synthetic.",
-              limitations: [{ text: "It has no release history." }],
-            },
-          ],
           x_semantics_field: "survives",
         },
         x_asset_field: "survives",

@@ -34,8 +34,8 @@ import {
 type TopologyComponent = TopologyNode | TopologyEdge;
 
 interface RawSemantics {
+  purpose?: unknown;
   claims?: unknown;
-  frames?: unknown;
 }
 
 interface RawSemanticsText {
@@ -70,7 +70,7 @@ function emptySemantics(): TopologySemanticsSummary {
   return {
     present: false,
     claimCount: 0,
-    frameCount: 0,
+    purposePresent: false,
     limitationCount: 0,
   };
 }
@@ -85,14 +85,13 @@ function readSemantics(component: TopologyComponent): TopologySemanticsSummary {
     if (isObject(item) && nonEmpty(item.text)) claimCount += 1;
   }
 
-  let frameCount = 0;
+  let purposePresent = false;
   let limitationCount = 0;
-  for (const item of Array.isArray(semantics.frames) ? semantics.frames : []) {
-    if (!isObject(item)) continue;
-    const frame = item as RawSemanticsText;
-    if (nonEmpty(frame.text)) frameCount += 1;
-    for (const limitation of Array.isArray(frame.limitations)
-      ? frame.limitations
+  if (isObject(semantics.purpose)) {
+    const purpose = semantics.purpose as RawSemanticsText;
+    if (nonEmpty(purpose.text)) purposePresent = true;
+    for (const limitation of Array.isArray(purpose.limitations)
+      ? purpose.limitations
       : []) {
       if (isObject(limitation) && nonEmpty(limitation.text)) {
         limitationCount += 1;
@@ -101,9 +100,9 @@ function readSemantics(component: TopologyComponent): TopologySemanticsSummary {
   }
 
   return {
-    present: claimCount + frameCount + limitationCount > 0,
+    present: claimCount + (purposePresent ? 1 : 0) + limitationCount > 0,
     claimCount,
-    frameCount,
+    purposePresent,
     limitationCount,
   };
 }

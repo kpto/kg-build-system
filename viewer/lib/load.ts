@@ -6,13 +6,11 @@ import type {
   BuildReport,
   DataField,
   GraphDeclarationDTO,
-  GraphSemanticsDTO,
   MetaGraph,
   ProjectionDTO,
   PurposeDTO,
   RelationDTO,
   SemanticsDTO,
-  SemanticsFrameDTO,
   SemanticText,
   StructDTO,
   TopologyEdge,
@@ -60,7 +58,7 @@ function normalizeSemanticTexts(value: unknown): SemanticText[] | undefined {
     .filter((entry): entry is SemanticText => Boolean(entry));
 }
 
-function normalizeFrame(value: unknown): SemanticsFrameDTO | undefined {
+function normalizePurpose(value: unknown): PurposeDTO | undefined {
   if (!isObject(value) || typeof value.text !== "string") return undefined;
   const limitations = normalizeSemanticTexts(value.limitations);
   return {
@@ -70,32 +68,15 @@ function normalizeFrame(value: unknown): SemanticsFrameDTO | undefined {
   };
 }
 
-function normalizeFrames(value: unknown): SemanticsFrameDTO[] | undefined {
-  if (!Array.isArray(value)) return undefined;
-  return value
-    .map(normalizeFrame)
-    .filter((entry): entry is SemanticsFrameDTO => Boolean(entry));
-}
-
 /** Normalise attached semantics; unknown fields inside each unit survive. */
 export function normalizeSemantics(value: unknown): SemanticsDTO | undefined {
   if (!isObject(value)) return undefined;
+  const purpose = normalizePurpose(value.purpose);
   const claims = normalizeSemanticTexts(value.claims);
-  const frames = normalizeFrames(value.frames);
   return {
     ...value,
+    ...(purpose ? { purpose } : {}),
     ...(claims ? { claims } : {}),
-    ...(frames ? { frames } : {}),
-  };
-}
-
-function normalizePurpose(value: unknown): PurposeDTO | undefined {
-  if (!isObject(value) || typeof value.text !== "string") return undefined;
-  const frames = normalizeFrames(value.frames);
-  return {
-    ...value,
-    text: value.text,
-    ...(frames ? { frames } : {}),
   };
 }
 
@@ -104,13 +85,7 @@ export function normalizeGraphDeclaration(
   value: unknown,
 ): GraphDeclarationDTO | undefined {
   if (!isObject(value) || !isObject(value.semantics)) return undefined;
-  const raw = value.semantics;
-  const claims = normalizeSemanticTexts(raw.claims);
-  const semantics: GraphSemanticsDTO = {
-    ...raw,
-    ...(claims ? { claims } : {}),
-    purpose: normalizePurpose(raw.purpose) ?? { text: "" },
-  };
+  const semantics = normalizeSemantics(value.semantics) ?? {};
   return {
     ...value,
     name: asString(value.name),

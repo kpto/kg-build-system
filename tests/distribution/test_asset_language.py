@@ -282,17 +282,17 @@ class AssetCodecTests(unittest.TestCase):
     def test_the_asset_part_round_trips_profile_and_semantics(self) -> None:
         from kg_build_system.distribution.languages.semantics.model.internal import (
             ClaimDTO,
-            FrameDTO,
             LimitationDTO,
+            PurposeDTO,
             SemanticsDTO,
         )
 
         semantics = SemanticsDTO(
-            claims=(ClaimDTO("associations are scored per datatype"),),
-            frames=(FrameDTO(
+            purpose=PurposeDTO(
                 "curation",
                 limitations=(LimitationDTO("coverage varies by disease"),),
-            ),),
+            ),
+            claims=(ClaimDTO("associations are scored per datatype"),),
         )
         part = AssetPartDTO((
             AssetDTO(
@@ -311,7 +311,7 @@ class AssetCodecTests(unittest.TestCase):
 
         self.assertEqual(restored, part)
         self.assertIn("claims", document[0]["semantics"])
-        self.assertIn("frames", document[0]["semantics"])
+        self.assertIn("purpose", document[0]["semantics"])
 
 
 class AssetSourceTests(unittest.TestCase):

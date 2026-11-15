@@ -1,22 +1,16 @@
 "use client";
 
-import { useState } from "react";
-import { ChevronRight } from "lucide-react";
-
-import type { SemanticText, SemanticsFrameDTO } from "@/lib/types";
+import type { SemanticText } from "@/lib/types";
 import { cx } from "@/shared/ui/theme";
 import styles from "./design.module.css";
 
 export interface DesignMeaningProps {
   claims: SemanticText[];
-  frames: SemanticsFrameDTO[];
+  /** Limitations owned by the subject's purpose. */
+  limitations: SemanticText[];
   purpose?: string;
   /** Topology uses the compact card; Detail uses the full reading. */
   compact?: boolean;
-  /** Include the purpose text above claims and frames. */
-  showPurpose?: boolean;
-  /** Show every frame's limitations without requiring a second click. */
-  expandFrames?: boolean;
   emptyText?: string;
 }
 
@@ -26,40 +20,25 @@ function countLabel(count: number, noun: string): string {
 
 export function DesignMeaning({
   claims,
-  frames,
+  limitations,
   purpose,
   compact = false,
-  showPurpose = false,
-  expandFrames = false,
   emptyText = "No meaning is attached to this subject.",
 }: DesignMeaningProps) {
-  const [openFrames, setOpenFrames] = useState<string[]>([]);
-  const limitations = frames.flatMap((frame) => frame.limitations ?? []);
   const visibleClaims = compact ? claims.slice(0, 4) : claims;
 
-  if (!purpose && !claims.length && !frames.length) {
+  if (!purpose && !claims.length && !limitations.length) {
     return <p className={styles.meaningEmpty}>{emptyText}</p>;
   }
-
-  const toggleFrame = (text: string) => {
-    setOpenFrames((current) =>
-      current.includes(text)
-        ? current.filter((value) => value !== text)
-        : [...current, text],
-    );
-  };
 
   return (
     <div className={cx(styles.meaning, compact && styles.meaningCompact)}>
       <div className={styles.meaningCounts}>
         <span>{countLabel(claims.length, "claim")}</span>
-        <span>{countLabel(frames.length, "frame")}</span>
         <span>{countLabel(limitations.length, "limitation")}</span>
       </div>
 
-      {showPurpose && purpose ? (
-        <p className={styles.meaningPurpose}>{purpose}</p>
-      ) : null}
+      {purpose ? <p className={styles.meaningPurpose}>{purpose}</p> : null}
 
       {claims.length ? (
         <ul className={styles.meaningClaims}>
@@ -74,43 +53,12 @@ export function DesignMeaning({
         </ul>
       ) : null}
 
-      {frames.length ? (
-        <div className={styles.meaningFrames}>
-          {frames.map((frame) => {
-            const open = expandFrames || openFrames.includes(frame.text);
-            const frameLimitations = frame.limitations ?? [];
-            return (
-              <div key={frame.text} className={styles.meaningFrame}>
-                <button
-                  type="button"
-                  className={styles.meaningFrameHead}
-                  aria-expanded={open}
-                  onClick={() => toggleFrame(frame.text)}
-                  disabled={!frameLimitations.length}
-                >
-                  <ChevronRight
-                    aria-hidden
-                    className={cx(
-                      styles.meaningChevron,
-                      open && styles.meaningChevronOpen,
-                    )}
-                  />
-                  <span>{frame.text}</span>
-                  <span className={styles.meaningFrameCount}>
-                    {countLabel(frameLimitations.length, "limitation")}
-                  </span>
-                </button>
-                {open ? (
-                  <ul className={styles.meaningLimits}>
-                    {frameLimitations.map((limitation) => (
-                      <li key={limitation.text}>{limitation.text}</li>
-                    ))}
-                  </ul>
-                ) : null}
-              </div>
-            );
-          })}
-        </div>
+      {limitations.length ? (
+        <ul className={styles.meaningLimits}>
+          {limitations.map((limitation) => (
+            <li key={limitation.text}>{limitation.text}</li>
+          ))}
+        </ul>
       ) : null}
     </div>
   );

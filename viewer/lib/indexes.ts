@@ -448,12 +448,12 @@ function buildPropertyIndex(
 function graphSemantics(
   declaration: GraphDeclarationDTO,
 ): SemanticsDTO | undefined {
+  const purpose = declaration.semantics.purpose;
   const claims = declaration.semantics.claims;
-  const frames = declaration.semantics.purpose?.frames;
-  if (!claims?.length && !frames?.length) return undefined;
+  if (!purpose && !claims?.length) return undefined;
   return {
+    ...(purpose ? { purpose } : {}),
     ...(claims?.length ? { claims } : {}),
-    ...(frames?.length ? { frames } : {}),
   };
 }
 
@@ -488,7 +488,6 @@ function buildSemanticIndexes(
       key: semanticSubjectKey("graph", declaration.name),
       name: declaration.name,
       semantics: graphSemantics(declaration),
-      purpose: declaration.semantics.purpose,
     });
   }
 

@@ -1,8 +1,8 @@
 """Contract tests: semantics attachments on topology declarations.
 
-The chain under test is authoring -> DTO -> document -> source. A topology
-declaration attaches a declaration fragment, ``Semantics``, never the graph
-meaning root, ``GraphSemantics``.
+The chain under test is authoring -> DTO -> document -> source. Every
+declaration attaches the same ``Semantics`` value; a topology declaration may
+carry one local purpose that narrows the graph purpose.
 """
 from __future__ import annotations
 
@@ -10,14 +10,12 @@ import unittest
 
 from kg_build_system.distribution.languages.semantics.model.internal import (
     ClaimDTO,
-    FrameDTO,
     LimitationDTO,
+    PurposeDTO,
     SemanticsDTO,
 )
 from kg_build_system.distribution.languages.semantics.model.public import (
     Claim,
-    Frame,
-    GraphSemantics,
     Limitation,
     Purpose,
     Semantics,
@@ -45,52 +43,42 @@ from kg_build_system.distribution.languages.topology.service.internal import (
 
 def _semantics() -> Semantics:
     return Semantics(
-        claims=(Claim("Scores are per datatype."),),
-        frames=(
-            Frame(
-                text="Scored associations.",
-                limitations=(Limitation("Unscored evidence is absent."),),
-            ),
+        purpose=Purpose(
+            text="Scored associations.",
+            limitations=(Limitation("Unscored evidence is absent."),),
         ),
+        claims=(Claim("Scores are per datatype."),),
     )
 
 
 def _semantics_dto() -> SemanticsDTO:
     return SemanticsDTO(
-        claims=(ClaimDTO("Scores are per datatype."),),
-        frames=(
-            FrameDTO(
-                "Scored associations.",
-                (LimitationDTO("Unscored evidence is absent."),),
-            ),
+        purpose=PurposeDTO(
+            "Scored associations.",
+            (LimitationDTO("Unscored evidence is absent."),),
         ),
+        claims=(ClaimDTO("Scores are per datatype."),),
     )
-
-
-def _graph_semantics() -> GraphSemantics:
-    return GraphSemantics(purpose=Purpose("Target prioritisation."))
 
 
 def _document() -> dict[str, object]:
     return {
+        "purpose": {
+            "text": "Scored associations.",
+            "limitations": [{"text": "Unscored evidence is absent."}],
+        },
         "claims": [{"text": "Scores are per datatype."}],
-        "frames": [
-            {
-                "text": "Scored associations.",
-                "limitations": [{"text": "Unscored evidence is absent."}],
-            },
-        ],
     }
 
 
 class SemanticsOptionTests(unittest.TestCase):
-    def test_node_and_edge_options_carry_a_declaration_fragment(self) -> None:
+    def test_node_and_edge_options_carry_a_declaration_value(self) -> None:
         semantics = _semantics()
 
         self.assertIs(NodeOptions(semantics=semantics).semantics, semantics)
         self.assertIs(EdgeOptions(semantics=semantics).semantics, semantics)
 
-    def test_template_options_carry_a_declaration_fragment(self) -> None:
+    def test_template_options_carry_a_declaration_value(self) -> None:
         semantics = _semantics()
 
         self.assertIs(
@@ -100,9 +88,7 @@ class SemanticsOptionTests(unittest.TestCase):
             EdgeOptionsTemplate(semantics=semantics).semantics, semantics,
         )
 
-    def test_an_attachment_rejects_the_graph_meaning_root(self) -> None:
-        graph_semantics = _graph_semantics()
-
+    def test_an_attachment_rejects_a_non_semantics_value(self) -> None:
         for options in (
             NodeOptions,
             EdgeOptions,
@@ -110,12 +96,12 @@ class SemanticsOptionTests(unittest.TestCase):
             EdgeOptionsTemplate,
         ):
             with self.subTest(options=options.__name__):
-                with self.assertRaisesRegex(TypeError, "not GraphSemantics"):
-                    options(semantics=graph_semantics)
+                with self.assertRaisesRegex(TypeError, "must be a Semantics"):
+                    options(semantics=object())  # type: ignore[arg-type]
 
-    def test_property_rejects_the_graph_meaning_root(self) -> None:
-        with self.assertRaisesRegex(TypeError, "not GraphSemantics"):
-            property(semantics=_graph_semantics())
+    def test_property_rejects_a_non_semantics_value(self) -> None:
+        with self.assertRaisesRegex(TypeError, "must be a Semantics"):
+            property(semantics=object())  # type: ignore[arg-type]
 
 
 class SemanticsTranscriptionTests(unittest.TestCase):
@@ -237,6 +223,7 @@ class SemanticsDocumentTests(unittest.TestCase):
         self.assertNotIn("semantics", document["nodes"][0])
         self.assertNotIn("semantics", document["nodes"][0]["properties"][0])
 
+
 class SemanticsSourceTests(unittest.TestCase):
     def test_node_edge_and_property_source_embed_the_shared_renderer(
         self,
@@ -256,10 +243,10 @@ class SemanticsSourceTests(unittest.TestCase):
         )
 
         self.assertIn("        semantics=Semantics(", fragment.body)
-        self.assertIn("            claims=(", fragment.body)
+        self.assertIn("            purpose=Purpose(", fragment.body)
         self.assertIn("                    Limitation(", fragment.body)
         self.assertIn(
-            "from kg_build_system import Claim, Frame, Limitation, Semantics",
+            "from kg_build_system import Claim, Limitation, Purpose, Semantics",
             fragment.imports,
         )
         compile(
@@ -278,7 +265,7 @@ class SemanticsSourceTests(unittest.TestCase):
 
         self.assertEqual(document["nodes"][0]["semantics"], _document())
         self.assertIn("Claim('Scores are per datatype.'),", fragment.body)
-        self.assertIn("Frame(", fragment.body)
+        self.assertIn("purpose=Purpose(", fragment.body)
         self.assertIn("Limitation('Unscored evidence is absent.'),", fragment.body)
 
 

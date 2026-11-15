@@ -139,14 +139,14 @@ describe("semantics and profile indexes", () => {
   it("indexes the graph declaration and its purpose", () => {
     expect(index.graphDeclaration?.name).toBe("fixture_graph");
     expect(index.graphSemantics?.claims).toHaveLength(1);
-    expect(index.graphDeclaration?.semantics.purpose.frames).toHaveLength(2);
+    expect(index.graphDeclaration?.semantics.purpose?.limitations).toHaveLength(2);
 
     const graph = index.semanticsByKey.get(semanticSubjectKey("graph", "fixture_graph"));
     expect(graph?.kind).toBe("graph");
-    expect(graph?.purpose?.text).toBe(
+    expect(graph?.semantics?.purpose?.text).toBe(
       "Exercise the viewer data contract without loading a release.",
     );
-    expect(graph?.semantics?.frames).toHaveLength(2);
+    expect(graph?.semantics?.purpose?.limitations).toHaveLength(2);
   });
 
   it("indexes asset profiles", () => {

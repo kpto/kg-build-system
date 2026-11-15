@@ -160,7 +160,7 @@ describe("topology design model", () => {
     expect(documented?.semantics).toMatchObject({
       present: true,
       claimCount: 1,
-      frameCount: 1,
+      purposePresent: true,
       limitationCount: 1,
     });
   });

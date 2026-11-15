@@ -4,26 +4,22 @@ from __future__ import annotations
 from typing import Any
 
 from kg_build_system.distribution.languages.semantics.model.internal.dto import (
-    ClaimDTO,
-    FrameDTO,
-    GraphSemanticsDTO,
-    LimitationDTO,
-    PurposeDTO,
+    SemanticsDTO,
 )
 from kg_build_system.distribution.languages.semantics.model.public import (
-    GraphSemantics,
+    Semantics,
 )
 
 from ...model.internal.dto.graph_dto import GraphDeclarationDTO
 
 
-def graph_semantics_dto(value: GraphSemantics) -> GraphSemanticsDTO:
-    """Turn one graph semantics value into its blueprint DTO."""
+def graph_semantics_dto(value: Semantics) -> SemanticsDTO:
+    """Turn the graph's semantics value into its blueprint DTO."""
     from kg_build_system.distribution.languages.semantics.service.internal import (
-        graph_semantics_to_dto,
+        semantics_to_dto,
     )
 
-    return graph_semantics_to_dto(value)
+    return semantics_to_dto(value)
 
 
 def graph_declaration_dto(value: type[Any]) -> GraphDeclarationDTO:

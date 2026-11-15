@@ -1,29 +1,27 @@
 """The semantics units an author writes.
 
-A semantics value is either the project's meaning root, ``GraphSemantics``, or a
-declaration fragment, ``Semantics``. Claims are contextless statements. A
-purpose is the expected use of the graph; frames scope the limitation space
-within it, and limitations belong to a frame.
+One meaning value, ``Semantics``, is attached to every declaration.
+
+A ``Purpose`` states one expected use of the subject and owns the limitations
+that bound that use. A ``Claim`` is a contextless assertion about the subject and
+never owns a limitation. The graph declaration's ``Semantics`` must carry a
+purpose; every other declaration's purpose is optional and narrows the root.
 
 Example:
     ```python
     from kg_build_system.distribution.languages.semantics import (
-        Claim, Frame, GraphSemantics, Limitation, Purpose, Semantics,
+        Claim, Limitation, Purpose, Semantics,
     )
 
-    graph_semantics = GraphSemantics(
-        claims=(Claim("The graph describes gene-disease associations."),),
+    root = Semantics(
         purpose=Purpose(
             text="Target prioritisation.",
-            frames=(
-                Frame(
-                    text="Curated evidence only.",
-                    limitations=(Limitation("No literature mining."),),
-                ),
-            ),
+            limitations=(Limitation("No literature mining."),),
         ),
+        claims=(Claim("The graph describes gene-disease associations."),),
     )
-    declaration_semantics = Semantics(
+    declaration = Semantics(
+        purpose=Purpose(text="Use this node as the released target record."),
         claims=(Claim("Scores are per datatype."),),
     )
     ```
@@ -31,12 +29,14 @@ Example:
 from __future__ import annotations
 
 from collections.abc import Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 
 
 @dataclass(frozen=True, slots=True)
 class Claim:
-    """A contextless statement that holds regardless of purpose or frame.
+    """An authored, contextless assertion about the subject.
+
+    A claim holds regardless of purpose and never owns a limitation.
 
     Example:
         ```python
@@ -56,7 +56,10 @@ class Claim:
 
 @dataclass(frozen=True, slots=True)
 class Limitation:
-    """What a reader must know given the purpose and frame.
+    """What a purpose does not authorize.
+
+    A limitation belongs inside a purpose; it is never attached to a declaration
+    or a claim on its own.
 
     Example:
         ```python
@@ -75,20 +78,20 @@ class Limitation:
 
 
 @dataclass(frozen=True, slots=True)
-class Frame:
-    """The scope and boundary of the limitation space within the purpose.
+class Purpose:
+    """One expected use of the subject, owning the limitations of that use.
 
-    A frame owns its limitations. A declaration frame is read under the one
-    graph purpose.
+    A declaration carries at most one purpose. A local purpose is read under the
+    graph purpose and must narrow it.
 
     Example:
         ```python
         from kg_build_system.distribution.languages.semantics import (
-            Frame, Limitation,
+            Limitation, Purpose,
         )
 
-        frame = Frame(
-            text="Curated evidence only.",
+        purpose = Purpose(
+            text="Target prioritisation.",
             limitations=(Limitation("No literature mining."),),
         )
         ```
@@ -100,156 +103,69 @@ class Frame:
     def __post_init__(self) -> None:
         from ...service._private.validation import required_text, unit_tuple
 
-        required_text(self.text, "a frame text")
+        required_text(self.text, "a purpose text")
         object.__setattr__(
             self,
             "limitations",
             unit_tuple(
-                self.limitations, Limitation, "frame limitations",
+                self.limitations, Limitation, "purpose limitations",
             ),
-        )
-
-
-@dataclass(frozen=True, slots=True)
-class Purpose:
-    """The expected use of the graph. Exactly one exists per project.
-
-    Example:
-        ```python
-        from kg_build_system.distribution.languages.semantics import (
-            Frame, Limitation, Purpose,
-        )
-
-        purpose = Purpose(
-            text="Target prioritisation.",
-            frames=(
-                Frame(
-                    text="Curated evidence only.",
-                    limitations=(Limitation("No literature mining."),),
-                ),
-            ),
-        )
-        ```
-    """
-
-    text: str
-    frames: Sequence[Frame] = ()
-
-    def __post_init__(self) -> None:
-        from ...service._private.validation import required_text, unit_tuple
-
-        required_text(self.text, "a purpose text")
-        object.__setattr__(
-            self,
-            "frames",
-            unit_tuple(self.frames, Frame, "purpose frames"),
         )
 
 
 @dataclass(frozen=True, slots=True)
 class Semantics:
-    """A declaration semantics fragment under the graph purpose.
+    """The one meaning value attached to a declaration.
 
-    A declaration fragment has no purpose of its own and must carry at least one
-    claim or frame.
+    A semantics value carries at most one purpose and any number of contextless
+    claims. It must carry at least one of the two.
 
     Example:
         ```python
         from kg_build_system.distribution.languages.semantics import (
-            Claim, Frame, Limitation, Semantics,
+            Claim, Limitation, Purpose, Semantics,
         )
 
         semantics = Semantics(
-            claims=(Claim("Scores are per datatype."),),
-            frames=(
-                Frame(
-                    text="Scored associations.",
-                    limitations=(Limitation("Unscored evidence is absent."),),
-                ),
+            purpose=Purpose(
+                text="Scored associations.",
+                limitations=(Limitation("Unscored evidence is absent."),),
             ),
+            claims=(Claim("Scores are per datatype."),),
         )
         ```
     """
 
+    purpose: Purpose | None = None
     claims: Sequence[Claim] = ()
-    frames: Sequence[Frame] = ()
 
     def __post_init__(self) -> None:
         from ...service._private.validation import unit_tuple
 
+        if self.purpose is not None and not isinstance(self.purpose, Purpose):
+            raise TypeError("semantics purpose must be a Purpose")
         object.__setattr__(
             self, "claims", unit_tuple(self.claims, Claim, "semantics claims"),
         )
-        object.__setattr__(
-            self, "frames", unit_tuple(self.frames, Frame, "semantics frames"),
-        )
-        if not self.claims and not self.frames:
+        if self.purpose is None and not self.claims:
             raise ValueError(
-                "semantics requires at least one claim or frame"
+                "semantics requires at least one claim or purpose"
             )
 
 
-@dataclass(frozen=True, slots=True)
-class GraphSemantics:
-    """The project's meaning root: claims and exactly one purpose.
-
-    ``purpose`` is required and keyword-only so it cannot be omitted while a
-    declaration fragment's optional claims still default to an empty tuple.
-
-    Example:
-        ```python
-        from kg_build_system.distribution.languages.semantics import (
-            Claim, Frame, GraphSemantics, Limitation, Purpose,
-        )
-
-        semantics = GraphSemantics(
-            claims=(Claim("The graph describes associations."),),
-            purpose=Purpose(
-                text="Target prioritisation.",
-                frames=(
-                    Frame(
-                        text="Curated evidence only.",
-                        limitations=(Limitation("No literature mining."),),
-                    ),
-                ),
-            ),
-        )
-        ```
-    """
-
-    claims: Sequence[Claim] = ()
-    purpose: Purpose = field(kw_only=True)
-
-    def __post_init__(self) -> None:
-        from ...service._private.validation import unit_tuple
-
-        object.__setattr__(
-            self,
-            "claims",
-            unit_tuple(self.claims, Claim, "graph semantics claims"),
-        )
-        if not isinstance(self.purpose, Purpose):
-            raise TypeError("graph semantics purpose must be a Purpose")
-
-
 def require_declaration_semantics(value: object, *, context: str = "semantics") -> None:
-    """Reject a graph meaning root or a non-semantics attachment.
+    """Reject a value that is not a ``Semantics`` attachment.
 
-    A declaration attaches a ``Semantics`` fragment. ``GraphSemantics`` belongs
-    to the graph declaration only. This helper is public so every language's
-    authoring model applies the same rule without a local private helper.
+    This helper is public so every language's authoring model applies the same
+    rule without a local private helper.
     """
     if value is None:
         return
-    if isinstance(value, GraphSemantics):
-        raise TypeError(
-            f"{context} must be a Semantics value, not GraphSemantics"
-        )
     if not isinstance(value, Semantics):
         raise TypeError(f"{context} must be a Semantics value")
 
 
 __all__ = [
-    "Claim", "Frame", "GraphSemantics", "Limitation", "Purpose", "Semantics",
+    "Claim", "Limitation", "Purpose", "Semantics",
     "require_declaration_semantics",
 ]

@@ -1,39 +1,28 @@
-"""The semantics language: claims, purpose, frames and limitations.
+"""The semantics language: purposes, claims and limitations.
 
-A semantics value states what a graph or one declaration means. ``GraphSemantics``
-is the project's meaning root; ``Semantics`` is a declaration fragment read under
-that root. Claims are contextless, limitations belong to a frame, and a frame
-scopes the limitation space within a purpose.
+A semantics value states the meaning of one declaration. A ``Purpose`` states
+one expected use of the subject and owns the limitations that bound it. A
+``Claim`` is a contextless assertion. The graph declaration's ``Semantics``
+carries the root purpose; every other declaration may carry a local purpose that
+narrows it.
 
 Example:
     ```python
     from kg_build_system.distribution.languages.semantics import (
-        Claim, Frame, GraphSemantics, Limitation, Purpose, Semantics,
+        Claim, Limitation, Purpose, Semantics,
     )
 
-    graph_semantics = GraphSemantics(
-        claims=(Claim("The graph describes gene-disease associations."),),
+    root = Semantics(
         purpose=Purpose(
             text="Target prioritisation.",
-            frames=(
-                Frame(
-                    text="Curated evidence only.",
-                    limitations=(Limitation("No literature mining."),),
-                ),
-            ),
+            limitations=(Limitation("No literature mining."),),
         ),
+        claims=(Claim("The graph describes gene-disease associations."),),
     )
     ```
 """
 from __future__ import annotations
 
-from .model.public import (
-    Claim,
-    Frame,
-    GraphSemantics,
-    Limitation,
-    Purpose,
-    Semantics,
-)
+from .model.public import Claim, Limitation, Purpose, Semantics
 
-__all__ = ["Claim", "Frame", "GraphSemantics", "Limitation", "Purpose", "Semantics"]
+__all__ = ["Claim", "Limitation", "Purpose", "Semantics"]

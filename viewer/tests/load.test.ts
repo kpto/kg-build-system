@@ -20,8 +20,10 @@ describe("snapshot loading", () => {
       "A small graph used by the viewer contract tests.",
     );
     expect(declaration?.semantics.claims).toHaveLength(1);
-    expect(declaration?.semantics.purpose.frames).toHaveLength(2);
-    expect(declaration?.semantics.purpose.frames?.[0].limitations).toHaveLength(1);
+    expect(declaration?.semantics.purpose?.text).toBe(
+      "Exercise the viewer data contract without loading a release.",
+    );
+    expect(declaration?.semantics.purpose?.limitations).toHaveLength(2);
   });
 
   it("loads asset profiles and attached semantics on every subject", () => {

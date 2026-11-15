@@ -49,35 +49,26 @@ export interface SemanticText {
   text: string;
 }
 
-/** A frame gives a claim its scope and records the limitations it carries. */
-export interface SemanticsFrameDTO {
+/** One expected use of a subject and the limitations that bound it. */
+export interface PurposeDTO {
   text: string;
   limitations?: SemanticText[];
 }
 
-/** Semantics attached to any subject: a set of claims and framed statements. */
+/**
+ * Meaning attached to any subject: at most one local purpose plus contextless
+ * claims. The graph declaration's purpose is the root.
+ */
 export interface SemanticsDTO {
+  purpose?: PurposeDTO;
   claims?: SemanticText[];
-  frames?: SemanticsFrameDTO[];
-}
-
-/** The graph-level purpose: one text with optional frames. */
-export interface PurposeDTO {
-  text: string;
-  frames?: SemanticsFrameDTO[];
-}
-
-/** Semantics of the graph declaration: claims plus the single purpose. */
-export interface GraphSemanticsDTO {
-  claims?: SemanticText[];
-  purpose: PurposeDTO;
 }
 
 /** The one graph declaration a project carries. */
 export interface GraphDeclarationDTO {
   name: string;
   description?: string | null;
-  semantics: GraphSemanticsDTO;
+  semantics: SemanticsDTO;
 }
 
 /** Descriptive asset profile; separate from attached semantics. */
@@ -483,8 +474,7 @@ export interface SearchSource {
 /**
  * Every subject kind that can carry attached semantics.
  *
- * `graph` is the graph declaration; its purpose is exposed beside the claims
- * as `SemanticSubject.purpose`.
+ * `graph` is the graph declaration; its root purpose is `semantics.purpose`.
  */
 export type SemanticSubjectKind =
   | "graph"
@@ -507,8 +497,6 @@ export interface SemanticSubject {
   name: string;
   /** Attached semantics, if the snapshot carries any. */
   semantics?: SemanticsDTO;
-  /** Graph declaration purpose, on the `graph` subject only. */
-  purpose?: PurposeDTO;
   ref?: Ref;
   ownerName?: string;
   entityKind?: EntityKind;
@@ -522,7 +510,7 @@ export interface ViewerIndex extends SearchSource {
   workflow: WorkflowPlan;
   /** The graph declaration, absent when the snapshot does not carry one. */
   graphDeclaration?: GraphDeclarationDTO;
-  graphSemantics?: GraphSemanticsDTO;
+  graphSemantics?: SemanticsDTO;
   stepsById: Map<string, WorkflowStep>;
   stepIdByKey: Map<string, StepId>;
   componentsById: Map<string, WorkflowComponent>;

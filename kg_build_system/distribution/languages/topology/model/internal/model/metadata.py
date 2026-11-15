@@ -21,25 +21,22 @@ if TYPE_CHECKING:
 
 
 def require_semantics(value: object, context: str) -> Semantics | None:
-    """Return ``value`` when it is a declaration semantics fragment.
+    """Return ``value`` when it is a declaration ``Semantics`` attachment.
 
-    A topology declaration attaches ``Semantics`` under the graph purpose; the
-    project's meaning root, ``GraphSemantics``, belongs only to ``GraphOptions``.
+    Every declaration attaches the same ``Semantics`` value. A non-graph
+    declaration may carry one local purpose.
 
     Raises:
-        TypeError: when the value is ``GraphSemantics`` or another object.
+        TypeError: when the value is not a ``Semantics`` value.
     """
     if value is None:
         return None
     from kg_build_system.distribution.languages.semantics.model.public import (
-        GraphSemantics,
         Semantics,
     )
 
-    if isinstance(value, GraphSemantics) or not isinstance(value, Semantics):
-        raise TypeError(
-            f"{context} semantics must be a Semantics value, not GraphSemantics"
-        )
+    if not isinstance(value, Semantics):
+        raise TypeError(f"{context} semantics must be a Semantics value")
     return value
 
 

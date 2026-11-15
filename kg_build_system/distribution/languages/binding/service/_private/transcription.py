@@ -27,9 +27,6 @@ from kg_build_system.distribution.languages.topology.model.internal.dto import (
     GraphPartDTO,
 )
 from kg_build_system.distribution.languages.semantics.model.internal.dto import (
-    ClaimDTO,
-    FrameDTO,
-    LimitationDTO,
     SemanticsDTO,
 )
 from kg_build_system.distribution.languages.semantics.model.public import (

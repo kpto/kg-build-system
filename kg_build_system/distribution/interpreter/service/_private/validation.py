@@ -16,8 +16,8 @@ from kg_build_system.distribution.languages.graph.model.internal.dto import (
     GraphDeclarationDTO,
 )
 from kg_build_system.distribution.languages.semantics.model.internal import (
-    GraphSemanticsDTO,
     PurposeDTO,
+    SemanticsDTO,
 )
 from kg_build_system.distribution.languages.topology.model.internal.dto.blueprint_dto import (
     EdgeDTO, NodeDTO,
@@ -36,14 +36,64 @@ def _validate_graph_declaration(blueprint: GraphBlueprint) -> None:
     if not isinstance(declaration, GraphDeclarationDTO):
         raise ValueError("the graph declaration must be a GraphDeclarationDTO")
     semantics = declaration.semantics
-    if not isinstance(semantics, GraphSemanticsDTO):
+    if not isinstance(semantics, SemanticsDTO):
         raise ValueError(
-            "the graph declaration requires GraphSemantics semantics"
+            "a graph declaration requires a Semantics with a purpose"
         )
     if not isinstance(semantics.purpose, PurposeDTO):
-        raise ValueError("the graph declaration requires a purpose")
+        raise ValueError(
+            "a graph declaration requires a Semantics with a purpose"
+        )
     if not semantics.purpose.text:
         raise ValueError("the graph declaration purpose must be non-empty")
+
+
+def _declaration_semantics(blueprint: GraphBlueprint) -> tuple[Any, ...]:
+    """Return every attached declaration semantics value in the blueprint."""
+    values: list[Any] = []
+    for component in _components(blueprint.graph):
+        semantics = getattr(component, "semantics", None)
+        if semantics is not None:
+            values.append(semantics)
+        for prop in getattr(component, "properties", ()):
+            if prop.semantics is not None:
+                values.append(prop.semantics)
+    for owner in (
+        *blueprint.data.structs,
+        *blueprint.data.relations,
+        *blueprint.data.projections,
+    ):
+        if owner.semantics is not None:
+            values.append(owner.semantics)
+        for column in owner.columns:
+            if column.semantics is not None:
+                values.append(column.semantics)
+    for asset in blueprint.assets.assets:
+        if asset.semantics is not None:
+            values.append(asset.semantics)
+    for binding in blueprint.bindings:
+        if binding.semantics is not None:
+            values.append(binding.semantics)
+    return tuple(values)
+
+
+def _validate_purposes(blueprint: GraphBlueprint) -> None:
+    """Reject a local purpose without a graph purpose."""
+    declaration = blueprint.graph_declaration
+    root = (
+        declaration.semantics.purpose
+        if declaration is not None
+        else None
+    )
+    for semantics in _declaration_semantics(blueprint):
+        if not isinstance(semantics, SemanticsDTO):
+            raise ValueError(
+                "a declaration semantics must be a Semantics value"
+            )
+        if semantics.purpose is not None and root is None:
+            raise ValueError(
+                "a local purpose requires a graph declaration with a purpose"
+            )
 
 
 def _components(graph: Any) -> tuple[Any, ...]:
@@ -142,10 +192,12 @@ def validate_blueprint(blueprint: GraphBlueprint) -> None:
     The checks are reference-based: every endpoint, parent, property, field,
     relation asset and binding must carry the role reference whose language and
     key name an existing declaration. A graph declaration, when present, must
-    carry ``GraphSemantics`` with a purpose. Names are only used for the
-    messages.
+    carry a ``Semantics`` value with a purpose. A local declaration purpose is
+    refused when the project declares no graph purpose. Names are only used for
+    the messages.
     """
     _validate_graph_declaration(blueprint)
+    _validate_purposes(blueprint)
     components = _components(blueprint.graph)
     names = tuple(_name(item) for item in components)
     if len(names) != len(set(names)):

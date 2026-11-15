@@ -1,25 +1,20 @@
-import type {
-  SemanticText,
-  SemanticsDTO,
-  SemanticsFrameDTO,
-  ViewerIndex,
-} from "@/lib/types";
+import type { SemanticText, SemanticsDTO, ViewerIndex } from "@/lib/types";
 
 /**
- * Meaning as the viewer reads it: the purpose of the graph or the claims,
- * frames and limitations attached to one design subject.
+ * Meaning as the viewer reads it: the purpose of the graph or of one design
+ * subject, the limitations that bound that purpose, and the contextless claims.
  *
  * This is a read model only. It never infers that meaning propagates from one
  * subject to another.
  */
 export interface DesignMeaningValue {
   purpose?: string;
+  limitations: SemanticText[];
   claims: SemanticText[];
-  frames: SemanticsFrameDTO[];
 }
 
 export function emptyDesignMeaning(): DesignMeaningValue {
-  return { claims: [], frames: [] };
+  return { limitations: [], claims: [] };
 }
 
 /** Read the meaning attached to a node, edge, property, asset or binding. */
@@ -27,19 +22,15 @@ export function attachedMeaning(
   semantics: SemanticsDTO | undefined,
 ): DesignMeaningValue {
   return {
+    ...(semantics?.purpose?.text ? { purpose: semantics.purpose.text } : {}),
+    limitations: semantics?.purpose?.limitations ?? [],
     claims: semantics?.claims ?? [],
-    frames: semantics?.frames ?? [],
   };
 }
 
-/** Read the graph declaration's purpose, claims and frames. */
+/** Read the graph declaration's root purpose, limitations and claims. */
 export function graphMeaning(index: ViewerIndex): DesignMeaningValue {
-  const semantics = index.graphSemantics;
-  return {
-    ...(semantics?.purpose?.text ? { purpose: semantics.purpose.text } : {}),
-    claims: semantics?.claims ?? [],
-    frames: semantics?.purpose?.frames ?? [],
-  };
+  return attachedMeaning(index.graphSemantics);
 }
 
 /** The attached meaning of a topology node or edge. */
@@ -75,16 +66,13 @@ export function propertyMeaning(
 export function meaningCount(meaning: DesignMeaningValue): number {
   return (
     meaning.claims.length +
-    meaning.frames.length +
-    meaning.frames.reduce(
-      (total, frame) => total + (frame.limitations?.length ?? 0),
-      0,
-    )
+    meaning.limitations.length +
+    (meaning.purpose ? 1 : 0)
   );
 }
 
 export function meaningLimitations(
   meaning: DesignMeaningValue,
 ): SemanticText[] {
-  return meaning.frames.flatMap((frame) => frame.limitations ?? []);
+  return meaning.limitations;
 }

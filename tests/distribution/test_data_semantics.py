@@ -22,8 +22,6 @@ from kg_build_system.distribution.languages.data.service.internal import (
 )
 from kg_build_system.distribution.languages.semantics.model.public import (
     Claim,
-    Frame,
-    GraphSemantics,
     Limitation,
     Purpose,
     Semantics,
@@ -33,13 +31,11 @@ from .support import TestEstate
 
 def _semantics(label: str) -> Semantics:
     return Semantics(
-        claims=(Claim(f"{label} is stated."),),
-        frames=(
-            Frame(
-                text=f"{label} frame",
-                limitations=(Limitation(f"{label} is bounded."),),
-            ),
+        purpose=Purpose(
+            text=f"{label} purpose",
+            limitations=(Limitation(f"{label} is bounded."),),
         ),
+        claims=(Claim(f"{label} is stated."),),
     )
 
 
@@ -97,9 +93,7 @@ class DataSemanticsTests(unittest.TestCase):
 
         with self.assertRaises(TypeError):
             TableOptions(
-                semantics=GraphSemantics(  # pyright: ignore[reportArgumentType]
-                    claims=(), purpose=Purpose(text="graph purpose"),
-                ),
+                semantics=object(),  # pyright: ignore[reportArgumentType]
             )
 
         with self.assertRaises(TypeError):
@@ -160,13 +154,11 @@ class DataSemanticsTests(unittest.TestCase):
             [{"text": "table is stated."}],
         )
         self.assertEqual(
-            relation["semantics"]["frames"],
-            [
-                {
-                    "text": "table frame",
-                    "limitations": [{"text": "table is bounded."}],
-                },
-            ],
+            relation["semantics"]["purpose"],
+            {
+                "text": "table purpose",
+                "limitations": [{"text": "table is bounded."}],
+            },
         )
         self.assertIn("semantics", struct)
         self.assertIn("semantics", projection)
@@ -193,7 +185,7 @@ class DataSemanticsTests(unittest.TestCase):
         self.assertIn("computed_field(", body)
 
         imports = "\n".join(fragment.imports)
-        for name in ("Claim", "Frame", "Limitation", "Semantics"):
+        for name in ("Claim", "Limitation", "Purpose", "Semantics"):
             self.assertIn(name, imports)
 
 

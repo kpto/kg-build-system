@@ -1,16 +1,6 @@
 """DTOs for the semantics language's blueprint part."""
 from __future__ import annotations
 
-from .semantics_dto import (
-    ClaimDTO,
-    FrameDTO,
-    GraphSemanticsDTO,
-    LimitationDTO,
-    PurposeDTO,
-    SemanticsDTO,
-)
+from .semantics_dto import ClaimDTO, LimitationDTO, PurposeDTO, SemanticsDTO
 
-__all__ = [
-    "ClaimDTO", "FrameDTO", "GraphSemanticsDTO", "LimitationDTO", "PurposeDTO",
-    "SemanticsDTO",
-]
+__all__ = ["ClaimDTO", "LimitationDTO", "PurposeDTO", "SemanticsDTO"]

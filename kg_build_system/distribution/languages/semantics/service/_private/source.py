@@ -13,88 +13,28 @@ from kg_build_system.kernel import SourceFragment
 
 from ...model.internal.dto.semantics_dto import (
     ClaimDTO,
-    FrameDTO,
-    GraphSemanticsDTO,
     LimitationDTO,
     PurposeDTO,
     SemanticsDTO,
 )
-from ...model.public.units import (
-    Claim,
-    Frame,
-    GraphSemantics,
-    Limitation,
-    Purpose,
-    Semantics,
-)
+from ...model.public.units import Claim, Purpose, Semantics
 
-_IMPORT_ORDER = (
-    "Claim", "Frame", "Limitation", "Purpose", "Semantics", "GraphSemantics",
-)
+_IMPORT_ORDER = ("Claim", "Limitation", "Purpose", "Semantics")
 
 
 def _indent(level: int) -> str:
     return " " * (4 * level)
 
 
-def _unit_line(
-    value: Claim | Limitation | ClaimDTO | LimitationDTO,
-    level: int,
-    names: set[str],
-) -> list[str]:
-    if isinstance(value, (Claim, ClaimDTO)):
-        names.add("Claim")
-        return [f"{_indent(level)}Claim({value.text!r}),"]
-    names.add("Limitation")
-    return [f"{_indent(level)}Limitation({value.text!r}),"]
-
-
-def _claims_field(
+def _claim_lines(
     claims: Iterable[Claim | ClaimDTO],
     level: int,
     names: set[str],
 ) -> list[str]:
-    lines = [f"{_indent(level)}claims=("]
-    for claim in claims:
-        lines.extend(_unit_line(claim, level + 1, names))
-    lines.append(f"{_indent(level)}),")
-    return lines
-
-
-def _frames_field(
-    frames: Iterable[Frame | FrameDTO],
-    level: int,
-    names: set[str],
-) -> list[str]:
-    lines = [f"{_indent(level)}frames=("]
-    for frame in frames:
-        frame_lines = _frame_lines(frame, level + 1, names)
-        frame_lines[-1] = f"{frame_lines[-1]},"
-        lines.extend(frame_lines)
-    lines.append(f"{_indent(level)}),")
-    return lines
-
-
-def _frame_lines(
-    value: Frame | FrameDTO,
-    level: int,
-    names: set[str],
-) -> list[str]:
-    names.add("Frame")
-    pad = _indent(level)
-    if not value.limitations:
-        return [f"{pad}Frame({value.text!r})"]
-    child = _indent(level + 1)
-    lines = [
-        f"{pad}Frame(",
-        f"{child}{value.text!r},",
-        f"{child}limitations=(",
+    names.add("Claim")
+    return [
+        f"{_indent(level)}Claim({claim.text!r})," for claim in claims
     ]
-    for limitation in value.limitations:
-        lines.extend(_unit_line(limitation, level + 2, names))
-    lines.append(f"{child}),")
-    lines.append(f"{pad})")
-    return lines
 
 
 def _purpose_lines(
@@ -102,20 +42,20 @@ def _purpose_lines(
     level: int,
     names: set[str],
 ) -> list[str]:
+    """Render ``Purpose(...)`` starting at ``level`` with no trailing comma."""
     names.add("Purpose")
     pad = _indent(level)
-    if not value.frames:
+    if not value.limitations:
         return [f"{pad}Purpose({value.text!r})"]
     child = _indent(level + 1)
+    names.add("Limitation")
     lines = [
         f"{pad}Purpose(",
         f"{child}{value.text!r},",
-        f"{child}frames=(",
+        f"{child}limitations=(",
     ]
-    for frame in value.frames:
-        frame_lines = _frame_lines(frame, level + 2, names)
-        frame_lines[-1] = f"{frame_lines[-1]},"
-        lines.extend(frame_lines)
+    for limitation in value.limitations:
+        lines.append(f"{_indent(level + 2)}Limitation({limitation.text!r}),")
     lines.append(f"{child}),")
     lines.append(f"{pad})")
     return lines
@@ -128,29 +68,19 @@ def _semantics_lines(
 ) -> list[str]:
     names.add("Semantics")
     pad = _indent(level)
+    child_level = level + 1
+    child = _indent(child_level)
     lines = [f"{pad}Semantics("]
+    if value.purpose is not None:
+        purpose = _purpose_lines(value.purpose, child_level, names)
+        assert purpose[0].startswith(child)
+        purpose[0] = f"{child}purpose={purpose[0][len(child):]}"
+        purpose[-1] = f"{purpose[-1]},"
+        lines.extend(purpose)
     if value.claims:
-        lines.extend(_claims_field(value.claims, level + 1, names))
-    if value.frames:
-        lines.extend(_frames_field(value.frames, level + 1, names))
-    lines.append(f"{pad})")
-    return lines
-
-
-def _graph_semantics_lines(
-    value: GraphSemantics | GraphSemanticsDTO,
-    level: int,
-    names: set[str],
-) -> list[str]:
-    names.add("GraphSemantics")
-    pad = _indent(level)
-    lines = [f"{pad}GraphSemantics("]
-    if value.claims:
-        lines.extend(_claims_field(value.claims, level + 1, names))
-    purpose = _purpose_lines(value.purpose, 0, names)
-    purpose_pad = _indent(level + 1)
-    lines.append(f"{purpose_pad}purpose={purpose[0]}")
-    lines.extend(f"{purpose_pad}{line}" for line in purpose[1:])
+        lines.append(f"{child}claims=(")
+        lines.extend(_claim_lines(value.claims, child_level + 1, names))
+        lines.append(f"{child}),")
     lines.append(f"{pad})")
     return lines
 
@@ -189,32 +119,4 @@ def render_semantics(value: Semantics | SemanticsDTO) -> SourceFragment:
     return SourceFragment("inline", f"semantics={expression}", _imports(names))
 
 
-def render_graph_semantics(
-    value: GraphSemantics | GraphSemanticsDTO,
-) -> SourceFragment:
-    """Render a graph semantics value as an embeddable fragment.
-
-    Example:
-        ```python
-        from kg_build_system.distribution.languages.semantics.model.public import (
-            GraphSemantics, Purpose,
-        )
-        from kg_build_system.distribution.languages.semantics.service.internal import (
-            render_graph_semantics,
-        )
-
-        fragment = render_graph_semantics(
-            GraphSemantics(purpose=Purpose("A purpose.")),
-        )
-        assert fragment.body.startswith("semantics=GraphSemantics(")
-        ```
-    """
-    names: set[str] = set()
-    expression = "\n".join(_graph_semantics_lines(value, 0, names))
-    return SourceFragment("inline", f"semantics={expression}", _imports(names))
-
-
-__all__ = [
-    "render_graph_semantics", "render_semantics",
-    "render_semantics_expression",
-]
+__all__ = ["render_semantics", "render_semantics_expression"]
