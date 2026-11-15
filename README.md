@@ -6,12 +6,23 @@ The framework turns typed Python declarations into an inspectable knowledge
 graph. It compiles declarations into a `WorkflowPlan`, executes the plan and
 publishes the graph with the meaning declared for it.
 
+## Start a project
+
+`templates/project/` is the topic-neutral project template: the four declaration
+layers, one layer directive per directory, a conformance fixture, and the
+philosophy gate. `kbs init` will copy it into a new project.
+
+```console
+cd templates/project
+uv run pytest
+```
+
 ## Package groups
 
 | Group | Responsibility |
 | --- | --- |
 | `kernel/` | domain-agnostic toolchain: language, declaration, symbol, linker, planner, executor, resource, runtime, workflow plan and canonical types |
-| `distribution/languages/` | the annotation, expression, asset, data, topology and binding languages |
+| `distribution/languages/` | the annotations, expressions, meaning, asset, data, topology, binding and graph languages |
 | `distribution/interpreter/` | `GraphBlueprint`, `BlueprintLinker` and `create_blueprint` |
 | `distribution/modules/` | feature packages: core, deduplication, merging, conflict validation, file, meta-graph, Neo4j, DuckDB, Python and runtime resources |
 | `distribution/implementations.py` | language and linker implementations composed by `api.py` |
@@ -25,7 +36,7 @@ publishes the graph with the meaning declared for it.
 The kernel vocabulary is toolchain vocabulary: language, declaration, symbol,
 linker, planner, workflow plan, runtime, executor, resource and toolchain. The
 distribution vocabulary is domain vocabulary: graph, blueprint, node, edge,
-binding, projection, table, asset, core, meta-graph, Neo4j, DuckDB and Python.
+binding, source relation, derived relation, asset, core, meta-graph, Neo4j, DuckDB and Python.
 
 Every framework leaf uses the zones it needs from the model/service layout:
 
