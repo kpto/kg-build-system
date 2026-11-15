@@ -73,7 +73,7 @@ Artifact presence is therefore evidence of publication, not of correctness. The 
 
 ## The test suite guards interfaces, not the graph
 
-The checkout measures itself. A run of `uv run pytest -q` on 2026-11-15 reports 391 tests and 1,972 subtests passing in about 7 seconds. `uv run pyright` reports no errors. The repository has no CI configuration; every check is a command someone runs.
+The checkout measures itself. A run of `uv run pytest -q` on 2026-11-15 reports 393 tests and 1,972 subtests passing in about 7 seconds. `uv run pyright` reports no errors. The repository has no CI configuration; every check is a command someone runs.
 
 Those numbers are properties of the checkout, not promises about the next one. A test count, subtest count or duration varies with the machine and dependency versions. The stable claims are the pass or fail result and the measured type state. Quoting 363 and 1,957 is honest only with the date and the command; quoting them as a guarantee is not.
 

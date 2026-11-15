@@ -34,7 +34,7 @@ uv run pytest -q
 uv run pyright
 ```
 
-The suite reports 391 tests and 1,972 subtests passing in roughly seven seconds. Those numbers describe this checkout, not a promise about another revision. A failure here is an environment or checkout problem, not a graph problem, and chasing it through a build error is wasted work.
+The suite reports 393 tests and 1,972 subtests passing in roughly seven seconds. Those numbers describe this checkout, not a promise about another revision. A failure here is an environment or checkout problem, not a graph problem, and chasing it through a build error is wasted work.
 
 Pyright reports no errors in this checkout. The measured count is the honest number to quote; do not treat a clean run as a design approval. Pyright analyzes the package and two authoring fixtures, not the whole of `tests/`, `reference_project/` or `legacy/`.
 

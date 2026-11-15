@@ -131,14 +131,23 @@ one_tag_per_row = SiteSourceRelation.row_source().unnest(lambda site: site.tags)
 The selected member is read through `.shape`:
 
 ```python
+from typing import cast
+
+from kg_build_system import Selection
+
+
 class TagDerivedRelation(DerivedRelation(one_tag_per_row)):
     # Contract and output definitions are stated in full on Derived relations.
     options = DerivedRelationOptions(contract=...)
     site_id = computed_field(
         one_tag_per_row.shape.site_id.alter_rows().drop_null()
     )
-    tag = computed_field(one_tag_per_row.shape.tags)
+    tag = computed_field(cast(Selection[str], one_tag_per_row.shape.tags))
 ```
+
+The declared shape keeps the array type, so the item read is asserted with a
+cast; the runtime narrows the selected field. Without the cast the output is
+typed as an array even though one row holds one item.
 
 `unnest` is the row-source spelling of expansion. `Selection.expand` remains a selection row effect for a product that already reads the row.
 
