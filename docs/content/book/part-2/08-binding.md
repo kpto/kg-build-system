@@ -46,6 +46,25 @@ The mechanical mapping is still real, and the rest of this chapter states it. Th
 point is what the mapping is for: it is the evidence that the relation is adequate
 for the record, not a recipe that gives the record its meaning.
 
+## The purpose names the use and the answer
+
+A binding purpose is not a description of the row plan. It names the record's use
+in a clause, then states how this relation answers it: the grain, the identity and
+the coverage the relation actually supplies.
+
+- “Supply `HAS_DISEASE` edges from each row's `diseaseId`” is a mapping recipe. It
+  says what the expression does and nothing about the record's use.
+- “The evidence relation fulfils the `HAS_DISEASE` use as the attribution that lets
+  a consumer gather the release's evidence for one disease: each release row names
+  the disease it is about and supplies one edge, keyed by the evidence and disease
+  ids, covering every release row. The relation supplies the release's resolved
+  term, not the source label, and asserts no causation.” is a fulfilment.
+
+The second names the use, the relation, the grain, the identity and the coverage.
+The limitations carry the shortfall. A purpose that only restates the record's
+purpose has not said how the relation answers it; a purpose that only describes the
+expression has not said what record it serves.
+
 ## The binding is the only place a relation meets a record
 
 A topology declaration never reads data. A relation declaration never names a node

@@ -296,8 +296,10 @@ rule about what the framework is belongs to the framework model.
 - A declaration with no positive use carries claims only. Two declarations share
   a purpose only when the use is identical.
 - A binding requires a meaning with a purpose, and that purpose states the
-  fulfilment it performs: which relation satisfies which record purpose, at which
-  grain, identity and coverage, and where it falls short. The record's meaning
+  fulfilment it performs: it names the record's use in a clause, then says how
+  the relation answers it — which relation, at which grain, identity and coverage
+  — and where it falls short. A row recipe or a restatement of the record's
+  purpose is not a fulfilment. The record's meaning
   stays on its node or edge; the relation's meaning stays on the relation.
 - A relation is a contract: a definition (grain and identity) and a meaning. A
   derived relation requires a meaning with a purpose; a source relation may state
