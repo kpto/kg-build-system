@@ -31,12 +31,23 @@ def _module_name(path: Path) -> str:
 
 def _imports(path: Path) -> set[str]:
     tree = ast.parse(path.read_text(), filename=str(path))
+    package = _module_name(path)
+    if not path.name == "__init__.py":
+        package = package.rpartition(".")[0]
     found: set[str] = set()
     for node in ast.walk(tree):
         if isinstance(node, ast.Import):
             found.update(alias.name for alias in node.names)
-        elif isinstance(node, ast.ImportFrom) and node.module:
-            found.add(node.module)
+        elif isinstance(node, ast.ImportFrom):
+            if node.level:
+                parts = package.split(".")
+                base = parts[: len(parts) - (node.level - 1)] if node.level > 1 else parts
+                prefix = ".".join(base)
+                found.add(
+                    f"{prefix}.{node.module}" if node.module else prefix
+                )
+            elif node.module:
+                found.add(node.module)
     return found
 
 
