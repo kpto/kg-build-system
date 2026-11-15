@@ -21,20 +21,29 @@ sources:
 - **Topology category/template** — shared properties, annotations and category meaning. Attached to `AbstractNode`, `AbstractEdge` or template options. Properties and template annotations flow structurally; a category’s label and description do not flow to a child.
 - **Concrete node/edge** — one expected use of this record, its claims and its limits. Attached to `NodeOptions(semantics=...)` or `EdgeOptions(semantics=...)`; explicit.
 - **Property** — one expected use of the value and what that use does not authorize. Attached to `property(semantics=...)`; explicit.
-- **Data** — how the implementation supplies the record. Attached to table, projection or field `Semantics`; explicit.
-- **Binding** — how this row becomes this record. Attached to `node_binding(..., semantics=...)`; explicit.
+- **Data** — the domain relation the graph reads. Attached to table, projection or field `Semantics`; its purpose states the relation's own meaning and grain, not a narrower copy of the graph purpose.
+- **Binding** — how this relation fulfils this record's purpose. Attached to `node_binding(..., semantics=...)`; explicit.
 
-<figure class="kb-plate">
-  <img src="/_assets/semantics.svg" alt="Graph purpose above topology, data and binding; each lower layer is read under the purpose, and the framework stores attachments rather than copying the parent text.">
-  <figcaption>Read from the purpose down. The framework stores each attachment; it does not synthesise the parent link.</figcaption>
-</figure>
+```text
+records                                 relations
+what the graph asserts                  what the domain contains
+  graph purpose                           relation purpose
+    topology record                         projection / table
+      property                                grain, fields
+          ▲                                       │
+          └──────────── binding ──────────────────┘
+                      fulfilment
+```
+
+The two axes meet at the binding. A relation's purpose is not a local purpose under the graph; the binding is the link.
 
 ## Rules
 
 - A project has one root purpose on the graph declaration. A local purpose is optional and must narrow the root.
 - A declaration carries at most one purpose. If it needs two incompatible uses, split the declaration or turn one use into a limitation.
 - A limitation belongs inside the purpose it bounds. A claim is contextless and never owns a limitation.
-- Topology states the design. Data and binding purposes state how this implementation supplies it. A lower purpose must not contradict its parent; if it does, the design changes, not the sentence.
+- Topology states what the graph asserts. Data states the relation the graph reads; the binding states how that relation fulfils the record's purpose. A relation's purpose is not a local purpose under the graph; the binding is the link. A lower record purpose must not contradict its parent; if it does, the design changes, not the sentence.
+- A projection is a relation, not a row-source step. Its purpose can be stated without naming the graph, a node, a binding or a pipeline step; a derived row source has no such purpose.
 - Structural inheritance is not semantic inheritance. A category’s label and description do not flow to a concrete child; a template’s annotations do. Attach the concrete component’s semantics explicitly.
 - Do not repeat the root purpose in every fragment. State the shared meaning at the level that owns it; state only the local purpose below.
 - The framework does not check consistency between levels. The author makes the hierarchy coherent; the reviewer reads it from the top.

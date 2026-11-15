@@ -77,7 +77,7 @@ The blueprint now carries `graph_declaration`; a consumer can read the purpose a
 
 ## Next
 
-[The binding is the seam](/appendix/philosophy/binding-is-the-seam) — where implementation meets the design.
+[The binding is the fulfilment](/appendix/philosophy/binding-is-fulfilment) — where implementation meets the design.
 
 ## Decisions
 

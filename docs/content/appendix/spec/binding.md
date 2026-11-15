@@ -22,7 +22,7 @@ evidence:
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Bindings</span><a href="/appendix/subjects/binding">Overview</a><a href="/book/part-2/08-binding">Guide</a><a href="/appendix/spec/binding" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/binding-is-the-seam">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Bindings</span><a href="/appendix/subjects/binding">Overview</a><a href="/book/part-2/08-binding">Guide</a><a href="/appendix/spec/binding" class="active">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/binding-is-fulfilment">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## Requirement
@@ -36,7 +36,7 @@ evidence:
 - **R7.** A `source_node` or `target_node` token MUST be supplied when the declared side is abstract, MUST name a concrete node equal to or descending from that category, and MUST be an `endpoint(...)` token rather than a raw class. A concrete side MAY supply a token.
 - **R8.** Binding identity MUST be the SHA-256 digest of the canonical binding document with `debug_name` and `python_ref` removed, truncated to 16 hexadecimal characters. A `debug_name` MAY prefix the identity string for display but MUST NOT enter the digest. Two bindings with the same identity MUST be refused.
 - **R9.** One row the binding receives MUST produce one record. A binding MUST NOT aggregate, join, expand, deduplicate or merge; those decisions belong to a projection, row source or planner.
-- **R10.** A binding MUST be the only declaration that imports both a data row source and a graph component; topology MUST NOT import data. Its optional semantics fragment MUST be a `Semantics` value and MUST describe the mapping rather than the record's meaning.
+- **R10.** A binding MUST be the only declaration that imports both a data row source and a graph component; topology MUST NOT import data. Its optional semantics fragment MUST be a `Semantics` value and MUST describe the fulfilment: which relation chain satisfies which record purpose, at which grain, identity and coverage, and where that fulfilment falls short. It owns neither the relation's meaning nor the record's meaning.
 
 ## Evidence
 
@@ -76,7 +76,7 @@ evidence:
 
 ## Rationale
 
-The binding is the seam where a row becomes a record. Requiring one row, one target and one value per property keeps the grain explicit and prevents the seam from becoming a second design. Identity over the canonical document makes every mapping reviewable and makes an accidental duplicate a refusal rather than a silent second producer.
+The binding is the fulfilment where a relation is offered to a record. Requiring one row, one target and one value per property keeps the grain explicit and prevents the fulfilment from becoming a second design. Identity over the canonical document makes every mapping reviewable and makes an accidental duplicate a refusal rather than a silent second producer.
 
 ## Next
 

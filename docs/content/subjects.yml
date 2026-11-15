@@ -84,7 +84,7 @@
 
 - slug: binding
   title: Bindings
-  summary: The single place where a row context becomes a concrete node or edge record.
+  summary: "The fulfilment between a relation and a record: grain, identity, coverage and the gaps stated as limitations."
   order: 60
   spec: SPEC-006
   contract:
@@ -93,7 +93,7 @@
     - "Binding identity MUST be content-derived; `debug_name` MUST NOT change the digest."
   guide: [book/part-2/08-binding]
   api: appendix/reference/api
-  philosophy: [appendix/philosophy/binding-is-the-seam]
+  philosophy: [appendix/philosophy/binding-is-fulfilment]
   review: [appendix/review/contracts]
   upstream: [grain, topology]
   downstream: [meaning, execution]

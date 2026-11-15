@@ -33,7 +33,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | View | Page | Answers |
 | --- | --- | --- |
 | Overview | [This page](/appendix/subjects/grain) | The subject in one place. |
-| Guide | [8. Grain and projections](/book/part-2/05-grain-and-projections) | How to use it. |
+| Guide | [8. Relations and projections](/book/part-2/05-grain-and-projections) | How to use it. |
 | Spec | [SPEC-004](/appendix/spec/grain) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/api) | Exact public names and document shapes. |
 | Philosophy | [Design in semantics](/appendix/philosophy/design-in-semantics) | Why it is designed this way. |

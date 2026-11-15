@@ -53,7 +53,7 @@ Drift is computed from code sources: a path under `kg_build_system/`, `tests/`, 
 ## Evidence
 
 <!-- BEGIN GENERATED:drift -->
-Source HEAD: c5f87bd · 2026-11-15. Pages checked: 93; clean: 64; drifted: 29.
+Source HEAD: 532efe5 · 2026-11-15. Pages checked: 94; clean: 66; drifted: 28.
 
 | Page | Verified | Latest source change | Action |
 | --- | --- | --- | --- |
@@ -61,7 +61,6 @@ Source HEAD: c5f87bd · 2026-11-15. Pages checked: 93; clean: 64; drifted: 29.
 | `appendix/developer/testing` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/kernel/boundaries` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
 | `appendix/kernel/protocols` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
-| `appendix/philosophy/binding-is-the-seam` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/philosophy/explainability-is-authored` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/philosophy/review-top-down` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/philosophy/semantic-hierarchy` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |

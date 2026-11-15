@@ -314,4 +314,4 @@ relation.
 
 ## Next
 
-[8. Grain and projections](/book/part-2/05-grain-and-projections) — from one typed value to the meaning of one row.
+[8. Relations and projections](/book/part-2/05-grain-and-projections) — from one typed value to the meaning of one row.

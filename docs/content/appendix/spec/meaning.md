@@ -43,7 +43,7 @@ evidence:
 - **R14.** A unit's text MUST answer the question its type owns. A definition, identity, grain, cardinality or measurement MUST be a claim; a prohibition, absence, exclusion or inference ceiling MUST be a limitation; an expected use MUST be a purpose.
 - **R15.** A limitation MUST state the boundary, not the measurement that motivates it. When the measurement is authored, it MUST be a claim beside the same purpose or declaration.
 - **R16.** A declaration with no positive use MUST carry claims only. A purpose MUST NOT be authored to satisfy the shape. Two declarations MAY share a purpose text only when their expected use is identical; a different subject or operation MUST have a different purpose.
-- **R17.** A binding purpose MUST state the mapping it performs, and a data purpose MUST NOT be the parent of a topology purpose.
+- **R17.** A binding purpose MUST state the fulfilment it performs: which relation satisfies which record purpose, at which grain, identity and coverage, and where that fulfilment falls short. A data purpose MUST NOT be the parent of a topology purpose.
 - **R18.** A declaration MUST author its semantics value at the declaration. A structural helper MAY accept a `Semantics` value and pass it through; it MUST NOT accept purpose, claim or limitation text. Meaning MUST NOT be assembled by a project-local helper.
 
 ## Evidence

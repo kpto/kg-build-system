@@ -72,7 +72,7 @@ evidence:
 
 ## Rationale
 
-Explicit composition keeps a build readable as the objects a project actually supplies. The kernel owns protocols, while the distribution owns graph meaning, so a new engine or language changes the toolchain rather than the definition of a step. That is the same authored-boundary stance as [binding is the seam](/appendix/philosophy/binding-is-the-seam): the connection is named, never inferred.
+Explicit composition keeps a build readable as the objects a project actually supplies. The kernel owns protocols, while the distribution owns graph meaning, so a new engine or language changes the toolchain rather than the definition of a step. That is the same authored-boundary stance as [binding is the fulfilment](/appendix/philosophy/binding-is-fulfilment): the connection is named, never inferred.
 
 ## Next
 

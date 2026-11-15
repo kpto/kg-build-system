@@ -1,6 +1,6 @@
 ---
-title: "11. Binding as implementation detail"
-summary: "A binding is the one place where a row source becomes a concrete node or edge record."
+title: "11. Binding as fulfilment"
+summary: "A binding is where a relation fulfils a record's purpose: grain, identity, coverage and the gaps stated as limitations."
 section: book
 perspective: book
 part: II
@@ -14,9 +14,24 @@ sources:
   - docs/content/appendix/spec/binding.md
 ---
 
-A node or edge declaration states what a record is. A row source states what rows exist. A binding is the only place where the second becomes the first. It is deliberately an implementation object: the design can be reviewed without it, and the data can change without rewriting the design.
+A node or edge declaration states what a record is and what it is for. A relation states what rows exist and what that relation means. A binding states whether and how the relation fulfils the record: its grain, its identity, its coverage and its meaning. It is not an implementation detail. It is the adequacy claim between two declarations that must not absorb each other.
 
-## The binding is the only place a row becomes a record
+## Fulfilment is the binding's job
+
+A binding answers four questions:
+
+| Question | If the answer is no |
+| --- | --- |
+| Does the relation's grain match the record's grain? | The relation cannot fulfil the record; split the relation or change the record. |
+| Does the relation carry the record's identity? | The binding cannot key the record; the gap is a limitation or a design error. |
+| Does the relation's coverage match the record's purpose? | The binding states the shortfall as a limitation. |
+| Does the relation's meaning fit the record's meaning? | The binding is using the wrong relation. |
+
+The first two are structural. The last two are where the semantics live. A binding can therefore fail: if the grain is wrong, or the identity is absent, or the coverage contradicts the purpose, field mapping does not repair it. The design changes, not the binding.
+
+The mechanical mapping is still real, and the rest of this chapter states it. The point is what the mapping is for: it is the evidence that the relation is adequate for the record, not a recipe that gives the record its meaning.
+
+## The binding is the only place a relation meets a record
 
 A topology declaration never reads data. A table declaration never names a node or an edge. The binding is the only declaration that imports both sides, and that is why it is the seam.
 
@@ -85,7 +100,7 @@ has_unit_binding = edge_binding(
 
 The two forms are exclusive. Supplying `build_key` and `rows` together, or only half of either form, is refused. The direct form is not a shortcut around rows: a class-level selection still evaluates per row. A selection names a field symbolically; it is not a constant.
 
-Why insist that the binding is the only place a row becomes a record? Because every other answer puts the mapping in a place that cannot be reviewed as a mapping. If topology read a table, the design would depend on a source schema. If a table named a node, the data language would need graph vocabulary and the graph language would need data vocabulary. If a planner invented records, the mapping would be a runtime behaviour rather than a declaration. The seam keeps the design above it and the plumbing below it.
+Why insist that the binding is the only place a relation meets a record? Because every other answer collapses one side into the other. If topology read a table, the design would depend on a source schema. If a table named a node, the data language would need graph vocabulary and the graph language would need data vocabulary. If a planner invented records, the mapping would be a runtime behaviour rather than a declaration. The seam keeps the record's purpose above it and the relation's meaning below it; the binding is the only place that states their adequacy.
 
 ## A key is a present scalar, and an edge has three
 

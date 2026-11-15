@@ -14,21 +14,36 @@ sources:
 <div class="kb-hero">
   <p class="kb-kicker">kg-build-system · a book</p>
   <div class="kb-display">Build a graph whose meaning survives the build.</div>
-  <p class="kb-lede">Typed Python declarations become a checked blueprint, a workflow plan and published records. This book follows one estate graph from the first source file to the published result, and then into the machine that builds it.</p>
+  <p class="kb-lede">Before the machinery, the mentality: describe what exists, what it is for, what it asserts and what it excludes. Then the build is one way to make that description executable.</p>
   <div class="kb-actions">
-    <a class="kb-button kb-button-primary" href="/book/index">Read the book</a>
+    <a class="kb-button kb-button-primary" href="/book/intent">Start with intention</a>
+    <a class="kb-button" href="/book/index">Read the book</a>
     <a class="kb-button" href="/appendix/index">Use the appendices</a>
-    <a class="kb-button" href="/appendix/reference/api">Look up a name</a>
   </div>
 </div>
 
 <!-- BEGIN GENERATED:status-strip -->
-<div class="kb-stats"><span><b>363</b> tests</span><span><b>1951</b> subtests</span><span><b>0 errors</b> pyright</span><span><b>c5f87bd</b> source</span><span><b>2026-11-15</b> checked</span></div>
+<div class="kb-stats"><span><b>363</b> tests</span><span><b>1951</b> subtests</span><span><b>0 errors</b> pyright</span><span><b>532efe5</b> source</span><span><b>2026-11-15</b> checked</span></div>
 <!-- END GENERATED:status-strip -->
+
+## The mentality comes first
+
+A graph is an argument about what exists and what it is for, not a pipeline that
+happens to write files.
+
+- A **purpose** states one expected use; a **claim** states what is asserted
+  regardless of use; a **limitation** states what that use does not authorize.
+- Records and relations are two axes. A **binding** is where a relation chain
+  fulfils a record's purpose, at a stated grain, identity and coverage.
+- A **projection** is a relation that exists in the domain, not a named join.
+
+Read [Preface: how to describe a graph](/book/intent) before the build
+chapters. It names no framework type; it states the mentality the rest of the
+book assumes.
 
 ## One argument, four parts
 
-The book has one argument and four parts. It starts with what a build is, then how to author the declarations it consumes, then how those declarations become records, and finally how the machinery can be extended and reviewed. Chapters return to the same estate example and repeat a rule when the argument needs it; a later chapter does not send you to a separate subject page to understand the earlier idea.
+The book has one argument: a preface states the mentality, and four parts show one way to make it executable. It starts with what a build is, then how to author the declarations it consumes, then how those declarations become records, and finally how the machinery can be extended and reviewed. Chapters return to the same estate example and repeat a rule when the argument needs it; a later chapter does not send you to a separate subject page to understand the earlier idea.
 
 Exact signatures, requirement tables and refusal messages live in the **appendices**. They are written for lookup, not for reading from front to back. The book can state a rule in context; the appendix states the same rule precisely.
 

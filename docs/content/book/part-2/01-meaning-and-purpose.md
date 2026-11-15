@@ -67,9 +67,11 @@ sentence was first written.
   purpose to fill the shape.
 - Two declarations may share a purpose only when the use is identical. If the
   subject or the operation differs, the purpose differs.
-- A binding's purpose states the mapping it performs; the record's meaning
-  stays on its node or edge. A data purpose is the source contract and is never
-  the parent of a topology purpose.
+- A binding's purpose states the fulfilment it performs: which relation satisfies
+  which record purpose, at grain, identity and coverage, and where it falls short.
+  The record's meaning stays on its node or edge; the relation's meaning stays on
+  the relation. A data purpose is the relation's own purpose and is never the
+  parent of a topology purpose.
 
 ## Purpose is the root, not the only purpose
 
@@ -179,16 +181,18 @@ The semantic hierarchy is a reading order:
 2. The category and template meaning that topology shares.
 3. The concrete node or edge purpose.
 4. The property purposes inside it.
-5. The data declarations that supply the record.
-6. The binding that maps rows onto it.
+5. The relation axis: the table or projection relation and its own purpose.
+6. The binding: how that relation fulfils the record's purpose, at grain,
+   identity and coverage.
 
-A lower fragment inherits an obligation, not text. It must be consistent with the purpose above it. The framework does not copy the parent's words into the child, and it does not check consistency. A syntactically valid fragment can still contradict the purpose; review catches that.
+A lower record fragment inherits an obligation, not text. A relation's purpose
+is not a lower fragment; it is a separate axis, and the binding is the link. It must be consistent with the purpose above it. The framework does not copy the parent's words into the child, and it does not check consistency. A syntactically valid fragment can still contradict the purpose; review catches that.
 
 Structural inheritance is a separate matter. A category's label and description stay local; they do not flow to a concrete child. A template's annotations do flow, because a template is a structural mixin. A category's semantics is its own attachment and stays there. Do not assume one rule covers both mechanisms.
 
 The practical consequence is that you attach the statement where it is true. A limitation about a binding's coverage belongs on the binding's purpose. A limitation about what a node kind excludes belongs on the node's purpose. A claim that holds across the graph belongs on the graph's `Semantics`. Putting every statement at the root makes the root unreadable; putting every statement on declarations loses the one root that makes local purposes comparable.
 
-This is why a binding's semantics describes the mapping, not the record. "One row per site in the register" is a claim about the binding. "A site holds installed equipment" is a claim about the model. Moving the second onto the binding would make the mapping responsible for the node's meaning, which is exactly the design leak the seam prevents.
+This is why a binding's semantics describes the fulfilment, not the record and not the relation. "One row per site in the register" is a claim about the mapping; "a site holds installed equipment" is a claim about the model. The binding states that the site relation satisfies the site-record purpose and where it falls short: the register covers the published estate, not unregistered sites. Moving the record's meaning onto the binding would make the mapping responsible for the node's meaning, which is the design leak the seam prevents.
 
 ## The blueprint publishes what the author attached
 

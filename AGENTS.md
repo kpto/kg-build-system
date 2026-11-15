@@ -295,8 +295,10 @@ rule about what the framework is belongs to the framework model.
   grouping rather than encoding it in text.
 - A declaration with no positive use carries claims only. Two declarations share
   a purpose only when the use is identical.
-- A binding purpose states the mapping it performs; the record's meaning stays
-  on its node or edge.
+- A binding purpose states the fulfilment it performs: which relation satisfies
+  which record purpose, at which grain, identity and coverage, and where it falls
+  short. The record's meaning stays on its node or edge; the relation's meaning
+  stays on the relation.
 - A project attaches the framework semantics units directly. A project-local
   builder with its own grammar is a second semantics model, not a convenience.
 - Published provenance names the release declarations a value is read from. A

@@ -56,9 +56,9 @@ meaning. Start with the claim, then choose the record, then choose the rows.
 
 **Design the record before the row.** A source supplies a shape; topology states
 a design. A table names the source and its fields, a node names a record and its
-properties, and a binding is the one place where a row becomes that record. The
-binding is implementation detail: it must not invent the grain, the identity or
-the property set it is supposed to populate.
+properties, and a binding is the one place where a relation is offered to that
+record. The binding is the fulfilment: it must not invent the grain, the identity
+or the property set it is supposed to satisfy.
 
 **Keep data operations semantic.** A domain calculation is not a step that does
 something and disappears. It belongs in the expression language, and it becomes
@@ -110,10 +110,10 @@ of artifact matching and execution belong to Part III; the direction belongs her
 | [5. Topology](/book/part-2/02-topology) | Which record kinds, properties, directions and categories does the design assert? |
 | [6. Source and rows](/book/part-2/03-source-and-rows) | Which source do the rows represent, and what shape does one row have? |
 | [7. Values and nullability](/book/part-2/04-values-and-nullability) | What does a field read return, and who decides that a value may be absent? |
-| [8. Grain and projections](/book/part-2/05-grain-and-projections) | What is one row after a filter, a join, a group or an expansion? |
+| [8. Relations and projections](/book/part-2/05-grain-and-projections) | What is one row after a filter, a join, a group or an expansion? |
 | [9. Extending the semantics model](/book/part-2/06-extension) | Where do source adaptation, domain operations and named derived relations live? |
 | [10. A workflow is a chain of reactions](/book/part-2/07-composition) | How do artifact types, priority and interception compose work without a dependency chain? |
-| [11. Binding as implementation detail](/book/part-2/08-binding) | How does a row source populate the record the design already declared? |
+| [11. Binding as fulfilment](/book/part-2/08-binding) | How does a row source populate the record the design already declared? |
 | [12. Generating declarations](/book/part-2/09-generation) | How is a declaration package generated without taking over the model? |
 
 The chapters divide into five movements. Chapters 4 and 5 state the design:

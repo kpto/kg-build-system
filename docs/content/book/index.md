@@ -12,6 +12,13 @@ sources:
   - docs/content/book/part-4/index.md
 ---
 
+## Before Part I
+
+[Preface: how to describe a graph](/book/intent) — the mentality the rest of the
+book assumes: intention, purpose, claim, limitation, relation, record and the
+binding that fulfils one with the other. Read it first; it names no framework
+type and is not a tutorial.
+
 ## In this book
 
 The book follows one monitored-estate graph from an empty environment to a
@@ -19,7 +26,7 @@ reviewed, published result. It is written to be read in order. The same example
 returns in every part, and an idea may be explained more than once when a later
 chapter needs it.
 
-The four parts answer four questions:
+After the preface, the four parts answer four questions:
 
 1. What is a build, and how do you run one?
 2. How do you author the declarations a build consumes?
@@ -48,10 +55,10 @@ requirement after the argument is clear.
 | [5. Topology](/book/part-2/02-topology) | Which record kinds, properties, directions and categories does the design assert? |
 | [6. Source and rows](/book/part-2/03-source-and-rows) | Which source do the rows represent, and what shape does one row have? |
 | [7. Values and nullability](/book/part-2/04-values-and-nullability) | What does a field read return, and who decides that a value may be absent? |
-| [8. Grain and projections](/book/part-2/05-grain-and-projections) | What is one row after a filter, a join, a group or an expansion? |
+| [8. Relations and projections](/book/part-2/05-grain-and-projections) | What is one row after a filter, a join, a group or an expansion? |
 | [9. Extending the semantics model](/book/part-2/06-extension) | Where do source adaptation, domain operations and named derived relations live? |
 | [10. A workflow is a chain of reactions](/book/part-2/07-composition) | How do artifact types, priority and interception compose work without a dependency chain? |
-| [11. Binding as implementation detail](/book/part-2/08-binding) | How does a row source populate the record the design already declared? |
+| [11. Binding as fulfilment](/book/part-2/08-binding) | How does a row source populate the record the design already declared? |
 | [12. Generating declarations](/book/part-2/09-generation) | How is a declaration package generated without taking over the model? |
 
 ### Part III — From declarations to records
@@ -83,13 +90,14 @@ For a task, the parts also work as routes:
 
 | If you need to | Start at |
 | --- | --- |
+| Understand the mentality before the mechanism | [Preface: how to describe a graph](/book/intent) |
 | Install and run the reference build | [2. A first build](/book/part-1/02-a-first-build) |
 | Add a source, table or value | [6. Source and rows](/book/part-2/03-source-and-rows) |
-| Fix a duplicated or multiplied row | [8. Grain and projections](/book/part-2/05-grain-and-projections) |
+| Fix a duplicated or multiplied row | [8. Relations and projections](/book/part-2/05-grain-and-projections) |
 | Add a node or edge | [5. Topology](/book/part-2/02-topology) |
 | Add a domain operation | [9. Extending the semantics model](/book/part-2/06-extension) |
 | Compose a producer or consumer | [10. A workflow is a chain of reactions](/book/part-2/07-composition) |
-| Populate a record from rows | [11. Binding as implementation detail](/book/part-2/08-binding) |
+| Populate a record from rows | [11. Binding as fulfilment](/book/part-2/08-binding) |
 | Add a capability | [18. The kernel and the extension surface](/book/part-4/01-the-kernel-and-extension) |
 | Judge a change | [20. Architecture and tests](/book/part-4/03-architecture-and-tests) |
 

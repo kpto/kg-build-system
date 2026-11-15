@@ -1,6 +1,7 @@
 ---
 title: Bindings
-summary: The single place where a row context becomes a concrete node or edge record.
+summary: 'The fulfilment between a relation and a record: grain, identity, coverage
+  and the gaps stated as limitations.'
 section: subjects
 perspective: hub
 subject: binding
@@ -18,12 +19,12 @@ generated: true
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Bindings</span><a href="/appendix/subjects/binding" class="active">Overview</a><a href="/book/part-2/08-binding">Guide</a><a href="/appendix/spec/binding">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/binding-is-the-seam">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Bindings</span><a href="/appendix/subjects/binding" class="active">Overview</a><a href="/book/part-2/08-binding">Guide</a><a href="/appendix/spec/binding">Spec</a><a href="/appendix/reference/api">API</a><a href="/appendix/philosophy/binding-is-fulfilment">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## In one view
 
-The single place where a row context becomes a concrete node or edge record.
+The fulfilment between a relation and a record: grain, identity, coverage and the gaps stated as limitations.
 
 This subject has one overview and up to five views: guide, spec, API, philosophy and review.
 
@@ -32,10 +33,10 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | View | Page | Answers |
 | --- | --- | --- |
 | Overview | [This page](/appendix/subjects/binding) | The subject in one place. |
-| Guide | [11. Binding as implementation detail](/book/part-2/08-binding) | How to use it. |
+| Guide | [11. Binding as fulfilment](/book/part-2/08-binding) | How to use it. |
 | Spec | [SPEC-006](/appendix/spec/binding) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/api) | Exact public names and document shapes. |
-| Philosophy | [The binding is the seam](/appendix/philosophy/binding-is-the-seam) | Why it is designed this way. |
+| Philosophy | [The binding is the fulfilment](/appendix/philosophy/binding-is-fulfilment) | Why it is designed this way. |
 | Review | [Contracts](/appendix/review/contracts) | Invariants, limits and measured evidence. |
 
 ## Contract

@@ -1,6 +1,6 @@
 ---
-title: "8. Grain and projections"
-summary: "A row source makes one row a value; a filter, join, group or expansion derives a grain, and a projection names the result."
+title: "8. Relations and projections"
+summary: "A row source makes one row a value; a filter, join, group or expansion derives a grain, and a projection names the relation."
 section: book
 perspective: book
 part: II
@@ -245,7 +245,13 @@ product. Use one or the other for a given expansion, never both. Expanding two
 arrays in one plan produces the product of the two fan-outs, not a paired row;
 pairing is `zip`, and a keyed match is a join.
 
-## A projection gives the grain a name
+## A projection gives a relation a name
+
+A projection is a relation first. Its row plan is how the relation is computed,
+not what it is. State the relation in one sentence with no graph nouns and no
+operator verbs: “one condition severity per defect” is a relation; “join defects
+to conditions and drop nulls” is an operator. The second is a derived row
+source, not a projection.
 
 A row source is a value; a projection turns it into a named relation. It pins
 exactly one row source at class creation, publishes typed outputs with
@@ -308,11 +314,16 @@ refused rather than resolved by import order.
 A projection is final: it may not inherit another final projection. Pin a new
 source instead.
 
-Use a projection when the grain is reused or deserves a contract. A bare row
+Use a projection when the relation is reused or deserves a contract. A bare row
 source is fine when one binding reads a filtered relation and nothing else needs
-the name. A projection earns its place when several bindings must agree on what
-one row means, or when a derived grain is easier to review as a declaration than
-as an expression inside another declaration.
+the name. A projection earns its place when several consumers must agree on what
+the relation means, or when a derived grain is easier to review as a declaration
+than as an expression inside another declaration.
+
+A projection's purpose is the relation's own purpose, not a description of the
+step that produced it. It may have several consumers; the graph is one of them.
+The binding is what makes the relation relevant to a record, and the binding
+states the fulfilment rather than borrowing the relation's meaning.
 
 ## The grain is a decision, not an accident
 

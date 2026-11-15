@@ -190,4 +190,4 @@ The rest of Part II uses these rules when it turns a row source into a record. T
 
 ## Next
 
-[11. Binding as implementation detail](/book/part-2/08-binding) — from a named relation and its reactions to the node and edge records they populate.
+[11. Binding as fulfilment](/book/part-2/08-binding) — from a named relation and its reactions to the node and edge records they populate.
