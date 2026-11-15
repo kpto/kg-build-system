@@ -80,7 +80,9 @@ def row_source_key(plan: RowSourcePlanDTO) -> str:
 
 def plan_shape_source_name(plan: RowSourcePlanDTO) -> str:
     """Return the source the authoring shape's own fields refer to."""
-    if isinstance(plan, (RowFilterDTO, RowDistinctDTO, RowOrderByDTO)):
+    if isinstance(plan, (
+        RowFilterDTO, RowDistinctDTO, RowOrderByDTO, RowUnnestDTO,
+    )):
         return plan_shape_source_name(plan.input)
     if isinstance(plan, RowUnionDTO):
         return plan_shape_source_name(plan.left)
@@ -502,7 +504,7 @@ def derive_unnest(
         for item in shape_fields(source.shape)
     )
     return DerivedRowSource(
-        shape=make_row_shape(row_source_key(plan), fields),
+        shape=make_row_shape(plan_shape_source_name(plan), fields),
         source=_root_source(source),
         plan_dto=plan,
     )
