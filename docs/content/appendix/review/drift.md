@@ -53,29 +53,50 @@ Drift is computed from code sources: a path under `kg_build_system/`, `tests/`, 
 ## Evidence
 
 <!-- BEGIN GENERATED:drift -->
-Source HEAD: 0d55143 · 2026-11-15. Pages checked: 96; clean: 76; drifted: 20.
+Source HEAD: 2642c80 · 2026-11-15. Pages checked: 96; clean: 55; drifted: 41.
 
 | Page | Verified | Latest source change | Action |
 | --- | --- | --- | --- |
+| `appendix/developer/data-and-expressions` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
+| `appendix/developer/philosophy` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/developer/system-design` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
 | `appendix/developer/testing` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
-| `appendix/kernel/boundaries` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
-| `appendix/kernel/protocols` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/kernel/boundaries` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
+| `appendix/kernel/protocols` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
+| `appendix/reference/annotations` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/reference/api` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/reference/assets` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
+| `appendix/reference/bindings` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/reference/cli` | 2026-11-11 | 2026-11-13 | 2026-11-13 > 2026-11-11 |
 | `appendix/reference/compile` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
 | `appendix/reference/documents` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
+| `appendix/reference/expressions` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/reference/failures` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
+| `appendix/reference/generation` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/reference/glossary` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
+| `appendix/reference/ingest` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
+| `appendix/reference/planners-and-executors` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
+| `appendix/reference/row-sources` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
+| `appendix/reference/topology` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
+| `appendix/reference/types` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/review/architecture` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/review/verification` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/spec/execution` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
-| `appendix/spec/extension` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/spec/extension` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
+| `appendix/spec/generation` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/spec/plan` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/spec/selection` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/subjects/execution` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
-| `appendix/subjects/extension` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/subjects/extension` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
+| `appendix/subjects/generation` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/subjects/plan` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
+| `appendix/subjects/selection` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
+| `book/part-1/01-the-build` | 2026-11-11 | 2026-11-15 | 2026-11-15 > 2026-11-11 |
+| `book/part-1/02-a-first-build` | 2026-11-11 | 2026-11-15 | 2026-11-15 > 2026-11-11 |
+| `book/part-1/03-a-project` | 2026-11-11 | 2026-11-15 | 2026-11-15 > 2026-11-11 |
+| `book/part-3/01-linking-and-blueprint` | 2026-11-11 | 2026-11-15 | 2026-11-15 > 2026-11-11 |
+| `book/part-4/01-the-kernel-and-extension` | 2026-11-11 | 2026-11-15 | 2026-11-15 > 2026-11-11 |
+| `book/part-4/02-the-default-distribution` | 2026-11-11 | 2026-11-15 | 2026-11-15 > 2026-11-11 |
 | `book/part-4/03-architecture-and-tests` | 2026-11-11 | 2026-11-15 | 2026-11-15 > 2026-11-11 |
 <!-- END GENERATED:drift -->
 

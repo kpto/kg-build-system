@@ -23,7 +23,7 @@ sources:
 </div>
 
 <!-- BEGIN GENERATED:status-strip -->
-<div class="kb-stats"><span><b>388</b> tests</span><span><b>1967</b> subtests</span><span><b>0 errors</b> pyright</span><span><b>0d55143</b> source</span><span><b>2026-11-15</b> checked</span></div>
+<div class="kb-stats"><span><b>391</b> tests</span><span><b>1972</b> subtests</span><span><b>0 errors</b> pyright</span><span><b>2642c80</b> source</span><span><b>2026-11-15</b> checked</span></div>
 <!-- END GENERATED:status-strip -->
 
 ## The mentality comes first
