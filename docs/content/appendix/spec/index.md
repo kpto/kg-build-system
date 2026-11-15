@@ -6,7 +6,7 @@ section: spec
 perspective: meta
 order: 0
 status: normative
-verified: '2026-11-12'
+verified: '2026-11-15'
 sources:
 - README.md
 generated: true
@@ -22,7 +22,7 @@ The book carries the argument; this appendix carries the binding requirements. E
 - **[SPEC-004](/appendix/spec/grain)** — [Grain, row sources and projections](/appendix/subjects/grain) · 10 requirements · 3 evidence paths · normative
 - **[SPEC-005](/appendix/spec/topology)** — [Topology](/appendix/subjects/topology) · 10 requirements · 3 evidence paths · normative
 - **[SPEC-006](/appendix/spec/binding)** — [Bindings](/appendix/subjects/binding) · 10 requirements · 4 evidence paths · normative
-- **[SPEC-007](/appendix/spec/meaning)** — [Semantics and graph purpose](/appendix/subjects/meaning) · 10 requirements · 4 evidence paths · normative
+- **[SPEC-007](/appendix/spec/meaning)** — [Semantics and graph purpose](/appendix/subjects/meaning) · 13 requirements · 4 evidence paths · normative
 - **[SPEC-008](/appendix/spec/generation)** — [Source generation and CLI](/appendix/subjects/generation) · 10 requirements · 3 evidence paths · normative
 - **[SPEC-009](/appendix/spec/linking)** — [Linking and the blueprint](/appendix/subjects/linking) · 10 requirements · 4 evidence paths · normative
 - **[SPEC-010](/appendix/spec/plan)** — [Workflow plan](/appendix/subjects/plan) · 13 requirements · 5 evidence paths · normative

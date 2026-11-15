@@ -107,6 +107,7 @@ Read the report first. `execute` returns a `WorkflowReport`; `report.succeeded` 
 | `edge binding targets an unknown endpoint '<node>'` | A bound endpoint is absent from topology. | [Bindings](/book/part-2/08-binding) |
 | `a graph declaration requires a Semantics with a purpose` | The graph root lacks a purpose. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
 | `the graph declaration purpose must be non-empty` | The purpose text is empty. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
+| `a local purpose requires a graph declaration with a purpose` | A declaration carries a purpose but the project declares no graph purpose. | [Meaning](/book/part-2/01-meaning-and-purpose) |
 | `bindings require a node or edge reference` | A binding target is neither a node nor an edge. | [Bindings](/book/part-2/08-binding) |
 | `bindings require a target component name` | A binding has an empty component name. | [Bindings](/book/part-2/08-binding) |
 | `graph components, relations and assets require a name` | A layer object has no usable name. | [Blueprint](/book/part-3/01-linking-and-blueprint) |

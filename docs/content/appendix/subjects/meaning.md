@@ -1,14 +1,14 @@
 ---
 title: Semantics and graph purpose
-summary: One root purpose, local purposes that narrow it, contextless claims,
-  and the limitations of each purpose.
+summary: One root purpose, local purposes that narrow it, contextless claims, and
+  the limitations of each purpose.
 section: subjects
 perspective: hub
 subject: meaning
 spec: SPEC-007
 order: 70
 status: normative
-verified: '2026-11-10'
+verified: '2026-11-15'
 sources:
 - kg_build_system/distribution/languages/semantics/model/public/units.py
 - kg_build_system/distribution/languages/graph/model/public/options.py
@@ -24,7 +24,7 @@ generated: true
 
 ## In one view
 
-One root purpose, local purposes that narrow it, contextless claims and the limitations of each purpose.
+One root purpose, local purposes that narrow it, contextless claims, and the limitations of each purpose.
 
 This subject has one overview and up to five views: guide, spec, API, philosophy and review.
 

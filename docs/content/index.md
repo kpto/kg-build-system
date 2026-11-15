@@ -23,7 +23,7 @@ sources:
 </div>
 
 <!-- BEGIN GENERATED:status-strip -->
-<div class="kb-stats"><span><b>363</b> tests</span><span><b>1957</b> subtests</span><span><b>0 errors</b> pyright</span><span><b>82c65d3</b> source</span><span><b>2026-11-12</b> checked</span></div>
+<div class="kb-stats"><span><b>363</b> tests</span><span><b>1951</b> subtests</span><span><b>0 errors</b> pyright</span><span><b>8f57f60</b> source</span><span><b>2026-11-15</b> checked</span></div>
 <!-- END GENERATED:status-strip -->
 
 ## One argument, four parts
