@@ -1,0 +1,17 @@
+[
+  {
+    "item_id": "item-1",
+    "item_label": "First item",
+    "parts": [
+      {"part_id": "part-1", "value": 1.0},
+      {"part_id": "part-2", "value": 2.0}
+    ]
+  },
+  {
+    "item_id": "item-2",
+    "item_label": "Second item",
+    "parts": [
+      {"part_id": "part-3", "value": 3.0}
+    ]
+  }
+]

@@ -1,0 +1,24 @@
+[project]
+name = "project"
+version = "0.1.0"
+description = "A knowledge graph project created from the kg-build-system template."
+requires-python = ">=3.12"
+dependencies = ["kg-build-system"]
+
+[tool.uv.sources]
+# The template lives inside the framework checkout. `kbs init` rewrites this to
+# the framework location used by the project.
+kg-build-system = { path = "../.." }
+
+[dependency-groups]
+dev = ["pytest>=9.1.1", "pyright>=1.1.400"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+testpaths = ["tests"]
+
+[tool.pyright]
+include = ["project", "tests"]
+typeCheckingMode = "basic"
+venvPath = "../.."
+venv = ".venv"
