@@ -502,3 +502,5 @@ rule about what the framework is belongs to the framework model.
   that can be derived.
 - Anaemic is about behaviour; amnesic is about ownership and identity. Both are
   deliberate.
+- A second type that differs only in which members are required is a validation
+  rule at the attachment site, not a second model.
