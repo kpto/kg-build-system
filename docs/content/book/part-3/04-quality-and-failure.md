@@ -252,7 +252,7 @@ Deduplication removes only exact full-row duplicates. It does not resolve two di
 
 Targets do not validate. The file target writes what it receives, the meta-graph describes what reached it, and Neo4j exports what it was given. A successful write is not a quality verdict on the records.
 
-Two further boundaries belong here because they surface only after the build. Nothing checks that an edge endpoint matches a node key; the mismatch appears at import, in a consumer. And the grain a projection or binding declares is not checked at run time; a fan-out is a data outcome, not a plan error.
+Two further boundaries belong here because they surface only after the build. Nothing checks that an edge endpoint matches a node key; the mismatch appears at import, in a consumer. And the grain a relation or binding declares is not checked at run time; a fan-out is a data outcome, not a plan error.
 
 When a build needs a check outside these boundaries, the answer is a planner plus an executor, not a hidden option on an existing module. That is the same extension route as any other record operation: an exact instruction kind, an executor that claims it, and a step in the composition. The boundary stays legible because the module that owns the check is the module that refuses the unsupported case.
 

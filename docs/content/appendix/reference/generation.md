@@ -14,15 +14,15 @@ sources:
   - kg_build_system/generation/code_generation/model/_private/generated.py
 ---
 
-Generation turns a typed `@asset_contract` request on an asset into an owned package of table, struct and group declarations.
+Generation turns a typed `@asset_generation` request on an asset into an owned package of source-relation, struct and group declarations.
 
-Generation writes declarations; it does not read graph data at build time and it does not run a build. The declarations it produces are ordinary public authoring classes, and every table names the asset it was generated for with `Table[Asset]`.
+Generation writes declarations; it does not read graph data at build time and it does not run a build. The declarations it produces are ordinary public authoring classes, and every source relation names the asset it was generated for with `SourceRelation[Asset]`.
 
 ## Surface
 
 | Surface | Name |
 | --- | --- |
-| Decorator | `@asset_contract(AssetContractOptions(provider=..., configuration=..., package=...))` |
+| Decorator | `@asset_generation(AssetGenerationOptions(provider=..., configuration=..., package=...))` |
 | CLI | `kbs generate --project PATH [--check] [--regenerate] [--watch] [--debounce MS]` |
 | Discovery | `discover(project_root)`, `discover_file(project_root, source_path)` |
 | Engine | `generate(project_root, *, check=False, regenerate=False)`, `GenerationSession(project_root)` |
@@ -54,8 +54,8 @@ kbs generate --project . --watch --debounce 500
 **Request model.**
 
 ```python
-@asset_contract(
-    AssetContractOptions(
+@asset_generation(
+    AssetGenerationOptions(
         provider: type[Provider[T]],
         configuration: T,
         package: str,
@@ -63,7 +63,7 @@ kbs generate --project . --watch --debounce 500
 )
 ```
 
-`@asset_contract(AssetContractOptions(...))` is a class decorator on a module-level `Asset` subclass. It is inert: it validates the class and stores the options as `_asset_contract`. It does not observe a source, load data, invoke a provider or write a file. Discovery reads the decorator statically and `generate` reads the stored request later.
+`@asset_generation(AssetGenerationOptions(...))` is a class decorator on a module-level `Asset` subclass. It is inert: it validates the class and stores the options as `_asset_generation`. It does not observe a source, load data, invoke a provider or write a file. Discovery reads the decorator statically and `generate` reads the stored request later.
 
 | Field | Meaning |
 | --- | --- |
@@ -71,24 +71,24 @@ kbs generate --project . --watch --debounce 500
 | `configuration` | An inline instance of that provider's `CONFIG_TYPE` |
 | `package` | The dotted import package that receives the generated product |
 
-`AssetContractOptions` accepts keyword arguments only and requires all three fields. It raises `TypeError` when the provider is not a `Provider` subclass, when the configuration is not the provider's `CONFIG_TYPE`, or when the decorated class is not an `Asset` subclass. The asset name is the request identity and the product is `<package>/<asset name>`.
+`AssetGenerationOptions` accepts keyword arguments only and requires all three fields. It raises `TypeError` when the provider is not a `Provider` subclass, when the configuration is not the provider's `CONFIG_TYPE`, or when the decorated class is not an `Asset` subclass. The asset name is the request identity and the product is `<package>/<asset name>`.
 
 ```python
 from kg_build_system import (
     Asset, AssetAuthority, AssetOptions, AssetProfile,
 )
-from kg_build_system.generation import AssetContractOptions, asset_contract
+from kg_build_system.generation import AssetGenerationOptions, asset_generation
 from kg_build_system.generation.code_generation.builtins import (
     DataContractInferenceConfig,
     InferDataContractProvider,
 )
 
 
-@asset_contract(AssetContractOptions(
+@asset_generation(AssetGenerationOptions(
     provider=InferDataContractProvider,
     configuration=DataContractInferenceConfig(
         source="../data/people.csv",
-        mode="table",
+        mode="source_relation",
     ),
     package="people_graph.table",
 ))
@@ -109,13 +109,13 @@ The asset name is `AssetOptions.name` when set, otherwise the class name in snak
 | --- | --- |
 | The decorator is on a module-level `Asset` subclass | Required |
 | The class has exactly one `Asset` base | Required |
-| The decorator takes one inline `AssetContractOptions(...)` | Required |
+| The decorator takes one inline `AssetGenerationOptions(...)` | Required |
 | Provider and configuration are statically imported | Direct, qualified or aliased imports are accepted |
 | Configuration is constructed inline with keyword arguments | Required; duplicates, stars and unpacking are refused |
 | Configuration values are static literals | Strings, integers, floats, booleans, `None`, lists, tuples and dictionaries with string keys |
 | Products and asset names do not collide under case folding | Required across all contracts |
 
-A decorated class inside a function or another class is not discovered as a request. A dynamically constructed configuration, a star import and a duplicate `AssetContractOptions` field are refused with a `GenerationError`.
+A decorated class inside a function or another class is not discovered as a request. A dynamically constructed configuration, a star import and a duplicate `AssetGenerationOptions` field are refused with a `GenerationError`.
 
 `GenerationError` extends `ValueError`. A request defect is located at the asset source file and line.
 
@@ -128,7 +128,7 @@ discover(project_root: str | Path) -> tuple[DiscoveredGeneration, ...]
 discover_file(project_root: str | Path, source_path: str | Path) -> tuple[DiscoveredGeneration, ...]
 ```
 
-Discovery parses Python source with LibCST; it does not import the author-owned project. It scans every `.py` file beneath the project root and only parses files whose text contains `asset_contract`. It skips directories beginning with `.` and `__pycache__`.
+Discovery parses Python source with LibCST; it does not import the author-owned project. It scans every `.py` file beneath the project root and only parses files whose text contains `asset_generation`. It skips directories beginning with `.` and `__pycache__`.
 
 `DiscoveredGeneration` carries:
 
@@ -216,7 +216,7 @@ class ContractProvider(Provider[ContractConfig]):
     ) -> GeneratedPackage:
         class_name = (
             "".join(part.title() for part in context.request_id.split("_"))
-            + "Table"
+            + "SourceRelation"
         )
         field = GeneratedField("id", "id", GeneratedScalarType("str"))
         asset = context.asset
@@ -226,20 +226,26 @@ class ContractProvider(Provider[ContractConfig]):
         )
         return GeneratedPackage((
             GeneratedFile(
-                Path("__init__.py"),
+                Path(f"{context.request_id}.py"),
                 (
                     GeneratedClass(
                         class_name,
                         (field,),
-                        base="Table",
+                        base="SourceRelation",
                         declaration_name=context.request_id,
                         asset=generated_asset,
                     ),
                 ),
                 (class_name,),
             ),
+            GeneratedFile(Path("__init__.py"), (), ()),
         ))
 ```
+
+The relation is one module; the product's `__init__.py` is a facade. A facade
+that re-exports the relation is the same rule with an import; the builtin
+provider writes it, and a custom provider leaves it empty when it has no import
+surface.
 
 **Ownership.** Each generated product contains `.kbs-generation.json`, the ownership record. It records the request identity, provider identity and version, request fingerprint, optional source digest, owned files and directories, and the hash of every owned file.
 
@@ -317,11 +323,11 @@ if result.status is GenerationStatus.STALE:
 | --- | --- |
 | `GeneratedPackage(files, nullability_notes=(), source_digest=None)` | One complete desired product |
 | `GeneratedFile(relative_path, declarations=(), exports=())` | One `.py` file and its exported names |
-| `GeneratedClass(name, fields=(), members=(), description=None, base=None, declaration_name=None, asset=None)` | A table, struct or group declaration; a table carries a `GeneratedAsset` |
+| `GeneratedClass(name, fields=(), members=(), description=None, base=None, declaration_name=None, asset=None)` | A source relation, struct or group declaration; a source relation carries a `GeneratedAsset` |
 | `GeneratedField(python_name, external_name, value_type, description=None, annotations=(), nullability=Nullability.DEFAULTED, schema_path="", logical_path="")` | One `Field[T] = field(...)` member |
-| `GeneratedMember(python_name, declaration_name)` | One named member of a generated table group |
+| `GeneratedMember(python_name, declaration_name)` | One named member of a generated source relation group |
 | `GeneratedAnnotation(import_module, class_name, arguments={})` | One annotation on a generated field |
-| `GeneratedAsset(module, qualname)` | The authored asset a generated table names as its generic argument |
+| `GeneratedAsset(module, qualname)` | The authored asset a generated source relation names as its generic argument |
 
 `GeneratedField` also carries optional `schema_path` and `logical_path` values for source-path provenance; an ordinary provider leaves them empty. `nullability` records the observed source claim as provenance and feeds the statistics pre-flight; it never decides the rendered annotation. A source-backed field renders `Field[T]` from its value type alone, whether the claim is `DEFAULTED`, `DECLARED` or `ENFORCED`. A nullable value that belongs to the value type — an array item or an explicitly nullable computed result — renders `T | None`.
 
@@ -346,8 +352,9 @@ Rendering rules:
 - A source-backed field renders `Field[T]` from its value type. The observed claim never adds `| None`; array-item and explicitly computed value nullability stay in the value type.
 - Source access follows the owner: a generated source field reads as `NullableSelection[T]`, exactly like a handwritten source field.
 - Canonical `date`, `time`, `timestamp` and `uuid` render as `Date`, `Time`, `Timestamp` and `Uuid`; the builtin scalars use their Python names. Every file that declares anything imports the whole representative set.
-- A generated table carries a `GeneratedAsset`; the renderer emits `Table[Asset]` and imports the authored asset module.
-- Generated declarations use only the public authoring surface: `Field`, `field`, `Table`, `Struct`, `TableGroup`, `TableOptions` and `TableGroupOptions`.
+- A generated source relation carries a `GeneratedAsset`; the renderer emits `SourceRelation[Asset]` and imports the authored asset module.
+- Generated declarations use only the public authoring surface: `Contract`, `Definition`, `FieldDefinition`, `Field`, `field`, `SourceRelation`, `Struct`, `SourceRelationGroup`, `SourceRelationOptions` and `SourceRelationGroupOptions`.
+- A generated source relation is ordinary: it may omit a contract, exactly like a handwritten source relation, and its field definitions are optional. The provider never invents a purpose or a meaning. A generated source relation read by a binding should declare a contract; the audit reports the absence.
 - Generated code has no generation-specific compilation path. It is imported by `compile` exactly like handwritten declarations.
 
 **Built-in inference provider.**
@@ -365,7 +372,7 @@ CONFIG_TYPE = DataContractInferenceConfig
 | --- | --- | --- |
 | `source` | Local path or `http`, `https` or `s3` source | `None`; falls back to the asset's `AssetLayout.locator` |
 | `relation` | Relation to infer | `None` |
-| `mode` | `"table"` or `"table_group"` | `"table"` |
+| `mode` | `"source_relation"` or `"source_relation_group"` | `"source_relation"` |
 | `layout` | `"files"`, `"parquet_parts"` or `"hive_partitioned_parquet"` | `"files"` |
 | `anonymous` | Anonymous S3 access | `False` |
 | `override` | Per-column type or nullability declarations | `{}` |
@@ -373,29 +380,29 @@ CONFIG_TYPE = DataContractInferenceConfig
 Rules:
 
 - `source` names one input. When it is omitted, the provider uses the decorated asset's `AssetLayout.locator`; a contract with neither is refused with `GenerationError: data-contract inference requires source= or an asset layout with a locator`.
-- `mode="table"` reads one file or one remote object and one relation. A directory requires `mode="table_group"`. A relative `source` resolves against the asset source file, not the process's working directory.
+- `mode="source_relation"` reads one file or one remote object and one relation. A directory requires `mode="source_relation_group"`. A relative `source` resolves against the asset source file, not the process's working directory.
 - `relation` is required when a table input exposes more than one relation and is refused for table-group inference.
-- `layout` other than `"files"` requires `mode="table_group"`.
+- `layout` other than `"files"` requires `mode="source_relation_group"`.
 - `layout="files"` treats each supported file as a table. `parquet_parts` and `hive_partitioned_parquet` group Parquet files into logical tables; Hive partition directories are removed from the logical path.
 - `anonymous=True` applies only to S3.
-- A database input is refused: no supported asset layout format selects a database reader, so a table derived from it could never get a generic source step. Export the relation to `parquet`, `json` or `csv`, contribute a module planner for the database, or declare the table outside a generated package.
+- A database input is refused: no supported asset layout format selects a database reader, so a source relation derived from it could never get a generic source step. Export the relation to `parquet`, `json` or `csv`, contribute a module planner for the database, or declare the source relation outside a generated package.
 - An unsupported suffix, a directory with no supported relations, and a source that does not exist fail generation.
-- Table classes derive from the relation or asset name; struct classes derive from member paths and group classes from group paths. Logical declaration names are emitted in `TableOptions` or `TableGroupOptions`.
+- Source relation classes derive from the relation or asset name; struct classes derive from member paths and group classes from group paths. Logical declaration names are emitted in `SourceRelationOptions` or `SourceRelationGroupOptions`.
 
-**Override contract.** `override` is a declaration-time value for the built-in inference provider. It is carried in `DataContractInferenceConfig` inside the asset's `@asset_contract(AssetContractOptions(...))`, not in a generated file and not as a runtime option in the compiled workflow plan.
+**Override contract.** `override` is a declaration-time value for the built-in inference provider. It is carried in `DataContractInferenceConfig` inside the asset's `@asset_generation(AssetGenerationOptions(...))`, not in a generated file and not as a runtime option in the compiled workflow plan.
 
 ```python
 from kg_build_system import (
     Asset, AssetAuthority, AssetOptions, AssetProfile,
 )
-from kg_build_system.generation import AssetContractOptions, asset_contract
+from kg_build_system.generation import AssetGenerationOptions, asset_generation
 from kg_build_system.generation.code_generation.builtins import (
     DataContractInferenceConfig,
     InferDataContractProvider,
 )
 
 
-@asset_contract(AssetContractOptions(
+@asset_generation(AssetGenerationOptions(
     provider=InferDataContractProvider,
     configuration=DataContractInferenceConfig(
         source="../data/readings.parquet",
@@ -428,7 +435,7 @@ An entry must declare at least one of `type` and `nullable`; the refusal is `an 
 
 Rules:
 
-- Keys are the full `<relation path>.<column>` path. For a table group, the relation path includes nested group paths.
+- Keys are the full `<relation path>.<column>` path. For a source relation group, the relation path includes nested group paths.
 - An override reaches exactly the relation it names and only whole top-level columns. A bare column name, a missing relation part, a path inside a column, and an unknown column are refused with the available names.
 - `type` must name a canonical unit type. It cannot promote a container, cannot lift a refused physical type, and does not change a container's item or member types.
 - A declared-only physical type becomes digestible when `type` declares it; the scan then applies a checked cast, which aborts on a value that does not fit.

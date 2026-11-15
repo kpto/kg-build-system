@@ -299,8 +299,16 @@ rule about what the framework is belongs to the framework model.
   which record purpose, at which grain, identity and coverage, and where it falls
   short. The record's meaning stays on its node or edge; the relation's meaning
   stays on the relation.
-- A project attaches the framework semantics units directly. A project-local
-  builder with its own grammar is a second semantics model, not a convenience.
+- A relation is a contract: a definition (grain and identity) and a meaning. A
+  derived relation requires a meaning with a purpose; a source relation may state
+  claims only. A declared contract is complete, never half-stated.
+- A stage is a private derived relation: a definition, no contract meaning, and
+  no bindable row source. It composes inside one published relation and owns no
+  consumer contract.
+- A field definition lives on the field: what the value is, its unit and its null
+  meaning. Name, type, source and provenance are derived, never copied.
+- A project attaches the framework meaning units directly. A project-local
+  builder with its own grammar is a second meaning model, not a convenience.
 - Published provenance names the release declarations a value is read from. A
   computed relation resolves to the base relations and fields behind it; its
   internal computed name is not a source dataset.
@@ -467,6 +475,11 @@ rule about what the framework is belongs to the framework model.
   **executes** a `WorkflowPlan`; an engine **emits** SQL from a plan; source
   generation **renders** a DTO or symbol value to authoring source. Do not use
   `lower` for any of them.
+- A relation is a source relation or a derived relation; `projection` names the
+  SQL/plan operator only, and `table` a physical or generated table only.
+- A project directory states the axes: `asset/`, `graph/`, `relation/source/`,
+  `relation/derived/`, `binding/`. A declaration is a file, a package is a
+  grouping, and an `__init__.py` is a facade with no declaration.
 - A language transcribes declarations into symbols and renders a symbol value
   back to authoring source. Transcribe and render are the two directions of the
   same language.

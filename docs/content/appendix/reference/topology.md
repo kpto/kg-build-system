@@ -32,7 +32,7 @@ Read [Declare topology](/book/part-2/02-topology) for the authoring path, [Topol
 
 ## Details
 
-Topology is data-independent: it names a component, its properties and, for an edge, its endpoints. Values arrive only through a binding. See [Declare topology](/book/part-2/02-topology) for the model, [Bind records](/book/part-2/08-binding) and [Bindings reference](/appendix/reference/bindings) for the values, and [Semantics reference](/appendix/reference/semantics) for annotations and labels.
+Topology is data-independent: it names a component, its properties and, for an edge, its endpoints. Values arrive only through a binding. See [Declare topology](/book/part-2/02-topology) for the model, [Bind records](/book/part-2/08-binding) and [Bindings reference](/appendix/reference/bindings) for the values, and [Annotations reference](/appendix/reference/annotations) for annotations and labels.
 
 ```python
 from kg_build_system import (
@@ -78,14 +78,14 @@ NodeOptions(
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
-    semantics: Semantics | None = None,
+    meaning: Meaning | None = None,
 )
 
 EdgeOptions(
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
-    semantics: Semantics | None = None,
+    meaning: Meaning | None = None,
 )
 ```
 
@@ -96,7 +96,7 @@ Assign the value to the class variable `options`.
 | `name` | Logical graph name; unique across nodes and edges | Inferred from the class name |
 | `description` | Prose description of the component | The class docstring, if present |
 | `annotations` | Portable metadata, including at most one matching label | Empty |
-| `semantics` | One declaration fragment attached under the graph purpose | `None` |
+| `meaning` | One declaration fragment attached under the graph purpose | `None` |
 
 The inferred name removes one tier suffix and converts the remainder to snake case:
 
@@ -109,7 +109,7 @@ The inferred name removes one tier suffix and converts the remainder to snake ca
 
 An abstract class strips `AbstractNode` or `AbstractEdge` before the plain tier suffix, so `DocumentedAbstractNode` does not become `documented_abstract`.
 
-An explicit `options.name` replaces the inference completely. Component names must be unique across all reached nodes and edges. A concrete component does not inherit its category's `description` or label; see [Semantics reference](/appendix/reference/semantics) and [Semantic hierarchy](/appendix/philosophy/semantic-hierarchy).
+An explicit `options.name` replaces the inference completely. Component names must be unique across all reached nodes and edges. A concrete component does not inherit its category's `description` or label; see [Annotations reference](/appendix/reference/annotations) and [Semantic hierarchy](/appendix/philosophy/semantic-hierarchy).
 
 ```python
 class UnitNode(Node):
@@ -124,7 +124,7 @@ property(
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
-    semantics: Semantics | None = None,
+    meaning: Meaning | None = None,
 ) -> PropertySlot[T]
 ```
 
@@ -144,7 +144,7 @@ class UnitNode(Node):
 | `name` | External property name | The attribute name in snake case, with one trailing underscore removed |
 | `description` | Property description | The docstring directly below the assignment |
 | `annotations` | Portable metadata for the property | Empty |
-| `semantics` | One declaration fragment attached under the graph purpose | `None` |
+| `meaning` | One declaration fragment attached under the graph purpose | `None` |
 
 `PropertySlot[T]` accepts a scalar, `T | None`, a flat `Array[T]`, or `Array[T] | None`. Scalars are `bool`, `int`, `float`, `str`, `Date`, `Time`, `Timestamp`, `Uuid` and `CustomDataType`. Arrays are one level deep and hold non-null scalars. Structs, nested arrays and arrays with null items are not graph properties. See [Type vocabulary](/appendix/reference/types).
 
@@ -198,11 +198,11 @@ A template's options are annotations-only:
 ```python
 NodeOptionsTemplate(
     annotations: Sequence[Annotation] = (),
-    semantics: Semantics | None = None,
+    meaning: Meaning | None = None,
 )
 EdgeOptionsTemplate(
     annotations: Sequence[Annotation] = (),
-    semantics: Semantics | None = None,
+    meaning: Meaning | None = None,
 )
 ```
 
@@ -307,13 +307,16 @@ A category entry carries the properties and annotations effective on the categor
 
 ```python
 from kg_build_system import (
-    AbstractNode, Field, Node, NodeLabel, NodeOptions, PropertySlot, Table,
+    AbstractNode, Field, Meaning, Node, NodeLabel, NodeOptions, PropertySlot,
+    Purpose, SourceRelation, SourceRelationOptions,
     field, node_binding, property,
 )
 
 from estate.assets import Estate
 
-class SiteTable(Table[Estate]):
+class SiteSourceRelation(SourceRelation[Estate]):
+    # The contract and field definitions are stated in full on Declarations.
+    options = SourceRelationOptions(contract=...)
     site_id: Field[str] = field()
     summary: Field[str] = field()
     name: Field[str] = field()
@@ -328,10 +331,13 @@ class SiteNode(DocumentedAbstractNode, Node):
 
 site_binding = node_binding(
     target=SiteNode,
-    build_key=SiteTable.site_id.alter_rows().drop_null(),
+    build_key=SiteSourceRelation.site_id.alter_rows().drop_null(),
     properties=SiteNode(
-        summary=SiteTable.summary.default_to(""),
-        name=SiteTable.name.default_to("Unnamed site"),
+        summary=SiteSourceRelation.summary.default_to(""),
+        name=SiteSourceRelation.name.default_to("Unnamed site"),
+    ),
+    meaning=Meaning(
+        purpose=Purpose("Populate each site record from the estate survey."),
     ),
 )
 ```

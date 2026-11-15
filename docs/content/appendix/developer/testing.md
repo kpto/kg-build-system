@@ -55,7 +55,7 @@ defect. [Install and verify](/book/part-1/02-a-first-build) gives the environmen
   or import the distribution. The composition root calls `create_blueprint` and
   then `compile`; the public `api.compile` shortcut creates the blueprint first.
 - The four core planners share `component_id="core"` and one `CorePlan` in
-  `PlanContext.shared`. They emit row-source, projection, binding and aggregate
+  `PlanContext.shared`. They emit row-source, derived-relation, binding and aggregate
   steps. `DuckDbSourcePlanner` has `component_id="duckdb"` and emits one
   `source.<relation>` step per compatible asset-backed relation.
 - Planners in one component agree on `version` and `runtime_fields`. Duplicate
@@ -101,8 +101,8 @@ defect. [Install and verify](/book/part-1/02-a-first-build) gives the environmen
   `workflow_plan.json` and `build_report.json`, and publishes no intermediate
   core records.
 - `tests/typecheck/authoring.py` is the strict positive fixture for `Selection`,
-  owner-derived nullability, `field`/`computed_field`, pinned projections, row
-  effects, lookup, zip and unnest. `tests/typecheck/authoring_negative.py` pins
+  owner-derived nullability, `field`/`computed_field`, pinned derived relations,
+  row effects, lookup, zip and unnest. `tests/typecheck/authoring_negative.py` pins
   removed names and invalid effects with inline expected diagnostics.
 
 ## Limits

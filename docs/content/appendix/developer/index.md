@@ -29,6 +29,7 @@ Author pages and developer pages can cover one subject for different readers. An
 | --- | --- |
 | [Framework philosophy](/appendix/developer/philosophy) | The commitments that decide where code belongs and what an interface may expose. |
 | [System design](/appendix/developer/system-design) | The package tree, kernel protocols, linker, blueprint, plan, runtime, zones and dependency spine. |
+| [The relation contract](/appendix/developer/relation-contract) | The definition, meaning, field-definition and stage interface, and the record-agnostic rule. |
 | [Data and expressions](/appendix/developer/data-and-expressions) | The DTOs, typed refs, row-source plan, neutral emission boundary and source round trip. |
 | [Testing](/appendix/developer/testing) | The contract-test groups, commands, guards and the gaps the suite leaves. |
 
@@ -57,7 +58,7 @@ The toolchain has three verbs:
 
 - **The model is the decision.** Code is reported against the model; it does not redefine it. An interface change is a model change, stated before implementation and reviewed through this section. [Contracts](/appendix/review/contracts) owns the invariants.
 - **State the interface.** A developer page names the public and internal names, their signatures and invariants, the allowed dependency edges and the authoring surface. Implementation route is out of scope.
-- **Keep the vocabulary split.** Language, declaration, symbol, linker, planner, workflow plan, step, executor, resource and toolchain are kernel words. Graph, blueprint, node, edge, binding, projection, table, asset and operation are distribution words.
+- **Keep the vocabulary split.** Language, declaration, symbol, linker, planner, workflow plan, step, executor, resource and toolchain are kernel words. Graph, blueprint, node, edge, binding, source relation, derived relation, asset and operation are distribution words.
 - **Use one verb per transformation.** A language discovers, keys, transcribes and renders; a linker links; a planner plans; assembly assembles; an emitter emits; the runtime executes. `lower` names none of them.
 - **Name the artifact.** A serialisable member of the blueprint or the workflow plan is a DTO. A value outside those artifacts is an in-memory model, plan or result.
 - **Bound the section.** This section documents the framework, not the graph a project builds. A graph author's rule belongs in the authoring pages; a framework interface belongs here. [Architecture specification](/appendix/spec/architecture) states the package boundary that makes the split enforceable.

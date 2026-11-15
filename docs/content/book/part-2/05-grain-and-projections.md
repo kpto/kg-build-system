@@ -1,16 +1,14 @@
 ---
-title: "8. Relations and projections"
-summary: "A row source makes one row a value; a filter, join, group or expansion derives a grain, and a projection names the relation."
+title: "8. Derived relations"
+summary: "A row source makes one row a value; a filter, join, group or expansion derives a grain, and a derived relation publishes its contract."
 section: book
 perspective: book
 part: II
 chapter: 8
 order: 25
 status: normative
-verified: 2026-11-11
+verified: 2026-11-15
 sources:
-  - docs/content/book/part-2/05-grain-and-projections.md
-  - docs/content/book/part-2/05-grain-and-projections.md
   - docs/content/appendix/reference/row-sources.md
   - docs/content/appendix/spec/grain.md
 ---
@@ -18,26 +16,27 @@ sources:
 ## One row is a decision before it is a query
 
 A binding produces one record per row. That sentence hides the question this
-chapter answers: one row of what? A table has a grain. `SitesTable` is one row per
-site. A filter keeps that grain and removes rows. A join combines two grains. A
-group collapses rows to one per key. An expansion turns one row into several. A
-projection gives the result a name, and the binding inherits the meaning instead
-of inventing it.
+chapter answers: one row of what? A source relation has a grain. `SitesSourceRelation` is
+one row per site. A filter keeps that grain and removes rows. A join combines two
+grains. A group collapses rows to one per key. An expansion turns one row into
+several. A derived relation states the result as a contract, and the binding
+inherits the meaning instead of inventing it.
 
-A row source is a value with a shape and a plan. `SitesTable.row_source()` returns
-a `RelationRowSource` over exactly one relation; every derived operation returns a
-`DerivedRowSource`. Neither is a declaration class. A binding later takes the
-value, never `SitesTable` itself, and a `Struct` is never a row source at all.
+A row source is a value with a shape and a plan. `SitesSourceRelation.row_source()`
+returns a `RelationRowSource` over exactly one relation; every derived operation
+returns a `DerivedRowSource`. Neither is a declaration class. A binding later takes
+the value, never `SitesSourceRelation` itself, and a `Struct` is never a row source at
+all.
 
 ```python
-sites = SitesTable.row_source()
+sites = SitesSourceRelation.row_source()
 ```
 
 The shape is the answer to "what is in one row?"; the plan is the answer to "which
 rows, and how were they produced?". Both travel together. Because the value is
 frozen, an operation never edits the source it was given; it returns a new value
-that names the old one as its input. That is what lets a projection pin one plan
-and let several bindings read the same meaning.
+that names the old one as its input. That is what lets a derived relation pin one
+plan and let several bindings read the same meaning.
 
 A row source can be built and inspected before a target exists. That is the
 practical advantage of making the grain a value: the plan is available to the
@@ -52,7 +51,7 @@ tested as a declaration, before the binding that consumes it is written.
 shape:
 
 ```python
-depots = SitesTable.row_source().where(
+depots = SitesSourceRelation.row_source().where(
     lambda site: site.site_name.alter_rows().drop_null().equals("Depot")
 )
 ```
@@ -73,8 +72,8 @@ receives one row proxy per side and returns either a pair of scalar selections o
 a single `equals` selection. The pair form is the general one:
 
 ```python
-site_units = SitesTable.row_source().join(
-    EquipmentTable.row_source(),
+site_units = SitesSourceRelation.row_source().join(
+    EquipmentSourceRelation.row_source(),
     on=lambda site, unit: (site.site_id, unit.site_id),
     how="left",
 )
@@ -125,7 +124,7 @@ names must be public Python identifiers and unique within the group, and keys mu
 be scalar:
 
 ```python
-by_site = EquipmentTable.row_source().group_by(
+by_site = EquipmentSourceRelation.row_source().group_by(
     by=lambda unit: {"site_id": unit.site_id},
 )
 site_id = by_site.shape.by.extract(lambda key: key.site_id)
@@ -172,16 +171,19 @@ nullability. A union never renames, casts or reorders members. `all=False` remov
 duplicate rows; `all=True` keeps them.
 
 ```python
-from kg_build_system import Field, Table, TableOptions, field
+from kg_build_system import (
+    Field, SourceRelation, SourceRelationOptions, field,
+)
 
-from reference_project.assets import Estate
-from reference_project.table.equipment import EquipmentTable
+from reference_project.asset.estate import Estate
+from reference_project.relation.source.estate.equipment import EquipmentSourceRelation
 
 
-class ArchivedEquipmentTable(Table[Estate]):
+class ArchivedEquipmentSourceRelation(SourceRelation[Estate]):
     """The retired units, declared with the equipment row shape."""
 
-    options = TableOptions(name="archived_equipment")
+    # The contract is omitted here; the example is about the union shape.
+    options = SourceRelationOptions(name="archived_equipment")
     unit_ref: Field[str] = field()
     unit_name: Field[str] = field()
     site_id: Field[str] = field()
@@ -189,8 +191,8 @@ class ArchivedEquipmentTable(Table[Estate]):
     survey_period: Field[str] = field()
 
 
-every_unit = EquipmentTable.row_source().union(
-    ArchivedEquipmentTable.row_source(),
+every_unit = EquipmentSourceRelation.row_source().union(
+    ArchivedEquipmentSourceRelation.row_source(),
 )
 deduplicated = every_unit.distinct()
 ```
@@ -201,8 +203,8 @@ the seam between two inputs.
 
 A union is row-wise, not column-wise. It does not align members by name at query
 time; it requires the declarations to agree before either side is read. A union is
-not a table group. A table group is a catalog of relations and produces no rows; a
-union produces rows and requires both sides to have one shape. The two
+not a source relation group. A group is a catalog of relations and produces no
+rows; a union produces rows and requires both sides to have one shape. The two
 declarations can name different assets and still union, provided their row shapes
 agree. The result does not merge the assets; it stacks the rows.
 
@@ -224,7 +226,7 @@ substitute for either.
 keeps every other field and narrows the selected member to the item:
 
 ```python
-scored_sites = SitesTable.row_source().unnest(
+scored_sites = SitesSourceRelation.row_source().unnest(
     lambda site: site.priority_scores
 )
 score = scored_sites.shape.priority_scores
@@ -245,95 +247,226 @@ product. Use one or the other for a given expansion, never both. Expanding two
 arrays in one plan produces the product of the two fan-outs, not a paired row;
 pairing is `zip`, and a keyed match is a join.
 
-## A projection gives a relation a name
+## A derived relation publishes a contract
 
-A projection is a relation first. Its row plan is how the relation is computed,
-not what it is. State the relation in one sentence with no graph nouns and no
-operator verbs: “one condition severity per defect” is a relation; “join defects
-to conditions and drop nulls” is an operator. The second is a derived row
-source, not a projection.
+A derived relation is a relation first. Its row plan is how the relation is
+computed, not what it is. State the relation in one sentence with no graph nouns
+and no operator verbs: “one condition severity per defect” is a relation; “join
+defects to conditions and drop nulls” is an operator. The second is a derived row
+source, not a derived relation.
 
-A row source is a value; a projection turns it into a named relation. It pins
-exactly one row source at class creation, publishes typed outputs with
+A row source is a value; a derived relation turns it into a published relation. It
+pins exactly one row source at class creation, publishes typed outputs with
 `computed_field`, and becomes a row-source provider itself:
 
 ```python
-from kg_build_system import Projection, ProjectionOptions, computed_field
+from kg_build_system import (
+    Claim, Contract, Definition, DerivedRelation, DerivedRelationOptions,
+    FieldDefinition, Limitation, Meaning, Purpose, computed_field,
+)
 
 ordered_units = site_units.order_by("on", ascending=True)
 
 
-class SiteUnitProjection(Projection(ordered_units)):
+class SiteUnitRelation(DerivedRelation(ordered_units)):
     """One row per site and unit, with the site name and unit reference."""
 
-    options = ProjectionOptions(name="site_unit")
+    options = DerivedRelationOptions(
+        name="site_unit",
+        contract=Contract(
+            definition=Definition(
+                grain="One row per site and unit pair.",
+                identity=("site_id", "unit_ref"),
+            ),
+            meaning=Meaning(
+                purpose=Purpose(
+                    text="Use this relation as the site-to-unit register.",
+                    limitations=(
+                        Limitation(
+                            "Sites with no installed unit are absent."
+                        ),
+                    ),
+                ),
+                claims=(
+                    Claim(
+                        "A row carries the site name and the unit "
+                        "reference for one installed unit."
+                    ),
+                ),
+            ),
+        ),
+    )
+
     site_id = computed_field(
         ordered_units.shape.left.extract(lambda site: site.site_id)
-        .alter_rows().drop_null()
+        .alter_rows().drop_null(),
+        definition=FieldDefinition(
+            value="The estate registry's site identifier.",
+        ),
     )
     site_name = computed_field(
-        ordered_units.shape.left.extract(lambda site: site.site_name)
+        ordered_units.shape.left.extract(lambda site: site.site_name),
+        definition=FieldDefinition(
+            value="The site's display name.",
+            null_meaning="The register records no name for the site.",
+        ),
     )
     unit_ref = computed_field(
         ordered_units.shape.right.extract(lambda unit: unit.unit_ref)
+        .alter_rows().drop_null(),
+        definition=FieldDefinition(
+            value="The unit reference assigned by the equipment register.",
+        ),
     )
     in_service = computed_field(
-        ordered_units.shape.right.extract(lambda unit: unit.in_service)
+        ordered_units.shape.right.extract(lambda unit: unit.in_service),
+        definition=FieldDefinition(
+            value="Whether the unit is in service.",
+            null_meaning="The register records no service state for the unit.",
+        ),
     )
 ```
 
-There is no unpinned projection. `Projection()` and `class P(Projection)` are
-refused, and a projection with no `computed_field` is refused. `field()` is not
-legal for an output: a projection has no source columns of its own. The output is
-typed by its selection, so a present selection publishes a present output and a
-nullable selection publishes a nullable one.
+There is no unpinned derived relation. `DerivedRelation()` and
+`class R(DerivedRelation)` are refused, and a derived relation with no
+`computed_field` is refused. `field()` is not legal for an output: a derived
+relation has no source columns of its own. The output is typed by its selection,
+so a present selection publishes a present output and a nullable selection
+publishes a nullable one.
 
-An output is read as a materialised value. `SiteUnitProjection.site_id` elsewhere is
-the output of the named relation, not the selection that produced it. That is what
-makes a projection a contract rather than a macro: the expression is private to the
-declaration, and a reader depends on the name, the type and the grain.
+The contract is the same two-part value the source relation states. The grain and
+identity are structural: a binding checks its key against the identity, and its
+record count against the grain. The meaning states the domain purpose, the claims
+and the limitations, and it is not a fragment under the graph purpose. A derived
+relation requires a purpose, not merely claims: it exists because a use asked for
+that grain, and that use is its purpose. A source relation may state claims only,
+because the source does not choose its consumers. A derived relation that several
+records read states one shared domain meaning; the binding that follows states
+which record purpose it fulfils.
+
+An output is read as a materialised value. `SiteUnitRelation.site_id` elsewhere is
+the output of the published relation, not the selection that produced it. That is
+what makes a derived relation a contract rather than a macro: the expression is
+private to the declaration, and a reader depends on the name, the type, the grain
+and the meaning.
 
 Every output shares the one pinned row plan. A filter or an expansion written for
 one output changes the grain for every output and for every binding that reads the
-projection. That is why the expansion belongs in the source or in the projection,
-not in a single output that happens to need it. Two unrelated arrays expanded in
-one projection multiply the fan-outs; a second grain needs a second projection.
+relation. That is why the expansion belongs in the row source, the stage or the
+derived relation, not in a single output that happens to need it. Two unrelated
+arrays expanded in one relation multiply the fan-outs; a second grain needs a
+second derived relation.
 
-A projection cannot introduce a second driving source. All outputs read the pinned
-plan, possibly through chained expansions and struct navigation. A second relation
-is read with `lookup`, which states the key and leaves the grain choice to the
-author. Projection dependencies are ordered before their dependants and must be
-acyclic.
+A derived relation cannot introduce a second driving source. All outputs read the
+pinned plan, possibly through chained expansions and struct navigation. A second
+relation is read with `lookup`, which states the key and leaves the grain choice to
+the author. Derived-relation dependencies are ordered before their dependants and
+must be acyclic.
 
 The name is part of the contract. It defaults to the class name with one
-`Projection` suffix removed and converted to snake case, and `ProjectionOptions`
-states it explicitly. A projection name must be unique among projections and among
-tables, because both are logical source names in one namespace. A collision is
-refused rather than resolved by import order.
+`Relation` suffix removed and converted to snake case, and
+`DerivedRelationOptions` states it explicitly. A derived relation name must be
+unique among derived relations and among source relations, because both are logical
+source names in one namespace. A collision is refused rather than resolved by
+import order.
 
-A projection is final: it may not inherit another final projection. Pin a new
-source instead.
+A derived relation is final: it may not inherit another final derived relation.
+Pin a new source instead.
 
-Use a projection when the relation is reused or deserves a contract. A bare row
-source is fine when one binding reads a filtered relation and nothing else needs
-the name. A projection earns its place when several consumers must agree on what
-the relation means, or when a derived grain is easier to review as a declaration
-than as an expression inside another declaration.
+Publish a derived relation when the relation is reused or deserves a contract. A
+bare row source is fine when one binding reads a filtered relation and nothing else
+needs the name. A derived relation earns its place when several consumers must
+agree on what the relation means, or when a derived grain is easier to review as a
+declaration than as an expression inside another declaration.
 
-A projection's purpose is the relation's own purpose, not a description of the
-step that produced it. It may have several consumers; the graph is one of them.
-The binding is what makes the relation relevant to a record, and the binding
-states the fulfilment rather than borrowing the relation's meaning.
+## A stage is a private sub-relation
 
-### A projection must not know the record
+A single derivation sometimes needs an intermediate shape: a join, then an
+expansion, then a selection of outputs. That intermediate is a `Stage`. It is a
+real declaration with a grain and typed outputs, and it is not a published
+relation.
 
-A published projection may contain as much domain processing as it needs. What
-it must not contain is the record's contract.
+```python
+from kg_build_system import (
+    Contract, Definition, DerivedRelation, DerivedRelationOptions,
+    FieldDefinition, Meaning, Purpose, Stage, StageOptions, computed_field,
+)
+
+
+class SiteScoreStage(Stage(scored_sites)):
+    """One row per site and priority score."""
+
+    options = StageOptions(
+        name="site_score_stage",
+        definition=Definition(
+            grain="One row per site and priority score.",
+            identity=("site_id", "score"),
+        ),
+    )
+
+    site_id = computed_field(scored_sites.shape.site_id)
+    score = computed_field(scored_sites.shape.priority_scores)
+
+
+class SiteScoreRelation(DerivedRelation(SiteScoreStage.row_source())):
+    options = DerivedRelationOptions(
+        name="site_score",
+        contract=Contract(
+            definition=Definition(
+                grain="One row per site and priority score.",
+                identity=("site_id", "priority_score"),
+            ),
+            meaning=Meaning(
+                purpose=Purpose(
+                    text="Use this relation to compare sites by priority score.",
+                ),
+            ),
+        ),
+    )
+
+    site_id = computed_field(SiteScoreStage.site_id)
+    priority_score = computed_field(
+        SiteScoreStage.score,
+        name="priority_score",
+        definition=FieldDefinition(
+            value="The priority score recorded for the site.",
+            unit="priority point",
+        ),
+    )
+```
+
+A stage states a `Definition` and no meaning. That is the whole difference. It has
+a grain and an identity because the next stage or the published relation needs to
+know what one row is; it has no purpose, no claims and no limitations because
+nobody outside its package is offered it. It is recorded in
+`data.derived_relations` with `visibility="internal"` as plan lineage, not as a
+consumer relation: its outputs are not addressable through a `FieldRef` from
+another package, `lookup` cannot target it, and a binding cannot read it.
+
+The package is the boundary. A derived relation is one package under
+`relation/derived/`: `relation.py` holds the published declaration and
+`_stage_*.py` holds its stages, one per file. Nothing outside the package imports a
+stage module, and the published relation is the only name a consumer sees. The
+stage's name is a plan handle: it appears in the blueprint as internal lineage,
+never as a consumer relation, and its module is private under the same rule. Name
+it for what it computes, and let the type and the visibility — not an underscore —
+say that it is not a contract.
+
+The rule is not a style preference. If an intermediate shape needs a consumer, a
+purpose or a claim, it is a derived relation and it gets its own package. If it
+only exists because one derivation is easier to read in three steps, it is a stage.
+Promoting a stage to a published relation is a real change: it needs a name in the
+shared namespace, a contract and a consumer that makes it reachable.
+
+## A published relation must not know the record
+
+A published relation — source or derived — may contain as much domain processing as
+it needs. What it must not contain is the record's contract.
 
 - It must be stateable without the record.
 - It must not name the record's property names, build key, endpoint tokens, node
   or edge class.
-- If it does, the projection is the record in disguise. The binding is then a
+- If it does, the relation is the record in disguise. The binding is then a
   copy, not a fulfilment.
 
 The test has two sides:
@@ -347,11 +480,11 @@ A simple binding is allowed when the relation genuinely has the record's grain
 and the source is the relation. A vacuous binding is not: if the relation already
 chose the record's grain, key and properties, the design happened on the wrong
 axis. Move the record knowledge back to topology and the binding; do not add more
-processing to the projection.
+processing to the relation.
 
 | Shape | Reading |
 | --- | --- |
-| `TargetNodeData`: one row per target, fields id/symbol/name/biotype, purpose “the data for TargetNode” | The node's table with a relation name. The binding copies. |
+| `TargetNodeData`: one row per target, fields id/symbol/name/biotype, purpose “the data for TargetNode” | The node's relation with a name. The binding copies. |
 | `TargetAnnotation`: one gene-annotation record per Ensembl gene, with symbol, name, biotype and the release's source | A domain relation. The binding resolves the key, selects the fields the node asserts, and states the coverage and gaps. |
 
 ## The grain is a decision, not an accident
@@ -372,7 +505,7 @@ Double-counted and missing records are almost always grain errors, not expressio
 errors. A join that multiplies rows, a group read as if it were the input, or an
 expansion used to flatten a nested document all change the meaning of one record.
 The row-source value makes that meaning visible before a binding is written, and
-the projection makes it a name that later chapters can bind to.
+the derived relation makes it a contract that later chapters can bind to.
 
 Null keys deserve the last word. A null join key never matches, and a null group
 key is dropped before grouping. Both rules are silent at execution: no error, just
@@ -380,11 +513,9 @@ a row that does not appear. When absence in a key is a data error, narrow the ke
 first. When an unmatched row must survive, choose a join mode that keeps it rather
 than defaulting the key and inventing a match.
 
-The next chapter takes this named grain and attaches it to nodes and edges. A
-binding reads the projection's row source and produces one record per row, so the
-argument about what one row means becomes the argument about what one record
-means.
+The next chapter takes this published grain and asks where a domain rule belongs
+when the shipped vocabulary has no operation for it.
 
 ## Next
 
-[9. Extending the semantics model](/book/part-2/06-extension) — from a named grain to the vocabulary the domain still needs.
+[9. Extending the meaning model](/book/part-2/06-extension) — from a published grain to the vocabulary the domain still needs.

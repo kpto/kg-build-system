@@ -34,14 +34,14 @@ kg_build_system/
     service/_private/{pipeline,assembly,runtime,workflow_codec,report_codec}.py
   distribution/
     model/public/{refs,artifacts,runtime,paths}.py
-    languages/{annotations,expressions,semantics,graph,asset,data,topology,binding}/
+    languages/{annotations,expressions,meaning,graph,asset,data,topology,binding}/
     interpreter/
       model/public/graph_blueprint.py
       service/public/create.py
       service/internal/adapters/kernel_linker.py
       service/_private/{create,link,assembly,validation,codec,source,discovery}.py
     modules/
-      core/{row_source,projection,binding,records}/service/public/planner.py
+      core/{row_source,derived_relation,binding,records}/service/public/planner.py
       core/service/_private/planning/
       {deduplication,merging,conflict_validation,file,meta_graph,neo4j,duckdb,python,runtime}/
     service/{public,internal,_private}/
@@ -203,20 +203,20 @@ A blueprint is the semantic model of the graph, not a symbol table:
 ```python
 GraphBlueprint(
     graph=GraphPartDTO(nodes=..., edges=...),
-    data=DataPartDTO(structs=..., relations=..., projections=...),
+    data=DataPartDTO(structs=..., source_relations=..., derived_relations=...),
     assets=AssetPartDTO(assets=...),
     bindings=...,
     graph_declaration=... | None,
 )
 ```
 
-The blueprint names nodes, edges, relations, fields, properties, assets and operations as semantic roles. A relation names its asset with an `AssetRef`; it carries no Python path, declaration object or symbol-table entry. The symbol graph is the linker's working representation: it may carry keys, kinds and references, and it does not appear in the delivered artifact.
+The blueprint names nodes, edges, source relations, derived relations, fields, properties, assets and operations as semantic roles. A relation names its asset with an `AssetRef`; it carries no Python path, declaration object or symbol-table entry. The symbol graph is the linker's working representation: it may carry keys, kinds and references, and it does not appear in the delivered artifact.
 
 | Role type | Names |
 | --- | --- |
 | `NodeRef` | one topology node |
 | `EdgeRef` | one topology edge |
-| `RelationRef` | one relation or projection |
+| `RelationRef` | one source or derived relation |
 | `FieldRef` | one declared field |
 | `PropertyRef` | one graph property |
 | `AssetRef` | one logical asset |
@@ -231,7 +231,7 @@ Each wraps a `SymbolRef` and exposes `.symbol`, `.key`, `.language` and `.name`;
 | Planner | Component | Responsibility |
 | --- | --- | --- |
 | `RowSourcePlanner` | `core` | row-source steps |
-| `ProjectionPlanner` | `core` | projection steps |
+| `DerivedRelationPlanner` | `core` | derived-relation steps |
 | `BindingPlanner` | `core` | binding steps |
 | `RecordsPlanner` | `core` | aggregate record steps |
 | `DuckDbSourcePlanner` | `duckdb` | one `source.<relation>` step per relation |
@@ -280,13 +280,13 @@ Another package imports `public` or `internal`, never `_private`. A protocol imp
 | `kernel` | no framework package |
 | `languages/annotations` | `kernel` |
 | `languages/expressions` | `kernel` |
-| `languages/semantics` | `kernel` |
-| `languages/graph` | `kernel`, semantics |
-| `languages/asset` | `kernel`, annotations, semantics |
-| `languages/data` | `kernel`, annotations, expressions, asset, semantics |
-| `languages/topology` | `kernel`, annotations, expressions, semantics |
-| `languages/binding` | `kernel`, annotations, data, topology, semantics |
-| `interpreter` | `kernel`, every graph language, semantics |
+| `languages/meaning` | `kernel` |
+| `languages/graph` | `kernel`, meaning |
+| `languages/asset` | `kernel`, annotations, meaning |
+| `languages/data` | `kernel`, annotations, expressions, asset, meaning |
+| `languages/topology` | `kernel`, annotations, expressions, meaning |
+| `languages/binding` | `kernel`, annotations, data, topology, meaning |
+| `interpreter` | `kernel`, every graph language, meaning |
 | `modules/<name>` | `kernel`, `interpreter` where it reads a blueprint, languages, `distribution.model`, `distribution.service`; core uses the neutral relation plan and `SqlEmitter` protocol, not the DuckDB module |
 | `implementations.py` | `kernel`, interpreter, languages |
 | `generation/code_generation` | `kernel`, `languages/asset`; observation is read-only |
@@ -297,7 +297,7 @@ Two rules apply to every row: the kernel imports no graph, data, topology, bindi
 
 ### Generation
 
-`generation/code_generation/` is the edit-time lane. It observes a source, runs a provider and renders declarations. `@asset_contract(AssetContractOptions(...))` is an inert decorator on an `Asset` subclass and is outside `AssetOptions` and the blueprint.
+`generation/code_generation/` is the edit-time lane. It observes a source, runs a provider and renders declarations. `@asset_generation(AssetGenerationOptions(...))` is an inert decorator on an `Asset` subclass and is outside `AssetOptions` and the blueprint.
 
 Generation and the toolchain are separate lanes. `build` imports the resulting declarations and never invokes generation; `compile` and `execute` never invoke generation. Generated and handwritten declarations enter the same language, blueprint, plan and execution path; there is no generation-specific path. Observation is provenance: a generated source-backed field renders `Field[T]`; observed nullability changes the manifest, statistics and notes, not the annotation. Nullability that belongs to the value, such as an array item, stays in the value type.
 

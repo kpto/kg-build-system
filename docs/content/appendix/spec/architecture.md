@@ -7,7 +7,7 @@ subject: architecture
 spec: SPEC-014
 order: 140
 status: normative
-verified: 2026-11-10
+verified: 2026-11-15
 sources:
   - AGENTS.md
   - ARCHITECTURE.md
@@ -28,7 +28,7 @@ evidence:
 ## Requirement
 
 - **R1.** The kernel MUST remain domain-agnostic: it MUST use toolchain vocabulary and MUST NOT import `distribution`, SQL, DuckDB, or `generation`.
-- **R2.** The distribution MUST own the graph domain. Graph, blueprint, node, edge, binding, projection, and asset vocabulary belongs there, not in the kernel.
+- **R2.** The distribution MUST own the graph domain. Graph, blueprint, node, edge, binding, source relation, derived relation, asset and meaning vocabulary belongs there, not in the kernel.
 - **R3.** Every framework leaf MUST use the zones it needs under `model/{public,internal,_private}` and `service/{public,internal,_private}`. An empty zone MUST be deleted, not kept as a marker.
 - **R4.** A package `__init__.py` MUST be a facade: docstring, imports, and `__all__` only, with no business logic.
 - **R5.** A package MUST import another package's `public` or `internal` zone and MUST NOT import its `_private` zone.

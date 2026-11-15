@@ -7,7 +7,7 @@ part: II
 chapter: 10
 order: 27
 status: normative
-verified: 2026-11-11
+verified: 2026-11-15
 sources:
   - docs/content/book/part-3/02-planning.md
   - docs/content/appendix/spec/plan.md
@@ -119,7 +119,7 @@ Each of these compiles. Each one moves composition back into procedure.
 | A consumer enumerating producers | The consumer can read several exact artifacts | Declare a pattern; assembly expands every match |
 | Priority or rank used as data availability | Rank is an integer and can be written anywhere | Priority orders eligible reactions; availability comes from producers |
 | A phase modelled as a chain | A chain of steps produces the expected plan | A phase is a set of producers and artifact types |
-| A step that does a domain operation with no named output | The instruction can compute anything | Publish a named artifact; if it is graph meaning, publish a projection |
+| A step that does a domain operation with no named output | The instruction can compute anything | Publish a named artifact; if it is relation meaning, publish a derived relation |
 
 The last row is the semantic failure. A step that hides its result cannot be intercepted, referenced or reviewed. The model can execute it, but no other reaction can depend on what it produced.
 
@@ -184,7 +184,7 @@ These tests belong beside the plan tests, not only in the framework's internal a
 >
 > A phase is a group of producers and artifact types, not a dependency chain.
 >
-> A step that hides its result inside a procedure has not composed a semantic unit.
+> A step that hides its result inside a procedure has not composed a meaning unit.
 
 The rest of Part II uses these rules when it turns a row source into a record. The mechanics of planning, assembly and execution are in Part III; the reactions themselves are the model.
 

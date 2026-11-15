@@ -9,7 +9,7 @@ order: 80
 status: normative
 verified: 2026-11-10
 sources:
-  - kg_build_system/generation/code_generation/model/public/contract.py
+  - kg_build_system/generation/code_generation/model/public/options.py
   - kg_build_system/generation/code_generation/service/_private/discovery.py
   - kg_build_system/generation/code_generation/service/_private/engine.py
   - kg_build_system/generation/code_generation/model/internal/providers.py
@@ -26,13 +26,14 @@ evidence:
 
 ## Requirement
 
-- **R1.** `@asset_contract(AssetContractOptions(...))` MUST be inert. It MUST validate and store the request without reading a source, invoking a provider, or writing a file.
+- **R1.** `@asset_generation(AssetGenerationOptions(...))` MUST be inert. It MUST validate and store the request without reading a source, invoking a provider, or writing a file.
 - **R2.** The decorator MUST sit on a module-level `Asset` subclass with exactly one base, and its options MUST name exactly `provider`, `configuration`, and `package`.
-- **R3.** Discovery MUST be a static LibCST scan. It MUST NOT import the author module, and it MUST parse only files whose text contains `asset_contract`.
+- **R3.** Discovery MUST be a static LibCST scan. It MUST NOT import the author module, and it MUST parse only files whose text contains `asset_generation`.
 - **R4.** A provider MUST declare `ID`, `VERSION`, and `CONFIG_TYPE`, and MUST implement async `generate(context)` returning one `GeneratedPackage`.
 - **R5.** `InferDataContractProvider` MUST keep `VERSION = "8"` and MUST accept `DataContractInferenceConfig` as its configuration type.
 - **R6.** The product MUST be `<package>/<asset>`, where the asset name is `AssetOptions.name` or the class name in snake case. Its import MUST be `<package>.<asset>`.
 - **R7.** The generated product MUST be owned through `.kbs-generation.json`. A modified owned file MUST refuse the pass, and unrecognized content MUST NOT be overwritten.
+- **R8.** A generated `__init__.py` MUST be a facade: imports and `__all__` only, no declaration. A generated `SourceRelation` MUST be one module per relation; a `SourceRelationGroup` MUST be declared in `group.py`. The renderer MUST refuse a declaration in an initializer.
 - **R8.** `--check` MUST write nothing and MUST exit `0` for `CURRENT` or `CHANGED` and `1` for `STALE` or a failure. `--regenerate` MUST re-observe every source.
 - **R9.** `--watch` MUST NOT be combined with `--check` or `--regenerate`.
 - **R10.** Observation MUST be provenance: every generated source field MUST render `Field[T]`, and the build MUST NOT invoke generation.
@@ -49,8 +50,8 @@ evidence:
 
 | Public name | Role |
 | --- | --- |
-| `asset_contract` | Records a generation request on an asset class. |
-| `AssetContractOptions` | Provider, configuration, and package for one request. |
+| `asset_generation` | Records a generation request on an asset class. |
+| `AssetGenerationOptions` | Provider, configuration, and package for one request. |
 | `Provider` | Typed provider base with identity and async generation. |
 | `ProviderGenerationConfig` | Frozen, strict configuration base. |
 | `ProviderContext` | Project, request path, asset identity, and validated config. |
@@ -67,7 +68,7 @@ evidence:
 - Generation writes declarations. It does not read graph data, run a build, or rewrite the authored asset source.
 - A data-source change alone does not make a product stale. `--regenerate` is the deliberate re-observation; the source digest is provenance.
 - A provider returns a `GeneratedPackage`, never arbitrary Python source. A hand-edited generated file is a conflict, not a declaration.
-- The builtin provider refuses a database input and requires a directory input to use `mode="table_group"`.
+- The builtin provider refuses a database input and requires a directory input to use `mode="source_relation_group"`.
 - Observed absence never adds an optional annotation to a source-backed field. The claim reaches the manifest and pre-flight instead.
 - `--watch` watches declarations, not data sources. Product files and data sources trigger no pass.
 

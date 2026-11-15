@@ -29,7 +29,7 @@ A build has three canonical documents: the blueprint in memory, the workflow pla
 | Workflow plan document | `compile`; `execute` writes it before the run starts. | `components`, `steps`, `connections`, `provenance`. |
 | Report document | `execute`; written after the run. | `published_artifacts`, `recovered_failures`, `unresolved_failures`, `provenance`. |
 
-The blueprint has `graph` and `data` as objects, and `assets` and `bindings` as arrays. Every typed reference is a `[language, role, *key segments]` array: a field is `["data", "field", "sites.site_name"]`, a node is `["topology", "node", "site"]`, an asset is `["asset", "asset", "estate"]`, and an operation is `["expressions", "operation", "default_to"]`.
+The blueprint has `graph` and `data` as objects, and `assets` and `bindings` as arrays. Every typed reference is a `[language, role, *key segments]` array: a field is `["data", "field", "sites.site_name"]`, a node is `["topology", "node", "site"]`, an asset is `["asset", "asset", "estate"]`, and an operation is `["expressions", "operation", "default_to"]`. A data part holds `SourceRelationDTO` and `DerivedRelationDTO` values; a relation's contract is stored as `definition` and `meaning`, and the `meaning` member is a `MeaningDTO`.
 
 ## Details
 
@@ -37,17 +37,17 @@ The blueprint has `graph` and `data` as objects, and `assets` and `bindings` as 
 
 | Member | Shape |
 | --- | --- |
-| `graph` | Object with `nodes` and `edges` arrays. Each component carries `name`, `labels`, `abstract`, `properties` and `annotations`; an edge also carries `source` and `target`. |
-| `data` | Object with `structs`, `relations` and `projections` arrays. Each declaration carries `name`, `columns` and `annotations`; a relation also carries `asset`; a projection also carries `row_source`. |
-| `assets` | Array of asset objects: `name`, `website`, `version`, `layout`, `profile`, `governance`, `annotations`, optional `semantics`. |
-| `bindings` | Array of node or edge bindings. A binding carries `kind`, its target ref, `identity`, `properties`, `rows`, `annotations` and `mode`. |
-| `graph_declaration` | Optional object with `name`, optional `description`, and `semantics`. Omitted when the project has no graph declaration. |
+| `graph` | Object with `nodes` and `edges` arrays. Each component carries `name`, `labels`, `abstract`, `properties`, `annotations` and optional `meaning`; an edge also carries `source` and `target`. |
+| `data` | Object with `structs`, `source_relations` and `derived_relations` arrays. Each declaration carries `name`, `columns` and `annotations`; a source relation carries `asset` and an optional `definition` with its `meaning`; a derived relation carries `row_source`, `definition`, `meaning` and `visibility`; a stage is a derived relation with `visibility="internal"` and no meaning. |
+| `assets` | Array of asset objects: `name`, `website`, `version`, `layout`, `profile`, `governance`, `annotations`, optional `meaning`. |
+| `bindings` | Array of node or edge bindings. A binding carries `kind`, its target ref, `identity`, `properties`, `rows`, `annotations`, `meaning` and `mode`. |
+| `graph_declaration` | Optional object with `name`, optional `description`, and `meaning` carrying a required purpose. Omitted when the project has no graph declaration. |
 
 ```json
 {
   "graph_declaration": {
     "name": "estate",
-    "semantics": {"purpose": {"text": "Track survey observations."}}
+    "meaning": {"purpose": {"text": "Track survey observations."}}
   },
   "graph": {
     "nodes": [
@@ -63,7 +63,7 @@ The blueprint has `graph` and `data` as objects, and `assets` and `bindings` as 
   },
   "data": {
     "structs": [],
-    "relations": [
+    "source_relations": [
       {
         "name": "sites",
         "columns": [
@@ -71,14 +71,26 @@ The blueprint has `graph` and `data` as objects, and `assets` and `bindings` as 
             "name": "site_name",
             "logical_type": {"kind": "unit", "name": "str"},
             "ref": ["data", "field", "sites.site_name"],
-            "annotations": []
+            "annotations": [],
+            "definition": {
+              "value": "the site's stable name",
+              "unit": null,
+              "null_meaning": "the register omits the name"
+            }
           }
         ],
         "annotations": [],
-        "asset": ["asset", "asset", "estate"]
+        "asset": ["asset", "asset", "estate"],
+        "definition": {
+          "grain": "one row per site",
+          "identity": "site_name"
+        },
+        "meaning": {
+          "claims": [{"text": "One row names one estate site."}]
+        }
       }
     ],
-    "projections": []
+    "derived_relations": []
   },
   "assets": [
     {
@@ -111,6 +123,9 @@ The blueprint has `graph` and `data` as objects, and `assets` and `bindings` as 
       "properties": {},
       "rows": null,
       "annotations": [],
+      "meaning": {
+        "purpose": {"text": "Populate each site record from the estate survey."}
+      },
       "mode": "declarative"
     }
   ]
@@ -155,7 +170,7 @@ A step owns one instruction: `{"kind": [operation, engine], "payload": ...}`. Th
   "provenance": {
     "blueprint": {
       "graph": {"nodes": [], "edges": []},
-      "data": {"structs": [], "relations": [], "projections": []},
+      "data": {"structs": [], "source_relations": [], "derived_relations": []},
       "assets": [],
       "bindings": []
     }
@@ -194,7 +209,7 @@ A step owns one instruction: `{"kind": [operation, engine], "payload": ...}`. Th
   "provenance": {
     "blueprint": {
       "graph": {"nodes": [], "edges": []},
-      "data": {"structs": [], "relations": [], "projections": []},
+      "data": {"structs": [], "source_relations": [], "derived_relations": []},
       "assets": [],
       "bindings": []
     }
@@ -210,15 +225,19 @@ The rule is not symmetric. Some absent values are omitted, some are written as e
 | --- | --- |
 | `graph_declaration` | Omitted from the blueprint. An explicit `null` decodes to no graph declaration and is omitted on the next encode. |
 | Binding `rows` | Always written; an absent row plan is explicit `null`. |
-| Binding `debug_name`, `python_ref`, `semantics` | Omitted. |
+| Binding `debug_name`, `python_ref` | Omitted. |
+| Binding `meaning` | Always written; a binding requires a meaning with a purpose. |
 | Asset `website`, `version`, `layout` | Always written; an absent value is explicit `null`. |
 | Asset `governance.license`, `governance.owner` | Always written; an absent value is explicit `null`. |
 | Asset `profile.title`, `profile.description` | Always written; an absent value is explicit `null`. |
-| Topology `parent`, `description`, `semantics` | Omitted. |
+| Topology `parent`, `description`, `meaning` | Omitted. |
 | Topology `labels`, `abstract`, `properties`, `annotations` | Always written. |
-| Data column `description`, `expression`, `semantics` | Omitted. |
-| Data declaration `description`, `semantics` | Omitted. |
-| Semantics `purpose`, `claims` | `purpose` is omitted when absent; its `limitations` are omitted when empty; a graph declaration requires a purpose. |
+| Data column `description`, `expression`, `definition` | Optional; omitted when the author states none. |
+| Data declaration `description` | Omitted. |
+| Data declaration `definition` | Always written for a derived relation; written for a source relation only when that source relation declares a contract. |
+| Data declaration `meaning` | Always written for a derived relation and for a source relation that declares a contract; omitted otherwise. A stage never carries one. |
+| Data declaration `visibility` | Always written for a derived relation: `"public"` for a consumer relation, `"internal"` for a stage. A source relation carries no visibility. |
+| Meaning `purpose`, `claims` | `purpose` is omitted when absent; its `limitations` are omitted when empty; a graph declaration requires a purpose and a binding requires a purpose. |
 
 Decoding does not validate. The codecs check the document's own shape and required scalar forms, but a decoded blueprint is not re-linked or cross-validated; a decoded plan is not checked for executability. Run the model through the pipeline before trusting it.
 

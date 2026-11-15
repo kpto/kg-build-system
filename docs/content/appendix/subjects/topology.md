@@ -7,7 +7,7 @@ subject: topology
 spec: SPEC-005
 order: 50
 status: normative
-verified: '2026-11-10'
+verified: '2026-11-15'
 sources:
 - kg_build_system/distribution/languages/topology/model/public/declarations.py
 - kg_build_system/distribution/languages/topology/service/_private/class_creation.py

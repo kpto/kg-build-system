@@ -33,13 +33,13 @@ The kernel is one package group with one direction of dependency. `kg_build_syst
 | Package | May import |
 | --- | --- |
 | `kernel` | No framework package. |
-| `languages/annotations`, `languages/expressions`, `languages/semantics` | `kernel`. |
-| `languages/graph` | `kernel`, semantics. |
-| `languages/asset` | `kernel`, annotations, semantics. |
-| `languages/data` | `kernel`, annotations, expressions, asset, semantics. |
-| `languages/topology` | `kernel`, annotations, expressions, semantics. |
-| `languages/binding` | `kernel`, annotations, data, topology, semantics. |
-| `interpreter` | `kernel`, every graph language, semantics. |
+| `languages/annotations`, `languages/expressions`, `languages/meaning` | `kernel`. |
+| `languages/graph` | `kernel`, meaning. |
+| `languages/asset` | `kernel`, annotations, meaning. |
+| `languages/data` | `kernel`, annotations, expressions, asset, meaning. |
+| `languages/topology` | `kernel`, annotations, expressions, meaning. |
+| `languages/binding` | `kernel`, annotations, data, topology, meaning. |
+| `interpreter` | `kernel`, every graph language, meaning. |
 | `modules/<name>` | `kernel`, `interpreter` where it reads a blueprint, languages, `distribution.model`, `distribution.service`. |
 | `implementations.py` | `kernel`, interpreter, languages. |
 | `generation/code_generation` | `kernel`, `languages/asset`. |

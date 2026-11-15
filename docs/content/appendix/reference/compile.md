@@ -82,15 +82,15 @@ blueprint = create_blueprint(
 )
 ```
 
-Only reached declarations enter the blueprint: the tables and projections a binding reads, the components it targets and their ancestors and endpoints, the structs those types use, and the assets those tables name.
+Only reached declarations enter the blueprint: the source relations and derived relations a binding reads, the components it targets and their ancestors and endpoints, the structs those types use, and the assets those source relations name.
 
 `GraphBlueprint` has four fields:
 
 | Field | Content |
 | --- | --- |
 | `graph` | `GraphPartDTO`: nodes and edges with graph names, labels, endpoints, properties, annotations, `abstract` and `parent` |
-| `data` | `DataPartDTO`: structs, relations and projections |
-| `assets` | `AssetPartDTO`: the logical source-data units relations name |
+| `data` | `DataPartDTO`: structs, source relations and derived relations |
+| `assets` | `AssetPartDTO`: the logical source-data units source relations name |
 | `bindings` | `NodeBindingDTO` and `EdgeBindingDTO` values |
 
 The language DTOs are internal to the language packages. `GraphBlueprint` is the public handle; `graph`, `data`, `assets` and `bindings` reference internal language DTOs. `BindingDTO` is the shared binding DTO used by the blueprint and the core planners; it is not exported from the interpreter facade. Cross-symbol fields carry role-typed references such as `NodeRef`, `FieldRef`, `AssetRef` and `OperationRef`.
@@ -125,10 +125,13 @@ Compilation checks everything that does not need data:
 
 - every binding targets a concrete component;
 - every declared property is mapped exactly once;
-- every selection names a known table or projection field;
+- every selection names a known source-relation or derived-relation field;
 - keys are non-null scalars;
 - edge endpoints exist, are concrete and descend from the declared categories;
-- every relation names an asset present in the blueprint;
+- every source relation names an asset present in the blueprint;
+- every derived relation carries a `Contract` whose `Meaning` states a purpose;
+- every declared contract has both a `Definition` and a `Meaning`;
+- every binding carries a `Meaning` with a purpose and reads a published relation;
 - each planner's compile-time configuration is valid;
 - the step wiring can feed every input and read every ordinary output.
 
@@ -221,7 +224,7 @@ Each failure exposes `message`, a typed `step_id` and `exception_type`.
 | Requirement | Enforced by |
 | --- | --- |
 | Exactly one declaration mode | `create_blueprint` / `compile` argument checks |
-| An asset for every reached relation | the blueprint validation inside `compile` |
+| An asset for every reached source relation | the blueprint validation inside `compile` |
 | Valid compile-time configuration for every planner | each planner's `plan` |
 | A wireable planner composition | kernel assembly |
 | An output directory for execution | `execute` |

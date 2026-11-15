@@ -17,7 +17,7 @@ sources:
 
 Part II ended with declarations an author can write: a node, a source relation, a binding that says how one becomes the other. Part III follows those declarations through the three stages that turn them into records. Linking keys the declarations and assembles the semantic blueprint. Planning asks a planner composition what work the blueprint requires. Execution opens the resources, runs the work and publishes the result.
 
-The running example is the `site` declaration in the reference estate project. `SiteNode` is a graph component, `SitesTable` is a relation over the `estate` asset, and `site_binding` populates the node from the table. That one thread is small enough to follow through every artifact: the declaration, its symbol, the blueprint node, the plan's source-binding-aggregate-write chain and the published site records.
+The running example is the `site` declaration in the reference estate project. `SiteNode` is a graph component, `SitesSourceRelation` is a relation over the `estate` asset, and `site_binding` fulfils the node from that relation. That one thread is small enough to follow through every artifact: the declaration, its symbol, the blueprint node, the plan's source-binding-aggregate-write chain and the published site records.
 
 The chapters do not treat the artifacts as interchangeable. Each one states what its artifact owns, what it refuses and what it deliberately leaves to the next stage. Chapters 13 to 15 follow the pipeline; 16 and 17 turn from producing records to judging them and shipping the bundle. The point is not to memorise document shapes. It is to see where a build decides what exists, where it decides what will run, and where it discovers what the data actually is.
 

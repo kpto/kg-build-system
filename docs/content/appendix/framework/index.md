@@ -28,7 +28,7 @@ The default distribution is one composition of the kernel protocols, not the fra
 | Page | Covers |
 | --- | --- |
 | [Part I — The build](/book/part-1/index) | Install, run the estate build, place declarations in a project. |
-| [Part II — Authoring](/book/part-2/index) | Asset, rows, values, grain, projections, topology, bindings and meaning. |
+| [Part II — Authoring](/book/part-2/index) | Asset, relations, values, grain, records, bindings and meaning. |
 | [Part III — Records](/book/part-3/index) | Link declarations, assemble the blueprint, plan the work, execute and ship. |
 | [Part IV — Extending](/book/part-4/index) | Kernel, default distribution, architecture, tests, limits and evidence. |
 | [Review](/appendix/review/index) | Architecture, invariants, limits, decisions, verification and drift. |

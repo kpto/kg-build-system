@@ -10,13 +10,13 @@ sources:
   - kg_build_system/distribution/languages/asset/model/public/options.py
   - kg_build_system/distribution/languages/asset/model/public/declarations.py
   - kg_build_system/distribution/modules/duckdb/service/public/planner.py
-  - kg_build_system/generation/code_generation/service/public/contract.py
+  - kg_build_system/generation/code_generation/service/public/generation.py
   - tests/distribution/test_asset_language.py
 ---
 
 ## Surface
 
-An asset is one logical unit of source data. One asset may back many tables. An `Asset` subclass declares its profile, optional semantics, optional layout, governance and annotations; each table names the asset through `Table[Asset]`.
+An asset is one logical unit of source data. One asset may back many source relations. An `Asset` subclass declares its profile, optional meaning, optional layout, governance and annotations; each source relation names the asset through `SourceRelation[Asset]`.
 
 Read [Declare an asset](/book/part-2/03-source-and-rows) for the authoring path, [Asset specification](/appendix/spec/asset) for the contract, and [Assets and source data](/appendix/subjects/asset) for the subject index entry. The row shape that names the asset is on [Declare data](/book/part-2/03-source-and-rows), and the compile step that consumes it is on [Compile](/appendix/reference/compile).
 
@@ -25,8 +25,8 @@ Read [Declare an asset](/book/part-2/03-source-and-rows) for the authoring path,
 ```python
 from kg_build_system import (
     Asset, AssetAuthority, AssetGovernance, AssetLayout, AssetLicense,
-    AssetOptions, AssetProfile, Claim, Field, Semantics, Table, TableOptions,
-    field,
+    AssetOptions, AssetProfile, Claim, Contract, Definition, Field,
+    FieldDefinition, Meaning, SourceRelation, SourceRelationOptions, field,
 )
 
 
@@ -43,7 +43,7 @@ class OpenTargets(Asset):
             authority=AssetAuthority.PRIMARY,
             basis="Open Targets Platform release",
         ),
-        semantics=Semantics(
+        meaning=Meaning(
             claims=(Claim("Each association names its evidence."),),
         ),
         governance=AssetGovernance(license=AssetLicense("CC-BY-4.0")),
@@ -56,9 +56,17 @@ class OpenTargets(Asset):
     )
 
 
-class TargetTable(Table[OpenTargets]):
-    options = TableOptions(name="targets")
-    target_id: Field[str] = field()
+class TargetSourceRelation(SourceRelation[OpenTargets]):
+    options = SourceRelationOptions(
+        name="targets",
+        contract=Contract(
+            definition=Definition(grain="one row per target", identity=("target_id",)),
+            meaning=Meaning(claims=(Claim("One row names one target."),)),
+        ),
+    )
+    target_id: Field[str] = field(
+        definition=FieldDefinition(value="the target's stable identifier"),
+    )
 ```
 
 **Import paths**
@@ -66,11 +74,12 @@ class TargetTable(Table[OpenTargets]):
 | Surface | Import from |
 | --- | --- |
 | `Asset`, `AssetOptions`, `AssetLayout`, `AssetProfile`, `AssetAuthority`, `AssetGovernance`, `AssetLicense` | `kg_build_system` |
-| `Claim`, `Limitation`, `Purpose`, `Semantics` | `kg_build_system` |
-| `Table` and `TableOptions` | `kg_build_system` |
+| `Claim`, `Limitation`, `Purpose`, `Meaning` | `kg_build_system` |
+| `Contract`, `Definition`, `FieldDefinition` | `kg_build_system` |
+| `SourceRelation` and `SourceRelationOptions` | `kg_build_system` |
 | `AssetRef` | `kg_build_system.distribution` |
 | `DuckDbSourcePlanner` | `kg_build_system.distribution` or `kg_build_system.distribution.modules.duckdb` |
-| `asset_contract` and `AssetContractOptions` | `kg_build_system.generation` |
+| `asset_generation` and `AssetGenerationOptions` | `kg_build_system.generation` |
 
 **`Asset`**
 
@@ -88,7 +97,7 @@ class OpenTargets(Asset):
 
 - The class name becomes the default logical name.
 - The class is terminal: a subclass must declare its own `options`; inherited options are not accepted.
-- The asset has no content model and no adapter. Tables carry the shapes.
+- The asset has no content model and no adapter. Source relations carry the shapes.
 
 | Error | Trigger |
 | --- | --- |
@@ -101,7 +110,7 @@ class OpenTargets(Asset):
 ```python
 AssetOptions(
     profile: AssetProfile,
-    semantics: Semantics | None = None,
+    meaning: Meaning | None = None,
     name: str | None = None,
     website: str | None = None,
     version: str | None = None,
@@ -114,7 +123,7 @@ AssetOptions(
 | Field | Meaning | Default |
 | --- | --- | --- |
 | `profile` | What the source data represents and how it was produced | Required |
-| `semantics` | Optional declaration semantics fragment | `None` |
+| `meaning` | Optional declaration meaning fragment | `None` |
 | `name` | Logical asset name | Snake case of the class name |
 | `website` | Canonical human-facing reference | `None` |
 | `version` | Free-text release label | `None` |
@@ -126,7 +135,7 @@ AssetOptions(
 
 `version` is recorded, not resolved. It selects no file, pins no commit and triggers no download.
 
-`name` must be non-empty when supplied. `website`, `version` and the layout text fields must be non-empty when present. `annotations` is normalised to a tuple. `semantics` must be a `Semantics` value.
+`name` must be non-empty when supplied. `website`, `version` and the layout text fields must be non-empty when present. `annotations` is normalised to a tuple. `meaning` must be a `Meaning` value.
 
 **`AssetProfile`**
 
@@ -150,7 +159,7 @@ AssetProfile(
 | `title` | Human-facing title |
 | `description` | Longer explanation |
 
-`subject`, `coverage` and `basis` must be non-empty. `profile` has no `claims` or `limitations`: those are semantics units declared through `AssetOptions(semantics=...)`. See [Asset specification](/appendix/spec/asset).
+`subject`, `coverage` and `basis` must be non-empty. `profile` has no `claims` or `limitations`: those are meaning units declared through `AssetOptions(meaning=...)`. See [Asset specification](/appendix/spec/asset).
 
 **`AssetAuthority`**
 
@@ -236,52 +245,53 @@ For relation `readings.vibration`, the planner reads `s3://open-targets/releases
 
 The generic planner accepts only `parquet`, `json` and `csv`. It reads `properties["credentials"]` as the credential reference for the location. The credential value is supplied through `BuildRuntime(credentials=...)` at build time and never enters the layout, blueprint or report.
 
-**`Table[Asset]`**
+**`SourceRelation[Asset]`**
 
 ```python
-class Table[AssetT: Asset]:
-    options: ClassVar[TableOptions]
+class SourceRelation[AssetT: Asset]:
+    options: ClassVar[SourceRelationOptions]
 
     @classmethod
     def row_source(cls) -> RelationRowSource[Self]: ...
 ```
 
-A concrete table must name exactly one asset:
+A concrete source relation must name exactly one asset:
 
 ```python
-class TargetTable(Table[OpenTargets]):
-    target_id: Field[str] = field()
+class TargetSourceRelation(SourceRelation[OpenTargets]):
+    options = SourceRelationOptions(contract=...)
+    target_id: Field[str] = field(definition=FieldDefinition(...))
 ```
 
-`TableOptions` has only `name`, `description`, `annotations` and an optional `semantics` fragment. There is no asset option and no location, format, credential or version option.
+`SourceRelationOptions` carries an optional relation `Contract` plus `name`, `description` and `annotations`. There is no asset option and no location, format, credential or version option.
 
 | Error | Trigger |
 | --- | --- |
-| `X is a concrete Table without an asset; declare it as Table[Asset]` | A concrete `Table` has no parameterised asset |
-| `X must name an Asset subclass: Table[Asset]` | The parameter is not an `Asset` subclass |
-| `Table.options must be a TableOptions value` | `options` is not a `TableOptions` |
+| `X is a concrete SourceRelation without an asset; declare it as SourceRelation[Asset]` | A concrete `SourceRelation` has no parameterised asset |
+| `X must name an Asset subclass: SourceRelation[Asset]` | The parameter is not an `Asset` subclass |
+| `SourceRelation.options must be a SourceRelationOptions value` | `options` is not a `SourceRelationOptions` |
 
-Every relation in the blueprint carries an `AssetRef` such as `["asset", "asset", "open_targets"]`. Validation refuses a relation whose asset is absent from `GraphBlueprint.assets`.
+Every source relation in the blueprint carries an `AssetRef` such as `["asset", "asset", "open_targets"]`. Validation refuses a source relation whose asset is absent from `GraphBlueprint.assets`.
 
-**`@asset_contract`**
+**`@asset_generation`**
 
 ```python
-@asset_contract(
-    AssetContractOptions(
+@asset_generation(
+    AssetGenerationOptions(
         provider=InferDataContractProvider,
         configuration=DataContractInferenceConfig(...),
-        package="reference_project.table",
+        package="reference_project.relation.source",
     )
 )
 class Estate(Asset):
     options = AssetOptions(...)
 ```
 
-`asset_contract` is a class decorator on an `Asset` subclass. It validates the class, stores the request as `_asset_contract` and does no work: it does not read a source, import a project module, invoke a provider or write a file. Discovery finds the decorated class statically and the generated product is `<package>/<asset name>`.
+`asset_generation` is a class decorator on an `Asset` subclass. It validates the class, stores the request as `_asset_generation` and does no work: it does not read a source, import a project module, invoke a provider or write a file. Discovery finds the decorated class statically and the generated product is `<package>/<asset name>`.
 
-The decorator is external to the asset model. `AssetOptions` and `AssetDTO` have no code-generation field; an asset states its data, a contract states how its table declarations are generated. Generated tables use `Table[Asset]`.
+The decorator is external to the asset model. `AssetOptions` and `AssetDTO` have no code-generation field; an asset states its data, a contract states how its source-relation declarations are generated. Generated source relations use `SourceRelation[Asset]`.
 
-`AssetContractOptions` has exactly three keyword fields: `provider`, `configuration` and `package`. See [Compile](/appendix/reference/compile) for the discovery rules, ownership record and generated product model.
+`AssetGenerationOptions` has exactly three keyword fields: `provider`, `configuration` and `package`. See [Compile](/appendix/reference/compile) for the discovery rules, ownership record and generated product model.
 
 **`DuckDbSourcePlanner`**
 
@@ -319,7 +329,7 @@ The instruction payload carries:
 Rules:
 
 - One asset may produce many source steps.
-- A relation is included only when a binding selection, a binding row plan, a projection selection or a projection row plan reads it.
+- A relation is included only when a binding selection, a binding row plan, a derived-relation selection or a derived-relation row plan reads it.
 - A relation with no layout, an unsupported format or no resolvable location produces no step. If the graph reads it, compilation reports an unresolved plan opening.
 - Two producers for one relation artifact are refused, not resolved silently.
 - `formats` restricts which layouts this planner accepts.
@@ -329,12 +339,12 @@ Rules:
 
 **What to remember**
 
-- An asset is a logical unit of source data; one asset may back many tables.
-- A table names its asset through `Table[Asset]`; `TableOptions` has no source fields.
+- An asset is a logical unit of source data; one asset may back many source relations.
+- A source relation names its asset through `SourceRelation[Asset]`; `SourceRelationOptions` has no source fields.
 - `website` is the human-facing reference; `layout.locator` is the machine location.
 - Layout is optional descriptive metadata, not an access contract.
-- `AssetProfile`, optional `Semantics` and `AssetGovernance` are published with the asset.
-- `@asset_contract` is a generation frontend; it is not an asset field.
+- `AssetProfile`, optional `Meaning` and `AssetGovernance` are published with the asset.
+- `@asset_generation` is a generation frontend; it is not an asset field.
 - The generic DuckDB source planner handles `parquet`, `json` and `csv` layouts. Another module contributes another ordinary planner; there is no adapter registry.
 
 Related: [Declare an asset](/book/part-2/03-source-and-rows), [Asset specification](/appendix/spec/asset), [Assets and source data](/appendix/subjects/asset), [Declarations](/appendix/reference/declarations), [Compile](/appendix/reference/compile).

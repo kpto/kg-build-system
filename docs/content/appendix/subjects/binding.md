@@ -8,7 +8,7 @@ subject: binding
 spec: SPEC-006
 order: 60
 status: normative
-verified: '2026-11-10'
+verified: '2026-11-15'
 sources:
 - kg_build_system/distribution/languages/binding/service/public/builders.py
 - kg_build_system/distribution/languages/binding/service/_private/factories.py
@@ -43,6 +43,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 
 - A binding MUST supply a present scalar build key and every declared property exactly once.
 - An edge binding MUST supply its own key, a source key and a target key.
+- A binding MUST carry a `Meaning` with a purpose and MUST read only a published relation.
 - Binding identity MUST be content-derived; `debug_name` MUST NOT change the digest.
 
 ## Where it sits

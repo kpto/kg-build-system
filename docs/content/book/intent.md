@@ -24,7 +24,7 @@ replaceable behind the model.
 The common failure is to start with the source. A schema arrives, the columns
 are mapped, joins are written to make the shapes fit, and a graph appears as a
 by-product. The result can be correct and still unexplainable: a reader can see
-which table produced a value but not why the record exists, what a consumer may
+which source produced a value but not why the record exists, what a consumer may
 use it for, or what that use excludes.
 
 This book starts from the other end. State the intention first, then design the
@@ -32,7 +32,7 @@ relations and records that serve it, then let the build execute them.
 
 ## Start with intention
 
-Before a table, a join or a node, answer:
+Before a source, a join or a node, answer:
 
 - Why does this graph exist?
 - What is it for, and for whom?
@@ -53,9 +53,9 @@ unit:
 
 | Question | Unit |
 | --- | --- |
-| What is the subject for? | `Purpose` |
-| What is asserted about it regardless of use? | `Claim` |
-| What must a reader not infer while using it? | `Limitation` |
+| What is the subject for? | Purpose |
+| What is asserted about it regardless of use? | Claim |
+| What must a reader not infer while using it? | Limitation |
 
 - A definition, identity, grain or cardinality is a claim, not a purpose.
 - A prohibition, absence, exclusion or inference ceiling is a limitation, not a
@@ -93,9 +93,9 @@ against the data. If the relation's grain is wrong, or it cannot carry the
 record's identity, or its coverage contradicts the record's purpose, the binding
 does not fix it. The design changes.
 
-## A projection is a relation
+## A relation is not an operator
 
-A projection is a named relation that exists in the domain. Its row plan is how
+A relation is a named set of rows that exists in the domain. Its row plan is how
 the relation is computed, not what it is. It has a grain, a purpose and its own
 limitations, and those can be stated without naming this graph, a node, a
 binding or a pipeline step.
@@ -115,7 +115,7 @@ to the graph.
 
 ## Meaning is the artifact
 
-The declarations are the product. A table, a projection, a node, an edge, a
+The declarations are the product. A source, a relation, a node, an edge, a
 property and a binding each carry the meaning that belongs to them. The
 blueprint publishes those meanings; a consumer can read what exists, what it is
 for, what is asserted and what is excluded without reading the pipeline.
@@ -126,7 +126,7 @@ exists only in its pipeline has no contract to preserve.
 
 ## How to read the rest
 
-This preface names no framework type on purpose. It is the mentality the rest of
+This preface names no API on purpose. It is the mentality the rest of
 the book assumes, not an API.
 
 The book then shows one way to make that mentality executable: typed

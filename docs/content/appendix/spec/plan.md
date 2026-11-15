@@ -23,7 +23,7 @@ evidence:
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Workflow plan</span><a href="/appendix/subjects/plan">Overview</a><a href="/book/part-3/02-planning">Guide</a><a href="/appendix/spec/plan" class="active">Spec</a><a href="/appendix/reference/documents">API</a><a href="/appendix/philosophy/design-in-semantics">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Workflow plan</span><a href="/appendix/subjects/plan">Overview</a><a href="/book/part-3/02-planning">Guide</a><a href="/appendix/spec/plan" class="active">Spec</a><a href="/appendix/reference/documents">API</a><a href="/appendix/philosophy/design-in-meaning">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## Requirement

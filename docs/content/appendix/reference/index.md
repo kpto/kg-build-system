@@ -23,19 +23,19 @@ sources:
 | [API surface](/appendix/reference/api) | Every name exported by `kg_build_system`, grouped by import. |
 | [CLI](/appendix/reference/cli) | `kbs generate`, its flags and exit codes. |
 | [Documents](/appendix/reference/documents) | Blueprint, plan and report shapes; omit versus null; provenance. |
-| [Declarations](/appendix/reference/declarations) | Table, Struct, Field and the constructors. |
-| [Assets](/appendix/reference/assets) | Asset options, layout, profile, governance and Table[Asset]. |
+| [Declarations](/appendix/reference/declarations) | SourceRelation, DerivedRelation, Stage, Struct, Field and the constructors. |
+| [Assets](/appendix/reference/assets) | Asset options, layout, profile, governance and SourceRelation[Asset]. |
 | [Types](/appendix/reference/types) | Canonical types, nullability, property shape and DuckDB dispositions. |
 | [Expressions](/appendix/reference/expressions) | The Selection surface, row effects, operations and errors. |
 | [Row sources](/appendix/reference/row-sources) | row_source, where, join, group_by, union, distinct, order_by and unnest. |
-| [Projections](/appendix/reference/projections) | Pinned sources, computed fields and outputs. |
+| [Derived relations](/appendix/reference/derived-relations) | Contracts, pinned sources, computed fields, stages and outputs. |
 | [Topology](/appendix/reference/topology) | Node, Edge, properties, templates, categories and endpoints. |
-| [Bindings](/appendix/reference/bindings) | node_binding, edge_binding, keys, properties and endpoints. |
-| [Semantics](/appendix/reference/semantics) | Claim, Limitation, Purpose and Semantics. |
+| [Bindings](/appendix/reference/bindings) | node_binding, edge_binding, fulfilment, keys, properties and endpoints. |
+| [Annotations](/appendix/reference/annotations) | Annotation, NodeLabel, EdgeLabel, descriptions and label rules. |
 | [Compile and execute](/appendix/reference/compile) | create_blueprint, compile, execute, plan and report. |
 | [Planners and executors](/appendix/reference/planners-and-executors) | Supplied planners, executors, configuration and kinds. |
 | [Ingest](/appendix/reference/ingest) | AssetLayout, the generic source planner and source checks. |
-| [Generation](/appendix/reference/generation) | @asset_contract, providers, discovery and ownership. |
+| [Generation](/appendix/reference/generation) | @asset_generation, providers, discovery and ownership. |
 | [Failures](/appendix/reference/failures) | Error messages by stage, with the first place to look. |
 | [Glossary](/appendix/reference/glossary) | Terms that look alike and the distinction that matters. |
 | [Migration](/appendix/reference/migration) | Old docs page → KB destination, redirects and the replacement plan. |

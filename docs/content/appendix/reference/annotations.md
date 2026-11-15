@@ -1,5 +1,5 @@
 ---
-title: Semantics reference
+title: Annotations reference
 summary: Exact annotations, labels, descriptions, template annotation flow and the errors a declaration raises.
 section: reference
 perspective: reference
@@ -11,7 +11,7 @@ sources:
   - kg_build_system/distribution/languages/annotations/model/public/labels.py
   - kg_build_system/distribution/languages/annotations/service/_private/validation.py
   - kg_build_system/distribution/languages/topology/service/_private/class_creation.py
-  - docs/content/appendix/reference/semantics.md
+  - docs/content/appendix/reference/annotations.md
 ---
 
 ## Surface
@@ -23,15 +23,15 @@ sources:
 | `Annotation` | Frozen dataclass | A stable namespace, a stable identifier and a JSON-compatible payload. |
 | `NodeLabel` / `EdgeLabel` | Framework annotation | One label string for a node or edge component. |
 | Description | Prose | `options.description` or the docstring, never a typed payload. |
-| `semantics` | Declaration fragment | An optional purpose with its limitations, plus contextless claims, attached by an options value. See [Declare meaning](/book/part-2/01-meaning-and-purpose). |
+| `meaning` | Declaration fragment | An optional purpose with its limitations, plus contextless claims, attached by an options value. See [Declare meaning](/book/part-2/01-meaning-and-purpose). |
 
 Read [Declare meaning](/book/part-2/01-meaning-and-purpose) for the meaning-unit language, [Meaning specification](/appendix/spec/meaning) for the requirement and [Meaning subject](/appendix/subjects/meaning) for the views.
 
 ## Details
 
-Semantics are independent of the data: a description is prose for a reader, an annotation is a typed payload for a tool, and a label names the component in a target. See [Declare meaning](/book/part-2/01-meaning-and-purpose) for the model and [Semantic hierarchy](/appendix/philosophy/semantic-hierarchy) for the design rationale.
+Annotations, labels and descriptions are independent of the data: a description is prose for a reader, an annotation is a typed payload for a tool, and a label names the component in a target. See [Declare meaning](/book/part-2/01-meaning-and-purpose) for the model and [Semantic hierarchy](/appendix/philosophy/semantic-hierarchy) for the design rationale.
 
-This page covers annotations, labels and descriptions. Meaning units (`Claim`, `Limitation`, `Purpose` and `Semantics`) are the separate semantics language; see [Declare meaning](/book/part-2/01-meaning-and-purpose) and [Meaning specification](/appendix/spec/meaning).
+This page covers annotations, labels and descriptions. Meaning units (`Claim`, `Limitation`, `Purpose` and `Meaning`) are the separate meaning language; see [Declare meaning](/book/part-2/01-meaning-and-purpose) and [Meaning specification](/appendix/spec/meaning).
 
 ```python
 from dataclasses import dataclass
@@ -154,7 +154,7 @@ A description is prose attached to a declaration, field or property. It is not a
 | `property()` | `description=`, then the docstring directly below the assignment | Explicit argument wins |
 | `field()` | `description=`, then the docstring directly below the assignment | Explicit argument wins |
 | `computed_field()` | `description=`, then the docstring directly below the assignment | Explicit argument wins |
-| `Table`, `Struct`, `Projection`, `TableGroup` | `options.description`, then the class docstring | Explicit option wins |
+| `SourceRelation`, `Struct`, `DerivedRelation`, `SourceRelationGroup` | `options.description`, then the class docstring | Explicit option wins |
 
 ```python
 from kg_build_system import Node, NodeOptions, PropertySlot, property
@@ -226,8 +226,8 @@ A category's own annotations are not copied down. `RecordNode` does not receive 
 | Node or edge template | `NodeOptionsTemplate(annotations=...)` / `EdgeOptionsTemplate(annotations=...)` |
 | Property | `property(annotations=...)` |
 | Field | `field(annotations=...)` |
-| Projection output | `computed_field(annotations=...)` |
-| Table, struct, projection or table group | the class's `options` |
+| DerivedRelation output | `computed_field(annotations=...)` |
+| Source relation, struct, derived relation or source relation group | the class's `options` |
 | Struct template | `StructOptionsTemplate(annotations=...)` |
 | Binding | `BindingOptions(annotations=...)` |
 | Asset | `AssetOptions(annotations=...)` |
@@ -242,7 +242,7 @@ A binding has no description. Use `debug_name` for its human handle and annotati
 | `meta_graph.json` | Labels, descriptions, properties with logical types and descriptions, counts and examples |
 | Neo4j bundle | Effective node labels and relationship types |
 
-Only declarations the build reaches enter the blueprint: the tables and projections read by a binding, the components a binding targets and their ancestors and endpoints, the structs those types use, and the sources those tables need. An annotation on an unrelated declaration is valid Python but is not published.
+Only declarations the build reaches enter the blueprint: the source relations and derived relations read by a binding, the components a binding targets and their ancestors and endpoints, the structs those types use, and the sources those relations need. An annotation on an unrelated declaration is valid Python but is not published.
 
 ### Errors
 
@@ -254,7 +254,7 @@ Only declarations the build reaches enter the blueprint: the tables and projecti
 | A component has two labels of its kind | `TypeError: <Class> has <n> <kind> labels in its effective annotations; a graph component carries at most one` |
 | A template uses `NodeOptions` or `EdgeOptions` | `TypeError: <Class> is a node template: its options must be NodeOptionsTemplate, which carries no identity fields` (the edge form names `EdgeOptionsTemplate`) |
 | A component uses template options | `TypeError: <Class> is a graph component declaration: declare NodeOptions, not template options` (the edge form names `EdgeOptions`) |
-| `semantics` is another non-`Semantics` value | `TypeError: <context> must be a Semantics value` |
+| `meaning` is another non-`Meaning` value | `TypeError: <context> must be a Meaning value` |
 
 ### What to remember
 

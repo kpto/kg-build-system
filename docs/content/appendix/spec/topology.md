@@ -7,7 +7,7 @@ subject: topology
 spec: SPEC-005
 order: 50
 status: normative
-verified: 2026-11-10
+verified: 2026-11-15
 sources:
   - kg_build_system/distribution/languages/topology/model/public/declarations.py
   - kg_build_system/distribution/languages/topology/service/_private/class_creation.py
@@ -15,7 +15,7 @@ sources:
   - kg_build_system/distribution/languages/topology/model/public/options.py
   - kg_build_system/distribution/languages/topology/model/public/values.py
 evidence:
-  - tests/distribution/test_topology_semantics.py
+  - tests/distribution/test_topology_meaning.py
   - tests/test_reference_build.py
   - docs/content/appendix/reference/topology.md
 ---
@@ -35,13 +35,13 @@ evidence:
 - **R7.** The base order MUST be templates first, at most one abstract category parent in the middle, and the terminal concrete base last. A second abstract parent or a parent of the wrong kind MUST be refused.
 - **R8.** A concrete component MUST be terminal and MUST NOT be subclassed. A category or concrete component MUST NOT inherit from a concrete component.
 - **R9.** A component MUST carry at most one label of its matching kind; a node label on an edge or an edge label on a node MUST be refused. A component name MUST be unique across nodes and edges.
-- **R10.** A category's label and description MUST stay local and MUST NOT flow to a concrete child. Template annotations MUST flow, and a category's semantics MUST remain its own attachment.
+- **R10.** A category's label and description MUST stay local and MUST NOT flow to a concrete child. Template annotations MUST flow, and a category's meaning MUST remain its own attachment.
 
 ## Evidence
 
 | Evidence | Proves |
 | --- | --- |
-| `tests/distribution/test_topology_semantics.py` | Node, edge and property fragments reach the topology DTO; a template contributes its semantics; a category keeps its own and does not share it with a child. |
+| `tests/distribution/test_topology_meaning.py` | Node, edge and property fragments reach the topology DTO; a template contributes its meaning; a category keeps its own and does not share it with a child. |
 | `tests/test_reference_build.py` | The reference hierarchy of templates, categories and concrete nodes and edges compiles into a blueprint and publishes a successful build. |
 | `docs/content/appendix/reference/topology.md` | The base order, endpoint narrowing, template options, label rules, property shape and category reachability. |
 
@@ -54,9 +54,9 @@ evidence:
 | `Edge[Source, Target]` | Concrete directed relation; endpoint order is the direction. |
 | `AbstractEdge[Source, Target]` | Relationship category; a child keeps or narrows the pair. |
 | `PropertySlot[T]` | One declared property slot over a graph value type. |
-| `property(...)` | Declares a slot with name, description, annotations and semantics. |
+| `property(...)` | Declares a slot with name, description, annotations and meaning. |
 | `NodeTemplate` / `EdgeTemplate` | Inert mixins that share slots and annotations. |
-| `NodeOptions` / `EdgeOptions` | Component name, description, annotations and semantics. |
+| `NodeOptions` / `EdgeOptions` | Component name, description, annotations and meaning. |
 | `NodeOptionsTemplate` / `EdgeOptionsTemplate` | Identity-free options for a template. |
 | `NodeLabel` / `EdgeLabel` | One portable label of the matching component kind. |
 | `Endpoint` / `endpoint(target)` | A concrete node token for an abstract edge side. |

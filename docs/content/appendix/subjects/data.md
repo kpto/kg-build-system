@@ -7,7 +7,7 @@ subject: data
 spec: SPEC-002
 order: 20
 status: normative
-verified: '2026-11-10'
+verified: '2026-11-15'
 sources:
 - kg_build_system/distribution/languages/data/model/public/declarations.py
 - kg_build_system/distribution/languages/data/model/public/fields.py
@@ -40,7 +40,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 
 ## Contract
 
-- A `Table` MUST name its asset; a `Struct` MUST describe a nested source record.
+- A `SourceRelation` MUST name its asset; a `Struct` MUST describe a nested source record.
 - `Field[T]` MUST declare a value type, never `T | None`.
 - The owner MUST decide presence: source reads are nullable, computed reads follow their selection.
 

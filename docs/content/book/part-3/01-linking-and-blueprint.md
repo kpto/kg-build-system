@@ -16,21 +16,21 @@ sources:
   - docs/content/appendix/spec/linking.md
 ---
 
-A graph author writes classes and values: `SiteNode`, `SitesTable`, `Estate`, and a `site_binding` that reads one and populates the other. A build cannot use those Python objects directly. It needs an identity for each fact that survives a rename, a module move or a second copy of the same declaration. It needs to know which facts depend on which, and it needs a delivered model that talks about sites and rows rather than classes and callables.
+A graph author writes classes and values: `SiteNode`, `SitesSourceRelation`, `Estate`, and a `site_binding` that reads one and fulfils the other. A build cannot use those Python objects directly. It needs an identity for each fact that survives a rename, a module move or a second copy of the same declaration. It needs to know which facts depend on which, and it needs a delivered model that talks about sites and rows rather than classes and callables.
 
-Linking is the stage that makes those decisions. It turns authoring values into a small number of keyed symbols, refuses the ambiguities that would make the rest of the build guess, and assembles the semantic model that planning consumes. The site declaration is a useful thread because it crosses every language in the build without being special: one node, its properties, one source table, one asset and one binding.
+Linking is the stage that makes those decisions. It turns authoring values into a small number of keyed symbols, refuses the ambiguities that would make the rest of the build guess, and assembles the semantic model that planning consumes. The site declaration is a useful thread because it crosses every language in the build without being special: one node, its properties, one source relation, one asset and one binding.
 
 ## A declaration is a candidate
 
 A `Declaration` is one authoring object a language recognises. It carries the value and nothing else. It has no key, no position and no promise that it belongs in the build. `Declaration({"name": "site"})` is the whole shape.
 
-Each language decides what it recognises. The topology language looks at namespace values and picks out node and edge declarations; the data language picks out structs, relations and projections; the asset language picks out assets; the binding language picks out bindings. Everything else in the namespace is ignored. This is why a build can import a module for a side effect, or leave a helper class beside a declaration, without turning either into graph content.
+Each language decides what it recognises. The topology language looks at namespace values and picks out node and edge declarations; the data language picks out structs, source relations, derived relations and stages; the asset language picks out assets; the binding language picks out bindings. Everything else in the namespace is ignored. This is why a build can import a module for a side effect, or leave a helper class beside a declaration, without turning either into graph content.
 
 The absence of a key is deliberate. The same `SiteNode` class can be imported through two module paths and appear twice in the namespace. The two class objects are different Python values, but they describe the same graph node. If identity came from the Python object, the build would either contain the node twice or contain whichever import the collector happened to see first. Neither is a property an author can reason about.
 
 So the language derives a key from the declaration's meaning. `compute_key(declaration)` returns a `Key`, a tuple of string segments. The topology language names a node `site` and its properties `site.name`, `site.city` and so on. The data language names a relation `sites` and its fields `sites.site_id`. The key is the identity of one symbol within its language.
 
-Once keys exist, two declarations that describe the same thing collide. The collision is the diagnostic. The linker reports `language 'data' declares key sites twice` rather than silently choosing one of the two `SitesTable` classes. A class loaded twice through different module paths, two copies of a file, or two declarations that happen to share a graph name all fail at the same point. The author fixes the namespace, not the delivery order.
+Once keys exist, two declarations that describe the same thing collide. The collision is the diagnostic. The linker reports `language 'data' declares key sites twice` rather than silently choosing one of the two `SitesSourceRelation` classes. A class loaded twice through different module paths, two copies of a file, or two declarations that happen to share a graph name all fail at the same point. The author fixes the namespace, not the delivery order.
 
 A key is not a fingerprint and not a content address. It is a name a language chooses. Changing the graph name of a node changes its key and breaks every reference that used the old name, which is the intended behaviour: the name is part of the contract. Moving a Python class, renaming its module or reordering the file leaves the key alone.
 
@@ -61,7 +61,7 @@ When a reference crosses into the delivered model, the role is made explicit. `N
 
 The role is not decoration. A consumer can tell a node from an edge and a relation from a field without knowing how the linker stored either one. A field reference carries the relation name in its key, so a consumer does not have to reconstruct a parent path from a display string.
 
-Expressions follow the same rule at their leaves. An expression is an inline fragment, not a symbol. Its literal is part of the value; its references to `sites.site_id`, to the `default_to` operation or to a projection's computed field are typed references. Keeping expressions inline is what stops the symbol table from filling with one symbol per arithmetic node.
+Expressions follow the same rule at their leaves. An expression is an inline fragment, not a symbol. Its literal is part of the value; its references to `sites.site_id`, to the `default_to` operation or to a derived relation's computed field are typed references. Keeping expressions inline is what stops the symbol table from filling with one symbol per arithmetic node.
 
 ## Index every candidate, transcribe only the closure
 
@@ -82,7 +82,7 @@ Roots select languages, not individual declarations. With no roots, every suppli
 The walk starts from the authoring value, not from the transcribed DTO. `get_references(value, resolver)` returns the direct dependencies the author wrote. For `site_binding`, those dependencies include:
 
 - the target `SiteNode`;
-- the rows read from `SitesTable`, which reaches the `sites` relation and its fields;
+- the rows read from `SitesSourceRelation`, which reaches the `sites` source relation and its fields;
 - the expression leaves for `site_id`, `site_name`, `premises.contact.location.city`, and the operations that transform them;
 - the asset `estate`, reached through the relation.
 
@@ -121,14 +121,14 @@ The symbol table is working state. The delivered value is `GraphBlueprint`, a fr
 | Field | Holds |
 | --- | --- |
 | `graph` | `GraphPartDTO`: node and edge components, labels, properties and endpoints |
-| `data` | `DataPartDTO`: structs, relations and projections |
+| `data` | `DataPartDTO`: structs, source relations and derived relations |
 | `assets` | `AssetPartDTO`: the logical source-data units relations name |
 | `bindings` | the node and edge bindings that populate the graph |
 | `graph_declaration` | the project-level graph declaration, or `None` |
 
 The distinction between the symbol graph and the blueprint is the distinction between how the build was assembled and what it means. A symbol is keyed by a language and carries a DTO fragment. A blueprint node is a component with a graph name, labels, properties and a parent. The blueprint does not contain `Symbol` values, `SymbolRef` values as its public vocabulary, or the order in which transcription happened. It contains the semantic roles a consumer can use.
 
-For the running example, the topology part contains a node named `site` with the label `Site`, the properties `name`, `city`, `summary` and `source_version`, and the parent reference `["topology", "node", "documented"]`. The data part contains the `sites` relation, its fields and the nested structs used by `premises`. The asset part contains `estate`. The binding part contains one node binding whose target is `["topology", "node", "site"]`, whose identity expression reads `sites.site_id`, and whose property expressions name the fields behind `name`, `city` and `summary`.
+For the running example, the topology part contains a node named `site` with the label `Site`, the properties `name`, `city`, `summary` and `source_version`, and the parent reference `["topology", "node", "documented"]`. The data part contains the `sites` source relation, its fields and the nested structs used by `premises`. The asset part contains `estate`. The binding part contains one node binding whose target is `["topology", "node", "site"]`, whose identity expression reads `sites.site_id`, and whose property expressions name the fields behind `name`, `city` and `summary`.
 
 ```python
 from pathlib import Path

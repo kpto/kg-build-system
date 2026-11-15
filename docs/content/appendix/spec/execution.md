@@ -71,7 +71,7 @@ evidence:
 
 ## Rationale
 
-Execution is where authored meaning becomes data, so the runtime treats instructions and resources as opaque and refuses anything it cannot dispatch; this is the boundary described in [Design in semantics](/appendix/philosophy/design-in-semantics). A failure is recorded rather than hidden because the report is the operator's review surface. See [Review top-down](/appendix/philosophy/review-top-down).
+Execution is where authored meaning becomes data, so the runtime treats instructions and resources as opaque and refuses anything it cannot dispatch; this is the boundary described in [Design in meaning](/appendix/philosophy/design-in-meaning). A failure is recorded rather than hidden because the report is the operator's review surface. See [Review top-down](/appendix/philosophy/review-top-down).
 
 ## Next
 

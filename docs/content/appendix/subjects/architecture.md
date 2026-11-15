@@ -8,7 +8,7 @@ subject: architecture
 spec: SPEC-014
 order: 140
 status: normative
-verified: '2026-11-10'
+verified: '2026-11-15'
 sources:
 - AGENTS.md
 - ARCHITECTURE.md

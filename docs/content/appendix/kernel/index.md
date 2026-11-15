@@ -34,7 +34,7 @@ The default graph distribution — the blueprint, the graph languages, the inter
 
 | Term | Meaning |
 | --- | --- |
-| Authoring surface | What a graph author writes: `Table`, `Field`, `Selection`, `Node`, `Edge`, bindings and semantics. It guards declarations. |
+| Authoring surface | What a graph author writes: `SourceRelation`, `DerivedRelation`, `Field`, `Selection`, `Node`, `Edge`, `Meaning` and bindings. It guards declarations. |
 | Extension surface | The kernel protocols: `Language`, `Linker`, `Planner`, `StepExecutor`, `ResourceProvider` and `Runtime`. |
 | Default distribution | One composition of the extension surface: the graph languages, blueprint, core planners, DuckDB source and targets. It is replaceable. |
 | Model rule | A deliberate semantic constraint; changing it is a model change, not a new composition. Example: a graph property is scalar, so a nested object is reified. |

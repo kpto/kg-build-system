@@ -32,7 +32,7 @@ There is no expression family and no `.expression`, `.value` or `.model` accesso
 | Build a typed literal | `value_expression(value, logical_type=...)` |
 | Combine predicates | `any_of(*predicates)`, `all_of(*predicates)` |
 
-Canonical types such as `STR`, `INT`, `NullableType` and `ArrayType` are on [Types](/appendix/reference/types); declared value types are on [Declarations](/appendix/reference/declarations). The authoring model is on [Select values](/book/part-2/04-values-and-nullability), the binding rules on the [Selection spec](/appendix/spec/selection), and the subject index entry for [Selection](/appendix/subjects/selection). The row plan that carries a selection is on [Row sources](/appendix/reference/row-sources); naming a plan is on [Projections](/appendix/reference/projections).
+Canonical types such as `STR`, `INT`, `NullableType` and `ArrayType` are on [Types](/appendix/reference/types); declared value types are on [Declarations](/appendix/reference/declarations). The authoring model is on [Select values](/book/part-2/04-values-and-nullability), the binding rules on the [Selection spec](/appendix/spec/selection), and the subject index entry for [Selection](/appendix/subjects/selection). The row plan that carries a selection is on [Row sources](/appendix/reference/row-sources); naming a plan is on [Derived relations](/appendix/reference/derived-relations).
 
 ## Details
 
@@ -42,16 +42,16 @@ A field declaration names a value type, never `T | None`. Presence is decided by
 
 | Owner | Declaration | Read as |
 | --- | --- | --- |
-| Source `Table` | `Field[T]` | `Selection[Nullable[T]]` |
+| Source relation | `Field[T]` | `Selection[Nullable[T]]` |
 | Source `Struct` member | `Field[T]` | `Selection[Nullable[T]]` |
-| `Projection` output | `computed_field(Selection[T])` | `Selection[T]` |
-| `Projection` output | `computed_field(Selection[Nullable[T]])` | `Selection[Nullable[T]]` |
+| `DerivedRelation` output | `computed_field(Selection[T])` | `Selection[T]` |
+| `DerivedRelation` output | `computed_field(Selection[Nullable[T]])` | `Selection[Nullable[T]]` |
 | `ComputedStruct` member | `computed_field(Selection[T])` | `Selection[T]`, composed with the carrier |
 | `ComputedStruct` member | `computed_field(Selection[Nullable[T]])` | `Selection[Nullable[T]]`, composed with the carrier |
 
 ```python
 from kg_build_system import (
-    Array, Field, Nullable, Projection, Struct, Table, TableOptions,
+    Array, Field, Nullable, DerivedRelation, Struct, SourceRelation, SourceRelationOptions,
     computed_field, field,
 )
 
@@ -62,8 +62,9 @@ class ContactStruct(Struct):
 
 from estate.assets import Estate
 
-class SiteTable(Table[Estate]):
-    options = TableOptions(name="sites")
+class SiteSourceRelation(SourceRelation[Estate]):
+    # Contract and field definitions are stated in full on Declarations.
+    options = SourceRelationOptions(contract=...)
     site_id: Field[str] = field()
     name: Field[str] = field()
     region_id: Field[str] = field()
@@ -76,15 +77,16 @@ class SiteTable(Table[Estate]):
     active: Field[bool] = field()
 
 
-class RegionTable(Table[Estate]):
+class RegionSourceRelation(SourceRelation[Estate]):
+    options = SourceRelationOptions(contract=...)
     region_id: Field[str] = field()
     name: Field[str] = field()
 
 
-site_id = SiteTable.site_id      # Selection[Nullable[str]]
-tags = SiteTable.tags            # Selection[Nullable[Array[str]]]
-aliases = SiteTable.aliases      # Selection[Nullable[Array[Nullable[str]]]]
-contact = SiteTable.contact      # Selection[Nullable[ContactStruct]]
+site_id = SiteSourceRelation.site_id      # Selection[Nullable[str]]
+tags = SiteSourceRelation.tags            # Selection[Nullable[Array[str]]]
+aliases = SiteSourceRelation.aliases      # Selection[Nullable[Array[Nullable[str]]]]
+contact = SiteSourceRelation.contact      # Selection[Nullable[ContactStruct]]
 ```
 
 ### `extract`
@@ -108,7 +110,7 @@ Presence composes:
 
 ```python
 email = (
-    SiteTable.contact
+    SiteSourceRelation.contact
     .extract(lambda contact: contact.email)
 )
 # Selection[Nullable[str]]: the source carrier is nullable and the member is a
@@ -133,8 +135,8 @@ Selection[Nullable[T]].default_to(value: T | Selection[T]) -> Selection[T]
 Replaces an absent value with a fallback and keeps the row. The result is present. A nullable array becomes a present array; a nullable struct becomes a present struct. On a present selection the method is not exposed.
 
 ```python
-period = SiteTable.survey_period.default_to("Unrecorded period")
-labels = SiteTable.tags.default_to([])
+period = SiteSourceRelation.survey_period.default_to("Unrecorded period")
+labels = SiteSourceRelation.tags.default_to([])
 ```
 
 The fallback must have the member's exact value type. A mismatch raises `expression input has logical type ...; expected ...` when `default_to` is called.
@@ -157,7 +159,7 @@ Returns a one-shot handle exposing only the row effects valid for that selection
 
 ```python
 active = (
-    SiteTable.name.alter_rows().drop_null()
+    SiteSourceRelation.name.alter_rows().drop_null()
     .alter_rows()
     .drop_if(lambda value: value.equals("Depot"))
 )
@@ -181,7 +183,7 @@ A selection exposes no direct `drop_null()`, `drop_if()` or `expand()`. An effec
 `at` and `slice` are navigation. They do not change the row count and do not need `alter_rows()`.
 
 ```python
-tags = SiteTable.tags.alter_rows().drop_null()
+tags = SiteSourceRelation.tags.alter_rows().drop_null()
 first = tags.at(0)             # Selection[Nullable[str]]
 window = tags.slice(0, 2)      # Selection[Array[str]]
 ```
@@ -197,7 +199,7 @@ Selection.lookup(
 ) -> Selection[Nullable[Array[S]]]
 ```
 
-Reads every target record whose key equals this row's key. The result is a value: an array of target records, or null when no target matches. A null key never matches. The target may be a `Table` or a `Projection`.
+Reads every target record whose key equals this row's key. The result is a value: an array of target records, or null when no target matches. A null key never matches. The target may be a `SourceRelation` or a `DerivedRelation`.
 
 `key` defaults to the source selection; pass it explicitly when the source key is not `self`. `target_key` defaults to the column name of a direct field key; pass it explicitly when the target column has a different name.
 
@@ -210,7 +212,7 @@ Reads every target record whose key equals this row's key. The result is a value
 | One row per match | `...drop_null().alter_rows().expand()` |
 
 ```python
-regions = SiteTable.region_id.lookup(RegionTable, SiteTable.region_id)
+regions = SiteSourceRelation.region_id.lookup(RegionSourceRelation, SiteSourceRelation.region_id)
 
 left = regions
 inner = regions.alter_rows().drop_null()
@@ -233,12 +235,12 @@ A source array reads as a nullable array because the source may omit it. Narrow 
 | `zip(other)` | Array selection | An array of `Pair[L, R]` | Pairs two arrays by position; presence composes |
 
 ```python
-tags = SiteTable.tags.alter_rows().drop_null()
+tags = SiteSourceRelation.tags.alter_rows().drop_null()
 key = tags.sort().unique().concat(":")
 first = tags.at(0)
 window = tags.slice(0, 2)
 tag = tags.alter_rows().expand()
-aliases = SiteTable.aliases.alter_rows().drop_null().drop_null_items()
+aliases = SiteSourceRelation.aliases.alter_rows().drop_null().drop_null_items()
 ```
 
 `concat(separator)` refuses an array whose items may be null; call `drop_null_items()` first. `transform_items(selector)` preserves the item's nullability and may not contain a row effect.
@@ -256,8 +258,8 @@ Selection[Nullable[Array[L]]].zip(...) -> Selection[Nullable[Array[Pair[L, R]]]]
 
 ```python
 paired = (
-    SiteTable.tags.alter_rows().drop_null()
-    .zip(SiteTable.labels.alter_rows().drop_null())
+    SiteSourceRelation.tags.alter_rows().drop_null()
+    .zip(SiteSourceRelation.labels.alter_rows().drop_null())
 )
 left = paired.alter_rows().expand().extract(lambda pair: pair.left)
 right = paired.alter_rows().expand().extract(lambda pair: pair.right)
@@ -287,10 +289,10 @@ Every method below exists only on the matching present selection. A nullable sel
 `prepend`, `append`, `replace`, `equals`, `add` and `sub` accept a Python value of the right type or a `Selection` of that type.
 
 ```python
-label = SiteTable.name.alter_rows().drop_null().prepend("site::")
-mailto = SiteTable.site_id.alter_rows().drop_null().to_string().prepend("site::")
-count = SiteTable.count.alter_rows().drop_null().add(1)
-active = SiteTable.active.alter_rows().drop_null().and_(True)
+label = SiteSourceRelation.name.alter_rows().drop_null().prepend("site::")
+mailto = SiteSourceRelation.site_id.alter_rows().drop_null().to_string().prepend("site::")
+count = SiteSourceRelation.count.alter_rows().drop_null().add(1)
+active = SiteSourceRelation.active.alter_rows().drop_null().and_(True)
 ```
 
 `to_string()` accepts the eight canonical unit scalars — `bool`, `int`, `float`, `str`, `date`, `time`, `timestamp` and `uuid`. A timestamp keeps the `T` separator; a uuid is lowercase and hyphenated. Arrays, structs and custom scalars are refused with `to_string() requires a scalar unit`.
@@ -366,7 +368,7 @@ all_of(*predicates: Selection[bool]) -> Selection[bool]
 ```python
 from kg_build_system import any_of
 
-active_sites = SiteTable.row_source().where(
+active_sites = SiteSourceRelation.row_source().where(
     lambda site: any_of(
         site.name.alter_rows().drop_null().equals("Depot"),
         site.name.alter_rows().drop_null().equals("Workshop"),

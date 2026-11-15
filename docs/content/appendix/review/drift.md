@@ -53,7 +53,7 @@ Drift is computed from code sources: a path under `kg_build_system/`, `tests/`, 
 ## Evidence
 
 <!-- BEGIN GENERATED:drift -->
-Source HEAD: c54fd47 · 2026-11-15. Pages checked: 94; clean: 66; drifted: 28.
+Source HEAD: 0d55143 · 2026-11-15. Pages checked: 96; clean: 76; drifted: 20.
 
 | Page | Verified | Latest source change | Action |
 | --- | --- | --- | --- |
@@ -61,9 +61,6 @@ Source HEAD: c54fd47 · 2026-11-15. Pages checked: 94; clean: 66; drifted: 28.
 | `appendix/developer/testing` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/kernel/boundaries` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
 | `appendix/kernel/protocols` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
-| `appendix/philosophy/explainability-is-authored` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
-| `appendix/philosophy/review-top-down` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
-| `appendix/philosophy/semantic-hierarchy` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/reference/api` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/reference/assets` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/reference/cli` | 2026-11-11 | 2026-11-13 | 2026-11-13 > 2026-11-11 |
@@ -72,15 +69,10 @@ Source HEAD: c54fd47 · 2026-11-15. Pages checked: 94; clean: 66; drifted: 28.
 | `appendix/reference/failures` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/reference/glossary` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/review/architecture` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
-| `appendix/review/contracts` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/review/verification` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
-| `appendix/spec/architecture` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
-| `appendix/spec/binding` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/spec/execution` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
 | `appendix/spec/extension` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
 | `appendix/spec/plan` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
-| `appendix/subjects/architecture` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
-| `appendix/subjects/binding` | 2026-11-10 | 2026-11-15 | 2026-11-15 > 2026-11-10 |
 | `appendix/subjects/execution` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
 | `appendix/subjects/extension` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |
 | `appendix/subjects/plan` | 2026-11-10 | 2026-11-11 | 2026-11-11 > 2026-11-10 |

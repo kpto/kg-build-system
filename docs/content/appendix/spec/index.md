@@ -17,13 +17,13 @@ generated: true
 The book carries the argument; this appendix carries the binding requirements. Each entry names the book chapter that explains it and the evidence that proves it.
 
 - **[SPEC-001](/appendix/spec/asset)** — [Assets and source data](/appendix/subjects/asset) · 10 requirements · 2 evidence paths · normative
-- **[SPEC-002](/appendix/spec/data)** — [Data contracts and types](/appendix/subjects/data) · 10 requirements · 4 evidence paths · normative
+- **[SPEC-002](/appendix/spec/data)** — [Data contracts and types](/appendix/subjects/data) · 16 requirements · 5 evidence paths · normative
 - **[SPEC-003](/appendix/spec/selection)** — [Selection and nullability](/appendix/subjects/selection) · 10 requirements · 4 evidence paths · normative
-- **[SPEC-004](/appendix/spec/grain)** — [Grain, row sources and projections](/appendix/subjects/grain) · 10 requirements · 3 evidence paths · normative
+- **[SPEC-004](/appendix/spec/grain)** — [Grain, row sources and derived relations](/appendix/subjects/grain) · 10 requirements · 3 evidence paths · normative
 - **[SPEC-005](/appendix/spec/topology)** — [Topology](/appendix/subjects/topology) · 10 requirements · 3 evidence paths · normative
-- **[SPEC-006](/appendix/spec/binding)** — [Bindings](/appendix/subjects/binding) · 10 requirements · 4 evidence paths · normative
-- **[SPEC-007](/appendix/spec/meaning)** — [Semantics and graph purpose](/appendix/subjects/meaning) · 18 requirements · 4 evidence paths · normative
-- **[SPEC-008](/appendix/spec/generation)** — [Source generation and CLI](/appendix/subjects/generation) · 10 requirements · 3 evidence paths · normative
+- **[SPEC-006](/appendix/spec/binding)** — [Bindings](/appendix/subjects/binding) · 12 requirements · 4 evidence paths · normative
+- **[SPEC-007](/appendix/spec/meaning)** — [Meaning and graph purpose](/appendix/subjects/meaning) · 19 requirements · 5 evidence paths · normative
+- **[SPEC-008](/appendix/spec/generation)** — [Source generation and CLI](/appendix/subjects/generation) · 11 requirements · 3 evidence paths · normative
 - **[SPEC-009](/appendix/spec/linking)** — [Linking and the blueprint](/appendix/subjects/linking) · 10 requirements · 4 evidence paths · normative
 - **[SPEC-010](/appendix/spec/plan)** — [Workflow plan](/appendix/subjects/plan) · 13 requirements · 5 evidence paths · normative
 - **[SPEC-011](/appendix/spec/execution)** — [Runtime and execution](/appendix/subjects/execution) · 9 requirements · 4 evidence paths · normative

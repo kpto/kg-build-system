@@ -1,6 +1,6 @@
 ---
 title: Data and expressions
-summary: Where row data, expressions and projections live, and how they cross the blueprint and planning boundaries.
+summary: Where row data, expressions, source relations and derived relations live, and how they cross the blueprint and planning boundaries.
 section: developer
 perspective: developer
 order: 40
@@ -16,7 +16,7 @@ sources:
 
 ## Interface
 
-The data language owns row sources, projections and the frozen data DTO. The
+The data language owns row sources, source relations, derived relations and the frozen data DTO. The
 expressions language owns operation specifications and inline expression
 fragments. The blueprint assembles the language DTOs, and planning consumes the
 blueprint without the authoring classes. The normative views are
@@ -28,20 +28,20 @@ blueprint without the authoring classes. The normative views are
 | --- | --- | --- |
 | Authoring selection | `Selection[T]`, `NullableSelection[T]` | `distribution/languages/expressions/model/public/selection.py` |
 | Expression fragment | `ExpressionDTO`, `LiteralExpressionDTO`, `VariableExpressionDTO`, `FieldReferenceDTO`, `LookupExpressionDTO`, `OperationExpressionDTO`, `OperationParameterDTO` | `distribution/languages/expressions/model/internal/dto/blueprint_dto.py` |
-| Data DTO | `DataPartDTO`, `StructDTO`, `RelationDTO`, `ColumnDTO`, `ProjectionDTO`, `RowSourcePlanDTO` | `distribution/languages/data/model/internal/dto/blueprint_dto.py` |
+| Data DTO | `DataPartDTO`, `StructDTO`, `SourceRelationDTO`, `DerivedRelationDTO`, `DefinitionDTO`, `FieldDefinitionDTO`, `ColumnDTO`, `RowSourcePlanDTO` | `distribution/languages/data/model/internal/dto/blueprint_dto.py` |
 | Row plan nodes | `RowScanDTO`, `RowFilterDTO`, `RowUnionDTO`, `RowJoinDTO`, `RowGroupByDTO`, `RowDistinctDTO`, `RowOrderByDTO`, `RowUnnestDTO` | `distribution/languages/data/model/internal/dto/blueprint_dto.py` |
 | Typed reference | `NodeRef`, `EdgeRef`, `RelationRef`, `FieldRef`, `PropertyRef`, `AssetRef`, `OperationRef` | `distribution/model/public/refs.py` |
 | Blueprint | `GraphBlueprint(graph, data, assets, bindings, graph_declaration=None)` | `distribution/interpreter/model/public/graph_blueprint.py` |
 | Neutral plan | `RelationPlan`, `Scan`, `Expand`, `Filter`, `RelationSqlEmitter`, `SqlEmitter`, `SqlType`, `ArraySqlType`, `StructSqlType`, `canonical_sql_type` | `distribution/service/internal/emission.py` |
-| Core planning | `CorePlan`, `CorePlanning`, `RowSourcePlanner`, `ProjectionPlanner`, `BindingPlanner`, `RecordsPlanner` | `distribution/modules/core` |
+| Core planning | `CorePlan`, `CorePlanning`, `RowSourcePlanner`, `DerivedRelationPlanner`, `BindingPlanner`, `RecordsPlanner` | `distribution/modules/core` |
 | DuckDB emission | `DuckDbSourcePlanner`, `DuckDbSqlEmitter`, `DuckDbInstructionEmitter` | `distribution/modules/duckdb` |
 
 `Selection[T]` is the single authoring type. Presence is a type argument:
 `NullableSelection[T]` is the alias `Selection[Nullable[T]]`. The compiler tree
 stays private; there is no expression-family authoring type and no accessor that
-unwraps the tree. A source `Table` or `Struct` read yields
-`NullableSelection[T]`; a `Projection` output or `ComputedStruct` member follows
-its `computed_field` selection. Row effects such as `drop_null` and `expand` are
+unwraps the tree. A `SourceRelation` or `Struct` read yields
+`NullableSelection[T]`; a `DerivedRelation` output or `ComputedStruct` member
+follows its `computed_field` selection. Row effects such as `drop_null` and `expand` are
 one-shot handles under `selections/effects.py`, and an invalid effect is absent
 from the handle type.
 
@@ -54,8 +54,11 @@ specification lives beside the expressions service; the engine emitter lives
 beside the DuckDB executor.
 
 The data DTO states the semantic model. `ColumnDTO` carries a `FieldRef`;
-`RelationDTO` carries an `AssetRef`; `ProjectionDTO` pins a named relation to one
-`RowSourcePlanDTO`. `DataPartDTO` contains structs, relations and projections.
+`SourceRelationDTO` carries an `AssetRef`; `DerivedRelationDTO` pins a named
+derived relation to one `RowSourcePlanDTO` and carries its `Contract`.
+`DataPartDTO` contains structs, source relations and derived relations. A stage
+is a derived-relation output with no contract; it is plan lineage, not a
+consumer relation.
 The row plan is a small algebra: each node owns one decision, and the nodes are
 frozen values. Their document shape is described in
 [Documents](/appendix/reference/documents), the expression vocabulary in
@@ -110,12 +113,18 @@ Equivalence means the same semantic model, not the same source text.
 
 ## Rules
 
-- A relation names a logical asset with `AssetRef`; it does not name a physical
-  reader binding.
+- A source relation names a logical asset with `AssetRef`; it does not name a
+  physical reader binding.
 - A row source is a value and a row shape is the type of one row, never a schema
   instance or a dictionary.
-- A projection is a named relation pinned to one row-source value, not a SQL
-  string and not a second kind of table declaration.
+- A derived relation is a named relation pinned to one row-source value, not a
+  SQL string and not a second kind of source relation.
+- A relation is a contract: `Definition` states the grain and identity, `Meaning`
+  states the purpose, claims and limitations. A field states its own
+  `FieldDefinition`; name, type and provenance are derived.
+- Only a published relation is a contract. A stage composes inside one published
+  relation, carries a definition and no contract meaning, and a binding never
+  reads it.
 - Joins, unions, filters, groups, distinct, ordering and unnest are row-source
   operations. Their semantics, generated shapes and plan DTOs belong to the
   row-source package, not to a core planner special case.

@@ -51,20 +51,20 @@ The spine names which package may import which. It is a tree for reading, not a 
 | Package | May import |
 | --- | --- |
 | `kernel` | No framework package. |
-| `languages/annotations`, `languages/expressions`, `languages/semantics` | `kernel` |
-| `languages/graph` | `kernel`, semantics |
-| `languages/asset` | `kernel`, annotations, semantics |
-| `languages/data` | `kernel`, annotations, expressions, asset, semantics |
-| `languages/topology` | `kernel`, annotations, expressions, semantics |
-| `languages/binding` | `kernel`, annotations, data, topology, semantics |
-| `interpreter` | `kernel`, every graph language, semantics |
+| `languages/annotations`, `languages/expressions`, `languages/meaning` | `kernel` |
+| `languages/graph` | `kernel`, meaning |
+| `languages/asset` | `kernel`, annotations, meaning |
+| `languages/data` | `kernel`, annotations, expressions, asset, meaning |
+| `languages/topology` | `kernel`, annotations, expressions, meaning |
+| `languages/binding` | `kernel`, annotations, data, topology, meaning |
+| `interpreter` | `kernel`, every graph language, meaning |
 | `modules/<name>` | `kernel`, `interpreter` where it reads a blueprint, languages, `distribution.model`, `distribution.service` |
 | `implementations.py` | `kernel`, interpreter, languages |
 | `generation/code_generation` | `kernel`, `languages/asset` |
 | `api.py` | `kernel`, distribution |
 | `cli` | generation, `api.py` |
 
-The kernel row is the load-bearing one. The kernel imports no distribution, graph, data, topology, binding, SQL, DuckDB, Python or generation package. It uses toolchain vocabulary: language, declaration, symbol, key, reference, linker, planner, workflow plan, runtime, executor, resource and toolchain. The distribution uses domain vocabulary: graph, blueprint, node, edge, binding, projection and asset. A kernel model that needs a graph word has crossed the boundary, even if the type is spelled with a neutral name.
+The kernel row is the load-bearing one. The kernel imports no distribution, graph, data, topology, binding, SQL, DuckDB, Python or generation package. It uses toolchain vocabulary: language, declaration, symbol, key, reference, linker, planner, workflow plan, runtime, executor, resource and toolchain. The distribution uses domain vocabulary: graph, blueprint, node, edge, binding, source relation, derived relation and asset. A kernel model that needs a graph word has crossed the boundary, even if the type is spelled with a neutral name.
 
 A new edge is a model change. It may be the right change, but it is proposed with its reason before it is implemented. The reason cannot be convenience. "The planner needs the helper" is not an argument for importing a private module; it is an argument for moving the helper to an interface the planner may use, or for rethinking which package owns the decision. A cycle is refused outright.
 
@@ -94,7 +94,7 @@ The public docstring group is an interface test in a different medium. It requir
 
 The reference build compiles and executes the public path. It writes `graph.jsonl`, `meta_graph.json`, `meta_graph.html`, the Neo4j import bundle, `workflow_plan.json` and `build_report.json`, and publishes no intermediate core records. It is the integration proof that the default composition is wired end to end. It is not a scale benchmark and not a proof that every module is correct.
 
-The typecheck fixtures guard the authoring surface. The positive fixture exercises `Selection`, owner-derived nullability, `field` and `computed_field`, pinned projections, row effects, `lookup`, `zip` and row-source `unnest`. The negative fixture pins removed names and invalid effects with inline expected diagnostics. Pyright analyses `kg_build_system` and the two fixtures; it excludes `tests/`, `reference_project/` and `legacy/`.
+The typecheck fixtures guard the authoring surface. The positive fixture exercises `Selection`, owner-derived nullability, `field` and `computed_field`, pinned derived relations, row effects, `lookup`, `zip` and row-source `unnest`. The negative fixture pins removed names and invalid effects with inline expected diagnostics. Pyright analyses `kg_build_system` and the two fixtures; it excludes `tests/`, `reference_project/` and `legacy/`.
 
 Each group answers a different reviewer question. Import isolation and architecture ask whether one package may depend on another. Layout and facades ask whether a file sits in the right zone and whether a facade is only a facade. Public docstrings ask whether the authoring surface is documented. The reference build asks whether the default composition still runs. The typecheck fixtures ask whether the static surface still refuses the wrong authoring. A change that needs a new contract test is naming a new boundary; a change that only adds a unit test is not.
 

@@ -26,11 +26,13 @@ A model is portable across a package boundary without a live connection or paren
 
 Identity follows the same rule. `Step` keeps `component` and `name`; `Step.id` and `step_id(step)` derive the `StepId`. An identity that crosses a planner, executor, runtime or codec boundary is a role type over `Key`: `StepId`, `OpeningId`, `ArtifactType`, `ArtifactPattern` and `InstructionKind`. A formatted string is display only and is never parsed as an identity. Direction is part of an opening identity because one name can denote an input and an output on the same step.
 
-### Semantics as contract
+### Meaning as contract
 
-A node or edge type states its meaning: what it represents, its direction, what identifies a record, which properties may be absent and where the data cannot answer the question. The build preserves those statements and publishes them for consumers.
+A declaration states its meaning: what it represents, its direction, what identifies a record, which properties may be absent and where the model cannot answer the question. The build preserves those statements and publishes them for consumers.
 
-Semantics are not a comment or implementation detail. If a meaning cannot be stated faithfully, the framework records a limit instead of inventing precision. A nullable property stays nullable, an unresolved reference fails, and a target that cannot store a type refuses it.
+Meaning is one value on both axes. A graph declaration, node, edge, property, source relation and derived relation each attach a `Meaning`: one purpose, contextless claims and the limitations of that purpose. A relation's meaning is domain-level; a graph record's meaning is graph-local. The binding is the fulfilment between them, and it owns neither. A relation states its structural promise as a `Contract`: a `Definition` (grain, identity) and a `Meaning`. A field carries its own `FieldDefinition`.
+
+Meaning is not a comment or implementation detail. If a meaning cannot be stated faithfully, the framework records a limit instead of inventing precision. A nullable property stays nullable, an unresolved reference fails, and a target that cannot store a type refuses it.
 
 The blueprint is the semantic model of the graph. Topology reads as nodes, edges, labels, endpoints and properties, not Python paths, declaration expressions or symbol keys. The symbol graph is linker IR: it keys declarations, resolves references and orders transcription, and it is not the delivered model. The workflow plan carries the execution structure and records the source blueprint document under its provenance. [Identity specification](/appendix/spec/identity) states the reference and document rules.
 
@@ -40,7 +42,7 @@ A subpackage owns one responsibility. Its interface is the set of names another 
 
 Every framework leaf uses the zones it needs from the same `model` and `service` layout. Another subpackage imports `pkg.model.public`, `pkg.model.internal`, `pkg.service.public` or `pkg.service.internal`, never a private zone. A protocol implemented for another package is a separate file under `service/internal/adapters/<protocol>.py`.
 
-Boundaries make local change possible. A join-semantics change belongs to the row-source package; it does not require editing table declarations, the planner and the authoring API. If a small feature forces edits across several subpackages, fix the boundary, not the call sites. Dependency edges are model decisions. [Architecture specification](/appendix/spec/architecture) states the zone and spine requirements.
+Boundaries make local change possible. A join-semantics change belongs to the row-source package; it does not require editing source-relation declarations, the planner and the authoring API. If a small feature forces edits across several subpackages, fix the boundary, not the call sites. Dependency edges are model decisions. [Architecture specification](/appendix/spec/architecture) states the zone and spine requirements.
 
 ### The toolchain
 
@@ -78,7 +80,7 @@ A language transcribes declarations into symbols and renders a symbol value back
 
 The distribution exposes one authoring value for a typed position in a row: `Selection[T]`. `NullableSelection[T]` is the alias `Selection[Nullable[T]]`. No expression family or accessor unwraps the compiler tree.
 
-A field declaration names a value type, never `T | None`. A source `Table` or `Struct` read is nullable because the source may omit the value; a computed `Projection` output or `ComputedStruct` member follows its selection. The owner supplies nullability; the author never writes it into a field annotation. `alter_rows()` is a one-shot handle exposing only `drop_null`, `drop_if` and `expand` where they are valid. `lookup` returns a nullable array of target records; `zip` pairs arrays by position; `RowSource.unnest` expands an array as a relation's grain.
+A field declaration names a value type, never `T | None`. A `SourceRelation` or `Struct` read is nullable because the source may omit the value; a `DerivedRelation` output or `ComputedStruct` member follows its selection. The owner supplies nullability; the author never writes it into a field annotation. `alter_rows()` is a one-shot handle exposing only `drop_null`, `drop_if` and `expand` where they are valid. `lookup` returns a nullable array of target records; `zip` pairs arrays by position; `RowSource.unnest` expands an array as a relation's grain.
 
 Each transformation has one name.
 
@@ -100,6 +102,8 @@ Each transformation has one name.
 
 - A model is frozen data; behaviour is a function beside it.
 - Meaning is part of the delivered contract, not a comment.
+- Meaning is one value on both axes; the binding states the fulfilment and owns neither side's meaning.
+- A relation's contract is its definition plus its meaning; a stage has a definition and no contract.
 - Every dependency edge is a design decision, proposed with its reason.
 - Only the blueprint and the workflow plan are serialisable artifacts.
 - The symbol graph is linker IR; the blueprint is the semantic model.

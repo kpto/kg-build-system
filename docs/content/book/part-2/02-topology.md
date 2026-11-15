@@ -7,7 +7,7 @@ part: II
 chapter: 5
 order: 22
 status: normative
-verified: 2026-11-11
+verified: 2026-11-15
 sources:
   - docs/content/book/part-2/02-topology.md
   - docs/content/appendix/reference/topology.md
@@ -20,11 +20,11 @@ Ask what a site is in an estate graph. The source answers with columns: `site_id
 
 Topology reverses that order. A `Node` subclass declares a kind of record before any row exists. It names the component, the properties the record carries, and, for an edge, the two node kinds the relation connects. A binding supplies the rows later. The separation is the whole point: the design can be reviewed as a design, and the mapping can be reviewed as a mapping.
 
-The estate example carries through this chapter. Sites hold units. A `SiteNode` is a place; a `UnitNode` is installed equipment; `HasUnitEdge` is the assertion that a site holds a unit. None of those declarations reads a table. A table of equipment readings can change its columns without changing what a site is.
+The estate example carries through this chapter. Sites hold units. A `SiteNode` is a place; a `UnitNode` is installed equipment; `HasUnitEdge` is the assertion that a site holds a unit. None of those declarations reads a relation. The equipment relation can change its fields without changing what a site is.
 
 ## Two component kinds, one direction
 
-A concrete node is declared as a `Node` subclass. A concrete edge is declared as `Edge[Source, Target]`. The two type arguments are node-side declarations: sites and units, not tables and projections. The order is the direction. `Edge[SiteNode, UnitNode]` means site to unit. It does not mean the reverse, and it is not a symmetric association.
+A concrete node is declared as a `Node` subclass. A concrete edge is declared as `Edge[Source, Target]`. The two type arguments are node-side declarations: sites and units, not source relations and derived relations. The order is the direction. `Edge[SiteNode, UnitNode]` means site to unit. It does not mean the reverse, and it is not a symmetric association.
 
 ```python
 from kg_build_system import (

@@ -18,7 +18,7 @@ generated: true
 ---
 
 <!-- BEGIN GENERATED:views -->
-<div class="kb-views"><span class="kb-views-subject">Workflow plan</span><a href="/appendix/subjects/plan" class="active">Overview</a><a href="/book/part-3/02-planning">Guide</a><a href="/appendix/spec/plan">Spec</a><a href="/appendix/reference/documents">API</a><a href="/appendix/philosophy/design-in-semantics">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
+<div class="kb-views"><span class="kb-views-subject">Workflow plan</span><a href="/appendix/subjects/plan" class="active">Overview</a><a href="/book/part-3/02-planning">Guide</a><a href="/appendix/spec/plan">Spec</a><a href="/appendix/reference/documents">API</a><a href="/appendix/philosophy/design-in-meaning">Philosophy</a><a href="/appendix/review/contracts">Review</a></div>
 <!-- END GENERATED:views -->
 
 ## In one view
@@ -35,7 +35,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | Guide | [14. Planning the work](/book/part-3/02-planning) | How to use it. |
 | Spec | [SPEC-010](/appendix/spec/plan) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/documents) | Exact public names and document shapes. |
-| Philosophy | [Design in semantics](/appendix/philosophy/design-in-semantics) | Why it is designed this way. |
+| Philosophy | [Design in meaning](/appendix/philosophy/design-in-meaning) | Why it is designed this way. |
 | Review | [Contracts](/appendix/review/contracts) | Invariants, limits and measured evidence. |
 
 ## Contract

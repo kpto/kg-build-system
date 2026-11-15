@@ -7,7 +7,7 @@ subject: linking
 spec: SPEC-009
 order: 90
 status: normative
-verified: '2026-11-10'
+verified: '2026-11-15'
 sources:
 - kg_build_system/distribution/interpreter/service/_private/link.py
 - kg_build_system/distribution/interpreter/service/internal/adapters/kernel_linker.py
@@ -35,7 +35,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 | Guide | [13. Linking and the blueprint](/book/part-3/01-linking-and-blueprint) | How to use it. |
 | Spec | [SPEC-009](/appendix/spec/linking) | Binding requirements, API and evidence. |
 | API | [API surface](/appendix/reference/documents) | Exact public names and document shapes. |
-| Philosophy | [One purpose, read downward](/appendix/philosophy/semantic-hierarchy) | Why it is designed this way. |
+| Philosophy | [Two axes, one fulfilment](/appendix/philosophy/semantic-hierarchy) | Why it is designed this way. |
 | Review | [Contracts](/appendix/review/contracts) | Invariants, limits and measured evidence. |
 
 ## Contract

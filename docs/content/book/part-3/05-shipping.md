@@ -73,7 +73,7 @@ Artifact presence is therefore evidence of publication, not of correctness. The 
 
 ## The test suite guards interfaces, not the graph
 
-The checkout measures itself. A run of `uv run pytest -q` on 2026-11-11 reports 363 tests and 1,957 subtests passing in about 7 seconds. `uv run pyright` reports no errors. The repository has no CI configuration; every check is a command someone runs.
+The checkout measures itself. A run of `uv run pytest -q` on 2026-11-15 reports 388 tests and 1,967 subtests passing in about 7 seconds. `uv run pyright` reports no errors. The repository has no CI configuration; every check is a command someone runs.
 
 Those numbers are properties of the checkout, not promises about the next one. A test count, subtest count or duration varies with the machine and dependency versions. The stable claims are the pass or fail result and the measured type state. Quoting 363 and 1,957 is honest only with the date and the command; quoting them as a guarantee is not.
 
@@ -130,7 +130,7 @@ Pinning is the act of naming the inputs a result depends on. Re-running is the a
 
 | Change | What becomes stale | What to run |
 | --- | --- | --- |
-| A declaration, binding or projection | Blueprint and plan | `compile`, `execute`, the full test suite |
+| A declaration, binding or derived relation | Blueprint and plan | `compile`, `execute`, the full test suite |
 | A planner or executor | The plan for a planner change; the execution set for an executor change | `compile` for a planner, `execute` for an executor, the matching contract tests |
 | Runtime configuration | The run and its report | `execute` into a fresh output directory |
 | Source data | The records and the report | `execute`; re-check counts and keys |

@@ -180,55 +180,58 @@ def system() -> Plate:
 
 
 def authoring() -> Plate:
-    p = Plate(1200, 640, "The authoring model", "Seven objects, one direction: source, value, grain, meaning, mapping.")
+    p = Plate(
+        1200, 700, "The authoring model",
+        "Two axes: records in graph/, domain relations in relation/, and the binding that fulfils one with the other.",
+    )
     frame(p, "authoring map")
 
-    p.card(38, 116, 200, 128, "Asset", ["one logical source unit", "profile · layout · governance"], C["asset"], "source")
-    p.card(278, 116, 220, 128, "Table[Asset] · Struct", ["row shape", "Field[T] · canonical types"], C["table"], "rows")
-    p.card(538, 116, 200, 128, "Selection[T]", ["one typed value", "owner decides absence"], C["table"], "value")
-    p.card(778, 116, 180, 128, "RowSource", ["shape + plan", "where · join · group"], C["projection"], "grain")
-    p.card(998, 116, 164, 128, "Projection", ["pinned named grain", "computed_field outputs"], C["projection"], "grain")
-    p.arrow(238, 180, 274, 180)
-    p.arrow(498, 180, 534, 180)
-    p.arrow(738, 180, 774, 180)
-    p.arrow(958, 180, 994, 180)
+    p.text(38, 106, "RELATIONS · relation/", size=10, fill=C["projection"], weight=700)
+    p.card(38, 118, 200, 120, "Asset", ["one logical source unit", "profile · layout · governance"], C["asset"], "source")
+    p.card(278, 118, 230, 120, "SourceRelation · Struct", ["source-backed relation", "Field[T] · canonical types"], C["table"], "rows")
+    p.card(548, 118, 180, 120, "Selection[T]", ["one typed value", "owner decides absence"], C["table"], "value")
+    p.card(768, 118, 170, 120, "RowSource", ["shape + plan", "where · join · group"], C["projection"], "grain")
+    p.card(978, 118, 184, 120, "DerivedRelation", ["published relation", "Contract: grain, identity, meaning"], C["projection"], "grain")
+    p.arrow(238, 178, 274, 178)
+    p.arrow(508, 178, 544, 178)
+    p.arrow(728, 178, 764, 178)
+    p.arrow(938, 178, 974, 178)
 
-    p.card(538, 288, 200, 118, "Topology", ["Node · Edge · Property", "templates · categories"], C["node"], "meaning")
-    p.card(778, 288, 180, 118, "Binding", ["rows + build key", "one record per row"], C["binding"], "mapping")
-    p.card(998, 288, 164, 118, "Graph", ["≤ 1 declaration", "one purpose"], C["semantics"], "meaning")
-    p.arrow(638, 244, 638, 284)
-    p.arrow(738, 347, 774, 347)
-    p.arrow(958, 347, 994, 347)
+    p.text(38, 288, "RECORDS · graph/", size=10, fill=C["node"], weight=700)
+    p.text(728, 288, "PUBLISHED RELATIONS · relation/", size=10, fill=C["projection"], weight=700)
+    p.card(38, 300, 300, 118, "Graph · Node · Edge · Property", ["one graph declaration", "the project's root meaning"], C["node"], "meaning")
+    p.card(378, 300, 300, 118, "Binding", ["the only import of both axes", "grain · identity · coverage"], C["binding"], "mapping")
+    p.card(728, 300, 240, 118, "Contract", ["Definition: grain, identity", "Meaning: purpose, claims, limits"], C["semantics"], "meaning")
+    p.card(998, 300, 164, 118, "Stage", ["private sub-relation", "definition only · not bindable"], C["projection"], "grain")
+    p.arrow(338, 359, 374, 359)
+    p.arrow(678, 359, 724, 359, dash="4 3")
 
-    p.rect(38, 288, 460, 118, fill="#ffffff", stroke=RULE, rx=10)
-    p.text(52, 312, "SEMANTICS", size=10, fill=C["semantics"], weight=700)
-    p.text(52, 336, "purposes · claims · limitations", size=13, fill=INK, weight=600)
-    p.lines(52, 360, ["attaches to any declaration as a fragment", "the Graph declaration owns the project purpose"], size=11.5, fill=MUTED)
-    p.arrow(498, 347, 534, 347, color=C["semantics"], dash="4 3")
-    p.arrow(498, 330, 998, 330, color=C["semantics"], dash="4 3", curve=-30)
-    p.text(620, 322, "attaches", size=10, fill=C["semantics"])
+    p.rect(38, 462, 1124, 78, fill="#ffffff", stroke=RULE, rx=10)
+    p.text(52, 486, "MEANING", size=10, fill=C["semantics"], weight=700)
+    p.text(52, 510, "purposes · claims · limitations", size=13, fill=INK, weight=600)
+    p.lines(52, 530, ["one value on both axes; attached to the declaration, never copied from a parent"], size=11.5, fill=MUTED)
 
-    p.text(38, 452, "HOW THE PIECES READ", size=10, fill=MUTED, weight=700)
+    p.text(38, 570, "HOW THE PIECES READ", size=10, fill=MUTED, weight=700)
     rows = [
-        ("Table[Asset]", "names the asset; the relation carries an AssetRef", C["table"]),
-        ("Selection", "reads a field, computes a value, or navigates a record", C["table"]),
-        ("RowSource", "decides what one row means; a projection pins one grain", C["projection"]),
-        ("Topology", "states the node and edge types without importing a table", C["node"]),
-        ("Binding", "imports both sides; supplies key, properties and endpoints", C["binding"]),
+        ("SourceRelation", "names the asset; the relation carries an AssetRef", C["table"]),
+        ("RowSource", "decides what one row means; a derived relation pins one", C["projection"]),
+        ("Graph", "states node and edge types without importing a relation", C["node"]),
+        ("Binding", "imports both axes; states which relation fulfils which record", C["binding"]),
+        ("Stage", "a definition and no contract; never a consumer relation", C["projection"]),
     ]
     for i, (name, body, color) in enumerate(rows):
-        y = 468 + i * 28
-        p.text(38, y, name, size=12, fill=color, weight=700, mono=True)
-        p.text(180, y, body, size=12, fill=MUTED)
+        y = 588 + i * 20
+        p.text(38, y, name, size=11.5, fill=color, weight=700, mono=True)
+        p.text(200, y, body, size=11.5, fill=MUTED)
 
-    p.rect(748, 452, 414, 130, fill="#ffffff", stroke=RULE, rx=10)
-    p.text(762, 476, "THE GUARD", size=10, fill=C["accent"], weight=700)
-    p.lines(762, 500, [
+    p.rect(748, 548, 414, 138, fill="#ffffff", stroke=RULE, rx=10)
+    p.text(762, 572, "THE GUARD", size=10, fill=C["accent"], weight=700)
+    p.lines(762, 596, [
         "A field declares a value type, never absence.",
-        "A binding takes a row-source value, never a class.",
-        "A row effect is one shot; a second needs a second handle.",
-        "A projection is pinned; its outputs share one row plan.",
-    ], size=11.5, fill=MUTED, gap=19)
+        "A binding reads a published row source, never a class or a stage.",
+        "A relation is record-agnostic; the binding is the fulfilment.",
+        "A derived relation states a purpose; a stage states none.",
+    ], size=11, fill=MUTED, gap=19)
     return p
 
 
@@ -241,8 +244,8 @@ def nullability() -> Plate:
     p.arrow(470, 162, 300, 210)
     p.arrow(650, 162, 820, 210)
 
-    p.card(120, 210, 340, 118, "Source read", ["Table or source Struct", "Field[T] → Selection[Nullable[T]]"], C["table"], "owner: source")
-    p.card(660, 210, 340, 118, "Computed read", ["Projection or ComputedStruct", "follows the computed_field selection"], C["projection"], "owner: computed")
+    p.card(120, 210, 340, 118, "Source read", ["SourceRelation or Struct", "Field[T] → Selection[Nullable[T]]"], C["table"], "owner: source")
+    p.card(660, 210, 340, 118, "Computed read", ["DerivedRelation or ComputedStruct", "follows the computed_field selection"], C["projection"], "owner: computed")
 
     p.text(560, 300, "Absence is a fact about the owner, not the declared type.", size=12, fill=MUTED, anchor="middle")
     p.arrow(560, 316, 560, 356)
@@ -276,7 +279,7 @@ def grain() -> Plate:
     frame(p, "grain")
 
     steps = [
-        (38, "scan", "Table.row_source()", "one row per source row", C["table"]),
+        (38, "scan", "SourceRelation.row_source()", "one row per source row", C["table"]),
         (228, "where", "Filter", "removes rows", C["table"]),
         (418, "join", "Join", "combines two grains", C["projection"]),
         (608, "group_by", "GroupBy", "one row per key", C["projection"]),
@@ -298,7 +301,7 @@ def grain() -> Plate:
     p.text(814, 294, "unnest", size=13, fill=C["projection"], weight=700, mono=True)
     p.text(884, 294, "one row per array item", size=12, fill=MUTED)
 
-    p.card(38, 360, 300, 112, "Projection", ["pin exactly one row source", "computed_field names each output"], C["projection"], "name the grain")
+    p.card(38, 360, 300, 112, "DerivedRelation", ["pin exactly one row source", "computed_field names each output"], C["projection"], "name the grain")
     p.card(378, 360, 300, 112, "Binding", ["reads a row-source value", "one record per row"], C["binding"], "use the grain")
     p.card(718, 360, 430, 112, "Rule of thumb", ["If a record needs a different grain,", "make a projection; do not fan out inside a binding."], C["accent"], "decide once")
     p.arrow(338, 416, 374, 416)
@@ -512,48 +515,6 @@ def modules() -> Plate:
     return p
 
 
-def semantics() -> Plate:
-    p = Plate(1200, 640, "One purpose, read downward", "The graph purpose is the root; topology, data and binding are read under it.")
-    frame(p, "semantics")
-
-    p.rect(350, 112, 500, 78, fill=tint(C["semantics"]), stroke=C["semantics"] + "66", rx=12)
-    p.text(600, 138, "GRAPH PURPOSE", size=10, fill=C["semantics"], anchor="middle", weight=700)
-    p.text(600, 160, "one per project · claims + purpose", size=13, fill=INK, anchor="middle", weight=600)
-    p.text(600, 178, "the root every local purpose is read under", size=10.5, fill=MUTED, anchor="middle")
-
-    cols = [
-        (38, "TOPOLOGY", C["node"], "what the record is", ["category / template", "concrete node or edge", "property · direction"], "the design"),
-        (430, "DATA", C["table"], "which rows supply it", ["asset", "table / projection", "field · selection · grain"], "implementation"),
-        (822, "BINDING", C["binding"], "which row becomes which record", ["row source", "build key + properties", "endpoint tokens"], "the seam"),
-    ]
-    for x, title, color, question, levels, note in cols:
-        p.rect(x, 246, 340, 252, fill="#ffffff", stroke=RULE, rx=12)
-        p.rect(x, 246, 340, 5, fill=color, stroke=color, rx=2)
-        p.text(x + 16, 272, title, size=11, fill=color, weight=700)
-        p.text(x + 16, 294, question, size=13, fill=INK, weight=600)
-        for i, level in enumerate(levels):
-            y = 328 + i * 34
-            p.rect(x + 16, y - 14, 308, 26, fill=tint(color), stroke="none", rx=5)
-            p.text(x + 28, y + 4, level, size=11, fill=MUTED, mono=(i == 2))
-        p.text(x + 16, 466, note, size=10.5, fill=color, weight=600)
-        p.arrow(600, 192, x + 170, 242, color=C["semantics"], width=1.4)
-
-    p.arrow(380, 372, 426, 372, color=C["accent"], dash="4 3", width=1.3)
-    p.arrow(772, 372, 818, 372, color=C["accent"], dash="4 3", width=1.3)
-    p.text(386, 362, "constrains", size=10, fill=C["accent"])
-    p.text(778, 362, "meets", size=10, fill=C["accent"])
-
-    p.rect(38, 526, 1124, 78, fill="#ffffff", stroke=RULE, rx=10)
-    p.text(52, 550, "THE MECHANISM", size=10, fill=C["accent"], weight=700)
-    p.lines(52, 572, [
-        "The framework stores each attachment; it does not copy the parent text down.",
-        "The author makes the lower statement consistent; the reviewer reads from purpose to plan.",
-        "A limitation sits in the purpose where it is true, not at the top as a disclaimer.",
-    ], size=11, fill=MUTED, gap=17)
-    p.pill(980, 544, "read down, not copy", C["semantics"], width=166, size=10.5)
-    return p
-
-
 def review_loop() -> Plate:
     p = Plate(1000, 430, "How a claim stays true", "A page is a dated claim with sources and generated evidence.")
     frame(p, "review")
@@ -595,7 +556,6 @@ PLATES = {
     "artifacts.svg": artifacts,
     "modules.svg": modules,
     "review-loop.svg": review_loop,
-    "semantics.svg": semantics,
 }
 
 

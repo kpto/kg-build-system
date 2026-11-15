@@ -10,7 +10,7 @@ status: normative
 verified: 2026-11-11
 sources:
   - reference_project/build.py
-  - reference_project/assets.py
+  - reference_project/asset/estate.py
   - tests/test_reference_build.py
   - pyproject.toml
   - docs/content/appendix/reference/compile.md
@@ -34,7 +34,7 @@ uv run pytest -q
 uv run pyright
 ```
 
-The suite reports 363 tests and 1957 subtests passing in roughly seven seconds. Those numbers describe this checkout, not a promise about another revision. A failure here is an environment or checkout problem, not a graph problem, and chasing it through a build error is wasted work.
+The suite reports 388 tests and 1,967 subtests passing in roughly seven seconds. Those numbers describe this checkout, not a promise about another revision. A failure here is an environment or checkout problem, not a graph problem, and chasing it through a build error is wasted work.
 
 Pyright reports no errors in this checkout. The measured count is the honest number to quote; do not treat a clean run as a design approval. Pyright analyzes the package and two authoring fixtures, not the whole of `tests/`, `reference_project/` or `legacy/`.
 
@@ -42,27 +42,27 @@ Node is needed to build this knowledge base, not to run the framework. The docs 
 
 ## A small estate still exercises every layer
 
-The project declares one logical asset, `Estate`, over five JSON members: sites, equipment, surveys, a temperature feed and a vibration feed. The asset states a subject, a coverage statement, an authority and a basis. Its layout states the format, the directory and the member map. The layout is descriptive metadata, not an access contract; the DuckDB source planner resolves the JSON members that the tables name.
+The project declares one logical asset, `Estate`, over five JSON members: sites, equipment, surveys, a temperature feed and a vibration feed. The asset states a subject, a coverage statement, an authority and a basis. Its layout states the format, the directory and the member map. The layout is descriptive metadata, not an access contract; the DuckDB source planner resolves the JSON members that the source relations name.
 
-Five tables sit over the asset. `SitesTable` exposes a site identifier, a site name, a nested premises structure and a priority array. `EquipmentTable` exposes a unit reference, a site identifier, a unit name, an in-service flag and a survey period. `SurveysTable` carries the survey identity, the site it belongs to, the survey timestamp and nested areas. The temperature and vibration tables carry a reading identity, a unit reference, a value and a timestamp. Every field declares a value type. Source access is nullable because a JSON member may be absent; the field type states what the value is when it is present.
+Five source relations sit over the asset. `SitesSourceRelation` exposes a site identifier, a site name, a nested premises structure and a priority array. `EquipmentSourceRelation` exposes a unit reference, a site identifier, a unit name, an in-service flag and a survey period. `SurveysSourceRelation` carries the survey identity, the site it belongs to, the survey timestamp and nested areas. The temperature and vibration source relations carry a reading identity, a unit reference, a value and a timestamp. Every field declares a value type. Source access is nullable because a JSON member may be absent; the field type states what the value is when it is present.
 
-Two projections sit beside the tables. `DefectProjection` unnests the defects inside each survey's areas, and `ObservationProjection` unnests the observations inside each defect. They change the grain: one survey row can produce several defect rows, and one defect row can produce several observation rows. The projections publish computed fields, so downstream bindings can read them exactly like tables.
+Two derived relations sit beside the source relations. `Defects` unnests the defects inside each survey's areas, and `Observations` unnests the observations inside each defect. They change the grain: one survey row can produce several defect rows, and one defect row can produce several observation rows. Each is a contract: a definition with a grain and identity, and a meaning with its own purpose. Its outputs are computed fields, so downstream bindings can read them exactly like source relations.
 
-The table packages are generated and checked in. `kbs generate` is not part of the reference build: the build reads declarations, not source schemas. The generated files use the same public authoring surface as handwritten tables, so the build cannot tell which tables were generated and which were typed by hand. Chapter 3 covers the generation step and its ownership record.
+The source-relation packages are generated and checked in. `kbs generate` is not part of the reference build: the build reads declarations, not source schemas. The generated files use the same public authoring surface as handwritten source relations, so the build cannot tell which were generated and which were typed by hand. Chapter 3 covers the generation step and its ownership record.
 
-The topology declares six concrete node types: `SiteNode`, `UnitNode`, `SurveyVisitNode`, `DefectNode`, `ObservationNode` and `ReadingNode`. It also declares one abstract node category, `DocumentedAbstractNode`, which carries a summary property and gives the concrete nodes a shared parent. Six concrete edge types connect them: `HasUnitEdge` runs from site to unit, `SurveyedAtEdge` from survey visit to site, `HasDefectEdge` from unit to defect, `MeasuresEdge` from unit to reading, `HasObservationEdge` from defect to observation and `ObservedDuringEdge` from defect to survey visit. One abstract edge category, `MonitoredRelationAbstractEdge`, gives every relation a shared parent, and the recorded-relation and timestamped-relation templates supply the `as_at` and `stage` properties they share.
+The graph declares six concrete node types: `SiteNode`, `UnitNode`, `SurveyVisitNode`, `DefectNode`, `ObservationNode` and `ReadingNode`. It also declares one abstract node category, `DocumentedAbstractNode`, which carries a summary property and gives the concrete nodes a shared parent. Six concrete edge types connect them: `HasUnitEdge` runs from site to unit, `SurveyedAtEdge` from survey visit to site, `HasDefectEdge` from unit to defect, `MeasuresEdge` from unit to reading, `HasObservationEdge` from defect to observation and `ObservedDuringEdge` from defect to survey visit. One abstract edge category, `MonitoredRelationAbstractEdge`, gives every relation a shared parent, and the recorded-relation and timestamped-relation templates supply the `as_at` and `stage` properties they share.
 
-Fourteen bindings map rows to records: seven node bindings and seven edge bindings. The site and unit bindings are the shortest full chain, because the equipment register already carries both endpoint identifiers. The survey, defect, observation and reading bindings exercise projection grain, nested access, defaults and provenance stamps. A shared `source_version` stamp records the feed release that produced each node; a shared `stage` stamp records that each relation was derived.
+Fourteen bindings map rows to records: seven node bindings and seven edge bindings. The site and unit bindings are the shortest full chain, because the equipment register already carries both endpoint identifiers. The survey, defect, observation and reading bindings exercise derived-relation grain, nested access, defaults and provenance stamps. A shared `source_version` stamp records the feed release that produced each node; a shared `stage` stamp records that each relation was derived.
 
 The build composes four planners: a deduplication planner, a file planner writing `graph.jsonl`, a meta-graph planner and a Neo4j import planner. The default toolchain adds the generic DuckDB source planner and the four core planners. The resulting plan has six components: `duckdb`, `core`, `deduplication`, `file`, `meta_graph` and `neo4j`.
 
-The project declares no `Graph`. Zero graph declarations are legal, and the reference build relies on that. It also means the project carries no purpose or claim at the graph level; the meaning is in the topology, the asset profile and the bindings.
+The project declares one `Graph` in `graph/graph.py`. Its meaning states the root purpose: the estate graph exists to answer which equipment is monitored, at which sites, and which defects and observations the surveys reported. Every node, edge, relation and binding meaning is read under that purpose. A project may declare zero graphs, but then it carries no stated reason for the graph it builds.
 
 | Layer | Reference declarations | What the layer exercises |
 | --- | --- | --- |
 | Asset | One `Estate` over five JSON members | A logical source unit with a descriptive layout |
-| Data | Five tables, two projections | Nested structs, nullable source access, grain changes |
-| Topology | Six nodes, six edges, two categories | Direction, categories and shared properties |
+| Relations | Five source relations, two derived relations | Nested structs, nullable source access, grain changes, contracts |
+| Graph | Six nodes, six edges, two categories, one graph declaration | Direction, categories, shared properties and the root purpose |
 | Binding | Seven node bindings, seven edge bindings | Identity, defaults, endpoints and provenance stamps |
 | Plan | Four explicit planners plus defaults | Components, steps, connections and publications |
 
@@ -156,7 +156,7 @@ A successful reference run reports `succeeded: true` and three publications.
 | Meta graph | `meta_graph.meta_graph_document` | 7 node components, 7 edge components, 2 abstract components |
 | Neo4j bundle | `neo4j.import_bundle` | 21 nodes, 21 edges |
 
-`recovered_failures` and `unresolved_failures` are both empty. The `published_artifacts` list has exactly those three entries. The test suite enforces that no intermediate artifact with the `core` namespace is published: the records exchanged between the source, projection and binding steps are internal to the run, and only the file, meta-graph and Neo4j publications leave it.
+`recovered_failures` and `unresolved_failures` are both empty. The `published_artifacts` list has exactly those three entries. The test suite enforces that no intermediate artifact with the `core` namespace is published: the records exchanged between the source, derived-relation and binding steps are internal to the run, and only the file, meta-graph and Neo4j publications leave it.
 
 The report fields answer different questions. `published_artifacts` says what left the run. `recovered_failures` says what went wrong and was handled downstream. `unresolved_failures` says what blocked a publication. `provenance` carries the plan provenance, including the blueprint document. `succeeded` is true exactly when `unresolved_failures` is empty. It does not mean every step succeeded; a recovered failure can sit in a successful report.
 
@@ -188,19 +188,19 @@ build_key=row.site_id.alter_rows().drop_null(),
 
 `alter_rows()` returns a one-shot row-effect handle. `drop_null()` filters the rows whose selected value is null before the binding sees them. The effect is one-shot: another row effect needs another call to `alter_rows()`. The drop changes the grain of the binding, because the excluded rows produce no record. That is a design decision, and the declaration states it rather than hiding it in a query.
 
-A second common first failure is passing the table class instead of its row source.
+A second common first failure is passing the source-relation class instead of its row source.
 
 ```python
-rows=SitesTable,
+rows=SitesSourceRelation,
 ```
 
 That raises:
 
 ```text
-TypeError: rows must be a row source value; use Table.row_source() or Projection.row_source()
+TypeError: rows must be a row source value; use SourceRelation.row_source() or DerivedRelation.row_source()
 ```
 
-A binding consumes a row-source value, not a class. `SitesTable.row_source()` states the grain and the fields the binding reads. The class is the declaration; the row source is the value the binding maps.
+A binding consumes a row-source value, not a class. `SitesSourceRelation.row_source()` states the grain and the fields the binding reads. The class is the declaration; the row source is the value the binding reads. A `Stage` has no bindable row source at all, so a private intermediate cannot be bound by accident.
 
 Both failures occur before data is read. The first happens while the module is imported during discovery; the second happens at the same point. No plan is written and no partial output appears. This is the practical benefit of separating authoring and execution: a nullable identity is caught as a declaration error, not discovered halfway through a run with a null key in the output.
 

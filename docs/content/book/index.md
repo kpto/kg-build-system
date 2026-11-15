@@ -5,7 +5,7 @@ section: book
 perspective: meta
 order: 0
 status: normative
-verified: 2026-11-11
+verified: 2026-11-15
 sources:
   - docs/content/index.md
   - docs/content/book/part-1/index.md
@@ -18,6 +18,26 @@ sources:
 book assumes: intention, purpose, claim, limitation, relation, record and the
 binding that fulfils one with the other. Read it first; it names no framework
 type and is not a tutorial.
+
+## The vocabulary
+
+The book describes two axes and one fulfilment:
+
+| Term | What it names |
+| --- | --- |
+| `Meaning` | A purpose (or claims only), plus the limitations that bound the purpose, attached to a declaration. |
+| `graph/` | Records: the graph declaration, nodes, edges and properties. |
+| `relation/source/` | A `SourceRelation`: a domain relation the source supplies. |
+| `relation/derived/` | A `DerivedRelation`: a named domain relation computed from row sources. |
+| `Stage` | A private sub-relation inside a derived-relation package; it has no contract meaning. |
+| binding | The fulfilment between one relation contract and one record. |
+
+A published derived relation is a **`Contract`**: a `Definition` (grain, identity)
+and a `Meaning` (domain purpose, claims, limitations). A source relation that a
+binding reads states one too. A field carries its own `FieldDefinition`. The word
+*projection* survives only for the SQL and plan operator.
+
+The filesystem form of the vocabulary is [Project structure](/appendix/developer/project-structure).
 
 ## In this book
 
@@ -55,10 +75,10 @@ requirement after the argument is clear.
 | [5. Topology](/book/part-2/02-topology) | Which record kinds, properties, directions and categories does the design assert? |
 | [6. Source and rows](/book/part-2/03-source-and-rows) | Which source do the rows represent, and what shape does one row have? |
 | [7. Values and nullability](/book/part-2/04-values-and-nullability) | What does a field read return, and who decides that a value may be absent? |
-| [8. Relations and projections](/book/part-2/05-grain-and-projections) | What is one row after a filter, a join, a group or an expansion? |
-| [9. Extending the semantics model](/book/part-2/06-extension) | Where do source adaptation, domain operations and named derived relations live? |
+| [8. Relations and derived relations](/book/part-2/05-grain-and-projections) | What is one row after a filter, a join, a group or an expansion? |
+| [9. Extending the meaning model](/book/part-2/06-extension) | Where do source adaptation, domain operations and named derived relations live? |
 | [10. A workflow is a chain of reactions](/book/part-2/07-composition) | How do artifact types, priority and interception compose work without a dependency chain? |
-| [11. Binding as fulfilment](/book/part-2/08-binding) | How does a row source populate the record the design already declared? |
+| [11. Binding as fulfilment](/book/part-2/08-binding) | How does a relation fulfil the record the design already declared? |
 | [12. Generating declarations](/book/part-2/09-generation) | How is a declaration package generated without taking over the model? |
 
 ### Part III — From declarations to records
@@ -92,10 +112,10 @@ For a task, the parts also work as routes:
 | --- | --- |
 | Understand the mentality before the mechanism | [Preface: how to describe a graph](/book/intent) |
 | Install and run the reference build | [2. A first build](/book/part-1/02-a-first-build) |
-| Add a source, table or value | [6. Source and rows](/book/part-2/03-source-and-rows) |
-| Fix a duplicated or multiplied row | [8. Relations and projections](/book/part-2/05-grain-and-projections) |
+| Add a source relation or a field | [6. Source and rows](/book/part-2/03-source-and-rows) |
+| Fix a duplicated or multiplied row | [8. Relations and derived relations](/book/part-2/05-grain-and-projections) |
 | Add a node or edge | [5. Topology](/book/part-2/02-topology) |
-| Add a domain operation | [9. Extending the semantics model](/book/part-2/06-extension) |
+| Add a domain operation | [9. Extending the meaning model](/book/part-2/06-extension) |
 | Compose a producer or consumer | [10. A workflow is a chain of reactions](/book/part-2/07-composition) |
 | Populate a record from rows | [11. Binding as fulfilment](/book/part-2/08-binding) |
 | Add a capability | [18. The kernel and the extension surface](/book/part-4/01-the-kernel-and-extension) |

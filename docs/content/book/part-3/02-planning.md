@@ -16,7 +16,7 @@ sources:
   - docs/content/appendix/reference/compile.md
 ---
 
-The blueprint says that a `site` node exists, that `sites` is its source relation and that `site_binding` populates it. It does not say that a source-relation instruction must run before a SQL instruction, that the binding rows must be aggregated into one node stream, or that a file target should consume that stream at the end. Those are decisions about work, and they belong to planners.
+The blueprint says that a `site` node exists, that `sites` is its source relation and that `site_binding` fulfils it. It does not say that a source-relation instruction must run before a SQL instruction, that the binding rows must be aggregated into one node stream, or that a file target should consume that stream at the end. Those are decisions about work, and they belong to planners.
 
 `compile` is the stage that asks every planner for its work and assembles the answers into one `WorkflowPlan`. Compilation is pure. It reads the blueprint and the planner composition, reads no source rows, opens no files and returns a plan whose wiring is already checked. The same blueprint can produce different plans under different compositions; a plan is one answer, not the only possible one.
 
@@ -28,7 +28,7 @@ The planner boundary is deliberately narrow. A planner receives one opaque model
 
 `PlanContext` carries two things. `runtime_configuration` holds per-component values known at plan time. `shared` is a mutable scratch space for one compile, so several planners that share a component can publish and read the same plan state.
 
-The four core planners use that scratch space. `RowSourcePlanner`, `ProjectionPlanner`, `BindingPlanner` and `RecordsPlanner` all declare `component_id="core"` and share one `CorePlan` under `core.plan`. The row-source planner builds the relation plan, the projection planner adds projections, the binding planner materialises each binding's rows, and the records planner aggregates those rows into one node or edge stream. They are separate objects because they answer separate questions, but they describe one component because the plan's component identity is the unit a runtime configures and an operator reasons about.
+The four core planners use that scratch space. `RowSourcePlanner`, `DerivedRelationPlanner`, `BindingPlanner` and `RecordsPlanner` all declare `component_id="core"` and share one `CorePlan` under `core.plan`. The row-source planner builds the relation plan, the derived-relation planner adds the derived relations, the binding planner materialises each binding's rows, and the records planner aggregates those rows into one node or edge stream. They are separate objects because they answer separate questions, but they describe one component because the plan's component identity is the unit a runtime configures and an operator reasons about.
 
 The site reactions cross three components. This is a reaction trace, not a task sequence:
 
@@ -91,7 +91,7 @@ A `Step` carries the facts of one unit of work:
 | `instruction` | Exactly one `Instruction(kind, payload)` |
 | `assembly_preference` | `"eager"` or `"deferred"` |
 
-The component and name are the facts; the identity is derived. `StepId(component, name)` is the pair, and its key is `[component, name]`. The name is one key segment even when it contains dots. `projection.defect`, `binding.6` and `aggregate.site` are single segments, not nested paths. This keeps a step's display name readable without making the identity depend on how many dots it contains.
+The component and name are the facts; the identity is derived. `StepId(component, name)` is the pair, and its key is `[component, name]`. The name is one key segment even when it contains dots. `projection.defect`, `binding.6` and `aggregate.site` are single segments, not nested paths. The first is the SQL projection that materialises the derived relation `defect`; the step name is a display name, not a claim that the relation is an operator. This keeps a step's display name readable without making the identity depend on how many dots it contains.
 
 A duplicate identity is refused. Two planners in one component cannot both emit a step named `write`; the assembler reports `duplicate step id file/write`. Two planners in different components may use the same name, because the component is part of the identity.
 

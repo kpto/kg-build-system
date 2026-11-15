@@ -22,7 +22,7 @@ sources:
 | `kg_build_system` | Authoring names, `compile`, `create_blueprint`, `execute`, `GraphBlueprint`, `BuildRuntime`, `WorkflowReport`. |
 | `kg_build_system.kernel` | Kernel protocols, workflow values and the `Toolchain` composition value: `Language`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `WorkflowRuntime`, `Toolchain`, `WorkflowPlan`, `Step`, `Instruction`, `Key`, `SymbolRef`, `RuntimeConfiguration`. |
 | `kg_build_system.distribution` | Planners and executors, plus `GraphBlueprint`, `create_blueprint` and typed references. |
-| `kg_build_system.generation` | Generation names: `asset_contract`, discovery, `generate`, `watch`, sessions, results and errors. |
+| `kg_build_system.generation` | Generation names: `asset_generation`, discovery, `generate`, `watch`, sessions, results and errors. |
 
 The canonical path is `create_blueprint` → `compile` → `execute`: create an immutable `GraphBlueprint`, compile it to a `WorkflowPlan`, then execute it to a `WorkflowReport`. `BuildRuntime` carries execution settings; `WorkflowReport` carries the published artifacts and failures. See [Documents](/appendix/reference/documents) for the plan and report shapes, and [CLI](/appendix/reference/cli) for the console command that writes declarations before this path.
 
@@ -38,10 +38,10 @@ This table is the **default facade**. The kernel protocols are exported from `kg
 | `kg_build_system.distribution.languages.annotations` | `Annotation`, `EdgeLabel`, `NodeLabel` |
 | `kg_build_system.distribution.languages.asset` | `Asset`, `AssetAuthority`, `AssetGovernance`, `AssetLayout`, `AssetLicense`, `AssetOptions`, `AssetProfile` |
 | `kg_build_system.distribution.languages.binding` | `BindingOptions`, `EdgeBinding`, `EdgeValues`, `NodeBinding`, `NodeValues`, `edge_binding`, `node_binding` |
-| `kg_build_system.distribution.languages.data` | `ComputedStruct`, `DerivedRowSource`, `Field`, `JoinHow`, `Projection`, `ProjectionOptions`, `RelationRowSource`, `RowSource`, `Struct`, `StructOptions`, `StructOptionsTemplate`, `StructTemplate`, `Table`, `TableGroup`, `TableGroupOptions`, `TableOptions`, `computed_field`, `field` |
+| `kg_build_system.distribution.languages.data` | `ComputedStruct`, `Contract`, `Definition`, `DerivedRowSource`, `Field`, `FieldDefinition`, `JoinHow`, `DerivedRelation`, `DerivedRelationOptions`, `RelationRowSource`, `RowSource`, `Stage`, `StageOptions`, `StageRowSource`, `Struct`, `StructOptions`, `StructOptionsTemplate`, `StructTemplate`, `SourceRelation`, `SourceRelationGroup`, `SourceRelationGroupOptions`, `SourceRelationOptions`, `computed_field`, `field` |
 | `kg_build_system.distribution.languages.expressions` | `ArrayRowEffects`, `NullableArrayRowEffects`, `NullableRowEffects`, `NullableSelection`, `Pair`, `RowEffects`, `Selection`, `all_of`, `any_of`, `value_expression` |
 | `kg_build_system.distribution.languages.graph` | `Graph`, `GraphOptions` |
-| `kg_build_system.distribution.languages.semantics` | `Claim`, `Limitation`, `Purpose`, `Semantics` |
+| `kg_build_system.distribution.languages.meaning` | `Claim`, `Limitation`, `Purpose`, `Meaning` |
 | `kg_build_system.distribution.languages.topology` | `AbstractEdge`, `AbstractNode`, `Edge`, `EdgeOptions`, `EdgeOptionsTemplate`, `EdgeTemplate`, `Endpoint`, `Node`, `NodeOptions`, `NodeOptionsTemplate`, `NodeTemplate`, `PropertySlot`, `endpoint`, `property` |
 | `kg_build_system.distribution.model.public.runtime` | `BuildRuntime` |
 | `kg_build_system.kernel.model.public.runtime` | `WorkflowReport` |

@@ -17,7 +17,7 @@ sources:
 
 ## One composition, not the edge of the world
 
-A graph author meets the distribution before meeting the kernel. `Table`, `Field`, `Node`, `Edge`, `create_blueprint`, `compile` and `execute` come from the graph system. A first build can run end to end without naming a protocol, a toolchain or an instruction kind. That convenience creates a natural mistake: the shipped graph system looks like the framework itself, and a capability it lacks looks like a capability the framework cannot express.
+A graph author meets the distribution before meeting the kernel. `SourceRelation`, `DerivedRelation`, `Field`, `Node`, `Edge`, `Meaning`, `create_blueprint`, `compile` and `execute` come from the graph system. A first build can run end to end without naming a protocol, a toolchain or an instruction kind. That convenience creates a natural mistake: the shipped graph system looks like the framework itself, and a capability it lacks looks like a capability the framework cannot express.
 
 The mistake is worth stating plainly because Part IV argues against it. The default distribution is one composition of the kernel protocols. It contains the graph languages, the blueprint and its interpreter, the core planners, the DuckDB source planner and emitter, the file, meta-graph and Neo4j targets, the generation frontend and the CLI. Those are the parts a project uses on the first day. They are also the parts a project can replace, one object at a time, while keeping the rest of the build.
 
@@ -31,26 +31,26 @@ The distribution owns eight language packages, but they do not all plug into the
 | --- | --- | --- |
 | `expressions` | Inline value expressions and their typed leaves. | `ExpressionsLanguage` |
 | `asset` | One logical source unit and its descriptive layout. | `AssetLanguage` |
-| `data` | Tables, fields, relations and projections. | `DataLanguage` |
+| `data` | Source relations, derived relations, stages and fields. | `DataLanguage` |
 | `topology` | Nodes, edges, categories and templates. | `TopologyLanguage` |
-| `binding` | The row-to-record mapping. | `BindingLanguage` |
+| `binding` | The fulfilment between a relation and a record. | `BindingLanguage` |
 | `graph` | One project-level graph declaration and its purpose. | `GraphLanguage` |
 | `annotations` | Labels, descriptions and other attached values. | Value language, embedded |
-| `semantics` | Purposes, limitations and claims. | Value language, embedded |
+| `meaning` | Purposes, limitations and claims. | Value language, embedded |
 
-The first six produce symbols. The last two supply values that other declarations carry: an annotation on a field, a semantics fragment on a node or edge, the purpose of the graph. Treating them as separate adapters would add language objects that produce no symbols of their own. Treating them as mere comments would lose the distinction between a descriptive string and a purpose with a limitation and a contextless claim. They are value languages because their values are embedded in declaration DTOs, not because they are informal.
+The first six produce symbols. The last two supply values that other declarations carry: an annotation on a field, a meaning value on a node or edge, the purpose of the graph. Treating them as separate adapters would add language objects that produce no symbols of their own. Treating them as mere comments would lose the distinction between a descriptive string and a purpose with a limitation and a contextless claim. They are value languages because their values are embedded in declaration DTOs, not because they are informal.
 
 `BlueprintLinker` is the distribution's `Linker`. It indexes the kernel languages in a fixed order: expressions, asset, data, topology, binding, graph. The first five are required; graph is optional. It selects roots by language, walks the authoring reference closure, transcribes each reachable declaration once and assembles the result into a `GraphBlueprint`. The symbol graph is the linker's working state; the blueprint is the delivered semantic model.
 
-The blueprint has five fields: graph, data, assets, bindings and an optional graph declaration. It carries nodes, edges, relations, fields, properties, assets and operations as semantic roles, connected by typed refs such as `NodeRef`, `FieldRef` and `PropertyRef`. It does not carry Python paths, declaration expressions or symbol ids. That is the interpreter's contribution: it takes the language DTOs and assembles them into one model without letting the linker's working vocabulary leak into the artifact.
+The blueprint has five fields: graph, data, assets, bindings and an optional graph declaration. It carries nodes, edges, source relations, derived relations, fields, properties, assets and operations as semantic roles, connected by typed refs such as `NodeRef`, `FieldRef` and `PropertyRef`. It does not carry Python paths, declaration expressions or symbol ids. That is the interpreter's contribution: it takes the language DTOs and assembles them into one model without letting the linker's working vocabulary leak into the artifact.
 
 A new declaration syntax plugs in here. A language discovers declarations, derives keys, reports direct references and transcribes symbols; the linker and interpreter do the rest. The blueprint does not need to know how the syntax was written, and the planners do not need to know which language produced a relation. This is why a new syntax is a language rung on the ladder rather than a change to every planner.
 
 ## The core planners and the source planner
 
-The default composition has five planners in two groups. Four share `component_id="core"`: `RowSourcePlanner`, `ProjectionPlanner`, `BindingPlanner` and `RecordsPlanner`. They share one `CorePlan` in `PlanContext.shared` and emit row-source, projection, binding and aggregate-record steps. `DuckDbSourcePlanner` has `component_id="duckdb"` and emits one `source.<relation>` step per compatible asset-backed relation.
+The default composition has five planners in two groups. Four share `component_id="core"`: `RowSourcePlanner`, `DerivedRelationPlanner`, `BindingPlanner` and `RecordsPlanner`. They share one `CorePlan` in `PlanContext.shared` and emit row-source, derived-relation, binding and aggregate-record steps. `DuckDbSourcePlanner` has `component_id="duckdb"` and emits one `source.<relation>` step per compatible asset-backed relation.
 
-The split is deliberate. The core planners decide how rows are derived; the source planner decides how a relation is read. A projection does not know whether its input came from Parquet, JSON or a table already materialised in DuckDB. A source step publishes a relation; the core steps consume it. A new source format is another planner with its own component, not an edit to the row algebra.
+The split is deliberate. The core planners decide how rows are derived; the source planner decides how a relation is read. A derived relation does not know whether its input came from Parquet, JSON or a relation already materialised in DuckDB. A source step publishes a relation; the core steps consume it. A new source format is another planner with its own component, not an edit to the row algebra.
 
 `Planner.plan` emits steps and stops there. The four core planners do not execute SQL, open a connection or write a file. They describe the relation plan and attach instructions. The executor that claims the instruction kind performs the side effect. Planning and execution are separate objects because a plan must be inspectable before it runs, and because the same plan vocabulary must carry an engine that the planner does not import.
 
@@ -80,7 +80,7 @@ The targets also show the limit of the composition. The file target rewrites its
 
 ## Generation and the CLI are not the build
 
-Generation sits upstream of the build. It observes a source, runs a provider and renders declarations. `@asset_contract` is an inert decorator on an `Asset` subclass; it is outside `AssetOptions` and outside the blueprint. The build imports the resulting declarations and never invokes generation. `compile` and `execute` never invoke it either. Generated and handwritten declarations enter the same language, blueprint, plan and execution path.
+Generation sits upstream of the build. It observes a source, runs a provider and renders declarations. `@asset_generation` is an inert decorator on an `Asset` subclass; it is outside `AssetOptions` and outside the blueprint. The build imports the resulting declarations and never invokes generation. `compile` and `execute` never invoke it either. Generated and handwritten declarations enter the same language, blueprint, plan and execution path.
 
 The CLI is a frontend, not the public API. It offers `kbs generate`; it does not offer a build subcommand. A project ships a build by calling `create_blueprint`, `compile` and `execute` from Python, or by wrapping those calls in its own script. The narrow CLI is an interface limit of the default composition, not a statement that a build cannot be automated. Another frontend adds commands around the same calls.
 

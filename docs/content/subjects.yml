@@ -4,13 +4,13 @@
 
 - slug: asset
   title: Assets and source data
-  summary: One logical source unit, its profile, its descriptive layout and the tables that name it.
+  summary: One logical source unit, its profile, its descriptive layout and the source relations that name it.
   order: 10
   spec: SPEC-001
   contract:
-    - "A table MUST name its logical asset with `Table[Asset]`."
+    - "A source relation MUST name its logical asset with `SourceRelation[Asset]`."
     - "`AssetProfile` MUST be present; `AssetLayout` is descriptive and opens no file."
-    - "One asset MAY back many tables; a table MUST NOT invent a second source."
+    - "One asset MAY back many source relations; a source relation MUST NOT invent a second source."
   guide: [book/part-2/03-source-and-rows, book/part-1/03-a-project]
   api: appendix/reference/api
   philosophy: [appendix/philosophy/meaning-first]
@@ -24,7 +24,7 @@
   order: 20
   spec: SPEC-002
   contract:
-    - "A `Table` MUST name its asset; a `Struct` MUST describe a nested source record."
+    - "A `SourceRelation` MUST name its asset; a `Struct` MUST describe a nested source record."
     - "`Field[T]` MUST declare a value type, never `T | None`."
     - "The owner MUST decide presence: source reads are nullable, computed reads follow their selection."
   guide: [book/part-2/03-source-and-rows]
@@ -51,17 +51,17 @@
   downstream: [grain, binding]
 
 - slug: grain
-  title: Grain, row sources and projections
-  summary: What one row means, how a row source changes it, and where a named projection pins it.
+  title: Grain, row sources and derived relations
+  summary: What one row means, how a row source changes it, and where a named derived relation pins it.
   order: 40
   spec: SPEC-004
   contract:
-    - "A binding MUST read a row-source value, never a declaration class."
-    - "A projection MUST pin exactly one row source and publish at least one computed field."
+    - "A binding MUST read a published row-source value, never a declaration class or a stage."
+    - "A derived relation MUST pin exactly one row source and publish at least one computed field."
     - "A join MUST name one key expression per side; a null key never matches."
   guide: [book/part-2/05-grain-and-projections]
   api: appendix/reference/api
-  philosophy: [appendix/philosophy/design-in-semantics]
+  philosophy: [appendix/philosophy/design-in-meaning]
   review: [appendix/review/contracts]
   upstream: [data, selection]
   downstream: [binding]
@@ -90,6 +90,7 @@
   contract:
     - "A binding MUST supply a present scalar build key and every declared property exactly once."
     - "An edge binding MUST supply its own key, a source key and a target key."
+    - "A binding MUST carry a `Meaning` with a purpose and MUST read only a published relation."
     - "Binding identity MUST be content-derived; `debug_name` MUST NOT change the digest."
   guide: [book/part-2/08-binding]
   api: appendix/reference/api
@@ -99,12 +100,12 @@
   downstream: [meaning, execution]
 
 - slug: meaning
-  title: Semantics and graph purpose
+  title: Meaning and graph purpose
   summary: One root purpose, local purposes that narrow it, contextless claims, and the limitations of each purpose.
   order: 70
   spec: SPEC-007
   contract:
-    - "A project MUST have at most one `Graph`, and its `Semantics` MUST carry the root `Purpose`."
+    - "A project MUST have at most one `Graph`, and its `Meaning` MUST carry the root `Purpose`."
     - "A non-graph declaration MAY carry one local `Purpose`; it MUST narrow the graph purpose."
     - "A `Limitation` MUST live inside a `Purpose`; a `Claim` MUST remain contextless."
   guide: [book/part-2/01-meaning-and-purpose]
@@ -120,7 +121,7 @@
   order: 80
   spec: SPEC-008
   contract:
-    - "`@asset_contract` MUST be inert and MUST NOT enter `AssetOptions` or the blueprint."
+    - "`@asset_generation` MUST be inert and MUST NOT enter `AssetOptions` or the blueprint."
     - "Discovery MUST NOT import the author module; it MUST find a static request."
     - "Generated source MUST render `Field[T]`; observed nullability is provenance, not absence."
   guide: [book/part-2/09-generation]
@@ -157,7 +158,7 @@
     - "`InstructionKind` MUST be exact; there is no prefix matching."
   guide: [book/part-3/02-planning]
   api: appendix/reference/documents
-  philosophy: [appendix/philosophy/design-in-semantics]
+  philosophy: [appendix/philosophy/design-in-meaning]
   review: [appendix/review/contracts]
   upstream: [linking]
   downstream: [execution]
@@ -205,7 +206,7 @@
     - "A new engine MUST implement the neutral `SqlEmitter`, not edit core."
   guide: [book/part-2/06-extension, book/part-4/01-the-kernel-and-extension]
   api: appendix/reference/api
-  philosophy: [appendix/philosophy/design-in-semantics]
+  philosophy: [appendix/philosophy/design-in-meaning]
   review: [appendix/review/architecture, appendix/review/limits]
   upstream: [architecture, plan]
   downstream: []

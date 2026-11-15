@@ -5,7 +5,7 @@
   page: appendix/spec/asset
   sources:
     - kg_build_system/distribution/languages/asset/
-    - reference_project/assets.py
+    - reference_project/asset/estate.py
 
 - spec: SPEC-002
   page: appendix/spec/data
@@ -36,7 +36,7 @@
 - spec: SPEC-007
   page: appendix/spec/meaning
   sources:
-    - kg_build_system/distribution/languages/semantics/
+    - kg_build_system/distribution/languages/meaning/
     - kg_build_system/distribution/languages/graph/
 
 - spec: SPEC-008

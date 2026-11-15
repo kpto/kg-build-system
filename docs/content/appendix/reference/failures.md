@@ -25,7 +25,7 @@ Every refusal belongs to a stage. The stage tells you whether to change a declar
 
 | Stage | Typical refusal | What it means |
 | --- | --- | --- |
-| Authoring | `TypeError` | A declaration value, expression, binding or projection is malformed. |
+| Authoring | `TypeError` | A declaration value, expression, binding or derived relation is malformed. |
 | Linking | `ValueError` | Declarations do not index, resolve or order into a blueprint. |
 | Blueprint validation | `ValueError` from `create_blueprint` | Names, references or cross-layer targets disagree. |
 | Document decoding | `ValueError` | A stored document has a missing or malformed member. |
@@ -36,7 +36,7 @@ Read the report first. `execute` returns a `WorkflowReport`; `report.succeeded` 
 
 ## Details
 
-**Authoring.** These are raised while a declaration, expression, binding or projection is written.
+**Authoring.** These are raised while a declaration, expression, binding or derived relation is written.
 
 | Message or refusal | Cause | First place to look |
 | --- | --- | --- |
@@ -48,9 +48,9 @@ Read the report first. `execute` returns a `WorkflowReport`; `report.succeeded` 
 | `<target> has no declared property <names>` | A property value names a property the target does not declare. | [Bindings](/book/part-2/08-binding) |
 | `<target>.<attribute> must be assigned a value selection or expression` | A declared property, including an inherited one, has no value. | [Bindings](/book/part-2/08-binding) |
 | `<target>.<attribute> expects <type>, but the selection resolves to <type>` | A property value has an incompatible logical type. | [Values](/book/part-2/04-values-and-nullability) |
-| `projections must declare at least one computed_field` | A projection has no output field. | [Projections](/book/part-2/05-grain-and-projections) |
-| `Projection(source) requires a row source; declare outputs on a named subclass` | A projection class is not pinned to a row source. | [Projections](/book/part-2/05-grain-and-projections) |
-| `a relational product requires one driving source; additional sources must be introduced by an explicit lookup` | A projection reads two unrelated relations. | [Projections](/book/part-2/05-grain-and-projections) |
+| `derived relations must declare at least one computed_field` | A derived relation has no output field. | [Derived relations](/book/part-2/05-grain-and-projections) |
+| `DerivedRelation(source) requires a row source; declare outputs on a named subclass` | A derived relation class is not pinned to a row source. | [Derived relations](/book/part-2/05-grain-and-projections) |
+| `a relational product requires one driving source; additional sources must be introduced by an explicit lookup` | A derived relation reads two unrelated relations. | [Derived relations](/book/part-2/05-grain-and-projections) |
 | `join key expressions must have the same logical type` | The two join keys differ in base type. Nullability may differ; base type may not. | [Grain](/book/part-2/05-grain-and-projections) |
 | `join keys must be scalar expressions` | A join key is an array or struct. | [Grain](/book/part-2/05-grain-and-projections) |
 | `join on must return a (left key, right key) pair` | The join callable returns another shape. | [Grain](/book/part-2/05-grain-and-projections) |
@@ -60,12 +60,16 @@ Read the report first. `execute` returns a `WorkflowReport`; `report.succeeded` 
 | `group_by key names must be unique` | Two grouping keys share a name. | [Grain](/book/part-2/05-grain-and-projections) |
 | `where predicates must return a Selection[bool]` | A filter predicate returns another type. | [Values](/book/part-2/04-values-and-nullability) |
 | `unnest requires a present or nullable array field` | An unnest selector reads a non-array field. | [Values](/book/part-2/04-values-and-nullability) |
-| `a final Table may not inherit from another final Table` | A final table is used as a base class. | [Data](/book/part-2/03-source-and-rows) |
-| `a final Projection may not inherit from another final Projection` | A final projection is used as a base class. | [Projections](/book/part-2/05-grain-and-projections) |
-| `a final TableGroup may not inherit from another final TableGroup` | A final table group is used as a base class. | [Assets](/book/part-2/03-source-and-rows) |
+| `a final SourceRelation may not inherit from another final SourceRelation` | A final source relation is used as a base class. | [Data](/book/part-2/03-source-and-rows) |
+| `a final DerivedRelation may not inherit from another final DerivedRelation` | A final derived relation is used as a base class. | [Derived relations](/book/part-2/05-grain-and-projections) |
+| `a final SourceRelationGroup may not inherit from another final SourceRelationGroup` | A final source relation group is used as a base class. | [Assets](/book/part-2/03-source-and-rows) |
 | `<class> cannot inherit from concrete graph component <component>` | A concrete node or edge is treated as a category. | [Topology](/book/part-2/02-topology) |
 | `<class> has more than one abstract category parent: <names>` | A declaration names several category parents. | [Topology](/book/part-2/02-topology) |
-| `table groups must declare at least one member` | A table group is empty. | [Assets](/book/part-2/03-source-and-rows) |
+| `source relation groups must declare at least one member` | A source relation group is empty. | [Assets](/book/part-2/03-source-and-rows) |
+| `a derived relation requires a Contract with a Definition and a Meaning` | A derived relation has no contract, or an incomplete one. | [Declarations](/appendix/reference/declarations) |
+| `a derived relation contract requires a purpose` | A derived relation contract carries claims only. | [Declarations](/appendix/reference/declarations) |
+| `a declared contract requires a Definition and a Meaning` | A source relation contract is half-stated. | [Declarations](/appendix/reference/declarations) |
+| `a binding requires a meaning with a purpose` | A binding has no meaning, or a meaning without a purpose. | [Bindings](/appendix/reference/bindings) |
 | `<owner> fields '<x>' and '<y>' share external name '<name>'` | Two fields map to one external column name. | [Data](/book/part-2/03-source-and-rows) |
 | `<component> properties '<x>' and '<y>' share external name '<name>'` | Two properties map to one external property name. | [Topology](/book/part-2/02-topology) |
 
@@ -73,9 +77,9 @@ Read the report first. `execute` returns a `WorkflowReport`; `report.succeeded` 
 
 | Message or refusal | Cause | First place to look |
 | --- | --- | --- |
-| `relation names must be unique` | Two tables share a logical name. | [Data](/book/part-2/03-source-and-rows) |
-| `projection names must be unique` | Two projections share a logical name. | [Projections](/book/part-2/05-grain-and-projections) |
-| `relation and projection names must be unique` | A table and a projection share a logical name. | [Data](/book/part-2/03-source-and-rows) |
+| `source relation names must be unique` | Two source relations share a logical name. | [Data](/book/part-2/03-source-and-rows) |
+| `derived relation names must be unique` | Two derived relations share a logical name. | [Derived relations](/book/part-2/05-grain-and-projections) |
+| `source relation and derived relation names must be unique` | A source relation and a derived relation share a logical name. | [Data](/book/part-2/03-source-and-rows) |
 | `topology component names must be unique` | A topology part repeats a node or edge name. | [Topology](/book/part-2/02-topology) |
 | `unknown symbol reference <reference>` | A typed reference names no indexed declaration. | [Link](/book/part-3/01-linking-and-blueprint) |
 | `symbol reference cycle at <reference>` | Declarations depend on each other in a cycle. | [Link](/book/part-3/01-linking-and-blueprint) |
@@ -83,7 +87,7 @@ Read the report first. `execute` returns a `WorkflowReport`; `report.succeeded` 
 | `duplicate language name '<name>'` | Two languages register under one name. | [Link](/book/part-3/01-linking-and-blueprint) |
 | `unknown root language(s): <names>` | The root policy names a language that is not supplied. | [Link](/book/part-3/01-linking-and-blueprint) |
 | `more than one language claims value identity: <references>` | Two languages claim the same authoring value. | [Link](/book/part-3/01-linking-and-blueprint) |
-| `projection row source reads unknown logical source <name>` | A projection scans a table or projection that is not in the blueprint. | [Link](/book/part-3/01-linking-and-blueprint) |
+| `derived relation row source reads unknown logical source <name>` | A derived relation scans a source or derived relation that is not in the blueprint. | [Link](/book/part-3/01-linking-and-blueprint) |
 | `row-source plan reads unknown logical source '<key>'` | A row-source scan names a missing logical relation. | [Link](/book/part-3/01-linking-and-blueprint) |
 | `binding reads unknown logical source(s): <names>` | A binding's row source reads a relation outside the reached set. | [Link](/book/part-3/01-linking-and-blueprint) |
 | `the blueprint carries more than one graph declaration` | Two graph roots are reached in one namespace. | [Link](/book/part-3/01-linking-and-blueprint) |
@@ -96,21 +100,21 @@ Read the report first. `execute` returns a `WorkflowReport`; `report.succeeded` 
 | `asset names must be unique` | Two assets share a name. | [Assets](/book/part-2/03-source-and-rows) |
 | `edge '<edge>' has an unknown endpoint '<node>'` | An edge endpoint names a node absent from topology. | [Topology](/book/part-2/02-topology) |
 | `component '<component>' has an unknown parent '<parent>'` | A parent reference names an absent component. | [Topology](/book/part-2/02-topology) |
-| `relation '<relation>' must name its logical asset` | A relation has no asset reference. | [Data](/book/part-2/03-source-and-rows) |
-| `relation '<relation>' names an unknown asset '<asset>'` | A relation names an asset outside the blueprint. | [Assets](/book/part-2/03-source-and-rows) |
-| `relation '<relation>' column '<column>' does not carry <ref>` | A relation column's reference is not its own field identity. | [Data](/book/part-2/03-source-and-rows) |
-| `projection '<projection>' column '<column>' does not carry <ref>` | A projection column's reference is not its own field identity. | [Projections](/book/part-2/05-grain-and-projections) |
+| `source relation '<relation>' must name its logical asset` | A source relation has no asset reference. | [Data](/book/part-2/03-source-and-rows) |
+| `source relation '<relation>' names an unknown asset '<asset>'` | A source relation names an asset outside the blueprint. | [Assets](/book/part-2/03-source-and-rows) |
+| `source relation '<relation>' column '<column>' does not carry <ref>` | A source relation column's reference is not its own field identity. | [Data](/book/part-2/03-source-and-rows) |
+| `derived relation '<relation>' column '<column>' does not carry <ref>` | A derived relation column's reference is not its own field identity. | [Derived relations](/book/part-2/05-grain-and-projections) |
 | `component '<component>' property '<property>' does not carry <ref>` | A property's reference is not its own property identity. | [Topology](/book/part-2/02-topology) |
 | `binding targets an unknown component '<component>'` | A binding target is absent from topology. | [Bindings](/book/part-2/08-binding) |
 | `node binding targets an unknown node '<component>'` | A node binding names an edge or a missing node. | [Bindings](/book/part-2/08-binding) |
 | `edge binding targets an unknown edge '<component>'` | An edge binding names a node or a missing edge. | [Bindings](/book/part-2/08-binding) |
 | `edge binding targets an unknown endpoint '<node>'` | A bound endpoint is absent from topology. | [Bindings](/book/part-2/08-binding) |
-| `a graph declaration requires a Semantics with a purpose` | The graph root lacks a purpose. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
+| `a graph declaration requires a Meaning with a purpose` | The graph root lacks a purpose. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
 | `the graph declaration purpose must be non-empty` | The purpose text is empty. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
 | `a local purpose requires a graph declaration with a purpose` | A declaration carries a purpose but the project declares no graph purpose. | [Meaning](/book/part-2/01-meaning-and-purpose) |
 | `bindings require a node or edge reference` | A binding target is neither a node nor an edge. | [Bindings](/book/part-2/08-binding) |
 | `bindings require a target component name` | A binding has an empty component name. | [Bindings](/book/part-2/08-binding) |
-| `graph components, relations and assets require a name` | A layer object has no usable name. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
+| `graph components, source relations and assets require a name` | A layer object has no usable name. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
 
 **Document decoding.** The codecs check document shape, not model invariants. See [Documents](/appendix/reference/documents) for the canonical members.
 
@@ -128,11 +132,11 @@ Read the report first. `execute` returns a `WorkflowReport`; `report.succeeded` 
 | `<context> must be an object` | A member that must be an object is another JSON type. | [Documents](/appendix/reference/documents) |
 | `<context> must be an array` | A member that must be an array is another JSON type. | [Documents](/appendix/reference/documents) |
 | `a node binding 'node' must be a node reference` | A node binding's target ref has the wrong role. | [Documents](/appendix/reference/documents) |
-| `a relation 'asset' must be an asset reference` | A relation's asset ref has the wrong role. | [Documents](/appendix/reference/documents) |
+| `a relation 'asset' must be an asset reference` | A source relation's asset ref has the wrong role. | [Documents](/appendix/reference/documents) |
 | `unknown asset authority <value>` | A profile authority is outside the enum. | [Documents](/appendix/reference/documents) |
 | `'profile' must be an object` | An asset has no object profile. | [Documents](/appendix/reference/documents) |
-| `a graph declaration requires semantics` | A graph declaration document has no semantics member. | [Documents](/appendix/reference/documents) |
-| `a graph declaration semantics document requires a purpose` | The graph declaration’s semantics document has no purpose. | [Documents](/appendix/reference/documents) |
+| `a graph declaration requires meaning` | A graph declaration document has no meaning member. | [Documents](/appendix/reference/documents) |
+| `a graph declaration meaning document requires a purpose` | The graph declaration's meaning document has no purpose. | [Documents](/appendix/reference/documents) |
 | `annotation field '<key>' must be a non-empty string` | An annotation namespace or id is empty. | [Documents](/appendix/reference/documents) |
 | `unknown unit logical type <name>` | A logical type names an unknown canonical unit. | [Documents](/appendix/reference/documents) |
 | `canonical nullable types may not be nested` | A nullable type wraps another nullable type. | [Documents](/appendix/reference/documents) |

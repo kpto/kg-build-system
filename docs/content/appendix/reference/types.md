@@ -51,13 +51,13 @@ All eight scalars have a canonical text form through `to_string()`. Temporal and
 `Date`, `Time`, `Timestamp` and `Uuid` are aliases of `datetime.date`, `datetime.time`, `datetime.datetime` and `uuid.UUID`. They are not subclasses, and the alias and the stdlib spelling are the same annotation.
 
 ```python
-from kg_build_system import Field, Table, field
+from kg_build_system import Field, SourceRelation, field
 from kg_build_system import Timestamp, Uuid
 
 
 from estate.assets import Estate
 
-class RegisterTable(Table[Estate]):
+class RegisterSourceRelation(SourceRelation[Estate]):
     site_id: Field[Uuid] = field(name="site_id")
     opened_on: Field[Timestamp] = field(name="opened_on")
 ```
@@ -69,7 +69,7 @@ class RegisterTable(Table[Estate]):
 An application-defined scalar is a class derived from `CustomDataType`.
 
 ```python
-from kg_build_system import CustomDataType, Field, Table, field
+from kg_build_system import CustomDataType, Field, SourceRelation, field
 
 
 class Currency(CustomDataType):
@@ -78,7 +78,7 @@ class Currency(CustomDataType):
 
 from estate.assets import Estate
 
-class BudgetTable(Table[Estate]):
+class BudgetSourceRelation(SourceRelation[Estate]):
     budget: Field[Currency] = field()
 ```
 
@@ -114,7 +114,7 @@ A null array produces no rows when expanded. An empty array also produces no row
 A struct is a nested-record shape only. It is never a row source, has no location, and cannot be bound. A struct may contain structs and arrays of structs. Its identity is the `(module, qualname)` pair, so two structs with the same name in different modules are distinct.
 
 ```python
-from kg_build_system import Field, Struct, Table, field
+from kg_build_system import Field, Struct, SourceRelation, field
 from kg_build_system import Array
 
 
@@ -125,7 +125,7 @@ class AddressStruct(Struct):
 
 from estate.assets import Estate
 
-class SiteTable(Table[Estate]):
+class SiteSourceRelation(SourceRelation[Estate]):
     site_id: Field[str] = field()
     address: Field[AddressStruct] = field()
     previous_addresses: Field[Array[AddressStruct]] = field()
@@ -133,27 +133,27 @@ class SiteTable(Table[Estate]):
 
 A source struct member reads as nullable because the source may omit it. A `ComputedStruct` member selection is a **type witness** when the computed struct is carried by a row: it fixes the member type, but it is not evaluated. The carrier row supplies the value, and `extract` is the only way to read it.
 
-A field type must be a value record. `Field[SomeTable]` and `Field[SomeProjection]` are refused; use `extract` for a record already carried by a field, or bind the relation separately. See [Row sources](/appendix/reference/row-sources).
+A field type must be a value record. `Field[SomeSourceRelation]` and `Field[SomeDerivedRelation]` are refused; use `extract` for a record already carried by a field, or bind the relation separately. See [Row sources](/appendix/reference/row-sources).
 
 **Nullability**
 
 A field declaration names a value type. Presence comes from the owner:
 
 ```python
-site_id = SiteTable.site_id          # Selection[Nullable[str]]
-address = SiteTable.address          # Selection[Nullable[AddressStruct]]
+site_id = SiteSourceRelation.site_id          # Selection[Nullable[str]]
+address = SiteSourceRelation.address          # Selection[Nullable[AddressStruct]]
 ```
 
-A `Projection` output is different: `computed_field(value)` is typed by `value`. A non-null selection publishes a non-null output, and a nullable selection publishes a nullable one.
+A `DerivedRelation` output is different: `computed_field(value)` is typed by `value`. A non-null selection publishes a non-null output, and a nullable selection publishes a nullable one.
 
 | Owner and declaration | Read as |
 | --- | --- |
-| Source `Table`: `Field[str]` | `Selection[Nullable[str]]` |
-| Source `Table`: `Field[Array[str]]` | `Selection[Nullable[Array[str]]]` |
-| Source `Table`: `Field[Array[Nullable[str]]]` | `Selection[Nullable[Array[Nullable[str]]]]` |
-| Source `Table`: `Field[AddressStruct]` | `Selection[Nullable[AddressStruct]]` |
-| `Projection`: `computed_field(present selection)` | `Selection[T]` |
-| `Projection`: `computed_field(nullable selection)` | `Selection[Nullable[T]]` |
+| Source relation: `Field[str]` | `Selection[Nullable[str]]` |
+| Source relation: `Field[Array[str]]` | `Selection[Nullable[Array[str]]]` |
+| Source relation: `Field[Array[Nullable[str]]]` | `Selection[Nullable[Array[Nullable[str]]]]` |
+| Source relation: `Field[AddressStruct]` | `Selection[Nullable[AddressStruct]]` |
+| `DerivedRelation`: `computed_field(present selection)` | `Selection[T]` |
+| `DerivedRelation`: `computed_field(nullable selection)` | `Selection[Nullable[T]]` |
 | `ComputedStruct` member through `extract` | The witness type, composed with the carrier's presence |
 
 Nullability is flattened: a nullable value never wraps another nullable value, and a nullable of a nullable is simply nullable. `Nullable[T]` and `T | None` are the same type: `Nullable` is a type alias for the union, so a generated or hand-written spelling type-checks identically. Do not write `Nullable[T]` as the outer field type; it is the spelling for array items and canonical types. A present `Selection[T]` may be bound to a nullable property or slot; the value is simply always present.
@@ -167,14 +167,14 @@ Nulls pass through calculations. A selection owns the null policy:
 - `drop_null_items()` removes null array items; narrow the array to a present selection first.
 
 ```python
-city = SiteTable.address.extract(lambda address: address.city).default_to("unknown")
+city = SiteSourceRelation.address.extract(lambda address: address.city).default_to("unknown")
 postcode = (
-    SiteTable.address.extract(lambda address: address.postcode)
+    SiteSourceRelation.address.extract(lambda address: address.postcode)
     .alter_rows().drop_null()
 )
 ```
 
-A generated package renders every source field as `Field[T]` from its value type. The observed source claim is provenance for the manifest, statistics and notes; it never adds absence to the rendered field. Access then follows the owner: a generated source field reads as nullable because it belongs to a source table. See [Declare an asset](/book/part-2/03-source-and-rows).
+A generated package renders every source field as `Field[T]` from its value type. The observed source claim is provenance for the manifest, statistics and notes; it never adds absence to the rendered field. Access then follows the owner: a generated source field reads as nullable because it belongs to a source relation. See [Declare an asset](/book/part-2/03-source-and-rows).
 
 **Graph property shape**
 
@@ -209,8 +209,8 @@ Custom scalars count as scalars for property shape, but a specific target may st
 A build key, source key or target key must be a **present scalar** selection. Arrays and structs are refused, and so is a nullable scalar. A key from a source field is narrowed first because source access is nullable.
 
 ```python
-build_key = SiteTable.site_id.alter_rows().drop_null()
-target_key = SiteTable.site_id.alter_rows().drop_null().to_string()
+build_key = SiteSourceRelation.site_id.alter_rows().drop_null()
+target_key = SiteSourceRelation.site_id.alter_rows().drop_null().to_string()
 ```
 
 An array of strings becomes key material through `concat(...)`. Narrow the array first, then apply `sort()` and `unique()` before joining it. See [Bindings](/appendix/reference/bindings).
@@ -277,7 +277,7 @@ Acceptance by the digest gate is not acceptance as a graph property. A physical 
 | <code>T &#124; U</code> with two non-null members | Logical unions do not exist | Use one type, or separate fields |
 | `list[T]`, `Sequence[T]`, `dict[K, V]`, `tuple[...]` | Only the portable `Array` marker and declared structs exist | Use `Array[T]` or a `Struct` |
 | A struct or custom type declared inside a function | It cannot be resolved by module and qualified name | Declare it at module level |
-| A `Table` or `Projection` as a field type | A row source is not a value record | Use a `Struct` or `ComputedStruct`, or bind the relation separately |
+| A `SourceRelation` or `DerivedRelation` as a field type | A row source is not a value record | Use a `Struct` or `ComputedStruct`, or bind the relation separately |
 | `value_expression(None)` | A null literal has no inferable type | Pass `logical_type=NullableType(STR)` (or the matching canonical type) |
 | `value_expression([])` or an all-null array literal | The item type cannot be inferred | Pass `logical_type=ArrayType(INT)` (or the matching item type) |
 | A struct or custom value as a literal | Literals are portable scalars and arrays only | Build the value from row selections |
@@ -303,14 +303,15 @@ Acceptance by the digest gate is not acceptance as a graph property. A physical 
 
 ```python
 from kg_build_system import (
-    Field, Node, NodeValues, PropertySlot, Table, field, node_binding, property,
+    Field, Meaning, Node, NodeValues, PropertySlot, Purpose, SourceRelation,
+    field, node_binding, property,
 )
 from kg_build_system import Array, Nullable, Timestamp
 
 
 from estate.assets import Estate
 
-class ReadingTable(Table[Estate]):
+class ReadingSourceRelation(SourceRelation[Estate]):
     reading_id: Field[str] = field()
     recorded_on: Field[Timestamp] = field()
     value: Field[float] = field()
@@ -325,7 +326,7 @@ class ReadingNode(Node):
 
 reading_binding = node_binding(
     target=ReadingNode,
-    rows=ReadingTable.row_source(),
+    rows=ReadingSourceRelation.row_source(),
     bind=lambda row: NodeValues(
         build_key=row.reading_id.alter_rows().drop_null(),
         properties=ReadingNode(
@@ -333,6 +334,9 @@ reading_binding = node_binding(
             value=row.value.alter_rows().drop_null(),
             labels=row.labels.alter_rows().drop_null().drop_null_items(),
         ),
+    ),
+    meaning=Meaning(
+        purpose=Purpose("Populate each reading record from the reading export."),
     ),
 )
 ```

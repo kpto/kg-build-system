@@ -10,7 +10,7 @@ order: 80
 status: normative
 verified: '2026-11-10'
 sources:
-- kg_build_system/generation/code_generation/model/public/contract.py
+- kg_build_system/generation/code_generation/model/public/options.py
 - kg_build_system/generation/code_generation/service/_private/discovery.py
 - kg_build_system/generation/code_generation/service/_private/engine.py
 - kg_build_system/generation/code_generation/model/internal/providers.py
@@ -41,7 +41,7 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 
 ## Contract
 
-- `@asset_contract` MUST be inert and MUST NOT enter `AssetOptions` or the blueprint.
+- `@asset_generation` MUST be inert and MUST NOT enter `AssetOptions` or the blueprint.
 - Discovery MUST NOT import the author module; it MUST find a static request.
 - Generated source MUST render `Field[T]`; observed nullability is provenance, not absence.
 

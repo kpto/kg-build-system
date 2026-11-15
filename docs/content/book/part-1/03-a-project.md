@@ -25,46 +25,76 @@ The reference project is a package tree.
 ```text
 reference_project/
   __init__.py
-  assets.py                   Estate
-  table/
+  asset/
     __init__.py
-    sites/__init__.py         SitesTable and nested Structs
-    equipment/__init__.py     EquipmentTable
-    surveys/__init__.py       SurveysTable
-    readings/
+    estate.py                   Estate
+  graph/
+    __init__.py
+    graph.py                    EstateGraph and the root Meaning
+    common.py                   categories, templates, annotations
+    site/
       __init__.py
-      temperature.py          TemperatureTable
-      mechanical/
+      node.py                   SiteNode
+      has_unit__unit.py         HasUnitEdge
+    unit/
+      __init__.py
+      node.py                   UnitNode
+      ...
+  relation/
+    source/
+      __init__.py
+      estate/
+        __init__.py             facade
+        group.py                EstateSourceRelationGroup
+        sites.py                SitesSourceRelation and nested Structs
+        equipment.py            EquipmentSourceRelation
+        surveys.py              SurveysSourceRelation
+        readings/
+          __init__.py           facade
+          group.py
+          temperature.py        TemperatureSourceRelation
+          mechanical/
+            __init__.py         facade
+            group.py
+            vibration.py        VibrationSourceRelation
+    derived/
+      defects/
         __init__.py
-        vibration.py          VibrationTable
-    projections/
-      defects.py              DefectProjection
-      observations.py         ObservationProjection
-  topology/
-    common.py                 categories, templates, annotations
-    site/__init__.py          SiteNode
-    site/has_unit__unit.py    HasUnitEdge
-    unit/__init__.py          UnitNode
+        relation.py             Defects
+        _unnest.py              the private expansion stage
+      observations/
+        __init__.py
+        relation.py             Observations
+        _unnest.py
+  binding/
+    __init__.py
+    common.py                   shared stamps
+    site/
+      __init__.py
+      binding.py                site_binding
+      has_unit__unit.py         has_unit_binding
     ...
-  bindings/
-    common.py                 shared stamps
-    site/__init__.py          site_binding
-    site/has_unit__unit.py    has_unit_binding
-    ...
-  build.py                    the composition root
-  data/                       the JSON source members
-  build/                      the output directory
+  build.py                      the composition root
+  data/                         the JSON source members
+  build/                        the output directory
 ```
 
-Declarations live in importable modules under one package root. The reference project has an `__init__.py` at the root and in most packages; `topology/`, `bindings/` and `table/projections/` are namespace packages, which Python imports without an initializer. Discovery imports each module by its dotted path, so a directory contributes its modules either way. What matters is that the path is importable.
+Declarations live in importable modules under one package root. Every directory is an ordinary package with an `__init__.py`, and that initializer is a facade: a docstring, re-exports and `__all__`, never a declaration. A package is a grouping; a file is a declaration boundary.
 
-Every public declaration is a module-level value. `SitesTable` is a class object in `reference_project.table.sites`; `site_binding` is a binding value in `reference_project.bindings.site`. Discovery imports the modules and reads the values they expose. There is no registry file, no decorator that registers a class, no per-file declaration list and no plugin entry point.
+The rules are:
 
-The tree is not a filing convention. It is the import graph and the review map. The asset module names the source unit. The table modules name the source contracts. The topology modules name the designed records. The binding modules connect the two. A reader who knows the reference project's tree can predict which declaration a build will use; a reader who knows only the output cannot.
+- **No declaration and no business logic in `__init__.py`.** The initializer may re-export, so `from reference_project.graph.site import SiteNode` works; the definition site is `node.py`.
+- **One file per concrete public declaration.** `graph/graph.py` holds the graph; `graph/site/node.py` the node; `graph/site/has_unit__unit.py` the edge; `relation/source/estate/sites.py` the source relation; `relation/derived/defects/relation.py` the derived relation; `binding/site/binding.py` the binding.
+- **A derived relation is a package.** Its public relation lives in `relation.py`; a private stage lives beside it in `_unnest.py`. The underscore is the visibility rule in the filesystem.
+- **Small files follow from small declarations.** Do not split one declaration across files to meet a line count. If a declaration file is large, question the declaration, not the file.
+
+Every public declaration is a module-level value. `SitesSourceRelation` is a class object in `reference_project.relation.source.estate.sites`; `site_binding` is a binding value in `reference_project.binding.site.binding`. Discovery imports the modules and reads the values they expose. There is no registry file, no decorator that registers a class, no per-file declaration list and no plugin entry point.
+
+The tree is not a filing convention. It is the import graph, the review map and the model's two axes. `asset/` names the source units. `relation/` names the domain relations, source and derived. `graph/` names what the graph asserts, with the graph declaration at its root (the topology language declares the nodes, edges and properties; the graph language declares the project's root meaning). `binding/` is the only package that imports both axes. A dependency test enforces that direction: `graph/` imports neither `relation/` nor `binding/`, and `relation/` imports neither `graph/` nor `binding/`. A reader who knows the reference project's tree can predict which declaration a build will use; a reader who knows only the output cannot.
 
 The module-level rule has a sharp edge. A class defined inside a function or inside another class is never a declaration, because discovery reads module attributes. A class defined at module level but bound to a name beginning with an underscore is skipped, because discovery reads public names. A helper value that exists only to be unpacked into a binding is fine; a declaration that exists only as a local is not.
 
-The type checker sees the same boundary. Declarations are ordinary Python values with ordinary annotations, so a table field with the wrong value type or a binding property assigned the wrong expression is a static error before a build runs. The framework does not introduce a second language with its own type checker.
+The type checker sees the same boundary. Declarations are ordinary Python values with ordinary annotations, so a source-relation field with the wrong value type or a binding property assigned the wrong expression is a static error before a build runs. The framework does not introduce a second language with its own type checker.
 
 ## Discovery is a stable import, not a search
 
@@ -86,13 +116,13 @@ Discovery is broad: every public value in every module is a candidate. Linking i
 
 The linker indexes every declaration by key within its language. It selects roots; by default the roots are every language, so the binding, data, topology, asset and expression declarations are all eligible starting points. It walks the direct references from each root, expands the closure and orders the reached declarations dependencies-first. Each reached declaration is transcribed once, and the assembled model is validated.
 
-The reachable set is easiest to see from a binding. `site_binding` targets `SiteNode` and reads `SitesTable.row_source()`. Following those references reaches `SiteNode`, its property slots and its parent category; it reaches `SitesTable`, its nested `PremisesStruct` and the `Estate` asset the table names. The binding itself is reached because it is a public value in the namespace. A table that no binding reads and no projection references is not reached, even though it is defined and importable. The blueprint is the subgraph the build uses, not a dump of the project.
+The reachable set is easiest to see from a binding. `site_binding` targets `SiteNode` and reads `SitesSourceRelation.row_source()`. Following those references reaches `SiteNode`, its property slots and its parent category; it reaches `SitesSourceRelation`, its nested `Premises` struct and the `Estate` asset the relation names. The binding itself is reached because it is a public value in the namespace. A source relation that no binding reads and no derived relation references is not reached, even though it is defined and importable. The blueprint is the subgraph the build uses, not a dump of the project.
 
-The reference project has five tables and two projections. Every one is read by at least one binding, so all five tables and both projections enter the blueprint. All fourteen bindings enter. The two categories enter because concrete components descend from them. The asset enters because the tables name it.
+The reference project has five source relations and two derived relations. Every one is read by at least one binding or by a derived relation, so all seven enter the blueprint. All fourteen bindings enter. The two categories enter because concrete components descend from them. The asset enters because the source relations name it. The graph declaration enters as the root of the record axis.
 
-This is why a declaration can be valid and still absent from a build. Defining a node no binding targets, or a table no binding reads, adds a candidate to the project but not a record to the output. The build does not warn about unused candidates; reachability is the rule, and a whole-namespace build is not a lint pass.
+This is why a declaration can be valid and still absent from a build. Defining a node no binding targets, or a source relation no binding reads, adds a candidate to the project but not a record to the output. The build does not warn about unused candidates; reachability is the rule, and a whole-namespace build is not a lint pass.
 
-A namespace may declare at most one `Graph`. Zero is legal, and the reference project chooses zero. Two graph declarations are refused when the namespace is linked. The graph declaration is the only declaration with a project-wide scope; every other declaration enters as a root or through a reference from the reachable set.
+A namespace may declare at most one `Graph`. Zero is legal, but then the project states no reason for the graph it builds; the reference project declares one. Two graph declarations are refused when the namespace is linked. The graph declaration is the only declaration with a project-wide scope; every other declaration enters as a root or through a reference from the reachable set.
 
 Uniqueness is checked before reachability. Two declarations in one language that compute the same key are refused even if neither is reachable. A project cannot hide a duplicate by leaving it unbound.
 
@@ -108,7 +138,7 @@ The alternative declaration mode is explicit bindings.
 blueprint = create_blueprint(bindings=(site_binding,))
 ```
 
-Explicit mode uses the supplied binding values as the starting set. The linker still follows their references, so the tables, structs, nodes, edges and assets those bindings name enter the blueprint. It is not a way to bypass the model; it is a way to name the roots directly.
+Explicit mode uses the supplied binding values as the starting set. The linker still follows their references, so the source relations, structs, nodes, edges and assets those bindings name enter the blueprint. It is not a way to bypass the model; it is a way to name the roots directly.
 
 The two modes cannot be combined. `create_blueprint(namespace_path=ROOT, bindings=(site_binding,))` raises `ValueError: namespace_path cannot be combined with bindings`. `compile` has the same declaration modes, and a blueprint cannot be combined with either: `ValueError: blueprint cannot be combined with namespace_path or bindings`.
 
@@ -118,20 +148,20 @@ The same boundary explains the output directory. `build/` is inside the project 
 
 ## Generated declarations are source, not a build step
 
-The table declarations in the reference project are generated. That does not make them a separate kind of declaration. They are ordinary `Table[Estate]` subclasses with `Field[T]` attributes, and the build imports them like handwritten modules.
+The source-relation declarations in the reference project are generated. That does not make them a separate kind of declaration. They are ordinary `SourceRelation[Estate]` subclasses with `Field[T]` attributes, and the build imports them like handwritten modules.
 
 Generation is an edit-time step. A project marks one `Asset` subclass with an asset contract:
 
 ```python
-@asset_contract(
-    AssetContractOptions(
+@asset_generation(
+    AssetGenerationOptions(
         provider=InferDataContractProvider,
         configuration=DataContractInferenceConfig(
-            mode="table_group",
+            mode="source_relation_group",
             layout="files",
             override={"surveys.surveyed_on": {"type": "timestamp"}},
         ),
-        package="reference_project.table",
+        package="reference_project.relation.source",
     ),
 )
 class Estate(Asset):
@@ -165,9 +195,9 @@ kbs generate --project . --watch --debounce 500
 | `1` | `STALE` or a generation failure |
 | `2` | Usage error, including a refused flag combination |
 
-The scan is static. It parses files that contain `asset_contract` without importing the author module, which is why the decorator must sit on one module-level `Asset` subclass with exactly one base and one inline `AssetContractOptions(...)` call. The provider observes the source schema and returns a generated package; the engine renders the declarations twice and requires identical text before installing anything.
+The scan is static. It parses files that contain `asset_generation` without importing the author module, which is why the decorator must sit on one module-level `Asset` subclass with exactly one base and one inline `AssetGenerationOptions(...)` call. The provider observes the source schema and returns a generated package; the engine renders the declarations twice and requires identical text before installing anything.
 
-The product is a package beneath the requested `package`. The reference project's table-group provider writes one product per group: `reference_project/table/sites/`, `reference_project/table/equipment/`, `reference_project/table/surveys/` and `reference_project/table/readings/`. Each product carries a `.kbs-generation.json` ownership record with the format version, provider identity, request fingerprint, source digest and the hash of every owned file. The generated header names the request and states the nullability observation. The fields use the public authoring surface: `Field[T]` for a source field, and an optional annotation only where the value type itself is optional, such as an array item.
+The product is a package beneath the requested `package`. The reference project's source-relation group provider writes one product per group. The product is one package under `reference_project/relation/source/`: `estate/`, with one module per relation and a nested `readings/` group for the two logger feeds. A product declares each relation in one module, its group in `group.py`, and its `__init__.py` is a facade. Each product carries a `.kbs-generation.json` ownership record with the format version, provider identity, request fingerprint, source digest and the hash of every owned file. The generated header names the request and states the nullability observation. The fields use the public authoring surface: `Field[T]` for a source field, and an optional annotation only where the value type itself is optional, such as an array item.
 
 Generated source is owned. A modified owned file refuses the next pass instead of being overwritten. Unowned files and directories are preserved. Stale products are verified before pruning, and writes are atomic.
 
@@ -177,7 +207,7 @@ The relationship between generation and the build is one-directional. Generation
 
 A source change alone does not make a product stale. The source digest is provenance, not a tracked input. When the schema changes, `--regenerate` is the explicit act that observes it again. Until then, the generated declarations continue to state the schema they were built from, and the build continues to use them.
 
-Generation is optional. A project can handwrite every table, struct and projection; the build sees the same public declarations and treats them identically. The decorator and the command exist to make a large source schema cheaper to transcribe, not to create a privileged kind of source.
+Generation is optional. A project can handwrite every source relation, struct and derived relation; the build sees the same public declarations and treats them identically. The decorator and the command exist to make a large source schema cheaper to transcribe, not to create a privileged kind of source.
 
 ## The entry point is a composition root
 
@@ -220,7 +250,7 @@ A project owns its declaration modules, its generated packages and their ownersh
 
 Three rules follow from that boundary. Discovery imports code, so top-level work must be declarative. The namespace is one project, so shared declarations are imported rather than merged. The output directory is pruned, so a build never consumes its own records.
 
-Within those rules, the project is the unit of reproducibility. A checkout, its declarations and one entry point produce one plan and one set of published records. The generated table packages are part of that checkout, not a hidden build step. The next part opens the declarations themselves: sources and rows, values and nullability, grain and projections, topology and bindings, meaning and purpose, and the generation step in full.
+Within those rules, the project is the unit of reproducibility. A checkout, its declarations and one entry point produce one plan and one set of published records. The generated source-relation modules are part of that checkout, not a hidden build step. The next part opens the declarations themselves: assets and source relations, values and nullability, derived relations and grain, the graph and its meaning, bindings as fulfilment, and the generation step in full.
 
 ## Next
 

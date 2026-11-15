@@ -15,7 +15,7 @@ sources:
 
 ## Surface
 
-This page is the redirect and parity map for the docs replacement. `docs/` now contains this knowledge base; every old docs page has a destination, a redirect or an explicit keep decision. The repository keeps `README.md`, `AGENTS.md` and docstrings.
+This page is the redirect and parity map for the docs replacement. `docs/` now contains this knowledge base; every old docs page has a destination, a redirect or an explicit keep decision. The repository keeps `README.md`, `AGENTS.md` and docstrings. The left column keeps historical file names; the current declaration names are `SourceRelation`, `DerivedRelation`, `Stage` and `Meaning`.
 
 | Old page | Destination | Action |
 | --- | --- | --- |
@@ -52,10 +52,10 @@ This page is the redirect and parity map for the docs replacement. `docs/` now c
 | `docs/reference/assets.md` | /appendix/reference/assets | Rewrite |
 | `docs/reference/expressions.md` | /appendix/reference/expressions | Rewrite |
 | `docs/reference/row-sources.md` | /appendix/reference/row-sources | Rewrite |
-| `docs/reference/projections.md` | /appendix/reference/projections | Rewrite |
+| `docs/reference/projections.md` | /appendix/reference/derived-relations | Rewrite |
 | `docs/reference/topology.md` | /appendix/reference/topology | Rewrite |
 | `docs/reference/bindings.md` | /appendix/reference/bindings | Rewrite |
-| `docs/reference/semantics.md` | /appendix/reference/semantics | Rewrite |
+| `docs/reference/semantics.md` | /appendix/reference/annotations | Rewrite |
 | `docs/reference/compile.md` | /appendix/reference/compile | Rewrite |
 | `docs/reference/planners-and-executors.md` | /appendix/reference/planners-and-executors | Rewrite |
 | `docs/reference/ingest.md` | /appendix/reference/ingest | Rewrite |
@@ -67,7 +67,7 @@ This page is the redirect and parity map for the docs replacement. `docs/` now c
 | `FRAMEWORK_STATE.md` | /appendix/review/verification | Merge |
 | `DESIGN_ISSUES.md` | /appendix/review/limits | Merge |
 | `specs/README.md` | /appendix/developer/index | Merge |
-| `specs/semantics-and-graph.md` | /appendix/spec/meaning | Merge; exact reference at /appendix/reference/semantics |
+| `specs/semantics-and-graph.md` | /appendix/spec/meaning | Merge; exact reference at /appendix/reference/annotations |
 
 ## Details
 

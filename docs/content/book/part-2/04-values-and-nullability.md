@@ -7,7 +7,7 @@ part: II
 chapter: 7
 order: 24
 status: normative
-verified: 2026-11-11
+verified: 2026-11-15
 sources:
   - docs/content/book/part-2/04-values-and-nullability.md
   - docs/content/appendix/reference/expressions.md
@@ -16,7 +16,7 @@ sources:
 
 ## A field read is a value with a type and a history
 
-Read `SitesTable.site_name`. The result is not a `str`. It is a `Selection` whose
+Read `SitesSourceRelation.site_name`. The result is not a `str`. It is a `Selection` whose
 logical type is a nullable text value. You cannot compare it with `==`, add it to
 another value, index it, or hand it to `str()`. You call its methods. That single
 decision shapes everything else in this chapter: the authoring value carries the
@@ -42,18 +42,18 @@ guessing an intent from an expression tree.
 ## Absence belongs to the owner of the value
 
 The declaration `Field[str]` says what the value is, not whether it is there.
-Presence belongs to the owner that supplies the value. That rule has three cases:
+Presence belongs to the owner that supplies the value. That rule has one case per owner:
 
 | Owner | Declaration | Read as |
 | --- | --- | --- |
-| Source `Table` | `Field[str]` | `Selection[Nullable[str]]` |
-| Source `Struct` member | `Field[str]` | `Selection[Nullable[str]]` |
-| `Projection` output | `computed_field(Selection[T])` | `Selection[T]` |
-| `Projection` output | `computed_field(Selection[Nullable[T]])` | `Selection[Nullable[T]]` |
+| `SourceRelation` | `Field[str]` | `Selection[Nullable[str]]` |
+| `Struct` member | `Field[str]` | `Selection[Nullable[str]]` |
+| `DerivedRelation` or `Stage` output | `computed_field(Selection[T])` | `Selection[T]` |
+| `DerivedRelation` or `Stage` output | `computed_field(Selection[Nullable[T]])` | `Selection[Nullable[T]]` |
 
-A source table may omit a column, a source file may omit a member, and a row may
+A source relation may omit a column, a source file may omit a member, and a row may
 hold no value. A struct member is always nullable because the source may omit it;
-a nullable carrier also makes every member nullable. `SitesTable.premises` reads
+a nullable carrier also makes every member nullable. `SitesSourceRelation.premises` reads
 as nullable, so `premises.contact.email` stays nullable even if the file that was
 inspected had a value in every row.
 
@@ -79,11 +79,19 @@ supplies the meaning when choosing an effect. A missing measurement can default 
 a sentinel, a missing identity must drop the row, and a value that never applies
 to the row is usually a sign that the field does not belong to this shape.
 
+Where the domain needs absence to be readable, the field states it. A
+`FieldDefinition` carries a `null_meaning` beside the value it describes; that is
+where "not surveyed", "surveyed and found none" and "the export omitted the member"
+are separated. A null meaning is prose the domain reads, not a type; it does not
+make the read present and it does not change what the row effect does. It records
+the author's decision so the next reader does not have to guess which absence this
+is.
+
 Who decides absence, then? Three parties, at three moments:
 
 - The source decides that a read is nullable. The author cannot remove that with a
   declaration.
-- The computed selection decides a projection output: a present selection
+- The computed selection decides a derived relation output: a present selection
   publishes a present output, a nullable selection publishes a nullable one.
 - A row effect decides what happens to a row whose value is absent. That decision
   is always explicit, and it is the subject of the next two sections.
@@ -97,14 +105,14 @@ is present. The fallback must have the member's exact value type; a mismatch is
 refused when the operation is written, not discovered later in the data.
 
 ```python
-site_name = SitesTable.site_name.default_to("Unnamed site")
+site_name = SitesSourceRelation.site_name.default_to("Unnamed site")
 ```
 
 `alter_rows().drop_null()` removes the row whose value is null and returns a
 present selection. The row is gone, not the column.
 
 ```python
-named_site = SitesTable.site_name.alter_rows().drop_null()
+named_site = SitesSourceRelation.site_name.alter_rows().drop_null()
 ```
 
 Choosing between them is a modelling decision, not a formatting preference.
@@ -120,7 +128,7 @@ Array items are a third case. `drop_null_items()` removes null items from an arr
 and keeps the row. Narrow the array to a present selection first:
 
 ```python
-scores = SitesTable.priority_scores.alter_rows().drop_null().drop_null_items()
+scores = SitesSourceRelation.priority_scores.alter_rows().drop_null().drop_null_items()
 ```
 
 A null array, an empty array and an array of null items are three different facts.
@@ -136,7 +144,7 @@ A row effect does not: it decides whether the row survives, or how many rows the
 array becomes. Row effects are reached only through `alter_rows()`.
 
 ```python
-scores = SitesTable.priority_scores.alter_rows().expand()
+scores = SitesSourceRelation.priority_scores.alter_rows().expand()
 ```
 
 `alter_rows()` returns a one-shot handle. The handle exposes only the effects that
@@ -163,7 +171,7 @@ predicate is false or null. The predicate receives the selection itself:
 
 ```python
 depots = (
-    SitesTable.site_name.alter_rows().drop_null()
+    SitesSourceRelation.site_name.alter_rows().drop_null()
     .alter_rows()
     .drop_if(lambda name: name.equals("Depot"))
 )
@@ -186,8 +194,8 @@ that row.
 
 ```python
 in_scope = (
-    EquipmentTable.in_service.alter_rows().drop_null()
-    .and_(EquipmentTable.survey_period.alter_rows().drop_null().equals("2026-08"))
+    EquipmentSourceRelation.in_service.alter_rows().drop_null()
+    .and_(EquipmentSourceRelation.survey_period.alter_rows().drop_null().equals("2026-08"))
 )
 ```
 
@@ -204,7 +212,7 @@ the `T` separator, and a uuid is lowercase and hyphenated. Arrays, structs and
 custom scalars are refused.
 
 ```python
-site_key = SitesTable.site_id.alter_rows().drop_null().to_string()
+site_key = SitesSourceRelation.site_id.alter_rows().drop_null().to_string()
 ```
 
 There are no casts and no implicit conversions. A `Decimal` is not a `float`, a
@@ -222,11 +230,11 @@ method rather than letting the build invent a meaning for "null plus one".
 
 ## Reading another relation is a value, not a join
 
-A projection has one driving source. When one of its rows needs a record from
+A derived relation has one driving source. When one of its rows needs a record from
 another relation, the author reads it by key as a value:
 
 ```python
-units = SitesTable.site_id.lookup(EquipmentTable)
+units = SitesSourceRelation.site_id.lookup(EquipmentSourceRelation)
 
 left = units
 inner = units.alter_rows().drop_null()
@@ -235,7 +243,7 @@ one_per_unit = inner.alter_rows().expand()
 
 `lookup(relation, key=None, *, target_key=None)` returns
 `Selection[Nullable[Array[S]]]`: every target record whose key equals this row's
-key, or null when nothing matches. The target may be a `Table` or a `Projection`.
+key, or null when nothing matches. The target may be a source relation or a derived relation.
 `key` defaults to the receiver, and `target_key` defaults to the column name of a
 direct field key; pass either explicitly when the source and target names differ.
 A null key never matches.
@@ -247,7 +255,7 @@ and `drop_null()` followed by `expand()` for one row per match. It accepts no
 match this key?", and the row effect answers "what does the row become?".
 
 This is also the only way a product reads a second relation. Adding a second
-driving source to a projection is refused; a lookup is explicit about the key and
+driving source to a derived relation is refused; a lookup is explicit about the key and
 about the grain it creates.
 
 ## Two arrays can be paired without a key
@@ -256,20 +264,21 @@ about the grain it creates.
 no key, no matching and no row multiplication.
 
 ```python
-from kg_build_system import Array, Field, Table, field
+from kg_build_system import Array, Field, SourceRelation, field
 
-from reference_project.assets import Estate
+from reference_project.asset.estate import Estate
 
 
-class SiteTagTable(Table[Estate]):
+class SiteTagRelation(SourceRelation[Estate]):
+    # The contract is omitted here; the example is about the row shape.
     site_id: Field[str] = field()
     tags: Field[Array[str]] = field()
     labels: Field[Array[str]] = field()
 
 
 paired = (
-    SiteTagTable.tags.alter_rows().drop_null()
-    .zip(SiteTagTable.labels.alter_rows().drop_null())
+    SiteTagRelation.tags.alter_rows().drop_null()
+    .zip(SiteTagRelation.labels.alter_rows().drop_null())
 )
 tag = paired.alter_rows().expand().extract(lambda pair: pair.left)
 label = paired.alter_rows().expand().extract(lambda pair: pair.right)
@@ -280,10 +289,10 @@ evaluated; `zip` does not pad, truncate or drop the excess. An absent input make
 the result absent. The paired value is a `Pair` with present `left` and `right`
 members; expand the paired array first, then read a member with `extract`.
 
-The table above is a second declaration over the same estate asset, not a second
-asset. It shows the intended shape of a table that pairs a tag list with a label
-list. The same asset can back it because an asset is a logical source unit, and a
-table is a row shape read from that unit.
+The relation above is a second declaration over the same estate asset, not a second
+asset. It shows the intended shape of a source relation that pairs a tag list with a
+label list. The same asset can back it because an asset is a logical source unit, and
+a source relation is a row shape read from that unit.
 
 ## Expansion has two spellings, and one job
 
@@ -296,7 +305,7 @@ form.
 Do not use both for the same fan-out. Expand a nested array once, at the level
 where the grain should change, and read the result from there. Expanding two
 arrays in one plan is two fan-outs multiplied together, not a join; chapter 8
-returns to that trap when it names a projection.
+returns to that trap when it names a derived relation.
 
 ## Absence is a decision a reader can audit
 
@@ -314,4 +323,4 @@ relation.
 
 ## Next
 
-[8. Relations and projections](/book/part-2/05-grain-and-projections) — from one typed value to the meaning of one row.
+[8. Derived relations](/book/part-2/05-grain-and-projections) — from one typed value to the meaning of one row.

@@ -14,7 +14,7 @@ sources:
   - kg_build_system/generation/code_generation/service/_private/builtins/overrides.py
 ---
 
-An asset declares one logical unit of source data. A table names that asset, and a module planner turns a compatible layout into typed rows. The build checks the source before reading rows.
+An asset declares one logical unit of source data. A source relation names that asset, and a module planner turns a compatible layout into typed rows. The build checks the source before reading rows.
 
 ## Surface
 
@@ -101,7 +101,7 @@ The step payload carries `relation`, `location`, `format`, `credential_reference
 Rules:
 
 - One asset may produce many source steps.
-- A relation is included only when a binding or projection reads it.
+- A relation is included only when a binding or derived relation reads it.
 - A relation with no layout, an unsupported format or no resolvable location produces no step. If the graph reads it, compilation reports an unresolved plan opening.
 - Two producers for one relation artifact are refused.
 - `formats` restricts which layouts this planner accepts.
@@ -121,12 +121,12 @@ The planner resolves `layout.format` first and falls back to `layout.kind`. Valu
 
 A layout that names no supported format produces no source step. If the graph reads the relation, compilation reports an unresolved plan opening. The failure is at plan time, not after a partial read.
 
-**Table groups.** A `TableGroup` is a catalog of final tables and nested groups. It binds nothing. Each member table names its own asset:
+**Source relation groups.** A `SourceRelationGroup` is a catalog of final source relations and nested groups. It binds nothing. Each member source relation names its own asset:
 
 ```python
 from kg_build_system import (
-    Asset, AssetAuthority, AssetOptions, AssetProfile, Field, Table,
-    TableGroup, TableGroupOptions, field,
+    Asset, AssetAuthority, AssetOptions, AssetProfile, Field, SourceRelation,
+    SourceRelationGroup, SourceRelationGroupOptions, SourceRelationOptions, field,
 )
 
 
@@ -141,34 +141,36 @@ class Estate(Asset):
     )
 
 
-class TemperatureTable(Table[Estate]):
+class TemperatureSourceRelation(SourceRelation[Estate]):
+    options = SourceRelationOptions(contract=...)
     station_id: Field[str] = field()
 
 
-class VibrationTable(Table[Estate]):
+class VibrationSourceRelation(SourceRelation[Estate]):
+    options = SourceRelationOptions(contract=...)
     device_id: Field[str] = field()
 
 
-class MechanicalTableGroup(TableGroup):
-    options = TableGroupOptions(name="mechanical")
-    vibration = VibrationTable
+class MechanicalSourceRelationGroup(SourceRelationGroup):
+    options = SourceRelationGroupOptions(name="mechanical")
+    vibration = VibrationSourceRelation
 
 
-class ReadingsTableGroup(TableGroup):
-    options = TableGroupOptions(name="readings")
-    temperature = TemperatureTable
-    mechanical = MechanicalTableGroup
+class ReadingsSourceRelationGroup(SourceRelationGroup):
+    options = SourceRelationGroupOptions(name="readings")
+    temperature = TemperatureSourceRelation
+    mechanical = MechanicalSourceRelationGroup
 ```
 
-A group may contain tables from more than one asset. Members that no reached binding or projection reads are dropped: they do not enter the blueprint and produce no source step.
+A group may contain source relations from more than one asset. Members that no reached binding or derived relation reads are dropped: they do not enter the blueprint and produce no source step.
 
 | Error | Trigger |
 | --- | --- |
-| `table groups must declare at least one member` | The group has no table or group member |
-| `table groups may contain only final Table or TableGroup declarations` | A member is not a final table or group |
-| `table groups may not contain a cycle` | A group contains itself, directly or through nested groups |
-| `a table group may include a final table only once` | The same table is reached through two catalog paths |
-| `a table group has duplicate catalog paths` | Two members resolve to the same catalog path |
+| `source relation groups must declare at least one member` | The group has no source relation or group member |
+| `source relation groups may contain only final SourceRelation or SourceRelationGroup declarations` | A member is not a final source relation or group |
+| `source relation groups may not contain a cycle` | A group contains itself, directly or through nested groups |
+| `a source relation group may include a final source relation only once` | The same source relation is reached through two catalog paths |
+| `a source relation group has duplicate catalog paths` | Two members resolve to the same catalog path |
 
 **Locations and credentials.** A local location is a path. Prefer an absolute path, or one built from `Path(__file__).parent`, so the build does not depend on the process's current directory.
 
@@ -186,7 +188,7 @@ AssetLayout(
 
 The layout carries the credential name, never the value. Supply the value through `BuildRuntime(credentials=...)`; the workflow plan and the report contain no secret. The value is a JSON object whose `filesystem_options` are handed to the filesystem for the URI's scheme. Unknown keys are refused, and a credentialed location without a scheme fails with `credentialed source locations require a URI scheme`.
 
-**Generated nullability.** A generated package records the source's observed nullability claim as provenance. Every generated source-backed field renders `Field[T]`; source access is a `NullableSelection[T]` because the owner is a source `Table` or `Struct`. The claim feeds the statistics pre-flight and the manifest notes, and it never adds absence to the rendered field.
+**Generated nullability.** A generated package records the source's observed nullability claim as provenance. Every generated source-backed field renders `Field[T]`; source access is a `NullableSelection[T]` because the owner is a source relation or `Struct`. The claim feeds the statistics pre-flight and the manifest notes, and it never adds absence to the rendered field.
 
 *Trust tiers.* The built-in inference provider chooses one tier from the source suffix:
 
@@ -198,14 +200,14 @@ The layout carries the credential name, never the value. Supply the value throug
 
 The `Nullability` values are `DECLARED`, `ENFORCED` and `DEFAULTED`. A source with no non-null claim records `DEFAULTED`; a Parquet `REQUIRED` field records `DECLARED`; an enforced catalog constraint records `ENFORCED`. The tier is provenance: it selects the pre-flight and the header note, not the rendered field.
 
-The built-in provider refuses database inputs because no supported asset layout format selects a database reader: a generated table could never get a generic source step. Export the relation to `parquet`, `json` or `csv`, contribute a module planner for the database, or declare the table outside a generated package. The enforced tier still exists for a provider that can observe an enforced catalog.
+The built-in provider refuses database inputs because no supported asset layout format selects a database reader: a generated source relation could never get a generic source step. Export the relation to `parquet`, `json` or `csv`, contribute a module planner for the database, or declare the source relation outside a generated package. The enforced tier still exists for a provider that can observe an enforced catalog.
 
 *What is rendered.*
 
 - Every generated source field renders `Field[T]` from its value type.
 - Source access is `NullableSelection[T]` for every tier; the declaration does not encode the observed claim.
 - Nested member and array-item nullability stay in the value type, as in `Field[Array[Nullable[str]]]`.
-- Every generated table declares its asset: `class SitesTable(Table[Estate])`.
+- Every generated source relation declares its asset: `class SitesSourceRelation(SourceRelation[Estate])`.
 - The header records one note per source, or per relation in a group:
 
 | Tier | Header line |
@@ -216,22 +218,22 @@ The built-in provider refuses database inputs because no supported asset layout 
 
 The source digest in `.kbs-generation.json` is provenance only. It is not a tracked input, and a change to it alone does not make a generated product stale.
 
-*Overrides.* An override settles a source's claim or type for one whole top-level column. It is a `DataContractInferenceConfig` value inside the asset's `@asset_contract(AssetContractOptions(...))` decorator, not a generated declaration and not a runtime option in the compiled workflow plan.
+*Overrides.* An override settles a source's claim or type for one whole top-level column. It is a `DataContractInferenceConfig` value inside the asset's `@asset_generation(AssetGenerationOptions(...))` decorator, not a generated declaration and not a runtime option in the compiled workflow plan.
 
 ```python
 from kg_build_system import (
     Asset, AssetAuthority, AssetOptions, AssetProfile,
 )
-from kg_build_system.generation import AssetContractOptions, asset_contract
+from kg_build_system.generation import AssetGenerationOptions, asset_generation
 from kg_build_system.generation.code_generation.builtins import (
     DataContractInferenceConfig, InferDataContractProvider,
 )
 
 
-@asset_contract(AssetContractOptions(
+@asset_generation(AssetGenerationOptions(
     provider=InferDataContractProvider,
     configuration=DataContractInferenceConfig(
-        mode="table_group",
+        mode="source_relation_group",
         override={
             "readings.temperature.recorded_on": {"type": "timestamp"},
             "readings.quality": {"nullable": False},
@@ -266,10 +268,10 @@ Keys are the full `<relation path>.<column>` path. A bare column name, a missing
 | --- | --- | --- |
 | `canonical` | Accepted as reported or through the automatic widening cast | None |
 | `declared_only` | The only cast narrows the value or its precision | Declare the type in `override` |
-| `refused` | No meaning-preserving canonical type exists | Export a supported type, or handwrite the table |
+| `refused` | No meaning-preserving canonical type exists | Export a supported type, or handwrite the source relation |
 
 - `declared_only` examples are `UBIGINT`, `HUGEINT`, `UHUGEINT`, `TIME_NS` and `TIMESTAMP_NS`. The override makes the cast explicit; the cast is checked and a value that does not fit aborts the build.
-- A declared-only nested member has no override route, because an override reaches top-level columns only. Export it in a mappable type or handwrite the table.
+- A declared-only nested member has no override route, because an override reaches top-level columns only. Export it in a mappable type or handwrite the source relation.
 - `refused` examples are `DECIMAL`, `BIGNUM`, `BIT`, `BLOB`, `TIME WITH TIME ZONE`, `TIMESTAMP WITH TIME ZONE`, `INTERVAL`, `MAP`, `UNION`, `VARIANT`, `ROW`, untyped `NULL`, `TYPE`, `GEOMETRY` and `GEOGRAPHY`. No override lifts a refusal; `DECIMAL` is not coerced to `float`.
 - A container is digested from its item or member types. It is not a scalar and cannot be promoted as one.
 - A type name outside the gate is unsupported, not refused. Generation fails rather than accepting it by default.
@@ -335,7 +337,7 @@ Only after those checks does a binding read rows. A null that reaches a non-null
 - `version` is a label, not a pin. Pin input data in your own pipeline.
 - Layout is optional descriptive metadata, not an access contract. A relation without a compatible layout has no generic source step.
 - The layout stores a credential reference; the secret is runtime input and never enters the workflow plan or report.
-- One asset may back many tables; a table names exactly one asset.
+- One asset may back many source relations; a source relation names exactly one asset.
 - A group is a catalog. It does not bind, join, merge, widen or change rows.
 - The generic planner follows `format` or `kind`, not the suffix. Values are matched exactly against `parquet`, `json` and `csv`.
 - Generation classifies a source by suffix; a schema change enters a generated package only through `kbs generate --regenerate` or a request edit.

@@ -80,7 +80,7 @@ The kernel refuses `planners for component '<id>' disagree on version: <a> and <
 | --- | --- | --- | --- |
 | `DuckDbSourcePlanner` | `distribution.modules.duckdb` | `duckdb` | `formats`, `union_by_name` |
 | `RowSourcePlanner` | `distribution.modules.core` | `core` | required `engine` SQL emitter; `compile` injects DuckDB's |
-| `ProjectionPlanner` | `distribution.modules.core` | `core` | required `engine` SQL emitter; `compile` injects DuckDB's |
+| `DerivedRelationPlanner` | `distribution.modules.core` | `core` | required `engine` SQL emitter; `compile` injects DuckDB's |
 | `BindingPlanner` | `distribution.modules.core` | `core` | required `engine` SQL emitter; `compile` injects DuckDB's |
 | `RecordsPlanner` | `distribution.modules.core` | `core` | required `engine` SQL emitter; `compile` injects DuckDB's |
 | `DeduplicationPlanner` | `distribution.modules.deduplication` | `deduplication` | none |
@@ -95,14 +95,14 @@ The kernel refuses `planners for component '<id>' disagree on version: <a> and <
 ```python
 core_planners(*, engine: SqlEmitter)
 RowSourcePlanner(*, engine: SqlEmitter)
-ProjectionPlanner(*, engine: SqlEmitter)
+DerivedRelationPlanner(*, engine: SqlEmitter)
 BindingPlanner(*, engine: SqlEmitter)
 RecordsPlanner(*, engine: SqlEmitter)
 ```
 
-`SqlEmitter` is the neutral SQL-emitter protocol in `distribution.service.internal.emission`; `DuckDbSqlEmitter` implements it. The core planners live under `modules/core/<feature>/service/public/planner.py`, and shared planning is under `core/service/_private/planning/`. The core module owns four planners that share `component_id="core"` and one `CorePlan` in `PlanContext.shared["core.plan"]`. `core_planners(engine=...)` returns them in assembled order: row-source, projection, binding and records. Core consumes the neutral relation plan and protocol; it imports no DuckDB module.
+`SqlEmitter` is the neutral SQL-emitter protocol in `distribution.service.internal.emission`; `DuckDbSqlEmitter` implements it. The core planners live under `modules/core/<feature>/service/public/planner.py`, and shared planning is under `core/service/_private/planning/`. The core module owns four planners that share `component_id="core"` and one `CorePlan` in `PlanContext.shared["core.plan"]`. `core_planners(engine=...)` returns them in assembled order: row-source, derived-relation, binding and records. Core consumes the neutral relation plan and protocol; it imports no DuckDB module.
 
-Together they emit row-source, projection, binding and aggregate steps. SQL steps use the emitter's instruction kind, which is `("sql", "duckdb")` for the default emitter. `compile` injects `DuckDbSqlEmitter()` and adds the four before your planners when no planner reports `component_id == "core"`.
+Together they emit row-source, derived-relation, binding and aggregate steps. SQL steps use the emitter's instruction kind, which is `("sql", "duckdb")` for the default emitter. `compile` injects `DuckDbSqlEmitter()` and adds the four before your planners when no planner reports `component_id == "core"`.
 
 **`DuckDbSourcePlanner`.**
 
@@ -114,9 +114,9 @@ DuckDbSourcePlanner(
 )
 ```
 
-Emits one `source.<relation>` step for each asset-backed relation the graph reads whose `AssetLayout` resolves to `parquet`, `json` or `csv`. The step produces `CoreArtifactTypes.table(relation)` with instruction kind `("source_relation", "duckdb")`.
+Emits one `source.<relation>` step for each asset-backed source relation the graph reads whose `AssetLayout` resolves to `parquet`, `json` or `csv`. The step produces `CoreArtifactTypes.table(relation)` with instruction kind `("source_relation", "duckdb")`.
 
-`AssetLayout` resolution is `members[relation]`, then `selector.format(table=relation, table_path=relation.replace(".", "/"))`, then `locator`; a relative result is joined to `locator`. One asset may produce many steps. A relation with no layout, an unsupported format or no location produces no step, which leaves an unresolved opening when the graph reads it. `formats` restricts the accepted layouts. The planner is not an adapter; another module contributes another ordinary planner for another format. `union_by_name` is accepted and does not change the emitted step; the planner resolves one location per relation.
+`AssetLayout` resolution is `members[relation]`, then `selector.format(table=relation, table_path=relation.replace(".", "/"))`, then `locator`; a relative result is joined to `locator`. One asset may produce many steps. A source relation with no layout, an unsupported format or no location produces no step, which leaves an unresolved opening when the graph reads it. `formats` restricts the accepted layouts. The planner is not an adapter; another module contributes another ordinary planner for another format. `union_by_name` is accepted and does not change the emitted step; the planner resolves one location per relation.
 
 **`DeduplicationPlanner`.**
 

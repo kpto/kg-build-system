@@ -1,14 +1,14 @@
 ---
 title: Assets and source data
-summary: One logical source unit, its profile, its descriptive layout and the tables
-  that name it.
+summary: One logical source unit, its profile, its descriptive layout and the source
+  relations that name it.
 section: subjects
 perspective: hub
 subject: asset
 spec: SPEC-001
 order: 10
 status: normative
-verified: '2026-11-10'
+verified: '2026-11-15'
 sources:
 - kg_build_system/distribution/languages/asset/model/public/options.py
 - kg_build_system/distribution/languages/asset/model/public/declarations.py
@@ -24,7 +24,7 @@ generated: true
 
 ## In one view
 
-One logical source unit, its profile, its descriptive layout and the tables that name it.
+One logical source unit, its profile, its descriptive layout and the source relations that name it.
 
 This subject has one overview and up to five views: guide, spec, API, philosophy and review.
 
@@ -41,9 +41,9 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 
 ## Contract
 
-- A table MUST name its logical asset with `Table[Asset]`.
+- A source relation MUST name its logical asset with `SourceRelation[Asset]`.
 - `AssetProfile` MUST be present; `AssetLayout` is descriptive and opens no file.
-- One asset MAY back many tables; a table MUST NOT invent a second source.
+- One asset MAY back many source relations; a source relation MUST NOT invent a second source.
 
 ## Where it sits
 

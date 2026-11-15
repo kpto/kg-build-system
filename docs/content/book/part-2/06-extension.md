@@ -1,17 +1,17 @@
 ---
-title: "9. Extending the semantics model"
-summary: "A shipped operation set is a baseline; a domain rule becomes graph meaning only when it is named, referenced and given semantics."
+title: "9. Extending the meaning model"
+summary: "A shipped operation set is a baseline; a domain rule becomes a published relation only when it is named, referenced and given a contract."
 section: book
 perspective: book
 part: II
 chapter: 9
 order: 26
 status: normative
-verified: 2026-11-11
+verified: 2026-11-15
 sources:
   - docs/content/appendix/reference/ingest.md
   - docs/content/appendix/reference/expressions.md
-  - docs/content/appendix/reference/projections.md
+  - docs/content/appendix/reference/derived-relations.md
   - docs/content/appendix/developer/data-and-expressions.md
   - kg_build_system/distribution/languages/expressions/service/internal/operations/spec.py
 ---
@@ -20,13 +20,13 @@ sources:
 
 A survey reports a defect with `condition_rating` as text: `poor`, `fair`. Triage needs a severity rank, a small integer that orders those labels. The expression surface offers `equals`, `add`, `sub`, `to_string`, separator helpers and array transforms. It has no conditional, no ordering comparison and no `severity_rank`. Composing the shipped methods does not produce a rank from a label without inventing a meaning for arithmetic on booleans.
 
-That absence is ordinary. The shipped expression surface is a baseline, not a complete domain language; it cannot know a domain's vocabulary. A graph project should expect to write extensions and some of its own semantics. The useful question is not whether to extend, but which object carries the extension.
+That absence is ordinary. The shipped expression surface is a baseline, not a complete domain language; it cannot know a domain's vocabulary. A graph project should expect to write extensions and some of its own relations. The useful question is not whether to extend, but which object carries the extension.
 
-An extension is part of the semantic model, not a patch around it. It is a statement the model publishes: an operation specification, a named projection, an attached claim. The same severity calculation can be a private convenience or a graph fact, and the two are different objects even when they compute the same number. This chapter is about choosing between them, and about the cost of each choice.
+An extension is part of the meaning model, not a patch around it. It is a statement the model publishes: an operation specification, a derived relation with a contract, an attached claim. The same severity calculation can be a private convenience or a published relation, and the two are different objects even when they compute the same number. This chapter is about choosing between them, and about the cost of each choice.
 
 ## A source reader stops at the relation
 
-The estate export carries sites, equipment, surveys and readings in one directory. `Estate` names the logical source unit; `SitesTable`, `EquipmentTable` and `SurveysTable` name row shapes read from it. A source planner resolves a compatible `AssetLayout` and produces a relation with the declared columns. `AssetLayout` is descriptive metadata: it names a `format`, a `locator`, `members` and reader hints. It opens no file, validates no column and proves no relation exists. The build checks the source before it reads rows, because the layout cannot promise what the bytes contain. The full resolution order and the format table are in [Ingest](/appendix/reference/ingest).
+The estate export carries sites, equipment, surveys and readings in one directory. `Estate` names the logical source unit; `SitesSourceRelation`, `EquipmentSourceRelation` and `SurveysRelation` name row shapes read from it. A source planner resolves a compatible `AssetLayout` and produces a relation with the declared columns. `AssetLayout` is descriptive metadata: it names a `format`, a `locator`, `members` and reader hints. It opens no file, validates no column and proves no relation exists. The build checks the source before it reads rows, because the layout cannot promise what the bytes contain. The full resolution order and the format table are in [Ingest](/appendix/reference/ingest).
 
 The source layer adapts a format to the neutral relation plan and the SQL/emitter boundary. Nothing further is a source concern.
 
@@ -39,7 +39,7 @@ from collections.abc import Sequence
 
 from kg_build_system.distribution.interpreter.model.public import GraphBlueprint
 from kg_build_system.distribution.model.public.artifacts import CoreArtifactTypes
-from kg_build_system.distribution.service.internal import asset_tables
+from kg_build_system.distribution.service.internal import source_relations
 from kg_build_system.kernel import (
     Instruction, InstructionKind, Output, PlanContext, Step,
 )
@@ -61,21 +61,21 @@ class SemicolonSourcePlanner:
         return tuple(
             Step(
                 component=self.component_id,
-                name=f"source.{table.relation_name}",
+                name=f"source.{relation.relation_name}",
                 inputs=(),
                 outputs=(
-                    Output(CoreArtifactTypes.table(table.relation_name)),
+                    Output(CoreArtifactTypes.relation(relation.relation_name)),
                 ),
                 instruction=Instruction(
                     SEMICOLON_SOURCE,
                     {
-                        "relation": table.relation,
+                        "relation": relation.relation,
                         "location": location,
                     },
                 ),
             )
-            for table in asset_tables(model)
-            if (location := semicolon_location(table.asset.layout)) is not None
+            for relation in source_relations(model)
+            if (location := semicolon_location(relation.asset.layout)) is not None
         )
 ```
 
@@ -87,7 +87,7 @@ The stopping point is the argument. The adapter does not split `unit_refs` into 
 
 The distinction is not cosmetic. A reader that split `unit_refs` would have turned one site row into several unit rows before the graph declared a grain. A reader that matched units to sites would have embedded a join in a format flag. A reader that translated identifiers would have made provenance depend on a loader rather than on an asset. In each case the layout would mean two things: where the bytes are, and what the rows mean. The first belongs to ingest; the second belongs to the data model.
 
-Splitting a delimited value into an array is a value operation, and expanding that array into one row per item is a grain decision that belongs to a row source or a named projection. Matching units to sites is a join. Reconciling two identifier schemes is identity translation, which is a graph fact or a module, never a reader. The source layer adapts a physical format to a relation and stops. [The kernel and the extension surface](/book/part-4/01-the-kernel-and-extension) places that object on the extension ladder; this chapter places the domain rule it must not absorb.
+Splitting a delimited value into an array is a value operation, and expanding that array into one row per item is a grain decision that belongs to a row source or a published relation. Matching units to sites is a join. Reconciling two identifier schemes is identity translation, which is a graph fact or a module, never a reader. The source layer adapts a physical format to a relation and stops. [The kernel and the extension surface](/book/part-4/01-the-kernel-and-extension) places that object on the extension ladder; this chapter places the domain rule it must not absorb.
 
 ## A domain calculation belongs in the expression language
 
@@ -130,7 +130,7 @@ def severity_rank(value: Selection[str]) -> Selection[int]:
 
 The spec validates at the moment the expression is written. Wrong arity, an argument of another logical type, a missing required parameter or an unknown parameter is refused before a row exists. The authoring method is thin; the declaration is the spec. An expression DTO records the operator name, its arguments, its parameters and its result type, so the plan carries the calculation without carrying the Python function.
 
-The default row effect is `RowSemantics()`: the operation preserves the row count and computes one value for the row it receives. That is the right constraint for a domain calculation. A severity rank does not remove a defect because its rating is absent; the projection decides that with `drop_null`. If an operation declares `expand` or `filter`, it has become a row decision dressed as a calculation. Row effects are declared, reached through `alter_rows()` and visible to the planner. Keep them separate: the operation computes a value, the row effect decides what the row becomes.
+The default row effect preserves the row count and computes one value for the row it receives. That is the right constraint for a domain calculation. A severity rank does not remove a defect because its rating is absent; the relation decides that with `drop_null`. If an operation declares `expand` or `filter`, it has become a row decision dressed as a calculation. Row effects are declared, reached through `alter_rows()` and visible to the planner. Keep them separate: the operation computes a value, the row effect decides what the row becomes.
 
 The shipped registry is a baseline. It composes `add`, `sub`, `concat`, `append`, `equals`, `replace`, `to_string`, the separator helpers, the array operations, boolean combinators, `zip` and the row-effect operations. It is a useful set, not a domain language. It has no conditional, no ordering comparison, no date arithmetic and no vocabulary for conditions, quantities or identifiers. The built-in set is where a project starts.
 
@@ -171,104 +171,125 @@ class SeverityRank:
 
 A spec without an emitter type-checks and fails at emission. An operation that no engine can express is not an expression operation; it is a step with its own executor, and it belongs to the workflow model in Part IV. Portability is a property of the spec and emitter pair, not of the name. This is also why a value operation is a poor hiding place for aggregation: a count or a vote needs the whole relation, not one row, and the grouped-row algebra already says that aggregation belongs to a later module rather than to a value method.
 
-The operation is a declaration, so the blueprint can name it through an `OperationRef`. Its application is an inline fragment, so the expression `severity_rank(condition_rating)` has no identity of its own. That is the hinge of the chapter: a calculation can be part of the vocabulary and still not be part of the graph's meaning until something names the relation it produces.
+The operation is a declaration, so the blueprint can name it through an `OperationRef`. Its application is an inline fragment, so the expression `severity_rank(condition_rating)` has no identity of its own. That is the hinge of the chapter: a calculation can be part of the vocabulary and still not be part of any published meaning until something names the relation it produces.
 
 ## Naming is what turns the operation into meaning
 
-A projection is a named logical relation pinned to exactly one row-source value. It publishes typed outputs with `computed_field`, it is a row-source provider itself, and its outputs share one row plan. The name is part of the contract: it is unique among tables and projections because both are logical source names in one namespace. Chapter 8 established the grain; this chapter uses the name for a different purpose, which is to carry a domain claim into the blueprint. A projection is the framework's semantics unit for a derived relation: a relation with a name, a grain, typed outputs and meaning a consumer can read.
+A derived relation is a published logical relation pinned to exactly one row-source value. It publishes typed outputs with `computed_field`, it is a row-source provider itself, and its outputs share one row plan. Chapter 8 established the grain and the stage; this chapter uses the name for a different purpose, which is to carry a domain claim into the blueprint. A derived relation is the framework's unit for a derived domain relation: a name, a grain, an identity, typed outputs and a contract a consumer can read.
 
 ```python
 from kg_build_system import (
-    Claim, Limitation, Projection, ProjectionOptions, Purpose, Semantics,
-    computed_field,
+    Claim, Contract, Definition, DerivedRelation, DerivedRelationOptions,
+    FieldDefinition, Limitation, Meaning, Purpose, computed_field,
 )
 
 # The operation above; the existing defect grain.
-from reference_project.table.projections.defects import DefectProjection
+from reference_project.relation.derived.defects.relation import Defects
 
 
-class ConditionSeverityProjection(Projection(DefectProjection.row_source())):
+class ConditionSeverityRelation(DerivedRelation(Defects.row_source())):
     """One row per defect, with a severity rank for its condition."""
 
-    options = ProjectionOptions(
+    options = DerivedRelationOptions(
         name="condition_severity",
-        semantics=Semantics(
-            purpose=Purpose(
-                text="Use this relation as a survey-condition severity rank.",
-                limitations=(
-                    Limitation(
-                        "The rank is not a probability of failure."
+        contract=Contract(
+            definition=Definition(
+                grain="One row per recorded defect.",
+                identity=("defect_id",),
+            ),
+            meaning=Meaning(
+                purpose=Purpose(
+                    text=(
+                        "Use this relation as a survey-condition "
+                        "severity rank."
+                    ),
+                    limitations=(
+                        Limitation(
+                            "The rank is not a probability of failure."
+                        ),
                     ),
                 ),
-            ),
-            claims=(
-                Claim(
-                    "A severity rank summarises the recorded condition "
-                    "of one defect."
+                claims=(
+                    Claim(
+                        "A severity rank summarises the recorded "
+                        "condition of one defect."
+                    ),
                 ),
             ),
         ),
     )
 
-    defect_id = computed_field(DefectProjection.defect_id)
+    defect_id = computed_field(
+        Defects.defect_id,
+        definition=FieldDefinition(
+            value="The survey's defect identifier.",
+        ),
+    )
     severity = computed_field(
         severity_rank(
-            DefectProjection.condition_rating.alter_rows().drop_null()
-        )
+            Defects.condition_rating.alter_rows().drop_null()
+        ),
+        definition=FieldDefinition(
+            value="The severity rank of the recorded condition.",
+            unit="rank",
+        ),
     )
 ```
 
-Four decisions are visible in one declaration. The projection pins the defect grain, so a defect is not re-expanded from the survey document here; that expansion is already `DefectProjection`'s job. The rating is nullable, so `drop_null` removes a defect whose condition was never recorded: that is a statement about which rows this relation contains, and it belongs in the projection rather than inside the operation. The rank is computed by the extension operation and published as a present integer. The `Semantics` fragment states what the relation is for, what it claims and what it excludes, read under the graph's root purpose.
+Four decisions are visible in one declaration. The relation pins the defect grain, so a defect is not re-expanded from the survey document here; that expansion is already `Defects`'s job. The rating is nullable, so `drop_null` removes a defect whose condition was never recorded: that is a statement about which rows this relation contains, and it belongs in the relation rather than inside the operation. The rank is computed by the extension operation and published as a present integer. The contract states the grain, the identity and the domain meaning; it is not a fragment under the graph purpose.
 
-The promotion is justified by use, not by taste. Triage and reporting both need the defect grain with a severity, and the graph is asked to state what the rank means. A calculation that only one property needed would have stayed in the binding. This one is expected to be shared, so it gets a name and a claim.
+The promotion is justified by use, not by taste. Triage and reporting both need the defect grain with a severity, and the relation is asked to state what the rank means. A calculation that only one property needed would have stayed in the binding. This one is expected to be shared, so it gets a published name, a contract and a claim.
 
-The exact projection surface, including the naming and dependency rules, is in [Projections](/appendix/reference/projections).
+The exact derived-relation surface, including the naming and dependency rules, is in [Derived relations](/appendix/reference/derived-relations).
 
-The name does the work that an expression cannot. Outside this pipeline, a binding writes `rows=ConditionSeverityProjection.row_source()` and inherits the grain, the computation and the claim. Another projection can pin it. A `lookup` can read it by key. In the blueprint, the projection is published as a named relation with its outputs and its pinned row plan, so a consumer reads the name, the types, the grain and the semantics without importing the authoring class. A reviewer reads one declaration and sees the whole decision.
+The name does the work that an expression cannot. Outside this package, a binding writes `rows=ConditionSeverityRelation.row_source()` and inherits the grain, the computation and the contract. Another derived relation can pin it. A `lookup` can read it by key. In the blueprint, the relation is published with its outputs and its pinned row plan, so a consumer reads the name, the types, the grain and the meaning without importing the authoring class. A reviewer reads one declaration and sees the whole decision.
 
-The projection also gives the operation a place to change. When the severity formula is revised, one declaration changes and every consumer sees the new relation. When a second domain operation joins it, the projection either gains an output on the same grain or becomes two projections with two names. The name keeps that choice reviewable.
+The relation also gives the operation a place to change. When the severity formula is revised, one declaration changes and every consumer sees the new relation. When a second domain operation joins it, the relation either gains an output on the same grain or becomes two relations with two names. The name keeps that choice reviewable.
 
-There is a reachability condition of a different kind. A projection that no binding and no other projection reads is a name without a consumer: it may appear in the model, but nothing in the graph depends on it, and its claim explains a grain that populates no record. Naming is necessary for a semantics unit, not sufficient; the name must also be available to a consumer that reads the relation.
+There is a reachability condition of a different kind. A derived relation that no binding and no other published relation reads is a name without a consumer: it may appear in the model, but nothing in the graph depends on it, and its contract explains a grain that fulfils no record. Naming is necessary for a published relation, not sufficient; the name must also be available to a consumer that reads it.
 
-## A private expression is a data operation
+## A private expression is a data operation; a private shape is a stage
 
-Put the same call inside a binding's `bind` lambda, feeding a `severity` property on a defect node. The calculation is valid. It has no relation name, no grain of its own, no `Semantics`, and no reader outside that binding. It is a data operation applied to a record property. That is often exactly right: a property calculation does not need a relation, and not every number deserves a claim.
+Put the same call inside a binding's `bind` lambda, feeding a `severity` property on a defect node. The calculation is valid. It has no relation name, no grain of its own, no contract, and no reader outside that binding. It is a data operation applied to a record property. That is often exactly right: a property calculation does not need a relation, and not every number deserves a claim.
 
-Now suppose the same rank is computed in a planner and published as a private relation. The step has a name such as `derive.condition_severity`, and that name is a `StepId`. It is not a `RelationRef`. The blueprint has no `ProjectionDTO` for it, no output field is addressable through a `FieldRef`, no `Semantics` attaches to it, and no `lookup` can target it. A consumer cannot ask what the graph claims about severity, because the graph claims nothing. The step exists; the meaning does not.
+Now suppose the same rank is computed in a planner and published as a private relation. The step has a name such as `derive.condition_severity`, and that name is a `StepId`. It is not a `RelationRef`. The blueprint has no `DerivedRelationDTO` for it, no output field is addressable through a `FieldRef`, no contract attaches to it, and no `lookup` can target it. A consumer cannot ask what the relation claims about severity, because nothing claims anything. The step exists; the meaning does not.
 
-A private expression is not wrong because it is private. It is wrong when it is described as a projection. The model's shape makes the masquerade hard to complete. `Semantics` attaches to declarations such as `ProjectionOptions`, `TableOptions` and `NodeOptions`, not to expressions or steps. A binding reads a row source, and a step output is not a row source. `lookup` targets a `Table` or a `Projection`, not a step. The blueprint publishes projections and relations, not intermediate plan nodes. There is nowhere to hang the claim and no reference that can point at the private relation.
+Between the two sits the `Stage`. A stage is a real relation with a definition — a grain and an identity — and typed outputs, and it exists only inside one derived-relation package. It is the right object when a derivation needs an intermediate shape that no consumer outside the package sees: a join, an expansion, then the selection the published relation offers. It carries no meaning, appears in `data.derived_relations` only with internal visibility, and cannot be bound.
 
-So the choice is stated plainly. If the operation is a detail of one consumer, keep it in the executor, the source adapter or the binding where it is used. If it is part of what the graph means, promote it to a named projection with identity and semantics. Promotion has a real cost: a name in the relation namespace, at least one computed output, a claim, a consumer that makes it reachable, and a contract test that the output and the meaning are published. That cost is the price of asking a consumer to rely on the relation.
+A private expression is not wrong because it is private. It is wrong when it is described as a published relation. The model's shape makes the masquerade hard to complete. A contract attaches to declarations such as `DerivedRelationOptions`, `SourceRelationOptions`, `NodeOptions` and `BindingOptions`, not to expressions or steps. A binding reads a published relation's row source, and a step output is not a row source. `lookup` targets a published relation, not a stage and not a step. The blueprint publishes source relations and derived relations; a stage is present only as internal lineage under the derived relation that scans it.
 
-## Five places a domain rule can live
+So the choice is stated plainly. If the operation is a detail of one consumer, keep it in the executor, the source adapter or the binding where it is used. If it is an intermediate shape inside one derivation, make it a stage. If it is part of what the relation means, publish it as a derived relation with identity and a contract. Promotion has a real cost: a name in the shared relation namespace, at least one computed output, a contract, a consumer that makes it reachable, and a contract test that the output and the meaning are published. That cost is the price of asking a consumer to rely on the relation.
 
-The same domain sentence can be implemented at five levels. The level is chosen by the kind of fact being added, not by convenience.
+## Six places a domain rule can live
+
+The same domain sentence can be implemented at six levels. The level is chosen by the kind of fact being added, not by convenience.
 
 | The work | The object | It may decide | It may not decide | The cost |
 | --- | --- | --- | --- | --- |
-| Physical read and decoding | A source planner and executor, with an exact instruction kind | Location, format, header, field decoding, checked casts to declared types | Joins, identity, aggregation, grain changes, graph meaning | A module, an exact kind, a resource, decoding tests |
+| Physical read and decoding | A source planner and executor, with an exact instruction kind | Location, format, header, field decoding, checked casts to declared types | Joins, identity, aggregation, grain changes, relation meaning | A module, an exact kind, a resource, decoding tests |
 | One value per row | An expression operation: `OperationSpec` plus an engine emitter | A typed calculation, its arguments, its result type and its declared row effect | Row count, a new relation, identity, a second source | A spec, an emitter, an authoring method, type and emission tests |
-| A named derived relation | A `Projection` over one pinned row source | Grain, computed fields, output names, an attached `Semantics` | A second driving source, record mapping, merging | A declaration, a unique name, a claim, a contract test |
-| A row-to-record mapping | A binding | Build key, properties, endpoints, one record per row | Joins, expansion, aggregation, rewriting the grain | The next chapter; mapping and guard tests |
-| A whole new workflow step | A planner and executor module | A new artifact, a pass over records, consensus or a second relation | Graph meaning without a model change; a named relation without a projection | Component identity, exact kind, artifact and provenance tests |
+| A private intermediate shape | A `Stage` inside one derived-relation package | Grain, computed outputs, a `Definition` | A contract, a published name, a second consumer | A stage module, a structure test |
+| A published derived relation | A `DerivedRelation` over one pinned row source | Grain, computed outputs, output names, a `Contract` | A second driving source, record mapping, merging | A declaration, a unique name, a contract, a contract test |
+| A row-to-record mapping | A binding | Build key, properties, endpoints, one record per row, its own fulfilment meaning | Joins, expansion, aggregation, rewriting the grain | The next chapter; mapping and guard tests |
+| A whole new workflow step | A planner and executor module | A new artifact, a pass over records, consensus or a second relation | Relation meaning without a model change; a published relation without a contract | Component identity, exact kind, artifact and provenance tests |
 
-The first three are the subject of this chapter. The fourth is the next one. The fifth is Part IV, and it is the most expensive because it adds an artifact, a component, a resource obligation and a provenance surface.
+The first four are the subject of this chapter. The fifth is the next one. The sixth is Part IV, and it is the most expensive because it adds an artifact, a component, a resource obligation and a provenance surface.
 
-Choosing is mostly a matter of asking what the rule produces. A rule that turns bytes into typed fields belongs in the reader. A rule that turns one row into one value belongs in an operation. A rule that produces a relation several consumers must agree on belongs in a projection. A rule that turns a row into a record belongs in a binding. A rule that needs to see many records at once, or produce a separate artifact, belongs in a planner and executor.
+Choosing is mostly a matter of asking what the rule produces and who must see it. A rule that turns bytes into typed fields belongs in the reader. A rule that turns one row into one value belongs in an operation. A shape that only one derivation passes through is a stage. A relation several consumers must agree on is a published derived relation. A rule that turns a row into a record belongs in a binding. A rule that needs to see many records at once, or produce a separate artifact, belongs in a planner and executor.
 
-Three mistakes are common, and each hides a decision. The first puts a join, an identifier translation or an aggregation in a source reader, where it becomes invisible to the graph and impossible to review as topology or grain. The second puts a grain inside a binding, where it cannot be expressed and, if forced, becomes a planner in disguise. The third gives a plan-local relation a human name and discusses it as a projection, although no consumer can name or reference it. Each mistake buys local convenience by moving meaning out of the place a reader inspects.
+Three mistakes are common, and each hides a decision. The first puts a join, an identifier translation or an aggregation in a source reader, where it becomes invisible to the graph and impossible to review as topology or grain. The second puts a grain inside a binding, where it cannot be expressed and, if forced, becomes a planner in disguise. The third gives a plan-local relation a human name and discusses it as a published relation, although no consumer can name or reference it. Each mistake buys local convenience by moving meaning out of the place a reader inspects.
 
 ## The judgement rule
 
-If a claimed projection cannot be named and referenced outside the pipeline, it is not a projection.
+If a claimed relation cannot be named and referenced outside its package, it is not a published relation.
 
-The test has three parts, and all three are read from the delivered blueprint rather than from the source text. It has a name in the relation namespace, unique among tables and projections. It can be referenced by a binding or by another projection, so a consumer outside the producing pipeline can read it. It carries a `Semantics` fragment that states its purpose, its limitations and its claims. A relation with a name and no consumer is a draft. A relation with a consumer and no claim is a computation that has not said what it means. A computation with a claim but no name has nowhere to publish the claim.
+The test has three parts, and all three are read from the delivered blueprint rather than from the source text. It has a name in the shared relation namespace, unique among source and derived relations. It can be referenced by a binding or by another published relation, so a consumer outside the producing package can read it. It carries a `Contract` that states a definition and a meaning. A relation with a name and no consumer is a draft. A relation with a consumer and no contract is a computation that has not said what it is or what it means. A computation with a claim but no name has nowhere to publish the claim.
 
-A projection that exists only inside a plan, cannot be named in the blueprint and cannot be referenced outside that pipeline is not a semantics unit. It is a data operation, and presenting it as a projection is wrong modelling.
+A relation that exists only inside a plan, cannot be named in the blueprint and cannot be referenced outside that package is not a published relation. It is a stage or a data operation, and presenting it as a published relation is wrong modelling.
 
-Name it, give it identity and semantics, or keep the operation out of the model. The framework should not let a pipeline-local operation masquerade as graph meaning, and by and large it does not: an expression fragment has no name, a step id is not a relation reference, and a claim attaches only to a declaration. The remaining risk is editorial. A design note can call a private relation a projection, and a reader can believe it. The blueprint is the correction: it either contains the projection or it does not.
+Name it, give it identity and a contract, or keep the operation out of the published model. The framework should not let a pipeline-local operation masquerade as relation meaning, and by and large it does not: an expression fragment has no name, a step id is not a relation reference, a stage is not a published relation, and a contract attaches only to a declaration. The remaining risk is editorial. A design note can call a stage a published relation, and a reader can believe it. The blueprint is the correction: it either contains the published relation or it does not.
 
-An extension is therefore part of the semantic model when it survives that test. The operation spec says what the domain computes. The projection says which relation the computation produces, for which rows, under which claim. The binding later says which record those rows populate. Each layer states one fact and stops. The next chapter takes the named relation and maps it to a node or an edge, where the grain becomes a record count and the claim becomes something a consumer can query.
+An extension is therefore part of the meaning model when it survives that test. The operation spec says what the domain computes. The derived relation states which relation the computation publishes, for which rows, under which contract. The binding later says which record those rows populate. Each layer states one fact and stops. The next chapter takes the published relation and maps it to a node or an edge, where the grain becomes a record count and the meaning becomes something a consumer can query.
 
 ## Next
 

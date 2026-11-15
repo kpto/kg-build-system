@@ -78,7 +78,7 @@ class SymbolRef:
 | --- | --- | --- |
 | `NodeRef` | one topology node | `[language, "node", *key]` |
 | `EdgeRef` | one topology edge | `[language, "edge", *key]` |
-| `RelationRef` | one relation or projection | `[language, "relation", *key]` |
+| `RelationRef` | one source or derived relation | `[language, "relation", *key]` |
 | `FieldRef` | one declared field | `[language, "field", *key]` |
 | `PropertyRef` | one graph property | `[language, "property", *key]` |
 | `AssetRef` | one logical asset | `[language, "asset", *key]` |
@@ -146,7 +146,7 @@ The event values are `PipelineStarted`, `StepStarted`, `StepFinished`, `StepLogg
 
 ## Limits
 
-- The kernel model carries no graph, node, edge, binding, projection or asset meaning. Those are distribution types.
+- The kernel model carries no graph, node, edge, binding, source relation, derived relation or asset meaning. Those are distribution types.
 - There is no schema version, migration path or compatibility negotiation. A change to a model value is a model change.
 - The kernel does not validate that a payload matches an engine's expectations; the executor that claims the kind does.
 - `WorkflowReport.provenance` is free-form. The kernel preserves it and assigns it no structure.

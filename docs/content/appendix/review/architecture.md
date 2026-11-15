@@ -35,7 +35,7 @@ The kernel owns reusable mechanics; the distribution owns what a graph author na
 
 | Distribution piece | Supplies |
 | --- | --- |
-| Languages | `annotations`, `expressions`, `asset`, `data`, `topology`, `binding`, `graph`, `semantics` |
+| Languages | `annotations`, `expressions`, `meaning`, `asset`, `data`, `topology`, `binding`, `graph` |
 | Interpreter | blueprint assembly and typed refs |
 | Modules | `core`, `deduplication`, `merging`, `conflict_validation`, `file`, `meta_graph`, `neo4j`, `duckdb`, `python`, `runtime` |
 | `distribution/service` | neutral relation plan, `SqlEmitter`, execution, rendering |
@@ -48,7 +48,7 @@ The kernel owns reusable mechanics; the distribution owns what a graph author na
 
 ## Rules
 
-- **Vocabulary.** The kernel uses toolchain words; graph, blueprint, node, edge, binding, projection and asset belong to the distribution. A kernel model that needs a graph word has crossed the boundary.
+- **Vocabulary.** The kernel uses toolchain words; graph, blueprint, node, edge, binding, source relation, derived relation and asset belong to the distribution. A kernel model that needs a graph word has crossed the boundary.
 - **Import direction.** Languages import the kernel; the interpreter imports languages and the kernel; modules import the interpreter, languages, `distribution.model`, `distribution.service` and the kernel; generation imports the kernel and the asset language; `api` imports the distribution and the kernel; the CLI imports generation and `api`. A new edge is a model change.
 - **Kernel isolation.** The kernel imports no graph, data, topology, binding, SQL, DuckDB or generation package. `tests/kernel/test_import_isolation.py` and `tests/test_architecture.py` refuse the edge.
 - **Zones.** Every leaf uses `model/{public,internal,_private}` and `service/{public,internal,_private}`. Empty zones are deleted; `__init__.py` is a facade, never business logic.
@@ -72,9 +72,9 @@ The kernel owns reusable mechanics; the distribution owns what a graph author na
 | `distribution/modules/duckdb` → `distribution/languages/data` | 17 |
 | `distribution/modules/duckdb` → `kernel` | 16 |
 | `distribution/languages/data` → `distribution/languages/annotations` | 15 |
+| `distribution/languages/data` → `distribution/languages/meaning` | 15 |
 | `distribution/languages/topology` → `distribution/languages/annotations` | 15 |
-| `distribution/languages/data` → `distribution/languages/semantics` | 14 |
-| `distribution/languages/topology` → `distribution/languages/semantics` | 14 |
+| `distribution/languages/topology` → `distribution/languages/meaning` | 14 |
 | `distribution/modules/core` → `distribution/service` | 14 |
 | `distribution/modules/core` → `kernel` | 13 |
 | `distribution/languages/binding` → `distribution/languages/data` | 12 |

@@ -16,7 +16,7 @@ sources:
 
 ## Surface
 
-A row source names the rows a binding or projection reads and the typed shape of one row. `row_source()`, `where`, `unnest`, `union`, `join`, `group_by`, `distinct` and `order_by` are the authoring algebra; every derived operation returns another row source, so calls compose. A row source is a value, not a declaration class or a schema.
+A row source names the rows a binding or derived relation reads and the typed shape of one row. `row_source()`, `where`, `unnest`, `union`, `join`, `group_by`, `distinct` and `order_by` are the authoring algebra; every derived operation returns another row source, so calls compose. A row source is a value, not a declaration class or a schema.
 
 | Operation | Grain effect | Result shape |
 | --- | --- | --- |
@@ -28,49 +28,50 @@ A row source names the rows a binding or projection reads and the typed shape of
 | `distinct()` | Removes duplicate rows | Unchanged |
 | `order_by(*keys, ascending=True)` | Orders rows | Unchanged |
 
-The model and the choice of grain are on [Set the grain](/book/part-2/05-grain-and-projections), the binding rules on the [Grain spec](/appendix/spec/grain), and the subject index entry for [Grain](/appendix/subjects/grain). The values that read a row are on [Expressions reference](/appendix/reference/expressions); naming a plan is on [Projections reference](/appendix/reference/projections). Declarations are on [Declarations](/appendix/reference/declarations), a binding consumes a row-source value on [Bindings](/appendix/reference/bindings), and binding targets are on [Topology](/appendix/reference/topology).
+The model and the choice of grain are on [Set the grain](/book/part-2/05-grain-and-projections), the binding rules on the [Grain spec](/appendix/spec/grain), and the subject index entry for [Grain](/appendix/subjects/grain). The values that read a row are on [Expressions reference](/appendix/reference/expressions); naming a plan is on [Derived relations reference](/appendix/reference/derived-relations). Declarations are on [Declarations](/appendix/reference/declarations), a binding consumes a row-source value on [Bindings](/appendix/reference/bindings), and binding targets are on [Topology](/appendix/reference/topology).
 
 ## Details
 
 ### `row_source()`
 
 ```text
-Table.row_source() -> RelationRowSource[Self]
-Projection.row_source() -> RelationRowSource[Any]
+SourceRelation.row_source() -> RelationRowSource[Self]
+DerivedRelation.row_source() -> RelationRowSource[Any]
 ```
 
-Returns the relation row source for a table or projection. The relation's `.shape` is the shape class of one row.
+Returns the relation row source for a source relation or derived relation. The relation's `.shape` is the shape class of one row.
 
 ```python
-from kg_build_system import Field, Table, TableOptions, field
+from kg_build_system import Field, SourceRelation, SourceRelationOptions, field
 
 
 from estate.assets import Estate
 
-class SiteTable(Table[Estate]):
-    options = TableOptions(name="sites")
+class SiteSourceRelation(SourceRelation[Estate]):
+    # Contract and field definitions are stated in full on Declarations.
+    options = SourceRelationOptions(contract=...)
     site_id: Field[str] = field()
     name: Field[str] = field()
     region: Field[str] = field()
 
 
-class ReadingTable(Table[Estate]):
-    options = TableOptions(name="readings")
+class ReadingSourceRelation(SourceRelation[Estate]):
+    options = SourceRelationOptions(contract=...)
     reading_id: Field[str] = field()
     site_id: Field[str] = field()
     region: Field[str] = field()
     value: Field[float] = field()
 
 
-sites = SiteTable.row_source()       # RelationRowSource[SiteTable]
+sites = SiteSourceRelation.row_source()       # RelationRowSource[SiteSourceRelation]
 ```
 
-A binding takes a row-source **value**. It does not accept a declaration class such as `Table` or `Projection`. A `Struct` or `ComputedStruct` is not a row source.
+A binding takes a row-source **value**. It does not accept a declaration class such as `SourceRelation` or `DerivedRelation`. A `Struct` or `ComputedStruct` is not a row source. A `Stage` returns a `StageRowSource`, which a binding refuses.
 
 | Error | Trigger |
 | --- | --- |
-| `rows must be a row source value; use Table.row_source() or Projection.row_source()` | A row-source operation receives a declaration class or other non-value |
-| `rows must be a row source value; use Table.row_source()` | A binding factory receives a non-row-source value |
+| `rows must be a published row source value; use SourceRelation.row_source() or DerivedRelation.row_source()` | A row-source operation receives a declaration class, a stage or another non-value |
+| `rows must be a published row source value; use SourceRelation.row_source()` | A binding factory receives a non-row-source value or a stage |
 
 ### The algebra
 
@@ -101,7 +102,7 @@ Keeps rows whose predicate is true. The predicate receives a typed row proxy, no
 | `predicate` | `Callable[[S], Selection[bool]]` | Receives the row proxy and returns a row predicate |
 
 ```python
-depots = SiteTable.row_source().where(
+depots = SiteSourceRelation.row_source().where(
     lambda site: site.name.alter_rows().drop_null().equals("Depot")
 )
 ```
@@ -124,13 +125,15 @@ RowSource.unnest(
 Expands one direct array member into rows, one row per item. The result keeps every other field and narrows the selected field to its item shape. A null or empty array produces no rows.
 
 ```python
-one_tag_per_row = SiteTable.row_source().unnest(lambda site: site.tags)
+one_tag_per_row = SiteSourceRelation.row_source().unnest(lambda site: site.tags)
 ```
 
 The selected member is read through `.shape`:
 
 ```python
-class TagProjection(Projection(one_tag_per_row)):
+class TagDerivedRelation(DerivedRelation(one_tag_per_row)):
+    # Contract and output definitions are stated in full on Derived relations.
+    options = DerivedRelationOptions(contract=...)
     site_id = computed_field(
         one_tag_per_row.shape.site_id.alter_rows().drop_null()
     )
@@ -166,8 +169,8 @@ Concatenates two row sources with the same shape. `all=False` removes duplicate 
 Shapes are compared member by member: external name and full logical type, including nullability. A union never renames, casts or reorders columns.
 
 ```python
-# ArchivedSiteTable declares the same fields as SiteTable.
-everyone = SiteTable.row_source().union(ArchivedSiteTable.row_source())
+# ArchivedSiteSourceRelation declares the same fields as SiteSourceRelation.
+everyone = SiteSourceRelation.row_source().union(ArchivedSiteSourceRelation.row_source())
 ```
 
 | Error | Trigger |
@@ -199,8 +202,8 @@ Combines two row sources on one equality. `on` receives one row proxy per side a
 The key pair is the general form. Keys must resolve to the same base logical type; their nullability may differ. Arrays and structs are refused. Null keys never match in any join mode.
 
 ```python
-site_readings = SiteTable.row_source().join(
-    ReadingTable.row_source(),
+site_readings = SiteSourceRelation.row_source().join(
+    ReadingSourceRelation.row_source(),
     on=lambda site, reading: (site.site_id, reading.site_id),
     how="left",
 )
@@ -209,8 +212,8 @@ site_readings = SiteTable.row_source().join(
 The `equals` form needs present text on both sides. Defaulting makes null keys compare equal, unlike the pair form:
 
 ```python
-matched = SiteTable.row_source().join(
-    ReadingTable.row_source(),
+matched = SiteSourceRelation.row_source().join(
+    ReadingSourceRelation.row_source(),
     on=lambda site, reading: (
         site.region.default_to("").equals(reading.region.default_to(""))
     ),
@@ -238,7 +241,7 @@ RowSource.group_by(
 Groups rows by one or more scalar selections. `by` returns one key selection (named `key`), a mapping of names to selections, or `(name, selection)` pairs.
 
 ```python
-by_region = SiteTable.row_source().group_by(
+by_region = SiteSourceRelation.row_source().group_by(
     by=lambda site: {"region": site.region},
 )
 
@@ -276,7 +279,7 @@ RowSource.order_by(
 
 ```python
 recent = (
-    SiteTable.row_source()
+    SiteSourceRelation.row_source()
     .where(lambda site: site.name.alter_rows().drop_null().equals("Depot"))
     .distinct()
     .order_by("region", ascending=True)
@@ -326,7 +329,7 @@ site_ids = by_region.shape.members.transform_items(
 
 ### Types and limits
 
-`Table.row_source()` and `Projection.row_source()` return a `RelationRowSource[Self]` or `RelationRowSource[Any]`. Every derived operation returns a `DerivedRowSource`; both are frozen row-source values with a `.shape`.
+`SourceRelation.row_source()` and `DerivedRelation.row_source()` return a `RelationRowSource[Self]` or `RelationRowSource[Any]`. A `Stage` returns a `StageRowSource`, which is not bindable. Every derived operation returns a `DerivedRowSource`; both are frozen row-source values with a `.shape`.
 
 | Operation | Static result |
 | --- | --- |

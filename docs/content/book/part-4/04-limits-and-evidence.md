@@ -127,7 +127,7 @@ Part IV ends with the same claim it started with: the kernel defines jobs, the d
 - Internal interfaces, package tree and contract tests: [system design](/appendix/developer/system-design) and [testing](/appendix/developer/testing).
 - Protocols, model values and boundaries: [kernel protocols](/appendix/kernel/protocols), [kernel model](/appendix/kernel/model) and [kernel boundaries](/appendix/kernel/boundaries).
 - Architecture, contracts, limits, decisions, verification and drift: [architecture review](/appendix/review/architecture), [contracts](/appendix/review/contracts), [limits](/appendix/review/limits), [decisions](/appendix/review/decisions), [verification](/appendix/review/verification) and [drift](/appendix/review/drift).
-- The distribution as a whole and the design rationale: [framework](/appendix/framework/index) and [design in semantics](/appendix/philosophy/design-in-semantics).
+- The distribution as a whole and the design rationale: [framework](/appendix/framework/index) and [design in semantics](/appendix/philosophy/design-in-meaning).
 
 The subject index and the appendix map begin at [the appendix index](/appendix/index).
 

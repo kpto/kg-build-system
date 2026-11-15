@@ -7,7 +7,7 @@ subject: identity
 spec: SPEC-015
 order: 150
 status: normative
-verified: 2026-11-10
+verified: 2026-11-15
 sources:
   - kg_build_system/kernel/model/public/key.py
   - kg_build_system/kernel/model/public/symbol.py
@@ -34,7 +34,7 @@ evidence:
 - **R5.** `ArtifactType` MUST contain at least two concrete segments and MUST NOT contain a wildcard. `ArtifactPattern` MUST match `*` within any segment and `**` only as the final segment.
 - **R6.** `InstructionKind` MUST contain exactly one operation and one engine and MUST compare by exact equality.
 - **R7.** A binding identity digest MUST be computed from the canonical binding document with `debug_name` and `python_ref` removed. A present `debug_name` MUST prefix the digest but MUST NOT enter it.
-- **R8.** The blueprint document MUST carry top-level `graph`, `data`, `assets`, and `bindings`, with optional `graph_declaration`. The plan document MUST carry `components`, `steps`, `connections`, and `provenance`. The report document MUST carry `published_artifacts`, `recovered_failures`, `unresolved_failures`, and `provenance`.
+- **R8.** The blueprint document MUST carry top-level `graph`, `data`, `assets`, and `bindings`, with optional `graph_declaration`. The `data` member MUST expose `source_relations` and `derived_relations`; neither key MAY be named `relations` or `projections`. The plan document MUST carry `components`, `steps`, `connections`, and `provenance`. The report document MUST carry `published_artifacts`, `recovered_failures`, `unresolved_failures`, and `provenance`.
 - **R9.** A codec round trip MUST produce canonical-document equality, not original text equality. Decoding MUST NOT validate the model, and the encoder MUST preserve the omit-versus-null rule for each member.
 
 ## Evidence
@@ -45,6 +45,8 @@ evidence:
 | `tests/distribution/test_typed_refs.py` | Every role type wraps a `SymbolRef` and round-trips `[language, role, *key]`. |
 | `tests/distribution/test_graph_blueprint.py` | The blueprint document shape and the optional graph declaration round trip. |
 | `tests/distribution/test_blueprint_source.py` | Rendered source recreates the blueprint from identity-bearing declarations. |
+
+The two data keys and the stage visibility are normative before their release test; they are reviewed by reading the interface in [The relation contract](/appendix/developer/relation-contract).
 
 ## API
 
@@ -58,8 +60,8 @@ evidence:
 | `ArtifactType` | `Key` with at least two concrete segments | One concrete artifact. |
 | `ArtifactPattern` | `Key` with wildcard segments | One accepted artifact shape. |
 | `InstructionKind` | `(operation, engine)` | One exact dispatch key. |
-| `binding_identity` | Canonical document digest | A binding's stable identity. |
-| Blueprint, plan, report documents | Top-level member sets | The canonical cross-boundary artifacts. |
+| `binding_identity` | Canonical document digest | A binding's stable identity, including its meaning. |
+| Blueprint, plan, report documents | Top-level member sets | The canonical cross-boundary artifacts; the data member carries the two relation keys. |
 
 ## Limits
 
