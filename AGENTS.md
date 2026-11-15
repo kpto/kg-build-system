@@ -6,6 +6,45 @@ an agent works, and the framework model the work is reviewed against.
 Domain boundary: a rule about how the work is done belongs to agent behaviour; a
 rule about what the framework is belongs to the framework model.
 
+## The model in one screen
+
+Read this before the rules. A fresh agent fails here more often than in the code.
+
+A graph is an argument, not a pipeline. It has two axes:
+
+```text
+records (graph/)                         relations (relation/)
+what the graph asserts                   what the domain contains
+  purpose, claims, limitations             contract: definition + meaning
+        ▲                                        │
+        └──────────── binding ───────────────────┘
+                     fulfilment
+```
+
+- A **purpose** is one expected use; a **claim** is a contextless assertion; a
+  **limitation** is what the purpose does not authorize. A definition is a claim;
+  a prohibition is a limitation. A declaration with no positive use carries claims
+  only; do not invent a purpose.
+- A **relation is not an operator**. State it with no graph nouns and no operator
+  verbs. "One condition severity per defect" is a relation; "join defects to
+  conditions and drop nulls" is a row source. Keep the operator private.
+- A **binding states the fulfilment**: name the record's use in a clause, then say
+  how the relation answers it — grain, identity, coverage — and where it falls
+  short. "Supply `HAS_DISEASE` edges from each row's `diseaseId`" is a row recipe.
+  "The evidence relation fulfils the `HAS_DISEASE` use as the attribution that
+  lets a consumer gather the release's evidence for one disease: each release row
+  names the disease it is about and supplies one edge, keyed by the evidence and
+  disease ids, covering every release row; it supplies the release's resolved
+  term, not the source label" is a fulfilment.
+- A **published relation must not know the record**. If it names the record's key,
+  properties or endpoints, it is a stage in disguise and the binding is a copy.
+- The **declaration is the product**; the build, planner, executor and database
+  are replaceable mechanisms.
+
+The test for anything you write: could a reviewer who has not seen the code say
+what it is for, what it asserts and what it excludes? If not, the meaning is
+missing, not the code.
+
 ## Agent behaviour
 
 ### Working
@@ -49,6 +88,9 @@ rule about what the framework is belongs to the framework model.
   before applying it, and report drift instead of applying a stale row.
 - A semantic migration is authored again, not text-moved. The brief names the
   question each unit answers; "rename the old unit" is not an acceptance.
+- A brief that touches meaning names the record's use, how the relation answers
+  it, and the shortfall. A brief that only says "add the missing semantics" or
+  "rewrite the purposes" leaves the decision to the subagent and is not ready.
 - The acceptance command is the project gate the change affects, not a scoped
   proxy. A change to a shared helper, generated artifact or public surface runs
   the project check.
