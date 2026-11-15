@@ -259,6 +259,7 @@ binding = node_binding(
     rows=Site.row_source(),
     bind=bind,
     meaning=Meaning(
+        purpose=Purpose("Fulfil the site record from the site relation."),
         claims=(Claim("One site row yields one site node."),),
     ),
 )

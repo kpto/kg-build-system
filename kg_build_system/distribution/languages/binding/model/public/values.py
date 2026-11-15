@@ -165,12 +165,16 @@ class NodeBinding(Generic[N_co]):
 
     Example:
         ```python
+        from kg_build_system import Meaning, Purpose
         from kg_build_system.distribution.languages.binding import NodeBinding
 
         binding: NodeBinding[UnitNode] = node_binding(
             target=UnitNode,
             build_key=UnitTable.unit_ref,
             properties=UnitNode(name=UnitTable.unit_name),
+            meaning=Meaning(
+                purpose=Purpose("Fulfil the unit record from the register."),
+            ),
         )
         ```
     """
@@ -192,6 +196,7 @@ class EdgeBinding(Generic[E_co]):
 
     Example:
         ```python
+        from kg_build_system import Meaning, Purpose
         from kg_build_system.distribution.languages.binding import EdgeBinding
 
         binding: EdgeBinding[HasUnitEdge] = edge_binding(
@@ -200,6 +205,9 @@ class EdgeBinding(Generic[E_co]):
             source_build_key=UnitTable.site_id,
             target_build_key=UnitTable.unit_ref,
             properties=HasUnitEdge(as_at=UnitTable.as_at),
+            meaning=Meaning(
+                purpose=Purpose("Fulfil the installed-at relation from the register."),
+            ),
         )
         ```
     """

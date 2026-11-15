@@ -15,7 +15,7 @@ from kg_build_system.distribution.languages.data import (
     computed_field,
     field,
 )
-from kg_build_system.distribution.languages.meaning import Claim, Meaning
+from kg_build_system.distribution.languages.meaning import Claim, Meaning, Purpose
 from kg_build_system.distribution.languages.topology import (
     Node,
     NodeOptions,
@@ -85,6 +85,7 @@ node_binding(
         build_key=row.site_id,  # pyright: ignore[reportAttributeAccessIssue]
         properties=SiteNode(label=row.site_id),  # pyright: ignore[reportAttributeAccessIssue]
     ),
+    meaning=Meaning(purpose=Purpose("Fulfil the fixture record from its rows.")),
 )
 
 node_binding(
@@ -94,6 +95,7 @@ node_binding(
         build_key=row.site_id.alter_rows().drop_null(),  # pyright: ignore[reportAttributeAccessIssue]
         properties=SiteNode(label=row.site_id),  # pyright: ignore[reportAttributeAccessIssue]
     ),
+    meaning=Meaning(purpose=Purpose("Fulfil the fixture record from its rows.")),
 )
 
 

@@ -198,6 +198,9 @@ class RelationContractTests(unittest.TestCase):
                     build_key=row.site_id.alter_rows().drop_null(),
                     properties=SiteNode(name=row.name),
                 ),
+                meaning=Meaning(
+                    purpose=Purpose("Fulfil the stage fixture from its rows."),
+                ),
             )
 
     def test_a_source_relation_may_omit_its_contract(self) -> None:

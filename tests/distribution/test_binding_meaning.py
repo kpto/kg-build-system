@@ -15,7 +15,9 @@ from kg_build_system.distribution.languages.asset import (
     AssetOptions,
     AssetProfile,
 )
+from kg_build_system.distribution.languages.annotations import NodeLabel
 from kg_build_system.distribution.languages.binding import (
+    BindingOptions,
     EdgeBinding,
     NodeBinding,
     edge_binding,
@@ -199,6 +201,46 @@ class BindingMeaningTests(unittest.TestCase):
                     "a binding requires a meaning with a purpose",
                 ):
                     build(claims_only)
+
+    def test_binding_options_require_a_meaning_with_a_purpose(self) -> None:
+        with self.assertRaises(TypeError):
+            BindingOptions()  # type: ignore[call-arg]
+        with self.assertRaisesRegex(
+            ValueError,
+            "a binding requires a meaning with a purpose",
+        ):
+            BindingOptions(meaning=None)  # type: ignore[arg-type]
+        with self.assertRaisesRegex(
+            ValueError,
+            "a binding requires a meaning with a purpose",
+        ):
+            BindingOptions(
+                meaning=Meaning(claims=(Claim("A site is a premises."),)),
+            )
+        options = BindingOptions(meaning=MEANING)
+        self.assertIs(options.meaning, MEANING)
+
+    def test_a_binding_with_annotations_renders_them_with_its_meaning(self) -> None:
+        binding = node_binding(
+            target=SiteNode,
+            build_key=SiteSourceRelation.site_id.alter_rows().drop_null(),
+            properties=SiteNode(site_id=SiteSourceRelation.site_id),
+            options=BindingOptions(
+                annotations=(NodeLabel("Site"),),
+                meaning=MEANING,
+            ),
+        )
+        dto = transcribe_bindings((binding,))[0]
+        fragment = render_binding_source((dto,))
+
+        self.assertIn("options=BindingOptions(", fragment.body)
+        self.assertIn("meaning=Meaning(", fragment.body)
+        self.assertIn("annotations=(", fragment.body)
+        self.assertIn(
+            "from kg_build_system import Claim, Limitation, Purpose, Meaning",
+            fragment.imports,
+        )
+        ast.parse(fragment.body)
 
     def test_a_binding_rejects_a_non_meaning_value(self) -> None:
         for build in (_node_binding, _edge_binding):

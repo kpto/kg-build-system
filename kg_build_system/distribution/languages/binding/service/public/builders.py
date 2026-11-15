@@ -7,8 +7,8 @@ row-derived ``rows``/``bind`` form.
 Example:
     ```python
     from kg_build_system import (
-        Field, Node, NodeValues, PropertySlot, SourceRelation, field, node_binding,
-        property,
+        Field, Meaning, Node, NodeValues, PropertySlot, Purpose, SourceRelation,
+        field, node_binding, property,
     )
 
     class UnitTable(SourceRelation):
@@ -22,6 +22,7 @@ Example:
         target=UnitNode,
         build_key=UnitTable.unit_ref,
         properties=UnitNode(name=UnitTable.unit_name),
+        meaning=Meaning(purpose=Purpose("Fulfil the unit record from the register.")),
     )
     from_rows = node_binding(
         target=UnitNode,
@@ -30,6 +31,7 @@ Example:
             build_key=row.unit_ref,
             properties=UnitNode(name=row.unit_name),
         ),
+        meaning=Meaning(purpose=Purpose("Fulfil the unit record from the register.")),
     )
     ```
 """
@@ -89,13 +91,14 @@ def node_binding[N: Node](
 
     Accepts either the direct form, ``build_key`` plus ``properties``, or the
     row-derived form, ``rows`` plus ``bind``. The two forms are exclusive.
-    ``meaning`` attaches one declaration meaning fragment to the binding.
+    ``meaning`` is required and must carry the ``Purpose`` this binding
+    fulfils; it may be passed here or in ``options``, not both.
 
     Example:
     ```python
     from kg_build_system import (
-        Field, Node, NodeValues, PropertySlot, SourceRelation, field, node_binding,
-        property,
+        Field, Meaning, Node, NodeValues, PropertySlot, Purpose, SourceRelation,
+        field, node_binding, property,
     )
 
     class UnitTable(SourceRelation):
@@ -109,6 +112,9 @@ def node_binding[N: Node](
         target=UnitNode,
         build_key=UnitTable.unit_ref,
         properties=UnitNode(name=UnitTable.unit_name),
+        meaning=Meaning(
+            purpose=Purpose("Fulfil the unit record from the register."),
+        ),
     )
     ```
     """
@@ -205,13 +211,15 @@ def edge_binding(
     Accepts either the direct form, the three keys plus ``properties``, or the
     row-derived form, ``rows`` plus ``bind``. ``source_node`` and
     ``target_node`` are ``endpoint(...)`` tokens required by an abstract
-    declared endpoint and optional otherwise. ``meaning`` attaches one
-    declaration meaning fragment to the binding.
+    declared endpoint and optional otherwise. ``meaning`` is required and must
+    carry the ``Purpose`` this binding fulfils; it may be passed here or in
+    ``options``, not both.
 
     Example:
     ```python
     from kg_build_system import (
-        Edge, Field, Node, PropertySlot, SourceRelation, edge_binding, field, property,
+        Edge, Field, Meaning, Node, PropertySlot, Purpose, SourceRelation,
+        edge_binding, field, property,
     )
 
     class UnitTable(SourceRelation):
@@ -234,6 +242,9 @@ def edge_binding(
         source_build_key=UnitTable.site_id,
         target_build_key=UnitTable.unit_ref,
         properties=HasUnitEdge(as_at=UnitTable.as_at),
+        meaning=Meaning(
+            purpose=Purpose("Fulfil the installed-at relation from the register."),
+        ),
     )
     ```
     """

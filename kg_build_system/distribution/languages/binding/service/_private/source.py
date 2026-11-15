@@ -17,6 +17,7 @@ from kg_build_system.distribution.languages.expressions.model.internal.dto impor
 )
 from kg_build_system.distribution.languages.meaning.service.internal import (
     render_meaning,
+    render_meaning_expression,
 )
 from kg_build_system.distribution.service.internal.rendering import class_name, member_name, render_annotation
 from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import (
@@ -393,7 +394,8 @@ def _binding_source(
                 f"{_render_expression(expression, class_names=class_names)},"
             )
         lines.append("    ),")
-    if binding.meaning is not None:
+    annotations = _annotations_source(binding.annotations, imports)
+    if binding.meaning is not None and annotations is None:
         meaning = render_meaning(binding.meaning)
         imports.update(meaning.imports)
         lines.extend(f"    {line}" for line in meaning.body.splitlines())
@@ -412,10 +414,22 @@ def _binding_source(
             )
     if binding.debug_name is not None:
         lines.append(f"    debug_name={binding.debug_name!r},")
-    annotations = _annotations_source(binding.annotations, imports)
     if annotations is not None:
+        if binding.meaning is None:
+            raise ValueError("a binding annotation requires a binding meaning")
+        meaning = render_meaning(binding.meaning)
+        imports.update(meaning.imports)
+        expression = render_meaning_expression(binding.meaning)
+        expression_lines = expression.splitlines()
         imports.add("from kg_build_system import BindingOptions")
-        lines.append(f"    options=BindingOptions({annotations}),")
+        lines.append("    options=BindingOptions(")
+        lines.append(f"        meaning={expression_lines[0]}")
+        tail = expression_lines[1:]
+        for index, line in enumerate(tail):
+            comma = "," if index == len(tail) - 1 else ""
+            lines.append(f"        {line}{comma}")
+        lines.append(f"        {annotations},")
+        lines.append("    ),")
     lines.append(")")
     return lines
 

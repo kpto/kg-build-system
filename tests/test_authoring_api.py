@@ -173,7 +173,12 @@ class AuthoringApiTests(unittest.TestCase):
         self.assertEqual(len(seen), 1)
         self.assertIsInstance(seen[0], Source)
         with self.assertRaisesRegex(TypeError, "row source value"):
-            node_binding(target=SourceNode, rows=Source, bind=bind)
+            node_binding(
+                target=SourceNode, rows=Source, bind=bind,
+                meaning=Meaning(
+                    purpose=Purpose("Fulfil the fixture record from its rows."),
+                ),
+            )
 
     def test_no_expression_escape_hatch_or_old_names(self) -> None:
         for name in (".expression", ".value", ".model", "require_expression"):
