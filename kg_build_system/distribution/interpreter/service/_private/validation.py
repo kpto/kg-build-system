@@ -12,12 +12,15 @@ from kg_build_system.distribution.languages.binding.model.internal.dto.blueprint
 from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import (
     DataPartDTO,
 )
+from kg_build_system.distribution.languages.data.service.internal import (
+    plan_scan_sources,
+)
 from kg_build_system.distribution.languages.graph.model.internal.dto import (
     GraphDeclarationDTO,
 )
-from kg_build_system.distribution.languages.semantics.model.internal import (
+from kg_build_system.distribution.languages.meaning.model.internal import (
     PurposeDTO,
-    SemanticsDTO,
+    MeaningDTO,
 )
 from kg_build_system.distribution.languages.topology.model.internal.dto.blueprint_dto import (
     EdgeDTO, NodeDTO,
@@ -35,62 +38,80 @@ def _validate_graph_declaration(blueprint: GraphBlueprint) -> None:
         return
     if not isinstance(declaration, GraphDeclarationDTO):
         raise ValueError("the graph declaration must be a GraphDeclarationDTO")
-    semantics = declaration.semantics
-    if not isinstance(semantics, SemanticsDTO):
+    meaning = declaration.meaning
+    if not isinstance(meaning, MeaningDTO):
         raise ValueError(
-            "a graph declaration requires a Semantics with a purpose"
+            "a graph declaration requires a Meaning with a purpose"
         )
-    if not isinstance(semantics.purpose, PurposeDTO):
+    if not isinstance(meaning.purpose, PurposeDTO):
         raise ValueError(
-            "a graph declaration requires a Semantics with a purpose"
+            "a graph declaration requires a Meaning with a purpose"
         )
-    if not semantics.purpose.text:
+    if not meaning.purpose.text:
         raise ValueError("the graph declaration purpose must be non-empty")
 
 
-def _declaration_semantics(blueprint: GraphBlueprint) -> tuple[Any, ...]:
-    """Return every attached declaration semantics value in the blueprint."""
+def _declaration_meaning(blueprint: GraphBlueprint) -> tuple[Any, ...]:
+    """Return every attached declaration meaning value in the blueprint."""
     values: list[Any] = []
     for component in _components(blueprint.graph):
-        semantics = getattr(component, "semantics", None)
-        if semantics is not None:
-            values.append(semantics)
+        meaning = getattr(component, "meaning", None)
+        if meaning is not None:
+            values.append(meaning)
         for prop in getattr(component, "properties", ()):
-            if prop.semantics is not None:
-                values.append(prop.semantics)
+            if prop.meaning is not None:
+                values.append(prop.meaning)
     for owner in (
         *blueprint.data.structs,
-        *blueprint.data.relations,
-        *blueprint.data.projections,
+        *blueprint.data.source_relations,
+        *blueprint.data.derived_relations,
     ):
-        if owner.semantics is not None:
-            values.append(owner.semantics)
+        if owner.meaning is not None:
+            values.append(owner.meaning)
         for column in owner.columns:
-            if column.semantics is not None:
-                values.append(column.semantics)
+            if column.meaning is not None:
+                values.append(column.meaning)
     for asset in blueprint.assets.assets:
-        if asset.semantics is not None:
-            values.append(asset.semantics)
+        if asset.meaning is not None:
+            values.append(asset.meaning)
     for binding in blueprint.bindings:
-        if binding.semantics is not None:
-            values.append(binding.semantics)
+        if binding.meaning is not None:
+            values.append(binding.meaning)
+    return tuple(values)
+
+
+def _graph_local_meaning(blueprint: GraphBlueprint) -> tuple[Any, ...]:
+    """Return the meanings that narrow the graph purpose.
+
+    Only topology declarations sit under the graph purpose. A relation purpose
+    is domain-level and stands without one.
+    """
+    values: list[Any] = []
+    for component in _components(blueprint.graph):
+        meaning = getattr(component, "meaning", None)
+        if meaning is not None:
+            values.append(meaning)
+        for prop in getattr(component, "properties", ()):
+            if prop.meaning is not None:
+                values.append(prop.meaning)
     return tuple(values)
 
 
 def _validate_purposes(blueprint: GraphBlueprint) -> None:
-    """Reject a local purpose without a graph purpose."""
+    """Reject a graph-local purpose without a graph purpose."""
     declaration = blueprint.graph_declaration
     root = (
-        declaration.semantics.purpose
+        declaration.meaning.purpose
         if declaration is not None
         else None
     )
-    for semantics in _declaration_semantics(blueprint):
-        if not isinstance(semantics, SemanticsDTO):
+    for meaning in _declaration_meaning(blueprint):
+        if not isinstance(meaning, MeaningDTO):
             raise ValueError(
-                "a declaration semantics must be a Semantics value"
+                "a declaration meaning must be a Meaning value"
             )
-        if semantics.purpose is not None and root is None:
+    for meaning in _graph_local_meaning(blueprint):
+        if meaning.purpose is not None and root is None:
             raise ValueError(
                 "a local purpose requires a graph declaration with a purpose"
             )
@@ -192,7 +213,7 @@ def validate_blueprint(blueprint: GraphBlueprint) -> None:
     The checks are reference-based: every endpoint, parent, property, field,
     relation asset and binding must carry the role reference whose language and
     key name an existing declaration. A graph declaration, when present, must
-    carry a ``Semantics`` value with a purpose. A local declaration purpose is
+    carry a ``Meaning`` value with a purpose. A local declaration purpose is
     refused when the project declares no graph purpose. Names are only used for
     the messages.
     """
@@ -225,7 +246,7 @@ def validate_blueprint(blueprint: GraphBlueprint) -> None:
                 )
 
     assets = _validate_assets(blueprint.assets)
-    for relation in blueprint.data.relations:
+    for relation in blueprint.data.source_relations:
         if relation.asset is None:
             raise ValueError(
                 f"relation {relation.name!r} must name its logical asset"
@@ -235,12 +256,24 @@ def validate_blueprint(blueprint: GraphBlueprint) -> None:
                 f"relation {relation.name!r} names an unknown asset "
                 f"{relation.asset.name!r}"
             )
-    for relation in blueprint.data.relations:
+    for relation in blueprint.data.source_relations:
         _validate_columns(relation, _field_ref, "relation")
-    for projection in blueprint.data.projections:
-        _validate_columns(projection, _field_ref, "projection")
+    for derived_relation in blueprint.data.derived_relations:
+        _validate_columns(derived_relation, _field_ref, "derived relation")
+    internal = {
+        relation.name
+        for relation in blueprint.data.derived_relations
+        if relation.visibility == "internal"
+    }
 
     for binding in blueprint.bindings:
+        if binding.rows is not None and internal.intersection(
+            plan_scan_sources(binding.rows)
+        ):
+            raise ValueError(
+                "rows must not read a stage; bind the derived relation that "
+                "publishes the stage"
+            )
         target = _binding_target(binding)
         if target not in known:
             raise ValueError(

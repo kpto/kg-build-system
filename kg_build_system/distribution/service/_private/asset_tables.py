@@ -31,8 +31,8 @@ from kg_build_system.distribution.languages.binding.model.internal import (
     EdgeBindingDTO,
 )
 from kg_build_system.distribution.languages.data.model.internal import (
-    ProjectionDTO,
-    RelationDTO,
+    DerivedRelationDTO,
+    SourceRelationDTO,
 )
 from kg_build_system.distribution.languages.data.service.internal import (
     plan_expressions,
@@ -138,11 +138,13 @@ def _binding_relations(binding: BindingDTO) -> set[str]:
     return found
 
 
-def _projection_relations(projection: ProjectionDTO) -> set[str]:
+def _derived_relation_sources(
+    derived_relation: DerivedRelationDTO,
+) -> set[str]:
     found = _expression_relations(
-        column.expression for column in projection.columns
+        column.expression for column in derived_relation.columns
     )
-    found.update(_plan_relations(projection.row_source))
+    found.update(_plan_relations(derived_relation.row_source))
     return found
 
 
@@ -150,20 +152,20 @@ def _read_relations(blueprint: GraphBlueprint) -> set[str]:
     found: set[str] = set()
     for binding in blueprint.bindings:
         found.update(_binding_relations(binding))
-    for projection in blueprint.data.projections:
-        found.update(_projection_relations(projection))
+    for derived_relation in blueprint.data.derived_relations:
+        found.update(_derived_relation_sources(derived_relation))
     return found
 
 
-def _used_tables(blueprint: GraphBlueprint) -> tuple[RelationDTO, ...]:
-    relations = {item.name: item for item in blueprint.data.relations}
+def _used_tables(blueprint: GraphBlueprint) -> tuple[SourceRelationDTO, ...]:
+    relations = {item.name: item for item in blueprint.data.source_relations}
     return tuple(
         relations[name]
         for name in sorted(_read_relations(blueprint) & relations.keys())
     )
 
 
-def _asset_for(blueprint: GraphBlueprint, relation: RelationDTO) -> AssetDescriptor:
+def _asset_for(blueprint: GraphBlueprint, relation: SourceRelationDTO) -> AssetDescriptor:
     if relation.asset is None:
         raise ValueError(
             f"relation {relation.name!r} must name its logical asset"
@@ -177,7 +179,7 @@ def _asset_for(blueprint: GraphBlueprint, relation: RelationDTO) -> AssetDescrip
     )
 
 
-def _table(blueprint: GraphBlueprint, index: int, relation: RelationDTO) -> AssetTable:
+def _table(blueprint: GraphBlueprint, index: int, relation: SourceRelationDTO) -> AssetTable:
     return AssetTable(
         asset=_asset_for(blueprint, relation),
         relation=f"kg_table_{index}",

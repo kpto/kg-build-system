@@ -18,7 +18,7 @@ from ...model.internal.dto.asset_dto import (
     AssetProfileDTO,
 )
 from ...model.public.options import AssetAuthority
-from .semantics import semantics_from_document, semantics_to_document
+from .meaning import meaning_from_document, meaning_to_document
 
 
 def _object(value: Any, context: str) -> Mapping[str, Any]:
@@ -174,8 +174,8 @@ def _asset_to_document(value: AssetDTO) -> dict[str, Any]:
             annotation_to_document(item) for item in value.annotations
         ],
     }
-    if value.semantics is not None:
-        document["semantics"] = semantics_to_document(value.semantics)
+    if value.meaning is not None:
+        document["meaning"] = meaning_to_document(value.meaning)
     return document
 
 
@@ -191,7 +191,7 @@ def _profile_document(value: Mapping[str, Any]) -> Mapping[str, Any]:
 
 def _asset_from_document(value: Mapping[str, Any]) -> AssetDTO:
     layout = value.get("layout")
-    semantics = value.get("semantics")
+    meaning = value.get("meaning")
     return AssetDTO(
         name=_text(value, "name"),
         website=_optional_text(value, "website"),
@@ -201,9 +201,9 @@ def _asset_from_document(value: Mapping[str, Any]) -> AssetDTO:
             else _layout_from_document(_object(layout, "layout"))
         ),
         profile=_profile_from_document(_profile_document(value)),
-        semantics=(
-            None if value.get("profile") is None or semantics is None
-            else semantics_from_document(_object(semantics, "semantics"))
+        meaning=(
+            None if value.get("profile") is None or meaning is None
+            else meaning_from_document(_object(meaning, "meaning"))
         ),
         governance=_governance_from_document(
             _object(value.get("governance", {}), "governance")

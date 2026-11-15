@@ -2,7 +2,7 @@
 
 The blueprint carries an optional project-level graph declaration. These tests
 guard the field, assembly, document codec, source rendering and purpose
-validation. They skip only while the concurrent graph and semantics language
+validation. They skip only while the concurrent graph and meaning language
 packages are unavailable.
 """
 from __future__ import annotations
@@ -51,17 +51,17 @@ try:
     from kg_build_system.distribution.languages.graph.service.internal import (
         GraphLanguage,
     )
-    from kg_build_system.distribution.languages.semantics.model.internal import (
+    from kg_build_system.distribution.languages.meaning.model.internal import (
         ClaimDTO,
         LimitationDTO,
         PurposeDTO,
-        SemanticsDTO,
+        MeaningDTO,
     )
-    from kg_build_system.distribution.languages.semantics.model.public import (
+    from kg_build_system.distribution.languages.meaning.model.public import (
         Claim,
         Limitation,
         Purpose,
-        Semantics,
+        Meaning,
     )
     from kg_build_system.distribution.languages.topology.model.internal import (
         GraphPartDTO, NodeDTO,
@@ -75,8 +75,8 @@ except ImportError as error:  # pragma: no cover - concurrent package guard
     ) from error
 
 
-def _semantics() -> SemanticsDTO:
-    return SemanticsDTO(
+def _meaning() -> MeaningDTO:
+    return MeaningDTO(
         purpose=PurposeDTO(
             text="Prioritise targets for disease evidence review.",
             limitations=(
@@ -91,7 +91,7 @@ def _declaration() -> GraphDeclarationDTO:
     return GraphDeclarationDTO(
         name="open_targets",
         description="The Open Targets graph.",
-        semantics=_semantics(),
+        meaning=_meaning(),
     )
 
 
@@ -106,7 +106,7 @@ class _Namespace:
 class FixtureGraph(Graph):
     options = GraphOptions(
         name="fixture",
-        semantics=Semantics(
+        meaning=Meaning(
             purpose=Purpose("Exercise the interpreter."),
             claims=(Claim("The fixture graph describes one thing."),),
         ),
@@ -125,7 +125,7 @@ def _empty_blueprint(
 ) -> GraphBlueprint:
     return GraphBlueprint(
         graph=GraphPartDTO(),
-        data=DataPartDTO(structs=(), relations=(), projections=()),
+        data=DataPartDTO(structs=(), source_relations=(), derived_relations=()),
         assets=AssetPartDTO(),
         bindings=(),
         graph_declaration=declaration,
@@ -160,7 +160,7 @@ class GraphBlueprintCodecTests(unittest.TestCase):
         declaration = _declaration()
         blueprint = assemble_blueprint(
             GraphPartDTO(),
-            DataPartDTO(structs=(), relations=(), projections=()),
+            DataPartDTO(structs=(), source_relations=(), derived_relations=()),
             AssetPartDTO(),
             (),
             graph_declaration=declaration,
@@ -183,7 +183,7 @@ class GraphBlueprintSourceTests(unittest.TestCase):
     def test_source_renders_the_graph_declaration_first(self) -> None:
         blueprint = GraphBlueprint(
             graph=GraphPartDTO(nodes=(NodeDTO("site"),)),
-            data=DataPartDTO(structs=(), relations=(), projections=()),
+            data=DataPartDTO(structs=(), source_relations=(), derived_relations=()),
             assets=AssetPartDTO(),
             bindings=(),
             graph_declaration=_declaration(),
@@ -192,14 +192,14 @@ class GraphBlueprintSourceTests(unittest.TestCase):
         source = blueprint_to_source(blueprint, None)
 
         self.assertIn("class OpenTargetsGraph(Graph):", source)
-        self.assertIn("semantics=Semantics(", source)
+        self.assertIn("meaning=Meaning(", source)
         self.assertTrue(source.startswith("from kg_build_system import"))
         self.assertLess(
             source.index("class OpenTargetsGraph(Graph):"),
             source.index("class SiteNode(Node):"),
         )
 
-    def test_source_round_trip_preserves_graph_semantics(self) -> None:
+    def test_source_round_trip_preserves_graph_meaning(self) -> None:
         first = _empty_blueprint(_declaration())
         source = blueprint_to_source(first, None)
         with tempfile.TemporaryDirectory() as directory:
@@ -218,18 +218,18 @@ class GraphBlueprintValidationTests(unittest.TestCase):
         blueprint = _empty_blueprint(_declaration())
         declaration = blueprint.graph_declaration
         assert declaration is not None
-        object.__setattr__(declaration.semantics, "purpose", None)
+        object.__setattr__(declaration.meaning, "purpose", None)
 
         with self.assertRaisesRegex(ValueError, "purpose"):
             validate_blueprint(blueprint)
 
-    def test_a_graph_declaration_semantics_must_be_a_semantics_value(self) -> None:
+    def test_a_graph_declaration_meaning_must_be_a_meaning_value(self) -> None:
         blueprint = _empty_blueprint(_declaration())
         declaration = blueprint.graph_declaration
         assert declaration is not None
-        object.__setattr__(declaration, "semantics", object())
+        object.__setattr__(declaration, "meaning", object())
 
-        with self.assertRaisesRegex(ValueError, "Semantics with a purpose"):
+        with self.assertRaisesRegex(ValueError, "Meaning with a purpose"):
             validate_blueprint(blueprint)
 
     def test_a_local_purpose_requires_a_graph_purpose(self) -> None:
@@ -238,13 +238,13 @@ class GraphBlueprintValidationTests(unittest.TestCase):
                 nodes=(
                     NodeDTO(
                         "site",
-                        semantics=SemanticsDTO(
+                        meaning=MeaningDTO(
                             purpose=PurposeDTO("The published register."),
                         ),
                     ),
                 ),
             ),
-            data=DataPartDTO(structs=(), relations=(), projections=()),
+            data=DataPartDTO(structs=(), source_relations=(), derived_relations=()),
             assets=AssetPartDTO(),
             bindings=(),
         )
@@ -258,13 +258,13 @@ class GraphBlueprintValidationTests(unittest.TestCase):
                 nodes=(
                     NodeDTO(
                         "site",
-                        semantics=SemanticsDTO(
+                        meaning=MeaningDTO(
                             claims=(ClaimDTO("A site holds units."),),
                         ),
                     ),
                 ),
             ),
-            data=DataPartDTO(structs=(), relations=(), projections=()),
+            data=DataPartDTO(structs=(), source_relations=(), derived_relations=()),
             assets=AssetPartDTO(),
             bindings=(),
         )

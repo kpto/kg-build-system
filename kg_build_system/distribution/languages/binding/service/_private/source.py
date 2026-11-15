@@ -15,8 +15,8 @@ from kg_build_system.distribution.languages.expressions.model.internal.dto impor
     OperationExpressionDTO,
     VariableExpressionDTO,
 )
-from kg_build_system.distribution.languages.semantics.service.internal import (
-    render_semantics,
+from kg_build_system.distribution.languages.meaning.service.internal import (
+    render_meaning,
 )
 from kg_build_system.distribution.service.internal.rendering import class_name, member_name, render_annotation
 from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import (
@@ -393,10 +393,10 @@ def _binding_source(
                 f"{_render_expression(expression, class_names=class_names)},"
             )
         lines.append("    ),")
-    if binding.semantics is not None:
-        semantics = render_semantics(binding.semantics)
-        imports.update(semantics.imports)
-        lines.extend(f"    {line}" for line in semantics.body.splitlines())
+    if binding.meaning is not None:
+        meaning = render_meaning(binding.meaning)
+        imports.update(meaning.imports)
+        lines.extend(f"    {line}" for line in meaning.body.splitlines())
     if isinstance(binding, EdgeBindingDTO):
         if binding.source_node is not None:
             imports.add("from kg_build_system import endpoint")
@@ -445,9 +445,9 @@ def render_binding_source(
     for binding in bindings:
         if binding.rows is not None:
             for source in _plan_sources(binding.rows):
-                class_names.setdefault(source, class_name(source, "Table"))
+                class_names.setdefault(source, class_name(source, "SourceRelation"))
         for source in _binding_expression_sources(binding):
-            class_names.setdefault(source, class_name(source, "Table"))
+            class_names.setdefault(source, class_name(source, "SourceRelation"))
     imports: set[str] = {
         "from kg_build_system import value_expression",
         _TYPE_IMPORT,

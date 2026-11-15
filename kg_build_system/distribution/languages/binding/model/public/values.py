@@ -14,7 +14,7 @@ Example:
         target=UnitNode,
         build_key=UnitTable.unit_ref,
         properties=UnitNode(name=UnitTable.unit_name),
-        options=BindingOptions(),
+        options=BindingOptions(meaning=...),
     )
     ```
 """
@@ -33,17 +33,17 @@ from kg_build_system.distribution.languages.annotations.service.internal import 
 from kg_build_system.distribution.languages.expressions.model.public import (
     Selection,
 )
-from kg_build_system.distribution.languages.semantics.model.public import (
-    Semantics,
-    require_declaration_semantics,
+from kg_build_system.distribution.languages.meaning.model.public import (
+    Meaning,
+    require_declaration_meaning,
 )
 from kg_build_system.distribution.languages.topology.model.public import (
     Edge, Node,
 )
 
 if TYPE_CHECKING:
-    from kg_build_system.distribution.languages.semantics.model.public import (
-        Semantics,
+    from kg_build_system.distribution.languages.meaning.model.public import (
+        Meaning,
     )
 
 N_co = TypeVar("N_co", bound=Node, covariant=True)
@@ -88,19 +88,30 @@ class PythonRef:
 class BindingOptions:
     """Portable metadata attached to one graph binding.
 
+    A binding's meaning is the fulfilment, and a fulfilment without a purpose has
+    nothing to be adequate to. The meaning is therefore required and must carry a
+    ``Purpose``.
+
     Example:
         ```python
         from kg_build_system.distribution.languages.binding import BindingOptions
+        from kg_build_system.distribution.languages.meaning import Meaning, Purpose
 
-        options = BindingOptions()
+        options = BindingOptions(
+            meaning=Meaning(
+                purpose=Purpose("Fulfil the node from the register grain."),
+            ),
+        )
         ```
     """
 
+    meaning: Meaning
     annotations: Sequence[Annotation] = ()
-    semantics: Semantics | None = None
 
     def __post_init__(self) -> None:
-        require_declaration_semantics(self.semantics)
+        require_declaration_meaning(self.meaning)
+        if self.meaning is None or self.meaning.purpose is None:
+            raise ValueError("a binding requires a meaning with a purpose")
         object.__setattr__(
             self, "annotations", annotation_tuple(list(self.annotations)),
         )
@@ -172,7 +183,7 @@ class NodeBinding(Generic[N_co]):
     rows: Any = None
     mode: BindingMode = "declarative"
     python_ref: PythonRef | None = None
-    semantics: Semantics | None = None
+    meaning: Meaning | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -205,7 +216,7 @@ class EdgeBinding(Generic[E_co]):
     rows: Any = None
     mode: BindingMode = "declarative"
     python_ref: PythonRef | None = None
-    semantics: Semantics | None = None
+    meaning: Meaning | None = None
 
 
 type Binding = NodeBinding[Any] | EdgeBinding[Any]

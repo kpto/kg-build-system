@@ -35,8 +35,8 @@ from typing import (
 from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
 )
-from kg_build_system.distribution.languages.semantics.model.public import (
-    Semantics,
+from kg_build_system.distribution.languages.meaning.model.public import (
+    Meaning,
 )
 from ..internal.model.metadata import ComponentMetadata, PropertyDeclaration
 from .options import (
@@ -50,14 +50,14 @@ from .values import (
 def property[T: GraphValue](  # pyright: ignore[reportInvalidTypeVarUse]
     *, name: str | None = None, description: str | None = None,
     annotations: Sequence[Annotation] = (),
-    semantics: Semantics | None = None,
+    meaning: Meaning | None = None,
 ) -> PropertySlot[T]:
     """Declare a graph property accepting an authoring value of type ``T``.
 
     Assign the result to a class attribute annotated ``PropertySlot[T]``. The
     external name defaults to the attribute in snake case and the description
     defaults to the string literal directly below the assignment. Pass
-    ``semantics=`` to attach a declaration fragment under the graph purpose.
+    ``meaning=`` to attach a declaration fragment under the graph purpose.
 
     Example:
         ```python
@@ -74,7 +74,7 @@ def property[T: GraphValue](  # pyright: ignore[reportInvalidTypeVarUse]
 
     return cast(PropertySlot[T], make_property(
         name=name, description=description, annotations=annotations,
-        semantics=semantics,
+        meaning=meaning,
     ))
 
 
@@ -97,7 +97,7 @@ class TopologyDeclarationBase:
     _component_name: ClassVar[str] = "component"
     _component_annotations: ClassVar[tuple[Annotation, ...]] = ()
     _template_annotations: ClassVar[tuple[Annotation, ...]] = ()
-    _template_semantics: ClassVar[Semantics | None] = None
+    _template_meaning: ClassVar[Meaning | None] = None
     _declaration: ClassVar[ComponentMetadata | None] = None
 
     def __init__(self, **values: Any) -> None:

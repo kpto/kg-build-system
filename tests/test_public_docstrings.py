@@ -19,7 +19,7 @@ PACKAGES = (
     "kg_build_system.distribution.interpreter",
     "kg_build_system.distribution.modules.core",
     "kg_build_system.distribution.modules.core.row_source",
-    "kg_build_system.distribution.modules.core.projection",
+    "kg_build_system.distribution.modules.core.derived_relation",
     "kg_build_system.distribution.modules.core.binding",
     "kg_build_system.distribution.modules.core.records",
     "kg_build_system.distribution.modules.deduplication",
@@ -42,11 +42,11 @@ INTERNAL_SURFACES = ("model.internal", "service.internal")
 KNOWN_MISSING_FUNCTION_EXAMPLES = {
     (
         "kg_build_system.distribution.languages.data.model.public.declarations",
-        "is_concrete_table",
+        "is_concrete_source_relation",
     ),
     (
         "kg_build_system.distribution.languages.data.model.public.declarations",
-        "is_table_group",
+        "is_source_relation_group",
     ),
 }
 # Public class methods still missing examples. These are reported as framework

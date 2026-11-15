@@ -14,7 +14,7 @@ from .config import ColumnOverride
 class Inference:
     """State shared by one generation pass.
 
-    ``used_names`` is scoped per relation rather than per pass: two tables in one
+    ``used_names`` is scoped per relation rather than per pass: two relations in one
     group may legitimately have a column of the same name, while two columns of
     one relation may not collide. The override state is scoped per pass instead,
     because a request declares its overrides once for the whole of what it

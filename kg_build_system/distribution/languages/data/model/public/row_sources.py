@@ -13,7 +13,7 @@ Example:
     )
     everyone = SiteTable.row_source().union(ArchivedSiteTable.row_source())
 
-    class ActiveSiteLabels(active.projection_base()):
+    class ActiveSiteLabels(DerivedRelation(active)):
         label = computed_field(SiteTable.name)
     ```
 """
@@ -43,9 +43,9 @@ class RowSourceProvider:
 
         Example:
             ```python
-            from kg_build_system import Table, field
+            from kg_build_system import SourceRelation, field
 
-            class Site(Table):
+            class Site(SourceRelation):
                 site_id = field()
 
             rows = Site.row_source()
@@ -95,9 +95,9 @@ class RowSource(Generic[S]):
 
         Example:
             ```python
-            from kg_build_system import Array, Field, Table, field
+            from kg_build_system import Array, Field, SourceRelation, field
 
-            class Site(Table):
+            class Site(SourceRelation):
                 site_id: Field[str] = field(name="site_id")
                 tags: Field[Array[str]] = field(name="tags")
 
@@ -187,7 +187,7 @@ class RowSource(Generic[S]):
 
 @dataclass(frozen=True, slots=True)
 class RelationRowSource(RowSource[S], Generic[S]):
-    """A row source over one named table or projection relation."""
+    """A row source over one named source or derived relation."""
 
     source: type[Any]
     shape: type[S]
@@ -203,6 +203,26 @@ class RelationRowSource(RowSource[S], Generic[S]):
 
 
 @dataclass(frozen=True, slots=True)
+class StageRowSource(RowSource[S], Generic[S]):
+    """A row source over one private stage; it is not bindable.
+
+    A stage row source carries the same shape and scan plan as a relation row
+    source, but only a derived relation that publishes the stage may read it.
+    """
+
+    source: type[Any]
+    shape: type[S]
+    filters: tuple[Selection[bool], ...] = ()
+
+    @property
+    def plan_dto(self) -> RowScanDTO:
+        """The scan plan this stage reads."""
+        from ...service.public.rows import relation_plan_dto
+
+        return relation_plan_dto(self.source)
+
+
+@dataclass(frozen=True, slots=True)
 class DerivedRowSource(RowSource[S], Generic[S]):
     """A row source derived by filtering or by the relational algebra."""
 
@@ -215,6 +235,6 @@ class DerivedRowSource(RowSource[S], Generic[S]):
 
 __all__ = [
     "DerivedRowSource", "RelationRowSource", "RowSource",
-    "RowSourceProvider", "ShapeField",
+    "RowSourceProvider", "ShapeField", "StageRowSource",
     "JoinHow",
 ]

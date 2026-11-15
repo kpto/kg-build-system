@@ -9,7 +9,7 @@ from kg_build_system import (
     GraphOptions,
     Limitation,
     Purpose,
-    Semantics,
+    Meaning,
 )
 from kg_build_system.distribution.languages.asset.model.public import (
     Asset,
@@ -34,12 +34,18 @@ from kg_build_system.distribution.languages.binding.service.public import (
 )
 from kg_build_system.distribution.languages.data.model.public import (
     ComputedStruct,
+    Contract,
+    Definition,
     DerivedRowSource,
     Field,
-    Projection,
+    FieldDefinition,
+    DerivedRelation,
+    DerivedRelationOptions,
+    Stage,
+    StageOptions,
     Struct,
-    Table,
-    TableOptions,
+    SourceRelation,
+    SourceRelationOptions,
 )
 from kg_build_system.distribution.languages.data.service.public import (
     computed_field,
@@ -53,7 +59,7 @@ from kg_build_system.distribution.languages.topology.model.public import (
 from kg_build_system.distribution.languages.topology.service.public import (
     property,
 )
-from kg_build_system.generation import AssetContractOptions, asset_contract
+from kg_build_system.generation import AssetGenerationOptions, asset_generation
 from kg_build_system.generation.code_generation.builtins import (
     DataContractInferenceConfig,
     InferDataContractProvider,
@@ -61,9 +67,9 @@ from kg_build_system.generation.code_generation.builtins import (
 from kg_build_system.kernel import Array, Nullable
 
 
-@asset_contract(AssetContractOptions(
+@asset_generation(AssetGenerationOptions(
     provider=InferDataContractProvider,
-    configuration=DataContractInferenceConfig(mode="table"),
+    configuration=DataContractInferenceConfig(mode="source_relation"),
     package="fixture.tables",
 ))
 class FixtureAsset(Asset):
@@ -82,7 +88,7 @@ class FixtureGraph(Graph):
     options = GraphOptions(
         name="fixture_graph",
         description="A typecheck fixture graph.",
-        semantics=Semantics(
+        meaning=Meaning(
             purpose=Purpose(
                 text="Exercise the authoring surface.",
                 limitations=(
@@ -106,14 +112,25 @@ class Detail(Struct):
     address: Field[Address] = field(name="address")
 
 
-class Site(Table[FixtureAsset]):
-    options = TableOptions(
+class Site(SourceRelation[FixtureAsset]):
+    options = SourceRelationOptions(
         name="site",
-        semantics=Semantics(
-            claims=(Claim("One row is one monitored site."),),
+        contract=Contract(
+            definition=Definition(
+                grain="one row per monitored site", identity=("id",),
+            ),
+            meaning=Meaning(
+                claims=(Claim("One row is one monitored site."),),
+            ),
         ),
     )
-    site_id: Field[str] = field(name="id")
+    site_id: Field[str] = field(
+        name="id",
+        definition=FieldDefinition(
+            value="The site's stable identifier.",
+            null_meaning="The source holds no identifier for the site.",
+        ),
+    )
     region_id: Field[str] = field(name="region_id")
     count: Field[int] = field(name="count")
     detail: Field[Detail] = field(name="detail")
@@ -122,8 +139,8 @@ class Site(Table[FixtureAsset]):
     labels: Field[Array[Nullable[str]]] = field(name="labels")
 
 
-class Region(Table[FixtureAsset]):
-    options = TableOptions(name="region")
+class Region(SourceRelation[FixtureAsset]):
+    options = SourceRelationOptions(name="region")
     region_id: Field[str] = field(name="region_id")
     name: Field[str] = field(name="name")
 
@@ -135,8 +152,28 @@ class Summary(ComputedStruct):
     )
 
 
-class SiteProjection(Projection(Site.row_source())):
+class SiteStage(Stage(Site.row_source())):
+    options = StageOptions(
+        definition=Definition(
+            grain="one row per monitored site", identity=("site_id",),
+        ),
+    )
     site_id = computed_field(Site.site_id.alter_rows().drop_null())
+
+
+class SiteDerivedRelation(DerivedRelation(SiteStage.row_source())):
+    options = DerivedRelationOptions(
+        contract=Contract(
+            definition=Definition(
+                grain="one row per monitored site", identity=("site_id",),
+            ),
+            meaning=Meaning(
+                purpose=Purpose("Read one monitored site."),
+                claims=(Claim("One row is one monitored site."),),
+            ),
+        ),
+    )
+    site_id = computed_field(SiteStage.site_id)
     summary = computed_field(Site.detail)
     parent_name = computed_field(Site.site_id)
 
@@ -144,7 +181,7 @@ class SiteProjection(Projection(Site.row_source())):
 class SiteNode(Node):
     options = NodeOptions(name="site_node")
     label: PropertySlot[str] = property(
-        semantics=Semantics(
+        meaning=Meaning(
             purpose=Purpose(
                 text="Use the label as the site display name.",
                 limitations=(
@@ -159,9 +196,9 @@ assert_type(Site.site_id, Selection[Nullable[str]])
 assert_type(Site.site_id, NullableSelection[str])
 assert_type(Site.detail, Selection[Nullable[Detail]])
 assert_type(Site.tags, Selection[Nullable[Array[str]]])
-assert_type(SiteProjection.site_id, Selection[str])
-assert_type(SiteProjection.summary, Selection[Nullable[Detail]])
-assert_type(SiteProjection.parent_name, Selection[Nullable[str]])
+assert_type(SiteDerivedRelation.site_id, Selection[str])
+assert_type(SiteDerivedRelation.summary, Selection[Nullable[Detail]])
+assert_type(SiteDerivedRelation.parent_name, Selection[Nullable[str]])
 assert_type(Summary.total, Selection[int])
 assert_type(Summary.address, Selection[Nullable[Address]])
 assert_type(value_expression("x"), Selection[str])
@@ -221,7 +258,7 @@ binding = node_binding(
     target=SiteNode,
     rows=Site.row_source(),
     bind=bind,
-    semantics=Semantics(
+    meaning=Meaning(
         claims=(Claim("One site row yields one site node."),),
     ),
 )

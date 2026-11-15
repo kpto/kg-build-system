@@ -22,25 +22,27 @@ ComponentDTO = NodeDTO | EdgeDTO
 
 def read_input(
     name: str,
-    projection_relations: Mapping[str, str],
+    derived_relations: Mapping[str, str],
     row_source_relations: Mapping[str, str] | None = None,
 ) -> Input:
-    """One opening a projection or binding takes: a relation its SQL reads."""
+    """One opening a derived relation or binding takes: a relation its SQL reads."""
     if row_source_relations is not None and name in row_source_relations:
         return Input(
             type=ArtifactPattern(CoreArtifactTypes.row_source(name).key),
             opening_name=None,
             declared_name=f"row_source.{name}",
         )
-    projection = name in projection_relations
+    derived_relation = name in derived_relations
     artifact_type = (
-        CoreArtifactTypes.projection(name) if projection
+        CoreArtifactTypes.derived_relation(name) if derived_relation
         else CoreArtifactTypes.table(name)
     )
     return Input(
         type=ArtifactPattern(artifact_type.key),
         opening_name=None,
-        declared_name=f"{'projection' if projection else 'table'}.{name}",
+        declared_name=(
+            f"{'derived_relation' if derived_relation else 'table'}.{name}"
+        ),
     )
 
 

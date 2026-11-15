@@ -5,6 +5,7 @@ test is skipped while the declaration language packages are being created.
 """
 from __future__ import annotations
 
+from kg_build_system import Meaning, Purpose
 import json
 import tempfile
 import uuid
@@ -20,7 +21,7 @@ try:
     )
     from kg_build_system.distribution.languages.binding import node_binding
     from kg_build_system.distribution.languages.data import (
-        Field, Table, field,
+        Field, SourceRelation, field,
     )
     from kg_build_system.distribution.languages.topology import (
         Node, PropertySlot, property,
@@ -33,7 +34,7 @@ except ImportError as error:  # pragma: no cover - concurrent refactor guard
 from .support import TestEstate
 
 
-class SiteTable(Table[TestEstate]):
+class SiteSourceRelation(SourceRelation[TestEstate]):
     site_id: Field[str] = field()
 
 
@@ -44,13 +45,14 @@ class SiteNode(Node):
 def _fixture() -> GraphBlueprint:
     binding = node_binding(
         target=SiteNode,
-        rows=SiteTable.row_source(),
+        rows=SiteSourceRelation.row_source(),
         bind=lambda row: __import__(
             "kg_build_system", fromlist=["NodeValues"]
         ).NodeValues(
             build_key=row.site_id.alter_rows().drop_null(),
             properties=SiteNode(site_id=row.site_id),
         ),
+        meaning=Meaning(purpose=Purpose("Fulfil the fixture record from its rows.")),
     )
     return create_blueprint(bindings=(binding,))
 
@@ -62,15 +64,19 @@ def _canonical(blueprint: GraphBlueprint) -> str:
 
 
 class BlueprintSourceTests(unittest.TestCase):
-    def test_the_rendered_source_states_the_asset_and_generic_table(self) -> None:
+    def test_the_rendered_source_states_the_asset_and_generic_source_relation(self) -> None:
         source = blueprint_to_source(_fixture(), None)
 
         self.assertIn("class EstateAsset(Asset):", source)
-        self.assertIn("class SiteTable(Table[EstateAsset]):", source)
+        self.assertIn(
+            "class SiteSourceRelation(SourceRelation[EstateAsset]):", source,
+        )
         self.assertNotIn("bind_source", source)
         self.assertLess(
             source.index("class EstateAsset(Asset):"),
-            source.index("class SiteTable(Table[EstateAsset]):"),
+            source.index(
+                "class SiteSourceRelation(SourceRelation[EstateAsset]):",
+            ),
         )
 
     def test_the_rendered_source_recreates_the_blueprint(self) -> None:

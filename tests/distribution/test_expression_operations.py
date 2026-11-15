@@ -11,9 +11,15 @@ import duckdb
 
 from kg_build_system import (
     Array,
+    Claim,
+    Contract,
+    Definition,
+    DerivedRelationOptions,
     Field,
+    Meaning,
     Nullable,
-    Table,
+    Purpose,
+    SourceRelation,
     computed_field,
     create_blueprint,
     field,
@@ -22,10 +28,11 @@ from kg_build_system.distribution.interpreter.service.internal import (
     blueprint_to_document,
     blueprint_to_source,
 )
-from kg_build_system.distribution.languages.data import Projection
+from kg_build_system.distribution.languages.data import DerivedRelation
 from kg_build_system.distribution.languages.data.model.internal import (
     DataPartDTO,
-    ProjectionDTO,
+    DefinitionDTO,
+    DerivedRelationDTO,
     RowScanDTO,
     RowUnnestDTO,
 )
@@ -61,19 +68,32 @@ from kg_build_system.kernel.model.internal.types.dto import UnitTypeDTO
 from tests.distribution.support import TestEstate
 
 
-class Region(Table[TestEstate]):
+def _contract(identity: str, grain: str = "one row") -> Contract:
+    return Contract(
+        definition=Definition(grain=grain, identity=(identity,)),
+        meaning=Meaning(
+            purpose=Purpose("Read one row for a test."),
+            claims=(Claim("One row carries the declared identity."),),
+        ),
+    )
+
+
+class Region(SourceRelation[TestEstate]):
     region_id: Field[str] = field(name="region_id")
     name: Field[str] = field(name="name")
 
 
-class Site(Table[TestEstate]):
+class Site(SourceRelation[TestEstate]):
     site_id: Field[str] = field(name="site_id")
     region_id: Field[str] = field(name="region_id")
     tags: Field[Array[str]] = field(name="tags")
     labels: Field[Array[str]] = field(name="labels")
 
 
-class RegionProjection(Projection(Region.row_source())):
+class RegionDerivedRelation(DerivedRelation(Region.row_source())):
+    options = DerivedRelationOptions(
+        name="region", contract=_contract("region_id"),
+    )
     region_id = computed_field(Region.region_id.alter_rows().drop_null())
     name = computed_field(Region.name.alter_rows().drop_null())
 
@@ -128,12 +148,12 @@ class LookupTests(unittest.TestCase):
 
     def test_lookup_can_target_a_projection(self) -> None:
         lookup = Site.region_id.lookup(
-            RegionProjection, Site.region_id, target_key="region_id",
+            RegionDerivedRelation, Site.region_id, target_key="region_id",
         )
         self.assertIsInstance(lookup.logical_type, NullableType)
         self.assertEqual(
             lookup.logical_type.value.item.qualname,
-            RegionProjection.shape.__qualname__,
+            RegionDerivedRelation.shape.__qualname__,
         )
 
     def test_lookup_executes_as_a_keyed_array_of_records(self) -> None:
@@ -264,10 +284,15 @@ class UnnestTests(unittest.TestCase):
         self.assertEqual(plan.expression.field.field, "tags")
 
         part = DataPartDTO((), (), (
-            ProjectionDTO("tags", (), plan),
+            DerivedRelationDTO(
+                "tags",
+                (),
+                plan,
+                definition=DefinitionDTO("one row per tag", ("tags",)),
+            ),
         ))
         restored = data_from_document(data_to_document(part))
-        self.assertEqual(restored.projections[0].row_source, plan)
+        self.assertEqual(restored.derived_relations[0].row_source, plan)
 
     def test_unnest_executes_one_row_per_item_and_none_for_empty(self) -> None:
         source = Site.row_source().unnest(lambda site: site.tags)
@@ -303,8 +328,9 @@ class BlueprintSourceRoundTripTests(unittest.TestCase):
     def test_lookup_zip_and_unnest_survive_source_round_trip(self) -> None:
         source = '''
 from kg_build_system import (
-    Array, Asset, AssetAuthority, AssetOptions, AssetProfile, Field,
-    Projection, ProjectionOptions, Table, TableOptions, computed_field, field,
+    Array, Asset, AssetAuthority, AssetOptions, AssetProfile, Claim, Contract,
+    Definition, Field, DerivedRelation, DerivedRelationOptions, Meaning,
+    Purpose, SourceRelation, SourceRelationOptions, computed_field, field,
 )
 
 class Estate(Asset):
@@ -316,24 +342,34 @@ class Estate(Asset):
         ),
     )
 
-class Region(Table[Estate]):
-    options = TableOptions(name="region")
+class Region(SourceRelation[Estate]):
+    options = SourceRelationOptions(name="region")
     region_id: Field[str] = field(name="region_id")
     name: Field[str] = field(name="name")
 
-class Site(Table[Estate]):
-    options = TableOptions(name="site")
+class Site(SourceRelation[Estate]):
+    options = SourceRelationOptions(name="site")
     site_id: Field[str] = field(name="site_id")
     region_id: Field[str] = field(name="region_id")
     tags: Field[Array[str]] = field(name="tags")
     labels: Field[Array[str]] = field(name="labels")
 
-class Tagged(Projection(Site.row_source().unnest(lambda row: row.tags))):
-    options = ProjectionOptions(name="tagged")
+def contract(identity):
+    return Contract(
+        definition=Definition(grain="one row", identity=(identity,)),
+        meaning=Meaning(purpose=Purpose("Read one row for the round trip.")),
+    )
+
+class Tagged(DerivedRelation(Site.row_source().unnest(lambda row: row.tags))):
+    options = DerivedRelationOptions(
+        name="tagged", contract=contract("site_id"),
+    )
     site_id = computed_field(Site.site_id.alter_rows().drop_null())
 
-class Joined(Projection(Site.row_source())):
-    options = ProjectionOptions(name="joined")
+class Joined(DerivedRelation(Site.row_source())):
+    options = DerivedRelationOptions(
+        name="joined", contract=contract("site_id"),
+    )
     site_id = computed_field(Site.site_id.alter_rows().drop_null())
     region_name = computed_field(
         Site.region_id.lookup(Region, Site.region_id)

@@ -22,7 +22,7 @@ from ...model.public.options import (
     AssetLicense,
     AssetProfile,
 )
-from .semantics import semantics_to_dto
+from .meaning import meaning_to_dto
 
 
 def _pairs(value: Any) -> tuple[tuple[str, str], ...]:
@@ -77,9 +77,9 @@ def asset_to_dto(value: type[Asset]) -> AssetDTO:
         version=options.version,
         layout=None if options.layout is None else _layout_dto(options.layout),
         profile=_profile_dto(options.profile),
-        semantics=(
-            None if options.semantics is None
-            else semantics_to_dto(options.semantics)
+        meaning=(
+            None if options.meaning is None
+            else meaning_to_dto(options.meaning)
         ),
         governance=_governance_dto(options.governance),
         annotations=annotation_dtos(options.annotations),

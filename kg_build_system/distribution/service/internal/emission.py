@@ -81,7 +81,7 @@ class Filter:
 
 @dataclass(frozen=True, slots=True)
 class RelationPlan:
-    """One projection or binding: its scans, row effects and outputs.
+    """One derived relation or binding: its scans, row effects and outputs.
 
     ``relations`` and ``shapes`` resolve the named relations an inline lookup
     reads without making them scans of this product.

@@ -1,7 +1,7 @@
 """The asset language: logical source-data declarations.
 
 An asset is a logical unit of source data. One asset may back many tables. Its
-options describe the data's profile, optional semantics, layout and governance;
+options describe the data's profile, optional meaning, layout and governance;
 they do not carry an adapter or code-generation request.
 
 Example:

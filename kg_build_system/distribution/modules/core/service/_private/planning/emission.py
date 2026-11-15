@@ -16,7 +16,7 @@ from kg_build_system.distribution.languages.binding.model.internal.dto import (
     EdgeBindingDTO,
 )
 from kg_build_system.distribution.languages.data.model.internal import (
-    ProjectionDTO,
+    DerivedRelationDTO,
     RowSourcePlanDTO,
 )
 from kg_build_system.distribution.languages.data.service.internal import (
@@ -116,11 +116,13 @@ def _plan_sources(plan: RowSourcePlanDTO | None) -> set[str]:
     return found
 
 
-def projection_sources(projection: ProjectionDTO) -> set[str]:
-    """The declared inputs one projection reads."""
+def derived_relation_sources(derived_relation: DerivedRelationDTO) -> set[str]:
+    """The declared inputs one derived relation reads."""
     return (
-        expression_sources(column.expression for column in projection.columns)
-        | _plan_sources(projection.row_source)
+        expression_sources(
+            column.expression for column in derived_relation.columns
+        )
+        | _plan_sources(derived_relation.row_source)
     )
 
 
@@ -253,7 +255,7 @@ def plan_product(
     predicates: tuple[ExpressionDTO, ...] = (),
     shapes: Mapping[str, tuple[ShapeField, ...]] | None = None,
 ) -> RelationPlan:
-    """Plan one projection or binding without leaking its row effects elsewhere."""
+    """Plan one derived relation or binding without leaking row effects."""
     if not outputs:
         raise ValueError("relational products require at least one output")
     compiled_outputs = dict(outputs)
@@ -336,7 +338,7 @@ __all__ = [
     "instruction_emitter",
     "plan_product",
     "product_sql",
-    "projection_sources",
+    "derived_relation_sources",
     "retarget_expression",
     "sql_emitter",
     "sql_type_for",

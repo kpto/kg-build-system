@@ -18,11 +18,11 @@ from kg_build_system.distribution.languages.annotations.service.internal import 
 from kg_build_system.kernel.service.internal.types import (
     normalize_type, require_graph_property,
 )
-from ..internal.model.metadata import PropertyDeclaration, require_semantics
+from ..internal.model.metadata import PropertyDeclaration, require_meaning
 
 if TYPE_CHECKING:
-    from kg_build_system.distribution.languages.semantics.model.public import (
-        Semantics,
+    from kg_build_system.distribution.languages.meaning.model.public import (
+        Meaning,
     )
 
 T = TypeVar("T")
@@ -35,7 +35,7 @@ class _PropertyDeclaration(Generic[T]):
     name: str | None = None
     description: str | None = None
     annotations: tuple[Annotation, ...] = ()
-    semantics: Semantics | None = None
+    meaning: Meaning | None = None
     attr: str = ""
 
     def __set_name__(self, owner: type[Any], attr: str) -> None:
@@ -51,7 +51,7 @@ class _PropertyDeclaration(Generic[T]):
 def make_property(
     *, name: str | None = None, description: str | None = None,
     annotations: Sequence[Annotation] = (),
-    semantics: Semantics | None = None,
+    meaning: Meaning | None = None,
 ) -> Any:
     """Build the descriptor assigned to a property slot."""
     if name is not None and not name:
@@ -60,7 +60,7 @@ def make_property(
         name=name,
         description=description,
         annotations=annotation_tuple(list(annotations)),
-        semantics=require_semantics(semantics, "property"),
+        meaning=require_meaning(meaning, "property"),
     )
 
 
@@ -177,7 +177,7 @@ def _resolve_properties(cls: type[Any]) -> tuple[PropertyDeclaration, ...]:
             authoring_type=authoring_type,
             description=description,
             annotations=tuple(declaration.annotations),
-            semantics=declaration.semantics,
+            meaning=declaration.meaning,
         ))
     return tuple(resolved)
 

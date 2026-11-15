@@ -55,9 +55,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 name: Field[str] = field(name="name")
 
             assert Row.name.logical_type.name == "str"
@@ -84,9 +84,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 name: Field[str] = field(name="name")
 
             selected = Row.name.alter_rows().drop_null()
@@ -129,12 +129,12 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Struct, Table, field
+            from kg_build_system import Field, Struct, SourceRelation, field
 
             class Detail(Struct):
                 label: Field[str] = field(name="label")
 
-            class Row(Table):
+            class Row(SourceRelation):
                 detail: Field[Detail] = field(name="detail")
 
             assert Row.detail.extract(lambda value: value.label).logical_type.name == "str"
@@ -159,9 +159,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Array, Field, Table, field
+            from kg_build_system import Array, Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 tags: Field[Array[str]] = field(name="tags")
 
             assert Row.tags.at(0).logical_type.value.name == "str"
@@ -180,9 +180,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Array, Field, Table, field
+            from kg_build_system import Array, Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 tags: Field[Array[str]] = field(name="tags")
 
             assert Row.tags.slice(0, 1).logical_type.name == "array"
@@ -214,12 +214,12 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Region(Table):
+            class Region(SourceRelation):
                 region_id: Field[str] = field(name="region_id")
 
-            class Site(Table):
+            class Site(SourceRelation):
                 region_id: Field[str] = field(name="region_id")
 
             regions = Site.region_id.lookup(Region, Site.region_id)
@@ -259,9 +259,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Array, Field, Table, field
+            from kg_build_system import Array, Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 tags: Field[Array[str]] = field(name="tags")
                 labels: Field[Array[str]] = field(name="labels")
 
@@ -281,9 +281,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Array, Field, Table, field
+            from kg_build_system import Array, Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 tags: Field[Array[str]] = field(name="tags")
 
             assert Row.tags.unique().logical_type.name == "array"
@@ -298,9 +298,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Array, Field, Table, field
+            from kg_build_system import Array, Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 tags: Field[Array[str]] = field(name="tags")
 
             assert Row.tags.sort().logical_type.name == "array"
@@ -315,9 +315,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Array, Field, Table, field
+            from kg_build_system import Array, Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 tags: Field[Array[str]] = field(name="tags")
 
             assert Row.tags.concat(",").logical_type.name == "str"
@@ -335,9 +335,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Array, Field, Table, field
+            from kg_build_system import Array, Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 tags: Field[Array[str]] = field(name="tags")
 
             mapped = Row.tags.transform_items(lambda item: item.prepend("kg:"))
@@ -355,9 +355,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Array, Field, Nullable, Table, field
+            from kg_build_system import Array, Field, Nullable, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 tags: Field[Array[Nullable[str]]] = field(name="tags")
 
             assert Row.tags.drop_null_items().logical_type.name == "array"
@@ -374,9 +374,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 name: Field[str] = field(name="name")
 
             assert Row.name.prepend("kg:").logical_type.name == "str"
@@ -391,9 +391,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 name: Field[str] = field(name="name")
 
             assert Row.name.append("!").logical_type.name == "str"
@@ -408,9 +408,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 name: Field[str] = field(name="name")
 
             assert Row.name.replace("-", "_").logical_type.name == "str"
@@ -425,9 +425,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 name: Field[str] = field(name="name")
 
             assert Row.name.equals("Depot").logical_type.name == "bool"
@@ -445,9 +445,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 name: Field[str] = field(name="name")
 
             assert Row.name.before_separator("::").logical_type.name == "str"
@@ -470,9 +470,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 name: Field[str] = field(name="name")
 
             assert Row.name.after_separator("::").logical_type.name == "str"
@@ -496,9 +496,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 count: Field[int] = field(name="count")
 
             assert Row.count.add(1).logical_type.name == "int"
@@ -517,9 +517,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 count: Field[int] = field(name="count")
 
             assert Row.count.sub(1).logical_type.name == "int"
@@ -534,9 +534,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 active: Field[bool] = field(name="active")
 
             assert Row.active.not_().logical_type.name == "bool"
@@ -553,9 +553,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 active: Field[bool] = field(name="active")
 
             assert Row.active.and_(True).logical_type.name == "bool"
@@ -572,9 +572,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 active: Field[bool] = field(name="active")
 
             assert Row.active.or_(False).logical_type.name == "bool"
@@ -589,9 +589,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 count: Field[int] = field(name="count")
 
             assert Row.count.to_string().logical_type.name == "str"
@@ -608,9 +608,9 @@ class Selection[T]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 name: Field[str] = field(name="name")
 
             assert Row.name.default_to("unknown").logical_type.name == "str"

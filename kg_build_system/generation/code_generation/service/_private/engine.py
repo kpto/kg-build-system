@@ -503,7 +503,7 @@ class GenerationSession:
         """Regenerate after a batch of watched declaration changes.
 
         Paths may be absolute or relative to the project root. A changed asset
-        module that declares an ``@asset_contract`` schedules a pass; paths
+        module that declares an ``@asset_generation`` schedules a pass; paths
         beneath an owned product are ignored. ``on_action`` receives each added,
         changed or deleted declaration before generation runs.
 

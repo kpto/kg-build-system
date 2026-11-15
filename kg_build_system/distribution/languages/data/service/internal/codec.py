@@ -38,7 +38,7 @@ def data_from_document(value: Mapping[str, Any]) -> DataPartDTO:
         )
 
         data = data_from_document({
-            "structs": [], "relations": [], "projections": [],
+            "structs": [], "source_relations": [], "derived_relations": [],
         })
         ```
     """

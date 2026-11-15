@@ -69,13 +69,13 @@ def _asset_source(
 from kg_build_system import (
     Asset, AssetAuthority, AssetLayout, AssetOptions, AssetProfile,
 )
-from kg_build_system.generation import AssetContractOptions, asset_contract
+from kg_build_system.generation import AssetGenerationOptions, asset_generation
 from kg_build_system.generation.code_generation.builtins import (
     DataContractInferenceConfig, InferDataContractProvider,
 )
 
 
-@asset_contract(AssetContractOptions(
+@asset_generation(AssetGenerationOptions(
     provider=InferDataContractProvider,
     configuration=DataContractInferenceConfig({configuration}),
     package="{package}",
@@ -116,7 +116,7 @@ class CodegenDiscoveryTests(unittest.TestCase):
                 class_name="Estate",
                 options=_estate_options(),
                 configuration=(
-                    'mode="table_group", layout="files", '
+                    'mode="source_relation_group", layout="files", '
                     'override={"surveys.surveyed_on": {"type": "timestamp"}}'
                 ),
                 guard=True,
@@ -137,7 +137,7 @@ class CodegenDiscoveryTests(unittest.TestCase):
             ))
             self.assertEqual(request.request.provider_qualname, "InferDataContractProvider")
             self.assertEqual(request.request.configuration, {
-                "mode": "table_group",
+                "mode": "source_relation_group",
                 "layout": "files",
                 "override": {"surveys.surveyed_on": {"type": "timestamp"}},
             })
@@ -162,7 +162,7 @@ class Plain(Asset):
                 package="sample.tables",
                 class_name="Estate",
                 options=_estate_options(),
-                configuration='mode="table"',
+                configuration='mode="source_relation"',
             ) + undecorated)
 
             requests = discover(root)
@@ -189,28 +189,30 @@ class Plain(Asset):
         )
         declaration = GeneratedClass(
             name="SitesTable",
-            base="Table",
+            base="SourceRelation",
             asset=GeneratedAsset("project.assets", "Estate"),
             declaration_name="sites",
         )
         package = GeneratedPackage((
-            GeneratedFile(
-                Path("__init__.py"),
-                declarations=(declaration,),
-                exports=("SitesTable",),
-            ),
+            GeneratedFile(Path("sites.py"), declarations=(declaration,), exports=("SitesTable",)),
+            GeneratedFile(Path("__init__.py"), exports=("SitesTable",)),
         ))
 
         rendered = render_package(request, package, "fingerprint")
 
         self.assertIn(
-            "class SitesTable(Table[Estate]):",
-            rendered[PurePosixPath("__init__.py")],
+            "class SitesTable(SourceRelation[Estate]):",
+            rendered[PurePosixPath("sites.py")],
         )
         self.assertIn(
             "from project.assets import Estate",
+            rendered[PurePosixPath("sites.py")],
+        )
+        self.assertIn(
+            "from project.tables.estate.sites import SitesTable",
             rendered[PurePosixPath("__init__.py")],
         )
+        self.assertNotIn("class ", rendered[PurePosixPath("__init__.py")])
 
     def test_the_asset_name_defaults_to_snake_case(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -220,7 +222,7 @@ class Plain(Asset):
                 package="sample.tables",
                 class_name="EstateData",
                 options=_estate_options(named=False),
-                configuration='mode="table"',
+                configuration='mode="source_relation"',
             ))
 
             request = discover(root)[0]
@@ -237,7 +239,7 @@ class Plain(Asset):
                 package="reference_project.tables",
                 class_name="Estate",
                 options=_estate_options(),
-                configuration='mode="table"',
+                configuration='mode="source_relation"',
             ))
 
             request = discover(root)[0]
@@ -248,15 +250,15 @@ class Plain(Asset):
 
     def test_a_decorated_class_must_be_an_asset(self) -> None:
         source = '''
-from kg_build_system.generation import AssetContractOptions, asset_contract
+from kg_build_system.generation import AssetGenerationOptions, asset_generation
 from kg_build_system.generation.code_generation.builtins import (
     DataContractInferenceConfig, InferDataContractProvider,
 )
 
 
-@asset_contract(AssetContractOptions(
+@asset_generation(AssetGenerationOptions(
     provider=InferDataContractProvider,
-    configuration=DataContractInferenceConfig(mode="table"),
+    configuration=DataContractInferenceConfig(mode="source_relation"),
     package="sample.tables",
 ))
 class NotAnAsset:
@@ -273,7 +275,7 @@ class NotAnAsset:
     def test_the_provider_refuses_a_request_without_a_source_or_layout(self) -> None:
         context = ProviderContext(
             Path("."), Path("assets.py"), "sample",
-            DataContractInferenceConfig(mode="table"),
+            DataContractInferenceConfig(mode="source_relation"),
         )
         with self.assertRaisesRegex(GenerationError, "source= or an asset layout"):
             asyncio.run(InferDataContractProvider.generate(context))
@@ -289,19 +291,27 @@ class NotAnAsset:
                 options=_estate_options(
                     str(root / "codegen_project" / "data.json"), named=False,
                 ),
-                configuration='mode="table"',
+                configuration='mode="source_relation"',
             ))
             sys.path.insert(0, str(root))
             try:
                 result = asyncio.run(generate(root))
                 self.assertIs(result.status, GenerationStatus.CHANGED)
-                product = (
-                    root / "codegen_project" / "tables" / "codegen_sample"
-                    / "__init__.py"
+                product = root / "codegen_project" / "tables" / "codegen_sample"
+                facade = (product / "__init__.py").read_text(encoding="utf-8")
+                self.assertIn(
+                    "from codegen_project.tables.codegen_sample.data import "
+                    "CodegenSampleSourceRelation",
+                    facade,
                 )
-                rendered = product.read_text(encoding="utf-8")
+                self.assertNotIn("class ", facade)
+                modules = [
+                    path for path in product.glob("*.py") if path.name != "__init__.py"
+                ]
+                self.assertEqual(len(modules), 1)
+                rendered = modules[0].read_text(encoding="utf-8")
                 self.assertIn("from codegen_project.assets import CodegenSample", rendered)
-                self.assertIn("class CodegenSampleTable(Table[CodegenSample]):", rendered)
+                self.assertIn("class CodegenSampleSourceRelation(SourceRelation[CodegenSample]):", rendered)
                 self.assertIn("id: Field[int] = field(name='id')", rendered)
                 self.assertIn("name: Field[str] = field(name='name')", rendered)
                 self.assertNotIn("| None", rendered)
@@ -334,19 +344,20 @@ class CodegenNullabilityTests(unittest.TestCase):
         )
         package = GeneratedPackage((
             GeneratedFile(
-                Path("__init__.py"),
+                Path("sites.py"),
                 declarations=(declaration,),
                 exports=(declaration.name,),
             ),
+            GeneratedFile(Path("__init__.py"), exports=(declaration.name,)),
         ))
         return render_package(
             request, package, "fingerprint",
-        )[PurePosixPath("__init__.py")]
+        )[PurePosixPath("sites.py")]
 
     def test_a_defaulted_source_field_renders_its_value_type_alone(self) -> None:
         rendered = self._render(GeneratedClass(
             name="SitesTable",
-            base="Table",
+            base="SourceRelation",
             declaration_name="sites",
             fields=(
                 GeneratedField(
@@ -362,7 +373,7 @@ class CodegenNullabilityTests(unittest.TestCase):
     def test_an_array_item_keeps_its_own_nullability(self) -> None:
         rendered = self._render(GeneratedClass(
             name="SitesTable",
-            base="Table",
+            base="SourceRelation",
             declaration_name="sites",
             fields=(
                 GeneratedField(
@@ -384,7 +395,7 @@ class CodegenNullabilityTests(unittest.TestCase):
     def test_an_explicitly_nullable_computed_value_keeps_its_type(self) -> None:
         rendered = self._render(GeneratedClass(
             name="SitesTable",
-            base="Table",
+            base="SourceRelation",
             declaration_name="sites",
             fields=(
                 GeneratedField(

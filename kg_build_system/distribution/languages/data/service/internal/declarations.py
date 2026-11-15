@@ -1,4 +1,4 @@
-"""Projection and relation-value construction for the data language.
+"""DerivedRelation and relation-value construction for the data language.
 
 The planning lives in the package's private zone; each name here is a thin
 delegation kept for the internal service path.
@@ -8,15 +8,15 @@ from __future__ import annotations
 from typing import Any
 
 
-def projection_row_source(declaration: type[Any]) -> Any | None:
-    """Return the pinned plan or the plan derived from an old-style projection."""
-    from .._private.declarations import projection_row_source as row_source
+def derived_relation_row_source(declaration: type[Any]) -> Any | None:
+    """Return the pinned plan or the plan derived from an old-style derived relation."""
+    from .._private.declarations import derived_relation_row_source as row_source
 
     return row_source(declaration)
 
 
 def relation_plan_dto(source: type[Any]) -> Any:
-    """Return the scan plan for one named table or projection relation."""
+    """Return the scan plan for one named source or derived relation."""
     from ...model.internal.dto.blueprint_dto import RowScanDTO
     from kg_build_system.distribution.model.public.refs import RelationRef
     from kg_build_system.kernel import Key
@@ -27,4 +27,4 @@ def relation_plan_dto(source: type[Any]) -> Any:
     ))
 
 
-__all__ = ["projection_row_source", "relation_plan_dto"]
+__all__ = ["derived_relation_row_source", "relation_plan_dto"]

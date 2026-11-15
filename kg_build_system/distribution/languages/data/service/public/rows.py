@@ -1,4 +1,4 @@
-"""Authoring helpers for row-source values and projection bases."""
+"""Authoring helpers for row-source values and derived-relation bases."""
 from __future__ import annotations
 
 from collections.abc import Callable
@@ -9,7 +9,7 @@ from kg_build_system.distribution.languages.expressions.model.public import (
 )
 from kg_build_system.kernel.model.public.types import Shape
 from ..internal.declarations import (
-    projection_row_source as projection_row_source_impl,
+    derived_relation_row_source as derived_relation_row_source_impl,
     relation_plan_dto as relation_plan_dto_impl,
 )
 from ..internal.rows import (
@@ -31,10 +31,10 @@ def shape_context(shape: type[S]) -> S:
 
     Example:
         ```python
-        from kg_build_system import Table, field
+        from kg_build_system import SourceRelation, field
         from kg_build_system.distribution.languages.data import shape_context
 
-        class Site(Table):
+        class Site(SourceRelation):
             site_id = field()
 
         site = shape_context(Site)
@@ -43,24 +43,24 @@ def shape_context(shape: type[S]) -> S:
     return shape_context_impl(shape)
 
 
-def projection_row_source(declaration: type[Any]) -> Any | None:
-    """Return the pinned plan or the plan derived from an old-style projection.
+def derived_relation_row_source(declaration: type[Any]) -> Any | None:
+    """Return the pinned plan or the plan derived from an old-style derived relation.
 
     Example:
         ```python
-        from kg_build_system import Table, field
+        from kg_build_system import SourceRelation, field
 
-        class Site(Table):
+        class Site(SourceRelation):
             site_id = field()
 
         plan = Site.row_source()
         ```
     """
-    return projection_row_source_impl(declaration)
+    return derived_relation_row_source_impl(declaration)
 
 
 def relation_plan_dto(source: type[Any]) -> Any:
-    """Return the scan plan for one named table or projection relation."""
+    """Return the scan plan for one named source or derived relation."""
     return relation_plan_dto_impl(source)
 
 
@@ -113,4 +113,4 @@ def derive_order_by(
     return derive_order_by_impl(source, *keys, ascending=ascending)
 
 
-__all__ = ["projection_row_source", "shape_context"]
+__all__ = ["derived_relation_row_source", "shape_context"]

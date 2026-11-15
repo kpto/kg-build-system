@@ -26,11 +26,11 @@ from kg_build_system.distribution.languages.data.service.internal.rows import (
 from kg_build_system.distribution.languages.topology.model.internal.dto import (
     GraphPartDTO,
 )
-from kg_build_system.distribution.languages.semantics.model.internal.dto import (
-    SemanticsDTO,
+from kg_build_system.distribution.languages.meaning.model.internal.dto import (
+    MeaningDTO,
 )
-from kg_build_system.distribution.languages.semantics.model.public import (
-    Semantics,
+from kg_build_system.distribution.languages.meaning.model.public import (
+    Meaning,
 )
 from kg_build_system.distribution.model.public.refs import (
     EdgeRef, NodeRef,
@@ -106,14 +106,14 @@ def _rows(binding: Binding) -> Any:
     return row_source_plan_dto(binding.rows)
 
 
-def _semantics_dto(value: Semantics | None) -> SemanticsDTO | None:
+def _meaning_dto(value: Meaning | None) -> MeaningDTO | None:
     if value is None:
         return None
-    from kg_build_system.distribution.languages.semantics.service.internal import (
-        semantics_to_dto,
+    from kg_build_system.distribution.languages.meaning.service.internal import (
+        meaning_to_dto,
     )
 
-    return semantics_to_dto(value)
+    return meaning_to_dto(value)
 
 
 def _node_dto(binding: NodeBinding[Any]) -> NodeBindingDTO:
@@ -126,7 +126,7 @@ def _node_dto(binding: NodeBinding[Any]) -> NodeBindingDTO:
         mode=binding.mode,
         debug_name=binding.debug_name,
         python_ref=_python_ref(binding.python_ref),
-        semantics=_semantics_dto(binding.semantics),
+        meaning=_meaning_dto(binding.meaning),
     )
 
 
@@ -144,7 +144,7 @@ def _edge_dto(binding: EdgeBinding[Any]) -> EdgeBindingDTO:
         source_node=_node_ref(binding.source_node),
         target_node=_node_ref(binding.target_node),
         python_ref=_python_ref(binding.python_ref),
-        semantics=_semantics_dto(binding.semantics),
+        meaning=_meaning_dto(binding.meaning),
     )
 
 
@@ -168,7 +168,7 @@ def _known_sources(data: DataPartDTO | None) -> set[str]:
         return set()
     return {
         item.name
-        for item in (*data.relations, *data.projections)
+        for item in (*data.source_relations, *data.derived_relations)
     }
 
 

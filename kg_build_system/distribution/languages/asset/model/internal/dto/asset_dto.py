@@ -8,8 +8,8 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 
 from kg_build_system.distribution.languages.annotations.model.internal import AnnotationDTO
-from kg_build_system.distribution.languages.semantics.model.internal import (
-    SemanticsDTO,
+from kg_build_system.distribution.languages.meaning.model.internal import (
+    MeaningDTO,
 )
 
 from ...public.options import AssetAuthority
@@ -64,7 +64,7 @@ class AssetDTO:
 
     name: str
     profile: AssetProfileDTO
-    semantics: SemanticsDTO | None = None
+    meaning: MeaningDTO | None = None
     website: str | None = None
     version: str | None = None
     layout: AssetLayoutDTO | None = None

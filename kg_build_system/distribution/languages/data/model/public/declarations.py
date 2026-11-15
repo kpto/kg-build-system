@@ -1,29 +1,29 @@
 """Author-facing logical data declarations and their options.
 
-A graph author subclasses ``Table``, ``Struct``, ``ComputedStruct``,
-``Projection`` or ``TableGroup``. While the class is created, its fields and
+A graph author subclasses ``SourceRelation``, ``Struct``, ``ComputedStruct``,
+``DerivedRelation`` or ``SourceRelationGroup``. While the class is created, its fields and
 options are transcribed into a frozen ``DeclarationSpec`` stored on the class; the
 ``data`` language reads that spec, never a private authoring attribute.
 
 Example:
     ```python
     from kg_build_system import (
-        Asset, AssetOptions, Field, Projection, Table, TableGroup,
-        TableGroupOptions, computed_field, field,
+        Asset, AssetOptions, Field, DerivedRelation, SourceRelation, SourceRelationGroup,
+        SourceRelationGroupOptions, computed_field, field,
     )
 
     class Estate(Asset):
         options = AssetOptions(...)
 
-    class Site(Table[Estate]):
+    class Site(SourceRelation[Estate]):
         site_id: Field[str] = field()
         name: Field[str] = field()
 
-    class SiteLabels(Projection(Site.row_source())):
+    class SiteLabels(DerivedRelation(Site.row_source())):
         label = computed_field(Site.name)
 
-    class EstateCatalog(TableGroup):
-        options = TableGroupOptions(name="estate")
+    class EstateCatalog(SourceRelationGroup):
+        options = SourceRelationGroupOptions(name="estate")
         sites = Site
     ```
 """
@@ -37,36 +37,41 @@ from kg_build_system.distribution.languages.annotations.service.internal import 
 from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
 )
-from kg_build_system.distribution.languages.semantics.model.public import (
-    require_declaration_semantics,
+from kg_build_system.distribution.languages.meaning.model.public import (
+    require_declaration_meaning,
 )
 from kg_build_system.distribution.languages.asset.model.public import Asset
 from kg_build_system.distribution.languages.expressions.model.public import (
     Selection,
 )
 from kg_build_system.kernel.model.public.types import Shape, Struct as StructDeclaration
+from .contract import Contract, Definition
 from .row_sources import (
     DerivedRowSource, RelationRowSource, RowSource, RowSourceProvider,
+    StageRowSource,
 )
 
 if TYPE_CHECKING:
-    from kg_build_system.distribution.languages.semantics.model.public import (
-        Semantics,
+    from kg_build_system.distribution.languages.meaning.model.public import (
+        Meaning,
     )
 
 
 
 @dataclass(frozen=True, slots=True)
-class TableOptions:
+class SourceRelationOptions:
     name: str | None = None
     description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
-    semantics: Semantics | None = None
+    contract: Contract | None = None
 
     def __post_init__(self) -> None:
         if self.name is not None and not self.name:
-            raise ValueError("table names must be non-empty")
-        require_declaration_semantics(self.semantics)
+            raise ValueError("source relation names must be non-empty")
+        if self.contract is not None and not isinstance(self.contract, Contract):
+            raise TypeError(
+                "a declared contract requires a Definition and a Meaning"
+            )
         object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
 
@@ -85,31 +90,50 @@ class StructOptions:
     name: str | None = None
     description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
-    semantics: Semantics | None = None
+    meaning: Meaning | None = None
 
     def __post_init__(self) -> None:
         if self.name is not None and not self.name:
             raise ValueError("struct names must be non-empty")
-        require_declaration_semantics(self.semantics)
+        require_declaration_meaning(self.meaning)
         object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
 
 @dataclass(frozen=True, slots=True)
-class ProjectionOptions:
+class DerivedRelationOptions:
+    contract: Contract
     name: str | None = None
     description: str | None = None
     annotations: tuple[Annotation, ...] | list[Annotation] = ()
-    semantics: Semantics | None = None
 
     def __post_init__(self) -> None:
         if self.name is not None and not self.name:
-            raise ValueError("projection names must be non-empty")
-        require_declaration_semantics(self.semantics)
+            raise ValueError("derived relation names must be non-empty")
+        if not isinstance(self.contract, Contract):
+            raise TypeError(
+                "a derived relation requires a Contract with a Definition "
+                "and a Meaning"
+            )
         object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
 
 @dataclass(frozen=True, slots=True)
-class TableGroupOptions:
+class StageOptions:
+    definition: Definition
+    name: str | None = None
+    description: str | None = None
+    annotations: tuple[Annotation, ...] | list[Annotation] = ()
+
+    def __post_init__(self) -> None:
+        if self.name is not None and not self.name:
+            raise ValueError("stage names must be non-empty")
+        if not isinstance(self.definition, Definition):
+            raise TypeError("a stage requires a Definition")
+        object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
+
+
+@dataclass(frozen=True, slots=True)
+class SourceRelationGroupOptions:
     members: tuple[type, ...] = ()
     name: str | None = None
     description: str | None = None
@@ -117,46 +141,46 @@ class TableGroupOptions:
 
     def __post_init__(self) -> None:
         if self.name is not None and not self.name:
-            raise ValueError("table-group names must be non-empty")
+            raise ValueError("source relation group names must be non-empty")
         object.__setattr__(self, "annotations", annotation_tuple(self.annotations))
 
 
 
-def is_concrete_table(cls: type[Any]) -> bool:
-    """Return whether a class is a final table."""
+def is_concrete_source_relation(cls: type[Any]) -> bool:
+    """Return whether a class is a final source relation."""
     spec = vars(cls).get("_kg_declaration_spec")
-    return spec is not None and spec.kind == "table" and spec.final
+    return spec is not None and spec.kind == "source_relation" and spec.final
 
 
-def is_table_group(cls: type[Any]) -> bool:
-    """Return whether a class is a final table group."""
+def is_source_relation_group(cls: type[Any]) -> bool:
+    """Return whether a class is a final source relation group."""
     spec = vars(cls).get("_kg_declaration_spec")
-    return spec is not None and spec.kind == "table_group" and spec.final
+    return spec is not None and spec.kind == "source_relation_group" and spec.final
 
 
-class Table[AssetT: Asset](RowSourceProvider, Shape, RowSource["Table[AssetT]"]):
-    """A final logical table declaration read from one logical asset.
+class SourceRelation[AssetT: Asset](RowSourceProvider, Shape, RowSource["SourceRelation[AssetT]"]):
+    """A final source relation declaration read from one logical asset.
 
-    The asset is part of the declaration: ``class Site(Table[Estate])`` states
-    which logical unit of source data backs the relation. A concrete table
-    without an asset parameter is refused.
+    The asset is part of the declaration: ``class Site(SourceRelation[Estate])`` states
+    which logical unit of source data backs the relation. A concrete source
+    relation without an asset parameter is refused.
     """
 
-    options: ClassVar[TableOptions] = TableOptions()
+    options: ClassVar[SourceRelationOptions] = SourceRelationOptions()
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
-        from ...service._private.declarations import prepare_table_declaration
+        from ...service._private.declarations import prepare_source_relation_declaration
 
-        prepare_table_declaration(cls)
+        prepare_source_relation_declaration(cls)
 
     @classmethod
     def where(
         cls, predicate: Callable[[Self], Selection[bool]],
     ) -> DerivedRowSource[Self]:
-        """Keep the rows of this table that satisfy ``predicate``.
+        """Keep the rows of this source relation that satisfy ``predicate``.
 
-        The predicate receives a symbolic instance of the table and must return
+        The predicate receives a symbolic instance of the source relation and must return
         a ``Selection[bool]``.
 
         Example:
@@ -173,7 +197,7 @@ class Table[AssetT: Asset](RowSourceProvider, Shape, RowSource["Table[AssetT]"])
 
     @classmethod
     def row_source(cls) -> RelationRowSource[Self]:
-        """Return the relation row source for this table.
+        """Return the relation row source for this source relation.
 
         Example:
             ```python
@@ -184,7 +208,7 @@ class Table[AssetT: Asset](RowSourceProvider, Shape, RowSource["Table[AssetT]"])
 
 
 class StructTemplate:
-    """The template tier for ``Table``, ``Struct`` and ``ComputedStruct`` hosts.
+    """The template tier for ``SourceRelation``, ``Struct`` and ``ComputedStruct`` hosts.
 
     A template shares field slots and annotation flow with its hosts and never
     enters the blueprint DTO. It carries annotations only, no name or description.
@@ -230,41 +254,41 @@ class ComputedStruct(StructDeclaration):
         prepare_computed_struct_declaration(cls)
 
 
-class ProjectionMeta(type):
-    """Make ``Projection(source)`` return a base pinned to a row source."""
+class DerivedRelationMeta(type):
+    """Make ``DerivedRelation(source)`` return a base pinned to a row source."""
 
-    def __call__(cls, source: Any | None = None) -> type["Projection"]:
-        from ...service._private.declarations import prepare_projection_type
+    def __call__(cls, source: Any | None = None) -> type["DerivedRelation"]:
+        from ...service._private.declarations import prepare_derived_relation_type
 
-        return prepare_projection_type(source)
+        return prepare_derived_relation_type(source)
 
 
-class Projection(RowSourceProvider, Shape, RowSource["Projection"], metaclass=ProjectionMeta):
-    """A final named logical relation composed from typed expressions."""
+class DerivedRelation(RowSourceProvider, Shape, RowSource["DerivedRelation"], metaclass=DerivedRelationMeta):
+    """A final named derived relation composed from typed expressions."""
 
-    options: ClassVar[ProjectionOptions] = ProjectionOptions()
+    options: ClassVar[DerivedRelationOptions | None] = None
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         from ...service._private.declarations import (
-            prepare_projection_declaration,
+            prepare_derived_relation_declaration,
         )
 
-        prepare_projection_declaration(cls)
+        prepare_derived_relation_declaration(cls)
 
     @classmethod
     def where(
         cls, predicate: Callable[[Self], Selection[bool]],
     ) -> DerivedRowSource[Self]:
-        """Keep the rows of this projection that satisfy ``predicate``.
+        """Keep the rows of this derived relation that satisfy ``predicate``.
 
-        The predicate receives a symbolic instance of the projection and must
+        The predicate receives a symbolic instance of the derived relation and must
         return a ``BoolExpression``.
 
         Example:
             ```python
             active = SiteProjection.where(
-                lambda projection: projection.label.alter_rows().drop_null()
+                lambda derived_relation: derived_relation.label.alter_rows().drop_null()
                 .expression.equals("Depot")
             )
             ```
@@ -276,7 +300,7 @@ class Projection(RowSourceProvider, Shape, RowSource["Projection"], metaclass=Pr
 
     @classmethod
     def row_source(cls) -> RelationRowSource[Any]:
-        """Return the relation row source for this projection.
+        """Return the relation row source for this derived relation.
 
         Example:
             ```python
@@ -286,49 +310,105 @@ class Projection(RowSourceProvider, Shape, RowSource["Projection"], metaclass=Pr
         return RelationRowSource(cls, cls.shape)
 
 
-class TableGroup:
-    """A final named catalog of concrete tables and nested table groups.
+class StageMeta(type):
+    """Make ``Stage(source)`` return a base pinned to a row source."""
 
-    A group is not a shape and not a row source. Each member table names its own
-    asset; a group catalog does not bind a physical source.
+    def __call__(cls, source: Any | None = None) -> type["Stage"]:
+        from ...service._private.declarations import prepare_stage_type
+
+        return prepare_stage_type(source)
+
+
+class Stage(RowSourceProvider, Shape, metaclass=StageMeta):
+    """A private computed relation pinned to one row source.
+
+    A stage carries a ``Definition`` and no ``Meaning``. It is not a consumer
+    relation: ``Stage.row_source()`` returns a ``StageRowSource``, which a
+    binding refuses.
 
     Example:
         ```python
         from kg_build_system import (
-            Asset, AssetOptions, Field, Table, TableGroup, TableGroupOptions,
+            Definition, Stage, StageOptions, computed_field,
+        )
+
+        class SiteStage(Stage(Site.row_source())):
+            options = StageOptions(
+                definition=Definition(
+                    grain="One row per site.", identity=("site_id",),
+                ),
+            )
+            site_id = computed_field(Site.site_id)
+        ```
+    """
+
+    options: ClassVar[StageOptions | None] = None
+    shape: type[Any]
+
+    def __init_subclass__(cls, **kwargs: Any) -> None:
+        super().__init_subclass__(**kwargs)
+        from ...service._private.declarations import (
+            prepare_stage_declaration,
+        )
+
+        prepare_stage_declaration(cls)
+
+    @classmethod
+    def row_source(cls) -> StageRowSource[Any]:
+        """Return the private row source of this stage.
+
+        Example:
+            ```python
+            rows = SiteStage.row_source()
+            ```
+        """
+        return StageRowSource(cls, cls.shape)
+
+
+class SourceRelationGroup:
+    """A final named catalog of source relations and nested source relation groups.
+
+    A group is not a shape and not a row source. Each member source relation names
+    its own asset; a group catalog does not bind a physical source.
+
+    Example:
+        ```python
+        from kg_build_system import (
+            Asset, AssetOptions, Field, SourceRelation, SourceRelationGroup, SourceRelationGroupOptions,
             field,
         )
 
         class Estate(Asset):
             options = AssetOptions(...)
 
-        class Site(Table[Estate]):
+        class Site(SourceRelation[Estate]):
             site_id: Field[str] = field()
 
-        class Reading(Table[Estate]):
+        class Reading(SourceRelation[Estate]):
             reading_id: Field[str] = field()
 
-        class EstateCatalog(TableGroup):
-            options = TableGroupOptions(name="estate")
+        class EstateCatalog(SourceRelationGroup):
+            options = SourceRelationGroupOptions(name="estate")
             sites = Site
             readings = Reading
         ```
     """
 
-    options: ClassVar[TableGroupOptions] = TableGroupOptions()
+    options: ClassVar[SourceRelationGroupOptions] = SourceRelationGroupOptions()
 
     def __init_subclass__(cls, **kwargs: Any) -> None:
         super().__init_subclass__(**kwargs)
         from ...service._private.declarations import (
-            prepare_table_group_declaration,
+            prepare_source_relation_group_declaration,
         )
 
-        prepare_table_group_declaration(cls)
+        prepare_source_relation_group_declaration(cls)
 
 
 __all__ = [
-    "ComputedStruct", "Projection", "ProjectionMeta", "ProjectionOptions",
+    "ComputedStruct", "DerivedRelation", "DerivedRelationMeta", "DerivedRelationOptions",
     "Struct", "StructOptions", "StructOptionsTemplate", "StructTemplate",
-    "Table", "TableGroup", "TableGroupOptions", "TableOptions",
-    "is_concrete_table", "is_table_group",
+    "SourceRelation", "SourceRelationGroup", "SourceRelationGroupOptions", "SourceRelationOptions",
+    "Stage", "StageMeta", "StageOptions",
+    "is_concrete_source_relation", "is_source_relation_group",
 ]

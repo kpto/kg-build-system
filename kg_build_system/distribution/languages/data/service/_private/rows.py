@@ -25,23 +25,27 @@ from .shapes import (
 
 
 def declaration_source_name(source: Any) -> str:
-    """Return the logical name a table or projection writes."""
+    """Return the logical name a source or derived relation writes."""
     spec = vars(source).get("_kg_declaration_spec")
-    if spec is not None and spec.name and spec.kind in {"table", "projection"}:
+    if spec is not None and spec.name and spec.kind in {
+        "source_relation", "derived_relation", "stage",
+    }:
         return spec.name
     name = (
-        getattr(source, "_table_name", None)
-        or getattr(source, "_projection_name", None)
+        getattr(source, "_source_relation_name", None)
+        or getattr(source, "_derived_relation_name", None)
     )
     if not isinstance(name, str) or not name:
-        raise TypeError("row sources must be a Table or Projection")
+        raise TypeError("row sources must be a SourceRelation or DerivedRelation")
     return name
 
 
 def _root_source(value: Any) -> Any:
-    from ...model.public.row_sources import DerivedRowSource, RelationRowSource
+    from ...model.public.row_sources import (
+        DerivedRowSource, RelationRowSource, StageRowSource,
+    )
 
-    if isinstance(value, (DerivedRowSource, RelationRowSource)):
+    if isinstance(value, (DerivedRowSource, RelationRowSource, StageRowSource)):
         return value.source
     return value.shape
 
@@ -53,8 +57,8 @@ def as_row_source(value: Any) -> Any:
     if isinstance(value, RowSource) and not isinstance(value, type):
         return cast(Any, value)
     raise TypeError(
-        "rows must be a row source value; use Table.row_source() or "
-        "Projection.row_source()"
+        "rows must be a published row source value; use "
+        "SourceRelation.row_source() or DerivedRelation.row_source()"
     )
 
 
@@ -96,7 +100,7 @@ def plan_inputs(plan: RowSourcePlanDTO) -> tuple[RowSourcePlanDTO, ...]:
 
 
 def plan_scan_sources(plan: RowSourcePlanDTO) -> tuple[str, ...]:
-    """Return every declared relation or projection name a plan reads."""
+    """Return every declared source or derived relation name a plan reads."""
     if isinstance(plan, RowScanDTO):
         return (plan.relation.name,)
     return tuple(
@@ -564,10 +568,12 @@ def derive_order_by(
 
 def row_source_plan_dto(value: Any) -> RowSourcePlanDTO:
     """Return the plan a value row source authors."""
-    from ...model.public.row_sources import DerivedRowSource, RelationRowSource
+    from ...model.public.row_sources import (
+        DerivedRowSource, RelationRowSource, StageRowSource,
+    )
 
     source = as_row_source(value)
-    if isinstance(source, RelationRowSource):
+    if isinstance(source, (RelationRowSource, StageRowSource)):
         return RowScanDTO(RelationRef(
             "data", Key((declaration_source_name(source.source),)),
         ))

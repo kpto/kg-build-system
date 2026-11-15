@@ -168,7 +168,7 @@ def _require_not_refused(type_name: str, *, path: str) -> None:
         raise GenerationError(
             f"column {path!r} has DuckDB type {type_name!r}, which is rejected: "
             f"{digest.reason}. Either export the column in a mappable type, or "
-            "declare this table outside a generated package."
+            "declare this source relation outside a generated package."
         )
 
 
@@ -186,13 +186,13 @@ def resolve_scalar(type_name: str, *, path: str, column: str | None = None) -> S
         raise GenerationError(
             f"column {path!r} has DuckDB type {type_name!r}, which is rejected: "
             f"{digest.reason}. Either export the column in a mappable type, or "
-            "declare this table outside a generated package."
+            "declare this source relation outside a generated package."
         )
     if isinstance(digest, DeclaredOnlyDigest):
         declared = canonical_sql_type(cast(UnitTypeName, digest.canonical))
         if column is None:
             remedy = (
-                f"export the member as {declared} or declare this table outside a "
+                f"export the member as {declared} or declare this source relation outside a "
                 "generated package: an override reaches top-level columns only"
             )
             subject = "member"

@@ -4,8 +4,8 @@ from __future__ import annotations
 from kg_build_system.distribution.modules.core.binding.service.public.planner import (
     BindingPlanner,
 )
-from kg_build_system.distribution.modules.core.projection.service.public.planner import (
-    ProjectionPlanner,
+from kg_build_system.distribution.modules.core.derived_relation.service.public.planner import (
+    DerivedRelationPlanner,
 )
 from kg_build_system.distribution.modules.core.records.service.public.planner import (
     RecordsPlanner,
@@ -20,7 +20,7 @@ def core_planners(
     *, engine: SqlEmitter,
 ) -> tuple[
     RowSourcePlanner,
-    ProjectionPlanner,
+    DerivedRelationPlanner,
     BindingPlanner,
     RecordsPlanner,
 ]:
@@ -41,7 +41,7 @@ def core_planners(
     """
     return (
         RowSourcePlanner(engine=engine),
-        ProjectionPlanner(engine=engine),
+        DerivedRelationPlanner(engine=engine),
         BindingPlanner(engine=engine),
         RecordsPlanner(engine=engine),
     )

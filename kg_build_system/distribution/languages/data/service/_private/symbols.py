@@ -1,6 +1,7 @@
 """Project data declarations and their fields into linked symbols.
 
-A data declaration is a struct, relation or projection. Each declared field is
+A data declaration is a struct, source relation or derived relation. Each
+ declared field is
 its own declaration too: the owner references its fields, so the closure walk
 reaches them, and a computed field references the expression leaves it reads.
 Field keys join the owner key segments and the column name with a dot, so a
@@ -32,22 +33,23 @@ from kg_build_system.kernel import Declaration, Key, Symbol, SymbolRef
 
 from ...model.internal.dto.blueprint_dto import (
     ColumnDTO,
-    ProjectionDTO,
-    RelationDTO,
+    DerivedRelationDTO,
+    SourceRelationDTO,
     StructDTO,
 )
 from ...model.internal.model.fields import FieldSpec
-from .declarations import projection_row_source
+from .declarations import derived_relation_row_source
 from .rows import (
     plan_expressions, plan_inputs, plan_scan_sources, row_source_plan_dto,
 )
-from .transcription import _column, _projection, _relation, _struct
+from .transcription import _column, _derived_relation, _source_relation, _struct
 
 _KINDS = {
-    "table": "relation",
+    "source_relation": "relation",
     "struct": "struct",
     "computed_struct": "struct",
-    "projection": "projection",
+    "derived_relation": "derived_relation",
+    "stage": "derived_relation",
 }
 
 
@@ -98,7 +100,7 @@ def declaration_key(value: Any, *, qualify_struct: bool = False) -> Key:
 
     A struct uses its bare graph name when that name is unique among the
     non-source declarations. When the name repeats (or collides with a relation
-    or projection), the struct takes its qualified name as a second segment.
+    or derived relation), the struct takes its qualified name as a second segment.
     """
     name = declaration_name(value)
     kind = declaration_kind(value)
@@ -157,8 +159,8 @@ def _field_ref(owner: Key, name: str) -> FieldRef:
 
 
 def _with_field_refs(
-    value: StructDTO | RelationDTO | ProjectionDTO, owner: Key,
-) -> StructDTO | RelationDTO | ProjectionDTO:
+    value: StructDTO | SourceRelationDTO | DerivedRelationDTO, owner: Key,
+) -> StructDTO | SourceRelationDTO | DerivedRelationDTO:
     columns = tuple(
         replace(column, ref=_field_ref(owner, column.name))
         for column in value.columns
@@ -228,10 +230,10 @@ def _declaration_references(
                 f"relation {declaration_name(value)!r} has no logical asset"
             )
         references.append(asset_reference(spec.asset).symbol)
-    elif kind == "projection":
-        row_source = projection_row_source(value)
+    elif kind == "derived_relation":
+        row_source = derived_relation_row_source(value)
         if row_source is None:
-            raise ValueError("projections require a row source")
+            raise ValueError("derived relations require a row source")
         plan = row_source_plan_dto(row_source)
         references.extend(
             SymbolRef("data", Key((name,)))
@@ -281,9 +283,9 @@ def value_identity(
         return SymbolRef("data", owner_key(value, counts))
     if isinstance(value, ColumnDTO):
         return value.ref.symbol
-    if isinstance(value, RelationDTO):
+    if isinstance(value, SourceRelationDTO):
         return SymbolRef("data", Key((value.name,)))
-    if isinstance(value, ProjectionDTO):
+    if isinstance(value, DerivedRelationDTO):
         return SymbolRef("data", Key((value.name,)))
     return None
 
@@ -298,10 +300,10 @@ def _dto_for_declaration(
         dto = _struct(value, declaration_spec(value))
         key = declaration_key(value, qualify_struct=qualify)
     elif kind == "relation":
-        dto = _relation(value, declaration_spec(value))
+        dto = _source_relation(value, declaration_spec(value))
         key = declaration_key(value)
-    elif kind == "projection":
-        dto = _projection(value, declaration_spec(value))
+    elif kind == "derived_relation":
+        dto = _derived_relation(value, declaration_spec(value))
         key = declaration_key(value)
     else:
         raise TypeError(f"data declaration {value!r} has no DTO")
@@ -316,7 +318,7 @@ def symbol_for_declaration(
     if isinstance(value, FieldDeclaration):
         return _field_declaration_symbol(value, counts)
     dto, kind, key = _dto_for_declaration(declaration, counts)
-    if isinstance(dto, (StructDTO, RelationDTO, ProjectionDTO)):
+    if isinstance(dto, (StructDTO, SourceRelationDTO, DerivedRelationDTO)):
         dto = _with_field_refs(dto, key)
     return Symbol(
         key, kind, dto, declaration_references(value, counts),

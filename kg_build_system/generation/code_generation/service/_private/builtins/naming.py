@@ -31,12 +31,12 @@ def class_part(value: str) -> str:
     return f"Relation{result}" if result[0].isdigit() else result
 
 
-def table_class_name(relation: str) -> str:
-    return f"{class_part(relation)}Table"
+def source_relation_class_name(relation: str) -> str:
+    return f"{class_part(relation)}SourceRelation"
 
 
 def group_class_name(path: tuple[str, ...], request_id: str) -> str:
-    return f"{''.join(class_part(part) for part in path) or class_part(request_id)}TableGroup"
+    return f"{''.join(class_part(part) for part in path) or class_part(request_id)}SourceRelationGroup"
 
 
 @dataclass(frozen=True, slots=True)
@@ -74,7 +74,7 @@ def record_name(paths: Paths) -> str:
 
     Shortest-honest naming: the name joins the member-path parts, minus the
     list wrappers, plus one ``Struct`` suffix. Records are named inside their
-    relation — ``TimeseriesStruct`` in each table's own file — and may repeat
+    relation — ``TimeseriesStruct`` in each source relation's own file — and may repeat
     across a package's files, because a generated reference resolves inside
     its own file first.
     """
@@ -116,5 +116,5 @@ def bind_records(classes: tuple[GeneratedClass, ...], in_file: PurePosixPath) ->
 
 __all__ = [
     "Paths", "bind_records", "class_part", "group_class_name", "identifier",
-    "record_name", "table_class_name", "top_level_column",
+    "record_name", "source_relation_class_name", "top_level_column",
 ]

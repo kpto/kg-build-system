@@ -47,13 +47,14 @@ pkg/
 
 - `Selection[T]` is the single authoring type; `NullableSelection[T]` is the
   alias `Selection[Nullable[T]]`. The compiler expression tree is private.
-- A `Field[T]` declares a value type, never `T | None`. Source `Table` and
-  source `Struct` reads yield `NullableSelection[T]`; computed `Projection` and
+- A `Field[T]` declares a value type, never `T | None`. `SourceRelation` and
+  `Struct` reads yield `NullableSelection[T]`; `DerivedRelation` and
   `ComputedStruct` reads yield the type of their `computed_field` selection.
   Nested array-item nullability stays in the value type.
-- `Table` and `Projection` are row-source providers. Use
-  `Table.row_source()` / `Projection.row_source()`; a projection is pinned with
-  `Projection(source)`.
+- `SourceRelation` and `DerivedRelation` are published row-source providers. Use
+  `SourceRelation.row_source()` / `DerivedRelation.row_source()`; a derived
+  relation is pinned with `DerivedRelation(source)`, and a `Stage(source)` is its
+  private sub-relation.
 - `field()` declares a source member and `computed_field(selection)` a computed
   member. Binding lambdas receive a typed row proxy.
 - `alter_rows()` is the one-shot row-effect gate; it exposes only `drop_null`,
@@ -66,16 +67,16 @@ pkg/
 ## Source data
 
 - An **asset** is one logical unit of source data, like a package. One asset may
-  back many tables. A table names its asset with `Table[Asset]`; the relation
-  carries that identity as an `AssetRef`.
-- `AssetOptions` carries `website`, optional `layout`, `semantics` and
+  back many source relations. A source relation names its asset with
+  `SourceRelation[Asset]`; the relation carries that identity as an `AssetRef`.
+- `AssetOptions` carries `website`, optional `layout`, `meaning` and
   `governance`. `AssetLayout` is optional descriptive metadata: `kind`,
   `locator`, `format`, `selector`, `partition_by`, `members` and `properties`.
   It is not an access contract.
 - `DuckDbSourcePlanner` is the generic module planner for `parquet`, `json` and
   `csv` assets. There is no adapter concept in the toolchain and no adapter
   registry; another format is another ordinary module planner.
-- `@asset_contract(AssetContractOptions(...))` is an inert edit-time decorator
+- `@asset_generation(AssetGenerationOptions(...))` is an inert edit-time decorator
   on an asset. Code generation is not part of `AssetOptions`, `AssetDTO` or the
   blueprint, and there are no source binding values.
 - Generation observes a source and renders declarations. Observation is

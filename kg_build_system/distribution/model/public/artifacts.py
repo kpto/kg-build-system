@@ -72,27 +72,27 @@ class CoreArtifactTypes:
 
     @classmethod
     def table(cls, name: str) -> ArtifactType:
-        """The logical relation of one source table.
+        """The logical relation of one source relation.
 
         Example:
         ```python
-        table = CoreArtifactTypes.table("site")
-        assert table.name == "data.table.site"
+        source_relation = CoreArtifactTypes.table("site")
+        assert source_relation.name == "data.table.site"
         ```
         """
         return ArtifactType.of(cls.NAMESPACE, "data", "table", name)
 
     @classmethod
-    def projection(cls, name: str) -> ArtifactType:
-        """The materialised relation of one projection.
+    def derived_relation(cls, name: str) -> ArtifactType:
+        """The materialised relation of one derived relation.
 
         Example:
         ```python
-        projection = CoreArtifactTypes.projection("defects")
-        assert projection.name == "data.projection.defects"
+        relation = CoreArtifactTypes.derived_relation("defects")
+        assert relation.name == "data.derived_relation.defects"
         ```
         """
-        return ArtifactType.of(cls.NAMESPACE, "data", "projection", name)
+        return ArtifactType.of(cls.NAMESPACE, "data", "derived_relation", name)
 
     @classmethod
     def row_source(cls, key: str) -> ArtifactType:

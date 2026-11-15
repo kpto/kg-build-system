@@ -21,7 +21,7 @@ def as_row_source(value: Any) -> Any:
 
 
 def declaration_source_name(source: Any) -> str:
-    """Return the logical name a table or projection writes."""
+    """Return the logical name a source or derived relation writes."""
     from .._private.rows import declaration_source_name as name
 
     return name(source)
@@ -119,7 +119,7 @@ def plan_inputs(plan: Any) -> tuple[Any, ...]:
 
 
 def plan_scan_sources(plan: Any) -> tuple[str, ...]:
-    """Return every named table or projection a plan reads."""
+    """Return every named source or derived relation a plan reads."""
     from .._private.rows import plan_scan_sources as sources
 
     return sources(plan)

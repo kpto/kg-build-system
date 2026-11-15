@@ -1,4 +1,4 @@
-"""Transcribe table declarations into the data language's blueprint DTO."""
+"""Transcribe source and derived relation declarations into the data DTO."""
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -14,16 +14,19 @@ from kg_build_system.distribution.model.public.refs import FieldRef
 from kg_build_system.kernel import Key
 from kg_build_system.kernel.service.internal.types import type_to_dto
 from ...model.internal.dto.blueprint_dto import (
-    ColumnDTO, DataPartDTO, ProjectionDTO, RelationDTO, RowDistinctDTO,
+    ColumnDTO, DataPartDTO, DefinitionDTO, DerivedRelationDTO,
+    FieldDefinitionDTO, SourceRelationDTO, RowDistinctDTO,
     RowFilterDTO, RowGroupByDTO, RowJoinDTO, RowOrderByDTO, RowScanDTO,
     RowSourcePlanDTO, RowUnionDTO, StructDTO,
 )
 from ...model.public.row_sources import RowSource
-from .declarations import DeclarationSpec, is_table_group, projection_row_source
-from .groups import group_tables
+from .declarations import DeclarationSpec, is_source_relation_group, derived_relation_row_source
+from .groups import group_source_relations
 from .rows import plan_scan_sources, row_source_plan_dto
 
-_DECLARATION_KINDS = {"table", "struct", "computed_struct", "projection"}
+_DECLARATION_KINDS = {
+    "source_relation", "struct", "computed_struct", "derived_relation", "stage",
+}
 
 
 def _spec(value: Any) -> DeclarationSpec | None:
@@ -47,7 +50,7 @@ def _walk(value: Any, found: dict[int, Any], seen: set[int]) -> None:
             for item in spec.fields:
                 _walk(item.declaration, found, seen)
             _walk(spec.row_source, found, seen)
-        elif spec.kind == "table_group" and spec.final:
+        elif spec.kind == "source_relation_group" and spec.final:
             for member in spec.members:
                 _walk(member, found, seen)
         return
@@ -87,14 +90,30 @@ def _data_annotations(values: Sequence[Any]) -> tuple[AnnotationDTO, ...]:
     return annotation_dtos(values)
 
 
-def _semantics_dto(value: Any) -> Any:
+def _meaning_dto(value: Any) -> Any:
     if value is None:
         return None
-    from kg_build_system.distribution.languages.semantics.service.internal import (
-        semantics_to_dto,
+    from kg_build_system.distribution.languages.meaning.service.internal import (
+        meaning_to_dto,
     )
 
-    return semantics_to_dto(value)
+    return meaning_to_dto(value)
+
+
+def _definition_dto(value: Any) -> DefinitionDTO | None:
+    if value is None:
+        return None
+    return DefinitionDTO(grain=value.grain, identity=tuple(value.identity))
+
+
+def _field_definition_dto(value: Any) -> FieldDefinitionDTO | None:
+    if value is None:
+        return None
+    return FieldDefinitionDTO(
+        value=value.value,
+        unit=value.unit,
+        null_meaning=value.null_meaning,
+    )
 
 
 def _column(
@@ -111,7 +130,8 @@ def _column(
             if expression and item.descriptor.expression is not None
             else None
         ),
-        semantics=_semantics_dto(item.semantics),
+        meaning=_meaning_dto(item.meaning),
+        definition=_field_definition_dto(item.definition),
     )
 
 
@@ -122,34 +142,35 @@ def _struct(item: type[Any], spec: DeclarationSpec) -> StructDTO:
         columns=tuple(_column(name, field) for field in spec.fields),
         description=spec.description,
         annotations=_data_annotations(spec.annotations),
-        semantics=_semantics_dto(spec.semantics),
+        meaning=_meaning_dto(spec.meaning),
     )
 
 
-def _relation(item: type[Any], spec: DeclarationSpec) -> RelationDTO:
+def _source_relation(item: type[Any], spec: DeclarationSpec) -> SourceRelationDTO:
     name = spec.name or item.__name__
     if spec.asset is None:
         raise ValueError(f"relation {name!r} has no logical asset")
-    return RelationDTO(
+    return SourceRelationDTO(
         name=name,
         columns=tuple(_column(name, field) for field in spec.fields),
         asset=asset_reference(spec.asset),
         description=spec.description,
         annotations=_data_annotations(spec.annotations),
-        semantics=_semantics_dto(spec.semantics),
+        meaning=_meaning_dto(spec.meaning),
+        definition=_definition_dto(spec.definition),
     )
 
 
-def _projection(item: type[Any], spec: DeclarationSpec) -> ProjectionDTO:
+def _derived_relation(item: type[Any], spec: DeclarationSpec) -> DerivedRelationDTO:
     name = spec.name or item.__name__
     columns = []
     for field in spec.fields:
         if field.descriptor.expression is None:
-            raise TypeError("projection outputs require computed_field()")
+            raise TypeError("derived relation outputs require computed_field()")
         columns.append(_column(name, field, expression=True))
-    row_source = projection_row_source(item)
+    row_source = derived_relation_row_source(item)
     if row_source is None:
-        raise ValueError("projections require a row source")
+        raise ValueError("derived relations require a row source")
     plan = (
         row_source
         if isinstance(row_source, (
@@ -158,13 +179,20 @@ def _projection(item: type[Any], spec: DeclarationSpec) -> ProjectionDTO:
         ))
         else row_source_plan_dto(row_source)
     )
-    return ProjectionDTO(
+    definition = _definition_dto(spec.definition)
+    if definition is None:
+        raise ValueError(
+            "a derived relation requires a Contract with a Definition and a Meaning"
+        )
+    return DerivedRelationDTO(
         name=name,
         columns=tuple(columns),
         row_source=cast(RowSourcePlanDTO, plan),
+        definition=definition,
         description=spec.description,
         annotations=_data_annotations(spec.annotations),
-        semantics=_semantics_dto(spec.semantics),
+        visibility="internal" if spec.kind == "stage" else "public",
+        meaning=_meaning_dto(spec.meaning),
     )
 
 
@@ -202,26 +230,27 @@ def transcribe_data(declarations: Sequence[object]) -> DataPartDTO:
     """Transcribe collected declarations into the data language DTO."""
     found, _ = collect_declarations(tuple(declarations))
     for value in declarations:
-        if isinstance(value, type) and is_table_group(value):
-            for table, _ in group_tables(value):
-                found.setdefault(id(table), table)
+        if isinstance(value, type) and is_source_relation_group(value):
+            for source_relation, _ in group_source_relations(value):
+                found.setdefault(id(source_relation), source_relation)
 
-    relations: dict[int, type[Any]] = {}
-    projections: dict[int, type[Any]] = {}
+    source_relations: dict[int, type[Any]] = {}
+    derived_relations: dict[int, type[Any]] = {}
     struct_roots: list[type[Any]] = []
     for declaration in found.values():
         spec = _spec(declaration)
         if spec is None or not spec.final:
             continue
-        if spec.kind == "table":
-            relations[id(declaration)] = declaration
-        elif spec.kind == "projection":
-            projections[id(declaration)] = declaration
+        if spec.kind == "source_relation":
+            source_relations[id(declaration)] = declaration
+        elif spec.kind in {"derived_relation", "stage"}:
+            derived_relations[id(declaration)] = declaration
         elif spec.kind in {"struct", "computed_struct"}:
             struct_roots.append(declaration)
     structs: dict[int, type[Any]] = {id(item): item for item in struct_roots}
     _add_struct_closure(
-        (*relations.values(), *projections.values(), *struct_roots), structs,
+        (*source_relations.values(), *derived_relations.values(), *struct_roots),
+        structs,
     )
 
     return DataPartDTO(
@@ -232,17 +261,17 @@ def transcribe_data(declarations: Sequence[object]) -> DataPartDTO:
             ),
             key=lambda item: item.name,
         )),
-        relations=tuple(sorted(
+        source_relations=tuple(sorted(
             (
-                _relation(item, cast(DeclarationSpec, _spec(item)))
-                for item in relations.values()
+                _source_relation(item, cast(DeclarationSpec, _spec(item)))
+                for item in source_relations.values()
             ),
             key=lambda item: item.name,
         )),
-        projections=tuple(sorted(
+        derived_relations=tuple(sorted(
             (
-                _projection(item, cast(DeclarationSpec, _spec(item)))
-                for item in projections.values()
+                _derived_relation(item, cast(DeclarationSpec, _spec(item)))
+                for item in derived_relations.values()
             ),
             key=lambda item: item.name,
         )),
@@ -251,32 +280,53 @@ def transcribe_data(declarations: Sequence[object]) -> DataPartDTO:
 
 def validate_data(data: DataPartDTO) -> None:
     """Reject a data DTO that violates the language invariants."""
-    relation_names = tuple(item.name for item in data.relations)
-    projection_names = tuple(item.name for item in data.projections)
-    if len(relation_names) != len(set(relation_names)):
-        raise ValueError("relation names must be unique")
-    if len(projection_names) != len(set(projection_names)):
-        raise ValueError("projection names must be unique")
-    if len(set(relation_names) | set(projection_names)) != (
-        len(relation_names) + len(projection_names)
+    source_relation_names = tuple(item.name for item in data.source_relations)
+    derived_relation_names = tuple(item.name for item in data.derived_relations)
+    if len(source_relation_names) != len(set(source_relation_names)):
+        raise ValueError("source relation names must be unique")
+    if len(derived_relation_names) != len(set(derived_relation_names)):
+        raise ValueError("derived relation names must be unique")
+    if len(set(source_relation_names) | set(derived_relation_names)) != (
+        len(source_relation_names) + len(derived_relation_names)
     ):
-        raise ValueError("relation and projection names must be unique")
-    for declaration in (*data.structs, *data.relations, *data.projections):
+        raise ValueError("source and derived relation names must be unique")
+    for declaration in (*data.structs, *data.source_relations, *data.derived_relations):
         names = tuple(column.name for column in declaration.columns)
         if len(names) != len(set(names)):
             raise ValueError(f"{declaration.name} column names must be unique")
-    known = set(relation_names) | set(projection_names)
-    for relation in data.relations:
-        if relation.asset is None:
+    known = set(source_relation_names) | set(derived_relation_names)
+    for source_relation in data.source_relations:
+        if source_relation.asset is None:
             raise ValueError(
-                f"relation {relation.name!r} must name its logical asset"
+                f"source relation {source_relation.name!r} must name its logical asset"
             )
-    for projection in data.projections:
-        unknown = set(plan_scan_sources(projection.row_source)) - known
+    for derived_relation in data.derived_relations:
+        unknown = set(plan_scan_sources(derived_relation.row_source)) - known
         if unknown:
             raise ValueError(
-                "projection row source reads unknown logical source "
+                "derived relation row source reads unknown logical source "
                 + ", ".join(sorted(unknown))
+            )
+        if derived_relation.definition is None:
+            raise ValueError(
+                "a derived relation requires a Contract with a Definition "
+                "and a Meaning"
+            )
+        if derived_relation.visibility == "internal":
+            if derived_relation.meaning is not None:
+                raise ValueError("a stage carries no contract meaning")
+            continue
+        if (
+            derived_relation.meaning is None
+            or derived_relation.meaning.purpose is None
+        ):
+            raise ValueError("a derived relation contract requires a purpose")
+    for source_relation in data.source_relations:
+        if (source_relation.definition is None) != (
+            source_relation.meaning is None
+        ):
+            raise ValueError(
+                "a declared contract requires a Definition and a Meaning"
             )
 
 

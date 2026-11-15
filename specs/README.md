@@ -17,17 +17,17 @@ This directory is a pointer and a historical note, not a second copy.
 | `kernel` | canonical types; declaration, symbol, key, workflow and runtime values | `Language`, `Declaration`, `Symbol`, `SymbolRef`, `Key`, `Linker`, `Planner`, `StepExecutor`, `Runtime`, `Resource`, `ResourceProvider`, `ResourceView`, `Toolchain`, `WorkflowRuntime` |
 | `distribution/languages/annotations` | annotation values and labels | codec and source rendering |
 | `distribution/languages/expressions` | `Selection[T]`, `NullableSelection[T]`, one-shot row-effect handles and `Pair`; expression DTOs | construction, operation specifications, lookup/zip and source rendering |
-| `distribution/languages/semantics` | `Claim`, `Limitation`, `Frame`, `Purpose`, `Semantics`, `GraphSemantics`; semantics DTOs | transcription, document codec and source rendering |
+| `distribution/languages/meaning` | `Claim`, `Limitation`, `Purpose`, `Meaning`; meaning DTOs | transcription, document codec and source rendering |
 | `distribution/languages/graph` | `Graph`, `GraphOptions`; graph declaration DTO | graph discovery, transcription, codec and source rendering |
 | `distribution/languages/asset` | `Asset`, `AssetOptions`, `AssetProfile`, `AssetLayout`, `AssetGovernance`; asset DTOs | asset discovery, transcription, codec and source rendering |
-| `distribution/languages/data` | `Table[Asset]`, `Struct`, `ComputedStruct`, `Projection(source)`, `RowSource`, `Field[T]`; data DTOs | field wrappers, row-source derivation, transcription and source rendering |
+| `distribution/languages/data` | `SourceRelation[Asset]`, `DerivedRelation(source)`, `Stage(source)`, `Struct`, `ComputedStruct`, `RowSource`, `Field[T]`, `Contract`, `Definition`, `FieldDefinition`; data DTOs | field wrappers, row-source derivation, transcription and source rendering |
 | `distribution/languages/topology` | `Node`, `Edge`, properties and templates; topology DTOs | property and endpoint wrappers, transcription and source rendering |
 | `distribution/languages/binding` | binding values; binding DTOs | `node_binding`, `edge_binding`, transcription and source rendering |
 | `distribution/interpreter` | `GraphBlueprint` | `create_blueprint`, `BlueprintLinker`, assembly, validation, codec and source |
 | `distribution/model/public` | `BuildRuntime`, typed references and path rules | none |
 | `distribution/modules/<name>` | planner and executor configuration, report values and resource models | supplied planners, executors and resource providers |
 | `distribution/implementations.py` | none | language and linker implementations |
-| `generation/code_generation` | `AssetContractOptions`, results and provider contract | `asset_contract`, generation, discovery, rendering and ownership |
+| `generation/code_generation` | `AssetGenerationOptions`, results and provider contract | `asset_generation`, generation, discovery, rendering and ownership |
 | `api.py` | none | `default_toolchain`, `DEFAULT_TOOLCHAIN`, `create_blueprint`, `compile`, `execute` |
 | `cli` | none | `kbs` entry point |
 
@@ -80,8 +80,8 @@ languages and linker that `api.py` composes. `generation/code_generation` is
 upstream and depends on `kernel` and `distribution.languages.asset`. `api.py`
 and `cli` compose the systems.
 
-A field declares a value type, never absence. Source `Table`/`Struct` reads are
-`NullableSelection[T]`; computed `Projection`/`ComputedStruct` reads follow
+A field declares a value type, never absence. `SourceRelation`/`Struct` reads are
+`NullableSelection[T]`; computed `DerivedRelation`/`ComputedStruct` reads follow
 their `computed_field` selection. `alter_rows()` is the only row-effect gate.
 
 The kernel imports no graph, data, topology, binding, SQL, DuckDB or Python

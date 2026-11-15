@@ -1,4 +1,4 @@
-"""Transcribe table declarations into the data language's blueprint DTO.
+"""Transcribe source and derived relation declarations into the data DTO.
 
 The transcription and validation live in the package's private zone; each name
 here is a thin delegation kept for the internal service path.

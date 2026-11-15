@@ -1,6 +1,8 @@
 """Contract tests: layer and blueprint source round-trip."""
 from __future__ import annotations
 
+from kg_build_system import Meaning, Purpose
+
 import json
 import tempfile
 import uuid
@@ -15,7 +17,7 @@ from kg_build_system.distribution.interpreter.service.internal import (
 from kg_build_system.distribution.languages.binding import node_binding
 from kg_build_system.distribution.languages.binding.service.internal import BindingLanguage
 from kg_build_system.distribution.languages.asset.service.internal import AssetLanguage
-from kg_build_system.distribution.languages.data import Field, Table, field
+from kg_build_system.distribution.languages.data import Field, SourceRelation, field
 from kg_build_system.distribution.languages.data.service.internal.adapters.kernel_language import DataLanguage
 from kg_build_system.distribution.languages.topology import (
     Node,
@@ -26,7 +28,7 @@ from kg_build_system.distribution.languages.topology.service.internal import Top
 from .support import TestEstate
 
 
-class SiteTable(Table[TestEstate]):
+class SiteSourceRelation(SourceRelation[TestEstate]):
     site_id: Field[str] = field()
 
 
@@ -37,13 +39,14 @@ class SiteNode(Node):
 def _fixture() -> GraphBlueprint:
     binding = node_binding(
         target=SiteNode,
-        rows=SiteTable.row_source(),
+        rows=SiteSourceRelation.row_source(),
         bind=lambda row: __import__(
             "kg_build_system", fromlist=["NodeValues"]
         ).NodeValues(
             build_key=row.site_id.alter_rows().drop_null(),
             properties=SiteNode(site_id=row.site_id),
         ),
+        meaning=Meaning(purpose=Purpose("Fulfil the fixture record from its rows.")),
     )
     return create_blueprint(bindings=(binding,))
 

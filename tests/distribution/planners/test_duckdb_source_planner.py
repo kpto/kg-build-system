@@ -17,7 +17,7 @@ from kg_build_system.distribution.languages.binding.model.internal import (
 from kg_build_system.distribution.languages.data.model.internal import (
     ColumnDTO,
     DataPartDTO,
-    RelationDTO,
+    SourceRelationDTO,
 )
 from kg_build_system.distribution.languages.expressions.model.internal import (
     FieldReferenceDTO,
@@ -50,8 +50,8 @@ def _asset(layout: AssetLayoutDTO | None) -> AssetPartDTO:
     ))
 
 
-def _relation(name: str) -> RelationDTO:
-    return RelationDTO(
+def _relation(name: str) -> SourceRelationDTO:
+    return SourceRelationDTO(
         name,
         (
             ColumnDTO(
@@ -86,8 +86,8 @@ def _blueprint(
         graph=GraphPartDTO(nodes=(node,)),
         data=DataPartDTO(
             structs=(),
-            relations=tuple(_relation(name) for name in relations),
-            projections=(),
+            source_relations=tuple(_relation(name) for name in relations),
+            derived_relations=(),
         ),
         assets=_asset(layout),
         bindings=(binding,),
@@ -114,7 +114,7 @@ class AssetTableTests(unittest.TestCase):
         blueprint = _blueprint(
             None, relations=("zebra", "sites"), read="sites",
         )
-        second = RelationDTO(
+        second = SourceRelationDTO(
             "zebra",
             _relation("zebra").columns,
             AssetRef("asset", Key(("estate",))),
@@ -125,7 +125,7 @@ class AssetTableTests(unittest.TestCase):
         )
         blueprint = GraphBlueprint(
             graph=blueprint.graph,
-            data=DataPartDTO((), (second, *blueprint.data.relations), ()),
+            data=DataPartDTO((), (second, *blueprint.data.source_relations), ()),
             assets=blueprint.assets,
             bindings=bindings,
         )

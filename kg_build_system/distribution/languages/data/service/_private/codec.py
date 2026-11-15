@@ -11,7 +11,8 @@ from kg_build_system.distribution.model.public.refs import (
 )
 from kg_build_system.kernel.service.internal.types import type_from_document, type_to_document
 from ...model.internal.dto.blueprint_dto import (
-    ColumnDTO, DataPartDTO, ProjectionDTO, RelationDTO, RowDistinctDTO,
+    ColumnDTO, DataPartDTO, DefinitionDTO, DerivedRelationDTO,
+    FieldDefinitionDTO, SourceRelationDTO, RowDistinctDTO,
     RowFilterDTO, RowGroupByDTO, RowJoinDTO, RowOrderByDTO, RowScanDTO,
     RowSourcePlanDTO, RowUnionDTO, RowUnnestDTO, StructDTO,
 )
@@ -58,25 +59,75 @@ def _items(value: Mapping[str, Any], key: str, decoder: Any) -> tuple[Any, ...]:
     )
 
 
-def _encode_semantics(value: Any) -> dict[str, Any]:
-    from kg_build_system.distribution.languages.semantics.service.internal import (
-        semantics_to_document,
+def _encode_meaning(value: Any) -> dict[str, Any]:
+    from kg_build_system.distribution.languages.meaning.service.internal import (
+        meaning_to_document,
     )
 
-    return semantics_to_document(value)
+    return meaning_to_document(value)
 
 
-def _decode_semantics(value: Any) -> Any:
-    from kg_build_system.distribution.languages.semantics.service.internal import (
-        semantics_from_document,
+def _decode_meaning(value: Any) -> Any:
+    from kg_build_system.distribution.languages.meaning.service.internal import (
+        meaning_from_document,
     )
 
-    return semantics_from_document(value)
+    return meaning_from_document(value)
 
 
-def _optional_semantics(value: Mapping[str, Any]) -> Any:
-    document = value.get("semantics")
-    return None if document is None else _decode_semantics(document)
+def _optional_meaning(value: Mapping[str, Any]) -> Any:
+    document = value.get("meaning")
+    return None if document is None else _decode_meaning(document)
+
+
+def _encode_definition(value: DefinitionDTO) -> dict[str, Any]:
+    return {
+        "grain": value.grain,
+        "identity": list(value.identity),
+    }
+
+
+def _decode_definition(value: Any) -> DefinitionDTO:
+    document = _object(value, "definition")
+    identity = _array(document.get("identity"), "definition identity")
+    names: list[str] = []
+    for item in identity:
+        if not isinstance(item, str) or not item:
+            raise ValueError(
+                "definition identity names must be non-empty strings"
+            )
+        names.append(item)
+    return DefinitionDTO(grain=_text(document, "grain"), identity=tuple(names))
+
+
+def _optional_definition(value: Mapping[str, Any]) -> DefinitionDTO | None:
+    document = value.get("definition")
+    return None if document is None else _decode_definition(document)
+
+
+def _encode_field_definition(value: FieldDefinitionDTO) -> dict[str, Any]:
+    result: dict[str, Any] = {"value": value.value}
+    if value.unit is not None:
+        result["unit"] = value.unit
+    if value.null_meaning is not None:
+        result["null_meaning"] = value.null_meaning
+    return result
+
+
+def _decode_field_definition(value: Any) -> FieldDefinitionDTO:
+    document = _object(value, "field definition")
+    return FieldDefinitionDTO(
+        value=_text(document, "value"),
+        unit=_optional_text(document, "unit"),
+        null_meaning=_optional_text(document, "null_meaning"),
+    )
+
+
+def _optional_field_definition(
+    value: Mapping[str, Any],
+) -> FieldDefinitionDTO | None:
+    document = value.get("definition")
+    return None if document is None else _decode_field_definition(document)
 
 
 # ---------------------------------------------------------------------------
@@ -230,8 +281,10 @@ def _encode_column(value: ColumnDTO) -> dict[str, Any]:
         result["description"] = value.description
     if value.expression is not None:
         result["expression"] = expression_to_document(value.expression)
-    if value.semantics is not None:
-        result["semantics"] = _encode_semantics(value.semantics)
+    if value.meaning is not None:
+        result["meaning"] = _encode_meaning(value.meaning)
+    if value.definition is not None:
+        result["definition"] = _encode_field_definition(value.definition)
     return result
 
 
@@ -252,12 +305,13 @@ def _decode_column(value: Mapping[str, Any]) -> ColumnDTO:
             None if expression is None
             else expression_from_document(_object(expression, "expression"))
         ),
-        semantics=_optional_semantics(value),
+        meaning=_optional_meaning(value),
+        definition=_optional_field_definition(value),
     )
 
 
 def _encode_declaration(
-    value: StructDTO | RelationDTO | ProjectionDTO,
+    value: StructDTO | SourceRelationDTO | DerivedRelationDTO,
 ) -> dict[str, Any]:
     result: dict[str, Any] = {
         "name": value.name,
@@ -266,10 +320,14 @@ def _encode_declaration(
     }
     if value.description is not None:
         result["description"] = value.description
-    if value.semantics is not None:
-        result["semantics"] = _encode_semantics(value.semantics)
-    if isinstance(value, RelationDTO):
+    if value.meaning is not None:
+        result["meaning"] = _encode_meaning(value.meaning)
+    if isinstance(value, SourceRelationDTO):
         result["asset"] = ref_to_document(value.asset)
+        if value.definition is not None:
+            result["definition"] = _encode_definition(value.definition)
+    elif isinstance(value, DerivedRelationDTO):
+        result["definition"] = _encode_definition(value.definition)
     return result
 
 
@@ -279,40 +337,52 @@ def _decode_struct(value: Mapping[str, Any]) -> StructDTO:
         columns=_items(value, "columns", _decode_column),
         description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", annotation_from_document),
-        semantics=_optional_semantics(value),
+        meaning=_optional_meaning(value),
     )
 
 
-def _decode_relation(value: Mapping[str, Any]) -> RelationDTO:
+def _decode_relation(value: Mapping[str, Any]) -> SourceRelationDTO:
     asset = ref_from_document(value.get("asset"))
     if not isinstance(asset, AssetRef):
-        raise ValueError("a relation 'asset' must be an asset reference")
-    return RelationDTO(
+        raise ValueError("a source relation 'asset' must be an asset reference")
+    return SourceRelationDTO(
         name=_text(value, "name"),
         columns=_items(value, "columns", _decode_column),
         asset=asset,
         description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", annotation_from_document),
-        semantics=_optional_semantics(value),
+        meaning=_optional_meaning(value),
+        definition=_optional_definition(value),
     )
 
 
-def _encode_projection(value: ProjectionDTO) -> dict[str, Any]:
+def _encode_derived_relation(value: DerivedRelationDTO) -> dict[str, Any]:
     result = _encode_declaration(value)
     result["row_source"] = _encode_plan(value.row_source)
+    result["visibility"] = value.visibility
     return result
 
 
-def _decode_projection(value: Mapping[str, Any]) -> ProjectionDTO:
-    return ProjectionDTO(
+def _decode_derived_relation(value: Mapping[str, Any]) -> DerivedRelationDTO:
+    visibility = value.get("visibility", "public")
+    if visibility not in ("public", "internal"):
+        raise ValueError("derived relation visibility must be public or internal")
+    definition = _optional_definition(value)
+    if definition is None:
+        raise ValueError(
+            "a derived relation requires a Contract with a Definition and a Meaning"
+        )
+    return DerivedRelationDTO(
         name=_text(value, "name"),
         columns=_items(value, "columns", _decode_column),
         row_source=_decode_plan(
-            _object(value.get("row_source"), "projection row_source")
+            _object(value.get("row_source"), "derived relation row_source")
         ),
+        definition=definition,
         description=_optional_text(value, "description"),
         annotations=_items(value, "annotations", annotation_from_document),
-        semantics=_optional_semantics(value),
+        visibility=cast(Any, visibility),
+        meaning=_optional_meaning(value),
     )
 
 
@@ -330,8 +400,10 @@ def data_to_document(data: DataPartDTO) -> dict[str, Any]:
     """
     return {
         "structs": [_encode_declaration(item) for item in data.structs],
-        "relations": [_encode_declaration(item) for item in data.relations],
-        "projections": [_encode_projection(item) for item in data.projections],
+        "source_relations": [_encode_declaration(item) for item in data.source_relations],
+        "derived_relations": [
+            _encode_derived_relation(item) for item in data.derived_relations
+        ],
     }
 
 
@@ -345,7 +417,7 @@ def data_from_document(value: Mapping[str, Any]) -> DataPartDTO:
         )
 
         data = data_from_document({
-            "structs": [], "relations": [], "projections": [],
+            "structs": [], "source_relations": [], "derived_relations": [],
         })
         ```
     """
@@ -353,8 +425,10 @@ def data_from_document(value: Mapping[str, Any]) -> DataPartDTO:
         raise ValueError("the data part must be an object")
     return DataPartDTO(
         structs=_items(value, "structs", _decode_struct),
-        relations=_items(value, "relations", _decode_relation),
-        projections=_items(value, "projections", _decode_projection),
+        source_relations=_items(value, "source_relations", _decode_relation),
+        derived_relations=_items(
+            value, "derived_relations", _decode_derived_relation,
+        ),
     )
 
 

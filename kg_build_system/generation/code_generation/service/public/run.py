@@ -11,7 +11,7 @@ from .session import GenerationSession
 
 
 def discover(project_root: str | Path) -> tuple[DiscoveredGeneration, ...]:
-    """Discover every asset contract beneath a project root.
+    """Discover every asset generation request beneath a project root.
 
     Discovery parses Python files without importing the author-owned project.
     Directories beginning with ``.`` and ``__pycache__`` are skipped. A request's
@@ -32,7 +32,7 @@ def discover(project_root: str | Path) -> tuple[DiscoveredGeneration, ...]:
 def discover_file(
     project_root: str | Path, source_path: str | Path,
 ) -> tuple[DiscoveredGeneration, ...]:
-    """Discover the asset contracts declared by one source file.
+    """Discover the asset generation requests declared by one source file.
 
     ``source_path`` must be inside ``project_root``. The file is parsed
     statically, so importing it is unnecessary and a syntax error is reported

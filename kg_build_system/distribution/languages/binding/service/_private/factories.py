@@ -14,6 +14,7 @@ from kg_build_system.distribution.languages.expressions.service.internal import 
 from kg_build_system.distribution.languages.data.model.public import (
     DerivedRowSource,
     RelationRowSource,
+    StageRowSource,
 )
 from kg_build_system.distribution.languages.data.service.internal.rows import (
     as_row_source,
@@ -24,8 +25,8 @@ from kg_build_system.distribution.languages.data.service.internal import (
 from kg_build_system.distribution.languages.topology.model.public import (
     Edge, Endpoint, Node, NodeSideBase, NonNullableGraphValue,
 )
-from kg_build_system.distribution.languages.semantics.model.public import (
-    Semantics,
+from kg_build_system.distribution.languages.meaning.model.public import (
+    Meaning,
 )
 from kg_build_system.distribution.languages.topology.service.internal.metadata import (
     component_kind, is_abstract_component, metadata_for, properties_for,
@@ -43,11 +44,11 @@ from ...model.public.values import (
     PropertyValues,
     PythonRef,
 )
-from .validation import validate_semantics
+from .validation import validate_meaning
 
 if TYPE_CHECKING:
-    from kg_build_system.distribution.languages.semantics.model.public import (
-        Semantics,
+    from kg_build_system.distribution.languages.meaning.model.public import (
+        Meaning,
     )
 
 
@@ -119,13 +120,20 @@ def _property_values[
 
 
 def _as_row_source(value: Any) -> Any:
-    """Require a row-source value; the declaration class is not accepted."""
+    """Require a published row-source value; a stage is not accepted."""
+    if isinstance(value, StageRowSource):
+        name = getattr(value.source, "_stage_name", None) or getattr(
+            value.source, "__name__", "stage",
+        )
+        raise TypeError(
+            f"a binding cannot read a stage '{name}'; read a published relation"
+        )
     try:
         return as_row_source(value)
     except TypeError as error:
         raise TypeError(
-            "rows must be a row source value; use Table.row_source() or "
-            "Projection.row_source()"
+            "rows must be a published row source value; use "
+            "SourceRelation.row_source() or DerivedRelation.row_source()"
         ) from error
 
 
@@ -214,15 +222,18 @@ def _python_reference(value: Any) -> PythonRef | None:
     return PythonRef(module, qualname, signature)
 
 
-def _binding_semantics(
-    options: BindingOptions, semantics: Semantics | None,
-) -> Semantics | None:
-    if semantics is not None and options.semantics is not None:
-        if semantics != options.semantics:
-            raise ValueError(
-                "pass semantics either to the binding or to BindingOptions, not both"
-            )
-    return semantics if semantics is not None else options.semantics
+def _binding_meaning(
+    options: BindingOptions | None, meaning: Meaning | None,
+) -> Meaning:
+    attached = None if options is None else options.meaning
+    if meaning is not None and attached is not None and meaning != attached:
+        raise ValueError(
+            "pass meaning either to the binding or to BindingOptions, not both"
+        )
+    chosen = meaning if meaning is not None else attached
+    if chosen is None or chosen.purpose is None:
+        raise ValueError("a binding requires a meaning with a purpose")
+    return chosen
 
 
 @overload
@@ -230,28 +241,28 @@ def node_binding[N: Node, S: Shape](
     *, target: type[N],
     rows: DerivedRowSource[S] | RelationRowSource[S],
     bind: Callable[[S], NodeValues[N, Any]],
-    debug_name: str | None = None, options: BindingOptions = BindingOptions(),
-    semantics: Semantics | None = None,
+    debug_name: str | None = None, options: BindingOptions | None = None,
+    meaning: Meaning | None = None,
 ) -> NodeBinding[N]: ...
 
 
 @overload
 def node_binding[N: Node, Key: NonNullableGraphValue](
     *, target: type[N], build_key: Selection[Key], properties: N,
-    debug_name: str | None = None, options: BindingOptions = BindingOptions(),
-    semantics: Semantics | None = None,
+    debug_name: str | None = None, options: BindingOptions | None = None,
+    meaning: Meaning | None = None,
 ) -> NodeBinding[N]: ...
 
 
 def node_binding[N: Node](
     *, target: type[N], build_key: Selection[Any] | None = None,
     properties: Any = None, rows: Any = None, bind: Any = None,
-    debug_name: str | None = None, options: BindingOptions = BindingOptions(),
-    semantics: Semantics | None = None,
+    debug_name: str | None = None, options: BindingOptions | None = None,
+    meaning: Meaning | None = None,
 ) -> NodeBinding[N]:
     """Validate a node declaration into a frozen :class:`NodeBinding`."""
     _require_concrete_component(target, "node")
-    validate_semantics(semantics)
+    validate_meaning(meaning)
     mode = "declarative"
     reference: PythonRef | None = None
     if rows is not None or bind is not None:
@@ -277,11 +288,11 @@ def node_binding[N: Node](
         target,
         _require_key(build_key, argument="build_key"),
         _property_values(properties, target=target),
-        tuple(options.annotations),
+        () if options is None else tuple(options.annotations),
         rows,
         mode=mode,  # type: ignore[arg-type]
         python_ref=reference,
-        semantics=_binding_semantics(options, semantics),
+        meaning=_binding_meaning(options, meaning),
     )
 
 
@@ -290,8 +301,8 @@ def edge_binding[E: Edge[Any, Any], S: Shape](
     *, target: type[E],
     rows: DerivedRowSource[S] | RelationRowSource[S],
     bind: Callable[[S], EdgeValues[E, Any, Any, Any]],
-    debug_name: str | None = None, options: BindingOptions = BindingOptions(),
-    semantics: Semantics | None = None,
+    debug_name: str | None = None, options: BindingOptions | None = None,
+    meaning: Meaning | None = None,
     source_node: Endpoint[Any] | None = None,
     target_node: Endpoint[Any] | None = None,
 ) -> EdgeBinding[E]: ...
@@ -305,8 +316,8 @@ def edge_binding[
     *, target: type[Edge[S, D]], build_key: Selection[Key],
     source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
-    debug_name: str | None = None, options: BindingOptions = BindingOptions(),
-    semantics: Semantics | None = None,
+    debug_name: str | None = None, options: BindingOptions | None = None,
+    meaning: Meaning | None = None,
 ) -> EdgeBinding[E]: ...
 
 
@@ -318,8 +329,8 @@ def edge_binding[
     *, target: type[Edge[S, DC]], target_node: Endpoint[DC],
     build_key: Selection[Key], source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
-    debug_name: str | None = None, options: BindingOptions = BindingOptions(),
-    semantics: Semantics | None = None,
+    debug_name: str | None = None, options: BindingOptions | None = None,
+    meaning: Meaning | None = None,
 ) -> EdgeBinding[E]: ...
 
 
@@ -331,8 +342,8 @@ def edge_binding[
     *, target: type[Edge[SC, D]], source_node: Endpoint[SC],
     build_key: Selection[Key], source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
-    debug_name: str | None = None, options: BindingOptions = BindingOptions(),
-    semantics: Semantics | None = None,
+    debug_name: str | None = None, options: BindingOptions | None = None,
+    meaning: Meaning | None = None,
 ) -> EdgeBinding[E]: ...
 
 
@@ -346,8 +357,8 @@ def edge_binding[
     target_node: Endpoint[DC], build_key: Selection[Key],
     source_build_key: Selection[SourceKey],
     target_build_key: Selection[TargetKey], properties: E,
-    debug_name: str | None = None, options: BindingOptions = BindingOptions(),
-    semantics: Semantics | None = None,
+    debug_name: str | None = None, options: BindingOptions | None = None,
+    meaning: Meaning | None = None,
 ) -> EdgeBinding[E]: ...
 
 
@@ -356,14 +367,14 @@ def edge_binding(
     source_build_key: Selection[Any] | None = None,
     target_build_key: Selection[Any] | None = None, properties: Any = None,
     rows: Any = None, bind: Any = None,
-    debug_name: str | None = None, options: BindingOptions = BindingOptions(),
-    semantics: Semantics | None = None,
+    debug_name: str | None = None, options: BindingOptions | None = None,
+    meaning: Meaning | None = None,
     source_node: Endpoint[Any] | None = None,
     target_node: Endpoint[Any] | None = None,
 ) -> EdgeBinding[Any]:
     """Validate an edge declaration into a frozen :class:`EdgeBinding`."""
     _require_concrete_component(target, "edge")
-    validate_semantics(semantics)
+    validate_meaning(meaning)
     mode = "declarative"
     reference: PythonRef | None = None
     if rows is not None or bind is not None:
@@ -399,13 +410,13 @@ def edge_binding(
         _require_key(source_build_key, argument="source_build_key"),
         _require_key(target_build_key, argument="target_build_key"),
         _property_values(properties, target=target),
-        tuple(options.annotations),
+        () if options is None else tuple(options.annotations),
         _resolve_endpoint(source_node, declared=declared_source, side="source"),
         _resolve_endpoint(target_node, declared=declared_target, side="target"),
         rows,
         mode=mode,  # type: ignore[arg-type]
         python_ref=reference,
-        semantics=_binding_semantics(options, semantics),
+        meaning=_binding_meaning(options, meaning),
     )
 
 

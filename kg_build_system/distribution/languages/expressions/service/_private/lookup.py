@@ -20,7 +20,7 @@ def _declaration_name(value: Any) -> str:
         name = getattr(spec, "name", None)
         if isinstance(name, str) and name:
             return name
-    for attribute in ("_table_name", "_projection_name"):
+    for attribute in ("_source_relation_name", "_derived_relation_name"):
         name = getattr(value, attribute, None)
         if isinstance(name, str) and name:
             return name
@@ -28,7 +28,7 @@ def _declaration_name(value: Any) -> str:
     if isinstance(name, str) and name:
         return name
     raise TypeError(
-        "a lookup target must be a named table, projection or relation reference"
+        "a lookup target must be a named source or derived relation reference"
     )
 
 

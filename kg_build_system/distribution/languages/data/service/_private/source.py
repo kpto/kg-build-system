@@ -11,7 +11,8 @@ from kg_build_system.distribution.service.internal.rendering import class_name, 
 from kg_build_system.kernel.model.internal.types.dto import ArrayTypeDTO, CustomTypeDTO, LogicalTypeDTO, NullableTypeDTO, StructTypeDTO
 
 from ...model.internal.dto.blueprint_dto import (
-    ColumnDTO, DataPartDTO, ProjectionDTO, RelationDTO, RowDistinctDTO,
+    ColumnDTO, DataPartDTO, DefinitionDTO, DerivedRelationDTO,
+    FieldDefinitionDTO, SourceRelationDTO, RowDistinctDTO,
     RowFilterDTO, RowGroupByDTO, RowJoinDTO, RowOrderByDTO, RowScanDTO,
     RowSourcePlanDTO, RowUnionDTO, RowUnnestDTO, StructDTO,
 )
@@ -50,22 +51,68 @@ def _annotations_source(
     )
 
 
-def _semantics_source(
+def _meaning_source(
     value: Any, imports: set[str], indent: str,
 ) -> list[str]:
     if value is None:
         return []
-    from kg_build_system.distribution.languages.semantics.service.internal import (
-        render_semantics,
+    from kg_build_system.distribution.languages.meaning.service.internal import (
+        render_meaning,
     )
 
-    fragment = render_semantics(value)
+    fragment = render_meaning(value)
     imports.update(fragment.imports)
     lines = fragment.body.strip().splitlines()
     result = [f"{indent}{lines[0]}"]
     result.extend(f"{indent}{line}" for line in lines[1:])
     if not result[-1].rstrip().endswith(","):
         result[-1] += ","
+    return result
+
+
+def _definition_source(
+    definition: DefinitionDTO, imports: set[str], indent: str,
+) -> list[str]:
+    imports.add("from kg_build_system import Definition")
+    return [
+        f"{indent}definition=Definition(",
+        f"{indent}    grain={definition.grain!r},",
+        f"{indent}    identity={tuple(definition.identity)!r},",
+        f"{indent}),",
+    ]
+
+
+def _contract_source(
+    definition: DefinitionDTO, meaning: Any, imports: set[str], indent: str,
+) -> list[str]:
+    imports.add("from kg_build_system import Contract, Definition")
+    result = [
+        f"{indent}contract=Contract(",
+        f"{indent}    definition=Definition(",
+        f"{indent}        grain={definition.grain!r},",
+        f"{indent}        identity={tuple(definition.identity)!r},",
+        f"{indent}    ),",
+    ]
+    result.extend(_meaning_source(meaning, imports, f"{indent}    "))
+    result.append(f"{indent}),")
+    return result
+
+
+def _field_definition_source(
+    definition: FieldDefinitionDTO, imports: set[str], indent: str,
+) -> list[str]:
+    imports.add("from kg_build_system import FieldDefinition")
+    result = [
+        f"{indent}definition=FieldDefinition(",
+        f"{indent}    value={definition.value!r},",
+    ]
+    if definition.unit is not None:
+        result.append(f"{indent}    unit={definition.unit!r},")
+    if definition.null_meaning is not None:
+        result.append(
+            f"{indent}    null_meaning={definition.null_meaning!r},"
+        )
+    result.append(f"{indent}),")
     return result
 
 
@@ -77,12 +124,16 @@ def _field_source(
     attribute = member_name(column.name)
     type_source = _type_source(column.logical_type, imports, type_names)
     metadata: list[str] = []
+    if column.definition is not None:
+        metadata.extend(
+            _field_definition_source(column.definition, imports, "        ")
+        )
     if attribute != column.name:
         metadata.append(f"        name={column.name!r},")
     if column.description is not None:
         metadata.append(f"        description={column.description!r},")
     metadata.extend(_annotations_source(column.annotations, imports, "        "))
-    metadata.extend(_semantics_source(column.semantics, imports, "        "))
+    metadata.extend(_meaning_source(column.meaning, imports, "        "))
     if not metadata:
         return [f"    {attribute}: Field[{type_source}] = field()"]
     return [
@@ -93,13 +144,14 @@ def _field_source(
 
 
 def _declaration_source(
-    value: StructDTO | RelationDTO,
+    value: StructDTO | SourceRelationDTO,
     *,
     base: str,
     suffix: str,
     option_class: str,
     type_names: Mapping[str, str],
     asset_class: str | None = None,
+    contract: bool = False,
 ) -> tuple[tuple[str, ...], set[str]]:
     imports: set[str] = {"from kg_build_system import Field, field"}
     imports.add(f"from kg_build_system import {base}, {option_class}")
@@ -112,7 +164,13 @@ def _declaration_source(
         lines.append(f"        description={value.description!r},")
     annotations = _annotations_source(value.annotations, imports, "        ")
     lines.extend(annotations)
-    lines.extend(_semantics_source(value.semantics, imports, "        "))
+    definition = getattr(value, "definition", None)
+    if contract and definition is not None and value.meaning is not None:
+        lines.extend(_contract_source(
+            definition, value.meaning, imports, "        ",
+        ))
+    else:
+        lines.extend(_meaning_source(value.meaning, imports, "        "))
     lines.append("    )")
     if value.columns:
         lines.append("")
@@ -134,7 +192,7 @@ def _render_row_source(
 ) -> str:
     if isinstance(plan, RowScanDTO):
         name = plan.relation.name
-        owner = class_names.get(name, class_name(name, "Table"))
+        owner = class_names.get(name, class_name(name, "SourceRelation"))
         return f"{owner}.row_source()"
     if isinstance(plan, RowFilterDTO):
         inner = _render_row_source(plan.input, class_names=class_names, imports=imports)
@@ -177,26 +235,34 @@ def _render_row_source(
     raise TypeError(f"unsupported row-source plan {plan!r}")
 
 
-def _projection_source(
-    value: ProjectionDTO,
+def _derived_relation_source(
+    value: DerivedRelationDTO,
     *,
     class_names: Mapping[str, str],
 ) -> tuple[tuple[str, ...], set[str]]:
+    internal = value.visibility == "internal"
+    base = "Stage" if internal else "DerivedRelation"
+    option_class = "StageOptions" if internal else "DerivedRelationOptions"
     imports: set[str] = {
-        "from kg_build_system import Field, Projection, computed_field",
-        "from kg_build_system import ProjectionOptions",
+        f"from kg_build_system import {base}, computed_field",
+        f"from kg_build_system import {option_class}",
     }
     source = _render_row_source(
         value.row_source, class_names=class_names, imports=imports,
     )
-    own_name = class_name(value.name, "Projection")
-    lines = [f"class {own_name}(Projection({source})):"]
-    lines.append("    options = ProjectionOptions(")
+    own_name = class_name(value.name, "")
+    lines = [f"class {own_name}({base}({source})):"]
+    lines.append(f"    options = {option_class}(")
     lines.append(f"        name={value.name!r},")
     if value.description is not None:
         lines.append(f"        description={value.description!r},")
     lines.extend(_annotations_source(value.annotations, imports, "        "))
-    lines.extend(_semantics_source(value.semantics, imports, "        "))
+    if internal:
+        lines.extend(_definition_source(value.definition, imports, "        "))
+    elif value.meaning is not None:
+        lines.extend(_contract_source(
+            value.definition, value.meaning, imports, "        ",
+        ))
     lines.append("    )")
     if value.columns:
         lines.append("")
@@ -210,12 +276,16 @@ def _projection_source(
             )
             lines.append(f"    {attribute} = computed_field(")
             lines.append(f"        {expression},")
+            if column.definition is not None:
+                lines.extend(_field_definition_source(
+                    column.definition, imports, "        ",
+                ))
             if attribute != column.name:
                 lines.append(f"        name={column.name!r},")
             if column.description is not None:
                 lines.append(f"        description={column.description!r},")
             lines.extend(_annotations_source(column.annotations, imports, "        "))
-            lines.extend(_semantics_source(column.semantics, imports, "        "))
+            lines.extend(_meaning_source(column.meaning, imports, "        "))
             lines.append("    )")
     return tuple(lines), imports
 
@@ -246,14 +316,17 @@ def render_data(
     """
     del context
     names = dict(class_names or {})
-    for asset in data.relations:
+    for asset in data.source_relations:
         names.setdefault(asset.asset.name, class_name(asset.asset.name, "Asset"))
     for struct in data.structs:
         names.setdefault(struct.name, class_name(struct.name, "Struct"))
-    for relation in data.relations:
-        names.setdefault(relation.name, class_name(relation.name, "Table"))
-    for projection in data.projections:
-        names.setdefault(projection.name, class_name(projection.name, "Projection"))
+    for relation in data.source_relations:
+        names.setdefault(relation.name, class_name(relation.name, "SourceRelation"))
+    for derived_relation in data.derived_relations:
+        names.setdefault(
+            derived_relation.name,
+            class_name(derived_relation.name, ""),
+        )
 
     type_names: dict[str, str] = {}
     for struct in data.structs:
@@ -272,16 +345,20 @@ def render_data(
         )
         imports.update(needed)
         chunks.append("\n".join(lines))
-    for relation in data.relations:
+    for relation in data.source_relations:
         lines, needed = _declaration_source(
-            relation, base="Table", suffix="Table", option_class="TableOptions",
+            relation, base="SourceRelation", suffix="SourceRelation",
+            option_class="SourceRelationOptions",
             type_names=type_names,
             asset_class=names[relation.asset.name],
+            contract=True,
         )
         imports.update(needed)
         chunks.append("\n".join(lines))
-    for projection in data.projections:
-        lines, needed = _projection_source(projection, class_names=names)
+    for derived_relation in data.derived_relations:
+        lines, needed = _derived_relation_source(
+            derived_relation, class_names=names,
+        )
         imports.update(needed)
         chunks.append("\n".join(lines))
     body = "\n\n\n".join(chunks)

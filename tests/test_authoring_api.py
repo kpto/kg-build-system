@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from kg_build_system import Meaning, Purpose
 import unittest
 
 from kg_build_system.distribution.languages.binding import (
@@ -7,12 +8,20 @@ from kg_build_system.distribution.languages.binding import (
     node_binding,
 )
 from kg_build_system.distribution.languages.data import (
+    Contract,
+    Definition,
     Field,
-    Projection,
+    DerivedRelation,
+    DerivedRelationOptions,
     Struct,
-    Table,
+    SourceRelation,
     computed_field,
     field,
+)
+from kg_build_system.distribution.languages.meaning import (
+    Claim,
+    Meaning,
+    Purpose,
 )
 from kg_build_system.distribution.languages.expressions import (
     NullableSelection,
@@ -38,7 +47,7 @@ class Detail(Struct):
     address: Field[Address] = field(name="address")
 
 
-class Source(Table[TestEstate]):
+class Source(SourceRelation[TestEstate]):
     id: Field[str] = field(name="id")
     detail: Field[Detail] = field(name="detail")
     details: Field[Array[Detail]] = field(name="details")
@@ -50,7 +59,18 @@ source_tags = Source.tags.alter_rows().drop_null()
 source_details = Source.details.alter_rows().drop_null()
 
 
-class SourceProjection(Projection(Source.row_source())):
+class SourceDerivedRelation(DerivedRelation(Source.row_source())):
+    options = DerivedRelationOptions(
+        contract=Contract(
+            definition=Definition(
+                grain="one row per source identifier", identity=("ident",),
+            ),
+            meaning=Meaning(
+                purpose=Purpose("Read one source identifier."),
+                claims=(Claim("One row carries the source identifier."),),
+            ),
+        ),
+    )
     ident = computed_field(Source.id.alter_rows().drop_null())
     nullable_ident = computed_field(Source.id)
 
@@ -64,14 +84,14 @@ class AuthoringApiTests(unittest.TestCase):
     def test_source_access_is_nullable_and_computed_access_is_typed(self) -> None:
         self.assertIsInstance(Source.id, Selection)
         self.assertIsInstance(Source.id.logical_type, NullableType)
-        self.assertEqual(SourceProjection.ident.logical_type.name, "str")
+        self.assertEqual(SourceDerivedRelation.ident.logical_type.name, "str")
         self.assertIsInstance(Source.detail.logical_type.value, StructType)
-        self.assertEqual(SourceProjection.ident.logical_type.name, "str")
+        self.assertEqual(SourceDerivedRelation.ident.logical_type.name, "str")
         self.assertFalse(
-            isinstance(SourceProjection.ident.logical_type, NullableType)
+            isinstance(SourceDerivedRelation.ident.logical_type, NullableType)
         )
         self.assertIsInstance(
-            SourceProjection.nullable_ident.logical_type, NullableType
+            SourceDerivedRelation.nullable_ident.logical_type, NullableType
         )
 
     def test_extract_composes_parent_presence_and_member_owner_kind(self) -> None:
@@ -97,7 +117,7 @@ class AuthoringApiTests(unittest.TestCase):
 
     def test_handles_expose_only_valid_effects(self) -> None:
         self.assertFalse(hasattr(Source.id.alter_rows(), "expand"))
-        self.assertFalse(hasattr(SourceProjection.ident.alter_rows(), "drop_null"))
+        self.assertFalse(hasattr(SourceDerivedRelation.ident.alter_rows(), "drop_null"))
         self.assertFalse(hasattr(Source.detail.alter_rows(), "expand"))
         self.assertTrue(hasattr(Source.tags.alter_rows(), "expand"))
         self.assertTrue(hasattr(source_tags.alter_rows(), "expand"))
@@ -119,19 +139,19 @@ class AuthoringApiTests(unittest.TestCase):
 
     def test_source_field_rejects_a_nullable_annotation(self) -> None:
         with self.assertRaisesRegex(TypeError, "must be T, not T"):
-            class Bad(Table[TestEstate]):
+            class Bad(SourceRelation[TestEstate]):
                 value: Field[str | None] = field(name="value")
 
     def test_projection_requires_a_source_and_rejects_class_sugar(self) -> None:
         with self.assertRaisesRegex(TypeError, "requires a row source"):
-            Projection()
+            DerivedRelation()
         with self.assertRaisesRegex(TypeError, "requires a row source"):
-            class BadProjection(Projection):
+            class BadProjection(DerivedRelation):
                 value = computed_field(Source.id)
 
     def test_computed_field_is_the_projection_output_constructor(self) -> None:
         self.assertEqual(
-            SourceProjection.ident.logical_type.name,
+            SourceDerivedRelation.ident.logical_type.name,
             Source.id.alter_rows().drop_null().logical_type.name,
         )
 
@@ -147,6 +167,7 @@ class AuthoringApiTests(unittest.TestCase):
 
         binding = node_binding(
             target=SourceNode, rows=Source.row_source(), bind=bind,
+            meaning=Meaning(purpose=Purpose("Fulfil the fixture record from its rows.")),
         )
         self.assertTrue(binding.rows is not None)
         self.assertEqual(len(seen), 1)
@@ -159,7 +180,7 @@ class AuthoringApiTests(unittest.TestCase):
             with self.subTest(name=name):
                 self.assertFalse(hasattr(Source.id, name.strip(".")))
         self.assertFalse(hasattr(Source, "projection_base"))
-        self.assertFalse(hasattr(SourceProjection, "projection_base"))
+        self.assertFalse(hasattr(SourceDerivedRelation, "projection_base"))
         self.assertFalse(hasattr(Source.tags, "distinct"))
         self.assertFalse(hasattr(Source.tags, "join"))
         self.assertFalse(hasattr(Source.id, "where_present"))

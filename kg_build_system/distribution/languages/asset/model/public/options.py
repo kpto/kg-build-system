@@ -17,8 +17,8 @@ from kg_build_system.distribution.languages.annotations.model.public import (
 from kg_build_system.distribution.languages.annotations.service.internal import (
     annotation_tuple,
 )
-from kg_build_system.distribution.languages.semantics.model.public import (
-    Semantics,
+from kg_build_system.distribution.languages.meaning.model.public import (
+    Meaning,
 )
 
 
@@ -103,8 +103,8 @@ class AssetProfile:
     """What source data represents and the basis of that representation.
 
     A profile is source-data metadata: subject, coverage, authority and basis.
-    Claims and limitations are semantics units and are declared separately with
-    ``AssetOptions(semantics=...)``.
+    Claims and limitations are meaning units and are declared separately with
+    ``AssetOptions(meaning=...)``.
 
     Example:
         ```python
@@ -223,7 +223,7 @@ class AssetOptions:
     """
 
     profile: AssetProfile
-    semantics: Semantics | None = None
+    meaning: Meaning | None = None
     name: str | None = None
     website: str | None = None
     version: str | None = None
@@ -236,10 +236,10 @@ class AssetOptions:
 
         if not isinstance(self.profile, AssetProfile):
             raise TypeError("asset options profile must be an AssetProfile")
-        if self.semantics is not None and not isinstance(
-            self.semantics, Semantics,
+        if self.meaning is not None and not isinstance(
+            self.meaning, Meaning,
         ):
-            raise TypeError("asset options semantics must be a Semantics")
+            raise TypeError("asset options meaning must be a Meaning")
         if self.layout is not None and not isinstance(self.layout, AssetLayout):
             raise TypeError("asset options layout must be an AssetLayout")
         if not isinstance(self.governance, AssetGovernance):

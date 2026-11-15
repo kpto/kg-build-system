@@ -1,8 +1,8 @@
 """Render the graph declaration DTO as authoring source."""
 from __future__ import annotations
 
-from kg_build_system.distribution.languages.semantics.service.internal import (
-    render_semantics,
+from kg_build_system.distribution.languages.meaning.service.internal import (
+    render_meaning,
 )
 from kg_build_system.distribution.service.internal.rendering import class_name
 from kg_build_system.kernel import SourceFragment
@@ -18,11 +18,11 @@ def _options_lines(
     lines = ["    options = GraphOptions(", f"{indent}name={value.name!r},"]
     if value.description is not None:
         lines.append(f"{indent}description={value.description!r},")
-    semantics: SourceFragment = render_semantics(value.semantics)
-    imports.update(semantics.imports)
-    semantics_lines = semantics.body.splitlines()
-    semantics_lines[-1] = f"{semantics_lines[-1]},"
-    lines.extend(f"{indent}{line}" for line in semantics_lines)
+    meaning: SourceFragment = render_meaning(value.meaning)
+    imports.update(meaning.imports)
+    meaning_lines = meaning.body.splitlines()
+    meaning_lines[-1] = f"{meaning_lines[-1]},"
+    lines.extend(f"{indent}{line}" for line in meaning_lines)
     lines.append("    )")
     return lines
 
@@ -42,7 +42,7 @@ def render_graph_declaration_source(
 ) -> SourceFragment:
     """Render a graph declaration DTO as deterministic authoring source.
 
-    The ``semantics`` argument is rendered by the semantics language, so the
+    The ``meaning`` argument is rendered by the meaning language, so the
     graph language owns the class and option shape and nothing about the meaning
     units.
 

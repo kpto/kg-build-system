@@ -1,7 +1,8 @@
 """The default KG distribution: blueprint, modules and toolchain.
 
 The distribution owns domain vocabulary: graph, blueprint, node, edge, binding,
-projection, table, core, meta-graph, Neo4j, DuckDB and Python. The kernel owns
+derived relation, source relation, core, meta-graph, Neo4j, DuckDB and Python.
+The kernel owns
 the toolchain vocabulary those values plug into.
 
 Example:
@@ -48,7 +49,7 @@ from .modules.conflict_validation import (
 )
 from .modules.core import (
     BindingPlanner,
-    ProjectionPlanner,
+    DerivedRelationPlanner,
     RecordsPlanner,
     RowSourcePlanner,
     core_planners,
@@ -122,7 +123,7 @@ __all__ = [
     "Neo4jPlanner",
     "NodeRef",
     "OperationRef",
-    "ProjectionPlanner",
+    "DerivedRelationPlanner",
     "PropertyRef",
     "PythonExecutor",
     "RecordsPlanner",

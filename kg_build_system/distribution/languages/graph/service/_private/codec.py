@@ -4,9 +4,9 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from kg_build_system.distribution.languages.semantics.service.internal import (
-    semantics_from_document,
-    semantics_to_document,
+from kg_build_system.distribution.languages.meaning.service.internal import (
+    meaning_from_document,
+    meaning_to_document,
 )
 
 from ...model.internal.dto.graph_dto import GraphDeclarationDTO
@@ -39,24 +39,24 @@ def graph_declaration_to_document(
     document: dict[str, Any] = {"name": value.name}
     if value.description is not None:
         document["description"] = value.description
-    document["semantics"] = semantics_to_document(value.semantics)
+    document["meaning"] = meaning_to_document(value.meaning)
     return document
 
 
 def graph_declaration_from_document(value: Any) -> GraphDeclarationDTO:
     """Rebuild the graph declaration from its JSON-compatible object."""
     document = _object(value, "a graph declaration")
-    if "semantics" not in document:
-        raise ValueError("a graph declaration requires semantics")
-    semantics = semantics_from_document(document["semantics"])
-    if semantics.purpose is None:
+    if "meaning" not in document:
+        raise ValueError("a graph declaration requires meaning")
+    meaning = meaning_from_document(document["meaning"])
+    if meaning.purpose is None:
         raise ValueError(
-            "a graph declaration semantics document requires a purpose"
+            "a graph declaration meaning document requires a purpose"
         )
     return GraphDeclarationDTO(
         name=_text(document, "name"),
         description=_optional_text(document, "description"),
-        semantics=semantics,
+        meaning=meaning,
     )
 
 

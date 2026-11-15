@@ -8,9 +8,10 @@ from kg_build_system.distribution.languages.annotations.model.public import Anno
 from kg_build_system.kernel.model.public.types import LogicalType
 
 if TYPE_CHECKING:
-    from kg_build_system.distribution.languages.semantics.model.public import (
-        Semantics,
+    from kg_build_system.distribution.languages.meaning.model.public import (
+        Meaning,
     )
+    from ...public.fields import FieldDefinition
 
 
 @dataclass(frozen=True, slots=True)
@@ -25,7 +26,8 @@ class FieldSpec:
     description: str | None = None
     annotations: tuple[Annotation, ...] = ()
     declaration: type[Any] | None = None
-    semantics: Semantics | None = None
+    meaning: Meaning | None = None
+    definition: FieldDefinition | None = None
 
 
 __all__ = ["FieldSpec"]

@@ -15,28 +15,28 @@ from kg_build_system.distribution.languages.annotations.model.public import (
 from kg_build_system.kernel.model.public.types import LogicalType
 
 if TYPE_CHECKING:
-    from kg_build_system.distribution.languages.semantics.model.public import (
-        Semantics,
+    from kg_build_system.distribution.languages.meaning.model.public import (
+        Meaning,
     )
 
 
-def require_semantics(value: object, context: str) -> Semantics | None:
-    """Return ``value`` when it is a declaration ``Semantics`` attachment.
+def require_meaning(value: object, context: str) -> Meaning | None:
+    """Return ``value`` when it is a declaration ``Meaning`` attachment.
 
-    Every declaration attaches the same ``Semantics`` value. A non-graph
+    Every declaration attaches the same ``Meaning`` value. A non-graph
     declaration may carry one local purpose.
 
     Raises:
-        TypeError: when the value is not a ``Semantics`` value.
+        TypeError: when the value is not a ``Meaning`` value.
     """
     if value is None:
         return None
-    from kg_build_system.distribution.languages.semantics.model.public import (
-        Semantics,
+    from kg_build_system.distribution.languages.meaning.model.public import (
+        Meaning,
     )
 
-    if not isinstance(value, Semantics):
-        raise TypeError(f"{context} semantics must be a Semantics value")
+    if not isinstance(value, Meaning):
+        raise TypeError(f"{context} meaning must be a Meaning value")
     return value
 
 
@@ -61,7 +61,7 @@ class PropertyDeclaration:
     authoring_type: Any = None
     description: str | None = None
     annotations: tuple[Annotation, ...] = ()
-    semantics: Semantics | None = None
+    meaning: Meaning | None = None
 
     @property
     def attr(self) -> str:
@@ -90,9 +90,9 @@ class ComponentMetadata:
     source: type[Any] | None = None
     target: type[Any] | None = None
     annotations: tuple[Annotation, ...] = ()
-    semantics: Semantics | None = None
+    meaning: Meaning | None = None
     abstract: bool = False
     parent: type[Any] | None = None
 
 
-__all__ = ["ComponentMetadata", "PropertyDeclaration", "require_semantics"]
+__all__ = ["ComponentMetadata", "PropertyDeclaration", "require_meaning"]

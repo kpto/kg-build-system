@@ -1,21 +1,27 @@
 """Author-facing model of the data language."""
 from __future__ import annotations
 
+from .contract import Contract, Definition
 from .declarations import (
-    ComputedStruct, Projection, ProjectionMeta, ProjectionOptions, Struct,
-    StructOptions, StructOptionsTemplate, StructTemplate, Table, TableGroup,
-    TableGroupOptions, TableOptions, is_concrete_table, is_table_group,
+    ComputedStruct, DerivedRelation, DerivedRelationMeta, DerivedRelationOptions, Struct,
+    StructOptions, StructOptionsTemplate, StructTemplate, SourceRelation, SourceRelationGroup,
+    SourceRelationGroupOptions, SourceRelationOptions, Stage, StageMeta, StageOptions,
+    is_concrete_source_relation, is_source_relation_group,
 )
-from .fields import Field
+from .fields import Field, FieldDefinition
 from .row_sources import (
     DerivedRowSource, JoinHow, RelationRowSource, RowSource, RowSourceProvider,
+    StageRowSource,
 )
 from .shapes import ShapeField
 
 __all__ = [
-    "ComputedStruct", "DerivedRowSource", "Field", "JoinHow", "Projection",
-    "ProjectionMeta", "ProjectionOptions", "RelationRowSource", "RowSource",
-    "RowSourceProvider", "ShapeField", "Struct", "StructOptions",
-    "StructOptionsTemplate", "StructTemplate", "Table", "TableGroup",
-    "TableGroupOptions", "TableOptions", "is_concrete_table", "is_table_group",
+    "ComputedStruct", "Contract", "Definition", "DerivedRowSource", "Field",
+    "FieldDefinition", "JoinHow", "DerivedRelation", "DerivedRelationMeta",
+    "DerivedRelationOptions", "RelationRowSource", "RowSource",
+    "RowSourceProvider", "ShapeField", "Stage", "StageMeta", "StageOptions",
+    "StageRowSource", "Struct", "StructOptions", "StructOptionsTemplate",
+    "StructTemplate", "SourceRelation", "SourceRelationGroup",
+    "SourceRelationGroupOptions", "SourceRelationOptions",
+    "is_concrete_source_relation", "is_source_relation_group",
 ]

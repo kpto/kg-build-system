@@ -23,9 +23,9 @@ class GraphBlueprint:
     """One validated graph model assembled from the declaration layers.
 
     ``graph_declaration`` is the project-level graph declaration, including its
-    graph semantics; it is ``None`` when the project has not adopted the graph
+    graph meaning; it is ``None`` when the project has not adopted the graph
     language. ``graph`` is the topology, ``data`` holds structs, relations and
-    projections, ``assets`` holds the logical source-data units relations name,
+    derived relations, ``assets`` holds the logical source-data units relations name,
     and ``bindings`` target graph components. The value is frozen and carries no
     owner, service or Python authoring path.
 

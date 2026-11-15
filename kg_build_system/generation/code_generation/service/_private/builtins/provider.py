@@ -26,7 +26,7 @@ from .config import DataContractInferenceConfig
 from .datasets import LogicalTable, logical_tables
 from .formats import DATABASE_SUFFIXES, PARQUET_SUFFIXES, remote_source, source_suffix, tier_for_suffix
 from .naming import (
-    bind_records, class_part, group_class_name, identifier, table_class_name,
+    bind_records, group_class_name, identifier, source_relation_class_name,
 )
 from .observation import (
     connect, describe, load_remote_access, parquet_schema_rows, relations,
@@ -60,7 +60,7 @@ def _source(context: ProviderContext[DataContractInferenceConfig]) -> str:
 
 
 class InferDataContractProvider(Provider[DataContractInferenceConfig]):
-    """Infer portable table or table-group declarations from a data input.
+    """Infer portable source-relation or source-relation-group declarations.
 
     The configured source is observed when a request is generated or the
     project is explicitly regenerated, never tracked: its location is a
@@ -73,7 +73,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
     CONFIG_TYPE: ClassVar[type[ProviderGenerationConfig]] = DataContractInferenceConfig
 
     @classmethod
-    def _table_classes(
+    def _source_relation_classes(
         cls,
         *,
         connection: duckdb.DuckDBPyConnection,
@@ -144,14 +144,14 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
             GeneratedClass(
                 class_name,
                 tuple(fields),
-                base="Table" if final else None,
+                base="SourceRelation" if final else None,
                 declaration_name=relation if final else None,
                 asset=asset if final else None,
             ),
         )
 
     @classmethod
-    def _table_group_package(
+    def _source_relation_group_package(
         cls,
         context: ProviderContext[DataContractInferenceConfig],
         tables: tuple[LogicalTable, ...],
@@ -166,8 +166,8 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
             for prefix in (table.group_path[:size],)
         }
         for table in tables:
-            table_name = table_class_name(table.name)
-            classes = cls._table_classes(
+            table_name = source_relation_class_name(table.name)
+            classes = cls._source_relation_classes(
                 connection=connection,
                 sources=table.sources,
                 relation=table.name,
@@ -190,10 +190,10 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 (table_name,),
             ))
         for group_path in sorted(group_paths, key=lambda value: (-len(value), value)):
-            group_members = [
+            relation_members = [
                 GeneratedMember(
                     identifier(table.name, fallback="table"),
-                    table_class_name(table.name),
+                    source_relation_class_name(table.name),
                 )
                 for table in tables if table.group_path == group_path
             ]
@@ -202,22 +202,35 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 if len(path) == len(group_path) + 1
                 and path[:len(group_path)] == group_path
             })
-            group_members.extend(
-                GeneratedMember(
-                    identifier(child, fallback="group"),
-                    group_class_name((*group_path, child), context.request_id),
-                )
-                for child in children
-            )
+            group_members = [
+                *relation_members,
+                *(
+                    GeneratedMember(
+                        identifier(child, fallback="group"),
+                        group_class_name((*group_path, child), context.request_id),
+                    )
+                    for child in children
+                ),
+            ]
             logical_name = group_path[-1] if group_path else context.request_id
             declaration = GeneratedClass(
                 group_class_name(group_path, context.request_id),
                 members=tuple(group_members),
-                base="TableGroup",
+                base="SourceRelationGroup",
                 declaration_name=logical_name,
             )
+            package = Path(*group_path)
             files.append(GeneratedFile(
-                Path(*group_path) / "__init__.py", (declaration,), (declaration.name,),
+                package / "group.py", (declaration,), (declaration.name,),
+            ))
+            # The facade re-exports the group and the relations declared in this
+            # package; a child group belongs to its own package's facade.
+            files.append(GeneratedFile(
+                package / "__init__.py",
+                exports=(
+                    declaration.name,
+                    *(member.declaration_name for member in relation_members),
+                ),
             ))
         return GeneratedPackage(tuple(files), tuple(notes.values()))
 
@@ -235,8 +248,8 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         remote = remote_source(source)
         path = None if remote else resolve_provider_path(context, source)
         source = source if remote else str(path)
-        if context.config.layout != "files" and context.config.mode != "table_group":
-            raise GenerationError(f"layout={context.config.layout!r} requires mode='table_group'")
+        if context.config.layout != "files" and context.config.mode != "source_relation_group":
+            raise GenerationError(f"layout={context.config.layout!r} requires mode='source_relation_group'")
         if source_suffix(source) in DATABASE_SUFFIXES:
             raise GenerationError(
                 f"data-contract inference input {source} is a DuckDB database: its "
@@ -245,9 +258,9 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 "declare the contract outside a generated package."
             )
         inference = Inference(overrides=declared_overrides(context.config.override))
-        if context.config.mode == "table_group":
+        if context.config.mode == "source_relation_group":
             if context.config.relation is not None:
-                raise GenerationError("table-group inference does not accept relation=")
+                raise GenerationError("source-relation-group inference does not accept relation=")
             tables = logical_tables(
                 source,
                 context.request_id,
@@ -259,7 +272,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 for table in tables:
                     for item in table.sources:
                         load_remote_access(connection, item)
-                package = cls._table_group_package(context, tables, connection, inference)
+                package = cls._source_relation_group_package(context, tables, connection, inference)
                 require_overrides(inference)
                 return replace(package, source_digest=schema_digest(inference))
             finally:
@@ -267,7 +280,7 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
         if path is not None and not path.exists():
             raise GenerationError(f"data-contract inference input does not exist: {path}")
         if path is not None and path.is_dir():
-            raise GenerationError("directory inference requires mode='table_group'")
+            raise GenerationError("directory inference requires mode='source_relation_group'")
         connection = connect()
         try:
             load_remote_access(connection, source)
@@ -276,25 +289,31 @@ class InferDataContractProvider(Provider[DataContractInferenceConfig]):
                 raise GenerationError(f"data input {path} exposes no relations")
             if context.config.relation is None and len(exposed) != 1:
                 raise GenerationError(
-                    "table-contract inference requires relation= when the input "
+                    "source-relation inference requires relation= when the input "
                     "exposes multiple relations"
                 )
             relation = context.config.relation or exposed[0]
             if relation not in exposed:
                 raise GenerationError(f"data input {path} has no relation {relation!r}")
-            class_name = table_class_name(context.request_id)
-            classes = cls._table_classes(
+            class_name = source_relation_class_name(context.request_id)
+            classes = cls._source_relation_classes(
                 connection=connection, sources=(source,), relation=relation,
                 relation_path=relation, class_name=class_name, final=True,
                 inference=inference, asset=_generated_asset(context),
             )
             require_overrides(inference)
+            relative = Path(f"{identifier(relation, fallback='relation')}.py")
             package = GeneratedPackage(
-                (GeneratedFile(
-                    Path("__init__.py"),
-                    bind_records(classes, PurePosixPath("__init__.py")),
-                    (class_name,),
-                ),),
+                (
+                    GeneratedFile(
+                        relative,
+                        bind_records(classes, PurePosixPath(relative.as_posix())),
+                        (class_name,),
+                    ),
+                    # The product's package is a facade; its one relation lives
+                    # in its own module and is re-exported here.
+                    GeneratedFile(Path("__init__.py"), exports=(class_name,)),
+                ),
                 (nullability_note(
                     tier_for_suffix(source_suffix(source)), source, (source,), relation,
                 ),),

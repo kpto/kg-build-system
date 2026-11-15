@@ -55,13 +55,13 @@ def _binding_expressions(binding: object) -> tuple[object, ...]:
     )
 
 
-def _table_declarations(
+def _source_relation_declarations(
     bindings: Sequence[object], *, found: Iterable[str] = (),
 ) -> tuple[type, ...]:
-    """Resolve the tables explicit declarative bindings read by graph name."""
+    """Resolve the source relations explicit declarative bindings read by name."""
     from kg_build_system.distribution.languages.data.model.public import (
-        Table,
-        is_concrete_table,
+        SourceRelation,
+        is_concrete_source_relation,
     )
 
     reads = {
@@ -83,8 +83,8 @@ def _table_declarations(
             yield child
             yield from subclasses(child)
 
-    def matches(table: type) -> bool:
-        spec = vars(table).get("_kg_declaration_spec")
+    def matches(source_relation: type) -> bool:
+        spec = vars(source_relation).get("_kg_declaration_spec")
         name = getattr(spec, "name", None)
         if name not in names:
             return False
@@ -94,17 +94,19 @@ def _table_declarations(
         )
 
     candidates = tuple(
-        table for table in subclasses(Table)
-        if is_concrete_table(table) and matches(table)
+        source_relation for source_relation in subclasses(SourceRelation)
+        if is_concrete_source_relation(source_relation)
+        and matches(source_relation)
     )
     scoped = tuple(
-        table for table in candidates if table.__module__ in modules
+        source_relation for source_relation in candidates
+        if source_relation.__module__ in modules
     )
     return scoped or candidates
 
 
 def _with_assets(values: Sequence[object]) -> tuple[object, ...]:
-    """Add the table declarations and assets explicit bindings imply."""
+    """Add the source relations and assets explicit bindings imply."""
     from kg_build_system.distribution.languages.data.service.internal import (
         collect_values,
     )
@@ -114,17 +116,17 @@ def _with_assets(values: Sequence[object]) -> tuple[object, ...]:
         spec.name
         for value in initial
         if (spec := vars(value).get("_kg_declaration_spec")) is not None
-        and spec.kind == "table"
+        and spec.kind == "source_relation"
     }
-    tables = _table_declarations(values, found=known)
-    found = collect_values(_Values((*values, *tables)))
+    source_relations = _source_relation_declarations(values, found=known)
+    found = collect_values(_Values((*values, *source_relations)))
     assets: list[object] = []
-    for value in (*tables, *found):
+    for value in (*source_relations, *found):
         spec = vars(value).get("_kg_declaration_spec")
         asset = getattr(spec, "asset", None)
         if asset is not None:
             assets.append(asset)
-    return (*values, *tables, *dict.fromkeys(assets))
+    return (*values, *source_relations, *dict.fromkeys(assets))
 
 
 class _Namespace:
@@ -134,7 +136,7 @@ class _Namespace:
         self._values = tuple(values)
 
     def values(self) -> Sequence[object]:
-        """Return the explicit declarations and the assets their tables name."""
+        """Return the explicit declarations and the assets their relations name."""
         return _with_assets(self._values)
 
 

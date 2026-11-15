@@ -1,4 +1,4 @@
-"""Authoring function wrappers for table fields."""
+"""Authoring function wrappers for relation fields."""
 from __future__ import annotations
 
 from collections.abc import Sequence
@@ -13,56 +13,58 @@ from ..internal.fields import field as field_impl
 
 if TYPE_CHECKING:
     from kg_build_system.distribution.languages.expressions.model.public import Selection
-    from kg_build_system.distribution.languages.semantics.model.public import (
-        Semantics,
+    from kg_build_system.distribution.languages.meaning.model.public import (
+        Meaning,
     )
-    from ...model.public.fields import Field
+    from ...model.public.fields import Field, FieldDefinition
 
 
 def field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     *,
+    definition: FieldDefinition | None = None,
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
-    semantics: Semantics | None = None,
+    meaning: Meaning | None = None,
 ) -> "Field[T]":  # pyright: ignore[reportInvalidTypeVarUse]
-    """Declare a source-backed field: a table column or source struct member.
+    """Declare a source-backed field: a source relation column or source struct member.
 
     Example:
         ```python
-        from kg_build_system import Field, Table, field
+        from kg_build_system import Field, SourceRelation, field
 
-        class Site(Table):
+        class Site(SourceRelation):
             site_id: Field[str] = field()
         ```
     """
     return field_impl(
-        name=name, description=description, annotations=annotations,
-        semantics=semantics,
+        definition=definition, name=name, description=description,
+        annotations=annotations, meaning=meaning,
     )
 
 
 def computed_field[T: DeclaredValue](
     value: "Selection[T]",
     *,
+    definition: FieldDefinition | None = None,
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
-    semantics: Semantics | None = None,
+    meaning: Meaning | None = None,
 ) -> "Field[T]":
     """Declare an expression-backed field: an output or computed member.
 
     Example:
         ```python
-        from kg_build_system import Projection, computed_field
+        from kg_build_system import DerivedRelation, computed_field
 
-        class SiteLabels(Projection(SiteTable.row_source())):
+        class SiteLabels(DerivedRelation(SiteTable.row_source())):
             label = computed_field(SiteTable.name.alter_rows().drop_null())
         ```
     """
     return computed_field_impl(
-        value, name=name, description=description, annotations=annotations,
-        semantics=semantics,
+        value, definition=definition, name=name, description=description,
+        annotations=annotations, meaning=meaning,
     )
 
 

@@ -136,7 +136,7 @@ class AssetDeclarationTests(unittest.TestCase):
         with self.assertRaises(TypeError):
             AssetOptions(
                 profile=_profile(),
-                semantics="not semantics",  # type: ignore[arg-type]
+                meaning="not meaning",  # type: ignore[arg-type]
             )
 
     def test_layout_mappings_are_frozen_and_sorted(self) -> None:
@@ -214,7 +214,7 @@ class AssetCodecTests(unittest.TestCase):
         self.assertEqual(restored, AssetPartDTO((part,)))
         self.assertEqual(document[0]["name"], "open_targets")
         self.assertEqual(document[0]["profile"]["authority"], "primary")
-        self.assertNotIn("semantics", document[0])
+        self.assertNotIn("meaning", document[0])
         self.assertNotIn("claims", document[0]["profile"])
         self.assertNotIn("limitations", document[0]["profile"])
         self.assertEqual(
@@ -257,37 +257,37 @@ class AssetCodecTests(unittest.TestCase):
 
         self.assertEqual(restored, part)
 
-    def test_an_asset_option_carries_declaration_semantics(self) -> None:
-        from kg_build_system.distribution.languages.semantics.model.public import (
+    def test_an_asset_option_carries_declaration_meaning(self) -> None:
+        from kg_build_system.distribution.languages.meaning.model.public import (
             Claim,
-            Semantics,
+            Meaning,
         )
 
         class OpenTargets(Asset):
             options = AssetOptions(
                 profile=_profile(),
-                semantics=Semantics(claims=(Claim("a declaration claim"),)),
+                meaning=Meaning(claims=(Claim("a declaration claim"),)),
             )
 
         part = AssetLanguage().transcribe(
             Declaration(OpenTargets), SymbolContext(),
         ).value
 
-        self.assertEqual(part.semantics.claims[0].text, "a declaration claim")
+        self.assertEqual(part.meaning.claims[0].text, "a declaration claim")
         document = assets_to_document(AssetPartDTO((part,)))
         self.assertEqual(
             assets_from_document(document), AssetPartDTO((part,)),
         )
 
-    def test_the_asset_part_round_trips_profile_and_semantics(self) -> None:
-        from kg_build_system.distribution.languages.semantics.model.internal import (
+    def test_the_asset_part_round_trips_profile_and_meaning(self) -> None:
+        from kg_build_system.distribution.languages.meaning.model.internal import (
             ClaimDTO,
             LimitationDTO,
             PurposeDTO,
-            SemanticsDTO,
+            MeaningDTO,
         )
 
-        semantics = SemanticsDTO(
+        meaning = MeaningDTO(
             purpose=PurposeDTO(
                 "curation",
                 limitations=(LimitationDTO("coverage varies by disease"),),
@@ -302,7 +302,7 @@ class AssetCodecTests(unittest.TestCase):
                     authority=AssetAuthority.PRIMARY,
                     basis="Open Targets Platform release",
                 ),
-                semantics=semantics,
+                meaning=meaning,
             ),
         ))
 
@@ -310,8 +310,8 @@ class AssetCodecTests(unittest.TestCase):
         restored = assets_from_document(document)
 
         self.assertEqual(restored, part)
-        self.assertIn("claims", document[0]["semantics"])
-        self.assertIn("purpose", document[0]["semantics"])
+        self.assertIn("claims", document[0]["meaning"])
+        self.assertIn("purpose", document[0]["meaning"])
 
 
 class AssetSourceTests(unittest.TestCase):
@@ -333,10 +333,10 @@ class AssetSourceTests(unittest.TestCase):
         self.assertIn("from kg_build_system import AssetLicense", fragment.imports)
         compile(fragment.body, "<asset source>", "exec")
 
-    def test_the_source_render_includes_semantics_when_present(self) -> None:
-        from kg_build_system.distribution.languages.semantics.model.internal import (
+    def test_the_source_render_includes_meaning_when_present(self) -> None:
+        from kg_build_system.distribution.languages.meaning.model.internal import (
             ClaimDTO,
-            SemanticsDTO,
+            MeaningDTO,
         )
 
         part = AssetPartDTO((
@@ -347,14 +347,14 @@ class AssetSourceTests(unittest.TestCase):
                     authority=AssetAuthority.PRIMARY,
                     basis="Open Targets Platform release",
                 ),
-                semantics=SemanticsDTO(claims=(ClaimDTO("one claim"),)),
+                meaning=MeaningDTO(claims=(ClaimDTO("one claim"),)),
             ),
         ))
 
         fragment = render_asset_source(part)
 
         self.assertIn("profile=AssetProfile(", fragment.body)
-        self.assertIn("semantics=Semantics(", fragment.body)
+        self.assertIn("meaning=Meaning(", fragment.body)
         self.assertIn("one claim", fragment.body)
         compile(fragment.body, "<asset source>", "exec")
 

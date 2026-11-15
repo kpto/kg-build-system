@@ -3,7 +3,7 @@ from __future__ import annotations
 
 from .service.public import (
     BindingPlanner,
-    ProjectionPlanner,
+    DerivedRelationPlanner,
     RecordsPlanner,
     RowSourcePlanner,
     core_planners,
@@ -11,7 +11,7 @@ from .service.public import (
 
 __all__ = [
     "BindingPlanner",
-    "ProjectionPlanner",
+    "DerivedRelationPlanner",
     "RecordsPlanner",
     "RowSourcePlanner",
     "core_planners",

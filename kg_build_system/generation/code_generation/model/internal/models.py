@@ -11,10 +11,10 @@ if TYPE_CHECKING:
 
 @dataclass(frozen=True, slots=True)
 class GenerationLocation:
-    """Where one asset contract was declared and the identity it received.
+    """Where one asset generation request was declared and the identity it received.
 
     ``project_root`` and ``source_path`` locate the author-owned asset module;
-    ``line`` and ``column`` point at the ``@asset_contract`` decorator.
+    ``line`` and ``column`` point at the ``@asset_generation`` decorator.
     ``request_id`` is the asset name, and ``source_package`` is the package
     containing the asset module.
 

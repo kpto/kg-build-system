@@ -19,7 +19,7 @@ from ...model.internal.dto.asset_dto import (
     AssetProfileDTO,
 )
 from ...model.public.options import AssetAuthority
-from .semantics import render_semantics_lines
+from .meaning import render_meaning_lines
 
 
 def _strings_field(name: str, values: tuple[str, ...], indent: str) -> list[str]:
@@ -125,8 +125,8 @@ def _options_lines(value: AssetDTO, imports: set[str]) -> list[str]:
     indent = "        "
     lines = ["    options = AssetOptions("]
     lines.extend(_profile_lines(value.profile, imports, indent))
-    if value.semantics is not None:
-        lines.extend(render_semantics_lines(value.semantics, imports, indent))
+    if value.meaning is not None:
+        lines.extend(render_meaning_lines(value.meaning, imports, indent))
     lines.append(f"{indent}name={value.name!r},")
     if value.website is not None:
         lines.append(f"{indent}website={value.website!r},")

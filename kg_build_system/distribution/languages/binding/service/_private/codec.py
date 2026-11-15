@@ -15,9 +15,9 @@ from kg_build_system.distribution.languages.expressions.service.internal import 
     expression_from_document,
     expression_to_document,
 )
-from kg_build_system.distribution.languages.semantics.service.internal import (
-    semantics_from_document,
-    semantics_to_document,
+from kg_build_system.distribution.languages.meaning.service.internal import (
+    meaning_from_document,
+    meaning_to_document,
 )
 from kg_build_system.distribution.model.public.refs import (
     EdgeRef,
@@ -299,8 +299,8 @@ def binding_to_document(binding: BindingDTO) -> dict[str, Any]:
         common["debug_name"] = binding.debug_name
     if binding.python_ref is not None:
         common["python_ref"] = _python_ref_to_document(binding.python_ref)
-    if binding.semantics is not None:
-        common["semantics"] = semantics_to_document(binding.semantics)
+    if binding.meaning is not None:
+        common["meaning"] = meaning_to_document(binding.meaning)
     if isinstance(binding, NodeBindingDTO):
         return {"kind": "node", "node": ref_to_document(binding.node), **common}
     return {
@@ -367,11 +367,11 @@ def binding_from_document(document: Mapping[str, Any]) -> BindingDTO:
                 _object(value.get("python_ref"), "python reference")
             )
         ),
-        "semantics": (
+        "meaning": (
             None
-            if value.get("semantics") is None
-            else semantics_from_document(
-                _object(value.get("semantics"), "binding semantics")
+            if value.get("meaning") is None
+            else meaning_from_document(
+                _object(value.get("meaning"), "binding meaning")
             )
         ),
     }

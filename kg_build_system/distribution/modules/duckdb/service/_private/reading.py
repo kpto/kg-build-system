@@ -17,7 +17,7 @@ from kg_build_system.distribution.languages.binding.model.internal import (
 )
 from kg_build_system.distribution.languages.data.model.internal import (
     ColumnDTO,
-    RelationDTO,
+    SourceRelationDTO,
     StructDTO,
 )
 from kg_build_system.distribution.languages.expressions.model.internal import (
@@ -73,7 +73,7 @@ def _binding_outputs(binding: BindingDTO) -> dict[str, ExpressionDTO]:
 
 
 def declared_non_null_paths(
-    relation: RelationDTO, structs: Mapping[str, StructDTO],
+    relation: SourceRelationDTO, structs: Mapping[str, StructDTO],
 ) -> dict[tuple[str, ...], tuple[str, ...]]:
     """Every path the contract claims is non-null, by logical and schema form."""
     found: list[tuple[tuple[str, ...], tuple[str, ...]]] = []
@@ -114,12 +114,12 @@ def declared_non_null_paths(
 def declared_read_paths(blueprint: Any) -> dict[str, tuple[DeclaredPath, ...]]:
     """The non-null-claiming contract paths this build reads, per relation."""
     relations = {
-        relation.name: relation for relation in blueprint.data.relations
+        relation.name: relation for relation in blueprint.data.source_relations
     }
     structs = _structs(blueprint)
-    projections = {
-        projection.name: projection
-        for projection in blueprint.data.projections
+    derived_relations = {
+        derived_relation.name: derived_relation
+        for derived_relation in blueprint.data.derived_relations
     }
     claims = {
         name: declared_non_null_paths(relation, structs)
@@ -141,11 +141,11 @@ def declared_read_paths(blueprint: Any) -> dict[str, tuple[DeclaredPath, ...]]:
             source = node.field.relation
             if source in relations:
                 read[source].add((node.field.field, *node.path))
-            elif source in projections and source not in included:
+            elif source in derived_relations and source not in included:
                 included.add(source)
                 pending.extend(
                     column.expression
-                    for column in projections[source].columns
+                    for column in derived_relations[source].columns
                     if column.expression is not None
                 )
 

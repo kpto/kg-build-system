@@ -1,16 +1,16 @@
 """Options an author assigns to the one graph declaration.
 
 The options carry the graph's portable name, an optional description and the
-project's meaning root. The root is a ``Semantics`` value carrying exactly one
+project's meaning root. The root is a ``Meaning`` value carrying exactly one
 purpose; a graph declaration cannot exist without one.
 """
 from __future__ import annotations
 
 from dataclasses import dataclass
 
-from kg_build_system.distribution.languages.semantics.model.public import (
+from kg_build_system.distribution.languages.meaning.model.public import (
     Purpose,
-    Semantics,
+    Meaning,
 )
 
 
@@ -18,19 +18,19 @@ from kg_build_system.distribution.languages.semantics.model.public import (
 class GraphOptions:
     """Everything an author states about the project's graph.
 
-    ``semantics`` is required and must be a ``Semantics`` value carrying a
+    ``meaning`` is required and must be a ``Meaning`` value carrying a
     ``Purpose``. ``name`` defaults to the declaration class name in snake case.
 
     Example:
         ```python
         from kg_build_system import (
-            Claim, GraphOptions, Limitation, Purpose, Semantics,
+            Claim, GraphOptions, Limitation, Purpose, Meaning,
         )
 
         options = GraphOptions(
             name="open_targets",
             description="Curated target-disease evidence.",
-            semantics=Semantics(
+            meaning=Meaning(
                 purpose=Purpose(
                     text="Target prioritisation.",
                     limitations=(Limitation("No literature mining."),),
@@ -43,14 +43,14 @@ class GraphOptions:
 
     name: str | None = None
     description: str | None = None
-    semantics: Semantics
+    meaning: Meaning
 
     def __post_init__(self) -> None:
-        if not isinstance(self.semantics, Semantics):
-            raise TypeError("graph options semantics must be a Semantics value")
-        if not isinstance(self.semantics.purpose, Purpose):
+        if not isinstance(self.meaning, Meaning):
+            raise TypeError("graph options meaning must be a Meaning value")
+        if not isinstance(self.meaning.purpose, Purpose):
             raise TypeError(
-                "a graph declaration requires a Semantics with a purpose"
+                "a graph declaration requires a Meaning with a purpose"
             )
         if self.name is not None and (
             not isinstance(self.name, str) or not self.name

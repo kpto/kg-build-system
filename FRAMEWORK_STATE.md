@@ -69,7 +69,7 @@ only; the top-level lazy export table and `__getattr__` live in
   references. `SymbolRef(language, key)` is the only cross-symbol identity.
 - `Selection[T]` is the single authoring type; `NullableSelection[T]` is
   `Selection[Nullable[T]]`. A `Field[T]` declares a value type, never `T | None`;
-  source `Table`/`Struct` reads are nullable and computed `Projection`/
+  `SourceRelation`/`Struct` reads are nullable and computed `DerivedRelation`/
   `ComputedStruct` reads follow their selection. `alter_rows()` is the one-shot
   row-effect gate; `lookup`, `zip` and `RowSource.unnest` complete the value and
   grain surface.
@@ -94,13 +94,13 @@ only; the top-level lazy export table and `__getattr__` live in
   `distribution/service/internal`; DuckDB implements the protocol. Core imports
   no DuckDB module.
 - An asset is one logical unit of source data and may back many tables; a table
-  names its asset with `Table[Asset]`. `AssetOptions` carries a required
-  `AssetProfile`, optional `Semantics`, website, optional layout and governance.
+  names its asset with `SourceRelation[Asset]`. `AssetOptions` carries a required
+  `AssetProfile`, optional `Meaning`, website, optional layout and governance.
   `AssetLayout` is optional descriptive metadata, not an access contract.
 - Source generation is per language; the interpreter source service renders the
   graph declaration first, then delegates to the asset, topology, data and
   binding renderers.
-- Generation is an edit-time frontend: `@asset_contract(AssetContractOptions(...))`
+- Generation is an edit-time frontend: `@asset_generation(AssetGenerationOptions(...))`
   is an inert decorator on an asset, not an asset field or blueprint value.
   Observation is provenance; a generated source-backed field renders `Field[T]`.
 - The workflow plan owns components, steps, connections and provenance. A step

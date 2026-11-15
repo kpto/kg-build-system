@@ -25,8 +25,8 @@ from kg_build_system.distribution.languages.data import (
     Field,
     Struct,
     StructOptions,
-    Table,
-    TableOptions,
+    SourceRelation,
+    SourceRelationOptions,
     field,
 )
 from kg_build_system.distribution.languages.topology.model.internal import (
@@ -173,7 +173,7 @@ class BlueprintLinkerTests(unittest.TestCase):
         self.assertEqual(linked.graph, GraphPartDTO())
         self.assertEqual(
             linked.data,
-            DataPartDTO(structs=(), relations=(), projections=()),
+            DataPartDTO(structs=(), source_relations=(), derived_relations=()),
         )
         self.assertEqual(linked.assets.assets, ())
         self.assertEqual(linked.bindings, ())
@@ -379,8 +379,8 @@ class DataSymbolKeyTests(unittest.TestCase):
             options = StructOptions(name="go")
             value: Field[str] = field()
 
-        class GoTable(Table[TestEstate]):
-            options = TableOptions(name="go")
+        class GoTable(SourceRelation[TestEstate]):
+            options = SourceRelationOptions(name="go")
             value: Field[str] = field()
 
         language = DataLanguage()
@@ -397,15 +397,15 @@ class DataSymbolKeyTests(unittest.TestCase):
         self.assertEqual(len(keys["struct"].segments), 2)
 
     def test_a_table_without_an_asset_is_refused(self) -> None:
-        with self.assertRaisesRegex(TypeError, "Table\\[Asset\\]"):
-            class NoAsset(Table):
+        with self.assertRaisesRegex(TypeError, "SourceRelation\\[Asset\\]"):
+            class NoAsset(SourceRelation):
                 value: Field[str] = field()
 
 
 class AuthoringReferenceTests(unittest.TestCase):
     def test_data_references_read_the_authoring_declaration(self) -> None:
-        class Row(Table[TestEstate]):
-            options = TableOptions(name="row")
+        class Row(SourceRelation[TestEstate]):
+            options = SourceRelationOptions(name="row")
             value: Field[int] = field(name="value")
 
         language = DataLanguage()

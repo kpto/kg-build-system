@@ -5,13 +5,13 @@ from collections.abc import Iterable
 
 from .....model._private.generated import GeneratedClass
 from .....model.public.errors import GenerationError
-from . import plain, struct, table, table_group
+from . import plain, struct, source_relation, source_relation_group
 
 _RENDERERS = {
     plain.KIND: plain,
-    table.KIND: table,
+    source_relation.KIND: source_relation,
     struct.KIND: struct,
-    table_group.KIND: table_group,
+    source_relation_group.KIND: source_relation_group,
 }
 
 

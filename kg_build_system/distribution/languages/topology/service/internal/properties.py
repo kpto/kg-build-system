@@ -9,22 +9,22 @@ from kg_build_system.distribution.languages.annotations.model.public import (
 )
 
 if TYPE_CHECKING:
-    from kg_build_system.distribution.languages.semantics.model.public import (
-        Semantics,
+    from kg_build_system.distribution.languages.meaning.model.public import (
+        Meaning,
     )
 
 
 def make_property(
     *, name: str | None = None, description: str | None = None,
     annotations: Sequence[Annotation] = (),
-    semantics: Semantics | None = None,
+    meaning: Meaning | None = None,
 ) -> Any:
     """Build the descriptor assigned to a property slot."""
     from ...model._private.properties import make_property as build
 
     return build(
         name=name, description=description, annotations=annotations,
-        semantics=semantics,
+        meaning=meaning,
     )
 
 

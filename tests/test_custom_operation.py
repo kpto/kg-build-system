@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from kg_build_system import Meaning, Purpose
 import tempfile
 import unittest
 from pathlib import Path
@@ -16,8 +17,8 @@ from kg_build_system import (
     Node,
     NodeValues,
     PropertySlot,
-    Table,
-    TableOptions,
+    SourceRelation,
+    SourceRelationOptions,
     compile,
     field,
     node_binding,
@@ -73,8 +74,8 @@ class DoubleAsset(Asset):
     )
 
 
-class DoubleRow(Table[DoubleAsset]):
-    options = TableOptions(name="double_row")
+class DoubleRow(SourceRelation[DoubleAsset]):
+    options = SourceRelationOptions(name="double_row")
     id: Field[int] = field(name="id")
 
 
@@ -108,6 +109,7 @@ class CustomOperationTests(unittest.TestCase):
                     build_key=row.id.alter_rows().drop_null(),
                     properties=DoubleNode(value=DOUBLE.apply(row.id.alter_rows().drop_null())),
                 ),
+                meaning=Meaning(purpose=Purpose("Fulfil the fixture record from its rows.")),
             )
             blueprint = create_blueprint(bindings=(binding,))
             emitter = DuckDbSqlEmitter(

@@ -14,7 +14,7 @@ from types import SimpleNamespace
 from typing import Any
 
 from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dto import (
-    DataPartDTO, ProjectionDTO, RelationDTO, StructDTO,
+    DataPartDTO, DerivedRelationDTO, SourceRelationDTO, StructDTO,
 )
 from kg_build_system.distribution.languages.data.service.internal import (
     plan_expressions, plan_inputs, plan_scan_sources, row_source_plan_dto,
@@ -139,13 +139,13 @@ def _data_part(context: SymbolContext) -> DataPartDTO:
             symbol.value for symbol in context.symbols.values()
             if isinstance(symbol.value, StructDTO)
         ),
-        relations=tuple(
+        source_relations=tuple(
             symbol.value for symbol in context.symbols.values()
-            if isinstance(symbol.value, RelationDTO)
+            if isinstance(symbol.value, SourceRelationDTO)
         ),
-        projections=tuple(
+        derived_relations=tuple(
             symbol.value for symbol in context.symbols.values()
-            if isinstance(symbol.value, ProjectionDTO)
+            if isinstance(symbol.value, DerivedRelationDTO)
         ),
     )
 

@@ -3,23 +3,23 @@ from __future__ import annotations
 
 from typing import Any
 
-from kg_build_system.distribution.languages.semantics.model.internal.dto import (
-    SemanticsDTO,
+from kg_build_system.distribution.languages.meaning.model.internal.dto import (
+    MeaningDTO,
 )
-from kg_build_system.distribution.languages.semantics.model.public import (
-    Semantics,
+from kg_build_system.distribution.languages.meaning.model.public import (
+    Meaning,
 )
 
 from ...model.internal.dto.graph_dto import GraphDeclarationDTO
 
 
-def graph_semantics_dto(value: Semantics) -> SemanticsDTO:
-    """Turn the graph's semantics value into its blueprint DTO."""
-    from kg_build_system.distribution.languages.semantics.service.internal import (
-        semantics_to_dto,
+def graph_meaning_dto(value: Meaning) -> MeaningDTO:
+    """Turn the graph's meaning value into its blueprint DTO."""
+    from kg_build_system.distribution.languages.meaning.service.internal import (
+        meaning_to_dto,
     )
 
-    return semantics_to_dto(value)
+    return meaning_to_dto(value)
 
 
 def graph_declaration_dto(value: type[Any]) -> GraphDeclarationDTO:
@@ -28,8 +28,8 @@ def graph_declaration_dto(value: type[Any]) -> GraphDeclarationDTO:
     return GraphDeclarationDTO(
         name=value._graph_name,
         description=options.description,
-        semantics=graph_semantics_dto(options.semantics),
+        meaning=graph_meaning_dto(options.meaning),
     )
 
 
-__all__ = ["graph_declaration_dto", "graph_semantics_dto"]
+__all__ = ["graph_declaration_dto", "graph_meaning_dto"]

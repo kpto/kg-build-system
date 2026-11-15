@@ -21,8 +21,8 @@ from kg_build_system.distribution.languages.data.model.internal.dto.blueprint_dt
 from kg_build_system.distribution.model.public.refs import EdgeRef, NodeRef
 
 if TYPE_CHECKING:
-    from kg_build_system.distribution.languages.semantics.model.internal import (
-        SemanticsDTO,
+    from kg_build_system.distribution.languages.meaning.model.internal import (
+        MeaningDTO,
     )
 
 # The binding rows field uses the data language's row plan DTO.
@@ -97,7 +97,7 @@ class NodeBindingDTO:
     mode: BindingMode = "declarative"
     debug_name: str | None = None
     python_ref: PythonRefDTO | None = None
-    semantics: SemanticsDTO | None = None
+    meaning: MeaningDTO | None = None
 
     def __post_init__(self) -> None:
         from ....service._private.validation import validate_binding
@@ -152,7 +152,7 @@ class EdgeBindingDTO:
     source_node: NodeRef | None = None
     target_node: NodeRef | None = None
     python_ref: PythonRefDTO | None = None
-    semantics: SemanticsDTO | None = None
+    meaning: MeaningDTO | None = None
 
     def __post_init__(self) -> None:
         from ....service._private.validation import validate_binding

@@ -1,7 +1,7 @@
 """Shared asset-table planning helpers.
 
-A module planner that produces source-relation steps asks which tables the graph
-reads and which asset each table comes from. The mechanism lives in the
+A module planner that produces source-relation steps asks which source relations
+the graph reads and which asset each relation comes from. The mechanism lives in the
 package's private zone.
 """
 from __future__ import annotations
@@ -16,7 +16,7 @@ def asset_tables(blueprint: GraphBlueprint) -> tuple[AssetTable, ...]:
     """Return every asset-backed relation this graph reads.
 
     Only relations named by a binding expression, a binding row plan, a
-    projection expression or a projection row plan are included. Tables are
+    derived-relation expression or row plan are included. Source relations are
     sorted by relation name and assigned ``kg_table_<n>``.
 
     Example:

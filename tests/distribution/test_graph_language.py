@@ -12,17 +12,17 @@ from kg_build_system.distribution.languages.graph.service.internal import (
     graph_declaration_to_document,
     render_graph_declaration_source,
 )
-from kg_build_system.distribution.languages.semantics.model.internal.dto import (
+from kg_build_system.distribution.languages.meaning.model.internal.dto import (
     ClaimDTO,
     LimitationDTO,
     PurposeDTO,
-    SemanticsDTO,
+    MeaningDTO,
 )
-from kg_build_system.distribution.languages.semantics.model.public import (
+from kg_build_system.distribution.languages.meaning.model.public import (
     Claim,
     Limitation,
     Purpose,
-    Semantics,
+    Meaning,
 )
 from kg_build_system.kernel import (
     Declaration,
@@ -33,8 +33,8 @@ from kg_build_system.kernel import (
 )
 
 
-def _semantics() -> Semantics:
-    return Semantics(
+def _meaning() -> Meaning:
+    return Meaning(
         purpose=Purpose(
             text="rank targets for a disease",
             limitations=(Limitation("no literature mining"),),
@@ -43,8 +43,8 @@ def _semantics() -> Semantics:
     )
 
 
-def _semantics_dto() -> SemanticsDTO:
-    return SemanticsDTO(
+def _meaning_dto() -> MeaningDTO:
+    return MeaningDTO(
         purpose=PurposeDTO(
             text="rank targets for a disease",
             limitations=(LimitationDTO("no literature mining"),),
@@ -60,7 +60,7 @@ def _options(
     return GraphOptions(
         name=name,
         description=description,
-        semantics=_semantics(),
+        meaning=_meaning(),
     )
 
 
@@ -78,34 +78,34 @@ def _dto(
     return GraphDeclarationDTO(
         name=name,
         description=description,
-        semantics=_semantics_dto(),
+        meaning=_meaning_dto(),
     )
 
 
 class GraphOptionsTests(unittest.TestCase):
-    def test_semantics_is_required(self) -> None:
+    def test_meaning_is_required(self) -> None:
         with self.assertRaises(TypeError):
             GraphOptions()  # type: ignore[call-arg]
 
-    def test_semantics_must_be_a_semantics_value(self) -> None:
+    def test_meaning_must_be_a_meaning_value(self) -> None:
         with self.assertRaises(TypeError):
-            GraphOptions(semantics=object())  # type: ignore[arg-type]
+            GraphOptions(meaning=object())  # type: ignore[arg-type]
 
-    def test_semantics_must_carry_a_purpose(self) -> None:
-        with self.assertRaisesRegex(TypeError, "requires a Semantics with a purpose"):
+    def test_meaning_must_carry_a_purpose(self) -> None:
+        with self.assertRaisesRegex(TypeError, "requires a Meaning with a purpose"):
             GraphOptions(
-                semantics=Semantics(claims=(Claim("A claim."),)),
+                meaning=Meaning(claims=(Claim("A claim."),)),
             )
 
     def test_name_and_description_are_optional_non_empty_text(self) -> None:
-        options = GraphOptions(semantics=_semantics())
+        options = GraphOptions(meaning=_meaning())
         self.assertIsNone(options.name)
         self.assertIsNone(options.description)
 
         with self.assertRaises(ValueError):
-            GraphOptions(name="", semantics=_semantics())
+            GraphOptions(name="", meaning=_meaning())
         with self.assertRaises(ValueError):
-            GraphOptions(description="", semantics=_semantics())
+            GraphOptions(description="", meaning=_meaning())
 
     def test_options_are_frozen(self) -> None:
         options = _options()
@@ -218,7 +218,7 @@ class GraphLanguageTests(unittest.TestCase):
             GraphDeclarationDTO(
                 name="open_targets",
                 description="Curated target-disease evidence.",
-                semantics=_semantics_dto(),
+                meaning=_meaning_dto(),
             ),
         )
 
@@ -238,11 +238,11 @@ class GraphCodecTests(unittest.TestCase):
             document["description"], "Curated target-disease evidence.",
         )
         self.assertEqual(
-            document["semantics"]["claims"],
+            document["meaning"]["claims"],
             [{"text": "associations are scored per datatype"}],
         )
         self.assertEqual(
-            document["semantics"]["purpose"]["limitations"],
+            document["meaning"]["purpose"]["limitations"],
             [{"text": "no literature mining"}],
         )
         self.assertEqual(graph_declaration_from_document(document), value)
@@ -261,28 +261,28 @@ class GraphCodecTests(unittest.TestCase):
         value = GraphDeclarationDTO(
             name="open_targets",
             description=None,
-            semantics=SemanticsDTO(
+            meaning=MeaningDTO(
                 purpose=PurposeDTO(text="rank targets for a disease"),
             ),
         )
 
         document = graph_declaration_to_document(value)
 
-        self.assertNotIn("claims", document["semantics"])
+        self.assertNotIn("claims", document["meaning"])
         self.assertEqual(graph_declaration_from_document(document), value)
 
-    def test_a_graph_declaration_requires_name_and_semantics(self) -> None:
+    def test_a_graph_declaration_requires_name_and_meaning(self) -> None:
         with self.assertRaises(ValueError):
             graph_declaration_from_document({})
         with self.assertRaises(ValueError):
             graph_declaration_from_document(
-                {"name": "", "semantics": {"purpose": {"text": "p"}}}
+                {"name": "", "meaning": {"purpose": {"text": "p"}}}
             )
         with self.assertRaises(ValueError):
             graph_declaration_from_document({"name": "open_targets"})
         with self.assertRaises(ValueError):
             graph_declaration_from_document(
-                {"name": "open_targets", "semantics": 1}
+                {"name": "open_targets", "meaning": 1}
             )
 
     def test_a_graph_declaration_document_requires_a_purpose(self) -> None:
@@ -290,16 +290,16 @@ class GraphCodecTests(unittest.TestCase):
             graph_declaration_from_document(
                 {
                     "name": "open_targets",
-                    "semantics": {"claims": [{"text": "A claim."}]},
+                    "meaning": {"claims": [{"text": "A claim."}]},
                 }
             )
 
-    def test_a_graph_dto_rejects_semantics_without_a_purpose(self) -> None:
-        with self.assertRaisesRegex(ValueError, "Semantics with a purpose"):
+    def test_a_graph_dto_rejects_meaning_without_a_purpose(self) -> None:
+        with self.assertRaisesRegex(ValueError, "Meaning with a purpose"):
             GraphDeclarationDTO(
                 name="open_targets",
                 description=None,
-                semantics=SemanticsDTO(claims=(ClaimDTO("A claim."),)),
+                meaning=MeaningDTO(claims=(ClaimDTO("A claim."),)),
             )
 
 
@@ -314,14 +314,14 @@ class GraphSourceTests(unittest.TestCase):
         self.assertIn(
             "description='Curated target-disease evidence.'", fragment.body,
         )
-        self.assertIn("semantics=Semantics(", fragment.body)
+        self.assertIn("meaning=Meaning(", fragment.body)
         self.assertIn("purpose=Purpose(", fragment.body)
         self.assertIn("from kg_build_system import Graph", fragment.imports)
         self.assertIn(
             "from kg_build_system import GraphOptions", fragment.imports,
         )
         self.assertTrue(
-            any("Semantics" in item for item in fragment.imports)
+            any("Meaning" in item for item in fragment.imports)
         )
         self.assertTrue(any("Purpose" in item for item in fragment.imports))
 

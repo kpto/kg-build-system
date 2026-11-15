@@ -13,6 +13,7 @@ from ....model.internal.models import DiscoveredGeneration
 from ....model.public.errors import GenerationError
 from .constants import FILE_DIRECTIVES, HEADER, REPRESENTATIVE_IMPORT
 from .declarations import declaration_imports, render_declaration
+from .declarations.source_relation_group import KIND as SOURCE_RELATION_GROUP
 from .types import struct_references
 
 
@@ -33,8 +34,9 @@ def _module_name(package_import: str, path: PurePosixPath) -> str:
 def _note_belongs_to_file(note: NullabilityNote, classes: tuple[GeneratedClass, ...]) -> bool:
     """Whether one provenance line describes what this file declares.
 
-    A catalogue rendered one file per table should carry only the line about that
-    table's own source; a line naming no declaration is shared by the package.
+    A catalogue rendered one file per source relation should carry only the line
+    about that relation's own source; a line naming no declaration is shared by
+    the package.
     """
     if not note.declarations:
         return True
@@ -69,8 +71,19 @@ def render_package(
             raise GenerationError(f"case-normalized generated path collision: {path}")
         paths[folded] = path
         normalized_files.append((path, file))
+        if path.name == "__init__.py" and file.declarations:
+            declared = ", ".join(declaration.name for declaration in file.declarations)
+            raise GenerationError(
+                f"generated package initializer {path.as_posix()!r} must be a facade, "
+                f"but declares {declared}; put each declaration in its own module"
+            )
         declared_here: set[str] = set()
         for declaration in file.declarations:
+            if declaration.base == SOURCE_RELATION_GROUP and path.name != "group.py":
+                raise GenerationError(
+                    f"generated source relation group {declaration.name!r} must be "
+                    f"declared in group.py, not {path.as_posix()!r}"
+                )
             if declaration.name in declared_here:
                 raise GenerationError(f"duplicate generated declaration identity {declaration.name} in {path}")
             declared_here.add(declaration.name)
@@ -173,19 +186,24 @@ def render_package(
         lines.extend([*FILE_DIRECTIVES, ""])
         if classes:
             lines.append(f"from kg_build_system import {', '.join(sorted(imports))}")
-            lines.append(REPRESENTATIVE_IMPORT)
+            if fields:
+                lines.append(REPRESENTATIVE_IMPORT)
         all_external = {module: set(names) for module, names in annotation_imports.items()}
         for module, names in cross.items():
             all_external.setdefault(module, set()).update(names)
         lines.extend(f"from {module} import {', '.join(sorted(names))}" for module, names in sorted(all_external.items()))
-        if classes or cross:
+        if classes:
             lines.extend(("", ""))
         for index, declaration in enumerate(classes):
             lines.extend(render_declaration(declaration))
             if index != len(classes) - 1:
                 lines.extend(("", ""))
         if exports:
-            lines.extend(("", f"__all__ = {list(exports)!r}"))
+            if classes:
+                lines.extend(("", ""))
+            elif cross:
+                lines.append("")
+            lines.append(f"__all__ = {list(exports)!r}")
         content = "\n".join(lines).rstrip() + "\n"
         cst.parse_module(content)
         rendered[path] = content

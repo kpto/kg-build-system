@@ -18,8 +18,8 @@ from kg_build_system.kernel import (
 
 from ....model.internal.dto.blueprint_dto import (
     DataPartDTO,
-    ProjectionDTO,
-    RelationDTO,
+    DerivedRelationDTO,
+    SourceRelationDTO,
     StructDTO,
 )
 from ..source import render_data
@@ -40,10 +40,10 @@ from ..._private.symbols import (
 
 
 class DataLanguage(Language):
-    """The data language: structs, relations, projections and their fields.
+    """The data language: structs, source and derived relations and their fields.
 
     Symbols are keyed by the declaration graph name. A struct whose graph name
-    repeats or collides with a relation or projection takes its qualified name
+    repeats or collides with a source or derived relation takes its qualified name
     as a second segment. Every column is a ``field`` declaration and symbol
     whose key joins its owner and the column name, so ``sites.site_name`` is one
     key.
@@ -88,7 +88,7 @@ class DataLanguage(Language):
         """Return the graph-name key of one data declaration or field.
 
         A struct whose graph name repeats or collides with a relation or
-        projection takes its qualified name as a second segment.
+        derived relation takes its qualified name as a second segment.
 
         Example:
             ```python
@@ -108,7 +108,7 @@ class DataLanguage(Language):
         )
 
     def get_kind(self, declaration: Declaration) -> str:
-        """Return ``struct``, ``relation``, ``projection`` or ``field``.
+        """Return ``struct``, ``relation``, ``derived_relation`` or ``field``.
 
         Example:
             ```python
@@ -139,8 +139,8 @@ class DataLanguage(Language):
     ) -> tuple[SymbolRef, ...]:
         """Return the direct dependencies an authoring data value declares.
 
-        A relation names its fields and its logical asset. A projection names
-        its fields and the row-plan sources and expressions it reads. A field
+        A source relation names its fields and its logical asset. A derived
+        relation names its fields and the row-plan sources and expressions it reads. A field
         names its expression leaves and any nested struct declaration. The
         value is authoring data, never a transcribed DTO.
 
@@ -178,9 +178,9 @@ class DataLanguage(Language):
         value = symbol.value if isinstance(symbol, Symbol) else symbol
         if isinstance(value, StructDTO):
             value = DataPartDTO((value,), (), ())
-        elif isinstance(value, RelationDTO):
+        elif isinstance(value, SourceRelationDTO):
             value = DataPartDTO((), (value,), ())
-        elif isinstance(value, ProjectionDTO):
+        elif isinstance(value, DerivedRelationDTO):
             value = DataPartDTO((), (), (value,))
         return render_data(value, context, class_names=class_names)
 

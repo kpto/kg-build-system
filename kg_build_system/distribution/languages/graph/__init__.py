@@ -1,19 +1,19 @@
 """The graph language: the project's one graph declaration.
 
-A graph declaration states the project's meaning root: one ``Semantics`` value
+A graph declaration states the project's meaning root: one ``Meaning`` value
 carrying the root purpose and its claims. A namespace may declare zero graph
 declarations or exactly one.
 
 Example:
     ```python
     from kg_build_system import (
-        Claim, Graph, GraphOptions, Limitation, Purpose, Semantics,
+        Claim, Graph, GraphOptions, Limitation, Purpose, Meaning,
     )
 
     class OpenTargetsGraph(Graph):
         options = GraphOptions(
             name="open_targets",
-            semantics=Semantics(
+            meaning=Meaning(
                 purpose=Purpose(
                     text="Target prioritisation.",
                     limitations=(Limitation("No literature mining."),),

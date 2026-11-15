@@ -2,9 +2,9 @@
 
 Example:
     ```python
-    from kg_build_system import Array, Field, Table, field
+    from kg_build_system import Array, Field, SourceRelation, field
 
-    class Row(Table):
+    class Row(SourceRelation):
         tags: Field[Array[str]] = field(name="tags")
 
     assert Row.tags.alter_rows().expand() is not None
@@ -30,9 +30,9 @@ class RowEffects[S](RowEffectHandle):
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 name: Field[str] = field(name="name")
 
             selected = Row.name.alter_rows().drop_if(
@@ -54,9 +54,9 @@ class NullableRowEffects[N](RowEffects["Selection[Nullable[N]]"]):
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 name: Field[str] = field(name="name")
 
             selected = Row.name.alter_rows().drop_null()
@@ -74,9 +74,9 @@ class NullableRowEffects[N](RowEffects["Selection[Nullable[N]]"]):
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
+            from kg_build_system import Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 name: Field[str] = field(name="name")
 
             selected = Row.name.alter_rows().drop_if(
@@ -101,9 +101,9 @@ class ArrayRowEffects[I](RowEffects["Selection[Array[I]]"]):
 
         Example:
             ```python
-            from kg_build_system import Array, Field, Table, field
+            from kg_build_system import Array, Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 tags: Field[Array[str]] = field(name="tags")
 
             expanded = Row.tags.alter_rows().expand()
@@ -121,9 +121,9 @@ class ArrayRowEffects[I](RowEffects["Selection[Array[I]]"]):
 
         Example:
             ```python
-            from kg_build_system import Array, Field, Table, field
+            from kg_build_system import Array, Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 tags: Field[Array[str]] = field(name="tags")
 
             selected = Row.tags.alter_rows().drop_if(
@@ -147,9 +147,9 @@ class NullableArrayRowEffects[I](NullableRowEffects[Array[I]]):
 
         Example:
             ```python
-            from kg_build_system import Array, Field, Table, field
+            from kg_build_system import Array, Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 tags: Field[Array[str]] = field(name="tags")
 
             expanded = Row.tags.alter_rows().expand()
@@ -168,9 +168,9 @@ class NullableArrayRowEffects[I](NullableRowEffects[Array[I]]):
 
         Example:
             ```python
-            from kg_build_system import Array, Field, Table, field
+            from kg_build_system import Array, Field, SourceRelation, field
 
-            class Row(Table):
+            class Row(SourceRelation):
                 tags: Field[Array[str]] = field(name="tags")
 
             selected = Row.tags.alter_rows().drop_if(

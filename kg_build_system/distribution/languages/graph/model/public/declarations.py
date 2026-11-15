@@ -16,14 +16,14 @@ class Graph:
     Example:
         ```python
         from kg_build_system import (
-            Claim, Graph, GraphOptions, Limitation, Purpose, Semantics,
+            Claim, Graph, GraphOptions, Limitation, Purpose, Meaning,
         )
 
         class OpenTargetsGraph(Graph):
             options = GraphOptions(
                 name="open_targets",
                 description="Curated target-disease evidence.",
-                semantics=Semantics(
+                meaning=Meaning(
                     purpose=Purpose(
                         text="Target prioritisation.",
                         limitations=(

@@ -20,13 +20,13 @@ from .docstrings import attribute_docstring
 from .naming import declaration_name, member_name
 from ...model.internal.model.fields import FieldSpec
 from ...model.public.fields import (
-    DeclaredValue, Field, FieldDescriptor, FieldMetadata,
+    DeclaredValue, Field, FieldDefinition, FieldDescriptor, FieldMetadata,
 )
 
 if TYPE_CHECKING:
     from kg_build_system.distribution.languages.expressions.model.public import Selection
-    from kg_build_system.distribution.languages.semantics.model.public import (
-        Semantics,
+    from kg_build_system.distribution.languages.meaning.model.public import (
+        Meaning,
     )
 
 T = TypeVar("T")
@@ -34,10 +34,11 @@ T = TypeVar("T")
 
 def make_field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
     *,
+    definition: FieldDefinition | None = None,
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
-    semantics: Semantics | None = None,
+    meaning: Meaning | None = None,
 ) -> Field[T]:  # pyright: ignore[reportInvalidTypeVarUse]
     """Create a source-backed field descriptor; an empty name is rejected."""
     if name is not None and not name:
@@ -46,17 +47,19 @@ def make_field[T: DeclaredValue](  # pyright: ignore[reportInvalidTypeVarUse]
         name=name,
         description=description,
         annotations=annotation_tuple(list(annotations)),
-        semantics=semantics,
+        meaning=meaning,
+        definition=definition,
     ))
 
 
 def make_computed_field[T: DeclaredValue](
     value: "Selection[T]",
     *,
+    definition: FieldDefinition | None = None,
     name: str | None = None,
     description: str | None = None,
     annotations: Sequence[Annotation] = (),
-    semantics: Semantics | None = None,
+    meaning: Meaning | None = None,
 ) -> Field[T]:
     """Create an expression-backed field descriptor; an empty name is rejected."""
     if name is not None and not name:
@@ -67,7 +70,8 @@ def make_computed_field[T: DeclaredValue](
             name=name,
             description=description,
             annotations=annotation_tuple(list(annotations)),
-            semantics=semantics,
+            meaning=meaning,
+            definition=definition,
         ),
     )
 
@@ -75,12 +79,13 @@ def make_computed_field[T: DeclaredValue](
 def _owner_kind(owner: type[Any]) -> str | None:
     """Classify a descriptor owner as source-backed, computed, or a view."""
     from ...model.public.declarations import (
-        ComputedStruct, Projection, Struct as SourceStruct, Table,
+        ComputedStruct, DerivedRelation, Stage, Struct as SourceStruct,
+        SourceRelation,
     )
 
-    if issubclass(owner, (Table, SourceStruct)):
+    if issubclass(owner, (SourceRelation, SourceStruct)):
         return "source"
-    if issubclass(owner, (Projection, ComputedStruct)):
+    if issubclass(owner, (DerivedRelation, Stage, ComputedStruct)):
         return "computed"
     if vars(owner).get("_kg_shape_view", False) or "_kg_row_source_fields" in vars(owner):
         return "view"
@@ -91,10 +96,10 @@ def _source_name(owner: type[Any]) -> str:
     spec = vars(owner).get("_kg_declaration_spec")
     if spec is not None and spec.name:
         return spec.name
-    configured = getattr(owner, "_table_name", None)
+    configured = getattr(owner, "_source_relation_name", None)
     if isinstance(configured, str) and configured:
         return configured
-    return declaration_name(owner.__name__, suffixes=("Table",))
+    return declaration_name(owner.__name__, suffixes=("SourceRelation",))
 
 
 def _traversals(name: str, logical_type: LogicalType) -> tuple[Traversal, ...]:
@@ -203,9 +208,9 @@ def resolve_field_specs(owner: type[Any], kind: str | None) -> tuple[FieldSpec, 
             if annotation is not None else None
         )
         if declaration is not None:
-            from ...model.public.declarations import Projection, Table
+            from ...model.public.declarations import DerivedRelation, SourceRelation
 
-            if issubclass(declaration, (Table, Projection)):
+            if issubclass(declaration, (SourceRelation, DerivedRelation)):
                 raise TypeError(
                     f"{owner.__name__}.{attribute} is a row source, not a value "
                     "record; field types must be Struct or ComputedStruct "
@@ -232,7 +237,8 @@ def resolve_field_specs(owner: type[Any], kind: str | None) -> tuple[FieldSpec, 
             description=field.metadata.description,
             annotations=field.metadata.annotations,
             declaration=declaration,
-            semantics=field.metadata.semantics,
+            meaning=field.metadata.meaning,
+            definition=field.metadata.definition,
         ))
     return tuple(resolved)
 
@@ -268,7 +274,8 @@ def field_set_name(
         description=description,
         annotations=field._metadata.annotations,
         attribute=attribute,
-        semantics=field._metadata.semantics,
+        meaning=field._metadata.meaning,
+        definition=field._metadata.definition,
     )
 
 
@@ -314,12 +321,12 @@ def field_get(
     if name is None:
         raise TypeError("field descriptor has not been named")
     if kind == "source":
-        from ...model.public.declarations import Table
+        from ...model.public.declarations import SourceRelation
 
         access_type = (
             spec.access_type if spec is not None else field_access_type(field, owner)
         )
-        if issubclass(owner, Table):
+        if issubclass(owner, SourceRelation):
             return select_expression(field_reference(
                 source=_source_name(owner),
                 path=(name,),
@@ -331,12 +338,12 @@ def field_get(
             StructType(owner.__module__, owner.__qualname__),
         )
     if kind == "computed":
-        from ...model.public.declarations import Projection
+        from ...model.public.declarations import DerivedRelation, Stage
 
         access_type = (
             spec.access_type if spec is not None else field_access_type(field, owner)
         )
-        if issubclass(owner, Projection):
+        if issubclass(owner, (DerivedRelation, Stage)):
             return select_expression(field_reference(
                 source=_source_name(owner),
                 path=(name,),
@@ -354,7 +361,7 @@ def field_get(
     if field._expression is not None:
         return select_expression(field._expression)
     raise TypeError(
-        "Field owners must be a Table, source Struct, Projection or ComputedStruct"
+        "Field owners must be a SourceRelation, source Struct, DerivedRelation, Stage or ComputedStruct"
     )
 
 

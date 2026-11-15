@@ -30,7 +30,7 @@ from ....languages.binding.model.internal.dto.blueprint_dto import (
     EdgeBindingDTO, NodeBindingDTO,
 )
 from ....languages.data.model.internal.dto.blueprint_dto import (
-    DataPartDTO, ProjectionDTO, RelationDTO, StructDTO,
+    DataPartDTO, DerivedRelationDTO, SourceRelationDTO, StructDTO,
 )
 from ....languages.graph.model.internal.dto import GraphDeclarationDTO
 from ....languages.topology.model.internal.dto.blueprint_dto import (
@@ -113,13 +113,13 @@ def _assemble(symbols: dict[SymbolRef, Symbol]) -> GraphBlueprint:
             symbol.value for symbol in resolved
             if isinstance(symbol.value, StructDTO)
         ),
-        relations=tuple(
+        source_relations=tuple(
             symbol.value for symbol in resolved
-            if isinstance(symbol.value, RelationDTO)
+            if isinstance(symbol.value, SourceRelationDTO)
         ),
-        projections=tuple(
+        derived_relations=tuple(
             symbol.value for symbol in resolved
-            if isinstance(symbol.value, ProjectionDTO)
+            if isinstance(symbol.value, DerivedRelationDTO)
         ),
     )
     assets = AssetPartDTO(assets=tuple(

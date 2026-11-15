@@ -20,8 +20,8 @@ from kg_build_system.distribution.languages.binding.model.internal import (
 from kg_build_system.distribution.languages.data.model.internal import (
     ColumnDTO,
     DataPartDTO,
-    ProjectionDTO,
-    RelationDTO,
+    DerivedRelationDTO,
+    SourceRelationDTO,
     RowDistinctDTO,
     RowFilterDTO,
     RowGroupByDTO,
@@ -47,8 +47,8 @@ from kg_build_system.kernel.model.internal import UnitTypeDTO
 DTO_TYPES = (
     ColumnDTO,
     DataPartDTO,
-    ProjectionDTO,
-    RelationDTO,
+    DerivedRelationDTO,
+    SourceRelationDTO,
     RowDistinctDTO,
     RowFilterDTO,
     RowGroupByDTO,
@@ -106,15 +106,15 @@ def _blueprint() -> GraphBlueprint:
         target=NodeRef("topology", Key(("unit",))),
         parent=NodeRef("topology", Key(("monitored",))),
     )
-    relation = RelationDTO(
+    relation = SourceRelationDTO(
         name="site",
         columns=(),
         asset=AssetRef("asset", Key(("estate",))),
     )
     data = DataPartDTO(
         structs=(),
-        relations=(relation,),
-        projections=(),
+        source_relations=(relation,),
+        derived_relations=(),
     )
     assets = _asset()
     return GraphBlueprint(
@@ -152,17 +152,17 @@ class BlueprintDTOTests(unittest.TestCase):
                     self.assertIn(node.parent.name, names)
 
     def test_a_relation_names_its_asset(self) -> None:
-        relation = _blueprint().data.relations[0]
+        relation = _blueprint().data.source_relations[0]
 
         self.assertIsInstance(relation.asset, AssetRef)
         self.assertEqual(
             relation.asset.to_document(), ["asset", "asset", "estate"],
         )
 
-    def test_the_data_part_has_structs_relations_and_projections_only(self) -> None:
+    def test_the_data_part_has_structs_source_and_derived_relations_only(self) -> None:
         self.assertEqual(
             {field.name for field in fields(DataPartDTO)},
-            {"structs", "relations", "projections"},
+            {"structs", "source_relations", "derived_relations"},
         )
 
     def test_the_public_blueprint_references_layer_dtos(self) -> None:

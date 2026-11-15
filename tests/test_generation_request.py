@@ -9,9 +9,9 @@ from kg_build_system import (
     AssetProfile,
 )
 from kg_build_system.generation import (
-    AssetContractOptions,
+    AssetGenerationOptions,
     GenerationError,
-    asset_contract,
+    asset_generation,
 )
 from kg_build_system.generation import code_generation
 from kg_build_system.generation.code_generation.builtins import (
@@ -20,19 +20,19 @@ from kg_build_system.generation.code_generation.builtins import (
 )
 
 
-def _options() -> AssetContractOptions[DataContractInferenceConfig]:
-    return AssetContractOptions(
+def _options() -> AssetGenerationOptions[DataContractInferenceConfig]:
+    return AssetGenerationOptions(
         provider=InferDataContractProvider,
-        configuration=DataContractInferenceConfig(mode="table"),
+        configuration=DataContractInferenceConfig(mode="source_relation"),
         package="project.tables",
     )
 
 
 class GenerationRequestTests(unittest.TestCase):
-    def test_an_asset_contract_is_inert_and_stored_on_the_asset(self) -> None:
+    def test_an_asset_generation_is_inert_and_stored_on_the_asset(self) -> None:
         options = _options()
 
-        @asset_contract(options)
+        @asset_generation(options)
         class Contracted(Asset):
             options = AssetOptions(
                 profile=AssetProfile(
@@ -43,23 +43,23 @@ class GenerationRequestTests(unittest.TestCase):
                 ),
             )
 
-        self.assertIs(Contracted._asset_contract, options)
+        self.assertIs(Contracted._asset_generation, options)
         self.assertIs(options.provider, InferDataContractProvider)
-        self.assertEqual(options.configuration.mode, "table")
+        self.assertEqual(options.configuration.mode, "source_relation")
         self.assertEqual(options.package, "project.tables")
 
     def test_the_decorator_is_exported_from_both_frontends(self) -> None:
-        self.assertIs(code_generation.asset_contract, asset_contract)
-        self.assertIs(code_generation.AssetContractOptions, AssetContractOptions)
+        self.assertIs(code_generation.asset_generation, asset_generation)
+        self.assertIs(code_generation.AssetGenerationOptions, AssetGenerationOptions)
 
     def test_the_decorator_rejects_a_non_asset_class(self) -> None:
         with self.assertRaises(TypeError):
-            asset_contract(_options())(dict)  # type: ignore[arg-type]
+            asset_generation(_options())(dict)  # type: ignore[arg-type]
 
     def test_the_decorator_rejects_a_mismatched_configuration(self) -> None:
         with self.assertRaises(TypeError):
-            asset_contract(
-                AssetContractOptions(
+            asset_generation(
+                AssetGenerationOptions(
                     provider=InferDataContractProvider,
                     configuration="not a configuration",  # type: ignore[arg-type]
                     package="project.tables",
@@ -68,9 +68,9 @@ class GenerationRequestTests(unittest.TestCase):
 
     def test_the_decorator_rejects_an_invalid_package(self) -> None:
         with self.assertRaises(ValueError):
-            asset_contract(AssetContractOptions(
+            asset_generation(AssetGenerationOptions(
                 provider=InferDataContractProvider,
-                configuration=DataContractInferenceConfig(mode="table"),
+                configuration=DataContractInferenceConfig(mode="source_relation"),
                 package="not a package",
             ))
 

@@ -1,4 +1,4 @@
-"""Author-facing field declarations for tables, structs and projections.
+"""Author-facing field declarations for source relations, structs and derived relations.
 
 A field is written as a class attribute: ``field()`` for a source-backed member
 and ``computed_field(selection)`` for an expression-backed output. A source
@@ -7,9 +7,9 @@ type of its expression.
 
 Example:
     ```python
-    from kg_build_system import Field, Table, field
+    from kg_build_system import Field, SourceRelation, field
 
-    class Site(Table):
+    class Site(SourceRelation):
         site_id: Field[str] = field()
         names: Field[Array[str]] = field(name="name")
     ```
@@ -22,8 +22,8 @@ from typing import TYPE_CHECKING, Any, TypeVar, overload
 from kg_build_system.distribution.languages.annotations.model.public import (
     Annotation,
 )
-from kg_build_system.distribution.languages.semantics.model.public import (
-    require_declaration_semantics,
+from kg_build_system.distribution.languages.meaning.model.public import (
+    require_declaration_meaning,
 )
 from kg_build_system.kernel.model.public.types import (
     Array,
@@ -40,16 +40,54 @@ if TYPE_CHECKING:
     from kg_build_system.distribution.languages.expressions.model.public import (
         Selection,
     )
-    from kg_build_system.distribution.languages.semantics.model.public import (
-        Semantics,
+    from kg_build_system.distribution.languages.meaning.model.public import (
+        Meaning,
     )
     from kg_build_system.kernel.model.public.types import LogicalType
     from .declarations import (
-        ComputedStruct, Projection, Struct as SourceStruct, Table,
+        ComputedStruct, DerivedRelation, Stage, Struct as SourceStruct,
+        SourceRelation,
     )
 
 T = TypeVar("T")
 
+
+@dataclass(frozen=True, slots=True)
+class FieldDefinition:
+    """What one field's value, unit and absence mean.
+
+    It carries only what the declaration cannot derive: the value's meaning, the
+    unit it is expressed in and the meaning of an absent value. The field name,
+    logical type, source and provenance are read from the declaration.
+
+    Example:
+        ```python
+        from kg_build_system import FieldDefinition
+
+        definition = FieldDefinition(
+            value="The site's stable identifier.",
+            null_meaning="The register holds no identifier for the site.",
+        )
+        ```
+    """
+
+    value: str
+    unit: str | None = None
+    null_meaning: str | None = None
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.value, str) or not self.value.strip():
+            raise ValueError("field definitions must state what the value means")
+        for name, text in (
+            ("unit", self.unit),
+            ("null_meaning", self.null_meaning),
+        ):
+            if text is not None and (
+                not isinstance(text, str) or not text.strip()
+            ):
+                raise ValueError(
+                    f"field definition {name} must be non-empty text"
+                )
 
 
 # The closed value vocabulary a field may declare. A bound keeps the actual
@@ -64,16 +102,17 @@ type DeclaredValue = (
 
 @dataclass(frozen=True, slots=True)
 class FieldMetadata:
-    """The name, description, annotations and semantics declared on one field."""
+    """The name, description, annotations and meaning declared on one field."""
 
     name: str | None = None
     description: str | None = None
     annotations: tuple[Annotation, ...] = ()
     attribute: str = ""
-    semantics: Semantics | None = None
+    meaning: Meaning | None = None
+    definition: FieldDefinition | None = None
 
     def __post_init__(self) -> None:
-        require_declaration_semantics(self.semantics)
+        require_declaration_meaning(self.meaning)
 
 
 class Field[T: DeclaredValue]:
@@ -81,13 +120,13 @@ class Field[T: DeclaredValue]:
 
     The descriptor overloads are keyed on the owner shape, never on a nullable
     annotation. ``T`` is bounded by the canonical value roots, so
-    ``Field[str | None]`` and ``Field[SomeTable]`` are rejected.
+    ``Field[str | None]`` and ``Field[SomeSourceRelation]`` are rejected.
 
     Example:
         ```python
-        from kg_build_system import Field, Table, field
+        from kg_build_system import Field, SourceRelation, field
 
-        class Site(Table):
+        class Site(SourceRelation):
             site_id: Field[str] = field()
         ```
     """
@@ -128,8 +167,8 @@ class Field[T: DeclaredValue]:
 
         Example:
             ```python
-            from kg_build_system import Field, Table, field
-            class Row(Table):
+            from kg_build_system import Field, SourceRelation, field
+            class Row(SourceRelation):
                 text: Field[str] = field()
             Row.__dict__["text"].access_type(Row)
             ```
@@ -140,20 +179,20 @@ class Field[T: DeclaredValue]:
 
     @overload
     def __get__(
-        self, instance: None, owner: type["Table"] | type["SourceStruct"],
+        self, instance: None, owner: type["SourceRelation"] | type["SourceStruct"],
     ) -> "Selection[Nullable[T]]": ...
     @overload
     def __get__(
         self, instance: None,
-        owner: type["Projection"] | type["ComputedStruct"],
+        owner: type["DerivedRelation"] | type["Stage"] | type["ComputedStruct"],
     ) -> "Selection[T]": ...
     @overload
     def __get__(
-        self, instance: "Table | SourceStruct", owner: type[Any],
+        self, instance: "SourceRelation | SourceStruct", owner: type[Any],
     ) -> "Selection[Nullable[T]]": ...
     @overload
     def __get__(
-        self, instance: "Projection | ComputedStruct", owner: type[Any],
+        self, instance: "DerivedRelation | Stage | ComputedStruct", owner: type[Any],
     ) -> "Selection[T]": ...
     def __get__(self, instance: Any, owner: type[Any] | None = None) -> Any:
         from ...service._private.descriptors import field_get
@@ -167,5 +206,6 @@ FieldDescriptor = Field
 
 
 __all__ = [
-    "DeclaredValue", "Field", "FieldDescriptor", "FieldMetadata",
+    "DeclaredValue", "Field", "FieldDefinition", "FieldDescriptor",
+    "FieldMetadata",
 ]

@@ -4,16 +4,16 @@ from __future__ import annotations
 from typing import Any
 
 
-def validate_semantics(value: Any) -> None:
-    """Reject a value that is not a declaration semantics attachment."""
+def validate_meaning(value: Any) -> None:
+    """Reject a value that is not a declaration meaning attachment."""
     if value is None:
         return
-    from kg_build_system.distribution.languages.semantics.model.public import (
-        Semantics,
+    from kg_build_system.distribution.languages.meaning.model.public import (
+        Meaning,
     )
 
-    if not isinstance(value, Semantics):
-        raise TypeError("binding semantics must be a Semantics value")
+    if not isinstance(value, Meaning):
+        raise TypeError("binding meaning must be a Meaning value")
 
 
 def validate_binding(
@@ -38,4 +38,4 @@ def validate_binding(
         raise ValueError("a declarative binding cannot carry a row plan")
 
 
-__all__ = ["validate_binding", "validate_semantics"]
+__all__ = ["validate_binding", "validate_meaning"]

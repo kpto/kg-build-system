@@ -1,4 +1,4 @@
-"""A scan is supplied by the relation its table or projection already owns."""
+"""A scan is supplied by the relation its source or derived relation owns."""
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -13,7 +13,7 @@ class ScanEmitter:
     node_type = RowScanDTO
 
     def emit(self, plan: object, context: RowSourceEmissionContext) -> str:
-        raise ValueError("a scan is supplied by its table or projection relation")
+        raise ValueError("a scan is supplied by its source or derived relation")
 
 
 __all__ = ["ScanEmitter"]

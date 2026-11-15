@@ -4,10 +4,18 @@ from __future__ import annotations
 
 from kg_build_system.distribution.languages.binding import NodeValues, node_binding
 from kg_build_system.distribution.languages.data import (
+    Contract,
+    Definition,
+    DerivedRelation,
+    DerivedRelationOptions,
     Field,
-    Table,
+    SourceRelation,
+    Stage,
+    StageOptions,
+    computed_field,
     field,
 )
+from kg_build_system.distribution.languages.meaning import Claim, Meaning
 from kg_build_system.distribution.languages.topology import (
     Node,
     NodeOptions,
@@ -18,9 +26,35 @@ from kg_build_system.kernel import Array
 from tests.distribution.support import TestEstate
 
 
-class Site(Table[TestEstate]):
+class Site(SourceRelation[TestEstate]):
     site_id: Field[str] = field(name="id")
     tags: Field[Array[str]] = field(name="tags")
+
+
+class SiteStage(Stage(Site.row_source())):
+    options = StageOptions(
+        definition=Definition(grain="one row per site", identity=("site_id",)),
+    )
+    site_id = computed_field(Site.site_id)
+
+
+StageOptions(
+    name="bad_stage",
+    definition=Definition(grain="one row per site", identity=("site_id",)),
+    meaning=Meaning(claims=(Claim("Stages carry no meaning."),)),  # pyright: ignore[reportCallIssue]
+)
+
+
+class ClaimOnly(DerivedRelation(SiteStage.row_source())):
+    options = DerivedRelationOptions(
+        contract=Contract(
+            definition=Definition(
+                grain="one row per site", identity=("site_id",),
+            ),
+            meaning=Meaning(claims=(Claim("One row is one site."),)),
+        ),
+    )
+    site_id = computed_field(SiteStage.site_id)
 
 
 class SiteNode(Node):
@@ -53,9 +87,18 @@ node_binding(
     ),
 )
 
+node_binding(
+    target=SiteNode,
+    rows=SiteStage.row_source(),  # pyright: ignore[reportArgumentType]
+    bind=lambda row: NodeValues(
+        build_key=row.site_id.alter_rows().drop_null(),  # pyright: ignore[reportAttributeAccessIssue]
+        properties=SiteNode(label=row.site_id),  # pyright: ignore[reportAttributeAccessIssue]
+    ),
+)
+
 
 def _declares_nullable_field() -> None:
-    class Bad(Table[TestEstate]):
+    class Bad(SourceRelation[TestEstate]):
         value: Field[str | None] = field(name="value")  # pyright: ignore[reportInvalidTypeArguments]
 
 

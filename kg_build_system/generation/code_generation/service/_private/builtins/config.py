@@ -32,7 +32,9 @@ class DataContractInferenceConfig(ProviderGenerationConfig):
     #: asset's ``AssetLayout.locator``; a request with neither is refused.
     source: str | None = None
     relation: str | None = None
-    mode: Literal["table", "table_group"] = "table"
+    mode: Literal[
+        "source_relation", "source_relation_group",
+    ] = "source_relation"
     layout: Literal["files", "parquet_parts", "hive_partitioned_parquet"] = "files"
     anonymous: bool = False
     #: Author declarations that replace what the reader reports for a column,

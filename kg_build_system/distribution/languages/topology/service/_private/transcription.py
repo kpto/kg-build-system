@@ -26,7 +26,7 @@ from kg_build_system.distribution.model.public.refs import (
 from kg_build_system.kernel import Key
 from ...model.internal.model.metadata import ComponentMetadata
 from .metadata import component_kind, metadata_for
-from .semantics import semantics_to_dto
+from .meaning import meaning_to_dto
 
 
 def _labels_and_annotations(
@@ -86,8 +86,8 @@ def _property_dto(component: str, value: Any) -> PropertyDTO:
         ),
         description=value.description,
         annotations=tuple(annotations),
-        semantics=(
-            None if value.semantics is None else semantics_to_dto(value.semantics)
+        meaning=(
+            None if value.meaning is None else meaning_to_dto(value.meaning)
         ),
     )
 
@@ -171,9 +171,9 @@ def _edges_of(
             abstract=metadata.abstract,
             parent=parent,
             description=metadata.description,
-            semantics=(
-                None if metadata.semantics is None
-                else semantics_to_dto(metadata.semantics)
+            meaning=(
+                None if metadata.meaning is None
+                else meaning_to_dto(metadata.meaning)
             ),
         )
     return result
@@ -203,9 +203,9 @@ def _nodes_of(
             abstract=metadata.abstract,
             parent=parent,
             description=metadata.description,
-            semantics=(
-                None if metadata.semantics is None
-                else semantics_to_dto(metadata.semantics)
+            meaning=(
+                None if metadata.meaning is None
+                else meaning_to_dto(metadata.meaning)
             ),
         )
     return result

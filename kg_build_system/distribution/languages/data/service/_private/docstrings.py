@@ -10,7 +10,7 @@ other classes, and control flow alike. Parsing that block rather than scanning
 it is what attaches a literal to the member above it instead of to whatever
 statement happens to precede it.
 
-Source availability is therefore part of declaration semantics: a class whose
+Source availability is therefore part of declaration meaning: a class whose
 source cannot be read resolves no attribute documentation, exactly as if the
 docstrings had been omitted.
 """

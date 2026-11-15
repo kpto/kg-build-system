@@ -176,7 +176,7 @@ class EdgeRef(Ref):
 
 @dataclass(frozen=True, slots=True, init=False, eq=False)
 class RelationRef(Ref):
-    """A reference to one relation or projection that row plans can scan.
+    """A reference to one source or derived relation that row plans can scan.
 
     Example:
         ```python
@@ -209,7 +209,7 @@ class AssetRef(Ref):
 
 @dataclass(frozen=True, slots=True, init=False, eq=False)
 class FieldRef(Ref):
-    """A reference to one declared field of a relation, projection or struct.
+    """A reference to one declared field of a relation or struct.
 
     ``relation`` and ``field`` split the final key segment at its last dot, so
     ``Key(("sites.site_name",))`` names the ``site_name`` field of ``sites``.

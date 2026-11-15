@@ -19,7 +19,7 @@ LEAVES = (
     "distribution/interpreter",
     "distribution/modules/core",
     "distribution/modules/core/row_source",
-    "distribution/modules/core/projection",
+    "distribution/modules/core/derived_relation",
     "distribution/modules/core/binding",
     "distribution/modules/core/records",
     "distribution/modules/deduplication",

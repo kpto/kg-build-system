@@ -16,7 +16,7 @@ from kg_build_system.distribution.modules.duckdb import DuckDbSqlEmitter
 from kg_build_system.kernel import (
     InstructionKind, Key, Output, PlanContext, Publication,
 )
-from reference_project.topology.site import SiteNode
+from reference_project.graph.site import SiteNode
 
 
 class DeduplicationPlannerTests(unittest.TestCase):

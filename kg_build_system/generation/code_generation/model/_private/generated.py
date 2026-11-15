@@ -96,7 +96,7 @@ class GeneratedField:
 
 @dataclass(frozen=True, slots=True)
 class GeneratedMember:
-    """A named declaration pointer carried by a generated table group."""
+    """A named declaration pointer carried by a generated source relation group."""
 
     python_name: str
     declaration_name: str
@@ -104,7 +104,7 @@ class GeneratedMember:
 
 @dataclass(frozen=True, slots=True)
 class GeneratedAsset:
-    """The authored asset class a generated table names as its generic argument."""
+    """The authored asset class a generated source relation names as its argument."""
 
     module: str
     qualname: str
@@ -135,7 +135,8 @@ class NullabilityNote:
     """One rendered provenance line about where a shape's nullability came from.
 
     ``sources`` names the physical inputs the line describes and ``declarations``
-    the declarations derived from them, so a catalogue rendered one file per table
+    the declarations derived from them, so a catalogue rendered one file per
+    source relation
     carries only the lines about its own source.
     """
 

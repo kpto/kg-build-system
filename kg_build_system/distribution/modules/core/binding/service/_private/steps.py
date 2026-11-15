@@ -51,7 +51,7 @@ def binding_step(
         inputs=tuple(
             read_input(
                 name,
-                core_plan.projection_relations,
+                core_plan.derived_relations,
                 core_plan.row_source_relations,
             )
             for name in sorted(binding_sources(binding))

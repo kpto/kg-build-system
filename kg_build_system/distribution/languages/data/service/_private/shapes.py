@@ -157,7 +157,7 @@ def make_row_shape(
     used: set[str] = set()
     attrs: dict[str, Any] = {
         "_kg_row_source_name": source_name,
-        "_projection_name": source_name,
+        "_derived_relation_name": source_name,
         "_kg_shape_view": True,
         "_kg_row_source_fields": tuple(fields),
     }
@@ -183,8 +183,8 @@ def make_row_shape(
     return type(name, (Shape,), attrs)
 
 
-def projection_attrs(shape: type[Shape]) -> dict[str, Any]:
-    """Projection-field descriptors for every member of a shape."""
+def derived_relation_attrs(shape: type[Shape]) -> dict[str, Any]:
+    """Derived-relation field descriptors for every member of a shape."""
     source_name = shape_source_name(shape)
     attrs: dict[str, Any] = {}
     for field in shape_fields(shape):
@@ -236,14 +236,16 @@ def shape_source_name(shape: type[Shape]) -> str:
     if isinstance(recorded, str) and recorded:
         return recorded
     spec = vars(shape).get("_kg_declaration_spec")
-    if spec is not None and spec.name and spec.kind in {"table", "projection"}:
+    if spec is not None and spec.name and spec.kind in {
+        "source_relation", "derived_relation", "stage",
+    }:
         return spec.name
-    table_name = getattr(shape, "_table_name", None)
-    if isinstance(table_name, str) and table_name:
-        return table_name
-    projection_name = getattr(shape, "_projection_name", None)
-    if isinstance(projection_name, str) and projection_name:
-        return projection_name
+    source_relation_name = getattr(shape, "_source_relation_name", None)
+    if isinstance(source_relation_name, str) and source_relation_name:
+        return source_relation_name
+    derived_relation_name = getattr(shape, "_derived_relation_name", None)
+    if isinstance(derived_relation_name, str) and derived_relation_name:
+        return derived_relation_name
     raise TypeError(f"{shape.__name__} is not a row shape with a logical source")
 
 
@@ -264,7 +266,7 @@ def union_shape_fields(left: type[Shape], right: type[Shape]) -> tuple[ShapeFiel
 
 
 __all__ = [
-    "ShapeField", "make_row_shape", "make_shape_context", "projection_attrs",
+    "ShapeField", "make_row_shape", "make_shape_context", "derived_relation_attrs",
     "record_shape", "record_shape_type", "shape_fields", "shape_source_name",
     "shape_view", "union_shape_fields",
 ]

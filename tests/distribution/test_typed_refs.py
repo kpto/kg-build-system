@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from kg_build_system import Meaning, Purpose
 import unittest
 
 from kg_build_system import (
@@ -7,8 +8,8 @@ from kg_build_system import (
     Node,
     NodeValues,
     PropertySlot,
-    Table,
-    TableOptions,
+    SourceRelation,
+    SourceRelationOptions,
     field,
     node_binding,
     property,
@@ -27,7 +28,7 @@ from kg_build_system.distribution.languages.binding.service.internal import (
 from kg_build_system.distribution.languages.data.model.internal import (
     ColumnDTO,
     DataPartDTO,
-    RelationDTO,
+    SourceRelationDTO,
 )
 from kg_build_system.distribution.languages.expressions.model.internal import (
     FieldReferenceDTO,
@@ -166,7 +167,7 @@ class BlueprintReferenceCodecTests(unittest.TestCase):
             source=_site(),
             target=_unit(),
         )
-        relation = RelationDTO(
+        relation = SourceRelationDTO(
             "sites",
             (
                 ColumnDTO(
@@ -206,8 +207,8 @@ class BlueprintReferenceCodecTests(unittest.TestCase):
             graph=GraphPartDTO(nodes=(entity, site, unit), edges=(edge,)),
             data=DataPartDTO(
                 structs=(),
-                relations=(relation,),
-                projections=(),
+                source_relations=(relation,),
+                derived_relations=(),
             ),
             assets=assets,
             bindings=(binding,),
@@ -222,11 +223,11 @@ class BlueprintReferenceCodecTests(unittest.TestCase):
             ["topology", "node", "site"],
         )
         self.assertEqual(
-            document["data"]["relations"][0]["columns"][0]["ref"],
+            document["data"]["source_relations"][0]["columns"][0]["ref"],
             ["data", "field", "sites.site_name"],
         )
         self.assertEqual(
-            document["data"]["relations"][0]["asset"],
+            document["data"]["source_relations"][0]["asset"],
             ["asset", "asset", "estate"],
         )
         self.assertEqual(
@@ -237,8 +238,8 @@ class BlueprintReferenceCodecTests(unittest.TestCase):
 
 class BindingSymbolReferenceTests(unittest.TestCase):
     def test_a_binding_references_a_field_and_an_operation_symbol(self) -> None:
-        class Row(Table[TestEstate]):
-            options = TableOptions(name="row")
+        class Row(SourceRelation[TestEstate]):
+            options = SourceRelationOptions(name="row")
             value: Field[int] = field(name="value")
 
         class Item(Node):
@@ -251,6 +252,7 @@ class BindingSymbolReferenceTests(unittest.TestCase):
                 build_key=row.value.alter_rows().drop_null(),
                 properties=Item(value=row.value.alter_rows().drop_null().add(1)),
             ),
+            meaning=Meaning(purpose=Purpose("Fulfil the fixture record from its rows.")),
         )
 
         blueprint = create_blueprint(bindings=(binding,))

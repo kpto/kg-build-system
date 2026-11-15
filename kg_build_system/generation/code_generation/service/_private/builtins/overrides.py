@@ -79,7 +79,7 @@ def promoted_type_name(type_name: str, *, column: str, canonical: UnitTypeName) 
             "says no meaning-preserving canonical type exists for the values the "
             f"source holds, so {promotion_declaration(column, canonical)} cannot "
             "be honoured. Either export the column in a mappable type, or declare "
-            "this table outside a generated package."
+            "this source relation outside a generated package."
         )
     if not is_canonical_unit_name(digest.canonical):
         raise container_promotion(type_name, column=column, canonical=canonical)

@@ -5,9 +5,9 @@ A pair is a canonical value record with two present members, ``left`` and
 
 Example:
     ```python
-    from kg_build_system import Field, Pair, Table, field
+    from kg_build_system import Field, Pair, SourceRelation, field
 
-    class Row(Table):
+    class Row(SourceRelation):
         labels: Field[str] = field(name="label")
 
     pair: Pair[str, int]

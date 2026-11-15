@@ -7,13 +7,13 @@ re-exported here for the canonical ``kg_build_system.generation`` import.
 from __future__ import annotations
 
 from .code_generation import (
-    AssetContractOptions, FileChange, FileChangeKind, GenerationError,
+    AssetGenerationOptions, FileChange, FileChangeKind, GenerationError,
     GenerationRequest, GenerationResult, GenerationSession, GenerationStatus,
-    asset_contract, discover, discover_file, generate, watch,
+    asset_generation, discover, discover_file, generate, watch,
 )
 
 __all__ = [
-    "AssetContractOptions",
+    "AssetGenerationOptions",
     "FileChange",
     "FileChangeKind",
     "GenerationError",
@@ -21,7 +21,7 @@ __all__ = [
     "GenerationResult",
     "GenerationSession",
     "GenerationStatus",
-    "asset_contract",
+    "asset_generation",
     "discover",
     "discover_file",
     "generate",

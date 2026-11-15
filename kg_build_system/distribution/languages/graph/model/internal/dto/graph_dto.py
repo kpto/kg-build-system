@@ -3,8 +3,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from kg_build_system.distribution.languages.semantics.model.internal.dto import (
-    SemanticsDTO,
+from kg_build_system.distribution.languages.meaning.model.internal.dto import (
+    MeaningDTO,
 )
 
 
@@ -12,25 +12,25 @@ from kg_build_system.distribution.languages.semantics.model.internal.dto import 
 class GraphDeclarationDTO:
     """The project's one graph declaration in the blueprint.
 
-    ``name`` is the portable graph name and ``semantics`` is the project's
-    meaning root: the same ``SemanticsDTO`` value every other declaration uses,
+    ``name`` is the portable graph name and ``meaning`` is the project's
+    meaning root: the same ``MeaningDTO`` value every other declaration uses,
     carrying a required purpose. ``description`` is nullable prose.
     """
 
     name: str
     description: str | None
-    semantics: SemanticsDTO
+    meaning: MeaningDTO
 
     def __post_init__(self) -> None:
         if not isinstance(self.name, str) or not self.name:
             raise ValueError("a graph declaration name must be a non-empty string")
-        if not isinstance(self.semantics, SemanticsDTO):
+        if not isinstance(self.meaning, MeaningDTO):
             raise TypeError(
-                "a graph declaration requires a Semantics with a purpose"
+                "a graph declaration requires a Meaning with a purpose"
             )
-        if self.semantics.purpose is None:
+        if self.meaning.purpose is None:
             raise ValueError(
-                "a graph declaration requires a Semantics with a purpose"
+                "a graph declaration requires a Meaning with a purpose"
             )
         if self.description is not None and (
             not isinstance(self.description, str) or not self.description
