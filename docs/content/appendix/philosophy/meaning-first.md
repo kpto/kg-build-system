@@ -53,17 +53,17 @@ The same source, designed:
 
 ```python
 from kg_build_system import (
-    Claim, Graph, GraphOptions, GraphSemantics, Node, NodeLabel, NodeOptions,
-    PropertySlot, Purpose, property,
+    Claim, Graph, GraphOptions, Node, NodeLabel, NodeOptions, PropertySlot,
+    Purpose, Semantics, property,
 )
 
 
 class EstateGraph(Graph):
     options = GraphOptions(
         name="estate",
-        semantics=GraphSemantics(
-            claims=(Claim("A site holds installed equipment."),),
+        semantics=Semantics(
             purpose=Purpose(text="Estate asset management."),
+            claims=(Claim("A site holds installed equipment."),),
         ),
     )
 

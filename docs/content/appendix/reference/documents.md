@@ -218,7 +218,7 @@ The rule is not symmetric. Some absent values are omitted, some are written as e
 | Topology `labels`, `abstract`, `properties`, `annotations` | Always written. |
 | Data column `description`, `expression`, `semantics` | Omitted. |
 | Data declaration `description`, `semantics` | Omitted. |
-| Semantics `claims`, `frames` | Omitted when empty; `purpose` is required on graph semantics. |
+| Semantics `purpose`, `claims` | `purpose` is omitted when absent; its `limitations` are omitted when empty; a graph declaration requires a purpose. |
 
 Decoding does not validate. The codecs check the document's own shape and required scalar forms, but a decoded blueprint is not re-linked or cross-validated; a decoded plan is not checked for executability. Run the model through the pipeline before trusting it.
 

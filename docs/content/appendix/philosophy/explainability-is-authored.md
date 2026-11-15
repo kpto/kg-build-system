@@ -19,12 +19,12 @@ sources:
 
 | The framework can | The framework cannot |
 | --- | --- |
-| Preserve claims, frames and limitations as published data | Invent a purpose for a graph that has none |
-| Check that a `Graph` has one `GraphSemantics` and a `Purpose` | Decide whether the purpose is meaningful or true |
+| Preserve purposes, claims and limitations as published data | Invent a purpose for a graph that has none |
+| Check that a `Graph` has a `Semantics` carrying one root `Purpose` | Decide whether the purpose is meaningful or true |
 | Publish labels, descriptions and annotations with the blueprint | Infer why a node or edge exists |
 | Resolve typed references and refuse an unknown one | Know that a reference is the right design |
 | Record an absence as a nullable property or a limitation | Decide whether a limit is honest or a convenient omission |
-| Refuse a graph with two purposes | Notice that a project has no purpose at all |
+| Refuse a second graph declaration and a second root purpose | Notice that a project has no purpose at all |
 
 The last row is the important one. Zero graph declarations are legal. The blueprint still carries topology, data, bindings and their annotations; it carries no `graph_declaration`, so no purpose is published. The reference project is in this state. That is a limit, not a silent success.
 
@@ -33,7 +33,7 @@ The last row is the important one. Zero graph declarations are legal. The bluepr
 - State the purpose before asking the framework to explain the graph. If you cannot state it, record the gap rather than inventing one.
 - A claim is not a description. A description explains a component to a reader; a claim is a statement a consumer may rely on. Put each in its own channel.
 - Do not use a generated count, example value or meta-graph summary as the meaning of the graph. Those are evidence that the build ran; they are not intent.
-- A limitation is a first-class statement. If the data cannot answer a question, say so under the frame where it is true; do not leave the absence implicit.
+- A limitation is a first-class statement. If the data cannot answer a question, say so under the purpose where it is true; do not leave the absence implicit.
 - Write semantics for the consumer, not for the compiler. The compiler only checks the structure of the statement.
 - Treat the presence of a purpose as a promise. A purpose that no record can serve is worse than an explicit missing purpose.
 - The framework will not stop a valid but meaningless design. Review is the guard.
@@ -44,7 +44,7 @@ The reference project has topology, properties, templates, categories and annota
 
 ```python
 from kg_build_system import (
-    Claim, Frame, Graph, GraphOptions, GraphSemantics, Limitation, Purpose,
+    Claim, Graph, GraphOptions, Limitation, Purpose, Semantics,
 )
 
 
@@ -52,24 +52,19 @@ class EstateGraph(Graph):
     options = GraphOptions(
         name="estate",
         description="Sites and the equipment installed at them.",
-        semantics=GraphSemantics(
-            claims=(Claim("A site holds installed equipment."),),
+        semantics=Semantics(
             purpose=Purpose(
                 text="Estate asset management.",
-                frames=(
-                    Frame(
-                        text="Registered estate only.",
-                        limitations=(
-                            Limitation("Unregistered equipment is absent."),
-                        ),
-                    ),
+                limitations=(
+                    Limitation("Unregistered equipment is absent."),
                 ),
             ),
+            claims=(Claim("A site holds installed equipment."),),
         ),
     )
 ```
 
-The blueprint now carries `graph_declaration`; a consumer can read the purpose and the frame without reading the pipeline. The framework still does not know whether “estate asset management” is the right purpose. That judgment remains authored and reviewed.
+The blueprint now carries `graph_declaration`; a consumer can read the purpose and its limitations without reading the pipeline. The framework still does not know whether “estate asset management” is the right purpose. That judgment remains authored and reviewed.
 
 ## Limits
 

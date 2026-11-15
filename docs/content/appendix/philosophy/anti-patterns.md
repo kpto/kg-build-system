@@ -22,8 +22,8 @@ sources:
 - **SQL-named model** — edges named `JOIN`, projections named after expansions. **Move:** name the assertion and the grain; keep SQL names in the plan.
 - **Fat binding** — joins, expansions and defaults hide inside `bind=`. **Move:** move the grain to a projection; keep the binding a total mapping.
 - **Projection dumping ground** — one projection “does everything” and four bindings read it. **Move:** name the grain each binding needs; split the projection.
-- **Orphan semantics** — a frame contradicts the purpose, or a limitation sits at the top. **Move:** move the statement to the level where it is true; change the design if it conflicts.
-- **Limit-free graph** — every absence is implicit; the graph claims more than it can answer. **Move:** add the limitation under the frame where it holds.
+- **Orphan semantics** — a local purpose contradicts the root purpose, or a limitation sits outside a purpose. **Move:** move the statement to the level where it is true; change the design if it conflicts.
+- **Limit-free graph** — every absence is implicit; the graph claims more than it can answer. **Move:** add the limitation under the purpose where it holds.
 - **Plan-first design** — the planner composition is designed before the topology. **Move:** design the graph; choose planners afterwards.
 - **Model-the-file** — nested JSON becomes nested properties or a 1:1 tree of nodes. **Move:** model the domain; flatten only what the consumer needs.
 - **Defaulted identity** — `build_key=row.id.default_to("unknown")`. **Move:** drop the row or fail; a placeholder collapses distinct records into one identity.

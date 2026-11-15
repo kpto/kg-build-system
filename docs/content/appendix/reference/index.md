@@ -31,7 +31,7 @@ sources:
 | [Projections](/appendix/reference/projections) | Pinned sources, computed fields and outputs. |
 | [Topology](/appendix/reference/topology) | Node, Edge, properties, templates, categories and endpoints. |
 | [Bindings](/appendix/reference/bindings) | node_binding, edge_binding, keys, properties and endpoints. |
-| [Semantics](/appendix/reference/semantics) | Claim, Frame, Limitation, Purpose, Semantics and GraphSemantics. |
+| [Semantics](/appendix/reference/semantics) | Claim, Limitation, Purpose and Semantics. |
 | [Compile and execute](/appendix/reference/compile) | create_blueprint, compile, execute, plan and report. |
 | [Planners and executors](/appendix/reference/planners-and-executors) | Supplied planners, executors, configuration and kinds. |
 | [Ingest](/appendix/reference/ingest) | AssetLayout, the generic source planner and source checks. |

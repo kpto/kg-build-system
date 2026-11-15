@@ -19,10 +19,10 @@ sources:
 
 | Above the seam | At the seam | Below the seam |
 | --- | --- | --- |
-| Purpose, claims and frames | Concrete target | Asset and layout |
-| Node and edge meaning | Build key | Table and field types |
-| Property meaning and direction | One value per property | Selection and null policy |
-| Category and template meaning | Edge source/target keys | Row source, join, group, unnest |
+| Purpose, claims and limitations | Concrete target | Asset and layout |
+| Node and edge purpose | Build key | Table and field types |
+| Property purpose and direction | One value per property | Selection and null policy |
+| Category and template purpose | Edge source/target keys | Row source, join, group, unnest |
 | Labels and limits | Endpoint tokens | Projection, plan and executor |
 
 The binding is the only declaration that imports both the row shape and the graph meaning. That is why it is the seam, and why it should be thin.

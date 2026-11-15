@@ -100,13 +100,13 @@
 
 - slug: meaning
   title: Semantics and graph purpose
-  summary: Claims, frames, limitations and the one purpose every declaration is read under.
+  summary: One root purpose, local purposes that narrow it, contextless claims, and the limitations of each purpose.
   order: 70
   spec: SPEC-007
   contract:
-    - "A project MUST have at most one `Graph`, and a `Graph` MUST carry one `Purpose`."
-    - "A declaration MUST attach `Semantics`, never `GraphSemantics`."
-    - "A `Limitation` MUST live under a `Frame`; a claim MUST NOT live under a frame."
+    - "A project MUST have at most one `Graph`, and its `Semantics` MUST carry the root `Purpose`."
+    - "A non-graph declaration MAY carry one local `Purpose`; it MUST narrow the graph purpose."
+    - "A `Limitation` MUST live inside a `Purpose`; a `Claim` MUST remain contextless."
   guide: [book/part-2/01-meaning-and-purpose]
   api: appendix/reference/api
   philosophy: [appendix/philosophy/semantic-hierarchy]

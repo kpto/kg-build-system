@@ -21,7 +21,7 @@ A graph author meets the distribution before meeting the kernel. `Table`, `Field
 
 The mistake is worth stating plainly because Part IV argues against it. The default distribution is one composition of the kernel protocols. It contains the graph languages, the blueprint and its interpreter, the core planners, the DuckDB source planner and emitter, the file, meta-graph and Neo4j targets, the generation frontend and the CLI. Those are the parts a project uses on the first day. They are also the parts a project can replace, one object at a time, while keeping the rest of the build.
 
-The qualification is equally important. For a graph build, the distribution is not optional. A custom language can run on the kernel alone; nodes, edges, bindings and a blueprint cannot. The default distribution is replaceable as a composition and required as graph semantics. Both statements hold because they answer different questions: one asks which implementation supplies a protocol, the other asks what a graph means.
+The qualification is equally important. For a graph build, the distribution is not optional. A custom language can run on the kernel alone; nodes, edges, bindings and a blueprint cannot. The default distribution is replaceable as a composition and required as the graph meaning root. Both statements hold because they answer different questions: one asks which implementation supplies a protocol, the other asks what a graph means.
 
 ## The languages and the blueprint
 
@@ -36,9 +36,9 @@ The distribution owns eight language packages, but they do not all plug into the
 | `binding` | The row-to-record mapping. | `BindingLanguage` |
 | `graph` | One project-level graph declaration and its purpose. | `GraphLanguage` |
 | `annotations` | Labels, descriptions and other attached values. | Value language, embedded |
-| `semantics` | Claims, limitations, frames and purpose. | Value language, embedded |
+| `semantics` | Purposes, limitations and claims. | Value language, embedded |
 
-The first six produce symbols. The last two supply values that other declarations carry: an annotation on a field, a semantics fragment on a node or edge, the purpose of the graph. Treating them as separate adapters would add language objects that produce no symbols of their own. Treating them as mere comments would lose the distinction between a descriptive string and a claim with a frame and a limitation. They are value languages because their values are embedded in declaration DTOs, not because they are informal.
+The first six produce symbols. The last two supply values that other declarations carry: an annotation on a field, a semantics fragment on a node or edge, the purpose of the graph. Treating them as separate adapters would add language objects that produce no symbols of their own. Treating them as mere comments would lose the distinction between a descriptive string and a purpose with a limitation and a contextless claim. They are value languages because their values are embedded in declaration DTOs, not because they are informal.
 
 `BlueprintLinker` is the distribution's `Linker`. It indexes the kernel languages in a fixed order: expressions, asset, data, topology, binding, graph. The first five are required; graph is optional. It selects roots by language, walks the authoring reference closure, transcribes each reachable declaration once and assembles the result into a `GraphBlueprint`. The symbol graph is the linker's working state; the blueprint is the delivered semantic model.
 

@@ -25,7 +25,7 @@ sources:
 
 - **The graph is the product.** The plan, report and SQL are evidence that the graph was built; they are not the design.
 - **Topology is the design.** A node or edge states what a record is, what it carries and which direction it points. Tables, joins and projections are how the rows arrive.
-- **Semantics are a language, not a comment.** Claims, frames, limitations and the one graph purpose are published data. A description or annotation is a different channel.
+- **Semantics are a language, not a comment.** Purposes, claims and limitations are published data. A description or annotation is a different channel.
 - **The binding is the seam.** It is the only declaration that imports both the data shape and the graph meaning. Keep it thin; put the grain decision above it.
 - **Explainability is authored.** The framework preserves what you state and checks what can be checked. It cannot infer why a node exists or whether a claim is true.
 

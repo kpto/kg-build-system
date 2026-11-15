@@ -19,9 +19,9 @@ sources:
 
 | Step | Read | Pass condition |
 | --- | --- | --- |
-| 1 | Graph purpose and claims | One `Graph`; one purpose; claims the records can serve. |
+| 1 | Graph purpose and claims | One `Graph`; one root purpose; claims the records can serve. |
 | 2 | Topology | Node/edge meaning, direction, properties and category/template use are deliberate. |
-| 3 | Semantics | Each fragment is at the right level and consistent with the purpose; limits are stated. |
+| 3 | Semantics | Each local purpose narrows the root, limits are attached to the purpose, and claims remain contextless. |
 | 4 | Bindings | One record per row; present keys; every property; endpoints only where needed. |
 | 5 | Data | Asset, table, selection, grain and projection names describe the design, not the recipe. |
 | 6 | Plan and report | Components, kinds, connections and publications support the design; they do not define it. |
@@ -32,9 +32,9 @@ If step 1 or 2 is empty, stop. Execution cannot supply a design that was never d
 
 - Review the purpose first. A graph with no `Graph` has no published purpose; say so rather than assuming one.
 - Read topology as meaning: a node is a thing, an edge is a directed assertion, a property is a value the record carries. A missing edge is as important as a wrong one.
-- Check that every lower fragment is consistent with the purpose. The framework does not check this for you.
+- Check that every local purpose is consistent with the root and that each limitation is attached to the purpose it bounds. The framework does not check this for you.
 - Review names before SQL. A domain name at the blueprint level and a technical name in the plan is healthy; the reverse is a leak.
-- Review limits. What does the graph not answer? A limit at the right frame is a feature; a missing limit is a hidden claim.
+- Review limits. What does the graph not answer? A limit under the right purpose is a feature; a missing limit is a hidden claim.
 - Review provenance. Can a consumer trace a record to its asset, relation and declaration? A plan step is not a source dataset.
 - Do not accept “it compiles”, “the report succeeded” or “the counts are right” as a design review. Those are execution facts.
 

@@ -66,7 +66,7 @@ class TargetTable(Table[OpenTargets]):
 | Surface | Import from |
 | --- | --- |
 | `Asset`, `AssetOptions`, `AssetLayout`, `AssetProfile`, `AssetAuthority`, `AssetGovernance`, `AssetLicense` | `kg_build_system` |
-| `Claim`, `Frame`, `Limitation`, `Purpose`, `Semantics`, `GraphSemantics` | `kg_build_system` |
+| `Claim`, `Limitation`, `Purpose`, `Semantics` | `kg_build_system` |
 | `Table` and `TableOptions` | `kg_build_system` |
 | `AssetRef` | `kg_build_system.distribution` |
 | `DuckDbSourcePlanner` | `kg_build_system.distribution` or `kg_build_system.distribution.modules.duckdb` |
@@ -126,7 +126,7 @@ AssetOptions(
 
 `version` is recorded, not resolved. It selects no file, pins no commit and triggers no download.
 
-`name` must be non-empty when supplied. `website`, `version` and the layout text fields must be non-empty when present. `annotations` is normalised to a tuple. `semantics` must be a `Semantics` value, never `GraphSemantics`.
+`name` must be non-empty when supplied. `website`, `version` and the layout text fields must be non-empty when present. `annotations` is normalised to a tuple. `semantics` must be a `Semantics` value.
 
 **`AssetProfile`**
 

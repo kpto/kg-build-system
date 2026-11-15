@@ -179,7 +179,7 @@ A projection is a named logical relation pinned to exactly one row-source value.
 
 ```python
 from kg_build_system import (
-    Claim, Frame, Limitation, Projection, ProjectionOptions, Semantics,
+    Claim, Limitation, Projection, ProjectionOptions, Purpose, Semantics,
     computed_field,
 )
 
@@ -193,20 +193,18 @@ class ConditionSeverityProjection(Projection(DefectProjection.row_source())):
     options = ProjectionOptions(
         name="condition_severity",
         semantics=Semantics(
+            purpose=Purpose(
+                text="Use this relation as a survey-condition severity rank.",
+                limitations=(
+                    Limitation(
+                        "The rank is not a probability of failure."
+                    ),
+                ),
+            ),
             claims=(
                 Claim(
                     "A severity rank summarises the recorded condition "
                     "of one defect."
-                ),
-            ),
-            frames=(
-                Frame(
-                    text="Survey condition only.",
-                    limitations=(
-                        Limitation(
-                            "The rank is not a probability of failure."
-                        ),
-                    ),
                 ),
             ),
         ),
@@ -220,7 +218,7 @@ class ConditionSeverityProjection(Projection(DefectProjection.row_source())):
     )
 ```
 
-Four decisions are visible in one declaration. The projection pins the defect grain, so a defect is not re-expanded from the survey document here; that expansion is already `DefectProjection`'s job. The rating is nullable, so `drop_null` removes a defect whose condition was never recorded: that is a statement about which rows this relation contains, and it belongs in the projection rather than inside the operation. The rank is computed by the extension operation and published as a present integer. The `Semantics` fragment states what the relation claims and what it excludes, read under the graph's one purpose.
+Four decisions are visible in one declaration. The projection pins the defect grain, so a defect is not re-expanded from the survey document here; that expansion is already `DefectProjection`'s job. The rating is nullable, so `drop_null` removes a defect whose condition was never recorded: that is a statement about which rows this relation contains, and it belongs in the projection rather than inside the operation. The rank is computed by the extension operation and published as a present integer. The `Semantics` fragment states what the relation is for, what it claims and what it excludes, read under the graph's root purpose.
 
 The promotion is justified by use, not by taste. Triage and reporting both need the defect grain with a severity, and the graph is asked to state what the rank means. A calculation that only one property needed would have stayed in the binding. This one is expected to be shared, so it gets a name and a claim.
 
@@ -264,7 +262,7 @@ Three mistakes are common, and each hides a decision. The first puts a join, an 
 
 If a claimed projection cannot be named and referenced outside the pipeline, it is not a projection.
 
-The test has three parts, and all three are read from the delivered blueprint rather than from the source text. It has a name in the relation namespace, unique among tables and projections. It can be referenced by a binding or by another projection, so a consumer outside the producing pipeline can read it. It carries a `Semantics` fragment that states its claim or its frame. A relation with a name and no consumer is a draft. A relation with a consumer and no claim is a computation that has not said what it means. A computation with a claim but no name has nowhere to publish the claim.
+The test has three parts, and all three are read from the delivered blueprint rather than from the source text. It has a name in the relation namespace, unique among tables and projections. It can be referenced by a binding or by another projection, so a consumer outside the producing pipeline can read it. It carries a `Semantics` fragment that states its purpose, its limitations and its claims. A relation with a name and no consumer is a draft. A relation with a consumer and no claim is a computation that has not said what it means. A computation with a claim but no name has nowhere to publish the claim.
 
 A projection that exists only inside a plan, cannot be named in the blueprint and cannot be referenced outside that pipeline is not a semantics unit. It is a data operation, and presenting it as a projection is wrong modelling.
 

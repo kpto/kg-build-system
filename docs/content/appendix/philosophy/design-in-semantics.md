@@ -13,7 +13,7 @@ sources:
 ---
 
 > [!lede]
-> The framework has a vocabulary for meaning: graph names, edge labels, properties, claims, frames and limitations. If those names describe joins, staging areas and temporary rows, the graph is explainable only as a pipeline. The language is expressive enough to be abused.
+> The framework has a vocabulary for meaning: graph names, edge labels, properties, purposes, claims and limitations. If those names describe joins, staging areas and temporary rows, the graph is explainable only as a pipeline. The language is expressive enough to be abused.
 
 ## What it is
 
@@ -24,6 +24,7 @@ A design surface is made of names and statements:
 - **Projection** — design: `DefectProjection`, the defect grain; plumbing: `distinct_expand_3`.
 - **Binding debug name** — design: `site_binding`, `has_unit_binding`; plumbing: `left_join_sites_equipment`.
 - **Graph claim** — design: `A site holds installed equipment.`; plumbing: `The pipeline ran successfully.`
+- **Graph purpose** — design: `Estate asset management.`; plumbing: `Run the survey pipeline.`
 - **Description** — design: what the component means to a reader; plumbing: how the SQL was written.
 
 The plan can keep technical step names. The blueprint should not.
@@ -53,17 +54,17 @@ The design name is not cosmetic. It changes the key, the binding identity and th
 
 ```python
 from kg_build_system import (
-    Claim, Edge, EdgeLabel, EdgeOptions, Graph, GraphOptions, GraphSemantics,
-    Node, PropertySlot, Purpose, property,
+    Claim, Edge, EdgeLabel, EdgeOptions, Graph, GraphOptions, Node,
+    PropertySlot, Purpose, Semantics, property,
 )
 
 
 class EstateGraph(Graph):
     options = GraphOptions(
         name="estate",
-        semantics=GraphSemantics(
-            claims=(Claim("A site holds installed equipment."),),
+        semantics=Semantics(
             purpose=Purpose(text="Estate asset management."),
+            claims=(Claim("A site holds installed equipment."),),
         ),
     )
 

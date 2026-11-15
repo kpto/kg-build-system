@@ -70,7 +70,7 @@ evidence:
 - Linking is whole-namespace, not incremental. A declaration that no root reaches contributes nothing.
 - Roots select languages, not keys. There is no per-declaration include list.
 - A linked symbol is not a delivered type. The blueprint carries layer DTOs, not the symbol graph.
-- The graph declaration is optional. A project without one has no project-level graph semantics.
+- The graph declaration is optional. A project without one has no root purpose.
 - `get_identity` is dormant on the normal path, so its multi-claim refusal is not a routine check.
 - Linking reads no source data and compiles no steps. It resolves declarations into a validated semantic model.
 

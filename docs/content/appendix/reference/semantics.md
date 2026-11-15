@@ -23,7 +23,7 @@ sources:
 | `Annotation` | Frozen dataclass | A stable namespace, a stable identifier and a JSON-compatible payload. |
 | `NodeLabel` / `EdgeLabel` | Framework annotation | One label string for a node or edge component. |
 | Description | Prose | `options.description` or the docstring, never a typed payload. |
-| `semantics` | Declaration fragment | Claims and frames attached by an options value. See [Declare meaning](/book/part-2/01-meaning-and-purpose). |
+| `semantics` | Declaration fragment | An optional purpose with its limitations, plus contextless claims, attached by an options value. See [Declare meaning](/book/part-2/01-meaning-and-purpose). |
 
 Read [Declare meaning](/book/part-2/01-meaning-and-purpose) for the meaning-unit language, [Meaning specification](/appendix/spec/meaning) for the requirement and [Meaning subject](/appendix/subjects/meaning) for the views.
 
@@ -31,7 +31,7 @@ Read [Declare meaning](/book/part-2/01-meaning-and-purpose) for the meaning-unit
 
 Semantics are independent of the data: a description is prose for a reader, an annotation is a typed payload for a tool, and a label names the component in a target. See [Declare meaning](/book/part-2/01-meaning-and-purpose) for the model and [Semantic hierarchy](/appendix/philosophy/semantic-hierarchy) for the design rationale.
 
-This page covers annotations, labels and descriptions. Meaning units (`Claim`, `Limitation`, `Frame`, `Purpose`, `Semantics` and `GraphSemantics`) are the separate semantics language; see [Declare meaning](/book/part-2/01-meaning-and-purpose) and [Meaning specification](/appendix/spec/meaning).
+This page covers annotations, labels and descriptions. Meaning units (`Claim`, `Limitation`, `Purpose` and `Semantics`) are the separate semantics language; see [Declare meaning](/book/part-2/01-meaning-and-purpose) and [Meaning specification](/appendix/spec/meaning).
 
 ```python
 from dataclasses import dataclass
@@ -100,7 +100,6 @@ options = NodeOptions(
 | --- | --- |
 | An `annotations=` sequence contains a non-`Annotation` value | `TypeError: annotations must contain only Annotation values` |
 | The annotation is not a dataclass | Blueprint creation fails when `asdict()` is called; declare the payload with `@dataclass(frozen=True)` |
-| `semantics` is `GraphSemantics` | `TypeError: <context> must be a Semantics value, not GraphSemantics` |
 
 Declare the payload with `@dataclass(frozen=True)` and stable class variables. The framework treats every `Annotation` instance as portable data.
 
@@ -255,7 +254,6 @@ Only declarations the build reaches enter the blueprint: the tables and projecti
 | A component has two labels of its kind | `TypeError: <Class> has <n> <kind> labels in its effective annotations; a graph component carries at most one` |
 | A template uses `NodeOptions` or `EdgeOptions` | `TypeError: <Class> is a node template: its options must be NodeOptionsTemplate, which carries no identity fields` (the edge form names `EdgeOptionsTemplate`) |
 | A component uses template options | `TypeError: <Class> is a graph component declaration: declare NodeOptions, not template options` (the edge form names `EdgeOptions`) |
-| `semantics` is `GraphSemantics` | `TypeError: <context> must be a Semantics value, not GraphSemantics` |
 | `semantics` is another non-`Semantics` value | `TypeError: <context> must be a Semantics value` |
 
 ### What to remember

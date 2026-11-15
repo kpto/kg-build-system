@@ -13,13 +13,14 @@ sources:
 ---
 
 > [!lede]
-> Semantics are connected as a hierarchy: one project purpose, topology that states what each record is, then data and bindings that state how this implementation supplies it. The connection is a reading order. It is not an automatic copy from parent to child: semantic inheritance is an obligation, not a copy. A lower fragment inherits the duty to be consistent with the higher meaning.
+> Semantics are connected as a hierarchy: one graph purpose, local purposes that narrow it, and limitations that bound each purpose. The connection is a reading order. It is not an automatic copy from parent to child: semantic inheritance is an obligation, not a copy. A lower purpose inherits the duty to be consistent with the higher meaning.
 
 ## What it is
 
-- **Graph purpose** — why the graph exists and the claims true of the whole graph. Attached to `GraphSemantics` on the one `Graph`; it is the root.
+- **Graph purpose** — why the graph exists, what it is for and what it is not for. Attached to the graph declaration’s `Semantics`; it is the root.
 - **Topology category/template** — shared properties, annotations and category meaning. Attached to `AbstractNode`, `AbstractEdge` or template options. Properties and template annotations flow structurally; a category’s label and description do not flow to a child.
-- **Concrete node/edge** — what this record is, its direction and its limits. Attached to `NodeOptions(semantics=...)` or `EdgeOptions(semantics=...)`; explicit.
+- **Concrete node/edge** — one expected use of this record, its claims and its limits. Attached to `NodeOptions(semantics=...)` or `EdgeOptions(semantics=...)`; explicit.
+- **Property** — one expected use of the value and what that use does not authorize. Attached to `property(semantics=...)`; explicit.
 - **Data** — how the implementation supplies the record. Attached to table, projection or field `Semantics`; explicit.
 - **Binding** — how this row becomes this record. Attached to `node_binding(..., semantics=...)`; explicit.
 
@@ -30,20 +31,20 @@ sources:
 
 ## Rules
 
-- A project has exactly one purpose. A declaration fragment has no purpose of its own; every frame is read under the graph purpose.
-- Topology states the design. Data and binding fragments state how this implementation reads under it. A lower fragment must not contradict the purpose; if it does, the design changes, not the sentence.
+- A project has one root purpose on the graph declaration. A local purpose is optional and must narrow the root.
+- A declaration carries at most one purpose. If it needs two incompatible uses, split the declaration or turn one use into a limitation.
+- A limitation belongs inside the purpose it bounds. A claim is contextless and never owns a limitation.
+- Topology states the design. Data and binding purposes state how this implementation supplies it. A lower purpose must not contradict its parent; if it does, the design changes, not the sentence.
 - Structural inheritance is not semantic inheritance. A category’s label and description do not flow to a concrete child; a template’s annotations do. Attach the concrete component’s semantics explicitly.
-- Put a limitation in the frame where it is true. A binding-specific absence belongs on the binding; a node-wide exclusion belongs on the node.
-- Do not repeat the purpose in every fragment. State the shared meaning at the level that owns it; state only the local reading below.
+- Do not repeat the root purpose in every fragment. State the shared meaning at the level that owns it; state only the local purpose below.
 - The framework does not check consistency between levels. The author makes the hierarchy coherent; the reviewer reads it from the top.
 
 ## Example
 
 ```python
 from kg_build_system import (
-    Claim, Frame, Graph, GraphOptions, GraphSemantics, Limitation, Node,
-    NodeOptions, NodeValues, PropertySlot, Purpose, Semantics, node_binding,
-    property, value_expression,
+    Claim, Graph, GraphOptions, Limitation, Node, NodeOptions, NodeValues,
+    PropertySlot, Purpose, Semantics, node_binding, property, value_expression,
 )
 
 from reference_project.table.sites import SitesTable
@@ -55,19 +56,14 @@ from reference_project.topology.common import (
 class EstateGraph(Graph):
     options = GraphOptions(
         name="estate",
-        semantics=GraphSemantics(
-            claims=(Claim("A site holds installed equipment."),),
+        semantics=Semantics(
             purpose=Purpose(
                 text="Estate asset management.",
-                frames=(
-                    Frame(
-                        text="Registered estate only.",
-                        limitations=(
-                            Limitation("Unregistered equipment is absent."),
-                        ),
-                    ),
+                limitations=(
+                    Limitation("Unregistered equipment is absent."),
                 ),
             ),
+            claims=(Claim("A site holds installed equipment."),),
         ),
     )
 
@@ -75,11 +71,9 @@ class EstateGraph(Graph):
 class SiteNode(ProvenancedNodeTemplate, DocumentedAbstractNode, Node):
     options = NodeOptions(
         semantics=Semantics(
-            frames=(
-                Frame(
-                    text="The published register.",
-                    limitations=(Limitation("Closed sites are absent."),),
-                ),
+            purpose=Purpose(
+                text="Use this node as the published register.",
+                limitations=(Limitation("Closed sites are absent."),),
             ),
         ),
     )
@@ -104,15 +98,15 @@ site_binding = node_binding(
 )
 ```
 
-Read it downward: the purpose says the graph is for estate asset management; the `SiteNode` frame says this component states the published register and omits closed sites; the binding claim says the mapping is one row per site. None of the lower text is copied from above. Each statement is consistent with the purpose, and the binding adds the mapping fact the node does not own.
+Read it downward: the root purpose says the graph is for estate asset management; the `SiteNode` purpose says this component is the published register and omits closed sites; the binding claim says the mapping is one row per site. None of the lower text is copied from above. Each statement is consistent with the root, and the binding adds the mapping fact the node does not own.
 
 ## Limits
 
 - `Semantics` fragments do not inherit from a parent. There is no parent link in the DTO, no propagation and no cross-level consistency check.
 - A category’s label and description do not flow to a child. A template’s annotations do. Do not assume one rule covers both.
-- Zero `Graph` declarations are legal. The hierarchy is then rootless: the attachments remain, but no published purpose governs their reading. The reference project is in this state.
-- A fragment is not a comment. It is published data with claims, frames and limitations; a docstring or annotation is a different channel.
-- A lower fragment can be syntactically valid and still contradict the purpose. Only review catches that.
+- Zero `Graph` declarations are legal for claims, but a local purpose is refused without a root. A project that wants a purpose tree must declare the graph purpose.
+- A fragment is not a comment. It is published data with purposes, limitations and claims; a docstring or annotation is a different channel.
+- A lower purpose can be syntactically valid and still contradict the root. Only review catches that.
 
 ## Next
 

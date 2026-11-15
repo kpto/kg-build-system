@@ -41,7 +41,7 @@ This table is the **default facade**. The kernel protocols are exported from `kg
 | `kg_build_system.distribution.languages.data` | `ComputedStruct`, `DerivedRowSource`, `Field`, `JoinHow`, `Projection`, `ProjectionOptions`, `RelationRowSource`, `RowSource`, `Struct`, `StructOptions`, `StructOptionsTemplate`, `StructTemplate`, `Table`, `TableGroup`, `TableGroupOptions`, `TableOptions`, `computed_field`, `field` |
 | `kg_build_system.distribution.languages.expressions` | `ArrayRowEffects`, `NullableArrayRowEffects`, `NullableRowEffects`, `NullableSelection`, `Pair`, `RowEffects`, `Selection`, `all_of`, `any_of`, `value_expression` |
 | `kg_build_system.distribution.languages.graph` | `Graph`, `GraphOptions` |
-| `kg_build_system.distribution.languages.semantics` | `Claim`, `Frame`, `GraphSemantics`, `Limitation`, `Purpose`, `Semantics` |
+| `kg_build_system.distribution.languages.semantics` | `Claim`, `Limitation`, `Purpose`, `Semantics` |
 | `kg_build_system.distribution.languages.topology` | `AbstractEdge`, `AbstractNode`, `Edge`, `EdgeOptions`, `EdgeOptionsTemplate`, `EdgeTemplate`, `Endpoint`, `Node`, `NodeOptions`, `NodeOptionsTemplate`, `NodeTemplate`, `PropertySlot`, `endpoint`, `property` |
 | `kg_build_system.distribution.model.public.runtime` | `BuildRuntime` |
 | `kg_build_system.kernel.model.public.runtime` | `WorkflowReport` |

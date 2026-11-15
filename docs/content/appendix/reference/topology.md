@@ -172,7 +172,6 @@ class ReadingNode(Node):
 | An array item is an array, struct or nullable | `TypeError` naming the property; flatten or use `drop_null_items()` |
 | Two attributes resolve to one external name | `TypeError: <Class> properties '<a>' and '<b>' share external name '<name>'` |
 | `annotations` contains a non-`Annotation` value | `TypeError: annotations must contain only Annotation values` |
-| `semantics` is `GraphSemantics` | `TypeError: <Class>.<attr> semantics must be a Semantics value, not GraphSemantics` |
 
 A docstring is read from the declaration's source when the class is created. A class built from a string or typed directly into a REPL has no readable source, so its docstring yields no description; the `description=` argument always works.
 

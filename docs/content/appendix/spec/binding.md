@@ -36,14 +36,14 @@ evidence:
 - **R7.** A `source_node` or `target_node` token MUST be supplied when the declared side is abstract, MUST name a concrete node equal to or descending from that category, and MUST be an `endpoint(...)` token rather than a raw class. A concrete side MAY supply a token.
 - **R8.** Binding identity MUST be the SHA-256 digest of the canonical binding document with `debug_name` and `python_ref` removed, truncated to 16 hexadecimal characters. A `debug_name` MAY prefix the identity string for display but MUST NOT enter the digest. Two bindings with the same identity MUST be refused.
 - **R9.** One row the binding receives MUST produce one record. A binding MUST NOT aggregate, join, expand, deduplicate or merge; those decisions belong to a projection, row source or planner.
-- **R10.** A binding MUST be the only declaration that imports both a data row source and a graph component; topology MUST NOT import data. Its optional semantics fragment MUST be a `Semantics`, MUST NOT be `GraphSemantics`, and MUST describe the mapping rather than the record's meaning.
+- **R10.** A binding MUST be the only declaration that imports both a data row source and a graph component; topology MUST NOT import data. Its optional semantics fragment MUST be a `Semantics` value and MUST describe the mapping rather than the record's meaning.
 
 ## Evidence
 
 | Evidence | Proves |
 | --- | --- |
 | `tests/test_authoring_api.py` | `rows=` accepts a row source and refuses the declaration class; the bind callable receives a typed row and returns `NodeValues`. |
-| `tests/distribution/test_binding_semantics.py` | A binding carries one semantics fragment into the DTO and its rendered source, omits it when absent, and rejects the graph meaning root. |
+| `tests/distribution/test_binding_semantics.py` | A binding carries one semantics fragment into the DTO and its rendered source, omits it when absent, and accepts an optional local purpose. |
 | `tests/distribution/test_typed_refs.py` | A binding references its topology target, data source and expression operations as typed refs; the blueprint round-trips those references. |
 | `docs/content/appendix/reference/bindings.md` | The factory arguments, key and property rules, endpoint tokens, identity inputs and duplicate refusal. |
 

@@ -36,7 +36,7 @@ Many names in the framework are adjacent, not synonymous. The table gives the on
 | Asset vs table | An asset is a logical source-data unit; a table is a logical relation with columns and one asset. Several tables may name one asset. |
 | Projection vs row source | A projection is a named logical row product with computed fields; a row source is any value that produces rows of a known shape. A projection is also a row source. |
 | Selection vs field | A field is a declared typed member; a selection is the authoring value that navigates a row, calculates a value and owns absence. |
-| Semantics vs graph semantics | Semantics is a declaration fragment of claims and frames; graph semantics is the project root with claims and exactly one purpose. |
+| Semantics | The one meaning value attached to a declaration: an optional purpose with its limitations, plus contextless claims. The graph declaration’s Semantics carries the root purpose. |
 | Annotation vs description | An annotation is portable `(namespace, id, arguments)` metadata preserved without interpretation; a description is a plain human string. |
 | Nullable vs optional | Nullable is a value type that may be absent at run time; optional is a document member the codec may omit. The codec writes an absent nullable value as `null` or omits the member, member by member. |
 | Dedup vs merge | Dedup removes exact duplicate graph records with `DISTINCT`; merge combines same-key compatible facts into one record. |

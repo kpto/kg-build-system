@@ -105,8 +105,7 @@ Read the report first. `execute` returns a `WorkflowReport`; `report.succeeded` 
 | `node binding targets an unknown node '<component>'` | A node binding names an edge or a missing node. | [Bindings](/book/part-2/08-binding) |
 | `edge binding targets an unknown edge '<component>'` | An edge binding names a node or a missing edge. | [Bindings](/book/part-2/08-binding) |
 | `edge binding targets an unknown endpoint '<node>'` | A bound endpoint is absent from topology. | [Bindings](/book/part-2/08-binding) |
-| `the graph declaration requires GraphSemantics semantics` | The graph root lacks graph semantics. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
-| `the graph declaration requires a purpose` | Graph semantics has no purpose. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
+| `a graph declaration requires a Semantics with a purpose` | The graph root lacks a purpose. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
 | `the graph declaration purpose must be non-empty` | The purpose text is empty. | [Blueprint](/book/part-3/01-linking-and-blueprint) |
 | `bindings require a node or edge reference` | A binding target is neither a node nor an edge. | [Bindings](/book/part-2/08-binding) |
 | `bindings require a target component name` | A binding has an empty component name. | [Bindings](/book/part-2/08-binding) |
@@ -132,7 +131,7 @@ Read the report first. `execute` returns a `WorkflowReport`; `report.succeeded` 
 | `unknown asset authority <value>` | A profile authority is outside the enum. | [Documents](/appendix/reference/documents) |
 | `'profile' must be an object` | An asset has no object profile. | [Documents](/appendix/reference/documents) |
 | `a graph declaration requires semantics` | A graph declaration document has no semantics member. | [Documents](/appendix/reference/documents) |
-| `a graph semantics document requires a purpose` | Graph semantics has no purpose member. | [Documents](/appendix/reference/documents) |
+| `a graph declaration semantics document requires a purpose` | The graph declaration’s semantics document has no purpose. | [Documents](/appendix/reference/documents) |
 | `annotation field '<key>' must be a non-empty string` | An annotation namespace or id is empty. | [Documents](/appendix/reference/documents) |
 | `unknown unit logical type <name>` | A logical type names an unknown canonical unit. | [Documents](/appendix/reference/documents) |
 | `canonical nullable types may not be nested` | A nullable type wraps another nullable type. | [Documents](/appendix/reference/documents) |

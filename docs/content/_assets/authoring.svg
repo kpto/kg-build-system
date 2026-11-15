@@ -63,7 +63,7 @@
 <path d="M 958 347 L 994 347" fill="none" stroke="#b4431f" stroke-width="1.6" marker-end="url(#arrow-b4431f)"/>
 <rect x="38" y="288" width="460" height="118" rx="10" fill="#ffffff" stroke="#ded6c7" stroke-width="1"/>
 <text x="52" y="312" font-family="Inter, Segoe UI, sans-serif" font-size="10" fill="#0f6f68" text-anchor="start" font-weight="700">SEMANTICS</text>
-<text x="52" y="336" font-family="Inter, Segoe UI, sans-serif" font-size="13" fill="#1d232a" text-anchor="start" font-weight="600">claims · frames · limitations · purpose</text>
+<text x="52" y="336" font-family="Inter, Segoe UI, sans-serif" font-size="13" fill="#1d232a" text-anchor="start" font-weight="600">purposes · claims · limitations</text>
 <text x="52" y="360" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">attaches to any declaration as a fragment</text>
 <text x="52" y="378" font-family="Inter, Segoe UI, sans-serif" font-size="11.5" fill="#5f6b76" text-anchor="start" font-weight="400">the Graph declaration owns the project purpose</text>
 <path d="M 498 347 L 534 347" fill="none" stroke="#0f6f68" stroke-width="1.6" stroke-dasharray="4 3" marker-end="url(#arrow-0f6f68)"/>

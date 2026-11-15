@@ -202,7 +202,7 @@ def authoring() -> Plate:
 
     p.rect(38, 288, 460, 118, fill="#ffffff", stroke=RULE, rx=10)
     p.text(52, 312, "SEMANTICS", size=10, fill=C["semantics"], weight=700)
-    p.text(52, 336, "claims · frames · limitations · purpose", size=13, fill=INK, weight=600)
+    p.text(52, 336, "purposes · claims · limitations", size=13, fill=INK, weight=600)
     p.lines(52, 360, ["attaches to any declaration as a fragment", "the Graph declaration owns the project purpose"], size=11.5, fill=MUTED)
     p.arrow(498, 347, 534, 347, color=C["semantics"], dash="4 3")
     p.arrow(498, 330, 998, 330, color=C["semantics"], dash="4 3", curve=-30)
@@ -519,7 +519,7 @@ def semantics() -> Plate:
     p.rect(350, 112, 500, 78, fill=tint(C["semantics"]), stroke=C["semantics"] + "66", rx=12)
     p.text(600, 138, "GRAPH PURPOSE", size=10, fill=C["semantics"], anchor="middle", weight=700)
     p.text(600, 160, "one per project · claims + purpose", size=13, fill=INK, anchor="middle", weight=600)
-    p.text(600, 178, "the root every declaration fragment is read under", size=10.5, fill=MUTED, anchor="middle")
+    p.text(600, 178, "the root every local purpose is read under", size=10.5, fill=MUTED, anchor="middle")
 
     cols = [
         (38, "TOPOLOGY", C["node"], "what the record is", ["category / template", "concrete node or edge", "property · direction"], "the design"),
@@ -548,7 +548,7 @@ def semantics() -> Plate:
     p.lines(52, 572, [
         "The framework stores each attachment; it does not copy the parent text down.",
         "The author makes the lower statement consistent; the reviewer reads from purpose to plan.",
-        "A limitation sits in the frame where it is true, not at the top as a disclaimer.",
+        "A limitation sits in the purpose where it is true, not at the top as a disclaimer.",
     ], size=11, fill=MUTED, gap=17)
     p.pill(980, 544, "read down, not copy", C["semantics"], width=166, size=10.5)
     return p

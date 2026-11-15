@@ -1,7 +1,7 @@
 ---
 title: Semantics and graph purpose
-summary: Claims, frames, limitations and the one purpose every declaration is read
-  under.
+summary: One root purpose, local purposes that narrow it, contextless claims,
+  and the limitations of each purpose.
 section: subjects
 perspective: hub
 subject: meaning
@@ -24,7 +24,7 @@ generated: true
 
 ## In one view
 
-Claims, frames, limitations and the one purpose every declaration is read under.
+One root purpose, local purposes that narrow it, contextless claims and the limitations of each purpose.
 
 This subject has one overview and up to five views: guide, spec, API, philosophy and review.
 
@@ -41,9 +41,9 @@ This subject has one overview and up to five views: guide, spec, API, philosophy
 
 ## Contract
 
-- A project MUST have at most one `Graph`, and a `Graph` MUST carry one `Purpose`.
-- A declaration MUST attach `Semantics`, never `GraphSemantics`.
-- A `Limitation` MUST live under a `Frame`; a claim MUST NOT live under a frame.
+- A project MUST have at most one `Graph`, and its `Semantics` MUST carry the root `Purpose`.
+- A non-graph declaration MAY carry one local `Purpose`; it MUST narrow the graph purpose.
+- A `Limitation` MUST live inside a `Purpose`; a `Claim` MUST remain contextless.
 
 ## Where it sits
 

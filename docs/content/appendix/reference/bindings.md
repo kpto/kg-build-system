@@ -367,7 +367,6 @@ Two bindings targeting the same component, from the same row context, with the s
 | A token is a raw class rather than `endpoint(...)` | `TypeError: source_node must be an endpoint(...) token, not the raw value <value>` |
 | A token does not name a concrete node | `TypeError: source_node must name a concrete node component, not <name>` |
 | A token is not a concrete descendant | `TypeError: source_node <Node> must equal or descend from the declared endpoint category <Category>` |
-| `semantics` is `GraphSemantics` | `TypeError: binding semantics must be a Semantics value, not GraphSemantics` |
 | `semantics` is passed twice with different values | `ValueError: pass semantics either to the binding or to BindingOptions, not both` |
 | Two bindings have the same identity | `ValueError: blueprint symbol IDs must be unique` |
 | The target is abstract at compile | `ValueError: <kind> binding '<id>' may not target abstract component '<name>'` |
