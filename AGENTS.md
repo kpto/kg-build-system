@@ -112,6 +112,8 @@ rule about what the framework is belongs to the framework model.
 - A visualisation opens at the lowest detail that still answers its first
   question; every further layer is revealed by a named control, and raw JSON is
   not a default surface.
+- A repeated item renders its units compactly. A heading is structural, not per
+  unit: a table cell or list row does not repeat the section chrome.
 - Present the design before an author workflow: a canonical view carries the
   facts a reader must know immediately, and a detail view shows the same object
   with more evidence rather than starting a separate task.
