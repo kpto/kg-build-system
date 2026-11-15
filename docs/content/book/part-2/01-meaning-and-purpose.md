@@ -43,6 +43,34 @@ The shape is enforced. A `Purpose` owns only `Limitation` values. A `Semantics` 
 
 Why separate a claim from a purpose? Because a claim is asserted regardless of use, while a purpose says what the subject is for. A limitation then says what that purpose does not license. Merging them into one "notes" field would let a reader mistake a caveat for a fact, or a local use for a contextless assertion.
 
+## Choosing the unit
+
+The unit is decided by the question the sentence answers, not by where the
+sentence was first written.
+
+| Question | Unit |
+| --- | --- |
+| What is the subject for? | `Purpose` |
+| What is asserted about it regardless of use? | `Claim` |
+| What must a reader not infer while using it? | `Limitation` |
+| What was measured to support a boundary? | `Claim` beside the purpose |
+| Which category does the statement belong to? | A field, not a text prefix |
+
+- A definition, identity, grain or cardinality is a claim, not a purpose.
+- A prohibition, absence, exclusion or inference ceiling is a limitation, not a
+  claim.
+- A measurement is not a limitation. The limitation states the boundary the
+  measurement supports; the figure stays in a claim.
+- A unit states one thing. `association:` or `score:` in front of a sentence is
+  a label, not a concept reference; if grouping is required, model it.
+- A declaration with no positive use carries claims only. Do not invent a
+  purpose to fill the shape.
+- Two declarations may share a purpose only when the use is identical. If the
+  subject or the operation differs, the purpose differs.
+- A binding's purpose states the mapping it performs; the record's meaning
+  stays on its node or edge. A data purpose is the source contract and is never
+  the parent of a topology purpose.
+
 ## Purpose is the root, not the only purpose
 
 A project declares zero or one `Graph`. `GraphOptions.semantics` is required and must be a `Semantics` value carrying a purpose. That graph purpose is the root: it states why the graph exists and what it is for.

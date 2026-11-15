@@ -40,6 +40,10 @@ evidence:
 - **R11.** A category description MUST stay local to the category and MUST NOT flow to a child declaration. Child semantics MUST be attached explicitly.
 - **R12.** Every unit text MUST be non-empty.
 - **R13.** The graph declaration MUST become the optional fifth blueprint field `graph_declaration`, carrying the same `Semantics` document shape as every other declaration. A project with no graph declaration MUST publish `graph_declaration` as `None`.
+- **R14.** A unit's text MUST answer the question its type owns. A definition, identity, grain, cardinality or measurement MUST be a claim; a prohibition, absence, exclusion or inference ceiling MUST be a limitation; an expected use MUST be a purpose.
+- **R15.** A limitation MUST state the boundary, not the measurement that motivates it. When the measurement is authored, it MUST be a claim beside the same purpose or declaration.
+- **R16.** A declaration with no positive use MUST carry claims only. A purpose MUST NOT be authored to satisfy the shape. Two declarations MAY share a purpose text only when their expected use is identical; a different subject or operation MUST have a different purpose.
+- **R17.** A binding purpose MUST state the mapping it performs, and a data purpose MUST NOT be the parent of a topology purpose.
 
 ## Evidence
 
@@ -65,6 +69,7 @@ evidence:
 ## Limits
 
 - There is no truth evaluation, revision, resolution, or cross-unit consistency check. The blueprint publishes authored units for consumers to compose.
+- Unit fit is a review obligation. The type system enforces where a unit may sit, not whether its text answers the question that unit owns.
 - There is one root purpose and at most one purpose per declaration. A narrower use becomes a local purpose; an excluded inference becomes a limitation.
 - A graph declaration is not a node, edge, asset, or reference participant.
 - A `TableGroupOptions` carries no fragment, and a binding carries one fragment for the whole mapping.

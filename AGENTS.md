@@ -45,6 +45,13 @@ rule about what the framework is belongs to the framework model.
 - The reason is not agent management: a follow-up forces the correction to be
   stated as a decision. If the same session cannot apply it unambiguously, the
   decision is not precise enough.
+- A finding is a snapshot. Re-derive the flagged unit against the current file
+  before applying it, and report drift instead of applying a stale row.
+- A semantic migration is authored again, not text-moved. The brief names the
+  question each unit answers; "rename the old unit" is not an acceptance.
+- The acceptance command is the project gate the change affects, not a scoped
+  proxy. A change to a shared helper, generated artifact or public surface runs
+  the project check.
 
 ### Writing
 
@@ -221,8 +228,8 @@ rule about what the framework is belongs to the framework model.
   `semantics` and `graph` are distribution languages. `core`, `deduplication`,
   `merging`, `conflict_validation`, `file`, `meta_graph`, `neo4j`, `duckdb`,
   `python` and `runtime` are distribution modules.
-- `semantics` is a value language: claim, limitation, frame and purpose values
-  are embedded in declaration DTOs; it needs no kernel `Language` adapter.
+- `semantics` is a value language: claim, limitation and purpose values are
+  embedded in declaration DTOs; it needs no kernel `Language` adapter.
   Annotations are the other value language.
 - `graph` has at most one declaration per project. It carries the project's
   purpose and graph-level semantics; every declaration semantics is read under
@@ -276,6 +283,18 @@ rule about what the framework is belongs to the framework model.
   pipeline-local relation is not a projection.
 - The build preserves those statements and publishes them for consumers.
 - A meaning that cannot be stated is recorded as a limit; it is not invented.
+- A unit answers one question: a purpose says what the subject is for, a claim
+  what it is, a limitation what that purpose does not authorize. A definition or
+  measurement in a purpose, a prohibition in a claim, or a figure in a
+  limitation is a misplaced unit, not a wording defect.
+- A measurement is evidence for a boundary, not the boundary. The figure is a
+  claim beside the purpose; the limitation states only the excluded reading.
+- A unit states one thing. A category prefix is a label, not a field; model
+  grouping rather than encoding it in text.
+- A declaration with no positive use carries claims only. Two declarations share
+  a purpose only when the use is identical.
+- A binding purpose states the mapping it performs; the record's meaning stays
+  on its node or edge.
 - A project attaches the framework semantics units directly. A project-local
   builder with its own grammar is a second semantics model, not a convenience.
 - Published provenance names the release declarations a value is read from. A
@@ -415,6 +434,9 @@ rule about what the framework is belongs to the framework model.
   not a convenience shortcut over internals.
 - A public API method is a thin wrapper over an internal implementation, with a
   docstring and a runnable example. It is not a bare re-export.
+- A structural builder may accept a semantics value and pass it through; it must
+  not accept purpose, claim or limitation text. Meaning is written at the
+  declaration, and a helper that assembles it is an adaptation.
 - It makes the intended use easy and the wrong use impossible.
 - A capability handle exposes only the operations its subject supports and is consumed by its first use; an unsupported operation is absent from the handle type, not present and refused at runtime.
 - It exposes only what an author may write; internal types stay internal.
@@ -458,6 +480,9 @@ rule about what the framework is belongs to the framework model.
 - A planner emits steps and an executor executes one exact instruction kind. SQL
   and Python are instruction kinds; a Python instruction is a stable reference,
   not a live callable.
+- A wrapper is named for what it produces, not for the function it calls. When
+  it composes a function of the same base name from another level, the import is
+  aliased so the two levels never expose one name with two signatures.
 - A leading underscore means module-private or package-private. A private helper
   inside one service module is allowed; a private name exported from
   `model/public/`, `model/internal/`, `service/public/` or `service/internal/`,
