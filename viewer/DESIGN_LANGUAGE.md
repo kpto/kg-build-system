@@ -118,12 +118,14 @@ mark wherever it appears.
 - Buttons press down by 1px. Tabs transition their surface and active
   indicator. Context menus enter from their anchor; the Graph inspector enters
   from the right.
-- A tab switch fades the viewport canvas and settles the header down 4px; a
-  detail document fades in as one surface. A new tab fades in.
+- A document switch is instant: the tab surface and the view header are the
+  feedback. Entrance motion is reserved for transient surfaces, not documents.
 - A collapsible body animates its own height: one grid row moves from `0fr` to
-  `1fr` over 200ms while the content fades, so the surrounding document expands
-  and collapses with it. The closed body is `inert`. Bands, side-bar sections,
-  detail groups and expression branches use the one `Collapse` component.
+  `1fr` over 180ms with an ease-in-out curve, so the surrounding document
+  expands and collapses with it. The content stays opaque and is clipped; the
+  closed body is `inert`. Bands, detail groups and expression branches use the
+  one `Collapse` component. The side bar animates `flex-grow` so the splitter
+  and both section shares stay live; a splitter drag bypasses the transition.
 - A selected graph item's dim or highlight fades; a settled node never moves.
 - `prefers-reduced-motion` keeps the state change and removes movement.
 

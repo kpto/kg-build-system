@@ -10,8 +10,6 @@ import {
 } from "react";
 import { ChevronRight, Search } from "lucide-react";
 
-import { Collapse } from "@/shared/ui/Collapse";
-
 import { ExplorerSidebar } from "@/detail/DetailFeature";
 import { TopologySidebar } from "@/topology/TopologyFeature";
 import { WorkflowControls } from "@/workflow/WorkflowFeature";
@@ -197,9 +195,12 @@ export function SideBar({ onOpenPalette }: { onOpenPalette(): void }) {
           <span className="wb-side-section-title">{label}</span>
           <span className="wb-side-section-meta">{meta}</span>
         </button>
-        <Collapse open={expanded} className="wb-side-section-collapse">
+        <div
+          className="wb-side-section-collapse"
+          inert={expanded ? undefined : true}
+        >
           <div className="wb-side-section-body thin-scrollbar">{body}</div>
-        </Collapse>
+        </div>
       </section>
     );
   };

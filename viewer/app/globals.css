@@ -86,6 +86,7 @@
   --motion-base: 150ms;
   --motion-slow: 200ms;
   --ease-instrument: cubic-bezier(0.22, 0.8, 0.24, 1);
+  --ease-expand: cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 @layer base {
@@ -389,7 +390,7 @@
     flex-direction: column;
     overflow: hidden;
     border-bottom: 1px solid var(--color-line-soft);
-    transition: flex-grow var(--motion-slow) var(--ease-instrument);
+    transition: flex-grow 180ms var(--ease-expand);
   }
 
   .wb-side-section[data-open="true"] {
@@ -403,6 +404,7 @@
   .wb-side-section-collapse {
     min-height: 0;
     flex: 1;
+    overflow: hidden;
   }
 
   .wb-side-section-header {
@@ -662,7 +664,6 @@
     align-items: stretch;
     border-right: 1px solid var(--color-line-soft);
     background-color: var(--color-inset);
-    animation: wb-fade-in var(--motion-fast) var(--ease-instrument);
     transition:
       background-color var(--motion-base) var(--ease-instrument),
       box-shadow var(--motion-base) var(--ease-instrument);
@@ -754,21 +755,6 @@
 
   .wb-editor-pane:not([data-active="true"]) {
     display: none;
-  }
-
-  /* A tab switch is a view change: the header settles down into place and the
-     canvas fades in. The pane is mounted the whole time, so display is the
-     trigger and the motion never loops. */
-  .wb-editor-pane[data-active="true"] .wb-viewport-head {
-    animation: wb-viewport-head-in var(--motion-base) var(--ease-instrument);
-  }
-
-  .wb-editor-pane[data-active="true"] .wb-viewport-body {
-    animation: wb-fade-in var(--motion-slow) var(--ease-instrument);
-  }
-
-  .wb-editor-pane[data-active="true"] .wb-detail {
-    animation: wb-fade-in var(--motion-base) var(--ease-instrument);
   }
 
   .wb-editor-pane[data-full-bleed="true"] {
@@ -1015,13 +1001,15 @@
   /*
    * A collapsible body keeps its content mounted and animates one grid row
    * from 0fr to 1fr, so the surrounding layout opens and closes with it. The
-   * clip owns the overflow; inert keeps a closed body out of focus order.
+   * clip owns the overflow; inert keeps a closed body out of focus order. The
+   * content stays opaque: a height change is the only signal, so text never
+   * dissolves into the background while the box is still moving.
    */
 
   .wb-collapse {
     display: grid;
     grid-template-rows: 1fr;
-    transition: grid-template-rows var(--motion-slow) var(--ease-instrument);
+    transition: grid-template-rows 180ms var(--ease-expand);
   }
 
   .wb-collapse[data-open="false"] {
@@ -1031,12 +1019,6 @@
   .wb-collapse-clip {
     min-height: 0;
     overflow: hidden;
-    opacity: 1;
-    transition: opacity var(--motion-fast) var(--ease-instrument);
-  }
-
-  .wb-collapse[data-open="false"] .wb-collapse-clip {
-    opacity: 0;
   }
 
   /* ---- Status bar ----------------------------------------------------- */
@@ -2340,17 +2322,6 @@
   }
   to {
     opacity: 1;
-  }
-}
-
-@keyframes wb-viewport-head-in {
-  from {
-    opacity: 0;
-    transform: translateY(-4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 
