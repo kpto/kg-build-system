@@ -56,6 +56,7 @@ const nextConfig: NextConfig = staticExport
         "localhost",
         "dev.netbird.cloud",
         "*.netbird.cloud",
+        "100.73.207.12",
       ],
       async rewrites() {
         const api = discoveryApi();
