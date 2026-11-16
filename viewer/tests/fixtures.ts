@@ -18,8 +18,7 @@ const contractDocument = {
     contract_extension: { generatedBy: "tests/fixtures.ts" },
     graph_declaration: {
       name: "fixture_graph",
-      description: "A small graph used by the viewer contract tests.",
-      semantics: {
+      meaning: {
         purpose: {
           text: "Exercise the viewer data contract without loading a release.",
           limitations: [
@@ -44,14 +43,14 @@ const contractDocument = {
               logical_type: { kind: "unit", name: "str" },
               ref: ["topology", "property", "documented.summary"],
               annotations: [],
-              semantics: {
+              meaning: {
                 claims: [{ text: "The summary is a one-line rendering." }],
               },
             },
           ],
           annotations: [],
           description: "An abstract category with a summary property.",
-          semantics: {
+          meaning: {
             purpose: {
               text: "Use the documented node as an abstract category.",
               limitations: [{ text: "No concrete descendant is bound." }],
@@ -70,14 +69,14 @@ const contractDocument = {
               ref: ["topology", "property", "defect.title"],
               annotations: [],
               description: "The defect title.",
-              semantics: {
+              meaning: {
                 claims: [{ text: "The title is the defect's display name." }],
               },
             },
           ],
           annotations: [],
           description: "A reported defect.",
-          semantics: {
+          meaning: {
             claims: [{ text: "A defect is observed on an estate survey." }],
           },
           x_node_field: "survives",
@@ -96,21 +95,21 @@ const contractDocument = {
               logical_type: { kind: "unit", name: "str" },
               ref: ["topology", "property", "has_observation.as_at"],
               annotations: [],
-              semantics: {
+              meaning: {
                 claims: [{ text: "The observation timestamp." }],
               },
             },
           ],
           annotations: [],
           description: "Links a documented entity to a defect.",
-          semantics: {
+          meaning: {
             claims: [{ text: "The edge records when the defect was observed." }],
           },
         },
       ],
     },
     data: {
-      relations: [
+      source_relations: [
         {
           name: "surveys",
           asset: ["asset", "asset", "estate"],
@@ -126,19 +125,23 @@ const contractDocument = {
               logical_type: { kind: "unit", name: "str" },
               ref: ["data", "field", "surveys.title"],
               annotations: [],
-              semantics: {
+              meaning: {
                 claims: [{ text: "The surveyor's description of the defect." }],
               },
             },
           ],
           annotations: [],
+          definition: {
+            grain: "one survey row per defect",
+            identity: ["survey_id"],
+          },
           description: "One survey row per defect.",
-          semantics: {
+          meaning: {
             claims: [{ text: "The estate survey table." }],
           },
         },
       ],
-      projections: [
+      derived_relations: [
         {
           name: "defect",
           columns: [
@@ -153,15 +156,21 @@ const contractDocument = {
               logical_type: { kind: "unit", name: "str" },
               ref: ["data", "field", "defect.title"],
               annotations: [],
-              semantics: {
+              definition: { value: "The survey's display title." },
+              meaning: {
                 claims: [{ text: "The projection keeps the survey title." }],
               },
             },
           ],
           annotations: [],
+          definition: {
+            grain: "one defect row per survey",
+            identity: ["defect_id"],
+          },
+          visibility: "public",
           description: "Defects ready for binding.",
           row_source: { kind: "scan", relation: ["data", "relation", "surveys"] },
-          semantics: {
+          meaning: {
             claims: [{ text: "The defect projection scans the survey table." }],
           },
         },
@@ -175,14 +184,14 @@ const contractDocument = {
               logical_type: { kind: "unit", name: "float" },
               ref: ["data", "field", "reading.value"],
               annotations: [],
-              semantics: {
+              meaning: {
                 claims: [{ text: "A recorded measurement value." }],
               },
             },
           ],
           annotations: [],
           description: "A reading row shape.",
-          semantics: {
+          meaning: {
             claims: [{ text: "The reading struct is an intermediate shape." }],
           },
         },
@@ -209,7 +218,7 @@ const contractDocument = {
         },
         governance: { license: null, owner: null, metadata: {} },
         annotations: [],
-        semantics: {
+        meaning: {
           purpose: {
             text: "Use the fixture estate as the JSON source asset.",
             limitations: [{ text: "The asset has no release history." }],
@@ -259,7 +268,7 @@ const contractDocument = {
           qualname: "DefectTitle",
           signature: "()",
         },
-        semantics: {
+        meaning: {
           claims: [{ text: "The binding projects the survey title." }],
         },
       },

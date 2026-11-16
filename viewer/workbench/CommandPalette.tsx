@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react"
 import { CircleDot, FileText, Search, X } from "lucide-react";
 
 import { searchIndex } from "@/lib/search";
+import { subjectKindLabel } from "@/lib/summary";
 import type { SearchKind, SearchRecord } from "@/lib/types";
 import { useWorkbench } from "./store";
 import type { SubjectSelection } from "./types";
@@ -173,7 +174,7 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
           id: `subject:${record.kind}:${record.id}`,
           group: "subject" as const,
           label: record.label || record.name,
-          detail: `${record.kind.replaceAll("-", " ")} · ${record.detail}`,
+          detail: `${subjectKindLabel(record.kind)} · ${record.detail}`,
           selection: target.selection,
         };
       },
@@ -229,7 +230,7 @@ export function CommandPalette({ onClose }: CommandPaletteProps) {
           <span className="wb-palette-result-detail">{item.detail}</span>
         </span>
         <span className="wb-palette-result-kind">
-          {item.selection.kind ?? "document"}
+          {subjectKindLabel(item.selection.kind)}
         </span>
       </button>
     );

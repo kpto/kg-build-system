@@ -22,6 +22,7 @@ import type {
   ProjectionDTO,
   ViewerIndex,
 } from "@/lib/types";
+import { meaningText, recordSummary } from "@/lib/summary";
 
 export type AxisSubjectKind =
   | "asset"
@@ -114,13 +115,13 @@ function sourceRelationModel(
     kind: "source",
     name: relation.name,
     asset: resolveAssetName(index, relation.name),
-    description: relation.description,
+    description: recordSummary(relation),
     columns: (relation.columns ?? []).map((column) => ({
       name: column.name,
       type: logicalTypeName(column.logical_type),
     })),
     scanned: [],
-    meaningCount: meaningCount(relation.semantics),
+    meaningCount: meaningCount(relation.meaning ?? relation.semantics),
   };
 }
 
@@ -132,13 +133,13 @@ function derivedRelationModel(
     kind: "derived",
     name: relation.name,
     asset: resolveAssetName(index, relation.name),
-    description: relation.description,
+    description: recordSummary(relation),
     columns: (relation.columns ?? []).map((column) => ({
       name: column.name,
       type: logicalTypeName(column.logical_type),
     })),
     scanned: relationNamesFromRowSource(relation.row_source),
-    meaningCount: meaningCount(relation.semantics),
+    meaningCount: meaningCount(relation.meaning ?? relation.semantics),
   };
 }
 
@@ -157,12 +158,12 @@ function recordFor(
     name: entity.name,
     labels: entity.labels ?? [],
     abstract: Boolean(entity.abstract),
-    description: entity.description,
+    description: meaningText(entity.meaning ?? entity.semantics) ?? entity.description,
     properties: (entity.properties ?? []).map((property) => ({
       name: property.name,
       type: logicalTypeName(property.logical_type),
     })),
-    meaningCount: meaningCount(entity.semantics),
+    meaningCount: meaningCount(entity.meaning ?? entity.semantics),
   };
 }
 

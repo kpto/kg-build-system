@@ -30,6 +30,12 @@ import {
   resolveAssetName,
   stepKey,
 } from "./indexes";
+import {
+  fieldSummary,
+  meaningText,
+  profileSummary,
+  recordSummary,
+} from "./summary";
 
 const MAX_TRAVERSAL_DEPTH = 40;
 
@@ -295,8 +301,7 @@ function buildBranch(
         artifacts: [["asset", "asset", assetName]],
         annotations: asset?.annotations ?? [],
         annotationViews: enrichAnnotations(asset?.annotations, {}, index.metaGraph),
-        description:
-          asset?.profile?.description ?? asset?.profile?.subject ?? undefined,
+        description: profileSummary(asset?.profile),
         sourceLocation: asset?.layout?.locator ?? undefined,
       },
     });
@@ -311,7 +316,7 @@ function buildBranch(
     const nodeId = semanticNodeId(isProjectionOwner ? "projection" : "relation", relationName);
     rememberNode({
       id: nodeId,
-      label: `${isProjectionOwner ? "Projection" : "Table"} · ${relationName}`,
+      label: `${isProjectionOwner ? "Derived relation" : "Source relation"} · ${relationName}`,
       lane,
       category: "semantic",
       kind: nodeKind,
@@ -331,7 +336,7 @@ function buildBranch(
           {},
           index.metaGraph,
         ),
-        description: projection?.description ?? relation?.description,
+        description: recordSummary(projection ?? relation ?? {}),
         expression: undefined,
       },
     });
@@ -360,7 +365,7 @@ function buildBranch(
         artifacts: [],
         annotations: location?.field.annotations ?? [],
         annotationViews: enrichAnnotations(location?.field.annotations, {}, index.metaGraph),
-        description: location?.field.description,
+        description: location?.field ? fieldSummary(location.field) : undefined,
         expression: location?.field.expression,
       },
     });
@@ -373,7 +378,7 @@ function buildBranch(
     if (!nodes.has(ownerNodeId)) {
       rememberNode({
         id: ownerNodeId,
-        label: `${ownerProjection ? "Projection" : "Table"} · ${ownerName}`,
+        label: `${ownerProjection ? "Derived relation" : "Source relation"} · ${ownerName}`,
         lane: ownerProjection ? "transformation" : "source",
         category: "semantic",
         kind: ownerProjection ? "projection" : "table",
@@ -393,7 +398,7 @@ function buildBranch(
             {},
             index.metaGraph,
           ),
-          description: ownerProjection?.description ?? ownerRelation?.description,
+          description: recordSummary(ownerProjection ?? ownerRelation ?? {}),
         },
       });
     }
@@ -739,7 +744,11 @@ function terminalMetadata(
       { kind: selection.kind, component: selection.component, property: selection.property },
       index.metaGraph,
     ),
-    description: metaProperty?.description ?? property?.description ?? metaComponent?.description,
+    description:
+      metaProperty?.description ??
+      meaningText(property?.meaning ?? property?.semantics) ??
+      property?.description ??
+      metaComponent?.description,
     examples: metaProperty?.examples ?? [],
     counts: metaComponent?.counts,
     expression: branches.find((branch) => branch.expression)?.expression,
@@ -795,7 +804,9 @@ export function buildLineage(
         { kind: selection.kind, component: selection.component, property: selection.property },
         index.metaGraph,
       ),
-      description: property?.description,
+      description:
+        meaningText(property?.meaning ?? property?.semantics) ??
+        property?.description,
       expression: undefined,
     },
   });

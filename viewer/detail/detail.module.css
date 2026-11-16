@@ -2021,6 +2021,12 @@ button.expressionToggle:hover {
   font-style: italic;
 }
 
+.factValue[data-wrap="true"] {
+  overflow: visible;
+  line-height: 1.35;
+  white-space: normal;
+}
+
 .factValue button {
   min-width: 0;
   overflow: hidden;

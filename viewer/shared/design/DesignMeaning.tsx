@@ -32,7 +32,7 @@ export function DesignMeaning({
   purpose,
   frames = [],
   compact = false,
-  emptyText = "No meaning is attached to this subject.",
+  emptyText = "Meaning omitted for this subject.",
 }: DesignMeaningProps) {
   const visibleClaims = compact ? claims.slice(0, 4) : claims;
   const visibleFrames = compact ? frames.slice(0, 2) : frames;

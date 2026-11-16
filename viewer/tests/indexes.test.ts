@@ -121,8 +121,8 @@ describe("blueprint indexes", () => {
   it("reports status counts", () => {
     expect(index.stats).toMatchObject({
       assets: 1,
-      tables: 1,
-      projections: 1,
+      sourceRelations: 1,
+      derivedRelations: 1,
       structs: 1,
       topologyNodes: 2,
       topologyEdges: 1,
@@ -139,7 +139,7 @@ describe("semantics and profile indexes", () => {
   it("indexes the graph declaration and its purpose", () => {
     expect(index.graphDeclaration?.name).toBe("fixture_graph");
     expect(index.graphSemantics?.claims).toHaveLength(1);
-    expect(index.graphDeclaration?.semantics.purpose?.limitations).toHaveLength(2);
+    expect(index.graphDeclaration?.meaning.purpose?.limitations).toHaveLength(2);
 
     const graph = index.semanticsByKey.get(semanticSubjectKey("graph", "fixture_graph"));
     expect(graph?.kind).toBe("graph");
@@ -215,7 +215,11 @@ describe("viewer index rebuild", () => {
       title: "Empty",
       blueprint: {
         graph: { nodes: [], edges: [] },
-        data: { structs: [], relations: [], projections: [] },
+        data: {
+        structs: [],
+        source_relations: [],
+        derived_relations: [],
+      },
         assets: [],
         bindings: [],
       },

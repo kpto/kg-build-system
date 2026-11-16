@@ -36,6 +36,7 @@ import {
   type ExpressionChain,
 } from "./view/ExpressionTree";
 import styles from "./detail.module.css";
+import { fieldDefinitionDetail, fieldDescription, recordSummary } from "@/lib/summary";
 
 type DataItemKind = "relation" | "projection";
 
@@ -77,11 +78,13 @@ export function DataItemEditor(props: WorkspaceProps) {
     const item = relation ?? projection;
     return {
       name: item?.name ?? name,
-      description: item?.description,
+      description: recordSummary(item ?? {}),
+      definition: item?.definition,
       columns: item?.columns ?? [],
       assetName: resolveAssetName(index, name),
       rowSource: projection?.row_source,
       semantics:
+        item?.meaning ??
         item?.semantics ??
         index.semanticsByKey.get(semanticSubjectKey(kind, name))?.semantics,
     };
@@ -211,6 +214,17 @@ export function DataItemEditor(props: WorkspaceProps) {
     },
     { label: "Columns", value: `${model.columns.length}` },
   ];
+  if (model.definition) {
+    facts.push(
+      { label: "Grain", value: model.definition.grain, wrap: true },
+      {
+        label: "Identity",
+        value: model.definition.identity.join(", "),
+        wrap: true,
+        absent: !model.definition.identity.length,
+      },
+    );
+  }
   if (model.rowSource) {
     facts.push(
       {
@@ -244,7 +258,7 @@ export function DataItemEditor(props: WorkspaceProps) {
         {column.name}
       </span>,
       logicalTypeName(column.logical_type),
-      column.description ?? "—",
+      column.definition ? fieldDefinitionDetail(column) : fieldDescription(column),
       column.expression
         ? operationName(column.expression) ??
           expressionPreview(column.expression, 0)
@@ -327,7 +341,7 @@ export function DataItemEditor(props: WorkspaceProps) {
       >
         <DesignMeaning
           {...meaning}
-          emptyText="No meaning is attached to this declaration."
+          emptyText="Meaning omitted for this declaration."
         />
       </DetailBand>
 

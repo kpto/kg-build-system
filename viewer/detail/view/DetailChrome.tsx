@@ -173,6 +173,8 @@ export interface DetailFact {
   mono?: boolean;
   /** State that a value is absent instead of dressing it as a value. */
   absent?: boolean;
+  /** Allow a long definition or identity to wrap instead of truncating. */
+  wrap?: boolean;
   onOpen?(): void;
 }
 
@@ -186,6 +188,7 @@ export function FactGrid({ facts }: { facts: DetailFact[] }) {
           <dd
             className={styles.factValue}
             data-honest={fact.absent ? "absent" : undefined}
+            data-wrap={fact.wrap ? "true" : undefined}
             title={fact.title ?? (typeof fact.value === "string" ? fact.value : undefined)}
           >
             {fact.onOpen ? (

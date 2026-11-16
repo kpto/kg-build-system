@@ -53,13 +53,13 @@ subject document is an explicit tab.
 The first paint states the design, not every annotation.
 
 - **Low detail is the default.** The Graph labels hubs only; edge labels,
-  containment, semantics badges and property lists are off. A subject document
+  containment, meaning badges and property lists are off. A subject document
   shows its overview, meaning and fulfilment; graph claims and limitations are revealed on
   demand in the Explorer section. The Workflow shows the compositor graph; a
   step document reveals complex payload values on demand.
 - **A reveal is explicit.** Every hidden layer has one control that names it.
   A control's state is visible; a revealed layer is one click away from hidden.
-- **A reveal does not change scope.** Turning on semantics labels adds evidence
+- **A reveal does not change scope.** Turning on meaning labels adds evidence
   to the same graph; it does not switch function or selection.
 - **No raw JSON in the default surface.** A design reader shows named values,
   not serialised models.

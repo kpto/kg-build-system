@@ -68,8 +68,8 @@ function normalizePurpose(value: unknown): PurposeDTO | undefined {
   };
 }
 
-/** Normalise attached semantics; unknown fields inside each unit survive. */
-export function normalizeSemantics(value: unknown): SemanticsDTO | undefined {
+/** Normalise attached meaning; unknown fields inside each unit survive. */
+export function normalizeMeaning(value: unknown): SemanticsDTO | undefined {
   if (!isObject(value)) return undefined;
   const purpose = normalizePurpose(value.purpose);
   const claims = normalizeSemanticTexts(value.claims);
@@ -80,19 +80,24 @@ export function normalizeSemantics(value: unknown): SemanticsDTO | undefined {
   };
 }
 
+/** Legacy name for the same normaliser. */
+export const normalizeSemantics = normalizeMeaning;
+
 /** Normalise a graph declaration; a missing declaration is allowed. */
 export function normalizeGraphDeclaration(
   value: unknown,
 ): GraphDeclarationDTO | undefined {
-  if (!isObject(value) || !isObject(value.semantics)) return undefined;
-  const semantics = normalizeSemantics(value.semantics) ?? {};
+  const rawMeaning = isObject(value) ? value.meaning ?? value.semantics : undefined;
+  if (!isObject(value) || !isObject(rawMeaning)) return undefined;
+  const meaning = normalizeMeaning(rawMeaning) ?? { claims: [] };
   return {
     ...value,
     name: asString(value.name),
+    meaning,
+    semantics: meaning,
     ...(typeof value.description === "string" || value.description === null
       ? { description: value.description }
       : {}),
-    semantics,
   };
 }
 
@@ -114,14 +119,14 @@ export function normalizeAssetProfile(value: unknown): AssetProfileDTO | undefin
   };
 }
 
-function withSemantics<T>(value: unknown): T {
+function withMeaning<T>(value: unknown): T {
   if (!isObject(value)) return value as T;
-  const semantics = normalizeSemantics(value.semantics);
-  return (semantics ? { ...value, semantics } : value) as T;
+  const meaning = normalizeMeaning(value.meaning ?? value.semantics);
+  return (meaning ? { ...value, meaning, semantics: meaning } : value) as T;
 }
 
 function normalizeField(value: unknown): DataField {
-  return withSemantics<DataField>(value);
+  return withMeaning<DataField>(value);
 }
 
 function normalizeColumns(value: unknown): DataField[] | undefined {
@@ -131,16 +136,16 @@ function normalizeColumns(value: unknown): DataField[] | undefined {
 function normalizeOwner<T>(value: unknown): T {
   if (!isObject(value)) return value as T;
   const columns = normalizeColumns(value.columns);
-  const semantics = normalizeSemantics(value.semantics);
+  const meaning = normalizeMeaning(value.meaning ?? value.semantics);
   return {
     ...value,
     ...(columns ? { columns } : {}),
-    ...(semantics ? { semantics } : {}),
+    ...(meaning ? { meaning, semantics: meaning } : {}),
   } as T;
 }
 
 function normalizeTopologyProperty(value: unknown): TopologyProperty {
-  return withSemantics<TopologyProperty>(value);
+  return withMeaning<TopologyProperty>(value);
 }
 
 function normalizeTopologyComponent<T extends TopologyNode | TopologyEdge>(
@@ -150,27 +155,27 @@ function normalizeTopologyComponent<T extends TopologyNode | TopologyEdge>(
   const properties = Array.isArray(value.properties)
     ? value.properties.map(normalizeTopologyProperty)
     : undefined;
-  const semantics = normalizeSemantics(value.semantics);
+  const meaning = normalizeMeaning(value.meaning ?? value.semantics);
   return {
     ...value,
     ...(properties ? { properties } : {}),
-    ...(semantics ? { semantics } : {}),
+    ...(meaning ? { meaning, semantics: meaning } : {}),
   } as T;
 }
 
 function normalizeAsset(value: unknown): AssetDTO {
   if (!isObject(value)) return value as AssetDTO;
   const profile = normalizeAssetProfile(value.profile);
-  const semantics = normalizeSemantics(value.semantics);
+  const meaning = normalizeMeaning(value.meaning ?? value.semantics);
   return {
     ...value,
     ...(profile ? { profile } : {}),
-    ...(semantics ? { semantics } : {}),
+    ...(meaning ? { meaning, semantics: meaning } : {}),
   } as AssetDTO;
 }
 
 function normalizeBinding(value: unknown): BindingDTO {
-  return withSemantics<BindingDTO>(value);
+  return withMeaning<BindingDTO>(value);
 }
 
 function normalizeGraph(value: unknown): TopologyGraph {
@@ -187,18 +192,30 @@ function normalizeGraph(value: unknown): TopologyGraph {
 }
 
 function normalizeData(value: unknown): BlueprintDTO["data"] {
-  if (!isObject(value)) return { structs: [], relations: [], projections: [] };
+  if (!isObject(value)) {
+    return {
+      structs: [],
+      source_relations: [],
+      derived_relations: [],
+      relations: [],
+      projections: [],
+    };
+  }
+  const sourceRelations = asArray<unknown>(
+    value.source_relations ?? value.relations,
+  ).map((relation) => normalizeOwner<RelationDTO>(relation));
+  const derivedRelations = asArray<unknown>(
+    value.derived_relations ?? value.projections,
+  ).map((projection) => normalizeOwner<ProjectionDTO>(projection));
   return {
     ...value,
     structs: asArray<unknown>(value.structs).map((struct) =>
       normalizeOwner<StructDTO>(struct),
     ),
-    relations: asArray<unknown>(value.relations).map((relation) =>
-      normalizeOwner<RelationDTO>(relation),
-    ),
-    projections: asArray<unknown>(value.projections).map((projection) =>
-      normalizeOwner<ProjectionDTO>(projection),
-    ),
+    source_relations: sourceRelations,
+    derived_relations: derivedRelations,
+    relations: sourceRelations,
+    projections: derivedRelations,
   };
 }
 
@@ -219,7 +236,13 @@ export function normalizeBlueprint(value: unknown): BlueprintDTO {
   if (!isObject(value)) {
     return {
       graph: { nodes: [], edges: [] },
-      data: { structs: [], relations: [], projections: [] },
+      data: {
+        structs: [],
+        source_relations: [],
+        derived_relations: [],
+        relations: [],
+        projections: [],
+      },
       assets: [],
       bindings: [],
     };

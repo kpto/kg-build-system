@@ -93,7 +93,7 @@ function RecordCard({
         <span>
           {record.meaningCount
             ? countLabel(record.meaningCount, "meaning unit")
-            : "no meaning"}
+            : "meaning omitted"}
         </span>
       </footer>
     </article>

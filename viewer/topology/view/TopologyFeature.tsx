@@ -236,7 +236,7 @@ function pointerPosition(
 
 function semanticsSummary(entity: TopologyEntity): string {
   const { semantics } = entity;
-  if (!semantics.present) return "no semantics";
+  if (!semantics.present) return "meaning omitted";
   const parts: string[] = [];
   if (semantics.claimCount) {
     parts.push(
@@ -390,7 +390,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
         </p>
         <p className="mt-0.5 font-mono text-[9px] text-faint tabular-nums">
           {model.stats.nodes} nodes · {model.stats.edgeLinks} edges ·{" "}
-          {model.stats.semantics} with semantics
+          {model.stats.semantics} with meaning
         </p>
       </header>
 
@@ -439,7 +439,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             </FilterButton>
           </FilterGroup>
 
-          <FilterGroup label="Semantics">
+          <FilterGroup label="Meaning">
             <FilterButton
               pressed={filters.semantics === "all"}
               onClick={() => patchFilters({ semantics: "all" })}
@@ -510,9 +510,9 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <FilterButton
               pressed={detail.semantics}
               onClick={() => patchDetail({ semantics: !detail.semantics })}
-              title="Mark nodes and edges that carry semantics"
+              title="Mark nodes and edges that carry meaning"
             >
-              Semantics
+              Meaning
             </FilterButton>
             <FilterButton
               pressed={detail.properties}
@@ -578,7 +578,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
           {detail.semantics ? (
             <LegendRow
               color={theme.accent}
-              label="Semantics present"
+              label="Meaning present"
               count={model.stats.semantics}
             />
           ) : null}
@@ -2115,7 +2115,7 @@ export function TopologyInspector({
             <SummaryField label="Nodes" value={model.stats.nodes} />
             <SummaryField label="Abstract" value={model.stats.abstractNodes} />
             <SummaryField label="Relations" value={model.stats.edgeLinks} />
-            <SummaryField label="Semantics" value={model.stats.semantics} />
+            <SummaryField label="Meaning" value={model.stats.semantics} />
             <div className="col-span-2">
               <SummaryField label="License" value={graphLicense.value} />
             </div>
@@ -2228,8 +2228,8 @@ export function TopologyInspector({
               frames={meaning?.frames}
               emptyText={
                 activeProperty
-                  ? "No meaning is attached to this property."
-                  : "No meaning is attached to this entity."
+                  ? "Meaning omitted for this property."
+                  : "Meaning omitted for this entity."
               }
             />
           </section>

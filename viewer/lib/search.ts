@@ -7,6 +7,7 @@ import type {
   WorkflowStep,
 } from "./types";
 import { refKey } from "./expressions";
+import { fieldSummary, meaningText, recordSummary } from "./summary";
 
 function tokenize(value: string): string[] {
   return value
@@ -96,10 +97,13 @@ export function buildSearchRecords(source: SearchSource): SearchRecord[] {
         kind: "topology-node",
         name: node.name,
         label: `Node · ${node.name}`,
-        detail: node.description ?? (node.labels ?? []).join(", "),
+        detail:
+          meaningText(node.meaning ?? node.semantics) ??
+          (node.labels ?? []).join(", "),
         tokens: tokensOf(
           node.name,
           ...(node.labels ?? []),
+          meaningText(node.meaning ?? node.semantics),
           node.description,
           ...propertyNames,
           "node topology entity",
@@ -116,11 +120,15 @@ export function buildSearchRecords(source: SearchSource): SearchRecord[] {
           kind: "property",
           name: `${node.name}.${property.name}`,
           label: `Property · ${node.name}.${property.name}`,
-          detail: property.description ?? property.logical_type.name ?? property.logical_type.kind,
+          detail:
+            meaningText(property.meaning ?? property.semantics) ??
+            property.logical_type.name ??
+            property.logical_type.kind,
           tokens: tokensOf(
             node.name,
             property.name,
             `${node.name}.${property.name}`,
+            meaningText(property.meaning ?? property.semantics),
             property.description,
             property.logical_type.name,
             property.logical_type.kind,
@@ -143,10 +151,13 @@ export function buildSearchRecords(source: SearchSource): SearchRecord[] {
         kind: "topology-edge",
         name: edge.name,
         label: `Edge · ${edge.name}`,
-        detail: edge.description ?? (edge.labels ?? []).join(", "),
+        detail:
+          meaningText(edge.meaning ?? edge.semantics) ??
+          (edge.labels ?? []).join(", "),
         tokens: tokensOf(
           edge.name,
           ...(edge.labels ?? []),
+          meaningText(edge.meaning ?? edge.semantics),
           edge.description,
           ...propertyNames,
           "edge topology relationship",
@@ -163,11 +174,15 @@ export function buildSearchRecords(source: SearchSource): SearchRecord[] {
           kind: "property",
           name: `${edge.name}.${property.name}`,
           label: `Property · ${edge.name}.${property.name}`,
-          detail: property.description ?? property.logical_type.name ?? property.logical_type.kind,
+          detail:
+            meaningText(property.meaning ?? property.semantics) ??
+            property.logical_type.name ??
+            property.logical_type.kind,
           tokens: tokensOf(
             edge.name,
             property.name,
             `${edge.name}.${property.name}`,
+            meaningText(property.meaning ?? property.semantics),
             property.description,
             property.logical_type.name,
             property.logical_type.kind,
@@ -188,13 +203,14 @@ export function buildSearchRecords(source: SearchSource): SearchRecord[] {
         id: `relation:${relation.name}`,
         kind: "relation",
         name: relation.name,
-        label: `Relation · ${relation.name}`,
-        detail: relation.description ?? artifactText(relation.asset),
+        label: `Source relation · ${relation.name}`,
+        detail: recordSummary(relation) ?? artifactText(relation.asset),
         tokens: tokensOf(
           relation.name,
+          recordSummary(relation),
           relation.description,
           ...relation.columns.map((column) => column.name),
-          "relation table",
+          "source relation table",
         ),
         ref: ["data", "relation", relation.name],
       }),
@@ -207,14 +223,15 @@ export function buildSearchRecords(source: SearchSource): SearchRecord[] {
         id: `projection:${projection.name}`,
         kind: "projection",
         name: projection.name,
-        label: `Projection · ${projection.name}`,
-        detail: projection.description ?? projection.row_source.kind,
+        label: `Derived relation · ${projection.name}`,
+        detail: recordSummary(projection) ?? projection.row_source.kind,
         tokens: tokensOf(
           projection.name,
+          recordSummary(projection),
           projection.description,
           projection.row_source.kind,
           ...projection.columns.map((column) => column.name),
-          "projection transformation",
+          "derived relation transformation",
         ),
         ref: ["data", "projection", projection.name],
       }),
@@ -228,9 +245,12 @@ export function buildSearchRecords(source: SearchSource): SearchRecord[] {
         kind: "struct",
         name: struct.name,
         label: `Struct · ${struct.name}`,
-        detail: (struct.columns ?? []).map((column) => column.name).join(", "),
+        detail:
+          meaningText(struct.meaning ?? struct.semantics) ??
+          (struct.columns ?? []).map((column) => column.name).join(", "),
         tokens: tokensOf(
           struct.name,
+          meaningText(struct.meaning ?? struct.semantics),
           ...(struct.columns ?? []).map((column) => column.name),
           "struct type",
         ),
@@ -246,11 +266,16 @@ export function buildSearchRecords(source: SearchSource): SearchRecord[] {
         kind: "field",
         name: field.key,
         label: `Field · ${field.key}`,
-        detail: `${field.ownerKind} · ${field.field.logical_type.name ?? field.field.logical_type.kind}`,
+        detail: `${field.ownerKind} · ${
+          fieldSummary(field.field) ??
+          field.field.logical_type.name ??
+          field.field.logical_type.kind
+        }`,
         tokens: tokensOf(
           field.key,
           field.ownerName,
           field.field.name,
+          fieldSummary(field.field),
           field.field.logical_type.name,
           field.field.logical_type.kind,
           field.ownerKind,

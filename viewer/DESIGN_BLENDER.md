@@ -83,9 +83,9 @@ rank wrapping. Pan/zoom and focus are the answers, not folding.
   overlapping labels deterministically with priority for selected, hovered,
   neighbours and high degree; the selected label is always visible.
 - Default: hub labels only, relation names hidden, containment hidden,
-  semantics badges hidden, property counts hidden. Each layer has a named
+  meaning badges hidden, property counts hidden. Each layer has a named
   control in the side bar.
-- Containment links are dashed and quieter than relation links. Semantics
+- Containment links are dashed and quieter than relation links. Meaning
   presence is a small badge or ring, never a colour that replaces node kind.
 
 ## Graph viewport rules

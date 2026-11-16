@@ -64,18 +64,23 @@ export interface SemanticsFrameDTO {
   limitations?: SemanticText[];
 }
 
-export interface SemanticsDTO {
+export interface MeaningDTO {
   purpose?: PurposeDTO;
   claims?: SemanticText[];
   /** Older snapshots carry readings as frames; the current model carries a purpose. */
   frames?: SemanticsFrameDTO[];
 }
 
+/** Legacy spelling for the same value; new documents write `meaning`. */
+export type SemanticsDTO = MeaningDTO;
+
 /** The one graph declaration a project carries. */
 export interface GraphDeclarationDTO {
   name: string;
+  meaning: MeaningDTO;
+  /** Legacy spelling and pre-model description; never the primary display text. */
+  semantics?: MeaningDTO;
   description?: string | null;
-  semantics: SemanticsDTO;
 }
 
 /** Descriptive asset profile; separate from attached semantics. */
@@ -85,6 +90,7 @@ export interface AssetProfileDTO {
   authority: string;
   basis: string;
   title?: string | null;
+  /** Legacy pre-model profile description. */
   description?: string | null;
 }
 
@@ -114,52 +120,86 @@ export interface OperationExpression {
 
 export type Expression = FieldExpression | LiteralExpression | OperationExpression;
 
-export interface DataField {
+export interface FieldDefinitionDTO {
+  value: string;
+  unit?: string | null;
+  null_meaning?: string | null;
+}
+
+export interface ColumnDTO {
   name: string;
   logical_type: LogicalType;
   ref?: Ref;
   annotations?: AnnotationDTO[];
-  description?: string;
   expression?: Expression;
-  semantics?: SemanticsDTO;
+  meaning?: MeaningDTO;
+  definition?: FieldDefinitionDTO;
+  /** Legacy pre-model member description. */
+  description?: string;
+  /** Legacy spelling for `meaning`. */
+  semantics?: MeaningDTO;
   [key: string]: unknown;
 }
+
+/** The current model calls a relation's members columns. */
+export type DataField = ColumnDTO;
 
 export interface RowSource {
   kind: string;
   relation?: Ref;
+  input?: RowSource;
   left?: RowSource;
   right?: RowSource;
+  predicate?: Expression;
+  keys?: Array<[string, Expression]> | Array<Record<string, unknown>>;
   [key: string]: unknown;
 }
 
-export interface RelationDTO {
+export interface DefinitionDTO {
+  grain: string;
+  identity: string[];
+}
+
+export interface SourceRelationDTO {
   name: string;
-  columns: DataField[];
+  columns: ColumnDTO[];
   annotations?: AnnotationDTO[];
-  description?: string;
   asset?: Ref;
-  semantics?: SemanticsDTO;
+  meaning?: MeaningDTO;
+  definition?: DefinitionDTO;
+  /** Legacy pre-model description. */
+  description?: string;
+  /** Legacy spelling for `meaning`. */
+  semantics?: MeaningDTO;
   [key: string]: unknown;
 }
 
-export interface ProjectionDTO {
+export interface DerivedRelationDTO {
   name: string;
-  columns: DataField[];
+  columns: ColumnDTO[];
   annotations?: AnnotationDTO[];
-  description?: string;
-  asset?: Ref;
   row_source: RowSource;
-  semantics?: SemanticsDTO;
+  definition?: DefinitionDTO;
+  visibility?: "public" | "internal";
+  meaning?: MeaningDTO;
+  /** Legacy pre-model description or asset link. */
+  description?: string;
+  asset?: Ref;
+  semantics?: MeaningDTO;
   [key: string]: unknown;
 }
+
+/** Legacy names retained while old snapshots remain loadable. */
+export type RelationDTO = SourceRelationDTO;
+export type ProjectionDTO = DerivedRelationDTO;
 
 export interface StructDTO {
   name: string;
-  columns: DataField[];
+  columns: ColumnDTO[];
   annotations?: AnnotationDTO[];
+  meaning?: MeaningDTO;
   description?: string;
-  semantics?: SemanticsDTO;
+  semantics?: MeaningDTO;
   [key: string]: unknown;
 }
 
@@ -206,9 +246,11 @@ export interface AssetDTO {
   version?: string | null;
   layout?: AssetLayout;
   profile?: AssetProfileDTO;
-  semantics?: SemanticsDTO;
+  meaning?: MeaningDTO;
   governance?: AssetGovernance;
   annotations?: AnnotationDTO[];
+  /** Legacy spelling for `meaning`. */
+  semantics?: MeaningDTO;
   [key: string]: unknown;
 }
 
@@ -217,8 +259,9 @@ export interface TopologyProperty {
   logical_type: LogicalType;
   ref: Ref;
   annotations?: AnnotationDTO[];
+  meaning?: MeaningDTO;
   description?: string;
-  semantics?: SemanticsDTO;
+  semantics?: MeaningDTO;
   [key: string]: unknown;
 }
 
@@ -230,7 +273,8 @@ export interface TopologyNode {
   annotations?: AnnotationDTO[];
   description?: string;
   parent?: Ref;
-  semantics?: SemanticsDTO;
+  meaning?: MeaningDTO;
+  semantics?: MeaningDTO;
   [key: string]: unknown;
 }
 
@@ -246,8 +290,11 @@ export interface TopologyGraph {
 
 export interface BlueprintData {
   structs: StructDTO[];
-  relations: RelationDTO[];
-  projections: ProjectionDTO[];
+  source_relations: SourceRelationDTO[];
+  derived_relations: DerivedRelationDTO[];
+  /** Legacy keys normalised from older snapshots. */
+  relations?: SourceRelationDTO[];
+  projections?: DerivedRelationDTO[];
 }
 
 export interface BindingDTO {
@@ -262,13 +309,16 @@ export interface BindingDTO {
   annotations?: AnnotationDTO[];
   mode?: string;
   name?: string;
+  source_node?: Ref | null;
+  target_node?: Ref | null;
   python_ref?: {
     module?: string;
     qualname?: string;
     signature?: string;
     [key: string]: unknown;
   };
-  semantics?: SemanticsDTO;
+  meaning?: MeaningDTO;
+  semantics?: MeaningDTO;
   [key: string]: unknown;
 }
 
@@ -557,8 +607,8 @@ export interface ViewerIndex extends SearchSource {
 
 export interface ViewerStats {
   assets: number;
-  tables: number;
-  projections: number;
+  sourceRelations: number;
+  derivedRelations: number;
   structs: number;
   topologyNodes: number;
   topologyEdges: number;
@@ -740,8 +790,8 @@ export interface LineageGraph {
 
 export const LINEAGE_LANES: Array<{ id: LineageLane; label: string }> = [
   { id: "asset", label: "Asset" },
-  { id: "source", label: "Source / Table" },
-  { id: "transformation", label: "Transformation / Projection" },
+  { id: "source", label: "Source relation" },
+  { id: "transformation", label: "Derived relation" },
   { id: "binding", label: "Binding" },
   { id: "post", label: "Post-processing" },
   { id: "target", label: "Target" },

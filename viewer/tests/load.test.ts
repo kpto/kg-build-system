@@ -16,14 +16,11 @@ describe("snapshot loading", () => {
 
     const declaration = snapshot.blueprint.graph_declaration;
     expect(declaration?.name).toBe("fixture_graph");
-    expect(declaration?.description).toBe(
-      "A small graph used by the viewer contract tests.",
-    );
-    expect(declaration?.semantics.claims).toHaveLength(1);
-    expect(declaration?.semantics.purpose?.text).toBe(
+    expect(declaration?.meaning?.claims).toHaveLength(1);
+    expect(declaration?.meaning?.purpose?.text).toBe(
       "Exercise the viewer data contract without loading a release.",
     );
-    expect(declaration?.semantics.purpose?.limitations).toHaveLength(2);
+    expect(declaration?.meaning?.purpose?.limitations).toHaveLength(2);
   });
 
   it("loads asset profiles and attached semantics on every subject", () => {
@@ -38,11 +35,11 @@ describe("snapshot loading", () => {
       "The fixture estate is a JSON asset.",
     );
 
-    const relation = snapshot.blueprint.data.relations[0];
+    const relation = snapshot.blueprint.data.source_relations[0];
     expect(relation.semantics?.claims).toHaveLength(1);
     expect(relation.columns[1].semantics?.claims).toHaveLength(1);
 
-    const projection = snapshot.blueprint.data.projections[0];
+    const projection = snapshot.blueprint.data.derived_relations[0];
     expect(projection.semantics?.claims).toHaveLength(1);
     expect(projection.columns[1].semantics?.claims).toHaveLength(1);
 
@@ -90,7 +87,11 @@ describe("snapshot loading", () => {
       title: "Legacy snapshot",
       blueprint: {
         graph: { nodes: [], edges: [] },
-        data: { structs: [], relations: [], projections: [] },
+        data: {
+        structs: [],
+        source_relations: [],
+        derived_relations: [],
+      },
         assets: [],
         bindings: [],
       },
@@ -127,7 +128,11 @@ describe("snapshot loading", () => {
       provenance: {
         blueprint: {
           graph: { nodes: [{ name: "site" }], edges: [] },
-          data: { structs: [], relations: [], projections: [] },
+          data: {
+        structs: [],
+        source_relations: [],
+        derived_relations: [],
+      },
           assets: [{ name: "estate" }],
           bindings: [],
         },
@@ -141,7 +146,11 @@ describe("snapshot loading", () => {
   it("accepts a bare blueprint and keeps unknown fields", () => {
     const loaded = loadSnapshotFromObject({
       graph: { nodes: [{ name: "site" }], edges: [] },
-      data: { structs: [], relations: [], projections: [] },
+      data: {
+        structs: [],
+        source_relations: [],
+        derived_relations: [],
+      },
       assets: [{ name: "estate" }],
       bindings: [],
       local_extension: { kept: true },

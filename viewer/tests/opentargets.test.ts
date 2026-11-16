@@ -18,11 +18,11 @@ describe("Open Targets snapshot", () => {
     expect(snapshot.name).toBe("open-targets-26.09");
     expect(index.stats.topologyNodes).toBe(63);
     expect(index.stats.topologyEdges).toBe(163);
-    expect(index.stats.tables).toBe(61);
-    expect(index.stats.projections).toBe(9);
+    expect(index.stats.sourceRelations).toBe(61);
+    expect(index.stats.derivedRelations).toBe(9);
     expect(index.stats.bindings).toBe(239);
-    expect(index.stats.steps).toBe(998);
-    expect(index.stats.connections).toBe(1419);
+    expect(index.stats.steps).toBe(1000);
+    expect(index.stats.connections).toBe(1423);
     expect(index.blueprint.assets?.[0]?.name).toBe("open_target");
     expect(index.assetsByName.get("open_target")?.governance?.license).toMatchObject({
       identifier: "CC0-1.0",
@@ -39,8 +39,8 @@ describe("Open Targets snapshot", () => {
   it("carries the graph declaration, purpose and attached semantics", () => {
     const declaration = snapshot.blueprint.graph_declaration;
     expect(declaration?.name).toBe("open_targets");
-    expect(declaration?.semantics.claims).toHaveLength(9);
-    expect(declaration?.semantics.purpose?.text).toContain(
+    expect(declaration?.meaning.claims).toHaveLength(9);
+    expect(declaration?.meaning.purpose?.text).toContain(
       "Target-disease evidence review",
     );
     expect(index.graphDeclaration?.name).toBe("open_targets");

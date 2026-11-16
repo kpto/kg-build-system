@@ -326,8 +326,16 @@ function buildFieldIndexes(
     ownerKind: FieldLocation["ownerKind"];
     entries: Array<{ name: string; columns?: Array<FieldLocation["field"]> }>;
   }> = [
-    { ownerKind: "relation", entries: blueprint.data?.relations ?? [] },
-    { ownerKind: "projection", entries: blueprint.data?.projections ?? [] },
+    {
+      ownerKind: "relation",
+      entries:
+        blueprint.data?.source_relations ?? blueprint.data?.relations ?? [],
+    },
+    {
+      ownerKind: "projection",
+      entries:
+        blueprint.data?.derived_relations ?? blueprint.data?.projections ?? [],
+    },
     { ownerKind: "struct", entries: blueprint.data?.structs ?? [] },
   ];
 
@@ -448,8 +456,10 @@ function buildPropertyIndex(
 function graphSemantics(
   declaration: GraphDeclarationDTO,
 ): SemanticsDTO | undefined {
-  const purpose = declaration.semantics.purpose;
-  const claims = declaration.semantics.claims;
+  const meaning = declaration.meaning ?? declaration.semantics;
+  if (!meaning) return undefined;
+  const purpose = meaning.purpose;
+  const claims = meaning.claims;
   if (!purpose && !claims?.length) return undefined;
   return {
     ...(purpose ? { purpose } : {}),
@@ -498,25 +508,27 @@ function buildSemanticIndexes(
       key: semanticSubjectKey("asset", asset.name),
       name: asset.name,
       assetName: asset.name,
-      semantics: asset.semantics,
+      semantics: asset.meaning ?? asset.semantics,
     });
   }
 
-  for (const relation of blueprint.data?.relations ?? []) {
+  for (const relation of
+    blueprint.data?.source_relations ?? blueprint.data?.relations ?? []) {
     add({
       kind: "relation",
       key: semanticSubjectKey("relation", relation.name),
       name: relation.name,
-      semantics: relation.semantics,
+      semantics: relation.meaning ?? relation.semantics,
     });
   }
 
-  for (const projection of blueprint.data?.projections ?? []) {
+  for (const projection of
+    blueprint.data?.derived_relations ?? blueprint.data?.projections ?? []) {
     add({
       kind: "projection",
       key: semanticSubjectKey("projection", projection.name),
       name: projection.name,
-      semantics: projection.semantics,
+      semantics: projection.meaning ?? projection.semantics,
     });
   }
 
@@ -525,7 +537,7 @@ function buildSemanticIndexes(
       kind: "struct",
       key: semanticSubjectKey("struct", struct.name),
       name: struct.name,
-      semantics: struct.semantics,
+      semantics: struct.meaning ?? struct.semantics,
     });
   }
 
@@ -541,7 +553,7 @@ function buildSemanticIndexes(
       name: field.field.name,
       ownerName: field.ownerName,
       ref: field.field.ref,
-      semantics: field.field.semantics,
+      semantics: field.field.meaning ?? field.field.semantics,
     });
   }
 
@@ -551,7 +563,7 @@ function buildSemanticIndexes(
       key: semanticSubjectKey("node", node.name),
       name: node.name,
       ref: ["topology", "node", node.name],
-      semantics: node.semantics,
+      semantics: node.meaning ?? node.semantics,
     });
     for (const property of node.properties ?? []) {
       add({
@@ -561,7 +573,7 @@ function buildSemanticIndexes(
         ownerName: node.name,
         entityKind: "node",
         ref: property.ref,
-        semantics: property.semantics,
+        semantics: property.meaning ?? property.semantics,
       });
     }
   }
@@ -572,7 +584,7 @@ function buildSemanticIndexes(
       key: semanticSubjectKey("edge", edge.name),
       name: edge.name,
       ref: ["topology", "edge", edge.name],
-      semantics: edge.semantics,
+      semantics: edge.meaning ?? edge.semantics,
     });
     for (const property of edge.properties ?? []) {
       add({
@@ -582,7 +594,7 @@ function buildSemanticIndexes(
         ownerName: edge.name,
         entityKind: "edge",
         ref: property.ref,
-        semantics: property.semantics,
+        semantics: property.meaning ?? property.semantics,
       });
     }
   }
@@ -596,7 +608,7 @@ function buildSemanticIndexes(
       ref: binding.componentRef,
       entityKind: binding.kind,
       bindingIndex: binding.index,
-      semantics: binding.binding.semantics,
+      semantics: binding.binding.meaning ?? binding.binding.semantics,
     });
   }
 
@@ -617,8 +629,12 @@ function buildStats(
     .reduce((total, component) => total + (component.properties?.length ?? 0), 0);
   return {
     assets: blueprint.assets?.length ?? 0,
-    tables: blueprint.data?.relations?.length ?? 0,
-    projections: blueprint.data?.projections?.length ?? 0,
+    sourceRelations:
+      (blueprint.data?.source_relations ?? blueprint.data?.relations ?? []).length,
+    derivedRelations:
+      (blueprint.data?.derived_relations ?? blueprint.data?.projections ?? []).filter(
+        (projection) => projection.visibility !== "internal",
+      ).length,
     structs: blueprint.data?.structs?.length ?? 0,
     topologyNodes: blueprint.graph?.nodes?.length ?? 0,
     topologyEdges: blueprint.graph?.edges?.length ?? 0,
@@ -668,17 +684,29 @@ export function buildViewerIndex(snapshot: ViewerSnapshot): ViewerIndex {
   }
 
   const relationByName = new Map(
-    (blueprint.data?.relations ?? []).map((relation) => [relation.name, relation] as const),
+    (blueprint.data?.source_relations ?? blueprint.data?.relations ?? []).map(
+      (relation) => [relation.name, relation] as const,
+    ),
+  );
+  const derivedRelations =
+    blueprint.data?.derived_relations ?? blueprint.data?.projections ?? [];
+  const publishedDerivedRelations = derivedRelations.filter(
+    (projection) => projection.visibility !== "internal",
   );
   const projectionByName = new Map(
-    (blueprint.data?.projections ?? []).map((projection) => [projection.name, projection] as const),
+    publishedDerivedRelations.map(
+      (projection) => [projection.name, projection] as const,
+    ),
   );
   const structByName = new Map(
     (blueprint.data?.structs ?? []).map((struct) => [struct.name, struct] as const),
   );
   const dataEntityByName = new Map<string, RelationDTO | ProjectionDTO | StructDTO>();
-  for (const relation of blueprint.data?.relations ?? []) dataEntityByName.set(relation.name, relation);
-  for (const projection of blueprint.data?.projections ?? []) dataEntityByName.set(projection.name, projection);
+  for (const relation of
+    blueprint.data?.source_relations ?? blueprint.data?.relations ?? [])
+    dataEntityByName.set(relation.name, relation);
+  for (const projection of publishedDerivedRelations)
+    dataEntityByName.set(projection.name, projection);
   for (const struct of blueprint.data?.structs ?? []) dataEntityByName.set(struct.name, struct);
 
   const { fields, fieldsByKey } = buildFieldIndexes(blueprint);
@@ -693,8 +721,9 @@ export function buildViewerIndex(snapshot: ViewerSnapshot): ViewerIndex {
   const searchSource = {
     topologyNodes: blueprint.graph?.nodes ?? [],
     topologyEdges: blueprint.graph?.edges ?? [],
-    relations: blueprint.data?.relations ?? [],
-    projections: blueprint.data?.projections ?? [],
+    relations:
+      blueprint.data?.source_relations ?? blueprint.data?.relations ?? [],
+    projections: publishedDerivedRelations,
     structs: blueprint.data?.structs ?? [],
     fields,
     assets: blueprint.assets ?? [],
@@ -709,7 +738,8 @@ export function buildViewerIndex(snapshot: ViewerSnapshot): ViewerIndex {
     blueprint,
     workflow,
     graphDeclaration: blueprint.graph_declaration,
-    graphSemantics: blueprint.graph_declaration?.semantics,
+    graphSemantics:
+      blueprint.graph_declaration?.meaning ?? blueprint.graph_declaration?.semantics,
     ...workflowIndexes,
     ...searchSource,
     ...semantics,
@@ -761,8 +791,11 @@ export function resolveAssetName(index: ViewerIndex, relationName: string): stri
   if (relation?.asset?.[2]) return relation.asset[2];
   const projection = index.projectionByName.get(relationName);
   if (projection?.asset?.[2]) return projection.asset[2];
-  if (projection?.row_source?.relation?.[2]) {
-    return index.relationByName.get(projection.row_source.relation[2])?.asset?.[2];
+  if (projection?.row_source) {
+    for (const scanned of relationNamesFromRowSource(projection.row_source)) {
+      const asset = index.relationByName.get(scanned)?.asset?.[2];
+      if (asset) return asset;
+    }
   }
   for (const asset of index.assets) {
     const members = Object.keys(asset.layout?.members ?? {});
@@ -773,7 +806,9 @@ export function resolveAssetName(index: ViewerIndex, relationName: string): stri
 
 /** All relation names reachable from a row source. */
 export function relationNamesFromRowSource(
-  rowSource: { kind?: string; relation?: Ref; left?: unknown; right?: unknown } | undefined,
+  rowSource:
+    | { kind?: string; relation?: Ref; input?: unknown; left?: unknown; right?: unknown }
+    | undefined,
 ): string[] {
   if (!rowSource) return [];
   const names = new Set<string>();
@@ -781,11 +816,13 @@ export function relationNamesFromRowSource(
     if (!source || typeof source !== "object") return;
     const value = source as {
       relation?: Ref;
+      input?: unknown;
       left?: unknown;
       right?: unknown;
       inputs?: unknown[];
     };
     if (value.relation?.[2]) names.add(value.relation[2]);
+    if (value.input) visit(value.input);
     if (value.left) visit(value.left);
     if (value.right) visit(value.right);
     for (const input of value.inputs ?? []) visit(input);

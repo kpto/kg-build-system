@@ -16,6 +16,7 @@ import type {
   ViewerIndex,
   ViewerSnapshot,
 } from "@/lib/types";
+import { meaningText } from "@/lib/summary";
 import type {
   BuildTopologyModelOptions,
   TopologyDetailOptions,
@@ -76,7 +77,9 @@ function emptySemantics(): TopologySemanticsSummary {
 }
 
 function readSemantics(component: TopologyComponent): TopologySemanticsSummary {
-  const raw = (component as { semantics?: unknown }).semantics;
+  const raw =
+    (component as { meaning?: unknown; semantics?: unknown }).meaning ??
+    (component as { semantics?: unknown }).semantics;
   if (!isObject(raw)) return emptySemantics();
   const semantics = raw as RawSemantics;
 
@@ -195,7 +198,9 @@ export function buildTopologyGraphModel(
       category: parent ?? (component.abstract ? "root" : "uncategorized"),
       parent,
       labels: [...(component.labels ?? [])],
-      description: component.description,
+      description:
+        meaningText(component.meaning ?? component.semantics) ??
+        component.description,
       properties: component.properties?.length ?? 0,
       hasSemantics: semantics.present,
       semantics,
@@ -231,7 +236,9 @@ export function buildTopologyGraphModel(
       category: parent ?? "relationship",
       parent,
       labels: [...(component.labels ?? [])],
-      description: component.description,
+      description:
+        meaningText(component.meaning ?? component.semantics) ??
+        component.description,
       hasSemantics: semantics.present,
       semantics,
       edgeName: component.name,

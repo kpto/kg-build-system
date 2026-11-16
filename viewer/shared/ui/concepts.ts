@@ -31,11 +31,11 @@ export const concepts: Record<ConceptKind, ConceptDefinition> = {
   edge: { label: "Edge", icon: GitBranch, color: theme.binding },
   property: { label: "Property", icon: CircleDot, color: theme.transform },
   asset: { label: "Asset", icon: Database, color: theme.asset },
-  table: { label: "Table", icon: Table2, color: theme.source },
-  projection: { label: "Projection", icon: Columns3, color: theme.post },
+  table: { label: "Source relation", icon: Table2, color: theme.source },
+  projection: { label: "Derived relation", icon: Columns3, color: theme.post },
   abstract: { label: "Abstract category", icon: Layers, color: theme.group8 },
   step: { label: "Step", icon: Boxes, color: theme.group10 },
-  semantics: { label: "Semantics", icon: BadgeCheck, color: theme.accent },
+  semantics: { label: "Meaning", icon: BadgeCheck, color: theme.accent },
   field: { label: "Field", icon: Hash, color: theme.group7 },
 };
 

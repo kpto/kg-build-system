@@ -27,7 +27,7 @@ from pathlib import Path
 from kg_build_system.kernel.service._private.workflow_codec import (
     workflow_plan_to_document,
 )
-from open_targets_kg.build import compile_kg, create_kg_blueprint
+from open_targets_kg.manifest import compile_kg, create_kg_blueprint
 
 
 def main() -> None:
@@ -92,8 +92,8 @@ def main() -> None:
         "gzip_bytes": gzip_path.stat().st_size,
         "nodes": len(graph["nodes"]),
         "edges": len(graph["edges"]),
-        "relations": len(data["relations"]),
-        "projections": len(data["projections"]),
+        "source_relations": len(data["source_relations"]),
+        "derived_relations": len(data["derived_relations"]),
         "bindings": len(blueprint_document["bindings"]),
         "steps": len(workflow_document["steps"]),
         "connections": len(workflow_document["connections"]),

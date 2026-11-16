@@ -105,6 +105,7 @@ import {
   type DesignMeaningValue,
 } from "@/shared/design/meaning";
 import styles from "./detail.module.css";
+import { profileSummary, recordSummary } from "@/lib/summary";
 
 // ---------------------------------------------------------------------------
 // Selection plumbing
@@ -327,7 +328,7 @@ function SemanticCards({ attachments }: { attachments: ProofSemantics[] }) {
             purpose={attachment.purpose?.text}
             frames={attachment.frames}
             compact
-            emptyText="No meaning is attached."
+            emptyText="Meaning omitted."
           />
         </article>
       ))}
@@ -615,10 +616,10 @@ export function ExplorerSidebar(props: WorkspaceProps) {
 
   const assets = index.assets.filter((asset) => matches(normalized, asset.name));
   const tables = index.relations.filter((relation) =>
-    matches(normalized, relation.name, relation.description),
+    matches(normalized, relation.name, recordSummary(relation)),
   );
   const projections = index.projections.filter((projection) =>
-    matches(normalized, projection.name, projection.description),
+    matches(normalized, projection.name, recordSummary(projection)),
   );
   const nodes = index.topologyNodes.filter((node) =>
     matches(normalized, node.name) ||
@@ -993,7 +994,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
 
         <SideSection
           id="tables"
-          title="Tables"
+          title="Source relations"
           count={tables.length}
           open={sectionOpen("tables")}
           onToggle={toggle}
@@ -1020,7 +1021,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
 
         <SideSection
           id="projections"
-          title="Projections"
+          title="Derived relations"
           count={projections.length}
           open={sectionOpen("projections")}
           onToggle={toggle}
@@ -1368,7 +1369,7 @@ function LaneNode({
         {node.semantics.length ? (
           <span
             className={styles.nodeEvidence}
-            title={`${node.semantics.length} attached semantics`}
+            title={`${node.semantics.length} attached meaning units`}
           >
             {node.semantics.length}
           </span>
@@ -2315,8 +2316,8 @@ function SubjectDetailEditor(props: WorkspaceProps) {
           <p className={styles.bandNote}>
             {model.component?.description ?? model.abstract?.description}
           </p>
-        ) : model.asset?.profile?.description ? (
-          <p className={styles.bandNote}>{model.asset.profile.description}</p>
+        ) : profileSummary(model.asset?.profile) ? (
+          <p className={styles.bandNote}>{profileSummary(model.asset?.profile)}</p>
         ) : null}
         <FactGrid facts={facts} />
       </DetailBand>
@@ -2337,7 +2338,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
           limitations={meaning.limitations}
           purpose={meaning.purpose}
           frames={meaning.frames}
-          emptyText="No meaning is attached to this subject."
+          emptyText="Meaning omitted for this subject."
         />
         {subjectSemantics.length ? (
           <div className={styles.meaningAttached}>

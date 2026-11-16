@@ -10,8 +10,8 @@ frame, one document tab strip, and two collapsible side-bar sections:
 
 | Side-bar section | What it is for |
 | --- | --- |
-| **Control** | Controls for the active view: graph filters, labels, containment, semantics, legend and layout; workflow component and instruction filters. |
-| **Explorer** | Everything in the design: assets, tables, projections, nodes, abstract categories, edges and their properties, plus the workflow components and step catalogue. Right-clicking an item jumps to its Graph or Workflow view; tables and projections open their own documents. |
+| **Control** | Controls for the active view: graph filters, labels, containment, meaning, legend and layout; workflow component and instruction filters. |
+| **Explorer** | Everything in the design: assets, source relations, derived relations, nodes, abstract categories, edges and their properties, plus the workflow components and step catalogue. Right-clicking an item jumps to its Graph or Workflow view; relations open their own documents. |
 
 The viewer opens the snapshot named by the URL (`?snapshot=reference` selects the
 reference estate); there is no file picker. The workbench frame and its indexes
@@ -137,7 +137,7 @@ The first paint shows the design, not its annotations.
 
 | Surface | Default | Revealed by |
 | --- | --- | --- |
-| Graph document | Blender-node-editor canvas with a dot and major grid, degree-sized nodes tinted by category, faint category hulls and hub labels; the shared visualisation header states visible nodes and links, carries the **Inspect** toggle and opens a floating inspector showing graph purpose and counts | selecting an entity fills Inspect with its description, properties, meaning and the fulfilment map; clicking empty space returns to graph purpose; **Clusters**, **Labels** and **Show** in Control reveal the other layers |
+| Graph document | Blender-node-editor canvas with a dot and major grid, degree-sized nodes tinted by category, faint category hulls and hub labels; the shared visualisation header states visible nodes and links, carries the **Inspect** toggle and opens a floating inspector showing graph purpose and counts | selecting an entity fills Inspect with its meaning, properties and the fulfilment map; clicking empty space returns to graph purpose; **Clusters**, **Labels** and **Show** in Control reveal the other layers |
 | Workflow document | compositor-style component graph in the shared visualisation frame; its header names the workflow or focused step group and states component or step counts, with step-group actions on the right; drag to pan, wheel to zoom, Fit in the bottom-left navigation cluster resets | filter by component or instruction kind in Control; click a component to select it, then use **Open step group** to enter its step-level flow graph with one block per dependency layer; a large layer wraps into aligned sub-columns and chains read left to right; clicking a step node selects it, **Open step** opens its detail document, and **Back** returns to components. Selecting a component, step or boundary node highlights its incident links and dims the other nodes and links; entering another step group requires **Open step group** |
 | Subject document | one stack of bands in the shared order: Overview, Meaning, Fulfilment (the axis map), Sources, Build steps, Expression, Members, Connections, Bindings; the effective licence sits in the header | a section header collapses its band; property rows and the branch selector open their own documents; the Explorer tree opens another subject document |
 | Relation document | the same bands; Overview states kind, asset, columns, row source, scans, bindings and licence; Meaning, Fulfilment, Sources, Build steps, Expression, Members and Bindings follow | a column definition, the expression outline and the fulfilment map's full axis view |
@@ -183,15 +183,23 @@ The default snapshot is the current Open Targets 26.09 **compile-only** build:
 
 | Artifact | Value |
 | --- | --- |
-| Blueprint | 63 nodes, 163 edges, 61 relations, 9 projections, 239 bindings |
-| Workflow | 998 steps, 1,419 connections |
-| Meaning | graph purpose, 5 frames, 9 claims; semantics on every node, edge, property and binding |
+| Blueprint | 63 nodes, 163 edges, 61 source relations, 9 derived relations, 239 bindings |
+| Workflow | 1,000 steps, 1,423 connections |
+| Meaning | graph purpose, 9 claims and 5 limitations; attached meaning on graph components, assets and bindings |
 | Mode | compile-only; the graph was not executed |
 
 `viewer/public/data/opentargets.snapshot.json` is checked in (the `.gz` copy is
 served through `/api/snapshot`). The snapshot contains only the workflow plan;
 its `provenance.blueprint` member is the source blueprint, so no second artifact
 is needed. Regenerate it from the Open Targets project:
+
+The blueprint document follows the current model: `graph_declaration.meaning`,
+topology `meaning`, `data.source_relations` and `data.derived_relations`,
+column `definition` and `meaning`, and binding `name`/`mode`/`meaning`.
+The loader still reads the legacy keys (`relations`, `projections`,
+`semantics`, `description`, `debug_name`) so older snapshots remain viewable;
+display text prefers purpose, claim, contract definition and field definition
+over the retired description field.
 
 ```console
 cd ~/Repos/opentargets-kg

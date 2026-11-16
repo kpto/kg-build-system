@@ -55,6 +55,7 @@ import {
   semanticSubjectKey,
 } from "@/lib/indexes";
 import { resolveFieldSources } from "./sources";
+import { meaningText } from "@/lib/summary";
 
 export type ProofLevel = "property" | "node" | "edge" | "abstract" | "asset";
 
@@ -864,7 +865,8 @@ function buildComponentProof(
     kind,
     name: entity.name,
     abstract: Boolean(entity.abstract),
-    description: entity.description,
+    description:
+      meaningText(entity.meaning ?? entity.semantics) ?? entity.description,
     labels: entity.labels ?? [],
     provenance:
       subject.kind === "edge"
@@ -937,7 +939,9 @@ function buildAbstractProof(
   };
   const descendants = descendantsOf(index, node.name).map((descendant) => ({
     name: descendant.name,
-    description: descendant.description,
+    description:
+      meaningText(descendant.meaning ?? descendant.semantics) ??
+      descendant.description,
     labels: descendant.labels ?? [],
     properties: (descendant.properties ?? []).map((property) =>
       summariseProperty(index, "node", descendant.name, property),
@@ -950,7 +954,8 @@ function buildAbstractProof(
   );
   const abstract: ProofAbstract = {
     name: node.name,
-    description: node.description,
+    description:
+      meaningText(node.meaning ?? node.semantics) ?? node.description,
     labels: node.labels ?? [],
     semantics,
     descendants,
