@@ -31,6 +31,7 @@ class ViewerServer(ThreadingHTTPServer):
     assets: Path
     snapshot_bytes: bytes
     snapshot_type: str
+    embed: bool = False
 
 
 class ViewerHandler(SimpleHTTPRequestHandler):
@@ -52,6 +53,12 @@ class ViewerHandler(SimpleHTTPRequestHandler):
     def do_GET(self) -> None:
         path = urlparse(self.path).path
         if path in {"/snapshot", "/api/snapshot"}:
+            if self.server.embed:
+                self.send_error(
+                    404,
+                    "snapshot is supplied by the embedding host",
+                )
+                return
             self.send_response(200)
             self.send_header("Content-Type", self.server.snapshot_type)
             self.send_header("Content-Length", str(len(self.server.snapshot_bytes)))
@@ -158,6 +165,14 @@ def add_view_command(commands: argparse._SubParsersAction[Any]) -> None:
     parser.add_argument("--host", default="127.0.0.1", help="bind address")
     parser.add_argument("--port", type=int, default=8001, help="port to serve on")
     parser.add_argument("--no-open", action="store_true", help="do not open a browser")
+    parser.add_argument(
+        "--embed",
+        action="store_true",
+        help=(
+            "serve the empty viewer for an embedding host; the host opens a "
+            "snapshot over the message bridge"
+        ),
+    )
     parser.set_defaults(command_handler=run_view)
 
 
@@ -310,7 +325,74 @@ def _serve_source_viewer(
     return 0
 
 
+def _serve_embedded_source_viewer(
+    arguments: argparse.Namespace,
+    source: Path,
+    command: list[str],
+) -> int:
+    viewer_url = f"{_api_url(arguments.host, arguments.port)}/?embed=1"
+    environment = dict(os.environ)
+    environment["NEXT_TELEMETRY_DISABLED"] = "1"
+    # Keep the embedded viewer independent of any project discovery file. The
+    # host supplies the snapshot; the viewer never calls /snapshot in this mode.
+    environment["INIT_CWD"] = str(source)
+    child: subprocess.Popen[Any] | None = None
+    try:
+        print(f"Starting embedded viewer {viewer_url}", flush=True)
+        child = subprocess.Popen(command, cwd=source, env=environment)
+        if not _wait_for_viewer(
+            arguments.host,
+            arguments.port,
+            process=child,
+        ):
+            raise RuntimeError(
+                "the viewer did not start; run `npm run dev` in viewer/ to see "
+                "the error"
+            )
+        print(f"Embedded viewer {viewer_url}", flush=True)
+        print("The host sends {type: 'open', snapshot} to the iframe.", flush=True)
+        print("Press Ctrl+C to stop.", flush=True)
+        child.wait()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        if child is not None and child.poll() is None:
+            child.terminate()
+            try:
+                child.wait(timeout=10)
+            except subprocess.TimeoutExpired:
+                child.kill()
+                child.wait()
+    return 0
+
+
+def _serve_embedded_static_viewer(arguments: argparse.Namespace) -> int:
+    assets = _assets()
+    server = ViewerServer((arguments.host, arguments.port), ViewerHandler)
+    server.assets = assets
+    server.snapshot_bytes = b""
+    server.snapshot_type = "application/json"
+    server.embed = True
+    url = f"{_api_url(arguments.host, server.server_port)}/?embed=1"
+    print(f"Serving embedded viewer {url}")
+    print("The host sends {type: 'open', snapshot} to the iframe.", flush=True)
+    print("Press Ctrl+C to stop.", flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+    return 0
+
+
 def run_view(arguments: argparse.Namespace) -> int:
+    if arguments.embed:
+        source = _viewer_source()
+        command = _viewer_command(arguments.port, arguments.host) if source else None
+        if source is not None and command is not None:
+            return _serve_embedded_source_viewer(arguments, source, command)
+        return _serve_embedded_static_viewer(arguments)
     snapshot, snapshot_type = _snapshot(arguments.snapshot, arguments.title)
     source = _viewer_source()
     command = _viewer_command(arguments.port, arguments.host) if source else None

@@ -5,7 +5,9 @@ import json
 import tempfile
 import threading
 import unittest
+import urllib.error
 import urllib.request
+from argparse import Namespace
 from pathlib import Path
 from unittest.mock import patch
 
@@ -20,6 +22,7 @@ from kg_build_system.cli.service._private.view import (
     _viewer_environment,
     _viewer_source,
     _write_discovery,
+    run_view,
 )
 
 
@@ -153,6 +156,29 @@ class ViewerCommandTests(unittest.TestCase):
         self.assertEqual(environment["NEXT_TELEMETRY_DISABLED"], "1")
 
 
+class ViewerEmbedTests(unittest.TestCase):
+    def test_run_view_embed_serves_the_empty_viewer(self) -> None:
+        arguments = Namespace(
+            embed=True,
+            host="127.0.0.1",
+            port=8001,
+            snapshot=None,
+            title=None,
+        )
+        with (
+            patch(
+                "kg_build_system.cli.service._private.view._viewer_source",
+                return_value=None,
+            ),
+            patch(
+                "kg_build_system.cli.service._private.view._serve_embedded_static_viewer",
+                return_value=0,
+            ) as serve,
+        ):
+            self.assertEqual(run_view(arguments), 0)
+        serve.assert_called_once_with(arguments)
+
+
 class ViewerServerTests(unittest.TestCase):
     def test_the_server_serves_the_index_and_snapshot(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -175,6 +201,27 @@ class ViewerServerTests(unittest.TestCase):
                     self.assertEqual(
                         response.headers["Content-Type"], "application/json"
                     )
+            finally:
+                server.shutdown()
+                server.server_close()
+                thread.join(timeout=5)
+
+    def test_an_embedded_server_does_not_serve_a_snapshot(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            assets = Path(directory)
+            (assets / "index.html").write_text("viewer")
+            server = ViewerServer(("127.0.0.1", 0), ViewerHandler)
+            server.assets = assets
+            server.snapshot_bytes = b""
+            server.snapshot_type = "application/json"
+            server.embed = True
+            thread = threading.Thread(target=server.serve_forever, daemon=True)
+            thread.start()
+            try:
+                base = f"http://127.0.0.1:{server.server_port}"
+                with self.assertRaises(urllib.error.HTTPError) as missing:
+                    urllib.request.urlopen(f"{base}/snapshot")
+                self.assertEqual(missing.exception.code, 404)
             finally:
                 server.shutdown()
                 server.server_close()

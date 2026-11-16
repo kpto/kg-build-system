@@ -64,6 +64,7 @@ viewer build under `kg_build_system/viewer_dist` and needs no Node at runtime.
 | `--host ADDRESS` | Bind address; defaults to `127.0.0.1`. |
 | `--port PORT` | Viewer port in source mode, or the static server port in a wheel; defaults to `8001`. |
 | `--no-open` | Do not open a browser. |
+| `--embed` | Serve the empty viewer for an embedding host. No snapshot is read, `/snapshot` returns 404, and the host opens a snapshot over the message bridge. |
 
 `kbs view` serves the snapshot at `/snapshot`. It never falls back to a bundled
 sample: with no `--snapshot` and no `build/workflow_plan.json`, it exits with an
@@ -83,6 +84,31 @@ reads `KBS_DISCOVERY` (set to the absolute discovery path by the command) and
 proxies `/snapshot` and `/api/*` to the snapshot server. The printed `Viewer`
 URL is the one to open. A wheel has no source viewer; it serves the static build
 and the snapshot from the same `--port`, so no discovery file is written.
+
+### Embedding
+
+`kbs view --embed` starts the same source or static viewer without a project
+snapshot. The printed URL includes `?embed=1`. The host frames that URL and
+sends one arbitrary snapshot after the viewer posts `ready`:
+
+```js
+iframe.contentWindow.postMessage(
+  { type: "open", snapshot: snapshotDocument },
+  "http://127.0.0.1:8001",
+);
+```
+
+The viewer posts selection events back:
+
+```js
+{ type: "ready" }
+{ type: "select", subject: { kind, name, component?, property? } }
+{ type: "error", message }   // only for a malformed open payload
+```
+
+The embedded viewer does not fetch `/snapshot`, read project paths or know the
+host. It accepts a parsed snapshot document or its JSON text, builds the normal
+workbench indexes and replaces the current document on each `open`.
 
 The wheel build compiles the viewer with `npm ci` and `npm run build:static`.
 `KBS_SKIP_VIEWER_BUILD=1` uses an existing `viewer/out`, `KBS_SKIP_VIEWER_INSTALL=1`

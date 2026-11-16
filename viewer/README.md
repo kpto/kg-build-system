@@ -67,6 +67,39 @@ file while it is running:
 The file is removed on exit. A wheel has no source viewer, so it never writes
 one.
 
+## Embedding
+
+`kbs view --embed` starts the viewer without a project snapshot and prints a
+URL with `?embed=1`. The host frames that URL and supplies each document over
+the message bridge; the viewer does not fetch project data in this mode.
+
+Host to viewer:
+
+```js
+{
+  type: "open",
+  snapshot: <viewer snapshot, workflow plan or blueprint>,
+  requestId?: "optional correlation id"
+}
+```
+
+`snapshot` may be a parsed object or raw JSON text. The viewer replaces the
+current workbench on every `open`.
+
+Viewer to host:
+
+```js
+{ type: "ready", snapshot?: "loaded-snapshot-name" }
+{ type: "select", subject: { kind, name, component?, property?, ... } }
+{ type: "error", message }   // only for a malformed open payload
+```
+
+`ready` is posted once per mount, after the message listener exists. Selection
+events use the workbench `SubjectSelection` shape. The host validates the
+message origin and source; the viewer posts to the referrer origin when the
+browser exposes one, otherwise to `*` (an embedding host should therefore use a
+restrictive referrer policy or validate origin and source itself).
+
 ## Develop the viewer
 
 ```console

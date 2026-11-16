@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { CircleExclamationPoint, LoaderCircle, RefreshCw } from "lucide-react";
 
 import { buildViewerIndex } from "@/lib/indexes";
@@ -10,15 +10,30 @@ import { CommandPalette } from "./CommandPalette";
 import { EditorArea } from "./EditorArea";
 import { SideBar } from "./SideBar";
 import { Splitter } from "./Splitter";
+import {
+  createErrorMessage,
+  createReadyMessage,
+  createSelectMessage,
+  embedQuery,
+  parseOpenMessage,
+  postToParent,
+  snapshotFromOpen,
+} from "./embed";
 import { WorkbenchProvider, useWorkbench } from "./store";
-import { MAX_SIDEBAR, MIN_SIDEBAR } from "./types";
+import { MAX_SIDEBAR, MIN_SIDEBAR, lensSelection } from "./types";
 
 interface LoadedWorkbench {
   snapshot: ViewerSnapshot;
   index: ViewerIndex;
 }
 
-function LoadingGate({ onRetry }: { onRetry(): void }) {
+function LoadingGate({
+  onRetry,
+  waiting = false,
+}: {
+  onRetry(): void;
+  waiting?: boolean;
+}) {
   const [slow, setSlow] = useState(false);
 
   useEffect(() => {
@@ -39,22 +54,30 @@ function LoadingGate({ onRetry }: { onRetry(): void }) {
         <main className="wb-gate-main" role="status" aria-live="polite">
           <div className="wb-gate-card">
             <LoaderCircle aria-hidden className="size-5 animate-spin text-selection" />
-            <h1>Loading snapshot</h1>
-            <p>Reading the compile-only graph and building indexes.</p>
+            <h1>{waiting ? "Waiting for a snapshot" : "Loading snapshot"}</h1>
+            <p>
+              {waiting
+                ? "The embedding host will send a snapshot over the message bridge."
+                : "Reading the compile-only graph and building indexes."}
+            </p>
             <p className="wb-gate-hint">
-              The snapshot is read from the configured source; the first paint
-              follows the transfer and index build.
+              {waiting
+                ? "This viewer does not fetch project data when embedded."
+                : "The snapshot is read from the configured source; the first paint follows the transfer and index build."}
             </p>
             {slow ? (
               <p className="wb-gate-slow">
-                This is taking longer than usual. The page is still working; you
-                can retry the request.
+                {waiting
+                  ? "Still waiting for the host to send a snapshot."
+                  : "This is taking longer than usual. The page is still working; you can retry the request."}
               </p>
             ) : null}
-            <button type="button" className="wb-button" onClick={onRetry}>
-              <RefreshCw aria-hidden className="size-3" />
-              Retry now
-            </button>
+            {waiting ? null : (
+              <button type="button" className="wb-button" onClick={onRetry}>
+                <RefreshCw aria-hidden className="size-3" />
+                Retry now
+              </button>
+            )}
           </div>
         </main>
       </div>
@@ -112,6 +135,20 @@ function WorkbenchShell() {
   const [sidebarVisible, setSidebarVisible] = useState(true);
 
   const layout = state.layout;
+  const embed = useMemo(
+    () =>
+      embedQuery(
+        typeof window === "undefined" ? "" : window.location.search,
+      ),
+    [],
+  );
+  const selection = lensSelection(state);
+  const selectionSignature = selection ? JSON.stringify(selection) : "";
+
+  useEffect(() => {
+    if (!embed.enabled || !selection?.kind) return;
+    postToParent(createSelectMessage(selection));
+  }, [embed.enabled, selectionSignature]);
 
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
@@ -206,22 +243,76 @@ function WorkbenchShell() {
 
 export function Workbench() {
   const [attempt, setAttempt] = useState(0);
+  const [revision, setRevision] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | undefined>();
   const [loaded, setLoaded] = useState<LoadedWorkbench | null>(null);
+  const announced = useRef(false);
 
+  const embed = useMemo(
+    () =>
+      embedQuery(
+        typeof window === "undefined" ? "" : window.location.search,
+      ),
+    [],
+  );
+  const requestedUrl = useMemo(
+    () =>
+      typeof window === "undefined"
+        ? ""
+        : new URLSearchParams(window.location.search).get("snapshot") ?? "",
+    [],
+  );
+  const waitForHost = embed.enabled && !requestedUrl;
+
+  // Host -> viewer: open an arbitrary snapshot. The viewer owns no project
+  // paths; it accepts the document or its JSON text and replaces the current
+  // workbench.
   useEffect(() => {
+    if (!embed.enabled) return;
+    const onMessage = (event: MessageEvent) => {
+      if (typeof window === "undefined" || event.source !== window.parent) return;
+      const open = parseOpenMessage(event.data);
+      if (!open) return;
+      try {
+        const snapshot = snapshotFromOpen(open.snapshot);
+        setLoaded({ snapshot, index: buildViewerIndex(snapshot) });
+        setError(undefined);
+        setLoading(false);
+        setRevision((value) => value + 1);
+      } catch (reason) {
+        const message = reason instanceof Error ? reason.message : String(reason);
+        setError(message);
+        setLoading(false);
+        postToParent(createErrorMessage(message));
+      }
+    };
+    window.addEventListener("message", onMessage);
+    // Announce readiness only after the listener exists, so a host that opens
+    // immediately on ready cannot race the first message. React Strict Mode in
+    // development may run this effect twice; announce once per mount.
+    if (!announced.current) {
+      postToParent(createReadyMessage());
+      announced.current = true;
+    }
+    return () => window.removeEventListener("message", onMessage);
+  }, [embed.enabled]);
+
+  // Standalone, or an explicit ?snapshot=<url> fallback. A plain embedded
+  // viewer waits for the host instead of fetching project data itself.
+  useEffect(() => {
+    if (waitForHost) {
+      setLoading(true);
+      setError(undefined);
+      setLoaded(null);
+      return;
+    }
     let active = true;
     setLoading(true);
     setError(undefined);
     setLoaded(null);
 
-    const requested =
-      typeof window === "undefined"
-        ? ""
-        : new URLSearchParams(window.location.search).get("snapshot") ?? "";
-
-    loadSnapshot(requested)
+    loadSnapshot(requestedUrl)
       .then((snapshot) => {
         if (!active) return;
         setLoaded({
@@ -240,10 +331,15 @@ export function Workbench() {
     return () => {
       active = false;
     };
-  }, [attempt]);
+  }, [attempt, requestedUrl, waitForHost]);
 
   if (loading) {
-    return <LoadingGate onRetry={() => setAttempt((value) => value + 1)} />;
+    return (
+      <LoadingGate
+        onRetry={() => setAttempt((value) => value + 1)}
+        waiting={waitForHost && !loaded}
+      />
+    );
   }
   if (error || !loaded) {
     return (
@@ -256,7 +352,7 @@ export function Workbench() {
 
   return (
     <WorkbenchProvider
-      key={`${loaded.snapshot.name}:${attempt}`}
+      key={`${loaded.snapshot.name}:${attempt}:${revision}`}
       snapshot={loaded.snapshot}
       index={loaded.index}
     >
