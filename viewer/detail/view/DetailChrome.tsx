@@ -7,6 +7,24 @@ import type { ConceptKind } from "@/lib/concepts";
 import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
 import styles from "../detail.module.css";
 
+/** The one logo rule for a section title; a view overrides it only when the
+ * document kind, not the title, supplies the right mark. */
+const SECTION_CONCEPT: Record<string, ConceptKind> = {
+  Overview: "node",
+  Meaning: "semantics",
+  Fulfilment: "semantics",
+  Sources: "asset",
+  "Build steps": "workflow",
+  Expression: "graph",
+  Members: "field",
+  Fields: "field",
+  Connections: "edge",
+  Bindings: "edge",
+  Branches: "edge",
+  Ports: "step",
+  Payload: "step",
+};
+
 export interface DetailLicense {
   value: ReactNode;
   source?: string;
@@ -125,9 +143,10 @@ export function DetailBand({
         onClick={() => setOpen((value) => !value)}
       >
         <ChevronRight aria-hidden className={styles.bandChevron} />
-        {concept ? (
-          <ConceptGlyph concept={concept} className={styles.bandGlyph} />
-        ) : null}
+        <ConceptGlyph
+          concept={concept ?? SECTION_CONCEPT[title] ?? "semantics"}
+          className={styles.bandGlyph}
+        />
         <span className={styles.bandTitle}>{title}</span>
         {question ? <span className={styles.bandQuestion}>{question}</span> : null}
         {meta !== undefined ? (

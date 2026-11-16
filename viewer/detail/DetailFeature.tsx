@@ -2306,6 +2306,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       banner={banner}
     >
       <DetailBand
+        concept={model.level}
         title="Overview"
         question="What is this, in one screen?"
         meta={model.subject.component}

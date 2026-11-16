@@ -304,6 +304,7 @@ export function DataItemEditor(props: WorkspaceProps) {
       }}
     >
       <DetailBand
+        concept={concept}
         title="Overview"
         question="What is this relation, in one screen?"
         meta={model.name}

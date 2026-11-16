@@ -24,8 +24,10 @@ omits a section; it never renames one for itself.
 | 8 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
 | 9 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. |
 
-A section header carries three things only: the structural title, the question
-in the reader's language, and one noun-bearing count.
+A section header carries four things only: the section's concept logo, the
+structural title, the question in the reader's language, and one noun-bearing
+count. Every card gets a logo; the title-to-concept mapping lives once beside
+`DetailBand`.
 
 ## Per-kind registry
 
