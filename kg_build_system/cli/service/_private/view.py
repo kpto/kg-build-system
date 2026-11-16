@@ -229,6 +229,15 @@ def run_view(arguments: argparse.Namespace) -> int:
     api = _api_url(arguments.host, server.server_port)
     url = f"{api}/"
     discovery = _discovery_path()
+    previous_discovery: tuple[bytes, int] | None = None
+    if arguments.dev and discovery.exists():
+        try:
+            previous_discovery = (
+                discovery.read_bytes(),
+                discovery.stat().st_mode,
+            )
+        except OSError:
+            previous_discovery = None
     wrote_discovery = False
     if arguments.dev:
         try:
@@ -252,7 +261,18 @@ def run_view(arguments: argparse.Namespace) -> int:
     finally:
         server.server_close()
         if wrote_discovery:
-            _remove_discovery(discovery)
+            if previous_discovery is None:
+                _remove_discovery(discovery)
+            else:
+                try:
+                    discovery.write_bytes(previous_discovery[0])
+                    os.chmod(discovery, previous_discovery[1] & 0o777)
+                except OSError as error:
+                    print(
+                        f"warning: could not restore viewer discovery file "
+                        f"{discovery}: {error}",
+                        file=sys.stderr,
+                    )
     return 0
 
 

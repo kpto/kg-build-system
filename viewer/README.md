@@ -64,8 +64,9 @@ one. A bare workflow plan is wrapped with the current directory as its title.
 {"api": "http://127.0.0.1:8001"}
 ```
 
-The file is removed on exit. A separately started Next dev sidecar reads it to
-discover the snapshot API. Without `--dev`, no discovery file is written.
+The file is restored to its previous value on exit, or removed if there was
+none. A separately started Next dev sidecar reads it to discover the snapshot
+API. Without `--dev`, no discovery file is written.
 
 ## Embedding
 

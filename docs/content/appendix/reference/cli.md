@@ -65,7 +65,7 @@ required at runtime.
 | `--host ADDRESS` | Bind address; defaults to `127.0.0.1`. |
 | `--port PORT` | Port to serve on; defaults to `8001`. |
 | `--no-open` | Do not open a browser. |
-| `--dev` | Also publish the snapshot API in `.kbs/viewer.json` for a separately started Next dev sidecar. The file is removed on exit. |
+| `--dev` | Also publish the snapshot API in `.kbs/viewer.json` for a separately started Next dev sidecar. The previous file is restored, or removed if there was none, on exit. |
 | `--embed` | Serve the empty bundled viewer for an embedding host. No snapshot is read, `/snapshot` returns 404, and the host opens a snapshot over the message bridge. |
 
 `kbs view` serves the snapshot at `/snapshot`. It never falls back to a bundled
@@ -80,8 +80,9 @@ The command does not start Next and knows nothing about the viewer source. With
 {"api": "http://127.0.0.1:<port>"}
 ```
 
-The record is removed on exit or Ctrl+C. A developer starts the Next dev sidecar
-separately and points it at that file:
+The record is restored to its previous value on exit or Ctrl+C, or removed if
+there was none. A developer starts the Next dev sidecar separately and points
+it at that file:
 
 ```console
 # terminal 1, in the project

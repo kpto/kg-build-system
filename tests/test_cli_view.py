@@ -109,12 +109,19 @@ class ViewerDiscoveryTests(unittest.TestCase):
 
 
 class ViewerDevTests(unittest.TestCase):
-    def _run(self, *, dev: bool) -> tuple[dict[str, bool], Path]:
+    def _run(
+        self,
+        *,
+        dev: bool,
+        previous: str | None = None,
+    ) -> tuple[dict[str, bool], dict[str, object]]:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             assets = root / "assets"
             assets.mkdir()
             discovery = _discovery_path(root)
+            if previous is not None:
+                _write_discovery(discovery, previous)
             seen: dict[str, bool] = {}
 
             class FakeServer:
@@ -159,16 +166,34 @@ class ViewerDevTests(unittest.TestCase):
             ):
                 self.assertEqual(run_view(arguments), 0)
 
-            self.assertFalse(discovery.exists())
-            return seen, discovery
+            final: dict[str, object] = {"exists": discovery.exists()}
+            if discovery.exists():
+                final["text"] = discovery.read_text()
+                final["mode"] = discovery.stat().st_mode & 0o777
+            return seen, final
 
     def test_dev_publishes_the_discovery_file_while_serving(self) -> None:
-        seen, _ = self._run(dev=True)
+        seen, final = self._run(dev=True)
         self.assertTrue(seen["discovery"])
+        self.assertFalse(final["exists"])
+
+    def test_dev_restores_a_previous_discovery_file(self) -> None:
+        seen, final = self._run(
+            dev=True,
+            previous="http://127.0.0.1:9999",
+        )
+        self.assertTrue(seen["discovery"])
+        self.assertTrue(final["exists"])
+        self.assertEqual(
+            json.loads(str(final["text"])),
+            {"api": "http://127.0.0.1:9999"},
+        )
+        self.assertEqual(final["mode"], 0o600)
 
     def test_the_default_serves_without_a_discovery_file(self) -> None:
-        seen, _ = self._run(dev=False)
+        seen, final = self._run(dev=False)
         self.assertFalse(seen["discovery"])
+        self.assertFalse(final["exists"])
 
 
 class ViewerEmbedTests(unittest.TestCase):
