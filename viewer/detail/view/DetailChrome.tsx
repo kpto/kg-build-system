@@ -4,6 +4,7 @@ import { useState, type ReactNode } from "react";
 import { ChevronRight } from "lucide-react";
 
 import type { ConceptKind } from "@/lib/concepts";
+import { Collapse } from "@/shared/ui/Collapse";
 import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
 import { cx } from "@/shared/ui/theme";
 import styles from "../detail.module.css";
@@ -137,11 +138,11 @@ export function DetailBand({
           <span className={styles.bandMeta}>{meta}</span>
         ) : null}
       </button>
-      {open ? (
+      <Collapse open={open}>
         <div className={flush ? styles.bandBodyFlush : styles.bandBody}>
           {children}
         </div>
-      ) : null}
+      </Collapse>
     </section>
   );
 }

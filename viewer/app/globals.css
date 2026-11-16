@@ -384,13 +384,24 @@
 
   .wb-side-section {
     display: flex;
-    min-height: 0;
-    flex: none;
+    min-height: 30px;
+    flex: 0 1 0;
     flex-direction: column;
+    overflow: hidden;
     border-bottom: 1px solid var(--color-line-soft);
+    transition: flex-grow var(--motion-slow) var(--ease-instrument);
   }
 
   .wb-side-section[data-open="true"] {
+    flex-grow: 1;
+  }
+
+  .wb-sidebar[data-resizing="true"] .wb-side-section {
+    transition: none;
+  }
+
+  .wb-side-section-collapse {
+    min-height: 0;
     flex: 1;
   }
 
@@ -410,9 +421,8 @@
 
   .wb-side-section-body {
     min-height: 0;
-    flex: 1;
+    height: 100%;
     overflow: hidden;
-    animation: wb-reveal var(--motion-base) var(--ease-instrument);
   }
 
   .wb-side-section-header:hover {
@@ -431,13 +441,6 @@
     color: var(--color-faint);
     font-family: var(--font-mono);
     font-size: 11px;
-  }
-
-  .wb-side-section-body {
-    min-height: 0;
-    flex: 1;
-    overflow: hidden;
-    animation: wb-reveal var(--motion-base) var(--ease-instrument);
   }
 
   .wb-sidebar-header {
@@ -1006,6 +1009,34 @@
     justify-content: center;
     gap: 6px;
     margin-top: 4px;
+  }
+
+  /* ---- Expand and collapse -------------------------------------------- */
+  /*
+   * A collapsible body keeps its content mounted and animates one grid row
+   * from 0fr to 1fr, so the surrounding layout opens and closes with it. The
+   * clip owns the overflow; inert keeps a closed body out of focus order.
+   */
+
+  .wb-collapse {
+    display: grid;
+    grid-template-rows: 1fr;
+    transition: grid-template-rows var(--motion-slow) var(--ease-instrument);
+  }
+
+  .wb-collapse[data-open="false"] {
+    grid-template-rows: 0fr;
+  }
+
+  .wb-collapse-clip {
+    min-height: 0;
+    overflow: hidden;
+    opacity: 1;
+    transition: opacity var(--motion-fast) var(--ease-instrument);
+  }
+
+  .wb-collapse[data-open="false"] .wb-collapse-clip {
+    opacity: 0;
   }
 
   /* ---- Status bar ----------------------------------------------------- */
@@ -2309,17 +2340,6 @@
   }
   to {
     opacity: 1;
-  }
-}
-
-@keyframes wb-reveal {
-  from {
-    opacity: 0;
-    transform: translateY(4px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
   }
 }
 

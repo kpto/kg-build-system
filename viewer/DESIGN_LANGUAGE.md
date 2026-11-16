@@ -120,8 +120,11 @@ mark wherever it appears.
   from the right.
 - A tab switch fades the viewport canvas and settles the header down 4px; a
   detail document fades in as one surface. A new tab fades in.
-- A collapsed band or side-bar section reveals its body with a 4px rise. A
-  selected graph item's dim or highlight fades; a settled node never moves.
+- A collapsible body animates its own height: one grid row moves from `0fr` to
+  `1fr` over 200ms while the content fades, so the surrounding document expands
+  and collapses with it. The closed body is `inert`. Bands, side-bar sections,
+  detail groups and expression branches use the one `Collapse` component.
+- A selected graph item's dim or highlight fades; a settled node never moves.
 - `prefers-reduced-motion` keeps the state change and removes movement.
 
 ## Panels and persistence

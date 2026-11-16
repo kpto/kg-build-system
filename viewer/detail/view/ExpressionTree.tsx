@@ -15,6 +15,7 @@ import {
 } from "@/lib/indexes";
 import type { Expression, Ref, ViewerIndex } from "@/lib/types";
 import type { ProvenanceReferences } from "@/proof/references";
+import { Collapse } from "@/shared/ui/Collapse";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { concepts } from "@/shared/ui/concepts";
 import { cx, theme } from "@/shared/ui/theme";
@@ -413,18 +414,20 @@ function OutlineBranch({
           <span className={styles.expressionDetail}>{node.detail}</span>
         ) : null}
       </div>
-      {hasChildren && open ? (
-        <div className={styles.expressionChildren}>
-          {node.children.map((child, index) => (
-            <OutlineBranch
-              key={`${child.id}-${index}`}
-              node={child}
-              depth={depth + 1}
-              collapsed={collapsed}
-              onToggle={onToggle}
-            />
-          ))}
-        </div>
+      {hasChildren ? (
+        <Collapse open={open}>
+          <div className={styles.expressionChildren}>
+            {node.children.map((child, index) => (
+              <OutlineBranch
+                key={`${child.id}-${index}`}
+                node={child}
+                depth={depth + 1}
+                collapsed={collapsed}
+                onToggle={onToggle}
+              />
+            ))}
+          </div>
+        </Collapse>
       ) : null}
     </div>
   );

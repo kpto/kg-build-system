@@ -52,6 +52,7 @@ import {
   provenanceReferences,
   type ProvenanceReferences,
 } from "@/proof/references";
+import { Collapse } from "@/shared/ui/Collapse";
 import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
 import { ConceptReferenceChip } from "@/shared/ui/ConceptReference";
 import { selectionForConceptTarget } from "@/workbench/conceptTarget";
@@ -432,7 +433,9 @@ function SideSection({
         <span>{title}</span>
         <span className={styles.sideCount}>{count}</span>
       </button>
-      {open ? <div className={styles.sideSectionBody}>{children}</div> : null}
+      <Collapse open={open}>
+        <div className={styles.sideSectionBody}>{children}</div>
+      </Collapse>
     </section>
   );
 }
@@ -724,9 +727,10 @@ export function ExplorerSidebar(props: WorkspaceProps) {
             </span>
           </button>
         </div>
-        {nodeOpen && properties.length ? (
-          <div className={styles.treeChildren}>
-            {properties.map((property) => (
+        {properties.length ? (
+          <Collapse open={nodeOpen}>
+            <div className={styles.treeChildren}>
+              {properties.map((property) => (
               <button
                 key={`${node.name}.${property.name}`}
                 type="button"
@@ -786,9 +790,10 @@ export function ExplorerSidebar(props: WorkspaceProps) {
               >
                 <ConceptGlyph concept="property" className={styles.conceptDot} />
                 <span>{property.name}</span>
-              </button>
-            ))}
-          </div>
+                </button>
+              ))}
+            </div>
+          </Collapse>
         ) : null}
       </div>
     );
@@ -872,9 +877,10 @@ export function ExplorerSidebar(props: WorkspaceProps) {
             </span>
           </button>
         </div>
-        {edgeOpen && properties.length ? (
-          <div className={styles.treeChildren}>
-            {properties.map((property) => (
+        {properties.length ? (
+          <Collapse open={edgeOpen}>
+            <div className={styles.treeChildren}>
+              {properties.map((property) => (
               <button
                 key={`${edge.name}.${property.name}`}
                 type="button"
@@ -933,9 +939,10 @@ export function ExplorerSidebar(props: WorkspaceProps) {
               >
                 <ConceptGlyph concept="property" className={styles.conceptDot} />
                 <span>{property.name}</span>
-              </button>
-            ))}
-          </div>
+                </button>
+              ))}
+            </div>
+          </Collapse>
         ) : null}
       </div>
     );
@@ -1133,7 +1140,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                       </span>
                     </button>
                   </div>
-                  {groupOpen ? (
+                  <Collapse open={groupOpen}>
                     <div className={styles.treeChildren}>
                       {group.rows.map((row) => (
                         <button
@@ -1170,7 +1177,7 @@ export function ExplorerSidebar(props: WorkspaceProps) {
                         </button>
                       ))}
                     </div>
-                  ) : null}
+                  </Collapse>
                 </div>
               );
             })
