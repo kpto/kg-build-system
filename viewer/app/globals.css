@@ -99,7 +99,7 @@
   }
 
   html {
-    font-size: 14.5px;
+    font-size: 14px;
     background: var(--color-abyss);
     overflow: hidden;
   }
@@ -227,7 +227,7 @@
     border: 0;
     background: transparent;
     color: var(--color-faint);
-    font-size: 15px;
+    font-size: 14px;
     line-height: 1;
   }
 
@@ -264,7 +264,7 @@
   }
 
   .wb-brand-initial {
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 800;
     line-height: 1;
   }
@@ -290,7 +290,7 @@
   .wb-snapshot-name {
     color: var(--color-text);
     font-family: var(--font-mono);
-    font-size: 12.5px;
+    font-size: 13px;
     font-variant-numeric: tabular-nums;
   }
 
@@ -328,7 +328,7 @@
     min-width: 0;
     flex: 1;
     overflow: hidden;
-    font-size: 12.5px;
+    font-size: 13px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -747,7 +747,7 @@
     border-top: 1px solid #101010;
     background-color: var(--color-inset);
     color: var(--color-faint);
-    font-size: 11.5px;
+    font-size: 12px;
     line-height: 1;
     overflow: hidden;
   }
@@ -909,7 +909,7 @@
     background-color: var(--color-panel-soft);
     color: var(--color-muted);
     font-family: var(--font-mono);
-    font-size: 10.5px;
+    font-size: 11px;
     line-height: 1;
   }
 
@@ -924,7 +924,7 @@
     background-color: var(--color-panel-raised);
     color: var(--color-muted);
     font-family: var(--font-mono);
-    font-size: 10.5px;
+    font-size: 11px;
     line-height: 1;
     white-space: nowrap;
   }
@@ -944,7 +944,7 @@
 
   .wb-kicker {
     color: var(--color-faint);
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.09em;
     line-height: 1.2;
@@ -1020,7 +1020,7 @@
   .wb-palette-group-label {
     padding: 5px 8px;
     color: var(--color-faint);
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.09em;
     text-transform: uppercase;
@@ -1069,7 +1069,7 @@
 
   .wb-palette-result-label {
     overflow: hidden;
-    font-size: 13.5px;
+    font-size: 14px;
     font-weight: 550;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -1088,7 +1088,7 @@
     flex: none;
     color: var(--color-faint);
     font-family: var(--font-mono);
-    font-size: 10.5px;
+    font-size: 11px;
     text-transform: uppercase;
   }
 
@@ -1199,7 +1199,7 @@
 
   .wb-settings-facts dt {
     color: var(--color-faint);
-    font-size: 11.5px;
+    font-size: 12px;
   }
 
   .wb-settings-facts dd {
@@ -1207,7 +1207,7 @@
     margin: 0;
     overflow-wrap: anywhere;
     color: var(--color-muted);
-    font-size: 11.5px;
+    font-size: 12px;
   }
 
   .wb-settings-actions {
@@ -1233,13 +1233,13 @@
     border-radius: 4px;
     background-color: var(--color-abyss);
     color: var(--color-muted);
-    font-size: 11.5px;
+    font-size: 12px;
   }
 
   .wb-swatch .wb-mono {
     margin-left: auto;
     color: var(--color-faint);
-    font-size: 10.5px;
+    font-size: 11px;
   }
 
   .wb-swatch-chip {
@@ -1397,7 +1397,7 @@
   .wb-placeholder-side {
     padding: 6px;
     color: var(--color-muted);
-    font-size: 12.5px;
+    font-size: 13px;
   }
 
   .wb-side-section {
@@ -1444,7 +1444,7 @@
 
   .wb-side-group-label {
     color: var(--color-selection);
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 650;
     letter-spacing: 0.07em;
     text-transform: uppercase;
@@ -1493,7 +1493,7 @@
     gap: 4px;
     padding: 7px 8px;
     color: var(--color-muted);
-    font-size: 11.5px;
+    font-size: 12px;
     overflow-wrap: anywhere;
   }
 
@@ -1552,7 +1552,7 @@
   .wb-placeholder-lede {
     max-width: 65ch;
     color: var(--color-muted);
-    font-size: 12.5px;
+    font-size: 13px;
     line-height: 1.5;
   }
 
@@ -1575,7 +1575,7 @@
 
   .wb-stat-label {
     color: var(--color-faint);
-    font-size: 10.5px;
+    font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.06em;
     text-transform: uppercase;
@@ -1630,7 +1630,7 @@
   .wb-placeholder-copy > p {
     max-width: 75ch;
     color: var(--color-muted);
-    font-size: 12.5px;
+    font-size: 13px;
     line-height: 1.65;
   }
 
@@ -1656,7 +1656,7 @@
 
   .wb-placeholder-facts dt {
     color: var(--color-faint);
-    font-size: 10.5px;
+    font-size: 11px;
     letter-spacing: 0.05em;
     text-transform: uppercase;
   }
@@ -1665,7 +1665,7 @@
     margin: 0;
     overflow: hidden;
     color: var(--color-text);
-    font-size: 11.5px;
+    font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
   }
@@ -1731,7 +1731,7 @@
   }
 
   .ui-section-title {
-    font-size: 12.5px;
+    font-size: 13px;
     font-weight: 600;
   }
 
@@ -1795,7 +1795,7 @@
 
   .ui-field-label {
     color: var(--color-faint);
-    font-size: 11.5px;
+    font-size: 12px;
     font-weight: 500;
   }
 
@@ -1902,7 +1902,7 @@
     background-color: var(--color-panel-raised);
     color: var(--color-muted);
     font-family: var(--font-mono);
-    font-size: 10.5px;
+    font-size: 11px;
     line-height: 1;
     white-space: nowrap;
   }
@@ -1925,7 +1925,7 @@
     background-color: var(--color-panel-soft);
     color: var(--color-muted);
     font-family: var(--font-mono);
-    font-size: 10.5px;
+    font-size: 11px;
     line-height: 1;
   }
 
@@ -1941,7 +1941,7 @@
     border-radius: 4px;
     background-color: rgb(0 0 0 / 10%);
     color: var(--color-faint);
-    font-size: 11.5px;
+    font-size: 12px;
     text-align: center;
   }
 

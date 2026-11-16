@@ -122,7 +122,7 @@
   gap: 5px;
   margin: 0 0 1px;
   color: var(--color-faint);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -144,7 +144,7 @@
   margin: 1px 0 0;
   color: var(--color-faint);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -153,7 +153,7 @@
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   padding: 8px 12px 40px;
 }
 
@@ -161,7 +161,7 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 /* ---- Provenance summary ---------------------------------------------- */
@@ -225,7 +225,7 @@
   gap: 6px;
   margin: 0;
   color: var(--color-faint);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -369,17 +369,18 @@ button.expressionToggle:hover {
 }
 
 .expressionRow[data-kind="expression"] .expressionLabel {
-  color: var(--color-transform);
+  color: #bda7e8;
 }
 
 .expressionDetail {
   min-width: 0;
-  max-width: 48%;
+  width: 160px;
+  max-width: 30%;
   margin-left: auto;
   overflow: hidden;
   color: var(--color-faint);
   font-family: var(--font-sans);
-  font-size: 11px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -425,7 +426,7 @@ button.expressionToggle:hover {
   gap: 4px;
   margin: 0;
   color: var(--color-muted);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 600;
   letter-spacing: 0.045em;
   text-transform: uppercase;
@@ -461,7 +462,7 @@ button.expressionToggle:hover {
   border-radius: 2px;
   background-color: var(--color-panel-soft);
   color: var(--color-muted);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 550;
   letter-spacing: 0.02em;
   line-height: 1.35;
@@ -490,7 +491,7 @@ button.expressionToggle:hover {
   margin: 0;
   padding: 8px;
   color: var(--color-faint);
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.5;
 }
 
@@ -524,7 +525,7 @@ button.expressionToggle:hover {
 .emptyWrap p {
   max-width: 390px;
   margin: 0;
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.55;
 }
 
@@ -546,7 +547,7 @@ button.expressionToggle:hover {
 .toolLabel,
 .summaryLabel {
   color: var(--color-faint);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -580,7 +581,7 @@ button.expressionToggle:hover {
   border-radius: 3px;
   background-color: var(--color-panel-raised);
   color: var(--color-muted);
-  font-size: 11.5px;
+  font-size: 12px;
   text-align: left;
 }
 
@@ -673,7 +674,7 @@ button.expressionToggle:hover {
   border-bottom: 1px solid var(--color-line-soft);
   background-color: var(--color-panel-raised);
   color: var(--color-faint);
-  font-size: 10.5px;
+  font-size: 11px;
   font-weight: 550;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -682,7 +683,7 @@ button.expressionToggle:hover {
 
 .laneHeader span:last-child {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0;
 }
 
@@ -735,7 +736,7 @@ button.expressionToggle:hover {
   border-bottom: 1px solid var(--color-line-soft);
   background-color: color-mix(in srgb, var(--color-panel-soft) 62%, var(--color-panel));
   color: var(--color-faint);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.045em;
   text-transform: uppercase;
@@ -761,7 +762,7 @@ button.expressionToggle:hover {
   background-color: var(--color-accent-soft);
   color: var(--color-text);
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0;
 }
 
@@ -876,7 +877,7 @@ button.expressionToggle:hover {
 
 .chainStage {
   color: var(--color-faint);
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -886,7 +887,7 @@ button.expressionToggle:hover {
   overflow: hidden;
   color: var(--color-text);
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -895,7 +896,7 @@ button.expressionToggle:hover {
   overflow: hidden;
   color: var(--color-muted);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -903,7 +904,7 @@ button.expressionToggle:hover {
 .chainDetail {
   overflow: hidden;
   color: var(--color-faint);
-  font-size: 10px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -916,7 +917,7 @@ button.expressionToggle:hover {
   border-radius: 2px;
   color: var(--color-faint);
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
 }
 
 .chainStep[data-presence="nullable"] .chainPresence {
@@ -968,7 +969,7 @@ button.expressionToggle:hover {
 
 .semanticKind {
   color: var(--color-faint);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -980,7 +981,7 @@ button.expressionToggle:hover {
   overflow: hidden;
   color: var(--color-text);
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -994,7 +995,7 @@ button.expressionToggle:hover {
 .purposeLabel {
   margin: 0 0 1px;
   color: var(--color-accent-strong);
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -1015,7 +1016,7 @@ button.expressionToggle:hover {
   gap: 3px;
   padding-left: 13px;
   color: var(--color-muted);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.4;
 }
 
@@ -1068,7 +1069,7 @@ button.expressionToggle:hover {
   min-height: 22px;
   padding: 0 6px;
   color: var(--color-faint);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.045em;
   text-transform: uppercase;
@@ -1112,7 +1113,7 @@ button.expressionToggle:hover {
   overflow: hidden;
   color: var(--color-muted);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 12px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1120,7 +1121,7 @@ button.expressionToggle:hover {
 .propertyCount {
   color: var(--color-text);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .propertySources,
@@ -1182,7 +1183,7 @@ button.expressionToggle:hover {
 .subjectDescription {
   margin: 4px 0 0;
   color: var(--color-muted);
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.45;
 }
 
@@ -1228,7 +1229,7 @@ button.expressionToggle:hover {
 .profileField span {
   flex: none;
   color: var(--color-faint);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1238,7 +1239,7 @@ button.expressionToggle:hover {
   overflow: hidden;
   color: var(--color-text);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 500;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1288,7 +1289,7 @@ button.expressionToggle:hover {
 .dataDescription {
   overflow: hidden;
   color: var(--color-faint);
-  font-size: 10.5px;
+  font-size: 11px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1325,7 +1326,7 @@ button.expressionToggle:hover {
   overflow: hidden;
   color: var(--color-text);
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 13px;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
@@ -1364,7 +1365,7 @@ button.expressionToggle:hover {
   overflow-wrap: anywhere;
   color: var(--color-text);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 400;
 }
 
@@ -1372,7 +1373,7 @@ button.expressionToggle:hover {
   margin: 0;
   color: var(--color-muted);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .descendantGrid {
@@ -1402,14 +1403,14 @@ button.expressionToggle:hover {
 .descendantCard h3 {
   margin: 0;
   color: var(--color-text);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 600;
 }
 
 .descendantCard header p {
   margin: 1px 0 0;
   color: var(--color-faint);
-  font-size: 10.5px;
+  font-size: 11px;
   line-height: 1.35;
 }
 
@@ -1472,7 +1473,7 @@ button.expressionToggle:hover {
   border: 1px solid var(--color-line-soft);
   border-radius: 2px;
   color: var(--color-faint);
-  font-size: 10px;
+  font-size: 11px;
   white-space: nowrap;
 }
 
@@ -1515,7 +1516,7 @@ button.expressionToggle:hover {
   outline: 0;
   background: transparent;
   color: var(--color-text);
-  font-size: 12.5px;
+  font-size: 13px;
 }
 
 .search input::placeholder {
@@ -1587,7 +1588,7 @@ button.expressionToggle:hover {
   border: 0;
   background: transparent;
   color: var(--color-muted);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 500;
   letter-spacing: 0;
   text-align: left;
@@ -1622,7 +1623,7 @@ button.expressionToggle:hover {
 .sideEmpty {
   padding: 6px 8px;
   color: var(--color-faint);
-  font-size: 11.5px;
+  font-size: 12px;
   line-height: 1.5;
 }
 
@@ -1670,7 +1671,7 @@ button.expressionToggle:hover {
   flex: none;
   color: var(--color-target);
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   text-transform: uppercase;
 }
 
@@ -1778,7 +1779,7 @@ button.expressionToggle:hover {
   border-radius: 2px;
   background: transparent;
   color: var(--color-muted);
-  font-size: 12.5px;
+  font-size: 13px;
   text-align: left;
 }
 
@@ -1810,7 +1811,7 @@ button.expressionToggle:hover {
 
 .sideFooterLabel {
   color: var(--color-faint);
-  font-size: 9.5px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -1995,7 +1996,7 @@ button.expressionToggle:hover {
 
 .factLabel {
   color: var(--color-muted);
-  font-size: 12.5px;
+  font-size: 13px;
   font-weight: 400;
   letter-spacing: 0;
   text-align: right;
@@ -2151,7 +2152,7 @@ button.memberRow:focus-visible {
 
 .meaningSubject dt {
   color: var(--color-faint);
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 600;
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -2206,7 +2207,7 @@ button.memberRow:focus-visible {
 .meaningCardHead span {
   flex: none;
   color: var(--color-faint);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
@@ -2268,7 +2269,7 @@ button.memberRow:focus-visible {
   padding: 2px 4px;
   border-bottom: 1px solid var(--color-line-soft);
   font-family: var(--font-mono);
-  font-size: 11.5px;
+  font-size: 12px;
 }
 
 .connectionRow:last-child {
@@ -2291,7 +2292,7 @@ button.memberRow:focus-visible {
   margin-left: auto;
   flex: none;
   color: var(--color-faint);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }

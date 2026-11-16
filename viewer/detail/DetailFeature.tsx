@@ -1749,7 +1749,7 @@ function ComponentProofView({
       >
         <MemberTable
           columns={["Property", "Type", "Branches", "Sources", "Bindings"]}
-          template="minmax(160px, 1.3fr) minmax(110px, 1fr) 64px minmax(100px, 1fr) 70px"
+          template="minmax(0, 1fr) 64px 72px minmax(0, 1fr) 72px"
           rows={rows}
           empty="No properties are declared for this subject."
         />
@@ -2060,6 +2060,7 @@ function overviewFacts(
         {
           label: "Identity",
           value: identity.length ? identity.join(", ") : "not declared",
+          wrap: true,
           absent: !identity.length,
         },
         {
@@ -2072,6 +2073,7 @@ function overviewFacts(
         facts.push({
           label: "Endpoints",
           value: `${edge?.source?.[2] ?? "?"} → ${edge?.target?.[2] ?? "?"}`,
+          wrap: true,
           absent: !edge?.source || !edge?.target,
         });
       } else {

@@ -339,7 +339,7 @@ function LegendRow({
         {label}
       </span>
       {count !== undefined ? (
-        <span className="text-[11.5px] text-faint tabular-nums">{count}</span>
+        <span className="text-[12px] text-faint tabular-nums">{count}</span>
       ) : null}
     </div>
   );
@@ -388,7 +388,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
           {visible.nodes.length} visible · {relationLinks} relations
           {containmentLinks ? ` · ${containmentLinks} containment` : ""}
         </p>
-        <p className="mt-0.5 text-[11.5px] text-faint tabular-nums">
+        <p className="mt-0.5 text-[12px] text-faint tabular-nums">
           {model.stats.nodes} nodes · {model.stats.edgeLinks} edges ·{" "}
           {model.stats.semantics} with semantics
         </p>
@@ -1529,7 +1529,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                     x={frame.labelX}
                     y={frame.labelY}
                     fill={theme.faint}
-                    fontSize={10.5}
+                    fontSize={13}
                     fontFamily="var(--font-sans)"
                     letterSpacing="0.08em"
                     className="select-none"
@@ -1859,12 +1859,12 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
 
       <div className="pointer-events-none absolute top-2 left-2 z-10 flex flex-wrap items-center gap-1">
         {hasSelection ? (
-          <span className="pointer-events-auto inline-flex items-center gap-1 border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[11.5px] text-selection-strong">
+          <span className="pointer-events-auto inline-flex items-center gap-1 border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[12px] text-selection-strong">
             selected · {selection?.name}
           </span>
         ) : null}
         {ui.pinned ? (
-          <span className="pointer-events-auto inline-flex items-center border border-selection/60 bg-selection/10 px-2 py-1 font-mono text-[11.5px] text-selection-strong">
+          <span className="pointer-events-auto inline-flex items-center border border-selection/60 bg-selection/10 px-2 py-1 font-mono text-[12px] text-selection-strong">
             positions pinned
           </span>
         ) : null}
@@ -1998,7 +1998,7 @@ function SummaryField({
 }) {
   return (
     <div className="flex items-baseline gap-2">
-      <span className="w-24 shrink-0 text-[11.5px] text-faint">
+      <span className="w-24 shrink-0 text-[12px] text-faint">
         {label}
       </span>
       <span
@@ -2159,7 +2159,7 @@ export function TopologyInspector({
         <div className="thin-scrollbar min-h-0 flex-1 space-y-4 overflow-y-auto px-4 py-3">
           <div className="flex items-start justify-between gap-2">
             <div className="min-w-0">
-              <p className="truncate text-[13.5px] text-accent-strong">
+              <p className="truncate text-[14px] text-accent-strong">
                 {activeProperty ? `${entity.name}.${activeProperty}` : entity.name}
               </p>
               <p className="truncate text-[11px] text-faint">
@@ -2198,7 +2198,7 @@ export function TopologyInspector({
               <SummaryField label="Kind" value={entityKindLabel(entity)} />
               <SummaryField label="Category" value={entity.category} />
               <SummaryField
-                label="Effective license"
+                label="License"
                 value={entityLicense?.value ?? "Not declared"}
               />
               {isTopologyNode(entity) ? (

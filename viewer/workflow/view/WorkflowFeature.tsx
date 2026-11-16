@@ -113,7 +113,7 @@ export function WorkflowControls({ state }: WorkspaceProps) {
           </select>
         </label>
 
-        <div className="flex items-center justify-between border-t border-line-soft pt-2 text-[11.5px] text-faint">
+        <div className="flex items-center justify-between border-t border-line-soft pt-2 text-[12px] text-faint">
           <span>
             {rows.length} / {model.steps} steps
           </span>
@@ -153,7 +153,7 @@ function Fact({
 }) {
   return (
     <div className="flex min-w-0 items-baseline gap-2">
-      <span className="w-24 shrink-0 text-[11.5px] font-medium text-faint">
+      <span className="w-24 shrink-0 text-[12px] font-medium text-faint">
         {label}
       </span>
       <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-text">
@@ -188,7 +188,7 @@ function PayloadFacts({ step }: { step: WorkflowStep }) {
         if (text && (text.length > 120 || text.includes("\n"))) {
           return (
             <div key={key} className="grid gap-1">
-              <span className="font-mono text-[11.5px] text-faint">{key}</span>
+              <span className="font-mono text-[12px] text-faint">{key}</span>
               <pre className="thin-scrollbar max-h-44 overflow-auto border border-line-soft bg-inset p-2 font-mono text-[12px] leading-relaxed whitespace-pre text-text">
                 {text}
               </pre>
@@ -258,7 +258,7 @@ function Openings({
           <span className="w-40 shrink-0 truncate font-mono text-[11px] text-muted">
             {formatOpening(item.opening_name)}
           </span>
-          <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-text">
+          <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-text">
             {formatArtifactType(item.type)}
           </span>
         </div>
@@ -291,10 +291,10 @@ function ConnectionLine({
           direction === "in" ? "text-source" : "text-target",
         )}
       />
-      <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-text">
+      <span className="min-w-0 flex-1 truncate font-mono text-[12px] text-text">
         {formatStepId(other)}
       </span>
-      <span className="min-w-0 max-w-[42%] shrink-0 truncate font-mono text-[10.5px] text-faint">
+      <span className="min-w-0 max-w-[42%] shrink-0 truncate font-mono text-[11px] text-faint">
         {formatOpening(remote.opening)} → {formatOpening(local.opening)}
       </span>
     </div>
@@ -432,7 +432,7 @@ function StepDetail({
                   />
                 ))}
                 {incoming.length > 24 ? (
-                  <p className="py-1 font-mono text-[10.5px] text-faint">
+                  <p className="py-1 font-mono text-[11px] text-faint">
                     showing 24 of {incoming.length}
                   </p>
                 ) : null}
@@ -455,7 +455,7 @@ function StepDetail({
                   />
                 ))}
                 {outgoing.length > 24 ? (
-                  <p className="py-1 font-mono text-[10.5px] text-faint">
+                  <p className="py-1 font-mono text-[11px] text-faint">
                     showing 24 of {outgoing.length}
                   </p>
                 ) : null}
@@ -480,7 +480,7 @@ function StepDetail({
             {bindings.slice(0, 16).map((binding) => (
               <div
                 key={binding.index}
-                className="flex items-baseline gap-2 border-b border-line-soft py-1 font-mono text-[11.5px] last:border-b-0"
+                className="flex items-baseline gap-2 border-b border-line-soft py-1 font-mono text-[12px] last:border-b-0"
               >
                 <span className="w-12 shrink-0 text-faint">
                   #{binding.index}
@@ -494,7 +494,7 @@ function StepDetail({
               </div>
             ))}
             {bindings.length > 16 ? (
-              <p className="font-mono text-[10.5px] text-faint">
+              <p className="font-mono text-[11px] text-faint">
                 showing 16 of {bindings.length}
               </p>
             ) : null}
@@ -526,7 +526,7 @@ export function WorkflowStepEditor({ state }: WorkspaceProps) {
         subtitle="This step is not present in the workflow plan."
       >
         <DetailBand concept="step" title="Overview" question="What is this step?">
-          <p className="text-[12.5px] leading-relaxed text-faint">
+          <p className="text-[13px] leading-relaxed text-faint">
             The selected workflow step could not be resolved from the snapshot.
           </p>
         </DetailBand>

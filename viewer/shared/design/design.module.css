@@ -21,13 +21,13 @@
   gap: 8px;
   color: var(--color-faint);
   font-family: var(--font-sans);
-  font-size: 11.5px;
+  font-size: 12px;
   letter-spacing: 0.03em;
   text-transform: uppercase;
 }
 
 .meaningCompact .meaningCounts {
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .meaningPurpose {
@@ -132,7 +132,7 @@
   flex: none;
   color: var(--color-faint);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .meaningLimits {

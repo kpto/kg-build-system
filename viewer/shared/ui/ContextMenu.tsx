@@ -64,7 +64,7 @@ export function ContextMenu({ x, y, label, items, onClose }: ContextMenuProps) {
           key={item.label}
           type="button"
           role="menuitem"
-          className="flex w-full items-center justify-between gap-3 px-2 py-1.5 text-left text-[12.5px] text-muted hover:bg-panel-soft hover:text-text"
+          className="flex w-full items-center justify-between gap-3 px-2 py-1.5 text-left text-[13px] text-muted hover:bg-panel-soft hover:text-text"
           onClick={() => {
             item.onSelect();
             onClose();

@@ -98,7 +98,7 @@ purpose, a grain or an identity.
 - The header is sticky; the bands scroll.
 - The band header is 31px with a chevron, a 14px sentence-case title, the
   question it answers and a right-aligned count. No structural label is smaller
-  than 11px.
+  than 11px. The document uses five sizes only: 11 / 12 / 13 / 14 / 16.
 - The band body is 10px above and 12px below its content. Prose is capped at
   74 characters per line; a flush body is used for a canvas or a table that
   owns its own padding.
