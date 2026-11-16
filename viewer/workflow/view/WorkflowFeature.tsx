@@ -920,7 +920,7 @@ export function WorkflowEditor(props: WorkspaceProps) {
           </div>
         ) : null}
 
-        <div className="pointer-events-none absolute right-3 bottom-3 rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[11px] text-faint">
+        <div className="wb-viewport-hint pointer-events-none">
           {inStepGroup
             ? "drag to pan · wheel to zoom · click a step to select · double-click to open"
             : "drag to pan · wheel to zoom · right-click a component for actions · node = component · link = aggregated step connections"}
