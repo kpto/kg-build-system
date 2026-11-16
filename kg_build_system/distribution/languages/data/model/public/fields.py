@@ -103,9 +103,10 @@ type ScalarValue = (
 )
 
 # The closed value vocabulary a field may declare: a scalar, a record or an
-# array of either, with an absent item allowed. `Nullable` never wraps the whole
-# alias: a field declares a value type, never absence.
-type DeclaredValue = ScalarValue | Struct | Array[ScalarValue | Struct | None]
+# array of a declared value, recursively, with an absent item allowed at any
+# depth. `Nullable` never wraps the whole alias: a field declares a value type,
+# never absence.
+type DeclaredValue = ScalarValue | Struct | Array[Nullable["DeclaredValue"]]
 
 
 @dataclass(frozen=True, slots=True)

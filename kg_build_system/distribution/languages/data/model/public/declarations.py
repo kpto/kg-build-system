@@ -31,7 +31,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, ClassVar, Generic, Self, TypeVar
+from typing import TYPE_CHECKING, ClassVar, Generic, Self, TypeVar, cast
 
 from kg_build_system.distribution.languages.annotations.service.internal import annotation_tuple
 from kg_build_system.distribution.languages.annotations.model.public import (
@@ -313,7 +313,7 @@ class DerivedRelation(RowSourceProvider, Shape, RowSource["DerivedRelation"], me
 
 
     @classmethod
-    def row_source(cls) -> RelationRowSource[Shape]:
+    def row_source(cls) -> RelationRowSource[Self]:
         """Return the relation row source for this derived relation.
 
         Example:
@@ -321,7 +321,9 @@ class DerivedRelation(RowSourceProvider, Shape, RowSource["DerivedRelation"], me
             rows = SiteProjection.row_source()
             ```
         """
-        return RelationRowSource(cls, cls.shape)
+        # The generated view carries the same field selections as the
+        # declaration; the cast states the read contract, not identity.
+        return RelationRowSource(cls, cast("type[Self]", cls.shape))
 
 
 class StageMeta(type):
@@ -370,7 +372,7 @@ class Stage(RowSourceProvider, Shape, metaclass=StageMeta):
         prepare_stage_declaration(cls)
 
     @classmethod
-    def row_source(cls) -> StageRowSource[Shape]:
+    def row_source(cls) -> StageRowSource[Self]:
         """Return the private row source of this stage.
 
         Example:
@@ -378,7 +380,9 @@ class Stage(RowSourceProvider, Shape, metaclass=StageMeta):
             rows = SiteStage.row_source()
             ```
         """
-        return StageRowSource(cls, cls.shape)
+        # The generated view carries the same field selections as the
+        # declaration; the cast states the read contract, not identity.
+        return StageRowSource(cls, cast("type[Self]", cls.shape))
 
 
 class SourceRelationGroup:

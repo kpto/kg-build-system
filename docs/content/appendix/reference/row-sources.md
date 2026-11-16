@@ -36,7 +36,7 @@ The model and the choice of grain are on [Set the grain](/book/part-2/05-grain-a
 
 ```text
 SourceRelation.row_source() -> RelationRowSource[Self]
-DerivedRelation.row_source() -> RelationRowSource[Shape]
+DerivedRelation.row_source() -> RelationRowSource[Self]
 ```
 
 Returns the relation row source for a source relation or derived relation. The relation's `.shape` is the shape class of one row.
@@ -339,7 +339,7 @@ site_ids = by_region.shape.members.transform_items(
 
 ### Types and limits
 
-`SourceRelation.row_source()` and `DerivedRelation.row_source()` return a `RelationRowSource[Self]` or `RelationRowSource[Shape]`; a declaration does not carry its generated row shape as a type parameter, so the derived form names the shape base rather than an erased `Any`. A `Stage` returns a `StageRowSource`, which is not bindable. Every derived operation returns a `DerivedRowSource`; both are frozen row-source values with a `.shape`.
+`SourceRelation.row_source()` and `DerivedRelation.row_source()` return a `RelationRowSource[Self]`, and a `Stage` returns a `StageRowSource[Self]`. Reading a field through `.shape` is typed by the declaration's field selections; `.shape` is a generated view at runtime, so it carries the same fields but is not the declaration class itself. A stage row source is not bindable. Every derived operation returns a `DerivedRowSource`; both are frozen row-source values with a `.shape`.
 
 | Operation | Static result |
 | --- | --- |

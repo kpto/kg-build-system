@@ -45,6 +45,10 @@ def value_expression[T: LiteralValue](
 ) -> Selection[Array[T]]: ...
 @overload
 def value_expression(
+    value: None, *, logical_type: LogicalType,
+) -> Selection[None]: ...
+@overload
+def value_expression(
     value: LiteralValue, *, logical_type: LogicalType | None = None,
 ) -> Selection[object]: ...
 

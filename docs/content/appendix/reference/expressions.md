@@ -317,7 +317,7 @@ def value_expression(
 ) -> Selection[object]: ...
 ```
 
-`value_expression()` constructs a typed literal and checks the Python class at that point. It returns a `Selection`, so a constant can be used wherever a selection is accepted. Scalar, date/time/UUID and homogeneous-list literals have typed overloads and infer their result; anything else that is a literal falls back to `Selection[object]`. A dict, set, bytes or arbitrary object is not a literal and is refused by the type checker before the runtime check.
+`value_expression()` constructs a typed literal and checks the Python class at that point. It returns a `Selection`, so a constant can be used wherever a selection is accepted. Scalar, date/time/UUID and homogeneous-list literals have typed overloads and infer their result; anything else that is a literal falls back to `Selection[object]`. A null literal requires `logical_type` and reads as `Selection[None]`, so it fits any nullable slot and no present slot; the explicit logical type is the runtime authority. A dict, set, bytes or arbitrary object is not a literal and is refused by the type checker before the runtime check.
 
 | Python value | Inferred result |
 | --- | --- |

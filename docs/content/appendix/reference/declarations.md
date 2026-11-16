@@ -118,7 +118,7 @@ class VisitSourceRelation(SourceRelation[Estate]):
     )
 ```
 
-`Field[T]` accepts the eight canonical scalar types, `Array[...]` of a supported type, a declared `Struct` or `ComputedStruct`, and a declared `CustomDataType`. A field type must be one of those value types; `Field[SomeSourceRelation]` and `Field[SomeDerivedRelation]` are not legal. The bound is closed and non-null: a field declares a value type, never absence, so `Field[str | None]` is refused and presence belongs to the read. The full type table is on [Types reference](/appendix/reference/types).
+`Field[T]` accepts the eight canonical scalar types, `Array[...]` nested to any depth, a declared `Struct` or `ComputedStruct`, and a declared `CustomDataType`. A field type must be one of those value types; `Field[SomeSourceRelation]` and `Field[SomeDerivedRelation]` are not legal. The bound is closed and non-null: a field declares a value type, never absence, so `Field[str | None]` is refused and presence belongs to the read. The full type table is on [Types reference](/appendix/reference/types).
 
 A source `Field[T]` read yields `Selection[Nullable[T]]`. The declaration names the value type; the source owner decides presence.
 

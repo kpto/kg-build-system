@@ -309,10 +309,11 @@ from kg_build_system.distribution.languages.topology.model.public import (
 from kg_build_system.kernel import (
     Key,
     Language,
+    NullableType,
     Planner,
     ResourceRegistry,
     ResourceView,
-    Shape,
+    STR,
     Symbol,
     Toolchain,
     WorkflowPlan,
@@ -342,8 +343,15 @@ assert_type(
 )
 assert_type(value_expression(date(2024, 1, 1)), Selection[date])
 assert_type(value_expression(["a"]), Selection[Array[str]])
+assert_type(
+    value_expression(None, logical_type=NullableType(STR)),
+    Selection[None],
+)
+_null_str: Selection[Nullable[str]] = value_expression(
+    None, logical_type=NullableType(STR),
+)
 assert_type(Site.row_source(), RelationRowSource[Site])
-assert_type(SiteStage.row_source(), StageRowSource[Shape])
+assert_type(SiteStage.row_source(), StageRowSource[SiteStage])
 assert_type(Node.options, NodeOptions)
 _edge_root: type[EdgeRoot] = SiteEdge
 assert_type(endpoint(SiteNode), Endpoint[SiteNode])
