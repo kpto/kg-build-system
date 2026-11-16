@@ -9,8 +9,9 @@ routes and owners are in `HIERARCHY.md`.
 
 ## The section registry
 
-A detail document renders these sections in this order. A kind includes or
-omits a section; it never renames one for itself.
+The registry order is the shared default. Each kind reorders the sections it
+includes by their immediate importance to a reader; it never renames one. A
+**primary** card opens by default, a **secondary** card starts collapsed.
 
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
@@ -33,14 +34,17 @@ count. Every card gets a logo; the title-to-concept mapping lives once beside
 
 | View kind | Sections | Notes |
 | --- | --- | --- |
-| Node | Overview, Meaning, Fulfilment, Sources, Build steps, Expression, Members, Connections, Bindings | Members are properties; Connections are incident relations. |
-| Edge | Same as node | Overview states the endpoints; Connections repeats them with the label. |
-| Property | Overview, Meaning, Fulfilment, Sources, Build steps, Expression, Branches, Connections, Bindings | **Branches** is the branch toolbar, type/presence chain and lane canvas. Connections is the branch's connection ledger. |
-| Abstract category | Overview, Meaning, Fulfilment, Members | Members are concrete descendants; a row opens the record document. |
-| Asset | Overview, Meaning, Fulfilment, Sources, Members, Bindings | Members are source relations and derived relations, then fields. Sources states the release boundary. |
-| Source relation | Overview, Meaning, Fulfilment, Sources, Build steps, Expression, Members, Bindings | Expression states that a source relation has no computed expression. |
-| Derived relation | Overview, Meaning, Fulfilment, Sources, Build steps, Expression, Members, Bindings | Expression holds one outline per output column. |
-| Step | Overview, Meaning, Sources, Ports, Payload, Connections, Bindings | Meaning and Sources state the absence: a step is build machinery and has no release source. |
+| Node | **Overview**, **Meaning**, **Fulfilment**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | Members are properties; Connections are incident relations. |
+| Edge | **Overview**, **Meaning**, **Fulfilment**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | Overview states the endpoints; Connections repeats them with the label. |
+| Property | **Overview**, **Meaning**, **Fulfilment**, **Branches**, **Connections**, **Expression**, Sources, Build steps, Bindings | Branches is the type/presence chain and lane canvas; Connections is its ledger. |
+| Abstract category | **Overview**, **Meaning**, **Members**, Fulfilment | Members are concrete descendants. |
+| Asset | **Overview**, **Meaning**, **Sources**, **Members**, **Fields**, Fulfilment, Bindings | Sources states the release boundary; Members are relations, then fields. |
+| Source relation | **Overview**, **Meaning**, **Members**, **Sources**, **Fulfilment**, Build steps, Bindings, Expression | Columns are the relation; Sources states its asset and scans. |
+| Derived relation | **Overview**, **Meaning**, **Expression**, **Members**, **Fulfilment**, Sources, Build steps, Bindings | Expression is the computation; Members are its outputs. |
+| Step | **Overview**, **Ports**, **Payload**, **Connections**, **Bindings**, Meaning, Sources | A step is build machinery; Meaning and Sources state their absence last. |
+
+Text in bold is primary and opens by default; the remaining cards are secondary
+and start collapsed. The card's `data-priority` attribute records the class.
 
 `field` and `binding` are not document kinds. A field belongs to its owner's
 Members table; a binding belongs to its record's Bindings table and to the

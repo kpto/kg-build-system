@@ -43,6 +43,7 @@ export function WorkflowProvenanceGraph({
     return (
       <DetailBand
         concept="workflow"
+        priority="secondary"
         title="Build steps"
         question="How is this built?"
         meta="0 steps"
@@ -57,6 +58,7 @@ export function WorkflowProvenanceGraph({
   return (
     <DetailBand
       concept="workflow"
+      priority="secondary"
       title="Build steps"
       question="How is this built?"
       meta={`${rows.length} steps · ${scene.stats?.internalEdges ?? 0} links`}

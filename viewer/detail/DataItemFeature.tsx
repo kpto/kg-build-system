@@ -301,24 +301,10 @@ export function DataItemEditor(props: WorkspaceProps) {
       (total, frame) => total + (frame.limitations?.length ?? 0),
       0,
     );
-
-  return (
-    <DetailDocument
-      testId="data-item-editor"
-      concept={concept}
-      kicker={`Design · ${kind === "relation" ? "source relation" : "derived relation"}`}
-      title={model.name || (kind === "relation" ? "Source relation" : "Derived relation")}
-      subtitle={`${model.columns.length} columns${
-        model.assetName ? ` · asset ${model.assetName}` : ""
-      }`}
-      license={{
-        value: license.value,
-        source: license.source,
-        title: license.licenses.join(" · ") || "No asset declares a license.",
-      }}
-    >
+  const overviewSection = (
       <DetailBand
         concept={concept}
+        priority="primary"
         title="Overview"
         question="What is this relation, in one screen?"
         meta={model.name}
@@ -329,8 +315,11 @@ export function DataItemEditor(props: WorkspaceProps) {
         <FactGrid facts={facts} />
       </DetailBand>
 
+  );
+  const meaningSection = (
       <DetailBand
         concept="semantics"
+        priority="primary"
         title="Meaning"
         question="What is this relation for, and what does it exclude?"
         meta={`${meaning.claims.length} ${
@@ -345,7 +334,10 @@ export function DataItemEditor(props: WorkspaceProps) {
         />
       </DetailBand>
 
+  );
+  const fulfilmentSection = (
       <DetailBand
+        priority="primary"
         title="Fulfilment"
         question="Which record does this relation fulfil?"
         meta={`${bindings.length} ${bindings.length === 1 ? "binding" : "bindings"}`}
@@ -358,8 +350,11 @@ export function DataItemEditor(props: WorkspaceProps) {
         />
       </DetailBand>
 
+  );
+  const sourcesSection = (
       <DetailBand
         concept="graph"
+        priority={kind === "relation" ? "primary" : "secondary"}
         title="Sources"
         question="Where does this relation read from?"
         meta={`${model.assetName ? 1 : 0} ${
@@ -465,8 +460,11 @@ export function DataItemEditor(props: WorkspaceProps) {
         </div>
       </DetailBand>
 
+  );
+  const buildStepsSection = (
       <DetailBand
         concept="workflow"
+        priority="secondary"
         title="Build steps"
         question="Which steps read this relation?"
         meta={`${stepRows.length} ${stepRows.length === 1 ? "consumer" : "consumers"}`}
@@ -491,10 +489,12 @@ export function DataItemEditor(props: WorkspaceProps) {
         )}
       </DetailBand>
 
-      {kind === "projection" ? (
+  );
+  const expressionSection = kind === "projection" ? (
         <ExpressionTree
           index={index}
           references={references}
+          priority="primary"
           item={{ concept, label: model.name }}
           fields={model.columns.map((column) => column.name)}
           chains={expressionChains}
@@ -502,6 +502,7 @@ export function DataItemEditor(props: WorkspaceProps) {
       ) : (
         <DetailBand
           concept="graph"
+          priority="secondary"
           title="Expression"
           question="Which fields and operations produce the value?"
           meta="source"
@@ -511,10 +512,12 @@ export function DataItemEditor(props: WorkspaceProps) {
             computed expression; its adaptations belong to a derived relation.
           </p>
         </DetailBand>
-      )}
+      );
 
+  const membersSection = (
       <DetailBand
         concept="field"
+        priority="primary"
         title="Members"
         question="Which columns does this relation publish?"
         meta={`${model.columns.length}`}
@@ -528,8 +531,11 @@ export function DataItemEditor(props: WorkspaceProps) {
         />
       </DetailBand>
 
+  );
+  const bindingsSection = (
       <DetailBand
         concept={kind === "relation" ? "node" : "projection"}
+        priority="secondary"
         title="Bindings"
         question="Which record does this relation fulfil?"
         meta={`${bindingRows.length}`}
@@ -541,6 +547,46 @@ export function DataItemEditor(props: WorkspaceProps) {
           empty="No binding reads this relation."
         />
       </DetailBand>
+  );
+
+  return (
+    <DetailDocument
+      testId="data-item-editor"
+      concept={concept}
+      kicker={`Design · ${kind === "relation" ? "source relation" : "derived relation"}`}
+      title={model.name || (kind === "relation" ? "Source relation" : "Derived relation")}
+      subtitle={`${model.columns.length} columns${
+        model.assetName ? ` · asset ${model.assetName}` : ""
+      }`}
+      license={{
+        value: license.value,
+        source: license.source,
+        title: license.licenses.join(" · ") || "No asset declares a license.",
+      }}
+    >
+      {kind === "relation" ? (
+        <>
+          {overviewSection}
+          {meaningSection}
+          {membersSection}
+          {sourcesSection}
+          {fulfilmentSection}
+          {buildStepsSection}
+          {bindingsSection}
+          {expressionSection}
+        </>
+      ) : (
+        <>
+          {overviewSection}
+          {meaningSection}
+          {expressionSection}
+          {membersSection}
+          {fulfilmentSection}
+          {sourcesSection}
+          {buildStepsSection}
+          {bindingsSection}
+        </>
+      )}
     </DetailDocument>
   );
 }

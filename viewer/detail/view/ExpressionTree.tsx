@@ -436,12 +436,14 @@ export function ExpressionTree({
   item,
   fields = [],
   chains = [],
+  priority = "secondary",
 }: {
   index: ViewerIndex;
   references: ProvenanceReferences;
   item: TreeItem;
   fields?: string[];
   chains?: ExpressionChain[];
+  priority?: "primary" | "secondary";
 }) {
   const hasExpression = chains.some((chain) => chain.expression);
   const graph = useMemo(
@@ -469,6 +471,7 @@ export function ExpressionTree({
   return (
     <DetailBand
       concept="graph"
+      priority={priority}
       title="Expression"
       question="Which fields and operations produce the value?"
       meta={`${graph.nodes.size} nodes · ${graph.edges.length} links`}

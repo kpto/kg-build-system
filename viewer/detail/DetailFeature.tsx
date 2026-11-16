@@ -236,6 +236,7 @@ function ProvenanceSection({
   return (
     <DetailBand
       concept="graph"
+      priority="secondary"
       title="Sources"
       question="Where does this value come from?"
       meta={`${count(provenance.assets.length, "asset")} · ${count(
@@ -1501,6 +1502,7 @@ function BindingsSection({
   });
   return (
     <DetailBand
+      priority="secondary"
       title="Bindings"
       question="Which binding fulfils this subject?"
       meta={`${bindings.length}`}
@@ -1534,6 +1536,7 @@ function ConnectionsSection({
     const target = edge.target?.[2];
     return (
       <DetailBand
+        priority="primary"
         title="Connections"
         question="Which records does this relation join?"
         meta="2 endpoints"
@@ -1574,6 +1577,7 @@ function ConnectionsSection({
   );
   return (
     <DetailBand
+      priority="primary"
       title="Connections"
       question="Which relations touch this record?"
       meta={`${incident.length}`}
@@ -1634,6 +1638,7 @@ function PropertyProofView({ model }: { model: ProofModel }) {
   if (!branch) {
     return (
       <DetailBand
+        priority="primary"
         title="Branches"
         question="Which bindings resolve this property?"
         meta="0"
@@ -1685,6 +1690,7 @@ function PropertyProofView({ model }: { model: ProofModel }) {
 
       <DetailBand
         concept="edge"
+        priority="primary"
         title="Connections"
         question="Which links does this branch assert?"
         meta={`${branch.edges.length} edges`}
@@ -1743,6 +1749,7 @@ function ComponentProofView({
   return (
     <div className={styles.levelBody}>
       <DetailBand
+        priority="primary"
         title="Members"
         question="Which properties does this record assert?"
         meta={`${component.properties.length}`}
@@ -1802,6 +1809,7 @@ function AbstractProofView({
   return (
     <div className={styles.levelBody}>
       <DetailBand
+        priority="primary"
         title="Members"
         question="Which records belong to this category?"
         meta={`${abstract.descendants.length}`}
@@ -1874,6 +1882,7 @@ function AssetProofView({
   return (
     <div className={styles.levelBody}>
       <DetailBand
+        priority="primary"
         title="Members"
         question="Which relations and fields does this asset supply?"
         meta={`${relationRows.length} relations`}
@@ -1886,6 +1895,7 @@ function AssetProofView({
         />
       </DetailBand>
       <DetailBand
+        priority="primary"
         title="Fields"
         question="Which declared fields carry this asset's values?"
         meta={`${fieldRows.length}`}
@@ -2291,23 +2301,10 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       ? componentBindings(index, model.level, model.subject.component)
       : propertyBindings;
 
-  return (
-    <DetailDocument
-      testId="detail-editor"
-      concept={model.level}
-      kicker={`Design · ${model.level}`}
-      title={levelTitle(model)}
-      subtitle={levelSubtitle(model)}
-      license={{
-        value: license.value,
-        source: license.source,
-        title:
-          license.licenses.join(" · ") || "No asset declares a license.",
-      }}
-      banner={banner}
-    >
+  const overviewSection = (
       <DetailBand
         concept={model.level}
+        priority="primary"
         title="Overview"
         question="What is this, in one screen?"
         meta={model.subject.component}
@@ -2321,9 +2318,11 @@ function SubjectDetailEditor(props: WorkspaceProps) {
         ) : null}
         <FactGrid facts={facts} />
       </DetailBand>
-
+  );
+  const meaningSection = (
       <DetailBand
         concept="semantics"
+        priority="primary"
         title="Meaning"
         question="What is this for, and what does it exclude?"
         meta={`${meaning.claims.length} ${
@@ -2347,8 +2346,14 @@ function SubjectDetailEditor(props: WorkspaceProps) {
           </div>
         ) : null}
       </DetailBand>
-
+  );
+  const fulfilmentSection = (
       <DetailBand
+        priority={
+          model.level === "asset" || model.level === "abstract"
+            ? "secondary"
+            : "primary"
+        }
         title="Fulfilment"
         question="How do the record and relation axes meet?"
         meta="two axes"
@@ -2360,10 +2365,14 @@ function SubjectDetailEditor(props: WorkspaceProps) {
           onOpen={openAxis}
         />
       </DetailBand>
+  );
+  const assetSourcesSection = (
+    <>
 
       {model.level === "asset" ? (
         <DetailBand
           concept="asset"
+          priority="primary"
           title="Sources"
           question="Where does this asset read from?"
           meta="release boundary"
@@ -2380,9 +2389,19 @@ function SubjectDetailEditor(props: WorkspaceProps) {
         </DetailBand>
       ) : null}
 
+    </>
+  );
+  const sourcesSection = (
+    <>
+
       {dataBound ? (
         <ProvenanceSection provenance={provenance} onOpen={openReference} />
       ) : null}
+
+    </>
+  );
+  const buildStepsSection = (
+    <>
 
       {dataBound ? (
         <WorkflowProvenanceGraph
@@ -2401,10 +2420,16 @@ function SubjectDetailEditor(props: WorkspaceProps) {
         />
       ) : null}
 
+    </>
+  );
+  const expressionSection = (
+    <>
+
       {dataBound ? (
         <ExpressionTree
           index={index}
           references={provenance}
+          priority={model.level === "property" ? "primary" : "secondary"}
           chains={expressionChains}
           item={{
             concept: model.level,
@@ -2415,6 +2440,11 @@ function SubjectDetailEditor(props: WorkspaceProps) {
           }}
         />
       ) : null}
+
+    </>
+  );
+  const kindSection = (
+    <>
 
       {model.level === "property" ? (
         <PropertyProofView model={model} />
@@ -2435,9 +2465,76 @@ function SubjectDetailEditor(props: WorkspaceProps) {
         />
       )}
 
+    </>
+  );
+  const bindingsSection = (
+    <>
+
       {bindings.length ? (
         <BindingsSection bindings={bindings} onOpen={openAxis} />
       ) : null}
+
+    </>
+  );
+
+  return (
+    <DetailDocument
+      testId="detail-editor"
+      concept={model.level}
+      kicker={`Design · ${model.level}`}
+      title={levelTitle(model)}
+      subtitle={levelSubtitle(model)}
+      license={{
+        value: license.value,
+        source: license.source,
+        title:
+          license.licenses.join(" · ") || "No asset declares a license.",
+      }}
+      banner={banner}
+    >
+      {model.level === "node" || model.level === "edge" ? (
+        <>
+          {overviewSection}
+          {meaningSection}
+          {fulfilmentSection}
+          {kindSection}
+          {sourcesSection}
+          {buildStepsSection}
+          {expressionSection}
+          {bindingsSection}
+        </>
+      ) : model.level === "property" ? (
+        <>
+          {overviewSection}
+          {meaningSection}
+          {fulfilmentSection}
+          {kindSection}
+          {expressionSection}
+          {sourcesSection}
+          {buildStepsSection}
+          {bindingsSection}
+        </>
+      ) : model.level === "abstract" ? (
+        <>
+          {overviewSection}
+          {meaningSection}
+          {kindSection}
+          {fulfilmentSection}
+          {bindingsSection}
+        </>
+      ) : (
+        <>
+          {overviewSection}
+          {meaningSection}
+          {assetSourcesSection}
+          {kindSection}
+          {fulfilmentSection}
+          {sourcesSection}
+          {buildStepsSection}
+          {expressionSection}
+          {bindingsSection}
+        </>
+      )}
     </DetailDocument>
   );
 }

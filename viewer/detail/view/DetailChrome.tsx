@@ -104,6 +104,8 @@ export interface DetailBandProps {
   concept?: ConceptKind;
   className?: string;
   flush?: boolean;
+  /** A card's place in the reader order: primary opens, secondary starts closed. */
+  priority?: "primary" | "secondary";
   defaultOpen?: boolean;
   testId?: string;
   children: ReactNode;
@@ -125,15 +127,17 @@ export function DetailBand({
   concept,
   className,
   flush = false,
-  defaultOpen = true,
+  priority = "primary",
+  defaultOpen,
   testId,
   children,
 }: DetailBandProps) {
-  const [open, setOpen] = useState(defaultOpen);
+  const [open, setOpen] = useState(defaultOpen ?? priority === "primary");
   return (
     <section
       className={`${styles.band} ${className ?? ""}`}
       data-open={open}
+      data-priority={priority}
       data-testid={testId}
     >
       <button

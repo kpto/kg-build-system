@@ -120,6 +120,10 @@ mark wherever it appears.
 - A graph node's dim or highlight fades; a settled node never moves.
 - `prefers-reduced-motion` keeps the state change and removes movement.
 
+- A detail document orders its cards by immediate reader need. A **primary**
+  card opens by default; a **secondary** card starts collapsed. The order and
+  class are per kind, not a global section list.
+
 ## Panels and persistence
 
 - The shell owns side-bar visibility, width and the split between its sections.

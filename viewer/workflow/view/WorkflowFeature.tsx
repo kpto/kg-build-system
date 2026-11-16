@@ -332,6 +332,7 @@ function StepDetail({
     >
       <DetailBand
         concept="step"
+        priority="primary"
         title="Overview"
         question="What does this step do, in one screen?"
         meta={formatStepId(step.id)}
@@ -355,34 +356,10 @@ function StepDetail({
         />
       </DetailBand>
 
-      <DetailBand
-        concept="semantics"
-        title="Meaning"
-        question="What is this step for?"
-        meta="build machinery"
-      >
-        <p className="text-[10px] leading-relaxed text-faint">
-          A step is build machinery. It carries no design meaning of its own;
-          the meaning of the values it moves stays on the record and the
-          relation declarations.
-        </p>
-      </DetailBand>
-
-      <DetailBand
-        concept="graph"
-        title="Sources"
-        question="Where does this step read from?"
-        meta="upstream ports"
-      >
-        <p className="text-[10px] leading-relaxed text-faint">
-          A step has no release source. It reads the artifacts its input
-          openings declare; the source of a value is stated by the record and
-          relation documents.
-        </p>
-      </DetailBand>
 
       <DetailBand
         concept="step"
+        priority="primary"
         title="Ports"
         question="Which artifacts does this step open?"
         meta={`${(step.inputs?.length ?? 0) + (step.outputs?.length ?? 0)}`}
@@ -401,6 +378,7 @@ function StepDetail({
 
       <DetailBand
         concept="step"
+        priority="primary"
         title="Payload"
         question="Which instruction does this step execute?"
         meta={`${Object.keys(step.instruction.payload ?? {}).length} fields`}
@@ -410,6 +388,7 @@ function StepDetail({
 
       <DetailBand
         concept="edge"
+        priority="primary"
         title="Connections"
         question="Which steps feed this step and which does it feed?"
         meta={`${incoming.length} in · ${outgoing.length} out`}
@@ -467,6 +446,7 @@ function StepDetail({
       {bindings.length ? (
         <DetailBand
           concept="step"
+          priority="primary"
           title="Bindings"
           question="Which record does this step produce?"
           meta={`${bindings.length}`}
@@ -496,6 +476,34 @@ function StepDetail({
           </div>
         </DetailBand>
       ) : null}
+      <DetailBand
+        concept="semantics"
+        priority="secondary"
+        title="Meaning"
+        question="What is this step for?"
+        meta="build machinery"
+      >
+        <p className="text-[10px] leading-relaxed text-faint">
+          A step is build machinery. It carries no design meaning of its own;
+          the meaning of the values it moves stays on the record and the
+          relation declarations.
+        </p>
+      </DetailBand>
+
+      <DetailBand
+        concept="graph"
+        priority="secondary"
+        title="Sources"
+        question="Where does this step read from?"
+        meta="upstream ports"
+      >
+        <p className="text-[10px] leading-relaxed text-faint">
+          A step has no release source. It reads the artifacts its input
+          openings declare; the source of a value is stated by the record and
+          relation documents.
+        </p>
+      </DetailBand>
+
     </DetailDocument>
   );
 }
