@@ -9,39 +9,38 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
 
 ## Core language
 
-- **Areas, not floating cards.** The application is a workbench of rounded
-  rectangular regions separated by a 2px dark seam. Regions are plates, not
+- **Areas, not floating cards.** The application is a workbench of flat
+  rectangular regions separated by a 1px dark seam. Regions are plates, not
   cards: no glass, no floating panel stacks, no shadow between regions.
-- **Application header** is a single line on the `inset` surface: brand,
+- **Application header** is a single 34px line on the `panel` surface: brand,
   snapshot, search, panel toggles, layout reset and settings.
-- **Side-bar sections** are collapsible 30px headers: **Topology** for canvas
-  controls, **Detail** for design navigation.
-- **Area headers** are 30–32px bands on `panel-raised` with an icon, a
-  sentence-case title, optional counts and right-aligned controls.
+- **Side-bar sections** are collapsible 25px headers: **Control** for the active
+  view's controls, **Explorer** for the whole design.
+- **Area headers** are 25px bands on `panel-raised` with an icon, an uppercase
+  micro title, optional counts and right-aligned controls.
 - **Editor tabs** belong to the main area, not the window. They name the
-  function's reading surface, not global destinations.
+  document, not a global destination.
 - **Side bar** is the function's subject browser and detail controls.
-- **Bottom panel** is selection detail. It starts hidden and collapses from its
-  own header or the title-bar toggle.
-- **Node editor surfaces.** Dark canvas with a locked grid; neutral cards with a
-  3px semantic lane stripe, body, small sockets and bezier wires.
+- **Node editor surfaces.** Dark canvas with a locked dot grid plus a 120px
+  major grid; neutral cards with a 2px semantic lane stripe, body, small sockets
+  and bezier wires.
 - **Selection is orange; active/accent is blue.** Do not use orange for ordinary
   buttons. Blue = focus/active/primary; orange = selected graph item.
-- Readability is raised (16.5px root + larger micro type). Preserve it.
+- The scale is compact (12.5px root). Micro type is 8.5–9.5px; body type is
+  10–11px; a document title is 13px.
 
 ## Workbench measurements
 
 | Region | Size |
 | --- | ---: |
-| title bar | 38px |
+| title bar | 34px |
 | side bar | 220–520px, default 300px |
-| bottom panel | 120–480px, default 240px |
-| status bar | 22px |
-| region seam | 2px |
-| region / section radius | 4px |
-| editor tab | 30px |
-| section band header | 28px |
-| compact row | 26px |
+| status bar | 20px |
+| region seam | 1px |
+| region / section radius | 2–3px |
+| editor tab | 28px |
+| section band header | 25px |
+| compact row | 22px |
 
 The main editor always fills the remaining width. At 1600px there is no
 horizontal page overflow; the side bar and bottom panel are resizable and the
@@ -53,13 +52,23 @@ Topology is a **force-directed** graph: repulsion, spring links, gravity and a
 collision pass. Coordinates settle once; there is no mount animation and no
 rank wrapping. Pan/zoom and focus are the answers, not folding.
 
+- The canvas is a Blender node-editor surface: a 24px dot grid, a 120px major
+  grid and a flat graphite ground. No vignette, no gradient behind the graph.
+- A concrete node is a degree-sized disc tinted by its category; an abstract
+  category is a dashed ring in the asset green. The selected node gets an orange
+  ring, not an orange fill.
+- Each category draws a faint convex-hull frame behind its nodes with an
+  uppercase `CATEGORY · count` label. **Clusters** in Control toggles every
+  frame; the frame follows the settled simulation.
 - One relationship between two nodes is a **straight line**. Only parallel
   relationships between the same unordered pair curve, with small centred
   offsets and a perpendicular control point so reversed links do not retrace
   each other.
 - Orange is the selected node outline and selected relationship only. A selected
-  node's incident edges stay muted grey; hovering a node may turn its incident
-  edges blue.
+  node's incident edges turn blue; every other edge dims. Hovering a node turns
+  its incident edges blue.
+- Labels are 9px chips: a dark backing, a 1px muted border and the node label.
+  Hub labels only by default; **All** is a named control in the side bar.
 - No transitions, filters or drop shadows inside the SVG scene. Button motion
   is scoped to HTML controls so graph geometry never fades or translates.
 - Strokes use `vector-effect="non-scaling-stroke"`; a 200% zoom keeps 1px lines.
@@ -78,33 +87,35 @@ rank wrapping. Pan/zoom and focus are the answers, not folding.
   **Fit** may show everything at a smaller zoom; it is a user action, not the
   opening state.
 - Wheel zoom and drag pan; node drag pins that node until **Reset pins**.
-- Floating overlays never cover nodes. The legend and fit/reset/pin controls
-  live in the side bar or a corner.
-- A selected entity is highlighted and mirrored in the bottom selection detail.
+- The inspector is an overlay panel on the right. The graph is fitted into the
+  canvas that remains visible beside it, not underneath it; resizing the window
+  or toggling the inspector refits the visible map.
+- A selected entity is highlighted and mirrored in the inspector's identity and
+  fulfilment sections.
 
 ## Tokens (single source)
 
 ```text
-abyss       #171717   editor canvas
-panel       #262626   region body
-panel-raised#313131   area header / section band
-panel-soft  #3a3a3a   raised control
-inset       #1c1c1c   title bar / status bar
-gutter      #0c0c0c   seam between regions
-line        #3c3c3c
-line-soft   #292929
-line-strong #4e4e4e
+abyss       #1d1d1d   editor canvas
+panel       #232323   region body
+panel-raised#2b2b2b   area header / section band
+panel-soft  #333333   raised control
+inset       #191919   inset field
+gutter      #111111   seam between regions
+line        #3a3a3a
+line-soft   #2c2c2c
+line-strong #4a4a4a
 edge        #8b96a3   graph connection, never a panel border
-text        #dedede
-muted       #b6b6b6
-faint       #858585
-accent      #4772b3   Blender blue: active/primary
-accent-strong #5b8bd0
-accent-soft #2c4463
-accent-ink  #0d1622
-selection   #ed9e5c   Blender orange: selected graph item
-selection-strong #f5b47a
-selection-soft   #5a3a23
+text        #e6e6e6
+muted       #b0b0b0
+faint       #808080
+accent      #5b8bd0   Blender blue: active/primary
+accent-strong #7aa7e6
+accent-soft #24364d
+accent-ink  #0b1620
+selection   #ff9f43   Blender orange: selected graph item
+selection-strong #e87d0d
+selection-soft   #4a2c12
 high     #df8a4f
 asset    #6aa84f
 source   #4a9edb

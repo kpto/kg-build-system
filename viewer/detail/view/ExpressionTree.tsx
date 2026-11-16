@@ -18,7 +18,7 @@ import type { ProvenanceReferences } from "@/proof/references";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { concepts } from "@/shared/ui/concepts";
 import { cx, theme } from "@/shared/ui/theme";
-import { DetailEmptyState, DetailPanel } from "@/detail/view/DetailChrome";
+import { DetailBand, DetailEmptyState } from "@/detail/view/DetailChrome";
 import styles from "../detail.module.css";
 
 type TreeKind = ConceptKind | "expression";
@@ -467,9 +467,10 @@ export function ExpressionTree({
   };
 
   return (
-    <DetailPanel
+    <DetailBand
       concept="graph"
-      title="Expression tree"
+      title="Expression"
+      question="Which fields and operations produce the value?"
       meta={`${graph.nodes.size} nodes · ${graph.edges.length} links`}
     >
       {graph.nodes.size === 0 ? (
@@ -492,6 +493,6 @@ export function ExpressionTree({
           ))}
         </div>
       )}
-    </DetailPanel>
+    </DetailBand>
   );
 }

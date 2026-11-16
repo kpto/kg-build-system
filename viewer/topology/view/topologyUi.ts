@@ -123,6 +123,7 @@ function detailFrom(
     containment: persisted.containment ?? defaults.containment,
     semantics: persisted.semantics ?? defaults.semantics,
     properties: persisted.properties ?? defaults.properties,
+    clusters: persisted.clusters ?? defaults.clusters,
     edges: persisted.edges === "off" ? "off" : defaults.edges,
   };
 }

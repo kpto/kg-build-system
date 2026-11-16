@@ -3,9 +3,10 @@
 /**
  * Detail document view: one design subject read in full.
  *
- * The sidebar selects a design subject; the editor presents its meaning,
- * properties and, for a property, its provenance. Provenance is a section of
- * this view.
+ * Every kind renders the same band order: Overview, Meaning, Fulfilment,
+ * Sources, Build steps, Expression, Members, Connections and Bindings. A kind
+ * includes or omits a band; it never invents a second section grammar. The
+ * content contract is `DETAIL_CONTENT.md`.
  */
 
 import {
@@ -28,7 +29,11 @@ import {
 import type { ConceptKind, ConceptReference } from "@/lib/concepts";
 import type { WorkspaceProps, SubjectSelection } from "@/workbench/types";
 import { documentTitle } from "@/workbench/types";
-import { stepKey } from "@/lib/indexes";
+import {
+  findComponentPropertyBindings,
+  relationNamesFromRowSource,
+  stepKey,
+} from "@/lib/indexes";
 import {
   buildWorkflowModel,
   groupWorkflowRows,
@@ -57,8 +62,17 @@ import type {
   ViewerIndex,
 } from "@/lib/types";
 import { LINEAGE_LANES } from "@/lib/types";
-import { logicalTypeName } from "@/lib/expressions";
-import { DetailDocument, DetailPanel } from "./view/DetailChrome";
+import { collectFieldRefs, logicalTypeName } from "@/lib/expressions";
+import {
+  DetailBand,
+  DetailDocument,
+  DetailEmptyState,
+  FactGrid,
+  MemberTable,
+  type DetailFact,
+  type MemberRow,
+} from "./view/DetailChrome";
+import { FulfilmentMap, type AxisOpenTarget } from "./view/FulfilmentMap";
 import {
   ExpressionTree,
   type ExpressionChain,
@@ -181,10 +195,10 @@ function ProvenanceGroup({
   testId: string;
 }) {
   return (
-    <div className={styles.provenanceGroup} data-testid={testId}>
-      <p className={styles.provenanceGroupLabel}>
-        <span className={styles.provenanceGroupTitle}>
-          <ConceptGlyph concept={concept} className={styles.provenanceGroupIcon} />
+    <div className={styles.sourcesGroup} data-testid={testId}>
+      <p className={styles.sourcesLabel}>
+        <span>
+          <ConceptGlyph concept={concept} className={styles.provenanceGroupIcon} />{" "}
           {label}
         </span>
         <span>{references.length}</span>
@@ -219,23 +233,17 @@ function ProvenanceSection({
   const count = (value: number, singular: string) =>
     `${value} ${value === 1 ? singular : `${singular}s`}`;
   return (
-    <section
-      className={styles.provenance}
-      data-testid="detail-provenance"
-      aria-label="Provenance"
+    <DetailBand
+      concept="graph"
+      title="Sources"
+      question="Where does this value come from?"
+      meta={`${count(provenance.assets.length, "asset")} · ${count(
+        provenance.tables.length,
+        "source relation",
+      )} · ${count(provenance.projections.length, "derived relation")}`}
+      testId="detail-provenance"
     >
-      <header className={styles.provenanceHead}>
-        <span className={styles.provenanceTitle}>
-          <ConceptGlyph concept="graph" className={styles.panelIcon} />
-          Provenance
-        </span>
-        <span className={styles.provenanceMeta}>
-          {count(provenance.assets.length, "asset")} ·{" "}
-          {count(provenance.tables.length, "table")} ·{" "}
-          {count(provenance.projections.length, "projection")}
-        </span>
-      </header>
-      <div className={styles.provenanceGrid}>
+      <div className={styles.sourcesGrid}>
         <ProvenanceGroup
           concept="asset"
           label="Assets"
@@ -245,20 +253,20 @@ function ProvenanceSection({
         />
         <ProvenanceGroup
           concept="table"
-          label="Tables"
+          label="Source relations"
           references={provenance.tables}
           onOpen={onOpen}
           testId="detail-provenance-tables"
         />
         <ProvenanceGroup
           concept="projection"
-          label="Projections"
+          label="Derived relations"
           references={provenance.projections}
           onOpen={onOpen}
           testId="detail-provenance-projections"
         />
       </div>
-    </section>
+    </DetailBand>
   );
 }
 
@@ -280,16 +288,6 @@ function Badge({
   );
 }
 
-function Panel(props: {
-  title: string;
-  meta?: ReactNode;
-  concept?: ConceptKind;
-  children: ReactNode;
-  className?: string;
-}) {
-  return <DetailPanel {...props} />;
-}
-
 function EmptyState({ children }: { children: ReactNode }) {
   return <p className={styles.empty}>{children}</p>;
 }
@@ -309,64 +307,39 @@ function attachmentLabel(kind: SemanticSubjectKind): string {
 
 function SemanticCards({ attachments }: { attachments: ProofSemantics[] }) {
   if (!attachments.length) {
-    return <EmptyState>No attached semantics on this subject.</EmptyState>;
+    return <DetailEmptyState>No attached meaning on this subject.</DetailEmptyState>;
   }
   return (
-    <div className={styles.semanticGrid}>
+    <div className={styles.meaningGrid}>
       {attachments.map((attachment) => (
-        <article key={attachment.key} className={styles.semanticCard}>
-          <header className={styles.semanticHead}>
-            <span className={styles.semanticKind}>
-              {attachmentLabel(attachment.kind)}
-            </span>
-            <span className={styles.semanticName}>
+        <article key={attachment.key} className={styles.meaningCard}>
+          <header className={styles.meaningCardHead}>
+            <strong>
               {attachment.ownerName
                 ? `${attachment.ownerName}.${attachment.name}`
                 : attachment.name}
-            </span>
-            <Badge tone="muted">attached</Badge>
+            </strong>
+            <span>{attachmentLabel(attachment.kind)}</span>
           </header>
-          {attachment.purpose ? (
-            <div className={styles.purpose}>
-              <p className={styles.purposeLabel}>Purpose</p>
-              <p className={styles.purposeText}>{attachment.purpose.text}</p>
-              <LimitationList limitations={attachment.limitations} />
-            </div>
-          ) : null}
-          {attachment.claims.length ? (
-            <ul className={styles.claimList}>
-              {attachment.claims.map((claim, index) => (
-                <li key={`${attachment.key}:claim:${index}`}>{claim.text}</li>
-              ))}
-            </ul>
-          ) : null}
+          <DesignMeaning
+            claims={attachment.claims}
+            limitations={attachment.limitations}
+            purpose={attachment.purpose?.text}
+            frames={attachment.frames}
+            compact
+            emptyText="No meaning is attached."
+          />
         </article>
       ))}
     </div>
   );
 }
 
-function LimitationList({
-  limitations,
-}: {
-  limitations: Array<{ text: string }>;
-}) {
-  if (!limitations.length) return null;
-  return (
-    <ul className={styles.limitList}>
-      {limitations.map((limitation, index) => (
-        <li key={`${limitation.text}:${index}`}>{limitation.text}</li>
-      ))}
-    </ul>
-  );
-}
-
 function TypeChainView({ chain }: { chain: ProofTypeChain }) {
   return (
-    <Panel
-      concept="property"
-      title="Type & presence"
-      meta={
+    <div className={styles.subBlock}>
+      <p className={styles.subHead}>
+        <span>Type &amp; presence</span>
         <span className={styles.chainMeta}>
           {chain.mismatch ? (
             <Badge tone="warn">type mismatch</Badge>
@@ -374,11 +347,10 @@ function TypeChainView({ chain }: { chain: ProofTypeChain }) {
             <Badge tone="ok">types agree</Badge>
           )}
           {chain.narrowed ? (
-            <Badge tone="warn">declared present · source nullable</Badge>
+            <Badge tone="warn">present · source nullable</Badge>
           ) : null}
         </span>
-      }
-    >
+      </p>
       <div className={styles.chain}>
         {chain.steps.map((step, index) => (
           <div key={step.id} className={styles.chainItem}>
@@ -402,7 +374,7 @@ function TypeChainView({ chain }: { chain: ProofTypeChain }) {
           </div>
         ))}
       </div>
-    </Panel>
+    </div>
   );
 }
 
@@ -1449,34 +1421,203 @@ function BranchBar({
 
 function ConnectionLedger({ branch }: { branch: ProofBranch }) {
   const labels = new Map(branch.nodes.map((node) => [node.id, node.label]));
+  if (!branch.edges.length) {
+    return <DetailEmptyState>No edges in this branch.</DetailEmptyState>;
+  }
   return (
-    <Panel
-      concept="edge"
-      title="Connections"
-      meta={`${branch.edges.length} edges`}
-      className={styles.connectionPanel}
-    >
-      {branch.edges.length ? (
-        <div className={styles.edgeList}>
-          {branch.edges.map((edge) => (
-            <div key={edge.id} className={styles.edgeRow}>
-              <span className={styles.edgeEndpoint}>
-                {labels.get(edge.source) ?? edge.source}
-              </span>
-              <ArrowRight aria-hidden className={styles.edgeArrow} />
-              <span className={styles.edgeEndpoint}>
-                {labels.get(edge.target) ?? edge.target}
-              </span>
-              {edge.label ? (
-                <span className={styles.edgeLabel}>{edge.label}</span>
-              ) : null}
-            </div>
-          ))}
+    <div className={styles.edgeList}>
+      {branch.edges.map((edge) => (
+        <div key={edge.id} className={styles.edgeRow}>
+          <span className={styles.edgeEndpoint}>
+            {labels.get(edge.source) ?? edge.source}
+          </span>
+          <ArrowRight aria-hidden className={styles.edgeArrow} />
+          <span className={styles.edgeEndpoint}>
+            {labels.get(edge.target) ?? edge.target}
+          </span>
+          {edge.label ? (
+            <span className={styles.edgeLabel}>{edge.label}</span>
+          ) : null}
         </div>
+      ))}
+    </div>
+  );
+}
+
+function identityFields(
+  index: ViewerIndex,
+  kind: "node" | "edge",
+  component: string,
+): string[] {
+  const fields = new Set<string>();
+  for (const binding of index.bindings) {
+    if (binding.kind !== kind || binding.component !== component) continue;
+    for (const ref of collectFieldRefs(binding.binding.identity)) {
+      const name = ref[ref.length - 1];
+      if (name) fields.add(name);
+    }
+  }
+  return [...fields];
+}
+
+function componentBindings(
+  index: ViewerIndex,
+  kind: "node" | "edge",
+  component: string,
+) {
+  return index.bindings.filter(
+    (binding) => binding.kind === kind && binding.component === component,
+  );
+}
+
+function BindingsSection({
+  bindings,
+  onOpen,
+}: {
+  bindings: ViewerIndex["bindings"];
+  onOpen(target: AxisOpenTarget): void;
+}) {
+  const rows: MemberRow[] = bindings.map((binding) => {
+    const fields = collectFieldRefs(binding.binding.identity)
+      .map((ref) => ref[ref.length - 1])
+      .filter(Boolean);
+    const relations = relationNamesFromRowSource(binding.binding.rows);
+    return {
+      key: String(binding.index),
+      onActivate: () =>
+        onOpen({ kind: binding.kind, name: binding.component }),
+      title: `Open ${binding.kind} ${binding.component}`,
+      cells: [
+        <span className={styles.memberName}>
+          <ConceptGlyph concept={binding.kind} className={styles.memberGlyph} />
+          {binding.binding.name ?? `binding #${binding.index}`}
+        </span>,
+        `${Object.keys(binding.binding.properties ?? {}).length}`,
+        fields.join(", ") || "not declared",
+        relations.join(", ") || "no row source",
+      ],
+    };
+  });
+  return (
+    <DetailBand
+      title="Bindings"
+      question="Which binding fulfils this subject?"
+      meta={`${bindings.length}`}
+      testId="detail-bindings"
+    >
+      <MemberTable
+        columns={["Binding", "Writes", "Identity", "Rows read"]}
+        template="minmax(170px, 1.5fr) 64px minmax(120px, 1fr) minmax(130px, 1.2fr)"
+        rows={rows}
+        empty="No binding produces this subject."
+      />
+    </DetailBand>
+  );
+}
+
+function ConnectionsSection({
+  index,
+  kind,
+  component,
+  onOpen,
+}: {
+  index: ViewerIndex;
+  kind: "node" | "edge";
+  component: string;
+  onOpen(target: AxisOpenTarget): void;
+}) {
+  if (kind === "edge") {
+    const edge = index.topologyEdgesByName.get(component);
+    if (!edge) return null;
+    const source = edge.source?.[2];
+    const target = edge.target?.[2];
+    return (
+      <DetailBand
+        title="Connections"
+        question="Which records does this relation join?"
+        meta="2 endpoints"
+      >
+        <div className={styles.connectionRow}>
+          <span>source</span>
+          {source ? (
+            <button
+              type="button"
+              onClick={() => onOpen({ kind: "node", name: source })}
+            >
+              {source}
+            </button>
+          ) : (
+            <span>not resolved</span>
+          )}
+          <ArrowRight aria-hidden className={styles.inlineArrow} />
+          <span>target</span>
+          {target ? (
+            <button
+              type="button"
+              onClick={() => onOpen({ kind: "node", name: target })}
+            >
+              {target}
+            </button>
+          ) : (
+            <span>not resolved</span>
+          )}
+          <span className={styles.connectionLabel}>
+            {(edge.labels ?? []).join(" · ")}
+          </span>
+        </div>
+      </DetailBand>
+    );
+  }
+  const incident = index.topologyEdges.filter(
+    (edge) => edge.source?.[2] === component || edge.target?.[2] === component,
+  );
+  return (
+    <DetailBand
+      title="Connections"
+      question="Which relations touch this record?"
+      meta={`${incident.length}`}
+    >
+      {incident.length ? (
+        incident.map((edge) => {
+          const source = edge.source?.[2] ?? "?";
+          const target = edge.target?.[2] ?? "?";
+          const other = source === component ? target : source;
+          const outgoing = source === component;
+          return (
+            <div className={styles.connectionRow} key={edge.name}>
+              <span>{outgoing ? "out" : "in"}</span>
+              {outgoing ? (
+                <span>{component}</span>
+              ) : (
+                <button
+                  type="button"
+                  onClick={() => onOpen({ kind: "node", name: other })}
+                >
+                  {other}
+                </button>
+              )}
+              <ArrowRight aria-hidden className={styles.inlineArrow} />
+              {outgoing ? (
+                <button
+                  type="button"
+                  onClick={() => onOpen({ kind: "node", name: other })}
+                >
+                  {other}
+                </button>
+              ) : (
+                <span>{component}</span>
+              )}
+              <span className={styles.connectionLabel}>
+                {edge.name}
+                {edge.labels?.length ? ` · ${edge.labels.join(" · ")}` : ""}
+              </span>
+            </div>
+          );
+        })
       ) : (
-        <EmptyState>No edges in this branch.</EmptyState>
+        <DetailEmptyState>No relation touches this record.</DetailEmptyState>
       )}
-    </Panel>
+    </DetailBand>
   );
 }
 
@@ -1491,227 +1632,134 @@ function PropertyProofView({ model }: { model: ProofModel }) {
 
   if (!branch) {
     return (
-      <div className={styles.emptyWrap}>
-        <BadgeCheck aria-hidden className={styles.emptyIcon} />
-        <h2>No binding for this property</h2>
-        <p>
+      <DetailBand
+        title="Branches"
+        question="Which bindings resolve this property?"
+        meta="0"
+      >
+        <p className={styles.inlineEmpty}>
           The topology property is declared, but no blueprint binding resolves
           it to a source.
         </p>
-      </div>
+      </DetailBand>
     );
   }
 
   return (
     <div className={styles.levelBody}>
-      <div className={styles.workToolbar}>
-        <BranchBar
-          branches={model.branches}
-          active={activeBranch}
-          onChange={setActiveBranch}
-        />
-        <div className={styles.workMeta}>
-          <span className={styles.summaryLabel}>Type</span>
-          <TypeChainSummary chain={branch.typeChain} />
-          <span className={styles.summaryDivider} />
-          <span className={styles.summaryLabel}>Targets</span>
-          <span className={styles.summaryValue}>
-            {branch.trace.target.length}
-          </span>
-          <span className={styles.summaryLabel}>Post</span>
-          <span className={styles.summaryValue}>
-            {branch.trace.post.length}
-          </span>
-          <span className={styles.summaryDivider} />
-          <span className={styles.summaryLabel}>Semantics</span>
-          <span className={styles.summaryValue}>{attachments.length}</span>
+      <DetailBand
+        title="Branches"
+        question="Which bindings resolve this property?"
+        meta={`${model.branches.length}`}
+        flush
+      >
+        <div className={styles.workToolbar}>
+          <BranchBar
+            branches={model.branches}
+            active={activeBranch}
+            onChange={setActiveBranch}
+          />
+          <div className={styles.workMeta}>
+            <span className={styles.summaryLabel}>Type</span>
+            <TypeChainSummary chain={branch.typeChain} />
+            <span className={styles.summaryDivider} />
+            <span className={styles.summaryLabel}>Targets</span>
+            <span className={styles.summaryValue}>
+              {branch.trace.target.length}
+            </span>
+            <span className={styles.summaryLabel}>Post</span>
+            <span className={styles.summaryValue}>
+              {branch.trace.post.length}
+            </span>
+            <span className={styles.summaryDivider} />
+            <span className={styles.summaryLabel}>Meanings</span>
+            <span className={styles.summaryValue}>{attachments.length}</span>
+          </div>
         </div>
-      </div>
 
-      <TypeChainView chain={branch.typeChain} />
+        <TypeChainView chain={branch.typeChain} />
 
-      <LaneCanvas branch={branch} />
+        <LaneCanvas branch={branch} />
+      </DetailBand>
 
-      <div className={styles.lowerGrid}>
-        <Panel
-          concept="semantics"
-          title="Attached semantics"
-          meta={`${attachments.length} attached`}
-        >
-          <SemanticCards attachments={attachments} />
-        </Panel>
+      <DetailBand
+        concept="edge"
+        title="Connections"
+        question="Which links does this branch assert?"
+        meta={`${branch.edges.length} edges`}
+      >
         <ConnectionLedger branch={branch} />
-      </div>
-    </div>
-  );
-}
-
-// ---------------------------------------------------------------------------
-// Component levels
-// ---------------------------------------------------------------------------
-
-function PropertyTable({
-  properties,
-  onSelect,
-  onOpenPermanent,
-}: {
-  properties: ProofPropertySummary[];
-  onSelect(property: ProofPropertySummary): void;
-  onOpenPermanent(property: ProofPropertySummary): void;
-}) {
-  const [menu, setMenu] = useState<
-    | {
-        x: number;
-        y: number;
-        label: string;
-        items: Array<{ label: string; hint?: string; run(): void }>;
-      }
-    | undefined
-  >(undefined);
-  if (!properties.length) {
-    return <EmptyState>No properties are declared for this subject.</EmptyState>;
-  }
-  return (
-    <div className={styles.propertyTable} data-testid="detail-properties">
-      <div className={styles.propertyHead}>
-        <span>Property</span>
-        <span>Type</span>
-        <span>Branches</span>
-        <span>Tables</span>
-        <span>Bindings</span>
-      </div>
-      {properties.map((property) => (
-        <button
-          key={`${property.kind}:${property.component}.${property.property}`}
-          type="button"
-          className={styles.propertyTableRow}
-          data-testid="detail-property"
-          onClick={() => onSelect(property)}
-          onDoubleClick={() => onOpenPermanent(property)}
-          onContextMenu={(event) => {
-            event.preventDefault();
-            event.stopPropagation();
-            setMenu({
-              x: event.clientX,
-              y: event.clientY,
-              label: `${property.component}.${property.property}`,
-              items: [
-                {
-                  label: "Go to Detail",
-                  hint: "Open document",
-                  run: () => onOpenPermanent(property),
-                },
-              ],
-            });
-          }}
-        >
-          <span className={styles.propertyName}>
-            <ConceptGlyph concept="property" className={styles.conceptDot} />
-            {property.property}
-          </span>
-          <span className={styles.propertyType}>
-            {logicalTypeName(property.logicalType)}
-          </span>
-          <span className={styles.propertyCount}>{property.branchCount}</span>
-          <span className={styles.propertySources}>
-            {property.sources.join(", ") || "—"}
-          </span>
-          <span className={styles.propertyBindings}>
-            {property.bindingIndexes.join(", ") || "—"}
-          </span>
-        </button>
-      ))}
-      {menu ? (
-        <ContextMenu
-          x={menu.x}
-          y={menu.y}
-          label={menu.label}
-          items={menu.items.map((item) => ({
-            label: item.label,
-            hint: item.hint,
-            onSelect: item.run,
-          }))}
-          onClose={() => setMenu(undefined)}
-        />
-      ) : null}
+      </DetailBand>
     </div>
   );
 }
 
 function ComponentProofView({
+  index,
   model,
   actions,
+  onOpenAxis,
 }: {
+  index: ViewerIndex;
   model: ProofModel;
   actions: WorkspaceProps["actions"];
+  onOpenAxis(target: AxisOpenTarget): void;
 }) {
   const component = model.component;
   if (!component) {
-    return <EmptyState>This component is not present in the blueprint.</EmptyState>;
+    return (
+      <DetailEmptyState>
+        This component is not present in the blueprint.
+      </DetailEmptyState>
+    );
   }
-  const attachments = collectProofSemantics(model);
+  const rows: MemberRow[] = component.properties.map((property) => ({
+    key: `${property.kind}:${property.component}.${property.property}`,
+    testId: "detail-property",
+    onActivate: () =>
+      actions.openTab({
+        selection: toWorkbenchSelection({
+          level: "property",
+          kind: property.kind,
+          component: property.component,
+          property: property.property,
+          propertyRef: property.propertyRef,
+        }),
+        preview: true,
+      }),
+    title: `Open ${property.component}.${property.property}`,
+    cells: [
+      <span className={styles.memberName}>
+        <ConceptGlyph concept="property" className={styles.memberGlyph} />
+        {property.property}
+      </span>,
+      logicalTypeName(property.logicalType),
+      `${property.branchCount}`,
+      property.sources.join(", ") || "—",
+      property.bindingIndexes.join(", ") || "—",
+    ],
+  }));
   return (
     <div className={styles.levelBody}>
-      <header className={styles.subjectHeader}>
-        <ConceptMark concept={component.kind} className={styles.subjectIcon} />
-        <div className={styles.subjectCopy}>
-          <div className={styles.subjectBadges}>
-            <Badge tone="lane">{component.kind}</Badge>
-            {component.abstract ? <Badge tone="muted">abstract</Badge> : null}
-            {component.labels.map((label) => (
-              <Badge key={label} tone="muted">
-                {label}
-              </Badge>
-            ))}
-          </div>
-          <p className={styles.subjectDescription}>
-            {component.description ?? "No description on this declaration."}
-          </p>
-          {component.provenance ? (
-            <p className={styles.subjectProvenance}>
-              {component.provenance.source ?? "?"}
-              <ArrowRight aria-hidden className={styles.inlineArrow} />
-              {component.provenance.target ?? "?"}
-            </p>
-          ) : null}
-        </div>
-        <span className={styles.subjectCount}>
-          {component.properties.length} properties
-        </span>
-      </header>
-
-      <Panel concept="property" title="Properties" meta={`${component.properties.length} rows`}>
-        <PropertyTable
-          properties={component.properties}
-          onSelect={(property) =>
-            actions.openTab({
-              selection: toWorkbenchSelection({
-                level: "property",
-                kind: property.kind,
-                component: property.component,
-                property: property.property,
-                propertyRef: property.propertyRef,
-              }),
-              preview: true,
-            })
-          }
-          onOpenPermanent={(property) =>
-            actions.openTab({
-              selection: toWorkbenchSelection({
-                level: "property",
-                kind: property.kind,
-                component: property.component,
-                property: property.property,
-                propertyRef: property.propertyRef,
-              }),
-            })
-          }
+      <DetailBand
+        title="Members"
+        question="Which properties does this record assert?"
+        meta={`${component.properties.length}`}
+        testId="detail-properties"
+      >
+        <MemberTable
+          columns={["Property", "Type", "Branches", "Sources", "Bindings"]}
+          template="minmax(160px, 1.3fr) minmax(110px, 1fr) 64px minmax(100px, 1fr) 70px"
+          rows={rows}
+          empty="No properties are declared for this subject."
         />
-      </Panel>
-
-      <Panel concept="semantics" title="Attached semantics" meta={`${attachments.length} attached`}>
-        <SemanticCards attachments={attachments} />
-      </Panel>
+      </DetailBand>
+      <ConnectionsSection
+        index={index}
+        kind={component.kind}
+        component={component.name}
+        onOpen={onOpenAxis}
+      />
     </div>
   );
 }
@@ -1725,227 +1773,130 @@ function AbstractProofView({
 }) {
   const abstract = model.abstract;
   if (!abstract) {
-    return <EmptyState>No abstract subject is available.</EmptyState>;
+    return <DetailEmptyState>No abstract subject is available.</DetailEmptyState>;
   }
-  const attachments = collectProofSemantics(model);
+  const rows: MemberRow[] = abstract.descendants.map((descendant) => ({
+    key: descendant.name,
+    onActivate: () =>
+      actions.openTab({
+        selection: {
+          kind: "node",
+          level: "node",
+          component: descendant.name,
+          name: descendant.name,
+        },
+        preview: true,
+      }),
+    title: `Open the ${descendant.name} document`,
+    cells: [
+      <span className={styles.memberName}>
+        <ConceptGlyph concept="node" className={styles.memberGlyph} />
+        {descendant.name}
+      </span>,
+      descendant.labels.join(", ") || "—",
+      `${descendant.properties.length}`,
+      descendant.description ?? "—",
+    ],
+  }));
   return (
     <div className={styles.levelBody}>
-      <header className={styles.subjectHeader}>
-        <ConceptMark concept="abstract" className={styles.subjectIcon} />
-        <div className={styles.subjectCopy}>
-          <div className={styles.subjectBadges}>
-            <Badge tone="lane">abstract</Badge>
-            {abstract.labels.map((label) => (
-              <Badge key={label} tone="muted">
-                {label}
-              </Badge>
-            ))}
-          </div>
-          <p className={styles.subjectDescription}>
-            {abstract.description ?? "No description on this abstract category."}
-          </p>
-        </div>
-        <span className={styles.subjectCount}>
-          {abstract.descendants.length} descendants
-        </span>
-      </header>
-
-      <div className={styles.descendantGrid}>
-        {abstract.descendants.map((descendant) => (
-          <section key={descendant.name} className={styles.descendantCard}>
-            <header>
-              <div>
-                <h3>{descendant.name}</h3>
-                <p>
-                  {descendant.description ||
-                    descendant.labels.join(", ") ||
-                    "No description."}
-                </p>
-              </div>
-              <Badge tone="muted">
-                {descendant.properties.length} properties
-              </Badge>
-            </header>
-            <PropertyTable
-              properties={descendant.properties}
-              onSelect={(property) =>
-                actions.openTab({
-                  selection: toWorkbenchSelection({
-                    level: "property",
-                    kind: property.kind,
-                    component: property.component,
-                    property: property.property,
-                    propertyRef: property.propertyRef,
-                  }),
-                  preview: true,
-                })
-              }
-              onOpenPermanent={(property) =>
-                actions.openTab({
-                  selection: toWorkbenchSelection({
-                    level: "property",
-                    kind: property.kind,
-                    component: property.component,
-                    property: property.property,
-                    propertyRef: property.propertyRef,
-                  }),
-                })
-              }
-            />
-          </section>
-        ))}
-      </div>
-
-      <Panel concept="semantics" title="Attached semantics" meta={`${attachments.length} attached`}>
-        <SemanticCards attachments={attachments} />
-      </Panel>
+      <DetailBand
+        title="Members"
+        question="Which records belong to this category?"
+        meta={`${abstract.descendants.length}`}
+      >
+        <MemberTable
+          columns={["Record", "Labels", "Properties", "Description"]}
+          template="minmax(140px, 0.9fr) minmax(110px, 0.8fr) 66px minmax(180px, 1.6fr)"
+          rows={rows}
+          empty="No concrete record descends from this category."
+        />
+      </DetailBand>
     </div>
   );
 }
 
 function AssetProofView({
+  index,
   model,
-  actions,
+  onOpenAxis,
 }: {
+  index: ViewerIndex;
   model: ProofModel;
-  actions: WorkspaceProps["actions"];
+  onOpenAxis(target: AxisOpenTarget): void;
 }) {
   const asset = model.asset;
   if (!asset) {
-    return <EmptyState>This asset is not present in the blueprint.</EmptyState>;
+    return <DetailEmptyState>This asset is not present in the blueprint.</DetailEmptyState>;
   }
-  const attachments = collectProofSemantics(model);
-  const profile = asset.profile;
+  const relationRows: MemberRow[] = [
+    ...asset.relations.map((row) => ({ ...row, kindLabel: "source" })),
+    ...asset.projections.map((row) => ({ ...row, kindLabel: "derived" })),
+  ].map((row) => ({
+    key: `${row.kindLabel}:${row.name}`,
+    onActivate: () =>
+      onOpenAxis({
+        kind: row.kindLabel === "source" ? "table" : "projection",
+        name: row.name,
+      }),
+    title: `Open the ${row.name} document`,
+    cells: [
+      <span className={styles.memberName}>
+        <ConceptGlyph
+          concept={row.kindLabel === "source" ? "table" : "projection"}
+          className={styles.memberGlyph}
+        />
+        {row.name}
+      </span>,
+      row.kindLabel === "source" ? "source relation" : "derived relation",
+      `${row.columns} columns`,
+      `${row.semantics.length} meanings`,
+    ],
+  }));
+  const fieldRows: MemberRow[] = asset.fields.map((field) => ({
+    key: field.key,
+    cells: [field.key, logicalTypeName(field.field.logical_type), field.ownerKind],
+  }));
+  const assetRelations = new Set([
+    ...index.relations
+      .filter((relation) => relation.asset?.[2] === asset.name)
+      .map((relation) => relation.name),
+    ...index.projections
+      .filter((relation) => relation.asset?.[2] === asset.name)
+      .map((relation) => relation.name),
+  ]);
+  const bindings = index.bindings.filter((binding) =>
+    relationNamesFromRowSource(binding.binding.rows).some((name) =>
+      assetRelations.has(name),
+    ),
+  );
   return (
     <div className={styles.levelBody}>
-      <header className={styles.subjectHeader}>
-        <ConceptMark concept="asset" className={styles.subjectIcon} />
-        <div className={styles.subjectCopy}>
-          <div className={styles.subjectBadges}>
-            <Badge tone="lane">asset</Badge>
-            {profile?.authority ? (
-              <Badge tone="muted">{profile.authority}</Badge>
-            ) : null}
-          </div>
-          <p className={styles.subjectDescription}>
-            {profile?.description ??
-              profile?.subject ??
-              "No profile is attached to this asset."}
-          </p>
-          {profile ? (
-            <div className={styles.profileGrid}>
-              <ProfileField label="Subject" value={profile.subject} />
-              <ProfileField label="Coverage" value={profile.coverage} />
-              <ProfileField label="Authority" value={profile.authority} />
-              <ProfileField label="Basis" value={profile.basis} />
-            </div>
-          ) : null}
-        </div>
-        <span className={styles.subjectCount}>
-          {asset.relations.length} tables
-        </span>
-      </header>
-
-      <div className={styles.assetGrid}>
-        <Panel concept="table" title="Tables" meta={`${asset.relations.length}`}>
-          <AssetDataRows rows={asset.relations} />
-        </Panel>
-        <Panel concept="projection" title="Projections" meta={`${asset.projections.length}`}>
-          <AssetDataRows rows={asset.projections} />
-        </Panel>
-      </div>
-
-      <Panel concept="property" title="Properties resolving to this asset" meta={`${asset.properties.length} rows`}>
-        <PropertyTable
-          properties={asset.properties}
-          onSelect={(property) =>
-            actions.openTab({
-              selection: toWorkbenchSelection({
-                level: "property",
-                kind: property.kind,
-                component: property.component,
-                property: property.property,
-                propertyRef: property.propertyRef,
-              }),
-              preview: true,
-            })
-          }
-          onOpenPermanent={(property) =>
-            actions.openTab({
-              selection: toWorkbenchSelection({
-                level: "property",
-                kind: property.kind,
-                component: property.component,
-                property: property.property,
-                propertyRef: property.propertyRef,
-              }),
-            })
-          }
+      <DetailBand
+        title="Members"
+        question="Which relations and fields does this asset supply?"
+        meta={`${relationRows.length} relations`}
+      >
+        <MemberTable
+          columns={["Relation", "Kind", "Shape", "Meaning"]}
+          template="minmax(160px, 1.2fr) 110px 90px minmax(90px, 0.8fr)"
+          rows={relationRows}
+          empty="No relation is declared for this asset."
         />
-      </Panel>
-
-      <div className={styles.assetGrid}>
-        <Panel concept="field" title="Fields" meta={`${asset.fields.length}`}>
-          {asset.fields.length ? (
-            <div className={styles.fieldList}>
-              {asset.fields.map((field) => (
-                <div key={field.key} className={styles.fieldRow}>
-                  <span className={styles.fieldKey}>{field.key}</span>
-                  <span className={styles.fieldType}>
-                    {logicalTypeName(field.field.logical_type)}
-                  </span>
-                  <Badge tone="muted">{field.ownerKind}</Badge>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <EmptyState>No fields resolve to this asset.</EmptyState>
-          )}
-        </Panel>
-        <Panel concept="semantics" title="Attached semantics" meta={`${attachments.length} attached`}>
-          <SemanticCards attachments={attachments} />
-        </Panel>
-      </div>
-    </div>
-  );
-}
-
-function ProfileField({ label, value }: { label: string; value?: string }) {
-  return (
-    <div className={styles.profileField}>
-      <span>{label}</span>
-      <strong>{value ?? "—"}</strong>
-    </div>
-  );
-}
-
-function AssetDataRows({
-  rows,
-}: {
-  rows: Array<{
-    name: string;
-    description?: string;
-    columns: number;
-    semantics: ProofSemantics[];
-  }>;
-}) {
-  if (!rows.length) return <EmptyState>No entries.</EmptyState>;
-  return (
-    <div className={styles.dataRows}>
-      {rows.map((row) => (
-        <div key={row.name} className={styles.dataRow}>
-          <div>
-            <span className={styles.dataName}>{row.name}</span>
-            {row.description ? (
-              <span className={styles.dataDescription}>{row.description}</span>
-            ) : null}
-          </div>
-          <span className={styles.dataMeta}>{row.columns} columns</span>
-          {row.semantics.length ? (
-            <Badge tone="muted">{row.semantics.length} attached</Badge>
-          ) : null}
-        </div>
-      ))}
+      </DetailBand>
+      <DetailBand
+        title="Fields"
+        question="Which declared fields carry this asset's values?"
+        meta={`${fieldRows.length}`}
+      >
+        <MemberTable
+          columns={["Field", "Type", "Owner"]}
+          template="minmax(200px, 1.8fr) minmax(120px, 1fr) 90px"
+          rows={fieldRows}
+          empty="No field resolves to this asset."
+        />
+      </DetailBand>
+      <BindingsSection bindings={bindings} onOpen={onOpenAxis} />
     </div>
   );
 }
@@ -2048,19 +1999,189 @@ function subjectExpressionChains(
   return [];
 }
 
+function overviewFacts(
+  index: ViewerIndex,
+  model: ProofModel,
+  license: EffectiveLicense,
+): DetailFact[] {
+  const facts: DetailFact[] = [];
+  const licenseFact: DetailFact = {
+    label: "License",
+    value: license.value,
+    title: license.licenses.join(" · ") || "No asset declares a license.",
+  };
+  switch (model.level) {
+    case "property": {
+      const chain = model.typeChain;
+      facts.push(
+        { label: "Kind", value: "property" },
+        {
+          label: "Owner",
+          value: `${model.subject.component} · ${
+            index.topologyNodesByName.has(model.subject.component)
+              ? "node"
+              : "edge"
+          }`,
+        },
+        {
+          label: "Type",
+          value: chain?.steps.at(0)?.typeName ?? "unknown",
+        },
+        {
+          label: "Presence",
+          value: chain?.narrowed
+            ? "present · source nullable"
+            : chain?.steps.at(0)?.presence ?? "unknown",
+          absent: !chain,
+        },
+        { label: "Branches", value: `${model.branches.length}` },
+        { label: "Bindings", value: `${model.branches.length}` },
+        licenseFact,
+      );
+      break;
+    }
+    case "node":
+    case "edge": {
+      const component = model.component;
+      const identity = component
+        ? identityFields(index, component.kind, component.name)
+        : [];
+      facts.push(
+        { label: "Kind", value: model.level },
+        {
+          label: "Labels",
+          value: component?.labels.length
+            ? component.labels.join(" · ")
+            : "no labels",
+          absent: !component?.labels.length,
+        },
+        {
+          label: "Identity",
+          value: identity.length ? identity.join(", ") : "not declared",
+          absent: !identity.length,
+        },
+        {
+          label: "Properties",
+          value: `${model.properties.length}`,
+        },
+      );
+      if (model.level === "edge") {
+        const edge = index.topologyEdgesByName.get(model.subject.component);
+        facts.push({
+          label: "Endpoints",
+          value: `${edge?.source?.[2] ?? "?"} → ${edge?.target?.[2] ?? "?"}`,
+          absent: !edge?.source || !edge?.target,
+        });
+      } else {
+        const incident = index.topologyEdges.filter(
+          (edge) =>
+            edge.source?.[2] === model.subject.component ||
+            edge.target?.[2] === model.subject.component,
+        );
+        facts.push({ label: "Connections", value: `${incident.length}` });
+      }
+      facts.push(licenseFact);
+      break;
+    }
+    case "abstract": {
+      facts.push(
+        { label: "Kind", value: "abstract category" },
+        {
+          label: "Labels",
+          value: model.abstract?.labels.length
+            ? model.abstract.labels.join(" · ")
+            : "no labels",
+          absent: !model.abstract?.labels.length,
+        },
+        {
+          label: "Descendants",
+          value: `${model.abstract?.descendants.length ?? 0}`,
+        },
+        licenseFact,
+      );
+      break;
+    }
+    case "asset": {
+      const asset = model.asset;
+      const profile = asset?.profile;
+      facts.push(
+        { label: "Kind", value: "asset" },
+        {
+          label: "Version",
+          value: index.assetsByName.get(model.subject.component)?.version ?? "—",
+          absent: !index.assetsByName.get(model.subject.component)?.version,
+        },
+        {
+          label: "Authority",
+          value: profile?.authority ?? "not declared",
+          absent: !profile?.authority,
+        },
+        {
+          label: "Coverage",
+          value: profile?.coverage ?? "not declared",
+          absent: !profile?.coverage,
+        },
+        {
+          label: "Relations",
+          value: `${asset?.relations.length ?? 0} source · ${
+            asset?.projections.length ?? 0
+          } derived`,
+        },
+        { label: "Fields", value: `${asset?.fields.length ?? 0}` },
+        licenseFact,
+      );
+      break;
+    }
+  }
+  return facts;
+}
+
+function axisSubjectFor(model: ProofModel) {
+  switch (model.level) {
+    case "property":
+      return {
+        kind: "property" as const,
+        component: model.subject.component,
+        property: model.subject.property,
+      };
+    case "node":
+    case "edge":
+      return { kind: model.level, component: model.subject.component };
+    case "abstract":
+      return { kind: "abstract" as const, component: model.subject.component };
+    case "asset":
+      return { kind: "asset" as const, component: model.subject.component };
+  }
+}
+
 function SubjectDetailEditor(props: WorkspaceProps) {
+  const index = props.state.index;
   const model = useProofModel(props);
   const selection = documentSelection(activeDocument(props.state));
-  const meaning = subjectMeaning(props.state.index, model);
+  const meaning = subjectMeaning(index, model);
+  const meaningLimitationCount =
+    meaning.limitations.length +
+    (meaning.frames ?? []).reduce(
+      (total, frame) => total + (frame.limitations?.length ?? 0),
+      0,
+    );
   const provenance = useMemo(
-    () => provenanceReferences(props.state.index, model),
-    [model, props.state.index],
+    () => provenanceReferences(index, model),
+    [model, index],
   );
   const expressionChains = useMemo(
-    () => subjectExpressionChains(props.state.index, model),
-    [model, props.state.index],
+    () => subjectExpressionChains(index, model),
+    [model, index],
   );
-  const license = subjectLicense(props.state.index, model);
+  const license = subjectLicense(index, model);
+  const facts = useMemo(
+    () => overviewFacts(index, model, license),
+    [index, model, license],
+  );
+  const dataBound =
+    model.level === "property" ||
+    model.level === "node" ||
+    model.level === "edge";
 
   useEffect(() => {
     if (selection) return;
@@ -2074,6 +2195,38 @@ function SubjectDetailEditor(props: WorkspaceProps) {
     const selection = selectionForConceptTarget(reference.target);
     if (!selection) return;
     props.actions.openTab({ selection, preview: true });
+  };
+  const openAxis = (target: AxisOpenTarget) => {
+    const selectionFor = (): SubjectSelection => {
+      switch (target.kind) {
+        case "table":
+          return { kind: "relation", name: target.name, component: target.name };
+        case "projection":
+          return {
+            kind: "projection",
+            name: target.name,
+            component: target.name,
+          };
+        case "asset":
+          return {
+            kind: "asset",
+            level: "asset",
+            name: target.name,
+            component: target.name,
+          };
+        case "node":
+        case "edge": {
+          const abstract = index.topologyNodesByName.get(target.name)?.abstract;
+          return {
+            kind: target.kind,
+            level: target.kind === "node" && abstract ? "abstract" : target.kind,
+            name: target.name,
+            component: target.name,
+          };
+        }
+      }
+    };
+    props.actions.openTab({ selection: selectionFor(), preview: true });
   };
   const endpoint = (name?: string): ConceptReference | undefined =>
     name
@@ -2110,6 +2263,33 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       </div>
     ) : undefined;
 
+  const subjectSemantics = model.subjectSemantics.filter(
+    (attachment) =>
+      attachment.name !== model.subject.component &&
+      attachment.ownerName !== model.subject.component,
+  );
+  const propertyBindings =
+    model.level === "property"
+      ? findComponentPropertyBindings(
+          index,
+          index.topologyNodesByName.has(model.subject.component)
+            ? "node"
+            : "edge",
+          model.subject.component,
+          model.subject.property ?? "",
+        )
+          .map((entry) => entry.binding)
+          .filter(
+            (binding, position, all) =>
+              all.findIndex((other) => other.index === binding.index) ===
+              position,
+          )
+      : [];
+  const bindings =
+    model.level === "node" || model.level === "edge"
+      ? componentBindings(index, model.level, model.subject.component)
+      : propertyBindings;
+
   return (
     <DetailDocument
       testId="detail-editor"
@@ -2125,19 +2305,86 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       }}
       banner={banner}
     >
-      {model.level === "property" ||
-      model.level === "node" ||
-      model.level === "edge" ? (
-        <ProvenanceSection
-          provenance={provenance}
-          onOpen={openReference}
+      <DetailBand
+        title="Overview"
+        question="What is this, in one screen?"
+        meta={model.subject.component}
+      >
+        {model.component?.description || model.abstract?.description ? (
+          <p className={styles.bandNote}>
+            {model.component?.description ?? model.abstract?.description}
+          </p>
+        ) : model.asset?.profile?.description ? (
+          <p className={styles.bandNote}>{model.asset.profile.description}</p>
+        ) : null}
+        <FactGrid facts={facts} />
+      </DetailBand>
+
+      <DetailBand
+        concept="semantics"
+        title="Meaning"
+        question="What is this for, and what does it exclude?"
+        meta={`${meaning.claims.length} ${
+          meaning.claims.length === 1 ? "claim" : "claims"
+        } · ${meaningLimitationCount} ${
+          meaningLimitationCount === 1 ? "limitation" : "limitations"
+        }`}
+        testId="detail-meaning"
+      >
+        <DesignMeaning
+          claims={meaning.claims}
+          limitations={meaning.limitations}
+          purpose={meaning.purpose}
+          frames={meaning.frames}
+          emptyText="No meaning is attached to this subject."
         />
+        {subjectSemantics.length ? (
+          <div className={styles.meaningAttached}>
+            <p className={styles.bandNote}>Attached meaning</p>
+            <SemanticCards attachments={subjectSemantics} />
+          </div>
+        ) : null}
+      </DetailBand>
+
+      <DetailBand
+        title="Fulfilment"
+        question="How do the record and relation axes meet?"
+        meta="two axes"
+        testId="detail-fulfilment"
+      >
+        <FulfilmentMap
+          index={index}
+          subject={axisSubjectFor(model)}
+          onOpen={openAxis}
+        />
+      </DetailBand>
+
+      {model.level === "asset" ? (
+        <DetailBand
+          concept="asset"
+          title="Sources"
+          question="Where does this asset read from?"
+          meta="release boundary"
+        >
+          <p className={styles.inlineEmpty}>
+            {`${
+              index.assetsByName.get(model.subject.component)?.layout?.kind ??
+              "Unspecified"
+            } layout at ${
+              index.assetsByName.get(model.subject.component)?.layout?.locator ??
+              "an unrecorded location"
+            }. The asset is the release boundary; every relation in Members reads it.`}
+          </p>
+        </DetailBand>
       ) : null}
-      {model.level === "property" ||
-      model.level === "node" ||
-      model.level === "edge" ? (
+
+      {dataBound ? (
+        <ProvenanceSection provenance={provenance} onOpen={openReference} />
+      ) : null}
+
+      {dataBound ? (
         <WorkflowProvenanceGraph
-          index={props.state.index}
+          index={index}
           model={model}
           onOpenStep={(row) =>
             props.actions.openTab({
@@ -2151,11 +2398,10 @@ function SubjectDetailEditor(props: WorkspaceProps) {
           }
         />
       ) : null}
-      {model.level === "property" ||
-      model.level === "node" ||
-      model.level === "edge" ? (
+
+      {dataBound ? (
         <ExpressionTree
-          index={props.state.index}
+          index={index}
           references={provenance}
           chains={expressionChains}
           item={{
@@ -2167,33 +2413,29 @@ function SubjectDetailEditor(props: WorkspaceProps) {
           }}
         />
       ) : null}
-      <section className={styles.meaningPanel} aria-label="Design meaning">
-        <header className={styles.meaningPanelHeader}>
-          <span className={styles.meaningPanelTitle}>
-            <ConceptGlyph concept="semantics" className={styles.panelIcon} />
-            Design meaning
-          </span>
-          <span className={styles.meaningPanelMeta}>
-            {model.subject.component}
-            {model.subject.property ? `.${model.subject.property}` : ""}
-          </span>
-        </header>
-        <DesignMeaning
-          claims={meaning.claims}
-          limitations={meaning.limitations}
-          purpose={meaning.purpose}
-          emptyText="No meaning is attached to this subject."
-        />
-      </section>
+
       {model.level === "property" ? (
         <PropertyProofView model={model} />
       ) : model.level === "asset" ? (
-        <AssetProofView model={model} actions={props.actions} />
+        <AssetProofView
+          index={index}
+          model={model}
+          onOpenAxis={openAxis}
+        />
       ) : model.level === "abstract" ? (
         <AbstractProofView model={model} actions={props.actions} />
       ) : (
-        <ComponentProofView model={model} actions={props.actions} />
+        <ComponentProofView
+          index={index}
+          model={model}
+          actions={props.actions}
+          onOpenAxis={openAxis}
+        />
       )}
+
+      {bindings.length ? (
+        <BindingsSection bindings={bindings} onOpen={openAxis} />
+      ) : null}
     </DetailDocument>
   );
 }

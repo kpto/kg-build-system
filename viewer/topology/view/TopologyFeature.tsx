@@ -23,7 +23,11 @@ import {
 import { effectiveLicenseForGraph, effectiveLicenseForModel } from "@/proof/license";
 import { buildProof } from "@/proof/model";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
-import { cx, theme } from "@/shared/ui/theme";
+import {
+  FulfilmentMap,
+  type AxisOpenTarget,
+} from "@/detail/view/FulfilmentMap";
+import { cx, groupPalette, theme } from "@/shared/ui/theme";
 import type {
   TopologyDetailOptions,
   TopologyEntity,
@@ -191,11 +195,27 @@ function useTopologyUi(snapshot: string): readonly [ReturnType<TopologyUiStore["
 // ---------------------------------------------------------------------------
 
 function nodeRadius(node: TopologyNodeModel): number {
-  return Math.max(4.5, Math.min(18, 4 + Math.sqrt(Math.max(1, node.degree)) * 1.9));
+  return Math.max(5, Math.min(24, 4.2 + Math.sqrt(Math.max(1, node.degree)) * 2.4));
 }
 
-function nodeFill(node: TopologyNodeModel): string {
-  return node.abstract ? theme.asset : theme.source;
+function clusterColors(categories: string[]): Map<string, string> {
+  return new Map(
+    [...new Set(categories)]
+      .sort()
+      .map((category, index) => [
+        category,
+        groupPalette[index % groupPalette.length],
+      ]),
+  );
+}
+
+function nodeFill(
+  node: TopologyNodeModel,
+  colors: Map<string, string>,
+): string {
+  return node.abstract
+    ? theme.asset
+    : colors.get(node.category) ?? theme.source;
 }
 
 function pointerPosition(
@@ -494,6 +514,13 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             >
               Properties
             </FilterButton>
+            <FilterButton
+              pressed={detail.clusters}
+              onClick={() => patchDetail({ clusters: !detail.clusters })}
+              title="Draw a frame around each graph category"
+            >
+              Clusters
+            </FilterButton>
           </FilterGroup>
 
           <FilterGroup label="Edges">
@@ -640,7 +667,7 @@ interface HoverState {
 
 function categoryAnchors(nodes: SimNode[]): Map<string, { x: number; y: number }> {
   const categories = [...new Set(nodes.map((node) => node.model.category))].sort();
-  const radius = 90 + Math.min(160, nodes.length * 1.2);
+  const radius = 240 + Math.min(300, nodes.length * 2.4);
   return new Map(
     categories.map((category, index) => {
       const angle =
@@ -817,7 +844,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
           .forceLink<SimNode, SimLink>(links)
           .id((node) => node.id)
           .distance((link) => (link.model.kind === "containment" ? 72 : 92))
-          .strength((link) => (link.model.kind === "containment" ? 0.5 : 0.16)),
+          .strength((link) => (link.model.kind === "containment" ? 0.5 : 0.11)),
       )
       .force("charge", d3.forceManyBody<SimNode>().strength(-190))
       .force("center", d3.forceCenter<SimNode>(0, 0))
@@ -829,13 +856,13 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         "x",
         d3
           .forceX<SimNode>((node) => anchors.get(node.model.category)?.x ?? 0)
-          .strength(0.05),
+          .strength(0.26),
       )
       .force(
         "y",
         d3
           .forceY<SimNode>((node) => anchors.get(node.model.category)?.y ?? 0)
-          .strength(0.05),
+          .strength(0.26),
       )
       .alphaDecay(0.05)
       .velocityDecay(0.36)
@@ -948,20 +975,27 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
     }
     const width = svg.clientWidth || size.width || 800;
     const height = svg.clientHeight || size.height || 600;
-    const padding = 64;
-    const boundsWidth = Math.max(1, maxX - minX + padding * 2);
-    const boundsHeight = Math.max(1, maxY - minY + padding * 2);
+    // The inspector is an overlay, so the graph is fitted into the canvas that
+    // remains visible beside it instead of underneath it.
+    const left = 56;
+    const right = inspectorOpen ? 352 : 56;
+    const top = 56;
+    const bottom = 56;
+    const viewWidth = Math.max(120, width - left - right);
+    const viewHeight = Math.max(120, height - top - bottom);
+    const boundsWidth = Math.max(1, maxX - minX);
+    const boundsHeight = Math.max(1, maxY - minY);
     const k = Math.max(
       0.15,
-      Math.min(2.4, Math.min(width / boundsWidth, height / boundsHeight)),
+      Math.min(2.4, Math.min(viewWidth / boundsWidth, viewHeight / boundsHeight)),
     );
-    const tx = width / 2 - ((minX + maxX) / 2) * k;
-    const ty = height / 2 - ((minY + maxY) / 2) * k;
+    const tx = left + viewWidth / 2 - ((minX + maxX) / 2) * k;
+    const ty = top + viewHeight / 2 - ((minY + maxY) / 2) * k;
     d3.select(svg).call(
       behavior.transform,
       d3.zoomIdentity.translate(tx, ty).scale(k),
     );
-  }, [model.nodes, size.height, size.width, visible.nodes]);
+  }, [inspectorOpen, model.nodes, size.height, size.width, visible.nodes]);
 
   const fitRef = useRef(fitGraph);
   useEffect(() => {
@@ -969,13 +1003,18 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
   }, [fitGraph]);
 
   // Initial fit once the simulation has positions and the editor has a size.
+  // Quantising the size keeps a live window drag from refitting on every pixel
+  // while still fitting after a side-bar or window resize.
   useEffect(() => {
     if (!size.width || !size.height) return;
-    if (lastFitRef.current === model.graphKey) return;
-    lastFitRef.current = model.graphKey;
+    const fitKey = `${model.graphKey}:${Math.round(size.width / 40)}x${Math.round(
+      size.height / 40,
+    )}:${inspectorOpen}`;
+    if (lastFitRef.current === fitKey) return;
+    lastFitRef.current = fitKey;
     const frame = window.requestAnimationFrame(() => fitRef.current());
     return () => window.cancelAnimationFrame(frame);
-  }, [model.graphKey, size.height, size.width]);
+  }, [inspectorOpen, model.graphKey, size.height, size.width]);
 
   useEffect(() => {
     if (ui.fitToken === 0 || ui.fitToken === fitTokenRef.current) return;
@@ -1296,6 +1335,88 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
   const showNodeMarkers = ui.filters.kinds.node;
   const visibleCount = visible.nodes.length + visible.links.length;
 
+  const colors = clusterColors(visible.nodes.map((node) => node.category));
+
+  // Category frames sit behind the links and follow the simulation, so the
+  // hairball reads as a few named groups rather than one undifferentiated
+  // cloud. A frame is drawn only when two or more visible nodes share it.
+  const clusterFrames: Array<{
+    category: string;
+    count: number;
+    path?: string;
+    x: number;
+    y: number;
+    width: number;
+    height: number;
+    labelX: number;
+    labelY: number;
+  }> = [];
+  if (ui.detail.clusters) {
+    const frames = new Map<
+      string,
+      {
+        count: number;
+        minX: number;
+        minY: number;
+        maxX: number;
+        maxY: number;
+        points: Array<[number, number]>;
+      }
+    >();
+    for (const node of visible.nodes) {
+      const sim = simById.get(node.id);
+      if (!sim) continue;
+      const radius = nodeRadius(node) + 10;
+      const x = sim.x ?? 0;
+      const y = sim.y ?? 0;
+      const frame = frames.get(node.category) ?? {
+        count: 0,
+        minX: Number.POSITIVE_INFINITY,
+        minY: Number.POSITIVE_INFINITY,
+        maxX: Number.NEGATIVE_INFINITY,
+        maxY: Number.NEGATIVE_INFINITY,
+        points: [],
+      };
+      frame.count += 1;
+      frame.minX = Math.min(frame.minX, x - radius);
+      frame.minY = Math.min(frame.minY, y - radius);
+      frame.maxX = Math.max(frame.maxX, x + radius);
+      frame.maxY = Math.max(frame.maxY, y + radius);
+      frame.points.push([x, y]);
+      frames.set(node.category, frame);
+    }
+    for (const [category, frame] of frames) {
+      if (frame.count < 2) continue;
+      const hull = d3.polygonHull(frame.points);
+      let path: string | undefined;
+      if (hull && hull.length >= 3) {
+        const centreX =
+          hull.reduce((total, point) => total + point[0], 0) / hull.length;
+        const centreY =
+          hull.reduce((total, point) => total + point[1], 0) / hull.length;
+        const expanded = hull.map(([x, y]) => {
+          const dx = x - centreX;
+          const dy = y - centreY;
+          const distance = Math.max(1, Math.hypot(dx, dy));
+          const scale = 1 + 26 / distance;
+          return [centreX + dx * scale, centreY + dy * scale] as const;
+        });
+        path = `M ${expanded.map(([x, y]) => `${x} ${y}`).join(" L ")} Z`;
+      }
+      clusterFrames.push({
+        category,
+        count: frame.count,
+        path,
+        x: frame.minX - 14,
+        y: frame.minY - 20,
+        width: frame.maxX - frame.minX + 28,
+        height: frame.maxY - frame.minY + 34,
+        labelX: frame.minX - 6,
+        labelY: frame.minY - 28,
+      });
+    }
+  }
+
   return (
     <div
       ref={containerRef}
@@ -1317,7 +1438,10 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
       >
         <defs>
           <pattern id="topology-grid" width="24" height="24" patternUnits="userSpaceOnUse">
-            <circle cx="1" cy="1" r="0.7" fill={theme.lineSoft} opacity="0.75" />
+            <circle cx="1" cy="1" r="0.65" fill={theme.lineSoft} opacity="0.7" />
+          </pattern>
+          <pattern id="topology-grid-major" width="120" height="120" patternUnits="userSpaceOnUse">
+            <path d="M 120 0 L 0 0 0 120" fill="none" stroke={theme.lineSoft} strokeWidth="0.6" opacity="0.5" />
           </pattern>
           <marker
             id="topology-arrow"
@@ -1366,8 +1490,53 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         </defs>
 
         <rect width="100%" height="100%" fill="url(#topology-grid)" pointerEvents="none" />
+        <rect width="100%" height="100%" fill="url(#topology-grid-major)" pointerEvents="none" />
 
         <g ref={sceneRef}>
+          {clusterFrames.length ? (
+            <g data-topology-clusters pointerEvents="none">
+              {clusterFrames.map((frame) => (
+                <g key={frame.category}>
+                  {frame.path ? (
+                    <path
+                      d={frame.path}
+                      fill={colors.get(frame.category) ?? theme.lineStrong}
+                      fillOpacity={0.04}
+                      stroke={colors.get(frame.category) ?? theme.lineStrong}
+                      strokeOpacity={0.35}
+                      strokeWidth={0.9}
+                      strokeDasharray="2 5"
+                    />
+                  ) : (
+                    <rect
+                      x={frame.x}
+                      y={frame.y}
+                      width={frame.width}
+                      height={frame.height}
+                      rx={4}
+                      fill={colors.get(frame.category) ?? theme.lineStrong}
+                      fillOpacity={0.04}
+                      stroke={colors.get(frame.category) ?? theme.lineStrong}
+                      strokeOpacity={0.35}
+                      strokeWidth={0.9}
+                      strokeDasharray="2 5"
+                    />
+                  )}
+                  <text
+                    x={frame.labelX}
+                    y={frame.labelY}
+                    fill={theme.faint}
+                    fontSize={8.5}
+                    fontFamily="var(--font-sans)"
+                    letterSpacing="0.08em"
+                    className="select-none"
+                  >
+                    {frame.category.toUpperCase()} · {frame.count}
+                  </text>
+                </g>
+              ))}
+            </g>
+          ) : null}
           <g data-topology-links>
             {visible.links.map((link) => {
               const source = simById.get(link.source);
@@ -1409,8 +1578,8 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                   : selected || hovered
                     ? 0.95
                     : incident
-                      ? 0.8
-                      : 0.55;
+                      ? 0.75
+                      : 0.32;
               const markerEnd = selectedNodeName && incident ? undefined : marker;
               const midX = ((source.x ?? 0) + (target.x ?? 0)) / 2;
               const midY = ((source.y ?? 0) + (target.y ?? 0)) / 2;
@@ -1522,7 +1691,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                   const hovered = hoveredNodeId === node.id;
                   const focused = focusedNodeId === node.id;
                   const dim = hasSelection && !selected && !adjacent;
-                  const base = nodeFill(node);
+                  const base = nodeFill(node, colors);
                   const ring = selected
                     ? theme.selection
                     : hovered || focused
@@ -1626,26 +1795,45 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
                         </text>
                       ) : null}
                       {showLabel ? (
-                        <text
-                          y={radius + 12}
-                          textAnchor="middle"
-                          fill={
-                            selected
-                              ? theme.selection
-                              : hovered || focused
-                                ? theme.text
-                                : theme.muted
-                          }
-                          fontSize={10.5}
-                          fontFamily="var(--font-sans)"
-                          stroke={theme.page}
-                          strokeWidth={3}
-                          strokeLinejoin="round"
-                          paintOrder="stroke"
-                          className="pointer-events-none select-none"
-                        >
-                          {node.label}
-                        </text>
+                        (() => {
+                          const label = node.label;
+                          const width = Math.max(22, label.length * 5.6 + 10);
+                          return (
+                            <g className="pointer-events-none select-none">
+                              <rect
+                                x={-width / 2}
+                                y={radius + 3}
+                                width={width}
+                                height={14}
+                                rx={2}
+                                fill={theme.page}
+                                fillOpacity={0.9}
+                                stroke={
+                                  selected
+                                    ? theme.selection
+                                    : theme.lineSoft
+                                }
+                                strokeWidth={0.7}
+                              />
+                              <text
+                                y={radius + 13}
+                                textAnchor="middle"
+                                fill={
+                                  selected
+                                    ? theme.selection
+                                    : hovered || focused
+                                      ? theme.text
+                                      : theme.muted
+                                }
+                                fontSize={9}
+                                fontFamily="var(--font-sans)"
+                                letterSpacing="0.02em"
+                              >
+                                {label}
+                              </text>
+                            </g>
+                          );
+                        })()
                       ) : null}
                     </g>
                   );
@@ -1817,6 +2005,7 @@ function inspectorMeaning(
   claims: ReturnType<typeof propertyMeaning>["claims"];
   limitations: ReturnType<typeof propertyMeaning>["limitations"];
   purpose?: string;
+  frames?: ReturnType<typeof propertyMeaning>["frames"];
 } {
   if (activeProperty) {
     return propertyMeaning(
@@ -1887,9 +2076,31 @@ export function TopologyInspector({
     | undefined
   >(undefined);
 
+  const openAxis = (target: AxisOpenTarget) => {
+    const selection: SubjectSelection =
+      target.kind === "table"
+        ? { kind: "relation", name: target.name, component: target.name }
+        : target.kind === "projection"
+          ? { kind: "projection", name: target.name, component: target.name }
+          : target.kind === "asset"
+            ? {
+                kind: "asset",
+                level: "asset",
+                name: target.name,
+                component: target.name,
+              }
+            : {
+                kind: target.kind,
+                level: target.kind,
+                name: target.name,
+                component: target.name,
+              };
+    props.actions.openTab({ selection, preview: true });
+  };
+
   return (
     <aside
-      className="inspector-panel absolute top-3 right-3 bottom-3 z-20 flex w-[326px] flex-col overflow-hidden rounded border border-line bg-panel/98 shadow-xl"
+      className="inspector-panel absolute top-0 right-0 bottom-0 z-20 flex w-[336px] flex-col overflow-hidden border-l border-line bg-panel"
       aria-label="Graph selection inspector"
       data-testid="topology-inspector"
     >
@@ -1926,6 +2137,7 @@ export function TopologyInspector({
             claims={graphSemantics.claims}
             limitations={graphSemantics.limitations}
             purpose={graphSemantics.purpose}
+            frames={graphSemantics.frames}
             emptyText="No graph purpose is attached."
           />
         </div>
@@ -2026,11 +2238,35 @@ export function TopologyInspector({
               claims={meaning?.claims ?? []}
               limitations={meaning?.limitations ?? []}
               purpose={meaning?.purpose}
+              frames={meaning?.frames}
               emptyText={
                 activeProperty
                   ? "No meaning is attached to this property."
                   : "No meaning is attached to this entity."
               }
+            />
+          </section>
+
+          <section>
+            <p className="mb-1 text-[9px] font-semibold tracking-[0.08em] text-faint uppercase">
+              Fulfilment
+            </p>
+            <FulfilmentMap
+              index={props.state.index}
+              narrow
+              subject={
+                activeProperty
+                  ? {
+                      kind: "property",
+                      component: entityComponent ?? entity.name,
+                      property: activeProperty,
+                    }
+                  : {
+                      kind: isTopologyNode(entity) ? "node" : "edge",
+                      component: entityComponent ?? entity.name,
+                    }
+              }
+              onOpen={openAxis}
             />
           </section>
         </div>

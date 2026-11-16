@@ -100,6 +100,7 @@ export interface TopologyDetailOptions {
   containment: boolean;
   semantics: boolean;
   properties: boolean;
+  clusters: boolean;
   edges: TopologyEdgeDetail;
 }
 
@@ -167,6 +168,7 @@ export function createTopologyDetail(): TopologyDetailOptions {
     containment: false,
     semantics: false,
     properties: false,
+    clusters: true,
     edges: "relations",
   };
 }

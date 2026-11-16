@@ -4,11 +4,9 @@
   display: flex;
   min-height: 100%;
   flex-direction: column;
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 1.5%), transparent 120px),
-    var(--color-abyss);
+  background-color: var(--color-abyss);
   color: var(--color-text);
-  font-size: 11px;
+  font-size: 10.5px;
 }
 
 /* ---- Header ----------------------------------------------------------- */
@@ -20,12 +18,10 @@
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
-  gap: 14px;
-  padding: 11px 14px 10px;
-  border-bottom: 1px solid var(--color-line-soft);
-  background:
-    linear-gradient(180deg, rgb(255 255 255 / 2%), transparent 70%),
-    var(--color-panel);
+  gap: 12px;
+  padding: 7px 12px 7px;
+  border-bottom: 1px solid #101010;
+  background-color: var(--color-panel-raised);
 }
 
 .headMain {
@@ -37,27 +33,25 @@
 
 .logo {
   display: flex;
-  width: 40px;
-  height: 40px;
+  width: 30px;
+  height: 30px;
   flex: none;
   align-items: center;
   justify-content: center;
   border: 1px solid
-    color-mix(in srgb, var(--concept-color) 55%, var(--color-line));
-  border-radius: 6px;
-  background:
-    linear-gradient(
-      180deg,
-      color-mix(in srgb, var(--concept-color) 22%, transparent),
-      color-mix(in srgb, var(--concept-color) 10%, transparent)
-    ),
-    var(--color-panel-raised);
+    color-mix(in srgb, var(--concept-color) 50%, var(--color-line));
+  border-radius: 2px;
+  background-color: color-mix(
+    in srgb,
+    var(--concept-color) 14%,
+    var(--color-panel)
+  );
   color: var(--concept-color);
 }
 
 .logo > svg {
-  width: 24px;
-  height: 24px;
+  width: 18px;
+  height: 18px;
 }
 
 .bannerExtra {
@@ -125,11 +119,11 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  margin: 0 0 2px;
+  margin: 0 0 1px;
   color: var(--color-faint);
-  font-size: 9px;
+  font-size: 8.5px;
   font-weight: 600;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
 }
 
@@ -137,19 +131,19 @@
   margin: 0;
   overflow: hidden;
   color: var(--color-text);
-  font-size: 15px;
+  font-size: 13px;
   font-weight: 600;
-  letter-spacing: -0.01em;
+  letter-spacing: -0.005em;
   line-height: 1.2;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
 .subtitle {
-  margin: 2px 0 0;
+  margin: 1px 0 0;
   color: var(--color-faint);
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 9px;
   line-height: 1.35;
 }
 
@@ -158,15 +152,15 @@
   min-width: 0;
   flex: 1;
   flex-direction: column;
-  gap: 11px;
-  padding: 11px 14px 18px;
+  gap: 0;
+  padding: 0 0 26px;
 }
 
 .levelBody {
   display: flex;
   min-width: 0;
   flex-direction: column;
-  gap: 11px;
+  gap: 0;
 }
 
 /* ---- Provenance summary ---------------------------------------------- */
@@ -1875,4 +1869,452 @@ button.expressionToggle:hover {
   .descendantGrid {
     grid-template-columns: minmax(0, 1fr);
   }
+}
+
+/* ---- Unified detail bands --------------------------------------------- */
+/*
+ * Every detail document is a stack of full-width bands. A band header is the
+ * one section grammar: micro title, the question it answers, and a count. The
+ * body is flat content, never a floating card.
+ */
+
+.band {
+  min-width: 0;
+  border-bottom: 1px solid var(--color-line-soft);
+}
+
+.bandHead {
+  display: flex;
+  width: 100%;
+  min-height: 25px;
+  align-items: center;
+  gap: 6px;
+  padding: 0 12px;
+  border: 0;
+  border-bottom: 1px solid var(--color-line-soft);
+  border-left: 2px solid transparent;
+  background-color: var(--color-panel);
+  color: var(--color-text);
+  text-align: left;
+}
+
+.bandHead:hover {
+  background-color: var(--color-panel-soft);
+}
+
+.band[data-open="true"] .bandHead {
+  border-left-color: var(--color-accent);
+}
+
+.bandChevron {
+  width: 11px;
+  height: 11px;
+  flex: none;
+  color: var(--color-faint);
+  transition: transform var(--motion-fast) var(--ease-instrument);
+}
+
+.band[data-open="true"] .bandChevron {
+  transform: rotate(90deg);
+}
+
+.bandGlyph {
+  width: 11px;
+  height: 11px;
+  flex: none;
+}
+
+.bandTitle {
+  flex: none;
+  color: var(--color-text);
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.bandQuestion {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-faint);
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 0;
+  text-overflow: ellipsis;
+  text-transform: none;
+  white-space: nowrap;
+}
+
+.bandMeta {
+  margin-left: auto;
+  flex: none;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-variant-numeric: tabular-nums;
+}
+
+.bandBody {
+  padding: 8px 12px 10px;
+}
+
+.bandBodyFlush {
+  padding: 0;
+}
+
+.bandNote {
+  margin: 0 0 6px;
+  color: var(--color-faint);
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+/* ---- Fact grid: one identity grammar --------------------------------- */
+
+.facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 0 18px;
+  margin: 0;
+}
+
+.fact {
+  display: grid;
+  min-width: 0;
+  grid-template-columns: 76px minmax(0, 1fr);
+  align-items: baseline;
+  gap: 7px;
+  padding: 3px 0;
+  border-bottom: 1px dotted var(--color-line-soft);
+}
+
+.factLabel {
+  color: var(--color-faint);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.factValue {
+  min-width: 0;
+  margin: 0;
+  overflow: hidden;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.factValue[data-honest="absent"] {
+  color: var(--color-faint);
+  font-style: italic;
+}
+
+.factValue button {
+  min-width: 0;
+  overflow: hidden;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent-strong);
+  font: inherit;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.factValue button:hover {
+  text-decoration: underline;
+}
+
+/* ---- Member table: one row grammar ----------------------------------- */
+
+.memberTable {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+}
+
+.memberHead,
+.memberRow {
+  display: grid;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+}
+
+.memberHead {
+  min-height: 20px;
+  border-bottom: 1px solid var(--color-line);
+  color: var(--color-faint);
+  font-size: 8px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.memberRow {
+  min-height: 22px;
+  border: 0;
+  border-bottom: 1px solid var(--color-line-soft);
+  background: transparent;
+  color: var(--color-text);
+  font-size: 10px;
+  text-align: left;
+}
+
+.memberRow:last-child {
+  border-bottom: 0;
+}
+
+button.memberRow:hover {
+  background-color: var(--color-panel);
+}
+
+button.memberRow:focus-visible {
+  outline: 1px solid var(--color-accent);
+  outline-offset: -1px;
+}
+
+.memberCell {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.memberCell[data-mono="true"] {
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+}
+
+.memberCell[data-muted="true"] {
+  color: var(--color-faint);
+}
+
+.memberCell[data-numeric="true"] {
+  text-align: right;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+}
+
+.memberName {
+  display: inline-flex;
+  min-width: 0;
+  align-items: center;
+  gap: 5px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.memberGlyph {
+  width: 10px;
+  height: 10px;
+  flex: none;
+  color: var(--color-faint);
+}
+
+/* ---- Inline empty ----------------------------------------------------- */
+
+.inlineEmpty {
+  margin: 0;
+  padding: 2px 0;
+  color: var(--color-faint);
+  font-size: 9.5px;
+  line-height: 1.45;
+}
+
+/* ---- Meaning block ---------------------------------------------------- */
+
+.meaningSubject {
+  display: grid;
+  grid-template-columns: 86px minmax(0, 1fr);
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 0;
+  border-bottom: 1px dotted var(--color-line-soft);
+}
+
+.meaningSubject dt {
+  color: var(--color-faint);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.meaningSubject dd {
+  margin: 0;
+  color: var(--color-text);
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.meaningAttached {
+  margin-top: 8px;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.meaningGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.meaningCard {
+  min-width: 0;
+  padding: 6px 8px;
+  border: 1px solid var(--color-line-soft);
+  border-left: 2px solid var(--color-binding);
+  background-color: var(--color-panel);
+}
+
+.meaningCardHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 3px;
+}
+
+.meaningCardHead strong {
+  overflow: hidden;
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.meaningCardHead span {
+  flex: none;
+  color: var(--color-faint);
+  font-size: 8px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.meaningCard .meaningCard {
+  margin-top: 4px;
+}
+
+/* ---- Sources bands ---------------------------------------------------- */
+
+.sourcesGrid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 0;
+}
+
+.sourcesGroup {
+  min-width: 0;
+  padding: 0 10px 0 0;
+  border-right: 1px solid var(--color-line-soft);
+}
+
+.sourcesGroup + .sourcesGroup {
+  padding-left: 10px;
+}
+
+.sourcesGroup:last-child {
+  padding-right: 0;
+  border-right: 0;
+}
+
+.sourcesLabel {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 6px;
+  margin: 0 0 5px;
+  color: var(--color-faint);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
+}
+
+.sourcesLabel > span:last-child {
+  color: var(--color-muted);
+  font-family: var(--font-mono);
+  font-size: 9px;
+  letter-spacing: 0;
+}
+
+/* ---- Connections ------------------------------------------------------ */
+
+.connectionRow {
+  display: flex;
+  min-height: 21px;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 4px;
+  border-bottom: 1px solid var(--color-line-soft);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+}
+
+.connectionRow:last-child {
+  border-bottom: 0;
+}
+
+.connectionRow button {
+  padding: 0;
+  border: 0;
+  background: transparent;
+  color: var(--color-accent-strong);
+  font: inherit;
+}
+
+.connectionRow button:hover {
+  text-decoration: underline;
+}
+
+.connectionLabel {
+  margin-left: auto;
+  flex: none;
+  color: var(--color-faint);
+  font-size: 8.5px;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+@media (max-width: 900px) {
+  .sourcesGrid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .sourcesGroup,
+  .sourcesGroup + .sourcesGroup {
+    padding: 0 0 7px;
+    border-right: 0;
+    border-bottom: 1px solid var(--color-line-soft);
+  }
+
+  .sourcesGroup:last-child {
+    padding-bottom: 0;
+    border-bottom: 0;
+  }
+}
+
+/* A sub-block sits inside one band: a caption, then content. */
+.subBlock {
+  padding: 6px 12px 8px;
+  border-top: 1px solid var(--color-line-soft);
+}
+
+.subHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin: 0 0 5px;
+  color: var(--color-faint);
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 0.07em;
+  text-transform: uppercase;
 }

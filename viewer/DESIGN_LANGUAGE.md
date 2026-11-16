@@ -54,7 +54,7 @@ The first paint states the design, not every annotation.
 
 - **Low detail is the default.** The Graph labels hubs only; edge labels,
   containment, semantics badges and property lists are off. A subject document
-  shows its meaning and properties; graph claims and frames are revealed on
+  shows its overview, meaning and fulfilment; graph claims and limitations are revealed on
   demand in the Explorer section. The Workflow shows the compositor graph; a
   step document reveals complex payload values on demand.
 - **A reveal is explicit.** Every hidden layer has one control that names it.
@@ -66,59 +66,45 @@ The first paint states the design, not every annotation.
 - **Counts are honest.** A collapsed section states how many items it holds, so
   the reader knows what is hidden without expanding it.
 
-## Detail levels by surface
+## Detail content
 
-| Surface | Level 1 (default) | Level 2 | Level 3 |
-| --- | --- | --- | --- |
-| Graph document | circles, thin relation links, hub labels | all labels, relation names | containment, semantics, property counts |
-| Graph inspection | graph purpose and counts when nothing is selected; otherwise identity and description | properties with types | attached claims, frames and limitations |
-| Workflow document | one graph view with no banner: a compositor-style component graph, or a step-level flow graph with one block per dependency layer after **Open step group**; a large layer wraps into aligned sub-columns, rows align across layers and chains read left to right; selecting any node, including a boundary component, highlights its incident links and dims the other nodes in both; Back and the open actions sit in the canvas toolbar; drag to pan and wheel to zoom | aggregated connection counts and active components | the step catalogue in Explorer and its step documents |
-| Step document | identity, instruction and openings on the shared detail surface | payload values | connections and blueprint bindings |
-| Table document | identity, owning asset, columns and an indented expression outline from the table back to the asset and fields; the effective licence is in the banner | column types and descriptions | attached semantics |
-| Projection document | identity, owning asset, columns, row source and an indented expression outline from each column back through its operators and row source to the asset; the effective licence is in the banner | column types and descriptions | attached semantics |
-| Subject document | provenance references, the narrowed workflow graph and an indented expression outline of the actual field and operator chain from the current item back to its source assets for node, edge and property; the effective licence is in the banner; then subject meaning and properties | attached semantics along the path | property provenance, type/presence chain and trace |
+Every item detail view follows one content contract, stated in
+[`DETAIL_CONTENT.md`](./DETAIL_CONTENT.md). The shared order is:
 
-Every workflow graph and the narrowed detail graph use one workflow scene
-renderer. The expression tree is a different visualisation: an indented outline
-with expandable branches, concept marks and explicit field, operator and literal
-rows. It scrolls vertically and does not use the workflow canvas. A graph's
-scene is data; the canvas owns only the viewport. Drag pans, the wheel zooms,
-Fit resets and clicking empty space clears the selection.
+```text
+Overview → Meaning → Fulfilment → Sources → Build steps → Expression
+         → Members → Connections → Bindings
+```
 
-Each subject or step document is a separate tab. There is no level switch in
-the editor; opening a parent node, edge, asset or abstract category from the
-Explorer tree opens or activates that document.
+A kind includes or omits a section; it never renames one for itself.
 
-A graph layout settles to a stable map. Selecting or inspecting a node never
-restarts the layout or moves the node; only a drag changes a node position, and
-only an explicit fit, zoom or navigation control changes the viewport.
+- **Overview** is one fact grid: kind, labels, identity, owner or endpoints,
+  counts and licence.
+- **Meaning** is one renderer for the subject and for attached units. The label
+  is always Meaning.
+- **Fulfilment** is the axis map: graph records, the binding and the domain
+  relations. It is compact by default; one control reveals the full map.
+- **Sources**, **Build steps** and **Expression** are three visualisations of
+  one traversal. Sources names the release data; Build steps shows the plan;
+  Expression shows the field and operator chain. The UI never uses the labels
+  "Provenance" or "Lineage"; the model keeps those words.
+- **Members** is one table grammar for properties, columns, fields,
+  descendants and openings. A row opens its document when it has one.
+- **Connections** states endpoints, incident relations or ports.
+- **Bindings** states which binding fulfils the subject.
 
-A detail document banner leads with a large logo for its kind: node, edge,
-property, asset, abstract category or step. The Workflow and Graph documents are
-working surfaces; they have no banner, and their actions live in floating canvas
-toolbars. The tab already names the document.
+A kind may state an absence instead of omitting a section. A step has no design
+meaning and no release source, and it says so; it is build machinery.
 
-Node, edge and property documents open with a **Provenance** section that lists
-the resolved assets, tables and projections behind the subject, before design
-meaning and properties. It is a summary; the property document's lineage canvas
-shows the full branch. Each provenance group header carries its concept mark;
-the values are text references, and each reference opens the asset document that
-owns it; a table or projection reference opens its own Table or Projection
-document. A node or edge with
-no declared properties still derives provenance from its binding identity,
-source and target expressions. The section ends with the **effective licence**
-resolved from those provenance assets: one declared licence, a mixed list, or
-`Not declared`.
+A detail document banner leads with the kind's mark from the one concept
+registry, and the tab names the document. Graph and Workflow are working
+surfaces; they have no banner and carry their actions in floating toolbars.
 
-Below provenance, a narrowed **Workflow** graph shows the steps that produce the
-subject. It uses the same step scene and selection rule as the Workflow
-document. An edge banner also names its source and target nodes as navigable
-references. Section headers carry the concept mark of their subject.
-
-One concept registry supplies the logo and representative colour for graph,
-workflow, node, edge, property, asset, table, projection, abstract category and
-step. A detail banner, a tab and a provenance reference read the same registry,
-so an asset is the same green database mark wherever it appears.
+One concept registry supplies the mark and representative colour for graph,
+workflow, node, edge, property, asset, source relation, derived relation,
+abstract category and step. A banner, a tab, a section reference and a
+membership row read the same registry, so an asset is the same green database
+mark wherever it appears.
 
 ## Interaction motion
 
@@ -218,8 +204,9 @@ blueprint bindings. A boundary node selects like any other node; **Open step
 group** enters that component. **Back** returns to the component map.
 
 **Read the design.** Inspect states the graph purpose and its full claims and
-frames on demand when nothing is selected; the editor states the selected
-subject's meaning and properties before its provenance.
+limitations on demand when nothing is selected; the editor reads the selected
+subject in the shared order, from Overview through fulfilment, sources, build
+steps, expression, members, connections and bindings.
 
 ## Writing rules for the UI
 

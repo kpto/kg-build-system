@@ -7,24 +7,36 @@ import type { SemanticText, SemanticsDTO, ViewerIndex } from "@/lib/types";
  * This is a read model only. It never infers that meaning propagates from one
  * subject to another.
  */
+export interface DesignMeaningFrame {
+  text: string;
+  limitations?: SemanticText[];
+}
+
 export interface DesignMeaningValue {
   purpose?: string;
   limitations: SemanticText[];
   claims: SemanticText[];
+  /** A reading from an older snapshot, rendered beside the current units. */
+  frames?: DesignMeaningFrame[];
 }
 
 export function emptyDesignMeaning(): DesignMeaningValue {
-  return { limitations: [], claims: [] };
+  return { limitations: [], claims: [], frames: [] };
 }
 
 /** Read the meaning attached to a node, edge, property, asset or binding. */
 export function attachedMeaning(
   semantics: SemanticsDTO | undefined,
 ): DesignMeaningValue {
+  const frames = (semantics?.frames ?? []).map((frame) => ({
+    text: frame.text,
+    limitations: frame.limitations ?? [],
+  }));
   return {
     ...(semantics?.purpose?.text ? { purpose: semantics.purpose.text } : {}),
     limitations: semantics?.purpose?.limitations ?? [],
     claims: semantics?.claims ?? [],
+    frames,
   };
 }
 
@@ -67,7 +79,8 @@ export function meaningCount(meaning: DesignMeaningValue): number {
   return (
     meaning.claims.length +
     meaning.limitations.length +
-    (meaning.purpose ? 1 : 0)
+    (meaning.purpose ? 1 : 0) +
+    (meaning.frames?.length ?? 0)
   );
 }
 

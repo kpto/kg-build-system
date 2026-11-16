@@ -59,9 +59,16 @@ export interface PurposeDTO {
  * Meaning attached to any subject: at most one local purpose plus contextless
  * claims. The graph declaration's purpose is the root.
  */
+export interface SemanticsFrameDTO {
+  text: string;
+  limitations?: SemanticText[];
+}
+
 export interface SemanticsDTO {
   purpose?: PurposeDTO;
   claims?: SemanticText[];
+  /** Older snapshots carry readings as frames; the current model carries a purpose. */
+  frames?: SemanticsFrameDTO[];
 }
 
 /** The one graph declaration a project carries. */

@@ -5,7 +5,7 @@ import { useMemo, useState } from "react";
 import type { ViewerIndex } from "@/lib/types";
 import type { ProofModel } from "@/proof/model";
 import { narrowedWorkflowRows } from "@/proof/workflow";
-import { DetailPanel } from "@/detail/view/DetailChrome";
+import { DetailBand } from "@/detail/view/DetailChrome";
 import { GraphCanvas } from "@/shared/ui/GraphCanvas";
 import { groupPalette } from "@/shared/ui/theme";
 import {
@@ -41,18 +41,24 @@ export function WorkflowProvenanceGraph({
 
   if (!rows.length || !scene) {
     return (
-      <DetailPanel concept="workflow" title="Workflow" meta="0 steps">
+      <DetailBand
+        concept="workflow"
+        title="Build steps"
+        question="How is this built?"
+        meta="0 steps"
+      >
         <p className={styles.workflowEmpty}>
           No workflow steps resolve to this subject.
         </p>
-      </DetailPanel>
+      </DetailBand>
     );
   }
 
   return (
-    <DetailPanel
+    <DetailBand
       concept="workflow"
-      title="Workflow"
+      title="Build steps"
+      question="How is this built?"
       meta={`${rows.length} steps · ${scene.stats?.internalEdges ?? 0} links`}
     >
       <GraphCanvas
@@ -77,6 +83,6 @@ export function WorkflowProvenanceGraph({
       <p className={styles.workflowHint}>
         Click a step to select; double-click to open its document.
       </p>
-    </DetailPanel>
+    </DetailBand>
   );
 }

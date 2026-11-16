@@ -6,7 +6,7 @@
   --color-abyss: #1d1d1d;
   --color-panel: #232323;
   --color-panel-raised: #2b2b2b;
-  --color-panel-soft: #343434;
+  --color-panel-soft: #333333;
   --color-inset: #191919;
   --color-gutter: #111111;
   --color-line: #3a3a3a;
@@ -15,11 +15,11 @@
   --color-edge: #8b96a3;
   --color-edge-strong: #aab5c2;
 
-  --color-text: #e4e4e4;
-  --color-muted: #b8b8b8;
-  --color-faint: #8a8a8a;
-  --color-ink: #e4e4e4;
-  --color-ink-soft: #cfcfcf;
+  --color-text: #e6e6e6;
+  --color-muted: #b0b0b0;
+  --color-faint: #808080;
+  --color-ink: #e6e6e6;
+  --color-ink-soft: #d2d2d2;
 
   /* Orange is selection and primary action. */
   --color-selection: #ff9f43;
@@ -27,11 +27,11 @@
   --color-selection-soft: #4a2c12;
 
   /* Blue is a link, focus ring and quiet active state. */
-  --color-accent: #5aa9e6;
-  --color-accent-strong: #7fc0ff;
-  --color-accent-soft: #1e3a52;
+  --color-accent: #5b8bd0;
+  --color-accent-strong: #7aa7e6;
+  --color-accent-soft: #24364d;
   --color-accent-ink: #0b1620;
-  --color-link: #5aa9e6;
+  --color-link: #5b8bd0;
   --color-on-accent: #ffffff;
 
   /* Semantic emphasis, reused by proof and graph state. */
@@ -68,11 +68,12 @@
 :root {
   color-scheme: dark;
   --background: #1d1d1d;
-  --foreground: #e4e4e4;
-  --accent: #5aa9e6;
+  --foreground: #e6e6e6;
+  --accent: #5b8bd0;
   --selection: #ff9f43;
-  --wb-titlebar-h: 38px;
-  --wb-statusbar-h: 22px;
+  --wb-titlebar-h: 34px;
+  --wb-statusbar-h: 20px;
+  --wb-radius: 3px;
   --motion-fast: 110ms;
   --motion-base: 150ms;
   --motion-slow: 200ms;
@@ -90,7 +91,7 @@
   }
 
   html {
-    font-size: 14px;
+    font-size: 12.5px;
     background: var(--color-abyss);
     overflow: hidden;
   }
@@ -139,7 +140,7 @@
   }
 
   ::selection {
-    background: rgb(255 159 67 / 55%);
+    background: rgb(255 159 67 / 45%);
     color: #fff;
   }
 
@@ -225,12 +226,10 @@
     display: flex;
     min-width: 0;
     align-items: center;
-    gap: 12px;
-    padding: 0 8px;
-    border-bottom: 1px solid #303030;
-    background:
-      linear-gradient(180deg, rgb(255 255 255 / 2.5%), transparent 70%),
-      var(--color-abyss);
+    gap: 10px;
+    padding: 0 6px;
+    border-bottom: 1px solid #101010;
+    background-color: var(--color-panel);
     color: var(--color-muted);
   }
 
@@ -244,20 +243,19 @@
 
   .wb-brand-mark {
     display: inline-flex;
-    width: 24px;
-    height: 24px;
+    width: 21px;
+    height: 21px;
     flex: none;
     align-items: center;
     justify-content: center;
     border: 1px solid #f7b56d;
-    border-radius: 3px;
-    background: linear-gradient(145deg, #ff9f43, #d96f08);
+    border-radius: 2px;
+    background-color: #e8851f;
     color: #1a1208;
-    box-shadow: inset 0 1px 0 rgb(255 255 255 / 28%);
   }
 
   .wb-brand-initial {
-    font-size: 14px;
+    font-size: 13px;
     font-weight: 800;
     line-height: 1;
   }
@@ -297,15 +295,15 @@
   .wb-command {
     display: flex;
     width: min(560px, 36vw);
-    height: 28px;
+    height: 23px;
     min-width: 160px;
     flex: 1 1 auto;
     align-items: center;
-    gap: 7px;
+    gap: 6px;
     margin: 0 auto;
-    padding: 0 8px;
+    padding: 0 7px;
     border: 1px solid var(--color-line);
-    border-radius: 4px;
+    border-radius: 2px;
     background-color: var(--color-panel);
     color: var(--color-faint);
     text-align: left;
@@ -376,14 +374,14 @@
 
   .wb-side-section-header {
     display: flex;
-    height: 30px;
+    height: 25px;
     flex: none;
     align-items: center;
     gap: 5px;
     border: 0;
     border-bottom: 1px solid var(--color-line-soft);
     background-color: var(--color-panel-raised);
-    padding: 0 9px;
+    padding: 0 7px;
     color: var(--color-text);
     text-align: left;
   }
@@ -400,7 +398,7 @@
   }
 
   .wb-side-section-title {
-    font-size: 10px;
+    font-size: 9px;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
@@ -422,11 +420,11 @@
 
   .wb-sidebar-header {
     display: flex;
-    height: 30px;
+    height: 25px;
     flex: none;
     align-items: center;
-    gap: 7px;
-    padding: 0 9px;
+    gap: 6px;
+    padding: 0 7px;
     border-bottom: 1px solid var(--color-line-soft);
     background-color: var(--color-panel-raised);
     color: var(--color-muted);
@@ -534,12 +532,12 @@
 
   .wb-tabbar {
     display: flex;
-    height: 33px;
+    height: 28px;
     flex: none;
     align-items: stretch;
     overflow: hidden;
-    border-bottom: 1px solid var(--color-line-soft);
-    background-color: var(--color-abyss);
+    border-bottom: 1px solid #101010;
+    background-color: var(--color-panel);
   }
 
   .wb-tabnav {
@@ -592,19 +590,19 @@
     flex: none;
     align-items: stretch;
     border-right: 1px solid var(--color-line-soft);
-    background-color: var(--color-abyss);
+    background-color: var(--color-panel);
     transition:
       background-color var(--motion-base) var(--ease-instrument),
       box-shadow var(--motion-base) var(--ease-instrument);
   }
 
   .wb-tab:hover {
-    background-color: #242424;
+    background-color: var(--color-panel-soft);
   }
 
   .wb-tab[data-active="true"] {
-    background-color: var(--color-panel);
-    box-shadow: inset 0 2px 0 var(--color-selection);
+    background-color: var(--color-panel-raised);
+    box-shadow: inset 0 -2px 0 var(--color-accent);
   }
 
   .wb-tab-label {
@@ -614,7 +612,7 @@
     align-items: center;
     gap: 5px;
     overflow: hidden;
-    padding: 0 6px 0 11px;
+    padding: 0 5px 0 9px;
     border: 0;
     background: transparent;
     color: var(--color-faint);
@@ -667,9 +665,9 @@
     overflow: hidden;
     background-color: var(--color-abyss);
     background-image:
-      linear-gradient(rgb(255 255 255 / 1.4%) 1px, transparent 1px),
-      linear-gradient(90deg, rgb(255 255 255 / 1.4%) 1px, transparent 1px);
-    background-size: 28px 28px;
+      linear-gradient(rgb(255 255 255 / 1.1%) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 1.1%) 1px, transparent 1px);
+    background-size: 32px 32px;
   }
 
   .wb-editor-pane {
@@ -734,9 +732,9 @@
     align-items: center;
     justify-content: space-between;
     gap: 12px;
-    padding: 0 8px;
-    border-top: 1px solid #303030;
-    background-color: var(--color-abyss);
+    padding: 0 6px;
+    border-top: 1px solid #101010;
+    background-color: var(--color-panel);
     color: var(--color-faint);
     font-size: 9.5px;
     line-height: 1;
@@ -816,14 +814,14 @@
 
   .wb-icon-button {
     display: inline-flex;
-    width: 26px;
-    height: 26px;
+    width: 23px;
+    height: 23px;
     flex: none;
     align-items: center;
     justify-content: center;
     padding: 0;
     border: 1px solid transparent;
-    border-radius: 3px;
+    border-radius: 2px;
     background: transparent;
     color: var(--color-muted);
   }
@@ -842,13 +840,13 @@
 
   .wb-button {
     display: inline-flex;
-    min-height: 25px;
+    min-height: 22px;
     align-items: center;
     justify-content: center;
     gap: 5px;
-    padding: 3px 9px;
-    border: 1px solid var(--color-line);
-    border-radius: 3px;
+    padding: 2px 8px;
+    border: 1px solid var(--color-line-strong);
+    border-radius: 2px;
     background-color: var(--color-panel-raised);
     color: var(--color-muted);
     font-size: 10px;
@@ -865,15 +863,15 @@
   }
 
   .wb-button-primary {
-    border-color: var(--color-selection);
-    background-color: var(--color-selection-soft);
-    color: var(--color-selection);
+    border-color: var(--color-accent);
+    background-color: var(--color-accent);
+    color: var(--color-on-accent);
   }
 
   .wb-button-primary:hover:not(:disabled) {
-    border-color: var(--color-selection-strong);
-    background-color: #5c3514;
-    color: var(--color-text);
+    border-color: var(--color-accent-strong);
+    background-color: var(--color-accent-strong);
+    color: var(--color-accent-ink);
   }
 
   .wb-button-danger {
@@ -905,12 +903,12 @@
 
   .wb-chip {
     display: inline-flex;
-    min-height: 18px;
+    min-height: 17px;
     align-items: center;
     gap: 4px;
-    padding: 0 6px;
+    padding: 0 5px;
     border: 1px solid var(--color-line);
-    border-radius: 3px;
+    border-radius: 2px;
     background-color: var(--color-panel-raised);
     color: var(--color-muted);
     font-family: var(--font-mono);
@@ -1309,9 +1307,9 @@
     padding: 28px;
     background-color: var(--color-abyss);
     background-image:
-      linear-gradient(rgb(255 255 255 / 1.4%) 1px, transparent 1px),
-      linear-gradient(90deg, rgb(255 255 255 / 1.4%) 1px, transparent 1px);
-    background-size: 28px 28px;
+      linear-gradient(rgb(255 255 255 / 1.1%) 1px, transparent 1px),
+      linear-gradient(90deg, rgb(255 255 255 / 1.1%) 1px, transparent 1px);
+    background-size: 32px 32px;
   }
 
   .wb-gate-card {

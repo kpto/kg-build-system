@@ -83,6 +83,7 @@ describe("topology design model", () => {
       containment: false,
       semantics: false,
       properties: false,
+      clusters: true,
       edges: "relations",
     });
 

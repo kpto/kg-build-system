@@ -27,6 +27,7 @@ import type {
   Ref,
   RelationDTO,
   SemanticSubject,
+  SemanticsFrameDTO,
   SemanticSubjectKind,
   SemanticText,
   StepId,
@@ -91,6 +92,7 @@ export interface ProofSemantics {
   /** The subject's purpose and the limitations it owns. */
   purpose?: PurposeDTO;
   limitations: SemanticText[];
+  frames: SemanticsFrameDTO[];
 }
 
 function semanticsFromSubject(subject: SemanticSubject): ProofSemantics {
@@ -104,6 +106,7 @@ function semanticsFromSubject(subject: SemanticSubject): ProofSemantics {
     claims: subject.semantics?.claims ?? [],
     purpose: subject.semantics?.purpose,
     limitations: subject.semantics?.purpose?.limitations ?? [],
+    frames: subject.semantics?.frames ?? [],
   };
 }
 

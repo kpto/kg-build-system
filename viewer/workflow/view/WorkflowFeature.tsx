@@ -21,7 +21,7 @@ import type {
   WorkflowStep,
 } from "@/lib/types";
 import { stepKey } from "@/lib/indexes";
-import { DetailDocument, DetailPanel } from "@/detail/view/DetailChrome";
+import { DetailBand, DetailDocument, FactGrid } from "@/detail/view/DetailChrome";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { useGraphViewport } from "@/shared/ui/GraphCanvas";
 import { cx, groupPalette, theme } from "@/shared/ui/theme";
@@ -325,117 +325,172 @@ function StepDetail({
         outgoing.length
       } out`}
     >
-      <div className="flex flex-col gap-[11px]">
-        <DetailPanel concept="step" title="Identity" meta={formatStepId(step.id)}>
-          <div className="grid grid-cols-2 gap-x-6 gap-y-1">
-            <Fact label="Step id">{formatStepId(step.id)}</Fact>
-            <Fact label="Component">{step.id[0]}</Fact>
-            <Fact label="Instruction">
-              {step.instruction.kind?.join(":") ?? "unknown"}
-            </Fact>
-            <Fact label="Bindings">{bindings.length}</Fact>
+      <DetailBand
+        concept="step"
+        title="Overview"
+        question="What does this step do, in one screen?"
+        meta={formatStepId(step.id)}
+      >
+        <FactGrid
+          facts={[
+            { label: "Step id", value: formatStepId(step.id) },
+            { label: "Component", value: step.id[0] },
+            {
+              label: "Instruction",
+              value: step.instruction.kind?.join(":") ?? "unknown",
+            },
+            { label: "Bindings", value: `${bindings.length}` },
+            {
+              label: "Ports",
+              value: `${step.inputs?.length ?? 0} in · ${
+                step.outputs?.length ?? 0
+              } out`,
+            },
+          ]}
+        />
+      </DetailBand>
+
+      <DetailBand
+        concept="semantics"
+        title="Meaning"
+        question="What is this step for?"
+        meta="build machinery"
+      >
+        <p className="text-[10px] leading-relaxed text-faint">
+          A step is build machinery. It carries no design meaning of its own;
+          the meaning of the values it moves stays on the record and the
+          relation declarations.
+        </p>
+      </DetailBand>
+
+      <DetailBand
+        concept="graph"
+        title="Sources"
+        question="Where does this step read from?"
+        meta="upstream ports"
+      >
+        <p className="text-[10px] leading-relaxed text-faint">
+          A step has no release source. It reads the artifacts its input
+          openings declare; the source of a value is stated by the record and
+          relation documents.
+        </p>
+      </DetailBand>
+
+      <DetailBand
+        concept="step"
+        title="Ports"
+        question="Which artifacts does this step open?"
+        meta={`${(step.inputs?.length ?? 0) + (step.outputs?.length ?? 0)}`}
+      >
+        <div className="grid gap-3 xl:grid-cols-2">
+          <div>
+            <DetailSubhead>Inputs · {step.inputs?.length ?? 0}</DetailSubhead>
+            <Openings step={step} direction="input" />
           </div>
-        </DetailPanel>
+          <div>
+            <DetailSubhead>Outputs · {step.outputs?.length ?? 0}</DetailSubhead>
+            <Openings step={step} direction="output" />
+          </div>
+        </div>
+      </DetailBand>
 
-        <DetailPanel concept="step" title="Inputs" meta={`${step.inputs?.length ?? 0}`}>
-          <Openings step={step} direction="input" />
-        </DetailPanel>
+      <DetailBand
+        concept="step"
+        title="Payload"
+        question="Which instruction does this step execute?"
+        meta={`${Object.keys(step.instruction.payload ?? {}).length} fields`}
+      >
+        <PayloadFacts step={step} />
+      </DetailBand>
 
-        <DetailPanel concept="step" title="Outputs" meta={`${step.outputs?.length ?? 0}`}>
-          <Openings step={step} direction="output" />
-        </DetailPanel>
+      <DetailBand
+        concept="edge"
+        title="Connections"
+        question="Which steps feed this step and which does it feed?"
+        meta={`${incoming.length} in · ${outgoing.length} out`}
+      >
+        <div className="grid gap-3 xl:grid-cols-2">
+          <div>
+            <DetailSubhead>Incoming · {incoming.length}</DetailSubhead>
+            {incoming.length ? (
+              <div className="border border-line-soft bg-panel px-2">
+                {incoming.slice(0, 24).map((connection) => (
+                  <ConnectionLine
+                    key={connection.id}
+                    connection={connection}
+                    direction="in"
+                  />
+                ))}
+                {incoming.length > 24 ? (
+                  <p className="py-1 font-mono text-[8.5px] text-faint">
+                    showing 24 of {incoming.length}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-[10px] text-faint">
+                This step has no inputs.
+              </p>
+            )}
+          </div>
+          <div>
+            <DetailSubhead>Outgoing · {outgoing.length}</DetailSubhead>
+            {outgoing.length ? (
+              <div className="border border-line-soft bg-panel px-2">
+                {outgoing.slice(0, 24).map((connection) => (
+                  <ConnectionLine
+                    key={connection.id}
+                    connection={connection}
+                    direction="out"
+                  />
+                ))}
+                {outgoing.length > 24 ? (
+                  <p className="py-1 font-mono text-[8.5px] text-faint">
+                    showing 24 of {outgoing.length}
+                  </p>
+                ) : null}
+              </div>
+            ) : (
+              <p className="text-[10px] text-faint">
+                This step has no outputs.
+              </p>
+            )}
+          </div>
+        </div>
+      </DetailBand>
 
-        <DetailPanel
+      {bindings.length ? (
+        <DetailBand
           concept="step"
-          title="Instruction payload"
-          meta={`${Object.keys(step.instruction.payload ?? {}).length} fields`}
+          title="Bindings"
+          question="Which record does this step produce?"
+          meta={`${bindings.length}`}
         >
-          <PayloadFacts step={step} />
-        </DetailPanel>
-
-        <DetailPanel
-          concept="edge"
-          title="Connections"
-          meta={`${incoming.length} in · ${outgoing.length} out`}
-        >
-          <div className="grid gap-3 xl:grid-cols-2">
-            <div>
-              <DetailSubhead>Incoming · {incoming.length}</DetailSubhead>
-              {incoming.length ? (
-                <div className="rounded border border-line-soft bg-panel px-2">
-                  {incoming.slice(0, 24).map((connection) => (
-                    <ConnectionLine
-                      key={connection.id}
-                      connection={connection}
-                      direction="in"
-                    />
-                  ))}
-                  {incoming.length > 24 ? (
-                    <p className="py-1 font-mono text-[8.5px] text-faint">
-                      showing 24 of {incoming.length}
-                    </p>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="text-[10px] text-faint">
-                  This step has no inputs.
-                </p>
-              )}
-            </div>
-            <div>
-              <DetailSubhead>Outgoing · {outgoing.length}</DetailSubhead>
-              {outgoing.length ? (
-                <div className="rounded border border-line-soft bg-panel px-2">
-                  {outgoing.slice(0, 24).map((connection) => (
-                    <ConnectionLine
-                      key={connection.id}
-                      connection={connection}
-                      direction="out"
-                    />
-                  ))}
-                  {outgoing.length > 24 ? (
-                    <p className="py-1 font-mono text-[8.5px] text-faint">
-                      showing 24 of {outgoing.length}
-                    </p>
-                  ) : null}
-                </div>
-              ) : (
-                <p className="text-[10px] text-faint">
-                  This step has no outputs.
-                </p>
-              )}
-            </div>
+          <div className="grid gap-1">
+            {bindings.slice(0, 16).map((binding) => (
+              <div
+                key={binding.index}
+                className="flex items-baseline gap-2 border-b border-line-soft py-1 font-mono text-[9.5px] last:border-b-0"
+              >
+                <span className="w-12 shrink-0 text-faint">
+                  #{binding.index}
+                </span>
+                <span className="min-w-0 flex-1 truncate text-text">
+                  {binding.component}
+                </span>
+                <span className="shrink-0 text-faint">
+                  {binding.binding.name ?? binding.kind}
+                </span>
+              </div>
+            ))}
+            {bindings.length > 16 ? (
+              <p className="font-mono text-[8.5px] text-faint">
+                showing 16 of {bindings.length}
+              </p>
+            ) : null}
           </div>
-        </DetailPanel>
-
-        {bindings.length ? (
-          <DetailPanel concept="step" title="Blueprint bindings" meta={`${bindings.length}`}>
-            <div className="grid gap-1">
-              {bindings.slice(0, 16).map((binding) => (
-                <div
-                  key={binding.index}
-                  className="flex items-baseline gap-2 font-mono text-[9.5px]"
-                >
-                  <span className="w-12 shrink-0 text-faint">
-                    #{binding.index}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-text">
-                    {binding.component}
-                  </span>
-                  <span className="shrink-0 text-faint">
-                    {binding.binding.name ?? binding.kind}
-                  </span>
-                </div>
-              ))}
-              {bindings.length > 16 ? (
-                <p className="font-mono text-[8.5px] text-faint">
-                  showing 16 of {bindings.length}
-                </p>
-              ) : null}
-            </div>
-          </DetailPanel>
-        ) : null}
-      </div>
+        </DetailBand>
+      ) : null}
     </DetailDocument>
   );
 }
@@ -460,11 +515,11 @@ export function WorkflowStepEditor({ state }: WorkspaceProps) {
         title="Step unavailable"
         subtitle="This step is not present in the workflow plan."
       >
-        <DetailPanel concept="step" title="Step">
+        <DetailBand concept="step" title="Overview" question="What is this step?">
           <p className="text-[10.5px] leading-relaxed text-faint">
             The selected workflow step could not be resolved from the snapshot.
           </p>
-        </DetailPanel>
+        </DetailBand>
       </DetailDocument>
     );
   }

@@ -137,13 +137,18 @@ The first paint shows the design, not its annotations.
 
 | Surface | Default | Revealed by |
 | --- | --- | --- |
-| Graph document | graph canvas and floating **Inspect** window showing graph purpose and counts | selecting an entity fills Inspect with its description, properties and meaning; clicking empty space returns to graph purpose |
+| Graph document | Blender-node-editor canvas with a dot and major grid, degree-sized nodes tinted by category, faint category hulls, hub labels and a floating **Inspect** panel showing graph purpose and counts | selecting an entity fills Inspect with its description, properties, meaning and the fulfilment map; clicking empty space returns to graph purpose; **Clusters**, **Labels** and **Show** in Control reveal the other layers |
 | Workflow document | compositor-style component graph with step counts and aggregated connections; no title banner, actions in a floating canvas toolbar; drag to pan, wheel to zoom, Fit to reset | filter by component or instruction kind in Control; click a component to select it, then use **Open step group** to enter its step-level flow graph with one block per dependency layer; a large layer wraps into aligned sub-columns and chains read left to right; clicking a step node selects it, **Open step** opens its detail document, and **Back** returns to components. Selecting a component, step or boundary node highlights its incident links and dims the other nodes and links; entering another step group requires **Open step group** |
-| Subject document | provenance assets, tables and projections first for node, edge and property documents; asset, table and projection references open their own documents, and the effective licence sits in the banner; a pannable, zoomable narrowed workflow graph follows, then an indented expression outline of the actual field and operator chain from the current item back to its source assets, then meaning, properties and attached semantics | property rows, the branch selector and the Explorer tree for another subject document |
-| Table or projection document | identity, owning asset, columns, row source for a projection, an indented expression outline from the item back through its fields and column expressions to the asset, and the effective licence in the banner | column types and descriptions, attached semantics |
+| Subject document | one stack of bands in the shared order: Overview, Meaning, Fulfilment (the axis map), Sources, Build steps, Expression, Members, Connections, Bindings; the effective licence sits in the header | a section header collapses its band; property rows and the branch selector open their own documents; the Explorer tree opens another subject document |
+| Relation document | the same bands; Overview states kind, asset, columns, row source, scans, bindings and licence; Meaning, Fulfilment, Sources, Build steps, Expression, Members and Bindings follow | a column definition, the expression outline and the fulfilment map's full axis view |
+| Step document | the same bands; Overview, Meaning and Sources state what a step is and what it is not, then Ports, Payload, Connections and Bindings | a port, a payload field or a connected step |
+
+Every item document follows the content contract in
+[`DETAIL_CONTENT.md`](./DETAIL_CONTENT.md); its skin is in
+[`DESIGN_BLENDER.md`](./DESIGN_BLENDER.md).
 
 There is no bottom panel. The side bar carries the **Control** and **Explorer**
-sections; the Graph document owns its floating **Inspect** window. A tab changes
+sections; the Graph document owns its flat **Inspect** panel. A tab changes
 its editor and, in Control, the controls applicable to that view. It never
 opens, closes or switches a side-bar section. Side-bar width and the section
 split are one workbench geometry.
@@ -223,7 +228,7 @@ viewer/
   workbench/           VS Code layout, state, persistence, UI chrome
   topology/            canonical design graph, detail controls and view
   workflow/            compiled workflow plan: compositor graph and step detail
-  detail/              the merged design view: meaning, properties and provenance
+  detail/              the shared detail contract: bands, axis map and expression
   proof/               the provenance model used by Detail
   shared/design/       meaning value, graph/entity meaning, and its renderer
   lib/                 snapshot types, loader, indexes, shared models

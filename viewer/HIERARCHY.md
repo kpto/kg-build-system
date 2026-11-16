@@ -1,8 +1,9 @@
 # KG design viewer hierarchy
 
 The viewer is one workbench with one document tab strip and two collapsible
-side-bar sections. The visual rules are in `DESIGN_LANGUAGE.md` and
-`DESIGN_BLENDER.md`; this file states the structure.
+side-bar sections. The visual rules are in `DESIGN_LANGUAGE.md`, the detail content contract is
+in `DETAIL_CONTENT.md`, and the skin is in `DESIGN_BLENDER.md`; this file states
+the structure.
 
 ## Ladder
 
