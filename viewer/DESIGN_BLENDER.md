@@ -36,7 +36,10 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
   canvas. Every graph surface, including the detail Build steps canvas, shares
   the same bottom-left navigation cluster (`−`, percent, `+`, Fit). A view
   supplies its renderer and data; it does not supply chrome. The Graph's Inspect
-  toggle lives in that header.
+  toggle lives in that header. The frame is implemented once in
+  `shared/ui/Viewport.tsx` as `ViewportFrame`, `ViewportAction`, `ViewportNav`
+  and `ViewportChip`; Graph, Workflow and the detail Build steps canvas compose
+  those names rather than restating the markup.
 - **Selection is orange; active/accent is blue.** Do not use orange for ordinary
   buttons. Blue = focus/active/primary; orange = selected graph item.
 - The scale is compact but readable (14.5px root). The UI font is Inter

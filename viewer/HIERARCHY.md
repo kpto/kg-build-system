@@ -29,8 +29,9 @@ The side bar is 220–520 px wide and is the only resizable panel. One
 `WorkbenchLayout` is persisted per snapshot: the side-bar width and the split
 between the Control and Explorer sections. Side-bar visibility is shell state;
 `Cmd/Ctrl+B` and the tab-strip toggle change it, not panel purpose. There is no
-window header or status bar; the tab strip is the top of the frame. The Graph document owns its floating
-Inspector window; there is no bottom panel.
+window header or status bar; the tab strip is the top of the frame. Graph and
+Workflow render through the one frame in `shared/ui/Viewport.tsx`; the Graph
+document owns its floating Inspector window; there is no bottom panel.
 
 ## Side-bar sections
 

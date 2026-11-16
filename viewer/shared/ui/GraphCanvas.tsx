@@ -9,6 +9,8 @@ import {
   type ReactNode,
 } from "react";
 
+import { ViewportNav } from "./Viewport";
+
 export interface GraphViewport {
   scale: number;
   x: number;
@@ -255,40 +257,18 @@ export function GraphCanvas({
           {children}
         </g>
       </svg>
-      <div
-        className="wb-viewport-nav"
-        onPointerDown={(event) => event.stopPropagation()}
-        onPointerMove={(event) => event.stopPropagation()}
-        onPointerUp={(event) => event.stopPropagation()}
-      >
-        <button
-          type="button"
-          onClick={() => zoomBy(1 / 1.25)}
-          aria-label="Zoom out graph"
-          data-testid="graph-canvas-zoom-out"
-        >
-          −
-        </button>
-        <span className="wb-viewport-nav-output">
-          {Math.round(view.scale * 100)}%
-        </span>
-        <button
-          type="button"
-          onClick={() => zoomBy(1.25)}
-          aria-label="Zoom in graph"
-          data-testid="graph-canvas-zoom-in"
-        >
-          +
-        </button>
-        <button
-          type="button"
-          onClick={fitView}
-          aria-label="Fit graph"
-          data-testid="graph-canvas-fit"
-        >
-          Fit
-        </button>
-      </div>
+      <ViewportNav
+        zoom={view.scale}
+        onZoomOut={() => zoomBy(1 / 1.25)}
+        onZoomIn={() => zoomBy(1.25)}
+        onFit={fitView}
+        label="graph"
+        testIds={{
+          out: "graph-canvas-zoom-out",
+          in: "graph-canvas-zoom-in",
+          fit: "graph-canvas-fit",
+        }}
+      />
     </div>
   );
 }

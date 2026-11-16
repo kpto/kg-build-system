@@ -22,10 +22,14 @@ import type {
 } from "@/lib/types";
 import { stepKey } from "@/lib/indexes";
 import { DetailBand, DetailDocument, FactGrid } from "@/detail/view/DetailChrome";
-import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { useGraphViewport } from "@/shared/ui/GraphCanvas";
 import { cx, groupPalette, theme } from "@/shared/ui/theme";
+import {
+  ViewportAction,
+  ViewportFrame,
+  ViewportNav,
+} from "@/shared/ui/Viewport";
 import { activeDocument, type WorkspaceProps } from "@/workbench/types";
 import {
   buildWorkflowComponentMap,
@@ -662,116 +666,118 @@ export function WorkflowEditor(props: WorkspaceProps) {
   }
 
   return (
-    <div className="wb-viewport" data-testid="workflow-editor">
-      <header className="wb-viewport-head">
-        <span className="wb-viewport-title">
-          <ConceptGlyph concept="workflow" className="size-3.5" />
-          <span className="wb-viewport-title-text">
-            {inStepGroup ? (focusedNode?.id ?? "Step group") : "Workflow"}
-          </span>
-        </span>
-        <span
-          className="wb-viewport-meta"
-          data-testid={
-            inStepGroup && stepScene ? "workflow-step-group-label" : undefined
-          }
-        >
-          {inStepGroup && stepScene
-            ? `${stepScene.stats?.stepCount ?? 0} steps · ${
-                stepScene.stats?.boundaryCount ?? 0
-              } boundary`
-            : `${activeComponents.size} / ${componentMap.nodes.length} components active`}
-        </span>
-        <span className="wb-viewport-head-spacer" />
-        <div className="wb-viewport-actions" data-testid="workflow-toolbar">
+    <ViewportFrame
+      concept="workflow"
+      title={inStepGroup ? (focusedNode?.id ?? "Step group") : "Workflow"}
+      meta={
+        inStepGroup && stepScene
+          ? `${stepScene.stats?.stepCount ?? 0} steps · ${
+              stepScene.stats?.boundaryCount ?? 0
+            } boundary`
+          : `${activeComponents.size} / ${componentMap.nodes.length} components active`
+      }
+      metaTestId={
+        inStepGroup && stepScene ? "workflow-step-group-label" : undefined
+      }
+      testId="workflow-editor"
+      actionsTestId="workflow-toolbar"
+      bodyRef={containerRef}
+      bodyTestId="workflow-canvas"
+      bodyClassName="cursor-grab touch-none"
+      onPointerDown={onPointerDown}
+      onContextMenu={(event) => {
+        event.preventDefault();
+        setMenu({
+          x: event.clientX,
+          y: event.clientY,
+          label: inStepGroup
+            ? (focusedNode?.id ?? "Step group")
+            : "Workflow graph",
+          items: inStepGroup
+            ? [
+                {
+                  label: "Back to components",
+                  hint: "Workflow",
+                  run: () => store.focusComponent(undefined),
+                },
+                {
+                  label: "Fit graph",
+                  hint: "Reset view",
+                  run: fitView,
+                },
+              ]
+            : [
+                {
+                  label: "Show all components",
+                  hint: "Reset filters",
+                  run: () => store.resetFilters(),
+                },
+                {
+                  label: "Fit graph",
+                  hint: "Reset view",
+                  run: fitView,
+                },
+              ],
+        });
+      }}
+      nav={
+        <ViewportNav
+          zoom={view.scale}
+          onZoomOut={() => zoomBy(1 / 1.25)}
+          onZoomIn={() => zoomBy(1.25)}
+          onFit={fitView}
+          label="workflow"
+          testIds={{
+            out: "workflow-zoom-out",
+            value: "workflow-zoom",
+            in: "workflow-zoom-in",
+            fit: "workflow-fit",
+          }}
+        />
+      }
+      actions={
+        <>
           {inStepGroup && stepScene ? (
             <>
               {selectedStepRow ? (
-                <button
-                  type="button"
+                <ViewportAction
+                  emphasis
                   onClick={() => openStepNode(selectedStepRow, false)}
-                  className="wb-viewport-action border-accent/60 bg-accent/10 text-accent-strong hover:border-accent hover:text-text"
                   data-testid="workflow-open-step"
                 >
                   Open step →
-                </button>
+                </ViewportAction>
               ) : selectedBoundaryNode?.component ? (
-                <button
-                  type="button"
+                <ViewportAction
+                  emphasis
                   onClick={() =>
                     store.focusComponent(selectedBoundaryNode.component)
                   }
-                  className="wb-viewport-action border-accent/60 bg-accent/10 text-accent-strong hover:border-accent hover:text-text"
                   data-testid="workflow-open-step-group"
                 >
                   Open {selectedBoundaryNode.component} step group →
-                </button>
+                </ViewportAction>
               ) : null}
-              <button
-                type="button"
+              <ViewportAction
                 onClick={() => store.focusComponent(undefined)}
-                className="wb-viewport-action"
                 data-testid="workflow-back-components"
               >
                 ← Components
-              </button>
+              </ViewportAction>
             </>
           ) : selectedNode ? (
-            <button
-              type="button"
+            <ViewportAction
+              emphasis
               onClick={() => store.focusComponent(selectedNode.id)}
-              className="wb-viewport-action border-accent/60 bg-accent/10 text-accent-strong hover:border-accent hover:text-text"
               data-testid="workflow-open-step-group"
             >
               Open step group →
-            </button>
+            </ViewportAction>
           ) : null}
-        </div>
-      </header>
-
-      <div
-        ref={containerRef}
-        className="wb-viewport-body cursor-grab touch-none"
-        data-testid="workflow-canvas"
-        onPointerDown={onPointerDown}
-        onContextMenu={(event) => {
-          event.preventDefault();
-          setMenu({
-            x: event.clientX,
-            y: event.clientY,
-            label: inStepGroup
-              ? (focusedNode?.id ?? "Step group")
-              : "Workflow graph",
-            items: inStepGroup
-              ? [
-                  {
-                    label: "Back to components",
-                    hint: "Workflow",
-                    run: () => store.focusComponent(undefined),
-                  },
-                  {
-                    label: "Fit graph",
-                    hint: "Reset view",
-                    run: fitView,
-                  },
-                ]
-              : [
-                  {
-                    label: "Show all components",
-                    hint: "Reset filters",
-                    run: () => store.resetFilters(),
-                  },
-                  {
-                    label: "Fit graph",
-                    hint: "Reset view",
-                    run: fitView,
-                  },
-                ],
-          });
-        }}
-      >
-
-        <svg
+        </>
+      }
+    >
+      <svg
           className="block h-full w-full select-none"
           role="img"
           aria-label={
@@ -906,39 +912,6 @@ export function WorkflowEditor(props: WorkspaceProps) {
           </g>
         </svg>
 
-        <div className="wb-viewport-nav">
-          <button
-            type="button"
-            onClick={() => zoomBy(1 / 1.25)}
-            aria-label="Zoom out workflow"
-            title="Zoom out"
-            data-testid="workflow-zoom-out"
-          >
-            −
-          </button>
-          <span className="wb-viewport-nav-output" data-testid="workflow-zoom">
-            {Math.round(view.scale * 100)}%
-          </span>
-          <button
-            type="button"
-            onClick={() => zoomBy(1.25)}
-            aria-label="Zoom in workflow"
-            title="Zoom in"
-            data-testid="workflow-zoom-in"
-          >
-            +
-          </button>
-          <button
-            type="button"
-            onClick={fitView}
-            aria-label="Fit workflow graph"
-            title="Fit graph"
-            data-testid="workflow-fit"
-          >
-            Fit
-          </button>
-        </div>
-
         {inStepGroup && stepScene && (stepScene.stats?.stepCount ?? 0) === 0 ? (
           <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
             <p className="border border-line-soft bg-panel/95 px-3 py-2 font-mono text-[13px] text-muted">
@@ -952,7 +925,6 @@ export function WorkflowEditor(props: WorkspaceProps) {
             ? "drag to pan · wheel to zoom · click a step to select · double-click to open"
             : "drag to pan · wheel to zoom · right-click a component for actions · node = component · link = aggregated step connections"}
         </div>
-      </div>
 
       {menu ? (
         <ContextMenu
@@ -967,6 +939,6 @@ export function WorkflowEditor(props: WorkspaceProps) {
           onClose={() => setMenu(undefined)}
         />
       ) : null}
-    </div>
+    </ViewportFrame>
   );
 }

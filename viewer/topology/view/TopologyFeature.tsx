@@ -27,8 +27,13 @@ import {
   FulfilmentMap,
   type AxisOpenTarget,
 } from "@/detail/view/FulfilmentMap";
-import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { cx, groupPalette, theme } from "@/shared/ui/theme";
+import {
+  ViewportAction,
+  ViewportChip,
+  ViewportFrame,
+  ViewportNav,
+} from "@/shared/ui/Viewport";
 import { PanelRight } from "lucide-react";
 import type {
   TopologyDetailOptions,
@@ -1427,42 +1432,37 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
   }
 
   return (
-    <div
-      className="wb-viewport"
-      data-testid="topology-editor"
-      data-level="panel"
-      aria-label="Topology force graph"
+    <ViewportFrame
+      concept="graph"
+      title="Graph"
+      meta={`${visible.nodes.length} nodes · ${visible.links.length} links`}
+      testId="topology-editor"
+      ariaLabel="Topology force graph"
+      bodyRef={containerRef}
+      bodyClassName="select-none"
+      actions={
+        <ViewportAction
+          active={inspectorOpen}
+          onClick={() => setInspectorOpen((open) => !open)}
+          aria-pressed={inspectorOpen}
+          aria-label={inspectorOpen ? "Close inspector" : "Open inspector"}
+          title={inspectorOpen ? "Close inspector" : "Open inspector"}
+          data-testid="topology-open-inspector"
+        >
+          <PanelRight aria-hidden className="size-3.5" />
+          Inspect
+        </ViewportAction>
+      }
+      nav={
+        <ViewportNav
+          zoom={zoomK}
+          onZoomOut={() => zoomBy(1 / 1.25)}
+          onZoomIn={() => zoomBy(1.25)}
+          onFit={() => fitRef.current()}
+          label="graph"
+        />
+      }
     >
-      <header className="wb-viewport-head">
-        <span className="wb-viewport-title">
-          <ConceptGlyph concept="graph" className="size-3.5" />
-          <span className="wb-viewport-title-text">Graph</span>
-        </span>
-        <span className="wb-viewport-meta">
-          {visible.nodes.length} nodes · {visible.links.length} links
-        </span>
-        <span className="wb-viewport-head-spacer" />
-        <div className="wb-viewport-actions">
-          <button
-            type="button"
-            className="wb-viewport-action"
-            data-active={inspectorOpen}
-            onClick={() => setInspectorOpen((open) => !open)}
-            aria-pressed={inspectorOpen}
-            aria-label={inspectorOpen ? "Close inspector" : "Open inspector"}
-            title={inspectorOpen ? "Close inspector" : "Open inspector"}
-            data-testid="topology-open-inspector"
-          >
-            <PanelRight aria-hidden className="size-3.5" />
-            Inspect
-          </button>
-        </div>
-      </header>
-
-      <div
-        ref={containerRef}
-        className="wb-viewport-body select-none"
-      >
       <svg
         ref={svgRef}
         data-testid="topology-canvas"
@@ -1890,45 +1890,15 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
 
       <div className="pointer-events-none absolute top-2 left-2 z-10 flex flex-wrap items-center gap-1">
         {hasSelection ? (
-          <span className="wb-viewport-chip pointer-events-auto text-selection-strong">
+          <ViewportChip className="pointer-events-auto text-selection-strong">
             selected · {selection?.name}
-          </span>
+          </ViewportChip>
         ) : null}
         {ui.pinned ? (
-          <span className="wb-viewport-chip pointer-events-auto border-selection/60 bg-selection/10 text-selection-strong">
+          <ViewportChip className="pointer-events-auto border-selection/60 bg-selection/10 text-selection-strong">
             positions pinned
-          </span>
+          </ViewportChip>
         ) : null}
-      </div>
-
-      <div className="wb-viewport-nav">
-        <button
-          type="button"
-          onClick={() => zoomBy(1 / 1.25)}
-          aria-label="Zoom out"
-          title="Zoom out"
-        >
-          −
-        </button>
-        <span className="wb-viewport-nav-output">
-          {Math.round(zoomK * 100)}%
-        </span>
-        <button
-          type="button"
-          onClick={() => zoomBy(1.25)}
-          aria-label="Zoom in"
-          title="Zoom in"
-        >
-          +
-        </button>
-        <button
-          type="button"
-          onClick={() => fitRef.current()}
-          aria-label="Fit graph"
-          title="Fit graph"
-        >
-          ⛶
-        </button>
       </div>
 
       {visibleCount === 0 ? (
@@ -1998,8 +1968,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
           </div>
         </div>
       ) : null}
-      </div>
-    </div>
+    </ViewportFrame>
   );
 }
 
