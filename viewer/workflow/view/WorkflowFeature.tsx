@@ -22,6 +22,7 @@ import type {
 } from "@/lib/types";
 import { stepKey } from "@/lib/indexes";
 import { DetailBand, DetailDocument, FactGrid } from "@/detail/view/DetailChrome";
+import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { ContextMenu } from "@/shared/ui/ContextMenu";
 import { useGraphViewport } from "@/shared/ui/GraphCanvas";
 import { cx, groupPalette, theme } from "@/shared/ui/theme";
@@ -121,8 +122,8 @@ export function WorkflowControls({ state }: WorkspaceProps) {
         </div>
 
         <p className="text-[11px] leading-relaxed text-faint">
-          Choosing a component selects it. Use Open step group in the canvas
-          toolbar to enter its step graph. Filters narrow that graph and dim the
+          Choosing a component selects it. Use Open step group in the view
+          header to enter its step graph. Filters narrow that graph and dim the
           component overview; every step remains available in Explorer.
         </p>
 
@@ -661,13 +662,76 @@ export function WorkflowEditor(props: WorkspaceProps) {
   }
 
   return (
-    <div
-      className="relative flex h-full min-h-0 flex-col bg-abyss"
-      data-testid="workflow-editor"
-    >
+    <div className="wb-viewport" data-testid="workflow-editor">
+      <header className="wb-viewport-head">
+        <span className="wb-viewport-title">
+          <ConceptGlyph concept="workflow" className="size-3.5" />
+          <span className="wb-viewport-title-text">
+            {inStepGroup ? (focusedNode?.id ?? "Step group") : "Workflow"}
+          </span>
+        </span>
+        <span
+          className="wb-viewport-meta"
+          data-testid={
+            inStepGroup && stepScene ? "workflow-step-group-label" : undefined
+          }
+        >
+          {inStepGroup && stepScene
+            ? `${stepScene.stats?.stepCount ?? 0} steps · ${
+                stepScene.stats?.boundaryCount ?? 0
+              } boundary`
+            : `${activeComponents.size} / ${componentMap.nodes.length} components active`}
+        </span>
+        <span className="wb-viewport-head-spacer" />
+        <div className="wb-viewport-actions" data-testid="workflow-toolbar">
+          {inStepGroup && stepScene ? (
+            <>
+              {selectedStepRow ? (
+                <button
+                  type="button"
+                  onClick={() => openStepNode(selectedStepRow, false)}
+                  className="wb-viewport-action border-accent/60 bg-accent/10 text-accent-strong hover:border-accent hover:text-text"
+                  data-testid="workflow-open-step"
+                >
+                  Open step →
+                </button>
+              ) : selectedBoundaryNode?.component ? (
+                <button
+                  type="button"
+                  onClick={() =>
+                    store.focusComponent(selectedBoundaryNode.component)
+                  }
+                  className="wb-viewport-action border-accent/60 bg-accent/10 text-accent-strong hover:border-accent hover:text-text"
+                  data-testid="workflow-open-step-group"
+                >
+                  Open {selectedBoundaryNode.component} step group →
+                </button>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => store.focusComponent(undefined)}
+                className="wb-viewport-action"
+                data-testid="workflow-back-components"
+              >
+                ← Components
+              </button>
+            </>
+          ) : selectedNode ? (
+            <button
+              type="button"
+              onClick={() => store.focusComponent(selectedNode.id)}
+              className="wb-viewport-action border-accent/60 bg-accent/10 text-accent-strong hover:border-accent hover:text-text"
+              data-testid="workflow-open-step-group"
+            >
+              Open step group →
+            </button>
+          ) : null}
+        </div>
+      </header>
+
       <div
         ref={containerRef}
-        className="relative min-h-0 flex-1 cursor-grab touch-none overflow-hidden select-none"
+        className="wb-viewport-body cursor-grab touch-none"
         data-testid="workflow-canvas"
         onPointerDown={onPointerDown}
         onContextMenu={(event) => {
@@ -706,72 +770,6 @@ export function WorkflowEditor(props: WorkspaceProps) {
           });
         }}
       >
-        <div
-          className="absolute top-3 right-3 z-20 flex max-w-[65%] flex-wrap items-center justify-end gap-1.5"
-          data-testid="workflow-toolbar"
-          onPointerDown={(event) => event.stopPropagation()}
-          onPointerMove={(event) => event.stopPropagation()}
-          onPointerUp={(event) => event.stopPropagation()}
-        >
-          {inStepGroup && stepScene ? (
-            <>
-              <span
-                className="rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[11px] text-faint"
-                data-testid="workflow-step-group-label"
-              >
-                {focusedNode?.id ?? "Step group"} ·{" "}
-                {stepScene.stats?.stepCount ?? 0} steps ·{" "}
-                {stepScene.stats?.boundaryCount ?? 0} boundary
-              </span>
-              {selectedStepRow ? (
-                <button
-                  type="button"
-                  onClick={() => openStepNode(selectedStepRow, false)}
-                  className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[11px] text-accent-strong hover:border-accent hover:text-text"
-                  data-testid="workflow-open-step"
-                >
-                  Open step →
-                </button>
-              ) : selectedBoundaryNode?.component ? (
-                <button
-                  type="button"
-                  onClick={() =>
-                    store.focusComponent(selectedBoundaryNode.component)
-                  }
-                  className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[11px] text-accent-strong hover:border-accent hover:text-text"
-                  data-testid="workflow-open-step-group"
-                >
-                  Open {selectedBoundaryNode.component} step group →
-                </button>
-              ) : null}
-              <button
-                type="button"
-                onClick={() => store.focusComponent(undefined)}
-                className="flex items-center gap-1 border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[11px] text-muted hover:border-line-strong hover:text-text"
-                data-testid="workflow-back-components"
-              >
-                ← Components
-              </button>
-            </>
-          ) : (
-            <>
-              {selectedNode ? (
-                <button
-                  type="button"
-                  onClick={() => store.focusComponent(selectedNode.id)}
-                  className="flex items-center gap-1 border border-accent/60 bg-accent/10 px-2 py-1 font-mono text-[11px] text-accent-strong hover:border-accent hover:text-text"
-                  data-testid="workflow-open-step-group"
-                >
-                  Open step group →
-                </button>
-              ) : null}
-              <span className="rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[11px] text-faint">
-                {activeComponents.size} / {componentMap.nodes.length} components
-                active
-              </span>
-            </>
-          )}
-        </div>
 
         <svg
           className="block h-full w-full select-none"
@@ -908,32 +906,22 @@ export function WorkflowEditor(props: WorkspaceProps) {
           </g>
         </svg>
 
-        <div
-          className="absolute top-3 left-3 z-10 flex items-stretch border border-line-soft bg-panel/95"
-          onPointerDown={(event) => event.stopPropagation()}
-          onPointerMove={(event) => event.stopPropagation()}
-          onPointerUp={(event) => event.stopPropagation()}
-        >
+        <div className="wb-viewport-nav">
           <button
             type="button"
             onClick={() => zoomBy(1 / 1.25)}
-            className="flex size-6 items-center justify-center border-r border-line text-muted hover:bg-panel-soft hover:text-text"
             aria-label="Zoom out workflow"
             title="Zoom out"
             data-testid="workflow-zoom-out"
           >
             −
           </button>
-          <span
-            className="flex w-12 items-center justify-center border-r border-line font-mono text-[12px] text-muted tabular-nums"
-            data-testid="workflow-zoom"
-          >
+          <span className="wb-viewport-nav-output" data-testid="workflow-zoom">
             {Math.round(view.scale * 100)}%
           </span>
           <button
             type="button"
             onClick={() => zoomBy(1.25)}
-            className="flex size-6 items-center justify-center border-r border-line text-muted hover:bg-panel-soft hover:text-text"
             aria-label="Zoom in workflow"
             title="Zoom in"
             data-testid="workflow-zoom-in"
@@ -943,7 +931,6 @@ export function WorkflowEditor(props: WorkspaceProps) {
           <button
             type="button"
             onClick={fitView}
-            className="flex h-6 items-center justify-center px-2 text-muted hover:bg-panel-soft hover:text-text"
             aria-label="Fit workflow graph"
             title="Fit graph"
             data-testid="workflow-fit"
@@ -960,9 +947,9 @@ export function WorkflowEditor(props: WorkspaceProps) {
           </div>
         ) : null}
 
-        <div className="pointer-events-none absolute bottom-3 left-3 rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[11px] text-faint">
+        <div className="pointer-events-none absolute right-3 bottom-3 rounded border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[11px] text-faint">
           {inStepGroup
-            ? "drag to pan · wheel to zoom · click a step to select · double-click to open · Open step in the toolbar"
+            ? "drag to pan · wheel to zoom · click a step to select · double-click to open"
             : "drag to pan · wheel to zoom · right-click a component for actions · node = component · link = aggregated step connections"}
         </div>
       </div>

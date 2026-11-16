@@ -28,9 +28,15 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
 - **Editor tabs** belong to the main area, not the window. They name the
   document, not a global destination.
 - **Side bar** is the function's subject browser and detail controls.
-- **Node editor surfaces.** Dark canvas (#1a1a1a) with a locked dot grid plus a
-  120px major grid (#303030); neutral cards with a 2px semantic lane stripe,
-  body, small sockets and bezier wires.
+- **Node editor surfaces.** Dark canvas (#1a1a1a) with a locked 25px dot grid
+  (#303030); neutral cards with a 2px semantic lane stripe, body, small sockets
+  and bezier wires.
+- **One visualisation frame.** Graph and Workflow share a 30px `panel` header
+  (concept glyph, view name, live extent, the view's own actions) above a flat
+  canvas. Every graph surface, including the detail Build steps canvas, shares
+  the same bottom-left navigation cluster (`−`, percent, `+`, Fit). A view
+  supplies its renderer and data; it does not supply chrome. The Graph's Inspect
+  toggle lives in that header.
 - **Selection is orange; active/accent is blue.** Do not use orange for ordinary
   buttons. Blue = focus/active/primary; orange = selected graph item.
 - The scale is compact but readable (14.5px root). The UI font is Inter
@@ -107,25 +113,25 @@ rank wrapping. Pan/zoom and focus are the answers, not folding.
 ## Tokens (single source)
 
 ```text
-abyss       #1d1d1d   editor canvas
-panel       #232323   region body
-panel-raised#2b2b2b   area header / section band
-panel-soft  #333333   raised control
-inset       #191919   inset field
-gutter      #111111   seam between regions
-line        #3f3f3f
-line-soft   #333333
-line-strong #4a4a4a
+abyss       #1a1a1a   editor / node canvas
+panel       #303030   region background (Blender region_bg)
+panel-raised#3d3d3d   panel header and back
+panel-soft  #474747   raised control / hover
+inset       #181818   tab strip, inset field
+gutter      #101010   seam between regions
+line        #545454   panel / widget outline
+line-soft   #444444   row separator
+line-strong #606060   control outline
 edge        #8b96a3   graph connection, never a panel border
 text        #e6e6e6
-muted       #c4c4c4
-faint       #9a9a9a
-accent      #5b8bd0   Blender blue: active/primary
-accent-strong #7aa7e6
-accent-soft #24364d
+muted       #d0d0d0
+faint       #adadad
+accent      #4772b3   Blender blue: active/primary
+accent-strong #71a8ff
+accent-soft #2c4463
 accent-ink  #0b1620
-selection   #ff9f43   Blender orange: selected graph item
-selection-strong #e87d0d
+selection   #ed5700   Blender node-selected orange
+selection-strong #ff7a2a
 selection-soft   #4a2c12
 high     #df8a4f
 asset    #6aa84f

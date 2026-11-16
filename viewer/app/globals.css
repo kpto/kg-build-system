@@ -760,6 +760,185 @@
     background-image: none;
   }
 
+  /* ---- Visualisation frame -------------------------------------------- */
+  /*
+   * One frame for every visualisation document, after a Blender area: a
+   * 30px header carrying the view name, its current extent and the view's
+   * own actions; a flat canvas below it; one navigation cluster at the
+   * bottom left. A view supplies content, not chrome.
+   */
+
+  .wb-viewport {
+    display: flex;
+    width: 100%;
+    min-height: 0;
+    height: 100%;
+    flex: 1 1 auto;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: var(--color-abyss);
+  }
+
+  .wb-viewport-head {
+    display: flex;
+    height: 30px;
+    flex: none;
+    align-items: center;
+    gap: 8px;
+    padding: 0 6px 0 9px;
+    border-bottom: 1px solid #101010;
+    background-color: var(--color-panel);
+  }
+
+  .wb-viewport-title {
+    display: inline-flex;
+    min-width: 0;
+    flex: none;
+    align-items: center;
+    gap: 6px;
+    color: var(--color-text);
+    font-size: 13px;
+    font-weight: 400;
+  }
+
+  .wb-viewport-title svg {
+    flex: none;
+  }
+
+  .wb-viewport-title-text {
+    overflow: hidden;
+    max-width: 24vw;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wb-viewport-meta {
+    min-width: 0;
+    overflow: hidden;
+    color: var(--color-faint);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
+  .wb-viewport-head-spacer {
+    min-width: 8px;
+    flex: 1 1 auto;
+  }
+
+  .wb-viewport-actions {
+    display: flex;
+    min-width: 0;
+    flex: none;
+    align-items: center;
+    gap: 3px;
+  }
+
+  .wb-viewport-action {
+    display: inline-flex;
+    height: 22px;
+    align-items: center;
+    gap: 4px;
+    border: 1px solid transparent;
+    border-radius: 4px;
+    background: transparent;
+    padding: 0 6px;
+    color: var(--color-muted);
+    font-size: 12px;
+    white-space: nowrap;
+  }
+
+  .wb-viewport-action:hover {
+    background-color: var(--color-panel-soft);
+    color: var(--color-text);
+  }
+
+  .wb-viewport-action[data-active="true"] {
+    border-color: var(--color-accent);
+    background-color: var(--color-accent);
+    color: #ffffff;
+  }
+
+  .wb-viewport-action[data-active="true"]:hover {
+    background-color: var(--color-accent-strong);
+    color: #0b1620;
+  }
+
+  .wb-viewport-body {
+    position: relative;
+    min-height: 0;
+    flex: 1 1 auto;
+    overflow: hidden;
+  }
+
+  .wb-viewport-nav {
+    position: absolute;
+    bottom: 8px;
+    left: 8px;
+    z-index: 20;
+    display: flex;
+    overflow: hidden;
+    align-items: stretch;
+    border: 1px solid var(--color-line);
+    border-radius: 4px;
+    background-color: var(--color-panel);
+  }
+
+  .wb-viewport-nav button {
+    display: flex;
+    height: 24px;
+    min-width: 24px;
+    align-items: center;
+    justify-content: center;
+    border: 0;
+    border-right: 1px solid var(--color-line);
+    background: transparent;
+    padding: 0 6px;
+    color: var(--color-muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .wb-viewport-nav-output {
+    display: flex;
+    height: 24px;
+    min-width: 46px;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid var(--color-line);
+    padding: 0 6px;
+    color: var(--color-muted);
+    font-size: 12px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .wb-viewport-nav button:last-child {
+    border-right: 0;
+  }
+
+  .wb-viewport-nav button:hover {
+    background-color: var(--color-panel-soft);
+    color: var(--color-text);
+  }
+
+  .wb-viewport-chip {
+    display: inline-flex;
+    height: 22px;
+    max-width: 40vw;
+    align-items: center;
+    gap: 4px;
+    overflow: hidden;
+    border: 1px solid var(--color-line-soft);
+    border-radius: 4px;
+    background-color: color-mix(in srgb, var(--color-panel) 92%, transparent);
+    padding: 0 7px;
+    color: var(--color-muted);
+    font-size: 12px;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+
   .wb-editor-empty {
     display: flex;
     min-height: 100%;

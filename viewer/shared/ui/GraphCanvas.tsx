@@ -256,7 +256,7 @@ export function GraphCanvas({
         </g>
       </svg>
       <div
-        className="absolute bottom-2 left-2 z-10 flex items-stretch border border-line-soft bg-panel/95"
+        className="wb-viewport-nav"
         onPointerDown={(event) => event.stopPropagation()}
         onPointerMove={(event) => event.stopPropagation()}
         onPointerUp={(event) => event.stopPropagation()}
@@ -264,19 +264,17 @@ export function GraphCanvas({
         <button
           type="button"
           onClick={() => zoomBy(1 / 1.25)}
-          className="flex size-6 items-center justify-center border-r border-line text-muted hover:bg-panel-soft hover:text-text"
           aria-label="Zoom out graph"
           data-testid="graph-canvas-zoom-out"
         >
           −
         </button>
-        <span className="flex w-11 items-center justify-center border-r border-line font-mono text-[12px] text-muted tabular-nums">
+        <span className="wb-viewport-nav-output">
           {Math.round(view.scale * 100)}%
         </span>
         <button
           type="button"
           onClick={() => zoomBy(1.25)}
-          className="flex size-6 items-center justify-center border-r border-line text-muted hover:bg-panel-soft hover:text-text"
           aria-label="Zoom in graph"
           data-testid="graph-canvas-zoom-in"
         >
@@ -285,7 +283,6 @@ export function GraphCanvas({
         <button
           type="button"
           onClick={fitView}
-          className="flex size-6 items-center justify-center text-muted hover:bg-panel-soft hover:text-text"
           aria-label="Fit graph"
           data-testid="graph-canvas-fit"
         >

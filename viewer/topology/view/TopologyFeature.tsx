@@ -27,7 +27,9 @@ import {
   FulfilmentMap,
   type AxisOpenTarget,
 } from "@/detail/view/FulfilmentMap";
+import { ConceptGlyph } from "@/shared/ui/ConceptMark";
 import { cx, groupPalette, theme } from "@/shared/ui/theme";
+import { PanelRight } from "lucide-react";
 import type {
   TopologyDetailOptions,
   TopologyEntity,
@@ -1426,12 +1428,41 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
 
   return (
     <div
-      ref={containerRef}
+      className="wb-viewport"
       data-testid="topology-editor"
       data-level="panel"
-      className="relative h-full min-h-0 w-full select-none overflow-hidden bg-abyss"
       aria-label="Topology force graph"
     >
+      <header className="wb-viewport-head">
+        <span className="wb-viewport-title">
+          <ConceptGlyph concept="graph" className="size-3.5" />
+          <span className="wb-viewport-title-text">Graph</span>
+        </span>
+        <span className="wb-viewport-meta">
+          {visible.nodes.length} nodes · {visible.links.length} links
+        </span>
+        <span className="wb-viewport-head-spacer" />
+        <div className="wb-viewport-actions">
+          <button
+            type="button"
+            className="wb-viewport-action"
+            data-active={inspectorOpen}
+            onClick={() => setInspectorOpen((open) => !open)}
+            aria-pressed={inspectorOpen}
+            aria-label={inspectorOpen ? "Close inspector" : "Open inspector"}
+            title={inspectorOpen ? "Close inspector" : "Open inspector"}
+            data-testid="topology-open-inspector"
+          >
+            <PanelRight aria-hidden className="size-3.5" />
+            Inspect
+          </button>
+        </div>
+      </header>
+
+      <div
+        ref={containerRef}
+        className="wb-viewport-body select-none"
+      >
       <svg
         ref={svgRef}
         data-testid="topology-canvas"
@@ -1859,34 +1890,32 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
 
       <div className="pointer-events-none absolute top-2 left-2 z-10 flex flex-wrap items-center gap-1">
         {hasSelection ? (
-          <span className="pointer-events-auto inline-flex items-center gap-1 border border-line-soft bg-panel/95 px-2 py-1 font-mono text-[12px] text-selection-strong">
+          <span className="wb-viewport-chip pointer-events-auto text-selection-strong">
             selected · {selection?.name}
           </span>
         ) : null}
         {ui.pinned ? (
-          <span className="pointer-events-auto inline-flex items-center border border-selection/60 bg-selection/10 px-2 py-1 font-mono text-[12px] text-selection-strong">
+          <span className="wb-viewport-chip pointer-events-auto border-selection/60 bg-selection/10 text-selection-strong">
             positions pinned
           </span>
         ) : null}
       </div>
 
-      <div className="absolute bottom-2 left-2 z-20 flex items-stretch border border-line-soft bg-panel/95">
+      <div className="wb-viewport-nav">
         <button
           type="button"
           onClick={() => zoomBy(1 / 1.25)}
-          className="flex size-7 items-center justify-center border-r border-line text-muted hover:bg-panel-soft hover:text-text"
           aria-label="Zoom out"
           title="Zoom out"
         >
           −
         </button>
-        <span className="flex w-16 items-center justify-center border-r border-line text-[12px] text-muted tabular-nums">
+        <span className="wb-viewport-nav-output">
           {Math.round(zoomK * 100)}%
         </span>
         <button
           type="button"
           onClick={() => zoomBy(1.25)}
-          className="flex size-7 items-center justify-center border-r border-line text-muted hover:bg-panel-soft hover:text-text"
           aria-label="Zoom in"
           title="Zoom in"
         >
@@ -1895,7 +1924,6 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
         <button
           type="button"
           onClick={() => fitRef.current()}
-          className="flex size-7 items-center justify-center text-muted hover:bg-panel-soft hover:text-text"
           aria-label="Fit graph"
           title="Fit graph"
         >
@@ -1913,18 +1941,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
 
       {inspectorOpen ? (
         <TopologyInspector props={props} onClose={() => setInspectorOpen(false)} />
-      ) : (
-        <button
-          type="button"
-          onClick={() => setInspectorOpen(true)}
-          className="absolute top-2 right-2 z-20 border border-line-soft bg-panel/95 px-3 py-1.5 text-[12px] text-muted hover:border-line-strong hover:text-text"
-          aria-label="Open inspector"
-          title="Open inspector"
-          data-testid="topology-open-inspector"
-        >
-          Inspect
-        </button>
-      )}
+      ) : null}
 
       {menu ? (
         <ContextMenu
@@ -1981,6 +1998,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
           </div>
         </div>
       ) : null}
+      </div>
     </div>
   );
 }

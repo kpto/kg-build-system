@@ -98,7 +98,10 @@ meaning and no release source, and it says so; it is build machinery.
 
 A detail document banner leads with the kind's mark from the one concept
 registry, and the tab names the document. Graph and Workflow are working
-surfaces; they have no banner and carry their actions in floating toolbars.
+surfaces: they have no detail banner, and they share one visualisation frame
+whose 30px header names the view, states its live extent and carries the view's
+own actions above the canvas. Every graph surface, including the detail Build
+steps canvas, shares one bottom-left navigation cluster.
 
 One concept registry supplies the mark and representative colour for graph,
 workflow, node, edge, property, asset, source relation, derived relation,
