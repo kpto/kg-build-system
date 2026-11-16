@@ -33,7 +33,7 @@ kbs generate --project . --check --regenerate
 kbs generate --project . --watch --debounce 500
 kbs view
 kbs view --snapshot build/workflow_plan.json
-kbs view --snapshot reference.snapshot.json --port 8002 --no-open
+kbs view --snapshot snapshot.json --port 8002 --no-open
 ```
 
 | Flag | Effect |
@@ -52,36 +52,37 @@ kbs view --snapshot reference.snapshot.json --port 8002 --no-open
 
 ## `kbs view`
 
-`kbs view` serves the bundled design viewer for one project artifact. A wheel
-ships a static viewer build under `kg_build_system/viewer_dist`; the command
-starts a local HTTP server and opens the browser. Node is not required at
-runtime.
+`kbs view` serves one project artifact to the design viewer. It starts a
+snapshot HTTP server at `/snapshot`; in a source checkout it also starts the Next
+viewer against that server, and opens the viewer URL. A wheel ships a static
+viewer build under `kg_build_system/viewer_dist` and needs no Node at runtime.
 
 | Flag | Effect |
 | --- | --- |
 | `--snapshot PATH` | Workflow plan, blueprint, viewer snapshot or gzip of one. Defaults to `build/workflow_plan.json`. |
 | `--title TEXT` | Display title for a bare workflow plan or blueprint. |
 | `--host ADDRESS` | Bind address; defaults to `127.0.0.1`. |
-| `--port PORT` | Port; defaults to `8001`. |
+| `--port PORT` | Viewer port in source mode, or the static server port in a wheel; defaults to `8001`. |
 | `--no-open` | Do not open a browser. |
 
-`kbs view` serves the snapshot at `/snapshot`; the viewer app is compiled for
-static export. The command never falls back to a bundled sample. With no
-`--snapshot` and no `build/workflow_plan.json`, it exits with an error and asks
-for a plan.
+`kbs view` serves the snapshot at `/snapshot`. It never falls back to a bundled
+sample: with no `--snapshot` and no `build/workflow_plan.json`, it exits with an
+error and asks for a plan.
 
-When run from a source checkout, the command also writes a minimal discovery
-file while the server is running:
+When run from a source checkout with `npm` and `viewer/node_modules`, the
+command starts the Next viewer on `--port` and starts the snapshot server on an
+ephemeral port. It writes a minimal discovery file before launching the viewer:
 
 ```text
 <working-directory>/.kbs/viewer.json
-{"api": "http://127.0.0.1:8001"}
+{"api": "http://127.0.0.1:<ephemeral-port>"}
 ```
 
-The file is removed on exit. It contains only the API base URL. A wheel has no
-source viewer and writes no discovery file. Next dev reads the file from the
-working directory, or from the absolute path in `KBS_DISCOVERY`, and proxies
-`/snapshot` and `/api/*` to it. There is no CLI debug flag.
+The file is removed and both processes are stopped on exit or Ctrl+C. The viewer
+reads `KBS_DISCOVERY` (set to the absolute discovery path by the command) and
+proxies `/snapshot` and `/api/*` to the snapshot server. The printed `Viewer`
+URL is the one to open. A wheel has no source viewer; it serves the static build
+and the snapshot from the same `--port`, so no discovery file is written.
 
 The wheel build compiles the viewer with `npm ci` and `npm run build:static`.
 `KBS_SKIP_VIEWER_BUILD=1` uses an existing `viewer/out`, `KBS_SKIP_VIEWER_INSTALL=1`

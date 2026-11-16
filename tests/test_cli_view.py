@@ -7,6 +7,7 @@ import threading
 import unittest
 import urllib.request
 from pathlib import Path
+from unittest.mock import patch
 
 from kg_build_system.cli.service._private.view import (
     ViewerHandler,
@@ -15,6 +16,8 @@ from kg_build_system.cli.service._private.view import (
     _discovery_path,
     _remove_discovery,
     _snapshot,
+    _viewer_command,
+    _viewer_environment,
     _viewer_source,
     _write_discovery,
 )
@@ -106,6 +109,48 @@ class ViewerDiscoveryTests(unittest.TestCase):
 
     def test_the_source_viewer_is_detected(self) -> None:
         self.assertIsNotNone(_viewer_source())
+
+
+class ViewerCommandTests(unittest.TestCase):
+    def test_the_source_viewer_uses_the_requested_port(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory)
+            binary = source / "node_modules" / ".bin" / "next"
+            binary.parent.mkdir(parents=True)
+            binary.write_text("")
+            with (
+                patch(
+                    "kg_build_system.cli.service._private.view._viewer_source",
+                    return_value=source,
+                ),
+                patch(
+                    "kg_build_system.cli.service._private.view.shutil.which",
+                    return_value="/usr/bin/npm",
+                ),
+            ):
+                command = _viewer_command(8123, "127.0.0.1")
+        self.assertEqual(
+            command,
+            [
+                "/usr/bin/npm",
+                "run",
+                "dev",
+                "--",
+                "--port",
+                "8123",
+                "--hostname",
+                "127.0.0.1",
+            ],
+        )
+
+    def test_the_viewer_environment_publishes_an_absolute_discovery_path(self) -> None:
+        discovery = Path("/tmp/example/.kbs/viewer.json")
+        environment = _viewer_environment(discovery)
+        self.assertEqual(
+            environment["KBS_DISCOVERY"],
+            str(discovery.resolve()),
+        )
+        self.assertEqual(environment["NEXT_TELEMETRY_DISABLED"], "1")
 
 
 class ViewerServerTests(unittest.TestCase):
