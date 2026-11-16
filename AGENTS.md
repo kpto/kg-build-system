@@ -339,6 +339,14 @@ missing, not the code.
   grouping rather than encoding it in text.
 - A declaration with no positive use carries claims only. Two declarations share
   a purpose only when the use is identical.
+- A declaration states a meaning or the explicit `Omitted` marker; there is no
+  implicit absence. The graph declaration, a published contract and a binding
+  cannot opt out, and a field definition never satisfies a meaning.
+- A declaration carries no description and no docstring; a display surface reads
+  the purpose, the first claim or the field definition. One text is maintained,
+  not two that drift.
+- A binding is the one declaration whose `name` is a display handle, excluded
+  from its content identity; every other `name` is part of identity.
 - A binding requires a meaning with a purpose, and that purpose states the
   fulfilment it performs: it names the record's use in a clause, then says how
   the relation answers it — which relation, at which grain, identity and coverage
