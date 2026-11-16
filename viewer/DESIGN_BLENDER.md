@@ -13,8 +13,7 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
   rectangular regions separated by a 1px dark seam. Regions are plates, not
   cards: no glass, no floating panel stacks, no shadow between regions.
 - **No application header or status bar.** The tab strip is the top of the
-  frame; the side-bar search trigger carries the snapshot name and opens the
-  command palette.
+  frame; the side bar prints the snapshot name in its first row.
 - **Side-bar sections** are collapsible 25px headers: **Control** for the active
   view's controls, **Explorer** for the whole design.
 - **Area headers** are 25px bands on `panel-raised` with an icon, an uppercase

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { CircleExclamationPoint, LoaderCircle, RefreshCw } from "lucide-react";
 
 import { buildViewerIndex } from "@/lib/indexes";
@@ -115,10 +115,6 @@ function WorkbenchShell() {
 
   const layout = state.layout;
 
-  const openPalette = useCallback(() => {
-    setPaletteOpen(true);
-  }, []);
-
   useEffect(() => {
     const onKeyDown = (event: globalThis.KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
@@ -185,7 +181,7 @@ function WorkbenchShell() {
       <div className="wb-body">
         {sidebarVisible ? (
           <>
-            <SideBar onOpenPalette={openPalette} />
+            <SideBar />
             <Splitter
               orientation="vertical"
               value={layout.sidebarWidth}

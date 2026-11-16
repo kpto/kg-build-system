@@ -22,7 +22,7 @@ A level may be absent. It is never reordered or nested inside the same kind.
 
 | Region | Contents | Owner |
 | --- | --- | --- |
-| Side bar | snapshot search trigger, collapsible **Control** and **Explorer** sections | `workbench/SideBar` |
+| Side bar | snapshot name, collapsible **Control** and **Explorer** sections | `workbench/SideBar` |
 | Editor | document tabs with the side-bar toggle at the right of the strip, and one mounted pane per document | `workbench/EditorArea` |
 
 The side bar is 220–520 px wide and is the only resizable panel. One

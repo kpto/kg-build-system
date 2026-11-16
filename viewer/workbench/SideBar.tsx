@@ -8,7 +8,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { ChevronRight, Search } from "lucide-react";
+import { ChevronRight } from "lucide-react";
 
 import { ExplorerSidebar } from "@/detail/DetailFeature";
 import { TopologySidebar } from "@/topology/TopologyFeature";
@@ -127,7 +127,7 @@ function ControlBody({ state, actions }: WorkspaceProps) {
 
 
 
-export function SideBar({ onOpenPalette }: { onOpenPalette(): void }) {
+export function SideBar() {
   const { state, actions } = useWorkbench();
   const [open, setOpen] = useState<Record<SectionId, boolean>>({
     control: true,
@@ -205,18 +205,9 @@ export function SideBar({ onOpenPalette }: { onOpenPalette(): void }) {
     >
 
       <div className="wb-side-search">
-        <button
-          type="button"
-          className="wb-side-search-button"
-          onClick={onOpenPalette}
-          title={state.snapshot.title}
-          aria-label={`Search commands and subjects in ${state.snapshot.name}`}
-          data-testid="sidebar-command-trigger"
-        >
-          <Search aria-hidden className="size-3.5" />
-          <span className="wb-side-search-name">{state.snapshot.name}</span>
-          <kbd className="wb-kbd">Ctrl K</kbd>
-        </button>
+        <span className="wb-side-search-name" title={state.snapshot.title}>
+          {state.snapshot.name}
+        </span>
       </div>
       {section(
         "control",

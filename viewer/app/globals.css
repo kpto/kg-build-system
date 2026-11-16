@@ -1962,37 +1962,20 @@
   }
 }
 
-  /* ---- Side-bar search ------------------------------------------------ */
+  /* ---- Side-bar snapshot ---------------------------------------------- */
 
   .wb-side-search {
+    display: flex;
+    min-height: 25px;
     flex: none;
-    padding: 2px 5px;
+    align-items: center;
+    padding: 0 9px;
     border-bottom: 1px solid var(--color-line-soft);
     background-color: var(--color-panel);
   }
 
-  .wb-side-search-button {
-    display: flex;
-    width: 100%;
-    height: 23px;
-    align-items: center;
-    gap: 5px;
-    padding: 0 6px;
-    border: 1px solid var(--color-line);
-    border-radius: 2px;
-    background-color: var(--color-panel-raised);
-    color: var(--color-faint);
-    text-align: left;
-  }
-
-  .wb-side-search-button:hover {
-    border-color: var(--color-line-strong);
-    color: var(--color-text);
-  }
-
   .wb-side-search-name {
     min-width: 0;
-    flex: 1;
     overflow: hidden;
     color: var(--color-text);
     font-family: var(--font-mono);
