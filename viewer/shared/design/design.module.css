@@ -166,9 +166,35 @@
 /* ----------------------------------------------------------- purpose chain */
 
 .purposeChain {
+  min-width: 0;
+}
+
+.purposeHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 7px;
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: 8.5px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.purposeHead span:first-child {
+  color: var(--color-muted);
+  font-weight: 600;
+}
+
+.purposeLevels {
   display: flex;
   min-width: 0;
   flex-direction: column;
+}
+
+.purposeLevel {
+  min-width: 0;
 }
 
 .purposeRow {
@@ -204,12 +230,16 @@
   white-space: nowrap;
 }
 
-.purposeCurrent {
-  color: var(--color-selection);
+.purposeTag {
+  color: var(--color-faint);
   font-family: var(--font-mono);
   font-size: 8px;
   letter-spacing: 0.05em;
   text-transform: uppercase;
+}
+
+.purposeTag[data-current] {
+  color: var(--color-selection);
 }
 
 .purposeBox {
@@ -220,16 +250,25 @@
   min-height: 46px;
   max-height: 68px;
   border: 1px solid var(--color-line-soft);
-  border-left: 2px solid var(--color-line-strong);
+  border-left: 2px solid
+    color-mix(in srgb, var(--color-selection) 38%, var(--color-line-strong));
   border-radius: 3px;
   background: var(--color-panel-raised);
   padding: 7px 10px;
   text-align: left;
+  transition:
+    border-color 120ms ease,
+    background-color 120ms ease;
 }
 
 button.purposeBox:hover {
   border-color: var(--color-line-strong);
   border-left-color: var(--color-selection);
+  background: color-mix(
+    in srgb,
+    var(--color-selection) 4%,
+    var(--color-panel-raised)
+  );
 }
 
 button.purposeBox:focus-visible {
@@ -238,7 +277,14 @@ button.purposeBox:focus-visible {
 }
 
 .purposeRow[data-current] .purposeBox {
+  border-left-width: 3px;
   border-left-color: var(--color-selection);
+  background: color-mix(
+    in srgb,
+    var(--color-selection) 7%,
+    var(--color-panel-raised)
+  );
+  box-shadow: 0 0 0 1px var(--color-selection-soft);
 }
 
 .purposeRow[data-current] .purposeName {
@@ -263,11 +309,25 @@ button.purposeBox:focus-visible {
 
 .purposeConnector {
   display: flex;
+  width: 14px;
+  height: 26px;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  height: 18px;
-  margin-left: 130px;
+  color: var(--color-selection);
+}
+
+.purposeConnectorLine {
+  width: 1px;
+  flex: 1;
+  background: currentColor;
+  opacity: 0.6;
+}
+
+.purposeNote {
+  margin: 7px 0 0 0;
   color: var(--color-faint);
+  font-size: 8.5px;
+  line-height: 1.4;
 }
 
 .purposeEmpty {

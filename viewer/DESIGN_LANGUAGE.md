@@ -82,9 +82,11 @@ A kind includes or omits a section; it never renames one for itself.
   counts and licence.
 - **Meaning** is a compact purpose chain. On the record axis it reads the
   graph purpose downward through category and component to property: one box
-  per level, joined by an arrow, each showing only its purpose. The box is
-  constrained and clamps a long purpose; the rest stays hidden. The label is
-  always Meaning.
+  per level, stepped in by 26px and joined by an accent spine, each showing only
+  its purpose. The root is marked, the current level is tinted and accented,
+  and the box is constrained so a long purpose clamps and the rest stays hidden.
+  The scheme is derivation, not copied text: a level narrows the one above. The
+  label is always Meaning.
 - **Fulfilment** is the axis map: graph records, the binding and the domain
   relations. It is compact by default; one control reveals the full map.
 - **Sources**, **Build steps** and **Expression** are three visualisations of
