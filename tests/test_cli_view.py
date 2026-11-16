@@ -18,9 +18,6 @@ from kg_build_system.cli.service._private.view import (
     _discovery_path,
     _remove_discovery,
     _snapshot,
-    _viewer_command,
-    _viewer_environment,
-    _viewer_source,
     _write_discovery,
     run_view,
 )
@@ -110,71 +107,85 @@ class ViewerDiscoveryTests(unittest.TestCase):
         self.assertEqual(_api_url("0.0.0.0", 8001), "http://127.0.0.1:8001")
         self.assertEqual(_api_url("127.0.0.1", 8001), "http://127.0.0.1:8001")
 
-    def test_the_source_viewer_is_detected(self) -> None:
-        self.assertIsNotNone(_viewer_source())
 
-
-class ViewerCommandTests(unittest.TestCase):
-    def test_the_source_viewer_uses_the_requested_port(self) -> None:
+class ViewerDevTests(unittest.TestCase):
+    def _run(self, *, dev: bool) -> tuple[dict[str, bool], Path]:
         with tempfile.TemporaryDirectory() as directory:
-            source = Path(directory)
-            binary = source / "node_modules" / ".bin" / "next"
-            binary.parent.mkdir(parents=True)
-            binary.write_text("")
+            root = Path(directory)
+            assets = root / "assets"
+            assets.mkdir()
+            discovery = _discovery_path(root)
+            seen: dict[str, bool] = {}
+
+            class FakeServer:
+                server_port = 8123
+
+                def __init__(self, address: object, handler: object) -> None:
+                    pass
+
+                def serve_forever(self) -> None:
+                    seen["discovery"] = discovery.exists()
+                    raise KeyboardInterrupt
+
+                def server_close(self) -> None:
+                    pass
+
+            arguments = Namespace(
+                embed=False,
+                dev=dev,
+                host="127.0.0.1",
+                port=0,
+                snapshot=None,
+                title=None,
+                no_open=True,
+            )
             with (
                 patch(
-                    "kg_build_system.cli.service._private.view._viewer_source",
-                    return_value=source,
+                    "kg_build_system.cli.service._private.view._assets",
+                    return_value=assets,
                 ),
                 patch(
-                    "kg_build_system.cli.service._private.view.shutil.which",
-                    return_value="/usr/bin/npm",
+                    "kg_build_system.cli.service._private.view._snapshot",
+                    return_value=(b"{}", "application/json"),
+                ),
+                patch(
+                    "kg_build_system.cli.service._private.view.ViewerServer",
+                    FakeServer,
+                ),
+                patch(
+                    "kg_build_system.cli.service._private.view._discovery_path",
+                    return_value=discovery,
                 ),
             ):
-                command = _viewer_command(8123, "127.0.0.1")
-        self.assertEqual(
-            command,
-            [
-                "/usr/bin/npm",
-                "run",
-                "dev",
-                "--",
-                "--port",
-                "8123",
-                "--hostname",
-                "127.0.0.1",
-            ],
-        )
+                self.assertEqual(run_view(arguments), 0)
 
-    def test_the_viewer_environment_publishes_an_absolute_discovery_path(self) -> None:
-        discovery = Path("/tmp/example/.kbs/viewer.json")
-        environment = _viewer_environment(discovery)
-        self.assertEqual(
-            environment["KBS_DISCOVERY"],
-            str(discovery.resolve()),
-        )
-        self.assertEqual(environment["NEXT_TELEMETRY_DISABLED"], "1")
+            self.assertFalse(discovery.exists())
+            return seen, discovery
+
+    def test_dev_publishes_the_discovery_file_while_serving(self) -> None:
+        seen, _ = self._run(dev=True)
+        self.assertTrue(seen["discovery"])
+
+    def test_the_default_serves_without_a_discovery_file(self) -> None:
+        seen, _ = self._run(dev=False)
+        self.assertFalse(seen["discovery"])
 
 
 class ViewerEmbedTests(unittest.TestCase):
-    def test_run_view_embed_serves_the_empty_viewer(self) -> None:
+    def test_run_view_embed_serves_the_bundled_viewer(self) -> None:
         arguments = Namespace(
             embed=True,
+            dev=False,
             host="127.0.0.1",
             port=8001,
             snapshot=None,
             title=None,
+            no_open=True,
         )
-        with (
-            patch(
-                "kg_build_system.cli.service._private.view._viewer_source",
-                return_value=None,
-            ),
-            patch(
-                "kg_build_system.cli.service._private.view._serve_embedded_static_viewer",
-                return_value=0,
-            ) as serve,
-        ):
+        with patch(
+            "kg_build_system.cli.service._private.view._serve_embedded_viewer",
+            return_value=0,
+        ) as serve:
             self.assertEqual(run_view(arguments), 0)
         serve.assert_called_once_with(arguments)
 

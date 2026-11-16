@@ -56,21 +56,21 @@ kbs view --no-open
 The snapshot may be a workflow plan, a blueprint, a viewer snapshot, or gzip of
 one. A bare workflow plan is wrapped with the current directory as its title.
 
-When `kbs view` runs from a source checkout, it also writes a minimal discovery
-file while it is running:
+`kbs view` serves the bundled viewer directly; it does not start Next. With
+`--dev` it also writes a minimal discovery file while it is running:
 
 ```text
 <project>/.kbs/viewer.json
 {"api": "http://127.0.0.1:8001"}
 ```
 
-The file is removed on exit. A wheel has no source viewer, so it never writes
-one.
+The file is removed on exit. A separately started Next dev sidecar reads it to
+discover the snapshot API. Without `--dev`, no discovery file is written.
 
 ## Embedding
 
-`kbs view --embed` starts the viewer without a project snapshot and prints a
-URL with `?embed=1`. The host frames that URL and supplies each document over
+`kbs view --embed` serves the bundled viewer without a project snapshot and
+prints a URL with `?embed=1`. The host frames that URL and supplies each document over
 the message bridge; the viewer does not fetch project data in this mode.
 
 Host to viewer:
@@ -117,12 +117,12 @@ npx next start --hostname 0.0.0.0 --port 3000
 
 ## Develop against a project
 
-Start the project API with `kbs view` from the project root, then start Next dev
-against its discovery file:
+Start the project API with `kbs view --dev` from the project root, then start
+Next dev against its discovery file:
 
 ```console
 # terminal 1, in the project
-uv run kbs view --snapshot build/workflow_plan.json
+uv run kbs view --dev --no-open --snapshot build/workflow_plan.json
 
 # terminal 2
 cd viewer
@@ -152,7 +152,8 @@ npm run build:static
 viewer/out -> kg_build_system/viewer_dist
 ```
 
-`kbs view` serves `kg_build_system/viewer_dist`; Node is not required at runtime.
+`kbs view` serves the bundled `kg_build_system/viewer_dist` (or `viewer/out` in a
+source checkout); Node is not required at runtime.
 Node and network access are required at build time. For a local wheel build with
 an existing `viewer/out`:
 
