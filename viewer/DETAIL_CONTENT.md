@@ -16,14 +16,15 @@ includes by their immediate importance to a reader; it never renames one. A
 | Order | Section | Question it answers | Content |
 | --- | --- | --- | --- |
 | 1 | **Overview** | What is this, in one screen? | One fact grid: kind, labels, identity, owner or endpoints, counts and licence. |
-| 2 | **Meaning** | What is each level for? | One confined purpose box per level: graph → category → component → property, labels on the left; the centred purpose boxes taper symmetrically from the widest root to the narrowest current box, with an accent arrow centred over each child box. Each box shows only the purpose, clamped to three lines; a longer purpose hides its remainder. The current level is tinted and marked; the scheme is derivation (a level narrows the one above), not copied text. No claims or limitations appear in this band. |
-| 3 | **Fulfilment** | How do the record and relation axes meet? | The axis map: graph records, the binding, the domain relations. Compact by default; one control reveals the full three-column map. |
-| 4 | **Sources** | Where does this value come from? | Assets, source relations and derived relations, as navigable references with counts. |
-| 5 | **Build steps** | How is this built? | The narrowed workflow graph of the steps that produce the subject. |
-| 6 | **Expression** | Which fields and operations produce the value? | The expression outline, one root per binding or column. |
-| 7 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; a row opens its document when it has one. |
-| 8 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
-| 9 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. |
+| 2 | **Purpose hierarchy** | What is each level for? | One confined purpose box per level: graph → category → component → property, labels on the left; the centred purpose boxes taper symmetrically from the widest root to the narrowest current box, with an accent arrow centred over each child box. Each box shows only the purpose, clamped to three lines; a longer purpose hides its remainder. Hovering or focusing a box reveals that level's full meaning; a label navigates to its document. The current level is tinted and marked; the scheme is derivation (a level narrows the one above), not copied text. |
+| 3 | **Meaning** | What is this for, and what does it exclude? | The full meaning of the current subject: purpose, the limitations it owns, then contextless claims; compact counts in the header. |
+| 4 | **Fulfilment** | How do the record and relation axes meet? | The axis map: graph records, the binding, the domain relations. Compact by default; one control reveals the full three-column map. |
+| 5 | **Sources** | Where does this value come from? | Assets, source relations and derived relations, as navigable references with counts. |
+| 6 | **Build steps** | How is this built? | The narrowed workflow graph of the steps that produce the subject. |
+| 7 | **Expression** | Which fields and operations produce the value? | The expression outline, one root per binding or column. |
+| 8 | **Members** | Which units belong to this subject? | One table grammar: name, type, meaning, source, count; a row opens its document when it has one. |
+| 9 | **Connections** | Which records does this subject touch? | Endpoints of an edge, incident relations of a node, ports of a step. |
+| 10 | **Bindings** | Which binding fulfils this subject? | One row per binding: name, writes, identity, rows read. |
 
 A section header carries four things only: the section's concept logo, the
 structural title, the question in the reader's language, and one noun-bearing
@@ -34,13 +35,13 @@ count. Every card gets a logo; the title-to-concept mapping lives once beside
 
 | View kind | Sections | Notes |
 | --- | --- | --- |
-| Node | **Overview**, **Meaning**, **Fulfilment**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | Members are properties; Connections are incident relations. |
-| Edge | **Overview**, **Meaning**, **Fulfilment**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | Overview states the endpoints; Connections repeats them with the label. |
-| Property | **Overview**, **Meaning**, **Fulfilment**, **Branches**, **Connections**, **Expression**, Sources, Build steps, Bindings | Branches is the type/presence chain and lane canvas; Connections is its ledger. |
-| Abstract category | **Overview**, **Meaning**, **Members**, Fulfilment | Members are concrete descendants. |
-| Asset | **Overview**, **Meaning**, **Sources**, **Members**, **Fields**, Bindings, Fulfilment | Sources states the release boundary; Members are relations, then fields. |
-| Source relation | **Overview**, **Meaning**, **Members**, **Sources**, **Fulfilment**, Build steps, Bindings, Expression | Columns are the relation; Sources states its asset and scans. |
-| Derived relation | **Overview**, **Meaning**, **Expression**, **Members**, **Fulfilment**, Sources, Build steps, Bindings | Expression is the computation; Members are its outputs. |
+| Node | **Overview**, **Purpose hierarchy**, **Meaning**, **Fulfilment**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | Members are properties; Connections are incident relations. |
+| Edge | **Overview**, **Purpose hierarchy**, **Meaning**, **Fulfilment**, **Members**, **Connections**, Sources, Build steps, Expression, Bindings | Overview states the endpoints; Connections repeats them with the label. |
+| Property | **Overview**, **Purpose hierarchy**, **Meaning**, **Fulfilment**, **Branches**, **Connections**, **Expression**, Sources, Build steps, Bindings | Branches is the type/presence chain and lane canvas; Connections is its ledger. |
+| Abstract category | **Overview**, **Purpose hierarchy**, **Meaning**, **Members**, Fulfilment | Members are concrete descendants. |
+| Asset | **Overview**, **Purpose hierarchy**, **Meaning**, **Sources**, **Members**, **Fields**, Bindings, Fulfilment | Sources states the release boundary; Members are relations, then fields. |
+| Source relation | **Overview**, **Purpose hierarchy**, **Meaning**, **Members**, **Sources**, **Fulfilment**, Build steps, Bindings, Expression | Columns are the relation; Sources states its asset and scans. The Meaning card is omitted when the declaration states no units; the Purpose hierarchy states the absence explicitly. |
+| Derived relation | **Overview**, **Purpose hierarchy**, **Meaning**, **Expression**, **Members**, **Fulfilment**, Sources, Build steps, Bindings | Expression is the computation; Members are its outputs. |
 | Step | **Overview**, **Ports**, **Payload**, **Connections**, **Bindings**, Meaning, Sources | A step is build machinery; Meaning and Sources state their absence last. |
 
 Text in bold is primary and opens by default; the remaining cards are secondary

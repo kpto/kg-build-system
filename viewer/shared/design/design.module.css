@@ -169,24 +169,6 @@
   min-width: 0;
 }
 
-.purposeHead {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 8px;
-  margin-bottom: 8px;
-  color: var(--color-faint);
-  font-family: var(--font-mono);
-  font-size: 8.5px;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-}
-
-.purposeHead span:first-child {
-  color: var(--color-muted);
-  font-weight: 600;
-}
-
 .purposeLevels {
   display: flex;
   min-width: 0;
@@ -267,6 +249,7 @@
   display: block;
   overflow: hidden;
   min-width: 0;
+  cursor: help;
   margin-inline: auto;
   min-height: 46px;
   max-height: 68px;
@@ -282,7 +265,7 @@
     background-color 120ms ease;
 }
 
-button.purposeBox:hover {
+.purposeBox:hover {
   border-color: var(--color-line-strong);
   border-left-color: var(--color-selection);
   background: color-mix(
@@ -292,7 +275,7 @@ button.purposeBox:hover {
   );
 }
 
-button.purposeBox:focus-visible {
+.purposeBox:focus-visible {
   outline: 1px solid var(--color-accent);
   outline-offset: 1px;
 }
@@ -340,4 +323,70 @@ button.purposeBox:focus-visible {
   color: var(--color-faint);
   font-size: 10px;
   line-height: 1.5;
+}
+
+/* -------------------------------------------------------- purpose hover card */
+
+.purposeHover {
+  position: fixed;
+  z-index: 60;
+  max-height: 360px;
+  overflow: auto;
+  border: 1px solid var(--color-line-strong);
+  border-left: 2px solid var(--color-selection);
+  border-radius: 4px;
+  background: var(--color-panel-raised);
+  box-shadow: 0 12px 30px rgb(0 0 0 / 45%);
+  padding: 8px 10px 9px;
+}
+
+.purposeHoverHead {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  margin-bottom: 6px;
+  border-bottom: 1px solid var(--color-line-soft);
+  padding-bottom: 5px;
+}
+
+.purposeHoverHead span {
+  color: var(--color-faint);
+  font-family: var(--font-mono);
+  font-size: 8px;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.purposeHoverHead strong {
+  overflow: hidden;
+  color: var(--color-text);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  font-weight: 500;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.purposeHoverHead span:last-child {
+  flex: none;
+  margin-left: auto;
+}
+
+button.purposeMeta {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  font: inherit;
+  cursor: pointer;
+}
+
+button.purposeMeta:hover .purposeName {
+  color: var(--color-text);
+  text-decoration: underline;
+}
+
+button.purposeMeta:focus-visible {
+  outline: 1px solid var(--color-accent);
+  outline-offset: 2px;
 }

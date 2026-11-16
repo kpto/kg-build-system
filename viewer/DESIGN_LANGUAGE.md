@@ -72,22 +72,28 @@ Every item detail view follows one content contract, stated in
 [`DETAIL_CONTENT.md`](./DETAIL_CONTENT.md). The shared order is:
 
 ```text
-Overview → Meaning → Fulfilment → Sources → Build steps → Expression
-         → Members → Connections → Bindings
+Overview → Purpose hierarchy → Meaning → Fulfilment → Sources
+         → Build steps → Expression → Members → Connections → Bindings
 ```
 
 A kind includes or omits a section; it never renames one for itself.
 
 - **Overview** is one fact grid: kind, labels, identity, owner or endpoints,
   counts and licence.
-- **Meaning** is a compact purpose chain. On the record axis it reads the
-  graph purpose downward through category and component to property: the labels
-  sit on the left, and the centred purpose boxes taper 14% per level, each
-  joined by an accent arrow centred over the child box; each box shows only its
-  purpose. The root is marked, the current level is tinted and accented,
-  and the box is constrained so a long purpose clamps and the rest stays hidden.
-  The scheme is derivation, not copied text: a level narrows the one above. The
-  label is always Meaning.
+- **Purpose hierarchy** is a compact purpose chain. On the record axis it reads
+  the graph purpose downward through category and component to property: the
+  labels sit on the left, and the centred purpose boxes taper 14% per level,
+  each joined by an accent arrow centred over the child box; each box shows only
+  its purpose. The root is marked, the current level is tinted and accented, and
+  the box is constrained so a long purpose clamps and the rest stays hidden.
+  Hovering or focusing a box reveals that level's full meaning — purpose,
+  exclusions and claims — in a portal card, because the band clips its overflow.
+  A label is the navigation target; the box is not a control. The scheme is
+  derivation, not copied text: a level narrows the one above.
+- **Meaning** is the full meaning of the current subject: purpose, the
+  limitations it owns, then contextless claims. It is a separate card from the
+  Purpose hierarchy, so a reader can see the ancestry and the subject's complete
+  meaning in turn.
 - **Fulfilment** is the axis map: graph records, the binding and the domain
   relations. It is compact by default; one control reveals the full map.
 - **Sources**, **Build steps** and **Expression** are three visualisations of

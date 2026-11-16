@@ -16,6 +16,7 @@ import type {
 } from "@/lib/types";
 import { effectiveLicense } from "@/proof/license";
 import type { ProvenanceReferences } from "@/proof/references";
+import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import { PurposeChain } from "@/shared/design/PurposeChain";
 import { attachedMeaning, singlePurposeLevel } from "@/shared/design/meaning";
 import { ConceptGlyph } from "@/shared/ui/ConceptMark";
@@ -310,20 +311,27 @@ export function DataItemEditor(props: WorkspaceProps) {
       </DetailBand>
 
   );
-  const meaningSection = (
+  const meaningLimitationCount =
+    meaning.limitations.length +
+    (meaning.frames ?? []).reduce(
+      (total, frame) => total + (frame.limitations?.length ?? 0),
+      0,
+    );
+  const purposeSection = (
       <DetailBand
         concept="semantics"
         priority="primary"
-        title="Meaning"
+        title="Purpose hierarchy"
         question="What is this relation for?"
-        meta={meaning.purpose ? "purpose" : "no purpose"}
+        meta="1 level"
+        testId="detail-purpose-hierarchy"
       >
         <PurposeChain
           levels={[
             singlePurposeLevel(
               kind === "relation" ? "relation" : "projection",
               model.name,
-              meaning.purpose,
+              meaning,
             ),
           ]}
           emptyText="Meaning omitted for this declaration."
@@ -331,6 +339,31 @@ export function DataItemEditor(props: WorkspaceProps) {
       </DetailBand>
 
   );
+  const hasMeaning =
+    Boolean(meaning.purpose) ||
+    meaning.claims.length > 0 ||
+    meaning.limitations.length > 0 ||
+    (meaning.frames?.length ?? 0) > 0;
+  const meaningSection = hasMeaning ? (
+      <DetailBand
+        concept="semantics"
+        priority="primary"
+        title="Meaning"
+        question="What is this for, and what does it exclude?"
+        meta={`${meaning.claims.length} ${
+          meaning.claims.length === 1 ? "claim" : "claims"
+        } · ${meaningLimitationCount} ${
+          meaningLimitationCount === 1 ? "limitation" : "limitations"
+        }`}
+        testId="detail-meaning"
+      >
+        <DesignMeaning
+          {...meaning}
+          emptyText="Meaning omitted for this declaration."
+        />
+      </DetailBand>
+
+  ) : null;
   const fulfilmentSection = (
       <DetailBand
         priority="primary"
@@ -563,6 +596,7 @@ export function DataItemEditor(props: WorkspaceProps) {
       {kind === "relation" ? (
         <>
           {overviewSection}
+          {purposeSection}
           {meaningSection}
           {membersSection}
           {sourcesSection}
@@ -574,6 +608,7 @@ export function DataItemEditor(props: WorkspaceProps) {
       ) : (
         <>
           {overviewSection}
+          {purposeSection}
           {meaningSection}
           {expressionSection}
           {membersSection}

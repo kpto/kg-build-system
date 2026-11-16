@@ -78,12 +78,13 @@ describe("purpose hierarchy", () => {
       "Category",
       "Node",
     ]);
-    expect(levels[0].purpose).toContain(
+    expect(levels[0].meaning.purpose).toContain(
       "Exercise the viewer data contract",
     );
-    expect(levels[1].purpose).toContain("abstract category");
+    expect(levels[1].meaning.purpose).toContain("abstract category");
+    expect(levels[1].meaning.claims[0]?.text).toContain("Every documented");
     expect(levels[2].current).toBe(true);
-    expect(levels[2].purpose).toBeUndefined();
+    expect(levels[2].meaning.purpose).toBeUndefined();
   });
 
   it("closes the chain with a property", () => {

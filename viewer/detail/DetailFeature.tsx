@@ -95,6 +95,7 @@ import {
   type ProofTrace,
   type ProofTypeChain,
 } from "@/proof/model";
+import { DesignMeaning } from "@/shared/design/DesignMeaning";
 import { PurposeChain } from "@/shared/design/PurposeChain";
 import {
   attachedMeaning,
@@ -2128,17 +2129,16 @@ function SubjectDetailEditor(props: WorkspaceProps) {
   const model = useProofModel(props);
   const selection = documentSelection(activeDocument(props.state));
   const meaning = subjectMeaning(index, model);
-  const purposes = useMemo<PurposeLevel[]>(() => {
-    const chain = purposeLevels(index, model.subject);
-    if (chain.length) return chain;
-    return [
-      singlePurposeLevel(
-        model.level,
-        model.subject.component,
-        meaning.purpose,
-      ),
-    ];
-  }, [index, model, meaning.purpose]);
+  const meaningLimitationCount =
+    meaning.limitations.length +
+    (meaning.frames ?? []).reduce(
+      (total, frame) => total + (frame.limitations?.length ?? 0),
+      0,
+    );
+  const chain = purposeLevels(index, model.subject);
+  const purposes: PurposeLevel[] = chain.length
+    ? chain
+    : [singlePurposeLevel(model.level, model.subject.component, meaning)];
   const provenance = useMemo(
     () => provenanceReferences(index, model),
     [model, index],
@@ -2297,20 +2297,42 @@ function SubjectDetailEditor(props: WorkspaceProps) {
         <FactGrid facts={facts} />
       </DetailBand>
   );
+  const purposeSection = (
+    <DetailBand
+      concept="semantics"
+      priority="primary"
+      title="Purpose hierarchy"
+      question="What is each level for?"
+      meta={`${purposes.length} ${
+        purposes.length === 1 ? "level" : "levels"
+      }`}
+      testId="detail-purpose-hierarchy"
+    >
+      <PurposeChain
+        levels={purposes}
+        onOpen={openPurpose}
+        emptyText="Meaning omitted for this subject."
+      />
+    </DetailBand>
+  );
   const meaningSection = (
     <DetailBand
       concept="semantics"
       priority="primary"
       title="Meaning"
-      question="What is each level for?"
-      meta={`${purposes.length} ${
-        purposes.length === 1 ? "level" : "levels"
+      question="What is this for, and what does it exclude?"
+      meta={`${meaning.claims.length} ${
+        meaning.claims.length === 1 ? "claim" : "claims"
+      } · ${meaningLimitationCount} ${
+        meaningLimitationCount === 1 ? "limitation" : "limitations"
       }`}
       testId="detail-meaning"
     >
-      <PurposeChain
-        levels={purposes}
-        onOpen={openPurpose}
+      <DesignMeaning
+        claims={meaning.claims}
+        limitations={meaning.limitations}
+        purpose={meaning.purpose}
+        frames={meaning.frames}
         emptyText="Meaning omitted for this subject."
       />
     </DetailBand>
@@ -2463,6 +2485,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       {model.level === "node" || model.level === "edge" ? (
         <>
           {overviewSection}
+          {purposeSection}
           {meaningSection}
           {fulfilmentSection}
           {kindSection}
@@ -2474,6 +2497,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       ) : model.level === "property" ? (
         <>
           {overviewSection}
+          {purposeSection}
           {meaningSection}
           {fulfilmentSection}
           {kindSection}
@@ -2485,6 +2509,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       ) : model.level === "abstract" ? (
         <>
           {overviewSection}
+          {purposeSection}
           {meaningSection}
           {kindSection}
           {fulfilmentSection}
@@ -2493,6 +2518,7 @@ function SubjectDetailEditor(props: WorkspaceProps) {
       ) : (
         <>
           {overviewSection}
+          {purposeSection}
           {meaningSection}
           {assetSourcesSection}
           {kindSection}

@@ -106,12 +106,12 @@ export type PurposeLevelKind =
   | "binding"
   | "step";
 
-/** One level of the record-axis purpose chain: the purpose, and nothing else. */
+/** One level of the record-axis purpose chain and its full meaning. */
 export interface PurposeLevel {
   kind: PurposeLevelKind;
   name: string;
   label: string;
-  purpose?: string;
+  meaning: DesignMeaningValue;
   current?: boolean;
 }
 
@@ -169,7 +169,7 @@ function appendPurposeComponent(
       label: PURPOSE_LABELS[
         kind === "node" && abstract ? "abstract" : kind
       ],
-      purpose: componentMeaning(index, kind, ancestor.name).purpose,
+      meaning: componentMeaning(index, kind, ancestor.name),
     });
   }
   const entity = entries.get(name);
@@ -178,7 +178,7 @@ function appendPurposeComponent(
     kind: kind === "node" && abstract ? "abstract" : kind,
     name,
     label: PURPOSE_LABELS[kind === "node" && abstract ? "abstract" : kind],
-    purpose: componentMeaning(index, kind, name).purpose,
+    meaning: componentMeaning(index, kind, name),
     current,
   });
 }
@@ -203,7 +203,7 @@ export function purposeLevels(
       kind: "graph",
       name: index.graphDeclaration?.name ?? "graph",
       label: PURPOSE_LABELS.graph,
-      purpose: root.purpose,
+      meaning: root,
     });
   }
   if (subject.level === "property") {
@@ -213,12 +213,12 @@ export function purposeLevels(
       kind: "property",
       name: subject.property ?? subject.component,
       label: PURPOSE_LABELS.property,
-      purpose: propertyMeaning(
+      meaning: propertyMeaning(
         index,
         kind,
         subject.component,
         subject.property ?? "",
-      ).purpose,
+      ),
       current: true,
     });
     return levels;
@@ -236,13 +236,13 @@ export function purposeLevels(
 export function singlePurposeLevel(
   kind: PurposeLevelKind,
   name: string,
-  purpose?: string,
+  meaning: DesignMeaningValue,
 ): PurposeLevel {
   return {
     kind,
     name,
     label: PURPOSE_LABELS[kind],
-    purpose,
+    meaning,
     current: true,
   };
 }
