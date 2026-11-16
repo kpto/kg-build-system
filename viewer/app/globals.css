@@ -532,6 +532,7 @@
   .wb-splitter[data-orientation="horizontal"] {
     height: 3px;
     cursor: row-resize;
+    background-color: var(--color-panel);
   }
 
   .wb-splitter:hover,
