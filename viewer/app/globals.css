@@ -412,7 +412,7 @@
     min-height: 0;
     flex: 1;
     overflow: hidden;
-    animation: wb-fade-in var(--motion-base) var(--ease-instrument);
+    animation: wb-reveal var(--motion-base) var(--ease-instrument);
   }
 
   .wb-side-section-header:hover {
@@ -437,7 +437,7 @@
     min-height: 0;
     flex: 1;
     overflow: hidden;
-    animation: wb-fade-in var(--motion-base) var(--ease-instrument);
+    animation: wb-reveal var(--motion-base) var(--ease-instrument);
   }
 
   .wb-sidebar-header {
@@ -659,6 +659,7 @@
     align-items: stretch;
     border-right: 1px solid var(--color-line-soft);
     background-color: var(--color-inset);
+    animation: wb-fade-in var(--motion-fast) var(--ease-instrument);
     transition:
       background-color var(--motion-base) var(--ease-instrument),
       box-shadow var(--motion-base) var(--ease-instrument);
@@ -750,6 +751,21 @@
 
   .wb-editor-pane:not([data-active="true"]) {
     display: none;
+  }
+
+  /* A tab switch is a view change: the header settles down into place and the
+     canvas fades in. The pane is mounted the whole time, so display is the
+     trigger and the motion never loops. */
+  .wb-editor-pane[data-active="true"] .wb-viewport-head {
+    animation: wb-viewport-head-in var(--motion-base) var(--ease-instrument);
+  }
+
+  .wb-editor-pane[data-active="true"] .wb-viewport-body {
+    animation: wb-fade-in var(--motion-slow) var(--ease-instrument);
+  }
+
+  .wb-editor-pane[data-active="true"] .wb-detail {
+    animation: wb-fade-in var(--motion-base) var(--ease-instrument);
   }
 
   .wb-editor-pane[data-full-bleed="true"] {
@@ -957,6 +973,7 @@
     font-size: 12px;
     text-overflow: ellipsis;
     white-space: nowrap;
+    animation: wb-fade-in var(--motion-fast) var(--ease-instrument);
   }
 
   .wb-editor-empty {
@@ -1222,6 +1239,7 @@
     padding-top: 10vh;
     background-color: rgb(0 0 0 / 52%);
     backdrop-filter: blur(1px);
+    animation: wb-fade-in var(--motion-base) var(--ease-instrument);
   }
 
   .wb-palette,
@@ -2291,6 +2309,28 @@
   }
   to {
     opacity: 1;
+  }
+}
+
+@keyframes wb-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes wb-viewport-head-in {
+  from {
+    opacity: 0;
+    transform: translateY(-4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
 }
 

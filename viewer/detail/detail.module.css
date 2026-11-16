@@ -1,3 +1,24 @@
+/* CSS Modules scopes keyframe names, so the module owns its copies. */
+@keyframes detail-fade-in {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes detail-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 /* Detail document: Blender graphite surfaces, blue UI state, orange graph selection. */
 
 .root {
@@ -282,7 +303,7 @@
   display: block;
   width: 100%;
   height: 260px;
-  animation: wb-fade-in var(--motion-slow) var(--ease-instrument);
+  animation: detail-fade-in var(--motion-slow) var(--ease-instrument);
   background-color: var(--color-abyss);
 }
 
@@ -1615,6 +1636,7 @@ button.expressionToggle:hover {
 
 .sideSectionBody {
   padding: 3px 6px 6px;
+  animation: detail-reveal var(--motion-base) var(--ease-instrument);
 }
 
 .sideEmpty {
@@ -1957,10 +1979,12 @@ button.expressionToggle:hover {
 .bandBody {
   width: 100%;
   padding: 10px 12px 12px;
+  animation: detail-reveal var(--motion-fast) var(--ease-instrument);
 }
 
 .bandBodyFlush {
   padding: 0;
+  animation: detail-reveal var(--motion-fast) var(--ease-instrument);
 }
 
 .bandNote {

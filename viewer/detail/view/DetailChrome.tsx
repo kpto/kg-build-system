@@ -5,6 +5,7 @@ import { ChevronRight } from "lucide-react";
 
 import type { ConceptKind } from "@/lib/concepts";
 import { ConceptGlyph, ConceptMark } from "@/shared/ui/ConceptMark";
+import { cx } from "@/shared/ui/theme";
 import styles from "../detail.module.css";
 
 export interface DetailLicense {
@@ -40,7 +41,11 @@ export function DetailDocument({
   children,
 }: DetailDocumentProps) {
   return (
-    <div className={styles.root} data-testid={testId} data-concept={concept}>
+    <div
+      className={cx(styles.root, "wb-detail")}
+      data-testid={testId}
+      data-concept={concept}
+    >
       <header className={styles.topbar}>
         <div className={styles.headMain}>
           <ConceptMark concept={concept} className={styles.logo} />

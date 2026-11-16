@@ -114,11 +114,14 @@ mark wherever it appears.
 - Motion is feedback, not decoration. Hover, selection and press changes use
   short transitions; entrance layers use opacity plus a small transform.
 - The workbench curve is `--ease-instrument`. Micro-interactions stay under
-  200ms; a settings dialog may take 200ms.
-- Buttons press with a subtle scale. Tabs transition their surface and active
-  indicator. Context menus enter from the pointer origin; the Graph inspector
-  enters from the right.
-- A graph node's dim or highlight fades; a settled node never moves.
+  200ms; a palette or dialog may take 200ms.
+- Buttons press down by 1px. Tabs transition their surface and active
+  indicator. Context menus enter from their anchor; the Graph inspector enters
+  from the right.
+- A tab switch fades the viewport canvas and settles the header down 4px; a
+  detail document fades in as one surface. A new tab fades in.
+- A collapsed band or side-bar section reveals its body with a 4px rise. A
+  selected graph item's dim or highlight fades; a settled node never moves.
 - `prefers-reduced-motion` keeps the state change and removes movement.
 
 ## Panels and persistence
