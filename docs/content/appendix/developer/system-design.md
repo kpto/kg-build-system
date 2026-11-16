@@ -60,7 +60,7 @@ A **module** is a feature package under `distribution/modules/` grouping one fea
 | Name | Kind | Contract |
 | --- | --- | --- |
 | `Namespace` | supporting protocol | `values() -> Sequence[object]`; the authoring objects a build may collect declarations from. |
-| `ReferenceResolver` | supporting protocol | `get_identity(value: Any) -> SymbolRef \| None`; resolves an authoring value to the symbol it denotes. |
+| `ReferenceResolver` | supporting protocol | `get_identity(value: object) -> SymbolRef or None`; resolves an authoring value to the symbol it denotes. |
 | `RenderContext` | supporting protocol | Opaque render context; a language passes it to dependency renderers and does not inspect it. |
 | `Language` | protocol | `discover_declarations`, `compute_key`, `get_kind`, `get_identity`, `get_references`, `transcribe` and `render`; the full signature is below. |
 | `Linker` | protocol | `link(languages, namespace) -> LinkerModelT`; owns roots, language order, the closure and model assembly. |
@@ -68,9 +68,13 @@ A **module** is a feature package under `distribution/modules/` grouping one fea
 | `Resource` | protocol | `close() -> None`; a live capability with a lifecycle. |
 | `ResourceProvider` | protocol | `on_event(event: PipelineEvent) -> None`; publishes resources on `PipelineStarted` and disposes them on finish or halt. |
 | `Executor` | protocol | `kinds: tuple[InstructionKind, ...]` and `execute(context, instruction) -> StepOutcome`. |
-| `StepExecutor` | protocol | `Executor` plus `resources: tuple[type, ...] = ()`; the exact resource types it reads. |
+| `StepExecutor` | protocol | `Executor` plus a read-only `resources: tuple[type[object], ...]`; the exact resource types it reads. |
 | `Runtime` | protocol | `execute(plan, executors, *, configuration, listeners=()) -> WorkflowReport`. |
 | `Toolchain` | composition value | Frozen composition of languages, linker, runtime, planners and executors; not a protocol. |
+
+Public annotations name the narrowest type true of the value: `object` for an
+opaque value, `JsonValue` for an open payload, a named root or variance decision
+for an invariant generic top, and no `Any`.
 
 `SqlEmitter` is a neutral distribution service protocol under `distribution/service/internal`, not a kernel protocol. Core planners consume it; the kernel never imports it.
 
@@ -82,9 +86,9 @@ class Language(Protocol):
     ) -> Iterable[Declaration]: ...
     def compute_key(self, declaration: Declaration) -> Key: ...
     def get_kind(self, declaration: Declaration) -> str: ...
-    def get_identity(self, value: Any) -> SymbolRef | None: ...
+    def get_identity(self, value: object) -> SymbolRef | None: ...
     def get_references(
-        self, value: Any, resolver: ReferenceResolver,
+        self, value: object, resolver: ReferenceResolver,
     ) -> tuple[SymbolRef, ...]: ...
     def transcribe(
         self, declaration: Declaration, context: SymbolContext,
@@ -98,15 +102,15 @@ class Linker(Protocol[LinkerModelT]):
 
 @dataclass(frozen=True, slots=True)
 class PlanContext:
-    runtime_configuration: Mapping[str, Mapping[str, Any]] = ...
-    shared: MutableMapping[str, Any] = ...
+    runtime_configuration: Mapping[str, Mapping[str, JsonValue]] = ...
+    shared: MutableMapping[str, object] = ...
 
 class Planner(Protocol[PlannerModelT]):
     component_id: str
     version: str
     runtime_fields: tuple[RuntimeField, ...]
     def plan(
-        self, model: PlannerModelT, context: PlanContext,
+        self, model: PlannerModelT, context: PlanContext, /,
     ) -> Sequence[Step]: ...
 
 class Executor(Protocol):

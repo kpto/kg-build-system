@@ -38,7 +38,7 @@ describe("design meaning", () => {
     ]);
   });
 
-  it("returns empty meaning for a subject without semantics", () => {
+  it("returns empty meaning for a subject without meaning", () => {
     expect(componentMeaning(contractIndex, "node", "missing").claims).toEqual([]);
     expect(componentMeaning(contractIndex, "node", "missing").limitations).toEqual(
       [],

@@ -39,7 +39,8 @@ An executor declares the exact instruction kinds it handles and the exact resour
 ```python
 class StepExecutor(Protocol):
     kinds: tuple[InstructionKind, ...]
-    resources: tuple[type, ...]
+    @property
+    def resources(self) -> tuple[type[object], ...]: ...
     def execute(
         self,
         context: ExecutionContext | DisruptedExecutionContext,

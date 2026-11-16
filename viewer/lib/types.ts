@@ -83,7 +83,7 @@ export interface GraphDeclarationDTO {
   description?: string | null;
 }
 
-/** Descriptive asset profile; separate from attached semantics. */
+/** Descriptive asset profile; separate from attached meaning. */
 export interface AssetProfileDTO {
   subject: string;
   coverage: string;
@@ -529,7 +529,7 @@ export interface SearchSource {
 }
 
 /**
- * Every subject kind that can carry attached semantics.
+ * Every subject kind that can carry attached meaning.
  *
  * `graph` is the graph declaration; its root purpose is `semantics.purpose`.
  */

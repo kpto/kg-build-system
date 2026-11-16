@@ -23,7 +23,7 @@ describe("snapshot loading", () => {
     expect(declaration?.meaning?.purpose?.limitations).toHaveLength(2);
   });
 
-  it("loads asset profiles and attached semantics on every subject", () => {
+  it("loads asset profiles and attached meaning on every subject", () => {
     const asset = snapshot.blueprint.assets[0];
     expect(asset.profile).toMatchObject({
       subject: "a monitored estate",
@@ -31,32 +31,34 @@ describe("snapshot loading", () => {
       authority: "primary",
       basis: "synthetic fixture data",
     });
-    expect(asset.semantics?.claims?.[0].text).toBe(
+    expect(asset.meaning?.claims?.[0].text).toBe(
       "The fixture estate is a JSON asset.",
     );
+    // A legacy document spells the same value `semantics`; the loader mirrors it.
+    expect(asset.semantics).toBe(asset.meaning);
 
     const relation = snapshot.blueprint.data.source_relations[0];
-    expect(relation.semantics?.claims).toHaveLength(1);
-    expect(relation.columns[1].semantics?.claims).toHaveLength(1);
+    expect(relation.meaning?.claims).toHaveLength(1);
+    expect(relation.columns[1].meaning?.claims).toHaveLength(1);
 
     const projection = snapshot.blueprint.data.derived_relations[0];
-    expect(projection.semantics?.claims).toHaveLength(1);
-    expect(projection.columns[1].semantics?.claims).toHaveLength(1);
+    expect(projection.meaning?.claims).toHaveLength(1);
+    expect(projection.columns[1].meaning?.claims).toHaveLength(1);
 
     const struct = snapshot.blueprint.data.structs[0];
-    expect(struct.semantics?.claims).toHaveLength(1);
-    expect(struct.columns[0].semantics?.claims).toHaveLength(1);
+    expect(struct.meaning?.claims).toHaveLength(1);
+    expect(struct.columns[0].meaning?.claims).toHaveLength(1);
 
     const node = snapshot.blueprint.graph.nodes.find((entry) => entry.name === "defect");
-    expect(node?.semantics?.claims).toHaveLength(1);
-    expect(node?.properties?.[0].semantics?.claims).toHaveLength(1);
+    expect(node?.meaning?.claims).toHaveLength(1);
+    expect(node?.properties?.[0].meaning?.claims).toHaveLength(1);
 
     const edge = snapshot.blueprint.graph.edges[0];
-    expect(edge.semantics?.claims).toHaveLength(1);
-    expect(edge.properties?.[0].semantics?.claims).toHaveLength(1);
+    expect(edge.meaning?.claims).toHaveLength(1);
+    expect(edge.properties?.[0].meaning?.claims).toHaveLength(1);
 
     const binding = snapshot.blueprint.bindings[0];
-    expect(binding.semantics?.claims?.[0].text).toBe(
+    expect(binding.meaning?.claims?.[0].text).toBe(
       "The binding projects the survey title.",
     );
     expect(binding.name).toBe("defect.title");
@@ -77,6 +79,28 @@ describe("snapshot loading", () => {
       (snapshot.blueprint.assets[0].semantics as unknown as Record<string, unknown>)
         .x_semantics_field,
     ).toBe("survives");
+  });
+
+  it("reads the legacy semantics, relations and projections keys", () => {
+    const loaded = loadSnapshotFromObject({
+      name: "legacy-keys",
+      title: "Legacy keys",
+      graph: {
+        nodes: [{ name: "site", semantics: { claims: [{ text: "old meaning" }] } }],
+        edges: [],
+      },
+      data: {
+        structs: [],
+        relations: [{ name: "sites", columns: [], semantics: { claims: [] } }],
+        projections: [],
+      },
+      assets: [],
+      bindings: [],
+    });
+    expect(loaded.blueprint.graph.nodes[0].meaning?.claims?.[0].text).toBe(
+      "old meaning",
+    );
+    expect(loaded.blueprint.data.source_relations[0].name).toBe("sites");
   });
 
   it("allows a snapshot without a graph declaration", () => {

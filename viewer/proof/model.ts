@@ -2,7 +2,7 @@
  * Proof model.
  *
  * One selected subject is expanded into a provenance model. The property level
- * reuses `buildLineage` and adds the attached semantics and the type/presence
+ * reuses `buildLineage` and adds the attached meaning and the type/presence
  * chain. Node, edge, abstract and asset levels are derived views over the same
  * index; they never rebuild a second lineage model.
  */
@@ -81,7 +81,7 @@ export interface ProofSelectionLike {
 // Semantics
 // ---------------------------------------------------------------------------
 
-/** One subject's attached semantics. Evidence is read, never propagated. */
+/** One subject's attached meaning. Evidence is read, never propagated. */
 export interface ProofSemantics {
   key: string;
   kind: SemanticSubjectKind;

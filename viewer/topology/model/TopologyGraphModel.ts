@@ -2,7 +2,7 @@
  * In-memory topology model for the D3 workbench function.
  *
  * The model owns the design graph: stable identities, labels, degree, category
- * containment, attached semantics and property counts. It is a pure
+ * containment, attached meaning and property counts. It is a pure
  * visualisation model; coordinates, hover, applied filters and detail switches
  * stay in the view.
  *

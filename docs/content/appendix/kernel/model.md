@@ -49,13 +49,13 @@ A key is an identity, not a content address. Two equal values with different key
 ```python
 @dataclass(frozen=True, slots=True)
 class Declaration:
-    value: Any
+    value: object
 
 @dataclass(frozen=True, slots=True)
 class Symbol:
     key: Key
     kind: str
-    value: Any
+    value: object
     references: tuple[SymbolRef, ...] = ()
 
 @dataclass(frozen=True, slots=True)

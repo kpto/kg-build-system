@@ -103,17 +103,17 @@ compile(
     blueprint: GraphBlueprint | None = None,
     namespace_path: str | Path | None = None,
     bindings: Iterable[Binding] | None = None,
-    planners: Sequence[Planner] = (),
+    planners: Sequence[Planner[GraphBlueprint]] = (),
     toolchain: Toolchain[GraphBlueprint] | None = None,
-    engine: SqlEmitter | None = None,
+    engine: DuckDbSqlEmitter | None = None,
 ) -> WorkflowPlan
 ```
 
-`SqlEmitter` is the engine-neutral protocol in `distribution/service/internal/emission.py`. `DuckDbSqlEmitter` implements it; the core planners import only the neutral relation plan and protocol, never the DuckDB module.
+`SqlEmitter` is the engine-neutral protocol in `distribution/service/internal/emission.py`. `DuckDbSqlEmitter` implements it; the core planners import only the neutral relation plan and protocol, never the DuckDB module. The `engine` argument names the DuckDB emitter for the default toolchain; a custom emitter is composed with `core_planners(engine=...)` and passed as a planner.
 
 `compile` reads the blueprint exactly as given, or creates one from the declaration mode. It never reads data. A blueprint cannot be combined with `namespace_path` or `bindings`: `ValueError: blueprint cannot be combined with namespace_path or bindings`.
 
-When `toolchain` is omitted, `compile` uses `default_toolchain`, adding the generic DuckDB source planner unless a supplied planner reports `component_id == "duckdb"`, and adding the four core planners unless a supplied planner reports `component_id == "core"`, then appending the planners passed. When `toolchain` is supplied, it appends the `planners` argument to that toolchain's planners. The `engine` argument selects the SQL emitter for the default toolchain path.
+When `toolchain` is omitted, `compile` uses `default_toolchain`, adding the generic DuckDB source planner unless a supplied planner reports `component_id == "duckdb"`, and adding the four core planners unless a supplied planner reports `component_id == "core"`, then appending the planners passed. When `toolchain` is supplied, it appends the `planners` argument to that toolchain's planners. The `engine` argument selects the DuckDB SQL emitter for the default toolchain path; it does not accept an arbitrary `SqlEmitter`.
 
 ```python
 plan = compile(blueprint=blueprint, planners=planners)

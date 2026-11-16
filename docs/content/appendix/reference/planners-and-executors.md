@@ -62,7 +62,8 @@ An executor implements:
 ```python
 class StepExecutor(Protocol):
     kinds: tuple[InstructionKind, ...]
-    resources: tuple[type, ...]
+    @property
+    def resources(self) -> tuple[type[object], ...]: ...
     def execute(
         self,
         context: ExecutionContext | DisruptedExecutionContext,

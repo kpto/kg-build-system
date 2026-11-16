@@ -39,9 +39,9 @@ class Language(Protocol):
     ) -> Iterable[Declaration]: ...
     def compute_key(self, declaration: Declaration) -> Key: ...
     def get_kind(self, declaration: Declaration) -> str: ...
-    def get_identity(self, value: Any) -> SymbolRef | None: ...
+    def get_identity(self, value: object) -> SymbolRef | None: ...
     def get_references(
-        self, value: Any, resolver: ReferenceResolver,
+        self, value: object, resolver: ReferenceResolver,
     ) -> tuple[SymbolRef, ...]: ...
     def transcribe(
         self, declaration: Declaration, context: SymbolContext,
@@ -72,7 +72,7 @@ class Planner(Protocol[PlannerModelT]):
     version: str
     runtime_fields: tuple[RuntimeField, ...]
     def plan(
-        self, model: PlannerModelT, context: PlanContext,
+        self, model: PlannerModelT, context: PlanContext, /,
     ) -> Sequence[Step]: ...
 ```
 
@@ -90,7 +90,8 @@ class Executor(Protocol):
     ) -> StepOutcome: ...
 
 class StepExecutor(Executor, Protocol):
-    resources: tuple[type, ...] = ()
+    @property
+    def resources(self) -> tuple[type[object], ...]: ...
 ```
 
 ### ResourceProvider

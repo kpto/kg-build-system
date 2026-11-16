@@ -4,7 +4,7 @@ import { loadSnapshotFromObject } from "../lib/load";
 /**
  * A small in-memory snapshot that exercises the current contract.
  *
- * It carries a graph declaration, an asset profile and attached semantics on
+ * It carries a graph declaration, an asset profile and attached meaning on
  * an asset, relation, projection, struct, field, node, edge, property and
  * binding. No project snapshot is read here.
  */

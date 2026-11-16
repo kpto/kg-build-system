@@ -38,15 +38,16 @@ This table is the **default facade**. The kernel protocols are exported from `kg
 | `kg_build_system.distribution.languages.annotations` | `Annotation`, `EdgeLabel`, `NodeLabel` |
 | `kg_build_system.distribution.languages.asset` | `Asset`, `AssetAuthority`, `AssetGovernance`, `AssetLayout`, `AssetLicense`, `AssetOptions`, `AssetProfile` |
 | `kg_build_system.distribution.languages.binding` | `BindingOptions`, `EdgeBinding`, `EdgeValues`, `NodeBinding`, `NodeValues`, `edge_binding`, `node_binding` |
-| `kg_build_system.distribution.languages.data` | `ComputedStruct`, `Contract`, `Definition`, `DerivedRowSource`, `Field`, `FieldDefinition`, `JoinHow`, `DerivedRelation`, `DerivedRelationOptions`, `RelationRowSource`, `RowSource`, `Stage`, `StageOptions`, `StageRowSource`, `Struct`, `StructOptions`, `StructOptionsTemplate`, `StructTemplate`, `SourceRelation`, `SourceRelationGroup`, `SourceRelationGroupOptions`, `SourceRelationOptions`, `computed_field`, `field` |
-| `kg_build_system.distribution.languages.expressions` | `ArrayRowEffects`, `NullableArrayRowEffects`, `NullableRowEffects`, `NullableSelection`, `Pair`, `RowEffects`, `Selection`, `all_of`, `any_of`, `value_expression` |
+| `kg_build_system.distribution.languages.data` | `ComputedStruct`, `Contract`, `Definition`, `DerivedRowSource`, `DeclaredValue`, `Field`, `FieldDefinition`, `GroupByKeys`, `NullableComputedField`, `OrderByKey`, `ScalarValue`, `JoinHow`, `DerivedRelation`, `DerivedRelationOptions`, `RelationRowSource`, `RowSource`, `Stage`, `StageOptions`, `StageRowSource`, `Struct`, `StructOptions`, `StructOptionsTemplate`, `StructTemplate`, `SourceRelation`, `SourceRelationGroup`, `SourceRelationGroupOptions`, `SourceRelationOptions`, `computed_field`, `field` |
+| `kg_build_system.distribution.languages.expressions` | `ArrayRowEffects`, `NullableArrayRowEffects`, `NullableRowEffects`, `NullableSelection`, `Pair`, `RowEffects`, `Selection`, `LiteralValue`, `all_of`, `any_of`, `value_expression` |
 | `kg_build_system.distribution.languages.graph` | `Graph`, `GraphOptions` |
-| `kg_build_system.distribution.languages.meaning` | `Claim`, `Limitation`, `Purpose`, `Meaning` |
-| `kg_build_system.distribution.languages.topology` | `AbstractEdge`, `AbstractNode`, `Edge`, `EdgeOptions`, `EdgeOptionsTemplate`, `EdgeTemplate`, `Endpoint`, `Node`, `NodeOptions`, `NodeOptionsTemplate`, `NodeTemplate`, `PropertySlot`, `endpoint`, `property` |
+| `kg_build_system.distribution.languages.meaning` | `Claim`, `Limitation`, `Meaning`, `Omitted`, `Purpose`, `is_omitted` |
+| `kg_build_system.distribution.languages.topology` | `AbstractEdge`, `AbstractNode`, `Edge`, `EdgeOptions`, `EdgeOptionsTemplate`, `EdgeRoot`, `EdgeTemplate`, `Endpoint`, `Node`, `NodeOptions`, `NodeOptionsTemplate`, `NodeTemplate`, `PropertySlot`, `endpoint`, `property` |
+| `kg_build_system.distribution.model.public.manifest` | `Blueprint`, `Workflow` |
 | `kg_build_system.distribution.model.public.runtime` | `BuildRuntime` |
-| `kg_build_system.kernel.model.public.runtime` | `WorkflowReport` |
+| `kg_build_system.kernel.model.public.runtime` | `Logger`, `WorkflowReport` |
 | `kg_build_system.kernel.model.public.types` | `Array`, `ArrayType`, `CustomDataType`, `Date`, `Nullable`, `NullableType`, `Shape`, `Time`, `Timestamp`, `Uuid`, `BOOL`, `INT`, `FLOAT`, `STR`, `DATE`, `TIME`, `TIMESTAMP`, `UUID` |
-| `kg_build_system.kernel.model.public.workflow` | `WorkflowPlan` |
+| `kg_build_system.kernel.model.public.workflow` | `JsonValue`, `WorkflowPlan` |
 <!-- END GENERATED:api -->
 
 The block above is generated from `_GROUPS` and names each defining module. Import the name from `kg_build_system`; the module path is evidence, not the authoring import. Do not edit the block by hand.
