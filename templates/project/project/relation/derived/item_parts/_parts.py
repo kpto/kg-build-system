@@ -8,7 +8,6 @@ part = Items.parts.alter_rows().expand()
 
 
 class PartRows(Stage(Items.row_source())):
-    """One row per part nested in one item."""
 
     options = StageOptions(
         name="part_rows",

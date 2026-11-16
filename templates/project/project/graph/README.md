@@ -16,11 +16,12 @@ access, derived relations, or the mapping from rows to records.
 ## Execution
 
 - `graph.py` holds the one `Graph` declaration and its root `Meaning`.
-- One directory per node kind: `node.py` and one file per edge from that node,
-  named `<predicate>__<target>.py`.
-- A concrete node or edge states its own purpose, claims and limitations.
+- A concrete node MUST own one directory: `node.py` and one file per edge from
+  that node, named `<predicate>__<target>.py`.
+- A concrete node or edge MUST state its own purpose, claims and limitations inline.
+- The declaration MUST NOT have a docstring; the meaning is its documentation.
 - A property is a value on a record, not a column and not a foreign key.
-- `__init__.py` re-exports; it declares nothing.
+- `__init__.py` MUST be a facade; it declares nothing.
 
 ## Support
 
@@ -31,3 +32,5 @@ Read `relation/README.md` next.
 
 `tests/test_philosophy.py` and `kbs check`. A record that names a source column
 is a binding decision in the wrong layer.
+
+The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY follow RFC 2119.

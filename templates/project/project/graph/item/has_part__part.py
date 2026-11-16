@@ -15,7 +15,6 @@ from project.graph.part.node import PartNode
 
 
 class HasPartEdge(Edge[ItemNode, PartNode]):
-    """One part of one item."""
 
     options = EdgeOptions(
         name="item_has_part",

@@ -15,14 +15,18 @@ definitions.
 
 ## Execution
 
-- One file per source relation.
+- A source relation MUST own one file.
 - `class Sites(SourceRelation[AssetT])` with `SourceRelationOptions(...)`.
 - Fields use `field(...)`; a nested record is a `Struct` beside it.
 - A field's definition states the value, its unit and its null meaning; name,
   type and provenance are derived.
-- A source relation read by a binding states a contract. The identity names the
-  source's key fields.
-- A nested `Struct` may live beside the source relation it serves.
+- A source relation read by a binding SHOULD declare a contract. The identity
+  names the source's key fields.
+- A nested `Struct` MAY live beside the source relation it serves.
+- A source relation MUST NOT expand an array or join another relation; that
+  belongs in `../derived/`.
+- The contract MUST be inline at the declaration. The declaration MUST NOT have a
+  docstring; the contract is its documentation.
 
 ## Support
 
@@ -30,5 +34,7 @@ Imports `asset/` and the framework. Read `../derived/README.md` next.
 
 ## Gate
 
-`tests/test_philosophy.py` and `kbs check`. A source relation that expands an array or joins another relation belongs in
-`../derived/`.
+`tests/test_philosophy.py` and `kbs check`. A source relation with a derivation
+fails the model check, not the wording.
+
+The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY follow RFC 2119.

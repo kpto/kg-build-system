@@ -8,7 +8,6 @@ from kg_build_system import Claim, Graph, GraphOptions, Limitation, Meaning, Pur
 
 
 class FixtureGraph(Graph):
-    """The template fixture graph."""
 
     options = GraphOptions(
         name="fixture",

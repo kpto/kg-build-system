@@ -13,7 +13,6 @@ from kg_build_system import (
 
 
 class PartNode(Node):
-    """One part in the template fixture."""
 
     options = NodeOptions(
         name="part",

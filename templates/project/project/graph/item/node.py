@@ -13,7 +13,6 @@ from kg_build_system import (
 
 
 class ItemNode(Node):
-    """One item in the template fixture."""
 
     options = NodeOptions(
         name="item",

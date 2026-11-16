@@ -20,7 +20,6 @@ from project.asset.fixture import Fixture
 
 
 class Part(Struct):
-    """One part nested in an item."""
 
     part_id: Field[str] = field(
         definition=FieldDefinition("The fixture's part identifier."),
@@ -31,7 +30,6 @@ class Part(Struct):
 
 
 class Items(SourceRelation[Fixture]):
-    """One row per item in the fixture source."""
 
     options = SourceRelationOptions(
         name="items",

@@ -17,8 +17,8 @@ Own `test_philosophy.py` and the smoke test. Do not own declarations.
 - `test_philosophy.py` checks facades, import direction, stage privacy, derived
   contracts, binding purposes and the graph purpose.
 - `test_project.py` proves the blueprint and plan compile and the fixture builds.
-- Add a test when you add a rule. Do not add a test that only repeats a
-  declaration's text.
+- A rule MUST have a test. Do not add a test that only repeats a declaration's
+  text.
 
 ## Support
 
@@ -28,3 +28,5 @@ Reads `project.build` and the framework DTOs. No network.
 
 `uv run pytest` and `kbs check`. A failure is a model change; if a check is
 wrong, change the check and say why.
+
+The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY follow RFC 2119.

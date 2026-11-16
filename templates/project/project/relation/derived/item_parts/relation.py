@@ -17,7 +17,6 @@ from project.relation.derived.item_parts._parts import PartRows
 
 
 class ItemParts(DerivedRelation(PartRows.row_source())):
-    """One row per item and part."""
 
     options = DerivedRelationOptions(
         name="item_parts",

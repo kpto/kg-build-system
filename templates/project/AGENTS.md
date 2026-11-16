@@ -1,5 +1,8 @@
 # Agent notes
 
+In this file and the directory directives, the key words MUST, MUST NOT, SHOULD,
+SHOULD NOT and MAY are used as defined in RFC 2119.
+
 ## The model in one screen
 
 A graph is an argument, not a pipeline. It has two axes:
@@ -24,6 +27,12 @@ what the graph asserts                   what the domain contains
 - A **published relation must not know the record**. If it names the record's key,
   properties or endpoints, it is a stage in disguise.
 - The **declaration is the product**; the build is replaceable.
+- **Inline the meaning.** `Meaning`, `Contract` and `FieldDefinition` belong at
+  the declaration. Do not introduce a module-level meaning constant, a lookup
+  table or a helper that assembles purpose, claim or limitation text.
+- **A declaration has no docstring.** Its `Meaning` is its documentation. A
+  module docstring MAY state the file's role, but it MUST NOT restate the
+  declaration's meaning.
 
 ## First task
 
@@ -47,8 +56,10 @@ what the graph asserts                   what the domain contains
   is nullable; a computed output follows its selection.
 - A derived relation is a package: `relation.py` publishes, `_stage.py` composes.
 - The identity in a `Definition` names outputs and must be true of the plan.
-- A binding reads a published relation, never a stage.
+- A binding MUST read a published relation, never a stage.
 - A missing value is a design decision, not a default hidden in a binding.
+- A declaration MUST attach its meaning inline. A meaning that lives in a table
+  or a helper is not attached to the declaration it governs.
 
 The stranger test: could a reviewer who has not seen the code say what a
 declaration is for, what it asserts and what it excludes? If not, the meaning is

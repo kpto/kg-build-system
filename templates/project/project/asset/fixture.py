@@ -23,7 +23,6 @@ DATA = Path(__file__).parent.parent / "data"
 
 
 class Fixture(Asset):
-    """The template's fixture source: items with nested parts."""
 
     options = AssetOptions(
         name="fixture",

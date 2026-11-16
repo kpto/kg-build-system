@@ -15,13 +15,16 @@ to a record.
 
 ## Execution
 
-- One package per relation: `relation.py` publishes, `_<stage>.py` composes.
+- One package MUST own one relation: `relation.py` publishes, `_<stage>.py`
+  composes.
 - `DerivedRelation(rows)`, `computed_field(...)`,
   `Contract(Definition(...), Meaning(...))`.
 - The identity MUST name declared outputs and MUST be true of the plan; add a
   key output or `distinct()` rather than declare a false identity.
 - A published relation MUST NOT name a record's property, key or endpoint.
-- A step with no consumer is a `Stage`, not a relation.
+- A step with no consumer MUST be a `Stage`, not a relation.
+- The contract MUST be inline at the declaration. The declaration MUST NOT have a
+  docstring; the contract is its documentation.
 
 ## Support
 
@@ -32,3 +35,5 @@ Imports `relation/source`, `asset/` and the framework. Never `graph/` or
 
 `tests/test_philosophy.py` and `kbs check`. A failure changes the design, not the
 wording.
+
+The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY follow RFC 2119.

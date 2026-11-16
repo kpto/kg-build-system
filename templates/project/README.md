@@ -30,6 +30,8 @@ tests/                   the philosophy gate and the smoke test
 ```
 
 Each directory has a `README.md` directive. Read it before adding a file there.
+The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY in those directives are
+used as defined in RFC 2119.
 
 ## Replace the fixture
 
