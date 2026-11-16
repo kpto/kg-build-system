@@ -51,7 +51,7 @@ export function ContextMenu({ x, y, label, items, onClose }: ContextMenuProps) {
       ref={ref}
       role="menu"
       aria-label={label}
-      className="context-menu-pop fixed z-[100] w-[212px] overflow-hidden rounded border border-line-strong bg-panel shadow-2xl"
+      className="context-menu-pop fixed z-[100] w-[212px] overflow-hidden rounded border border-line-strong bg-panel"
       style={{ left, top }}
       data-testid="context-menu"
       onContextMenu={(event) => event.preventDefault()}

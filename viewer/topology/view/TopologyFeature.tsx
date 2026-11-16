@@ -278,7 +278,7 @@ function FilterButton({
       onClick={onClick}
       title={title}
       className={cx(
-        "inline-flex min-h-[26px] items-center gap-1.5 rounded-[5px] border px-[7px] py-[2px] text-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] transition-colors",
+        "inline-flex min-h-[26px] items-center gap-1.5 rounded-[5px] border px-[7px] py-[2px] text-[13px] transition-colors",
         pressed
           ? "border-accent bg-accent text-white"
           : "border-line-soft bg-panel-soft/40 text-muted hover:border-line-strong hover:text-text",
@@ -593,7 +593,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <button
               type="button"
               onClick={() => store.requestFit()}
-              className="inline-flex min-h-[26px] items-center rounded-[5px] border border-line-soft bg-panel-soft/40 px-[7px] text-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-[26px] items-center rounded-[5px] border border-line-soft bg-panel-soft/40 px-[7px] text-[13px] text-muted hover:border-line-strong hover:text-text"
               title="Fit every visible node and link in the editor"
             >
               Fit
@@ -601,7 +601,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <button
               type="button"
               onClick={() => store.requestZoom(1 / 1.25)}
-              className="inline-flex min-h-[26px] items-center rounded-[5px] border border-line-soft bg-panel-soft/40 px-[7px] text-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-[26px] items-center rounded-[5px] border border-line-soft bg-panel-soft/40 px-[7px] text-[13px] text-muted hover:border-line-strong hover:text-text"
               title="Zoom out"
               aria-label="Zoom out"
             >
@@ -610,7 +610,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <button
               type="button"
               onClick={() => store.requestZoom(1.25)}
-              className="inline-flex min-h-[26px] items-center rounded-[5px] border border-line-soft bg-panel-soft/40 px-[7px] text-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-[26px] items-center rounded-[5px] border border-line-soft bg-panel-soft/40 px-[7px] text-[13px] text-muted hover:border-line-strong hover:text-text"
               title="Zoom in"
               aria-label="Zoom in"
             >
@@ -633,7 +633,7 @@ export function TopologySidebar(props: WorkspaceProps): JSX.Element {
             <button
               type="button"
               onClick={() => store.requestReset()}
-              className="inline-flex min-h-[26px] items-center rounded-[5px] border border-line-soft bg-panel-soft/40 px-[7px] text-[13px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] text-muted hover:border-line-strong hover:text-text"
+              className="inline-flex min-h-[26px] items-center rounded-[5px] border border-line-soft bg-panel-soft/40 px-[7px] text-[13px] text-muted hover:border-line-strong hover:text-text"
               title="Clear filters, detail and pinned positions, then fit the graph"
             >
               Reset
@@ -1945,7 +1945,7 @@ export function TopologyEditor(props: WorkspaceProps): JSX.Element {
 
       {hover && hoverEntity ? (
         <div
-          className="pointer-events-none absolute z-30 w-[270px] overflow-hidden border border-line-soft bg-panel/98 shadow-lg"
+          className="pointer-events-none absolute z-30 w-[270px] overflow-hidden border border-line-soft bg-panel/98"
           style={{ left: hover.x + 14, top: hover.y + 14 }}
         >
           <p className="border-b border-line-soft px-2 py-1 font-mono text-[12px] break-words text-accent-strong">
@@ -2175,7 +2175,7 @@ export function TopologyInspector({
               <button
                 type="button"
                 onClick={() => openInDetail(props)}
-                className="rounded border border-accent/60 bg-accent/10 px-2.5 py-1 text-[12px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] text-accent-strong hover:border-accent hover:text-text"
+                className="rounded border border-accent/60 bg-accent/10 px-2.5 py-1 text-[12px] text-accent-strong hover:border-accent hover:text-text"
                 data-testid="topology-open-detail"
               >
                 Detail
@@ -2183,7 +2183,7 @@ export function TopologyInspector({
               <button
                 type="button"
                 onClick={() => clearSelection(props)}
-                className="rounded border border-line-soft px-2.5 py-1 text-[12px] shadow-[inset_0_1px_0_rgba(255,255,255,0.08)] text-muted hover:border-line-strong hover:text-text"
+                className="rounded border border-line-soft px-2.5 py-1 text-[12px] text-muted hover:border-line-strong hover:text-text"
               >
                 Clear
               </button>

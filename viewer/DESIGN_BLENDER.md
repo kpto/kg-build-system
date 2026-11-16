@@ -11,7 +11,9 @@ Reference: Blender 4.x dark theme, not a generic dashboard.
 
 - **Areas, not floating cards.** The application is a workbench of flat
   rectangular regions separated by a 1px dark seam. Regions are plates, not
-  cards: no glass, no floating panel stacks, no shadow between regions. A
+  cards: no glass, no floating panel stacks, and no drop, text or emboss shadow
+  on any component. Selection bars and focus rings are state indicators, not
+  shadows. A
   detail panel body has 10/12px padding and plates are separated by 4px.
 - **One reading size.** Prose is 14px with a 1.46 line height; chrome is 13px;
   metadata is 11–12px. The panel title weight is 400, not 600.
