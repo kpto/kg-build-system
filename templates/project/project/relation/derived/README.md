@@ -17,14 +17,26 @@ to a record.
 
 - One package MUST own one relation: `relation.py` MUST publish, `_<stage>.py`
   MUST compose.
-- A derived relation MUST be declared with `DerivedRelation(rows)`,
-  `computed_field(...)` and `Contract(Definition(...), Meaning(...))`.
+- A derived relation MUST pin a named row source and read every output through
+  its shape:
+
+  ```python
+  rows = <source>.row_source()
+
+  class Name(DerivedRelation(rows)):
+      options = DerivedRelationOptions(...)
+      field = computed_field(rows.shape.<field>)
+  ```
+
+  A `Stage` MUST follow the same pattern with `Stage(rows)`. The named row source
+  is the one non-declaration value the style keeps.
 - The identity MUST name declared outputs and MUST be true of the plan; add a key
   output or `distinct()` rather than declare a false identity.
 - A published relation MUST NOT name a record's property, key or endpoint.
 - A step with no consumer MUST be a `Stage`, not a relation.
 - Each output expression MUST be inlined at its `computed_field`; a one-use
-  selection MUST NOT become a module-level helper. The contract MUST be inline at
+  selection MUST NOT become a module-level helper. The pinned row source is the
+  exception: it is named, and every output reads `rows.shape.<field>`. The contract MUST be inline at
   the declaration. The declaration MUST NOT have a docstring.
 
 ## Support

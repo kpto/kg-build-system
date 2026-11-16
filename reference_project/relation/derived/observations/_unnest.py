@@ -4,10 +4,12 @@ from kg_build_system import Definition, Stage, StageOptions, computed_field
 
 from reference_project.relation.derived.defects.relation import Defects
 
-observation = Defects.observations.alter_rows().expand()
+defect_rows = Defects.row_source()
+
+observation = defect_rows.shape.observations.alter_rows().expand()
 
 
-class ObservationRows(Stage(Defects.row_source())):
+class ObservationRows(Stage(defect_rows)):
     """One row per observation nested in one defect."""
 
     options = StageOptions(
@@ -18,8 +20,8 @@ class ObservationRows(Stage(Defects.row_source())):
         ),
     )
 
-    survey_id = computed_field(Defects.survey_id)
-    defect_id = computed_field(Defects.defect_id)
+    survey_id = computed_field(defect_rows.shape.survey_id)
+    defect_id = computed_field(defect_rows.shape.defect_id)
     observation_uid = computed_field(
         observation.extract(lambda value: value.observation_uid)
     )

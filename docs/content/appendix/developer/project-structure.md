@@ -131,7 +131,10 @@ from kg_build_system import Definition, Stage, StageOptions, computed_field
 from project.relation.source.surveys import Surveys
 
 
-class DefectRows(Stage(Surveys.row_source())):
+survey_rows = Surveys.row_source()
+
+
+class DefectRows(Stage(survey_rows)):
     options = StageOptions(
         name="defect_rows",
         definition=Definition(
@@ -140,7 +143,7 @@ class DefectRows(Stage(Surveys.row_source())):
         ),
     )
 
-    areas = computed_field(Surveys.areas.alter_rows().expand())
+    areas = computed_field(survey_rows.shape.areas.alter_rows().expand())
     elements = computed_field(areas.extract(lambda value: value.elements).alter_rows().expand())
     defects = computed_field(elements.extract(lambda value: value.defects).alter_rows().expand())
     defect_id = computed_field(defects.extract(lambda value: value.defect_id))
@@ -157,7 +160,10 @@ from kg_build_system import (
 from project.relation.derived.defect._stage_flatten import DefectRows
 
 
-class Defect(DerivedRelation(DefectRows.row_source())):
+defect_rows = DefectRows.row_source()
+
+
+class Defect(DerivedRelation(defect_rows)):
     options = DerivedRelationOptions(
         name="defect",
         contract=Contract(
@@ -169,8 +175,8 @@ class Defect(DerivedRelation(DefectRows.row_source())):
         ),
     )
 
-    defect_id = computed_field(DefectRows.defect_id)
-    title = computed_field(DefectRows.title)
+    defect_id = computed_field(defect_rows.shape.defect_id)
+    title = computed_field(defect_rows.shape.title)
 ```
 
 ### Generated packages follow the same rule

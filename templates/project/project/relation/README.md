@@ -17,6 +17,8 @@ Own source relations and derived relations. Do not own records or bindings.
 
 - A source relation MUST be asset-backed; a derived relation MUST be computed and
   published.
+- A derived relation MUST pin a named row source: `rows = <expr>.row_source()`,
+  `class Name(DerivedRelation(rows))`, and `computed_field(rows.shape.<field>)`.
 - A published relation MUST be a `Contract`: Definition(grain, identity) +
   Meaning.
 - The relation MUST be stateable in one sentence with no graph nouns and no

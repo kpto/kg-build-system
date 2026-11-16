@@ -9,12 +9,13 @@ from kg_build_system import Definition, Stage, StageOptions, computed_field
 
 from reference_project.relation.source.estate.surveys import SurveysSourceRelation
 
-area = SurveysSourceRelation.areas.alter_rows().expand()
+survey_rows = SurveysSourceRelation.row_source()
+area = survey_rows.shape.areas.alter_rows().expand()
 element = area.extract(lambda value: value.elements).alter_rows().expand()
 defect = element.extract(lambda value: value.defects).alter_rows().expand()
 
 
-class DefectRows(Stage(SurveysSourceRelation.row_source())):
+class DefectRows(Stage(survey_rows)):
     """One row per defect nested in one survey document."""
 
     options = StageOptions(
@@ -25,8 +26,8 @@ class DefectRows(Stage(SurveysSourceRelation.row_source())):
         ),
     )
 
-    survey_id = computed_field(SurveysSourceRelation.survey_id.alter_rows().drop_null())
-    surveyed_on = computed_field(SurveysSourceRelation.surveyed_on)
+    survey_id = computed_field(survey_rows.shape.survey_id.alter_rows().drop_null())
+    surveyed_on = computed_field(survey_rows.shape.surveyed_on)
     unit_ref = computed_field(element.extract(lambda value: value.unit_ref))
     defect_id = computed_field(defect.extract(lambda value: value.defect_id))
     title = computed_field(defect.extract(lambda value: value.title))

@@ -408,7 +408,10 @@ class SiteScoreStage(Stage(scored_sites)):
     score = computed_field(scored_sites.shape.priority_scores)
 
 
-class SiteScoreRelation(DerivedRelation(SiteScoreStage.row_source())):
+site_score_rows = SiteScoreStage.row_source()
+
+
+class SiteScoreRelation(DerivedRelation(site_score_rows)):
     options = DerivedRelationOptions(
         name="site_score",
         contract=Contract(
@@ -424,9 +427,9 @@ class SiteScoreRelation(DerivedRelation(SiteScoreStage.row_source())):
         ),
     )
 
-    site_id = computed_field(SiteScoreStage.site_id)
+    site_id = computed_field(site_score_rows.shape.site_id)
     priority_score = computed_field(
-        SiteScoreStage.score,
+        site_score_rows.shape.score,
         name="priority_score",
         definition=FieldDefinition(
             value="The priority score recorded for the site.",

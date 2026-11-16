@@ -15,8 +15,10 @@ from kg_build_system import (
 
 from reference_project.relation.derived.observations._unnest import ObservationRows
 
+observation_rows = ObservationRows.row_source()
 
-class Observations(DerivedRelation(ObservationRows.row_source())):
+
+class Observations(DerivedRelation(observation_rows)):
     """One row per observation nested in one defect."""
 
     options = DerivedRelationOptions(
@@ -47,37 +49,37 @@ class Observations(DerivedRelation(ObservationRows.row_source())):
     )
 
     survey_id = computed_field(
-        ObservationRows.survey_id,
+        observation_rows.shape.survey_id,
         definition=FieldDefinition(
             "The survey document the observation was recorded in."
         ),
     )
     defect_id = computed_field(
-        ObservationRows.defect_id,
+        observation_rows.shape.defect_id,
         definition=FieldDefinition(
             "The defect identifier the observation belongs to."
         ),
     )
     observation_uid = computed_field(
-        ObservationRows.observation_uid,
+        observation_rows.shape.observation_uid,
         definition=FieldDefinition(
             "The observation identifier within the survey document."
         ),
     )
     value = computed_field(
-        ObservationRows.value,
+        observation_rows.shape.value,
         definition=FieldDefinition(
             "The recorded value in the surveyor's unit."
         ),
     )
     observed_by = computed_field(
-        ObservationRows.observed_by,
+        observation_rows.shape.observed_by,
         definition=FieldDefinition(
             "The surveyor or instrument that recorded the observation."
         ),
     )
     observed_on = computed_field(
-        ObservationRows.observed_on,
+        observation_rows.shape.observed_on,
         definition=FieldDefinition(
             "The date the observation was recorded."
         ),

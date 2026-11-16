@@ -29,8 +29,12 @@ what the graph asserts                   what the domain contains
 - The **declaration is the product**; the build is replaceable.
 - **Prefer inline.** Write an expression at the field or declaration that uses
   it. A one-use module-level helper, selection alias or meaning constant is
-  forbidden. Name a value only when it is itself a declaration, or when several
-  declarations genuinely share it.
+  forbidden. The one exception is the row source a computed declaration pins:
+  name it, pin it, and read every output through its shape.
+- **Derived relations pin a named row source.** Write
+  `rows = <expr>.row_source()`, then `class Name(DerivedRelation(rows))` and
+  `field = computed_field(rows.shape.<field>)`. A stage follows the same pattern
+  with `Stage(rows)`; this is the one named value that is not a declaration.
 - **Inline the meaning.** `Meaning`, `Contract` and `FieldDefinition` belong at
   the declaration. Do not introduce a module-level meaning constant, a lookup
   table or a helper that assembles purpose, claim or limitation text.

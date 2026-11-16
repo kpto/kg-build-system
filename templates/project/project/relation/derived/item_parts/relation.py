@@ -15,8 +15,10 @@ from kg_build_system import (
 
 from project.relation.derived.item_parts._parts import PartRows
 
+part_rows = PartRows.row_source()
 
-class ItemParts(DerivedRelation(PartRows.row_source())):
+
+class ItemParts(DerivedRelation(part_rows)):
 
     options = DerivedRelationOptions(
         name="item_parts",
@@ -46,14 +48,14 @@ class ItemParts(DerivedRelation(PartRows.row_source())):
     )
 
     item_id = computed_field(
-        PartRows.item_id,
+        part_rows.shape.item_id,
         definition=FieldDefinition("The item identifier the part belongs to."),
     )
     part_id = computed_field(
-        PartRows.part_id,
+        part_rows.shape.part_id,
         definition=FieldDefinition("The fixture's part identifier."),
     )
     part_value = computed_field(
-        PartRows.part_value,
+        part_rows.shape.part_value,
         definition=FieldDefinition("The fixture's part value."),
     )
